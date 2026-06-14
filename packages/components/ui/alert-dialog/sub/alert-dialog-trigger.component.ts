@@ -9,7 +9,14 @@ import { ALERT_DIALOG } from '../alert-dialog.component';
     selector: 'ui-alert-dialog-trigger',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span (click)="onClick()" [attr.data-slot]="'alert-dialog-trigger'">
+    <span
+      (click)="onClick()"
+      (keydown.enter)="onClick()"
+      (keydown.space)="onClick()"
+      [attr.data-slot]="'alert-dialog-trigger'"
+      tabindex="0"
+      role="button"
+    >
       <ng-content />
     </span>
   `,
@@ -18,7 +25,7 @@ import { ALERT_DIALOG } from '../alert-dialog.component';
 export class AlertDialogTriggerComponent {
     private readonly alertDialog = inject(ALERT_DIALOG, { optional: true });
 
-    onClick() {
+    onClick(): void {
         this.alertDialog?.toggle();
     }
 }

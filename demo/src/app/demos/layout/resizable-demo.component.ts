@@ -45,7 +45,7 @@ import { RESIZABLE_DEMO_LOCALES } from './resizable-demo.locales';
               <span class="font-semibold">{{ t().topPanel }} ({{ verticalTopSize() }}%)</span>
             </div>
           </ui-resizable-panel>
-          <ui-resizable-handle [withHandle]="false" [handleSize]="2" (resize)="onVerticalResize($event)" />
+          <ui-resizable-handle [withHandle]="false" [handleSize]="2" (resized)="onVerticalResize($event)" />
           <ui-resizable-panel [defaultSize]="60">
             <div class="flex h-full items-center justify-center p-6">
               <span class="font-semibold">{{ t().bottomPanel }} ({{ verticalBottomSize() }}%)</span>

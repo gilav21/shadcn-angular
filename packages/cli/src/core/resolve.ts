@@ -2,7 +2,7 @@ import { registry, type ComponentName } from '../registry/index.js';
 
 export function resolveDependencies(names: ComponentName[]): Set<ComponentName> {
     const all = new Set<ComponentName>();
-    const walk = (name: ComponentName) => {
+    const walk = (name: ComponentName): void => {
         if (all.has(name)) return;
         all.add(name);
         for (const dep of registry[name].dependencies ?? []) {

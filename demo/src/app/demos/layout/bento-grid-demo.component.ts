@@ -83,7 +83,7 @@ export class BentoGridDemoComponent {
         { id: '4', x: 1, y: 3, cols: 8, rows: 4, content: ActivityWidgetComponent },
         { id: '5', x: 9, y: 3, cols: 4, rows: 4, content: TeamWidgetComponent },
         { id: '6', x: 1, y: 7, cols: 4, rows: 4, content: CalendarWidgetComponent },
-        { id: '7', x: 5, y: 7, cols: 4, rows: 3, content: ActionWidgetComponent, outputs: { action: (type: string) => this.onWidgetAction(type) } },
+        { id: '7', x: 5, y: 7, cols: 4, rows: 3, content: ActionWidgetComponent, outputs: { action: (event: unknown) => this.onWidgetAction(event as string) } },
       ]);
     });
   }

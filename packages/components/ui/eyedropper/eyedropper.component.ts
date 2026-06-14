@@ -20,9 +20,7 @@ interface EyeDropperResult {
     sRGBHex: string;
 }
 
-interface EyeDropperApi {
-    new (): { open(): Promise<EyeDropperResult> };
-}
+type EyeDropperApi = new () => { open(): Promise<EyeDropperResult> };
 
 type FallbackTarget = HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | null;
 
@@ -227,14 +225,14 @@ function installFallbackSampler(
 
     target.addEventListener('click', onCommit);
     target.addEventListener('touchend', onCommit);
-    window.addEventListener('keydown', onKey);
+    globalThis.addEventListener('keydown', onKey);
     const dragCleanup = onPointerDrag(onMove, () => { /* drag end is not a commit */ });
 
     return () => {
         target.style.cursor = originalCursor;
         target.removeEventListener('click', onCommit);
         target.removeEventListener('touchend', onCommit);
-        window.removeEventListener('keydown', onKey);
+        globalThis.removeEventListener('keydown', onKey);
         dragCleanup();
     };
 }

@@ -12,7 +12,7 @@ import { getConfig, getDefaultConfig, getPrefix } from '../../utils/config.js';
 import { getLocalComponentsDir } from '../../utils/paths.js';
 import { json, err } from './result.js';
 
-export function registerReadTools(server: McpServer, cwd: string): void {
+function registerSearchTools(server: McpServer): void {
     server.registerTool('list_components', {
         title: 'List components',
         description: 'List every available shadcn-angular component with its category, description and tags.',
@@ -56,7 +56,9 @@ export function registerReadTools(server: McpServer, cwd: string): void {
             npmDependencies: [...npm],
         });
     });
+}
 
+function registerDetailTools(server: McpServer, cwd: string): void {
     server.registerTool('get_component_source', {
         title: 'Get component source',
         description: 'Fetch the source of every file in a component, with import/prefix transforms applied to the local project config.',
@@ -96,7 +98,9 @@ export function registerReadTools(server: McpServer, cwd: string): void {
             return err(`No examples found for ${name}.`);
         }
     });
+}
 
+function registerStatusTools(server: McpServer, cwd: string): void {
     server.registerTool('get_project_status', {
         title: 'Get project status',
         description: 'Read-only project dashboard: design tokens (density/radius/motion/theme), per-component health, and config.',
@@ -123,6 +127,12 @@ export function registerReadTools(server: McpServer, cwd: string): void {
         const plan = await planInstall({ components: names as ComponentName[], cwd, config, options: { branch: 'master' } });
         return json(plan);
     });
+}
+
+export function registerReadTools(server: McpServer, cwd: string): void {
+    registerSearchTools(server);
+    registerDetailTools(server, cwd);
+    registerStatusTools(server, cwd);
 }
 
 /** Locate a component's stories file: prefer one declared in `files`, else infer. */

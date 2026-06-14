@@ -679,7 +679,7 @@ export const registry = defineRegistry({
     tags: ['chip-list', 'chips', 'tags', 'tokens', 'multi-input'],
     files: ['chip-list/chip-list.component.html', 'chip-list/chip-list.component.ts', 'chip-list/index.ts'],
     libFiles: ['input-group.token.ts'],
-    dependencies: ['badge', 'button', 'input'],
+    dependencies: ['badge', 'input'],
   },
   'emoji-picker': {
     name: 'emoji-picker',
@@ -687,7 +687,7 @@ export const registry = defineRegistry({
     description: 'Searchable emoji selector with categories and a popover trigger.',
     tags: ['emoji-picker', 'emoji', 'picker', 'reactions', 'smileys'],
     files: ['emoji-picker/emoji-data.ts', 'emoji-picker/emoji-picker.component.ts', 'emoji-picker/index.ts', 'emoji-picker/sub/emoji-picker-content.component.ts', 'emoji-picker/sub/emoji-picker-trigger.component.ts'],
-    dependencies: ['input', 'scroll-area', 'tooltip'],
+    dependencies: ['input', 'input-group', 'scroll-area', 'tooltip'],
   },
   'rich-text-editor': {
     name: 'rich-text-editor',
@@ -1191,7 +1191,8 @@ export function getReverseDependents(name: ComponentName): Set<ComponentName> {
     const out = new Set<ComponentName>();
     const queue: ComponentName[] = [name];
     while (queue.length > 0) {
-        const current = queue.shift()!;
+        const current = queue.shift();
+        if (current === undefined) break;
         for (const dependent of graph.get(current) ?? []) {
             if (!out.has(dependent)) {
                 out.add(dependent);
@@ -1237,7 +1238,7 @@ export function levenshtein(a: string, b: string): number {
     for (let i = 1; i <= m; i++) {
         curr[0] = i;
         for (let j = 1; j <= n; j++) {
-            const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+            const cost = a.codePointAt(i - 1) === b.codePointAt(j - 1) ? 0 : 1;
             curr[j] = Math.min(
                 curr[j - 1] + 1,           // insertion
                 prev[j] + 1,               // deletion

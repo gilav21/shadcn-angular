@@ -183,6 +183,7 @@
               <div class="flex items-center justify-center p-4 h-full">
                 <video controls class="max-w-full max-h-full" [src]="mediaSrc()"
                        (error)="onMediaError('Failed to load video. The format may not be supported by your browser.')">
+                  <track kind="captions" src="" default>
                   Your browser does not support the video element.
                 </video>
               </div>

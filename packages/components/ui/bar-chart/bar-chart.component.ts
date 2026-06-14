@@ -7,6 +7,7 @@ import {
   signal,
   ElementRef,
   inject,
+  AfterViewInit,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
 import {
@@ -33,7 +34,7 @@ import {
     class: 'block',
   },
 })
-export class BarChartComponent {
+export class BarChartComponent implements AfterViewInit {
   private readonly el = inject(ElementRef);
 
   data = input.required<ChartDataPoint[]>();
@@ -72,13 +73,13 @@ export class BarChartComponent {
   constructor() {
   }
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this._checkDirection();
 
     setTimeout(() => this._checkDirection(), 0);
   }
 
-  private _checkDirection() {
+  private _checkDirection(): void {
     this._domRtl.set(isRtl(this.el.nativeElement));
   }
 
@@ -122,61 +123,62 @@ export class BarChartComponent {
     const range = this.dataRange();
     const gap = this.barGap();
     const isVert = this.isVertical();
-
-    const barCount = data.length;
-    const totalGaps = (barCount - 1) * gap;
-    const availableSpace = isVert ? area.width : area.height;
-    const barSize = (availableSpace - totalGaps) / barCount;
+    const barSize = this.computeBarSize(isVert, area, gap, data.length);
 
     return data.map((point, index) => {
       const normalizedValue = (point.value - range.min) / (range.max - range.min);
       const barLength = normalizedValue * (isVert ? area.height : area.width);
       const color = getChartColor(index, point.color);
-
-      let x: number, y: number, width: number, height: number;
-      let labelX: number, labelY: number;
-
-      if (isVert) {
-        // Vertical (Column) Chart
-        if (this.isRtl()) {
-          x = area.right - index * (barSize + gap) - barSize;
-        } else {
-          x = area.left + index * (barSize + gap);
-        }
-        y = area.bottom - barLength;
-        width = barSize;
-        height = barLength;
-        labelX = x + width / 2;
-        labelY = y - 6;
-      } else if (this.isRtl()) {
-        x = area.right - barLength;
-        y = area.top + index * (barSize + gap);
-        width = barLength;
-        height = barSize;
-        labelX = x - 6;
-        labelY = y + height / 2;
-      } else {
-        x = area.left;
-        y = area.top + index * (barSize + gap);
-        width = barLength;
-        height = barSize;
-        labelX = x + width + 6;
-        labelY = y + height / 2;
-      }
+      const pos = this.computeBarPosition(isVert, area, gap, barSize, barLength, index);
 
       return {
         index,
         data: point,
-        x,
-        y,
-        width: Math.max(0, width),
-        height: Math.max(0, height),
+        x: pos.x,
+        y: pos.y,
+        width: Math.max(0, pos.width),
+        height: Math.max(0, pos.height),
         color,
         value: point.value,
-        labelPosition: { x: labelX, y: labelY },
+        labelPosition: { x: pos.labelX, y: pos.labelY },
       };
     });
   });
+
+  private computeBarSize(
+    isVert: boolean,
+    area: { width: number; height: number },
+    gap: number,
+    count: number
+  ): number {
+    const availableSpace = isVert ? area.width : area.height;
+    return (availableSpace - (count - 1) * gap) / count;
+  }
+
+  private computeBarPosition(
+    isVert: boolean,
+    area: { left: number; right: number; top: number; bottom: number },
+    gap: number,
+    barSize: number,
+    barLength: number,
+    index: number
+  ): { x: number; y: number; width: number; height: number; labelX: number; labelY: number } {
+    if (isVert) {
+      const x = this.isRtl()
+        ? area.right - index * (barSize + gap) - barSize
+        : area.left + index * (barSize + gap);
+      const y = area.bottom - barLength;
+      return { x, y, width: barSize, height: barLength, labelX: x + barSize / 2, labelY: y - 6 };
+    }
+    if (this.isRtl()) {
+      const x = area.right - barLength;
+      const y = area.top + index * (barSize + gap);
+      return { x, y, width: barLength, height: barSize, labelX: x - 6, labelY: y + barSize / 2 };
+    }
+    const x = area.left;
+    const y = area.top + index * (barSize + gap);
+    return { x, y, width: barLength, height: barSize, labelX: x + barLength + 6, labelY: y + barSize / 2 };
+  }
 
   hoveredBar = computed(() => {
     const idx = this.hoveredIndex();
@@ -206,17 +208,17 @@ export class BarChartComponent {
     }
   }
 
-  onBarHover(bar: BarRect) {
+  onBarHover(bar: BarRect): void {
     this.hoveredIndex.set(bar.index);
     this.barHover.emit({ point: bar.data, index: bar.index });
   }
 
-  onBarLeave() {
+  onBarLeave(): void {
     this.hoveredIndex.set(null);
     this.barHover.emit(null);
   }
 
-  onBarClick(event: Event, bar: BarRect) {
+  onBarClick(event: Event, bar: BarRect): void {
     this.barClick.emit({
       point: bar.data,
       index: bar.index,

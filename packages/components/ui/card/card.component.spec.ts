@@ -92,7 +92,7 @@ describe('CardHeaderComponent', () => {
 
     it('should apply grid layout classes', () => {
         expect(fixture.nativeElement.className).toContain('grid');
-        expect(fixture.nativeElement.className).toContain('px-6');
+        expect(fixture.nativeElement.className).toContain('items-start');
     });
 });
 
@@ -155,8 +155,10 @@ describe('CardContentComponent', () => {
         expect(fixture.nativeElement.dataset['slot']).toBe('card-content');
     });
 
-    it('should apply padding classes', () => {
-        expect(fixture.nativeElement.className).toContain('px-6');
+    it('should forward custom classes', () => {
+        fixture.componentRef.setInput('class', 'custom-content');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.className).toContain('custom-content');
     });
 });
 

@@ -11,10 +11,7 @@ let animateCalls: AnimateCall[] = [];
 let reduceMotion = false;
 
 class FakeAnimation {
-    readonly finished: Promise<void>;
-    constructor() {
-        this.finished = Promise.resolve();
-    }
+    readonly finished: Promise<void> = Promise.resolve();
 }
 
 function installAnimateStub(): void {

@@ -129,6 +129,8 @@
             class="h-8 w-8"
             ariaLabel="Row actions"
             (click)="onActionsButtonClick($event, row, rowIndex)"
+            (keydown.enter)="onActionsButtonClick($event, row, rowIndex)"
+            (keydown.space)="onActionsButtonClick($event, row, rowIndex)"
           >
             <ui-icon name="more-vertical" size="sm" />
           </ui-button>
@@ -247,7 +249,7 @@
         ></ng-container>
       } @else if (rowDetailComponent()) {
         <div
-          [uiComponentOutlet]="rowDetailComponent()"
+          [uiComponentOutlet]="rowDetailComponent()!"
           [inputs]="getRowDetailComponentInputs(row)"
         ></div>
       } @else {
@@ -265,7 +267,7 @@
         >
           @if (emptyStateComponent()) {
             <ng-container
-              [uiComponentOutlet]="emptyStateComponent()"
+              [uiComponentOutlet]="emptyStateComponent()!"
               [inputs]="emptyStateComponentInputs()"
             ></ng-container>
           } @else {
@@ -290,15 +292,14 @@
       </div>
     } @else {
     <div class="flex flex-col w-full h-full space-y-4">
-      <div
+      <output
         class="sr-only"
-        role="status"
         aria-live="polite"
         aria-atomic="true"
         data-slot="data-table-announcer"
       >
         {{ srAnnouncement() }}
-      </div>
+      </output>
       @if (showToolbar()) {
         <div class="flex flex-wrap items-center justify-between gap-2 flex-none">
           <div class="flex flex-1 items-center space-x-2">
@@ -323,7 +324,7 @@
               <ui-popover-content class="w-56 p-2">
                 <div class="space-y-1">
                   @for (col of hideableColumns(); track col.accessorKey) {
-                    <label
+                    <div
                       class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
                     >
                       <ui-checkbox
@@ -334,7 +335,7 @@
                         [ariaLabel]="toggleColumnAriaLabel(col.header)"
                       />
                       <span>{{ col.header }}</span>
-                    </label>
+                    </div>
                   }
                 </div>
               </ui-popover-content>
@@ -372,7 +373,7 @@
               ></ng-container>
             } @else if (loaderComponent()) {
               <ng-container
-                [uiComponentOutlet]="loaderComponent()"
+                [uiComponentOutlet]="loaderComponent()!"
                 [inputs]="resolvedLoaderComponentInputs()"
               ></ng-container>
             } @else {
@@ -736,6 +737,12 @@
                         (click)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
@@ -778,6 +785,12 @@
                         (click)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
@@ -815,6 +828,12 @@
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getTreeCellStyle(col, treeRow.depth)"
                         (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
                         (dblclick)="
@@ -884,6 +903,12 @@
                         (click)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
@@ -920,6 +945,12 @@
                         (click)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
@@ -951,6 +982,12 @@
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getCellStyle(col)"
                         (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
                         (dblclick)="
@@ -1044,6 +1081,8 @@
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getTreeCellStyle(col, treeRow.depth)"
                         (click)="onCellClick(i, col, $event)"
+                        (keydown.enter)="onCellClick(i, col, $event)"
+                        (keydown.space)="onCellClick(i, col, $event)"
                         (dblclick)="onCellDblClick(i, col, $event)"
                         (touchend)="onCellTouchEnd($event, i, col)"
                       >
@@ -1101,6 +1140,8 @@
                       [attr.data-group-key]="displayRow.groupKey"
                       [attr.aria-expanded]="!displayRow.collapsed"
                       (click)="toggleGroupCollapsed(displayRow.groupKey)"
+                      (keydown.enter)="toggleGroupCollapsed(displayRow.groupKey)"
+                      (keydown.space)="toggleGroupCollapsed(displayRow.groupKey)"
                     >
                       <ui-table-cell
                         class="flex-1 border-b font-medium"
@@ -1207,7 +1248,7 @@
                         ></ng-container>
                       } @else if (fullWidthRowComponent()) {
                         <div
-                          [uiComponentOutlet]="fullWidthRowComponent()"
+                          [uiComponentOutlet]="fullWidthRowComponent()!"
                           [inputs]="{ row: row, index: i }"
                         ></div>
                       }
@@ -1233,7 +1274,7 @@
                     class="border-0"
                   >
                     @for (col of enhancedColumns(); track col.accessorKey) {
-                      <ui-table-cell [class]="getCellClass(col, i)" [attr.data-column]="String(col.accessorKey)" [style]="getCellStyle(col)" (click)="onCellClick(i, col, $event)" (dblclick)="onCellDblClick(i, col, $event)" (touchend)="onCellTouchEnd($event, i, col)">
+                      <ui-table-cell [class]="getCellClass(col, i)" [attr.data-column]="String(col.accessorKey)" [style]="getCellStyle(col)" (click)="onCellClick(i, col, $event)" (keydown.enter)="onCellClick(i, col, $event)" (keydown.space)="onCellClick(i, col, $event)" (dblclick)="onCellDblClick(i, col, $event)" (touchend)="onCellTouchEnd($event, i, col)">
                         <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: col, row: row, rowIndex: i, treeRow: null, recycle: false }"></ng-container>
                       </ui-table-cell>
                     }

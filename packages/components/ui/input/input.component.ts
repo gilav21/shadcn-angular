@@ -17,11 +17,11 @@ import { SkeletonComponent } from '../skeleton';
 import { IconComponent } from '../icon';
 
 const inputVariants = cva(
-    'border-input aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-transparent py-1 text-base transition-colors md:text-sm placeholder:text-muted-foreground w-full min-w-0 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
+    'border-input aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-transparent text-base transition-colors md:text-sm placeholder:text-muted-foreground w-full min-w-0 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
     {
         variants: {
             variant: {
-                outline: 'dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 rounded-lg border px-3 focus-visible:ring-[3px] aria-invalid:ring-[3px]',
+                outline: 'dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 rounded-lg border focus-visible:ring-[3px] aria-invalid:ring-[3px]',
                 underline: 'rounded-none border-b focus-visible:border-ring px-0 shadow-none',
                 ghost: 'border-none shadow-none focus-visible:ring-0 px-0',
             },
@@ -83,6 +83,9 @@ export class InputComponent implements ControlValueAccessor {
     readonly clearable = input(false);
     readonly floating = input(false);
     readonly label = input<string>();
+    /** Extra classes for the floating label, e.g. `text-base font-semibold
+     * text-foreground` — merged last so they override the defaults. */
+    readonly labelClass = input('');
     readonly prefix = input<string>();
     readonly suffix = input<string>();
 
@@ -107,9 +110,12 @@ export class InputComponent implements ControlValueAccessor {
         !!this.prefix() ||
         !!this.suffix() ||
         this.clearable() ||
-        (this.floating() && !!this.label()) ||
         this.loading()
     );
+
+    /** Floating-label mode: the label animates from a placeholder position to
+     * above the input, which keeps its variant styling and normal height. */
+    readonly isFloating = computed(() => this.floating() && !!this.label());
 
     readonly labelIsActive = computed(() =>
         this.isFocused() || !!this.value()
@@ -121,8 +127,6 @@ export class InputComponent implements ControlValueAccessor {
 
     readonly containerClasses = computed(() => cn(
         'relative flex w-full items-center rounded-lg border border-input shadow-xs',
-        'h-9',
-        this.floating() && this.label() && 'h-14',
         'transition-[color,box-shadow]',
         'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50',
         'dark:bg-input/30 bg-transparent',
@@ -136,28 +140,27 @@ export class InputComponent implements ControlValueAccessor {
     ));
 
     readonly floatingLabelClasses = computed(() => cn(
-        'absolute left-3 select-none pointer-events-none',
-        'transition-all duration-150',
-        this.labelIsActive()
-            ? 'top-1.5 text-xs text-muted-foreground'
-            : 'top-1/2 -translate-y-1/2 text-sm text-muted-foreground'
+        'pointer-events-none absolute select-none text-muted-foreground transition-all duration-150',
+        // Resting = uniform placeholder; on float it transforms to the (optionally
+        // dev-customized via labelClass) heading font.
+        this.labelIsActive() ? cn('text-xs', this.labelClass()) : 'text-sm'
     ));
 
-    onValueChange(value: string) {
+    onValueChange(value: string): void {
         this.value.set(value);
         this.onChange(value);
     }
 
-    onFocus() {
+    onFocus(): void {
         this.isFocused.set(true);
     }
 
-    onBlur() {
+    onBlur(): void {
         this.isFocused.set(false);
         this.onTouched();
     }
 
-    clearValue() {
+    clearValue(): void {
         this.onValueChange('');
         this.focus();
     }
@@ -180,7 +183,7 @@ export class InputComponent implements ControlValueAccessor {
 
     readonly inputRef = viewChild<ElementRef<HTMLInputElement>>('inputRef');
 
-    focus() {
+    focus(): void {
         this.inputRef()?.nativeElement.focus();
     }
 

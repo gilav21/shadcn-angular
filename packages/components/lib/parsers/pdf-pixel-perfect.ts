@@ -28,7 +28,7 @@ function getFallbackFont(): TtfFont | null {
 
     // Try Node.js file system
     try {
-        /* eslint-disable @typescript-eslint/no-require-imports */
+         
         const nodeRequire = resolveNodeRequire();
         if (!nodeRequire) return null;
 
@@ -58,7 +58,7 @@ declare const process: { cwd: () => string };
 declare type Buffer = ArrayBufferLike;
 
 function resolveNodeRequire(): ((m: string) => unknown) | undefined {
-    /* eslint-disable @typescript-eslint/no-require-imports */
+     
     if (__non_webpack_require__ !== undefined) return __non_webpack_require__;
     if (typeof module !== 'undefined' && typeof module.require === 'function') return module.require.bind(module);
     return undefined;
@@ -219,7 +219,7 @@ export class TransformMatrixManager {
             if (isIdentity) {
                 parts.push(`.${prefix}${id.toString(16)}{transform:none;}`);
             } else {
-                const r = (v: number) => Math.round(v * 1000000) / 1000000;
+                const r = (v: number): number => Math.round(v * 1000000) / 1000000;
                 const val = `matrix(${r(m[0])},${r(-m[1])},${r(-m[2])},${r(m[3])},0,0)`;
                 parts.push(`.${prefix}${id.toString(16)}{transform:${val};}`);
             }
@@ -243,7 +243,7 @@ export class AllStateManager {
 
     dumpAllCss(): string {
         const sections: string[] = [];
-        const addIfNonEmpty = (css: string) => { if (css) sections.push(css); };
+        const addIfNonEmpty = (css: string): void => { if (css) sections.push(css); };
 
         addIfNonEmpty(this.transformMatrix.dumpCss('m'));
         addIfNonEmpty(this.fillColor.dumpFillCss('fc'));
@@ -649,7 +649,7 @@ function getSystemFontFamily(baseFontName: string): string {
     name = name.replaceAll(/[-_,]+/g, ' ').trim();
 
     // Remove style/weight suffixes (run twice to catch consecutive: "PS Bold" → "")
-    const stylePat = /\s+(Bold|Italic|Regular|Medium|Light|Condensed|Black|Heavy|Oblique|Book|Demi|Semi|Ultra|Thin|Extra|PS)$/gi;
+    const stylePat = /(?=(\s+))\1(Bold|Italic|Regular|Medium|Light|Condensed|Black|Heavy|Oblique|Book|Demi|Semi|Ultra|Thin|Extra|PS)$/gi;
     name = name.replaceAll(stylePat, '').trim();
     name = name.replaceAll(stylePat, '').trim();
 
@@ -699,7 +699,16 @@ function buildUnicodeFallbackWidths(
     if (!glyphAdvances || info.toUnicode.size === 0) return null;
 
     const uniMap = new Map<number, number>();
-    for (const [code, unicodeStr] of info.toUnicode) {
+    fillUniMapFromGlyphAdvances(uniMap, info.toUnicode, glyphAdvances, unitsPerEm);
+    fillUniMapFromPdfWidths(uniMap, info.toUnicode, info.widths, info.defaultWidth);
+    return uniMap.size > 0 ? uniMap : null;
+}
+
+function fillUniMapFromGlyphAdvances(
+    uniMap: Map<number, number>, toUnicode: Map<number, string>,
+    glyphAdvances: Map<number, number>, unitsPerEm: number,
+): void {
+    for (const [code, unicodeStr] of toUnicode) {
         const cp = unicodeStr.codePointAt(0) ?? 0;
         if (cp <= 0) continue;
         const otAdv = glyphAdvances.get(code);
@@ -707,20 +716,23 @@ function buildUnicodeFallbackWidths(
             uniMap.set(cp, Math.round(otAdv * 1000 / unitsPerEm));
         }
     }
-    for (const [code, unicodeStr] of info.toUnicode) {
+}
+
+function fillUniMapFromPdfWidths(
+    uniMap: Map<number, number>, toUnicode: Map<number, string>,
+    widths: Map<number, number>, defaultWidth: number,
+): void {
+    for (const [code, unicodeStr] of toUnicode) {
         const cp = unicodeStr.codePointAt(0) ?? 0;
         if (cp <= 0 || uniMap.has(cp)) continue;
-        const pdfW = info.widths.get(code);
-        if (pdfW !== undefined && pdfW !== info.defaultWidth) {
-            uniMap.set(cp, pdfW);
-        }
+        const pdfW = widths.get(code);
+        if (pdfW !== undefined && pdfW !== defaultWidth) uniMap.set(cp, pdfW);
     }
-    return uniMap.size > 0 ? uniMap : null;
 }
 
 function buildFontBaseProps(entry: FontRegistryEntry): string {
     const lineHeight = Math.abs(entry.ascent - entry.descent) > 0.01
-        ? `line-height:${(entry.ascent - entry.descent).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')};` : '';
+        ? `line-height:${(entry.ascent - entry.descent).toFixed(6).replace(/0{1,8}$/, '').replace(/\.$/, '')};` : '';
     const isBold = entry.baseFontName.toLowerCase().includes('bold');
     const isItalic = entry.baseFontName.toLowerCase().includes('italic') ||
         entry.baseFontName.toLowerCase().includes('oblique');
@@ -961,7 +973,8 @@ function mapSymbolPua(unicode: string): string {
     if (unicode.length === 0) return unicode;
     const cp = unicode.codePointAt(0) ?? 0;
     if (cp >= 0xF000 && cp <= 0xF0FF) {
-        const mapped = SYMBOL_PUA_MAP[cp];
+        const mapped: number | undefined = SYMBOL_PUA_MAP[cp];
+        // eslint-disable-next-line sonarjs/different-types-comparison -- Record index returns undefined for absent keys at runtime
         if (mapped !== undefined) return String.fromCodePoint(mapped);
         // Fallback: strip F0 prefix → U+00XX
         return String.fromCodePoint(cp & 0x00FF);
@@ -1178,8 +1191,8 @@ function tmEqual(a: readonly number[], b: readonly number[], count: number, eps:
 }
 
 function rgbToHex(r: number, g: number, b: number): string {
-    const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v * 255)));
-    const hex = (v: number) => clamp(v).toString(16).padStart(2, '0');
+    const clamp = (v: number): number => Math.max(0, Math.min(255, Math.round(v * 255)));
+    const hex = (v: number): string => clamp(v).toString(16).padStart(2, '0');
     return `#${hex(r)}${hex(g)}${hex(b)}`;
 }
 
@@ -1193,9 +1206,7 @@ function grayToHex(g: number): string {
 
 // ── TextLine Model (1:1 translation of pdf2htmlEX HTMLTextLine) ──────
 
-const LINE_Y_EPS = 1;
-const LINE_TRANSFORM_EPS = 0.001;
-const DEFAULT_ASCENT_RATIO = 0.8;
+
 const H_EPS = 1;
 const SPACE_THRESHOLD = 0.125;
 const EPS = 0.001;
@@ -1226,20 +1237,6 @@ interface TextState {
     readonly fontDescent: number;
 }
 
-function textStatesEqual(a: TextState, b: TextState): boolean {
-    return a.fontName === b.fontName &&
-        a.fontFamily === b.fontFamily &&
-        Math.abs(a.fontSize - b.fontSize) < EPS &&
-        a.fillColor === b.fillColor &&
-        a.strokeColor === b.strokeColor &&
-        a.bold === b.bold &&
-        a.italic === b.italic &&
-        a.textRenderMode === b.textRenderMode &&
-        Math.abs(a.letterSpace - b.letterSpace) < EPS &&
-        Math.abs(a.wordSpace - b.wordSpace) < EPS &&
-        Math.abs(a.verticalAlign - b.verticalAlign) < EPS &&
-        Math.abs(a.horizontalScaling - b.horizontalScaling) < 0.01;
-}
 
 /**
  * Mirrors pdf2htmlEX HTMLTextLine::Offset.
@@ -1289,38 +1286,27 @@ function lineStylesEqual(a: LineStyleState | null, b: LineStyleState): boolean {
  */
 function lineStyleDiffClasses(prev: LineStyleState | null, cur: LineStyleState): string[] {
     const classes: string[] = [];
+    addFontClasses(prev, cur, classes);
+    addSpacingClasses(prev, cur, classes);
+    return classes;
+}
 
-    if (prev?.fontId !== cur.fontId) {
-        classes.push(`ff${h(cur.fontId)}`);
-    }
-    if (prev?.fontSizeId !== cur.fontSizeId) {
-        classes.push(`fs${h(cur.fontSizeId)}`);
-    }
-    if (prev?.fillColorId !== cur.fillColorId) {
-        classes.push(`fc${h(cur.fillColorId)}`);
-    }
+function addFontClasses(prev: LineStyleState | null, cur: LineStyleState, classes: string[]): void {
+    if (prev?.fontId !== cur.fontId) classes.push(`ff${h(cur.fontId)}`);
+    if (prev?.fontSizeId !== cur.fontSizeId) classes.push(`fs${h(cur.fontSizeId)}`);
+    if (prev?.fillColorId !== cur.fillColorId) classes.push(`fc${h(cur.fillColorId)}`);
+    if (!cur.embedded) handleBoldItalicDiff(prev, cur, classes);
+    if (cur.hasStroke && prev?.strokeColorId !== cur.strokeColorId) classes.push(`sc${h(cur.strokeColorId)}`);
+}
 
-    if (!cur.embedded) {
-        handleBoldItalicDiff(prev, cur, classes);
-    }
-
-    if (cur.hasStroke && prev?.strokeColorId !== cur.strokeColorId) {
-        classes.push(`sc${h(cur.strokeColorId)}`);
-    }
-    // Letter space: always output (C++ never makes it free)
-    if (prev?.letterSpaceId !== cur.letterSpaceId) {
-        classes.push(`ls${h(cur.letterSpaceId)}`);
-    }
-    // Word space: output only if NOT free (C++ hash_umask check)
+function addSpacingClasses(prev: LineStyleState | null, cur: LineStyleState, classes: string[]): void {
+    if (prev?.letterSpaceId !== cur.letterSpaceId) classes.push(`ls${h(cur.letterSpaceId)}`);
     if (!cur.wordSpaceFree && (!prev || prev.wordSpaceFree || prev.wordSpaceId !== cur.wordSpaceId)) {
         classes.push(`ws${h(cur.wordSpaceId)}`);
     }
-    // Vertical align: C++ only outputs for non-first states, and only if non-zero
     if (prev && !cur.verticalAlignIsZero && prev.verticalAlignId !== cur.verticalAlignId) {
         classes.push(`v${h(cur.verticalAlignId)}`);
     }
-
-    return classes;
 }
 
 function handleBoldItalicDiff(
@@ -1344,11 +1330,6 @@ function getFontRegistryId(fontName: string, fontFamily: string, fontRegistry: F
     return entry ? entry.id : -1;
 }
 
-function getFontAscent(fontName: string, fontFamily: string, fontRegistry: FontRegistry): number {
-    const entry = fontRegistry.getEntry(fontName) ?? fontRegistry.getEntry(fontFamily);
-    if (entry && entry.ascent > 0) return entry.ascent;
-    return DEFAULT_ASCENT_RATIO;
-}
 
 /**
  * Direct translation of pdf2htmlEX HTMLTextLine.
@@ -2038,7 +2019,7 @@ class PixelPerfectProcessor {
         this.textScaleFactor2 = zoom / this.textScaleFactor1;
     }
 
-    processPage(pageObj: PdfObject, pageIndex: number): ProcessedPage {
+    processPage(pageObj: PdfObject, _pageIndex: number): ProcessedPage {
         this.resetState();
         this.lines.length = 0;
         this.pathRects.length = 0;
@@ -2476,18 +2457,11 @@ class PixelPerfectProcessor {
 
     private operatorMap: Map<string, OperatorHandler> | null = null;
 
-    private getOperatorMap(): Map<string, OperatorHandler> {
-        if (this.operatorMap) return this.operatorMap;
-        const noop: OperatorHandler = () => { /* no-op */ };
-        const m = new Map<string, OperatorHandler>();
-
-        // Graphics state
+    private registerGraphicsStateOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
         m.set('q', () => this.saveState());
         m.set('Q', () => this.restoreState());
         m.set('cm', (_op, ops) => this.opCm(ops));
         m.set('w', (_op, ops) => { if (ops.length >= 1) this.lineWidth = Number.parseFloat(ops[0]); });
-
-        // Color operators
         m.set('g', (_op, ops) => { this.fillColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.fillColorChanged = true; });
         m.set('G', (_op, ops) => { this.strokeColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.strokeColorChanged = true; });
         m.set('rg', (_op, ops) => this.opRg(ops, true));
@@ -2500,8 +2474,12 @@ class PixelPerfectProcessor {
         m.set('SC', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
         m.set('scn', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
         m.set('SCN', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
+        m.set('Do', (_op, ops, res, pw, ph) => this.opDo(ops, res, pw, ph));
+        m.set('gs', (_op, ops, res) => this.opGs(ops, res));
+        for (const name of ['BMC', 'BDC', 'EMC', 'MP', 'DP', 'BI']) m.set(name, noop);
+    }
 
-        // Text state
+    private registerTextOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
         m.set('Tf', (_op, ops) => this.opTf(ops));
         m.set('Tc', (_op, ops) => { this.charSpace = Number.parseFloat(ops[0] ?? '0'); this.letterSpaceChanged = true; });
         m.set('Tw', (_op, ops) => { this.wordSpace = Number.parseFloat(ops[0] ?? '0'); this.wordSpaceChanged = true; });
@@ -2509,22 +2487,19 @@ class PixelPerfectProcessor {
         m.set('TL', (_op, ops) => { this.leading = Number.parseFloat(ops[0] ?? '0'); });
         m.set('Tr', (_op, ops) => { this.renderMode = Number.parseInt(ops[0] ?? '0', 10); this.fillColorChanged = true; this.strokeColorChanged = true; });
         m.set('Ts', (_op, ops) => { this.rise = Number.parseFloat(ops[0] ?? '0'); this.riseChanged = true; });
-
-        // Text positioning
         m.set('BT', () => this.opBT());
         m.set('ET', noop);
         m.set('Td', (_op, ops) => this.opTd(ops));
         m.set('TD', (_op, ops) => this.opTD(ops));
         m.set('Tm', (_op, ops) => this.opTm(ops));
         m.set('T*', () => this.opTStar());
-
-        // Text show
         m.set('Tj', (_op, ops) => this.opTj(ops));
         m.set('TJ', (_op, ops) => this.opTJ(ops));
         m.set('\'', (_op, ops) => { this.opTStar(); this.opTj(ops); });
         m.set('"', (_op, ops) => this.opQuoteDbl(ops));
+    }
 
-        // Path operators
+    private registerPathOps(m: Map<string, OperatorHandler>, noop: OperatorHandler): void {
         m.set('re', (_op, ops) => this.opRe(ops));
         m.set('m', (_op, ops) => this.opPathMove(ops));
         m.set('l', (_op, ops) => this.opPathLine(ops));
@@ -2542,14 +2517,15 @@ class PixelPerfectProcessor {
         m.set('b', () => this.paintPath(true, true));
         m.set('b*', () => this.paintPath(true, true));
         m.set('n', () => { this.pathPoints = []; this.generalPathPoints.length = 0; });
+    }
 
-        // XObject & ExtGState
-        m.set('Do', (_op, ops, res, pw, ph) => this.opDo(ops, res, pw, ph));
-        m.set('gs', (_op, ops, res) => this.opGs(ops, res));
-
-        // Marked content / inline images
-        for (const name of ['BMC', 'BDC', 'EMC', 'MP', 'DP', 'BI']) m.set(name, noop);
-
+    private getOperatorMap(): Map<string, OperatorHandler> {
+        if (this.operatorMap) return this.operatorMap;
+        const noop: OperatorHandler = () => { /* no-op */ };
+        const m = new Map<string, OperatorHandler>();
+        this.registerGraphicsStateOps(m, noop);
+        this.registerTextOps(m, noop);
+        this.registerPathOps(m, noop);
         this.operatorMap = m;
         return m;
     }
@@ -2631,7 +2607,7 @@ class PixelPerfectProcessor {
         else { this.strokeColor = hex; this.strokeColorChanged = true; }
     }
 
-    private opCs(operands: ReadonlyArray<string>, resources: Record<string, PdfObject>): void {
+    private opCs(operands: ReadonlyArray<string>, _resources: Record<string, PdfObject>): void {
         const name = operands[0]?.startsWith('/') ? operands[0].substring(1) : operands[0] ?? '';
         this.fillColorSpaceIsPattern = name === 'Pattern';
         if (!this.fillColorSpaceIsPattern) this.patternFillImage = null;
@@ -3012,19 +2988,18 @@ class PixelPerfectProcessor {
 
     // ── Helper methods ───────────────────────────────────────────────
 
+    private resolveSpaceCode(fi: FontInfo | null | undefined): number {
+        if (!fi?.isTwoByte) return 0x20;
+        for (const [cid, uni] of fi.toUnicode) {
+            if ((uni.codePointAt(0) ?? 0) === 0x20) return cid;
+        }
+        return 0x20;
+    }
+
     private buildTextState(): TextState {
         const fi = this.currentFontInfo;
         const entry = this.fontRegistry.getEntry(this.fontName);
-        // Font's space char width (in 1000ths) for single_space_offset
-        // Space width: find the CID/charCode that maps to Unicode U+0020.
-        // C++ uses byte 0x20 via getWidth(), but CID fonts may encode space at a different CID.
-        // Look up from ToUnicode map first, then fall back to code 0x20.
-        let spaceCode = 0x20;
-        if (fi?.isTwoByte) {
-            for (const [cid, uni] of fi.toUnicode) {
-                if ((uni.codePointAt(0) ?? 0) === 0x20) { spaceCode = cid; break; }
-            }
-        }
+        const spaceCode = this.resolveSpaceCode(fi);
         const spaceW = fi ? (fi.widths.get(spaceCode) ?? fi.defaultWidth) : 1000;
         return {
             fontName: this.fontName,
@@ -3063,6 +3038,13 @@ class PixelPerfectProcessor {
         }
     }
 
+    private tryAppendStream(s: PdfObject, parts: Uint8Array[]): void {
+        try {
+            const data = this.reader.getStreamData(s);
+            parts.push(data, new Uint8Array([0x20]));
+        } catch { /* skip */ }
+    }
+
     private resolveResources(pageDict: Record<string, PdfObject>): Record<string, PdfObject> {
         return pageDict['Resources'] ? this.reader.getDict(pageDict['Resources']) : {};
     }
@@ -3078,10 +3060,7 @@ class PixelPerfectProcessor {
                 const streams = this.reader.getArray(contentsRef);
                 const parts: Uint8Array[] = [];
                 for (const s of streams) {
-                    try {
-                        const data = this.reader.getStreamData(s);
-                        parts.push(data, new Uint8Array([0x20])); // space separator
-                    } catch { /* skip */ }
+                    this.tryAppendStream(s, parts);
                 }
                 const totalLen = parts.reduce((sum, p) => sum + p.length, 0);
                 const combined = new Uint8Array(totalLen);
@@ -3100,7 +3079,7 @@ class PixelPerfectProcessor {
 
     private extractAnnotations(
         pageDict: Record<string, PdfObject>,
-        pageHeight: number,
+        _pageHeight: number,
     ): PdfAnnotation[] {
         const annotsRef = pageDict['Annots'];
         if (!annotsRef) return [];
@@ -3109,32 +3088,27 @@ class PixelPerfectProcessor {
         try {
             const annots = this.reader.getArray(annotsRef);
             for (const annotRef of annots) {
-                try {
-                    const annotDict = this.reader.getDict(annotRef);
-                    const subtype = this.reader.getString(annotDict['Subtype']);
-                    if (subtype !== 'Link') continue;
-
-                    let uri = '';
-                    const aRef = annotDict['A'];
-                    if (aRef) {
-                        const aDict = this.reader.getDict(aRef);
-                        uri = this.reader.getString(aDict['URI']) || '';
-                    }
-                    if (!uri) continue;
-
-                    const rectArr = annotDict['Rect'] ? this.reader.getArray(annotDict['Rect']) : [];
-                    if (rectArr.length < 4) continue;
-                    const nums = rectArr.map(o => this.reader.getNumber(o));
-                    const x = Math.min(nums[0], nums[2]);
-                    const y = Math.min(nums[1], nums[3]);
-                    const w = Math.abs(nums[2] - nums[0]);
-                    const h = Math.abs(nums[3] - nums[1]);
-
-                    annotations.push({ x, y, width: w, height: h, uri });
-                } catch { /* skip malformed annotations */ }
+                this.tryExtractLinkAnnotation(annotRef, annotations);
             }
         } catch { /* skip */ }
         return annotations;
+    }
+
+    private tryExtractLinkAnnotation(annotRef: PdfObject, annotations: PdfAnnotation[]): void {
+        try {
+            const annotDict = this.reader.getDict(annotRef);
+            if (this.reader.getString(annotDict['Subtype']) !== 'Link') return;
+            const aRef = annotDict['A'];
+             
+            const uri = aRef ? this.reader.getString(this.reader.getDict(aRef)['URI']) || '' : '';
+            if (!uri) return;
+            const rectArr = annotDict['Rect'] ? this.reader.getArray(annotDict['Rect']) : [];
+            if (rectArr.length < 4) return;
+            const nums = rectArr.map(o => this.reader.getNumber(o));
+            const x = Math.min(nums[0], nums[2]), y = Math.min(nums[1], nums[3]);
+            const w = Math.abs(nums[2] - nums[0]), h = Math.abs(nums[3] - nums[1]);
+            annotations.push({ x, y, width: w, height: h, uri });
+        } catch { /* skip malformed annotations */ }
     }
 }
 

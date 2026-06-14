@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import prompts from 'prompts';
 import chalk from 'chalk';
-import ora from 'ora';
+import ora, { type Ora } from 'ora';
 import { getConfig, getPrefix, getBlocksAlias, type Config } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
 import {
@@ -10,21 +10,21 @@ import {
     aliasToProjectPath,
 } from '../utils/paths.js';
 import {
-    fetchAndTransform,
     normalizeContent,
 } from '../core/fetch.js';
 import { resolveDependencies } from '../core/resolve.js';
 import {
-    checkFileConflict,
-    classifyComponent,
     detectConflicts,
     type AddOptions,
+    type ConflictCheckResult,
 } from '../core/plan.js';
 import { performInstall } from '../core/install.js';
 
-export { fetchAndTransform, normalizeContent, resolveDependencies, checkFileConflict, classifyComponent, detectConflicts, type AddOptions };
+export { fetchAndTransform } from '../core/fetch.js';
+export { checkFileConflict, classifyComponent } from '../core/plan.js';
+export { normalizeContent, resolveDependencies, detectConflicts, type AddOptions };
 
-const onCancel = () => {
+const onCancel = (): void => {
     console.log(chalk.dim('\nCancelled.'));
     process.exit(0);
 };
@@ -107,7 +107,7 @@ export async function promptOptionalDependencies(
         hint: '- Space to select, Enter to confirm (or press Enter to skip)',
     }, { onCancel });
 
-    return selected || [];
+    return selected ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -167,7 +167,7 @@ async function promptOverwrite(
         choices: conflicting.map(name => ({ title: name, value: name })),
         hint: '- Space to select, Enter to confirm',
     }, { onCancel });
-    return selected || [];
+    return selected ?? [];
 }
 
 // ---------------------------------------------------------------------------
@@ -237,7 +237,39 @@ async function resolveBlockDestination(
 // Main entry point
 // ---------------------------------------------------------------------------
 
-export async function add(components: string[], options: AddOptions) {
+function printInstallResult(result: { installed: ComponentName[]; warnings: string[]; skipped: string[]; declined: ComponentName[] }, spinner: Ora): void {
+    if (result.installed.length > 0) {
+        spinner.succeed(chalk.green(`Success! Added ${result.installed.length} component(s)`));
+        console.log('\n' + chalk.dim('Components added:'));
+        for (const name of result.installed) console.log(chalk.dim('  - ') + chalk.cyan(name));
+    } else {
+        spinner.info('No new components installed.');
+    }
+    for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
+    printSkipSummary(result.skipped, result.declined);
+    console.log('');
+}
+
+async function resolveComponentsAndConflicts(
+    componentsToAdd: ComponentName[], options: AddOptions, config: Config, cwd: string,
+): Promise<{ allComponents: Set<ComponentName>; optionalChoices: ComponentName[]; componentPath: string | undefined; blocksPath: string | undefined; conflicts: ConflictCheckResult }> {
+    const resolvedComponents = resolveDependencies(componentsToAdd);
+    const optionalChoices = await promptOptionalDependencies(resolvedComponents, options);
+    const allComponents = optionalChoices.length > 0
+        ? resolveDependencies([...resolvedComponents, ...optionalChoices])
+        : resolvedComponents;
+    const hasBlock = [...allComponents].some(n => registry[n].type === 'block');
+    const { componentPath, blocksPath } = await resolveBlockDestination(hasBlock, options, config);
+     
+    const uiBasePath = componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
+    const targetDir = resolveProjectPath(cwd, uiBasePath);
+    const checkSpinner = ora('Checking for conflicts...').start();
+    const conflicts = await detectConflicts(allComponents, targetDir, options, config.aliases.utils, getPrefix(config));
+    checkSpinner.stop();
+    return { allComponents, optionalChoices, componentPath, blocksPath, conflicts };
+}
+
+export async function add(components: string[], options: AddOptions): Promise<void> {
     const cwd = process.cwd();
 
     const config = await getConfig(cwd);
@@ -247,7 +279,6 @@ export async function add(components: string[], options: AddOptions) {
         process.exit(1);
     }
 
-    // CLI flag takes priority over components.json
     if (!options.registry && config.registry) {
         options.registry = config.registry;
     }
@@ -260,60 +291,26 @@ export async function add(components: string[], options: AddOptions) {
 
     validateComponents(componentsToAdd);
 
-    const resolvedComponents = resolveDependencies(componentsToAdd);
-    const optionalChoices = await promptOptionalDependencies(resolvedComponents, options);
-    const allComponents = optionalChoices.length > 0
-        ? resolveDependencies([...resolvedComponents, ...optionalChoices])
-        : resolvedComponents;
-
-    const hasBlock = [...allComponents].some(n => registry[n].type === 'block');
-    const { componentPath, blocksPath } = await resolveBlockDestination(hasBlock, options, config);
-
-    const uiBasePath = componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
-    const targetDir = resolveProjectPath(cwd, uiBasePath);
-    const utilsAlias = config.aliases.utils;
-    const prefix = getPrefix(config);
-
-    const checkSpinner = ora('Checking for conflicts...').start();
-    const conflicts = await detectConflicts(allComponents, targetDir, options, utilsAlias, prefix);
+    const { optionalChoices, componentPath, blocksPath, conflicts } =
+        await resolveComponentsAndConflicts(componentsToAdd, options, config, cwd);
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
-    checkSpinner.stop();
 
-    const toOverwrite = await promptOverwrite(conflicting, options, targetDir, contentCache);
+    const toOverwrite = await promptOverwrite(conflicting, options,
+        resolveProjectPath(cwd, componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui')),  
+        contentCache);
     const declined = conflicting.filter(c => !toOverwrite.includes(c));
 
-    if (options.dryRun) {
-        printDryRunSummary(toInstall, toOverwrite, toSkip, declined);
-        return;
-    }
-
-    if (toInstall.length === 0 && toOverwrite.length === 0) {
-        printNothingToInstall(toSkip, declined);
-        return;
-    }
+    if (options.dryRun) { printDryRunSummary(toInstall, toOverwrite, toSkip, declined); return; }
+    if (toInstall.length === 0 && toOverwrite.length === 0) { printNothingToInstall(toSkip, declined); return; }
 
     const spinner = ora('Installing components...').start();
-
     try {
         const result = await performInstall({
-            components: componentsToAdd,
-            optionalDeps: optionalChoices,
-            overwrite: toOverwrite,
-            cwd, config, options, path: componentPath, blocksPath,
-            precomputedConflicts: conflicts,
+            components: componentsToAdd, optionalDeps: optionalChoices,
+            overwrite: toOverwrite, cwd, config, options,
+            path: componentPath, blocksPath, precomputedConflicts: conflicts,
         });
-
-        if (result.installed.length > 0) {
-            spinner.succeed(chalk.green(`Success! Added ${result.installed.length} component(s)`));
-            console.log('\n' + chalk.dim('Components added:'));
-            for (const name of result.installed) console.log(chalk.dim('  - ') + chalk.cyan(name));
-        } else {
-            spinner.info('No new components installed.');
-        }
-
-        for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
-        printSkipSummary(result.skipped, result.declined);
-        console.log('');
+        printInstallResult(result, spinner);
     } catch (error) {
         spinner.fail('Failed to add components');
         console.error(error);

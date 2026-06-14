@@ -27,7 +27,6 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
     isComponentName,
-    registry,
     suggestComponentName,
     type ComponentName,
 } from '../../packages/cli/src/registry/index.js';
@@ -82,7 +81,8 @@ async function main(): Promise<void> {
 
     console.log(green(`✓ created ${path.relative(REPO_ROOT, demoPath)}`));
     console.log(green(`✓ created ${path.relative(REPO_ROOT, specPath)}`));
-    console.log(`\nRun it: ${cyan(`npm run e2e -- ${resolved}`)}`);
+    const runCmd = `npm run e2e -- ${resolved}`;
+    console.log(`\nRun it: ${cyan(runCmd)}`);
 }
 
 function parseName(): string {
@@ -216,9 +216,10 @@ function pascalCaseFromKebab(s: string): string {
 function renderDemoTemplate(name: string, barrel: BarrelInfo): string {
     const pascalName = pascalCaseFromKebab(name);
     const importNames = [barrel.mainClass, ...barrel.subs.map(s => s.className)];
+    const importLines = importNames.map(n => `    ${n},`).join('\n');
     const importBlock = importNames.length === 1
         ? `import { ${importNames[0]} } from '@/components/ui/${name}';`
-        : `import {\n${importNames.map(n => `    ${n},`).join('\n')}\n} from '@/components/ui/${name}';`;
+        : `import {\n${importLines}\n} from '@/components/ui/${name}';`;
 
     const subElements = barrel.subs.length === 0
         ? ''

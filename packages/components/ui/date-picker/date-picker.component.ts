@@ -13,7 +13,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, getClippingRect } from '../../lib/utils';
 import { CalendarComponent } from '../calendar';
-import { DateRangePickerComponent } from './sub/date-range-picker.component';
+export { DateRangePickerComponent } from './sub/date-range-picker.component';
 
 export type PopupPosition = { offsetX: number; actualSide: 'top' | 'bottom' };
 
@@ -129,7 +129,7 @@ export class DatePickerComponent implements ControlValueAccessor {
   }
 
   readonly buttonClasses = computed(() => cn(
-    'inline-flex h-10 w-full sm:w-[240px] items-center justify-start rounded-md border border-input bg-background px-4 py-2 text-sm font-normal ring-offset-background',
+    'inline-flex w-full sm:w-[240px] items-center justify-start rounded-md border border-input bg-background text-sm font-normal ring-offset-background',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
     'disabled:cursor-not-allowed disabled:opacity-50',
@@ -140,18 +140,18 @@ export class DatePickerComponent implements ControlValueAccessor {
 
   readonly popupStyles = computed(() => computePopupStyles(this.adjustedPosition()));
 
-  private calculatePosition() {
+  private calculatePosition(): void {
     if (!this.popupEl?.nativeElement) return;
     this.adjustedPosition.set(calculatePopupPosition(this.popupEl.nativeElement));
   }
 
-  toggleOpen() {
+  toggleOpen(): void {
     if (!this.disabled()) {
       this.isOpen.update(v => !v);
     }
   }
 
-  onDateSelect(value: unknown) {
+  onDateSelect(value: unknown): void {
     let selectedDate: Date | null = null;
     if (value instanceof Date) {
       selectedDate = value;
@@ -165,7 +165,7 @@ export class DatePickerComponent implements ControlValueAccessor {
     }
   }
 
-  onDocumentClick(event: MouseEvent) {
+  onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (!target.closest('[data-slot="date-picker"]')) {
       this.isOpen.set(false);
@@ -199,4 +199,3 @@ export class DatePickerComponent implements ControlValueAccessor {
   }
 }
 
-export { DateRangePickerComponent };

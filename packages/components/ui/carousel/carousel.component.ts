@@ -65,7 +65,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         });
     }
 
-    private updateRtlState() {
+    private updateRtlState(): void {
         this.rtl.set(isRtl(this.rootEl?.nativeElement));
         this.updateScrollState();
     }
@@ -75,7 +75,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         this.class()
     ));
 
-    ngAfterContentInit() {
+    ngAfterContentInit(): void {
         this.setupTimer = setTimeout(() => {
             this.scrollContainer = this.containerEl.nativeElement.querySelector('[data-slot="carousel-content"]');
             if (this.scrollContainer) {
@@ -89,7 +89,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         }, 0);
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         if (this.setupTimer) {
             clearTimeout(this.setupTimer);
             this.setupTimer = null;
@@ -102,7 +102,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         this.dirObserver?.disconnect();
     }
 
-    updateScrollState() {
+    updateScrollState(): void {
         if (!this.scrollContainer) return;
 
         const isHorizontal = this.orientation() === 'horizontal';
@@ -146,7 +146,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         }
     }
 
-    scrollPrev() {
+    scrollPrev(): void {
         if (!this.scrollContainer) return;
 
         const isHorizontal = this.orientation() === 'horizontal';
@@ -159,7 +159,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         });
     }
 
-    scrollNext() {
+    scrollNext(): void {
         if (!this.scrollContainer) return;
 
         const isHorizontal = this.orientation() === 'horizontal';
@@ -172,7 +172,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         });
     }
 
-    scrollTo(index: number) {
+    scrollTo(index: number): void {
         if (!this.scrollContainer) return;
 
         const items = this.scrollContainer.querySelectorAll('[data-slot="carousel-item"]');
@@ -182,7 +182,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         }
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         const isHorizontal = this.orientation() === 'horizontal';
 
         if ((isHorizontal && event.key === 'ArrowLeft') || (!isHorizontal && event.key === 'ArrowUp')) {

@@ -36,6 +36,7 @@ import { AlertDialogCancelComponent } from './alert-dialog-cancel.component';
         class="fixed inset-0 z-50 flex items-center justify-center"
         [attr.dir]="dir()"
         (keydown)="onKeydown($event)"
+        tabindex="-1"
       >
         <!-- Overlay - no click to close for alert dialogs -->
         <div class="fixed inset-0 bg-black/80 animate-in fade-in-0"></div>
@@ -111,13 +112,13 @@ export class AlertDialogContentComponent implements AfterViewInit {
         });
     }
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (this.alertDialog?.open()) {
             this.focusFirstElement();
         }
     }
 
-    private focusFirstElement() {
+    private focusFirstElement(): void {
         const content = this.el.nativeElement.querySelector('[data-slot="alert-dialog-content"]');
         if (content) {
             this.contentEl = content;
@@ -132,7 +133,7 @@ export class AlertDialogContentComponent implements AfterViewInit {
         }
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
             event.preventDefault();
             this.alertDialog?.hide();

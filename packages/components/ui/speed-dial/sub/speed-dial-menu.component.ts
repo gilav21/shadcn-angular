@@ -38,12 +38,12 @@ export class SpeedDialMenuComponent {
 
     private readonly registeredItems: SpeedDialItemComponent[] = [];
 
-    registerItem(item: SpeedDialItemComponent) {
+    registerItem(item: SpeedDialItemComponent): void {
         this.registeredItems.push(item);
         this.updateItemIndices();
     }
 
-    unregisterItem(item: SpeedDialItemComponent) {
+    unregisterItem(item: SpeedDialItemComponent): void {
         const index = this.registeredItems.indexOf(item);
         if (index > -1) {
             this.registeredItems.splice(index, 1);
@@ -51,7 +51,7 @@ export class SpeedDialMenuComponent {
         }
     }
 
-    private updateItemIndices() {
+    private updateItemIndices(): void {
         const total = this.registeredItems.length;
         this.registeredItems.forEach((item, index) => {
             item.itemIndex.set(index);

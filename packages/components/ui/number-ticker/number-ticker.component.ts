@@ -57,7 +57,7 @@ export class NumberTickerComponent implements OnDestroy {
         });
     }
 
-    private _setupAnimation(value: number, delay: number) {
+    private _setupAnimation(value: number, delay: number): void {
         this._stopAnimation();
 
         this._endValue = value;
@@ -81,8 +81,8 @@ export class NumberTickerComponent implements OnDestroy {
         }, delayMs);
     }
 
-    private readonly _animate = (timestamp: number) => {
-        if (!this._startTime) this._startTime = timestamp;
+    private readonly _animate = (timestamp: number): void => {
+        this._startTime ??= timestamp;
 
         const durationMs = this.duration() * 1000;
         const runtime = timestamp - this._startTime;
@@ -115,7 +115,7 @@ export class NumberTickerComponent implements OnDestroy {
         }
     };
 
-    private _stopAnimation() {
+    private _stopAnimation(): void {
         if (this._animationFrameId) {
             cancelAnimationFrame(this._animationFrameId);
             this._animationFrameId = null;

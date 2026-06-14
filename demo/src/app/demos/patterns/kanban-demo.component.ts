@@ -50,7 +50,7 @@ export class KanbanDemoComponent {
         this.kanbanCards.set([...next.cards]);
         prev = next;
       }
-    }, { allowSignalWrites: true });
+    });
   }
 
   onKanbanCardsChange(cards: KanbanCard[]) { this.kanbanCards.set(cards); }

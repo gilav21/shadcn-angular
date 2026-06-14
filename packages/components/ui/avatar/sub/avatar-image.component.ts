@@ -23,11 +23,11 @@ export class AvatarImageComponent {
 
     classes = computed(() => cn('aspect-square h-full w-full', this.class()));
 
-    onLoad() {
+    onLoad(): void {
         this.avatar?.status.set('loaded');
     }
 
-    onError() {
+    onError(): void {
         this.avatar?.status.set('error');
     }
 }

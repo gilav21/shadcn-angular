@@ -30,7 +30,7 @@ export async function resolveTokenCssPath(configuredCssPath: string): Promise<st
  * Escapes special regex characters in a string.
  */
 function escapeRegex(str: string): string {
-    return str.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 /**
@@ -43,21 +43,21 @@ function replaceVarInBlock(block: string, varName: string, value: string): strin
 
     // First try to match a commented-out var: /* --var-name: old; */
     const commentedPattern = new RegExp(
-        `\\/\\*\\s*([ \\t]*${escaped}\\s*:\\s*)[^;]*(;)\\s*\\*\\/`,
+        String.raw`\/\*\s*([ \t]*${escaped}\s*:\s*)[^;]*(;)\s*\*\/`,
         'g',
     );
     if (commentedPattern.test(block)) {
         return block.replace(
-            new RegExp(`\\/\\*\\s*([ \\t]*${escaped}\\s*:\\s*)[^;]*(;)\\s*\\*\\/`, 'g'),
+            new RegExp(String.raw`\/\*\s*([ \t]*${escaped}\s*:\s*)[^;]*(;)\s*\*\/`, 'g'),
             (_match, prefix, semi) => `${prefix}${value}${semi}`,
         );
     }
 
     // Then try an uncommented var: --var-name: old;
-    const uncommentedPattern = new RegExp(`(${escaped}\\s*:\\s*)[^;]*(;)`, 'g');
+    const uncommentedPattern = new RegExp(String.raw`(${escaped}\s*:\s*)[^;]*(;)`, 'g');
     if (uncommentedPattern.test(block)) {
         return block.replace(
-            new RegExp(`(${escaped}\\s*:\\s*)[^;]*(;)`, 'g'),
+            new RegExp(String.raw`(${escaped}\s*:\s*)[^;]*(;)`, 'g'),
             (_match, prefix, semi) => `${prefix}${value}${semi}`,
         );
     }
@@ -81,11 +81,11 @@ function stripCssComments(css: string): string {
  */
 export function readBlockVar(css: string, selector: string, varName: string): string | null {
     const escapedSelector = escapeRegex(selector);
-    const blockMatch = new RegExp(`${escapedSelector}\\s*\\{([\\s\\S]*?)\\}`, 'm').exec(css);
+    const blockMatch = new RegExp(String.raw`${escapedSelector}\s*\{([\s\S]*?)\}`, 'm').exec(css);
     if (!blockMatch) return null;
 
     const inner = stripCssComments(blockMatch[1]);
-    const varMatch = new RegExp(`(?<![\\w-])${escapeRegex(varName)}\\s*:\\s*([^;]*);`).exec(inner);
+    const varMatch = new RegExp(String.raw`(?<![\w-])${escapeRegex(varName)}\s*:\s*([^;]*);`).exec(inner);
     return varMatch ? varMatch[1].trim() : null;
 }
 
@@ -122,14 +122,14 @@ export async function setRootVar(cssPath: string, varName: string, value: string
     const [fullMatch, openBrace, inner, closeBrace] = rootBlockMatch;
     const updated = replaceVarInBlock(inner, varName, value);
 
-    if (updated !== null) {
-        content = content.replace(fullMatch, `${openBrace}${updated}${closeBrace}`);
-    } else {
+    if (updated === null) {
         // Append before :root closing brace
         content = content.replace(
             fullMatch,
             `${openBrace}${inner}    ${varName}: ${value};\n${closeBrace}`,
         );
+    } else {
+        content = content.replace(fullMatch, `${openBrace}${updated}${closeBrace}`);
     }
 
     await fs.writeFile(cssPath, content, 'utf-8');
@@ -157,7 +157,7 @@ export async function setBlockVar(
     let content = await fs.readFile(cssPath, 'utf-8');
 
     const escapedSelector = escapeRegex(selector);
-    const blockPattern = new RegExp(`(${escapedSelector}\\s*\\{)([\\s\\S]*?)(\\})`, 'm');
+    const blockPattern = new RegExp(String.raw`(${escapedSelector}\s*\{)([\s\S]*?)(\})`, 'm');
     const blockMatch = blockPattern.exec(content);
     if (!blockMatch) {
         throw new Error(`Could not find ${selector} { } block in ${cssPath}`);
@@ -166,13 +166,13 @@ export async function setBlockVar(
     const [fullMatch, openBrace, inner, closeBrace] = blockMatch;
     const updated = replaceVarInBlock(inner, varName, value);
 
-    if (updated !== null) {
-        content = content.replace(fullMatch, `${openBrace}${updated}${closeBrace}`);
-    } else {
+    if (updated === null) {
         content = content.replace(
             fullMatch,
             `${openBrace}${inner}    ${varName}: ${value};\n${closeBrace}`,
         );
+    } else {
+        content = content.replace(fullMatch, `${openBrace}${updated}${closeBrace}`);
     }
 
     await fs.writeFile(cssPath, content, 'utf-8');

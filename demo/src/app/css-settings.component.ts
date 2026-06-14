@@ -140,23 +140,23 @@ export class CssSettingsComponent {
     { value: 1.5, label: 'Expressive' },
   ];
 
-  setDensity(level: number) {
+  setDensity(level: number): void {
     this.densityLevel.set(level);
     document.documentElement.style.setProperty('--density', String(DENSITY_MULTIPLIERS[level] ?? 1));
   }
 
-  setRadius(value: number) {
+  setRadius(value: number): void {
     const rounded = Math.round(value * 1000) / 1000;
     this.radiusValue.set(rounded);
     document.documentElement.style.setProperty('--radius', `${rounded}rem`);
   }
 
-  setMotion(value: number) {
+  setMotion(value: number): void {
     this.motionLevel.set(value);
     document.documentElement.style.setProperty('--motion', String(value));
   }
 
-  reset() {
+  reset(): void {
     this.densityLevel.set(3);
     this.radiusValue.set(0.625);
     this.motionLevel.set(1);

@@ -16,6 +16,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { cn } from '../../../lib/utils';
 import { InputComponent } from '../../input';
+import { InputGroupComponent, InputGroupAddonComponent } from '../../input-group';
 import { ScrollAreaComponent } from '../../scroll-area';
 import { TooltipDirective } from '../../tooltip';
 import { EMOJI_DATA } from '../emoji-data';
@@ -29,6 +30,8 @@ import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.c
         ScrollAreaComponent,
         TooltipDirective,
         InputComponent,
+        InputGroupComponent,
+        InputGroupAddonComponent,
     ],
     template: `
         @if (picker?.open()) {
@@ -40,28 +43,29 @@ import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.c
             >
                 <div class="flex flex-col gap-3">
                     <!-- Search Input -->
-                    <div class="relative">
-                        <svg
-                            class="absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        >
-                            <circle cx="11" cy="11" r="8" />
-                            <path d="m21 21-4.3-4.3" />
-                        </svg>
+                    <ui-input-group>
+                        <ui-input-group-addon>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.3-4.3" />
+                            </svg>
+                        </ui-input-group-addon>
                         <ui-input
                             type="text"
                             placeholder="Search emojis..."
-                            class="ps-8 h-8 text-sm"
+                            class="text-sm"
                             [ngModel]="searchQuery()"
                             (ngModelChange)="searchQuery.set($event)"
                         />
-                    </div>
+                    </ui-input-group>
 
                     <!-- Category Navigation -->
                     <div class="flex gap-1 pb-2 border-b border-border">
@@ -82,7 +86,7 @@ import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.c
                         <div class="pe-3">
                             @for (category of filteredCategories(); track category.id) {
                                 <div
-                                    class="mb-4"
+                                    class="mb-4 [content-visibility:auto] [contain-intrinsic-size:auto_320px]"
                                     [attr.data-category]="category.id"
                                     #categorySection
                                 >
@@ -154,13 +158,13 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         this.categorySections.changes.subscribe(() => {
             this.onScroll();
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.scrollRemoveListener?.();
     }
 
@@ -209,7 +213,7 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
             .filter(category => category.emojis.length > 0);
     });
 
-    categoryButtonClasses(categoryId: string) {
+    categoryButtonClasses(categoryId: string): string {
         const isActive = this.activeCategory() === categoryId;
         return cn(
             'size-8 flex items-center justify-center text-lg rounded-md transition-colors',
@@ -218,7 +222,7 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         );
     }
 
-    scrollToCategory(categoryId: string) {
+    scrollToCategory(categoryId: string): void {
         this.searchQuery.set('');
         this.activeCategory.set(categoryId);
         this.isScrollingProgrammatically = true;
@@ -244,17 +248,17 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    private setupScrollListener(viewport: HTMLElement) {
+    private setupScrollListener(viewport: HTMLElement): void {
         this.scrollRemoveListener?.();
 
-        const listener = () => this.onScroll();
+        const listener = (): void => this.onScroll();
         viewport.addEventListener('scroll', listener, { passive: true });
-        this.scrollRemoveListener = () => viewport.removeEventListener('scroll', listener);
+        this.scrollRemoveListener = (): void => viewport.removeEventListener('scroll', listener);
 
         setTimeout(() => this.onScroll(), 0);
     }
 
-    private onScroll() {
+    private onScroll(): void {
         if (this.isScrollingProgrammatically || !this._scrollArea?.viewportRef?.nativeElement) return;
 
         const viewport = this._scrollArea.viewportRef.nativeElement;
@@ -279,7 +283,7 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    selectEmoji(emoji: string) {
+    selectEmoji(emoji: string): void {
         this.picker?.selectEmoji(emoji);
     }
 }

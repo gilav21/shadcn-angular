@@ -38,7 +38,7 @@ export class SplitButtonItemComponent {
         this.disabled() && 'pointer-events-none opacity-50'
     ));
 
-    onClick(event: MouseEvent) {
+    onClick(_event: MouseEvent): void {
         if (!this.disabled()) {
             this.splitButton.itemClick.emit({
                 label: '',

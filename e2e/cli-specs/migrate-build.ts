@@ -14,16 +14,7 @@ import { realLegacyBlob } from './_git.js';
  *  - a pre-existing consumer FOLDER component imports a now-migrated sibling via
  *    the old flat path `../button.component` (Bug 3 — must become `../button`).
  */
-const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
-    await runCli(['init', '--yes']);
-    await runCli(['add', 'button', '--yes']);
-
-    const uiDir = path.join(fixtureApp, 'src/components/ui');
-    const folder = path.join(uiDir, 'button');
-    const flat = path.join(uiDir, 'button.component.ts');
-    const appTs = path.join(fixtureApp, 'src/app/app.ts');
-    const widgetTs = path.join(uiDir, 'my-widget/my-widget.component.ts');
-
+function writeConsumerApp(appTs: string): void {
     // Consumer bootstrap component imports button via the LEGACY path and
     // references a consumer-owned widget, so both are in the compile graph.
     fs.writeFileSync(appTs,
@@ -43,7 +34,9 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
         `  protected readonly widgetRef: unknown = MyWidgetComponent;\n` +
         `}\n`,
     );
+}
 
+function writeConsumerWidget(widgetTs: string): void {
     // A consumer-owned FOLDER component that imports the button via the old FLAT
     // sibling path. migrate must rewrite `../button.component` → `../button`.
     fs.mkdirSync(path.dirname(widgetTs), { recursive: true });
@@ -57,6 +50,20 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
         `})\n` +
         `export class MyWidgetComponent {}\n`,
     );
+}
+
+const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
+    await runCli(['init', '--yes']);
+    await runCli(['add', 'button', '--yes']);
+
+    const uiDir = path.join(fixtureApp, 'src/components/ui');
+    const folder = path.join(uiDir, 'button');
+    const flat = path.join(uiDir, 'button.component.ts');
+    const appTs = path.join(fixtureApp, 'src/app/app.ts');
+    const widgetTs = path.join(uiDir, 'my-widget/my-widget.component.ts');
+
+    writeConsumerApp(appTs);
+    writeConsumerWidget(widgetTs);
 
     // Fabricate a PRISTINE legacy flat button (real historical source) so migrate
     // classifies it unmodified and converts it.

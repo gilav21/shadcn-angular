@@ -29,12 +29,12 @@
     }
     <div class="flex flex-wrap gap-2 mt-4 justify-end">
       @if (showSkip() && !isLastStep()) {
-        <ui-button variant="ghost" size="sm" (click)="skip()">{{ skipLabel() ?? t().skip }}</ui-button>
+        <ui-button variant="ghost" size="sm" (click)="skip()" (keydown.enter)="skip()" (keydown.space)="skip()">{{ skipLabel() ?? t().skip }}</ui-button>
       }
       @if (currentIndex() > 0) {
-        <ui-button variant="outline" size="sm" (click)="previous()">{{ prevLabel() ?? t().previous }}</ui-button>
+        <ui-button variant="outline" size="sm" (click)="previous()" (keydown.enter)="previous()" (keydown.space)="previous()">{{ prevLabel() ?? t().previous }}</ui-button>
       }
-      <ui-button size="sm" (click)="next()">{{ isLastStep() ? (finishLabel() ?? t().finish) : (nextLabel() ?? t().next) }}</ui-button>
+      <ui-button size="sm" (click)="next()" (keydown.enter)="next()" (keydown.space)="next()">{{ isLastStep() ? (finishLabel() ?? t().finish) : (nextLabel() ?? t().next) }}</ui-button>
     </div>
   </div>
 }

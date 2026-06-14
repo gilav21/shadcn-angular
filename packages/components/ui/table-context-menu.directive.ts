@@ -39,7 +39,7 @@ export class TableContextMenuDirective<T = unknown> implements OnDestroy {
   cellContextMenu = output<TableCellContextMenuEvent<T>>();
 
   private readonly tableElement = inject(ElementRef<HTMLElement>);
-  private readonly contextMenuListener = (event: MouseEvent) => {
+  private readonly contextMenuListener = (event: MouseEvent): void => {
     if (this.contextMenuDisabled() || !this.uiTableContextMenu()) {
       return;
     }
@@ -82,12 +82,12 @@ export class TableContextMenuDirective<T = unknown> implements OnDestroy {
     this.tableElement.nativeElement.addEventListener('contextmenu', this.contextMenuListener);
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.tableElement.nativeElement.removeEventListener('contextmenu', this.contextMenuListener);
   }
 
   private extractRowData(rowElement: HTMLElement, cellElement: HTMLElement): { data: T; index: number; column: string } {
-    const indexAttr = rowElement.dataset['rowIndex'] || rowElement.dataset['index'];
+    const indexAttr = rowElement.dataset['rowIndex'] ?? rowElement.dataset['index'];
     const index = indexAttr ? Number.parseInt(indexAttr, 10) : 0;
 
     const dataAttr = rowElement.getAttribute(this.rowDataAttribute());
@@ -101,7 +101,7 @@ export class TableContextMenuDirective<T = unknown> implements OnDestroy {
       }
     }
 
-    const columnAttr = cellElement.dataset['column'] || (cellElement as HTMLTableCellElement).cellIndex.toString();
+    const columnAttr = cellElement.dataset['column'] ?? (cellElement as HTMLTableCellElement).cellIndex.toString();
     const column = typeof columnAttr === 'string' ? columnAttr : `column_${columnAttr}`;
 
     return { data, index, column };

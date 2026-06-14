@@ -24,7 +24,9 @@
       #popupEl
       [class]="popupClasses()"
       [style]="popupStyles()"
+      tabindex="-1"
       (click)="$event.stopPropagation()"
+      (keydown)="$event.stopPropagation()"
     >
       <ui-calendar
         mode="range"

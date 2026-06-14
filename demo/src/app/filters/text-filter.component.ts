@@ -18,7 +18,7 @@ import { InputComponent } from '../../../../packages/components/ui';
 export class TextFilterComponent {
   filterChange = output<string>();
 
-  onInputChange(event: Event) {
+  onInputChange(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     this.filterChange.emit(value);
   }

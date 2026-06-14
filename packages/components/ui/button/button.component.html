@@ -13,16 +13,14 @@
     (click)="clicked.emit($event)"
   >
     @if (loading()) {
-      <div class="absolute inset-0 flex items-center justify-center">
+      <div class="absolute inset-0 flex items-center justify-center" aria-hidden="true">
         <ui-spinner size="xs" />
       </div>
     }
-    <span [class]="loading() ? 'opacity-50' : ''">
-      @if (label()) {
-        {{ label() }}
-      } @else {
-        <ng-content />
-      }
-    </span>
+    @if (label()) {
+      {{ label() }}
+    } @else {
+      <ng-content />
+    }
   </button>
 }

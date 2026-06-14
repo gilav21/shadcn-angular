@@ -376,7 +376,7 @@ export class TourComponent {
 
     private setupObservers(targetEl: HTMLElement): void {
         this.zone.runOutsideAngular(() => {
-            const onReposition = () => {
+            const onReposition = (): void => {
                 this.zone.run(() => this.readAndSetRect(targetEl));
             };
 

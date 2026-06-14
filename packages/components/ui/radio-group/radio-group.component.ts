@@ -38,6 +38,10 @@ export { RadioGroupItemComponent };
   },
 })
 export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
+  private static groupCounter = 0;
+  /** Shared name that groups the native radio inputs of this group. */
+  readonly groupName = `radio-group-${++RadioGroupComponent.groupCounter}`;
+
   orientation = input<'horizontal' | 'vertical'>('vertical');
   disabled = input(false);
   class = input('');
@@ -70,6 +74,7 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
   constructor() {
     effect(() => {
       const val = this.value();
+      // eslint-disable-next-line sonarjs/different-types-comparison -- defensive null guard on the form value input
       if (val !== undefined && val !== null) {
         this.internalValue.set(val);
       }
@@ -82,8 +87,9 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
   }
 
   getValue(option: T): string {
-    if (this.valueAttribute()) {
-      return String((option as Record<string, unknown>)[this.valueAttribute()!]);
+    const attr = this.valueAttribute();
+    if (attr) {
+      return String((option as Record<string, unknown>)[attr]);
     }
     return String(option);
   }
@@ -92,7 +98,7 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
     return this.disabledWith()(option);
   }
 
-  selectValue(val: string) {
+  selectValue(val: string): void {
     if (this.isDisabled()) return;
     this.internalValue.set(val);
     this.onChange(val);

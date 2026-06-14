@@ -182,7 +182,7 @@ export class KanbanCardDialogComponent {
 
     assigneeOptionNames = computed(() => this.assigneeOptions().map(a => a.name));
 
-    open(mode: 'add' | 'edit', columnId: string, card?: KanbanCard) {
+    open(mode: 'add' | 'edit', columnId: string, card?: KanbanCard): void {
         this.mode.set(mode);
         this.targetColumnId.set(columnId);
         this.editingCard.set(card);
@@ -206,24 +206,24 @@ export class KanbanCardDialogComponent {
         );
     }
 
-    onLabelChipAdded(text: string) {
+    onLabelChipAdded(text: string): void {
         this.formLabels.update(labels => [...labels, { text, color: this.newLabelColor() }]);
     }
 
-    onLabelChipRemoved(text: string) {
+    onLabelChipRemoved(text: string): void {
         this.formLabels.update(labels => labels.filter(l => l.text !== text));
     }
 
-    onAssigneeChipAdded(name: string) {
+    onAssigneeChipAdded(name: string): void {
         const option = this.assigneeOptions().find(a => a.name === name);
         this.formAssignees.update(assignees => [...assignees, option ?? { name }]);
     }
 
-    onAssigneeChipRemoved(name: string) {
+    onAssigneeChipRemoved(name: string): void {
         this.formAssignees.update(assignees => assignees.filter(a => a.name !== name));
     }
 
-    onAssigneeSelectionChange(names: string[]) {
+    onAssigneeSelectionChange(names: string[]): void {
         const newAssignees = names.map(name => {
             const existing = this.formAssignees().find(a => a.name === name);
             if (existing) return existing;
@@ -233,7 +233,7 @@ export class KanbanCardDialogComponent {
         this.formAssignees.set(newAssignees);
     }
 
-    onSubmit() {
+    onSubmit(): void {
         const title = this.formTitle().trim();
         if (!title) return;
 

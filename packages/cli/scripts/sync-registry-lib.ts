@@ -290,72 +290,77 @@ export interface BlockWalkResult {
  * Component `category`/`description`/`tags` are authored by hand — this only
  * derives `files` / `dependencies` / `libFiles`, exactly the drift-prone parts.
  */
+interface BlockWalkState {
+    ownFiles: Set<string>;
+    dependencies: Set<string>;
+    libFiles: Set<string>;
+    deepImports: DeepImport[];
+    uiDir: string;
+    libDir: string;
+    blocksRoot: string;
+    ownPrefix: string;
+    ctx: BoundaryContext;
+}
+
+function toBlockRel(blocksRoot: string, abs: string): string {
+    return path.relative(blocksRoot, abs).replaceAll('\\', '/');
+}
+
+function recordBlockDependency(state: BlockWalkState, resolvedAbs: string, fromBlockRelFile: string): void {
+    const uiRel = 'ui/' + path.relative(state.uiDir, resolvedAbs).replaceAll('\\', '/');
+    const { kind, owner } = classifyImport(uiRel, '', state.ctx);
+    if (!owner) return;
+    state.dependencies.add(owner);
+    if (kind === 'deep-import') {
+        state.deepImports.push({ fromFile: fromBlockRelFile, importedFile: uiRel, owner });
+    }
+}
+
+function categorizeBlockImport(state: BlockWalkState, resolvedAbs: string, fromBlockRelFile: string): void {
+    if (isUnder(state.uiDir, resolvedAbs)) { recordBlockDependency(state, resolvedAbs, fromBlockRelFile); return; }
+    if (isUnder(state.libDir, resolvedAbs)) {
+        state.libFiles.add(path.relative(state.libDir, resolvedAbs).replaceAll('\\', '/'));
+        return;
+    }
+    const blockRel = toBlockRel(state.blocksRoot, resolvedAbs);
+    if (isUnder(state.blocksRoot, resolvedAbs) && blockRel.startsWith(state.ownPrefix)) collectBlockFile(state, blockRel);
+}
+
+function collectBlockFile(state: BlockWalkState, blockRelFile: string): void {
+    if (state.ownFiles.has(blockRelFile)) return;
+    state.ownFiles.add(blockRelFile);
+    const abs = path.join(state.blocksRoot, blockRelFile);
+    if (!existsSync(abs)) return;
+    const content = readFileSync(abs, 'utf-8');
+    if (blockRelFile.endsWith('.component.ts')) {
+        for (const url of parseDecoratorUrls(content)) {
+            const assetAbs = path.resolve(path.dirname(abs), url);
+            if (existsSync(assetAbs) && isUnder(state.blocksRoot, assetAbs)) state.ownFiles.add(toBlockRel(state.blocksRoot, assetAbs));
+        }
+    }
+    for (const match of content.matchAll(IMPORT_REGEX)) {
+        const resolved = resolveAbsolute(match[1], abs);
+        if (resolved) categorizeBlockImport(state, resolved, blockRelFile);
+    }
+}
+
 export function walkBlockTree(
     entryFile: string,
     blocksRoot: string,
     componentsRoot: string,
     ctx: BoundaryContext,
 ): BlockWalkResult {
-    const ownFiles = new Set<string>();
-    const dependencies = new Set<string>();
-    const libFiles = new Set<string>();
-    const deepImports: DeepImport[] = [];
-
-    const uiDir = path.join(componentsRoot, 'ui');
-    const libDir = path.join(componentsRoot, 'lib');
-    const toBlockRel = (abs: string) => path.relative(blocksRoot, abs).replaceAll('\\', '/');
-    // A block owns only files inside its own `<name>/` folder; a stray import
-    // of a sibling block is outside the model and is not absorbed.
-    const ownPrefix = `${entryFile.split('/')[0]}/`;
-
-    function recordDependency(resolvedAbs: string, fromBlockRelFile: string): void {
-        const uiRel = 'ui/' + path.relative(uiDir, resolvedAbs).replaceAll('\\', '/');
-        const { kind, owner } = classifyImport(uiRel, '', ctx);
-        if (!owner) return;
-        dependencies.add(owner);
-        if (kind === 'deep-import') {
-            deepImports.push({ fromFile: fromBlockRelFile, importedFile: uiRel, owner });
-        }
-    }
-
-    function categorize(resolvedAbs: string, fromBlockRelFile: string): void {
-        if (isUnder(uiDir, resolvedAbs)) {
-            recordDependency(resolvedAbs, fromBlockRelFile);
-            return;
-        }
-        if (isUnder(libDir, resolvedAbs)) {
-            libFiles.add(path.relative(libDir, resolvedAbs).replaceAll('\\', '/'));
-            return;
-        }
-        const blockRel = toBlockRel(resolvedAbs);
-        if (isUnder(blocksRoot, resolvedAbs) && blockRel.startsWith(ownPrefix)) collect(blockRel);
-    }
-
-    function addAssets(blockRelFile: string, absFile: string, content: string): void {
-        if (!blockRelFile.endsWith('.component.ts')) return;
-        for (const url of parseDecoratorUrls(content)) {
-            const assetAbs = path.resolve(path.dirname(absFile), url);
-            if (existsSync(assetAbs) && isUnder(blocksRoot, assetAbs)) {
-                ownFiles.add(toBlockRel(assetAbs));
-            }
-        }
-    }
-
-    function collect(blockRelFile: string): void {
-        if (ownFiles.has(blockRelFile)) return;
-        ownFiles.add(blockRelFile);
-
-        const abs = path.join(blocksRoot, blockRelFile);
-        if (!existsSync(abs)) return;
-        const content = readFileSync(abs, 'utf-8');
-        addAssets(blockRelFile, abs, content);
-
-        for (const match of content.matchAll(IMPORT_REGEX)) {
-            const resolved = resolveAbsolute(match[1], abs);
-            if (resolved) categorize(resolved, blockRelFile);
-        }
-    }
-
-    collect(entryFile);
-    return { ownFiles, dependencies, libFiles, deepImports };
+    const state: BlockWalkState = {
+        ownFiles: new Set<string>(),
+        dependencies: new Set<string>(),
+        libFiles: new Set<string>(),
+        deepImports: [],
+        uiDir: path.join(componentsRoot, 'ui'),
+        libDir: path.join(componentsRoot, 'lib'),
+        blocksRoot,
+        ownPrefix: `${entryFile.split('/')[0]}/`,
+        ctx,
+    };
+    collectBlockFile(state, entryFile);
+    return { ownFiles: state.ownFiles, dependencies: state.dependencies, libFiles: state.libFiles, deepImports: state.deepImports };
 }

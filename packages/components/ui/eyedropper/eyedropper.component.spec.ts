@@ -54,7 +54,7 @@ class EyedropperHostComponent {
     disabled = signal(false);
     variant = signal<'icon' | 'button'>('icon');
     label = signal('Pick color');
-    fallbackTarget = signal<HTMLElement | null>(null);
+    fallbackTarget = signal<HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | null>(null);
     picked = signal<string | null>(null);
     started = signal(0);
     cancelled = signal(0);
@@ -165,6 +165,148 @@ describe('EyedropperComponent', () => {
         host.fallbackTarget.set(img);
         fixture.detectChanges();
         expect(button().disabled).toBe(false);
+    });
+});
+
+describe('EyedropperComponent — canvas fallback sampler', () => {
+    let fixture: ComponentFixture<EyedropperHostComponent>;
+    let host: EyedropperHostComponent;
+    let originalEyeDropper: unknown;
+    let canvas: HTMLCanvasElement;
+
+    function button(): HTMLButtonElement {
+        return fixture.debugElement.query(By.css('button[data-slot="eyedropper-trigger"]')).nativeElement;
+    }
+
+    /** A 10×10 canvas painted a solid colour, with a deterministic on-screen rect. */
+    function paintedCanvas(rgb: [number, number, number]): HTMLCanvasElement {
+        const c = document.createElement('canvas');
+        c.width = 10;
+        c.height = 10;
+        const ctx = c.getContext('2d')!;
+        ctx.fillStyle = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        ctx.fillRect(0, 0, 10, 10);
+        c.getBoundingClientRect = () =>
+            ({ left: 100, top: 100, right: 200, bottom: 200, width: 100, height: 100, x: 100, y: 100 }) as DOMRect;
+        return c;
+    }
+
+    function setupWithTarget(target: HTMLCanvasElement | HTMLImageElement | HTMLVideoElement | null): void {
+        deleteNativeEyeDropper();
+        TestBed.configureTestingModule({ imports: [EyedropperHostComponent] });
+        fixture = TestBed.createComponent(EyedropperHostComponent);
+        host = fixture.componentInstance;
+        host.fallbackTarget.set(target);
+        fixture.detectChanges();
+    }
+
+    beforeEach(() => {
+        originalEyeDropper = (globalThis as GlobalWithEyeDropper).EyeDropper;
+        canvas = paintedCanvas([255, 0, 0]);
+        document.body.appendChild(canvas);
+    });
+
+    afterEach(() => {
+        // End any still-active sampling session so its global keydown/mousemove
+        // listeners are removed before the next test (prevents emits into a destroyed
+        // component — NG0953 — when a later test dispatches a window event).
+        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        if (fixture && !fixture.componentRef.hostView.destroyed) fixture.destroy();
+        restoreNativeEyeDropper(originalEyeDropper);
+        canvas.remove();
+    });
+
+    it('emits pickStart and enters picking state when the fallback pick begins', () => {
+        setupWithTarget(canvas);
+        button().click();
+        fixture.detectChanges();
+        expect(host.started()).toBe(1);
+        expect(button().getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('sets a crosshair cursor on the target while sampling', () => {
+        setupWithTarget(canvas);
+        button().click();
+        expect(canvas.style.cursor).toBe('crosshair');
+    });
+
+    it('emits colorPick with the sampled hex on click and restores state', () => {
+        setupWithTarget(canvas);
+        button().click();
+        // Click at the centre of the (stubbed) on-screen rect.
+        canvas.dispatchEvent(new MouseEvent('click', { clientX: 150, clientY: 150, bubbles: true }));
+        expect(host.picked()).toBe('#ff0000');
+        expect(host.started()).toBe(1);
+        expect(button().getAttribute('aria-pressed')).toBe('false');
+        // Cursor restored after commit.
+        expect(canvas.style.cursor).toBe('');
+    });
+
+    it('samples the position tracked from a window mousemove when the commit has no coordinates', () => {
+        canvas.remove();
+        canvas = paintedCanvas([0, 128, 255]);
+        document.body.appendChild(canvas);
+        setupWithTarget(canvas);
+        button().click();
+        // Drag updates lastSample via the window mousemove listener.
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 150, clientY: 150 }));
+        // A bare touchend (no changedTouches coords) commits the tracked sample.
+        canvas.dispatchEvent(new Event('touchend', { bubbles: true }));
+        expect(host.picked()).toBe('#0080ff');
+    });
+
+    it('cancels (no colorPick) when committing outside the target bounds', () => {
+        setupWithTarget(canvas);
+        button().click();
+        canvas.dispatchEvent(new MouseEvent('click', { clientX: 9999, clientY: 9999, bubbles: true }));
+        expect(host.picked()).toBeNull();
+        expect(host.cancelled()).toBe(1);
+        expect(button().getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('cancels when Escape is pressed during sampling', () => {
+        setupWithTarget(canvas);
+        button().click();
+        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(host.cancelled()).toBe(1);
+        expect(host.picked()).toBeNull();
+    });
+
+    it('ignores non-Escape keys during sampling', () => {
+        setupWithTarget(canvas);
+        button().click();
+        globalThis.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+        fixture.detectChanges();
+        expect(host.cancelled()).toBe(0);
+        expect(button().getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('does not start sampling when the canvas has zero source dimensions', () => {
+        const empty = document.createElement('canvas');
+        empty.width = 0;
+        empty.height = 0;
+        setupWithTarget(empty);
+        button().click();
+        // makeSamplingContext returns null → no pick session begins.
+        expect(host.started()).toBe(0);
+        expect(button().getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('samples an image fallback target using its natural dimensions', () => {
+        // A canvas drawn as the image source is drawable; use a canvas-backed data URL.
+        const dataUrl = canvas.toDataURL();
+        const img = document.createElement('img');
+        Object.defineProperty(img, 'naturalWidth', { value: 10 });
+        Object.defineProperty(img, 'naturalHeight', { value: 10 });
+        img.getBoundingClientRect = () =>
+            ({ left: 0, top: 0, right: 100, bottom: 100, width: 100, height: 100, x: 0, y: 0 }) as DOMRect;
+        img.src = dataUrl;
+        document.body.appendChild(img);
+        setupWithTarget(img);
+        button().click();
+        // naturalDimension(img) returned 10×10 → a sampling context was created.
+        expect(host.started()).toBe(1);
+        img.remove();
     });
 });
 

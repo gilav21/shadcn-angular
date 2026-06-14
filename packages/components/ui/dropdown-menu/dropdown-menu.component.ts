@@ -10,8 +10,7 @@ import {
     InjectionToken,
     forwardRef,
 } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
-import { DOCUMENT } from '@angular/common';
+import { NgTemplateOutlet, DOCUMENT } from '@angular/common';
 import { isRtl } from '../../lib/utils';
 import { DropdownMenuContentComponent } from './sub/dropdown-menu-content.component';
 import { DropdownMenuItemComponent } from './sub/dropdown-menu-item.component';
@@ -38,15 +37,15 @@ export class DropdownMenuService {
     private triggerRef: HTMLElement | null = null;
     private rootEl: HTMLElement | null = null;
 
-    registerRoot(el: HTMLElement) {
+    registerRoot(el: HTMLElement): void {
         this.rootEl = el;
     }
 
-    registerTrigger(el: HTMLElement) {
+    registerTrigger(el: HTMLElement): void {
         this.triggerRef = el;
     }
 
-    focusTrigger() {
+    focusTrigger(): void {
         this.triggerRef?.focus();
     }
 
@@ -127,25 +126,25 @@ export class DropdownMenuComponent implements OnDestroy {
         this.service.registerRoot(this.el.nativeElement);
     }
 
-    private readonly clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent): void => {
         if (!this.el.nativeElement.contains(event.target)) {
             this.hide();
         }
     };
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener);
     }
 
-    toggle() {
+    toggle(): void {
         this.open.update(v => !v);
     }
 
-    show() {
+    show(): void {
         this.open.set(true);
     }
 
-    hide() {
+    hide(): void {
         this.open.set(false);
     }
 }

@@ -56,7 +56,7 @@ export const Basic: Story = {
           [buffer]="buffer"
           style="border: 1px solid #e2e8f0; border-radius: 8px; height: 400px; display: block;"
         >
-          <ng-template virtualItem let-item let-index="index">
+          <ng-template uiVirtualItem let-item let-index="index">
             <div style="
               padding: 12px 16px;
               border-bottom: 1px solid #e2e8f0;
@@ -124,7 +124,7 @@ export const VariableHeight: Story = {
           [buffer]="buffer"
           style="border: 1px solid #e2e8f0; border-radius: 8px; height: 400px; display: block;"
         >
-          <ng-template virtualItem let-item let-index="index">
+          <ng-template uiVirtualItem let-item let-index="index">
             <div 
               style="
                 padding: 16px;

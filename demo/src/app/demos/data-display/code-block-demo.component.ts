@@ -274,6 +274,7 @@ END;`;
   readonly sqlWithScopes = {
     sql: {
       patterns: [
+        // eslint-disable-next-line sonarjs/regex-complexity -- SQL keyword list for custom language highlighter is intrinsically long
         { type: 'keyword', regex: /\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|JOIN|AND|OR|ON|AS|GROUP|BY|ORDER|LIMIT|CREATE|PROCEDURE|BEGIN|END|VALUES|INTO|COMMIT|TEXT)\b/i },
         { type: 'string', regex: /'(?:[^'\\]|\\.)*'/ },
         { type: 'number', regex: /\b\d+\b/ },

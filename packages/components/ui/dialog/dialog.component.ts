@@ -18,15 +18,15 @@ export const DIALOG = new InjectionToken<DialogComponent>('DIALOG');
 export class DialogComponent {
     open = model(false);
 
-    show() {
+    show(): void {
         this.open.set(true);
     }
 
-    hide() {
+    hide(): void {
         this.open.set(false);
     }
 
-    toggle() {
+    toggle(): void {
         this.open.update(v => !v);
     }
 }

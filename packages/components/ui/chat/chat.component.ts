@@ -32,7 +32,7 @@ export class ChatMessageComponent implements AfterContentInit {
 
   showAvatar = computed(() => this.role() !== 'system');
 
-  ngAfterContentInit() {
+  ngAfterContentInit(): void {
     const el = this.projectedRef?.nativeElement;
     if (el) {
       const hasContent = Array.from(el.childNodes).some(

@@ -1,4 +1,4 @@
-import { Component, computed, signal, Type, input, model } from '@angular/core';
+import { Component, computed, signal, input, model } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PageRendererComponent } from '../../../packages/components/ui/page-renderer';
@@ -284,11 +284,11 @@ export class PageViewerDemoComponent {
             ]
         },
         recentSales: [
-            { id: 'TRX-9871', user: 'Olivia Martin', email: 'olivia.martin@email.com', amount: 1999.00, status: 'Success' },
-            { id: 'TRX-9872', user: 'Jackson Lee', email: 'jackson.lee@email.com', amount: 39.00, status: 'Success' },
-            { id: 'TRX-9873', user: 'Isabella Nguyen', email: 'isabella.nguyen@email.com', amount: 299.00, status: 'Processing' },
-            { id: 'TRX-9874', user: 'William Kim', email: 'will@email.com', amount: 99.00, status: 'Success' },
-            { id: 'TRX-9875', user: 'Sofia Davis', email: 'sofia.davis@email.com', amount: 39.00, status: 'Failed' }
+            { id: 'TRX-9871', user: 'Olivia Martin', email: 'olivia.martin@email.com', amount: 1999, status: 'Success' },
+            { id: 'TRX-9872', user: 'Jackson Lee', email: 'jackson.lee@email.com', amount: 39, status: 'Success' },
+            { id: 'TRX-9873', user: 'Isabella Nguyen', email: 'isabella.nguyen@email.com', amount: 299, status: 'Processing' },
+            { id: 'TRX-9874', user: 'William Kim', email: 'will@email.com', amount: 99, status: 'Success' },
+            { id: 'TRX-9875', user: 'Sofia Davis', email: 'sofia.davis@email.com', amount: 39, status: 'Failed' }
         ],
         recentSalesColumns: [
             { accessorKey: 'user', header: 'Customer' },
@@ -298,7 +298,7 @@ export class PageViewerDemoComponent {
         ]
     };
 
-    context = signal(JSON.parse(JSON.stringify(this.initialContext)));
+    context = signal(structuredClone(this.initialContext));
 
     // Page Layout Definition
     pageData: PageData = {
@@ -471,7 +471,7 @@ export class PageViewerDemoComponent {
     }
 
     resetContext() {
-        this.context.set(JSON.parse(JSON.stringify(this.initialContext)));
+        this.context.set(structuredClone(this.initialContext));
     }
 
     updateMeta(prop: string, value: string) {

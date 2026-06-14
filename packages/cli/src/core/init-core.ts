@@ -57,14 +57,14 @@ async function autoConfigureTsconfig(cwd: string, warnings: string[]): Promise<v
         const raw = await fs.readFile(tsconfigPath, 'utf-8');
         // Strip block comments before line comments so URLs inside /* ... */
         // don't leave a dangling token that breaks JSON.parse.
-        const stripped = raw.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/.*$/gm, '');
+        const stripped = raw.replaceAll(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, '').replaceAll(/\/\/[^\n\r]*/g, '');
         const tsconfig = JSON.parse(stripped) as {
             compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
         };
         const compilerOptions = tsconfig.compilerOptions ??= {};
         const paths = compilerOptions.paths ??= {};
         if (paths['@/*']) return;
-        if (!compilerOptions.baseUrl) compilerOptions.baseUrl = '.';
+        compilerOptions.baseUrl ??= '.';
         paths['@/*'] = ['./src/*'];
         await fs.writeJson(tsconfigPath, tsconfig, { spaces: 2 });
     } catch {

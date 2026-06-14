@@ -26,7 +26,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 
 
 const inputGroupVariants = cva(
-  'group/input-group relative flex w-full items-center transition-[color,box-shadow] outline-none h-9 min-w-0 has-[input:focus-visible]:ring-[3px]',
+  'group/input-group relative flex w-full items-center transition-[color,box-shadow] outline-none min-w-0 has-[input:focus-visible]:ring-[3px]',
   {
     variants: {
       variant: {

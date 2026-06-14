@@ -27,31 +27,31 @@ export class ContextMenuSubComponent {
     private trigger: ContextMenuSubTriggerComponent | null = null;
     private content: ContextMenuSubContentComponent | null = null;
 
-    registerTrigger(t: ContextMenuSubTriggerComponent) { this.trigger = t; }
-    registerContent(c: ContextMenuSubContentComponent) { this.content = c; }
+    registerTrigger(t: ContextMenuSubTriggerComponent): void { this.trigger = t; }
+    registerContent(c: ContextMenuSubContentComponent): void { this.content = c; }
 
     getTriggerElement(): HTMLElement | null {
         return this.trigger?.triggerEl?.nativeElement ?? null;
     }
 
-    enter() {
+    enter(): void {
         clearTimeout(this.timeoutId);
         this.isOpen.set(true);
     }
 
-    leave() {
+    leave(): void {
         this.timeoutId = setTimeout(() => {
             this.isOpen.set(false);
         }, 100);
     }
 
-    focusTrigger() {
+    focusTrigger(): void {
         setTimeout(() => {
             this.trigger?.focus();
         }, 0);
     }
 
-    focusContent() {
+    focusContent(): void {
         setTimeout(() => {
             this.content?.focusFirst();
         }, 0);

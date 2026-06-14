@@ -15,7 +15,12 @@ import { SPEED_DIAL } from '../speed-dial.component';
     @if (speedDial?.open()) {
       <div
         [class]="classes()"
+        tabindex="0"
+        role="button"
+        [attr.aria-label]="'Close'"
         (click)="onClick()"
+        (keydown.enter)="onClick()"
+        (keydown.space)="onClick()"
         [attr.data-slot]="'speed-dial-mask'"
       ></div>
     }
@@ -34,7 +39,7 @@ export class SpeedDialMaskComponent {
         )
     );
 
-    onClick() {
+    onClick(): void {
         this.speedDial?.hide();
     }
 }

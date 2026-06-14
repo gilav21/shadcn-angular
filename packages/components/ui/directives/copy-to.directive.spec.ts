@@ -39,7 +39,7 @@ describe('CopyToDirective', () => {
 		// Mock clipboard API - use defineProperty to bypass readonly
 		Object.defineProperty(navigator, 'clipboard', {
 			value: {
-				writeText: vi.fn((text: string) => Promise.resolve()),
+				writeText: vi.fn((_text: string) => Promise.resolve()),
 			},
 			writable: true,
 			configurable: true,
@@ -113,7 +113,7 @@ describe('CopyToDirective', () => {
 
 	it('should handle empty text gracefully', async () => {
 		const copyWriteTextSpy = vi.spyOn(navigator.clipboard, 'writeText');
-		const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+		const _button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 
 		// Create a new component with empty text input
 		const emptyFixture = TestBed.createComponent(TestHostComponent);

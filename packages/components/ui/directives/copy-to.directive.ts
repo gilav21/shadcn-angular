@@ -8,8 +8,7 @@ import {
 	NgZone,
 	OnDestroy,
 } from '@angular/core';
-import { COMMON_LOCALES, type CommonLocale, createLocaleSelector } from '../../lib/i18n';
-import type { LocaleInput } from '../../lib/i18n';
+import { COMMON_LOCALES, type CommonLocale, type LocaleInput, createLocaleSelector } from '../../lib/i18n';
 
 @Directive({
 	selector: '[uiCopyTo]',
@@ -31,14 +30,14 @@ export class CopyToDirective implements OnDestroy {
 	private indicatorEl: HTMLElement | null = null;
 	private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-	onClick() {
+	onClick(): void {
 		navigator.clipboard.writeText(this.uiCopyTo()).then(() => {
 			this.copied.emit();
 			this.zone.run(() => this.showIndicator());
 		});
 	}
 
-	private showIndicator() {
+	private showIndicator(): void {
 		this.clearIndicator();
 
 		const el = this.renderer.createElement('span') as HTMLElement;
@@ -67,7 +66,7 @@ export class CopyToDirective implements OnDestroy {
 		}, 1500);
 	}
 
-	private clearIndicator() {
+	private clearIndicator(): void {
 		if (this.indicatorEl) {
 			this.renderer.removeChild(document.body, this.indicatorEl);
 			this.indicatorEl = null;
@@ -78,7 +77,7 @@ export class CopyToDirective implements OnDestroy {
 		}
 	}
 
-	ngOnDestroy() {
+	ngOnDestroy(): void {
 		this.clearIndicator();
 	}
 }

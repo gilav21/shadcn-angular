@@ -78,7 +78,7 @@ export class FileUploadComponent {
     )
   );
 
-  onDragOver(event: DragEvent) {
+  onDragOver(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
     if (!this.isDisabled()) {
@@ -86,13 +86,13 @@ export class FileUploadComponent {
     }
   }
 
-  onDragLeave(event: DragEvent) {
+  onDragLeave(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
     this.isDragging.set(false);
   }
 
-  onDrop(event: DragEvent) {
+  onDrop(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
     this.isDragging.set(false);
@@ -105,13 +105,13 @@ export class FileUploadComponent {
     }
   }
 
-  openFilePicker() {
+  openFilePicker(): void {
     if (!this.isDisabled()) {
       this.fileInput()?.nativeElement.click();
     }
   }
 
-  onFileSelected(event: Event) {
+  onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files) {
       this.addFiles(Array.from(input.files));
@@ -119,7 +119,7 @@ export class FileUploadComponent {
     }
   }
 
-  addFiles(newFiles: File[]) {
+  addFiles(newFiles: File[]): void {
     const currentFiles = this.files();
     const maxFiles = this.maxFiles();
     const maxSize = this.maxSize();
@@ -158,7 +158,7 @@ export class FileUploadComponent {
     this.filesChange.emit(this.files());
   }
 
-  removeFile(id: string, event?: MouseEvent) {
+  removeFile(id: string, event?: Event): void {
     event?.stopPropagation();
     const file = this.files().find((f) => f.id === id);
     if (file) {
@@ -171,7 +171,7 @@ export class FileUploadComponent {
     }
   }
 
-  updateFileProgress(id: string, progress: number) {
+  updateFileProgress(id: string, progress: number): void {
     const newStatus: FileUploadItem['status'] = progress >= 100 ? 'complete' : 'uploading';
     this.files.update((files) =>
       files.map((f) =>
@@ -180,13 +180,13 @@ export class FileUploadComponent {
     );
   }
 
-  setFileError(id: string, error: string) {
+  setFileError(id: string, error: string): void {
     this.files.update((files) =>
       files.map((f) => (f.id === id ? { ...f, status: 'error', error } : f))
     );
   }
 
-  clearFiles() {
+  clearFiles(): void {
     this.files().forEach((f) => {
       if (f.preview) URL.revokeObjectURL(f.preview);
     });

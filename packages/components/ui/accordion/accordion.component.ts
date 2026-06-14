@@ -47,7 +47,7 @@ export class AccordionComponent {
     }, { allowSignalWrites: true });
   }
 
-  toggle(value: string) {
+  toggle(value: string): void {
     const current = this.openItems();
     if (this.type() === 'single') {
       if (current.has(value)) {

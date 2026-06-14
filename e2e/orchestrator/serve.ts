@@ -152,6 +152,7 @@ async function stopChild(child: ChildProcess): Promise<void> {
 
     // Hard-kill anything still alive on POSIX. taskkill /F already
     // covers Windows.
+    // eslint-disable-next-line sonarjs/different-types-comparison -- child.pid is number|undefined per Node.js types; guard is genuine
     if (!isWindows && child.pid !== undefined && child.exitCode === null) {
         try {
             process.kill(-child.pid, 'SIGKILL');

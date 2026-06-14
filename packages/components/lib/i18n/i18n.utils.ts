@@ -59,7 +59,7 @@ export function createLocaleSelector<T extends LocaleMeta>(
     fallback = 'en',
 ): Signal<T> {
     if (typeof localeInput !== 'function') {
-        throw new Error(
+        throw new TypeError(
             '[shadcn-angular i18n] createLocaleSelector received a non-Signal `localeInput`. ' +
                 'Common cause: the `locale = input(...)` field is declared AFTER the field that ' +
                 'calls createLocaleSelector / createLocaleBindings. Declare `locale` BEFORE ' +
@@ -128,8 +128,8 @@ export function interpolate(
     template: string,
     values: Record<string, string | number>,
 ): string {
-    return template.replaceAll(/\{([^}]+)\}/g, (match, k: string) =>
-        Object.prototype.hasOwnProperty.call(values, k) ? String(values[k]) : match,
+    return template.replaceAll(/\{([^}]{1,256})\}/g, (match, k: string) =>
+        Object.hasOwn(values, k) ? String(values[k]) : match,
     );
 }
 

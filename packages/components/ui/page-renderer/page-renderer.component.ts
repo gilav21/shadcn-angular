@@ -26,10 +26,10 @@ import { cn } from '../../lib/utils';
 export class PageRendererComponent implements OnDestroy {
     data = input.required<PageData>();
     components = input<ComponentMeta[]>([]);
-    context = input<Record<string, any>>({});
+    context = input<Record<string, unknown>>({});
     class = input('');
 
-    private instanceMap = new Map<string, any>();
+    private readonly instanceMap = new Map<string, Record<string, unknown>>();
 
     classes = computed(() => cn('w-full h-full', this.class()));
 
@@ -37,7 +37,7 @@ export class PageRendererComponent implements OnDestroy {
     gridRowHeight = computed(() => this.data().grid.rowHeight);
     gridColumnWidth = computed(() => this.data().grid.columnWidth);
     gridGap = computed(() => this.data().grid.gap);
-    gridShowBorders = computed(() => this.data().grid.showBorders);
+    gridShowBorders = computed(() => this.data().grid.showBorders ?? true);
     gridBorderRadius = computed(() => this.data().grid.borderRadius);
     gridItemPadding = computed(() => this.data().grid.itemPadding);
 
@@ -80,15 +80,16 @@ export class PageRendererComponent implements OnDestroy {
         });
     }
 
-    onComponentInit(event: { id: string, ref: ComponentRef<any> }) {
-        this.instanceMap.set(event.id, event.ref.instance);
+    onComponentInit(event: { id: string, ref: ComponentRef<unknown> }): void {
+        const instance = event.ref.instance as Record<string, unknown>;
+        this.instanceMap.set(event.id, instance);
         const item = this.dashboardItems().find(i => i.id === event.id);
         if (item) {
-            this.updateInstance(event.ref.instance, item.inputs);
+            this.updateInstance(instance, item.inputs);
         }
     }
 
-    private updateInstances(items: DashboardItem[]) {
+    private updateInstances(items: DashboardItem[]): void {
         items.forEach(item => {
             const instance = this.instanceMap.get(item.id);
             if (instance) {
@@ -97,35 +98,27 @@ export class PageRendererComponent implements OnDestroy {
         });
     }
 
-    private updateInstance(instance: any, inputs: Record<string, any> | undefined) {
+    private updateInstance(instance: Record<string, unknown>, inputs: Record<string, unknown> | undefined): void {
         if (!inputs) return;
-        Object.entries(inputs).forEach(([key, value]) => {
-            if (typeof instance[key] === 'object' && instance[key]?.set && typeof instance[key].set === 'function') {
-                // It's likely a signal input, but we can't easily know for sure without reflection.
-                // However, Angular inputs are set by the framework. 
-                // BentoGrid uses *ngComponentOutlet which handles inputs if passed correctly in the injector or inputs object.
-                // But BentoGrid currently passes inputs via `componentRef.setInput`.
-                // The `dashboardItems` computed signal returns new objects with new inputs.
-                // BentoGrid detects this change and re-renders or updates inputs.
-                // We might not need to manually update instances if BentoGrid handles `OnChanges` or `setInput`.
-                // Let's rely on BentoGrid's input handling mechanism which reacts to `items()` changes.
-            }
+        Object.entries(inputs).forEach(([_key, _value]) => {
+            // Angular inputs are set by the framework via BentoGrid's setInput mechanism.
+            // BentoGrid detects dashboardItems() changes and re-renders / updates inputs.
         });
     }
 
-    private resolvePath(obj: any, path: string): any {
+    private resolvePath(obj: Record<string, unknown>, path: string): unknown {
         if (!path) return undefined;
         const keys = path.split('.');
-        let current = obj;
+        let current: unknown = obj;
 
         for (const key of keys) {
             if (current === undefined || current === null) return undefined;
-            current = current[key];
+            current = (current as Record<string, unknown>)[key];
         }
         return current;
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.instanceMap.clear();
     }
 }

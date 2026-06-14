@@ -26,7 +26,7 @@ export class UiMagneticDirective implements OnDestroy {
 
     transform = signal('translate(0px, 0px)');
 
-    private readonly mouseMoveHandler = (event: MouseEvent) => {
+    private readonly mouseMoveHandler = (event: MouseEvent): void => {
         if (prefersReducedMotion()) return;
 
         const el = this.el.nativeElement as HTMLElement;
@@ -48,7 +48,7 @@ export class UiMagneticDirective implements OnDestroy {
         }
     };
 
-    private readonly mouseLeaveHandler = () => {
+    private readonly mouseLeaveHandler = (): void => {
         this.transform.set('translate(0px, 0px)');
     };
 
@@ -60,7 +60,7 @@ export class UiMagneticDirective implements OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         const el = this.el.nativeElement as HTMLElement;
         el.removeEventListener('mousemove', this.mouseMoveHandler);
         el.removeEventListener('mouseleave', this.mouseLeaveHandler);

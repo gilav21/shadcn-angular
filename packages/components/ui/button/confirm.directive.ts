@@ -10,8 +10,7 @@ import {
     createComponent,
     HostListener,
 } from '@angular/core';
-import { COMMON_LOCALES, type CommonLocale, createLocaleSelector } from '../../lib/i18n';
-import type { LocaleInput } from '../../lib/i18n';
+import { COMMON_LOCALES, type CommonLocale, createLocaleSelector, type LocaleInput } from '../../lib/i18n';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 
 @Directive({
@@ -38,7 +37,7 @@ export class ConfirmDirective {
     private readonly elementInjector = inject(Injector);
 
     @HostListener('click', ['$event'])
-    onClick(event: MouseEvent) {
+    onClick(event: MouseEvent): void {
         event.stopPropagation();
 
         const ref = createComponent(ConfirmDialogComponent, {
@@ -65,7 +64,7 @@ export class ConfirmDirective {
             cleanup();
         });
 
-        function cleanup() {
+        function cleanup(): void {
             confirmSub.unsubscribe();
             cancelSub.unsubscribe();
             ref.destroy();

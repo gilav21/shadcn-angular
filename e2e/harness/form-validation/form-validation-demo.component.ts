@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import {
     FormBuilder,
     ReactiveFormsModule,
@@ -6,7 +6,6 @@ import {
     NonNullableFormBuilder,
     type FormControl,
 } from '@angular/forms';
-import { inject } from '@angular/core';
 import { InputComponent } from '@/components/ui/input';
 import { LabelComponent } from '@/components/ui/label';
 import { ButtonComponent } from '@/components/ui/button';

@@ -120,8 +120,8 @@ export function animateValue(
     let startTime: number | null = null;
     let animationId: number;
 
-    const animate = (timestamp: number) => {
-        if (!startTime) startTime = timestamp;
+    const animate = (timestamp: number): void => {
+        startTime ??= timestamp;
         const elapsed = timestamp - startTime;
         const progress = Math.min(elapsed / duration, 1);
         const easedProgress = easingFunctions[easing](progress);
@@ -245,5 +245,5 @@ export function getChartSummary(
     title?: string
 ): string {
     const base = title ? `${title}. ` : '';
-    return `${base}${chartType} with ${dataPointCount} data point${dataPointCount !== 1 ? 's' : ''}.`;
+    return `${base}${chartType} with ${dataPointCount} data point${dataPointCount === 1 ? '' : 's'}.`;
 }

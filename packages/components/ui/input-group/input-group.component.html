@@ -1,8 +1,7 @@
-<div
-  [class]="classes()"
+<fieldset
+  [class]="classes() + ' min-w-0'"
   [attr.data-slot]="'input-group'"
   [attr.data-disabled]="disabled() || null"
-  role="group"
 >
   <ng-content />
-</div>
+</fieldset>

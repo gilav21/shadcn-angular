@@ -70,14 +70,14 @@ export class SelectContentComponent implements AfterViewInit {
         });
     }
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (this.select?.open()) {
             this.calculatePosition();
             this.focusContent();
         }
     }
 
-    private calculatePosition() {
+    private calculatePosition(): void {
         const requestedPos = this.select?.position() ?? this.position();
         const contentEl = this.contentEl?.nativeElement;
 
@@ -131,7 +131,7 @@ export class SelectContentComponent implements AfterViewInit {
         contentHeight: number,
         boundary: DOMRect,
         padding: number,
-    ) {
+    ): void {
         const preferredSide = this.side();
         const spaceBelow = boundary.bottom - triggerRect.bottom - padding;
         const spaceAbove = triggerRect.top - boundary.top - padding;
@@ -143,7 +143,7 @@ export class SelectContentComponent implements AfterViewInit {
         }
     }
 
-    private focusContent() {
+    private focusContent(): void {
         if (!this.contentEl?.nativeElement) return;
 
         const content = this.contentEl.nativeElement;
@@ -156,7 +156,7 @@ export class SelectContentComponent implements AfterViewInit {
         }
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         if (!this.contentEl?.nativeElement) return;
 
         const items = Array.from(this.contentEl.nativeElement.querySelectorAll<HTMLElement>('[data-slot="select-item"]:not([data-disabled])'));

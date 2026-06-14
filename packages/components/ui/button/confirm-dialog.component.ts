@@ -43,21 +43,21 @@ export class ConfirmDialogComponent {
         });
     }
 
-    show() {
+    show(): void {
         this.open.set(true);
     }
 
-    hide() {
+    hide(): void {
         this.open.set(false);
     }
 
-    onConfirm() {
+    onConfirm(): void {
         this.wasOpen = false;
         this.open.set(false);
         this.confirmed.emit();
     }
 
-    onCancel() {
+    onCancel(): void {
         this.wasOpen = false;
         this.open.set(false);
         this.cancelled.emit();

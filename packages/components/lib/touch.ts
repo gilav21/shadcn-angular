@@ -29,7 +29,7 @@ export function onLongPress(
     let timer: ReturnType<typeof setTimeout> | null = null;
     let startTouch: Touch | null = null;
 
-    const onTouchStart = (e: TouchEvent) => {
+    const onTouchStart = (e: TouchEvent): void => {
         startTouch = e.touches[0];
         timer = setTimeout(() => {
             callback(e);
@@ -37,7 +37,7 @@ export function onLongPress(
         }, duration);
     };
 
-    const onTouchMove = (e: TouchEvent) => {
+    const onTouchMove = (e: TouchEvent): void => {
         if (!startTouch || !timer) return;
         const dx = e.touches[0].clientX - startTouch.clientX;
         const dy = e.touches[0].clientY - startTouch.clientY;
@@ -47,7 +47,7 @@ export function onLongPress(
         }
     };
 
-    const onTouchEnd = () => {
+    const onTouchEnd = (): void => {
         if (timer) {
             clearTimeout(timer);
             timer = null;
@@ -81,7 +81,7 @@ export function onDoubleTap(
 ): () => void {
     let lastTap = 0;
 
-    const handler = (e: TouchEvent) => {
+    const handler = (e: TouchEvent): void => {
         const now = Date.now();
         if (now - lastTap < maxDelay) {
             e.preventDefault();
@@ -93,7 +93,7 @@ export function onDoubleTap(
     };
 
     element.addEventListener('touchend', handler);
-    return () => element.removeEventListener('touchend', handler);
+    return (): void => element.removeEventListener('touchend', handler);
 }
 
 /**
@@ -107,17 +107,17 @@ export function onPointerDrag(
     onMove: (clientX: number, clientY: number, event: MouseEvent | TouchEvent) => void,
     onEnd: (event: MouseEvent | TouchEvent) => void,
 ): () => void {
-    const handleMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY, e);
-    const handleTouchMove = (e: TouchEvent) => {
+    const handleMouseMove = (e: MouseEvent): void => onMove(e.clientX, e.clientY, e);
+    const handleTouchMove = (e: TouchEvent): void => {
         if (e.touches.length > 0) {
             onMove(e.touches[0].clientX, e.touches[0].clientY, e);
         }
     };
-    const handleMouseUp = (e: MouseEvent) => {
+    const handleMouseUp = (e: MouseEvent): void => {
         cleanup();
         onEnd(e);
     };
-    const handleTouchEnd = (e: TouchEvent) => {
+    const handleTouchEnd = (e: TouchEvent): void => {
         cleanup();
         onEnd(e);
     };
@@ -128,7 +128,7 @@ export function onPointerDrag(
     globalThis.window?.addEventListener('touchend', handleTouchEnd);
     globalThis.window?.addEventListener('touchcancel', handleTouchEnd);
 
-    const cleanup = () => {
+    const cleanup = (): void => {
         globalThis.window?.removeEventListener('mousemove', handleMouseMove);
         globalThis.window?.removeEventListener('mouseup', handleMouseUp);
         globalThis.window?.removeEventListener('touchmove', handleTouchMove);

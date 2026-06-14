@@ -214,7 +214,7 @@ function buildCmapTable(glyphs: readonly TtfBuilderGlyph[]): Uint8Array {
     const segCount = segments.length;
 
     // Format 4 subtable size
-    const subtableSize = 14 + segCount * 8; // 14 header + 4 arrays of segCount * 2
+    const subtableSize = 16 + segCount * 8; // 14 header + 2 reservedPad + 4 arrays of segCount * 2
     const tableSize = 4 + 8 + subtableSize; // cmap header (4) + encoding record (8) + subtable
 
     const buf = new Uint8Array(tableSize);

@@ -35,7 +35,7 @@ describe('partitionClosure', () => {
       new Set(['button', 'data-table']) as Set<ComponentName>,
       new Set(['data-table', 'button', 'context-menu']) as Set<ComponentName>,
     );
-    expect(res.alreadyInstalled.sort()).toEqual(['button', 'data-table']);
+    expect([...res.alreadyInstalled].sort((a, b) => a.localeCompare(b))).toEqual(['button', 'data-table']);
     expect(res.newlyRequired).toEqual(['context-menu']);
   });
 
@@ -46,7 +46,7 @@ describe('partitionClosure', () => {
       new Set(['button', 'ripple']) as Set<ComponentName>,
     );
     expect(res.newlyRequired).toEqual([]);
-    expect(res.alreadyInstalled.sort()).toEqual(['button', 'ripple']);
+    expect([...res.alreadyInstalled].sort((a, b) => a.localeCompare(b))).toEqual(['button', 'ripple']);
   });
 });
 

@@ -42,7 +42,7 @@ export class OrbitComponent implements AfterViewInit, OnDestroy {
         pointerEvents: 'auto',
     }));
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (prefersReducedMotion()) return;
 
         const host = this.el.nativeElement as HTMLElement;
@@ -64,7 +64,7 @@ export class OrbitComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.animationRef?.cancel();
     }
 }

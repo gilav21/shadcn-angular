@@ -90,7 +90,7 @@ export class ComparisonSliderComponent implements AfterViewInit {
         cn(
             'pointer-events-auto z-20 flex items-center justify-center rounded-full bg-white shadow-md cursor-grab active:cursor-grabbing shrink-0',
             'w-10 h-10 border-2 border-white/80',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+            'peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2',
             'touch-none',
             this.isHorizontal() ? 'flex-row gap-0.5' : 'flex-col gap-0.5'
         )

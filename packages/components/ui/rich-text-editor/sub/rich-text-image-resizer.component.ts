@@ -1,3 +1,5 @@
+/* eslint-disable sonarjs/no-angular-bypass-sanitization -- bypasses only for
+   trusted static SVG icon constants defined in this file, never user input. */
 import { Component, signal, input, effect, OnDestroy, ChangeDetectionStrategy, output, inject, computed } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -62,8 +64,8 @@ export class RichTextImageResizerComponent implements OnDestroy {
 
     private rafId: number | null = null;
     private resizeObserver: ResizeObserver | null = null;
-    private readonly onContainerScrollBound = () => this.scheduleUpdate();
-    private readonly onWindowResizeBound = () => this.scheduleUpdate();
+    private readonly onContainerScrollBound = (): void => this.scheduleUpdate();
+    private readonly onWindowResizeBound = (): void => this.scheduleUpdate();
     private resizeState: {
         startX: number;
         startY: number;
@@ -145,7 +147,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
         }
     }
 
-    private startTracking() {
+    private startTracking(): void {
         this.stopTracking();
         const target = this.target();
         const container = this.container();
@@ -162,7 +164,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
         this.scheduleUpdate();
     }
 
-    private stopTracking() {
+    private stopTracking(): void {
         if (this.rafId) {
             cancelAnimationFrame(this.rafId);
             this.rafId = null;
@@ -175,7 +177,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
         this.document.defaultView?.removeEventListener('resize', this.onWindowResizeBound);
     }
 
-    private scheduleUpdate() {
+    private scheduleUpdate(): void {
         if (this.rafId !== null) {
             return;
         }
@@ -185,7 +187,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
         });
     }
 
-    private updateRect() {
+    private updateRect(): void {
         const t = this.target();
         const c = this.container();
         if (!t || !c) {
@@ -211,7 +213,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
         this.visible.set(true);
     }
 
-    startResize(event: MouseEvent, handle: 'nw' | 'ne' | 'sw' | 'se') {
+    startResize(event: MouseEvent, handle: 'nw' | 'ne' | 'sw' | 'se'): void {
         event.preventDefault();
         event.stopPropagation();
 
@@ -234,7 +236,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
         document.addEventListener('mouseup', this.onMouseUpBound);
     }
 
-    private onMouseMove(event: MouseEvent) {
+    private onMouseMove(event: MouseEvent): void {
         if (!this.resizeState || !this.target()) return;
 
         const deltaX = event.clientX - this.resizeState.startX;
@@ -256,21 +258,21 @@ export class RichTextImageResizerComponent implements OnDestroy {
 
         const newHeight = newWidth / aspect;
 
-        if (newWidth > 20 && newHeight > 20) {
-            const t = this.target()!;
+        const t = this.target();
+        if (newWidth > 20 && newHeight > 20 && t) {
             t.style.width = `${newWidth}px`;
             t.style.height = `${newHeight}px`;
         }
     }
 
-    private onMouseUp() {
+    private onMouseUp(): void {
         this.resizeState = null;
         document.removeEventListener('mousemove', this.onMouseMoveBound);
         document.removeEventListener('mouseup', this.onMouseUpBound);
         this.resizeEnd.emit();
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.stopTracking();
         document.removeEventListener('mousemove', this.onMouseMoveBound);
         document.removeEventListener('mouseup', this.onMouseUpBound);

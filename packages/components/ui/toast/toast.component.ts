@@ -7,7 +7,6 @@ import {
   signal,
   Injectable,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
 import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { cva, type VariantProps } from 'class-variance-authority';
 
@@ -50,7 +49,7 @@ export class ToastService {
   private readonly timeoutIds = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly intervalIds = new Map<string, ReturnType<typeof setInterval>>();
 
-  toast(options: Omit<ToastData, 'id'>) {
+  toast(options: Omit<ToastData, 'id'>): string {
     const id = `toast-${++this.counter}`;
     const duration = options.duration ?? 5000;
     const countdownSeconds = options.showCountdown ? Math.ceil(duration / 1000) : undefined;
@@ -82,15 +81,15 @@ export class ToastService {
     return id;
   }
 
-  success(title: string, description?: string, duration = 5000) {
+  success(title: string, description?: string, duration = 5000): string {
     return this.toast({ title, description, variant: 'success', duration });
   }
 
-  error(title: string, description?: string, duration = 5000) {
+  error(title: string, description?: string, duration = 5000): string {
     return this.toast({ title, description, variant: 'destructive', duration });
   }
 
-  dismiss(id: string) {
+  dismiss(id: string): void {
     const timeoutId = this.timeoutIds.get(id);
     if (timeoutId) {
       clearTimeout(timeoutId);
@@ -104,7 +103,7 @@ export class ToastService {
     this.toastsSignal.update(toasts => toasts.filter(t => t.id !== id));
   }
 
-  dismissAll() {
+  dismissAll(): void {
     this.timeoutIds.forEach(timeoutId => clearTimeout(timeoutId));
     this.timeoutIds.clear();
     this.intervalIds.forEach(intervalId => clearInterval(intervalId));
@@ -119,7 +118,7 @@ export class ToastService {
   templateUrl: './toast.component.html',
   host: {
     class: 'contents',
-    '(keydown.escape)': 'close.emit()',
+    '(keydown.escape)': 'closed.emit()',
   },
 })
 export class ToastComponent {
@@ -135,7 +134,7 @@ export class ToastComponent {
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
   readonly locale = input<LocaleInput<CommonLocale>>();
 
-  readonly close = output<void>();
+  readonly closed = output<void>();
 
   private readonly i18n = createLocaleBindings(this.locale, COMMON_LOCALES);
   protected readonly t = this.i18n.t;

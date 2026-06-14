@@ -36,7 +36,7 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
   private readonly tableElement = inject(ElementRef<HTMLElement>);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private readonly dataTable = inject<DataTableComponent<T> | null>(DataTableComponent as any, { optional: true });
-  private readonly contextMenuListener = (event: MouseEvent) => {
+  private readonly contextMenuListener = (event: MouseEvent): void => {
     if (this.contextMenuDisabled()) {
       return;
     }
@@ -65,7 +65,7 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
     this.tableElement.nativeElement.addEventListener('contextmenu', this.contextMenuListener);
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.tableElement.nativeElement.removeEventListener('contextmenu', this.contextMenuListener);
   }
 
@@ -73,7 +73,7 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
     const rowData = this.extractDataTableRow(rowEl);
 
     const cell = target.closest<HTMLElement>('[data-slot="table-cell"], td');
-    const columnKey = cell?.dataset['column'] || '';
+    const columnKey = cell?.dataset['column'] ?? '';
     if (this.dataTable && columnKey && columnKey !== '_selection' && columnKey !== '_expander') {
       this.dataTable.focusedCell.set({ rowIndex: rowData.index, columnKey });
     }

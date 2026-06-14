@@ -30,20 +30,20 @@ export class RadioGroupItemComponent {
   private readonly _generatedId = `radio-${++RadioGroupItemComponent.idCounter}`;
   computedId = computed(() => this._generatedId);
 
-  private readonly group = inject(RADIO_GROUP, { optional: true });
+  protected readonly group = inject(RADIO_GROUP, { optional: true });
 
   isSelected = computed(() => this.group?.internalValue() === this.value());
   isDisabled = computed(() => this.disabled() || (this.group?.isDisabled() ?? false));
 
   classes = computed(() =>
     cn(
-      'aspect-square h-4 w-4 rounded-full border border-primary text-primary shadow focus:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center',
+      'aspect-square rounded-full border border-primary text-primary shadow outline-none peer-focus-visible:ring-1 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50 flex items-center justify-center',
       this.isSelected() ? 'border-primary' : 'bg-background',
       this.class()
     )
   );
 
-  select() {
+  select(): void {
     if (this.isDisabled() || !this.group) return;
     this.group.selectValue(this.value());
   }

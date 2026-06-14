@@ -6,12 +6,11 @@ import {
     signal,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
-import { AvatarImageComponent } from './sub/avatar-image.component';
-import { AvatarFallbackComponent } from './sub/avatar-fallback.component';
 import { SpinnerComponent } from '../spinner';
 import { SkeletonComponent } from '../skeleton';
 
-export { AvatarImageComponent, AvatarFallbackComponent };
+export { AvatarFallbackComponent } from './sub/avatar-fallback.component';
+export { AvatarImageComponent } from './sub/avatar-image.component';
 
 @Component({
     selector: 'ui-avatar',
@@ -36,16 +35,16 @@ export class AvatarComponent {
     readonly classes = computed(() => {
         if (this.skeleton()) return cn('block shrink-0', this.class());
         return cn(
-            'relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full',
+            'relative flex shrink-0 overflow-hidden rounded-full',
             this.class()
         );
     });
 
-    onLoad() {
+    onLoad(): void {
         this.status.set('loaded');
     }
 
-    onError() {
+    onError(): void {
         this.status.set('error');
     }
 

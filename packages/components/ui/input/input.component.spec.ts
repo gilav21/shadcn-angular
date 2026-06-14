@@ -189,3 +189,72 @@ describe('Input RTL Support', () => {
         expect(input.nativeElement.placeholder).toBe('أدخل النص');
     });
 });
+
+describe('InputComponent - floating label', () => {
+    let component: InputComponent;
+    let fixture: ComponentFixture<InputComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [InputComponent] }).compileComponents();
+        fixture = TestBed.createComponent(InputComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('floating', true);
+        fixture.componentRef.setInput('label', 'Full name');
+        fixture.detectChanges();
+    });
+
+    it('renders the floating wrapper with the real input still carrying its variant (not the tall container)', () => {
+        // The input keeps data-slot="input" (so its variant + normal-height CSS
+        // applies); the tall input-container is NOT used for floating.
+        expect(fixture.debugElement.query(By.css('[data-slot="input-floating"]'))).toBeTruthy();
+        expect(fixture.debugElement.query(By.css('[data-slot="input-container"]'))).toBeNull();
+        expect(fixture.debugElement.query(By.css('input[data-slot="input"]'))).toBeTruthy();
+        expect(fixture.debugElement.query(By.css('label')).nativeElement.textContent.trim()).toBe('Full name');
+    });
+
+    it('marks the label active (floated) only when focused or filled', () => {
+        const label = () => fixture.debugElement.query(By.css('label')).nativeElement;
+        expect(label().hasAttribute('data-active')).toBe(false);
+
+        component.onFocus();
+        fixture.detectChanges();
+        expect(label().hasAttribute('data-active')).toBe(true);
+
+        component.onBlur();
+        component.writeValue('Jane');
+        fixture.detectChanges();
+        expect(label().hasAttribute('data-active')).toBe(true); // stays floated while filled
+    });
+
+    it('works for the underline and ghost variants too', () => {
+        for (const variant of ['underline', 'ghost'] as const) {
+            fixture.componentRef.setInput('variant', variant);
+            fixture.detectChanges();
+            expect(fixture.debugElement.query(By.css('[data-slot="input-floating"]'))).toBeTruthy();
+            expect(fixture.debugElement.query(By.css('input[data-slot="input"]'))).toBeTruthy();
+        }
+    });
+
+    it('applies labelClass only when floated, so the resting placeholder stays uniform', () => {
+        fixture.componentRef.setInput('labelClass', 'text-base font-semibold');
+        fixture.detectChanges();
+        const label = () => fixture.debugElement.query(By.css('label')).nativeElement;
+
+        // Resting: uniform placeholder, no custom font.
+        expect(label().className).not.toContain('text-base');
+        expect(label().className).not.toContain('font-semibold');
+
+        // Floated: transforms to the dev-customized font.
+        component.onFocus();
+        fixture.detectChanges();
+        expect(label().className).toContain('text-base');
+        expect(label().className).toContain('font-semibold');
+    });
+
+    it('exposes the variant on the floating wrapper so the resting label can match the input padding', () => {
+        fixture.componentRef.setInput('variant', 'underline');
+        fixture.detectChanges();
+        const wrapper = fixture.debugElement.query(By.css('[data-slot="input-floating"]')).nativeElement;
+        expect(wrapper.getAttribute('data-variant')).toBe('underline');
+    });
+});

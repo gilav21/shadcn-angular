@@ -9,13 +9,14 @@
   [attr.aria-expanded]="hasChildren() ? isExpanded() : null"
   [attr.aria-selected]="tree?.selectable() !== 'none' ? isSelected() : null"
 >
-  <div #header [class]="headerClasses()" (click)="onHeaderClick($event)">
+  <div #header [class]="headerClasses()" (click)="onHeaderClick($event)" (keydown.enter)="onHeaderClick($event)" (keydown.space)="onHeaderClick($event)" tabindex="0" role="button">
     @if (hasChildren()) {
       <button
         type="button"
         [class]="expandButtonClasses()"
         (click)="onExpandClick($event)"
         aria-hidden="true"
+        tabindex="-1"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

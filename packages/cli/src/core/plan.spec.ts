@@ -56,7 +56,7 @@ describe('classifyComponent', () => {
     // Before the fix, "missing" peer files were skipped (only "changed" queued),
     // so the context-menu directives never installed and the build broke. All
     // five of data-table's peer files must now be queued.
-    expect([...peerSet].sort()).toEqual([
+    expect([...peerSet].sort((a, b) => a.localeCompare(b))).toEqual([
       'context-menu-attach.directive.ts',
       'context-menu-integrations.ts',
       'data-table-context-menu.directive.ts',

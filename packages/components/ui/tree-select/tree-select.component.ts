@@ -77,13 +77,13 @@ export class TreeSelectComponent implements ControlValueAccessor {
   });
 
   triggerClasses = computed(() => cn(
-    'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+    'flex w-full items-center justify-between rounded-md border border-input bg-background text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
     this.class()
   ));
 
   isDisabled = computed(() => this.disabled() || this.formDisabled());
 
-  private formDisabled = signal(false);
+  private readonly formDisabled = signal(false);
   private onChange: (value: string | null) => void = () => {};
   private onTouched: () => void = () => {};
 
@@ -124,15 +124,15 @@ export class TreeSelectComponent implements ControlValueAccessor {
     this.formDisabled.set(isDisabled);
   }
 
-  onSelectionChange(selection: string[]) {
-    const newVal = selection[0] || null;
+  onSelectionChange(selection: string[]): void {
+    const newVal = selection[0] ?? null;
     this.internalValue.set(newVal);
     this.onChange(newVal);
     this.selectionChange.emit(selection);
     this.isOpen.set(false);
   }
 
-  select(value: string | null) {
+  select(value: string | null): void {
     this.internalValue.set(value);
     this.onChange(value);
     this.selectionChange.emit(value ? [value] : []);

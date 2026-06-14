@@ -7,6 +7,25 @@ import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 import { RichTextCommandRegistry, RichTextSlashCommandContext } from './rich-text-command-registry.service';
 import { RICH_TEXT_LOCALES, RichTextLocale } from './rich-text-locales';
 
+/** Collapse the selection to a caret at the given node/offset. */
+const setCaretAt = (node: Node, offset: number) => {
+    const selection = document.getSelection();
+    const range = document.createRange();
+    range.setStart(node, offset);
+    range.collapse(true);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+};
+
+/** Select the full contents of the given node. */
+const selectAllOf = (node: Node) => {
+    const selection = document.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+};
+
 describe('RichTextEditorComponent', () => {
     let fixture: ComponentFixture<RichTextEditorComponent>;
     let component: RichTextEditorComponent;
@@ -14,14 +33,7 @@ describe('RichTextEditorComponent', () => {
     let shortcutBindings: ShortcutBindingService;
     let commandRegistry: RichTextCommandRegistry;
 
-    const setCaret = (node: Text, offset: number) => {
-        const selection = document.getSelection();
-        const range = document.createRange();
-        range.setStart(node, offset);
-        range.collapse(true);
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-    };
+    const setCaret = (node: Text, offset: number) => setCaretAt(node, offset);
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -1880,6 +1892,2669 @@ describe('RichTextEditorComponent', () => {
             const panel = fixture.nativeElement.querySelector('[data-slot="rich-text-outline-panel"]');
             expect(panel).toBeTruthy();
         });
+    });
+});
+
+describe('RichTextEditorComponent — formatting, blocks & lists', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const selectAll = () => selectAllOf(editor);
+    const selectContents = (node: Node) => selectAllOf(node);
+    const caretIn = (node: Node, offset: number) => setCaretAt(node, offset);
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('wraps selection in inline code via the code format command', () => {
+        component.writeValue('<p>hello world</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const selection = document.getSelection();
+        const range = document.createRange();
+        range.setStart(text, 0);
+        range.setEnd(text, 5);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+
+        component.onFormatCommand('code');
+
+        const code = editor.querySelector('code');
+        expect(code).toBeTruthy();
+        expect(code?.textContent).toBe('hello');
+        expect(editor.textContent).toBe('hello world');
+    });
+
+    it('converts the current block to a heading via formatBlock', () => {
+        component.writeValue('<p>title text</p>');
+        fixture.detectChanges();
+        selectAll();
+
+        component.onFormatCommand('heading1');
+
+        expect(editor.querySelector('h1')).toBeTruthy();
+        expect(editor.querySelector('h1')?.textContent).toBe('title text');
+    });
+
+    it('converts the current block to a blockquote', () => {
+        component.writeValue('<p>quote me</p>');
+        fixture.detectChanges();
+        selectAll();
+
+        component.onFormatCommand('blockquote');
+
+        expect(editor.querySelector('blockquote')).toBeTruthy();
+    });
+
+    it('inserts a code block with insertCodeBlock', () => {
+        component.writeValue('<p>snippet body</p>');
+        fixture.detectChanges();
+        selectContents(editor.querySelector('p')!);
+
+        component.onFormatCommand('codeBlock');
+
+        const pre = editor.querySelector('pre');
+        expect(pre).toBeTruthy();
+        expect(pre?.querySelector('code')).toBeTruthy();
+        expect(pre?.textContent).toContain('snippet body');
+    });
+
+    it('inserts a horizontal rule', () => {
+        component.writeValue('<p>before</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 6);
+
+        component.onFormatCommand('horizontalRule');
+
+        expect(editor.querySelector('hr')).toBeTruthy();
+    });
+
+    it('toggles an unordered list', () => {
+        component.writeValue('<p>item one</p>');
+        fixture.detectChanges();
+        selectAll();
+
+        component.onFormatCommand('bulletList');
+
+        expect(editor.querySelector('ul')).toBeTruthy();
+        expect(editor.querySelector('ul li')?.textContent).toContain('item one');
+    });
+
+    it('toggles an ordered list', () => {
+        component.writeValue('<p>item one</p>');
+        fixture.detectChanges();
+        selectAll();
+
+        component.onFormatCommand('orderedList');
+
+        expect(editor.querySelector('ol')).toBeTruthy();
+    });
+
+    it('inserts a task list with a checkbox and editable text span', () => {
+        component.writeValue('<p>start</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 0);
+
+        component.onFormatCommand('taskList');
+
+        const ul = editor.querySelector('ul[data-task-list]');
+        expect(ul).toBeTruthy();
+        const li = ul?.querySelector('li[data-task]');
+        expect(li?.getAttribute('data-checked')).toBe('false');
+        expect(li?.querySelector('input[type="checkbox"]')).toBeTruthy();
+    });
+
+    it('inserts a collapsible toggle block', () => {
+        component.writeValue('<p>x</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 1);
+
+        component.onFormatCommand('toggle');
+
+        const details = editor.querySelector('details');
+        expect(details).toBeTruthy();
+        expect(details?.querySelector('summary')).toBeTruthy();
+    });
+
+    it('indents a list item under the previous sibling, then outdents it back', () => {
+        component.writeValue('<ul><li>first</li><li>second</li></ul>');
+        fixture.detectChanges();
+        const secondLi = editor.querySelectorAll('li')[1];
+        caretIn(secondLi.firstChild as Text, 0);
+
+        component.onFormatCommand('indent');
+
+        const nested = editor.querySelector('li > ul > li');
+        expect(nested).toBeTruthy();
+        expect(nested?.textContent).toContain('second');
+
+        caretIn(nested!.firstChild as Text, 0);
+        component.onFormatCommand('outdent');
+
+        expect(editor.querySelector('li > ul')).toBeNull();
+        expect(editor.querySelectorAll(':scope > ul > li').length).toBe(2);
+    });
+
+    it('does not indent the first list item (no previous sibling)', () => {
+        component.writeValue('<ul><li>only</li></ul>');
+        fixture.detectChanges();
+        const li = editor.querySelector('li')!;
+        caretIn(li.firstChild as Text, 0);
+
+        component.onFormatCommand('indent');
+
+        expect(editor.querySelector('li > ul')).toBeNull();
+    });
+
+    it('applies center alignment to the current block', () => {
+        component.writeValue('<p>centered</p>');
+        fixture.detectChanges();
+        selectAll();
+
+        component.onFormatCommand('alignCenter');
+
+        expect(editor.innerHTML).toContain('center');
+    });
+
+    it('is a no-op when disabled', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        component.writeValue('<p>locked</p>');
+        fixture.detectChanges();
+        selectAll();
+        const before = editor.innerHTML;
+
+        component.onFormatCommand('heading1');
+
+        expect(editor.innerHTML).toBe(before);
+    });
+
+    it('clears inline formatting with the clear command', () => {
+        component.writeValue('<p><b>bold text</b></p>');
+        fixture.detectChanges();
+        selectContents(editor.querySelector('b')!);
+
+        component.onFormatCommand('clear');
+
+        expect(editor.querySelector('b')).toBeNull();
+        expect(editor.textContent).toBe('bold text');
+    });
+});
+
+describe('RichTextEditorComponent — toolbar actions (link, image, emoji, color, font)', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const selectContents = (node: Node) => selectAllOf(node);
+    const caretIn = (node: Node, offset: number) => setCaretAt(node, offset);
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('inserts an anchor element with sanitized href on link insert', () => {
+        component.writeValue('<p>see here</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 8);
+
+        component.onLinkInsert({ text: 'docs', url: 'https://example.com/docs' });
+
+        const link = editor.querySelector('a');
+        expect(link).toBeTruthy();
+        expect(link?.getAttribute('href')).toBe('https://example.com/docs');
+        expect(link?.textContent).toBe('docs');
+        expect(link?.getAttribute('rel')).toContain('noopener');
+    });
+
+    it('falls back to url as link text when text is empty', () => {
+        component.writeValue('<p>x</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 1);
+
+        component.onLinkInsert({ text: '', url: 'https://only-url.com' });
+
+        expect(editor.querySelector('a')?.textContent).toBe('https://only-url.com');
+    });
+
+    it('does not insert a link for a javascript: url (sanitizer rejects it)', () => {
+        component.writeValue('<p>safe</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 4);
+
+        component.onLinkInsert({ text: 'evil', url: 'javascript:alert(1)' });
+
+        expect(editor.querySelector('a')).toBeNull();
+    });
+
+    it('insertLinkFromPopover inserts a link and closes the popover', () => {
+        component.writeValue('<p>anchor</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const selection = document.getSelection();
+        const range = document.createRange();
+        range.setStart(text, 0);
+        range.setEnd(text, 6);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        component.onBlur();
+
+        component.showLinkPopover.set(true);
+        component.insertLinkFromPopover('My Link', 'https://link.test');
+
+        expect(editor.querySelector('a')?.getAttribute('href')).toBe('https://link.test');
+        expect(component.showLinkPopover()).toBe(false);
+    });
+
+    it('closeLinkPopover hides the popover and clears selected text', () => {
+        component.selectedText.set('something');
+        component.showLinkPopover.set(true);
+
+        component.closeLinkPopover();
+
+        expect(component.showLinkPopover()).toBe(false);
+        expect(component.selectedText()).toBe('');
+    });
+
+    it('inserts an image at the selection with sanitized src and alt', () => {
+        component.writeValue('<p>img here</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 4);
+
+        component.onImageInsert({ src: 'https://cdn.test/pic.png', alt: 'A picture' });
+
+        const img = editor.querySelector('img');
+        expect(img?.getAttribute('src')).toBe('https://cdn.test/pic.png');
+        expect(img?.getAttribute('alt')).toBe('A picture');
+    });
+
+    it('emits imageUploadError when image URL insertion is disabled (upload-only source)', () => {
+        fixture.componentRef.setInput('imageSources', 'upload');
+        fixture.detectChanges();
+        const errSpy = vi.spyOn(component.imageUploadError, 'emit');
+
+        component.onImageInsert({ src: 'https://cdn.test/pic.png', alt: 'x' });
+
+        expect(errSpy).toHaveBeenCalledWith('Image URL insertion is disabled. Use upload source.');
+        expect(editor.querySelector('img')).toBeNull();
+    });
+
+    it('emits imageUploadError for an invalid image URL', () => {
+        const errSpy = vi.spyOn(component.imageUploadError, 'emit');
+
+        component.onImageInsert({ src: 'javascript:evil()', alt: 'x' });
+
+        expect(errSpy).toHaveBeenCalledWith('Invalid image URL.');
+    });
+
+    it('inserts an emoji at the caret position', () => {
+        component.writeValue('<p>hi</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        caretIn(text, 2);
+        const selection = document.getSelection();
+        if (selection?.rangeCount) {
+            (component as unknown as { savedRange: Range }).savedRange = selection.getRangeAt(0).cloneRange();
+        }
+
+        component.onEmojiInsert('🎉');
+
+        expect(editor.textContent).toContain('🎉');
+    });
+
+    it('applies a font color via foreColor command', () => {
+        component.writeValue('<p>colored</p>');
+        fixture.detectChanges();
+        selectContents(editor.querySelector('p')!);
+
+        component.onColorSelect({ type: 'fontColor', color: '#ff0000' });
+
+        expect(editor.innerHTML.toLowerCase()).toMatch(/color|ff0000|rgb\(255/);
+    });
+
+    it('applies a background (highlight) color', () => {
+        component.writeValue('<p>highlight</p>');
+        fixture.detectChanges();
+        selectContents(editor.querySelector('p')!);
+
+        component.onColorSelect({ type: 'backgroundColor', color: '#00ff00' });
+
+        expect(editor.innerHTML.toLowerCase()).toMatch(/background|00ff00|rgb\(0,\s*255/);
+    });
+
+    it('applies a font size by converting font[size=7] into a styled span', () => {
+        component.writeValue('<p>sized text</p>');
+        fixture.detectChanges();
+        selectContents(editor.querySelector('p')!);
+
+        component.onFontSizeSelect('24');
+
+        expect(editor.querySelectorAll('font[size="7"]').length).toBe(0);
+        const span = Array.from(editor.querySelectorAll('span')).find(s => s.style.fontSize === '24px');
+        expect(span).toBeTruthy();
+    });
+
+    it('applies a font family by converting font[face] into a styled span', () => {
+        component.writeValue('<p>family text</p>');
+        fixture.detectChanges();
+        selectContents(editor.querySelector('p')!);
+
+        component.onFontFamilySelect('Georgia');
+
+        expect(editor.querySelectorAll('font[face]').length).toBe(0);
+        const span = Array.from(editor.querySelectorAll('span')).find(s => s.style.fontFamily.includes('Georgia'));
+        expect(span).toBeTruthy();
+    });
+
+    it('emits a customToolbarAction with a working editor ref', () => {
+        component.writeValue('<p>ref</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 3);
+
+        let captured: { id: string; ref: { insertText: (t: string) => void; getHtmlContent: () => string } } | null = null;
+        component.customToolbarAction.subscribe(e => { captured = e as typeof captured; });
+
+        component.onCustomToolbarAction('my-action');
+
+        expect(captured).toBeTruthy();
+        expect(captured!.id).toBe('my-action');
+        captured!.ref.insertText('INJECTED');
+        expect(editor.textContent).toContain('INJECTED');
+        expect(captured!.ref.getHtmlContent()).toContain('ref');
+    });
+});
+
+describe('RichTextEditorComponent — floating toolbar', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const selectRange = (node: Node, start: number, end: number) => {
+        const selection = document.getSelection();
+        const range = document.createRange();
+        range.setStart(node, start);
+        range.setEnd(node, end);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.componentRef.setInput('toolbar', 'floating');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('wraps the selection in a bold tag and hides the floating toolbar', () => {
+        component.writeValue('<p>make bold</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        selectRange(text, 0, 4);
+        component.showFloatingToolbar.set(true);
+
+        component.onFloatingFormatCommand('bold');
+
+        expect(editor.querySelector('b')?.textContent).toBe('make');
+        expect(component.showFloatingToolbar()).toBe(false);
+    });
+
+    it('wraps the selection in an italic tag', () => {
+        component.writeValue('<p>make italic</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        selectRange(text, 0, 4);
+
+        component.onFloatingFormatCommand('italic');
+
+        expect(editor.querySelector('i')?.textContent).toBe('make');
+    });
+
+    it('applies a heading via the floating block command path', () => {
+        component.writeValue('<p>heading me</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        selectRange(text, 0, 10);
+
+        component.onFloatingFormatCommand('heading2');
+
+        expect(editor.querySelector('h2')).toBeTruthy();
+    });
+
+    it('toggles a bullet list via the floating block command path', () => {
+        component.writeValue('<p>list me</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        selectRange(text, 0, 7);
+
+        component.onFloatingFormatCommand('bulletList');
+
+        expect(editor.querySelector('ul')).toBeTruthy();
+    });
+
+    it('is a no-op when there is no selection range', () => {
+        component.writeValue('<p>none</p>');
+        fixture.detectChanges();
+        document.getSelection()?.removeAllRanges();
+        const before = editor.innerHTML;
+
+        expect(() => component.onFloatingFormatCommand('bold')).not.toThrow();
+        expect(editor.innerHTML).toBe(before);
+    });
+
+    it('updates floating toolbar visibility on selection change', () => {
+        component.writeValue('<p>select this</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        selectRange(text, 0, 6);
+
+        component.onSelectionChange();
+
+        expect(component.showFloatingToolbar()).toBe(true);
+        expect(component.selectedText()).toBe('select');
+    });
+});
+
+describe('RichTextEditorComponent — tables', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const seedTable = () => {
+        editor.innerHTML = `
+            <table>
+                <thead><tr><th>H1</th><th>H2</th></tr></thead>
+                <tbody>
+                    <tr><td>A1</td><td>A2</td></tr>
+                    <tr><td>B1</td><td>B2</td></tr>
+                </tbody>
+            </table><p><br></p>`;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        return editor.querySelector('table')!;
+    };
+
+    const targetCell = (cell: HTMLTableCellElement) => {
+        (component as unknown as { tableContextMenuTarget: HTMLTableCellElement }).tableContextMenuTarget = cell;
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('inserts an N×M table via onTableInsert', () => {
+        editor.innerHTML = '<p>x</p>';
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(text, 1);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+
+        component.onTableInsert({ rows: 3, cols: 2 });
+
+        const table = editor.querySelector('table')!;
+        expect(table.querySelectorAll('thead th').length).toBe(2);
+        expect(table.querySelectorAll('tbody tr').length).toBe(2);
+        expect(table.querySelectorAll('tbody tr')[0].children.length).toBe(2);
+    });
+
+    it('adds a row above the targeted cell', () => {
+        const table = seedTable();
+        const a1 = table.querySelector<HTMLTableCellElement>('tbody td')!;
+        targetCell(a1);
+
+        component.addTableRowAbove();
+
+        expect(table.querySelectorAll('tbody tr').length).toBe(3);
+    });
+
+    it('adds a row below the targeted cell', () => {
+        const table = seedTable();
+        const a1 = table.querySelector<HTMLTableCellElement>('tbody td')!;
+        targetCell(a1);
+
+        component.addTableRowBelow();
+
+        expect(table.querySelectorAll('tbody tr').length).toBe(3);
+    });
+
+    it('adds a column to the left and right', () => {
+        const table = seedTable();
+        const a1 = table.querySelector<HTMLTableCellElement>('tbody td')!;
+        targetCell(a1);
+        component.addTableColumnLeft();
+        expect(table.querySelectorAll('tbody tr')[0].children.length).toBe(3);
+
+        targetCell(table.querySelector<HTMLTableCellElement>('tbody td')!);
+        component.addTableColumnRight();
+        expect(table.querySelectorAll('tbody tr')[0].children.length).toBe(4);
+    });
+
+    it('deletes the targeted row', () => {
+        const table = seedTable();
+        const b1 = table.querySelectorAll('tbody tr')[1].querySelector('td')!;
+        targetCell(b1);
+
+        component.deleteTableRow();
+
+        expect(table.querySelectorAll('tbody tr').length).toBe(1);
+    });
+
+    it('removes the whole table when deleting the last remaining row', () => {
+        editor.innerHTML = '<table><tbody><tr><td>solo</td></tr></tbody></table>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const cell = editor.querySelector('td')!;
+        targetCell(cell);
+
+        component.deleteTableRow();
+
+        expect(editor.querySelector('table')).toBeNull();
+    });
+
+    it('deletes the targeted column', () => {
+        const table = seedTable();
+        const a1 = table.querySelector<HTMLTableCellElement>('tbody td')!;
+        targetCell(a1);
+
+        component.deleteTableColumn();
+
+        expect(table.querySelectorAll('tbody tr')[0].children.length).toBe(1);
+    });
+
+    it('removes the whole table when deleting the last remaining column', () => {
+        editor.innerHTML = '<table><tbody><tr><td>onlycol</td></tr></tbody></table>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        targetCell(editor.querySelector('td')!);
+
+        component.deleteTableColumn();
+
+        expect(editor.querySelector('table')).toBeNull();
+    });
+
+    it('deletes the entire table via deleteTable', () => {
+        const table = seedTable();
+        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+
+        component.deleteTable();
+
+        expect(editor.querySelector('table')).toBeNull();
+    });
+
+    it('toggles a header row off (thead cells become tbody td)', () => {
+        const table = seedTable();
+        targetCell(table.querySelector<HTMLTableCellElement>('thead th')!);
+
+        component.toggleTableHeaderRow();
+
+        expect(table.querySelector('thead')).toBeNull();
+        expect(table.querySelectorAll('th').length).toBe(0);
+    });
+
+    it('toggles a header row on for a headerless table', () => {
+        editor.innerHTML = '<table><tbody><tr><td>c1</td><td>c2</td></tr><tr><td>d1</td><td>d2</td></tr></tbody></table>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const table = editor.querySelector('table')!;
+        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+
+        component.toggleTableHeaderRow();
+
+        expect(table.querySelector('thead')).toBeTruthy();
+        expect(table.querySelectorAll('thead th').length).toBe(2);
+    });
+
+    it('sets cell text alignment', () => {
+        const table = seedTable();
+        const cell = table.querySelector<HTMLTableCellElement>('tbody td')!;
+        targetCell(cell);
+
+        component.setCellAlignment('center');
+
+        expect(cell.style.textAlign).toBe('center');
+    });
+
+    it('sets and clears cell background color', () => {
+        const table = seedTable();
+        const cell = table.querySelector<HTMLTableCellElement>('tbody td')!;
+        targetCell(cell);
+
+        component.setCellColor('#ff0000');
+        expect(cell.style.backgroundColor).toMatch(/rgb\(255,\s*0,\s*0\)|#ff0000/);
+
+        targetCell(cell);
+        component.setCellColor('transparent');
+        expect(cell.style.backgroundColor).toBe('');
+    });
+
+    it('applies "none" border style to all cells', () => {
+        const table = seedTable();
+        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+
+        component.setTableBorders('none');
+
+        const cell = table.querySelector<HTMLTableCellElement>('td')!;
+        expect(cell.style.borderTopStyle).toBe('none');
+    });
+
+    it('applies "outer" border style', () => {
+        const table = seedTable();
+        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+
+        expect(() => component.setTableBorders('outer')).not.toThrow();
+        const firstCell = table.querySelector<HTMLTableCellElement>('thead th')!;
+        expect(firstCell.style.borderTopStyle).toBe('solid');
+    });
+
+    it('applies "horizontal" border style', () => {
+        const table = seedTable();
+        targetCell(table.querySelector<HTMLTableCellElement>('td')!);
+
+        expect(() => component.setTableBorders('horizontal')).not.toThrow();
+        const cell = table.querySelector<HTMLTableCellElement>('td')!;
+        expect(cell.style.borderLeftStyle).toBe('none');
+    });
+
+    it('table operations are no-ops without a target cell', () => {
+        seedTable();
+        targetCell(null as unknown as HTMLTableCellElement);
+        expect(() => component.addTableRowAbove()).not.toThrow();
+        expect(() => component.deleteTableColumn()).not.toThrow();
+        expect(() => component.toggleTableHeaderRow()).not.toThrow();
+    });
+});
+
+describe('RichTextEditorComponent — find and replace', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        component.writeValue('<p>the cat sat on the cat mat</p>');
+        fixture.detectChanges();
+    });
+
+    it('opens find with replace hidden via openFindReplace(false)', () => {
+        component.openFindReplace(false);
+        expect(component.findReplaceVisible()).toBe(true);
+        expect(component.findShowReplace()).toBe(false);
+    });
+
+    it('finds all case-insensitive matches and highlights them', () => {
+        component.onFindQueryChange('cat');
+
+        expect(component.findMatches().length).toBe(2);
+        expect(component.findCurrentIndex()).toBe(0);
+        expect(editor.querySelectorAll('mark[data-find-match]').length).toBe(2);
+    });
+
+    it('clears matches when the query is emptied', () => {
+        component.onFindQueryChange('cat');
+        component.onFindQueryChange('');
+
+        expect(component.findMatches().length).toBe(0);
+        expect(component.findCurrentIndex()).toBe(-1);
+        expect(editor.querySelectorAll('mark[data-find-match]').length).toBe(0);
+    });
+
+    it('navigates matches with findNext (wrapping) and findPrevious', () => {
+        component.onFindQueryChange('cat');
+        expect(component.findCurrentIndex()).toBe(0);
+
+        component.findNext();
+        expect(component.findCurrentIndex()).toBe(1);
+        component.findNext();
+        expect(component.findCurrentIndex()).toBe(0);
+
+        component.findPrevious();
+        expect(component.findCurrentIndex()).toBe(1);
+    });
+
+    it('respects case sensitivity when toggled', () => {
+        component.writeValue('<p>Cat cat CAT</p>');
+        fixture.detectChanges();
+        component.onFindQueryChange('cat');
+        expect(component.findMatches().length).toBe(3);
+
+        component.toggleFindCaseSensitive();
+        expect(component.findCaseSensitive()).toBe(true);
+        expect(component.findMatches().length).toBe(1);
+    });
+
+    it('replaces the current match with replaceSingle', () => {
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+
+        component.replaceSingle();
+
+        expect(editor.textContent).toContain('dog');
+        expect(editor.textContent).toContain('cat');
+        expect((editor.textContent ?? '').match(/cat/g)?.length).toBe(1);
+    });
+
+    it('replaces every match with replaceAll', () => {
+        component.onFindQueryChange('cat');
+        component.replaceText.set('dog');
+
+        component.replaceAll();
+
+        expect((editor.textContent ?? '').includes('cat')).toBe(false);
+        expect((editor.textContent ?? '').match(/dog/g)?.length).toBe(2);
+    });
+
+    it('Enter triggers findNext and Shift+Enter triggers findPrevious', () => {
+        component.onFindQueryChange('cat');
+        const nextSpy = vi.spyOn(component, 'findNext');
+        const prevSpy = vi.spyOn(component, 'findPrevious');
+
+        component.onFindReplaceKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(nextSpy).toHaveBeenCalled();
+
+        component.onFindReplaceKeydown(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true }));
+        expect(prevSpy).toHaveBeenCalled();
+    });
+
+    it('closeFindReplace resets query, matches and highlights', () => {
+        component.onFindQueryChange('cat');
+        component.closeFindReplace();
+
+        expect(component.findReplaceVisible()).toBe(false);
+        expect(component.findQuery()).toBe('');
+        expect(component.findMatches().length).toBe(0);
+        expect(editor.querySelectorAll('mark[data-find-match]').length).toBe(0);
+    });
+});
+
+describe('RichTextEditorComponent — file import', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('emits fileImportError for a file that is neither a zip nor a pdf', async () => {
+        const errSpy = vi.spyOn(component.fileImportError, 'emit');
+        const file = new File([new Uint8Array([1, 2, 3, 4, 5])], 'note.txt', { type: 'text/plain' });
+
+        await component.onFileImport(file);
+
+        expect(errSpy).toHaveBeenCalledWith(component.resolvedLocale().editor.importInvalidFile);
+        expect(component.fileImportErrorMessage()).toBe(component.resolvedLocale().editor.importInvalidFile);
+    });
+
+    it('does not import when readonly', async () => {
+        fixture.componentRef.setInput('readonly', true);
+        fixture.detectChanges();
+        const startSpy = vi.spyOn(component.fileImportStart, 'emit');
+        const file = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])], 'doc.pdf', { type: 'application/pdf' });
+
+        await component.onFileImport(file);
+
+        expect(startSpy).not.toHaveBeenCalled();
+    });
+
+    it('recognises a PDF header and starts the import pipeline', async () => {
+        const startSpy = vi.spyOn(component.fileImportStart, 'emit');
+        // %PDF- magic bytes; parser will likely fail but start must fire.
+        const file = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31])], 'doc.pdf', { type: 'application/pdf' });
+
+        await component.onFileImport(file).catch(() => undefined);
+
+        expect(startSpy).toHaveBeenCalledWith(file);
+    });
+});
+
+describe('RichTextEditorComponent — keydown behaviours', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const caretIn = (node: Node, offset: number) => setCaretAt(node, offset);
+
+    const enterKey = () => new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    const tabKey = (shift = false) => new KeyboardEvent('keydown', { key: 'Tab', shiftKey: shift, bubbles: true, cancelable: true });
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('Tab inside a list item indents it; Shift+Tab outdents it', () => {
+        component.writeValue('<ul><li>one</li><li>two</li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('li')[1].firstChild as Text, 0);
+
+        const tab = tabKey();
+        component.onKeydown(tab);
+        expect(tab.defaultPrevented).toBe(true);
+        expect(editor.querySelector('li > ul > li')?.textContent).toContain('two');
+
+        caretIn(editor.querySelector('li > ul > li')!.firstChild as Text, 0);
+        const shiftTab = tabKey(true);
+        component.onKeydown(shiftTab);
+        expect(editor.querySelector('li > ul')).toBeNull();
+    });
+
+    it('Tab outside a list inserts a tab character', () => {
+        component.writeValue('<p>indent</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 6);
+
+        component.onKeydown(tabKey());
+
+        expect(editor.textContent).toContain('\t');
+    });
+
+    it('Enter in a non-empty task list item creates a new task item', () => {
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>todo</span></li></ul>');
+        fixture.detectChanges();
+        const span = editor.querySelector('li[data-task] span')!;
+        caretIn(span.firstChild as Text, 4);
+
+        const ev = enterKey();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(editor.querySelectorAll('li[data-task]').length).toBe(2);
+    });
+
+    it('Enter in an empty task list item exits the task list into a paragraph', () => {
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span> </span></li></ul>');
+        fixture.detectChanges();
+        const span = editor.querySelector('li[data-task] span')!;
+        caretIn(span.firstChild as Text, 0);
+
+        component.onKeydown(enterKey());
+
+        expect(editor.querySelector('li[data-task]')).toBeNull();
+        expect(editor.querySelector('p')).toBeTruthy();
+    });
+
+    it('Enter inside a summary moves the caret into the details content', () => {
+        component.writeValue('<details open><summary>Title</summary><p>body</p></details>');
+        fixture.detectChanges();
+        const summary = editor.querySelector('summary')!;
+        caretIn(summary.firstChild as Text, 5);
+
+        const ev = enterKey();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        const anchor = document.getSelection()?.anchorNode;
+        const contentP = editor.querySelector('details > p')!;
+        expect(contentP.contains(anchor as Node) || contentP === anchor).toBe(true);
+    });
+
+    it('Enter on an empty trailing details line exits the details block', () => {
+        component.writeValue('<details open><summary>T</summary><p> </p></details>');
+        fixture.detectChanges();
+        const p = editor.querySelector('details > p')!;
+        const textNode = p.firstChild as Text;
+        // make it empty
+        textNode.data = '';
+        caretIn(p, 0);
+
+        const ev = enterKey();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(editor.querySelector('details > p')).toBeNull();
+    });
+
+    it('Enter in a code block inserts a newline rather than a new paragraph', () => {
+        component.writeValue('<pre><code>line1</code></pre>');
+        fixture.detectChanges();
+        const codeText = editor.querySelector('code')!.firstChild as Text;
+        caretIn(codeText, 5);
+
+        const ev = enterKey();
+        component.onKeydown(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(editor.querySelector('code')?.textContent).toContain('\n');
+    });
+
+    it('Enter at the end of a code block whose content ends with a newline exits the block', () => {
+        component.writeValue('<pre><code>done\n</code></pre>');
+        fixture.detectChanges();
+        const codeText = editor.querySelector('code')!.firstChild as Text;
+        caretIn(codeText, codeText.length);
+
+        component.onKeydown(enterKey());
+
+        expect(editor.querySelector('pre + p')).toBeTruthy();
+    });
+
+    it('Escape hides the floating toolbar when no popover is open', () => {
+        component.showFloatingToolbar.set(true);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+
+        expect(component.showFloatingToolbar()).toBe(false);
+    });
+});
+
+describe('RichTextEditorComponent — drag and drop', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+
+    const makeDataTransfer = (files: File[], types: string[] = ['Files']): DataTransfer => ({
+        types,
+        files: files as unknown as FileList,
+        items: files.map(f => ({ kind: 'file', type: f.type })) as unknown as DataTransferItemList,
+    } as unknown as DataTransfer);
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('sets dragOver when dragging files with an image source available', () => {
+        const ev = {
+            dataTransfer: makeDataTransfer([], ['Files']),
+            preventDefault: vi.fn(),
+        } as unknown as DragEvent;
+
+        component.onEditorDragOver(ev);
+
+        expect(component.dragOver()).toBe(true);
+        expect((ev.preventDefault as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
+    });
+
+    it('ignores drag events without files', () => {
+        const ev = {
+            dataTransfer: makeDataTransfer([], ['text/plain']),
+            preventDefault: vi.fn(),
+        } as unknown as DragEvent;
+
+        component.onEditorDragOver(ev);
+
+        expect(component.dragOver()).toBe(false);
+    });
+
+    it('clears dragOver on drag leave outside the editor', () => {
+        component.dragOver.set(true);
+        const current = document.createElement('div');
+        const ev = {
+            currentTarget: current,
+            relatedTarget: document.body,
+        } as unknown as DragEvent;
+
+        component.onEditorDragLeave(ev);
+
+        expect(component.dragOver()).toBe(false);
+    });
+
+    it('inserts a dropped image file as a data URL', async () => {
+        const file = new File(['img'], 'drop.png', { type: 'image/png' });
+        const completeSpy = vi.spyOn(component.imageUploadComplete, 'emit');
+        const ev = {
+            dataTransfer: makeDataTransfer([file]),
+            preventDefault: vi.fn(),
+        } as unknown as DragEvent;
+
+        await component.onEditorDrop(ev);
+
+        const editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]')!;
+        expect(editor.querySelector('img')).toBeTruthy();
+        expect(completeSpy).toHaveBeenCalled();
+        expect(component.dragOver()).toBe(false);
+    });
+
+    it('does not drop when disabled', async () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        const file = new File(['img'], 'drop.png', { type: 'image/png' });
+        const completeSpy = vi.spyOn(component.imageUploadComplete, 'emit');
+
+        await component.onEditorDrop({
+            dataTransfer: makeDataTransfer([file]),
+            preventDefault: vi.fn(),
+        } as unknown as DragEvent);
+
+        expect(completeSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe('RichTextEditorComponent — slash command keyboard navigation', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const openSlash = () => {
+        editor.textContent = '/';
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(editor.firstChild as Text, 1);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('ArrowDown/ArrowUp move the slash command selection index', () => {
+        openSlash();
+        expect(component.slashCommandOpen()).toBe(true);
+        expect(component.slashCommandSelectedIndex()).toBe(0);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+        expect(component.slashCommandSelectedIndex()).toBe(1);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+        expect(component.slashCommandSelectedIndex()).toBe(0);
+    });
+
+    it('does not move below the last command on repeated ArrowUp at index 0', () => {
+        openSlash();
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+        expect(component.slashCommandSelectedIndex()).toBe(0);
+    });
+
+    it('Escape closes the slash command popover', () => {
+        openSlash();
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        expect(component.slashCommandOpen()).toBe(false);
+    });
+
+    it('Space selects the highlighted command', () => {
+        component.writeValue('<p>/h2</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(text, text.length);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const idx = component.filteredSlashCommands().findIndex(c => c.id === 'format.heading-2');
+        component.slashCommandSelectedIndex.set(idx);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
+
+        expect(component.slashCommandOpen()).toBe(false);
+    });
+});
+
+describe('RichTextEditorComponent — mention styling during formatting', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const selectAll = () => selectAllOf(editor);
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        component.writeValue('<p><span data-mention="jane" contenteditable="false">@Jane</span></p>');
+        fixture.detectChanges();
+    });
+
+    it('bold toggles fontWeight on mention chips in the selection', () => {
+        selectAll();
+        component.onFormatCommand('bold');
+        const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
+        expect(chip.style.fontWeight).toBe('bold');
+    });
+
+    it('underline toggles text decoration on mention chips', () => {
+        selectAll();
+        component.onFormatCommand('underline');
+        const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
+        expect(chip.style.textDecoration).toContain('underline');
+    });
+
+    it('font color sets the color style on mention chips', () => {
+        selectAll();
+        component.onColorSelect({ type: 'fontColor', color: '#123456' });
+        const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
+        expect(chip.style.color).toMatch(/rgb\(18,\s*52,\s*86\)|#123456/);
+    });
+
+    it('clear formatting removes inline styles from mention chips', () => {
+        const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
+        chip.style.fontWeight = 'bold';
+        chip.style.color = 'red';
+        selectAll();
+
+        component.onFormatCommand('clear');
+
+        expect(chip.style.fontWeight).toBe('');
+        expect(chip.style.color).toBe('');
+    });
+});
+
+describe('RichTextEditorComponent — history delta, undo/redo & destroy', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const push = () => (component as unknown as { pushHistory: () => void }).pushHistory();
+    const getHistory = () => (component as unknown as { history: unknown[] }).history;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('reconstructs content from delta entries across many snapshots (undo walks back exactly)', () => {
+        const snapshots = ['<p>v0</p>', '<p>v1</p>', '<p>v2</p>', '<p>v3</p>', '<p>v4</p>', '<p>v5</p>', '<p>v6</p>', '<p>v7</p>', '<p>v8</p>', '<p>v9</p>', '<p>v10</p>', '<p>v11</p>', '<p>v12</p>'];
+        for (const s of snapshots) {
+            component.writeValue(s);
+            fixture.detectChanges();
+            push();
+        }
+        // history should contain a mix of keyframes and deltas
+        const hist = getHistory() as { keyframe: boolean }[];
+        expect(hist.length).toBeGreaterThan(10);
+        expect(hist.some(e => e.keyframe)).toBe(true);
+        expect(hist.some(e => !e.keyframe)).toBe(true);
+
+        // Undo from latest several steps and confirm reconstructed HTML matches
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
+        expect(editor.textContent).toMatch(/v\d+/);
+        const afterUndos = editor.textContent;
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, bubbles: true, cancelable: true }));
+        expect(editor.textContent).not.toBe(afterUndos);
+    });
+
+    it('trims history to the configured limit, promoting a new keyframe', () => {
+        fixture.componentRef.setInput('historyLimit', 10);
+        fixture.detectChanges();
+        for (let i = 0; i < 30; i++) {
+            component.writeValue(`<p>entry ${i}</p>`);
+            fixture.detectChanges();
+            push();
+        }
+        const hist = getHistory();
+        expect(hist.length).toBeLessThanOrEqual(10);
+        // First entry must be a keyframe so reconstruction stays valid
+        expect((hist[0] as { keyframe: boolean }).keyframe).toBe(true);
+    });
+
+    it('selecting then pushing new content truncates the redo branch', () => {
+        component.writeValue('<p>a</p>'); fixture.detectChanges(); push();
+        component.writeValue('<p>b</p>'); fixture.detectChanges(); push();
+        component.writeValue('<p>c</p>'); fixture.detectChanges(); push();
+        const fullLen = getHistory().length;
+
+        component.selectHistoryEntry(1);
+        component.writeValue('<p>branch</p>');
+        fixture.detectChanges();
+        push();
+
+        expect(getHistory().length).toBeLessThan(fullLen + 1);
+        expect((getHistory().at(-1) as { preview: string }).preview).toContain('branch');
+    });
+
+    it('ngOnDestroy unregisters shortcuts and disconnects observers without throwing', () => {
+        component.writeValue('<p>cleanup</p>');
+        fixture.detectChanges();
+        expect(() => fixture.destroy()).not.toThrow();
+    });
+});
+
+describe('RichTextEditorComponent — table mouse, resize & cell selection', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const seedTable = () => {
+        editor.innerHTML = `<table><tbody>
+            <tr><td>A1</td><td>A2</td><td>A3</td></tr>
+            <tr><td>B1</td><td>B2</td><td>B3</td></tr>
+        </tbody></table>`;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        return editor.querySelector('table')!;
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it('drag-selecting from one cell to another marks a rectangular block selected', () => {
+        const table = seedTable();
+        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
+        const b2 = table.querySelectorAll('tr')[1].querySelectorAll('td')[1] as HTMLTableCellElement;
+
+        component.onEditorMouseDown({ button: 0, target: a1, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent);
+
+        const b2Rect = b2.getBoundingClientRect();
+        document.dispatchEvent(new MouseEvent('mousemove', {
+            clientX: b2Rect.left + b2Rect.width / 2,
+            clientY: b2Rect.top + b2Rect.height / 2,
+            bubbles: true,
+        }));
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+        expect(component.tableCellSelected().length).toBe(4);
+        expect(component.tableCellSelected().every(c => c.classList.contains('rte-cell-selected'))).toBe(true);
+    });
+
+    it('hovering near a cell right border sets the col-resize cursor', () => {
+        const table = seedTable();
+        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
+        const rect = a1.getBoundingClientRect();
+
+        component.onEditorMouseMove({ target: a1, clientX: rect.right - 1, clientY: rect.top + 5 } as unknown as MouseEvent);
+
+        expect(editor.style.cursor).toBe('col-resize');
+
+        // Moving off the border clears the cursor
+        component.onEditorMouseMove({ target: a1, clientX: rect.left + rect.width / 2, clientY: rect.top + 5 } as unknown as MouseEvent);
+        expect(editor.style.cursor).toBe('');
+    });
+
+    it('starts a column resize when mousedown happens on the resize border', () => {
+        const table = seedTable();
+        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
+        const rect = a1.getBoundingClientRect();
+        component.onEditorMouseMove({ target: a1, clientX: rect.right - 1, clientY: rect.top + 5 } as unknown as MouseEvent);
+
+        const down = { button: 0, target: a1, clientX: rect.right - 1, clientY: rect.top + 5, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent;
+        component.onEditorMouseDown(down);
+
+        expect(table.style.tableLayout).toBe('fixed');
+
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: rect.right + 40, clientY: rect.top + 5, bubbles: true }));
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+        expect(table.style.width).toContain('px');
+    });
+
+    it('right-click on an unselected cell clears the existing cell selection', () => {
+        const table = seedTable();
+        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
+        const a3 = table.querySelectorAll('td')[2] as HTMLTableCellElement;
+        a1.classList.add('rte-cell-selected');
+        component.tableCellSelected.set([a1]);
+
+        component.onEditorMouseDown({ button: 2, target: a3, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent);
+
+        expect(component.tableCellSelected().length).toBe(0);
+    });
+
+    it('touch drag selects cells across the table', () => {
+        const table = seedTable();
+        const a1 = table.querySelectorAll('td')[0] as HTMLTableCellElement;
+        const a2 = table.querySelectorAll('td')[1] as HTMLTableCellElement;
+
+        component.onEditorTouchStart({ target: a1, touches: [{ clientX: 0, clientY: 0 }] } as unknown as TouchEvent);
+
+        const a2Rect = a2.getBoundingClientRect();
+        const move = new Event('touchmove', { bubbles: true, cancelable: true }) as TouchEvent;
+        Object.defineProperty(move, 'touches', { value: [{ clientX: a2Rect.left + a2Rect.width / 2, clientY: a2Rect.top + a2Rect.height / 2 }] });
+        document.dispatchEvent(move);
+        document.dispatchEvent(new Event('touchend', { bubbles: true }));
+
+        expect(component.tableCellSelected().length).toBe(2);
+    });
+});
+
+describe('RichTextEditorComponent — slash command block transforms', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const typeSlash = (paragraphHtml: string) => {
+        component.writeValue(paragraphHtml);
+        fixture.detectChanges();
+        const lastP = editor.querySelector('p:last-of-type')!;
+        const text = lastP.firstChild as Text;
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(text, text.length);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+
+    const runCommand = async (id: string) => {
+        const cmd = component.filteredSlashCommands().find(c => c.id === id)!;
+        await component.onSlashCommandSelect(cmd);
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('transforms a paragraph into a blockquote in place', async () => {
+        typeSlash('<p>quote /quote</p>');
+        await runCommand('format.quote');
+        expect(editor.querySelector('blockquote')).toBeTruthy();
+        expect(editor.querySelector('blockquote')?.textContent).toContain('quote');
+    });
+
+    it('transforms a paragraph into a bullet list item', async () => {
+        typeSlash('<p>bullet /bul</p>');
+        await runCommand('format.bullet-list');
+        expect(editor.querySelector('ul > li')).toBeTruthy();
+    });
+
+    it('transforms a paragraph into a numbered list item', async () => {
+        typeSlash('<p>num /nl</p>');
+        await runCommand('format.numbered-list');
+        expect(editor.querySelector('ol > li')).toBeTruthy();
+    });
+
+    it('transforms a paragraph into a heading and keeps the caret inside', async () => {
+        typeSlash('<p>head /h1</p>');
+        await runCommand('format.heading-1');
+        expect(editor.querySelector('h1')).toBeTruthy();
+    });
+
+    it('transforms back to a paragraph', async () => {
+        typeSlash('<p>txt /paragraph</p>');
+        await runCommand('format.paragraph');
+        expect(editor.querySelectorAll('p').length).toBeGreaterThan(0);
+    });
+
+    it('inserts a horizontal rule via the slash command', async () => {
+        typeSlash('<p>rule /hr</p>');
+        await runCommand('insert.horizontal-rule');
+        expect(editor.querySelector('hr')).toBeTruthy();
+    });
+
+    it('inserts a task list via the slash command', async () => {
+        typeSlash('<p>todo /task</p>');
+        await runCommand('insert.task-list');
+        expect(editor.querySelector('ul[data-task-list]')).toBeTruthy();
+    });
+});
+
+describe('RichTextEditorComponent — task checkbox & image element handlers', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('clicking a task checkbox toggles the checked dataset on its list item', () => {
+        component.writeValue('<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>do it</span></li></ul>');
+        fixture.detectChanges();
+        const checkbox = editor.querySelector('input[type="checkbox"]') as HTMLInputElement;
+
+        component.onEditorClick({ target: checkbox, preventDefault: vi.fn() } as unknown as MouseEvent);
+
+        const li = editor.querySelector('li[data-task]')!;
+        expect(li.getAttribute('data-checked')).toBe('true');
+
+        component.onEditorClick({ target: checkbox, preventDefault: vi.fn() } as unknown as MouseEvent);
+        expect(li.getAttribute('data-checked')).toBe('false');
+    });
+
+    it('clicking an image selects it; clicking elsewhere clears the selection', () => {
+        component.writeValue('<p><img src="https://cdn.test/a.png" alt="a"></p>');
+        fixture.detectChanges();
+        const img = editor.querySelector('img')!;
+
+        component.onEditorClick({ target: img, preventDefault: vi.fn() } as unknown as MouseEvent);
+        expect(component.selectedImage()).toBe(img);
+
+        const p = editor.querySelector('p')!;
+        component.onEditorClick({ target: p, preventDefault: vi.fn() } as unknown as MouseEvent);
+        expect(component.selectedImage()).toBeNull();
+    });
+
+    it('removing the selected image deletes it and clears the selection', () => {
+        component.writeValue('<p><img src="https://cdn.test/a.png" alt="a"></p>');
+        fixture.detectChanges();
+        const img = editor.querySelector('img')!;
+        component.selectedImage.set(img);
+
+        component.onImageRemove(img);
+
+        expect(editor.querySelector('img')).toBeNull();
+        expect(component.selectedImage()).toBeNull();
+    });
+
+    it('image resize/alignment end syncs content and pushes history', () => {
+        component.writeValue('<p><img src="https://cdn.test/a.png" alt="a"></p>');
+        fixture.detectChanges();
+        const before = (component as unknown as { history: unknown[] }).history.length;
+
+        component.onImageAlignmentChange();
+        component.onImageResizeEnd();
+
+        expect((component as unknown as { history: unknown[] }).history.length).toBeGreaterThanOrEqual(before);
+        expect(component.htmlOutput()).toContain('img');
+    });
+});
+
+describe('RichTextEditorComponent — history delta algorithm', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+
+    type DeltaComponent = {
+        computeDelta(prev: string, current: string): string;
+        applyDelta(base: string, delta: string): string;
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('round-trips an inserted line through computeDelta/applyDelta', () => {
+        const c = component as unknown as DeltaComponent;
+        const prev = 'line1\nline2\nline3';
+        const current = 'line1\nINSERTED\nline2\nline3';
+        const delta = c.computeDelta(prev, current);
+        expect(c.applyDelta(prev, delta)).toBe(current);
+    });
+
+    it('round-trips a removed line', () => {
+        const c = component as unknown as DeltaComponent;
+        const prev = 'a\nb\nc\nd';
+        const current = 'a\nc\nd';
+        const delta = c.computeDelta(prev, current);
+        expect(c.applyDelta(prev, delta)).toBe(current);
+    });
+
+    it('round-trips a changed line', () => {
+        const c = component as unknown as DeltaComponent;
+        const prev = 'alpha\nbeta\ngamma';
+        const current = 'alpha\nBETA-CHANGED\ngamma';
+        const delta = c.computeDelta(prev, current);
+        expect(c.applyDelta(prev, delta)).toBe(current);
+    });
+
+    it('round-trips trailing additions and removals', () => {
+        const c = component as unknown as DeltaComponent;
+        const shorter = 'x\ny';
+        const longer = 'x\ny\nz\nw';
+
+        const addDelta = c.computeDelta(shorter, longer);
+        expect(c.applyDelta(shorter, addDelta)).toBe(longer);
+
+        const removeDelta = c.computeDelta(longer, shorter);
+        expect(c.applyDelta(longer, removeDelta)).toBe(shorter);
+    });
+
+    it('returns base unchanged for an empty delta', () => {
+        const c = component as unknown as DeltaComponent;
+        expect(c.applyDelta('base\ncontent', '')).toBe('base\ncontent');
+    });
+});
+
+describe('RichTextEditorComponent — keyboard shortcuts execute formatting', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const selectAll = () => selectAllOf(editor);
+
+    const key = (k: string, opts: Partial<KeyboardEventInit> = {}) =>
+        new KeyboardEvent('keydown', { key: k, ctrlKey: true, bubbles: true, cancelable: true, ...opts });
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        TestBed.inject(ShortcutBindingService);
+    });
+
+    it('Ctrl+B bolds the selection', () => {
+        component.writeValue('<p>bold me</p>');
+        fixture.detectChanges();
+        selectAll();
+        component.onKeydown(key('b'));
+        expect(editor.querySelector('b,strong')).toBeTruthy();
+    });
+
+    it('Ctrl+I italicises the selection', () => {
+        component.writeValue('<p>ital me</p>');
+        fixture.detectChanges();
+        selectAll();
+        component.onKeydown(key('i'));
+        expect(editor.querySelector('i,em')).toBeTruthy();
+    });
+
+    it('Ctrl+U underlines the selection', () => {
+        component.writeValue('<p>under me</p>');
+        fixture.detectChanges();
+        selectAll();
+        component.onKeydown(key('u'));
+        expect(editor.querySelector('u')).toBeTruthy();
+    });
+
+    it('Ctrl+K opens the link dialog', () => {
+        component.writeValue('<p>link me</p>');
+        fixture.detectChanges();
+        selectAll();
+        component.onKeydown(key('k'));
+        expect(component.showLinkPopover()).toBe(true);
+    });
+
+    it('Ctrl+F opens find without replace', () => {
+        component.onKeydown(key('f'));
+        expect(component.findReplaceVisible()).toBe(true);
+        expect(component.findShowReplace()).toBe(false);
+    });
+
+    it('Ctrl+H opens find with replace', () => {
+        component.onKeydown(key('h'));
+        expect(component.findReplaceVisible()).toBe(true);
+        expect(component.findShowReplace()).toBe(true);
+    });
+});
+
+describe('RichTextEditorComponent — slash command run callbacks', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const runById = async (id: string) => {
+        component.writeValue(`<p>seed /x</p>`);
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(text, text.length);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const cmd = component.localizedSlashCommands().find(c => c.id === id)
+            ?? component.filteredSlashCommands().find(c => c.id === id);
+        await component.onSlashCommandSelect(cmd!);
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('format.code-block slash command inserts a pre/code block', async () => {
+        await runById('format.code-block');
+        expect(editor.querySelector('pre code')).toBeTruthy();
+    });
+
+    it('insert.toggle slash command inserts a details block', async () => {
+        await runById('insert.toggle');
+        expect(editor.querySelector('details')).toBeTruthy();
+    });
+
+    it('insert.link slash command opens the link dialog', async () => {
+        await runById('insert.link');
+        expect(component.showLinkPopover()).toBe(true);
+    });
+
+    it('history.undo slash command runs without error', async () => {
+        component.writeValue('<p>one</p>'); fixture.detectChanges();
+        (component as unknown as { pushHistory(): void }).pushHistory();
+        component.writeValue('<p>two</p>'); fixture.detectChanges();
+        (component as unknown as { pushHistory(): void }).pushHistory();
+
+        await runById('history.undo');
+        expect(editor.textContent).toMatch(/one|two|seed/);
+    });
+});
+
+describe('RichTextEditorComponent — focus, blur & selection edge cases', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it('onFocus emits the focused output', () => {
+        const spy = vi.fn();
+        component.focused.subscribe(spy);
+        component.onFocus();
+        expect(spy).toHaveBeenCalled();
+    });
+
+    it('onBlur emits blurred, calls onTouched, and saves the current range', () => {
+        component.writeValue('<p>blur test</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(text, 2);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+
+        const touched = vi.fn();
+        component.registerOnTouched(touched);
+        const blurSpy = vi.fn();
+        component.blurred.subscribe(blurSpy);
+
+        component.onBlur();
+
+        expect(blurSpy).toHaveBeenCalled();
+        expect(touched).toHaveBeenCalled();
+        expect((component as unknown as { savedRange: Range | null }).savedRange).not.toBeNull();
+    });
+
+    it('floating toolbar hides shortly after the selection collapses', () => {
+        vi.useFakeTimers();
+        fixture.componentRef.setInput('toolbar', 'floating');
+        fixture.detectChanges();
+        component.showFloatingToolbar.set(true);
+        document.getSelection()?.removeAllRanges();
+
+        component.onSelectionChange();
+        vi.advanceTimersByTime(150);
+
+        expect(component.showFloatingToolbar()).toBe(false);
+        vi.useRealTimers();
+    });
+});
+
+describe('RichTextEditorComponent — mention insertion via saved range', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.componentRef.setInput('mentions', true);
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it('inserts a chip using the editor text walk when the live selection is lost', () => {
+        editor.innerHTML = 'hello @jo';
+        const textNode = editor.firstChild as Text;
+        const r = document.createRange();
+        r.setStart(textNode, textNode.length);
+        r.collapse(true);
+        const sel = document.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        (component as unknown as { savedRange: Range }).savedRange = r.cloneRange();
+        component.mentionType.set('mention');
+        component.mentionQuery.set('jo');
+
+        sel?.removeAllRanges();
+
+        component.onMentionSelect({ id: 'u9', value: 'john', label: 'John' });
+
+        const chip = editor.querySelector('[data-mention="john"]');
+        expect(chip).toBeTruthy();
+        expect(editor.textContent).not.toContain('@jo ');
+    });
+});
+
+describe('RichTextEditorComponent — slash trigger removal & list re-typing', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    type Internal = {
+        removeSlashTriggerText(query: string): HTMLElement | null;
+        slashTriggerRange: Range | null;
+        slashAnchorBlock: HTMLElement | null;
+        wrapBlockInList(block: HTMLElement, tag: 'ul' | 'ol'): HTMLElement;
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('removes the slash trigger text via the editor tree walk fallback', () => {
+        component.writeValue('<p>alpha /code beta</p>');
+        fixture.detectChanges();
+        const internal = component as unknown as Internal;
+        internal.slashTriggerRange = null;
+        internal.slashAnchorBlock = null;
+        document.getSelection()?.removeAllRanges();
+
+        const block = internal.removeSlashTriggerText('code');
+
+        expect(block?.tagName).toBe('P');
+        expect(editor.textContent).not.toContain('/code');
+        expect(editor.textContent).toContain('alpha');
+    });
+
+    it('wrapBlockInList converts a UL list item into an OL list item', () => {
+        component.writeValue('<ul><li>item</li></ul>');
+        fixture.detectChanges();
+        const li = editor.querySelector('li')!;
+
+        const result = (component as unknown as Internal).wrapBlockInList(li, 'ol');
+
+        expect(result).toBe(li);
+        expect(editor.querySelector('ol > li')).toBeTruthy();
+        expect(editor.querySelector('ul')).toBeNull();
+    });
+});
+
+describe('RichTextEditorComponent — tables with row/col spans', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const targetCell = (cell: HTMLTableCellElement) => {
+        (component as unknown as { tableContextMenuTarget: HTMLTableCellElement }).tableContextMenuTarget = cell;
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('inserting a row through a rowspan extends that span instead of splitting it', () => {
+        editor.innerHTML = `<table><tbody>
+            <tr><td rowspan="2">M</td><td>A2</td></tr>
+            <tr><td>B2</td></tr>
+        </tbody></table>`;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const table = editor.querySelector('table')!;
+        const a2 = table.querySelectorAll('tr')[0].querySelectorAll('td')[1] as HTMLTableCellElement;
+        targetCell(a2);
+
+        component.addTableRowBelow();
+
+        const merged = table.querySelector('td[rowspan]') as HTMLTableCellElement;
+        expect(merged.rowSpan).toBe(3);
+        expect(table.querySelectorAll('tr').length).toBe(3);
+    });
+
+    it('inserting a column through a colspan extends that span', () => {
+        editor.innerHTML = `<table><tbody>
+            <tr><td colspan="2">M</td></tr>
+            <tr><td>B1</td><td>B2</td></tr>
+        </tbody></table>`;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const table = editor.querySelector('table')!;
+        const b1 = table.querySelectorAll('tr')[1].querySelectorAll('td')[0] as HTMLTableCellElement;
+        targetCell(b1);
+
+        component.addTableColumnRight();
+
+        const merged = table.querySelector('td[colspan]') as HTMLTableCellElement;
+        expect(merged.colSpan).toBe(3);
+    });
+
+    it('deleting a row that intersects a rowspan reduces the span', () => {
+        editor.innerHTML = `<table><tbody>
+            <tr><td rowspan="2">M</td><td>A2</td></tr>
+            <tr><td>B2</td></tr>
+        </tbody></table>`;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const table = editor.querySelector('table')!;
+        const b2 = table.querySelectorAll('tr')[1].querySelector('td') as HTMLTableCellElement;
+        targetCell(b2);
+
+        component.deleteTableRow();
+
+        const merged = table.querySelector('td[rowspan]') as HTMLTableCellElement | null;
+        expect(merged?.rowSpan ?? 1).toBe(1);
+        expect(table.querySelectorAll('tr').length).toBe(1);
+    });
+});
+
+describe('RichTextEditorComponent — content insertion fallbacks', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    type Internal = {
+        insertText(text: string): void;
+        insertHtml(html: string): void;
+        insertImageAtSelection(src: string, alt: string): void;
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('appends text to the editor when there is no selection', () => {
+        document.getSelection()?.removeAllRanges();
+        (component as unknown as Internal).insertText('appended-text');
+        expect(editor.textContent).toContain('appended-text');
+    });
+
+    it('appends HTML to the editor end when there is no selection', () => {
+        document.getSelection()?.removeAllRanges();
+        (component as unknown as Internal).insertHtml('<strong>appended-html</strong>');
+        expect(editor.querySelector('strong')?.textContent).toBe('appended-html');
+    });
+
+    it('appends an image to the editor end when there is no selection', () => {
+        document.getSelection()?.removeAllRanges();
+        (component as unknown as Internal).insertImageAtSelection('https://cdn.test/x.png', 'alt');
+        expect(editor.querySelector('img')?.getAttribute('src')).toBe('https://cdn.test/x.png');
+    });
+
+    it('appends an image when the selection is outside the editor', () => {
+        const outside = document.createElement('div');
+        outside.textContent = 'outside';
+        document.body.appendChild(outside);
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.selectNodeContents(outside);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+
+        (component as unknown as Internal).insertImageAtSelection('https://cdn.test/y.png', 'alt');
+
+        expect(editor.querySelector('img')).toBeTruthy();
+        outside.remove();
+    });
+});
+
+describe('RichTextEditorComponent — readonly & disabled guards', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.componentRef.setInput('readonly', true);
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('does not paste content when readonly', async () => {
+        component.writeValue('<p>locked</p>');
+        fixture.detectChanges();
+        await component.onPaste({
+            preventDefault: vi.fn(),
+            clipboardData: { getData: () => 'should not appear', files: [] } as unknown as DataTransfer,
+        } as unknown as ClipboardEvent);
+        expect(editor.textContent).not.toContain('should not appear');
+    });
+
+    it('does not open the slash command popover when readonly', () => {
+        editor.textContent = '/hea';
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(editor.firstChild as Text, 4);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        expect(component.slashCommandOpen()).toBe(false);
+    });
+
+    it('floating format command is a no-op when readonly', () => {
+        component.writeValue('<p>nope</p>');
+        fixture.detectChanges();
+        const before = editor.innerHTML;
+        component.onFloatingFormatCommand('bold');
+        expect(editor.innerHTML).toBe(before);
+    });
+});
+
+describe('RichTextEditorComponent — output formats & counts', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('writeValue converts markdown to HTML in markdown mode', () => {
+        component.writeValue('# Heading\n\nsome **bold** text');
+        fixture.detectChanges();
+        expect(editor.querySelector('h1')?.textContent).toContain('Heading');
+        expect(editor.querySelector('strong,b')).toBeTruthy();
+    });
+
+    it('emits markdownChange and htmlChange on input', () => {
+        const mdSpy = vi.fn();
+        const htmlSpy = vi.fn();
+        component.markdownChange.subscribe(mdSpy);
+        component.htmlChange.subscribe(htmlSpy);
+
+        editor.innerHTML = '<p>hello world</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(htmlSpy).toHaveBeenCalled();
+        expect(mdSpy).toHaveBeenCalled();
+        expect(htmlSpy.mock.calls.at(-1)?.[0]).toContain('hello world');
+    });
+
+    it('computes character and word counts and emits wordCountChange', () => {
+        const wcSpy = vi.fn();
+        component.wordCountChange.subscribe(wcSpy);
+
+        editor.innerHTML = '<p>one two three</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(component.wordCount()).toBe(3);
+        expect(component.characterCount()).toBe('one two three'.length);
+        expect(wcSpy).toHaveBeenCalledWith(3);
+    });
+
+    it('reports a word count of zero for empty content', () => {
+        editor.innerHTML = '';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+        expect(component.wordCount()).toBe(0);
+    });
+});
+
+describe('RichTextEditorComponent — DOCX import', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const CRC_TABLE = (() => {
+        const table = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let j = 0; j < 8; j++) {
+                c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+            }
+            table[i] = c;
+        }
+        return table;
+    })();
+    const crc32 = (data: Uint8Array): number => {
+        let crc = 0xffffffff;
+        for (const byte of data) {
+            crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+        }
+        return (crc ^ 0xffffffff) >>> 0;
+    };
+    const u16 = (n: number): number[] => [n & 0xff, (n >>> 8) & 0xff];
+    const u32 = (n: number): number[] => [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff];
+
+    const makeZip = (files: ReadonlyArray<{ name: string; content: string }>): Uint8Array<ArrayBuffer> => {
+        const enc = new TextEncoder();
+        const entries = files.map(f => ({ name: f.name, data: enc.encode(f.content) }));
+        const localChunks: number[] = [];
+        const central: number[] = [];
+        const offsets: number[] = [];
+        let offset = 0;
+        for (const entry of entries) {
+            const nameBytes = enc.encode(entry.name);
+            const crc = crc32(entry.data);
+            offsets.push(offset);
+            const local = [
+                ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+                ...u32(crc), ...u32(entry.data.length), ...u32(entry.data.length),
+                ...u16(nameBytes.length), ...u16(0), ...nameBytes, ...entry.data,
+            ];
+            localChunks.push(...local);
+            offset += local.length;
+        }
+        const centralStart = offset;
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            const nameBytes = enc.encode(entry.name);
+            const crc = crc32(entry.data);
+            central.push(
+                ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+                ...u32(crc), ...u32(entry.data.length), ...u32(entry.data.length),
+                ...u16(nameBytes.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0),
+                ...u32(offsets[i]), ...nameBytes,
+            );
+        }
+        const eocd = [
+            ...u32(0x06054b50), ...u16(0), ...u16(0),
+            ...u16(entries.length), ...u16(entries.length),
+            ...u32(central.length), ...u32(centralStart), ...u16(0),
+        ];
+        return new Uint8Array([...localChunks, ...central, ...eocd]);
+    };
+
+    const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+    const docxFile = (): File => {
+        const document_xml = `<?xml version="1.0"?><w:document ${W}><w:body><w:p><w:r><w:t>Imported DOCX text</w:t></w:r></w:p></w:body></w:document>`;
+        const bytes = makeZip([{ name: 'word/document.xml', content: document_xml }]);
+        return new File([bytes], 'in.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it('imports a DOCX file and inserts its text, emitting fileImportComplete', async () => {
+        const completeSpy = vi.spyOn(component.fileImportComplete, 'emit');
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.selectNodeContents(editor);
+        r.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+
+        await component.onFileImport(docxFile());
+
+        expect(editor.textContent).toContain('Imported DOCX text');
+        expect(completeSpy).toHaveBeenCalled();
+        expect(component.fileImporting()).toBe(false);
+    });
+});
+
+describe('RichTextEditorComponent — slash keydown with no matches & misc', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    type Internal = { onSlashCommandKeydown(e: KeyboardEvent): void };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('Escape with no matching slash commands closes the popover', () => {
+        component.slashCommandOpen.set(true);
+        component.slashQuery.set('zzzznomatch');
+        fixture.detectChanges();
+        expect(component.filteredSlashCommands().length).toBe(0);
+
+        (component as unknown as Internal).onSlashCommandKeydown(
+            new KeyboardEvent('keydown', { key: 'Escape' })
+        );
+
+        expect(component.slashCommandOpen()).toBe(false);
+    });
+
+    it('onBeforeInput blocks typing beyond maxLength', () => {
+        fixture.componentRef.setInput('maxLength', 3);
+        fixture.detectChanges();
+        component.writeValue('abc');
+        fixture.detectChanges();
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(editor.firstChild as Text, 3);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+
+        const ev = new InputEvent('beforeinput', { bubbles: true, cancelable: true, data: 'x', inputType: 'insertText' });
+        editor.dispatchEvent(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+    });
+
+    it('onBeforeInput allows deletions regardless of maxLength', () => {
+        fixture.componentRef.setInput('maxLength', 3);
+        fixture.detectChanges();
+        component.writeValue('abc');
+        fixture.detectChanges();
+
+        const ev = new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'deleteContentBackward' });
+        editor.dispatchEvent(ev);
+
+        expect(ev.defaultPrevented).toBe(false);
+    });
+});
+
+describe('RichTextEditorComponent — table context menu interactions', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it('opening the context menu over a cell positions and shows it, with rAF adjustment', () => {
+        vi.useFakeTimers();
+        editor.innerHTML = '<table><tbody><tr><td>c</td></tr></tbody></table>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const cell = editor.querySelector('td')!;
+
+        component.onEditorContextMenu({
+            target: cell, clientX: 50, clientY: 60,
+            preventDefault: vi.fn(), stopPropagation: vi.fn(),
+        } as unknown as MouseEvent);
+
+        expect(component.tableContextMenuOpen()).toBe(true);
+        expect(component.tableContextMenuPosition()).toEqual({ x: 50, y: 60 });
+
+        vi.runAllTimers();
+        vi.useRealTimers();
+    });
+
+    it('closes the context menu when right-clicking outside any table cell', () => {
+        editor.innerHTML = '<p>not a table</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        component.tableContextMenuOpen.set(true);
+
+        component.onEditorContextMenu({
+            target: editor.querySelector('p'), clientX: 5, clientY: 5,
+            preventDefault: vi.fn(), stopPropagation: vi.fn(),
+        } as unknown as MouseEvent);
+
+        expect(component.tableContextMenuOpen()).toBe(false);
+    });
+});
+
+describe('RichTextEditorComponent — floating format caret & inline formats', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.componentRef.setInput('toolbar', 'floating');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it('moves the caret past the formatting node after a floating bold inside existing bold text', () => {
+        component.writeValue('<p><b>already bold</b></p>');
+        fixture.detectChanges();
+        const boldText = editor.querySelector('b')!.firstChild as Text;
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(boldText, 2);
+        r.setEnd(boldText, 6);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        component.showFloatingToolbar.set(true);
+
+        component.onFormatCommand('bold');
+
+        // The toolbar collapses and the selection should be repositioned.
+        expect(component.showFloatingToolbar()).toBe(false);
+        expect(document.getSelection()?.isCollapsed).toBe(true);
+    });
+
+    it('strikethrough wraps the selection in a strike element', () => {
+        component.writeValue('<p>strike this</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(text, 0);
+        r.setEnd(text, 6);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+
+        component.onFormatCommand('strikethrough');
+
+        expect(editor.querySelector('s,strike')).toBeTruthy();
+    });
+
+    it('clear command on the floating toolbar removes formatting', () => {
+        component.writeValue('<p><b>bold</b></p>');
+        fixture.detectChanges();
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.selectNodeContents(editor.querySelector('b')!);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+
+        component.onFloatingFormatCommand('clear');
+
+        expect(editor.querySelector('b')).toBeNull();
+        expect(editor.textContent).toBe('bold');
+    });
+});
+
+describe('RichTextEditorComponent — mention range resolution edge cases', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.componentRef.setInput('mentions', true);
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it('resolves the trigger when the caret sits in an element container, not a text node', () => {
+        editor.innerHTML = '<p>hi @al</p>';
+        const p = editor.querySelector('p')!;
+        // Place the caret at the element level (after the text child).
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(p, p.childNodes.length);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        (component as unknown as { savedRange: Range }).savedRange = r.cloneRange();
+        component.mentionType.set('mention');
+        component.mentionQuery.set('al');
+
+        component.onMentionSelect({ id: 'a1', value: 'alice', label: 'Alice' });
+
+        expect(editor.querySelector('[data-mention="alice"]')).toBeTruthy();
+        expect(editor.textContent).not.toContain('@al ');
+    });
+});
+
+describe('RichTextEditorComponent — tail span table edits', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    const targetCell = (cell: HTMLTableCellElement) => {
+        (component as unknown as { tableContextMenuTarget: HTMLTableCellElement }).tableContextMenuTarget = cell;
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('adding a row below a rowspan that ends at the last row extends the span', () => {
+        editor.innerHTML = `<table><tbody>
+            <tr><td>A1</td><td rowspan="2">M</td></tr>
+            <tr><td>B1</td></tr>
+        </tbody></table>`;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const table = editor.querySelector('table')!;
+        const b1 = table.querySelectorAll('tr')[1].querySelector('td') as HTMLTableCellElement;
+        targetCell(b1);
+
+        component.addTableRowBelow();
+
+        expect(table.querySelectorAll('tr').length).toBe(3);
+        expect((table.querySelector('td[rowspan]') as HTMLTableCellElement).rowSpan).toBe(3);
+    });
+
+    it('adding a column right of a colspan that ends at the last column extends the span', () => {
+        editor.innerHTML = `<table><tbody>
+            <tr><td>A1</td><td colspan="2">M</td></tr>
+            <tr><td>B1</td><td>B2</td><td>B3</td></tr>
+        </tbody></table>`;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const table = editor.querySelector('table')!;
+        const b3 = table.querySelectorAll('tr')[1].querySelectorAll('td')[2] as HTMLTableCellElement;
+        targetCell(b3);
+
+        component.addTableColumnRight();
+
+        expect((table.querySelector('td[colspan]') as HTMLTableCellElement).colSpan).toBe(3);
+    });
+
+    it('deleting a column intersecting a colspan reduces the span', () => {
+        editor.innerHTML = `<table><tbody>
+            <tr><td colspan="2">M</td></tr>
+            <tr><td>B1</td><td>B2</td></tr>
+        </tbody></table>`;
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const table = editor.querySelector('table')!;
+        const b1 = table.querySelectorAll('tr')[1].querySelector('td') as HTMLTableCellElement;
+        targetCell(b1);
+
+        component.deleteTableColumn();
+
+        const merged = table.querySelector('td[colspan]') as HTMLTableCellElement | null;
+        expect(merged?.colSpan ?? 1).toBe(1);
+    });
+});
+
+describe('RichTextEditorComponent — slash list scroll & empty-block fallbacks', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it('opening the slash menu renders the command list and tracks the selected entry', () => {
+        editor.textContent = '/';
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(editor.firstChild as Text, 1);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+
+        const list = (fixture.nativeElement as HTMLElement).querySelector('[data-slash-index="0"]');
+        expect(list).toBeTruthy();
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+        expect(component.slashCommandSelectedIndex()).toBe(1);
+    });
+
+    it('placeCaretAtEndOfBlock handles a block with no children by inserting a zero-width node', async () => {
+        component.writeValue('<p>line /paragraph</p>');
+        fixture.detectChanges();
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(text, text.length);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        const cmd = component.filteredSlashCommands().find(c => c.id === 'format.paragraph')!;
+        await component.onSlashCommandSelect(cmd);
+
+        expect(editor.querySelector('p')).toBeTruthy();
+        expect(editor.textContent).toContain('line');
+    });
+});
+
+describe('RichTextEditorComponent — find with no editor & openFindReplace focus', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it('openFindReplace focuses the search input after the animation frame', async () => {
+        component.openFindReplace(true);
+        fixture.detectChanges();
+        await new Promise(r => requestAnimationFrame(() => r(null)));
+        const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[placeholder]');
+        expect(input).toBeTruthy();
+    });
+});
+
+describe('RichTextEditorComponent — image source guards & paste max length', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        document.body.appendChild(fixture.nativeElement);
+    });
+
+    it('emits imageUploadError when upload-only source has no uploader configured', async () => {
+        fixture.componentRef.setInput('imageSources', 'upload');
+        fixture.detectChanges();
+        const errSpy = vi.spyOn(component.imageUploadError, 'emit');
+        const file = new File(['x'], 'p.png', { type: 'image/png' });
+
+        await component.onPaste({
+            preventDefault: vi.fn(),
+            clipboardData: { files: [file], getData: () => '' } as unknown as DataTransfer,
+        } as unknown as ClipboardEvent);
+
+        expect(errSpy).toHaveBeenCalledWith('No imageUploader configured.');
+    });
+
+    it('truncates a paste that would exceed maxLength', () => {
+        fixture.componentRef.setInput('maxLength', 8);
+        fixture.detectChanges();
+        editor.innerHTML = 'abc';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const text = editor.firstChild as Text;
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(text, text.length);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+
+        component.onPaste({
+            preventDefault: vi.fn(),
+            clipboardData: { getData: (t: string) => (t === 'text/plain' ? 'defghijklmnop' : ''), files: [] } as unknown as DataTransfer,
+        } as unknown as ClipboardEvent);
+
+        expect((editor.textContent ?? '').length).toBe(8);
+        expect(editor.textContent).toBe('abcdefgh');
+    });
+
+    it('emoji insertion temporarily disables the editor inputMode then restores it', () => {
+        vi.useFakeTimers();
+        component.writeValue('<p>e</p>');
+        fixture.detectChanges();
+        editor.inputMode = 'text';
+        const text = editor.querySelector('p')!.firstChild as Text;
+        const sel = document.getSelection();
+        const r = document.createRange();
+        r.setStart(text, 1);
+        r.collapse(true);
+        sel?.removeAllRanges();
+        sel?.addRange(r);
+
+        component.onEmojiInsert('😀');
+        expect(editor.inputMode).toBe('none');
+
+        vi.advanceTimersByTime(150);
+        expect(editor.inputMode).toBe('text');
+        expect(editor.textContent).toContain('😀');
+        vi.useRealTimers();
+    });
+
+    it('re-targets the context menu to the cell beneath the overlay point', () => {
+        editor.innerHTML = '<table><tbody><tr><td>cell</td></tr></tbody></table>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        const cell = editor.querySelector('td')!;
+        const rect = cell.getBoundingClientRect();
+        component.tableContextMenuOpen.set(true);
+        fixture.detectChanges();
+
+        const ev = new MouseEvent('contextmenu', {
+            clientX: rect.left + rect.width / 2,
+            clientY: rect.top + rect.height / 2,
+            bubbles: true,
+            cancelable: true,
+        });
+        component.onContextMenuOverlayContextMenu(ev);
+
+        expect(ev.defaultPrevented).toBe(true);
+        expect(component.tableContextMenuOpen()).toBe(true);
     });
 });
 

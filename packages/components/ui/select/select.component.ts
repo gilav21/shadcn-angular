@@ -77,6 +77,7 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
                                     [attr.data-state]="isSelected(option) ? 'checked' : 'unchecked'"
                                     [attr.data-index]="i"
                                     (click)="selectOption(option)"
+                                    (keydown.enter)="selectOption(option)"
                                     (mouseenter)="focusedIndex.set(i)"
                                 >
                                     <span class="flex-1">{{ getDisplayValue(option) }}</span>
@@ -141,11 +142,11 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     readonly isDisabled = computed(() => this.disabled() || this._disabled());
     readonly isDataDriven = computed(() => this.options().length > 0);
-    readonly hasValue = computed(() => this.internalValue() !== undefined && this.internalValue() !== null);
+    readonly hasValue = computed(() => this.internalValue() != null);
 
     readonly selectedDisplayValue = computed(() => {
         const val = this.internalValue();
-        if (val === undefined || val === null) return '';
+        if (val == null) return '';
 
         if (this.isDataDriven()) {
             const option = this.options().find(opt => this.getValue(opt) === val);
@@ -158,13 +159,13 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
-    private readonly clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent): void => {
         if (!this.el.nativeElement.contains(event.target)) {
             this.close();
         }
     };
 
-    private readonly keydownListener = (event: KeyboardEvent) => {
+    private readonly keydownListener = (event: KeyboardEvent): void => {
         if (event.key === 'Escape' && this.open()) {
             this.close();
         }
@@ -172,9 +173,9 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     readonly triggerClasses = computed(() => cn(
         'border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50',
-        'flex w-full items-center justify-between gap-2 rounded-md border bg-transparent px-3 py-2 text-sm',
+        'flex w-full items-center justify-between rounded-md border bg-transparent text-sm',
         'whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px]',
-        'disabled:cursor-not-allowed disabled:opacity-50 h-9 [&>span]:line-clamp-1',
+        'disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
         '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4',
         'dark:bg-input/50 dark:hover:bg-input/70'
     ));
@@ -237,7 +238,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         }
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener);
         this.document.removeEventListener('keydown', this.keydownListener);
     }
@@ -247,8 +248,9 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     }
 
     getValue(option: T): unknown {
-        if (this.valueAttribute()) {
-            return (option as Record<string, unknown>)[this.valueAttribute()!];
+        const attr = this.valueAttribute();
+        if (attr) {
+            return (option as Record<string, unknown>)[attr];
         }
         return option;
     }
@@ -278,7 +280,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         );
     }
 
-    selectOption(option: T) {
+    selectOption(option: T): void {
         if (this.isOptionDisabled(option)) return;
         const val = this.getValue(option) as T;
         this.internalValue.set(val);
@@ -287,29 +289,29 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         this.close();
     }
 
-    toggle() {
+    toggle(): void {
         if (!this.isDisabled()) {
             this.open.update(v => !v);
         }
     }
 
-    close() {
+    close(): void {
         this.open.set(false);
         this._onTouched();
     }
 
-    select(val: T) {
+    select(val: T): void {
         this.internalValue.set(val);
         this.valueChange.emit(val);
         this._onChange(val);
         this.close();
     }
 
-    registerItem(value: string, element: HTMLElement) {
+    registerItem(value: string, element: HTMLElement): void {
         this.itemElements.set(value, element);
     }
 
-    unregisterItem(value: string) {
+    unregisterItem(value: string): void {
         this.itemElements.delete(value);
     }
 
@@ -327,14 +329,14 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     getTriggerElement(): HTMLElement | null {
         return this.el.nativeElement.querySelector('[data-slot="select-trigger"]')
-            || this.el.nativeElement.querySelector('button[role="combobox"]');
+            ?? this.el.nativeElement.querySelector('button[role="combobox"]');
     }
 
     isRtl(): boolean {
         return isRtl(this.el.nativeElement);
     }
 
-    onTriggerKeyDown(event: KeyboardEvent) {
+    onTriggerKeyDown(event: KeyboardEvent): void {
         if (this.isDisabled()) return;
 
         switch (event.key) {
@@ -362,7 +364,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         return startIndex; // No enabled option found, stay at current
     }
 
-    onContentKeydown(event: KeyboardEvent) {
+    onContentKeydown(event: KeyboardEvent): void {
         const opts = this.options();
         if (!opts.length) return;
 

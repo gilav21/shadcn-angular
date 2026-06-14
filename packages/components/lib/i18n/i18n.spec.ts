@@ -131,7 +131,7 @@ describe('resolveLocale (pure)', () => {
     });
 
     it('throws a descriptive error when the fallback entry is missing from the registry', () => {
-        expect(() => resolveLocale('xx', {} as Record<string, TestLocale>, 'yy')).toThrowError(
+        expect(() => resolveLocale('xx', {} as Record<string, TestLocale>, 'yy')).toThrow(
             /missing the "en" fallback/,
         );
     });
@@ -184,7 +184,7 @@ describe('createLocaleSelector (component helper)', () => {
                     undefined as unknown as Signal<LocaleInput<TestLocale> | undefined>,
                     TEST_LOCALES,
                 ),
-            ).toThrowError(/non-Signal `localeInput`/);
+            ).toThrow(/non-Signal `localeInput`/);
         });
     });
 

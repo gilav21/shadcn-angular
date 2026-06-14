@@ -1,6 +1,5 @@
 @if (isOpen()) {
-  <div
-    role="region"
+  <section
     [attr.id]="panelId()"
     [attr.aria-labelledby]="triggerId()"
     [class]="classes()"
@@ -10,5 +9,5 @@
     <div class="pb-4 pt-0">
       <ng-content />
     </div>
-  </div>
+  </section>
 }

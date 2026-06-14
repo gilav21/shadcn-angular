@@ -262,7 +262,7 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('<ul>');
             expect(result).toContain('Parent');
             expect(result).toContain('Child');
-            const liCount = (result.match(/<li>/g) || []).length;
+            const liCount = (result.match(/<li>/g) ?? []).length;
             expect(liCount).toBeGreaterThanOrEqual(2);
         });
 
@@ -474,7 +474,7 @@ describe('RichTextPasteNormalizerService', () => {
             expect(result).toContain('Bullet A2');
             expect(result).toContain('Bullet B1');
             expect(result).toContain('Bullet B2');
-            const ulCount = (result.match(/<ul>/g) || []).length;
+            const ulCount = (result.match(/<ul>/g) ?? []).length;
             expect(ulCount).toBe(2);
         });
     });
@@ -590,7 +590,7 @@ describe('RichTextPasteNormalizerService', () => {
             const html = '<b id="docs-internal-guid-x"><span style="font-weight:400;font-style:normal;text-decoration:none;vertical-align:baseline;white-space:pre-wrap;color:#000000;background-color:transparent">Plain text</span></b>';
             const result = service.normalize(html, '');
             expect(result).toContain('Plain text');
-            const spanCount = (result.match(/<span/g) || []).length;
+            const spanCount = (result.match(/<span/g) ?? []).length;
             expect(spanCount).toBe(0);
         });
     });
@@ -916,7 +916,7 @@ describe('RichTextPasteNormalizerService', () => {
             ].join('\n');
             const result = service.normalize(null, pdfText);
             expect(result).toContain('<p>');
-            const paragraphCount = (result.match(/<p>/g) || []).length;
+            const paragraphCount = (result.match(/<p>/g) ?? []).length;
             expect(paragraphCount).toBe(2);
         });
 
@@ -951,7 +951,7 @@ describe('RichTextPasteNormalizerService', () => {
                 'boundary and continues for a while to fill the line.',
             ].join('\n');
             const result = service.normalize(null, pdfText);
-            const paragraphCount = (result.match(/<p>/g) || []).length;
+            const paragraphCount = (result.match(/<p>/g) ?? []).length;
             expect(paragraphCount).toBeGreaterThanOrEqual(2);
         });
 
@@ -974,7 +974,7 @@ describe('RichTextPasteNormalizerService', () => {
             const result = service.normalize(null, pdfText);
             expect(result).toContain('<h2>INTRODUCTION</h2>');
             expect(result).toContain('<h2>CONCLUSION</h2>');
-            const paragraphCount = (result.match(/<p>/g) || []).length;
+            const paragraphCount = (result.match(/<p>/g) ?? []).length;
             expect(paragraphCount).toBe(2);
         });
 
@@ -1611,7 +1611,7 @@ describe('RichTextPasteNormalizerService', () => {
         it('should handle code blocks containing script tags safely', () => {
             const result = pipeline(null, '```html\n<script>alert(1)</script>\n```\n\n**Important** note');
             expect(result).toContain('<code');
-            expect(result).not.toMatch(/<script[\s>]/);
+            expect(result).not.toMatch(/<script[\s>]/i);
         });
 
         it('should sanitize vbscript: in markdown link', () => {

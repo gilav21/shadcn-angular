@@ -82,7 +82,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         const portaled = this.portalToBody();
         this.calculatePosition();
         if (portaled) {
@@ -90,7 +90,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    private portalAndPosition(attempt: number) {
+    private portalAndPosition(attempt: number): void {
         if (!this.popover?.open()) return;
         const portaled = this.portalToBody();
         if (!portaled && this.strategy() === 'fixed' && attempt < 10) {
@@ -103,7 +103,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.removePortal();
     }
 
@@ -122,13 +122,13 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         return true;
     }
 
-    private removePortal() {
+    private removePortal(): void {
         this.popover?.registerPortal(null);
         this.portalHost?.remove();
         this.portalHost = null;
     }
 
-    private calculatePosition() {
+    private calculatePosition(): void {
         if (this.strategy() === 'fixed' && this.contentEl?.nativeElement) {
             this.adjustFixedPosition(this.contentEl.nativeElement);
             return;
@@ -146,7 +146,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         this.adjustCollisionPosition(this.contentEl.nativeElement);
     }
 
-    private adjustFixedPosition(el: HTMLElement) {
+    private adjustFixedPosition(el: HTMLElement): void {
         const rect = el.getBoundingClientRect();
         const vw = globalThis.window.innerWidth;
         const vh = globalThis.window.innerHeight;
@@ -164,7 +164,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    private adjustCollisionPosition(content: HTMLElement) {
+    private adjustCollisionPosition(content: HTMLElement): void {
         const contentRect = content.getBoundingClientRect();
         const boundary = getClippingRect(content);
 
@@ -296,8 +296,8 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         };
         const isFixed = this.strategy() === 'fixed';
         return cn(
-            isFixed ? 'z-50 w-72 max-w-[calc(100vw-16px)] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none' :
-            'absolute z-50 w-72 max-w-[calc(100vw-16px)] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none',
+            isFixed ? 'z-50 w-72 max-w-[calc(100vw-16px)] rounded-md border bg-popover text-popover-foreground shadow-md outline-none' :
+            'absolute z-50 w-72 max-w-[calc(100vw-16px)] rounded-md border bg-popover text-popover-foreground shadow-md outline-none',
             'animate-in fade-in-0 zoom-in-95',
             !isFixed && sideClasses[currentSide],
             !isFixed && (currentSide === 'top' || currentSide === 'bottom') ? alignClasses[currentAlign] : '',

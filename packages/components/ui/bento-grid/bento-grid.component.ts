@@ -31,11 +31,16 @@ export interface DashboardItem {
     y: number;
     cols: number;
     rows: number;
-    content: string | Type<any>;
-    inputs?: Record<string, any>;
-    outputs?: Record<string, (event: any) => void>;
+    content: string | Type<unknown>;
+    inputs?: Record<string, unknown>;
+    outputs?: Record<string, (event: unknown) => void>;
     bindings?: Record<string, string>;
 }
+
+/** Union of all data shapes passed to the context-menu via `menu.show()`. */
+export type BentoContextMenuData =
+    | (DashboardItem & { type?: never })
+    | { type: 'empty'; id?: never; x: number; y: number };
 
 @Component({
     selector: 'ui-bento-grid',
@@ -166,7 +171,7 @@ export class BentoGridComponent {
 
     readonly selectedIds = computed(() => new Set(this.selectedItemIds()));
 
-    toggleSelection(id: string, multi: boolean = true) {
+    toggleSelection(id: string, multi: boolean = true): void {
         if (!this.editable()) return;
 
         this.selectedItemIds.update(ids => {
@@ -183,12 +188,12 @@ export class BentoGridComponent {
         this.selectionChange.emit(this.selectedItemIds());
     }
 
-    clearSelection() {
+    clearSelection(): void {
         this.selectedItemIds.set([]);
         this.selectionChange.emit([]);
     }
 
-    isSelected(id: string) {
+    isSelected(id: string): boolean {
         return this.selectedIds().has(id);
     }
 
@@ -206,7 +211,8 @@ export class BentoGridComponent {
         visited.add(items[0].id);
 
         while (queue.length > 0) {
-            const current = queue.shift()!;
+            const current = queue.shift();
+            if (!current) { break; }
 
             const neighbors = items.filter(other =>
                 !visited.has(other.id) && this.areAdjacent(current, other)
@@ -221,7 +227,7 @@ export class BentoGridComponent {
         return visited.size === items.length;
     });
 
-    areAdjacent(a: DashboardItem, b: DashboardItem) {
+    areAdjacent(a: DashboardItem, b: DashboardItem): boolean {
         const aX1 = a.x, aX2 = a.x + a.cols;
         const aY1 = a.y, aY2 = a.y + a.rows;
         const bX1 = b.x, bX2 = b.x + b.cols;
@@ -233,7 +239,7 @@ export class BentoGridComponent {
         return horizontalTouch || verticalTouch;
     }
 
-    mergeSelected() {
+    mergeSelected(): void {
         if (!this.canMerge()) return;
 
         const selectedIds = this.selectedItemIds();
@@ -274,19 +280,20 @@ export class BentoGridComponent {
         this.selectionChange.emit([]);
     }
 
-    onContextMenu(event: MouseEvent, item: DashboardItem, menu: ContextMenuComponent) {
+    onContextMenu(event: MouseEvent, item: DashboardItem, menu: ContextMenuComponent): void {
         if (!this.editable()) return;
         event.preventDefault();
         event.stopPropagation();
         menu.show(event.clientX, event.clientY, item);
     }
 
-    deleteItem(id: string) {
+    deleteItem(id: string | undefined): void {
+        if (!id) return;
         this.itemsChange.emit(this.items().filter(i => i.id !== id));
     }
 
-    splitItem(id: string, direction: 'vertical' | 'horizontal') {
-        const item = this.items().find(i => i.id === id);
+    splitItem(id: string | undefined, direction: 'vertical' | 'horizontal'): void {
+        const item = id ? this.items().find(i => i.id === id) : undefined;
         if (!item) return;
 
         if (direction === 'vertical') {
@@ -367,21 +374,25 @@ export class BentoGridComponent {
         }));
     });
 
-    isDragging(id: string) {
+    isDragging(id: string): boolean {
         return this.draggedItemId() === id;
     }
 
-    isComponent(content: string | Type<any>): boolean {
+    isComponent(content: string | Type<unknown>): boolean {
         return typeof content !== 'string';
     }
 
-    asComponent(content: string | Type<any>): Type<unknown> {
+    asComponent(content: string | Type<unknown>): Type<unknown> {
         return content as Type<unknown>;
+    }
+
+    castMenuData(data: unknown): BentoContextMenuData | null {
+        return (data as BentoContextMenuData) ?? null;
     }
 
 
 
-    onDragOver(event: DragEvent, targetItem: DashboardItem) {
+    onDragOver(event: DragEvent, _targetItem: DashboardItem): void {
         if (!this.editable()) return;
         event.preventDefault();
 
@@ -392,7 +403,7 @@ export class BentoGridComponent {
         }
     }
 
-    onContainerDragOver(event: DragEvent) {
+    onContainerDragOver(event: DragEvent): void {
         if (!this.editable()) return;
         event.preventDefault();
         if (event.dataTransfer) {
@@ -410,10 +421,10 @@ export class BentoGridComponent {
         }
     }
 
-    onContainerDragLeave(_event: DragEvent) {
+    onContainerDragLeave(_event: DragEvent): void {
     }
 
-    onDrop(event: DragEvent, targetItem: DashboardItem) {
+    onDrop(event: DragEvent, targetItem: DashboardItem): void {
         if (!this.editable()) return;
         event.preventDefault();
         event.stopPropagation();
@@ -428,7 +439,7 @@ export class BentoGridComponent {
         this.handleExternalDrop(event, targetItem);
     }
 
-    private handleInternalDrop(draggedId: string) {
+    private handleInternalDrop(draggedId: string): void {
         const preview = this.dropPreview();
         if (preview) {
             const currentItems = this.applyDropPreview(draggedId, preview);
@@ -456,7 +467,7 @@ export class BentoGridComponent {
         return this.resolveOverlaps(currentItems, updatedDraggedItem, draggedId);
     }
 
-    private handleExternalDrop(event: DragEvent, targetItem: DashboardItem) {
+    private handleExternalDrop(event: DragEvent, targetItem: DashboardItem): void {
         const data = event.dataTransfer?.getData('application/json');
         if (!data) return;
 
@@ -470,7 +481,7 @@ export class BentoGridComponent {
         }
     }
 
-    onContainerDrop(event: DragEvent) {
+    onContainerDrop(event: DragEvent): void {
         if (!this.editable()) return;
         event.preventDefault();
         this.dropPreview.set(null);
@@ -510,7 +521,7 @@ export class BentoGridComponent {
         }
     }
 
-    private getGridCoordinates(event: DragEvent | MouseEvent) {
+    private getGridCoordinates(event: DragEvent | MouseEvent): { x: number; y: number } {
         const container = (event.currentTarget as HTMLElement);
         const rect = container.getBoundingClientRect();
         const _isRtl = isRtl(this.el.nativeElement);
@@ -627,29 +638,44 @@ export class BentoGridComponent {
     readonly dropPreview = signal<{ x: number; y: number; cols: number; rows: number } | null>(null);
     readonly dragOffset = signal<{ x: number; y: number } | null>(null);
 
-    private handleResizeMove(clientX: number, clientY: number) {
-        if (!this.resizingItemId() || !this.initialResizeState || !this.resizeDirection()) return;
+    private handleResizeMove(clientX: number, clientY: number): void {
+        const rawDirection = this.resizeDirection();
+        if (!this.resizingItemId() || !this.initialResizeState || !rawDirection) return;
 
-        const _isRtl = isRtl(this.el.nativeElement);
-
-        let deltaX = clientX - this.initialResizeState.x;
-        const deltaY = clientY - this.initialResizeState.y;
-
-        let direction = this.resizeDirection()!;
-        if (_isRtl) {
-            deltaX = -deltaX;
-            direction = this.flipResizeDirectionForRtl(direction);
-        }
-
+        const { deltaX, deltaY, direction } = this.computeResizeDeltas(clientX, clientY, rawDirection);
         const { cols, rows, x, y } = this.computeResizePreview(direction, deltaX, deltaY);
 
+        this.updateResizePreviewIfChanged(cols, rows, x, y);
+    }
+
+    private computeResizeDeltas(
+        clientX: number,
+        clientY: number,
+        rawDirection: ResizeDirection
+    ): { deltaX: number; deltaY: number; direction: ResizeDirection } {
+        const state = this.initialResizeState;
+        if (!state) return { deltaX: 0, deltaY: 0, direction: rawDirection };
+
+        const _isRtl = isRtl(this.el.nativeElement);
+        let deltaX = clientX - state.x;
+        const deltaY = clientY - state.y;
+
+        if (_isRtl) {
+            deltaX = -deltaX;
+        }
+        const direction = _isRtl ? this.flipResizeDirectionForRtl(rawDirection) : rawDirection;
+        return { deltaX, deltaY, direction };
+    }
+
+    private updateResizePreviewIfChanged(cols: number, rows: number, x: number, y: number): void {
         const preview = this.resizePreview();
-        if (cols !== preview?.cols || rows !== preview?.rows || x !== preview?.x || y !== preview?.y) {
-            this.resizePreview.set({ id: this.resizingItemId()!, cols, rows, x, y });
+        const resizingId = this.resizingItemId();
+        if (resizingId && (cols !== preview?.cols || rows !== preview?.rows || x !== preview?.x || y !== preview?.y)) {
+            this.resizePreview.set({ id: resizingId, cols, rows, x, y });
         }
     }
 
-    private handleResizeEnd() {
+    private handleResizeEnd(): void {
         if (this.resizingItemId() && this.resizePreview()) {
             this.commitResize();
         }
@@ -676,7 +702,8 @@ export class BentoGridComponent {
         deltaX: number,
         deltaY: number
     ): { cols: number; rows: number; x: number; y: number } {
-        const state = this.initialResizeState!;
+        if (!this.initialResizeState) return { cols: 1, rows: 1, x: 1, y: 1 };
+        const state = this.initialResizeState;
         const colsDiff = Math.round(deltaX / state.colStep);
         const rowsDiff = Math.round(deltaY / state.rowStep);
 
@@ -712,21 +739,21 @@ export class BentoGridComponent {
         }
     }
 
-    private resizeSE(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number) {
+    private resizeSE(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number): { cols: number; rows: number; x: number; y: number } {
         return { cols: Math.max(1, cols + colsDiff), rows: Math.max(1, rows + rowsDiff), x, y };
     }
 
-    private resizeSW(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number) {
+    private resizeSW(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number): { cols: number; rows: number; x: number; y: number } {
         const newCols = Math.max(1, cols - colsDiff);
         return { cols: newCols, rows: Math.max(1, rows + rowsDiff), x: x + (cols - newCols), y };
     }
 
-    private resizeNE(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number) {
+    private resizeNE(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number): { cols: number; rows: number; x: number; y: number } {
         const newRows = Math.max(1, rows - rowsDiff);
         return { cols: Math.max(1, cols + colsDiff), rows: newRows, x, y: y + (rows - newRows) };
     }
 
-    private resizeNW(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number) {
+    private resizeNW(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number): { cols: number; rows: number; x: number; y: number } {
         const newCols = Math.max(1, cols - colsDiff);
         const newRows = Math.max(1, rows - rowsDiff);
         return { cols: newCols, rows: newRows, x: x + (cols - newCols), y: y + (rows - newRows) };
@@ -740,7 +767,7 @@ export class BentoGridComponent {
         return this.parseCssDimension(this.columnWidth(), containerWidth);
     }
 
-    onResizeStart(event: MouseEvent | TouchEvent, item: DashboardItem, direction: ResizeDirection) {
+    onResizeStart(event: MouseEvent | TouchEvent, item: DashboardItem, direction: ResizeDirection): void {
         if (!this.editable()) return;
         event.preventDefault();
         event.stopPropagation();
@@ -748,7 +775,8 @@ export class BentoGridComponent {
         const startClientX = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
         const startClientY = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
 
-        const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item')!;
+        const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item');
+        if (!element) return;
         const rect = element.getBoundingClientRect();
 
         const container = element.closest<HTMLElement>('.grid');
@@ -786,11 +814,11 @@ export class BentoGridComponent {
 
     private resizeDragCleanup: (() => void) | null = null;
 
-    onDragStart(event: DragEvent, item: DashboardItem) {
+    onDragStart(event: DragEvent, item: DashboardItem): void {
         if (!this.editable()) return;
 
-        const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item')!;
-        const rect = element.getBoundingClientRect();
+        const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item');
+        const rect = element?.getBoundingClientRect() ?? { left: 0, top: 0 };
 
         // Capture offset relative to the item's top-left corner
         this.dragOffset.set({
@@ -805,7 +833,7 @@ export class BentoGridComponent {
         }
     }
 
-    onDragEnd(_event: DragEvent) {
+    onDragEnd(_event: DragEvent): void {
         this.draggedItemId.set(null);
         this.dropPreview.set(null);
         this.dragOffset.set(null);
@@ -813,13 +841,13 @@ export class BentoGridComponent {
 
     private touchDragCleanup: (() => void) | null = null;
 
-    onTouchDragStart(event: TouchEvent, item: DashboardItem) {
+    onTouchDragStart(event: TouchEvent, item: DashboardItem): void {
         if (!this.editable()) return;
         if (this.resizingItemId()) return;
 
         const touch = event.touches[0];
-        const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item')!;
-        const rect = element.getBoundingClientRect();
+        const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item');
+        const rect = element?.getBoundingClientRect() ?? { left: 0, top: 0 };
 
         this.dragOffset.set({
             x: touch.clientX - rect.left,
@@ -834,7 +862,7 @@ export class BentoGridComponent {
         );
     }
 
-    private handleTouchDragMove(clientX: number, clientY: number, item: DashboardItem) {
+    private handleTouchDragMove(clientX: number, clientY: number, item: DashboardItem): void {
         const container = this.el.nativeElement.querySelector('.grid') as HTMLElement | null;
         if (!container) return;
 
@@ -842,7 +870,7 @@ export class BentoGridComponent {
         this.dropPreview.set({ x: coords.x, y: coords.y, cols: item.cols, rows: item.rows });
     }
 
-    private handleTouchDragEnd() {
+    private handleTouchDragEnd(): void {
         const draggedId = this.draggedItemId();
         if (draggedId) {
             const preview = this.dropPreview();
@@ -890,7 +918,7 @@ export class BentoGridComponent {
         return { x: Math.max(1, gridX), y: Math.max(1, gridY) };
     }
 
-    private commitResize() {
+    private commitResize(): void {
         const id = this.resizingItemId();
         const preview = this.resizePreview();
         if (!id || !preview) return;
@@ -917,7 +945,7 @@ export class BentoGridComponent {
         this.resizeDirection.set(null);
     }
 
-    onContainerContextMenu(event: MouseEvent, menu: ContextMenuComponent) {
+    onContainerContextMenu(event: MouseEvent, menu: ContextMenuComponent): void {
         if (!this.editable()) return;
 
         if ((event.target as HTMLElement).closest('.bento-item')) return;
@@ -945,7 +973,7 @@ export class BentoGridComponent {
         }
     }
 
-    addItemAt(x: number, y: number, cols: number = 1, rows: number = 1) {
+    addItemAt(x: number, y: number, cols: number = 1, rows: number = 1): void {
         const newItem: DashboardItem = {
             id: crypto.randomUUID(),
             x, y, cols, rows,
@@ -955,7 +983,6 @@ export class BentoGridComponent {
         const isOverlapping = this.items().some(i => this.isOverlapping(newItem, i));
 
         if (isOverlapping) {
-            console.warn('Cannot add item: Overlaps with existing item');
             return;
         }
 

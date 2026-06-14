@@ -61,7 +61,7 @@ export class PageBuilderComponent {
     viewMode = signal<PageBuilderViewMode>('edit');
     items = signal<DashboardItem[]>([]);
     selectedItemId = signal<string | null>(null);
-    instanceMap = signal<Map<string, any>>(new Map());
+    instanceMap = signal<Map<string, Record<string, unknown>>>(new Map());
     isSelecting = signal(false);
 
 
@@ -78,7 +78,7 @@ export class PageBuilderComponent {
 
 
     simulatingData = signal<boolean>(false);
-    private simulationInterval?: any;
+    private simulationInterval?: ReturnType<typeof setInterval>;
     private lastAppliedData: PageData | undefined;
 
     constructor() {
@@ -98,7 +98,7 @@ export class PageBuilderComponent {
         }, { allowSignalWrites: true });
     }
 
-    toggleSquareCells() {
+    toggleSquareCells(): void {
         this.gridSquareCells.update(v => !v);
         if (this.gridSquareCells()) {
             this.gridColumnWidth.set(this.gridRowHeight());
@@ -134,7 +134,7 @@ export class PageBuilderComponent {
         return grouped;
     });
 
-    updateGridSetting(signal: WritableSignal<string>, value: string) {
+    updateGridSetting(signal: WritableSignal<string>, value: string): void {
         if (value && !Number.isNaN(Number.parseFloat(value)) && Number.isFinite(Number(value))) {
             signal.set(`${value}px`);
         } else {
@@ -142,7 +142,7 @@ export class PageBuilderComponent {
         }
     }
 
-    toggleSimulatedData() {
+    toggleSimulatedData(): void {
         this.simulatingData.update(v => !v);
         if (this.simulatingData()) {
             this.startSimulation();
@@ -151,12 +151,12 @@ export class PageBuilderComponent {
         }
     }
 
-    private startSimulation() {
+    private startSimulation(): void {
         this.simulationInterval = setInterval(() => {
             this.items.update(items => items.map(item => {
                 const meta = this.getComponentMeta(item);
                 if (meta?.id === 'progress') {
-                    const current = item.inputs?.['value'] || 0;
+                    const current = (item.inputs?.['value'] as number | undefined) ?? 0;
                     const next = (current + 5) % 105;
                     return { ...item, inputs: { ...item.inputs, value: next } };
                 }
@@ -165,14 +165,14 @@ export class PageBuilderComponent {
         }, 1000);
     }
 
-    private stopSimulation() {
+    private stopSimulation(): void {
         if (this.simulationInterval) {
             clearInterval(this.simulationInterval);
             this.simulationInterval = undefined;
         }
     }
 
-    onDragStart(event: DragEvent, comp: ComponentMeta) {
+    onDragStart(event: DragEvent, comp: ComponentMeta): void {
         if (event.dataTransfer) {
             event.dataTransfer.setData('application/json', JSON.stringify({
                 type: 'widget',
@@ -182,7 +182,7 @@ export class PageBuilderComponent {
         }
     }
 
-    onExternalDrop(event: { widgetId: string, targetId: string | null, x?: number, y?: number }) {
+    onExternalDrop(event: { widgetId: string, targetId: string | null, x?: number, y?: number }): void {
         const comp = this.components().find(c => c.id === event.widgetId);
         if (!comp) return;
 
@@ -190,8 +190,8 @@ export class PageBuilderComponent {
     }
 
 
-    addItem(comp: ComponentMeta, x?: number, y?: number) {
-        let finalX = x ?? 0;
+    addItem(comp: ComponentMeta, x?: number, y?: number): void {
+        const finalX = x ?? 0;
         let finalY = y ?? 0;
 
         if (x === undefined || y === undefined) {
@@ -213,23 +213,23 @@ export class PageBuilderComponent {
         this.selectedItemId.set(newItem.id);
     }
 
-    onComponentInit(event: { id: string, ref: ComponentRef<any> }) {
+    onComponentInit(event: { id: string, ref: ComponentRef<unknown> }): void {
         this.instanceMap.update(map => {
             const newMap = new Map(map);
-            newMap.set(event.id, event.ref.instance);
+            newMap.set(event.id, event.ref.instance as Record<string, unknown>);
             return newMap;
         });
     }
 
-    onSelectionChange(ids: string[]) {
+    onSelectionChange(ids: string[]): void {
         this.selectedItemId.set(ids.length > 0 ? ids[0] : null);
     }
 
-    onItemsChange(newItems: DashboardItem[]) {
+    onItemsChange(newItems: DashboardItem[]): void {
         this.items.set(newItems);
     }
 
-    onItemChange(event: { id: string, prop: string, value: any }) {
+    onItemChange(event: { id: string, prop: string, value: unknown }): void {
         const id = event.id;
         if (!id) return;
 
@@ -247,7 +247,7 @@ export class PageBuilderComponent {
         }));
     }
 
-    onDeleteItem() {
+    onDeleteItem(): void {
         const id = this.selectedItemId();
         if (id) {
             this.items.update(items => items.filter(i => i.id !== id));
@@ -260,14 +260,14 @@ export class PageBuilderComponent {
         }
     }
 
-    toggleViewMode() {
+    toggleViewMode(): void {
         const next: PageBuilderViewMode = this.viewMode() === 'edit' ? 'preview' : 'edit';
         this.viewMode.set(next);
         this.viewModeChange.emit(next);
     }
 
     /** Emits the current layout via the (save) output. */
-    saveJson() {
+    saveJson(): void {
         this.save.emit(this.buildLayout());
     }
 
@@ -297,7 +297,7 @@ export class PageBuilderComponent {
         };
     }
 
-    async exportJson() {
+    async exportJson(): Promise<void> {
         const data = this.buildLayout();
 
         const fileName = `page-builder-export.json`;
@@ -319,7 +319,7 @@ export class PageBuilderComponent {
                 return;
             }
         } catch (err) {
-            console.log('Save cancelled or failed, falling back to download:', err);
+            console.error('Save cancelled or failed, falling back to download:', err);
             if ((err as Error).name === 'AbortError') return;
         }
 
@@ -339,7 +339,7 @@ export class PageBuilderComponent {
         }, 2000);
     }
 
-    async importJson() {
+    async importJson(): Promise<void> {
         try {
             const win = globalThis as unknown as WindowWithFileSystem;
             if (win.showOpenFilePicker) {
@@ -356,7 +356,7 @@ export class PageBuilderComponent {
                 return;
             }
         } catch (err) {
-            console.log('Import cancelled or failed, falling back to input:', err);
+            console.error('Import cancelled or failed, falling back to input:', err);
             if ((err as Error).name === 'AbortError') return;
         }
 
@@ -367,7 +367,7 @@ export class PageBuilderComponent {
         }
     }
 
-    async handleFileInput(event: Event) {
+    async handleFileInput(event: Event): Promise<void> {
         const input = event.target as HTMLInputElement;
         const file = input.files?.[0];
         if (!file) return;
@@ -376,7 +376,7 @@ export class PageBuilderComponent {
         this.loadLayout(text);
     }
 
-    private loadLayout(jsonString: string) {
+    private loadLayout(jsonString: string): void {
         try {
             const data = JSON.parse(jsonString);
 
@@ -393,7 +393,7 @@ export class PageBuilderComponent {
         }
     }
 
-    private applyLayout(data: PageData) {
+    private applyLayout(data: PageData): void {
         const grid = data.grid;
         if (grid.cols) this.gridCols.set(grid.cols);
         if (grid.rowHeight) this.gridRowHeight.set(grid.rowHeight);
@@ -427,7 +427,7 @@ export class PageBuilderComponent {
         this.instanceMap.set(new Map());
     }
 
-    clearBoard() {
+    clearBoard(): void {
         this.items.set([]);
         this.selectedItemId.set(null);
         this.instanceMap.set(new Map());
@@ -440,57 +440,54 @@ export class PageBuilderComponent {
         const mirror = reflectComponentType(meta.component);
         if (!mirror) return meta;
 
-        const autoInputs: InputDefinition[] = mirror.inputs.map(input => {
-            const name = input.propName;
+        const instance = this.instanceMap().get(item.id);
+        const autoInputs: InputDefinition[] = mirror.inputs.map(inp => {
+            const name = inp.propName;
             const defaultValue = meta.defaultInputs?.[name];
-            const instance = this.instanceMap().get(item.id);
-
-            let type: InputType = 'string';
-
-            if (instance?.[name] !== undefined) {
-                const val = typeof instance[name] === 'function' ? instance[name]() : instance[name];
-                if (typeof val === 'number') type = 'number';
-                else if (typeof val === 'boolean') type = 'boolean';
-            }
-            else if (typeof defaultValue === 'number') {
-                type = 'number';
-            } else if (typeof defaultValue === 'boolean') {
-                type = 'boolean';
-            }
-            else if (
-                name === 'disabled' ||
-                name === 'checked' ||
-                name === 'isOpen' ||
-                name === 'visible' ||
-                name === 'readonly' ||
-                name.startsWith('is') ||
-                name.startsWith('has')
-            ) {
-                type = 'boolean';
-            }
-
-            return {
-                name,
-                type,
-                defaultValue
-            };
+            const type = this.resolveInputType(name, defaultValue, instance);
+            return { name, type, defaultValue };
         });
 
         if (!meta.inputs || meta.inputs.length === 0) {
             return { ...meta, inputs: autoInputs };
         }
 
-        const mergedInputs = [...autoInputs];
+        return { ...meta, inputs: this.mergeInputs(autoInputs, meta.inputs) };
+    }
 
-        meta.inputs.forEach(manualInput => {
-            const index = mergedInputs.findIndex(i => i.name === manualInput.name);
+    private resolveInputType(
+        name: string,
+        defaultValue: unknown,
+        instance: Record<string, unknown> | undefined,
+    ): InputType {
+        if (instance?.[name] !== undefined) {
+            const val = typeof instance[name] === 'function'
+                ? (instance[name] as () => unknown)()
+                : instance[name];
+            if (typeof val === 'number') return 'number';
+            if (typeof val === 'boolean') return 'boolean';
+        }
+        if (typeof defaultValue === 'number') return 'number';
+        if (typeof defaultValue === 'boolean') return 'boolean';
+        if (this.isBooleanByConvention(name)) return 'boolean';
+        return 'string';
+    }
+
+    private isBooleanByConvention(name: string): boolean {
+        const boolNames = ['disabled', 'checked', 'isOpen', 'visible', 'readonly'];
+        return boolNames.includes(name) || name.startsWith('is') || name.startsWith('has');
+    }
+
+    private mergeInputs(auto: InputDefinition[], manual: InputDefinition[]): InputDefinition[] {
+        const merged = [...auto];
+        for (const manualInput of manual) {
+            const index = merged.findIndex(i => i.name === manualInput.name);
             if (index > -1) {
-                mergedInputs[index] = { ...mergedInputs[index], ...manualInput };
+                merged[index] = { ...merged[index], ...manualInput };
             } else {
-                mergedInputs.push(manualInput);
+                merged.push(manualInput);
             }
-        });
-
-        return { ...meta, inputs: mergedInputs };
+        }
+        return merged;
     }
 }

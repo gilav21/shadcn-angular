@@ -3,6 +3,7 @@ import {
   ElementRef,
   inject,
   input,
+  OnDestroy,
   output,
 } from '@angular/core';
 import { ContextMenuComponent } from './context-menu';
@@ -21,14 +22,14 @@ export interface TreeContextMenuEvent<T = unknown> {
   selector: 'ui-tree[uiTreeContextMenu]',
   standalone: true,
 })
-export class TreeContextMenuDirective<T = unknown> {
+export class TreeContextMenuDirective<T = unknown> implements OnDestroy {
   uiTreeContextMenu = input.required<ContextMenuComponent>();
   contextMenuDisabled = input<boolean>(false);
 
   nodeContextMenu = output<TreeContextMenuEvent<T>>();
 
   private readonly treeElement = inject(ElementRef<HTMLElement>);
-  private readonly contextMenuListener = (event: MouseEvent) => {
+  private readonly contextMenuListener = (event: MouseEvent): void => {
     if (this.contextMenuDisabled()) {
       return;
     }
@@ -58,7 +59,7 @@ export class TreeContextMenuDirective<T = unknown> {
     this.treeElement.nativeElement.addEventListener('contextmenu', this.contextMenuListener);
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.treeElement.nativeElement.removeEventListener('contextmenu', this.contextMenuListener);
   }
 
@@ -68,7 +69,7 @@ export class TreeContextMenuDirective<T = unknown> {
     const selected = element.dataset['selected'] === 'true';
 
     const labelElement = element.querySelector('[data-slot="tree-label"]');
-    const label = labelElement?.textContent?.trim() || '';
+    const label = labelElement?.textContent?.trim() ?? '';
 
     return {
       key,

@@ -6,6 +6,11 @@
     (dragleave)="onDragLeave($event)"
     (drop)="onDrop($event)"
     (click)="openFilePicker()"
+    (keydown.enter)="openFilePicker()"
+    (keydown.space)="openFilePicker()"
+    tabindex="0"
+    role="button"
+    [attr.aria-label]="t().uploadFiles"
   >
     <input
       #fileInput
@@ -83,6 +88,8 @@
               variant="outline"
               class="shrink-0 rounded-full p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
               (click)="removeFile(file.id, $event)"
+              (keydown.enter)="removeFile(file.id, $event)"
+              (keydown.space)="removeFile(file.id, $event)"
               [attr.aria-label]="t().removeFile"
             >
               <svg
@@ -106,6 +113,8 @@
           variant="outline"
           class="w-full text-sm text-primary hover:underline"
           (click)="openFilePicker(); $event.stopPropagation()"
+          (keydown.enter)="openFilePicker()"
+          (keydown.space)="openFilePicker()"
         >
           {{ t().addMoreFiles }}
         </ui-button>

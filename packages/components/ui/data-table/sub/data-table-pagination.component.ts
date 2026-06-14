@@ -50,7 +50,7 @@ import { isRtl } from '../../../lib/utils';
 export class DataTablePaginationComponent {
   private readonly _el = inject(ElementRef);
 
-  isRtl() {
+  isRtl(): boolean {
     return isRtl(this._el.nativeElement);
   }
 
@@ -74,7 +74,7 @@ export class DataTablePaginationComponent {
   canPrevious = computed(() => this.state().pageIndex > 0);
   canNext = computed(() => this.state().pageIndex < this.totalPages() - 1);
 
-  onPageSizeChange(value: string) {
+  onPageSizeChange(value: string): void {
     const pageSize = Number(value);
     this.paginationChange.emit({
       pageIndex: 0,
@@ -82,25 +82,25 @@ export class DataTablePaginationComponent {
     });
   }
 
-  onFirstPage() {
+  onFirstPage(): void {
     this.paginationChange.emit({ ...this.state(), pageIndex: 0 });
   }
 
-  onLastPage() {
+  onLastPage(): void {
     this.paginationChange.emit({
       ...this.state(),
       pageIndex: Math.max(0, this.totalPages() - 1),
     });
   }
 
-  onNextPage() {
+  onNextPage(): void {
     this.paginationChange.emit({
       ...this.state(),
       pageIndex: Math.min(this.totalPages() - 1, this.state().pageIndex + 1),
     });
   }
 
-  onPreviousPage() {
+  onPreviousPage(): void {
     this.paginationChange.emit({
       ...this.state(),
       pageIndex: Math.max(0, this.state().pageIndex - 1),

@@ -156,9 +156,8 @@ export const WithContextMenu: Story = {
     render: (args) => ({
         props: {
             ...args,
-            onContextMenuAction: (action: string, node: any) => {
-                console.log(`Action: ${action}`, node);
-                alert(`Action: ${action}\nNode: ${node?.label || 'Unknown'} (${node?.key || 'No Key'})`);
+            onContextMenuAction: (action: string, node: { label?: string; key?: string }) => {
+                alert(`Action: ${action}\nNode: ${node?.label ?? 'Unknown'} (${node?.key ?? 'No Key'})`);
             }
         },
         moduleMetadata: {

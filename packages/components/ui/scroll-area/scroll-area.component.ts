@@ -106,7 +106,7 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
     return (scrollLeft / maxScroll) * trackPercent;
   });
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this.updateScrollMetrics();
 
     if (this.viewportRef?.nativeElement) {
@@ -117,16 +117,16 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
     this.dragCleanup?.();
   }
 
-  onScroll() {
+  onScroll(): void {
     this.updateScrollMetrics();
   }
 
-  private updateScrollMetrics() {
+  private updateScrollMetrics(): void {
     const viewport = this.viewportRef?.nativeElement;
     if (viewport) {
       this.scrollTop.set(viewport.scrollTop);
@@ -138,7 +138,7 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  onThumbDragStart(event: MouseEvent | TouchEvent, orientation: 'vertical' | 'horizontal') {
+  onThumbDragStart(event: MouseEvent | TouchEvent, orientation: 'vertical' | 'horizontal'): void {
     event.preventDefault();
     const viewport = this.viewportRef?.nativeElement;
     if (!viewport) return;
@@ -173,7 +173,7 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
     return { clientX: mouseEvent.clientX, clientY: mouseEvent.clientY };
   }
 
-  scrollToBottom() {
+  scrollToBottom(): void {
     const viewport = this.viewportRef?.nativeElement;
     if (viewport) {
       // Use requestAnimationFrame to ensure we scroll after layout updates

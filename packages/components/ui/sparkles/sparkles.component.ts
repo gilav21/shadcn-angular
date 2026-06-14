@@ -6,14 +6,6 @@ import {
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 
-interface Sparkle {
-  id: string;
-  x: string;
-  y: string;
-  size: string;
-  style: any;
-}
-
 @Component({
   selector: 'ui-sparkles',
   changeDetection: ChangeDetectionStrategy.OnPush,

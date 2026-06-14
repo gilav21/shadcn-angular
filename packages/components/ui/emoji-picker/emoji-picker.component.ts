@@ -11,7 +11,6 @@ import {
     DestroyRef,
     effect,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
 
 export const EMOJI_PICKER = new InjectionToken<EmojiPickerComponent>('EMOJI_PICKER');
 
@@ -282,7 +281,7 @@ export class EmojiPickerComponent {
             if (isOpen && shouldClose) {
                 setTimeout(() => {
                     const el = this.el.nativeElement;
-                    const handler = (e: Event) => {
+                    const handler = (e: Event): void => {
                         if (e.target instanceof Node && el.contains(e.target)) return;
                         this.hide();
                     };
@@ -302,26 +301,26 @@ export class EmojiPickerComponent {
         }
     }
 
-    toggle() {
+    toggle(): void {
         this.open.update(v => !v);
     }
 
-    show() {
+    show(): void {
         this.open.set(true);
     }
 
-    hide() {
+    hide(): void {
         this.open.set(false);
     }
 
-    selectEmoji(emoji: string) {
+    selectEmoji(emoji: string): void {
         this.emojiSelect.emit(emoji);
         if (this.closeOnSelect()) {
             this.open.set(false);
         }
     }
 
-    onDocumentClick(event: MouseEvent) {
+    onDocumentClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
         if (!target.closest('[data-slot="emoji-picker"]')) {
             this.hide();

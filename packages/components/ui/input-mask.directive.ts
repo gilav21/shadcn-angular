@@ -36,7 +36,7 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         '*': /[a-zA-Z0-9]/
     };
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (this.uiInput) {
             this.inputElement = this.uiInput.inputRef()?.nativeElement ?? this.el.nativeElement;
         } else {
@@ -51,11 +51,11 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         }
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.destroyValues.forEach(fn => fn());
     }
 
-    private setupListeners() {
+    private setupListeners(): void {
         const onInput = this.renderer.listen(this.inputElement, 'input', (e) => this.handleInput(e));
         const onKeyDown = this.renderer.listen(this.inputElement, 'keydown', (e) => this.handleKeyDown(e));
         const onPaste = this.renderer.listen(this.inputElement, 'paste', (e) => this.handlePaste(e));
@@ -64,10 +64,10 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         this.destroyValues.push(onInput, onKeyDown, onPaste, onBlur);
     }
 
-    private handleInput(event?: Event) {
+    private handleInput(_event?: Event): void {
         const input = this.inputElement;
-        let value = input.value;
-        const oldCursorPos = input.selectionStart || 0;
+        const value = input.value;
+        const oldCursorPos = input.selectionStart ?? 0;
 
         // Check if deletion happened (heuristic)
         // Actually, simple masking strategy:
@@ -90,21 +90,19 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         }
     }
 
-    private handleKeyDown(event: KeyboardEvent) {
-        if (event.key === 'Backspace') {
-            // Default backspace works, but we might want to handle jumping over literals
-        }
+    private handleKeyDown(_event: KeyboardEvent): void {
+        // Default backspace works, but we might want to handle jumping over literals
     }
 
-    private handlePaste(event: ClipboardEvent) {
+    private handlePaste(_event: ClipboardEvent): void {
         // Paste handled by input event usually, but ensuring clean data
     }
 
-    private handleBlur() {
+    private handleBlur(): void {
         this.updateTouched();
     }
 
-    private updateModel(value: string) {
+    private updateModel(value: string): void {
         if (this.ngControl) {
             this.ngControl.control?.setValue(value, { emitEvent: false, emitModelToViewChange: false, emitViewToModelChange: true });
         }
@@ -115,7 +113,7 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         }
     }
 
-    private updateTouched() {
+    private updateTouched(): void {
         if (this.ngControl) {
             this.ngControl.control?.markAsTouched();
         }
@@ -125,20 +123,6 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
     }
 
     private unmask(value: string): string {
-        let unmasked = '';
-        // This is a naive unmask that just keeps alphanumerics if mask has them.
-        // Better: walk through mask and value.
-
-        // Simple approach: Strip literals defined in mask
-        // We iterate over the mask and the value
-        let valueIndex = 0;
-        let maskIndex = 0;
-
-        // Actually, just stripping anything that doesn't match the definitions? 
-        // No, cause user might type literal chars.
-
-        // Let's just strip 'known' literals from the mask pattern.
-        // Collect all literals from mask
         const literals = this.getLiterals();
 
         // Remove literals from value
@@ -231,7 +215,6 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         }
 
         // Now find the position in NEW value that has the same number of non-literals before it.
-        let newPos = 0;
         let currentNonLiterals = 0;
         for (let i = 0; i < newValue.length; i++) {
             const char = newValue[i];

@@ -10,6 +10,7 @@ import {
     InjectionToken,
     forwardRef,
     booleanAttribute,
+    OnDestroy,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
@@ -97,9 +98,10 @@ export interface SplitButtonItem {
       </ui-button>
       
       @if (isOpen()) {
-        <div 
+        <div
           [class]="menuClasses()"
           role="menu"
+          tabindex="-1"
           (keydown)="onMenuKeydown($event)"
         >
           @if (items().length > 0) {
@@ -128,7 +130,7 @@ export interface SplitButtonItem {
         class: 'contents',
     },
 })
-export class SplitButtonComponent {
+export class SplitButtonComponent implements OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
 
@@ -144,7 +146,7 @@ export class SplitButtonComponent {
 
     isOpen = signal(false);
 
-    private readonly clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent): void => {
         if (!this.el.nativeElement.contains(event.target)) {
             this.isOpen.set(false);
         }
@@ -154,7 +156,7 @@ export class SplitButtonComponent {
         this.document.addEventListener('click', this.clickListener);
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener);
     }
 
@@ -183,7 +185,7 @@ export class SplitButtonComponent {
         'animate-in fade-in-0 zoom-in-95'
     ));
 
-    itemClasses(item: SplitButtonItem) {
+    itemClasses(item: SplitButtonItem): string {
         return cn(
             'relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
             'hover:bg-accent hover:text-accent-foreground',
@@ -192,11 +194,11 @@ export class SplitButtonComponent {
         );
     }
 
-    onPrimaryClick(event: MouseEvent) {
+    onPrimaryClick(event: MouseEvent): void {
         this.primaryClick.emit(event);
     }
 
-    toggleMenu(event: MouseEvent) {
+    toggleMenu(event: MouseEvent): void {
         event.stopPropagation();
         const opening = !this.isOpen();
         if (opening) {
@@ -207,7 +209,7 @@ export class SplitButtonComponent {
         this.isOpen.set(opening);
     }
 
-    onItemClick(item: SplitButtonItem, event: MouseEvent) {
+    onItemClick(item: SplitButtonItem, event: MouseEvent): void {
         event.stopPropagation();
         if (!item.disabled) {
             this.itemClick.emit(item);
@@ -216,7 +218,7 @@ export class SplitButtonComponent {
         }
     }
 
-    onDropdownKeydown(event: KeyboardEvent) {
+    onDropdownKeydown(event: KeyboardEvent): void {
         if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
             event.preventDefault();
             this.isOpen.set(true);
@@ -227,7 +229,7 @@ export class SplitButtonComponent {
         }
     }
 
-    onMenuKeydown(event: KeyboardEvent) {
+    onMenuKeydown(event: KeyboardEvent): void {
         const items: HTMLElement[] = Array.from(
             this.el.nativeElement.querySelectorAll('[role="menuitem"]:not([disabled])')
         );

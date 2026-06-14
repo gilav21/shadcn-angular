@@ -1,8 +1,7 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
 import { DataTableComponent } from './data-table.component';
-import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext, VirtualAutoThreshold } from './data-table.types';
+import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext } from './data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { InputComponent } from '../input';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from '../context-menu';
 import { ContextMenuIntegrations } from '../context-menu-integrations';
@@ -587,7 +586,7 @@ export const ResizableColumns: Story = {
     render: (args) => ({
         props: {
             ...args,
-            onColumnResize: (event: any) => console.log('Column resized:', event),
+            onColumnResize: (_event: unknown) => { /* resize handled externally */ },
         },
         template: `
             <div class="h-[600px] w-full p-4">
@@ -660,9 +659,9 @@ export const WithContextMenu: Story = {
     render: (args) => ({
         props: {
             ...args,
-            onContextMenuAction: (action: string, row: any) => {
-                console.log(`Action: ${action}`, row);
-                alert(`Action: ${action}\nUser: ${row?.name || 'Unknown'}`);
+            onContextMenuAction: (action: string, row: unknown) => {
+                const name = (row as Record<string, unknown>)?.['name'] ?? 'Unknown';
+                alert(`Action: ${action}\nUser: ${name}`);
             }
         },
         moduleMetadata: {

@@ -24,27 +24,27 @@ export class MenubarSubComponent {
   private trigger: MenubarSubTriggerComponent | null = null;
   private content: MenubarSubContentComponent | null = null;
 
-  registerTrigger(t: MenubarSubTriggerComponent) { this.trigger = t; }
-  registerContent(c: MenubarSubContentComponent) { this.content = c; }
+  registerTrigger(t: MenubarSubTriggerComponent): void { this.trigger = t; }
+  registerContent(c: MenubarSubContentComponent): void { this.content = c; }
 
-  enter() {
+  enter(): void {
     clearTimeout(this.timeoutId);
     this.isOpen.set(true);
   }
 
-  leave() {
+  leave(): void {
     this.timeoutId = setTimeout(() => {
       this.isOpen.set(false);
     }, 100);
   }
 
-  focusTrigger() {
+  focusTrigger(): void {
     setTimeout(() => {
       this.trigger?.focus();
     }, 0);
   }
 
-  focusContent() {
+  focusContent(): void {
     setTimeout(() => {
       this.content?.focusFirst();
     }, 0);

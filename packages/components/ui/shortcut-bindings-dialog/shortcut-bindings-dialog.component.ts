@@ -116,7 +116,7 @@ export class ShortcutBindingsDialogComponent {
             this.shortcutBindings.importOverrideSchema(schema, this.replaceOnSchemaLoad());
             this.lastAppliedMappingSchema.set(serialized);
             this.bumpVersion();
-        }, { allowSignalWrites: true });
+        });
     }
 
     bindings = computed(() => {

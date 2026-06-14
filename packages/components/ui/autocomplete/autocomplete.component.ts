@@ -74,7 +74,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     protected readonly t = this.i18n.t;
     protected readonly dir = this.i18n.dir;
 
-    search = output<string>();
+    searchChange = output<string>();
     valueChange = output<AutocompleteValue<T>>();
 
     open = signal(false);
@@ -111,7 +111,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     isDisabled = computed(() => this.disabled() || this.formDisabled());
 
     containerClasses = computed(() => cn(
-        'flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-text',
+        'flex w-full items-center justify-between rounded-md border border-input bg-background text-sm ring-offset-background cursor-text',
         'focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
         this.isDisabled() ? 'cursor-not-allowed opacity-50' : '',
         this.class()
@@ -141,7 +141,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         this.searchSubject.pipe(
             rxDebounceTime(this.debounceTime()),
             takeUntilDestroyed(this.destroyRef)
-        ).subscribe(val => this.search.emit(val));
+        ).subscribe(val => this.searchChange.emit(val));
 
         effect(() => {
             const val = this.value();
@@ -177,15 +177,15 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     getDisplayValue(option: T): string {
         const displayFn = this.displayWith();
         if (typeof displayFn !== 'function') {
-            console.warn('Autocomplete: displayWith is not a function', displayFn);
             return String(option);
         }
         return displayFn(option);
     }
 
     getValue(option: T): unknown {
-        if (this.valueAttribute()) {
-            return (option as Record<string, unknown>)[this.valueAttribute()!];
+        const attr = this.valueAttribute();
+        if (attr) {
+            return (option as Record<string, unknown>)[attr];
         }
         return option;
     }
@@ -203,7 +203,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         return this.internalValue().some(v => this.getValue(v) === val);
     }
 
-    onContainerClick(event: MouseEvent) {
+    onContainerClick(event: Event): void {
         if (this.isDisabled()) {
             event.preventDefault();
             event.stopPropagation();
@@ -213,18 +213,18 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         event.stopPropagation();
     }
 
-    onFocus() {
+    onFocus(): void {
         if (!this.isDisabled() && !this.open()) {
             this.resolveDropdownSide();
             this.open.set(true);
         }
     }
 
-    onBlur() {
+    onBlur(): void {
         this.onTouched();
     }
 
-    onOpenChange(isOpen: boolean) {
+    onOpenChange(isOpen: boolean): void {
         if (!this.isDisabled()) {
             this.open.set(isOpen);
             if (!isOpen) {
@@ -233,7 +233,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         }
     }
 
-    onInput(event: Event) {
+    onInput(event: Event): void {
         const target = event.target as HTMLInputElement;
         const val = target.value;
         this.searchTerm.set(val);
@@ -241,7 +241,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         if (this.debounceTime() > 0) {
             this.searchSubject.next(val);
         } else {
-            this.search.emit(val);
+            this.searchChange.emit(val);
         }
 
         if (!this.open()) {
@@ -250,34 +250,43 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         }
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         if (this.isDisabled()) return;
+        switch (event.key) {
+            case 'ArrowDown': this.handleArrowDown(event); break;
+            case 'ArrowUp': this.handleArrowUp(event); break;
+            case 'Enter': this.handleEnter(event); break;
+            case 'Escape': this.open.set(false); break;
+            case 'Backspace': this.handleBackspace(); break;
+        }
+    }
 
-        const cmd = this.command();
+    private handleArrowDown(event: KeyboardEvent): void {
+        event.preventDefault();
+        if (this.open()) { this.command()?.moveNext(); }
+        else { this.resolveDropdownSide(); this.open.set(true); }
+    }
 
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            if (this.open()) {cmd?.moveNext();}
-            else { this.resolveDropdownSide(); this.open.set(true); }
-        } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            if (this.open()) {cmd?.movePrev();}
-            else { this.resolveDropdownSide(); this.open.set(true); }
-        } else if (event.key === 'Enter') {
-            event.preventDefault();
-            if (this.open()) {
-                cmd?.selectActive();
-            }
-        } else if (event.key === 'Escape') {
-            this.open.set(false);
-        } else if (event.key === 'Backspace' && this.multiple() && this.searchTerm() === '' && this.selectedItems().length > 0) {
+    private handleArrowUp(event: KeyboardEvent): void {
+        event.preventDefault();
+        if (this.open()) { this.command()?.movePrev(); }
+        else { this.resolveDropdownSide(); this.open.set(true); }
+    }
+
+    private handleEnter(event: KeyboardEvent): void {
+        event.preventDefault();
+        if (this.open()) { this.command()?.selectActive(); }
+    }
+
+    private handleBackspace(): void {
+        if (this.multiple() && this.searchTerm() === '' && this.selectedItems().length > 0) {
             const newItems = [...this.internalValue()];
             newItems.pop();
             this.updateValue(newItems);
         }
     }
 
-    onSelect(option: T) {
+    onSelect(option: T): void {
         const val = this.getValue(option);
         let newValues: T[];
 
@@ -301,14 +310,14 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         this.updateValue(newValues);
     }
 
-    removeItem(item: T, event: MouseEvent) {
+    removeItem(item: T, event: Event): void {
         event.stopPropagation();
         const val = this.getValue(item);
         const newValues = this.internalValue().filter(v => this.getValue(v) !== val);
         this.updateValue(newValues);
     }
 
-    updateValue(newValues: T[]) {
+    updateValue(newValues: T[]): void {
         this.internalValue.set(newValues);
 
         let emitValue: AutocompleteValue<T>;
@@ -324,6 +333,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     }
 
     writeValue(value: AutocompleteValue<T>): void {
+        // eslint-disable-next-line sonarjs/different-types-comparison -- Angular CVA calls writeValue(undefined) on form reset even though AutocompleteValue<T> excludes undefined
         if (value === null || value === undefined) {
             this.internalValue.set([]);
         } else if (Array.isArray(value)) {

@@ -23,7 +23,7 @@ const numberInputWrapperVariants = cva(
     {
         variants: {
             variant: {
-                outline: 'dark:bg-input/30 h-9 rounded-lg border',
+                outline: 'dark:bg-input/30 rounded-lg border',
                 underline: 'rounded-none border-b border-t-0 border-x-0 focus-within:ring-0 shadow-none',
                 ghost: 'border-none shadow-none focus-within:ring-0',
             },
@@ -105,7 +105,7 @@ export class NumberInputComponent implements ControlValueAccessor {
         effect(() => {
             const nativeInput = this.inputRef().inputRef()?.nativeElement;
             if (!nativeInput) return;
-            const handler = (e: WheelEvent) => {
+            const handler = (e: WheelEvent): void => {
                 if (globalThis.document.activeElement !== nativeInput) return;
                 e.preventDefault();
                 if (e.deltaY < 0) this.increment();

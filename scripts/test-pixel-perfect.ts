@@ -10,8 +10,8 @@
  * Then open the output HTML in your browser and compare side-by-side
  * with the pdf2htmlEX output at localhost:8888.
  */
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
 import { renderPixelPerfectPaged, toStandaloneHtml, setFallbackFontData } from '../packages/components/lib/parsers/pdf-pixel-perfect';
 
 // Load fallback font for missing glyph coverage
@@ -29,7 +29,7 @@ for (const fp of fallbackPaths) {
     }
 }
 
-async function main() {
+async function main(): Promise<void> {
     const pdfPath = process.argv[2];
     if (!pdfPath) {
         console.error('Usage: npx tsx scripts/test-pixel-perfect.ts <pdf-path> [output-path]');

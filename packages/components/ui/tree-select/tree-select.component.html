@@ -8,6 +8,7 @@
         [attr.data-slot]="'tree-select-trigger'"
         [disabled]="isDisabled()"
         [attr.aria-expanded]="isOpen()"
+        aria-controls="tree-select-popup"
         aria-haspopup="tree"
       >
         <span class="flex-1 truncate text-start">
@@ -33,7 +34,7 @@
         </svg>
       </button>
     </ui-popover-trigger>
-    <ui-popover-content class="w-[--trigger-width] max-w-[calc(100vw-2rem)] p-2" align="start">
+    <ui-popover-content id="tree-select-popup" class="w-[--trigger-width] max-w-[calc(100vw-2rem)] p-2" align="start">
       <div [attr.dir]="dir()">
         <ui-tree
           [data]="nodes()"

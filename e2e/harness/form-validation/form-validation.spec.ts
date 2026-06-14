@@ -43,7 +43,7 @@ test('reactive form: ui-input + ui-checkbox plug into Validators correctly', asy
     await expect(submit).toBeDisabled();
 
     // Check the terms → form becomes valid + submit enabled.
-    const tos = page.getByTestId('agreed').locator('button, [role="checkbox"]').first();
+    const tos = page.getByTestId('agreed').locator('input[type="checkbox"]').first();
     await tos.click();
     await expect(page.getByTestId('status')).toHaveText('valid');
     await expect(submit).toBeEnabled();

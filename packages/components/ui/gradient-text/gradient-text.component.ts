@@ -46,7 +46,7 @@ export class GradientTextComponent implements AfterViewInit, OnDestroy {
         };
     });
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (prefersReducedMotion()) return;
         this.ngZone.runOutsideAngular(() => {
             this.startTime = performance.now();
@@ -54,11 +54,11 @@ export class GradientTextComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         if (this.animationFrameId != null) cancelAnimationFrame(this.animationFrameId);
     }
 
-    private readonly animate = () => {
+    private readonly animate = (): void => {
         const elapsed = performance.now() - this.startTime;
         const duration = this.speed() * 1000;
         const progress = (elapsed % duration) / duration;

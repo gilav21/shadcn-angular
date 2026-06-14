@@ -154,6 +154,181 @@ describe('Popover Integration', () => {
     });
 });
 
+@Component({
+    template: `
+        <ui-popover [open]="open()">
+            <ui-popover-trigger>Open</ui-popover-trigger>
+            <ui-popover-content
+                [strategy]="strategy()"
+                [side]="side()"
+                [align]="align()"
+                [avoidCollisions]="avoidCollisions()"
+            >Positioned content</ui-popover-content>
+        </ui-popover>
+    `,
+    imports: [PopoverComponent, PopoverTriggerComponent, PopoverContentComponent],
+})
+class PositionHostComponent {
+    open = signal(false);
+    strategy = signal<'absolute' | 'fixed'>('absolute');
+    side = signal<'top' | 'right' | 'bottom' | 'left'>('bottom');
+    align = signal<'start' | 'center' | 'end'>('center');
+    avoidCollisions = signal(true);
+}
+
+describe('PopoverContent positioning', () => {
+    let fixture: ComponentFixture<PositionHostComponent>;
+    let component: PositionHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [PositionHostComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(PositionHostComponent);
+        component = fixture.componentInstance;
+        // attach to live DOM so getBoundingClientRect returns real geometry
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        fixture.nativeElement.remove();
+        document.querySelectorAll('[data-popover-portal]').forEach(n => n.remove());
+    });
+
+    function content(): PopoverContentComponent {
+        return fixture.debugElement.query(By.directive(PopoverContentComponent)).componentInstance as PopoverContentComponent;
+    }
+
+    async function openPopover(): Promise<void> {
+        component.open.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        // allow the requestAnimationFrame-driven portalAndPosition to run
+        await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+        fixture.detectChanges();
+    }
+
+    it('renders absolute content with side/align classes', async () => {
+        await openPopover();
+        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
+        expect(el).toBeTruthy();
+        expect(el.className).toContain('top-full');   // bottom side
+        expect(el.className).toContain('-translate-x-1/2'); // center align
+        expect(el.className).toContain('absolute');
+    });
+
+    it('applies start align class', async () => {
+        component.align.set('start');
+        await openPopover();
+        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
+        expect(el.className).toContain('left-0');
+    });
+
+    it('applies end align class', async () => {
+        component.align.set('end');
+        await openPopover();
+        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
+        expect(el.className).toContain('right-0');
+    });
+
+    it('applies top side class (collisions disabled keeps raw side)', async () => {
+        component.side.set('top');
+        component.avoidCollisions.set(false);
+        await openPopover();
+        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
+        expect(el.className).toContain('bottom-full');
+    });
+
+    it('applies left/right side classes without align when side is horizontal', async () => {
+        component.side.set('right');
+        await openPopover();
+        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
+        expect(el.className).toContain('left-full');
+    });
+
+    it('skips collision adjustment when avoidCollisions is false', async () => {
+        component.avoidCollisions.set(false);
+        await openPopover();
+        const pos = content()['adjustedPosition']();
+        expect(pos.offsetX).toBe(0);
+        expect(pos.offsetY).toBe(0);
+    });
+
+    it('fixed strategy portals the content into document.body', async () => {
+        component.strategy.set('fixed');
+        await openPopover();
+        const portal = document.querySelector('[data-popover-portal]');
+        expect(portal).toBeTruthy();
+        const el = portal!.querySelector('[data-slot="popover-content"]') as HTMLElement;
+        expect(el).toBeTruthy();
+        // fixed styles computed from trigger rect
+        const styles = content().positionStyles();
+        expect(styles).toContain('position:fixed');
+        expect(styles).toContain('top:');
+        expect(styles).toContain('left:');
+    });
+
+    it('fixed strategy with end align translates -100%', async () => {
+        component.strategy.set('fixed');
+        component.align.set('end');
+        await openPopover();
+        const styles = content().positionStyles();
+        expect(styles).toContain('translateX(-100%)');
+    });
+
+    it('fixed strategy with start align uses no translate', async () => {
+        component.strategy.set('fixed');
+        component.align.set('start');
+        await openPopover();
+        const styles = content().positionStyles();
+        expect(styles).not.toContain('translateX');
+    });
+
+    it('removes the portal when closed', async () => {
+        component.strategy.set('fixed');
+        await openPopover();
+        expect(document.querySelector('[data-popover-portal]')).toBeTruthy();
+        component.open.set(false);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(document.querySelector('[data-popover-portal]')).toBeNull();
+    });
+
+    it('flips side and offsets when content overflows the boundary', async () => {
+        await openPopover();
+        const c = content();
+        // Simulate a content rect overflowing the bottom boundary, forcing a flip
+        const tallRect = {
+            top: 700, bottom: 1500, left: 100, right: 300, width: 200, height: 800,
+            x: 100, y: 700, toJSON() { return this; },
+        } as DOMRect;
+        const boundary = { top: 0, bottom: 800, left: 0, right: 1000 };
+        const adjust = (c as unknown as {
+            computeVerticalAdjustment(r: DOMRect, b: { top: number; bottom: number }): { side: string; offsetY: number };
+        }).computeVerticalAdjustment(tallRect, boundary);
+        // overflowBottom > 0, current side bottom → either flips to top (if room) or offsets up
+        expect(['top', 'bottom']).toContain(adjust.side);
+        if (adjust.side === 'bottom') {
+            expect(adjust.offsetY).toBeLessThan(0);
+        }
+    });
+
+    it('computes a horizontal offset when content overflows right', async () => {
+        await openPopover();
+        const c = content();
+        const rect = { right: 1200, left: 900 } as DOMRect;
+        const offset = (c as unknown as {
+            computeHorizontalOffset(r: DOMRect, b: { left: number; right: number }): number;
+        }).computeHorizontalOffset(rect, { left: 0, right: 1000 });
+        expect(offset).toBeLessThan(0);
+        const offsetLeft = (c as unknown as {
+            computeHorizontalOffset(r: DOMRect, b: { left: number; right: number }): number;
+        }).computeHorizontalOffset({ right: 100, left: -50 } as DOMRect, { left: 0, right: 1000 });
+        expect(offsetLeft).toBeGreaterThan(0);
+    });
+});
+
 describe('Popover RTL Support', () => {
     let fixture: ComponentFixture<RTLTestHostComponent>;
     let component: RTLTestHostComponent;

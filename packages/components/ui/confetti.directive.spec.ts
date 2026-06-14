@@ -2,7 +2,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { UiConfettiDirective, ConfettiOptions } from './confetti.directive';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach, afterAll } from 'vitest';
+
+// Capture the real getContext before mocking so it can be restored when this
+// file's tests finish — otherwise the stub leaks to other specs in the shared
+// browser worker (e.g. color-extract, which needs a real 2D context).
+const NATIVE_GET_CONTEXT = HTMLCanvasElement.prototype.getContext;
+afterAll(() => {
+    HTMLCanvasElement.prototype.getContext = NATIVE_GET_CONTEXT;
+});
 
 function mockCanvasContext(): void {
     const originalGetContext = HTMLCanvasElement.prototype.getContext;
@@ -66,7 +74,7 @@ describe('UiConfettiDirective', () => {
     let fixture: ComponentFixture<TestHostComponent>;
 
     beforeEach(async () => {
-        vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => {
+        vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((_cb) => {
             return 1 as unknown as number;
         });
 

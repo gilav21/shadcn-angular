@@ -3,7 +3,6 @@ import {
   ChangeDetectionStrategy,
   input,
   computed,
-  inject,
   InjectionToken,
   forwardRef,
   contentChildren,
@@ -61,14 +60,14 @@ export class StepperComponent {
     )
   );
 
-  stepTriggerClasses = (canClick: boolean) =>
+  stepTriggerClasses = (canClick: boolean): string =>
     cn(
       'group flex items-center gap-3 text-start',
       'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md',
       !canClick && 'cursor-not-allowed opacity-50'
     );
 
-  indicatorClasses = (status: StepStatus) =>
+  indicatorClasses = (status: StepStatus): string =>
     cn(
       'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
       {
@@ -79,7 +78,6 @@ export class StepperComponent {
     );
 
   getStepIndex(value: string): number {
-    // For simple mode, find in steps array
     if (this.steps().length > 0) {
       return this.steps().findIndex((s) => s.value === value);
     }
@@ -106,20 +104,20 @@ export class StepperComponent {
     return this.canNavigateTo(index);
   }
 
-  goToStep(index: number) {
+  goToStep(index: number): void {
     if (this.canNavigateTo(index)) {
       this.activeStep.set(index);
       this.stepChange.emit(index);
     }
   }
 
-  nextStep() {
+  nextStep(): void {
     const count = this.steps().length > 0 ? this.steps().length : this.items().length;
     const next = Math.min(this.activeStep() + 1, count - 1);
     this.goToStep(next);
   }
 
-  prevStep() {
+  prevStep(): void {
     const prev = Math.max(this.activeStep() - 1, 0);
     this.goToStep(prev);
   }

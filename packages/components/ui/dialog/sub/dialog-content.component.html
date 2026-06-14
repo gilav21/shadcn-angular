@@ -1,11 +1,13 @@
 @if (dialog?.open()) {
   <div class="fixed inset-0 z-50 flex items-center justify-center" [attr.dir]="dir()">
     <!-- Overlay -->
-    <div
+    <button
+      type="button"
       class="fixed inset-0 bg-black/80 animate-in fade-in-0"
       [attr.data-slot]="'dialog-overlay'"
+      [attr.aria-label]="t().close"
       (click)="onOverlayClick()"
-    ></div>
+    ></button>
     <!-- Content -->
     <div
       #contentEl

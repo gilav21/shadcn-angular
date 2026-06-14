@@ -6,8 +6,8 @@ import {
 } from '@angular/core';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
-import { AlertTitleComponent } from './sub/alert-title.component';
-import { AlertDescriptionComponent } from './sub/alert-description.component';
+export { AlertTitleComponent } from './sub/alert-title.component';
+export { AlertDescriptionComponent } from './sub/alert-description.component';
 
 const alertVariants = cva(
     'relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:start-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:ps-7',
@@ -56,4 +56,4 @@ export class AlertComponent {
 }
 
 
-export { alertVariants, AlertTitleComponent, AlertDescriptionComponent };
+export { alertVariants };

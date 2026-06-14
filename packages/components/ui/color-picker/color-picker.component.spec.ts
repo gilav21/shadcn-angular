@@ -405,6 +405,178 @@ describe('ColorPickerComponent', () => {
         });
     });
 
+    describe('Hue and alpha sliders', () => {
+        function rangeEvent(value: number, max = 360): Event {
+            const input = document.createElement('input');
+            input.type = 'range';
+            input.min = '0';
+            input.max = String(max);
+            input.value = String(value);
+            const ev = new Event('input');
+            Object.defineProperty(ev, 'target', { value: input });
+            return ev;
+        }
+
+        it('onHueChange updates hue and recomputes the color', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.applyRgba({ r: 255, g: 0, b: 0, a: 1 });
+            picker.onHueChange(rangeEvent(120));
+            fixture.detectChanges();
+            expect(picker.hue()).toBe(120);
+            expect(picker.currentColor()).toBe('#00ff00');
+        });
+
+        it('onAlphaChange sets the alpha channel', async () => {
+            host.alpha.set(true);
+            fixture.detectChanges();
+            const picker = await openAndGetPicker(fixture);
+            picker.onAlphaChange(rangeEvent(50, 100));
+            fixture.detectChanges();
+            expect(picker.alphaValue()).toBeCloseTo(0.5, 1);
+        });
+    });
+
+    describe('HSL channel inputs', () => {
+        it('onHslChange updates saturation and lightness', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.applyRgba({ r: 128, g: 128, b: 128, a: 1 });
+            picker.onHslChange('l', 100);
+            fixture.detectChanges();
+            expect(picker.currentColor()).toBe('#ffffff');
+        });
+
+        it('onHslChange clamps out-of-range input', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.onHslChange('s', 999);
+            fixture.detectChanges();
+            expect(picker.hsl().s).toBeLessThanOrEqual(100);
+        });
+
+        it('onHslHueChange rotates the hue', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.applyRgba({ r: 255, g: 0, b: 0, a: 1 });
+            picker.onHslHueChange(240);
+            fixture.detectChanges();
+            expect(picker.currentColor()).toBe('#0000ff');
+        });
+
+        it('onHslHueChange clamps to 0..360', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.onHslHueChange(720);
+            fixture.detectChanges();
+            expect(picker.hsl().h).toBeLessThanOrEqual(360);
+        });
+    });
+
+    describe('Area pointer drag', () => {
+        it('onAreaMouseDown updates color from the pointer position', async () => {
+            const picker = await openAndGetPicker(fixture);
+            stubAreaRect(picker);
+            picker.onAreaMouseDown(new MouseEvent('mousedown', { clientX: 0, clientY: 0 }));
+            fixture.detectChanges();
+            expect(picker.saturation()).toBe(0);
+            expect(picker.value()).toBe(100);
+            // release any global drag listeners
+            document.dispatchEvent(new MouseEvent('mouseup'));
+        });
+
+        it('onAreaMouseDown is ignored when disabled', async () => {
+            const picker = await openAndGetPicker(fixture);
+            host.disabled.set(true);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            stubAreaRect(picker);
+            const before = picker.saturation();
+            picker.onAreaMouseDown(new MouseEvent('mousedown', { clientX: 200, clientY: 0 }));
+            fixture.detectChanges();
+            expect(picker.saturation()).toBe(before);
+        });
+
+        it('onAreaTouchStart updates color from the first touch', async () => {
+            const picker = await openAndGetPicker(fixture);
+            stubAreaRect(picker);
+            const ev = new Event('touchstart', { cancelable: true }) as unknown as TouchEvent;
+            Object.defineProperty(ev, 'touches', { value: [{ clientX: 200, clientY: 0 }] });
+            picker.hue.set(0);
+            picker.onAreaTouchStart(ev);
+            fixture.detectChanges();
+            expect(picker.saturation()).toBe(100);
+            expect(picker.value()).toBe(100);
+            document.dispatchEvent(new Event('touchend'));
+        });
+    });
+
+    describe('Eyedropper and extracted palette', () => {
+        it('onEyedropperPick applies the picked color', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.onEyedropperPick('#ff8800');
+            fixture.detectChanges();
+            expect(picker.currentColor()).toBe('#ff8800');
+        });
+
+        it('applyExtracted applies a swatch from the palette', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.applyExtracted('#123456');
+            fixture.detectChanges();
+            expect(picker.currentColor()).toBe('#123456');
+        });
+
+        it('clearExtractedPalette empties the palette', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.extractedPalette.set(['#111111', '#222222']);
+            picker.clearExtractedPalette();
+            expect(picker.extractedPalette()).toEqual([]);
+        });
+
+        it('openImagePicker clicks the hidden file input', async () => {
+            host.enableImagePick.set(true);
+            fixture.detectChanges();
+            const picker = await openAndGetPicker(fixture);
+            const fileInput = (picker as unknown as { imageFile: () => { nativeElement: HTMLInputElement } | undefined }).imageFile();
+            if (fileInput) {
+                const spy = vi.spyOn(fileInput.nativeElement, 'click');
+                picker.openImagePicker();
+                expect(spy).toHaveBeenCalled();
+            }
+        });
+
+        it('onImageSelected ignores an empty file selection', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const input = document.createElement('input');
+            input.type = 'file';
+            const ev = new Event('change');
+            Object.defineProperty(ev, 'target', { value: input });
+            await expect(picker.onImageSelected(ev)).resolves.toBeUndefined();
+            expect(picker.extractedPalette()).toEqual([]);
+        });
+    });
+
+    describe('Copy format value', () => {
+        it('copy writes the formatted value to the clipboard and flags the format', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const writeText = vi.fn().mockResolvedValue(undefined);
+            Object.defineProperty(globalThis.navigator, 'clipboard', {
+                value: { writeText },
+                configurable: true,
+            });
+            picker.applyRgba({ r: 255, g: 0, b: 0, a: 1 });
+            await picker.copy('hex');
+            expect(writeText).toHaveBeenCalledWith('#ff0000');
+            expect(picker.copiedFormat()).toBe('hex');
+        });
+
+        it('copy swallows clipboard rejections', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+            Object.defineProperty(globalThis.navigator, 'clipboard', {
+                value: { writeText },
+                configurable: true,
+            });
+            await expect(picker.copy('rgb')).resolves.toBeUndefined();
+            expect(picker.copiedFormat()).toBeNull();
+        });
+    });
+
     describe('ControlValueAccessor', () => {
         it('parses any color format in writeValue', () => {
             const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))

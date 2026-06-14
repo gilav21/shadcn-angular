@@ -61,7 +61,7 @@ export class NavigationMenuComponent implements AfterContentInit {
   private readonly _hasCustomContent = signal(true);
   hasCustomContent = this._hasCustomContent.asReadonly();
 
-  ngAfterContentInit() {
+  ngAfterContentInit(): void {
     this._hasCustomContent.set(!!this.customList || this.items().length === 0);
   }
 
@@ -70,7 +70,7 @@ export class NavigationMenuComponent implements AfterContentInit {
     this.class()
   ));
 
-  onClick(event: MouseEvent) {
+  onClick(event: MouseEvent): void {
     if (this.service.activeItem() && !this.el.nativeElement.contains(event.target)) {
       this.service.setActive(null);
     }

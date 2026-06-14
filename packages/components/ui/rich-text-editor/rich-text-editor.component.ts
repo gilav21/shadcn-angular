@@ -1,4 +1,4 @@
-import {
+﻿import {
     Component,
     ChangeDetectionStrategy,
     input,
@@ -40,7 +40,7 @@ import {
     DialogFooterComponent,
 } from '../dialog';
 import { ScrollAreaComponent } from '../scroll-area';
-import { ShortcutBindingService, ShortcutComponentHandle } from '../../lib/shortcut-binding.service';
+import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
 import {
     RichTextCommandRegistry,
     RichTextSlashCommand,
@@ -74,26 +74,26 @@ const editorVariants = cva(
 /**
  * Visual style variant for the editor border and focus treatment.
  *
- * - `'default'` — Standard bordered input with focus ring.
- * - `'ghost'` — No visible border until focused, useful for inline editing.
+ * - `'default'` ג€” Standard bordered input with focus ring.
+ * - `'ghost'` ג€” No visible border until focused, useful for inline editing.
  */
 export type EditorVariant = VariantProps<typeof editorVariants>['variant'];
 
 /**
  * Text size preset for the editor content area.
  *
- * - `'default'` — Base text size (`text-base`).
- * - `'sm'` — Compact text (`text-sm`), good for comment boxes.
- * - `'lg'` — Larger text (`text-lg`), good for article editing.
+ * - `'default'` ג€” Base text size (`text-base`).
+ * - `'sm'` ג€” Compact text (`text-sm`), good for comment boxes.
+ * - `'lg'` ג€” Larger text (`text-lg`), good for article editing.
  */
 export type EditorSize = VariantProps<typeof editorVariants>['size'];
 
 /**
  * Determines the output format and internal handling of content.
  *
- * - `'markdown'` — Editor accepts and emits Markdown. HTML is converted
+ * - `'markdown'` ג€” Editor accepts and emits Markdown. HTML is converted
  *   to/from Markdown transparently using the built-in converter.
- * - `'html'` — Editor works directly with raw HTML. No Markdown conversion.
+ * - `'html'` ג€” Editor works directly with raw HTML. No Markdown conversion.
  *
  * @default 'markdown'
  */
@@ -102,9 +102,9 @@ export type EditorMode = 'markdown' | 'html';
 /**
  * Controls where (or whether) the formatting toolbar appears.
  *
- * - `'top'` — Fixed toolbar above the editor area.
- * - `'floating'` — Appears near the text selection, like Medium/Notion.
- * - `'none'` — No toolbar rendered. Use keyboard shortcuts or slash commands instead.
+ * - `'top'` ג€” Fixed toolbar above the editor area.
+ * - `'floating'` ג€” Appears near the text selection, like Medium/Notion.
+ * - `'none'` ג€” No toolbar rendered. Use keyboard shortcuts or slash commands instead.
  *
  * @default 'top'
  */
@@ -116,12 +116,12 @@ export type RichTextEntityType = 'mention' | 'tag';
 /**
  * How an inserted entity (mention or tag) is rendered in the editor.
  *
- * - `'chip'` — Styled inline `<span>` with a background color (default).
+ * - `'chip'` ג€” Styled inline `<span>` with a background color (default).
  *   Looks like a pill/badge. Not clickable.
- * - `'link'` — Rendered as an `<a>` element. Requires a URL via
+ * - `'link'` ג€” Rendered as an `<a>` element. Requires a URL via
  *   `urlTemplate` or `buildUrl` in {@link RichTextEntityRenderOptions}.
  *   Falls back to `'chip'` if no URL can be resolved.
- * - `'text'` — Plain inline `<span>` with no default styling.
+ * - `'text'` ג€” Plain inline `<span>` with no default styling.
  *   Use `className` in render options to add custom styles.
  */
 export type RichTextEntityRenderMode = 'chip' | 'link' | 'text';
@@ -193,13 +193,13 @@ export interface RichTextEntityRenderContext {
     item: MentionItem | TagItem;
 
     /**
-     * Alias for `id` — always populated regardless of entity type.
+     * Alias for `id` ג€” always populated regardless of entity type.
      * Convenient in URL templates for mentions: `/users/@@userId@@`.
      */
     userId: string;
 
     /**
-     * Alias for `id` — always populated regardless of entity type.
+     * Alias for `id` ג€” always populated regardless of entity type.
      * Convenient in URL templates for tags: `/tags/@@tagId@@`.
      */
     tagId: string;
@@ -240,9 +240,9 @@ export interface RichTextEntityRenderOptions {
     /**
      * The rendering strategy for inserted entities.
      *
-     * - `'chip'` — Inline `<span>` styled as a pill/badge (default).
-     * - `'link'` — Clickable `<a>` element. Requires `urlTemplate` or `buildUrl`.
-     * - `'text'` — Plain `<span>` with no default styling.
+     * - `'chip'` ג€” Inline `<span>` styled as a pill/badge (default).
+     * - `'link'` ג€” Clickable `<a>` element. Requires `urlTemplate` or `buildUrl`.
+     * - `'text'` ג€” Plain `<span>` with no default styling.
      *
      * @default 'chip'
      */
@@ -298,7 +298,7 @@ export interface RichTextEntityRenderOptions {
      *
      * - For `'chip'` mode, overrides the default `bg-accent text-accent-foreground rounded px-1`.
      * - For `'link'` mode, overrides the default `bg-accent/20 text-primary rounded px-1 underline underline-offset-2`.
-     * - For `'text'` mode, no default classes — only your custom classes are applied.
+     * - For `'text'` mode, no default classes ג€” only your custom classes are applied.
      */
     className?: string;
 
@@ -351,7 +351,7 @@ export interface RichTextEntityRenderOptions {
  * Event payload emitted via `(mentionInsert)` or `(tagInsert)` when the user
  * selects an entity from the popover and it is inserted into the editor.
  *
- * Use this to react to insertions — for example, to notify a backend that a
+ * Use this to react to insertions ג€” for example, to notify a backend that a
  * user was mentioned, or to track which tags are referenced.
  *
  * @example
@@ -488,9 +488,16 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
 
 /**
  * Creates the built-in slash commands (paragraph, headings, lists, quote, code, link, undo, redo)
- * using the provided locale strings. Called internally — you normally don't need this directly.
+ * using the provided locale strings. Called internally ג€” you normally don't need this directly.
  */
 export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
+    return [
+        ...buildFormatSlashCommands(l),
+        ...buildInsertAndHistorySlashCommands(l),
+    ];
+}
+
+function buildHeadingSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
     return [
         {
             id: 'format.paragraph',
@@ -524,6 +531,11 @@ export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): R
             order: 40,
             run: context => context.executeToolbarCommand('heading3'),
         },
+    ];
+}
+
+function buildListSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
+    return [
         {
             id: 'format.bullet-list',
             label: l.bulletList,
@@ -564,6 +576,18 @@ export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): R
             order: 90,
             run: context => context.executeToolbarCommand('codeBlock'),
         },
+    ];
+}
+
+function buildFormatSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
+    return [
+        ...buildHeadingSlashCommands(l),
+        ...buildListSlashCommands(l),
+    ];
+}
+
+function buildInsertSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
+    return [
         {
             id: 'insert.link',
             label: l.link,
@@ -571,22 +595,6 @@ export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): R
             keywords: ['url', 'anchor'],
             order: 100,
             run: context => context.showLinkDialog(),
-        },
-        {
-            id: 'history.undo',
-            label: l.undo,
-            description: l.undoDescription,
-            keywords: ['ctrl+z', 'revert'],
-            order: 110,
-            run: context => context.executeToolbarCommand('undo'),
-        },
-        {
-            id: 'history.redo',
-            label: l.redo,
-            description: l.redoDescription,
-            keywords: ['ctrl+y', 'ctrl+shift+z'],
-            order: 120,
-            run: context => context.executeToolbarCommand('redo'),
         },
         {
             id: 'insert.task-list',
@@ -612,6 +620,34 @@ export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): R
             order: 95,
             run: context => context.executeToolbarCommand('horizontalRule'),
         },
+    ];
+}
+
+function buildHistorySlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
+    return [
+        {
+            id: 'history.undo',
+            label: l.undo,
+            description: l.undoDescription,
+            keywords: ['ctrl+z', 'revert'],
+            order: 110,
+            run: context => context.executeToolbarCommand('undo'),
+        },
+        {
+            id: 'history.redo',
+            label: l.redo,
+            description: l.redoDescription,
+            keywords: ['ctrl+y', 'ctrl+shift+z'],
+            order: 120,
+            run: context => context.executeToolbarCommand('redo'),
+        },
+    ];
+}
+
+function buildInsertAndHistorySlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
+    return [
+        ...buildInsertSlashCommands(l),
+        ...buildHistorySlashCommands(l),
     ];
 }
 
@@ -675,12 +711,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     @ViewChild('tableContextMenuRef') tableContextMenuRef?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
 
-    // ── Content & mode ────────────────────────────────────────────
+    // ג”€ג”€ Content & mode ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Output format: `'markdown'` converts to/from Markdown; `'html'` works with raw HTML. */
     mode = input<EditorMode>('markdown');
 
-    // ── Appearance ──────────────────────────────────────────────
+    // ג”€ג”€ Appearance ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Visual border/focus style. See {@link EditorVariant}. */
     variant = input<EditorVariant>('default');
@@ -688,7 +724,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     /** Text size preset for the editor content. See {@link EditorSize}. */
     size = input<EditorSize>('default');
 
-    // ── Toolbar ─────────────────────────────────────────────────
+    // ג”€ג”€ Toolbar ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Where to render the formatting toolbar. See {@link ToolbarPosition}. */
     toolbar = input<ToolbarPosition>('top');
@@ -707,8 +743,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     /**
      * Custom font families for the font family dropdown.
      * Behaviour depends on {@link fontFamiliesStrategy}:
-     * - `'append'` (default) — these fonts are added **after** the built-in defaults.
-     * - `'replace'` — **only** these fonts are shown; defaults are discarded.
+     * - `'append'` (default) ג€” these fonts are added **after** the built-in defaults.
+     * - `'replace'` ג€” **only** these fonts are shown; defaults are discarded.
      *
      * @see {@link DEFAULT_FONT_FAMILIES} for the built-in list.
      */
@@ -720,7 +756,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      */
     fontFamiliesStrategy = input<FontFamilyStrategy>('append');
 
-    // ── Editor content area ─────────────────────────────────────
+    // ג”€ג”€ Editor content area ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Placeholder text shown when the editor is empty. Falls back to the locale default. */
     placeholder = input<string>('');
@@ -731,13 +767,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     /** CSS `max-height` for the editable area (scrolls beyond this). Accepts any CSS length value. */
     maxHeight = input<string>('400px');
 
-    /** Disables the editor entirely — no input, no toolbar, no interactions. */
+    /** Disables the editor entirely ג€” no input, no toolbar, no interactions. */
     disabled = input<boolean>(false);
 
     /** Makes the editor non-editable but still selectable/copyable. Hides the toolbar. */
     readonly = input<boolean>(false);
 
-    // ── Mentions (@) ────────────────────────────────────────────
+    // ג”€ג”€ Mentions (@) ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Enable the `@mention` feature. When `true`, typing `@` opens a search popover. */
     mentions = input<boolean>(false);
@@ -755,7 +791,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      */
     mentionRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
 
-    // ── Tags (#) ────────────────────────────────────────────────
+    // ג”€ג”€ Tags (#) ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Enable the `#tag` feature. When `true`, typing `#` opens a search popover. */
     tags = input<boolean>(false);
@@ -773,7 +809,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      */
     tagRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
 
-    // ── Media & emoji ───────────────────────────────────────────
+    // ג”€ג”€ Media & emoji ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Show the emoji picker button in the toolbar. */
     emojiPicker = input<boolean>(true);
@@ -806,13 +842,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     /**
      * Which image source options to show in the image insertion dialog.
-     * - `'all'` — Both file upload and URL input.
-     * - `'upload'` — File upload only.
-     * - `'url'` — URL input only.
+     * - `'all'` ג€” Both file upload and URL input.
+     * - `'upload'` ג€” File upload only.
+     * - `'url'` ג€” URL input only.
      */
     imageSources = input<'all' | 'upload' | 'url'>('all');
 
-    // ── Character & word count ──────────────────────────────────
+    // ג”€ג”€ Character & word count ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Show a character count below the editor. */
     showCount = input<boolean>(false);
@@ -823,11 +859,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     /**
      * Maximum character limit. When set, the character counter turns red
      * and the editor emits warnings when approaching/exceeding the limit.
-     * Does **not** prevent typing — it's advisory only.
+     * Does **not** prevent typing ג€” it's advisory only.
      */
     maxLength = input<number | undefined>(undefined);
 
-    // ── Revision history ────────────────────────────────────────
+    // ג”€ג”€ Revision history ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Maximum number of history snapshots to retain. Oldest entries are dropped when exceeded. */
     historyLimit = input<number>(100);
@@ -844,7 +880,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     /** Show the "Revisions" button in the top-right corner. Only visible when `showHistoryPanel` is `true`. */
     showHistoryButton = input<boolean>(true);
 
-    // ── Slash commands ──────────────────────────────────────────
+    // ג”€ג”€ Slash commands ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Enable the `/slash` command feature. When `true`, typing `/` opens a command menu. */
     enableSlashCommands = input<boolean>(true);
@@ -855,7 +891,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      */
     slashCommands = input<RichTextSlashCommand[]>([]);
 
-    // ── Localisation ────────────────────────────────────────────
+    // ג”€ג”€ Localisation ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /**
      * Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`)
@@ -864,7 +900,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      */
     locale = input<LocaleInput<RichTextLocale>>();
 
-    // ── Styling & accessibility ─────────────────────────────────
+    // ג”€ג”€ Styling & accessibility ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Additional CSS classes merged onto the editor's root container. */
     class = input<string>('');
@@ -909,14 +945,14 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return [...DEFAULT_FONT_FAMILIES, ...custom];
     });
 
-    // ── Outputs ──────────────────────────────────────────────────
+    // ג”€ג”€ Outputs ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Emits the current content as an HTML string after every change. */
     htmlChange = output<string>();
 
     /**
      * Emits the current content as a Markdown string after every change.
-     * Only meaningful when `mode` is `'markdown'` — in `'html'` mode,
+     * Only meaningful when `mode` is `'markdown'` ג€” in `'html'` mode,
      * the Markdown is reverse-converted from HTML and may not round-trip perfectly.
      */
     markdownChange = output<string>();
@@ -925,10 +961,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     wordCountChange = output<number>();
 
     /** Emits when the editor gains focus. */
-    focus = output<void>();
+    focused = output<void>();
 
     /** Emits when the editor loses focus. */
-    blur = output<void>();
+    blurred = output<void>();
 
     /** Emits the `File` object when an image upload begins. */
     imageUploadStart = output<File>();
@@ -1135,13 +1171,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!editor) {
             return [];
         }
-        return Array.from(editor.querySelectorAll(OUTLINE_HEADING_SELECTOR)).map(toOutlineHeading);
+        return Array.from(editor.querySelectorAll(OUTLINE_HEADING_SELECTOR)).map((element, index) => toOutlineHeading(element, index));
     });
 
     /**
      * Smoothly scrolls the heading at the given outline index to the top of the
      * editor's own scroll container. Never calls `Element.scrollIntoView()`, so
-     * it cannot scroll the page or any ancestor — only the editor moves.
+     * it cannot scroll the page or any ancestor ג€” only the editor moves.
      * Read-only: never mutates editor content.
      */
     scrollHeadingIntoView(index: number): void {
@@ -1314,6 +1350,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     constructor() {
+        this.setupOutputEffects();
+        this.setupMentionSearch();
+        this.setupSlashCommandEffects();
+        this.setupFloatingToolbarEffect();
+    }
+
+    private setupOutputEffects(): void {
         effect(() => {
             const html = this.htmlOutput();
             this.htmlChange.emit(html);
@@ -1325,7 +1368,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         effect(() => {
             this.wordCountChange.emit(this.wordCount());
         });
+    }
 
+    private setupMentionSearch(): void {
         this.mentionSearchQuery$.pipe(
             debounceTime(200),
             tap(() => this.mentionLoading.set(true)),
@@ -1351,7 +1396,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.loadedMentionItems.set(items);
             this.mentionLoading.set(false);
         });
+    }
 
+    private setupSlashCommandEffects(): void {
         effect(() => {
             const commands = this.filteredSlashCommands();
             const currentIndex = this.slashCommandSelectedIndex();
@@ -1377,15 +1424,17 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             }
             queueMicrotask(() => this.scrollSelectedSlashCommandIntoView());
         });
+    }
 
+    private setupFloatingToolbarEffect(): void {
         effect(() => {
             const visible = this.showFloatingToolbar();
             this.removeFloatingScrollListener();
             if (visible) {
                 setTimeout(() => {
-                    const handler = () => this.showFloatingToolbar.set(false);
+                    const handler = (): void => { this.showFloatingToolbar.set(false); };
                     globalThis.window.addEventListener('scroll', handler, { capture: true, passive: true });
-                    this.floatingScrollCleanup = () => globalThis.window.removeEventListener('scroll', handler, { capture: true });
+                    this.floatingScrollCleanup = (): void => { globalThis.window.removeEventListener('scroll', handler, { capture: true }); };
                 }, 0);
             }
         });
@@ -1400,14 +1449,19 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
-    ngOnInit() {
-        this.shortcutHandle = this.shortcutBindings.registerComponent('rich-text-editor', [
+    ngOnInit(): void {
+        this.shortcutHandle = this.shortcutBindings.registerComponent('rich-text-editor', this.buildShortcutBindings());
+        this.pushHistory();
+    }
+
+    private buildInlineEditShortcuts(canEdit: () => boolean): ShortcutRegistration[] {
+        return [
             {
                 actionId: 'rich-text.bold',
                 description: 'Toggle bold',
                 defaultShortcut: 'Mod+B',
                 category: 'Formatting',
-                when: () => !this.disabled() && !this.readonly(),
+                when: canEdit,
                 handler: () => this.onFormatCommand('bold'),
             },
             {
@@ -1415,7 +1469,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 description: 'Toggle italic',
                 defaultShortcut: 'Mod+I',
                 category: 'Formatting',
-                when: () => !this.disabled() && !this.readonly(),
+                when: canEdit,
                 handler: () => this.onFormatCommand('italic'),
             },
             {
@@ -1423,7 +1477,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 description: 'Toggle underline',
                 defaultShortcut: 'Mod+U',
                 category: 'Formatting',
-                when: () => !this.disabled() && !this.readonly(),
+                when: canEdit,
                 handler: () => this.onFormatCommand('underline'),
             },
             {
@@ -1431,15 +1485,20 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 description: 'Insert link',
                 defaultShortcut: 'Mod+K',
                 category: 'Insert',
-                when: () => !this.disabled() && !this.readonly(),
+                when: canEdit,
                 handler: () => this.showLinkDialog(),
             },
+        ];
+    }
+
+    private buildHistoryShortcuts(canEdit: () => boolean): ShortcutRegistration[] {
+        return [
             {
                 actionId: 'rich-text.undo',
                 description: 'Undo',
                 defaultShortcut: 'Mod+Z',
                 category: 'History',
-                when: () => !this.disabled() && !this.readonly(),
+                when: canEdit,
                 handler: () => this.undo(),
             },
             {
@@ -1447,7 +1506,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 description: 'Redo',
                 defaultShortcut: 'Mod+Shift+Z',
                 category: 'History',
-                when: () => !this.disabled() && !this.readonly(),
+                when: canEdit,
                 handler: () => this.redo(),
             },
             {
@@ -1455,15 +1514,27 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 description: 'Redo (alternate)',
                 defaultShortcut: 'Mod+Y',
                 category: 'History',
-                when: () => !this.disabled() && !this.readonly(),
+                when: canEdit,
                 handler: () => this.redo(),
             },
+        ];
+    }
+
+    private buildFormattingShortcuts(canEdit: () => boolean): ShortcutRegistration[] {
+        return [
+            ...this.buildInlineEditShortcuts(canEdit),
+            ...this.buildHistoryShortcuts(canEdit),
+        ];
+    }
+
+    private buildNavigationShortcuts(canEdit: () => boolean): ShortcutRegistration[] {
+        return [
             {
                 actionId: 'rich-text.history',
                 description: 'Open revision history',
                 defaultShortcut: 'Mod+Shift+H',
                 category: 'History',
-                when: () => !this.disabled() && !this.readonly() && this.showHistoryPanel(),
+                when: () => canEdit() && this.showHistoryPanel(),
                 handler: () => this.openHistoryFromShortcut(),
             },
             {
@@ -1478,14 +1549,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 description: 'Find and replace',
                 defaultShortcut: 'Mod+H',
                 category: 'Navigation',
-                when: () => !this.disabled() && !this.readonly(),
+                when: canEdit,
                 handler: () => this.openFindReplace(true),
             },
-        ]);
-        this.pushHistory();
+        ];
     }
 
-    ngAfterViewInit() {
+    private buildShortcutBindings(): ShortcutRegistration[] {
+        const canEdit = (): boolean => !this.disabled() && !this.readonly();
+        return [
+            ...this.buildFormattingShortcuts(canEdit),
+            ...this.buildNavigationShortcuts(canEdit),
+        ];
+    }
+
+    ngAfterViewInit(): void {
         if (this.editorDiv?.nativeElement) {
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
             this.enableTaskCheckboxes(this.editorDiv.nativeElement);
@@ -1724,7 +1802,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const lastChild = detailsEl.lastElementChild;
         if (!lastChild || lastChild.tagName === 'SUMMARY') return false;
 
-        const isAtEnd = range.startOffset >= (range.startContainer.textContent?.length || 0);
+        const isAtEnd = range.startOffset >= (range.startContainer.textContent?.length ?? 0);
         const isInLastChild = lastChild.contains(range.startContainer);
         if (!isAtEnd || !isInLastChild || lastChild.textContent?.trim()) return false;
 
@@ -1745,8 +1823,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         event.preventDefault();
         const codeElement = preElement.querySelector('code');
-        const textNode = codeElement || preElement;
-        const textContent = textNode.textContent || '';
+        const textNode = codeElement ?? preElement;
+        const textContent = textNode.textContent ?? '';
 
         if (textContent.endsWith('\n')) {
             this.exitCodeBlock(preElement, textNode, textContent, selection);
@@ -1778,6 +1856,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private findAncestorByTag(startNode: Node, tagName: string): HTMLElement | null {
         let node: Node | null = startNode;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (node && node !== this.editorDiv?.nativeElement) {
             if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === tagName) {
                 return node as HTMLElement;
@@ -1801,8 +1880,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return;
         }
 
-        const max = this.maxLength()!;
-        const currentText = this.editorDiv?.nativeElement.textContent || '';
+        const max = this.maxLength() as number;
+        const currentText = this.editorDiv?.nativeElement.textContent ?? '';
         const selection = this.document.getSelection();
         const selectedLength = selection && !selection.isCollapsed
             ? selection.toString().length
@@ -1827,45 +1906,51 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const text = event.clipboardData?.getData('text/plain') ?? '';
 
         const imageFile = Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith('image/'));
-        if (imageFile && this.images()) {
-            const source = this.pasteNormalizer.detectSource(html || null, text);
-            if (source !== 'excel') {
-                await this.insertImageFile(imageFile);
-                return;
-            }
+        if (imageFile && this.images() && await this.handlePasteImage(imageFile, html, text)) {
+            return;
         }
 
-        if (this.maxLength()) {
-            const max = this.maxLength()!;
-            const currentText = this.editorDiv?.nativeElement.textContent || '';
-            const selectedLength = this.getSelectedTextLength();
-            const remaining = max - (currentText.length - selectedLength);
-
-            if (remaining <= 0) {
-                return;
-            }
-
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html || text, 'text/html');
-            const pasteText = doc.body.textContent || '';
-
-            if (pasteText.length > remaining) {
-                const truncated = pasteText.substring(0, remaining);
-                this.insertText(truncated);
-                this.pushHistory();
-                return;
-            }
+        if (this.handlePasteMaxLength(text)) {
+            return;
         }
 
-
-
-
-
-        const normalized = this.pasteNormalizer.normalize(html || null, text);
+        const normalized = this.pasteNormalizer.normalize(html ?? null, text);
         this.insertHtml(normalized);
         this.pushHistory();
     }
 
+    private async handlePasteImage(imageFile: File, html: string | undefined, text: string): Promise<boolean> {
+        const source = this.pasteNormalizer.detectSource(html ?? null, text);
+        if (source !== 'excel') {
+            await this.insertImageFile(imageFile);
+            return true;
+        }
+        return false;
+    }
+
+    private handlePasteMaxLength(text: string): boolean {
+        if (!this.maxLength()) {
+            return false;
+        }
+        const max = this.maxLength() as number;
+        const currentText = this.editorDiv?.nativeElement.textContent ?? '';
+        const selectedLength = this.getSelectedTextLength();
+        const remaining = max - (currentText.length - selectedLength);
+
+        if (remaining <= 0) {
+            return true;
+        }
+
+        // Measure against the plain-text clipboard value (text/plain) — no need
+        // to parse the untrusted HTML; the over-limit path inserts plain text.
+        if (text.length > remaining) {
+            const truncated = text.substring(0, remaining);
+            this.insertText(truncated);
+            this.pushHistory();
+            return true;
+        }
+        return false;
+    }
     onEditorDragOver(event: DragEvent): void {
         if (this.disabled() || this.readonly()) return;
 
@@ -1917,7 +2002,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onFocus(): void {
-        this.focus.emit();
+        this.focused.emit();
     }
 
     onBlur(event?: FocusEvent): void {
@@ -1928,7 +2013,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.flushPendingHistoryPush();
 
         this.onTouched();
-        this.blur.emit();
+        this.blurred.emit();
         this.closeSlashCommandPopover();
 
         if (this.showLinkPopover()) {
@@ -1954,7 +2039,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     onSelectionChange(): void {
         this.updateActiveFormats();
         const selection = this.document.getSelection();
-        this.selectedText.set(selection?.toString() || '');
+        this.selectedText.set(selection?.toString() ?? '');
         if (selection && !selection.isCollapsed && this.toolbar() === 'floating') {
             this.updateFloatingToolbarPosition();
             this.showFloatingToolbar.set(true);
@@ -2034,14 +2119,22 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         if (event.key === 'Escape') {
             event.preventDefault();
-            if (listType === 'popover') {
-                this.historyPanelOpen.set(false);
-            } else if (listType === 'dialog') {
-                this.historyBrowserOpen.set(false);
-            }
+            this.handleHistoryEscape(listType);
             return;
         }
 
+        this.handleHistoryArrowKey(event, current);
+    }
+
+    private handleHistoryEscape(listType: 'popover' | 'dialog' | null): void {
+        if (listType === 'popover') {
+            this.historyPanelOpen.set(false);
+        } else if (listType === 'dialog') {
+            this.historyBrowserOpen.set(false);
+        }
+    }
+
+    private handleHistoryArrowKey(event: KeyboardEvent, current: HTMLElement): void {
         const entries = this.getHistoryEntryElements(current);
         const currentIndex = entries.indexOf(current);
         if (currentIndex < 0) {
@@ -2117,89 +2210,90 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.flushPendingHistoryPush();
 
         const mentionTargets = this.getMentionElementsInSelection();
+        this.executeFormatCommand(command, mentionTargets);
 
+        this.applyMutation({ focus: true, updateActiveFormats: true });
+        this.collapseFloatingToolbarAfterFormat();
+    }
+
+    private executeFormatCommand(command: string, mentionTargets: HTMLElement[]): void {
+        if (this.executeInlineFormatCommand(command, mentionTargets)) return;
+        if (this.executeBlockFormatCommand(command)) return;
+        if (this.executeAlignFormatCommand(command)) return;
+        this.executeListFormatCommand(command);
+    }
+
+    private executeInlineFormatCommand(command: string, mentionTargets: HTMLElement[]): boolean {
         switch (command) {
             case 'bold':
                 this.execEditorCommand('bold');
                 this.toggleMentionStyle(mentionTargets, 'fontWeight', 'bold', 'normal');
-                break;
+                return true;
             case 'italic':
                 this.execEditorCommand('italic');
                 this.toggleMentionStyle(mentionTargets, 'fontStyle', 'italic', 'normal');
-                break;
+                return true;
             case 'underline':
                 this.execEditorCommand('underline');
                 this.toggleMentionTextDecoration(mentionTargets, 'underline');
-                break;
+                return true;
             case 'strikethrough':
                 this.execEditorCommand('strikeThrough');
                 this.toggleMentionTextDecoration(mentionTargets, 'line-through');
-                break;
-            case 'heading1':
-                this.execEditorCommand('formatBlock', '<h1>');
-                break;
-            case 'heading2':
-                this.execEditorCommand('formatBlock', '<h2>');
-                break;
-            case 'heading3':
-                this.execEditorCommand('formatBlock', '<h3>');
-                break;
-            case 'bulletList':
-                this.execEditorCommand('insertUnorderedList');
-                break;
-            case 'orderedList':
-                this.execEditorCommand('insertOrderedList');
-                break;
-            case 'blockquote':
-                this.execEditorCommand('formatBlock', '<blockquote>');
-                break;
-            case 'code':
-                this.wrapSelectionWithTag('code');
-                break;
-            case 'codeBlock':
-                this.insertCodeBlock();
-                break;
-            case 'horizontalRule':
-                this.insertHorizontalRule();
-                break;
-            case 'undo':
-                this.undo();
-                break;
-            case 'redo':
-                this.redo();
-                break;
+                return true;
             case 'clear':
                 this.execEditorCommand('removeFormat');
                 this.clearMentionStyles(mentionTargets);
-                break;
-            case 'paragraph':
-                this.execEditorCommand('formatBlock', '<p>');
-                break;
+                return true;
+            case 'code':
+                this.wrapSelectionWithTag('code');
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private executeBlockFormatCommand(command: string): boolean {
+        switch (command) {
+            case 'heading1': this.execEditorCommand('formatBlock', '<h1>'); return true;
+            case 'heading2': this.execEditorCommand('formatBlock', '<h2>'); return true;
+            case 'heading3': this.execEditorCommand('formatBlock', '<h3>'); return true;
+            case 'paragraph': this.execEditorCommand('formatBlock', '<p>'); return true;
+            case 'blockquote': this.execEditorCommand('formatBlock', '<blockquote>'); return true;
+            case 'codeBlock': this.insertCodeBlock(); return true;
+            case 'horizontalRule': this.insertHorizontalRule(); return true;
+            case 'undo': this.undo(); return true;
+            case 'redo': this.redo(); return true;
+            default: return false;
+        }
+    }
+
+    private executeAlignFormatCommand(command: string): boolean {
+        switch (command) {
             case 'alignLeft':
                 this.execEditorCommand(this.isRtl() ? 'justifyRight' : 'justifyLeft');
-                break;
+                return true;
             case 'alignCenter':
                 this.execEditorCommand('justifyCenter');
-                break;
+                return true;
             case 'alignRight':
                 this.execEditorCommand(this.isRtl() ? 'justifyLeft' : 'justifyRight');
-                break;
-            case 'indent':
-                this.indentListItem();
-                break;
-            case 'outdent':
-                this.outdentListItem();
-                break;
-            case 'taskList':
-                this.insertTaskList();
-                break;
-            case 'toggle':
-                this.insertToggleBlock();
-                break;
+                return true;
+            default:
+                return false;
         }
+    }
 
-        this.applyMutation({ focus: true, updateActiveFormats: true });
-        this.collapseFloatingToolbarAfterFormat();
+    private executeListFormatCommand(command: string): boolean {
+        switch (command) {
+            case 'bulletList': this.execEditorCommand('insertUnorderedList'); return true;
+            case 'orderedList': this.execEditorCommand('insertOrderedList'); return true;
+            case 'indent': this.indentListItem(); return true;
+            case 'outdent': this.outdentListItem(); return true;
+            case 'taskList': this.insertTaskList(); return true;
+            case 'toggle': this.insertToggleBlock(); return true;
+            default: return false;
+        }
     }
 
     private collapseFloatingToolbarAfterFormat(): void {
@@ -2218,6 +2312,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private moveCaretPastFormattingNode(selection: Selection, range: Range): void {
         let formattedNode = range.startContainer;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (formattedNode && formattedNode !== this.editorDiv?.nativeElement) {
             if (formattedNode.nodeType === Node.ELEMENT_NODE) {
                 const tagName = (formattedNode as Element).tagName.toLowerCase();
@@ -2230,7 +2325,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                     break;
                 }
             }
-            formattedNode = formattedNode.parentNode!;
+            if (!formattedNode.parentNode) break;
+            formattedNode = formattedNode.parentNode;
         }
     }
 
@@ -2278,23 +2374,33 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return;
         }
 
-        if (command === 'clear') {
-            this.execEditorCommand('removeFormat');
-            selection.collapseToEnd();
-        } else if (command === 'heading1' || command === 'heading2' || command === 'heading3') {
-            const level = command.replace('heading', '');
-            this.execEditorCommand('formatBlock', `<h${level}>`);
-            selection.collapseToEnd();
-        } else if (command === 'bulletList') {
-            this.execEditorCommand('insertUnorderedList');
-            selection.collapseToEnd();
-        } else if (command === 'orderedList') {
-            this.execEditorCommand('insertOrderedList');
-            selection.collapseToEnd();
-        }
+        this.applyFloatingBlockCommand(command, selection);
 
         this.showFloatingToolbar.set(false);
         this.applyMutation({ focus: true });
+    }
+
+    private applyFloatingBlockCommand(command: string, selection: Selection): void {
+        if (command === 'clear') {
+            this.execEditorCommand('removeFormat');
+            selection.collapseToEnd();
+            return;
+        }
+        if (command === 'heading1' || command === 'heading2' || command === 'heading3') {
+            const level = command.replace('heading', '');
+            this.execEditorCommand('formatBlock', `<h${level}>`);
+            selection.collapseToEnd();
+            return;
+        }
+        if (command === 'bulletList') {
+            this.execEditorCommand('insertUnorderedList');
+            selection.collapseToEnd();
+            return;
+        }
+        if (command === 'orderedList') {
+            this.execEditorCommand('insertOrderedList');
+            selection.collapseToEnd();
+        }
     }
 
     onLinkInsert(data: { text: string; url: string }): void {
@@ -2345,13 +2451,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.flushPendingHistoryPush();
 
         const header = new Uint8Array(await file.slice(0, 5).arrayBuffer());
-        const isZip = header.length >= 4 &&
-            header[0] === 0x50 && header[1] === 0x4B &&
-            header[2] === 0x03 && header[3] === 0x04;
-        const isPdf = header.length >= 5 &&
-            header[0] === 0x25 && header[1] === 0x50 &&
-            header[2] === 0x44 && header[3] === 0x46 &&
-            header[4] === 0x2D;
+        const isZip = this.isZipHeader(header);
+        const isPdf = this.isPdfHeader(header);
 
         if (!isZip && !isPdf) {
             const msg = this.resolvedLocale().editor.importInvalidFile;
@@ -2360,6 +2461,23 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return;
         }
 
+        await this.runFileImport(file, isZip);
+    }
+
+    private isZipHeader(header: Uint8Array): boolean {
+        return header.length >= 4 &&
+            header[0] === 0x50 && header[1] === 0x4B &&
+            header[2] === 0x03 && header[3] === 0x04;
+    }
+
+    private isPdfHeader(header: Uint8Array): boolean {
+        return header.length >= 5 &&
+            header[0] === 0x25 && header[1] === 0x50 &&
+            header[2] === 0x44 && header[3] === 0x46 &&
+            header[4] === 0x2D;
+    }
+
+    private async runFileImport(file: File, isZip: boolean): Promise<void> {
         this.fileImporting.set(true);
         this.fileImportStart.emit(file);
 
@@ -2533,7 +2651,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         const range = selection.getRangeAt(0).cloneRange();
         range.selectNodeContents(element);
-        range.setEnd(selection.anchorNode!, selection.anchorOffset);
+        if (!selection.anchorNode) return 0;
+        range.setEnd(selection.anchorNode, selection.anchorOffset);
         return range.toString().length;
     }
 
@@ -2632,7 +2751,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         // In that case, try nearby child blocks because startOffset can be unstable.
         if (range.startContainer === editor) {
             const candidateBlocks: HTMLElement[] = [];
-            const pushCandidate = (node: Node | null | undefined) => {
+            const pushCandidate = (node: Node | null | undefined): void => {
                 if (!node) {
                     return;
                 }
@@ -2835,7 +2954,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return null;
         }
         const safeUrl = this.sanitizer.sanitizeUrl(raw);
-        return safeUrl || null;
+        return safeUrl ?? null;
     }
 
     private createEntityLinkElement(
@@ -3024,29 +3143,30 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private showLinkDialog(): void {
         const selection = this.document.getSelection();
-        this.selectedText.set(selection?.toString() || '');
+        this.selectedText.set(selection?.toString() ?? '');
 
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
-        }
-
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
-            const viewportWidth = this.document.defaultView?.innerWidth ?? 1024;
-            const viewportHeight = this.document.defaultView?.innerHeight ?? 768;
-            const width = 320;
-            const height = 180;
-            const rectIsEmpty = rect.width === 0 && rect.height === 0 && rect.top === 0 && rect.left === 0;
-            const sourceX = rectIsEmpty && this._pendingLinkPositionHint ? this._pendingLinkPositionHint.x : rect.left;
-            const sourceY = rectIsEmpty && this._pendingLinkPositionHint ? this._pendingLinkPositionHint.y : rect.bottom;
-            const x = Math.max(8, Math.min(sourceX, viewportWidth - width - 8));
-            const y = Math.max(8, Math.min(sourceY + 8, viewportHeight - height - 8));
-            this.linkPopoverPosition.set({ x, y });
+            this.updateLinkPopoverPosition(selection);
         }
         this._pendingLinkPositionHint = null;
 
         this.showLinkPopover.set(true);
+    }
+
+    private updateLinkPopoverPosition(selection: Selection): void {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        const viewportWidth = this.document.defaultView?.innerWidth ?? 1024;
+        const viewportHeight = this.document.defaultView?.innerHeight ?? 768;
+        const width = 320;
+        const height = 180;
+        const rectIsEmpty = rect.width === 0 && rect.height === 0 && rect.top === 0 && rect.left === 0;
+        const sourceX = rectIsEmpty && this._pendingLinkPositionHint ? this._pendingLinkPositionHint.x : rect.left;
+        const sourceY = rectIsEmpty && this._pendingLinkPositionHint ? this._pendingLinkPositionHint.y : rect.bottom;
+        const x = Math.max(8, Math.min(sourceX, viewportWidth - width - 8));
+        const y = Math.max(8, Math.min(sourceY + 8, viewportHeight - height - 8));
+        this.linkPopoverPosition.set({ x, y });
     }
 
     insertLinkFromPopover(text: string, url: string): void {
@@ -3126,8 +3246,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.insertImageAtSelection(safeSrc, file.name);
             this.pushHistory();
             this.imageUploadComplete.emit(safeSrc);
-        } catch (error: any) {
-            this.imageUploadError.emit(error?.message || 'Image upload failed.');
+        } catch (error: unknown) {
+            const uploadErrorMessage = error instanceof Error ? error.message : undefined;
+            this.imageUploadError.emit(uploadErrorMessage ?? 'Image upload failed.');
         } finally {
             this.imageUploading.set(false);
         }
@@ -3148,11 +3269,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const parts = dataUrl.split(',');
         const meta = parts[0];
         const base64 = parts[1];
-        const mime = /:(.*?);/.exec(meta)?.[1] ?? 'image/png';
+        const mime = /:([^;]{0,4096});/.exec(meta)?.[1] ?? 'image/png';
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.codePointAt(i)!;
+            bytes[i] = binary.codePointAt(i) ?? 0;
         }
         return new File([bytes], filename, { type: mime });
     }
@@ -3180,6 +3301,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const uploadId = `auto-upload-${++this.autoUploadCounter}`;
         const dataUrl = img.getAttribute('src') ?? '';
 
+        this.markImageAsUploading(img, uploadId);
+        this.syncContentFromEditor();
+
+        if (!isValidImageDataUrl(dataUrl)) {
+            this.revertInvalidUploadImage(img);
+            return;
+        }
+
+        this.startAutoUploadSubscription(img, uploadId, dataUrl, uploader);
+    }
+
+    private markImageAsUploading(img: HTMLImageElement, uploadId: string): void {
         const width = img.naturalWidth || img.width || Number.parseInt(img.getAttribute('width') ?? '0', 10) || 200;
         const height = img.naturalHeight || img.height || Number.parseInt(img.getAttribute('height') ?? '0', 10) || 150;
 
@@ -3190,20 +3323,24 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!img.getAttribute('height')) img.setAttribute('height', String(height));
         img.setAttribute('src', this.TRANSPARENT_PIXEL);
         this.autoUploadMutating = false;
+    }
 
+    private revertInvalidUploadImage(img: HTMLImageElement): void {
+        this.autoUploadMutating = true;
+        delete img.dataset['autoUploadId'];
+        delete img.dataset['autoUploadStatus'];
+        img.setAttribute('src', this.TRANSPARENT_PIXEL);
+        this.autoUploadMutating = false;
         this.syncContentFromEditor();
+        this.autoImageUploadError.emit(this.resolvedLocale().editor.autoUploadNotImage);
+    }
 
-        if (!isValidImageDataUrl(dataUrl)) {
-            this.autoUploadMutating = true;
-            delete img.dataset['autoUploadId'];
-            delete img.dataset['autoUploadStatus'];
-            img.setAttribute('src', this.TRANSPARENT_PIXEL);
-            this.autoUploadMutating = false;
-            this.syncContentFromEditor();
-            this.autoImageUploadError.emit(this.resolvedLocale().editor.autoUploadNotImage);
-            return;
-        }
-
+    private startAutoUploadSubscription(
+        img: HTMLImageElement,
+        uploadId: string,
+        dataUrl: string,
+        uploader: (file: File) => import('rxjs').Observable<string>
+    ): void {
         const ext = (/data:image\/([\w+]+)/.exec(dataUrl)?.[1] ?? 'png').replace('+xml', '');
         const filename = `pasted-image-${uploadId}.${ext}`;
         const file = this.dataUrlToFile(dataUrl, filename);
@@ -3329,7 +3466,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private setupTableContextMenuCloseHandlers(): void {
-        const closeHandler = () => {
+        const closeHandler = (): void => {
             this.closeTableContextMenu();
         };
         this.tableContextMenuCloseHandler = closeHandler;
@@ -3405,10 +3542,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.tableResizeState || this.readonly() || this.disabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest<HTMLTableCellElement>('td, th');
+        const editorEl = this.editorDiv?.nativeElement;
         if (!cell) {
-            if (this.tableResizeCursor()) {
+            if (this.tableResizeCursor() && editorEl) {
                 this.tableResizeCursor.set(false);
-                this.editorDiv!.nativeElement.style.cursor = '';
+                editorEl.style.cursor = '';
             }
             return;
         }
@@ -3418,10 +3556,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const nearLeftBorder = event.clientX <= cellRect.left + 4 && colIndex > 0;
         if (nearRightBorder || nearLeftBorder) {
             this.tableResizeCursor.set(true);
-            this.editorDiv!.nativeElement.style.cursor = 'col-resize';
+            if (editorEl) editorEl.style.cursor = 'col-resize';
         } else if (this.tableResizeCursor()) {
             this.tableResizeCursor.set(false);
-            this.editorDiv!.nativeElement.style.cursor = '';
+            if (editorEl) editorEl.style.cursor = '';
         }
     }
 
@@ -3658,18 +3796,28 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private getCellGridBounds(grid: (HTMLTableCellElement | null)[][], cell: HTMLTableCellElement): { minRow: number; minCol: number; maxRow: number; maxCol: number } {
         for (let ri = 0; ri < grid.length; ri++) {
-            for (let ci = 0; ci < grid[ri].length; ci++) {
-                if (grid[ri][ci] === cell) {
-                    return {
-                        minRow: ri,
-                        minCol: ci,
-                        maxRow: ri + (cell.rowSpan || 1) - 1,
-                        maxCol: ci + (cell.colSpan || 1) - 1,
-                    };
-                }
-            }
+            const found = this.findCellInRow(grid[ri], cell, ri);
+            if (found) return found;
         }
         return { minRow: 0, minCol: 0, maxRow: 0, maxCol: 0 };
+    }
+
+    private findCellInRow(
+        row: (HTMLTableCellElement | null)[],
+        cell: HTMLTableCellElement,
+        ri: number
+    ): { minRow: number; minCol: number; maxRow: number; maxCol: number } | null {
+        for (let ci = 0; ci < row.length; ci++) {
+            if (row[ci] === cell) {
+                return {
+                    minRow: ri,
+                    minCol: ci,
+                    maxRow: ri + (cell.rowSpan || 1) - 1,
+                    maxCol: ci + (cell.colSpan || 1) - 1,
+                };
+            }
+        }
+        return null;
     }
 
     private updateCellSelection(anchor: HTMLTableCellElement, current: HTMLTableCellElement): void {
@@ -3702,20 +3850,28 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         grid: (HTMLTableCellElement | null)[][],
         initial: { minRow: number; maxRow: number; minCol: number; maxCol: number }
     ): { minRow: number; maxRow: number; minCol: number; maxCol: number } {
-        let bounds = { ...initial };
+        const bounds = { ...initial };
         let expanded = true;
         while (expanded) {
-            expanded = false;
-            for (let ri = bounds.minRow; ri <= bounds.maxRow; ri++) {
-                for (let ci = bounds.minCol; ci <= bounds.maxCol; ci++) {
-                    const cell = grid[ri]?.[ci];
-                    if (cell && this.tryExpandBoundsForCell(grid, cell, bounds)) {
-                        expanded = true;
-                    }
+            expanded = this.expandBoundsOnce(grid, bounds);
+        }
+        return bounds;
+    }
+
+    private expandBoundsOnce(
+        grid: (HTMLTableCellElement | null)[][],
+        bounds: { minRow: number; maxRow: number; minCol: number; maxCol: number }
+    ): boolean {
+        let changed = false;
+        for (let ri = bounds.minRow; ri <= bounds.maxRow; ri++) {
+            for (let ci = bounds.minCol; ci <= bounds.maxCol; ci++) {
+                const cell = grid[ri]?.[ci];
+                if (cell && this.tryExpandBoundsForCell(grid, cell, bounds)) {
+                    changed = true;
                 }
             }
         }
-        return bounds;
+        return changed;
     }
 
     private tryExpandBoundsForCell(
@@ -3969,25 +4125,43 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         processed: Set<HTMLTableCellElement>
     ): boolean {
         if (insertAtRow > 0 && insertAtRow < grid.length) {
-            const cellAbove = grid[insertAtRow - 1]?.[colIndex];
-            const cellBelow = grid[insertAtRow]?.[colIndex];
-            if (cellAbove && cellAbove === cellBelow && !processed.has(cellAbove)) {
-                processed.add(cellAbove);
-                cellAbove.rowSpan = (cellAbove.rowSpan || 1) + 1;
-                return true;
-            }
+            return this.expandMidRowSpan(grid, insertAtRow, colIndex, processed);
         }
-
         if (insertAtRow >= grid.length && insertAtRow > 0) {
-            const cellAbove = grid[insertAtRow - 1]?.[colIndex];
-            if (cellAbove && !processed.has(cellAbove)) {
-                const aboveBounds = this.getCellGridBounds(grid, cellAbove);
-                if (aboveBounds.maxRow >= grid.length - 1 && aboveBounds.minRow < grid.length - 1) {
-                    processed.add(cellAbove);
-                    cellAbove.rowSpan = (cellAbove.rowSpan || 1) + 1;
-                    return true;
-                }
-            }
+            return this.expandTailRowSpan(grid, insertAtRow, colIndex, processed);
+        }
+        return false;
+    }
+
+    private expandMidRowSpan(
+        grid: (HTMLTableCellElement | null)[][],
+        insertAtRow: number,
+        colIndex: number,
+        processed: Set<HTMLTableCellElement>
+    ): boolean {
+        const cellAbove = grid[insertAtRow - 1]?.[colIndex];
+        const cellBelow = grid[insertAtRow]?.[colIndex];
+        if (cellAbove && cellAbove === cellBelow && !processed.has(cellAbove)) {
+            processed.add(cellAbove);
+            cellAbove.rowSpan = (cellAbove.rowSpan || 1) + 1;
+            return true;
+        }
+        return false;
+    }
+
+    private expandTailRowSpan(
+        grid: (HTMLTableCellElement | null)[][],
+        insertAtRow: number,
+        colIndex: number,
+        processed: Set<HTMLTableCellElement>
+    ): boolean {
+        const cellAbove = grid[insertAtRow - 1]?.[colIndex];
+        if (!cellAbove || processed.has(cellAbove)) return false;
+        const aboveBounds = this.getCellGridBounds(grid, cellAbove);
+        if (aboveBounds.maxRow >= grid.length - 1 && aboveBounds.minRow < grid.length - 1) {
+            processed.add(cellAbove);
+            cellAbove.rowSpan = (cellAbove.rowSpan || 1) + 1;
+            return true;
         }
         return false;
     }
@@ -4059,23 +4233,44 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         processed: Set<HTMLTableCellElement>
     ): boolean {
         if (insertAtCol > 0 && insertAtCol < numCols) {
-            const cellLeft = grid[rowIndex]?.[insertAtCol - 1];
-            const cellRight = grid[rowIndex]?.[insertAtCol];
-            if (cellLeft && cellLeft === cellRight && !processed.has(cellLeft)) {
-                processed.add(cellLeft);
-                cellLeft.colSpan = (cellLeft.colSpan || 1) + 1;
-                return true;
-            }
-        } else if (insertAtCol >= numCols && insertAtCol > 0) {
-            const cellLeft = grid[rowIndex]?.[insertAtCol - 1];
-            if (cellLeft && !processed.has(cellLeft)) {
-                const leftBounds = this.getCellGridBounds(grid, cellLeft);
-                if (leftBounds.maxCol >= numCols - 1 && leftBounds.minCol < numCols - 1) {
-                    processed.add(cellLeft);
-                    cellLeft.colSpan = (cellLeft.colSpan || 1) + 1;
-                    return true;
-                }
-            }
+            return this.expandMidColSpan(grid, insertAtCol, rowIndex, processed);
+        }
+        if (insertAtCol >= numCols && insertAtCol > 0) {
+            return this.expandTailColSpan(grid, insertAtCol, numCols, rowIndex, processed);
+        }
+        return false;
+    }
+
+    private expandMidColSpan(
+        grid: (HTMLTableCellElement | null)[][],
+        insertAtCol: number,
+        rowIndex: number,
+        processed: Set<HTMLTableCellElement>
+    ): boolean {
+        const cellLeft = grid[rowIndex]?.[insertAtCol - 1];
+        const cellRight = grid[rowIndex]?.[insertAtCol];
+        if (cellLeft && cellLeft === cellRight && !processed.has(cellLeft)) {
+            processed.add(cellLeft);
+            cellLeft.colSpan = (cellLeft.colSpan || 1) + 1;
+            return true;
+        }
+        return false;
+    }
+
+    private expandTailColSpan(
+        grid: (HTMLTableCellElement | null)[][],
+        insertAtCol: number,
+        numCols: number,
+        rowIndex: number,
+        processed: Set<HTMLTableCellElement>
+    ): boolean {
+        const cellLeft = grid[rowIndex]?.[insertAtCol - 1];
+        if (!cellLeft || processed.has(cellLeft)) return false;
+        const leftBounds = this.getCellGridBounds(grid, cellLeft);
+        if (leftBounds.maxCol >= numCols - 1 && leftBounds.minCol < numCols - 1) {
+            processed.add(cellLeft);
+            cellLeft.colSpan = (cellLeft.colSpan || 1) + 1;
+            return true;
         }
         return false;
     }
@@ -4356,6 +4551,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) return null;
         let node: Node | null = selection.getRangeAt(0).startContainer;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (node && node !== this.editorDiv?.nativeElement) {
             if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'LI') {
                 return node as HTMLElement;
@@ -4385,16 +4581,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const li = this.getParentListItem();
         if (!li) return;
 
-        let depth = 0;
-        let parent: Node | null = li;
-        while (parent && parent !== this.editorDiv?.nativeElement) {
-            if (parent.nodeType === Node.ELEMENT_NODE &&
-                ((parent as Element).tagName === 'UL' || (parent as Element).tagName === 'OL')) {
-                depth++;
-            }
-            parent = parent.parentNode;
-        }
-        if (depth >= 6) return;
+        if (this.getListDepth(li) >= 6) return;
 
         const prevLi = li.previousElementSibling;
         if (prevLi?.tagName !== 'LI') return;
@@ -4412,6 +4599,20 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         nestedList.appendChild(li);
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
+    }
+
+    private getListDepth(li: HTMLElement): number {
+        let depth = 0;
+        let parent: Node | null = li;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
+        while (parent && parent !== this.editorDiv?.nativeElement) {
+            if (parent.nodeType === Node.ELEMENT_NODE &&
+                ((parent as Element).tagName === 'UL' || (parent as Element).tagName === 'OL')) {
+                depth++;
+            }
+            parent = parent.parentNode;
+        }
+        return depth;
     }
 
     private outdentListItem(): void {
@@ -4441,6 +4642,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!selection || selection.rangeCount === 0) return;
 
         let node: Node | null = selection.getRangeAt(0).startContainer;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (node && node !== this.editorDiv?.nativeElement) {
             if (node.nodeType === Node.ELEMENT_NODE) {
                 const el = node as HTMLElement;
@@ -4921,6 +5123,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return;
         }
         let el: Node | null = selection.getRangeAt(0).startContainer;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (el && el !== this.editorDiv?.nativeElement) {
             if (el.nodeType === Node.ELEMENT_NODE && (el as Element).closest('ul[data-task-list]')) {
                 formats.add('taskList');
@@ -4939,7 +5142,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         let element = range.commonAncestorContainer;
 
         if (element.nodeType === Node.TEXT_NODE) {
-            element = element.parentElement || element;
+            element = element.parentElement ?? element;
         }
 
         if (!(element instanceof HTMLElement)) {
@@ -4965,7 +5168,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         let element = range.commonAncestorContainer;
 
         if (element.nodeType === Node.TEXT_NODE) {
-            element = element.parentElement || element;
+            element = element.parentElement ?? element;
         }
 
         if (!(element instanceof HTMLElement)) {
@@ -5832,11 +6035,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const blockAware = html
             .replaceAll(/<br\s*\/?>/gi, '\n')
             .replaceAll(/<\/(p|div|li|h[1-6]|blockquote|pre|tr)>/gi, '\n')
-            .replaceAll(/<li[^>]*>/gi, '• ');
+            .replaceAll(/<li[^>]*>/gi, 'ג€¢ ');
         const plain = this.sanitizer.stripTags(blockAware);
         const lines = plain
             .split('\n')
-            .map(line => line.replaceAll(/<\/?[^>]+>/g, '').replaceAll(/\s+/g, ' ').trim())
+            .map(line => line.replaceAll(/<\/?[^>]{1,4096}>/g, '').replaceAll(/\s{1,4096}/g, ' ').trim())
             .filter(Boolean);
         const safeLines = lines.length ? lines : ['(empty)'];
         return {
@@ -5847,7 +6050,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private focusFirstHistoryActionSoon(preferredList: 'popover' | 'dialog'): void {
-        const tryFocus = (attempt: number) => {
+        const tryFocus = (attempt: number): void => {
             const root = this.el.nativeElement as HTMLElement;
             const selector = `[data-history-list="${preferredList}"] [data-history-entry-action="true"]`;
             const firstAction = root.querySelector<HTMLElement>(selector);

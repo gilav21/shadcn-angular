@@ -18,6 +18,7 @@ import {
   ContextMenuIntegrations,
   ContextMenuItem,
   DataTableComponent,
+  SubRowContext,
   DataTableColumnState,
   DataTableDateFilterComponent,
   DataTableDateRangeFilterComponent,
@@ -39,6 +40,7 @@ import {
   CellEditEvent,
   CellEditErrorEvent,
   RowReorderEvent,
+  DataTableExportQuery,
   columnHelper,
   dateFilterFn,
   dateRangeFilterFn,
@@ -445,8 +447,8 @@ function generateVDemoColumns(colCount: number, heavyMode: boolean, variableRows
       sticky: true,
       component: VDemoVariableContentCellComponent,
       componentInputs: (row: VDemoRow) => ({
-        content: row['notes'] as string,
-        minHeight: row['rowHeight'] as number,
+        content: row['notes'],
+        minHeight: row['rowHeight'],
       }),
     });
   }
@@ -460,12 +462,12 @@ function generateVDemoColumns(colCount: number, heavyMode: boolean, variableRows
           width: '140px',
           component: VDemoRichMetricCellComponent,
           componentInputs: (row: VDemoRow) => ({
-            value: row['metricValue'] as number,
-            delta: row['metricDelta'] as number,
-            target: row['metricTarget'] as number,
-            sparklineData: row['sparklineData'] as number[],
-            label: row['metricLabel'] as string,
-            format: row['metricFormat'] as MetricFormat,
+            value: row['metricValue'],
+            delta: row['metricDelta'],
+            target: row['metricTarget'],
+            sparklineData: row['sparklineData'],
+            label: row['metricLabel'],
+            format: row['metricFormat'],
           }),
         });
       } else if (c < 25) {
@@ -484,7 +486,7 @@ function generateVDemoColumns(colCount: number, heavyMode: boolean, variableRows
           component: VDemoToggleCellComponent,
           componentInputs: (row: VDemoRow) => ({ enabled: row['enabled'] }),
           componentOutputs: (row: VDemoRow) => ({
-            toggled: (val: unknown) => { row['enabled'] = val as boolean; },
+            toggled: (val: unknown) => { row['enabled'] = val; },
           }),
         });
       }
@@ -810,6 +812,10 @@ export class DataTableDemoComponent {
   readonly treeDragLog = signal<string[]>([]);
 
   private readonly treeTableRef = viewChild<DataTableComponent<OrgNode>>('treeTable');
+  private readonly treeContextMenuRef = viewChild<ContextMenuComponent>('treeContextMenu');
+  readonly treeContextData = computed(() =>
+    this.treeContextMenuRef()?.data() as SubRowContext<OrgNode> | undefined
+  );
 
   onTreeRowReorder(event: RowReorderEvent<OrgNode>): void {
     const table = this.treeTableRef();
@@ -1142,47 +1148,68 @@ export class DataTableDemoComponent {
     this.loadOpsData();
   }
 
+  /**
+   * Shared "server" query: filter (global + per-column) then sort, with NO
+   * pagination. Used by both the page loader and the export-all provider so
+   * the export mirrors exactly what the grid would show.
+   */
+  private queryServerData(query: {
+    globalFilter: string;
+    columnFilters: Record<string, unknown>;
+    sort: SortState;
+  }): Payment[] {
+    let rows = this.payments();
+
+    const filter = query.globalFilter.toLowerCase();
+    if (filter) {
+      rows = rows.filter(row =>
+        Object.values(row).some(val => String(val).toLowerCase().includes(filter))
+      );
+    }
+
+    for (const key of Object.keys(query.columnFilters)) {
+      const val = query.columnFilters[key];
+      if (val === null || val === undefined || val === '') continue;
+      const col = this.paymentColumns().find(c => c.accessorKey === key);
+      if (col?.filterFn) {
+        rows = rows.filter(row => col.filterFn!(row, val));
+      }
+    }
+
+    const sort = query.sort;
+    if (sort.column && sort.direction) {
+      rows = [...rows].sort((a, b) => {
+        const aVal = (a as unknown as Record<string, unknown>)[sort.column];
+        const bVal = (b as unknown as Record<string, unknown>)[sort.column];
+        if (aVal! < bVal!) return sort.direction === 'asc' ? -1 : 1;
+        if (aVal! > bVal!) return sort.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return rows;
+  }
+
+  /**
+   * Server-side export-all provider: returns EVERY row matching the current
+   * filter + sort (across all pages), not just the loaded page.
+   */
+  readonly serverExportAll = async (query: DataTableExportQuery): Promise<Payment[]> =>
+    this.queryServerData(query);
+
   private loadServerData(): void {
     this.serverLoading.set(true);
-
-    const allData = this.payments();
     const { pageIndex, pageSize } = this.serverPagination();
-    const sort = this.serverSort();
-    const filter = this.serverFilter().toLowerCase();
 
     of(null).pipe(delay(1000)).subscribe(() => {
-      let filtered = allData;
-
-      if (filter) {
-        filtered = filtered.filter(row =>
-          Object.values(row).some(val => String(val).toLowerCase().includes(filter))
-        );
-      }
-
-      const colFilters = this.serverColumnFilters();
-      for (const key of Object.keys(colFilters)) {
-        const val = colFilters[key];
-        if (val === null || val === undefined || val === '') continue;
-        const col = this.paymentColumns().find(c => c.accessorKey === key);
-        if (col?.filterFn) {
-          filtered = filtered.filter(row => col.filterFn!(row, val));
-        }
-      }
-
-      if (sort.column && sort.direction) {
-        filtered = [...filtered].sort((a, b) => {
-          const aVal = (a as unknown as Record<string, unknown>)[sort.column];
-          const bVal = (b as unknown as Record<string, unknown>)[sort.column];
-          if (aVal! < bVal!) return sort.direction === 'asc' ? -1 : 1;
-          if (aVal! > bVal!) return sort.direction === 'asc' ? 1 : -1;
-          return 0;
-        });
-      }
+      const filtered = this.queryServerData({
+        globalFilter: this.serverFilter(),
+        columnFilters: this.serverColumnFilters(),
+        sort: this.serverSort(),
+      });
 
       const start = pageIndex * pageSize;
-      const sliced = filtered.slice(start, start + pageSize);
-
-      this.serverData.set(sliced);
+      this.serverData.set(filtered.slice(start, start + pageSize));
       this.serverTotal.set(filtered.length);
       this.serverLoading.set(false);
     });

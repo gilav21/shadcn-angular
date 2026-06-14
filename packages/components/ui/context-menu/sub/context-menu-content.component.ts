@@ -44,11 +44,11 @@ export class ContextMenuContentComponent implements OnDestroy {
 
     class = input('');
 
-    @ViewChild('contentTemplate', { static: true }) contentTemplate!: TemplateRef<any>;
+    @ViewChild('contentTemplate', { static: true }) contentTemplate!: TemplateRef<unknown>;
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
     private readonly viewContainerRef = inject(ViewContainerRef);
-    private embeddedViewRef: EmbeddedViewRef<any> | null = null;
+    private embeddedViewRef: EmbeddedViewRef<unknown> | null = null;
     private portalHost: HTMLElement | null = null;
 
     adjustedPosition = signal({ x: 0, y: 0 });
@@ -70,7 +70,7 @@ export class ContextMenuContentComponent implements OnDestroy {
         });
     }
 
-    private showContent() {
+    private showContent(): void {
         if (this.embeddedViewRef) return;
 
         this.portalHost = this.document.createElement('div');
@@ -84,18 +84,18 @@ export class ContextMenuContentComponent implements OnDestroy {
         });
     }
 
-    private hideContent() {
+    private hideContent(): void {
         this.embeddedViewRef?.destroy();
         this.embeddedViewRef = null;
         this.portalHost?.remove();
         this.portalHost = null;
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.hideContent();
     }
 
-    private calculatePosition() {
+    private calculatePosition(): void {
         if (!this.portalHost) return;
 
         const content = this.portalHost.querySelector<HTMLElement>('[data-slot="context-menu-content"]');

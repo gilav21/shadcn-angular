@@ -414,14 +414,14 @@ describe('TourComponent — i18n integration', () => {
     }
 
     it('defaults Skip/Previous/Next/Finish to English', async () => {
-        const fixture = await setup();
+        await setup();
         const card = document.querySelector('[data-slot="tour-card"]') as HTMLElement;
         expect(card.textContent).toContain('Skip');
         expect(card.textContent).toContain('Next');
     });
 
     it('localises Skip/Previous/Next/Finish when locale="he" and applies dir="rtl"', async () => {
-        const fixture = await setup({ locale: 'he' });
+        await setup({ locale: 'he' });
         const card = document.querySelector('[data-slot="tour-card"]') as HTMLElement;
         expect(card.getAttribute('dir')).toBe('rtl');
         expect(card.textContent).toContain('דלג');
@@ -429,7 +429,7 @@ describe('TourComponent — i18n integration', () => {
     });
 
     it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
-        const fixture = await setup({ providerLocale: 'fr' });
+        await setup({ providerLocale: 'fr' });
         const card = document.querySelector('[data-slot="tour-card"]') as HTMLElement;
         expect(card.textContent).toContain('Passer');
         expect(card.textContent).toContain('Suivant');
@@ -456,7 +456,7 @@ describe('TourComponent — i18n integration', () => {
                 rtl: true,
                 close: 'C', cancel: 'C', confirm: 'C', continue: 'C', save: 'S', delete: 'D', edit: 'E',
                 search: 'S', searchPlaceholder: 'S', selectPlaceholder: 'S', noResults: 'N',
-                previous: 'X-PREV', next: 'X-NEXT', finish: 'X-FIN', skip: 'X-SKIP', loading: 'L',
+                previous: 'X-PREV', next: 'X-NEXT', finish: 'X-FIN', skip: 'X-SKIP', loading: 'L', copied: 'C',
             };
         }
 

@@ -109,6 +109,15 @@ function tryReadZip64Eocd(data: Uint8Array, eocdOffset: number): { entryCount: n
     return { entryCount, centralDirOffset };
 }
 
+interface ZipSizes { uncompressedSize: number; compressedSize: number; localHeaderOffset: number; }
+
+function applyZip64Extra(zip64Extra: Zip64ExtraResult | null, current: ZipSizes): void {
+    if (!zip64Extra) return;
+    if (zip64Extra.uncompressedSize !== undefined) current.uncompressedSize = zip64Extra.uncompressedSize;
+    if (zip64Extra.compressedSize !== undefined) current.compressedSize = zip64Extra.compressedSize;
+    if (zip64Extra.localHeaderOffset !== undefined) current.localHeaderOffset = zip64Extra.localHeaderOffset;
+}
+
 function parseCentralDirectory(data: Uint8Array): ZipEntry[] {
     const eocdOffset = findEndOfCentralDir(data);
 
@@ -135,32 +144,30 @@ function parseCentralDirectory(data: Uint8Array): ZipEntry[] {
         const flags = readU16LE(data, pos + 8);
         const compressionMethod = readU16LE(data, pos + 10);
         const entryCrc32 = readU32LE(data, pos + 16);
-        let compressedSize = readU32LE(data, pos + 20);
-        let uncompressedSize = readU32LE(data, pos + 24);
         const nameLen = readU16LE(data, pos + 28);
         const extraLen = readU16LE(data, pos + 30);
         const commentLen = readU16LE(data, pos + 32);
-        let localHeaderOffset = readU32LE(data, pos + 42);
+        const sizes: ZipSizes = {
+            compressedSize: readU32LE(data, pos + 20),
+            uncompressedSize: readU32LE(data, pos + 24),
+            localHeaderOffset: readU32LE(data, pos + 42),
+        };
 
         const pathBytes = data.subarray(pos + 46, pos + 46 + nameLen);
         const path = new TextDecoder().decode(pathBytes);
 
-        if (compressedSize === 0xFFFFFFFF || uncompressedSize === 0xFFFFFFFF || localHeaderOffset === 0xFFFFFFFF) {
-            const zip64Extra = findZip64ExtraField(data, pos + 46 + nameLen, extraLen, uncompressedSize, compressedSize, localHeaderOffset);
-            if (zip64Extra) {
-                if (zip64Extra.uncompressedSize !== undefined) uncompressedSize = zip64Extra.uncompressedSize;
-                if (zip64Extra.compressedSize !== undefined) compressedSize = zip64Extra.compressedSize;
-                if (zip64Extra.localHeaderOffset !== undefined) localHeaderOffset = zip64Extra.localHeaderOffset;
-            }
+        if (sizes.compressedSize === 0xFFFFFFFF || sizes.uncompressedSize === 0xFFFFFFFF || sizes.localHeaderOffset === 0xFFFFFFFF) {
+            const zip64Extra = findZip64ExtraField(data, pos + 46 + nameLen, extraLen, sizes.uncompressedSize, sizes.compressedSize, sizes.localHeaderOffset);
+            applyZip64Extra(zip64Extra, sizes);
         }
 
         entries.push({
             path,
-            compressedSize,
-            uncompressedSize,
+            compressedSize: sizes.compressedSize,
+            uncompressedSize: sizes.uncompressedSize,
             compressionMethod,
             crc32: entryCrc32,
-            offset: localHeaderOffset,
+            offset: sizes.localHeaderOffset,
             flags,
         });
 

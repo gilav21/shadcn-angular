@@ -7,6 +7,7 @@ import {
     signal,
     InjectionToken,
     forwardRef,
+    OnInit,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -20,7 +21,7 @@ export interface ToggleGroupItem {
 }
 
 export const toggleVariants = cva(
-    'inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium hover:bg-muted hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow] whitespace-nowrap',
+    'inline-flex items-center justify-center rounded-md text-sm font-medium hover:bg-muted hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow] whitespace-nowrap',
     {
         variants: {
             variant: {
@@ -29,9 +30,9 @@ export const toggleVariants = cva(
                     'border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground',
             },
             size: {
-                default: 'h-9 px-2 min-w-9',
-                sm: 'h-8 px-1.5 min-w-8',
-                lg: 'h-10 px-2.5 min-w-10',
+                default: 'min-w-9',
+                sm: 'min-w-8',
+                lg: 'min-w-10',
             },
         },
         defaultVariants: {
@@ -55,7 +56,7 @@ export const TOGGLE_GROUP = new InjectionToken<ToggleGroupComponent>('TOGGLE_GRO
     host: { class: 'contents' },
     providers: [{ provide: TOGGLE_GROUP, useExisting: forwardRef(() => ToggleGroupComponent) }],
 })
-export class ToggleGroupComponent {
+export class ToggleGroupComponent implements OnInit {
     type = input<ToggleGroupType>('single');
     variant = input<ToggleGroupVariant>('default');
     size = input<ToggleGroupSize>('default');
@@ -69,7 +70,7 @@ export class ToggleGroupComponent {
 
     value = signal<string[]>([]);
 
-    ngOnInit() {
+    ngOnInit(): void {
         const defaultVal = this.defaultValue();
         if (defaultVal) {
             this.value.set(Array.isArray(defaultVal) ? defaultVal : [defaultVal]);
@@ -88,7 +89,7 @@ export class ToggleGroupComponent {
         return this.value().includes(itemValue);
     }
 
-    toggle(itemValue: string) {
+    toggle(itemValue: string): void {
         if (this.disabled()) return;
 
         const current = this.value();

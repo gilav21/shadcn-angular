@@ -9,7 +9,14 @@ import { DIALOG } from '../dialog.component';
     selector: 'ui-dialog-trigger',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span (click)="onClick()" [attr.data-slot]="'dialog-trigger'">
+    <span
+      tabindex="0"
+      role="button"
+      [attr.data-slot]="'dialog-trigger'"
+      (click)="onClick()"
+      (keydown.enter)="onKeydown($event)"
+      (keydown.space)="onKeydown($event)"
+    >
       <ng-content />
     </span>
   `,
@@ -18,7 +25,20 @@ import { DIALOG } from '../dialog.component';
 export class DialogTriggerComponent {
     private readonly dialog = inject(DIALOG, { optional: true });
 
-    onClick() {
+    onClick(): void {
         this.dialog?.toggle();
+    }
+
+    /**
+     * Only toggle from the wrapper's own keyboard activation. When the projected
+     * content is itself focusable (e.g. a native <button>), its Enter/Space
+     * already fires a click that bubbles here — handling the keydown too would
+     * toggle twice (open then immediately close).
+     */
+    onKeydown(event: Event): void {
+        if (event.target === event.currentTarget) {
+            event.preventDefault();
+            this.onClick();
+        }
     }
 }

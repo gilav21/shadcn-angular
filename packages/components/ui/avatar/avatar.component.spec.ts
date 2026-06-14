@@ -44,9 +44,17 @@ describe('AvatarComponent', () => {
 
     it('should apply default classes', () => {
         expect(fixture.nativeElement.className).toContain('flex');
-        expect(fixture.nativeElement.className).toContain('h-10');
-        expect(fixture.nativeElement.className).toContain('w-10');
+        expect(fixture.nativeElement.className).toContain('shrink-0');
+        expect(fixture.nativeElement.className).toContain('overflow-hidden');
         expect(fixture.nativeElement.className).toContain('rounded-full');
+    });
+
+    it('should size via the scoped data-slot, not utility classes', () => {
+        // Density sizing lives in the scoped CSS keyed on data-slot="avatar";
+        // height/width utilities must NOT be duplicated in the class string.
+        expect(fixture.nativeElement.dataset['slot']).toBe('avatar');
+        expect(fixture.nativeElement.className).not.toContain('h-10');
+        expect(fixture.nativeElement.className).not.toContain('w-10');
     });
 
     it('should apply custom class', () => {

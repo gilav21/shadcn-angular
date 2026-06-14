@@ -22,7 +22,7 @@ export class TableCellComponent {
     class = input('');
 
     classes = computed(() => cn(
-        'p-2 flex-1 [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
+        'flex-1 [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
         this.class()
     ));
 }

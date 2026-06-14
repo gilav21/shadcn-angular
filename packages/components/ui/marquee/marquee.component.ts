@@ -34,7 +34,7 @@ export class MarqueeComponent implements AfterViewInit, OnDestroy {
 
     private animation?: Animation;
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (prefersReducedMotion()) return;
 
         this.ngZone.runOutsideAngular(() => {
@@ -42,23 +42,23 @@ export class MarqueeComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.animation?.cancel();
     }
 
-    onMouseEnter() {
+    onMouseEnter(): void {
         if (this.pauseOnHover() && this.animation) {
             this.animation.pause();
         }
     }
 
-    onMouseLeave() {
+    onMouseLeave(): void {
         if (this.pauseOnHover() && this.animation) {
             this.animation.play();
         }
     }
 
-    private setupAnimation() {
+    private setupAnimation(): void {
         const track = this.trackRef?.nativeElement;
         const segment = this.segmentRef?.nativeElement;
         if (!track || !segment) return;

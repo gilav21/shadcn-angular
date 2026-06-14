@@ -33,7 +33,7 @@ function printStatusGroup(heading: string, statuses: ComponentStatus[]): void {
     for (const s of notInstalled) console.log(chalk.dim('  - ') + s.name);
 }
 
-export async function list() {
+export async function list(): Promise<void> {
     const cwd = process.cwd();
 
     const config = await getConfig(cwd);

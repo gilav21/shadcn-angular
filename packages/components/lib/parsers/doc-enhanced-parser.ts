@@ -703,6 +703,14 @@ function applyParaSprms(sprms: ReadonlyArray<SprmEntry>, base: ParaProps): ParaP
 }
 
 function applyParaCore(props: ParaProps, opcode: number, val: number, bytes: Uint8Array | null): ParaProps {
+    const spacing = applyParaCoreSpacing(props, opcode, val);
+    if (spacing) return spacing;
+    const layout = applyParaCoreLayout(props, opcode, val);
+    if (layout) return layout;
+    return applyParaCoreBorders(props, opcode, bytes);
+}
+
+function applyParaCoreSpacing(props: ParaProps, opcode: number, val: number): ParaProps | null {
     switch (opcode) {
         case sprmPIstd: return { ...props, istd: val };
         case sprmPJc: return { ...props, alignment: jcToAlignment(val) };
@@ -713,6 +721,12 @@ function applyParaCore(props: ParaProps, opcode: number, val: number, bytes: Uin
         case sprmPDxaLeft: return { ...props, indentLeft: twipsToPt(signExtend16(val)) };
         case sprmPDxaRight: return { ...props, indentRight: twipsToPt(signExtend16(val)) };
         case sprmPDxaFirst: return { ...props, indentFirst: twipsToPt(signExtend16(val)) };
+        default: return null;
+    }
+}
+
+function applyParaCoreLayout(props: ParaProps, opcode: number, val: number): ParaProps | null {
+    switch (opcode) {
         case sprmPFInTable: return { ...props, inTable: val !== 0 };
         case sprmPFTtp: return { ...props, isTtp: val !== 0 };
         case sprmPItap: return { ...props, tableDepth: val };
@@ -721,6 +735,12 @@ function applyParaCore(props: ParaProps, opcode: number, val: number, bytes: Uin
         case sprmPIlvl: return { ...props, listLevel: val };
         case sprmPIlfo: return { ...props, listId: val };
         case sprmPFBiDi: return { ...props, rtl: val !== 0 };
+        default: return null;
+    }
+}
+
+function applyParaCoreBorders(props: ParaProps, opcode: number, bytes: Uint8Array | null): ParaProps {
+    switch (opcode) {
         case sprmPShd: return applyParaShading(props, bytes);
         case sprmPBrcTop: return { ...props, borderTop: parseBrcSprm(bytes) };
         case sprmPBrcLeft: return { ...props, borderLeft: parseBrcSprm(bytes) };
@@ -812,6 +832,16 @@ interface PapxEntry {
     readonly rawSprms: Uint8Array | null;
 }
 
+function parseChpxFkpEntry(page: Uint8Array, bOffset: number): CharProps {
+    if (bOffset === 0) return {};
+    const bytePos = bOffset * 2;
+    if (bytePos >= 511) return {};
+    const cb = readU8(page, bytePos);
+    if (cb <= 0 || bytePos + 1 + cb > FKP_PAGE_SIZE) return {};
+    const sprms = parseGrpprl(page, bytePos + 1, cb);
+    return applyCharSprms(sprms, {});
+}
+
 function parseChpxFkp(page: Uint8Array): ReadonlyArray<ChpxEntry> {
     const crun = readU8(page, 511);
     if (crun === 0) return [];
@@ -822,17 +852,7 @@ function parseChpxFkp(page: Uint8Array): ReadonlyArray<ChpxEntry> {
         const fcLim = readU32(page, (i + 1) * 4);
         const bOffset = readU8(page, (crun + 1) * 4 + i);
 
-        let props: CharProps = {};
-        if (bOffset !== 0) {
-            const bytePos = bOffset * 2;
-            if (bytePos < 511) {
-                const cb = readU8(page, bytePos);
-                if (cb > 0 && bytePos + 1 + cb <= FKP_PAGE_SIZE) {
-                    const sprms = parseGrpprl(page, bytePos + 1, cb);
-                    props = applyCharSprms(sprms, {});
-                }
-            }
-        }
+        const props = parseChpxFkpEntry(page, bOffset);
         entries.push({ fcFirst, fcLim, props });
     }
 
@@ -1384,13 +1404,14 @@ function cleanRunText(text: string): string {
 }
 
 function mergeCharProps(styleProps: CharProps, directProps: CharProps): CharProps {
-    const merged: Record<string, unknown> = { ...styleProps };
+    const merged: CharProps = { ...styleProps };
+    const writable = merged as Record<string, unknown>;
     for (const [key, value] of Object.entries(directProps)) {
         if (value !== undefined) {
-            merged[key] = value;
+            writable[key] = value;
         }
     }
-    return merged as CharProps;
+    return merged;
 }
 
 function buildRunStyle(props: CharProps, fonts: ReadonlyArray<string>): DocxRunStyle {
@@ -1885,14 +1906,18 @@ function splitByParagraphMark(text: string): ReadonlyArray<string> {
     return result;
 }
 
+function isRtlCodePoint(code: number): boolean {
+    return (code >= 0x0590 && code <= 0x05FF) || (code >= 0x0600 && code <= 0x06FF)
+        || (code >= 0x0700 && code <= 0x074F) || (code >= 0xFB50 && code <= 0xFDFF)
+        || (code >= 0xFE70 && code <= 0xFEFF);
+}
+
 function isRtlText(text: string): boolean {
     let rtlCount = 0;
     let ltrCount = 0;
     for (const char of text) {
         const code = char.codePointAt(0) ?? 0;
-        if ((code >= 0x0590 && code <= 0x05FF) || (code >= 0x0600 && code <= 0x06FF)
-            || (code >= 0x0700 && code <= 0x074F) || (code >= 0xFB50 && code <= 0xFDFF)
-            || (code >= 0xFE70 && code <= 0xFEFF)) {
+        if (isRtlCodePoint(code)) {
             rtlCount++;
         } else if (code >= 0x0041 && code <= 0x007A) {
             ltrCount++;

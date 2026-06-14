@@ -9,7 +9,7 @@ export interface InputDefinition {
     type: InputType;
     label?: string;
     options?: string[]; // For select type
-    defaultValue?: any;
+    defaultValue?: unknown;
 }
 
 export interface PageGridConfig {
@@ -17,10 +17,10 @@ export interface PageGridConfig {
     rowHeight: string;
     columnWidth: string;
     gap: string;
-    showBorders: boolean;
+    showBorders?: boolean;
     borderRadius: string;
     itemPadding: string;
-    squareCells: boolean;
+    squareCells?: boolean;
 }
 
 export interface PageItemData {
@@ -30,7 +30,7 @@ export interface PageItemData {
     cols: number;
     rows: number;
     componentId: string;
-    inputs?: Record<string, any>;
+    inputs?: Record<string, unknown>;
     bindings?: Record<string, string>; // Maps input name -> context path (e.g. 'title' -> 'user.name')
 }
 
@@ -45,9 +45,9 @@ export interface ComponentMeta {
     name: string; // Display name
     description?: string;
     category: string;
-    component: Type<any>;
+    component: Type<unknown>;
     icon?: string; // Lucide icon name
-    defaultInputs?: Record<string, any>;
+    defaultInputs?: Record<string, unknown>;
     inputs?: InputDefinition[]; // Schema for the property editor
     defaultCols?: number;
     defaultRows?: number;
@@ -61,7 +61,7 @@ export interface PageBuilderConfig {
 // --- File System Access API Types ---
 
 export interface FileSystemWritableFileStream extends WritableStream {
-    write(data: any): Promise<void>;
+    write(data: unknown): Promise<void>;
     seek(position: number): Promise<void>;
     truncate(size: number): Promise<void>;
 }
@@ -69,7 +69,7 @@ export interface FileSystemWritableFileStream extends WritableStream {
 export interface FileSystemFileHandle {
     kind: 'file';
     name: string;
-    createWritable(options?: any): Promise<FileSystemWritableFileStream>;
+    createWritable(options?: Record<string, unknown>): Promise<FileSystemWritableFileStream>;
     getFile(): Promise<File>;
 }
 

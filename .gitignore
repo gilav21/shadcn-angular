@@ -24,3 +24,10 @@ demo/public/DW2-3-Viruses-www.underwar.co.il.html
 demo/public/med-pp.html
 
 .worktrees/
+
+# Local SonarQube export
+sonar-issues.json
+.scannerwork/
+coverage/
+.vitest-attachments/
+coverage-cli/

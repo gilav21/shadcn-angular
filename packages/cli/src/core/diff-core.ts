@@ -24,12 +24,14 @@ export function unifiedDiff(fileName: string, local: string, remote: string): st
     const maxLines = Math.max(localLines.length, remoteLines.length);
     let found = false;
     for (let i = 0; i < maxLines; i++) {
-        const l = localLines[i];
-        const r = remoteLines[i];
+        const l: string | undefined = localLines[i];
+        const r: string | undefined = remoteLines[i];
         if (l === r) continue;
         found = true;
         out.push(`@@ line ${i + 1} @@`);
+        // eslint-disable-next-line sonarjs/different-types-comparison -- array index is undefined past the shorter array's end at runtime
         if (l !== undefined) out.push(`- ${l}`);
+        // eslint-disable-next-line sonarjs/different-types-comparison -- array index is undefined past the shorter array's end at runtime
         if (r !== undefined) out.push(`+ ${r}`);
     }
     return found ? out.join('\n') : '';

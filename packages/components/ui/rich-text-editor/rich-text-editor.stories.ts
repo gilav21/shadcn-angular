@@ -404,7 +404,7 @@ export const GhostVariant: Story = {
     template: `
     <div class="space-y-4">
       <div>
-        <label class="text-sm font-medium mb-2 block">Editor</label>
+        <p class="text-sm font-medium mb-2 block">Editor</p>
         <ui-rich-text-editor
           mode="markdown"
           toolbar="top"
@@ -420,17 +420,17 @@ export const GhostVariant: Story = {
       
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label class="text-sm font-medium mb-2 block">Markdown Output</label>
+          <p class="text-sm font-medium mb-2 block">Markdown Output</p>
           <pre class="p-4 bg-muted rounded-md text-sm overflow-auto max-h-48">{{ markdown }}</pre>
         </div>
         <div>
-          <label class="text-sm font-medium mb-2 block">HTML Output</label>
+          <p class="text-sm font-medium mb-2 block">HTML Output</p>
           <pre class="p-4 bg-muted rounded-md text-sm overflow-auto max-h-48">{{ html }}</pre>
         </div>
       </div>
       
       <div>
-        <label class="text-sm font-medium mb-2 block">HTML Preview</label>
+        <p class="text-sm font-medium mb-2 block">HTML Preview</p>
         <div 
           class="p-4 border rounded-md prose prose-sm dark:prose-invert max-w-none"
           [innerHTML]="html"
@@ -521,7 +521,7 @@ export const AdvancedBehaviorDemo: Story = {
     template: `
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <div>
-        <label class="text-sm font-medium mb-2 block">Content</label>
+        <p class="text-sm font-medium mb-2 block">Content</p>
         <ui-rich-text-editor
           formControlName="content"
           [mode]="'markdown'"
@@ -554,7 +554,6 @@ class RichTextFormDemoComponent {
     });
 
     onSubmit() {
-        console.log('Form submitted:', this.form.value);
     }
 }
 

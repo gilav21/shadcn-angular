@@ -130,17 +130,17 @@ export class PieChartComponent {
     );
   });
 
-  onSliceHover(slice: PieSlice) {
+  onSliceHover(slice: PieSlice): void {
     this.hoveredIndex.set(slice.index);
     this.sliceHover.emit({ point: slice.data, index: slice.index });
   }
 
-  onSliceLeave() {
+  onSliceLeave(): void {
     this.hoveredIndex.set(null);
     this.sliceHover.emit(null);
   }
 
-  onSliceClick(event: Event, slice: PieSlice) {
+  onSliceClick(event: Event, slice: PieSlice): void {
     this.sliceClick.emit({
       point: slice.data,
       index: slice.index,

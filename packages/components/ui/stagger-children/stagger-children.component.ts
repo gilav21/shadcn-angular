@@ -35,7 +35,7 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
     private observer?: IntersectionObserver;
     private animations: Animation[] = [];
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (prefersReducedMotion()) return;
 
         this.hideChildren();
@@ -56,12 +56,12 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.observer?.disconnect();
         this.animations.forEach(a => a.cancel());
     }
 
-    playAnimation() {
+    playAnimation(): void {
         this.hideChildren();
         this.animations.forEach(a => a.cancel());
         this.animations = [];
@@ -76,14 +76,14 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
         return { x: -20, y: 0 };
     }
 
-    private hideChildren() {
+    private hideChildren(): void {
         const children = (this.el.nativeElement as HTMLElement).children;
         for (const child of Array.from(children)) {
             (child as HTMLElement).style.opacity = '0';
         }
     }
 
-    private animateChildren() {
+    private animateChildren(): void {
         const children = (this.el.nativeElement as HTMLElement).children;
         const translate = this.getTranslate();
 

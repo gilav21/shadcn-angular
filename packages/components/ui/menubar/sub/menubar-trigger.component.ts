@@ -50,25 +50,25 @@ export class MenubarTriggerComponent {
   }
 
   classes = computed(() => cn(
-    'flex cursor-pointer select-none items-center rounded-sm px-3 py-1.5 text-sm font-medium outline-none',
+    'flex cursor-pointer select-none items-center rounded-sm text-sm font-medium outline-none',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:bg-accent focus:text-accent-foreground',
     'data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
     this.class()
   ));
 
-  onClick() {
+  onClick(): void {
     this.menu.toggle();
   }
 
-  onMouseEnter() {
+  onMouseEnter(): void {
     if (isTouchDevice()) return;
     if (this.service.activeMenuId()) {
       this.menu.open();
     }
   }
 
-  onKeydown(event: KeyboardEvent) {
+  onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
       if (this.service.isRtl()) {
@@ -96,11 +96,11 @@ export class MenubarTriggerComponent {
     }
   }
 
-  focus() {
+  focus(): void {
     this.triggerEl?.nativeElement.focus();
   }
 
-  focusNextTrigger() {
+  focusNextTrigger(): void {
     const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
     const index = triggers.indexOf(this.triggerEl.nativeElement);
     const nextIndex = (index + 1) % triggers.length;
@@ -110,7 +110,7 @@ export class MenubarTriggerComponent {
     }
   }
 
-  focusPrevTrigger() {
+  focusPrevTrigger(): void {
     const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
     const index = triggers.indexOf(this.triggerEl.nativeElement);
     const prevIndex = (index - 1 + triggers.length) % triggers.length;

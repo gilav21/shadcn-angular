@@ -33,11 +33,11 @@ export class FieldErrorComponent implements OnInit, OnDestroy {
 
   readonly resolvedId = computed(() => this.id() || this.generatedId);
 
-  ngOnInit() {
+  ngOnInit(): void {
     this.generatedId = registerFieldDescribedBy(this.context, this.id(), 'error');
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     unregisterFieldDescribedBy(this.context, this.generatedId);
   }
 

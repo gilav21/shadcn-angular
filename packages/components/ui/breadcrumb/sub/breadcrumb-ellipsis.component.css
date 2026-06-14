@@ -1,8 +1,9 @@
 :host {
     --_d: var(--density-button, var(--density, 1));
 }
-
-span[role="presentation"] {
-    height: calc(2.25rem * var(--_d));
-    width: calc(2.25rem * var(--_d));
+@layer components {
+    span[role="presentation"] {
+        height: calc(2.25rem * var(--_d));
+        width: calc(2.25rem * var(--_d));
+    }
 }

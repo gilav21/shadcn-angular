@@ -14,16 +14,21 @@ import { cn } from '../../lib/utils';
   selector: 'ui-input-otp',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div 
-      [class]="containerClasses()" 
+    <div
+      [class]="containerClasses()"
       [attr.data-slot]="'input-otp'"
       (keydown)="onKeydown($event)"
+      tabindex="-1"
     >
       @for (i of slots(); track i; let idx = $index) {
         <div
           [class]="slotClasses(idx)"
           [attr.data-slot]="'input-otp-slot'"
           (click)="focusSlot(idx)"
+          (keydown.enter)="focusSlot(idx)"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="'Digit ' + (idx + 1)"
         >
           <span class="text-center">{{ getValue(idx) }}</span>
           @if (focusedIndex() === idx && !getValue(idx)) {
@@ -77,8 +82,8 @@ export class InputOTPComponent {
     this.class()
   ));
 
-  slotClasses = (idx: number) => cn(
-    'relative flex h-10 w-10 items-center justify-center border-y border-r border-input text-sm shadow-sm transition-all cursor-text',
+  slotClasses = (idx: number): string => cn(
+    'relative flex items-center justify-center border-y border-r border-input text-sm shadow-sm transition-all cursor-text',
     idx === 0 && 'ltr:rounded-l-md rtl:rounded-r-md ltr:border-l rtl:border-r',
     idx === this.maxLength() - 1 && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
     this.separatorAfter().includes(idx) && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
@@ -90,12 +95,12 @@ export class InputOTPComponent {
     return this.value()[idx] || '';
   }
 
-  focusSlot(idx: number) {
+  focusSlot(idx: number): void {
     this.hiddenInput?.nativeElement?.focus();
     this.focusedIndex.set(Math.min(idx, this.value().length));
   }
 
-  onInput(event: Event) {
+  onInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const newValue = input.value.replaceAll(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, this.maxLength());
     this.value.set(newValue);
@@ -104,7 +109,7 @@ export class InputOTPComponent {
   }
 
 
-  onKeydown(event: KeyboardEvent) {
+  onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
       this.focusedIndex.update(i => Math.max(0, i - 1));
@@ -126,15 +131,15 @@ export class InputOTPComponent {
   }
 
 
-  onFocus() {
+  onFocus(): void {
     this.focusedIndex.set(this.value().length);
   }
 
-  onBlur() {
+  onBlur(): void {
     this.focusedIndex.set(-1);
   }
 
-  focus() {
+  focus(): void {
     this.hiddenInput?.nativeElement?.focus();
   }
 }

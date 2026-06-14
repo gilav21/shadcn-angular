@@ -23,7 +23,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 })
 class TestHostComponent {
     variant = signal<ButtonVariant>('default');
-    onItemClick(id: string) { }
+    onItemClick(_id: string): void { }
 }
 
 describe('SplitButtonComponent', () => {

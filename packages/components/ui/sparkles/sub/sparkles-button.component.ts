@@ -23,11 +23,11 @@ export class SparklesButtonComponent {
   hovering = signal(false);
   classes = computed(() => cn('relative overflow-visible group gap-2', this.class()));
 
-  startSparkles() {
+  startSparkles(): void {
     this.hovering.set(true);
   }
 
-  stopSparkles() {
+  stopSparkles(): void {
     this.hovering.set(false);
   }
 }

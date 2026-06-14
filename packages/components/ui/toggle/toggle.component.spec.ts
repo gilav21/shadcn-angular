@@ -95,7 +95,7 @@ describe('ToggleComponent', () => {
         fixture.detectChanges();
 
         const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.className).toContain('h-8');
+        expect(button.nativeElement.getAttribute('data-size')).toBe('sm');
     });
 
     it('should apply large size classes', () => {
@@ -103,7 +103,7 @@ describe('ToggleComponent', () => {
         fixture.detectChanges();
 
         const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.className).toContain('h-10');
+        expect(button.nativeElement.getAttribute('data-size')).toBe('lg');
     });
 
     it('should be disabled when disabled input is true', async () => {

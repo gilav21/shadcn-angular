@@ -1,13 +1,12 @@
-<div
+<ol
   [class]="classes()"
   [attr.data-slot]="'stepper'"
   [attr.data-orientation]="orientation()"
-  role="list"
 >
   @if (steps().length > 0) {
     <!-- Simple mode: auto-generate stepper items -->
     @for (step of steps(); track step.value; let idx = $index; let last = $last) {
-      <div class="contents" role="listitem">
+      <li class="contents">
         <div
           [class]="stepItemClasses()"
           [attr.data-slot]="'stepper-item'"
@@ -42,10 +41,10 @@
         @if (!last && orientation() === 'horizontal') {
           <div class="flex-1 h-0.5 bg-border mt-4" [class.bg-primary]="getStepStatusByIndex(idx) === 'complete'"></div>
         }
-      </div>
+      </li>
     }
   } @else {
     <!-- Template mode: project content -->
     <ng-content />
   }
-</div>
+</ol>

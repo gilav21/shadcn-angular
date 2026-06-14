@@ -45,12 +45,13 @@ export class SliderComponent {
 
     value = signal(0);
 
-    rtl() {
+    rtl(): boolean {
         return isRtl(this.el.nativeElement);
     }
 
     constructor() {
         const defaultVal = this.defaultValue();
+        // eslint-disable-next-line sonarjs/different-types-comparison -- defaultValue() read in constructor; guard is defensive against an unset input
         if (defaultVal !== undefined) {
             this.value.set(defaultVal);
         }
@@ -60,7 +61,7 @@ export class SliderComponent {
         const min = this.min();
         const max = this.max();
         if (min >= max) {
-            console.warn('[ui-slider] min should be less than max');
+            console.error('[ui-slider] min should be less than max');
             return 0;
         }
         const val = this.value();
@@ -76,18 +77,18 @@ export class SliderComponent {
         )
     );
 
-    onTrackMouseDown(event: MouseEvent) {
+    onTrackMouseDown(event: MouseEvent): void {
         if (this.disabled()) return;
 
         event.preventDefault();
         this.updateValueFromEvent(event);
         this.startDragging();
 
-        const thumb = this.el.nativeElement.querySelector('[role="slider"]');
-        thumb?.focus();
+        const input = this.el.nativeElement.querySelector('input[type="range"]');
+        input?.focus();
     }
 
-    onThumbMouseDown(event: MouseEvent) {
+    onThumbMouseDown(event: MouseEvent): void {
         if (this.disabled()) return;
 
         event.preventDefault();
@@ -95,7 +96,7 @@ export class SliderComponent {
         this.startDragging();
     }
 
-    onTouchStart(event: TouchEvent) {
+    onTouchStart(event: TouchEvent): void {
         if (this.disabled()) return;
 
         event.preventDefault();
@@ -103,13 +104,13 @@ export class SliderComponent {
             this.updateValueFromTouch(event.touches[0]);
         }
 
-        const onTouchMove = (e: TouchEvent) => {
+        const onTouchMove = (e: TouchEvent): void => {
             if (e.touches.length > 0) {
                 this.updateValueFromTouch(e.touches[0]);
             }
         };
 
-        const onTouchEnd = () => {
+        const onTouchEnd = (): void => {
             document.removeEventListener('touchmove', onTouchMove);
             document.removeEventListener('touchend', onTouchEnd);
         };
@@ -118,12 +119,12 @@ export class SliderComponent {
         document.addEventListener('touchend', onTouchEnd);
     }
 
-    private startDragging() {
-        const onMouseMove = (e: MouseEvent) => {
+    private startDragging(): void {
+        const onMouseMove = (e: MouseEvent): void => {
             this.updateValueFromEvent(e);
         };
 
-        const onMouseUp = () => {
+        const onMouseUp = (): void => {
             document.removeEventListener('mousemove', onMouseMove);
             document.removeEventListener('mouseup', onMouseUp);
         };
@@ -132,7 +133,7 @@ export class SliderComponent {
         document.addEventListener('mouseup', onMouseUp);
     }
 
-    onKeyDown(event: KeyboardEvent) {
+    onKeyDown(event: KeyboardEvent): void {
         if (this.disabled()) return;
 
         const step = this.step();
@@ -178,15 +179,15 @@ export class SliderComponent {
         }
     }
 
-    private updateValueFromEvent(event: MouseEvent) {
+    private updateValueFromEvent(event: MouseEvent): void {
         this.updateValueFromPosition(event.clientX);
     }
 
-    private updateValueFromTouch(touch: Touch) {
+    private updateValueFromTouch(touch: Touch): void {
         this.updateValueFromPosition(touch.clientX);
     }
 
-    private updateValueFromPosition(clientX: number) {
+    private updateValueFromPosition(clientX: number): void {
         const track = this.el.nativeElement.querySelector('[data-slot="slider"]');
         if (!track) return;
 

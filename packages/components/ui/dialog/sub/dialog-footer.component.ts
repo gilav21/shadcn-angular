@@ -9,7 +9,7 @@ import {
     template: `<ng-content />`,
     styleUrl: './dialog-footer.component.css',
     host: {
-        class: 'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end',
+        class: 'flex flex-col-reverse sm:flex-row sm:justify-end',
         '[attr.data-slot]': '"dialog-footer"',
     },
 })

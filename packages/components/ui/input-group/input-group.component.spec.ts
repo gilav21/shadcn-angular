@@ -29,7 +29,6 @@ class TestHostComponent {
 
 describe('InputGroupComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
-    let host: TestHostComponent;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -43,7 +42,6 @@ describe('InputGroupComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
-        host = fixture.componentInstance;
     });
 
     it('should create all parts', () => {
@@ -56,7 +54,7 @@ describe('InputGroupComponent', () => {
     it('should structure content correctly', () => {
         fixture.detectChanges();
         const group = fixture.debugElement.query(By.css('[data-slot="input-group"]'));
-        expect(group.nativeElement.role).toBe('group');
+        expect(group.nativeElement.tagName).toBe('FIELDSET');
         expect(group.nativeElement.classList.contains('flex')).toBe(true);
         expect(group.nativeElement.classList.contains('items-center')).toBe(true);
 
@@ -73,5 +71,6 @@ describe('InputGroupComponent', () => {
         input.nativeElement.dispatchEvent(new Event('input'));
 
         fixture.detectChanges();
+        expect(fixture.componentInstance.control.value).toBe('100');
     });
 });

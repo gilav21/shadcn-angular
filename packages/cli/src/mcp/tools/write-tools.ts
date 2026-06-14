@@ -24,65 +24,73 @@ function validateNames(names: string[]): string[] {
     return names.filter(n => !isComponentName(n));
 }
 
-export function registerWriteTools(server: McpServer, cwd: string): void {
+const initInputSchema = {
+    prefix: z.string().optional().describe('Component selector prefix (default "ui").'),
+    baseColor: z.enum(['neutral', 'slate', 'stone', 'gray', 'zinc']).optional(),
+    theme: z.enum([
+        'zinc', 'slate', 'stone', 'gray', 'neutral', 'red', 'rose',
+        'orange', 'green', 'blue', 'yellow', 'violet', 'amber',
+    ]).optional(),
+    cssPath: z.string().optional().describe('Global styles file (default src/styles.scss).'),
+    createShortcutRegistry: z.boolean().optional(),
+    density: z.number().int().min(1).max(5).optional().describe('Initial density level (default 3).'),
+    radius: z.string().optional().describe('Initial border radius: none, sm, md, lg, xl, full, or a raw value like "0.5rem".'),
+    motion: z.number().int().min(0).max(2).optional().describe('Initial motion level (default 1).'),
+    themeFrom: z.string().optional().describe('Generate the initial theme from a brand hex color (e.g. "#3b82f6") — mutually exclusive with theme.'),
+    locale: z.string().optional().describe('Default UI locale baked into the installed i18n files (e.g. "he").'),
+};
+
+type InitArgs = z.infer<z.ZodObject<typeof initInputSchema>>;
+
+async function handleInit(cwd: string, args: InitArgs): Promise<ReturnType<typeof json>> {
+    if (await fs.pathExists(path.join(cwd, 'components.json'))) {
+        return err('Already initialized — components.json exists. Use add_component to add components.');
+    }
+    if (args.prefix !== undefined && !isValidPrefix(args.prefix)) {
+        return err(`Invalid prefix "${args.prefix}" — must be lowercase kebab-case starting with a letter.`);
+    }
+    if (args.theme && args.themeFrom) {
+        return err('Pass either theme or themeFrom, not both.');
+    }
+    if (args.themeFrom !== undefined && !isValidHex(args.themeFrom)) {
+        return err(`Invalid themeFrom "${args.themeFrom}" — use a hex color like "#3b82f6".`);
+    }
+    const config: Config = getDefaultConfig();
+    config.prefix = args.prefix ?? DEFAULT_PREFIX;
+    if (args.baseColor) config.tailwind.baseColor = args.baseColor;
+    if (args.theme) config.tailwind.theme = args.theme;
+    if (args.cssPath) config.tailwind.css = args.cssPath;
+    const result = await initProject({
+        cwd, config,
+        createShortcutRegistry: args.createShortcutRegistry ?? true,
+        fetchOptions: { branch: 'master' },
+    });
+    const defaults: InitDefaults = {
+        density: args.density, radius: args.radius, motion: args.motion,
+        themeFrom: args.themeFrom, locale: args.locale,
+    };
+    try {
+        const applied = await applyInitDefaults(cwd, defaults, { branch: 'master' });
+        return json({ ...result, defaultsApplied: applied });
+    } catch (error) {
+        return json({
+            ...result,
+            defaultsApplied: [],
+            defaultsError: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+function registerInitTool(server: McpServer, cwd: string): void {
     server.registerTool('init_project', {
         title: 'Initialize project',
         description: 'Set up shadcn-angular in this Angular project (components.json, Tailwind, PostCSS). Uses sensible defaults; all overridable.',
-        inputSchema: {
-            prefix: z.string().optional().describe('Component selector prefix (default "ui").'),
-            baseColor: z.enum(['neutral', 'slate', 'stone', 'gray', 'zinc']).optional(),
-            theme: z.enum([
-                'zinc', 'slate', 'stone', 'gray', 'neutral', 'red', 'rose',
-                'orange', 'green', 'blue', 'yellow', 'violet', 'amber',
-            ]).optional(),
-            cssPath: z.string().optional().describe('Global styles file (default src/styles.scss).'),
-            createShortcutRegistry: z.boolean().optional(),
-            density: z.number().int().min(1).max(5).optional().describe('Initial density level (default 3).'),
-            radius: z.string().optional().describe('Initial border radius: none, sm, md, lg, xl, full, or a raw value like "0.5rem".'),
-            motion: z.number().int().min(0).max(2).optional().describe('Initial motion level (default 1).'),
-            themeFrom: z.string().optional().describe('Generate the initial theme from a brand hex color (e.g. "#3b82f6") — mutually exclusive with theme.'),
-            locale: z.string().optional().describe('Default UI locale baked into the installed i18n files (e.g. "he").'),
-        },
+        inputSchema: initInputSchema,
         annotations: { destructiveHint: true },
-    }, async (args) => {
-        if (await fs.pathExists(path.join(cwd, 'components.json'))) {
-            return err('Already initialized — components.json exists. Use add_component to add components.');
-        }
-        if (args.prefix !== undefined && !isValidPrefix(args.prefix)) {
-            return err(`Invalid prefix "${args.prefix}" — must be lowercase kebab-case starting with a letter.`);
-        }
-        if (args.theme && args.themeFrom) {
-            return err('Pass either theme or themeFrom, not both.');
-        }
-        if (args.themeFrom !== undefined && !isValidHex(args.themeFrom)) {
-            return err(`Invalid themeFrom "${args.themeFrom}" — use a hex color like "#3b82f6".`);
-        }
-        const config: Config = getDefaultConfig();
-        config.prefix = args.prefix ?? DEFAULT_PREFIX;
-        if (args.baseColor) config.tailwind.baseColor = args.baseColor;
-        if (args.theme) config.tailwind.theme = args.theme;
-        if (args.cssPath) config.tailwind.css = args.cssPath;
-        const result = await initProject({
-            cwd, config,
-            createShortcutRegistry: args.createShortcutRegistry ?? true,
-            fetchOptions: { branch: 'master' },
-        });
-        const defaults: InitDefaults = {
-            density: args.density, radius: args.radius, motion: args.motion,
-            themeFrom: args.themeFrom, locale: args.locale,
-        };
-        try {
-            const applied = await applyInitDefaults(cwd, defaults, { branch: 'master' });
-            return json({ ...result, defaultsApplied: applied });
-        } catch (error) {
-            return json({
-                ...result,
-                defaultsApplied: [],
-                defaultsError: error instanceof Error ? error.message : String(error),
-            });
-        }
-    });
+    }, (args) => handleInit(cwd, args));
+}
 
+function registerAddTool(server: McpServer, cwd: string): void {
     server.registerTool('add_component', {
         title: 'Add components',
         description: 'Install one or more components (writes files, resolves deps, installs npm packages). Conflicts are NOT overwritten unless listed in `overwrite`. Run get_install_plan first.',
@@ -106,7 +114,9 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
         });
         return json(result);
     });
+}
 
+function registerUpdateTool(server: McpServer, cwd: string): void {
     server.registerTool('update_component', {
         title: 'Update components',
         description: 'Re-install components from the registry, overwriting local copies. Equivalent to add_component with overwrite for the given names.',
@@ -124,7 +134,29 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
         });
         return json(result);
     });
+}
 
+function registerDiffTool(server: McpServer, cwd: string): void {
+    server.registerTool('diff_component', {
+        title: 'Diff components',
+        description: 'Show how locally installed components differ from the registry version.',
+        inputSchema: { names: z.array(z.string()).min(1) },
+        annotations: { readOnlyHint: true },
+    }, async ({ names }) => {
+        const invalid = validateNames(names);
+        if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
+        const config = await getConfig(cwd);
+        if (!config) return err('Project not initialized — run init_project first.');
+        const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
+        const out: ComponentDiff[] = [];
+        for (const name of names as ComponentName[]) {
+            out.push(await diffComponentFiles(name, targetDir, { branch: 'master' }, config.aliases.utils, getPrefix(config)));
+        }
+        return json(out);
+    });
+}
+
+function registerDensityTool(server: McpServer, cwd: string): void {
     server.registerTool('set_density', {
         title: 'Set density',
         description: 'Set the global density level (1=ultra-compact to 5=spacious). Optionally override specific components.',
@@ -141,18 +173,17 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
             return err(error instanceof Error ? error.message : String(error));
         }
     });
+}
 
+function registerRadiusMotionLocaleTool(server: McpServer, cwd: string): void {
     server.registerTool('set_radius', {
         title: 'Set border radius',
         description: `Set the global border radius (--radius). Named values: ${Object.keys(RADIUS_NAMED).join(', ')}. Also accepts raw values like "0.5rem" or "8px".`,
-        inputSchema: {
-            value: z.string().describe('Radius name (none, sm, md, lg, xl, full) or raw CSS value (e.g. "0.5rem", "8px")'),
-        },
+        inputSchema: { value: z.string().describe('Radius name (none, sm, md, lg, xl, full) or raw CSS value (e.g. "0.5rem", "8px")') },
         annotations: { destructiveHint: true },
     }, async (args) => {
         try {
-            const message = await setRadiusCore(args.value, cwd);
-            return json({ success: true, message });
+            return json({ success: true, message: await setRadiusCore(args.value, cwd) });
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));
         }
@@ -161,14 +192,11 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
     server.registerTool('set_motion', {
         title: 'Set motion level',
         description: 'Set the global animation/motion multiplier (--motion). 0=no motion, 1=default, 2=expressive.',
-        inputSchema: {
-            level: z.number().int().min(0).max(2).describe('Motion level: 0=no motion, 1=default, 2=expressive'),
-        },
+        inputSchema: { level: z.number().int().min(0).max(2).describe('Motion level: 0=no motion, 1=default, 2=expressive') },
         annotations: { destructiveHint: true },
     }, async (args) => {
         try {
-            const message = await setMotionCore(args.level, cwd);
-            return json({ success: true, message });
+            return json({ success: true, message: await setMotionCore(args.level, cwd) });
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));
         }
@@ -177,19 +205,18 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
     server.registerTool('set_locale', {
         title: 'Set default UI locale',
         description: 'Set the default UI locale baked into the project\'s installed i18n files (rewrites the UI_LOCALE_ID default in i18n/i18n.token.ts). Installs the i18n lib files first if missing.',
-        inputSchema: {
-            code: z.string().describe('BCP-47 locale code (e.g. "en", "he", "pt-BR")'),
-        },
+        inputSchema: { code: z.string().describe('BCP-47 locale code (e.g. "en", "he", "pt-BR")') },
         annotations: { destructiveHint: true },
     }, async (args) => {
         try {
-            const message = await setLocaleCore(args.code, cwd, { branch: 'master' });
-            return json({ success: true, message });
+            return json({ success: true, message: await setLocaleCore(args.code, cwd, { branch: 'master' }) });
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));
         }
     });
+}
 
+function registerThemeTool(server: McpServer, cwd: string): void {
     server.registerTool('change_theme', {
         title: 'Change color theme',
         description: `Change the color theme (replaces color CSS vars in :root and .dark). Available themes: ${VALID_THEMES.join(', ')}. Alternatively pass "from" with a brand hex color to generate a custom theme.`,
@@ -206,13 +233,13 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
             return err(error instanceof Error ? error.message : String(error));
         }
     });
+}
 
+function registerDoctorTool(server: McpServer, cwd: string): void {
     server.registerTool('doctor_fix', {
         title: 'Doctor fix',
         description: 'Diagnose component health and repair what is safe to repair: re-install components with missing files or stale registry versions, and install missing npm dependencies. User-edited components are never touched; legacy layouts require the migrate command.',
-        inputSchema: {
-            dryRun: z.boolean().optional().describe('Return the repair plan without making changes'),
-        },
+        inputSchema: { dryRun: z.boolean().optional().describe('Return the repair plan without making changes') },
         annotations: { destructiveHint: true },
     }, async (args) => {
         try {
@@ -231,22 +258,15 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
             return err(error instanceof Error ? error.message : String(error));
         }
     });
+}
 
-    server.registerTool('diff_component', {
-        title: 'Diff components',
-        description: 'Show how locally installed components differ from the registry version.',
-        inputSchema: { names: z.array(z.string()).min(1) },
-        annotations: { readOnlyHint: true },
-    }, async ({ names }) => {
-        const invalid = validateNames(names);
-        if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
-        const config = await getConfig(cwd);
-        if (!config) return err('Project not initialized — run init_project first.');
-        const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
-        const out: ComponentDiff[] = [];
-        for (const name of names as ComponentName[]) {
-            out.push(await diffComponentFiles(name, targetDir, { branch: 'master' }, config.aliases.utils, getPrefix(config)));
-        }
-        return json(out);
-    });
+export function registerWriteTools(server: McpServer, cwd: string): void {
+    registerInitTool(server, cwd);
+    registerAddTool(server, cwd);
+    registerUpdateTool(server, cwd);
+    registerDiffTool(server, cwd);
+    registerDensityTool(server, cwd);
+    registerRadiusMotionLocaleTool(server, cwd);
+    registerThemeTool(server, cwd);
+    registerDoctorTool(server, cwd);
 }

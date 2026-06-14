@@ -20,6 +20,7 @@ import { DROPDOWN_MENU, DropdownMenuService } from '../dropdown-menu.component';
         [class]="classes()"
         [attr.data-slot]="'dropdown-content'"
         role="menu"
+        tabindex="-1"
         (keydown)="onKeydown($event)"
       >
         <ng-content />
@@ -59,12 +60,12 @@ export class DropdownMenuContentComponent {
         });
     }
 
-    focusFirstItem() {
+    focusFirstItem(): void {
         const item = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="menuitem"]:not([data-disabled])');
         item?.focus();
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         if (event.key === 'ArrowDown') {
             event.preventDefault();
             this.focusNextItem(event.target as HTMLElement);
@@ -81,12 +82,12 @@ export class DropdownMenuContentComponent {
             if (items.length === 0) return;
 
             const firstItem = items[0];
-            const lastItem = items.at(-1)!;
+            const lastItem = items.at(-1);
             const activeElement = this.document.activeElement as HTMLElement;
 
             if (event.shiftKey) {
                 if (activeElement === firstItem) {
-                    lastItem.focus();
+                    lastItem?.focus();
                 } else {
                     this.focusPrevItem(activeElement);
                 }
@@ -98,14 +99,14 @@ export class DropdownMenuContentComponent {
         }
     }
 
-    focusNextItem(currentItem: HTMLElement) {
+    focusNextItem(currentItem: HTMLElement): void {
         const items = this.getFocusableItems();
         const index = items.indexOf(currentItem);
         const nextIndex = (index + 1) % items.length;
         items[nextIndex]?.focus();
     }
 
-    focusPrevItem(currentItem: HTMLElement) {
+    focusPrevItem(currentItem: HTMLElement): void {
         const items = this.getFocusableItems();
         const index = items.indexOf(currentItem);
         const prevIndex = (index - 1 + items.length) % items.length;

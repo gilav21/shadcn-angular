@@ -39,7 +39,6 @@ import type {
     SortableDropRejectedEvent,
     SortableForeignHoverEvent,
     SortableLandEffectFn,
-    SortableLocation,
     SortableOrientation,
     SortablePositionClassFn,
     SortableReorderEvent,
@@ -47,13 +46,13 @@ import type {
 } from './sortable.types';
 
 export { SortableItemComponent };
+export type { SortableLocation } from './sortable.types';
 export type {
     SortableAccepts,
     SortableContext,
     SortableDropRejectedEvent,
     SortableForeignHoverEvent,
     SortableLandEffectFn,
-    SortableLocation,
     SortableOrientation,
     SortablePositionClassFn,
     SortableReorderEvent,
@@ -86,7 +85,6 @@ export const SORTABLE_LAND_EFFECTS = {
  * The `string & {}` intersection keeps the literal-union autocomplete
  * intact while still accepting arbitrary strings.
  */
-// eslint-disable-next-line @typescript-eslint/ban-types
 export type SortableLandEffect =
     | (typeof SORTABLE_LAND_EFFECTS)[keyof typeof SORTABLE_LAND_EFFECTS]
     | (string & {});
@@ -99,8 +97,8 @@ export type SortableLandEffect =
 export class SortableItemTemplateDirective {
     static ngTemplateContextGuard<T>(
         _dir: SortableItemTemplateDirective,
-        ctx: unknown,
-    ): ctx is SortableContext<T> {
+        _ctx: unknown,
+    ): _ctx is SortableContext<T> {
         return true;
     }
 }
@@ -434,7 +432,7 @@ export class SortableComponent<T> {
 
     /** Stable proxy that adapts this component to the `SortableRegistryEntry` contract. */
     private buildRegistryEntry(): SortableRegistryEntry {
-        const self = this;
+        const self = this as SortableComponent<T>;
         return {
             get listId(): string { return self.resolvedListId(); },
             get group(): string { return self.group(); },
@@ -547,6 +545,7 @@ export class SortableComponent<T> {
     }
 
     /** Evaluate the accepts predicate for a foreign item drop. Disabled lists always reject. */
+    // eslint-disable-next-line sonarjs/function-return-type -- AcceptResult is intentionally `boolean | { ok; reason }`; the bare boolean is the documented shorthand.
     evaluateAccepts(item: T, ctx: ForeignDropContext): AcceptResult {
         if (this.disabled()) return { ok: false, reason: 'disabled' };
         const acceptsInput = this.accepts();
@@ -578,12 +577,13 @@ export class SortableComponent<T> {
         setTimeout(() => {
             const el = this.collectItemElements()[toIndex];
             if (!el) return;
-            const builtIn = BUILT_IN_LAND_EFFECTS[cls];
-            if (builtIn !== undefined) {
-                playBuiltInLandEffect(el, builtIn);
-            } else {
+            const builtIn: BuiltInLandEffect | undefined = BUILT_IN_LAND_EFFECTS[cls];
+            // eslint-disable-next-line sonarjs/different-types-comparison -- Record index returns undefined for absent keys at runtime
+            if (builtIn === undefined) {
                 el.classList.add(cls);
                 setTimeout(() => el.classList.remove(cls), SortableComponent.LAND_EFFECT_MS);
+            } else {
+                playBuiltInLandEffect(el, builtIn);
             }
         }, 0);
     }

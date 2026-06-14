@@ -1,3 +1,6 @@
+/* eslint-disable sonarjs/no-angular-bypass-sanitization -- only bypasses for
+   trusted content produced internally: blob: URLs from URL.createObjectURL and
+   HTML from our own DOCX/PDF/PPTX parsers, never raw user-supplied strings. */
 import {
     Component,
     ChangeDetectionStrategy,
@@ -6,6 +9,7 @@ import {
     computed,
     signal,
     effect,
+    inject,
     OnDestroy,
     ContentChild,
     AfterContentInit,
@@ -36,9 +40,11 @@ export interface FileViewerErrorEvent {
     readonly message: string;
 }
 
+// eslint-disable-next-line @angular-eslint/directive-selector -- element-selector projection slot; follows the ui- element convention
 @Directive({ selector: 'ui-file-viewer-toolbar' })
 export class FileViewerToolbarDirective {}
 
+// eslint-disable-next-line @angular-eslint/directive-selector -- element-selector projection slot; follows the ui- element convention
 @Directive({ selector: 'ui-file-viewer-content' })
 export class FileViewerContentDirective {}
 
@@ -72,7 +78,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     readonly filename = input('');
 
     readonly loaded = output<FileViewerLoadedEvent>();
-    readonly error = output<FileViewerErrorEvent>();
+    readonly loadError = output<FileViewerErrorEvent>();
     readonly pageChange = output<number>();
     readonly zoomChange = output<number>();
 
@@ -104,7 +110,6 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     private readonly pptxSlides = signal<ReadonlyArray<{ html: string; width: number; height: number }>>([]);
 
     private readonly blobUrls: string[] = [];
-    private readonly sanitizer: DomSanitizer;
 
     readonly displayFilename = computed(() => {
         if (this.filename()) return this.filename();
@@ -194,11 +199,10 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         this.class()
     ));
 
-    private readonly el: ElementRef<HTMLElement>;
+    private readonly sanitizer = inject(DomSanitizer);
+    private readonly el = inject(ElementRef<HTMLElement>);
 
-    constructor(sanitizer: DomSanitizer, el: ElementRef<HTMLElement>) {
-        this.sanitizer = sanitizer;
-        this.el = el;
+    constructor() {
 
         effect(() => {
             this.currentZoom.set(this.zoom());
@@ -1427,39 +1431,38 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         return this.buildPatternCssForPreset(preset, fg, bg);
     }
 
+    private resolvePatternGradient(preset: string): { angle: number; width: number } | null {
+        const thin: Record<string, number> = {
+            horz: 0, ltHorz: 0, narHorz: 0,
+            vert: 90, ltVert: 90, narVert: 90,
+            dnDiag: 45, ltDnDiag: 45,
+            upDiag: 135, ltUpDiag: 135,
+        };
+        const thick: Record<string, number> = {
+            dkHorz: 0,
+            dkVert: 90,
+            dkDnDiag: 45,
+            dkUpDiag: 135,
+        };
+        if (preset in thin) return { angle: thin[preset], width: 1 };
+        if (preset in thick) return { angle: thick[preset], width: 2 };
+        return null;
+    }
+
     private buildPatternCssForPreset(preset: string, fg: string, bg: string): string {
-        switch (preset) {
-            case 'horz':
-            case 'ltHorz':
-            case 'narHorz':
-                return `background-color:${bg};background-image:repeating-linear-gradient(0deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
-            case 'dkHorz':
-                return `background-color:${bg};background-image:repeating-linear-gradient(0deg,${fg},${fg} 2px,transparent 2px,transparent 6px)`;
-            case 'vert':
-            case 'ltVert':
-            case 'narVert':
-                return `background-color:${bg};background-image:repeating-linear-gradient(90deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
-            case 'dkVert':
-                return `background-color:${bg};background-image:repeating-linear-gradient(90deg,${fg},${fg} 2px,transparent 2px,transparent 6px)`;
-            case 'dnDiag':
-            case 'ltDnDiag':
-                return `background-color:${bg};background-image:repeating-linear-gradient(45deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
-            case 'upDiag':
-            case 'ltUpDiag':
-                return `background-color:${bg};background-image:repeating-linear-gradient(135deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
-            case 'dkDnDiag':
-                return `background-color:${bg};background-image:repeating-linear-gradient(45deg,${fg},${fg} 2px,transparent 2px,transparent 6px)`;
-            case 'dkUpDiag':
-                return `background-color:${bg};background-image:repeating-linear-gradient(135deg,${fg},${fg} 2px,transparent 2px,transparent 6px)`;
-            case 'cross':
-            case 'smGrid':
-            case 'lgGrid':
-                return `background-color:${bg};background-image:repeating-linear-gradient(0deg,${fg},${fg} 1px,transparent 1px,transparent 8px),repeating-linear-gradient(90deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
-            case 'diagCross':
-                return `background-color:${bg};background-image:repeating-linear-gradient(45deg,${fg},${fg} 1px,transparent 1px,transparent 8px),repeating-linear-gradient(135deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
-            default:
-                return `background-color:${bg};background-image:repeating-linear-gradient(45deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
+        const single = this.resolvePatternGradient(preset);
+        if (single) {
+            const { angle, width } = single;
+            const gap = width === 1 ? 8 : 6;
+            return `background-color:${bg};background-image:repeating-linear-gradient(${angle}deg,${fg},${fg} ${width}px,transparent ${width}px,transparent ${gap}px)`;
         }
+        if (preset === 'cross' || preset === 'smGrid' || preset === 'lgGrid') {
+            return `background-color:${bg};background-image:repeating-linear-gradient(0deg,${fg},${fg} 1px,transparent 1px,transparent 8px),repeating-linear-gradient(90deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
+        }
+        if (preset === 'diagCross') {
+            return `background-color:${bg};background-image:repeating-linear-gradient(45deg,${fg},${fg} 1px,transparent 1px,transparent 8px),repeating-linear-gradient(135deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
+        }
+        return `background-color:${bg};background-image:repeating-linear-gradient(45deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
     }
 
     private buildEffectsCss(effects: PptxEffects, context: 'text' | 'shape'): string[] {
@@ -1575,7 +1578,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     private handleError(message: string): void {
         this.state.set('error');
         this.errorMessage.set(message);
-        this.error.emit({ type: this.detectedType(), message });
+        this.loadError.emit({ type: this.detectedType(), message });
     }
 
     private escapeHtml(str: string): string {

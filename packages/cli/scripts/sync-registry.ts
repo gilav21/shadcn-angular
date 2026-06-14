@@ -44,7 +44,7 @@ function parseRegistry(): RegistryEntry[] {
     const source = readFileSync(REGISTRY_PATH, 'utf-8');
     const entries: RegistryEntry[] = [];
 
-    const blockRegex = /['"]?([\w-]+)['"]?\s*:\s*\{[^}]*?name:\s*['"]([^'"]+)['"][^}]*?files:\s*\[([\s\S]*?)\]/g;
+    const blockRegex = /['"]?([\w-]{1,256})['"]?\s{0,4096}:\s{0,4096}\{[^}]{0,100000}name:\s{0,4096}['"]([^'"]{1,256})['"][^}]{0,100000}files:\s{0,4096}\[([^\]]{0,100000})\]/g;
     let match: RegExpExecArray | null;
 
     while ((match = blockRegex.exec(source)) !== null) {
@@ -52,8 +52,9 @@ function parseRegistry(): RegistryEntry[] {
         const filesRaw = match[3];
         const files = [...filesRaw.matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]);
 
-        const blockEnd = source.indexOf('},', match.index + match[0].length);
-        const fullBlock = source.slice(match.index, blockEnd === -1 ? undefined : blockEnd);
+        const matchStart = match.index ?? 0;
+        const blockEnd = source.indexOf('},', matchStart + match[0].length);
+        const fullBlock = blockEnd === -1 ? source.slice(matchStart) : source.slice(matchStart, blockEnd);
         const libFilesMatch = /libFiles:\s*\[([\s\S]*?)\]/.exec(fullBlock);
         const libFiles = libFilesMatch
             ? [...libFilesMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
@@ -293,7 +294,7 @@ function removeDependencies(source: string, name: string): string {
     const blockSlice = source.slice(namePos, blockEnd);
 
     // Match leading comma + whitespace + dependencies: [...] but NOT trailing comma
-    const depsRegex = /,?\s*dependencies:\s*\[[\s\S]*?\]/;
+    const depsRegex = /,?\s{0,4096}dependencies:\s{0,4096}\[[^\]]{0,100000}\]/;
     const depsMatch = depsRegex.exec(blockSlice);
     if (!depsMatch) return source;
 
@@ -351,8 +352,10 @@ function validateRegistryFiles(updates: ComponentUpdate[]): string[] {
     const libDir = path.join(COMPONENTS_ROOT, 'lib');
     const problems: string[] = [];
     for (const update of updates) {
-        problems.push(...findMissingFiles('files', update.name, update.files, uiDir));
-        problems.push(...findMissingFiles('libFiles', update.name, update.libFiles, libDir));
+        problems.push(
+            ...findMissingFiles('files', update.name, update.files, uiDir),
+            ...findMissingFiles('libFiles', update.name, update.libFiles, libDir),
+        );
     }
     return problems;
 }
@@ -365,8 +368,10 @@ function validateBlockFiles(blocks: ComponentUpdate[]): string[] {
     const libDir = path.join(COMPONENTS_ROOT, 'lib');
     const problems: string[] = [];
     for (const block of blocks) {
-        problems.push(...findMissingFiles('block file', block.name, block.files, BLOCKS_ROOT));
-        problems.push(...findMissingFiles('libFiles', block.name, block.libFiles, libDir));
+        problems.push(
+            ...findMissingFiles('block file', block.name, block.files, BLOCKS_ROOT),
+            ...findMissingFiles('libFiles', block.name, block.libFiles, libDir),
+        );
     }
     return problems;
 }
@@ -386,6 +391,33 @@ function detectOrphanBlockFolders(blocks: RegistryEntry[]): string[] {
         .map(entry => entry.name);
 }
 
+interface AnalysisResult {
+    updates: ComponentUpdate[];
+    blockUpdates: ComponentUpdate[];
+    deepImports: DeepImport[];
+    hasChanges: boolean;
+}
+
+function analyzeAllEntries(entries: RegistryEntry[], blockEntries: RegistryEntry[], ctx: BoundaryContext): AnalysisResult {
+    let hasChanges = false;
+    const updates: ComponentUpdate[] = [];
+    const blockUpdates: ComponentUpdate[] = [];
+    const deepImports: DeepImport[] = [];
+    for (const entry of entries) {
+        const result = analyzeComponent(entry, ctx);
+        if (result.changed) hasChanges = true;
+        updates.push(result.update);
+        deepImports.push(...result.deepImports);
+    }
+    for (const entry of blockEntries) {
+        const result = analyzeBlock(entry, ctx);
+        if (result.changed) hasChanges = true;
+        blockUpdates.push(result.update);
+        deepImports.push(...result.deepImports);
+    }
+    return { updates, blockUpdates, deepImports, hasChanges };
+}
+
 function main(): void {
     const fix = process.argv.includes('--fix');
     const allEntries = parseRegistry();
@@ -394,46 +426,19 @@ function main(): void {
 
     const orphanBlocks = detectOrphanBlockFolders(blockEntries);
     if (orphanBlocks.length > 0) {
-        console.log(
-            `Orphan block folder(s) with no registry entry: ${orphanBlocks.join(', ')}. ` +
+        console.log(`Orphan block folder(s) with no registry entry: ${orphanBlocks.join(', ')}. ` +
             `Add a type:'block' entry (name, files, dependencies, category, description, tags) ` +
-            `in packages/cli/src/registry/index.ts before publishing.`,
-        );
+            `in packages/cli/src/registry/index.ts before publishing.`);
     }
 
     const entryFileToComponent = buildBoundaryMap(entries);
-    const ctx: BoundaryContext = {
-        entryFileToComponent,
-        dirOwners: buildDirOwners(entryFileToComponent),
-    };
-
+    const ctx: BoundaryContext = { entryFileToComponent, dirOwners: buildDirOwners(entryFileToComponent) };
     console.log(`Scanning ${entries.length} components and ${blockEntries.length} blocks...\n`);
 
-    let hasChanges = false;
-    const updates: ComponentUpdate[] = [];
-    const blockUpdates: ComponentUpdate[] = [];
-    const deepImports: DeepImport[] = [];
-
-    for (const entry of entries) {
-        const result = analyzeComponent(entry, ctx);
-        if (result.changed) hasChanges = true;
-        updates.push(result.update);
-        deepImports.push(...result.deepImports);
-    }
-
-    for (const entry of blockEntries) {
-        const result = analyzeBlock(entry, ctx);
-        if (result.changed) hasChanges = true;
-        blockUpdates.push(result.update);
-        deepImports.push(...result.deepImports);
-    }
-
+    const { updates, blockUpdates, deepImports, hasChanges } = analyzeAllEntries(entries, blockEntries, ctx);
     if (!fix) reportDeepImports(deepImports);
 
-    const missingFiles = [
-        ...validateRegistryFiles(updates),
-        ...validateBlockFiles(blockUpdates),
-    ];
+    const missingFiles = [...validateRegistryFiles(updates), ...validateBlockFiles(blockUpdates)];
     if (missingFiles.length > 0) {
         console.error('\nRegistry references files that do not exist on disk:');
         for (const problem of missingFiles) console.error(problem);
@@ -442,13 +447,9 @@ function main(): void {
         return;
     }
 
-    if (!hasChanges) {
-        console.log('All components and blocks are in sync.');
-        return;
-    }
+    if (!hasChanges) { console.log('All components and blocks are in sync.'); return; }
 
     console.log('');
-
     if (fix) {
         applyUpdates([...updates, ...blockUpdates]);
     } else {

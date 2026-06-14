@@ -106,6 +106,32 @@ function collectDensityOverrides(css: string): Record<string, string> {
     return overrides;
 }
 
+async function readCss(cssFile: string): Promise<string> {
+    if (await fs.pathExists(cssFile)) {
+        return fs.readFile(cssFile, 'utf-8');
+    }
+    return '';
+}
+
+function buildTokens(css: string, configuredTheme: string | undefined): StatusReport['tokens'] {
+    const density = readRootVar(css, '--density');
+    const radius = readRootVar(css, '--radius');
+    const motion = readRootVar(css, '--motion');
+    const primary = readRootVar(css, '--primary');
+    const foreground = readRootVar(css, '--foreground');
+    const motionLevel = levelForMultiplier(MOTION_MULTIPLIERS, motion);
+    return {
+        density: {
+            value: density,
+            level: levelForMultiplier(DENSITY_MULTIPLIERS, density),
+            overrides: collectDensityOverrides(css),
+        },
+        radius: { value: radius, named: namedRadius(radius) },
+        motion: { value: motion, label: motionLevel === null ? null : MOTION_LABELS[motionLevel] },
+        theme: { name: detectTheme(primary, foreground, configuredTheme), primary },
+    };
+}
+
 /**
  * Core status logic — no chalk/ora. Read-only: collects design tokens from the
  * project's CSS, component health from the doctor report, and config basics.
@@ -118,37 +144,14 @@ export async function statusCore(cwd: string, options: AddOptions): Promise<Stat
     const opts: AddOptions = { ...options, registry: options.registry ?? config.registry };
 
     const cssPath = await resolveTokenCssPath(resolveProjectPath(cwd, aliasToProjectPath(config.tailwind.css)));
-    let css = '';
-    if (await fs.pathExists(cssPath)) {
-        css = await fs.readFile(cssPath, 'utf-8');
-    }
-
-    const density = readRootVar(css, '--density');
-    const radius = readRootVar(css, '--radius');
-    const motion = readRootVar(css, '--motion');
-    const primary = readRootVar(css, '--primary');
-    const foreground = readRootVar(css, '--foreground');
-
-    const motionLevel = levelForMultiplier(MOTION_MULTIPLIERS, motion);
+    const css = await readCss(cssPath);
 
     const report = await collectDoctorReport(cwd, config, opts);
     const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
     const installed = await installedComponents(targetDir);
 
     return {
-        tokens: {
-            density: {
-                value: density,
-                level: levelForMultiplier(DENSITY_MULTIPLIERS, density),
-                overrides: collectDensityOverrides(css),
-            },
-            radius: { value: radius, named: namedRadius(radius) },
-            motion: { value: motion, label: motionLevel === null ? null : MOTION_LABELS[motionLevel] },
-            theme: {
-                name: detectTheme(primary, foreground, config.tailwind.theme),
-                primary,
-            },
-        },
+        tokens: buildTokens(css, config.tailwind.theme),
         components: {
             installed: installed.length,
             missingFiles: report.missingFiles,
@@ -176,7 +179,8 @@ function tokenLine(label: string, value: string | null, extra?: string | null): 
 
 function listLine(label: string, items: string[], colorFn: (s: string) => string): void {
     if (items.length === 0) return;
-    console.log(`  ${colorFn(label)} ${chalk.gray(`(${items.length})`)}: ${items.join(', ')}`);
+    const count = chalk.gray(`(${items.length})`);
+    console.log(`  ${colorFn(label)} ${count}: ${items.join(', ')}`);
 }
 
 function printTokens(tokens: StatusReport['tokens']): void {

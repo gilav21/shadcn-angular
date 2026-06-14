@@ -209,11 +209,12 @@ export class TreeViewDemoComponent {
   });
 
   onTreeContextMenu(action: string, node: unknown): void {
-    const label = (node as Record<string, unknown>)?.['label'] ?? 'Unknown';
+    const rawLabel = (node as Record<string, unknown>)?.['label'];
+    const label = typeof rawLabel === 'string' ? rawLabel : 'Unknown';
     const locale = this.t();
     this.toastService.toast({
       title: locale.toastTitle,
-      description: locale.toastDescription.replace('{action}', action).replace('{label}', String(label)),
+      description: locale.toastDescription.replace('{action}', action).replace('{label}', label),
       variant: 'default',
     });
   }

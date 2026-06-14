@@ -5,11 +5,11 @@ import {
   output,
   computed,
   signal,
-  inject,
   InjectionToken,
   forwardRef,
   TemplateRef,
   Type,
+  OnInit,
 } from '@angular/core';
 import { NgTemplateOutlet, NgComponentOutlet } from '@angular/common';
 import { cn } from '../../lib/utils';
@@ -73,7 +73,7 @@ let tabsIdCounter = 0;
   `,
   host: { '[class]': '"contents"' },
 })
-export class TabsComponent {
+export class TabsComponent implements OnInit {
   defaultValue = input<string>('');
   class = input('');
   tabs = input<TabConfig[]>([]);
@@ -84,7 +84,7 @@ export class TabsComponent {
 
   classes = computed(() => cn('w-full', this.class()));
 
-  triggerClasses(value: string) {
+  triggerClasses(value: string): string {
     return cn(
       'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
       this.activeTab() === value
@@ -101,7 +101,7 @@ export class TabsComponent {
     return content instanceof TemplateRef;
   }
 
-  ngOnInit() {
+  ngOnInit(): void {
     if (this.defaultValue()) {
       this.activeTab.set(this.defaultValue());
     } else if (this.tabs().length > 0) {
@@ -109,7 +109,7 @@ export class TabsComponent {
     }
   }
 
-  selectTab(value: string) {
+  selectTab(value: string): void {
     this.activeTab.set(value);
     this.tabChange.emit(value);
   }

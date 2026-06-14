@@ -40,7 +40,7 @@ export class WobbleCardComponent {
         transform: `perspective(${this.perspective()}px) rotateX(${this.rotateX()}deg) rotateY(${this.rotateY()}deg)`,
     }));
 
-    onMouseMove(event: MouseEvent) {
+    onMouseMove(event: MouseEvent): void {
         if (prefersReducedMotion()) return;
 
         const el = this.el.nativeElement as HTMLElement;
@@ -56,7 +56,7 @@ export class WobbleCardComponent {
         this.rotateY.set(((x - centerX) / centerX) * intensity);
     }
 
-    onMouseLeave() {
+    onMouseLeave(): void {
         this.rotateX.set(0);
         this.rotateY.set(0);
     }

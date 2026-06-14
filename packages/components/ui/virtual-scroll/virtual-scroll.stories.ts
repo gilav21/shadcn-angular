@@ -38,7 +38,7 @@ export const Default: Story = {
         template: `
             <div class="h-[400px] w-[500px] border rounded-lg">
                 <ui-virtual-scroll [items]="items" [minItemHeight]="60" [buffer]="5">
-                    <ng-template virtualItem let-item let-index="index">
+                    <ng-template uiVirtualItem let-item let-index="index">
                         <div class="flex items-center gap-3 px-4 py-3 border-b hover:bg-muted/50 transition-colors">
                             <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
                                 {{ index + 1 }}
@@ -63,7 +63,7 @@ export const WithLoading: Story = {
         template: `
             <div class="h-[400px] w-[500px] border rounded-lg">
                 <ui-virtual-scroll [items]="items" [minItemHeight]="50" [loading]="true" [hasMore]="true">
-                    <ng-template virtualItem let-item let-index="index">
+                    <ng-template uiVirtualItem let-item let-index="index">
                         <div class="flex items-center gap-3 px-4 py-3 border-b">
                             <span class="text-sm font-medium">{{ item.title }}</span>
                         </div>
@@ -82,7 +82,7 @@ export const SmallBuffer: Story = {
         template: `
             <div class="h-[300px] w-[400px] border rounded-lg">
                 <ui-virtual-scroll [items]="items" [minItemHeight]="40" [buffer]="2">
-                    <ng-template virtualItem let-item let-index="index">
+                    <ng-template uiVirtualItem let-item let-index="index">
                         <div class="px-4 py-2 border-b text-sm">
                             {{ item.title }} - {{ item.description }}
                         </div>

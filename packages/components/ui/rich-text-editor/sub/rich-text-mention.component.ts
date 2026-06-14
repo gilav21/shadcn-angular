@@ -122,14 +122,14 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
 
   itemSelect = output<MentionItem | TagItem>();
 
-  close = output<void>();
+  closed = output<void>();
 
   selectedIndex = signal<number>(0);
 
-  private readonly clickListener = (event: MouseEvent) => {
+  private readonly clickListener = (event: MouseEvent): void => {
     const target = event.target as HTMLElement;
     if (!target.closest('ui-rich-text-mention-popover')) {
-      this.close.emit();
+      this.closed.emit();
     }
   };
 
@@ -140,7 +140,7 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
     )
   );
 
-  itemClasses(index: number) {
+  itemClasses(index: number): string {
     return cn(
       'w-full flex items-start rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
       'hover:bg-accent hover:text-accent-foreground',
@@ -178,7 +178,7 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
     if (items.length === 0) {
       if (event.key === 'Escape' || event.key === 'Tab') {
         event.preventDefault();
-        this.close.emit();
+        this.closed.emit();
       }
       return;
     }
@@ -204,7 +204,7 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
       case 'Escape':
       case 'Tab':
         event.preventDefault();
-        this.close.emit();
+        this.closed.emit();
         break;
     }
   }
@@ -220,10 +220,10 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
   }
 
   asMention(item: MentionItem | TagItem): MentionItem {
-    return item as MentionItem;
+    return item;
   }
 
   asTag(item: MentionItem | TagItem): TagItem {
-    return item as TagItem;
+    return item;
   }
 }

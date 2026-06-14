@@ -316,11 +316,11 @@ export class AppComponent {
     });
   }
 
-  onKeydown(e: KeyboardEvent) {
+  onKeydown(e: KeyboardEvent): void {
     this.shortcutBindings.dispatch(e);
   }
 
-  toggleTheme(checked: boolean) {
+  toggleTheme(checked: boolean): void {
     this.isDark.set(checked);
     if (checked) {
       document.documentElement.classList.add('dark');
@@ -329,7 +329,7 @@ export class AppComponent {
     }
   }
 
-  toggleDirection(checked: boolean) {
+  toggleDirection(checked: boolean): void {
     this.isRtl.set(checked);
     document.documentElement.dir = checked ? 'rtl' : 'ltr';
   }
@@ -339,18 +339,18 @@ export class AppComponent {
    * via `UI_LOCALE_ID`) and auto-flip `dir` to `rtl` when the chosen
    * locale is RTL, so Tailwind's `rtl:*` modifiers track the language.
    */
-  setAppLocale(code: string) {
+  setAppLocale(code: string): void {
     this.appLocale.set(code);
     const rtl = CALENDAR_LOCALES[code]?.rtl === true;
     this.toggleDirection(rtl);
   }
 
-  navTo(id: string) {
+  navTo(id: string): void {
     this.showCommandDialog.set(false);
     this.router.navigate([id === 'introduction' ? '/' : `/${id}`]);
   }
 
-  getLinksByCategory(category: string) {
+  getLinksByCategory(category: string): ComponentNavItem[] {
     return this.linksByCategory().get(category) ?? [];
   }
 }

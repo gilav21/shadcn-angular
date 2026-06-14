@@ -31,11 +31,11 @@ export class TooltipComponent {
     side = input<'top' | 'right' | 'bottom' | 'left'>('top');
     delayDuration = input(200);
 
-    show() {
+    show(): void {
         this.open.set(true);
     }
 
-    hide() {
+    hide(): void {
         this.open.set(false);
     }
 }

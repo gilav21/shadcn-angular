@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
+import { CalendarComponent, DateRange } from './calendar.component';
 import { ButtonComponent } from '../button';
 import {
     SelectComponent,
@@ -44,12 +44,267 @@ describe('CalendarComponent', () => {
         expect(dayButtons.length).toBeGreaterThanOrEqual(30);
     });
 
+    describe('Navigation', () => {
+        it('navigates to the previous month', () => {
+            fixture.componentRef.setInput('selected', new Date(2023, 5, 15));
+            fixture.detectChanges();
+            expect(component.currentMonth()).toBe(5);
+
+            component.previousMonth();
+            fixture.detectChanges();
+            expect(component.currentMonth()).toBe(4);
+            expect(component.currentYear()).toBe(2023);
+        });
+
+        it('navigates to the next month and wraps the year', () => {
+            fixture.componentRef.setInput('selected', new Date(2023, 11, 1));
+            fixture.detectChanges();
+            expect(component.currentMonth()).toBe(11);
+
+            component.nextMonth();
+            fixture.detectChanges();
+            expect(component.currentMonth()).toBe(0);
+            expect(component.currentYear()).toBe(2024);
+        });
+
+        it('previous button click navigates back', () => {
+            fixture.componentRef.setInput('selected', new Date(2023, 5, 15));
+            fixture.detectChanges();
+            const prevBtn = fixture.debugElement.queryAll(By.css('ui-button'))[0];
+            prevBtn.nativeElement.click();
+            fixture.detectChanges();
+            expect(component.currentMonth()).toBe(4);
+        });
+
+        it('onMonthChange updates the viewed month', () => {
+            fixture.componentRef.setInput('selected', new Date(2023, 5, 15));
+            fixture.detectChanges();
+            component.onMonthChange('2');
+            fixture.detectChanges();
+            expect(component.currentMonth()).toBe(2);
+            expect(component.currentYear()).toBe(2023);
+        });
+
+        it('onYearChange updates the viewed year', () => {
+            fixture.componentRef.setInput('selected', new Date(2023, 5, 15));
+            fixture.detectChanges();
+            component.onYearChange('2019');
+            fixture.detectChanges();
+            expect(component.currentYear()).toBe(2019);
+            expect(component.currentMonth()).toBe(5);
+        });
+    });
+
+    describe('orderedDayNames with weekStartsOn', () => {
+        it('reorders day names when week starts on Monday', () => {
+            fixture.componentRef.setInput('weekStartsOn', 1);
+            fixture.detectChanges();
+            const names = component.orderedDayNames();
+            expect(names).toEqual(['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']);
+        });
+
+        it('keeps default order when week starts on Sunday', () => {
+            fixture.componentRef.setInput('weekStartsOn', 0);
+            fixture.detectChanges();
+            expect(component.orderedDayNames()).toEqual(['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']);
+        });
+    });
+
+    describe('parseDate via ISO string selection', () => {
+        it('treats an ISO yyyy-mm-dd string as a local selected day', () => {
+            fixture.componentRef.setInput('mode', 'single');
+            fixture.componentRef.setInput('selected', '2023-03-04');
+            fixture.detectChanges();
+            // viewDate effect should have moved to March 2023
+            expect(component.currentMonth()).toBe(2);
+            expect(component.currentYear()).toBe(2023);
+            expect(component.isSelected(new Date(2023, 2, 4))).toBe(true);
+            expect(component.isSelected(new Date(2023, 2, 5))).toBe(false);
+        });
+    });
+
+    describe('multi mode', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput('mode', 'multi');
+            fixture.componentRef.setInput('selected', []);
+            fixture.detectChanges();
+        });
+
+        it('adds a day to the selection', () => {
+            const day = new Date(component.currentYear(), component.currentMonth(), 12);
+            component.selectDay(day);
+            fixture.detectChanges();
+            const sel = component.selected() as Date[];
+            expect(sel.length).toBe(1);
+            expect(sel[0].getDate()).toBe(12);
+            expect(component.isSelected(day)).toBe(true);
+        });
+
+        it('toggles a day off when selected twice', () => {
+            const day = new Date(component.currentYear(), component.currentMonth(), 12);
+            component.selectDay(day);
+            fixture.detectChanges();
+            component.selectDay(new Date(component.currentYear(), component.currentMonth(), 12));
+            fixture.detectChanges();
+            const sel = component.selected() as Date[];
+            expect(sel.length).toBe(0);
+        });
+
+        it('keeps multiple distinct days', () => {
+            component.selectDay(new Date(component.currentYear(), component.currentMonth(), 5));
+            component.selectDay(new Date(component.currentYear(), component.currentMonth(), 9));
+            fixture.detectChanges();
+            const sel = component.selected() as Date[];
+            expect(sel.map(d => d.getDate()).sort((a, b) => a - b)).toEqual([5, 9]);
+        });
+    });
+
+    describe('range helpers', () => {
+        it('isInRange returns true for a day between start and end', () => {
+            fixture.componentRef.setInput('mode', 'range');
+            fixture.componentRef.setInput('selected', {
+                start: new Date(2023, 0, 10),
+                end: new Date(2023, 0, 20),
+            });
+            fixture.detectChanges();
+            expect(component.isInRange(new Date(2023, 0, 15))).toBe(true);
+            expect(component.isInRange(new Date(2023, 0, 5))).toBe(false);
+            expect(component.isRangeStart(new Date(2023, 0, 10))).toBe(true);
+            expect(component.isRangeEnd(new Date(2023, 0, 20))).toBe(true);
+        });
+
+        it('reverses start/end when selecting an earlier end day', () => {
+            fixture.componentRef.setInput('mode', 'range');
+            fixture.componentRef.setInput('selected', { start: new Date(2023, 0, 15), end: null });
+            fixture.detectChanges();
+            component.selectDay(new Date(2023, 0, 10));
+            fixture.detectChanges();
+            const range = component.selected() as DateRange;
+            expect(range.start?.getDate()).toBe(10);
+            expect(range.end?.getDate()).toBe(15);
+        });
+
+        it('restarts the range when both endpoints already set', () => {
+            fixture.componentRef.setInput('mode', 'range');
+            fixture.componentRef.setInput('selected', {
+                start: new Date(2023, 0, 10),
+                end: new Date(2023, 0, 20),
+            });
+            fixture.detectChanges();
+            component.selectDay(new Date(2023, 0, 25));
+            fixture.detectChanges();
+            const range = component.selected() as DateRange;
+            expect(range.start?.getDate()).toBe(25);
+            expect(range.end).toBeNull();
+        });
+    });
+
+    describe('single-day time preservation', () => {
+        it('preserves the previously selected time when picking a new day', () => {
+            fixture.componentRef.setInput('mode', 'single');
+            fixture.componentRef.setInput('selected', new Date(2023, 0, 5, 14, 30));
+            fixture.detectChanges();
+            component.selectDay(new Date(2023, 0, 20));
+            fixture.detectChanges();
+            const val = component.selected() as Date;
+            expect(val.getDate()).toBe(20);
+            expect(val.getHours()).toBe(14);
+            expect(val.getMinutes()).toBe(30);
+        });
+    });
+
+    describe('updateTime without prior selection', () => {
+        it('applies time onto the viewed date when nothing is selected', () => {
+            fixture.componentRef.setInput('showTimeSelect', true);
+            fixture.detectChanges();
+            const input = fixture.debugElement.query(By.css('input[type="time"]')).nativeElement as HTMLInputElement;
+            input.value = '08:45';
+            input.dispatchEvent(new Event('change'));
+            fixture.detectChanges();
+            const val = component.selected() as Date;
+            expect(val.getHours()).toBe(8);
+            expect(val.getMinutes()).toBe(45);
+        });
+
+        it('ignores an empty time value', () => {
+            fixture.componentRef.setInput('showTimeSelect', true);
+            fixture.detectChanges();
+            const spy = vi.spyOn(component.selected, 'set');
+            const input = fixture.debugElement.query(By.css('input[type="time"]')).nativeElement as HTMLInputElement;
+            input.value = '';
+            input.dispatchEvent(new Event('change'));
+            fixture.detectChanges();
+            expect(spy).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('time-range date selection applies times', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput('showTimeSelect', true);
+            fixture.componentRef.setInput('timeMode', 'range');
+            fixture.componentRef.setInput('selectedTimeRange', { start: '08:00', end: '16:00' });
+        });
+
+        it('applies start time on a single-mode pick', () => {
+            fixture.componentRef.setInput('mode', 'single');
+            fixture.detectChanges();
+            component.selectDay(new Date(2023, 0, 12));
+            fixture.detectChanges();
+            const val = component.selected() as Date;
+            expect(val.getHours()).toBe(8);
+            expect(val.getMinutes()).toBe(0);
+        });
+
+        it('applies start time on a multi-mode pick', () => {
+            fixture.componentRef.setInput('mode', 'multi');
+            fixture.componentRef.setInput('selected', []);
+            fixture.detectChanges();
+            component.selectDay(new Date(2023, 0, 12));
+            fixture.detectChanges();
+            const arr = component.selected() as Date[];
+            expect(arr[0].getHours()).toBe(8);
+        });
+
+        it('applies start/end times across a reversed range pick', () => {
+            fixture.componentRef.setInput('mode', 'range');
+            fixture.componentRef.setInput('selected', { start: new Date(2023, 0, 15), end: null });
+            fixture.detectChanges();
+            component.selectDay(new Date(2023, 0, 10));
+            fixture.detectChanges();
+            const range = component.selected() as DateRange;
+            expect(range.start?.getDate()).toBe(10);
+            expect(range.start?.getHours()).toBe(8);
+            expect(range.end?.getDate()).toBe(15);
+            expect(range.end?.getHours()).toBe(16);
+        });
+    });
+
+    describe('updateEndTime in range mode', () => {
+        it('updates the end date time of the range', () => {
+            fixture.componentRef.setInput('mode', 'range');
+            fixture.componentRef.setInput('showTimeSelect', true);
+            fixture.componentRef.setInput('timeMode', 'range');
+            fixture.componentRef.setInput('selected', {
+                start: new Date(2023, 0, 10, 9, 0),
+                end: new Date(2023, 0, 15, 17, 0),
+            });
+            fixture.detectChanges();
+            const endInput = fixture.debugElement.query(By.css('input#end-time')).nativeElement as HTMLInputElement;
+            endInput.value = '18:45';
+            endInput.dispatchEvent(new Event('change'));
+            fixture.detectChanges();
+            const range = component.selected() as DateRange;
+            expect(range.end?.getHours()).toBe(18);
+            expect(range.end?.getMinutes()).toBe(45);
+        });
+    });
+
     describe('Modes', () => {
         it('should select single date', () => {
             fixture.componentRef.setInput('mode', 'single');
             fixture.detectChanges();
 
-            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const spy = vi.spyOn(component.selected, 'set');
             const buttons = fixture.debugElement.queryAll(By.css('ui-button'));
             const dayBtn = buttons.find(b => !b.componentInstance.disabled && b.nativeElement.textContent!.trim() === '15');
 
@@ -66,7 +321,7 @@ describe('CalendarComponent', () => {
             fixture.componentRef.setInput('mode', 'range');
             fixture.detectChanges();
 
-            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const spy = vi.spyOn(component.selected, 'set');
             const buttons = fixture.debugElement.queryAll(By.css('ui-button'));
 
             const startBtn = buttons.find(b => !b.componentInstance.disabled && b.nativeElement.textContent!.trim() === '10');
@@ -175,7 +430,7 @@ describe('CalendarComponent', () => {
 
             expect(inputEl.value).toBe('10:00');
 
-            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const spy = vi.spyOn(component.selected, 'set');
 
             inputEl.value = '12:30';
             inputEl.dispatchEvent(new Event('change'));
@@ -244,7 +499,7 @@ describe('CalendarComponent', () => {
             inputEl.dispatchEvent(new Event('change'));
             fixture.detectChanges();
 
-            const range = component.selectedTimeRange() as TimeRange;
+            const range = component.selectedTimeRange();
             expect(range.start).toBe('09:00');
         });
 
@@ -256,7 +511,7 @@ describe('CalendarComponent', () => {
             inputEl.dispatchEvent(new Event('change'));
             fixture.detectChanges();
 
-            const range = component.selectedTimeRange() as TimeRange;
+            const range = component.selectedTimeRange();
             expect(range.end).toBe('17:00');
         });
 
@@ -281,7 +536,7 @@ describe('CalendarComponent', () => {
             fixture.componentRef.setInput('selected', { start: startDate, end: endDate });
             fixture.detectChanges();
 
-            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const spy = vi.spyOn(component.selected, 'set');
 
             const startInput = fixture.debugElement.query(By.css('input#start-time'));
             const inputEl = startInput.nativeElement as HTMLInputElement;
@@ -301,7 +556,7 @@ describe('CalendarComponent', () => {
             fixture.componentRef.setInput('selectedTimeRange', { start: '09:00', end: '17:00' });
             fixture.detectChanges();
 
-            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const spy = vi.spyOn(component.selected, 'set');
             const buttons = fixture.debugElement.queryAll(By.css('ui-button'));
             const day10 = buttons.find(b => !b.componentInstance.disabled && b.nativeElement.textContent!.trim() === '10');
             const day15 = buttons.find(b => !b.componentInstance.disabled && b.nativeElement.textContent!.trim() === '15');

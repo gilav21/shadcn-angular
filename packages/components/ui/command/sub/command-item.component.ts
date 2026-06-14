@@ -45,7 +45,7 @@ export class CommandItemComponent implements OnInit, OnDestroy {
   value = input('');
   shortcut = input('');
 
-  select = output<string>();
+  selectItem = output<string>();
 
   readonly id = generateId();
   readonly cmdService = inject(CommandService);
@@ -63,7 +63,7 @@ export class CommandItemComponent implements OnInit, OnDestroy {
   }
 
   classes = computed(() => cn(
-    'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
+    'relative flex cursor-pointer select-none items-center rounded-sm text-sm outline-none',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:bg-accent focus:text-accent-foreground',
     'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
@@ -75,18 +75,18 @@ export class CommandItemComponent implements OnInit, OnDestroy {
     return this.cmdService.filteredItemIds().has(this.id);
   });
 
-  ngOnInit() {
+  ngOnInit(): void {
     const val = this.value();
     this.cmdService.register(this.id, val, this.group?.id, () => this.onClick());
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.cmdService.unregister(this.id);
   }
 
-  onClick() {
+  onClick(): void {
     if (!this.disabled()) {
-      this.select.emit(this.value());
+      this.selectItem.emit(this.value());
     }
   }
 }

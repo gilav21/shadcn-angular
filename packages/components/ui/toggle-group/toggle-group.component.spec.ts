@@ -103,7 +103,7 @@ describe('ToggleGroupComponent', () => {
 
         const item = fixture.debugElement.query(By.css('[data-slot="toggle-group-item"]'));
         expect(item.nativeElement.className).toContain('border'); // outline
-        expect(item.nativeElement.className).toContain('h-8'); // sm
+        expect(item.nativeElement.getAttribute('data-size')).toBe('sm'); // sm
     });
 });
 
@@ -189,7 +189,7 @@ describe('ToggleGroup Data-Driven Mode', () => {
 
         const item = fixture.debugElement.query(By.css('[data-slot="toggle-group-item"]'));
         expect(item.nativeElement.className).toContain('border');
-        expect(item.nativeElement.className).toContain('h-8');
+        expect(item.nativeElement.getAttribute('data-size')).toBe('sm');
     });
 
     it('should respect defaultValue in data-driven mode', () => {

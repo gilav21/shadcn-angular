@@ -32,7 +32,7 @@ export class ContextMenuTriggerComponent implements AfterViewInit, OnDestroy {
 
     private cleanupLongPress: (() => void) | null = null;
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         this.cleanupLongPress = onLongPress(this.triggerSpan.nativeElement, (event: TouchEvent) => {
             event.preventDefault();
             const touch = event.touches[0] ?? event.changedTouches[0];
@@ -42,11 +42,11 @@ export class ContextMenuTriggerComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.cleanupLongPress?.();
     }
 
-    onContextMenu(event: MouseEvent) {
+    onContextMenu(event: MouseEvent): void {
         event.preventDefault();
         this.contextMenu?.show(event.clientX, event.clientY);
     }

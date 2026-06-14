@@ -9,7 +9,14 @@ import { DRAWER } from '../drawer.component';
     selector: 'ui-drawer-close',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span (click)="onClick()" [attr.data-slot]="'drawer-close'">
+    <span
+      (click)="onClick()"
+      (keydown.enter)="onClick()"
+      (keydown.space)="onClick()"
+      [attr.data-slot]="'drawer-close'"
+      tabindex="0"
+      role="button"
+    >
       <ng-content />
     </span>
   `,
@@ -18,7 +25,7 @@ import { DRAWER } from '../drawer.component';
 export class DrawerCloseComponent {
     private readonly drawer = inject(DRAWER, { optional: true });
 
-    onClick() {
+    onClick(): void {
         this.drawer?.hide();
     }
 }

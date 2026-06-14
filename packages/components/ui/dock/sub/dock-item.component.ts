@@ -34,13 +34,13 @@ export class DockItemComponent {
         this.class()
     ));
 
-    startBounce() {
+    startBounce(): void {
         if (this.isBouncing()) return;
         this.isBouncing.set(true);
         setTimeout(() => this.isBouncing.set(false), 750);
     }
 
-    updateWidth(width: number) {
+    updateWidth(width: number): void {
         this._renderer.setStyle(this.el.nativeElement, 'width', `${width}px`);
     }
 

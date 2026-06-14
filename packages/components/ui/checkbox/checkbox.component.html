@@ -7,65 +7,51 @@
   } @else {
     <ui-skeleton class="h-4 w-4 rounded-sm" />
   }
-} @else if (label()) {
-  <div class="flex items-center gap-2">
-    <button
-      type="button"
-      role="checkbox"
-      [attr.aria-checked]="checked()"
-      [attr.data-state]="indeterminate() ? 'indeterminate' : (checked() ? 'checked' : 'unchecked')"
-      [class]="classes()"
-      [disabled]="isDisabled()"
-      [attr.id]="computedId()"
-      [attr.aria-labelledby]="computedId() + '-label'"
-      [attr.aria-describedby]="ariaDescribedby()"
-      [attr.aria-invalid]="ariaInvalid()"
-      [attr.data-slot]="'checkbox'"
-      (click)="toggle()"
-    >
-      @if (indeterminate()) {
-        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
-        </svg>
-      } @else if (checked()) {
-        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
-      }
-    </button>
-    <label
-      [id]="computedId() + '-label'"
-      [attr.for]="computedId()"
-      class="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-      (click)="toggle(); $event.preventDefault()"
-    >
-      {{ label() }}
-    </label>
-  </div>
 } @else {
-  <button
-    type="button"
-    role="checkbox"
-    [attr.aria-checked]="checked()"
-    [attr.data-state]="indeterminate() ? 'indeterminate' : (checked() ? 'checked' : 'unchecked')"
-    [class]="classes()"
-    [disabled]="isDisabled()"
-    [attr.id]="elementId()"
-    [attr.aria-label]="ariaLabel()"
-    [attr.aria-labelledby]="ariaLabelledby()"
-    [attr.aria-describedby]="ariaDescribedby()"
-    [attr.aria-invalid]="ariaInvalid()"
-    [attr.data-slot]="'checkbox'"
-    (click)="toggle()"
-  >
-    @if (indeterminate()) {
-      <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
-      </svg>
-    } @else if (checked()) {
-      <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-      </svg>
+  <div [class]="label() ? 'flex items-center gap-2' : 'contents'">
+    <span class="relative inline-flex shrink-0">
+      <input
+        type="checkbox"
+        class="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        [attr.id]="label() ? computedId() : elementId()"
+        [checked]="checked()"
+        [indeterminate]="indeterminate()"
+        [disabled]="isDisabled()"
+        [attr.aria-label]="label() ? null : ariaLabel()"
+        [attr.aria-labelledby]="label() ? computedId() + '-label' : ariaLabelledby()"
+        [attr.aria-describedby]="ariaDescribedby()"
+        [attr.aria-invalid]="ariaInvalid()"
+        (change)="onNativeChange($event)"
+        (blur)="markTouched()"
+      />
+      <span
+        [class]="classes()"
+        [attr.data-state]="dataState()"
+        [attr.data-slot]="'checkbox'"
+        aria-hidden="true"
+      >
+        @if (indeterminate()) {
+          <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+          </svg>
+        } @else if (checked()) {
+          <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        }
+      </span>
+    </span>
+    @if (label()) {
+      <label
+        [id]="computedId() + '-label'"
+        [attr.for]="computedId()"
+        class="text-sm font-medium leading-none"
+        [class.cursor-pointer]="!isDisabled()"
+        [class.cursor-not-allowed]="isDisabled()"
+        [class.opacity-70]="isDisabled()"
+      >
+        {{ label() }}
+      </label>
     }
-  </button>
+  </div>
 }

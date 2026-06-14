@@ -1,7 +1,9 @@
 :host {
     --_d: var(--density-avatar, var(--density, 1));
 }
-:host([data-slot="avatar"]) {
-    height: calc(2.5rem * var(--_d));
-    width: calc(2.5rem * var(--_d));
+@layer components {
+    :host([data-slot="avatar"]) {
+        height: calc(2.5rem * var(--_d));
+        width: calc(2.5rem * var(--_d));
+    }
 }

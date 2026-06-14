@@ -1,9 +1,9 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, applicationConfig, moduleMetadata } from '@storybook/angular';
 import { TreeSelectComponent } from './tree-select.component';
 import { TreeNode, TreeComponent } from '../tree';
-import { moduleMetadata } from '@storybook/angular';
 import { FormsModule } from '@angular/forms';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+// eslint-disable-next-line sonarjs/deprecation -- provideNoopAnimations is deprecated in Angular 20.2; no stable animate.enter/leave replacement yet for Storybook setup
+import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { PopoverTriggerComponent, PopoverContentComponent } from '../popover';
 
 const SAMPLE_NODES: TreeNode[] = [
@@ -48,11 +48,12 @@ const meta: Meta<TreeSelectComponent> = {
     component: TreeSelectComponent,
     tags: ['autodocs'],
     decorators: [
+        // eslint-disable-next-line sonarjs/deprecation -- provideNoopAnimations is deprecated in Angular 20.2; no stable replacement for Storybook providers yet
+        applicationConfig({ providers: [provideNoopAnimations()] }),
         moduleMetadata({
             imports: [
                 TreeSelectComponent,
                 FormsModule,
-                NoopAnimationsModule,
                 PopoverTriggerComponent,
                 PopoverContentComponent,
                 TreeComponent,

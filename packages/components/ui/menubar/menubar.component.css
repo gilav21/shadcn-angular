@@ -1,9 +1,10 @@
 :host {
     --_d: var(--density-menu, var(--density, 1));
 }
-
-[data-slot="menubar"] {
-    height: calc(2.5rem * var(--_d));
-    gap: calc(0.25rem * var(--_d));
-    padding: calc(0.25rem * var(--_d));
+@layer components {
+    [data-slot="menubar"] {
+        height: calc(2.5rem * var(--_d));
+        gap: calc(0.25rem * var(--_d));
+        padding: calc(0.25rem * var(--_d));
+    }
 }

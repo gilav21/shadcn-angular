@@ -101,7 +101,7 @@ async function runPlaywrightSpec(specFolder: string, flags: CliFlags): Promise<v
     // Playwright resolves test-file args against its `testDir`. Pass the
     // path relative to that root (`e2e/harness/`) so it actually matches.
     const relSpec = path.relative(path.join(REPO_ROOT, 'e2e/harness'), specFile)
-        .replace(/\\/g, '/');
+        .replaceAll('\\', '/');
 
     const args = ['playwright', 'test', relSpec, '--config', 'e2e/playwright.config.ts'];
     // --ui and --debug both open an interactive UI that blocks until the

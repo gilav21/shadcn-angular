@@ -176,10 +176,10 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
             <!-- Card Context Menu -->
             <ui-context-menu #cardMenu>
                 <ui-context-menu-content class="w-52">
-                    <ui-context-menu-item (click)="onEditCard(cardMenu.data())">
+                    <ui-context-menu-item (click)="onEditCard(asCard(cardMenu.data()))">
                         {{ resolvedLocale().editCardMenu }}
                     </ui-context-menu-item>
-                    <ui-context-menu-item (click)="onDuplicateCard(cardMenu.data())">
+                    <ui-context-menu-item (click)="onDuplicateCard(asCard(cardMenu.data()))">
                         {{ resolvedLocale().duplicateCard }}
                     </ui-context-menu-item>
                     <ui-context-menu-sub>
@@ -187,8 +187,8 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
                         <ui-context-menu-sub-content>
                             @for (col of sortedColumns(); track col.id) {
                                 <ui-context-menu-item
-                                    [disabled]="col.id === cardMenu.data()?.columnId"
-                                    (click)="onMoveCardToColumn(cardMenu.data(), col.id)">
+                                    [disabled]="col.id === asCard(cardMenu.data())?.columnId"
+                                    (click)="onMoveCardToColumn(asCard(cardMenu.data()), col.id)">
                                     {{ col.title }}
                                 </ui-context-menu-item>
                             }
@@ -198,14 +198,14 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
                         <ui-context-menu-sub-trigger>{{ resolvedLocale().setPriority }}</ui-context-menu-sub-trigger>
                         <ui-context-menu-sub-content>
                             @for (p of localizedPriorityOptions(); track p.value) {
-                                <ui-context-menu-item (click)="onSetCardPriority(cardMenu.data(), p.value)">
+                                <ui-context-menu-item (click)="onSetCardPriority(asCard(cardMenu.data()), p.value)">
                                     {{ p.label }}
                                 </ui-context-menu-item>
                             }
                         </ui-context-menu-sub-content>
                     </ui-context-menu-sub>
                     <ui-context-menu-separator />
-                    <ui-context-menu-item variant="destructive" (click)="onDeleteCard(cardMenu.data())">
+                    <ui-context-menu-item variant="destructive" (click)="onDeleteCard(asCard(cardMenu.data()))">
                         {{ resolvedLocale().deleteCardMenu }}
                     </ui-context-menu-item>
                 </ui-context-menu-content>
@@ -214,29 +214,29 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
             <!-- Column Context Menu -->
             <ui-context-menu #columnMenu>
                 <ui-context-menu-content class="w-52">
-                    <ui-context-menu-item (click)="onAddCard(columnMenu.data()?.id)">
+                    <ui-context-menu-item (click)="onAddCard(asColumn(columnMenu.data())?.id)">
                         {{ resolvedLocale().addCardMenu }}
                     </ui-context-menu-item>
                     <ui-context-menu-separator />
-                    <ui-context-menu-item (click)="onRenameColumn(columnMenu.data())">
+                    <ui-context-menu-item (click)="onRenameColumn(asColumn(columnMenu.data()))">
                         {{ resolvedLocale().renameColumnMenu }}
                     </ui-context-menu-item>
-                    <ui-context-menu-item (click)="onSetWipLimit(columnMenu.data())">
+                    <ui-context-menu-item (click)="onSetWipLimit(asColumn(columnMenu.data()))">
                         {{ resolvedLocale().setWipLimitMenu }}
                     </ui-context-menu-item>
                     <ui-context-menu-separator />
                     <ui-context-menu-item
-                        [disabled]="isFirstColumn(columnMenu.data())"
-                        (click)="onMoveColumnLeft(columnMenu.data())">
+                        [disabled]="isFirstColumn(asColumn(columnMenu.data()))"
+                        (click)="onMoveColumnLeft(asColumn(columnMenu.data()))">
                         {{ resolvedLocale().moveLeft }}
                     </ui-context-menu-item>
                     <ui-context-menu-item
-                        [disabled]="isLastColumnCheck(columnMenu.data())"
-                        (click)="onMoveColumnRight(columnMenu.data())">
+                        [disabled]="isLastColumnCheck(asColumn(columnMenu.data()))"
+                        (click)="onMoveColumnRight(asColumn(columnMenu.data()))">
                         {{ resolvedLocale().moveRight }}
                     </ui-context-menu-item>
                     <ui-context-menu-separator />
-                    <ui-context-menu-item variant="destructive" (click)="onDeleteColumn(columnMenu.data())">
+                    <ui-context-menu-item variant="destructive" (click)="onDeleteColumn(asColumn(columnMenu.data()))">
                         {{ resolvedLocale().deleteColumnMenu }}
                     </ui-context-menu-item>
                 </ui-context-menu-content>
@@ -369,11 +369,11 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         });
     }
 
-    ngAfterContentInit() {
+    ngAfterContentInit(): void {
         this._hasCustomColumns.set(this.customColumnChildren.length > 0);
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.shortcutHandle?.unregister();
         this.cancelAllPendingDeletes();
     }
@@ -393,11 +393,12 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     private readonly filteredCards = computed(() => {
         const term = this.searchTerm().toLowerCase().trim();
         if (!term) return this.cards();
-        return this.cards().filter(card =>
-            card.title.toLowerCase().includes(term) ||
-            card.description?.toLowerCase().includes(term) ||
-            card.labels?.some(l => l.text.toLowerCase().includes(term))
-        );
+        return this.cards().filter(card => {
+            const matchesTitle = card.title.toLowerCase().includes(term);
+            const matchesDescription = card.description?.toLowerCase().includes(term) || false;
+            const matchesLabel = card.labels?.some(l => l.text.toLowerCase().includes(term)) ?? false;
+            return matchesTitle || matchesDescription || matchesLabel;
+        });
     });
 
     getCardsForColumn(columnId: string): KanbanCard[] {
@@ -408,17 +409,17 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     // ── Drag & Drop ──────────────────────────────────────────────
 
-    startDrag(cardId: string, columnId: string) {
+    startDrag(cardId: string, columnId: string): void {
         this.draggedCardId.set(cardId);
         this.dragSourceColumnId.set(columnId);
     }
 
-    endDrag() {
+    endDrag(): void {
         this.draggedCardId.set(null);
         this.dragSourceColumnId.set(null);
     }
 
-    moveCard(cardId: string, toColumnId: string, newOrder: number) {
+    moveCard(cardId: string, toColumnId: string, newOrder: number): void {
         const currentCards = this.cards();
         const card = currentCards.find(c => c.id === cardId);
         if (!card) return;
@@ -444,15 +445,15 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     // ── Context Menu ─────────────────────────────────────────────
 
-    showCardContextMenu(x: number, y: number, card: KanbanCard) {
+    showCardContextMenu(x: number, y: number, card: KanbanCard): void {
         this.cardMenuRef()?.show(x, y, card);
     }
 
-    showColumnContextMenu(x: number, y: number, column: KanbanColumn) {
+    showColumnContextMenu(x: number, y: number, column: KanbanColumn): void {
         this.columnMenuRef()?.show(x, y, column);
     }
 
-    onBoardContextMenu(event: MouseEvent) {
+    onBoardContextMenu(event: MouseEvent): void {
         const target = event.target as HTMLElement;
         if (target.closest('[data-slot="kanban-column"]')) return;
         event.preventDefault();
@@ -468,22 +469,32 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     isLastColumnCheck(column: KanbanColumn | undefined): boolean {
         if (!column) return true;
         const sorted = this.sortedColumns();
-        return sorted.length === 0 || sorted.at(-1)!.id === column.id;
+        return sorted.length === 0 || sorted.at(-1)?.id === column.id;
     }
 
     // ── Card Actions ─────────────────────────────────────────────
 
-    onAddCard(columnId?: string) {
+    onAddCard(columnId?: string): void {
         if (!columnId) return;
         this.cardDialogRef()?.open('add', columnId);
     }
 
-    onEditCard(card: KanbanCard | undefined) {
+    /** Narrows the context-menu's untyped `data()` to a card. */
+    protected asCard(data: unknown): KanbanCard | undefined {
+        return data as KanbanCard | undefined;
+    }
+
+    /** Narrows the context-menu's untyped `data()` to a column. */
+    protected asColumn(data: unknown): KanbanColumn | undefined {
+        return data as KanbanColumn | undefined;
+    }
+
+    onEditCard(card: KanbanCard | undefined): void {
         if (!card) return;
         this.cardDialogRef()?.open('edit', card.columnId, card);
     }
 
-    onDuplicateCard(card: KanbanCard | undefined) {
+    onDuplicateCard(card: KanbanCard | undefined): void {
         if (!card) return;
         this.captureSnapshot();
         this.cardAdded.emit({
@@ -496,7 +507,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         });
     }
 
-    onMoveCardToColumn(card: KanbanCard | undefined, targetColumnId: string) {
+    onMoveCardToColumn(card: KanbanCard | undefined, targetColumnId: string): void {
         if (!card || card.columnId === targetColumnId) return;
         this.captureSnapshot();
 
@@ -519,7 +530,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         });
     }
 
-    onSetCardPriority(card: KanbanCard | undefined, priority: KanbanCard['priority'] | 'none') {
+    onSetCardPriority(card: KanbanCard | undefined, priority: KanbanCard['priority'] | 'none'): void {
         if (!card) return;
         this.captureSnapshot();
         this.cardUpdated.emit({
@@ -528,7 +539,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         });
     }
 
-    onDeleteCard(card: KanbanCard | undefined) {
+    onDeleteCard(card: KanbanCard | undefined): void {
         if (!card) return;
         this.captureSnapshot();
 
@@ -560,7 +571,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.pendingDeletes.set(card.id, { card, timeoutId, countdownIntervalId });
     }
 
-    undoCardDelete() {
+    undoCardDelete(): void {
         const entry = Array.from(this.pendingDeletes.entries()).pop();
         if (!entry) return;
         const [cardId, pending] = entry;
@@ -577,7 +588,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.emitHistoryState();
     }
 
-    dismissDeleteToast() {
+    dismissDeleteToast(): void {
         this.deleteToastVisible.set(false);
         for (const [cardId, pending] of this.pendingDeletes.entries()) {
             clearTimeout(pending.timeoutId);
@@ -589,21 +600,21 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     // ── Column Actions ───────────────────────────────────────────
 
-    onAddColumn() {
+    onAddColumn(): void {
         this.columnDialogRef()?.openAddColumn();
     }
 
-    onRenameColumn(column: KanbanColumn | undefined) {
+    onRenameColumn(column: KanbanColumn | undefined): void {
         if (!column) return;
         this.columnDialogRef()?.openRenameColumn(column);
     }
 
-    onSetWipLimit(column: KanbanColumn | undefined) {
+    onSetWipLimit(column: KanbanColumn | undefined): void {
         if (!column) return;
         this.columnDialogRef()?.openSetWip(column);
     }
 
-    onMoveColumnLeft(column: KanbanColumn | undefined) {
+    onMoveColumnLeft(column: KanbanColumn | undefined): void {
         if (!column) return;
         const sorted = this.sortedColumns();
         const idx = sorted.findIndex(c => c.id === column.id);
@@ -619,7 +630,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.columnsChange.emit(updated);
     }
 
-    onMoveColumnRight(column: KanbanColumn | undefined) {
+    onMoveColumnRight(column: KanbanColumn | undefined): void {
         if (!column) return;
         const sorted = this.sortedColumns();
         const idx = sorted.findIndex(c => c.id === column.id);
@@ -635,7 +646,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.columnsChange.emit(updated);
     }
 
-    onDeleteColumn(column: KanbanColumn | undefined) {
+    onDeleteColumn(column: KanbanColumn | undefined): void {
         if (!column) return;
         const cardCount = this.cards().filter(c => c.columnId === column.id).length;
         this.deleteColumnDialogRef()?.open(column, cardCount);
@@ -648,7 +659,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         columnId: string;
         card?: KanbanCard;
         data: KanbanCardAddEvent;
-    }) {
+    }): void {
         this.captureSnapshot();
         if (event.mode === 'add') {
             this.cardAdded.emit(event.data);
@@ -669,18 +680,18 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         name?: string;
         wipLimit?: number;
         columnId?: string;
-    }) {
+    }): void {
         this.captureSnapshot();
         if (event.mode === 'add-column') {
             this.columnAdded.emit({
-                title: event.name!,
+                title: event.name ?? '',
                 wipLimit: event.wipLimit,
                 order: this.columns().length,
             });
         } else if (event.mode === 'rename-column' && event.columnId) {
             const existing = this.columns().find(c => c.id === event.columnId);
             if (existing) {
-                this.columnUpdated.emit({ ...existing, title: event.name! });
+                this.columnUpdated.emit({ ...existing, title: event.name ?? existing.title });
             }
         } else if (event.mode === 'set-wip' && event.columnId) {
             const existing = this.columns().find(c => c.id === event.columnId);
@@ -690,14 +701,14 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         }
     }
 
-    onDeleteColumnConfirmed(event: KanbanColumnDeleteEvent) {
+    onDeleteColumnConfirmed(event: KanbanColumnDeleteEvent): void {
         this.captureSnapshot();
         this.columnDeleted.emit(event);
     }
 
     // ── History System ───────────────────────────────────────────
 
-    private captureSnapshot() {
+    private captureSnapshot(): void {
         this.undoStack.push({
             cards: [...this.cards()],
             columns: [...this.columns()],
@@ -709,7 +720,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.emitHistoryState();
     }
 
-    undo() {
+    undo(): void {
         const snapshot = this.undoStack.pop();
         if (!snapshot) return;
 
@@ -725,7 +736,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.emitHistoryState();
     }
 
-    redo() {
+    redo(): void {
         const snapshot = this.redoStack.pop();
         if (!snapshot) return;
 
@@ -741,14 +752,14 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.emitHistoryState();
     }
 
-    private emitHistoryState() {
+    private emitHistoryState(): void {
         this.historyChange.emit({
             canUndo: this.undoStack.length > 0,
             canRedo: this.redoStack.length > 0,
         });
     }
 
-    private cancelAllPendingDeletes() {
+    private cancelAllPendingDeletes(): void {
         for (const [, pending] of this.pendingDeletes.entries()) {
             clearTimeout(pending.timeoutId);
             clearInterval(pending.countdownIntervalId);

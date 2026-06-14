@@ -306,14 +306,18 @@ function splitIntoParagraphs(rawText: string): ReadonlyArray<string> {
     return paragraphs;
 }
 
+function isRtlCodePoint(code: number): boolean {
+    return (code >= 0x0590 && code <= 0x05FF) || (code >= 0x0600 && code <= 0x06FF) ||
+        (code >= 0x0700 && code <= 0x074F) || (code >= 0xFB50 && code <= 0xFDFF) ||
+        (code >= 0xFE70 && code <= 0xFEFF);
+}
+
 function isRtlText(text: string): boolean {
     let rtlCount = 0;
     let ltrCount = 0;
     for (const char of text) {
         const code = char.codePointAt(0) ?? 0;
-        if ((code >= 0x0590 && code <= 0x05FF) || (code >= 0x0600 && code <= 0x06FF) ||
-            (code >= 0x0700 && code <= 0x074F) || (code >= 0xFB50 && code <= 0xFDFF) ||
-            (code >= 0xFE70 && code <= 0xFEFF)) {
+        if (isRtlCodePoint(code)) {
             rtlCount++;
         } else if (code >= 0x0041 && code <= 0x007A) {
             ltrCount++;

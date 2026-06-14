@@ -32,22 +32,23 @@ export class RichTextPasteNormalizerService {
      */
     normalize(html: string | null, text: string): string {
         const source = this.detectSource(html, text);
+        const safeHtml = html ?? '';
 
         switch (source) {
             case 'excel':
-                return this.normalizeExcel(html!);
+                return this.normalizeExcel(safeHtml);
             case 'msword':
             case 'outlook':
-                return this.normalizeOffice(html!, source);
+                return this.normalizeOffice(safeHtml, source);
             case 'google-docs':
-                return this.normalizeGoogleDocs(html!);
+                return this.normalizeGoogleDocs(safeHtml);
             case 'apple-pages':
             case 'libreoffice':
-                return this.normalizeGenericOffice(html!);
+                return this.normalizeGenericOffice(safeHtml);
             case 'markdown':
                 return this.markdownService.toHtml(text);
             case 'html':
-                return this.normalizeGenericHtml(html!);
+                return this.normalizeGenericHtml(safeHtml);
             case 'plain-text':
                 return this.normalizePlainText(text);
         }
@@ -137,7 +138,7 @@ export class RichTextPasteNormalizerService {
 
         if (/^#{1,6}\s+\S/m.test(text)) score += 2;
         if (/```[\s\S]*?```/.test(text)) score += 2;
-        if (/\[.+\]\(https?:\/\/.+\)/.test(text)) score += 2;
+        if (/\[[^\]]{1,4096}\]\(https?:\/\/[^)]{1,4096}\)/.test(text)) score += 2;
 
         if (/\*\*[^*]+\*\*/.test(text)) score += 1;
         if (/^[-*+]\s+/m.test(text)) score += 1;
@@ -160,9 +161,9 @@ export class RichTextPasteNormalizerService {
         cleaned = this.stripXmlProcessingInstructions(cleaned);
 
         const cssRules = this.extractCssRules(cleaned);
-        cleaned = this.stripStyleBlocks(cleaned);
 
         const container = this.parseToContainer(cleaned);
+        this.removeStyleElements(container);
 
         this.inlineCssRules(cssRules, container);
         this.removeNamespacedElements(container);
@@ -192,8 +193,12 @@ export class RichTextPasteNormalizerService {
         return html.replaceAll(/<xml[\s\S]*?<\/xml>/gi, '');
     }
 
-    private stripStyleBlocks(html: string): string {
-        return html.replaceAll(/<style[\s\S]*?<\/style>/gi, '');
+    /** Remove <style> blocks via the DOM (after their CSS was extracted) —
+     * complete and robust, unlike a regex strip. */
+    private removeStyleElements(container: HTMLElement): void {
+        for (const styleEl of Array.from(container.querySelectorAll('style'))) {
+            styleEl.remove();
+        }
     }
 
     private stripXmlProcessingInstructions(html: string): string {
@@ -233,7 +238,7 @@ export class RichTextPasteNormalizerService {
     ]);
 
     private parseCssBlock(cssText: string, rules: Map<string, Map<string, string>>): void {
-        const ruleRegex = /([^{}]+)\{([^}]+)\}/g;
+        const ruleRegex = /([^{}]{1,100000})\{([^}]{1,100000})\}/g;
         let ruleMatch;
 
         while ((ruleMatch = ruleRegex.exec(cssText)) !== null) {
@@ -275,25 +280,26 @@ export class RichTextPasteNormalizerService {
         }
     }
 
+    private applyMissingProps(props: Map<string, string>, target: HTMLElement): void {
+        const existingStyle = target.getAttribute('style') ?? '';
+        const existingProps = this.parseStyles(existingStyle);
+        for (const [prop, value] of props) {
+            if (!existingProps.has(prop)) {
+                existingProps.set(prop, value);
+            }
+        }
+        const serialized = this.serializeStyles(existingProps);
+        if (serialized) {
+            target.setAttribute('style', serialized);
+        }
+    }
+
     private inlineCssRules(rules: Map<string, Map<string, string>>, container: HTMLElement): void {
         for (const [selector, props] of rules) {
             try {
                 const elements = container.querySelectorAll(selector);
                 for (const el of Array.from(elements)) {
-                    const htmlEl = el as HTMLElement;
-                    const existingStyle = htmlEl.getAttribute('style') || '';
-                    const existingProps = this.parseStyles(existingStyle);
-
-                    for (const [prop, value] of props) {
-                        if (!existingProps.has(prop)) {
-                            existingProps.set(prop, value);
-                        }
-                    }
-
-                    const serialized = this.serializeStyles(existingProps);
-                    if (serialized) {
-                        htmlEl.setAttribute('style', serialized);
-                    }
+                    this.applyMissingProps(props, el as HTMLElement);
                 }
             } catch {
                 // Invalid CSS selector — skip
@@ -323,11 +329,11 @@ export class RichTextPasteNormalizerService {
     }
 
     private detectWordHeadingLevel(el: HTMLElement): number {
-        const className = el.getAttribute('class') || '';
+        const className = el.getAttribute('class') ?? '';
         const headingMatch = /MsoHeading(\d)/i.exec(className);
         if (headingMatch) return Number.parseInt(headingMatch[1], 10);
 
-        const style = el.getAttribute('style') || '';
+        const style = el.getAttribute('style') ?? '';
         const outlineMatch = /mso-outline-level\s*:\s*(\d)/i.exec(style);
         if (outlineMatch) return Number.parseInt(outlineMatch[1], 10);
 
@@ -361,8 +367,8 @@ export class RichTextPasteNormalizerService {
     private parseWordListItem(el: HTMLElement): { level: number; listId: string; isOrdered: boolean } | null {
         if (el.tagName !== 'P') return null;
 
-        const className = el.getAttribute('class') || '';
-        const style = el.getAttribute('style') || '';
+        const className = el.getAttribute('class') ?? '';
+        const style = el.getAttribute('style') ?? '';
 
         if (!/MsoListParagraph/i.test(className) && !/mso-list\s*:/i.test(style)) return null;
 
@@ -372,7 +378,7 @@ export class RichTextPasteNormalizerService {
         const listIdMatch = /mso-list\s*:\s*(\w+)/i.exec(style);
         const listId = listIdMatch ? listIdMatch[1] : 'default';
 
-        const textContent = el.textContent || '';
+        const textContent = el.textContent ?? '';
         const isOrdered = /^\s*\d+[.)]\s/.test(textContent) ||
             /^\s*[a-z][.)]\s/i.test(textContent) ||
             /^\s*[ivxlcdm]+[.)]\s/i.test(textContent);
@@ -417,7 +423,7 @@ export class RichTextPasteNormalizerService {
     private stripListBulletSpan(el: HTMLElement): void {
         const spans = el.querySelectorAll('span');
         for (const span of Array.from(spans)) {
-            const style = span.getAttribute('style') || '';
+            const style = span.getAttribute('style') ?? '';
             if (/mso-list\s*:\s*Ignore/i.test(style)) {
                 span.remove();
             }
@@ -425,8 +431,8 @@ export class RichTextPasteNormalizerService {
 
         const firstChild = el.firstChild;
         if (firstChild?.nodeType === Node.TEXT_NODE) {
-            const text = firstChild.textContent || '';
-            firstChild.textContent = text.replace(/^[\s\u00A0]*[\u00B7o\u00A7\u2022\u2023\u25E6\u2043\u2219]\s*/, '')
+            const text = firstChild.textContent ?? '';
+            firstChild.textContent = text.replace(/^[\s\u00A0]*[·o§•‣◦⁃∙]\s*/, '')
                 .replace(/^[\s\u00A0]*\d+[.)]\s*/, '')
                 .replace(/^[\s\u00A0]*[a-z][.)]\s*/i, '')
                 .replace(/^[\s\u00A0]*[ivxlcdm]+[.)]\s*/i, '');
@@ -441,31 +447,38 @@ export class RichTextPasteNormalizerService {
         const stack: { list: HTMLElement; level: number }[] = [{ list: root, level: 1 }];
 
         for (const item of items) {
-            while (stack.length > 1 && stack.at(-1)!.level >= item.level) {
+            while (stack.length > 1 && (stack.at(-1)?.level ?? 0) >= item.level) {
                 stack.pop();
             }
 
-            if (item.level > stack.at(-1)!.level) {
-                const currentList = stack.at(-1)!.list;
-                let lastLi = currentList.lastElementChild as HTMLElement | null;
-                if (!lastLi?.tagName || lastLi.tagName !== 'LI') {
-                    lastLi = this.document.createElement('li');
-                    currentList.appendChild(lastLi);
-                }
-
-                const nestedList = this.document.createElement(item.isOrdered ? 'ol' : 'ul');
-                lastLi.appendChild(nestedList);
-                stack.push({ list: nestedList, level: item.level });
-            }
+            this.ensureNestedListParent(stack, item);
 
             const li = this.document.createElement('li');
             while (item.el.firstChild) {
                 li.appendChild(item.el.firstChild);
             }
-            stack.at(-1)!.list.appendChild(li);
+            stack.at(-1)?.list.appendChild(li);
         }
 
         return root;
+    }
+
+    private ensureNestedListParent(
+        stack: { list: HTMLElement; level: number }[],
+        item: { el: HTMLElement; level: number; isOrdered: boolean }
+    ): void {
+        const top = stack.at(-1);
+        if (!top || item.level <= top.level) return;
+
+        let lastLi = top.list.lastElementChild as HTMLElement | null;
+        if (!lastLi?.tagName || lastLi.tagName !== 'LI') {
+            lastLi = this.document.createElement('li');
+            top.list.appendChild(lastLi);
+        }
+
+        const nestedList = this.document.createElement(item.isOrdered ? 'ol' : 'ul');
+        lastLi.appendChild(nestedList);
+        stack.push({ list: nestedList, level: item.level });
     }
 
     private isGhostTable(table: HTMLTableElement): boolean {
@@ -474,20 +487,28 @@ export class RichTextPasteNormalizerService {
         return Array.from(rows).every(row => row.querySelectorAll('td, th').length === 1);
     }
 
+    private extractGhostTableContent(table: HTMLTableElement): DocumentFragment {
+        const fragment = this.document.createDocumentFragment();
+        for (const row of Array.from(table.querySelectorAll('tr'))) {
+            const cell = row.querySelector('td, th');
+            if (cell) {
+                this.drainChildNodes(cell, fragment);
+            }
+        }
+        return fragment;
+    }
+
+    private drainChildNodes(source: Element, target: DocumentFragment | HTMLElement): void {
+        while (source.firstChild) {
+            target.appendChild(source.firstChild);
+        }
+    }
+
     private unwrapGhostTables(container: HTMLElement): void {
         const tables = Array.from(container.querySelectorAll('table'));
         for (const table of tables) {
             if (!this.isGhostTable(table)) continue;
-
-            const fragment = this.document.createDocumentFragment();
-            for (const row of Array.from(table.querySelectorAll('tr'))) {
-                const cell = row.querySelector('td, th');
-                if (cell) {
-                    while (cell.firstChild) {
-                        fragment.appendChild(cell.firstChild);
-                    }
-                }
-            }
+            const fragment = this.extractGhostTableContent(table);
             table.parentNode?.replaceChild(fragment, table);
         }
     }
@@ -538,18 +559,7 @@ export class RichTextPasteNormalizerService {
                 if (prop.startsWith('mso-')) {
                     this.mapMsoProperty(prop, value, mapped, el);
                 } else if (!prop.startsWith('-')) {
-                    if (prop === 'font-family') {
-                        continue;
-                    } else if (prop === 'background' && this.isSimpleColorValue(value)) {
-                        if (!mapped.has('background-color')) {
-                            mapped.set('background-color', value);
-                        }
-                    } else if ((prop === 'color' || prop === 'background-color') && this.isSystemColorValue(value)) {
-                        const resolved = this.mapSystemColor(value);
-                        if (resolved) mapped.set(prop, resolved);
-                    } else {
-                        mapped.set(prop, value);
-                    }
+                    this.mapStandardProperty(prop, value, mapped);
                 }
             }
 
@@ -562,6 +572,59 @@ export class RichTextPasteNormalizerService {
         });
     }
 
+    private mapMsoFontProperty(prop: string, value: string, mapped: Map<string, string>): void {
+        switch (prop) {
+            case 'mso-ansi-font-size':
+            case 'mso-bidi-font-size':
+                if (!mapped.has('font-size')) mapped.set('font-size', value);
+                break;
+            case 'mso-bidi-font-weight':
+                if (value === 'bold') mapped.set('font-weight', 'bold');
+                break;
+            case 'mso-bidi-font-style':
+                if (value === 'italic') mapped.set('font-style', 'italic');
+                break;
+            case 'mso-text-underline':
+                if (value !== 'none') mapped.set('text-decoration', 'underline');
+                break;
+            case 'mso-ansi-font-weight':
+                if (!mapped.has('font-weight')) mapped.set('font-weight', value);
+                break;
+            case 'mso-font-kerning':
+                if (!mapped.has('letter-spacing') && value !== '0pt') mapped.set('letter-spacing', value);
+                break;
+        }
+    }
+
+    private mapMsoColorProperty(prop: string, value: string, mapped: Map<string, string>): void {
+        switch (prop) {
+            case 'mso-highlight':
+                if (value !== 'auto') mapped.set('background-color', value);
+                break;
+            case 'mso-style-textfill-fill-color':
+            case 'mso-color-alt':
+                if (!mapped.has('color')) mapped.set('color', value);
+                break;
+        }
+    }
+
+    private mapMsoLayoutProperty(prop: string, value: string, mapped: Map<string, string>): void {
+        switch (prop) {
+            case 'mso-line-height-alt':
+                if (!mapped.has('line-height')) mapped.set('line-height', value);
+                break;
+            case 'mso-text-raise':
+                if (!mapped.has('vertical-align') && value !== '0') mapped.set('vertical-align', value);
+                break;
+            case 'mso-border-alt':
+                if (!mapped.has('border')) mapped.set('border', value.replaceAll(/\s{0,4096}windowtext\s{0,4096}/gi, ' #000000 ').trim());
+                break;
+            case 'mso-padding-alt':
+                if (!mapped.has('padding')) mapped.set('padding', value);
+                break;
+        }
+    }
+
     private mapMsoProperty(
         prop: string,
         value: string,
@@ -569,77 +632,29 @@ export class RichTextPasteNormalizerService {
         _el: HTMLElement
     ): void {
         if (!value) return;
+        this.mapMsoFontProperty(prop, value, mapped);
+        this.mapMsoColorProperty(prop, value, mapped);
+        this.mapMsoLayoutProperty(prop, value, mapped);
+    }
 
-        switch (prop) {
-            case 'mso-highlight':
-                if (value !== 'auto') {
-                    mapped.set('background-color', value);
-                }
-                break;
-            case 'mso-ansi-font-size':
-            case 'mso-bidi-font-size':
-                if (!mapped.has('font-size')) {
-                    mapped.set('font-size', value);
-                }
-                break;
-            case 'mso-bidi-font-weight':
-                if (value === 'bold') {
-                    mapped.set('font-weight', 'bold');
-                }
-                break;
-            case 'mso-bidi-font-style':
-                if (value === 'italic') {
-                    mapped.set('font-style', 'italic');
-                }
-                break;
-            case 'mso-text-underline':
-                if (value !== 'none') {
-                    mapped.set('text-decoration', 'underline');
-                }
-                break;
-            case 'mso-style-textfill-fill-color':
-            case 'mso-color-alt':
-                if (!mapped.has('color')) {
-                    mapped.set('color', value);
-                }
-                break;
-            case 'mso-ansi-font-weight':
-                if (!mapped.has('font-weight')) {
-                    mapped.set('font-weight', value);
-                }
-                break;
-            case 'mso-font-kerning':
-                if (!mapped.has('letter-spacing') && value !== '0pt') {
-                    mapped.set('letter-spacing', value);
-                }
-                break;
-            case 'mso-line-height-alt':
-                if (!mapped.has('line-height')) {
-                    mapped.set('line-height', value);
-                }
-                break;
-            case 'mso-text-raise':
-                if (!mapped.has('vertical-align') && value !== '0') {
-                    mapped.set('vertical-align', value);
-                }
-                break;
-            case 'mso-border-alt':
-                if (!mapped.has('border')) {
-                    mapped.set('border', value.replaceAll(/\s*windowtext\s*/gi, ' #000000 ').trim());
-                }
-                break;
-            case 'mso-padding-alt':
-                if (!mapped.has('padding')) {
-                    mapped.set('padding', value);
-                }
-                break;
+    private mapStandardProperty(prop: string, value: string, mapped: Map<string, string>): void {
+        if (prop === 'font-family') return;
+        if (prop === 'background' && this.isSimpleColorValue(value)) {
+            if (!mapped.has('background-color')) mapped.set('background-color', value);
+            return;
         }
+        if ((prop === 'color' || prop === 'background-color') && this.isSystemColorValue(value)) {
+            const resolved = this.mapSystemColor(value);
+            if (resolved) mapped.set(prop, resolved);
+            return;
+        }
+        mapped.set(prop, value);
     }
 
     private normalizeOutlookSpecific(container: HTMLElement): void {
         const wordSections = container.querySelectorAll('.WordSection1, [class*="WordSection"]');
         for (const section of Array.from(wordSections)) {
-            this.unwrapElement(section as HTMLElement);
+            this.unwrapElement(section);
         }
 
         this.walkElements(container, el => {
@@ -671,13 +686,13 @@ export class RichTextPasteNormalizerService {
     private removeGoogleDocsWrapper(container: HTMLElement): void {
         const wrappers = container.querySelectorAll('[id^="docs-internal-guid-"]');
         for (const wrapper of Array.from(wrappers)) {
-            this.unwrapElement(wrapper as HTMLElement);
+            this.unwrapElement(wrapper);
         }
 
         this.walkElements(container, el => {
             if (el.tagName === 'B') {
-                const style = el.getAttribute('style') || '';
-                const id = el.getAttribute('id') || '';
+                const style = el.getAttribute('style') ?? '';
+                const id = el.getAttribute('id') ?? '';
                 if (id.startsWith('docs-internal-guid-') ||
                     /font-weight\s*:\s*normal/i.test(style)) {
                     this.unwrapElement(el);
@@ -736,7 +751,7 @@ export class RichTextPasteNormalizerService {
             list.removeAttribute('style');
             const items = list.querySelectorAll('li');
             for (const item of Array.from(items)) {
-                const style = item.getAttribute('style') || '';
+                const style = item.getAttribute('style') ?? '';
                 const cleaned = this.parseStyles(style);
                 cleaned.delete('margin-left');
                 cleaned.delete('padding-left');
@@ -846,11 +861,37 @@ export class RichTextPasteNormalizerService {
     // GENERIC HTML NORMALIZER
     // =========================================================================
 
+    private applyExcelColumnWidths(table: HTMLTableElement): void {
+        const cols = table.querySelectorAll('col');
+        const colWidths: string[] = [];
+        cols.forEach(col => {
+            const width = col.getAttribute('width') ?? col.style.width;
+            colWidths.push(width || '');
+        });
+
+        table.querySelectorAll('colgroup').forEach(cg => cg.remove());
+
+        if (!colWidths.some(w => !!w)) return;
+
+        const rows = table.querySelectorAll('tr');
+        for (const row of Array.from(rows)) {
+            const cells = row.querySelectorAll('td, th');
+            cells.forEach((cell, i) => {
+                if (colWidths[i]) {
+                    const existingWidth = (cell as HTMLElement).style.width;
+                    if (!existingWidth) {
+                        (cell as HTMLElement).style.width = colWidths[i].includes('px') ? colWidths[i] : colWidths[i] + 'px';
+                    }
+                }
+            });
+        }
+    }
+
     private normalizeExcel(html: string): string {
         const container = this.parseToContainer(html);
 
         const googleSheetsOrigin = container.querySelectorAll('google-sheets-html-origin');
-        googleSheetsOrigin.forEach(el => this.unwrapElement(el as HTMLElement));
+        googleSheetsOrigin.forEach(el => this.unwrapElement(el));
 
         this.walkElements(container, el => {
             if (el.tagName && (el.tagName.startsWith('X:') || el.tagName.toLowerCase().startsWith('x:') ||
@@ -868,29 +909,7 @@ export class RichTextPasteNormalizerService {
 
         const tables = container.querySelectorAll('table');
         for (const table of Array.from(tables)) {
-            const cols = table.querySelectorAll('col');
-            const colWidths: string[] = [];
-            cols.forEach(col => {
-                const width = col.getAttribute('width') || col.style.width;
-                colWidths.push(width || '');
-            });
-
-            table.querySelectorAll('colgroup').forEach(cg => cg.remove());
-
-            if (colWidths.some(w => !!w)) {
-                const rows = table.querySelectorAll('tr');
-                for (const row of Array.from(rows)) {
-                    const cells = row.querySelectorAll('td, th');
-                    cells.forEach((cell, i) => {
-                        if (colWidths[i]) {
-                            const existingWidth = (cell as HTMLElement).style.width;
-                            if (!existingWidth) {
-                                (cell as HTMLElement).style.width = colWidths[i].includes('px') ? colWidths[i] : colWidths[i] + 'px';
-                            }
-                        }
-                    });
-                }
-            }
+            this.applyExcelColumnWidths(table);
         }
 
         this.walkElements(container, el => {
@@ -1017,76 +1036,71 @@ export class RichTextPasteNormalizerService {
         return false;
     }
 
+    private flushPdfListBuffer(listBuffer: { text: string; ordered: boolean }[], htmlParts: string[]): void {
+        if (listBuffer.length === 0) return;
+        const isOrdered = listBuffer[0].ordered;
+        const tag = isOrdered ? 'ol' : 'ul';
+        htmlParts.push(`<${tag}>`);
+        for (const item of listBuffer) {
+            const escaped = this.escapeHtml(item.text);
+            const linked = this.autoLinkUrls(escaped);
+            htmlParts.push(`<li>${linked}</li>`);
+        }
+        htmlParts.push(`</${tag}>`);
+    }
+
+    private getPdfColumnWidth(lines: string[]): number {
+        const lengths = lines.map(l => l.trim().length).filter(len => len > 0).sort((a, b) => a - b);
+        return lengths.length > 3 ? lengths[Math.floor(lengths.length * 0.75)] : 80;
+    }
+
+    private processPdfLine(
+        trimmed: string, filtered: string[], i: number,
+        listBuffer: { text: string; ordered: boolean }[],
+        htmlParts: string[], columnWidth: number
+    ): { nextI: number; listBuffer: { text: string; ordered: boolean }[] } {
+        if (this.isPdfHeading(trimmed, filtered, i)) {
+            this.flushPdfListBuffer(listBuffer, htmlParts);
+            htmlParts.push(`<h2>${this.escapeHtml(trimmed)}</h2>`);
+            return { nextI: i + 1, listBuffer: [] };
+        }
+        if (this.isPdfListItem(trimmed)) {
+            const strippedText = this.stripPdfListMarker(trimmed);
+            const ordered = this.isPdfOrderedListItem(trimmed);
+            if (listBuffer.length > 0 && listBuffer[0].ordered !== ordered) {
+                this.flushPdfListBuffer(listBuffer, htmlParts);
+                listBuffer = [];
+            }
+            listBuffer.push({ text: strippedText, ordered });
+            return { nextI: i + 1, listBuffer };
+        }
+        this.flushPdfListBuffer(listBuffer, htmlParts);
+        const mergeResult = this.mergePdfParagraph(filtered, i, trimmed, columnWidth);
+        const linked = this.autoLinkUrls(this.escapeHtml(mergeResult.paragraph));
+        htmlParts.push(`<p>${linked}</p>`);
+        return { nextI: mergeResult.nextIndex, listBuffer: [] };
+    }
+
     private structurePdfTextToHtml(text: string): string {
-        const lines = text.split('\n');
-        const filtered = lines.filter(line => {
+        const filtered = text.split('\n').filter(line => {
             const trimmed = line.trim();
-            if (/^\d+$/.test(trimmed) && trimmed.length <= 4) return false;
-            return true;
+            return !(/^\d+$/.test(trimmed) && trimmed.length <= 4);
         });
 
-        const nonEmptyLengths = filtered
-            .map(l => l.trim().length)
-            .filter(len => len > 0)
-            .sort((a, b) => a - b);
-        const columnWidth = nonEmptyLengths.length > 3
-            ? nonEmptyLengths[Math.floor(nonEmptyLengths.length * 0.75)]
-            : 80;
-
+        const columnWidth = this.getPdfColumnWidth(filtered);
         const htmlParts: string[] = [];
         let listBuffer: { text: string; ordered: boolean }[] = [];
         let i = 0;
 
-        const flushListBuffer = (): void => {
-            if (listBuffer.length === 0) return;
-            const isOrdered = listBuffer[0].ordered;
-            const tag = isOrdered ? 'ol' : 'ul';
-            htmlParts.push(`<${tag}>`);
-            for (const item of listBuffer) {
-                const escaped = this.escapeHtml(item.text);
-                const linked = this.autoLinkUrls(escaped);
-                htmlParts.push(`<li>${linked}</li>`);
-            }
-            htmlParts.push(`</${tag}>`);
-            listBuffer = [];
-        };
-
         while (i < filtered.length) {
             const trimmed = filtered[i].trim();
-
-            if (trimmed === '') {
-                i++;
-                continue;
-            }
-
-            if (this.isPdfHeading(trimmed, filtered, i)) {
-                flushListBuffer();
-                const escaped = this.escapeHtml(trimmed);
-                htmlParts.push(`<h2>${escaped}</h2>`);
-                i++;
-                continue;
-            }
-
-            if (this.isPdfListItem(trimmed)) {
-                const strippedText = this.stripPdfListMarker(trimmed);
-                const ordered = this.isPdfOrderedListItem(trimmed);
-                if (listBuffer.length > 0 && listBuffer[0].ordered !== ordered) {
-                    flushListBuffer();
-                }
-                listBuffer.push({ text: strippedText, ordered });
-                i++;
-                continue;
-            }
-
-            flushListBuffer();
-            const mergeResult = this.mergePdfParagraph(filtered, i, trimmed, columnWidth);
-            i = mergeResult.nextIndex;
-            const escaped = this.escapeHtml(mergeResult.paragraph);
-            const linked = this.autoLinkUrls(escaped);
-            htmlParts.push(`<p>${linked}</p>`);
+            if (trimmed === '') { i++; continue; }
+            const result = this.processPdfLine(trimmed, filtered, i, listBuffer, htmlParts, columnWidth);
+            i = result.nextI;
+            listBuffer = result.listBuffer;
         }
 
-        flushListBuffer();
+        this.flushPdfListBuffer(listBuffer, htmlParts);
         return htmlParts.join('');
     }
 
@@ -1254,7 +1268,7 @@ export class RichTextPasteNormalizerService {
     private isEffectivelyEmpty(el: HTMLElement): boolean {
         if (el.tagName === 'BR' || el.tagName === 'HR' || el.tagName === 'IMG') return false;
 
-        const text = el.textContent || '';
+        const text = el.textContent ?? '';
         const trimmed = text.replaceAll(/[\s\u00A0]/g, '');
         if (trimmed.length > 0) return false;
 
@@ -1286,7 +1300,7 @@ export class RichTextPasteNormalizerService {
         this.walkElements(container, el => {
             if (el.tagName === 'PRE' || el.tagName === 'CODE') return;
 
-            const style = el.getAttribute('style') || '';
+            const style = el.getAttribute('style') ?? '';
             if (/mso-spacerun\s*:\s*yes/i.test(style)) {
                 spacerunElements.add(el);
                 const styles = this.parseStyles(style);
@@ -1307,59 +1321,64 @@ export class RichTextPasteNormalizerService {
             if (parent && (parent.tagName === 'PRE' || parent.tagName === 'CODE')) continue;
             if (parent && spacerunElements.has(parent)) continue;
 
-            const text = node.textContent || '';
+            const text = node.textContent ?? '';
             if (/\u00A0{2,}/.test(text)) {
                 node.textContent = text.replaceAll(/\u00A0{2,}/g, ' ');
             }
         }
     }
 
+    private readonly SEMANTIC_TAGS = new Set(['STRONG', 'EM', 'U', 'DEL', 'S', 'B', 'I']);
+
+    private applySemanticStyleToElement(el: HTMLElement): void {
+        if (this.SEMANTIC_TAGS.has(el.tagName)) return;
+        const style = el.getAttribute('style');
+        if (!style) return;
+
+        const styles = this.parseStyles(style);
+        let current: HTMLElement = el;
+
+        current = this.wrapForFontWeight(current, styles);
+        current = this.wrapForFontStyle(current, styles);
+        this.wrapForTextDecoration(current, styles);
+
+        const serialized = this.serializeStyles(styles);
+        if (serialized) {
+            el.setAttribute('style', serialized);
+        } else {
+            el.removeAttribute('style');
+        }
+    }
+
+    private wrapForFontWeight(el: HTMLElement, styles: Map<string, string>): HTMLElement {
+        const fontWeight = styles.get('font-weight');
+        if (fontWeight === 'bold' || (fontWeight && Number.parseInt(fontWeight, 10) >= 700)) {
+            styles.delete('font-weight');
+            return this.wrapChildrenIn(el, 'strong');
+        }
+        return el;
+    }
+
+    private wrapForFontStyle(el: HTMLElement, styles: Map<string, string>): HTMLElement {
+        if (styles.get('font-style') === 'italic') {
+            styles.delete('font-style');
+            return this.wrapChildrenIn(el, 'em');
+        }
+        return el;
+    }
+
+    private wrapForTextDecoration(current: HTMLElement, styles: Map<string, string>): void {
+        const textDecoration = styles.get('text-decoration');
+        if (!textDecoration) return;
+        const hasUnderline = textDecoration.includes('underline');
+        const hasLineThrough = textDecoration.includes('line-through');
+        if (hasUnderline || hasLineThrough) styles.delete('text-decoration');
+        const afterUnderline = hasUnderline ? this.wrapChildrenIn(current, 'u') : current;
+        if (hasLineThrough) this.wrapChildrenIn(afterUnderline, 'del');
+    }
+
     private convertStylesToSemanticElements(container: HTMLElement): void {
-        this.walkElements(container, el => {
-            if (el.tagName === 'STRONG' || el.tagName === 'EM' ||
-                el.tagName === 'U' || el.tagName === 'DEL' ||
-                el.tagName === 'S' || el.tagName === 'B' || el.tagName === 'I') return;
-
-            const style = el.getAttribute('style');
-            if (!style) return;
-
-            const styles = this.parseStyles(style);
-            let current: HTMLElement = el;
-
-            const fontWeight = styles.get('font-weight');
-            if (fontWeight === 'bold' || (fontWeight && Number.parseInt(fontWeight, 10) >= 700)) {
-                styles.delete('font-weight');
-                current = this.wrapChildrenIn(current, 'strong');
-            }
-
-            const fontStyle = styles.get('font-style');
-            if (fontStyle === 'italic') {
-                styles.delete('font-style');
-                current = this.wrapChildrenIn(current, 'em');
-            }
-
-            const textDecoration = styles.get('text-decoration');
-            if (textDecoration) {
-                const hasUnderline = textDecoration.includes('underline');
-                const hasLineThrough = textDecoration.includes('line-through');
-                if (hasUnderline || hasLineThrough) {
-                    styles.delete('text-decoration');
-                }
-                if (hasUnderline) {
-                    current = this.wrapChildrenIn(current, 'u');
-                }
-                if (hasLineThrough) {
-                    current = this.wrapChildrenIn(current, 'del');
-                }
-            }
-
-            const serialized = this.serializeStyles(styles);
-            if (serialized) {
-                el.setAttribute('style', serialized);
-            } else {
-                el.removeAttribute('style');
-            }
-        });
+        this.walkElements(container, el => this.applySemanticStyleToElement(el));
     }
 
     private wrapChildrenIn(parent: HTMLElement, tag: string): HTMLElement {

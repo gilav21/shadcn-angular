@@ -1,17 +1,16 @@
 :host {
   display: block;
-}
-ui-popover {
-  width: 100%;
-  display: block;
-}
-
-:host {
   --_d: var(--density-select, var(--density, 1));
 }
-
-[data-slot="tree-select-trigger"] {
-  height: calc(2.5rem * var(--_d));
-  padding-inline: calc(0.75rem * var(--_d));
-  padding-block: calc(0.5rem * var(--_d));
+@layer components {
+    ui-popover {
+      width: 100%;
+      display: block;
+    }
+    
+    [data-slot="tree-select-trigger"] {
+      height: calc(2.5rem * var(--_d));
+      padding-inline: calc(0.75rem * var(--_d));
+      padding-block: calc(0.5rem * var(--_d));
+    }
 }

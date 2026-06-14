@@ -1,17 +1,18 @@
 :host {
     --_d: var(--density-button, var(--density, 1));
 }
-
-[data-slot="toggle-group-item"] {
-    gap: calc(0.5rem * var(--_d));
-    height: calc(2.25rem * var(--_d));
-    padding-inline: calc(0.75rem * var(--_d));
-}
-
-[data-slot="toggle-group-item"][data-size="sm"] {
-    height: calc(2rem * var(--_d));
-}
-
-[data-slot="toggle-group-item"][data-size="lg"] {
-    height: calc(2.5rem * var(--_d));
+@layer components {
+    [data-slot="toggle-group-item"] {
+        gap: calc(0.5rem * var(--_d));
+        height: calc(2.25rem * var(--_d));
+        padding-inline: calc(0.75rem * var(--_d));
+    }
+    
+    [data-slot="toggle-group-item"][data-size="sm"] {
+        height: calc(2rem * var(--_d));
+    }
+    
+    [data-slot="toggle-group-item"][data-size="lg"] {
+        height: calc(2.5rem * var(--_d));
+    }
 }

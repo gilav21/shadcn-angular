@@ -53,7 +53,7 @@ export class MenubarSubTriggerComponent {
   }
 
   classes = computed(() => cn(
-    'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
+    'relative flex cursor-pointer select-none items-center rounded-sm text-sm outline-none',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:bg-accent focus:text-accent-foreground',
     'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
@@ -62,17 +62,17 @@ export class MenubarSubTriggerComponent {
     this.class()
   ));
 
-  onMouseEnter() {
+  onMouseEnter(): void {
     if (isTouchDevice()) return;
     this.sub.enter();
   }
 
-  onMouseLeave() {
+  onMouseLeave(): void {
     if (isTouchDevice()) return;
     this.sub.leave();
   }
 
-  onClick() {
+  onClick(): void {
     if (!isTouchDevice()) return;
     if (this.sub.isOpen()) {
       this.sub.leave();
@@ -81,11 +81,11 @@ export class MenubarSubTriggerComponent {
     }
   }
 
-  focus() {
+  focus(): void {
     this.triggerEl?.nativeElement.focus();
   }
 
-  onKeydown(event: KeyboardEvent) {
+  onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowRight') {
       if (this.service.isRtl()) {
         return;

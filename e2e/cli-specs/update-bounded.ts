@@ -14,7 +14,7 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     await runCli(['add', 'button', '--yes']);
 
     const uiDir = path.join(fixtureApp, 'src/components/ui');
-    const before = fs.readdirSync(uiDir).sort();
+    const before = fs.readdirSync(uiDir).sort((a, b) => a.localeCompare(b));
 
     // Introduce local drift so `update` has something to write.
     const buttonTs = path.join(uiDir, 'button/button.component.ts');
@@ -29,7 +29,7 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     assertContains(dry.stdout, 'button', 'dry-run should list the component it would update');
     assertContains(dry.stdout, 'Dry Run', 'dry-run must announce itself');
 
-    const afterDry = fs.readdirSync(uiDir).sort();
+    const afterDry = fs.readdirSync(uiDir).sort((a, b) => a.localeCompare(b));
     if (JSON.stringify(afterDry) !== JSON.stringify(before)) {
         throw new Error(
             `dry-run must not add/remove component folders.\nbefore: ${before}\nafter:  ${afterDry}`,

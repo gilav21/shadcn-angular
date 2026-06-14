@@ -35,11 +35,11 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
     itemIndex = signal(0);
     totalItems = signal(1);
 
-    ngOnInit() {
+    ngOnInit(): void {
         this.menu?.registerItem(this);
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.menu?.unregisterItem(this);
     }
 
@@ -58,6 +58,18 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
     });
 
     positionStyle = computed(() => {
+        const params = this.resolvePositionParams();
+        if (params.type === 'linear') {
+            return this.buildLinearStyle(params.duration, params.easing, params.delay);
+        }
+        return this.buildCircularStyle(params);
+    });
+
+    private resolvePositionParams(): {
+        type: SpeedDialType; direction: SpeedDialDirection; radius: number;
+        idx: number; totalItems: number; isOpen: boolean | undefined;
+        duration: string; easing: string; delay: number;
+    } {
         const type = this.speedDial?.type() ?? 'linear';
         const direction = this.speedDial?.direction() ?? 'up';
         const radius = this.speedDial?.radius() ?? 80;
@@ -66,54 +78,42 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
         const idx = this.itemIndex();
         const totalItems = this.totalItems();
         const isOpen = this.speedDial?.open();
-
-        // Calculate reverse index for closing animation (last item closes first)
         const closeIdx = totalItems - 1 - idx;
         const delay = isOpen ? idx * transitionDelay : closeIdx * transitionDelay;
-
-        // Spring easing for open, smooth ease-out for close
-        const easing = isOpen
-            ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' // Spring/bounce effect
-            : 'cubic-bezier(0.4, 0, 0.2, 1)';     // Smooth ease-out
-
+        const easing = isOpen ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' : 'cubic-bezier(0.4, 0, 0.2, 1)';
         const duration = isOpen ? '300ms' : '200ms';
+        return { type, direction, radius, idx, totalItems, isOpen, duration, easing, delay };
+    }
 
-        if (type === 'linear') {
-            return {
-                'transition': this.speedDial?.isRepositioning() ? 'none' : `all ${duration} ${easing}`,
-                'transition-delay': this.speedDial?.isRepositioning() ? '0ms' : `${delay}ms`,
-            };
-        }
+    private buildLinearStyle(duration: string, easing: string, delay: number): Record<string, string> {
+        const repositioning = this.speedDial?.isRepositioning();
+        return {
+            'transition': repositioning ? 'none' : `all ${duration} ${easing}`,
+            'transition-delay': repositioning ? '0ms' : `${delay}ms`,
+        };
+    }
 
+    private buildCircularStyle(opts: {
+        type: SpeedDialType; direction: SpeedDialDirection; radius: number;
+        idx: number; totalItems: number; isOpen: boolean | undefined;
+        duration: string; easing: string; delay: number;
+    }): Record<string, string> {
+        const { type, direction, radius, idx, totalItems, isOpen, duration, easing, delay } = opts;
         const pos = this.calculateCircularPosition(type, direction, radius, idx, totalItems);
-
-        // When closed, items animate from/to center. When open, at calculated position.
-        const transform = isOpen
-            ? `translate(${pos.x}px, ${pos.y}px)`
-            : 'translate(0px, 0px)';
+        const transform = isOpen ? `translate(${pos.x}px, ${pos.y}px)` : 'translate(0px, 0px)';
+        const baseCircular = { 'left': '50%', 'top': '50%', 'margin-left': '-1.125rem', 'margin-top': '-1.125rem' };
 
         if (this.speedDial?.isRepositioning()) {
-            return {
-                'transform': transform,
-                'transition': 'none',
-                'transition-delay': '0ms',
-                'left': '50%',
-                'top': '50%',
-                'margin-left': '-1.125rem',
-                'margin-top': '-1.125rem',
-            };
+            return { 'transform': transform, 'transition': 'none', 'transition-delay': '0ms', ...baseCircular };
         }
 
         return {
             'transform': transform,
             'transition': `transform ${duration} ${easing}, opacity ${duration} ${easing}, scale ${duration} ${easing}`,
             'transition-delay': `${delay}ms`,
-            'left': '50%',
-            'top': '50%',
-            'margin-left': '-1.125rem',
-            'margin-top': '-1.125rem',
+            ...baseCircular,
         };
-    });
+    }
 
     private resolveAngles(type: SpeedDialType, direction: SpeedDialDirection): { start: number; end: number } {
         if (type === 'semi-circle') {

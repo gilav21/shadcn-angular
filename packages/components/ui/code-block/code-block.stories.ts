@@ -230,7 +230,8 @@ END;`;
 const sqlPatterns = {
     sql: {
         patterns: [
-            { type: 'keyword', regex: /\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|JOIN|AND|OR|ON|AS|GROUP|BY|ORDER|LIMIT|CREATE|PROCEDURE|BEGIN|END|VALUES|INTO|COMMIT|TEXT)\b/i },
+            { type: 'keyword', regex: /\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|JOIN|AND|OR|ON)\b/i },
+            { type: 'keyword', regex: /\b(AS|GROUP|BY|ORDER|LIMIT|CREATE|PROCEDURE|BEGIN|END|VALUES|INTO|COMMIT|TEXT)\b/i },
             { type: 'string', regex: /'(?:[^'\\]|\\.)*'/ },
             { type: 'number', regex: /\b\d+\b/ },
             { type: 'comment', regex: /--.*/ },

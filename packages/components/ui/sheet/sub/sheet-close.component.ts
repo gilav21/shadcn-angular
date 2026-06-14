@@ -9,7 +9,7 @@ import { SHEET } from '../sheet.component';
     selector: 'ui-sheet-close',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span (click)="onClick()" [attr.data-slot]="'sheet-close'">
+    <span (click)="onClick()" (keydown.enter)="onClick()" (keydown.space)="onClick()" tabindex="0" role="button" [attr.data-slot]="'sheet-close'">
       <ng-content />
     </span>
   `,
@@ -18,7 +18,7 @@ import { SHEET } from '../sheet.component';
 export class SheetCloseComponent {
     private readonly sheet = inject(SHEET, { optional: true });
 
-    onClick() {
+    onClick(): void {
         this.sheet?.hide();
     }
 }

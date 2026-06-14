@@ -110,7 +110,7 @@ export class KanbanColumnDialogComponent {
         return true;
     });
 
-    openAddColumn() {
+    openAddColumn(): void {
         this.mode.set('add-column');
         this.formName.set('');
         this.formWip.set('');
@@ -118,7 +118,7 @@ export class KanbanColumnDialogComponent {
         this.dialogOpen.set(true);
     }
 
-    openRenameColumn(column: KanbanColumn) {
+    openRenameColumn(column: KanbanColumn): void {
         this.mode.set('rename-column');
         this.formName.set(column.title);
         this.formWip.set('');
@@ -126,7 +126,7 @@ export class KanbanColumnDialogComponent {
         this.dialogOpen.set(true);
     }
 
-    openSetWip(column: KanbanColumn) {
+    openSetWip(column: KanbanColumn): void {
         this.mode.set('set-wip');
         this.formName.set('');
         this.formWip.set(column.wipLimit?.toString() ?? '');
@@ -134,7 +134,7 @@ export class KanbanColumnDialogComponent {
         this.dialogOpen.set(true);
     }
 
-    onSubmit() {
+    onSubmit(): void {
         const wipVal = Number.parseInt(this.formWip(), 10);
         this.submitted.emit({
             mode: this.mode(),

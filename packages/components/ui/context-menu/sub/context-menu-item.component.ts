@@ -45,7 +45,7 @@ export class ContextMenuItemComponent {
         this.class()
     ));
 
-    onClick() {
+    onClick(): void {
         if (!this.disabled()) {
             this.contextMenu?.close();
         }

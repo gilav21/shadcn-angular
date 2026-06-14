@@ -43,7 +43,7 @@ export class DialogContentComponent implements AfterViewInit {
 
     readonly classes = computed(() =>
         cn(
-            'fixed z-50 grid w-full max-w-[calc(100vw-2rem)] sm:max-w-lg gap-3 sm:gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200 sm:rounded-lg',
+            'fixed z-50 grid w-full max-w-[calc(100vw-2rem)] sm:max-w-lg border bg-background shadow-lg duration-200 sm:rounded-lg',
             this.class()
         )
     );
@@ -70,13 +70,13 @@ export class DialogContentComponent implements AfterViewInit {
         });
     }
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (this.dialog?.open()) {
             this.focusFirstElement();
         }
     }
 
-    private focusFirstElement() {
+    private focusFirstElement(): void {
         const content = this.el.nativeElement.querySelector('[data-slot="dialog-content"]');
         if (content) {
             this.contentEl = content;
@@ -91,15 +91,15 @@ export class DialogContentComponent implements AfterViewInit {
         }
     }
 
-    onOverlayClick() {
+    onOverlayClick(): void {
         this.dialog?.hide();
     }
 
-    close() {
+    close(): void {
         this.dialog?.hide();
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
             event.preventDefault();
             this.close();

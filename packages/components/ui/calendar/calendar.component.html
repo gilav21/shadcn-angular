@@ -5,6 +5,8 @@
       variant="outline"
       size="icon-sm"
       (click)="previousMonth()"
+      (keydown.enter)="previousMonth()"
+      (keydown.space)="previousMonth()"
       [ariaLabel]="prevMonthLabel()"
     >
       <svg class="h-4 w-4" [class.rotate-180]="rtl()" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -56,6 +58,8 @@
       variant="outline"
       size="icon-sm"
       (click)="nextMonth()"
+      (keydown.enter)="nextMonth()"
+      (keydown.space)="nextMonth()"
       [ariaLabel]="nextMonthLabel()"
     >
       <svg class="h-4 w-4" [class.rotate-180]="rtl()" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -78,6 +82,8 @@
         <ui-button
           [class]="getDayClasses(day)"
           (click)="selectDay(day)"
+          (keydown.enter)="selectDay(day)"
+          (keydown.space)="selectDay(day)"
           [disabled]="day.getMonth() !== currentMonth()"
           [variant]="'ghost'"
           [ariaLabel]="day.getDate().toString()"
@@ -85,7 +91,7 @@
           {{ day.getDate() }}
         </ui-button>
       } @else {
-        <div class="h-9 w-9" data-slot="calendar-filler"></div>
+        <div data-slot="calendar-filler"></div>
       }
     }
   </div>

@@ -59,17 +59,17 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
         );
     });
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         this.select?.registerItem(this.value(), this.el.nativeElement);
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.select?.unregisterItem(this.value());
     }
 
-    onClick() {
+    onClick(): void {
         if (!this.disabled()) {
-            this.select?.select(this.value() as any);
+            this.select?.select(this.value());
         }
     }
 }

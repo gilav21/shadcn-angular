@@ -181,9 +181,9 @@ describe('buildDirOwners', () => {
         ]);
         const owners = buildDirOwners(entries);
 
-        expect([...(owners.get('ui') ?? [])].sort()).toEqual(['badge', 'button']);
+        expect([...(owners.get('ui') ?? [])].sort((a, b) => a.localeCompare(b))).toEqual(['badge', 'button']);
         expect([...(owners.get('ui/data-table') ?? [])]).toEqual(['data-table']);
-        expect([...(owners.get('ui/charts') ?? [])].sort()).toEqual(['bar-chart', 'pie-chart']);
+        expect([...(owners.get('ui/charts') ?? [])].sort((a, b) => a.localeCompare(b))).toEqual(['bar-chart', 'pie-chart']);
     });
 });
 

@@ -117,14 +117,14 @@ export class KanbanDeleteColumnDialogComponent {
         );
     }
 
-    open(column: KanbanColumn, cardCount: number) {
+    open(column: KanbanColumn, cardCount: number): void {
         this.columnToDelete.set(column);
         this.cardsInColumn.set(cardCount);
         this.selectedTarget.set(undefined);
         this.alertDialogRef()?.show();
     }
 
-    onConfirm() {
+    onConfirm(): void {
         const col = this.columnToDelete();
         if (!col) return;
         this.confirmed.emit({

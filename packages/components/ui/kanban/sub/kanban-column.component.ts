@@ -161,7 +161,7 @@ export class KanbanColumnComponent implements AfterContentInit {
     private readonly _hasCustomCards = signal(false);
     hasCustomCards = this._hasCustomCards.asReadonly();
 
-    ngAfterContentInit() {
+    ngAfterContentInit(): void {
         this._hasCustomHeader.set(this.customHeaders.length > 0);
         this._hasCustomCards.set(this.customCards.length > 0);
     }
@@ -189,29 +189,29 @@ export class KanbanColumnComponent implements AfterContentInit {
         this.class()
     ));
 
-    toggleCollapse() {
+    toggleCollapse(): void {
         this.collapsed.update(v => !v);
     }
 
-    onAddCard() {
+    onAddCard(): void {
         this.kanban?.onAddCard(this.columnId());
     }
 
-    onHeaderContextMenu(event: MouseEvent) {
+    onHeaderContextMenu(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();
         const col = this.kanban?.columns().find(c => c.id === this.columnId());
         if (col) this.kanban?.showColumnContextMenu(event.clientX, event.clientY, col);
     }
 
-    onDragEnter(event: DragEvent) {
+    onDragEnter(event: DragEvent): void {
         if (!this.kanban?.draggedCardId()) return;
         event.preventDefault();
         this.dragEnterCount++;
         this.isDragOver.set(true);
     }
 
-    onDragOver(event: DragEvent) {
+    onDragOver(event: DragEvent): void {
         if (!this.kanban?.draggedCardId()) return;
         event.preventDefault();
         if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
@@ -248,8 +248,8 @@ export class KanbanColumnComponent implements AfterContentInit {
         } else if (index === 0) {
             topPx = cards[0].offsetTop - 6;
         } else if (index >= cards.length) {
-            const last = cards.at(-1)!;
-            topPx = last.offsetTop + last.offsetHeight + 5;
+            const last = cards.at(-1);
+            topPx = last ? last.offsetTop + last.offsetHeight + 5 : 12;
         } else {
             const prev = cards[index - 1];
             const curr = cards[index];
@@ -261,7 +261,7 @@ export class KanbanColumnComponent implements AfterContentInit {
         this.dropIndicatorTop.set(topPx);
     }
 
-    onDragLeave() {
+    onDragLeave(): void {
         this.dragEnterCount--;
         if (this.dragEnterCount <= 0) {
             this.dragEnterCount = 0;
@@ -271,7 +271,7 @@ export class KanbanColumnComponent implements AfterContentInit {
         }
     }
 
-    onDrop(event: DragEvent) {
+    onDrop(event: DragEvent): void {
         event.preventDefault();
         const cardId = event.dataTransfer?.getData('text/plain');
         if (!cardId || !this.kanban) return;

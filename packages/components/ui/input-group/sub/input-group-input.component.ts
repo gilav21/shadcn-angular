@@ -42,7 +42,7 @@ export class InputGroupInputComponent implements ControlValueAccessor {
   onTouched: () => void = () => { };
 
   classes = computed(() => cn(
-    'flex-1 min-w-0 bg-transparent px-3 py-1 text-base md:text-sm',
+    'flex-1 min-w-0 bg-transparent text-base md:text-sm',
     'placeholder:text-muted-foreground',
     'focus:outline-none',
     'disabled:cursor-not-allowed',
@@ -50,7 +50,7 @@ export class InputGroupInputComponent implements ControlValueAccessor {
     this.class()
   ));
 
-  onValueChange(value: string) {
+  onValueChange(value: string): void {
     this.value.set(value);
     this.onChange(value);
   }

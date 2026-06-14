@@ -101,13 +101,13 @@ export class SheetContentComponent implements AfterViewInit {
         });
     }
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (this.sheet?.open()) {
             this.focusFirstElement();
         }
     }
 
-    private focusFirstElement() {
+    private focusFirstElement(): void {
         const content = this.el.nativeElement.querySelector('[data-slot="sheet-content"]');
         if (content) {
             this.contentEl = content;
@@ -122,7 +122,7 @@ export class SheetContentComponent implements AfterViewInit {
         }
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
             event.preventDefault();
             this.sheet?.hide();
@@ -152,11 +152,11 @@ export class SheetContentComponent implements AfterViewInit {
         cn(sheetVariants({ side: this.side() }), this.class())
     );
 
-    onOverlayClick() {
+    onOverlayClick(): void {
         this.sheet?.hide();
     }
 
-    close() {
+    close(): void {
         this.sheet?.hide();
     }
 }

@@ -137,7 +137,7 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
 
         if (prefersReducedMotion() && (opts.disableForReducedMotion ?? true)) return;
 
-        const variant = opts.variant || 'default';
+        const variant = opts.variant ?? 'default';
 
         if (variant === 'side-cannons') {
             // Left cannon
@@ -170,15 +170,17 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
         const startVelocity = opts.startVelocity || 25;
         const decay = opts.decay || 0.9;
         const gravity = opts.gravity || 0.05;
-        const drift = opts.drift || 0;
+        const drift = opts.drift ?? 0;
         const ticks = opts.ticks || 800;
-        const origin = opts.origin || { x: 0.5, y: 0.5 };
-        const colors = opts.colors || ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff'];
-        const shapes = opts.shapes || ['square', 'circle'];
+        const origin = opts.origin ?? { x: 0.5, y: 0.5 };
+        const colors = opts.colors ?? ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff'];
+        const shapes = opts.shapes ?? ['square', 'circle'];
         const scalar = opts.scalar || 1;
 
-        const canvasWidth = this._canvas!.width;
-        const canvasHeight = this._canvas!.height;
+        const canvas = this._canvas;
+        if (!canvas) return;
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
 
         const originX = origin.x * canvasWidth;
         const originY = origin.y * canvasHeight;
@@ -240,73 +242,23 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
         };
     }
 
-    private readonly _animate = () => {
-        if (!this._ctx || !this._canvas) return;
+    private readonly _animate = (): void => {
+        const ctx = this._ctx;
+        const canvas = this._canvas;
+        if (!ctx || !canvas) return;
 
-        this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const particlesToRemove: number[] = [];
-
         for (let i = 0; i < this._particles.length; i++) {
             const p = this._particles[i];
-
-            p.tick++;
-            p.x += p.velocity.x;
-            p.y += p.velocity.y;
-
-            p.velocity.x += p.drift;
-            p.velocity.y += p.gravity;
-
-            p.velocity.x *= p.decay;
-            p.velocity.y *= p.decay;
-
-            p.wobble += p.wobbleSpeed;
-            p.wobbleX = p.x + (10 * p.scalar) * Math.cos(p.wobble);
-            p.wobbleY = p.y + (10 * p.scalar) * Math.sin(p.wobble);
-
-            p.tiltAngle += 0.1;
-            p.tiltSin = Math.sin(p.tiltAngle);
-            p.tiltCos = Math.cos(p.tiltAngle);
-            p.random = Math.random() + 2;
-
-            const progress = p.tick / p.totalTicks;
-
-            const opacity = 1 - progress;
-
-            if (opacity <= 0 || p.y > this._canvas.height + 100) {
+            this._updateParticle(p);
+            const opacity = 1 - p.tick / p.totalTicks;
+            if (opacity <= 0 || p.y > canvas.height + 100) {
                 particlesToRemove.push(i);
                 continue;
             }
-
-            this._ctx.fillStyle = p.color;
-            this._ctx.globalAlpha = opacity;
-
-            this._ctx.beginPath();
-
-            if (p.shape === 'circle') {
-                this._ctx.ellipse(
-                    p.x,
-                    p.y,
-                    Math.abs(p.wobbleX - p.x) * 0.6,
-                    Math.abs(p.wobbleY - p.y) * 0.6,
-                    0,
-                    0,
-                    2 * Math.PI
-                );
-            } else {
-                this._ctx.save();
-                this._ctx.translate(p.x, p.y);
-                this._ctx.rotate(p.angle2D);
-                this._ctx.scale(Math.cos(p.wobble), 1);
-                this._ctx.fillRect(-5 * p.scalar, -5 * p.scalar, 10 * p.scalar, 10 * p.scalar);
-                this._ctx.restore();
-            }
-
-            if (p.shape === 'circle') {
-                this._ctx.fill();
-            }
-
-            this._ctx.globalAlpha = 1;
+            this._drawParticle(ctx, p, opacity);
         }
 
         for (let i = particlesToRemove.length - 1; i >= 0; i--) {
@@ -317,9 +269,42 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
             this._animationFrameId = requestAnimationFrame(this._animate);
         } else {
             this._animationFrameId = null;
-            this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
     };
+
+    private _updateParticle(p: Particle): void {
+        p.tick++;
+        p.x += p.velocity.x;
+        p.y += p.velocity.y;
+        p.velocity.x = (p.velocity.x + p.drift) * p.decay;
+        p.velocity.y = (p.velocity.y + p.gravity) * p.decay;
+        p.wobble += p.wobbleSpeed;
+        p.wobbleX = p.x + (10 * p.scalar) * Math.cos(p.wobble);
+        p.wobbleY = p.y + (10 * p.scalar) * Math.sin(p.wobble);
+        p.tiltAngle += 0.1;
+        p.tiltSin = Math.sin(p.tiltAngle);
+        p.tiltCos = Math.cos(p.tiltAngle);
+        p.random = Math.random() + 2;
+    }
+
+    private _drawParticle(ctx: CanvasRenderingContext2D, p: Particle, opacity: number): void {
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = opacity;
+        ctx.beginPath();
+        if (p.shape === 'circle') {
+            ctx.ellipse(p.x, p.y, Math.abs(p.wobbleX - p.x) * 0.6, Math.abs(p.wobbleY - p.y) * 0.6, 0, 0, 2 * Math.PI);
+            ctx.fill();
+        } else {
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.angle2D);
+            ctx.scale(Math.cos(p.wobble), 1);
+            ctx.fillRect(-5 * p.scalar, -5 * p.scalar, 10 * p.scalar, 10 * p.scalar);
+            ctx.restore();
+        }
+        ctx.globalAlpha = 1;
+    }
 
     private _stopAnimation(): void {
         if (this._animationFrameId !== null) {
@@ -330,19 +315,20 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
     }
 
     private _initCanvas(): void {
-        this._canvas = this._renderer.createElement('canvas');
-        this._renderer.setStyle(this._canvas, 'position', 'absolute');
-        this._renderer.setStyle(this._canvas, 'top', '0');
-        this._renderer.setStyle(this._canvas, 'left', '0');
-        this._renderer.setStyle(this._canvas, 'pointer-events', 'none');
-        this._renderer.setStyle(this._canvas, 'z-index', this.options().zIndex?.toString() || '100');
+        const canvas: HTMLCanvasElement = this._renderer.createElement('canvas');
+        this._canvas = canvas;
+        this._renderer.setStyle(canvas, 'position', 'absolute');
+        this._renderer.setStyle(canvas, 'top', '0');
+        this._renderer.setStyle(canvas, 'left', '0');
+        this._renderer.setStyle(canvas, 'pointer-events', 'none');
+        this._renderer.setStyle(canvas, 'z-index', this.options().zIndex?.toString() ?? '100');
 
         const rect = this._el.nativeElement.getBoundingClientRect();
-        this._canvas!.width = rect.width;
-        this._canvas!.height = rect.height;
+        canvas.width = rect.width;
+        canvas.height = rect.height;
 
-        this._renderer.appendChild(this._el.nativeElement, this._canvas);
-        this._ctx = this._canvas!.getContext('2d');
+        this._renderer.appendChild(this._el.nativeElement, canvas);
+        this._ctx = canvas.getContext('2d');
     }
 
     private _initResizeObserver(): void {

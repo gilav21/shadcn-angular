@@ -130,7 +130,7 @@ function discoverHarnessFolders(): string[] {
         const demo = path.join(HARNESS_DIR, entry.name, `${entry.name}-demo.component.ts`);
         if (fs.existsSync(demo)) out.push(entry.name);
     }
-    return out.sort();
+    return out.sort((a, b) => a.localeCompare(b));
 }
 
 function validateSpecs(specs: readonly ComponentSpec[]): void {

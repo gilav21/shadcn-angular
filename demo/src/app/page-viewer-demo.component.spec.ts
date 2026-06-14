@@ -4,6 +4,7 @@ import { PageRendererComponent } from '../../../packages/components/ui/page-rend
 import { CardComponent } from '../../../packages/components/ui';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+// eslint-disable-next-line sonarjs/deprecation -- BrowserAnimationsModule deprecated in Angular 20.2; no stable replacement for TestBed noop animations yet
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 describe('PageViewerDemoComponent', () => {
@@ -18,6 +19,7 @@ describe('PageViewerDemoComponent', () => {
                 CardComponent,
                 FormsModule,
                 CommonModule,
+                // eslint-disable-next-line sonarjs/deprecation -- see import above
                 BrowserAnimationsModule,
             ],
         }).compileComponents();

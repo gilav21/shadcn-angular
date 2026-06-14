@@ -1,7 +1,9 @@
 :host {
     --_d: var(--density-input, var(--density, 1));
 }
-[data-slot="input-group-control"] {
-    padding-inline: calc(0.75rem * var(--_d));
-    padding-block: calc(0.25rem * var(--_d));
+@layer components {
+    [data-slot="input-group-control"] {
+        padding-inline: calc(0.75rem * var(--_d));
+        padding-block: calc(0.25rem * var(--_d));
+    }
 }

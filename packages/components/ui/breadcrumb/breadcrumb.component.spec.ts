@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent, BreadcrumbLinkComponent, BreadcrumbPageComponent, BreadcrumbSeparatorComponent } from './index';
+import { BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent, BreadcrumbLinkComponent, BreadcrumbPageComponent, BreadcrumbSeparatorComponent, BreadcrumbEllipsisComponent } from './index';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -170,7 +170,7 @@ describe('Breadcrumb RTL Support', () => {
         // The separator svg has rtl:rotate-180 class
         const svg = separator.nativeElement.querySelector('svg');
         // SVG elements use classList or getAttribute for class checking
-        const svgClass = svg.getAttribute('class') || '';
+        const svgClass = svg.getAttribute('class') ?? '';
         expect(svgClass).toContain('rtl:rotate-180');
     });
 
@@ -308,7 +308,6 @@ describe('BreadcrumbComponent — i18n integration', () => {
     });
 
     it('broadcasts locale to the ellipsis sub-component via UI_LOCALE_ID', async () => {
-        const { BreadcrumbEllipsisComponent } = await import('./sub/breadcrumb-ellipsis.component');
         @Component({
             standalone: true,
             imports: [BreadcrumbComponent, BreadcrumbEllipsisComponent],
@@ -335,7 +334,6 @@ describe('BreadcrumbComponent — i18n integration', () => {
         // code string, not the full object. Custom-object locales therefore
         // localise the parent itself; sub-components that want the same
         // custom dictionary must bind it explicitly.
-        const { BreadcrumbEllipsisComponent } = await import('./sub/breadcrumb-ellipsis.component');
         @Component({
             standalone: true,
             imports: [BreadcrumbComponent, BreadcrumbEllipsisComponent],
@@ -363,7 +361,6 @@ describe('BreadcrumbComponent — i18n integration', () => {
         // re-broadcasts the parent's locale code (a BCP-47 string), so
         // children look up THEIR OWN registry. A custom-object parent with
         // a code that's not in the child's registry falls back to English.
-        const { BreadcrumbEllipsisComponent } = await import('./sub/breadcrumb-ellipsis.component');
         @Component({
             standalone: true,
             imports: [BreadcrumbComponent, BreadcrumbEllipsisComponent],

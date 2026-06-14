@@ -38,11 +38,11 @@ export class MenubarItemComponent {
   inset = input(false, { transform: booleanAttribute });
   shortcut = input('');
 
-  select = output<void>();
+  selected = output<void>();
   readonly menu = inject(MENUBAR_MENU, { optional: true }) as MenubarMenuComponent | null;
 
   classes = computed(() => cn(
-    'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
+    'relative flex cursor-pointer select-none items-center rounded-sm text-sm outline-none',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:bg-accent focus:text-accent-foreground',
     'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
@@ -50,9 +50,9 @@ export class MenubarItemComponent {
     this.class()
   ));
 
-  onClick() {
+  onClick(): void {
     if (!this.disabled()) {
-      this.select.emit();
+      this.selected.emit();
       this.menu?.close();
     }
   }

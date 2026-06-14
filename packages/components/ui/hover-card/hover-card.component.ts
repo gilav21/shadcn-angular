@@ -35,7 +35,7 @@ export class HoverCardComponent {
         });
     }
 
-    show() {
+    show(): void {
         if (this.closeTimeout) {
             clearTimeout(this.closeTimeout);
             this.closeTimeout = undefined;
@@ -45,7 +45,7 @@ export class HoverCardComponent {
         }, this.openDelay);
     }
 
-    hide() {
+    hide(): void {
         if (this.openTimeout) {
             clearTimeout(this.openTimeout);
             this.openTimeout = undefined;
@@ -55,7 +55,7 @@ export class HoverCardComponent {
         }, this.closeDelay);
     }
 
-    toggle() {
+    toggle(): void {
         if (this.open()) {
             this.close();
         } else {
@@ -63,14 +63,14 @@ export class HoverCardComponent {
         }
     }
 
-    cancelClose() {
+    cancelClose(): void {
         if (this.closeTimeout) {
             clearTimeout(this.closeTimeout);
             this.closeTimeout = undefined;
         }
     }
 
-    private openImmediate() {
+    private openImmediate(): void {
         if (this.closeTimeout) {
             clearTimeout(this.closeTimeout);
             this.closeTimeout = undefined;
@@ -80,7 +80,7 @@ export class HoverCardComponent {
         this.addClickOutsideListener();
     }
 
-    private close() {
+    private close(): void {
         if (this.openTimeout) {
             clearTimeout(this.openTimeout);
             this.openTimeout = undefined;
@@ -90,9 +90,9 @@ export class HoverCardComponent {
         this.removeClickOutsideListener();
     }
 
-    private addClickOutsideListener() {
+    private addClickOutsideListener(): void {
         this.removeClickOutsideListener();
-        const handler = (event: MouseEvent | TouchEvent) => {
+        const handler = (event: MouseEvent | TouchEvent): void => {
             const target = event.target as Node;
             if (!this.el.nativeElement.contains(target)) {
                 this.zone.run(() => this.close());
@@ -106,7 +106,7 @@ export class HoverCardComponent {
         };
     }
 
-    private removeClickOutsideListener() {
+    private removeClickOutsideListener(): void {
         this.clickOutsideCleanup?.();
         this.clickOutsideCleanup = undefined;
     }

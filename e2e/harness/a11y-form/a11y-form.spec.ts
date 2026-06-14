@@ -26,6 +26,7 @@ test('form built from shadcn components has no NEW serious/critical a11y violati
     });
 
     const newSerious = violations.filter(
+        // eslint-disable-next-line sonarjs/no-empty-collection -- KNOWN_VIOLATIONS is an intentional empty allowlist baseline, extended when a violation is knowingly accepted
         v => (v.impact === 'serious' || v.impact === 'critical') && !KNOWN_VIOLATIONS.has(v.id),
     );
 

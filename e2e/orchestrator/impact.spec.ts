@@ -28,7 +28,7 @@ export const registry = defineRegistry({
 describe('parseRegistryEntries', () => {
     it('extracts bare and quoted entry names', () => {
         const entries = parseRegistryEntries(REGISTRY_BASE);
-        expect([...entries.keys()].sort()).toEqual(['button', 'color-picker', 'eyedropper']);
+        expect([...entries.keys()].sort((a, b) => a.localeCompare(b))).toEqual(['button', 'color-picker', 'eyedropper']);
     });
 
     it('captures the full block per entry', () => {
@@ -91,6 +91,6 @@ describe('diffRegistryEntries', () => {
             .replace("dependencies: ['ripple']", "dependencies: ['icon', 'ripple']")
             .replace("dependencies: ['popover']", "dependencies: ['eyedropper', 'popover']");
         const changed = diffRegistryEntries(REGISTRY_BASE, head);
-        expect([...changed].sort()).toEqual(['button', 'color-picker']);
+        expect([...changed].sort((a, b) => a.localeCompare(b))).toEqual(['button', 'color-picker']);
     });
 });

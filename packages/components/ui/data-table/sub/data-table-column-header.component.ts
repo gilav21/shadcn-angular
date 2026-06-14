@@ -38,7 +38,7 @@ export class DataTableColumnHeaderComponent {
   readonly sortAriaLabel = computed(() => {
     const title = this.title();
     const index = this.sortIndex();
-    const priority = index !== null ? `, sort priority ${index + 1}` : '';
+    const priority = index === null ? '' : `, sort priority ${index + 1}`;
     const direction = this.direction();
     if (direction === 'asc') {
       return `${title}, sorted ascending${priority}. Activate to sort descending.`;
@@ -49,9 +49,9 @@ export class DataTableColumnHeaderComponent {
     return `${title}, not sorted. Activate to sort ascending.`;
   });
 
-  toggleSort(event: MouseEvent) {
+  toggleSort(event: Event): void {
     const current = this.direction();
-    const multi = event.shiftKey;
+    const multi = 'shiftKey' in event && (event as MouseEvent).shiftKey;
     if (current === 'asc') {
       this.sort.emit('desc');
       this.sortMeta.emit({ direction: 'desc', multi });

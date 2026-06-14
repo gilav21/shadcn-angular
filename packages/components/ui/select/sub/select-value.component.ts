@@ -5,7 +5,7 @@ import {
     input,
     inject,
 } from '@angular/core';
-import { cn } from '../../../lib/utils';
+import { cn, stringifyValue } from '../../../lib/utils';
 import { SELECT } from '../select.component';
 
 @Component({
@@ -40,11 +40,11 @@ export class SelectValueComponent {
 
     hasValue = computed(() => this.select?.internalValue() !== undefined && this.select?.internalValue() !== null);
     shownValue = computed(() => {
-        if (this.displayValue() !== undefined) return this.displayValue()!;
+        const dv = this.displayValue();
+        if (dv !== undefined) return dv;
         const val = this.select?.internalValue();
         if (val === undefined || val === null) return '';
-        if (typeof val === 'object') return JSON.stringify(val);
-        return String(val as string | number | boolean);
+        return stringifyValue(val);
     });
 
     hostClasses = computed(() =>
