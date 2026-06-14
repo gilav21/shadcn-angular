@@ -82,6 +82,20 @@ export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
     }
 };
 
+/**
+ * Build a word-boundary keyword matcher from a list. Constructed at runtime so
+ * the (legitimately long) per-language keyword set is a maintainable array
+ * rather than one giant, hard-to-read regex literal.
+ */
+const keywordPattern = (words: readonly string[]): RegExp =>
+    new RegExp(String.raw`\b(${words.join('|')})\b`);
+
+const TS_KEYWORDS = ['const', 'let', 'var', 'function', 'class', 'import', 'from', 'return', 'if', 'else', 'for', 'while', 'export', 'interface', 'type', 'public', 'private', 'protected', 'implements', 'extends', 'new', 'this', 'true', 'false', 'null', 'undefined', 'void', 'async', 'await'];
+const JS_KEYWORDS = ['const', 'let', 'var', 'function', 'class', 'import', 'from', 'return', 'if', 'else', 'for', 'while', 'export', 'new', 'this', 'true', 'false', 'null', 'undefined', 'void', 'async', 'await'];
+const PYTHON_KEYWORDS = ['def', 'class', 'import', 'from', 'if', 'else', 'elif', 'for', 'while', 'return', 'try', 'except', 'finally', 'with', 'as', 'pass', 'break', 'continue', 'lambda', 'yield', 'async', 'await', 'True', 'False', 'None'];
+const JAVA_KEYWORDS = ['public', 'private', 'protected', 'class', 'interface', 'enum', 'extends', 'implements', 'new', 'this', 'super', 'return', 'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'throws', 'import', 'package', 'void', 'int', 'boolean', 'char', 'byte', 'short', 'long', 'float', 'double', 'static', 'final', 'abstract', 'synchronized', 'volatile', 'transient', 'native', 'strictfp', 'instanceof', 'null', 'true', 'false'];
+const CSHARP_KEYWORDS = ['public', 'private', 'protected', 'internal', 'class', 'struct', 'record', 'interface', 'enum', 'delegate', 'event', 'void', 'int', 'string', 'bool', 'var', 'async', 'await', 'Task', 'return', 'if', 'else', 'for', 'foreach', 'while', 'do', 'switch', 'case', 'default', 'break', 'continue', 'try', 'catch', 'finally', 'throw', 'new', 'this', 'base', 'using', 'namespace', 'static', 'readonly', 'const', 'override', 'virtual', 'abstract', 'sealed', 'get', 'set', 'value'];
+
 @Component({
     selector: 'ui-code-block',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -228,14 +242,14 @@ export class CodeBlockComponent {
         typescript: [
             { type: 'comment', regex: /\/\/.*/ },
             { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
-            { type: 'keyword', regex: /\b(const|let|var|function|class|import|from|return|if|else|for|while|export|interface|type|public|private|protected|implements|extends|new|this|true|false|null|undefined|void|async|await)\b/ },
+            { type: 'keyword', regex: keywordPattern(TS_KEYWORDS) },
             { type: 'number', regex: /\b\d+\b/ },
             { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
         ],
         javascript: [
             { type: 'comment', regex: /\/\/.*/ },
             { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
-            { type: 'keyword', regex: /\b(const|let|var|function|class|import|from|return|if|else|for|while|export|new|this|true|false|null|undefined|void|async|await)\b/ },
+            { type: 'keyword', regex: keywordPattern(JS_KEYWORDS) },
             { type: 'number', regex: /\b\d+\b/ },
             { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
         ],
@@ -243,14 +257,14 @@ export class CodeBlockComponent {
             { type: 'comment', regex: /#.*/ },
             { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
             { type: 'decorator', regex: /@[\w.]+/ },
-            { type: 'keyword', regex: /\b(def|class|import|from|if|else|elif|for|while|return|try|except|finally|with|as|pass|break|continue|lambda|yield|async|await|True|False|None)\b/ },
+            { type: 'keyword', regex: keywordPattern(PYTHON_KEYWORDS) },
             { type: 'number', regex: /\b\d+\b/ },
             { type: 'function', regex: /\b[a-zA-Z_]\w*(?=\()/ },
         ],
         java: [
             { type: 'comment', regex: /\/\/.*/ },
             { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
-            { type: 'keyword', regex: /\b(public|private|protected|class|interface|enum|extends|implements|new|this|super|return|if|else|for|while|do|switch|case|default|break|continue|try|catch|finally|throw|throws|import|package|void|int|boolean|char|byte|short|long|float|double|static|final|abstract|synchronized|volatile|transient|native|strictfp|instanceof|null|true|false)\b/ },
+            { type: 'keyword', regex: keywordPattern(JAVA_KEYWORDS) },
             { type: 'decorator', regex: /@\w+/ },
             { type: 'number', regex: /\b\d+\b/ },
             { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
@@ -287,7 +301,7 @@ export class CodeBlockComponent {
             { type: 'comment', regex: /\/\/.*/ },
             { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
             { type: 'decorator', regex: /\[[a-zA-Z]\w*\]/ },
-            { type: 'keyword', regex: /\b(public|private|protected|internal|class|struct|record|interface|enum|delegate|event|void|int|string|bool|var|async|await|Task|return|if|else|for|foreach|while|do|switch|case|default|break|continue|try|catch|finally|throw|new|this|base|using|namespace|static|readonly|const|override|virtual|abstract|sealed|get|set|value)\b/ },
+            { type: 'keyword', regex: keywordPattern(CSHARP_KEYWORDS) },
             { type: 'number', regex: /\b\d+\b/ },
             { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
         ],

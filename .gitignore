@@ -31,3 +31,4 @@ sonar-issues.json
 coverage/
 .vitest-attachments/
 coverage-cli/
+packages/.env
