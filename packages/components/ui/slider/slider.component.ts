@@ -50,7 +50,8 @@ export class SliderComponent {
     }
 
     constructor() {
-        const defaultVal = this.defaultValue();        if (defaultVal !== undefined) {
+        const defaultVal = this.defaultValue();
+        if (defaultVal !== undefined) {
             this.value.set(defaultVal);
         }
     }

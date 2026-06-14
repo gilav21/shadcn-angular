@@ -332,7 +332,8 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         this.onTouched();
     }
 
-    writeValue(value: AutocompleteValue<T>): void {        if (value === null || value === undefined) {
+    writeValue(value: AutocompleteValue<T>): void {
+        if (value === null || value === undefined) {
             this.internalValue.set([]);
         } else if (Array.isArray(value)) {
             this.internalValue.set(value);

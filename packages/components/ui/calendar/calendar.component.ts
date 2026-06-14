@@ -81,7 +81,8 @@ export class CalendarComponent {
         let d: Date | null = null;
         if (typeof val === 'string') d = this.parseDate(val);
         else if (val instanceof Date) d = val;
-        else if (Array.isArray(val) && val.length > 0) d = this.parseDate(val[0]);        else if (typeof val === 'object' && val !== null && 'start' in val) d = (val).start;
+        else if (Array.isArray(val) && val.length > 0) d = this.parseDate(val[0]);
+        else if (typeof val === 'object' && val !== null && 'start' in val) d = (val).start;
 
         if (d) {
           this.viewDate.set(new Date(d));

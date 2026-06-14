@@ -73,7 +73,8 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
 
   constructor() {
     effect(() => {
-      const val = this.value();      if (val !== undefined && val !== null) {
+      const val = this.value();
+      if (val !== undefined && val !== null) {
         this.internalValue.set(val);
       }
     });

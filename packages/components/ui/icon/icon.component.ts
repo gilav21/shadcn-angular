@@ -1270,7 +1270,8 @@ export class IconComponent {
 
     readonly svgContent = computed(() => {
         const iconName = this.name();
-        const rawHtml = this.mergedIcons[iconName] ?? '';        return this.sanitizer.bypassSecurityTrustHtml(rawHtml);
+        const rawHtml = this.mergedIcons[iconName] ?? '';
+        return this.sanitizer.bypassSecurityTrustHtml(rawHtml);
     });
 
     readonly classes = computed(() =>

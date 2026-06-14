@@ -544,7 +544,8 @@ export class SortableComponent<T> {
         }
     }
 
-    /** Evaluate the accepts predicate for a foreign item drop. Disabled lists always reject. */    evaluateAccepts(item: T, ctx: ForeignDropContext): AcceptResult {
+    /** Evaluate the accepts predicate for a foreign item drop. Disabled lists always reject. */
+    evaluateAccepts(item: T, ctx: ForeignDropContext): AcceptResult {
         if (this.disabled()) return { ok: false, reason: 'disabled' };
         const acceptsInput = this.accepts();
         if (typeof acceptsInput === 'boolean') return acceptsInput;
@@ -575,7 +576,8 @@ export class SortableComponent<T> {
         setTimeout(() => {
             const el = this.collectItemElements()[toIndex];
             if (!el) return;
-            const builtIn: BuiltInLandEffect | undefined = BUILT_IN_LAND_EFFECTS[cls];            if (builtIn === undefined) {
+            const builtIn: BuiltInLandEffect | undefined = BUILT_IN_LAND_EFFECTS[cls];
+            if (builtIn === undefined) {
                 el.classList.add(cls);
                 setTimeout(() => el.classList.remove(cls), SortableComponent.LAND_EFFECT_MS);
             } else {

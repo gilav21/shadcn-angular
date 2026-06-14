@@ -1855,7 +1855,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private findAncestorByTag(startNode: Node, tagName: string): HTMLElement | null {
-        let node: Node | null = startNode;        while (node && node !== this.editorDiv?.nativeElement) {
+        let node: Node | null = startNode;
+        while (node && node !== this.editorDiv?.nativeElement) {
             if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === tagName) {
                 return node as HTMLElement;
             }
@@ -2309,7 +2310,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private moveCaretPastFormattingNode(selection: Selection, range: Range): void {
-        let formattedNode = range.startContainer;        while (formattedNode && formattedNode !== this.editorDiv?.nativeElement) {
+        let formattedNode = range.startContainer;
+        while (formattedNode && formattedNode !== this.editorDiv?.nativeElement) {
             if (formattedNode.nodeType === Node.ELEMENT_NODE) {
                 const tagName = (formattedNode as Element).tagName.toLowerCase();
                 if (['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'code'].includes(tagName)) {
@@ -4546,7 +4548,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private getParentListItem(): HTMLElement | null {
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) return null;
-        let node: Node | null = selection.getRangeAt(0).startContainer;        while (node && node !== this.editorDiv?.nativeElement) {
+        let node: Node | null = selection.getRangeAt(0).startContainer;
+        while (node && node !== this.editorDiv?.nativeElement) {
             if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'LI') {
                 return node as HTMLElement;
             }
@@ -4597,7 +4600,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private getListDepth(li: HTMLElement): number {
         let depth = 0;
-        let parent: Node | null = li;        while (parent && parent !== this.editorDiv?.nativeElement) {
+        let parent: Node | null = li;
+        while (parent && parent !== this.editorDiv?.nativeElement) {
             if (parent.nodeType === Node.ELEMENT_NODE &&
                 ((parent as Element).tagName === 'UL' || (parent as Element).tagName === 'OL')) {
                 depth++;
@@ -4633,7 +4637,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) return;
 
-        let node: Node | null = selection.getRangeAt(0).startContainer;        while (node && node !== this.editorDiv?.nativeElement) {
+        let node: Node | null = selection.getRangeAt(0).startContainer;
+        while (node && node !== this.editorDiv?.nativeElement) {
             if (node.nodeType === Node.ELEMENT_NODE) {
                 const el = node as HTMLElement;
                 if (el.closest('ul[data-task-list]')) {
@@ -5112,7 +5117,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!selection || selection.rangeCount === 0) {
             return;
         }
-        let el: Node | null = selection.getRangeAt(0).startContainer;        while (el && el !== this.editorDiv?.nativeElement) {
+        let el: Node | null = selection.getRangeAt(0).startContainer;
+        while (el && el !== this.editorDiv?.nativeElement) {
             if (el.nodeType === Node.ELEMENT_NODE && (el as Element).closest('ul[data-task-list]')) {
                 formats.add('taskList');
                 break;
