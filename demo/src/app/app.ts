@@ -224,6 +224,7 @@ export class AppComponent {
     { id: 'command', name: 'Command', category: 'Overlay', icon: '⌘' },
     { id: 'context-menu', name: 'Context Menu', category: 'Overlay', icon: '📋' },
     { id: 'dialog', name: 'Dialog', category: 'Overlay', icon: '💭' },
+    { id: 'editor-in-dialog', name: 'Editor in Dialog', category: 'Overlay', icon: '🪟' },
     { id: 'drawer', name: 'Drawer', category: 'Overlay', icon: '🗄️' },
     { id: 'dropdown-menu', name: 'Dropdown Menu', category: 'Overlay', icon: '📜' },
     { id: 'hover-card', name: 'Hover Card', category: 'Overlay', icon: '🖱️' },

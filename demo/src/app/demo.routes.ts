@@ -49,6 +49,7 @@ export const DEMO_ROUTES: Routes = [
 
   // Overlay
   { path: 'dialog', loadComponent: () => import('./demos/overlay/dialog-demo.component').then(m => m.DialogDemoComponent) },
+  { path: 'editor-in-dialog', loadComponent: () => import('./demos/overlay/editor-in-dialog-demo.component').then(m => m.EditorInDialogDemoComponent) },
   { path: 'tooltip', loadComponent: () => import('./demos/overlay/tooltip-demo.component').then(m => m.TooltipDemoComponent) },
   { path: 'dropdown-menu', loadComponent: () => import('./demos/overlay/dropdown-menu-demo.component').then(m => m.DropdownMenuDemoComponent) },
   { path: 'popover', loadComponent: () => import('./demos/overlay/popover-demo.component').then(m => m.PopoverDemoComponent) },

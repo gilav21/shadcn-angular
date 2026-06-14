@@ -38,6 +38,7 @@ import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.c
             <div
                 [class]="contentClasses()"
                 [style]="contentStyles()"
+                [style.visibility]="strategy() === 'fixed' && !fixedReady() ? 'hidden' : null"
                 [attr.data-slot]="'emoji-picker-content'"
                 [attr.data-state]="picker?.open() ? 'open' : 'closed'"
             >
@@ -149,11 +150,20 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
 
     strategy = input<'absolute' | 'fixed'>('absolute');
     private readonly fixedPosition = signal({ top: 0, left: 0 });
+    /** Gates visibility until the fixed position is measured, so the panel never
+     *  flashes at its default 0,0 on the first open. */
+    readonly fixedReady = signal(false);
 
     constructor() {
         effect(() => {
             if (this.picker?.open() && this.strategy() === 'fixed') {
-                requestAnimationFrame(() => this.updateFixedPosition());
+                this.fixedReady.set(false);
+                requestAnimationFrame(() => {
+                    this.updateFixedPosition();
+                    this.fixedReady.set(true);
+                });
+            } else {
+                this.fixedReady.set(false);
             }
         });
     }

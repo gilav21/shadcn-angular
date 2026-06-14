@@ -5086,14 +5086,30 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private restoreSelection(): void {
-        if (this.savedRange && this.editorDiv?.nativeElement) {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+        const selection = this.document.getSelection();
+        if (!selection) return;
+        // 1. Prefer an explicitly saved range that still lives in the editor.
+        if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
             this.focusEditor();
-            const selection = this.document.getSelection();
-            if (selection) {
-                selection.removeAllRanges();
-                selection.addRange(this.savedRange);
-            }
+            selection.removeAllRanges();
+            selection.addRange(this.savedRange);
+            return;
         }
+        // 2. Keep the current selection if it is already inside the editor.
+        if (selection.rangeCount > 0 && editor.contains(selection.getRangeAt(0).startContainer)) {
+            return;
+        }
+        // 3. Otherwise (editor never focused, or the caret is in the toolbar /
+        //    emoji search field) drop the caret at the end of the editor content
+        //    so insertions always land in the text.
+        this.focusEditor();
+        const range = this.document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
     }
 
     private updateActiveFormats(): void {

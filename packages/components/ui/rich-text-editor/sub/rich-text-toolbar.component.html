@@ -103,7 +103,13 @@
         </ui-popover-content>
       </ui-popover>
     } @else if (item === 'emoji') {
-      <ui-emoji-picker [closeOnSelect]="false" [closeOnScroll]="true" (emojiSelect)="onEmojiSelect($event)">
+      <ui-emoji-picker
+        [open]="openPopover() === 'emoji'"
+        [closeOnSelect]="false"
+        [closeOnScroll]="true"
+        (openChange)="$event ? openPopoverPanel('emoji') : closePopoverPanel('emoji')"
+        (emojiSelect)="onEmojiSelect($event)"
+      >
         <ui-emoji-picker-trigger>
           <button
             type="button"

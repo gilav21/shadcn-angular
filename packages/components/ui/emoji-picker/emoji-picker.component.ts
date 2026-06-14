@@ -3,7 +3,7 @@ import {
     ChangeDetectionStrategy,
     input,
     output,
-    signal,
+    model,
     inject,
     ElementRef,
     InjectionToken,
@@ -264,7 +264,7 @@ export class EmojiPickerComponent {
     private readonly el = inject(ElementRef);
     private readonly destroyRef = inject(DestroyRef);
 
-    open = signal(false);
+    open = model(false);
     closeOnSelect = input(true);
     closeOnScroll = input(false);
     emojiSelect = output<string>();

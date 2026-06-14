@@ -255,13 +255,21 @@ describe('PopoverContent positioning', () => {
         expect(pos.offsetY).toBe(0);
     });
 
-    it('fixed strategy portals the content into document.body', async () => {
+    it('fixed strategy places content in the top layer (body portal fallback)', async () => {
         component.strategy.set('fixed');
         await openPopover();
-        const portal = document.querySelector('[data-popover-portal]');
-        expect(portal).toBeTruthy();
-        const el = portal!.querySelector('[data-slot="popover-content"]') as HTMLElement;
+        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
         expect(el).toBeTruthy();
+        if (typeof (el as { showPopover?: unknown }).showPopover === 'function') {
+            // Popover API path: promoted to the top layer, element stays in place (no portal host)
+            expect(el.hasAttribute('popover')).toBe(true);
+            expect(el.matches(':popover-open')).toBe(true);
+        } else {
+            // Fallback path (no Popover API): portaled to document.body
+            const portal = document.querySelector('[data-popover-portal]');
+            expect(portal).toBeTruthy();
+            expect(portal!.contains(el)).toBe(true);
+        }
         // fixed styles computed from trigger rect
         const styles = content().positionStyles();
         expect(styles).toContain('position:fixed');
@@ -285,13 +293,15 @@ describe('PopoverContent positioning', () => {
         expect(styles).not.toContain('translateX');
     });
 
-    it('removes the portal when closed', async () => {
+    it('tears down fixed content when closed', async () => {
         component.strategy.set('fixed');
         await openPopover();
-        expect(document.querySelector('[data-popover-portal]')).toBeTruthy();
+        expect(document.querySelector('[data-slot="popover-content"]')).toBeTruthy();
         component.open.set(false);
         fixture.detectChanges();
         await fixture.whenStable();
+        // Content removed and no leftover body portal regardless of placement strategy.
+        expect(document.querySelector('[data-slot="popover-content"]')).toBeNull();
         expect(document.querySelector('[data-popover-portal]')).toBeNull();
     });
 
@@ -326,6 +336,62 @@ describe('PopoverContent positioning', () => {
             computeHorizontalOffset(r: DOMRect, b: { left: number; right: number }): number;
         }).computeHorizontalOffset({ right: 100, left: -50 } as DOMRect, { left: 0, right: 1000 });
         expect(offsetLeft).toBeGreaterThan(0);
+    });
+});
+
+@Component({
+    template: `
+        <dialog #dlg>
+            <ui-popover [open]="open()">
+                <ui-popover-trigger>Open</ui-popover-trigger>
+                <ui-popover-content strategy="fixed">In-dialog content</ui-popover-content>
+            </ui-popover>
+        </dialog>
+    `,
+    imports: [PopoverComponent, PopoverTriggerComponent, PopoverContentComponent],
+})
+class DialogHostComponent {
+    open = signal(false);
+}
+
+describe('PopoverContent inside a modal dialog (top layer)', () => {
+    let fixture: ComponentFixture<DialogHostComponent>;
+    let component: DialogHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DialogHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DialogHostComponent);
+        component = fixture.componentInstance;
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        fixture.nativeElement.remove();
+        document.querySelectorAll('[data-popover-portal]').forEach(n => n.remove());
+    });
+
+    it('promotes the fixed popover to the top layer so it sits above the modal', async () => {
+        const probe = document.createElement('div');
+        // jsdom lacks showModal / the Popover API / :modal — this assertion is browser-only.
+        if (typeof (probe as { showPopover?: unknown }).showPopover !== 'function') return;
+
+        const dlg = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
+        dlg.showModal();
+        expect(dlg.matches(':modal')).toBe(true);
+
+        component.open.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+        fixture.detectChanges();
+
+        const el = document.querySelector('[data-slot="popover-content"]') as HTMLElement;
+        expect(el).toBeTruthy();
+        // In the top layer the popover is open and renders above the modal dialog.
+        expect(el.matches(':popover-open')).toBe(true);
+
+        dlg.close();
     });
 });
 
