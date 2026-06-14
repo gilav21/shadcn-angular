@@ -27,13 +27,13 @@ import {
                 <ui-command-list>
                     <ui-command-empty data-testid="empty">No results.</ui-command-empty>
                     <ui-command-group heading="Actions">
-                        <ui-command-item value="copy" (select)="pick('copy')" data-testid="item-copy">
+                        <ui-command-item value="copy" (selectItem)="pick('copy')" data-testid="item-copy">
                             Copy
                         </ui-command-item>
-                        <ui-command-item value="cut" (select)="pick('cut')" data-testid="item-cut">
+                        <ui-command-item value="cut" (selectItem)="pick('cut')" data-testid="item-cut">
                             Cut
                         </ui-command-item>
-                        <ui-command-item value="paste" (select)="pick('paste')" data-testid="item-paste">
+                        <ui-command-item value="paste" (selectItem)="pick('paste')" data-testid="item-paste">
                             Paste
                         </ui-command-item>
                     </ui-command-group>
