@@ -1910,7 +1910,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return;
         }
 
-        if (this.handlePasteMaxLength(html, text)) {
+        if (this.handlePasteMaxLength(text)) {
             return;
         }
 
@@ -1928,7 +1928,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return false;
     }
 
-    private handlePasteMaxLength(html: string | undefined, text: string): boolean {
+    private handlePasteMaxLength(text: string): boolean {
         if (!this.maxLength()) {
             return false;
         }
@@ -1941,12 +1941,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return true;
         }
 
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html || text, 'text/html');
-        const pasteText = doc.body.textContent ?? '';
-
-        if (pasteText.length > remaining) {
-            const truncated = pasteText.substring(0, remaining);
+        // Measure against the plain-text clipboard value (text/plain) — no need
+        // to parse the untrusted HTML; the over-limit path inserts plain text.
+        if (text.length > remaining) {
+            const truncated = text.substring(0, remaining);
             this.insertText(truncated);
             this.pushHistory();
             return true;

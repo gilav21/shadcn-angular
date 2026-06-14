@@ -1611,7 +1611,7 @@ describe('RichTextPasteNormalizerService', () => {
         it('should handle code blocks containing script tags safely', () => {
             const result = pipeline(null, '```html\n<script>alert(1)</script>\n```\n\n**Important** note');
             expect(result).toContain('<code');
-            expect(result).not.toMatch(/<script[\s>]/);
+            expect(result).not.toMatch(/<script[\s>]/i);
         });
 
         it('should sanitize vbscript: in markdown link', () => {

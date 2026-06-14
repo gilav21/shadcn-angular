@@ -161,9 +161,9 @@ export class RichTextPasteNormalizerService {
         cleaned = this.stripXmlProcessingInstructions(cleaned);
 
         const cssRules = this.extractCssRules(cleaned);
-        cleaned = this.stripStyleBlocks(cleaned);
 
         const container = this.parseToContainer(cleaned);
+        this.removeStyleElements(container);
 
         this.inlineCssRules(cssRules, container);
         this.removeNamespacedElements(container);
@@ -193,8 +193,12 @@ export class RichTextPasteNormalizerService {
         return html.replaceAll(/<xml[\s\S]*?<\/xml>/gi, '');
     }
 
-    private stripStyleBlocks(html: string): string {
-        return html.replaceAll(/<style[\s\S]*?<\/style>/gi, '');
+    /** Remove <style> blocks via the DOM (after their CSS was extracted) —
+     * complete and robust, unlike a regex strip. */
+    private removeStyleElements(container: HTMLElement): void {
+        for (const styleEl of Array.from(container.querySelectorAll('style'))) {
+            styleEl.remove();
+        }
     }
 
     private stripXmlProcessingInstructions(html: string): string {
