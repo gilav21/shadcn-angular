@@ -83,3 +83,34 @@ export const SimpleMode: Story = {
     `,
   }),
 };
+
+export const Multiple: Story = {
+  args: { type: 'multiple' },
+  render: (args) => ({
+    props: args,
+    template: `
+      <div [dir]="rtl ? 'rtl' : 'ltr'">
+      <ui-accordion type="multiple" [openValues]="['item-1', 'item-2']" class="w-full">
+        <ui-accordion-item value="item-1" title="First section" content="Multiple panels can stay open at the same time." />
+        <ui-accordion-item value="item-2" title="Second section" content="This one starts open too, via the openValues input." />
+        <ui-accordion-item value="item-3" title="Third section" content="Open and close any of these independently." />
+      </ui-accordion>
+      </div>
+    `,
+  }),
+};
+
+export const NotCollapsible: Story = {
+  render: (args) => ({
+    props: args,
+    template: `
+      <div [dir]="rtl ? 'rtl' : 'ltr'">
+      <ui-accordion type="single" [collapsible]="false" [openValues]="['item-1']" class="w-full">
+        <ui-accordion-item value="item-1" title="Always one open" content="With collapsible=false the active panel cannot be closed by clicking it again." />
+        <ui-accordion-item value="item-2" title="Switch sections" content="Selecting another panel moves the open state here." />
+        <ui-accordion-item value="item-3" title="One at a time" content="Exactly one panel stays open at all times." />
+      </ui-accordion>
+      </div>
+    `,
+  }),
+};

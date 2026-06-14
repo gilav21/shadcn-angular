@@ -76,6 +76,7 @@ export { BadgeDemoComponent } from './data-display/badge-demo.component';
 export { AvatarDemoComponent } from './data-display/avatar-demo.component';
 export { TableDemoComponent } from './data-display/table-demo.component';
 export { AccordionDemoComponent } from './data-display/accordion-demo.component';
+export { CardAccordionDemoComponent } from './data-display/card-accordion-demo.component';
 export { BreadcrumbDemoComponent } from './data-display/breadcrumb-demo.component';
 export { CarouselDemoComponent } from './data-display/carousel-demo.component';
 export { CodeBlockDemoComponent } from './data-display/code-block-demo.component';

@@ -15,6 +15,7 @@ export * from './textarea';
 export * from './skeleton';
 export * from './tabs';
 export * from './accordion';
+export * from './card-accordion';
 export * from './progress';
 export * from './alert';
 export * from './avatar';

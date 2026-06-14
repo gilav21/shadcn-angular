@@ -1,0 +1,19 @@
+<section
+  [attr.id]="panelId()"
+  [attr.aria-labelledby]="triggerId()"
+  role="region"
+  [attr.data-state]="isOpen() ? 'open' : 'closed'"
+  [attr.data-slot]="'card-accordion-content'"
+  [class]="classes()"
+>
+  <div class="overflow-hidden">
+    <div
+      class="px-4 pb-4 pt-0 text-sm text-muted-foreground transition-opacity duration-200 sm:px-6 sm:pb-6"
+      [class.opacity-0]="!isOpen()"
+      [class.opacity-100]="isOpen()"
+      [attr.inert]="!isOpen() ? '' : null"
+    >
+      <ng-content />
+    </div>
+  </div>
+</section>

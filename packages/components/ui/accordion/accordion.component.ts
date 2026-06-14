@@ -25,6 +25,7 @@ export class AccordionComponent {
   type = input<'single' | 'multiple'>('single');
   class = input('');
   openValues = input<string[] | null>(null);
+  collapsible = input(true);
 
   readonly accordionId = `accordion-${++accordionIdCounter}`;
   openItems = signal<Set<string>>(new Set());
@@ -51,7 +52,9 @@ export class AccordionComponent {
     const current = this.openItems();
     if (this.type() === 'single') {
       if (current.has(value)) {
-        this.openItems.set(new Set());
+        if (this.collapsible()) {
+          this.openItems.set(new Set());
+        }
       } else {
         this.openItems.set(new Set([value]));
       }
