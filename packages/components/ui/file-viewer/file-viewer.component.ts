@@ -1,6 +1,3 @@
-/* eslint-disable sonarjs/no-angular-bypass-sanitization -- only bypasses for
-   trusted content produced internally: blob: URLs from URL.createObjectURL and
-   HTML from our own DOCX/PDF/PPTX parsers, never raw user-supplied strings. */
 import {
     Component,
     ChangeDetectionStrategy,

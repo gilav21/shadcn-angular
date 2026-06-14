@@ -246,7 +246,7 @@ export class TreeComponent {
 
         if (parentMap) {
             let current = key;
-            while (true) {
+            for (;;) {
                 const parent = parentMap.get(current);
                 if (!parent) break;
                 ancestors.push(parent);

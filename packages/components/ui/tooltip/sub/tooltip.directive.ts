@@ -15,7 +15,7 @@ import { TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
     host: {
         '(mouseenter)': 'onMouseEnter()',
         '(mouseleave)': 'onMouseLeave()',
-        '(touchstart)': 'onTouchStart($event)',
+        '(touchstart)': 'onTouchStart()',
     },
 })
 export class TooltipDirective implements OnDestroy {
@@ -45,9 +45,8 @@ export class TooltipDirective implements OnDestroy {
         this.hideTooltip();
     }
 
-    onTouchStart(event: TouchEvent): void {
+    onTouchStart(): void {
         if (this.tooltipDisabled() || !isTouchDevice()) return;
-        event.preventDefault();
         this.toggleTouch();
     }
 

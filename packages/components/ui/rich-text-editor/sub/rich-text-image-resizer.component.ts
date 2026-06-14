@@ -1,5 +1,3 @@
-/* eslint-disable sonarjs/no-angular-bypass-sanitization -- bypasses only for
-   trusted static SVG icon constants defined in this file, never user input. */
 import { Component, signal, input, effect, OnDestroy, ChangeDetectionStrategy, output, inject, computed } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
