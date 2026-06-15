@@ -32,3 +32,4 @@ coverage/
 .vitest-attachments/
 coverage-cli/
 packages/.env
+.env
