@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   ButtonComponent,
   CardAccordionComponent,
@@ -7,6 +7,8 @@ import {
   CardAccordionActionsComponent,
   CardAccordionContentComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { CARD_ACCORDION_DEMO_LOCALES } from './card-accordion-demo.locales';
 
 @Component({
   selector: 'app-card-accordion-demo',
@@ -21,84 +23,58 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="card-accordion" class="text-2xl font-semibold scroll-m-20">Card Accordion</h2>
-      <p class="text-muted-foreground">
-        Collapsible sections styled as elevated cards with a smooth height animation.
-      </p>
+      <h2 id="card-accordion" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
-      <h3 class="text-lg font-medium mt-8">Simple mode</h3>
-      <p class="text-muted-foreground text-sm mb-4">
-        Drive each panel with <code>title</code>, <code>description</code> and <code>content</code> inputs.
-      </p>
+      <h3 class="text-lg font-medium mt-8">{{ t().simpleHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().simpleDescription }}</p>
       <ui-card-accordion class="mx-auto max-w-xl">
-        <ui-card-accordion-item
-          value="what"
-          title="What is shadcn-angular?"
-          description="The basics"
-          content="A copy-paste component library you fully own inside your own project."
-        />
-        <ui-card-accordion-item
-          value="custom"
-          title="Is it customizable?"
-          description="Completely"
-          content="Every component exposes a class input and supports content projection."
-        />
-        <ui-card-accordion-item
-          value="animated"
-          title="Is it animated?"
-          content="Yes — panels expand and collapse with a smooth grid-rows height transition."
-        />
+        <ui-card-accordion-item value="what" [title]="t().s1Title" [description]="t().s1Desc" [content]="t().s1Content" />
+        <ui-card-accordion-item value="custom" [title]="t().s2Title" [description]="t().s2Desc" [content]="t().s2Content" />
+        <ui-card-accordion-item value="animated" [title]="t().s3Title" [content]="t().s3Content" />
       </ui-card-accordion>
 
-      <h3 class="text-lg font-medium mt-8">Custom mode with header actions</h3>
-      <p class="text-muted-foreground text-sm mb-4">
-        Project a trigger, an actions slot, and content. Action clicks never toggle the panel.
-      </p>
+      <h3 class="text-lg font-medium mt-8">{{ t().customHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().customDescription }}</p>
       <ui-card-accordion class="mx-auto max-w-xl">
         <ui-card-accordion-item value="billing">
           <ui-card-accordion-trigger>
-            Billing settings
+            {{ t().billingTitle }}
             <ui-card-accordion-actions>
-              <ui-button variant="ghost" size="sm">Manage</ui-button>
+              <ui-button variant="ghost" size="sm">{{ t().billingAction }}</ui-button>
             </ui-card-accordion-actions>
           </ui-card-accordion-trigger>
-          <ui-card-accordion-content>
-            Update your subscription, payment methods and download invoices.
-          </ui-card-accordion-content>
+          <ui-card-accordion-content>{{ t().billingContent }}</ui-card-accordion-content>
         </ui-card-accordion-item>
         <ui-card-accordion-item value="team">
           <ui-card-accordion-trigger>
-            Team members
+            {{ t().teamTitle }}
             <ui-card-accordion-actions>
-              <ui-button variant="outline" size="sm">Invite</ui-button>
+              <ui-button variant="outline" size="sm">{{ t().teamAction }}</ui-button>
             </ui-card-accordion-actions>
           </ui-card-accordion-trigger>
-          <ui-card-accordion-content>
-            Invite teammates and manage their roles and permissions here.
-          </ui-card-accordion-content>
+          <ui-card-accordion-content>{{ t().teamContent }}</ui-card-accordion-content>
         </ui-card-accordion-item>
       </ui-card-accordion>
 
-      <h3 class="text-lg font-medium mt-8">Multiple open</h3>
-      <p class="text-muted-foreground text-sm mb-4">
-        Use <code>type="multiple"</code> to let several panels stay open at once;
-        <code>openValues</code> sets the defaults.
-      </p>
+      <h3 class="text-lg font-medium mt-8">{{ t().multipleHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().multipleDescription }}</p>
       <ui-card-accordion type="multiple" [openValues]="['a', 'b']" class="mx-auto max-w-xl">
-        <ui-card-accordion-item value="a" title="First panel" content="Several panels can stay open together." />
-        <ui-card-accordion-item value="b" title="Second panel" content="This one starts open too." />
-        <ui-card-accordion-item value="c" title="Third panel" content="Toggle each one independently." />
+        <ui-card-accordion-item value="a" [title]="t().m1Title" [content]="t().m1Content" />
+        <ui-card-accordion-item value="b" [title]="t().m2Title" [content]="t().m2Content" />
+        <ui-card-accordion-item value="c" [title]="t().m3Title" [content]="t().m3Content" />
       </ui-card-accordion>
 
-      <h3 class="text-lg font-medium mt-8">Always one open</h3>
-      <p class="text-muted-foreground text-sm mb-4">
-        With <code>[collapsible]="false"</code> in single mode, the active panel can't be closed by clicking it again.
-      </p>
+      <h3 class="text-lg font-medium mt-8">{{ t().collapsibleHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().collapsibleDescription }}</p>
       <ui-card-accordion type="single" [collapsible]="false" [openValues]="['one']" class="mx-auto max-w-xl">
-        <ui-card-accordion-item value="one" title="Section one" content="Exactly one panel stays open at all times." />
-        <ui-card-accordion-item value="two" title="Section two" content="Selecting another panel moves the open state here." />
+        <ui-card-accordion-item value="one" [title]="t().c1Title" [content]="t().c1Content" />
+        <ui-card-accordion-item value="two" [title]="t().c2Title" [content]="t().c2Content" />
       </ui-card-accordion>
     </section>
   `,
 })
-export class CardAccordionDemoComponent {}
+export class CardAccordionDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => CARD_ACCORDION_DEMO_LOCALES[this.localeId()] ?? CARD_ACCORDION_DEMO_LOCALES['en']);
+}
