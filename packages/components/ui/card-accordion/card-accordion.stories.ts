@@ -71,19 +71,23 @@ export const CustomWithActions: Story = {
       <div [dir]="rtl ? 'rtl' : 'ltr'" class="mx-auto max-w-xl">
         <ui-card-accordion [type]="type" [collapsible]="collapsible">
           <ui-card-accordion-item value="billing">
-            <ui-card-accordion-trigger>Billing settings</ui-card-accordion-trigger>
-            <ui-card-accordion-actions>
-              <ui-button variant="ghost" size="icon-sm" ariaLabel="Edit">✎</ui-button>
-            </ui-card-accordion-actions>
+            <ui-card-accordion-trigger>
+              Billing settings
+              <ui-card-accordion-actions>
+                <ui-button variant="ghost" size="icon-sm" ariaLabel="Edit">✎</ui-button>
+              </ui-card-accordion-actions>
+            </ui-card-accordion-trigger>
             <ui-card-accordion-content>
               Manage your subscription, payment methods and invoices here.
             </ui-card-accordion-content>
           </ui-card-accordion-item>
           <ui-card-accordion-item value="team">
-            <ui-card-accordion-trigger>Team members</ui-card-accordion-trigger>
-            <ui-card-accordion-actions>
-              <ui-button variant="outline" size="sm">Invite</ui-button>
-            </ui-card-accordion-actions>
+            <ui-card-accordion-trigger>
+              Team members
+              <ui-card-accordion-actions>
+                <ui-button variant="outline" size="sm">Invite</ui-button>
+              </ui-card-accordion-actions>
+            </ui-card-accordion-trigger>
             <ui-card-accordion-content>
               Invite teammates and manage their roles and permissions.
             </ui-card-accordion-content>

@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+const toggle = (id: string) => `[data-testid="${id}"] [data-slot="card-accordion-trigger"]`;
+
 test('card-accordion renders', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('root')).toBeVisible();
@@ -8,20 +10,20 @@ test('card-accordion renders', async ({ page }) => {
 test('toggles a panel open and rotates the chevron', async ({ page }) => {
     await page.goto('/');
 
-    const trigger = page.getByTestId('trigger-one').locator('button');
+    const trigger = page.locator(toggle('trigger-one'));
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
     await trigger.click();
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByTestId('content-one')).toBeVisible();
-    await expect(trigger.locator('svg')).toHaveClass(/rotate-180/);
+    await expect(page.getByTestId('trigger-one').locator('svg')).toHaveClass(/rotate-180/);
 });
 
 test('single mode closes the previous panel', async ({ page }) => {
     await page.goto('/');
 
-    const first = page.getByTestId('trigger-one').locator('button');
-    const second = page.getByTestId('trigger-two').locator('button');
+    const first = page.locator(toggle('trigger-one'));
+    const second = page.locator(toggle('trigger-two'));
 
     await first.click();
     await second.click();
@@ -33,7 +35,7 @@ test('single mode closes the previous panel', async ({ page }) => {
 test('header action click does not toggle the panel', async ({ page }) => {
     await page.goto('/');
 
-    const trigger = page.getByTestId('trigger-one').locator('button');
+    const trigger = page.locator(toggle('trigger-one'));
     await page.getByTestId('action-one').click();
 
     await expect(page.getByTestId('action-count')).toHaveText('1');

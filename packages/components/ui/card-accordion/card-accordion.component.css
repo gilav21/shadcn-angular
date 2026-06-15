@@ -1,0 +1,8 @@
+:host {
+  --_d: var(--density-card-accordion, var(--density, 1));
+}
+@layer components {
+  [data-slot="card-accordion"] {
+    gap: calc(0.75rem * var(--_d));
+  }
+}

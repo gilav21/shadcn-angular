@@ -18,6 +18,7 @@ import { SkeletonComponent } from '../../skeleton';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SkeletonComponent],
   templateUrl: './card-accordion-item.component.html',
+  styleUrl: './card-accordion-item.component.css',
   host: { '[class]': '"contents"' },
 })
 export class CardAccordionItemComponent {

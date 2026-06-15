@@ -1,0 +1,23 @@
+:host {
+  --_d: var(--density-card-accordion, var(--density, 1));
+}
+@layer components {
+  [data-slot="card-accordion-trigger"] {
+    padding-block: calc(1rem * var(--_d));
+    padding-inline-start: calc(1rem * var(--_d));
+  }
+  [data-slot="card-accordion-chevron"] {
+    padding-block: calc(1rem * var(--_d));
+    padding-inline-end: calc(1rem * var(--_d));
+  }
+  @media (min-width: 640px) {
+    [data-slot="card-accordion-trigger"] {
+      padding-block: calc(1.5rem * var(--_d));
+      padding-inline-start: calc(1.5rem * var(--_d));
+    }
+    [data-slot="card-accordion-chevron"] {
+      padding-block: calc(1.5rem * var(--_d));
+      padding-inline-end: calc(1.5rem * var(--_d));
+    }
+  }
+}

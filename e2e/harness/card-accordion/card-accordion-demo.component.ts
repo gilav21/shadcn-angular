@@ -26,12 +26,14 @@ import {
         <main class="p-8 space-y-8">
             <ui-card-accordion data-testid="root" type="single">
                 <ui-card-accordion-item value="one">
-                    <ui-card-accordion-trigger data-testid="trigger-one">First panel</ui-card-accordion-trigger>
-                    <ui-card-accordion-actions>
-                        <button type="button" data-testid="action-one" (click)="actionClicks.set(actionClicks() + 1)">
-                            Action
-                        </button>
-                    </ui-card-accordion-actions>
+                    <ui-card-accordion-trigger data-testid="trigger-one">
+                        First panel
+                        <ui-card-accordion-actions>
+                            <button type="button" data-testid="action-one" (click)="actionClicks.set(actionClicks() + 1)">
+                                Action
+                            </button>
+                        </ui-card-accordion-actions>
+                    </ui-card-accordion-trigger>
                     <ui-card-accordion-content>
                         <p data-testid="content-one">First panel body</p>
                     </ui-card-accordion-content>

@@ -14,10 +14,12 @@ import {
   template: `
     <ui-card-accordion [type]="type()" [collapsible]="collapsible()">
       <ui-card-accordion-item value="item-1">
-        <ui-card-accordion-trigger>Item 1</ui-card-accordion-trigger>
-        <ui-card-accordion-actions>
-          <button type="button" data-testid="action-1" (click)="actionClicks.set(actionClicks() + 1)">A</button>
-        </ui-card-accordion-actions>
+        <ui-card-accordion-trigger>
+          Item 1
+          <ui-card-accordion-actions>
+            <button type="button" data-testid="action-1" (click)="actionClicks.set(actionClicks() + 1)">A</button>
+          </ui-card-accordion-actions>
+        </ui-card-accordion-trigger>
         <ui-card-accordion-content>Content 1</ui-card-accordion-content>
       </ui-card-accordion-item>
       <ui-card-accordion-item value="item-2">
@@ -96,8 +98,8 @@ describe('CardAccordion integration', () => {
 
     expect(triggers()[0].nativeElement.getAttribute('aria-expanded')).toBe('true');
     expect(contents()[0].nativeElement.getAttribute('data-state')).toBe('open');
-    const chevron = triggers()[0].nativeElement.querySelector('svg');
-    expect(chevron.classList.contains('rotate-180')).toBe(true);
+    const chevron = fixture.debugElement.queryAll(By.css('[data-slot="card-accordion-chevron"] svg'))[0];
+    expect(chevron.nativeElement.classList.contains('rotate-180')).toBe(true);
   });
 
   it('should keep closed content in the DOM but inert', () => {

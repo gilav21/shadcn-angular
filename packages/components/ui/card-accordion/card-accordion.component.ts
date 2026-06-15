@@ -17,10 +17,11 @@ import { ACCORDION, AccordionComponent } from '../accordion';
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [{ provide: ACCORDION, useExisting: forwardRef(() => CardAccordionComponent) }],
   templateUrl: './card-accordion.component.html',
+  styleUrl: './card-accordion.component.css',
   host: { '[class]': '"contents"' },
 })
 export class CardAccordionComponent extends AccordionComponent {
   override readonly classes = computed(() =>
-    cn('flex w-full flex-col gap-3', this.class())
+    cn('flex w-full flex-col', this.class())
   );
 }

@@ -18,6 +18,7 @@ import { CardAccordionItemComponent } from './card-accordion-item.component';
   selector: 'ui-card-accordion-content',
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './card-accordion-content.component.html',
+  styleUrl: './card-accordion-content.component.css',
   host: { '[class]': '"contents"' },
 })
 export class CardAccordionContentComponent {

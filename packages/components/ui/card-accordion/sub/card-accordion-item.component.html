@@ -16,7 +16,7 @@
       <button
         type="button"
         [attr.id]="triggerId()"
-        class="flex flex-1 items-center justify-between gap-3 p-4 text-start transition-colors hover:bg-accent/40 sm:p-6"
+        class="flex flex-1 items-center justify-between gap-3 text-start transition-colors hover:bg-accent/40"
         [attr.aria-expanded]="isOpen()"
         [attr.aria-controls]="panelId()"
         [attr.data-state]="isOpen() ? 'open' : 'closed'"
@@ -51,7 +51,8 @@
     >
       <div class="overflow-hidden">
         <div
-          class="px-4 pb-4 pt-0 text-sm text-muted-foreground transition-opacity duration-200 sm:px-6 sm:pb-6"
+          class="text-sm text-muted-foreground transition-opacity duration-200"
+          [attr.data-slot]="'card-accordion-body'"
           [class.opacity-0]="!isOpen()"
           [class.opacity-100]="isOpen()"
           [attr.inert]="!isOpen() ? '' : null"

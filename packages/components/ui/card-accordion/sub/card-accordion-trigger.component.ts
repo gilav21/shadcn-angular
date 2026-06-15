@@ -19,6 +19,7 @@ import { CardAccordionItemComponent } from './card-accordion-item.component';
   selector: 'ui-card-accordion-trigger',
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './card-accordion-trigger.component.html',
+  styleUrl: './card-accordion-trigger.component.css',
   host: { '[class]': '"contents"' },
 })
 export class CardAccordionTriggerComponent {
@@ -44,7 +45,7 @@ export class CardAccordionTriggerComponent {
 
   readonly classes = computed(() =>
     cn(
-      'flex flex-1 items-center justify-between gap-3 p-4 text-start text-base font-semibold transition-colors hover:bg-accent/40 sm:p-6',
+      'flex min-w-0 flex-1 items-center rounded-md text-start text-base font-semibold transition-colors',
       this.class()
     )
   );

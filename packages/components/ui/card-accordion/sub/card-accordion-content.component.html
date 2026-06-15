@@ -7,7 +7,8 @@
 >
   <div class="overflow-hidden">
     <div
-      class="px-4 pb-4 pt-0 text-sm text-muted-foreground transition-opacity duration-200 sm:px-6 sm:pb-6"
+      class="text-sm text-muted-foreground transition-opacity duration-200"
+      [attr.data-slot]="'card-accordion-body'"
       [class.opacity-0]="!isOpen()"
       [class.opacity-100]="isOpen()"
       [attr.inert]="!isOpen() ? '' : null"

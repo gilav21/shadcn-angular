@@ -25,7 +25,7 @@ export class CardAccordionActionsComponent {
   readonly class = input('');
 
   readonly classes = computed(() =>
-    cn('flex shrink-0 items-center gap-1 pe-4 sm:pe-6', this.class())
+    cn('flex shrink-0 items-center gap-1', this.class())
   );
 
   onClick(event: Event): void {

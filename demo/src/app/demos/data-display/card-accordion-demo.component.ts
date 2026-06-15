@@ -56,19 +56,23 @@ import {
       </p>
       <ui-card-accordion class="mx-auto max-w-xl">
         <ui-card-accordion-item value="billing">
-          <ui-card-accordion-trigger>Billing settings</ui-card-accordion-trigger>
-          <ui-card-accordion-actions>
-            <ui-button variant="ghost" size="sm">Manage</ui-button>
-          </ui-card-accordion-actions>
+          <ui-card-accordion-trigger>
+            Billing settings
+            <ui-card-accordion-actions>
+              <ui-button variant="ghost" size="sm">Manage</ui-button>
+            </ui-card-accordion-actions>
+          </ui-card-accordion-trigger>
           <ui-card-accordion-content>
             Update your subscription, payment methods and download invoices.
           </ui-card-accordion-content>
         </ui-card-accordion-item>
         <ui-card-accordion-item value="team">
-          <ui-card-accordion-trigger>Team members</ui-card-accordion-trigger>
-          <ui-card-accordion-actions>
-            <ui-button variant="outline" size="sm">Invite</ui-button>
-          </ui-card-accordion-actions>
+          <ui-card-accordion-trigger>
+            Team members
+            <ui-card-accordion-actions>
+              <ui-button variant="outline" size="sm">Invite</ui-button>
+            </ui-card-accordion-actions>
+          </ui-card-accordion-trigger>
           <ui-card-accordion-content>
             Invite teammates and manage their roles and permissions here.
           </ui-card-accordion-content>
