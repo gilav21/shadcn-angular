@@ -1,15 +1,13 @@
 // Export all open SonarQube issues for the project to sonar-issues.json and
 // print a by-rule summary. Runs on the host, so it talks to localhost:9000.
-// Usage:
-//   Windows:  $env:SONAR_TOKEN="<token>"; npm run sonar:export
-//   bash:     SONAR_TOKEN=<token> npm run sonar:export
+// Usage (provide SONAR_TOKEN one of these ways):
+//   .env file (any OS):    add `SONAR_TOKEN=<token>` to packages/.env (gitignored)
+//   Windows (PowerShell):  $env:SONAR_TOKEN="<token>"; npm run sonar:export
+//   macOS / Linux:         SONAR_TOKEN=<token> npm run sonar:export
 import { writeFileSync } from 'node:fs';
+import { resolveSonarToken } from './sonar-token.mjs';
 
-const token = process.env.SONAR_TOKEN;
-if (!token) {
-  console.error('SONAR_TOKEN is not set — generate one in SonarQube → My Account → Security.');
-  process.exit(1);
-}
+const token = resolveSonarToken();
 
 const host = (process.env.SONAR_HOST_URL_LOCAL ?? 'http://localhost:9000').replace(/\/$/, '');
 const project = process.env.SONAR_PROJECT ?? 'shadcn-angular';
