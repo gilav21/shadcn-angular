@@ -87,6 +87,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'avatar', loadComponent: () => import('./demos/data-display/avatar-demo.component').then(m => m.AvatarDemoComponent) },
   { path: 'table', loadComponent: () => import('./demos/data-display/table-demo.component').then(m => m.TableDemoComponent) },
   { path: 'accordion', loadComponent: () => import('./demos/data-display/accordion-demo.component').then(m => m.AccordionDemoComponent) },
+  { path: 'card-accordion', loadComponent: () => import('./demos/data-display/card-accordion-demo.component').then(m => m.CardAccordionDemoComponent) },
   { path: 'breadcrumb', loadComponent: () => import('./demos/data-display/breadcrumb-demo.component').then(m => m.BreadcrumbDemoComponent) },
   { path: 'carousel', loadComponent: () => import('./demos/data-display/carousel-demo.component').then(m => m.CarouselDemoComponent) },
   { path: 'code-block', loadComponent: () => import('./demos/data-display/code-block-demo.component').then(m => m.CodeBlockDemoComponent) },

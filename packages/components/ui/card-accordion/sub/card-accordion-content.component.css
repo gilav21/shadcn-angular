@@ -1,0 +1,15 @@
+:host {
+  --_d: var(--density-card-accordion, var(--density, 1));
+}
+@layer components {
+  [data-slot="card-accordion-body"] {
+    padding-block: 0 calc(1rem * var(--_d));
+    padding-inline: calc(1rem * var(--_d));
+  }
+  @media (min-width: 640px) {
+    [data-slot="card-accordion-body"] {
+      padding-block: 0 calc(1.5rem * var(--_d));
+      padding-inline: calc(1.5rem * var(--_d));
+    }
+  }
+}

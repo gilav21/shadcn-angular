@@ -119,6 +119,29 @@ describe('AccordionComponent', () => {
         expect(component.isOpen('item-1')).toBe(true);
         expect(component.isOpen('item-2')).toBe(true);
     });
+
+    it('should keep the active item open when collapsible is false', () => {
+        fixture.componentRef.setInput('collapsible', false);
+        fixture.detectChanges();
+
+        component.toggle('item-1');
+        expect(component.isOpen('item-1')).toBe(true);
+
+        // Re-clicking the open item does not close it
+        component.toggle('item-1');
+        expect(component.isOpen('item-1')).toBe(true);
+    });
+
+    it('should still switch items when collapsible is false', () => {
+        fixture.componentRef.setInput('collapsible', false);
+        fixture.detectChanges();
+
+        component.toggle('item-1');
+        component.toggle('item-2');
+
+        expect(component.isOpen('item-1')).toBe(false);
+        expect(component.isOpen('item-2')).toBe(true);
+    });
 });
 
 describe('AccordionItemComponent', () => {

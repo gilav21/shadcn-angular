@@ -235,6 +235,7 @@ export class AppComponent {
 
     // Data Display
     { id: 'accordion', name: 'Accordion', category: 'Data Display', icon: '🪗' },
+    { id: 'card-accordion', name: 'Card Accordion', category: 'Data Display', icon: '🗂️' },
     { id: 'avatar', name: 'Avatar', category: 'Data Display', icon: '👤' },
     { id: 'badge', name: 'Badge', category: 'Data Display', icon: '🔖' },
     { id: 'card', name: 'Card', category: 'Data Display', icon: '🃏' },

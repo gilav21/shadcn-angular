@@ -1110,6 +1110,14 @@ export const registry = defineRegistry({
     files: ['directives/copy-to.directive.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
+  'card-accordion': {
+    name: 'card-accordion',
+    category: 'utility',
+    description: 'Collapsible sections styled as elevated cards, with a header, optional actions, and a smooth height animation.',
+    tags: ['accordion', 'card', 'collapse', 'expand', 'disclosure'],
+    files: ['card-accordion/card-accordion.component.css', 'card-accordion/card-accordion.component.html', 'card-accordion/card-accordion.component.ts', 'card-accordion/index.ts', 'card-accordion/sub/card-accordion-actions.component.ts', 'card-accordion/sub/card-accordion-content.component.css', 'card-accordion/sub/card-accordion-content.component.html', 'card-accordion/sub/card-accordion-content.component.ts', 'card-accordion/sub/card-accordion-item.component.css', 'card-accordion/sub/card-accordion-item.component.html', 'card-accordion/sub/card-accordion-item.component.ts', 'card-accordion/sub/card-accordion-trigger.component.css', 'card-accordion/sub/card-accordion-trigger.component.html', 'card-accordion/sub/card-accordion-trigger.component.ts'],
+    dependencies: ['accordion', 'skeleton'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;
