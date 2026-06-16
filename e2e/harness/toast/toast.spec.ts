@@ -3,16 +3,21 @@ import { test, expect } from '@playwright/test';
 test('toast fires from a service and renders its title + description', async ({ page }) => {
     await page.goto('/');
 
-    // No toast in the DOM initially.
-    await expect(page.locator('text=Saved')).toBeHidden();
+    // Count the rendered toasts structurally — robust against text-substring matches.
+    const toasts = page.locator('[data-slot="toast"]');
+    await expect(toasts).toHaveCount(0);
 
     await page.getByTestId('fire').click();
 
-    // The toast renders inside <ui-toaster>; locate by visible text.
-    await expect(page.locator('text=Saved').first()).toBeVisible();
-    await expect(page.locator('text=Your changes have been saved.').first()).toBeVisible();
+    // Wait for the first toast to be in the DOM before firing again, so a slow
+    // runner can't drop the second click into the gap before the first render.
+    await expect(toasts).toHaveCount(1);
+    await expect(page.locator('[data-slot="toast-title"]').first()).toHaveText('Saved');
+    await expect(page.locator('[data-slot="toast-description"]').first()).toHaveText(
+        'Your changes have been saved.',
+    );
 
     // Firing again stacks a second toast.
     await page.getByTestId('fire').click();
-    await expect(page.locator('text=Saved')).toHaveCount(2);
+    await expect(toasts).toHaveCount(2);
 });
