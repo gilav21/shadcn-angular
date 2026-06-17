@@ -422,6 +422,46 @@ describe('RichTextImageResizerComponent', () => {
             expect(stopPropagation).toHaveBeenCalled();
             document.dispatchEvent(new MouseEvent('mouseup'));
         });
+
+        describe('touch input', () => {
+            function touchStart(clientX: number, clientY: number): TouchEvent {
+                return {
+                    touches: [{ clientX, clientY }],
+                    changedTouches: [{ clientX, clientY }],
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                } as unknown as TouchEvent;
+            }
+
+            function dispatchTouch(type: string, clientX: number, clientY: number): void {
+                const ev = new Event(type, { bubbles: true, cancelable: true });
+                Object.defineProperty(ev, 'touches', { value: [{ clientX, clientY }] });
+                Object.defineProperty(ev, 'changedTouches', { value: [{ clientX, clientY }] });
+                document.dispatchEvent(ev);
+            }
+
+            it('resizes via touchstart + touchmove just like the mouse', () => {
+                component.startResize(touchStart(0, 0), 'se');
+                dispatchTouch('touchmove', 50, 0);
+                // aspect = 100/50 = 2; newWidth = 150 -> newHeight = 75
+                expect(img.style.width).toBe('150px');
+                expect(img.style.height).toBe('75px');
+            });
+
+            it('emits resizeEnd on touchend and clears touch listeners', () => {
+                let ended = false;
+                component.resizeEnd.subscribe(() => (ended = true));
+
+                component.startResize(touchStart(0, 0), 'se');
+                dispatchTouch('touchmove', 50, 0);
+                dispatchTouch('touchend', 50, 0);
+                expect(ended).toBe(true);
+
+                // After touchend, further touchmove must not change dimensions.
+                dispatchTouch('touchmove', 200, 0);
+                expect(img.style.width).toBe('150px');
+            });
+        });
     });
 
     describe('handle & toolbar rendering', () => {
