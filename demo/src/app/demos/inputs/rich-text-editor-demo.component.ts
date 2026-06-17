@@ -151,6 +151,15 @@ import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
         </p>
         }
       </div>
+
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">{{ t().imageControlsHeading }}</h3>
+        <p class="text-sm text-muted-foreground">{{ t().imageControlsDescription }}</p>
+        <ui-rich-text-editor mode="html" toolbar="top"
+          [defaultImageWidth]="240" defaultImageAlignment="center"
+          [minImageWidth]="80" [maxImageWidth]="480" [lockImageAspectRatio]="false"
+          [placeholder]="t().imageControlsPlaceholder" minHeight="200px" />
+      </div>
     </section>
   `,
 })

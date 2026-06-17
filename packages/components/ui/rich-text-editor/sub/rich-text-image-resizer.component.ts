@@ -2,16 +2,34 @@ import { Component, signal, input, effect, OnDestroy, ChangeDetectionStrategy, o
 import { DOCUMENT } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
+import { ImageAlignment, applyImageAlignment } from '../rich-text-image.utils';
 
-/**
- * Horizontal alignment mode for images inside the editor.
- *
- * - `'inline'` — Image flows inline with surrounding text (default).
- * - `'left'` — Image floats to the left, text wraps around it.
- * - `'center'` — Image is centered as a block element.
- * - `'right'` — Image floats to the right, text wraps around it.
- */
-export type ImageAlignment = 'inline' | 'left' | 'center' | 'right';
+export type { ImageAlignment } from '../rich-text-image.utils';
+
+/** Resize handle position — four corners plus four edges (single-axis). */
+type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
+
+interface ResizeState {
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    handle: ResizeHandle;
+}
+
+/** Per-handle sign for the width delta (drag-right). 0 = width unaffected. */
+const WIDTH_SIGN: Record<ResizeHandle, number> = {
+    nw: -1, w: -1, sw: -1,
+    ne: 1, e: 1, se: 1,
+    n: 0, s: 0,
+};
+
+/** Per-handle sign for the height delta (drag-down). 0 = height unaffected. */
+const HEIGHT_SIGN: Record<ResizeHandle, number> = {
+    nw: -1, n: -1, ne: -1,
+    sw: 1, s: 1, se: 1,
+    e: 0, w: 0,
+};
 
 const ALIGNMENT_ICONS: Record<ImageAlignment, string> = {
     inline: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 6H3"/><path d="M21 12H3"/><path d="M15.5 18H3"/><rect x="15" y="5" width="6" height="4" rx="1" fill="currentColor" opacity="0.3" stroke="none"/></svg>`,
@@ -33,6 +51,16 @@ export class RichTextImageResizerComponent implements OnDestroy {
     target = input<HTMLImageElement | null>(null);
     container = input<HTMLElement | null>(null);
     locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
+    /** Show the corner resize handles. */
+    resizable = input<boolean>(true);
+    /** Show the alignment buttons in the overlay toolbar. */
+    showAlignment = input<boolean>(true);
+    /** Lower clamp (px) for the dragged image width/height. */
+    minWidth = input<number>(20);
+    /** Upper clamp (px) for the dragged image width. No ceiling when unset. */
+    maxWidth = input<number>();
+    /** When false, corners resize axes independently and edge handles appear. */
+    lockAspectRatio = input<boolean>(true);
     resizeEnd = output<void>();
     alignmentChange = output<ImageAlignment>();
     imageRemove = output<HTMLImageElement>();
@@ -64,13 +92,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
     private resizeObserver: ResizeObserver | null = null;
     private readonly onContainerScrollBound = (): void => this.scheduleUpdate();
     private readonly onWindowResizeBound = (): void => this.scheduleUpdate();
-    private resizeState: {
-        startX: number;
-        startY: number;
-        startWidth: number;
-        startHeight: number;
-        handle: 'nw' | 'ne' | 'sw' | 'se';
-    } | null = null;
+    private resizeState: ResizeState | null = null;
 
     private readonly onMouseMoveBound = this.onMouseMove.bind(this);
     private readonly onMouseUpBound = this.onMouseUp.bind(this);
@@ -100,7 +122,7 @@ export class RichTextImageResizerComponent implements OnDestroy {
         if (!t) return;
 
         t.dataset['align'] = align;
-        this.applyAlignmentStyles(t, align);
+        applyImageAlignment(t, align);
         this.alignmentChange.emit(align);
         this.scheduleUpdate();
     }
@@ -111,38 +133,6 @@ export class RichTextImageResizerComponent implements OnDestroy {
         const t = this.target();
         if (!t) return;
         this.imageRemove.emit(t);
-    }
-
-    applyAlignmentStyles(img: HTMLImageElement, align: ImageAlignment): void {
-        img.style.removeProperty('float');
-        img.style.removeProperty('display');
-        img.style.removeProperty('margin');
-        img.style.removeProperty('margin-left');
-        img.style.removeProperty('margin-right');
-
-        switch (align) {
-            case 'inline':
-                img.style.display = 'inline';
-                img.style.margin = '0';
-                break;
-            case 'left':
-                img.style.display = 'block';
-                img.style.float = 'left';
-                img.style.marginRight = '12px';
-                img.style.marginBottom = '4px';
-                break;
-            case 'center':
-                img.style.display = 'block';
-                img.style.marginLeft = 'auto';
-                img.style.marginRight = 'auto';
-                break;
-            case 'right':
-                img.style.display = 'block';
-                img.style.float = 'right';
-                img.style.marginLeft = '12px';
-                img.style.marginBottom = '4px';
-                break;
-        }
     }
 
     private startTracking(): void {
@@ -211,56 +201,59 @@ export class RichTextImageResizerComponent implements OnDestroy {
         this.visible.set(true);
     }
 
-    startResize(event: MouseEvent, handle: 'nw' | 'ne' | 'sw' | 'se'): void {
+    startResize(event: MouseEvent, handle: ResizeHandle): void {
         event.preventDefault();
         event.stopPropagation();
 
         const t = this.target();
         if (!t) return;
 
+        const rect = t.getBoundingClientRect();
         this.resizeState = {
             startX: event.clientX,
             startY: event.clientY,
-            startWidth: t.width,
-            startHeight: t.height,
+            startWidth: rect.width,
+            startHeight: rect.height,
             handle
         };
-
-        const rect = t.getBoundingClientRect();
-        this.resizeState.startWidth = rect.width;
-        this.resizeState.startHeight = rect.height;
 
         document.addEventListener('mousemove', this.onMouseMoveBound);
         document.addEventListener('mouseup', this.onMouseUpBound);
     }
 
     private onMouseMove(event: MouseEvent): void {
-        if (!this.resizeState || !this.target()) return;
-
-        const deltaX = event.clientX - this.resizeState.startX;
-
-        let newWidth = this.resizeState.startWidth;
-
-        const aspect = this.resizeState.startWidth / this.resizeState.startHeight;
-
-        switch (this.resizeState.handle) {
-            case 'se':
-            case 'ne':
-                newWidth += deltaX;
-                break;
-            case 'sw':
-            case 'nw':
-                newWidth -= deltaX;
-                break;
-        }
-
-        const newHeight = newWidth / aspect;
-
+        const state = this.resizeState;
         const t = this.target();
-        if (newWidth > 20 && newHeight > 20 && t) {
-            t.style.width = `${newWidth}px`;
-            t.style.height = `${newHeight}px`;
+        if (!state || !t) return;
+
+        const deltaX = event.clientX - state.startX;
+        const deltaY = event.clientY - state.startY;
+        const size = this.lockAspectRatio()
+            ? this.lockedSize(state, deltaX)
+            : this.freeSize(state, deltaX, deltaY);
+
+        const min = this.minWidth();
+        if (size.width >= min && size.height >= min) {
+            t.style.width = `${size.width}px`;
+            t.style.height = `${size.height}px`;
         }
+    }
+
+    private clampWidth(width: number): number {
+        const max = this.maxWidth();
+        return max === undefined ? width : Math.min(width, max);
+    }
+
+    private lockedSize(state: ResizeState, deltaX: number): { width: number; height: number } {
+        const aspect = state.startWidth / state.startHeight;
+        const width = this.clampWidth(state.startWidth + WIDTH_SIGN[state.handle] * deltaX);
+        return { width, height: width / aspect };
+    }
+
+    private freeSize(state: ResizeState, deltaX: number, deltaY: number): { width: number; height: number } {
+        const width = this.clampWidth(state.startWidth + WIDTH_SIGN[state.handle] * deltaX);
+        const height = state.startHeight + HEIGHT_SIGN[state.handle] * deltaY;
+        return { width, height };
     }
 
     private onMouseUp(): void {

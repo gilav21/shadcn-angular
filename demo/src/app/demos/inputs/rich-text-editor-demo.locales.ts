@@ -27,6 +27,9 @@ export interface RichTextEditorDemoLocale extends LocaleMeta {
     customFontDescription: string;
     imageUploadHeading: string;
     imageUploadDescription: string;
+    imageControlsHeading: string;
+    imageControlsDescription: string;
+    imageControlsPlaceholder: string;
     uploadFailedLabel: string;
     uploadedUrlLabel: string;
     viewHtmlLabel: string;
@@ -75,6 +78,9 @@ export interface RichTextEditorDemoLocale extends LocaleMeta {
 export const RICH_TEXT_EDITOR_DEMO_LOCALES: Record<string, RichTextEditorDemoLocale> = {
     en: {
         code: 'en',
+        imageControlsHeading: 'Image Controls',
+        imageControlsDescription: 'Control inserted images — set a default size and alignment, clamp the resize range, and unlock the aspect ratio to resize a single dimension with the edge handles.',
+        imageControlsPlaceholder: 'Insert an image via the toolbar to try the controls...',
         heading: 'Rich Text Editor',
         description: 'A secure, configurable rich text editor with Markdown and HTML support.',
         basicHeading: 'Basic Editor (Top Toolbar)',
@@ -147,6 +153,9 @@ export const RICH_TEXT_EDITOR_DEMO_LOCALES: Record<string, RichTextEditorDemoLoc
     },
     he: {
         code: 'he',
+        imageControlsHeading: 'בקרת תמונות',
+        imageControlsDescription: 'שליטה בתמונות שמתווספות — הגדרת גודל ויישור ברירת מחדל, הגבלת טווח שינוי הגודל, וביטול נעילת יחס הגובה-רוחב לשינוי ממד יחיד באמצעות הידיות שבקצוות.',
+        imageControlsPlaceholder: 'הוסיפו תמונה דרך סרגל הכלים כדי לנסות את הבקרות...',
         rtl: true,
         heading: 'עורך טקסט עשיר',
         description: 'עורך טקסט עשיר מאובטח וניתן להגדרה עם תמיכה ב-Markdown ו-HTML.',
@@ -220,6 +229,9 @@ export const RICH_TEXT_EDITOR_DEMO_LOCALES: Record<string, RichTextEditorDemoLoc
     },
     ar: {
         code: 'ar',
+        imageControlsHeading: 'التحكم في الصور',
+        imageControlsDescription: 'تحكّم في الصور المُدرَجة — اضبط الحجم والمحاذاة الافتراضيين، وقيّد نطاق تغيير الحجم، وألغِ قفل نسبة الأبعاد لتغيير بُعد واحد باستخدام مقابض الحواف.',
+        imageControlsPlaceholder: 'أدرج صورة عبر شريط الأدوات لتجربة عناصر التحكم...',
         rtl: true,
         heading: 'محرر النصوص الغني',
         description: 'محرر نصوص غني آمن وقابل للتخصيص مع دعم Markdown وHTML.',
@@ -293,6 +305,9 @@ export const RICH_TEXT_EDITOR_DEMO_LOCALES: Record<string, RichTextEditorDemoLoc
     },
     de: {
         code: 'de',
+        imageControlsHeading: 'Bildsteuerung',
+        imageControlsDescription: 'Steuere eingefügte Bilder — lege Standardgröße und -ausrichtung fest, begrenze den Größenbereich und entsperre das Seitenverhältnis, um mit den Kantengriffen eine einzelne Dimension zu ändern.',
+        imageControlsPlaceholder: 'Füge ein Bild über die Symbolleiste ein, um die Steuerung auszuprobieren...',
         heading: 'Rich-Text-Editor',
         description: 'Ein sicherer, konfigurierbarer Rich-Text-Editor mit Markdown- und HTML-Unterstützung.',
         basicHeading: 'Basis-Editor (obere Symbolleiste)',
@@ -365,6 +380,9 @@ export const RICH_TEXT_EDITOR_DEMO_LOCALES: Record<string, RichTextEditorDemoLoc
     },
     fr: {
         code: 'fr',
+        imageControlsHeading: "Contrôles d'image",
+        imageControlsDescription: "Contrôlez les images insérées — définissez une taille et un alignement par défaut, limitez la plage de redimensionnement et déverrouillez le rapport hauteur/largeur pour redimensionner une seule dimension avec les poignées de bord.",
+        imageControlsPlaceholder: "Insérez une image via la barre d'outils pour essayer les contrôles...",
         heading: 'Éditeur de texte enrichi',
         description: 'Un éditeur de texte enrichi sécurisé et configurable avec support Markdown et HTML.',
         basicHeading: 'Éditeur de base (barre d\'outils en haut)',
@@ -437,6 +455,9 @@ export const RICH_TEXT_EDITOR_DEMO_LOCALES: Record<string, RichTextEditorDemoLoc
     },
     es: {
         code: 'es',
+        imageControlsHeading: 'Controles de imagen',
+        imageControlsDescription: 'Controla las imágenes insertadas — define un tamaño y una alineación predeterminados, limita el rango de cambio de tamaño y desbloquea la relación de aspecto para redimensionar una sola dimensión con los controladores de borde.',
+        imageControlsPlaceholder: 'Inserta una imagen desde la barra de herramientas para probar los controles...',
         heading: 'Editor de texto enriquecido',
         description: 'Un editor de texto enriquecido seguro y configurable con soporte Markdown y HTML.',
         basicHeading: 'Editor básico (barra de herramientas superior)',
@@ -509,6 +530,9 @@ export const RICH_TEXT_EDITOR_DEMO_LOCALES: Record<string, RichTextEditorDemoLoc
     },
     ja: {
         code: 'ja',
+        imageControlsHeading: '画像コントロール',
+        imageControlsDescription: '挿入する画像を制御します。既定のサイズと配置を設定し、リサイズ範囲を制限し、縦横比のロックを解除して端のハンドルで片方向だけサイズを変更できます。',
+        imageControlsPlaceholder: 'ツールバーから画像を挿入してコントロールを試してください...',
         heading: 'リッチテキストエディタ',
         description: 'MarkdownとHTMLをサポートする安全で設定可能なリッチテキストエディタ。',
         basicHeading: '基本エディタ（上部ツールバー）',
@@ -581,6 +605,9 @@ export const RICH_TEXT_EDITOR_DEMO_LOCALES: Record<string, RichTextEditorDemoLoc
     },
     zh: {
         code: 'zh',
+        imageControlsHeading: '图片控制',
+        imageControlsDescription: '控制插入的图片：设置默认尺寸和对齐方式，限制调整大小的范围，并解锁宽高比以通过边缘手柄单独调整某一维度。',
+        imageControlsPlaceholder: '通过工具栏插入图片以试用这些控件...',
         heading: '富文本编辑器',
         description: '支持 Markdown 和 HTML 的安全可配置富文本编辑器。',
         basicHeading: '基本编辑器（顶部工具栏）',
@@ -653,6 +680,9 @@ export const RICH_TEXT_EDITOR_DEMO_LOCALES: Record<string, RichTextEditorDemoLoc
     },
     ru: {
         code: 'ru',
+        imageControlsHeading: 'Управление изображениями',
+        imageControlsDescription: 'Управляйте вставляемыми изображениями — задайте размер и выравнивание по умолчанию, ограничьте диапазон изменения размера и разблокируйте соотношение сторон, чтобы менять одно измерение с помощью боковых маркеров.',
+        imageControlsPlaceholder: 'Вставьте изображение через панель инструментов, чтобы попробовать элементы управления...',
         heading: 'Редактор форматированного текста',
         description: 'Безопасный настраиваемый редактор форматированного текста с поддержкой Markdown и HTML.',
         basicHeading: 'Базовый редактор (верхняя панель инструментов)',
@@ -725,6 +755,9 @@ export const RICH_TEXT_EDITOR_DEMO_LOCALES: Record<string, RichTextEditorDemoLoc
     },
     pt: {
         code: 'pt',
+        imageControlsHeading: 'Controles de imagem',
+        imageControlsDescription: 'Controle as imagens inseridas — defina um tamanho e alinhamento padrão, limite o intervalo de redimensionamento e desbloqueie a proporção para redimensionar uma única dimensão com as alças de borda.',
+        imageControlsPlaceholder: 'Insira uma imagem pela barra de ferramentas para experimentar os controles...',
         heading: 'Editor de texto rico',
         description: 'Um editor de texto rico seguro e configurável com suporte a Markdown e HTML.',
         basicHeading: 'Editor básico (barra de ferramentas superior)',

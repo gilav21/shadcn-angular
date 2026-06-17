@@ -29,6 +29,7 @@ import { isValidImageDataUrl } from '../../lib/parsers/image-validator';
 import { RichTextToolbarComponent, ToolbarItem, DEFAULT_FONT_FAMILIES, FontFamilyStrategy } from './sub/rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './sub/rich-text-mention.component';
 import { RichTextImageResizerComponent } from './sub/rich-text-image-resizer.component';
+import { ImageAlignment, applyImageAlignment, parseImageSize } from './rich-text-image.utils';
 import { ButtonComponent } from '../button';
 import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover';
 import {
@@ -847,6 +848,42 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      * - `'url'` ג€” URL input only.
      */
     imageSources = input<'all' | 'upload' | 'url'>('all');
+
+    /** Allow users to resize inserted images by dragging the corner handles. */
+    imageResize = input<boolean>(true);
+
+    /** Show the alignment buttons (inline / left / center / right) on a selected image. */
+    imageAlignment = input<boolean>(true);
+
+    /**
+     * Default width applied to every inserted image. A `number` is treated as
+     * pixels; a `string` is passed through (e.g. `'50%'`, `'20rem'`). When unset,
+     * images keep their natural size.
+     */
+    defaultImageWidth = input<number | string>();
+
+    /**
+     * Default height applied to every inserted image. A `number` is treated as
+     * pixels; a `string` is passed through. Leave unset to preserve the aspect
+     * ratio from {@link defaultImageWidth}.
+     */
+    defaultImageHeight = input<number | string>();
+
+    /** Alignment applied to every inserted image. */
+    defaultImageAlignment = input<ImageAlignment>('inline');
+
+    /** Lower clamp (px) for drag-resizing an image. */
+    minImageWidth = input<number>(20);
+
+    /** Upper clamp (px) for drag-resizing an image. No ceiling when unset. */
+    maxImageWidth = input<number>();
+
+    /**
+     * Keep the aspect ratio locked while resizing. When `false`, corner handles
+     * resize width and height independently and single-axis edge handles appear,
+     * so an image can be stretched in just one dimension.
+     */
+    lockImageAspectRatio = input<boolean>(true);
 
     // ג”€ג”€ Character & word count ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
@@ -4947,6 +4984,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const img = this.document.createElement('img');
         img.setAttribute('src', src);
         img.setAttribute('alt', alt || 'Image');
+        this.applyImageDefaults(img);
 
         const selection = this.document.getSelection();
         const editorElement = this.getEditorElement();
@@ -4978,6 +5016,20 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         selection.removeAllRanges();
         selection.addRange(newRange);
         this.syncContentFromEditor();
+    }
+
+    private applyImageDefaults(img: HTMLImageElement): void {
+        const width = this.defaultImageWidth();
+        if (width !== undefined) {
+            img.style.width = parseImageSize(width);
+        }
+        const height = this.defaultImageHeight();
+        if (height !== undefined) {
+            img.style.height = parseImageSize(height);
+        }
+        const align = this.defaultImageAlignment();
+        img.dataset['align'] = align;
+        applyImageAlignment(img, align);
     }
 
     private getEditorElement(): HTMLDivElement | null {

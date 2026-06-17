@@ -593,6 +593,27 @@ export const AutoImageUpload: Story = {
     },
 };
 
+export const ImageControls: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        defaultImageWidth: 240,
+        defaultImageAlignment: 'center',
+        minImageWidth: 80,
+        maxImageWidth: 480,
+        lockImageAspectRatio: false,
+        placeholder: 'Insert an image via the toolbar, then select it and drag the corner or edge handles...',
+        minHeight: '240px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Developer-facing image controls: `defaultImageWidth` / `defaultImageHeight` set the size on insert, `defaultImageAlignment` sets the initial alignment, `minImageWidth` / `maxImageWidth` clamp the drag-resize range, and `lockImageAspectRatio={false}` enables single-axis edge handles. Set `imageResize={false}` to disable resizing entirely, or `imageAlignment={false}` to hide the alignment toolbar.',
+            },
+        },
+    },
+};
+
 export const FontFamilyToolbar: Story = {
     args: {
         mode: 'html',
