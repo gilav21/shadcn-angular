@@ -4,6 +4,8 @@ import { delay, of } from 'rxjs';
 import {
   RichTextEditorComponent,
   SwitchComponent,
+  InputComponent,
+  SelectComponent,
   MentionItem,
   TagItem,
   ToolbarItem,
@@ -11,10 +13,12 @@ import {
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
+type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
+
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, SwitchComponent],
+  imports: [FormsModule, RichTextEditorComponent, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -155,9 +159,61 @@ import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().imageControlsHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().imageControlsDescription }}</p>
+        <p class="text-sm text-muted-foreground">{{ t().playgroundHint }}</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 rounded-lg border bg-card p-4 sm:p-6">
+          <div class="space-y-1.5">
+            <label for="imgDefaultWidth" class="text-sm font-medium">{{ t().defaultWidthLabel }}</label>
+            <ui-input elementId="imgDefaultWidth" placeholder="200px"
+              [ngModel]="imgDefaultWidthRaw()" (ngModelChange)="imgDefaultWidthRaw.set($event)" />
+          </div>
+          <div class="space-y-1.5">
+            <label for="imgDefaultHeight" class="text-sm font-medium">{{ t().defaultHeightLabel }}</label>
+            <ui-input elementId="imgDefaultHeight" placeholder="auto"
+              [ngModel]="imgDefaultHeightRaw()" (ngModelChange)="imgDefaultHeightRaw.set($event)" />
+          </div>
+          <div class="space-y-1.5">
+            <span id="imgDefaultAlignmentLabel" class="text-sm font-medium">{{ t().defaultAlignmentLabel }}</span>
+            <ui-select class="w-full" ariaLabelledby="imgDefaultAlignmentLabel"
+              [options]="alignmentOptions" [displayWith]="alignmentDisplay()"
+              [value]="imgDefaultAlignment()" (valueChange)="imgDefaultAlignment.set($event)" />
+          </div>
+          <div class="space-y-1.5">
+            <label for="imgMinWidth" class="text-sm font-medium">{{ t().minWidthLabel }}</label>
+            <ui-input elementId="imgMinWidth" type="number" placeholder="20"
+              [ngModel]="imgMinWidthRaw()" (ngModelChange)="imgMinWidthRaw.set($event)" />
+          </div>
+          <div class="space-y-1.5">
+            <label for="imgMaxWidth" class="text-sm font-medium">{{ t().maxWidthLabel }}</label>
+            <ui-input elementId="imgMaxWidth" type="number" placeholder="480"
+              [ngModel]="imgMaxWidthRaw()" (ngModelChange)="imgMaxWidthRaw.set($event)" />
+          </div>
+          <div class="flex flex-col justify-center gap-3">
+            <div class="flex items-center gap-2">
+              <ui-switch id="imgResize" [checked]="imgResize()" (checkedChange)="imgResize.set($event)" />
+              <label for="imgResize" class="text-sm font-medium">{{ t().enableResizeLabel }}</label>
+            </div>
+            <div class="flex items-center gap-2">
+              <ui-switch id="imgAlignmentButtons" [checked]="imgAlignmentButtons()"
+                (checkedChange)="imgAlignmentButtons.set($event)" />
+              <label for="imgAlignmentButtons" class="text-sm font-medium">{{ t().showAlignmentLabel }}</label>
+            </div>
+            <div class="flex items-center gap-2">
+              <ui-switch id="imgLockAspect" [checked]="imgLockAspect()" (checkedChange)="imgLockAspect.set($event)" />
+              <label for="imgLockAspect" class="text-sm font-medium">{{ t().lockAspectLabel }}</label>
+            </div>
+          </div>
+        </div>
+
         <ui-rich-text-editor mode="html" toolbar="top"
-          [defaultImageWidth]="240" defaultImageAlignment="center"
-          [minImageWidth]="80" [maxImageWidth]="480" [lockImageAspectRatio]="false"
+          [imageResize]="imgResize()"
+          [imageAlignment]="imgAlignmentButtons()"
+          [defaultImageWidth]="imgDefaultWidth()"
+          [defaultImageHeight]="imgDefaultHeight()"
+          [defaultImageAlignment]="imgDefaultAlignment()"
+          [minImageWidth]="imgMinWidth()"
+          [maxImageWidth]="imgMaxWidth()"
+          [lockImageAspectRatio]="imgLockAspect()"
           [placeholder]="t().imageControlsPlaceholder" minHeight="200px" />
       </div>
     </section>
@@ -173,6 +229,46 @@ export class RichTextEditorDemoComponent {
   readonly richTextOutlineShowToolbarItem = signal(true);
   lastAutoUploadUrl = '';
   lastAutoUploadError = '';
+
+  readonly imgResize = signal(true);
+  readonly imgAlignmentButtons = signal(true);
+  readonly imgLockAspect = signal(true);
+  readonly imgDefaultWidthRaw = signal('200px');
+  readonly imgDefaultHeightRaw = signal('');
+  readonly imgMinWidthRaw = signal('80');
+  readonly imgMaxWidthRaw = signal('480');
+  readonly imgDefaultAlignment = signal<ImageAlignmentOption>('center');
+
+  readonly alignmentOptions: ImageAlignmentOption[] = ['inline', 'left', 'center', 'right'];
+
+  readonly alignmentDisplay = computed(() => {
+    const loc = this.t();
+    const labels: Record<ImageAlignmentOption, string> = {
+      inline: loc.alignInline,
+      left: loc.alignLeft,
+      center: loc.alignCenter,
+      right: loc.alignRight,
+    };
+    return (value: ImageAlignmentOption): string => labels[value];
+  });
+
+  readonly imgDefaultWidth = computed(() => this.normalizeSize(this.imgDefaultWidthRaw()));
+  readonly imgDefaultHeight = computed(() => this.normalizeSize(this.imgDefaultHeightRaw()));
+  readonly imgMinWidth = computed(() => this.toPositiveInt(this.imgMinWidthRaw()) ?? 20);
+  readonly imgMaxWidth = computed(() => this.toPositiveInt(this.imgMaxWidthRaw()));
+
+  private normalizeSize(raw: string): string | undefined {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    return /^\d+$/.test(trimmed) ? `${trimmed}px` : trimmed;
+  }
+
+  private toPositiveInt(raw: string): number | undefined {
+    const parsed = Number.parseInt(raw.trim(), 10);
+    return Number.isNaN(parsed) ? undefined : parsed;
+  }
 
   private readonly outlineToolbarBase: ToolbarItem[] = [
     'bold', 'italic', 'underline',

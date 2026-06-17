@@ -33,6 +33,8 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
                     [class]="triggerClasses()"
                     [disabled]="isDisabled()"
                     [attr.aria-expanded]="open()"
+                    [attr.aria-label]="ariaLabel()"
+                    [attr.aria-labelledby]="ariaLabelledby()"
                     [attr.data-state]="open() ? 'open' : 'closed'"
                     [attr.aria-controls]="listId"
                     [attr.data-slot]="'select-trigger'"
@@ -111,6 +113,13 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     readonly disabled = input(false);
     /** Override for the placeholder. Falls back to the locale's `selectPlaceholder`. */
     readonly placeholder = input<string>();
+    /** Forwarded to the trigger button's `aria-label` for an accessible name. */
+    readonly ariaLabel = input<string | undefined>(undefined);
+    /**
+     * Forwarded to the trigger button's `aria-labelledby` to associate the
+     * combobox with an external visible label (e.g. a `<span id>` caption).
+     */
+    readonly ariaLabelledby = input<string | undefined>(undefined);
     readonly defaultValue = input<T | undefined>(undefined);
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
