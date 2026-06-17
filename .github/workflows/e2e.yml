@@ -22,11 +22,11 @@ jobs:
       # fetch-depth: 0 so `git diff base...HEAD` in the impact step can
       # see history beyond the PR head. Without it the diff misfires
       # for any PR that isn't a single-commit branch.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
@@ -86,7 +86,7 @@ jobs:
       # Use Playwright's pinned browser cache. Same version of
       # @playwright/test → same browser binaries → reused across runs.
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -123,7 +123,7 @@ jobs:
       # config emits on failure. Only run if the previous step failed.
       - name: Upload Playwright artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-artifacts
           path: |
