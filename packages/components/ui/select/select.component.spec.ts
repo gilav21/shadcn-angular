@@ -115,6 +115,17 @@ describe('SelectComponent', () => {
         expect(component.internalValue()).toBe('test-value');
         expect(component.open()).toBe(false);
     });
+
+    it('forwards ariaLabel and ariaLabelledby to the trigger button', () => {
+        fixture.componentRef.setInput('options', ['a', 'b']);
+        fixture.componentRef.setInput('ariaLabel', 'Size');
+        fixture.componentRef.setInput('ariaLabelledby', 'size-label');
+        fixture.detectChanges();
+
+        const button = (fixture.nativeElement as HTMLElement).querySelector('button[role="combobox"]');
+        expect(button?.getAttribute('aria-label')).toBe('Size');
+        expect(button?.getAttribute('aria-labelledby')).toBe('size-label');
+    });
 });
 
 describe('Select Integration', () => {

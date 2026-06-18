@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
 import { RICH_TEXT_LOCALES } from '../rich-text-locales';
+import { applyImageAlignment } from '../rich-text-image.utils';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 describe('RichTextImageResizerComponent', () => {
@@ -41,7 +42,7 @@ describe('RichTextImageResizerComponent', () => {
         expect(component.currentAlignment()).toBe('inline');
     });
 
-    describe('applyAlignmentStyles', () => {
+    describe('applyImageAlignment', () => {
         let img: HTMLImageElement;
 
         beforeEach(() => {
@@ -49,14 +50,14 @@ describe('RichTextImageResizerComponent', () => {
         });
 
         it('should set display to inline for inline alignment', () => {
-            component.applyAlignmentStyles(img, 'inline');
+            applyImageAlignment(img, 'inline');
 
             expect(img.style.display).toBe('inline');
             expect(img.style.margin).toBe('0px');
         });
 
         it('should set float to left for left alignment', () => {
-            component.applyAlignmentStyles(img, 'left');
+            applyImageAlignment(img, 'left');
 
             expect(img.style.display).toBe('block');
             expect(img.style.float).toBe('left');
@@ -65,7 +66,7 @@ describe('RichTextImageResizerComponent', () => {
         });
 
         it('should set auto margins for center alignment', () => {
-            component.applyAlignmentStyles(img, 'center');
+            applyImageAlignment(img, 'center');
 
             expect(img.style.display).toBe('block');
             expect(img.style.marginLeft).toBe('auto');
@@ -73,7 +74,7 @@ describe('RichTextImageResizerComponent', () => {
         });
 
         it('should set float to right for right alignment', () => {
-            component.applyAlignmentStyles(img, 'right');
+            applyImageAlignment(img, 'right');
 
             expect(img.style.display).toBe('block');
             expect(img.style.float).toBe('right');
@@ -82,20 +83,20 @@ describe('RichTextImageResizerComponent', () => {
         });
 
         it('should clear previous alignment styles when switching alignments', () => {
-            component.applyAlignmentStyles(img, 'left');
+            applyImageAlignment(img, 'left');
             expect(img.style.float).toBe('left');
 
-            component.applyAlignmentStyles(img, 'center');
+            applyImageAlignment(img, 'center');
             expect(img.style.float).toBe('');
             expect(img.style.marginLeft).toBe('auto');
             expect(img.style.marginRight).toBe('auto');
         });
 
         it('should clear float when switching from right to inline', () => {
-            component.applyAlignmentStyles(img, 'right');
+            applyImageAlignment(img, 'right');
             expect(img.style.float).toBe('right');
 
-            component.applyAlignmentStyles(img, 'inline');
+            applyImageAlignment(img, 'inline');
             expect(img.style.float).toBe('');
             expect(img.style.display).toBe('inline');
         });
@@ -288,7 +289,9 @@ describe('RichTextImageResizerComponent', () => {
             fixture.detectChanges();
         });
 
-        function dragHandle(handle: 'nw' | 'ne' | 'sw' | 'se', deltaX: number): void {
+        type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
+
+        function dragHandle(handle: Handle, deltaX: number, deltaY = 0): void {
             const start = {
                 clientX: 0,
                 clientY: 0,
@@ -296,7 +299,7 @@ describe('RichTextImageResizerComponent', () => {
                 stopPropagation: () => {},
             } as unknown as MouseEvent;
             component.startResize(start, handle);
-            document.dispatchEvent(new MouseEvent('mousemove', { clientX: deltaX, clientY: 0 }));
+            document.dispatchEvent(new MouseEvent('mousemove', { clientX: deltaX, clientY: deltaY }));
         }
 
         it('grows width and height (keeping aspect) when dragging the SE handle right', () => {
@@ -331,6 +334,50 @@ describe('RichTextImageResizerComponent', () => {
             // newWidth = 100 - 90 = 10 (< 20) -> no style applied
             expect(img.style.width).toBe('');
             expect(img.style.height).toBe('');
+        });
+
+        it('respects a custom minWidth floor', () => {
+            fixture.componentRef.setInput('minWidth', 80);
+            fixture.detectChanges();
+            // newWidth = 100 - 40 = 60 (< 80) -> rejected
+            dragHandle('sw', 40);
+            expect(img.style.width).toBe('');
+        });
+
+        it('clamps width to maxWidth when growing past the ceiling', () => {
+            fixture.componentRef.setInput('maxWidth', 130);
+            fixture.detectChanges();
+            // newWidth = 100 + 200 = 300 -> clamped to 130 -> height = 65
+            dragHandle('se', 200);
+            expect(img.style.width).toBe('130px');
+            expect(img.style.height).toBe('65px');
+        });
+
+        describe('free resize (lockAspectRatio = false)', () => {
+            beforeEach(() => {
+                fixture.componentRef.setInput('lockAspectRatio', false);
+                fixture.detectChanges();
+            });
+
+            it('changes only width when dragging the E edge handle', () => {
+                dragHandle('e', 40, 30);
+                // width grows by deltaX, height untouched by an E handle
+                expect(img.style.width).toBe('140px');
+                expect(img.style.height).toBe('50px');
+            });
+
+            it('changes only height when dragging the S edge handle', () => {
+                dragHandle('s', 40, 30);
+                expect(img.style.width).toBe('100px');
+                expect(img.style.height).toBe('80px');
+            });
+
+            it('changes both axes non-uniformly when dragging a corner', () => {
+                dragHandle('se', 40, 10);
+                // width = 100 + 40, height = 50 + 10 (aspect not preserved)
+                expect(img.style.width).toBe('140px');
+                expect(img.style.height).toBe('60px');
+            });
         });
 
         it('emits resizeEnd on mouseup and clears drag listeners', () => {
@@ -374,6 +421,101 @@ describe('RichTextImageResizerComponent', () => {
             expect(preventDefault).toHaveBeenCalled();
             expect(stopPropagation).toHaveBeenCalled();
             document.dispatchEvent(new MouseEvent('mouseup'));
+        });
+
+        describe('touch input', () => {
+            function touchStart(clientX: number, clientY: number): TouchEvent {
+                return {
+                    touches: [{ clientX, clientY }],
+                    changedTouches: [{ clientX, clientY }],
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                } as unknown as TouchEvent;
+            }
+
+            function dispatchTouch(type: string, clientX: number, clientY: number): void {
+                const ev = new Event(type, { bubbles: true, cancelable: true });
+                Object.defineProperty(ev, 'touches', { value: [{ clientX, clientY }] });
+                Object.defineProperty(ev, 'changedTouches', { value: [{ clientX, clientY }] });
+                document.dispatchEvent(ev);
+            }
+
+            it('resizes via touchstart + touchmove just like the mouse', () => {
+                component.startResize(touchStart(0, 0), 'se');
+                dispatchTouch('touchmove', 50, 0);
+                // aspect = 100/50 = 2; newWidth = 150 -> newHeight = 75
+                expect(img.style.width).toBe('150px');
+                expect(img.style.height).toBe('75px');
+            });
+
+            it('emits resizeEnd on touchend and clears touch listeners', () => {
+                let ended = false;
+                component.resizeEnd.subscribe(() => (ended = true));
+
+                component.startResize(touchStart(0, 0), 'se');
+                dispatchTouch('touchmove', 50, 0);
+                dispatchTouch('touchend', 50, 0);
+                expect(ended).toBe(true);
+
+                // After touchend, further touchmove must not change dimensions.
+                dispatchTouch('touchmove', 200, 0);
+                expect(img.style.width).toBe('150px');
+            });
+        });
+    });
+
+    describe('handle & toolbar rendering', () => {
+        const cornerSelector =
+            '[class*="cursor-nw-resize"], [class*="cursor-ne-resize"], [class*="cursor-sw-resize"], [class*="cursor-se-resize"]';
+        const edgeSelector = '[class*="cursor-ns-resize"], [class*="cursor-ew-resize"]';
+
+        function setTarget(): void {
+            const img = document.createElement('img');
+            const container = document.createElement('div');
+            fixture.componentRef.setInput('container', container);
+            fixture.componentRef.setInput('target', img);
+            fixture.detectChanges();
+        }
+
+        function query(selector: string): NodeListOf<Element> {
+            return (fixture.nativeElement as HTMLElement).querySelectorAll(selector);
+        }
+
+        it('renders four corner handles by default', () => {
+            setTarget();
+            expect(query(cornerSelector).length).toBe(4);
+        });
+
+        it('hides corner handles when resizable is false', () => {
+            fixture.componentRef.setInput('resizable', false);
+            setTarget();
+            expect(query(cornerSelector).length).toBe(0);
+        });
+
+        it('hides edge handles while aspect ratio is locked', () => {
+            setTarget();
+            expect(query(edgeSelector).length).toBe(0);
+        });
+
+        it('shows four edge handles when aspect ratio is unlocked', () => {
+            fixture.componentRef.setInput('lockAspectRatio', false);
+            setTarget();
+            expect(query(edgeSelector).length).toBe(4);
+        });
+
+        it('renders alignment buttons plus delete by default', () => {
+            setTarget();
+            expect(query('button').length).toBe(5);
+        });
+
+        it('keeps only the delete button when showAlignment is false', () => {
+            fixture.componentRef.setInput('showAlignment', false);
+            setTarget();
+            const buttons = query('button');
+            expect(buttons.length).toBe(1);
+            expect(buttons[0].getAttribute('title')).toBe(
+                RICH_TEXT_LOCALES['en'].imageResizer.deleteImage,
+            );
         });
     });
 

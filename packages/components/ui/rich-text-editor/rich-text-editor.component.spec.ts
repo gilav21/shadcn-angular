@@ -2184,6 +2184,24 @@ describe('RichTextEditorComponent — toolbar actions (link, image, emoji, color
         expect(img?.getAttribute('alt')).toBe('A picture');
     });
 
+    it('applies default size and alignment to an inserted image', () => {
+        fixture.componentRef.setInput('defaultImageWidth', 320);
+        fixture.componentRef.setInput('defaultImageHeight', '50%');
+        fixture.componentRef.setInput('defaultImageAlignment', 'center');
+        component.writeValue('<p>img here</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild as Text, 4);
+
+        component.onImageInsert({ src: 'https://cdn.test/pic.png', alt: 'A picture' });
+
+        const img = editor.querySelector('img')!;
+        expect(img.style.width).toBe('320px');
+        expect(img.style.height).toBe('50%');
+        expect(img.dataset['align']).toBe('center');
+        expect(img.style.display).toBe('block');
+        expect(img.style.marginLeft).toBe('auto');
+    });
+
     it('emits imageUploadError when image URL insertion is disabled (upload-only source)', () => {
         fixture.componentRef.setInput('imageSources', 'upload');
         fixture.detectChanges();
