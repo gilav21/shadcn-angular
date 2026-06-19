@@ -123,6 +123,6 @@ describe('GradientTextComponent', () => {
         rafCallback();
 
         expect(el.style.backgroundPosition).toBeTruthy();
-        expect(el.style.backgroundPosition).toMatch(/[\d.]+% 50%/);
+        expect(el.style.backgroundPosition).toMatch(/^\d+(?:\.\d+)?% 50%$/);
     });
 });

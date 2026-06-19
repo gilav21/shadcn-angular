@@ -191,7 +191,7 @@ describe('DropdownMenu Integration', () => {
         await fixture.whenStable();
 
         const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render separator', async () => {
@@ -289,7 +289,7 @@ describe('DropdownMenu Keyboard Navigation', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]:not([data-disabled])'));
-        expect(items.length).toBe(2); // 2 enabled items
+        expect(items).toHaveLength(2); // 2 enabled items
 
         // Focus first item and press ArrowDown
         items[0].nativeElement.focus();
@@ -312,7 +312,7 @@ describe('DropdownMenu Keyboard Navigation', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]:not([data-disabled])'));
-        expect(items.length).toBe(2);
+        expect(items).toHaveLength(2);
 
         // Focus second item and press ArrowUp
         items[1].nativeElement.focus();

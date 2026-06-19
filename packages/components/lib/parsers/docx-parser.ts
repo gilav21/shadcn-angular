@@ -1101,8 +1101,8 @@ function buildCellStyle(tcPr: Element): DocxTableCellStyle | undefined {
     const style: {
         backgroundColor?: string; verticalAlign?: string;
         width?: number; widthUnit?: string;
-        borders?: DocxTableCellStyle['borders'];
-        paddings?: DocxTableCellStyle['paddings'];
+        borders?: NonNullable<DocxTableCellStyle['borders']>;
+        paddings?: NonNullable<DocxTableCellStyle['paddings']>;
     } = {};
     let hasStyle = false;
 
@@ -1211,7 +1211,7 @@ function parseTableStyle(tblPr: Element | null): DocxTableStyle | undefined {
     if (!tblPr) return undefined;
 
     const style: {
-        width?: number; widthUnit?: string; borders?: DocxTableStyle['borders'];
+        width?: number; widthUnit?: string; borders?: NonNullable<DocxTableStyle['borders']>;
     } = {};
     let hasStyle = false;
 

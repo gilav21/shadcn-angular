@@ -176,7 +176,7 @@ describe('ParticlesComponent reduced motion behavior', () => {
     it('should not have particles in the internal state when reduced motion is preferred', () => {
         const comp = fixture.debugElement.query(By.directive(ParticlesComponent)).componentInstance as ParticlesComponent;
         const particles = (comp as unknown as { particles: unknown[] })['particles'];
-        expect(particles.length).toBe(0);
+        expect(particles).toHaveLength(0);
     });
 
     it('should still set the data-slot attribute even with reduced motion', () => {

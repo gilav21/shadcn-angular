@@ -428,6 +428,6 @@ describe('SliderComponent — i18n integration', () => {
         const v = handle.getAttribute('aria-valuetext');
         // French uses narrow no-break space (U+202F) or regular space — both are non-ASCII.
         expect(v).toContain('234');
-        expect(v.length).toBe('1 234'.length);
+        expect(v).toHaveLength('1 234'.length);
     });
 });

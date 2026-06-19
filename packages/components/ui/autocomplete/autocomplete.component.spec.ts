@@ -611,7 +611,7 @@ describe('AutocompleteComponent', () => {
             await fixture.whenStable();
             fixture.detectChanges();
             const items = document.querySelectorAll('[data-slot="command-item"]');
-            expect(items.length).toBe(fruits.length);
+            expect(items).toHaveLength(fruits.length);
         });
     });
 

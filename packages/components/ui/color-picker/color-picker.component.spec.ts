@@ -218,7 +218,7 @@ describe('ColorPickerComponent', () => {
         it('renders all preset swatches', async () => {
             await openAndGetPicker(fixture);
             const presetButtons = fixture.debugElement.queryAll(By.css('[aria-label^="Select #"]'));
-            expect(presetButtons.length).toBe(3);
+            expect(presetButtons).toHaveLength(3);
         });
     });
 
@@ -273,7 +273,7 @@ describe('ColorPickerComponent', () => {
             picker.selectPreset('#222222');
             picker.selectPreset('#333333');
             fixture.detectChanges();
-            expect(picker.recents().length).toBe(2);
+            expect(picker.recents()).toHaveLength(2);
             expect(picker.recents()).toContain('#333333');
             expect(picker.recents()).not.toContain('#111111');
         });
@@ -282,11 +282,11 @@ describe('ColorPickerComponent', () => {
     describe('Harmonies', () => {
         it('exposes harmony groups only when showHarmonies is true', async () => {
             const picker = await openAndGetPicker(fixture);
-            expect(picker.harmonyGroups().length).toBe(0);
+            expect(picker.harmonyGroups()).toHaveLength(0);
             host.showHarmonies.set(true);
             fixture.detectChanges();
             const groups = picker.harmonyGroups();
-            expect(groups.length).toBe(5);
+            expect(groups).toHaveLength(5);
             expect(groups.map(g => g.label)).toEqual([
                 'Readable',
                 'Opposite',

@@ -189,7 +189,7 @@ describe('Select Integration', () => {
         await fixture.whenStable();
 
         const items = fixture.debugElement.queryAll(By.css('[role="option"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should select item on click', async () => {
@@ -384,14 +384,14 @@ describe('Select Keyboard Navigation', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="select-item"]'));
         const firstItem = items[0];
 
-        expect(document.activeElement === firstItem.nativeElement).toBe(true);
+        expect(document.activeElement).toBe(firstItem.nativeElement);
 
         // Simulate ArrowDown again
         content.triggerEventHandler('keydown', { key: 'ArrowDown', preventDefault: () => { } });
         fixture.detectChanges();
 
         const secondItem = items[1];
-        expect(document.activeElement === secondItem.nativeElement).toBe(true);
+        expect(document.activeElement).toBe(secondItem.nativeElement);
     });
 });
 
@@ -459,7 +459,7 @@ describe('Select Data-Driven Mode (Strings)', () => {
         await fixture.whenStable();
 
         const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
-        expect(options.length).toBe(4);
+        expect(options).toHaveLength(4);
     });
 
     it('should select option on click', async () => {

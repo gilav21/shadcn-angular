@@ -41,7 +41,7 @@ describe('PieChartDrilldownComponent', () => {
     });
 
     it('should compute slices from data', () => {
-        expect(component.currentSlices().length).toBe(2);
+        expect(component.currentSlices()).toHaveLength(2);
     });
 
     it('should not be drilled down initially', () => {
@@ -84,7 +84,7 @@ describe('PieChartDrilldownComponent', () => {
             fixture.componentRef.setInput('data', []);
             fixture.detectChanges();
 
-            expect(component.currentSlices().length).toBe(0);
+            expect(component.currentSlices()).toHaveLength(0);
         });
     });
 
@@ -111,7 +111,7 @@ describe('PieChartDrilldownComponent', () => {
 
             expect(component.isDrilledDown()).toBe(true);
             expect(component.currentDrilldownId()).toBe('fruits-detail');
-            expect(drilldownEvents.length).toBe(1);
+            expect(drilldownEvents).toHaveLength(1);
             expect(drilldownEvents[0]).toEqual({
                 seriesId: 'fruits-detail',
                 parentPoint: sampleData[0],
@@ -123,7 +123,7 @@ describe('PieChartDrilldownComponent', () => {
             component.onSliceClick(new MouseEvent('click'), drillableSlice);
 
             expect(component.currentData()).toEqual(sampleDrilldownSeries[0].data);
-            expect(component.currentData().length).toBe(3);
+            expect(component.currentData()).toHaveLength(3);
         });
 
         it('should update currentSeriesName to the drilldown series name', () => {
@@ -138,7 +138,7 @@ describe('PieChartDrilldownComponent', () => {
             component.onSliceClick(new MouseEvent('click'), drillableSlice);
 
             const newSlices = component.currentSlices();
-            expect(newSlices.length).toBe(3);
+            expect(newSlices).toHaveLength(3);
             expect(newSlices[0].data.name).toBe('Apples');
         });
 
@@ -167,7 +167,7 @@ describe('PieChartDrilldownComponent', () => {
             const nonDrillableSlice = component.currentSlices()[1];
             component.onSliceClick(new MouseEvent('click'), nonDrillableSlice);
 
-            expect(clickEvents.length).toBe(1);
+            expect(clickEvents).toHaveLength(1);
             expect(clickEvents[0]).toEqual(
                 expect.objectContaining({ point: sampleData[1], index: 1 }),
             );
@@ -185,7 +185,7 @@ describe('PieChartDrilldownComponent', () => {
             const nonDrillableSlice = component.currentSlices()[1];
             component.onSliceClick(new MouseEvent('click'), nonDrillableSlice);
 
-            expect(clickEvents.length).toBe(2);
+            expect(clickEvents).toHaveLength(2);
         });
 
         it('should include the MouseEvent in the emitted click event', () => {
@@ -219,7 +219,7 @@ describe('PieChartDrilldownComponent', () => {
             component.onSliceClick(new MouseEvent('click'), drillableSlice);
             component.onDrillUp();
 
-            expect(drillupEvents.length).toBe(1);
+            expect(drillupEvents).toHaveLength(1);
         });
 
         it('should restore currentData to the original top-level data', () => {
@@ -265,7 +265,7 @@ describe('PieChartDrilldownComponent', () => {
             const drilledSlices = component.currentSlices();
             component.onSliceClick(new MouseEvent('click'), drilledSlices[0]);
 
-            expect(drilldownEvents.length).toBe(0);
+            expect(drilldownEvents).toHaveLength(0);
             expect(component.currentDrilldownId()).toBe('fruits-detail');
         });
     });
@@ -285,7 +285,7 @@ describe('PieChartDrilldownComponent', () => {
             const slice = component.currentSlices()[1];
             component.onSliceHover(slice);
 
-            expect(hoverEvents.length).toBe(1);
+            expect(hoverEvents).toHaveLength(1);
             expect(hoverEvents[0]).toEqual(
                 expect.objectContaining({ point: sampleData[1], index: 1 }),
             );
@@ -307,7 +307,7 @@ describe('PieChartDrilldownComponent', () => {
 
             component.onSliceLeave();
 
-            expect(hoverEvents.length).toBe(1);
+            expect(hoverEvents).toHaveLength(1);
             expect(hoverEvents[0]).toBeNull();
         });
 
@@ -432,7 +432,7 @@ describe('PieChartDrilldownComponent', () => {
             const legendButtons = fixture.nativeElement.querySelectorAll(
                 '.flex.items-center.gap-2.text-sm',
             );
-            expect(legendButtons.length).toBe(0);
+            expect(legendButtons).toHaveLength(0);
         });
 
         it('should not render legend when legendPosition is none', () => {
@@ -441,7 +441,7 @@ describe('PieChartDrilldownComponent', () => {
 
             const container = fixture.nativeElement;
             const legendColorDots = container.querySelectorAll('.w-3.h-3.rounded-sm');
-            expect(legendColorDots.length).toBe(0);
+            expect(legendColorDots).toHaveLength(0);
         });
     });
 

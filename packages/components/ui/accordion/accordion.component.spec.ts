@@ -181,7 +181,7 @@ describe('AccordionItemComponent', () => {
         fixture.componentRef.setInput('skeleton', true);
         fixture.componentRef.setInput('title', 'Item title');
         fixture.detectChanges();
-        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(2);
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton'))).toHaveLength(2);
         expect(fixture.debugElement.query(By.css('button'))).toBeNull();
     });
 });
@@ -206,13 +206,13 @@ describe('Accordion Integration', () => {
         const triggers = fixture.debugElement.queryAll(By.directive(AccordionTriggerComponent));
 
         expect(accordion).toBeTruthy();
-        expect(items.length).toBe(3);
-        expect(triggers.length).toBe(3);
+        expect(items).toHaveLength(3);
+        expect(triggers).toHaveLength(3);
     });
 
     it('should not show content initially', () => {
         const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
-        expect(contents.length).toBe(0);
+        expect(contents).toHaveLength(0);
     });
 
     it('should open content on trigger click', async () => {
@@ -222,7 +222,7 @@ describe('Accordion Integration', () => {
         await fixture.whenStable();
 
         const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
-        expect(contents.length).toBe(1);
+        expect(contents).toHaveLength(1);
         expect(contents[0].nativeElement.textContent).toContain('Content 1');
     });
 
@@ -260,7 +260,7 @@ describe('Accordion Integration', () => {
         await fixture.whenStable();
 
         let contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
-        expect(contents.length).toBe(1);
+        expect(contents).toHaveLength(1);
 
         // Open second item (should close first)
         triggers[1].nativeElement.click();
@@ -268,7 +268,7 @@ describe('Accordion Integration', () => {
         await fixture.whenStable();
 
         contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
-        expect(contents.length).toBe(1);
+        expect(contents).toHaveLength(1);
         expect(contents[0].nativeElement.textContent).toContain('Content 2');
     });
 
@@ -288,7 +288,7 @@ describe('Accordion Integration', () => {
         await fixture.whenStable();
 
         const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
-        expect(contents.length).toBe(2);
+        expect(contents).toHaveLength(2);
     });
 });
 
@@ -339,7 +339,7 @@ describe('Accordion RTL Support', () => {
         await fixture.whenStable();
 
         const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
-        expect(contents.length).toBe(1);
+        expect(contents).toHaveLength(1);
     });
 
     it('should have flex layout with justify-between for RTL chevron positioning', () => {
@@ -395,12 +395,12 @@ describe('Accordion Simple Mode (Data-Driven)', () => {
 
     it('should render all items', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="accordion-item"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render triggers with title text', () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="accordion-trigger"]'));
-        expect(triggers.length).toBe(3);
+        expect(triggers).toHaveLength(3);
         expect(triggers[0].nativeElement.textContent).toContain('First Question');
         expect(triggers[1].nativeElement.textContent).toContain('Second Question');
         expect(triggers[2].nativeElement.textContent).toContain('Third Question');
@@ -408,7 +408,7 @@ describe('Accordion Simple Mode (Data-Driven)', () => {
 
     it('should not show content initially', () => {
         const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
-        expect(contents.length).toBe(0);
+        expect(contents).toHaveLength(0);
     });
 
     it('should show content on trigger click', async () => {
@@ -418,7 +418,7 @@ describe('Accordion Simple Mode (Data-Driven)', () => {
         await fixture.whenStable();
 
         const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
-        expect(contents.length).toBe(1);
+        expect(contents).toHaveLength(1);
         expect(contents[0].nativeElement.textContent).toContain('First answer content');
     });
 
@@ -448,7 +448,7 @@ describe('Accordion Simple Mode (Data-Driven)', () => {
         await fixture.whenStable();
 
         const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
-        expect(contents.length).toBe(1);
+        expect(contents).toHaveLength(1);
         expect(contents[0].nativeElement.textContent).toContain('Second answer content');
     });
 
@@ -467,6 +467,6 @@ describe('Accordion Simple Mode (Data-Driven)', () => {
         await fixture.whenStable();
 
         const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
-        expect(contents.length).toBe(2);
+        expect(contents).toHaveLength(2);
     });
 });

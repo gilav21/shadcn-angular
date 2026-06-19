@@ -90,7 +90,7 @@ describe('NumberTickerComponent', () => {
             fixture.detectChanges();
 
             const digits = fixture.debugElement.queryAll(By.directive(NumberTickerDigitComponent));
-            expect(digits.length).toBe(5);
+            expect(digits).toHaveLength(5);
         });
     });
 

@@ -16,22 +16,22 @@ describe('ToastService', () => {
 
     it('should add a toast', () => {
         service.toast({ title: 'Test' });
-        expect(service.toasts().length).toBe(1);
+        expect(service.toasts()).toHaveLength(1);
         expect(service.toasts()[0].title).toBe('Test');
     });
 
     it('should dismiss a toast by id', () => {
         const id = service.toast({ title: 'Test' });
         service.dismiss(id);
-        expect(service.toasts().length).toBe(0);
+        expect(service.toasts()).toHaveLength(0);
     });
 
     it('should auto-dismiss after duration', async () => {
         service.toast({ title: 'Auto', duration: 100 });
-        expect(service.toasts().length).toBe(1);
+        expect(service.toasts()).toHaveLength(1);
 
         await new Promise(resolve => setTimeout(resolve, 150));
-        expect(service.toasts().length).toBe(0);
+        expect(service.toasts()).toHaveLength(0);
     });
 
     it('should have helper methods for success and error', () => {
@@ -68,7 +68,7 @@ describe('ToasterComponent', () => {
         fixture.detectChanges();
 
         const toasts = fixture.debugElement.queryAll(By.directive(ToastComponent));
-        expect(toasts.length).toBe(1);
+        expect(toasts).toHaveLength(1);
         expect(toasts[0].nativeElement.textContent).toContain('Toast 1');
     });
 

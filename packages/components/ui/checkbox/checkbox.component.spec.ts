@@ -37,7 +37,7 @@ describe('CheckboxComponent', () => {
         fixture.componentRef.setInput('skeleton', true);
         fixture.componentRef.setInput('label', 'Accept terms');
         fixture.detectChanges();
-        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(2);
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton'))).toHaveLength(2);
         expect(fixture.debugElement.query(By.css('input'))).toBeNull();
         expect(fixture.debugElement.query(By.css('label'))).toBeNull();
     });

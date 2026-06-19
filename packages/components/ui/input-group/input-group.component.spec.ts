@@ -59,7 +59,7 @@ describe('InputGroupComponent', () => {
         expect(group.nativeElement.classList.contains('items-center')).toBe(true);
 
         const addons = fixture.debugElement.queryAll(By.css('[data-slot="input-group-addon"]'));
-        expect(addons.length).toBe(2);
+        expect(addons).toHaveLength(2);
     });
 
     it('should bind to FormControl (InputGroupInput)', async () => {

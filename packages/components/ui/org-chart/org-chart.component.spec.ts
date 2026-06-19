@@ -34,11 +34,11 @@ describe('OrgChartComponent', () => {
     });
 
     it('should flatten nodes', () => {
-        expect(component.flatNodes().length).toBe(3);
+        expect(component.flatNodes()).toHaveLength(3);
     });
 
     it('should compute connections between nodes', () => {
-        expect(component.connections().length).toBe(2);
+        expect(component.connections()).toHaveLength(2);
     });
 
     it('should render an SVG element', () => {
@@ -89,7 +89,7 @@ describe('OrgChartComponent', () => {
     it('should build tree with correct parent-child relationships', () => {
         const tree = component.tree()!;
         expect(tree.node.name).toBe('CEO');
-        expect(tree.children.length).toBe(2);
+        expect(tree.children).toHaveLength(2);
         expect(tree.children[0].node.name).toBe('CTO');
         expect(tree.children[1].node.name).toBe('CFO');
     });

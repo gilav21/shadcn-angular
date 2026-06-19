@@ -86,7 +86,7 @@ describe('SplitButtonComponent', () => {
             fixture.detectChanges();
 
             const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]'));
-            expect(items.length).toBe(2);
+            expect(items).toHaveLength(2);
             expect(items[0].nativeElement.textContent).toContain('Edit');
             expect(items[1].nativeElement.textContent).toContain('Delete');
         });
@@ -209,7 +209,7 @@ describe('SplitButtonComponent', () => {
             hostFixture.detectChanges();
 
             const items = hostFixture.debugElement.queryAll(By.css('ui-split-button-item'));
-            expect(items.length).toBe(2);
+            expect(items).toHaveLength(2);
             expect(items[0].nativeElement.textContent).toContain('Item 1');
         });
 

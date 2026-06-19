@@ -47,7 +47,7 @@ function extractEntryComponentName(path) {
 // defineRegistry call. The sync script will then walk imports and fill
 // in libFiles / dependencies / extra files via --fix.
 function appendRegistryEntry(registrySource, name, entryFile) {
-    const closingMatch = /\n\}\);\s*\n\s*export\s+type\s+ComponentName/.exec(registrySource);
+    const closingMatch = /\n\}\);[^\S\n]*\n\s*export\s+type\s+ComponentName/.exec(registrySource);
     if (!closingMatch) {
         process.stderr.write(
             `validate-registry: cannot auto-register "${name}" — registry insertion anchor ` +

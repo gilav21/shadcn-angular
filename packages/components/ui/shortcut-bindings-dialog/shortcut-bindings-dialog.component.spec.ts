@@ -225,7 +225,7 @@ describe('ShortcutBindingsDialogComponent — rebind + grouping with live bindin
 
         const save = editor!.bindings.find(b => b.actionId === 'save');
         expect(save).toBeDefined();
-        expect(save!.instances.length).toBe(2);
+        expect(save!.instances).toHaveLength(2);
         expect(save!.instances.map(i => i.componentId)).toEqual(['editor-1', 'editor-2']);
         expect(save!.instances[0].displayName).toBe('editor #1');
     });
@@ -261,7 +261,7 @@ describe('ShortcutBindingsDialogComponent — rebind + grouping with live bindin
         dialog.search.set('zzz-nonexistent');
         fixture.detectChanges();
 
-        expect(dialog.groupedBindings().length).toBe(0);
+        expect(dialog.groupedBindings()).toHaveLength(0);
         const empty = fixture.nativeElement.textContent as string;
         expect(empty).toContain('No shortcuts matched your search');
     });

@@ -685,7 +685,7 @@ describe('TtfFont', () => {
             const font = new TtfFont(buildTtf({ glyphs: [[], simpleGlyphWithSame()] }));
             const raw = font.getRawGlyph(1)!;
             const scaled = font.scaleRawGlyph(raw, 1, 2);
-            expect(scaled.length).toBe(raw.length);
+            expect(scaled).toHaveLength(raw.length);
         });
 
         it('scales both axes when given separate X and Y factors', () => {
@@ -722,14 +722,14 @@ describe('TtfFont', () => {
             const raw = font.getRawGlyph(1)!;
             const scaled = font.scaleRawGlyph(raw, 2, 2);
             // Should not throw; result preserves the SHORT layout length.
-            expect(scaled.length).toBe(raw.length);
+            expect(scaled).toHaveLength(raw.length);
         });
 
         it('handles same-as-previous (0-byte) coordinates', () => {
             const font = new TtfFont(buildTtf({ glyphs: [[], simpleGlyphWithSame()] }));
             const raw = font.getRawGlyph(1)!;
             const scaled = font.scaleRawGlyph(raw, 2, 2);
-            expect(scaled.length).toBe(raw.length);
+            expect(scaled).toHaveLength(raw.length);
         });
 
         it('returns the result unchanged for a zero-contour glyph (numberOfContours <= 0)', () => {
@@ -844,7 +844,7 @@ describe('TtfFont', () => {
             const raw = font.getRawGlyph(gid);
             if (raw) {
                 const scaled = font.scaleRawGlyphX(raw, 1.5);
-                expect(scaled.length).toBe(raw.length);
+                expect(scaled).toHaveLength(raw.length);
             }
         });
     });

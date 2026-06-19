@@ -150,7 +150,7 @@ describe('UiConfettiDirective', () => {
         directive.fire();
 
         const particles = (directive as any)._particles;
-        expect(particles.length).toBe(50);
+        expect(particles).toHaveLength(50);
     });
 
     it('should stop animation and clear particles on destroy', () => {
@@ -164,7 +164,7 @@ describe('UiConfettiDirective', () => {
         fixture.destroy();
 
         expect((directive as any)._animationFrameId).toBeNull();
-        expect((directive as any)._particles.length).toBe(0);
+        expect((directive as any)._particles).toHaveLength(0);
     });
 
     it('should remove canvas from DOM on destroy', () => {
@@ -227,7 +227,7 @@ describe('UiConfettiDirective with custom particle count', () => {
         directive.fire();
 
         const particles = (directive as any)._particles;
-        expect(particles.length).toBe(10);
+        expect(particles).toHaveLength(10);
     });
 });
 
@@ -253,19 +253,19 @@ describe('UiConfettiDirective with manualTrigger', () => {
         const directiveEl = fixture.debugElement.query(By.directive(UiConfettiDirective));
         const directive = directiveEl.injector.get(UiConfettiDirective);
 
-        expect((directive as any)._particles.length).toBe(0);
+        expect((directive as any)._particles).toHaveLength(0);
 
         fixture.componentInstance.trigger.set(true);
         fixture.detectChanges();
 
         const particles = (directive as any)._particles;
-        expect(particles.length).toBe(20);
+        expect(particles).toHaveLength(20);
     });
 
     it('should not fire on initial render when manualTrigger is false', () => {
         const directiveEl = fixture.debugElement.query(By.directive(UiConfettiDirective));
         const directive = directiveEl.injector.get(UiConfettiDirective);
 
-        expect((directive as any)._particles.length).toBe(0);
+        expect((directive as any)._particles).toHaveLength(0);
     });
 });

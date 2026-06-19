@@ -210,7 +210,7 @@ describe('RichTextEditorComponent', () => {
         expect(img?.getAttribute('onerror')).toBeNull();
         expect(img?.attributes.getNamedItem('onerror')).toBeNull();
         expect(img?.getAttribute('alt')).toBe('x" onerror="alert(1)" data-x="1');
-        const attrNames = Array.from(img?.attributes ?? []).map((a) => a.name).sort();
+        const attrNames = Array.from(img?.attributes ?? []).map((a) => a.name).sort((a, b) => a.localeCompare(b));
         expect(attrNames).toStrictEqual(['alt', 'data-align', 'src', 'style']);
     });
 
@@ -342,13 +342,13 @@ describe('RichTextEditorComponent', () => {
         editor.textContent = 'abc';
         editor.dispatchEvent(new Event('input', { bubbles: true }));
 
-        expect((component as any).history.length).toBe(1);
+        expect((component as any).history).toHaveLength(1);
 
         vi.advanceTimersByTime(199);
-        expect((component as any).history.length).toBe(1);
+        expect((component as any).history).toHaveLength(1);
 
         vi.advanceTimersByTime(1);
-        expect((component as any).history.length).toBe(2);
+        expect((component as any).history).toHaveLength(2);
         expect((component as any).history.at(-1).preview).toContain('abc');
 
         vi.useRealTimers();
@@ -374,7 +374,7 @@ describe('RichTextEditorComponent', () => {
 
         expect(editor.textContent).toContain('one');
         expect((component as any).historyIndex).toBe(1);
-        expect((component as any).history.length).toBe(baselineLength);
+        expect((component as any).history).toHaveLength(baselineLength);
     });
 
     it('stores multiline-friendly preview lines in history entries', () => {
@@ -395,10 +395,10 @@ describe('RichTextEditorComponent', () => {
 
         editor.textContent = 'draft';
         editor.dispatchEvent(new Event('input', { bubbles: true }));
-        expect((component as any).history.length).toBe(1);
+        expect((component as any).history).toHaveLength(1);
 
         component.onHistoryPanelOpenChange(true);
-        expect((component as any).history.length).toBe(2);
+        expect((component as any).history).toHaveLength(2);
         expect(component.historyPanelOpen()).toBe(true);
 
         vi.useRealTimers();
@@ -538,7 +538,7 @@ describe('RichTextEditorComponent', () => {
 
         const viewsAfterDestroy = shortcutBindings.getShortcutBindingViews()
             .filter(view => view.componentId.startsWith('rich-text-editor-'));
-        expect(viewsAfterDestroy.length).toBe(0);
+        expect(viewsAfterDestroy).toHaveLength(0);
     });
 
     it('applies revision on Enter key from history entry', () => {
@@ -1311,7 +1311,7 @@ describe('RichTextEditorComponent', () => {
             expect(cellA1.rowSpan).toBe(1);
             expect(cellA1.innerHTML).toContain('A1');
             expect(cellA1.innerHTML).toContain('A2');
-            expect(row.cells.length).toBe(2);
+            expect(row.cells).toHaveLength(2);
         });
 
         it('mergeCells merges two vertically adjacent cells', () => {
@@ -1348,8 +1348,8 @@ describe('RichTextEditorComponent', () => {
 
             expect(cellA1.colSpan).toBe(2);
             expect(cellA1.rowSpan).toBe(2);
-            expect((rows[0] as HTMLTableRowElement).cells.length).toBe(2);
-            expect((rows[1] as HTMLTableRowElement).cells.length).toBe(1);
+            expect((rows[0] as HTMLTableRowElement).cells).toHaveLength(2);
+            expect((rows[1] as HTMLTableRowElement).cells).toHaveLength(1);
         });
 
         it('mergeCells does nothing with fewer than 2 selected cells', () => {
@@ -1376,7 +1376,7 @@ describe('RichTextEditorComponent', () => {
             expect(row.cells[0].textContent).toContain('A1');
             expect(row.cells[0].textContent).toContain('A2');
             expect(row.cells[0].textContent).toContain('A3');
-            expect(row.cells.length).toBe(1);
+            expect(row.cells).toHaveLength(1);
         });
 
         it('mergeCells sets innerHTML to <br> when all cells are empty', () => {
@@ -1448,7 +1448,7 @@ describe('RichTextEditorComponent', () => {
             component.splitCell();
 
             expect(row.cells[0].colSpan).toBe(1);
-            expect(row.cells.length).toBe(3);
+            expect(row.cells).toHaveLength(3);
         });
 
         it('splitCell splits a rowspan=2 cell back into individual cells', () => {
@@ -1466,8 +1466,8 @@ describe('RichTextEditorComponent', () => {
             component.splitCell();
 
             expect((rows[0] as HTMLTableRowElement).cells[0].rowSpan).toBe(1);
-            expect((rows[0] as HTMLTableRowElement).cells.length).toBe(3);
-            expect((rows[1] as HTMLTableRowElement).cells.length).toBe(3);
+            expect((rows[0] as HTMLTableRowElement).cells).toHaveLength(3);
+            expect((rows[1] as HTMLTableRowElement).cells).toHaveLength(3);
         });
 
         it('splitCell creates new cells with <br> content', () => {
@@ -1515,7 +1515,7 @@ describe('RichTextEditorComponent', () => {
             (component as any).tableContextMenuTarget = headerRow.cells[0];
             component.splitCell();
 
-            expect(headerRow.cells.length).toBe(3);
+            expect(headerRow.cells).toHaveLength(3);
             for (const cell of Array.from(headerRow.cells)) {
                 expect(cell.tagName).toBe('TH');
             }
@@ -1543,8 +1543,8 @@ describe('RichTextEditorComponent', () => {
 
             expect((rows[0] as HTMLTableRowElement).cells[0].colSpan).toBe(1);
             expect((rows[0] as HTMLTableRowElement).cells[0].rowSpan).toBe(1);
-            expect((rows[0] as HTMLTableRowElement).cells.length).toBe(3);
-            expect((rows[1] as HTMLTableRowElement).cells.length).toBe(3);
+            expect((rows[0] as HTMLTableRowElement).cells).toHaveLength(3);
+            expect((rows[1] as HTMLTableRowElement).cells).toHaveLength(3);
         });
 
         it('mergeCells closes the context menu', () => {
@@ -1590,7 +1590,7 @@ describe('RichTextEditorComponent', () => {
             });
             cellA1.dispatchEvent(rightClick);
 
-            expect(component.tableCellSelected().length).toBe(2);
+            expect(component.tableCellSelected()).toHaveLength(2);
             expect(component.tableCellSelected()).toContain(cellA1);
             expect(component.tableCellSelected()).toContain(cellA2);
         });
@@ -1612,7 +1612,7 @@ describe('RichTextEditorComponent', () => {
             });
             cellA1.dispatchEvent(leftClick);
 
-            expect(component.tableCellSelected().length).toBe(0);
+            expect(component.tableCellSelected()).toHaveLength(0);
         });
 
         it('context menu reopens via right-click after closing by action', () => {
@@ -1750,7 +1750,7 @@ describe('RichTextEditorComponent', () => {
             fixture.detectChanges();
 
             const fontElements = editor.querySelectorAll('font[face]');
-            expect(fontElements.length).toBe(0);
+            expect(fontElements).toHaveLength(0);
 
             const spans = editor.querySelectorAll('span');
             const hasGeorgia = Array.from(spans).some(
@@ -2042,7 +2042,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
         component.onFormatCommand('outdent');
 
         expect(editor.querySelector('li > ul')).toBeNull();
-        expect(editor.querySelectorAll(':scope > ul > li').length).toBe(2);
+        expect(editor.querySelectorAll(':scope > ul > li')).toHaveLength(2);
     });
 
     it('does not indent the first list item (no previous sibling)', () => {
@@ -2264,7 +2264,7 @@ describe('RichTextEditorComponent — toolbar actions (link, image, emoji, color
 
         component.onFontSizeSelect('24');
 
-        expect(editor.querySelectorAll('font[size="7"]').length).toBe(0);
+        expect(editor.querySelectorAll('font[size="7"]')).toHaveLength(0);
         const span = Array.from(editor.querySelectorAll('span')).find(s => s.style.fontSize === '24px');
         expect(span).toBeTruthy();
     });
@@ -2276,7 +2276,7 @@ describe('RichTextEditorComponent — toolbar actions (link, image, emoji, color
 
         component.onFontFamilySelect('Georgia');
 
-        expect(editor.querySelectorAll('font[face]').length).toBe(0);
+        expect(editor.querySelectorAll('font[face]')).toHaveLength(0);
         const span = Array.from(editor.querySelectorAll('span')).find(s => s.style.fontFamily.includes('Georgia'));
         expect(span).toBeTruthy();
     });
@@ -2440,9 +2440,9 @@ describe('RichTextEditorComponent — tables', () => {
         component.onTableInsert({ rows: 3, cols: 2 });
 
         const table = editor.querySelector('table')!;
-        expect(table.querySelectorAll('thead th').length).toBe(2);
-        expect(table.querySelectorAll('tbody tr').length).toBe(2);
-        expect(table.querySelectorAll('tbody tr')[0].children.length).toBe(2);
+        expect(table.querySelectorAll('thead th')).toHaveLength(2);
+        expect(table.querySelectorAll('tbody tr')).toHaveLength(2);
+        expect(table.querySelectorAll('tbody tr')[0].children).toHaveLength(2);
     });
 
     it('adds a row above the targeted cell', () => {
@@ -2452,7 +2452,7 @@ describe('RichTextEditorComponent — tables', () => {
 
         component.addTableRowAbove();
 
-        expect(table.querySelectorAll('tbody tr').length).toBe(3);
+        expect(table.querySelectorAll('tbody tr')).toHaveLength(3);
     });
 
     it('adds a row below the targeted cell', () => {
@@ -2462,7 +2462,7 @@ describe('RichTextEditorComponent — tables', () => {
 
         component.addTableRowBelow();
 
-        expect(table.querySelectorAll('tbody tr').length).toBe(3);
+        expect(table.querySelectorAll('tbody tr')).toHaveLength(3);
     });
 
     it('adds a column to the left and right', () => {
@@ -2470,11 +2470,11 @@ describe('RichTextEditorComponent — tables', () => {
         const a1 = table.querySelector<HTMLTableCellElement>('tbody td')!;
         targetCell(a1);
         component.addTableColumnLeft();
-        expect(table.querySelectorAll('tbody tr')[0].children.length).toBe(3);
+        expect(table.querySelectorAll('tbody tr')[0].children).toHaveLength(3);
 
         targetCell(table.querySelector<HTMLTableCellElement>('tbody td')!);
         component.addTableColumnRight();
-        expect(table.querySelectorAll('tbody tr')[0].children.length).toBe(4);
+        expect(table.querySelectorAll('tbody tr')[0].children).toHaveLength(4);
     });
 
     it('deletes the targeted row', () => {
@@ -2484,7 +2484,7 @@ describe('RichTextEditorComponent — tables', () => {
 
         component.deleteTableRow();
 
-        expect(table.querySelectorAll('tbody tr').length).toBe(1);
+        expect(table.querySelectorAll('tbody tr')).toHaveLength(1);
     });
 
     it('removes the whole table when deleting the last remaining row', () => {
@@ -2505,7 +2505,7 @@ describe('RichTextEditorComponent — tables', () => {
 
         component.deleteTableColumn();
 
-        expect(table.querySelectorAll('tbody tr')[0].children.length).toBe(1);
+        expect(table.querySelectorAll('tbody tr')[0].children).toHaveLength(1);
     });
 
     it('removes the whole table when deleting the last remaining column', () => {
@@ -2534,7 +2534,7 @@ describe('RichTextEditorComponent — tables', () => {
         component.toggleTableHeaderRow();
 
         expect(table.querySelector('thead')).toBeNull();
-        expect(table.querySelectorAll('th').length).toBe(0);
+        expect(table.querySelectorAll('th')).toHaveLength(0);
     });
 
     it('toggles a header row on for a headerless table', () => {
@@ -2546,7 +2546,7 @@ describe('RichTextEditorComponent — tables', () => {
         component.toggleTableHeaderRow();
 
         expect(table.querySelector('thead')).toBeTruthy();
-        expect(table.querySelectorAll('thead th').length).toBe(2);
+        expect(table.querySelectorAll('thead th')).toHaveLength(2);
     });
 
     it('sets cell text alignment', () => {
@@ -2636,18 +2636,18 @@ describe('RichTextEditorComponent — find and replace', () => {
     it('finds all case-insensitive matches and highlights them', () => {
         component.onFindQueryChange('cat');
 
-        expect(component.findMatches().length).toBe(2);
+        expect(component.findMatches()).toHaveLength(2);
         expect(component.findCurrentIndex()).toBe(0);
-        expect(editor.querySelectorAll('mark[data-find-match]').length).toBe(2);
+        expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(2);
     });
 
     it('clears matches when the query is emptied', () => {
         component.onFindQueryChange('cat');
         component.onFindQueryChange('');
 
-        expect(component.findMatches().length).toBe(0);
+        expect(component.findMatches()).toHaveLength(0);
         expect(component.findCurrentIndex()).toBe(-1);
-        expect(editor.querySelectorAll('mark[data-find-match]').length).toBe(0);
+        expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(0);
     });
 
     it('navigates matches with findNext (wrapping) and findPrevious', () => {
@@ -2667,11 +2667,11 @@ describe('RichTextEditorComponent — find and replace', () => {
         component.writeValue('<p>Cat cat CAT</p>');
         fixture.detectChanges();
         component.onFindQueryChange('cat');
-        expect(component.findMatches().length).toBe(3);
+        expect(component.findMatches()).toHaveLength(3);
 
         component.toggleFindCaseSensitive();
         expect(component.findCaseSensitive()).toBe(true);
-        expect(component.findMatches().length).toBe(1);
+        expect(component.findMatches()).toHaveLength(1);
     });
 
     it('replaces the current match with replaceSingle', () => {
@@ -2713,8 +2713,8 @@ describe('RichTextEditorComponent — find and replace', () => {
 
         expect(component.findReplaceVisible()).toBe(false);
         expect(component.findQuery()).toBe('');
-        expect(component.findMatches().length).toBe(0);
-        expect(editor.querySelectorAll('mark[data-find-match]').length).toBe(0);
+        expect(component.findMatches()).toHaveLength(0);
+        expect(editor.querySelectorAll('mark[data-find-match]')).toHaveLength(0);
     });
 });
 
@@ -2820,7 +2820,7 @@ describe('RichTextEditorComponent — keydown behaviours', () => {
         component.onKeydown(ev);
 
         expect(ev.defaultPrevented).toBe(true);
-        expect(editor.querySelectorAll('li[data-task]').length).toBe(2);
+        expect(editor.querySelectorAll('li[data-task]')).toHaveLength(2);
     });
 
     it('Enter in an empty task list item exits the task list into a paragraph', () => {
@@ -3229,7 +3229,7 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         }));
         document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 
-        expect(component.tableCellSelected().length).toBe(4);
+        expect(component.tableCellSelected()).toHaveLength(4);
         expect(component.tableCellSelected().every(c => c.classList.contains('rte-cell-selected'))).toBe(true);
     });
 
@@ -3273,7 +3273,7 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
 
         component.onEditorMouseDown({ button: 2, target: a3, preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as MouseEvent);
 
-        expect(component.tableCellSelected().length).toBe(0);
+        expect(component.tableCellSelected()).toHaveLength(0);
     });
 
     it('touch drag selects cells across the table', () => {
@@ -3289,7 +3289,7 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
         document.dispatchEvent(move);
         document.dispatchEvent(new Event('touchend', { bubbles: true }));
 
-        expect(component.tableCellSelected().length).toBe(2);
+        expect(component.tableCellSelected()).toHaveLength(2);
     });
 });
 
@@ -3813,7 +3813,7 @@ describe('RichTextEditorComponent — tables with row/col spans', () => {
 
         const merged = table.querySelector('td[rowspan]') as HTMLTableCellElement;
         expect(merged.rowSpan).toBe(3);
-        expect(table.querySelectorAll('tr').length).toBe(3);
+        expect(table.querySelectorAll('tr')).toHaveLength(3);
     });
 
     it('inserting a column through a colspan extends that span', () => {
@@ -3846,7 +3846,7 @@ describe('RichTextEditorComponent — tables with row/col spans', () => {
 
         const merged = table.querySelector('td[rowspan]') as HTMLTableCellElement | null;
         expect(merged?.rowSpan ?? 1).toBe(1);
-        expect(table.querySelectorAll('tr').length).toBe(1);
+        expect(table.querySelectorAll('tr')).toHaveLength(1);
     });
 });
 
@@ -4136,7 +4136,7 @@ describe('RichTextEditorComponent — slash keydown with no matches & misc', () 
         component.slashCommandOpen.set(true);
         component.slashQuery.set('zzzznomatch');
         fixture.detectChanges();
-        expect(component.filteredSlashCommands().length).toBe(0);
+        expect(component.filteredSlashCommands()).toHaveLength(0);
 
         (component as unknown as Internal).onSlashCommandKeydown(
             new KeyboardEvent('keydown', { key: 'Escape' })
@@ -4365,7 +4365,7 @@ describe('RichTextEditorComponent — tail span table edits', () => {
 
         component.addTableRowBelow();
 
-        expect(table.querySelectorAll('tr').length).toBe(3);
+        expect(table.querySelectorAll('tr')).toHaveLength(3);
         expect((table.querySelector('td[rowspan]') as HTMLTableCellElement).rowSpan).toBe(3);
     });
 
@@ -4530,7 +4530,7 @@ describe('RichTextEditorComponent — image source guards & paste max length', (
             clipboardData: { getData: (t: string) => (t === 'text/plain' ? 'defghijklmnop' : ''), files: [] } as unknown as DataTransfer,
         } as unknown as ClipboardEvent);
 
-        expect((editor.textContent ?? '').length).toBe(8);
+        expect(editor.textContent ?? '').toHaveLength(8);
         expect(editor.textContent).toBe('abcdefgh');
     });
 

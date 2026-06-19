@@ -80,12 +80,13 @@ describe('MarqueeComponent', () => {
         host.pauseOnHover.set(false);
         fixture.detectChanges();
 
+        const comp = fixture.debugElement.query(By.directive(MarqueeComponent)).componentInstance as MarqueeComponent;
         const marqueeEl = fixture.debugElement.query(By.css('[data-slot="marquee"]'));
         marqueeEl.nativeElement.dispatchEvent(new Event('mouseenter'));
         fixture.detectChanges();
 
-        // No error thrown, animation state not changed
-        expect(true).toBeTruthy();
+        // With pauseOnHover false, hovering must not pause the animation.
+        expect((comp as any).animation === undefined || (comp as any).animation?.playState !== 'paused').toBeTruthy();
     });
 
     it('should set gap style on the track element', () => {

@@ -30,7 +30,7 @@ describe('IconComponent', () => {
 
     it('should create', () => {
         const icons = fixture.debugElement.queryAll(By.directive(IconComponent));
-        expect(icons.length).toBe(3);
+        expect(icons).toHaveLength(3);
     });
 
     it('should render SVG element with correct attributes', () => {

@@ -74,7 +74,7 @@ describe('SpinnerComponent', () => {
             const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
             expect(container).toBeTruthy();
             const dots = container.queryAll(By.css('div'));
-            expect(dots.length).toBe(3);
+            expect(dots).toHaveLength(3);
         });
 
         it('exposes the dots container as a native <output> (implicit role="status")', () => {
@@ -107,7 +107,7 @@ describe('SpinnerComponent', () => {
             const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
             expect(container).toBeTruthy();
             const bars = container.queryAll(By.css('div'));
-            expect(bars.length).toBe(5);
+            expect(bars).toHaveLength(5);
         });
 
         it('exposes the bars container as a native <output> (implicit role="status")', () => {

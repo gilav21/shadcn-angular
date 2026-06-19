@@ -12,10 +12,12 @@
  */
 import { posix } from 'node:path';
 
-// Matches a registry component block far enough to capture its `name` and
-// `files: [...]` array. Mirrors the parser in `sync-registry.ts`.
-const COMPONENT_BLOCK_REGEX =
-    /['"]?([\w-]+)['"]?\s*:\s*\{[^}]*?name:\s*['"]([^'"]+)['"][^}]*?files:\s*\[([\s\S]*?)\]/g;
+// Component names and `files: [...]` arrays are scanned independently and
+// paired by document order: within every registry entry `name:` precedes
+// `files:`, so each files array belongs to the nearest preceding name. This
+// keeps every pattern linear — no brace-matching backtracking.
+const NAME_REGEX = /name:\s*['"]([^'"]+)['"]/g;
+const FILES_REGEX = /files:\s*\[([\s\S]*?)\]/g;
 const QUOTED_STRING_REGEX = /['"]([^'"]+)['"]/g;
 
 /**
@@ -50,9 +52,16 @@ export function pathHasSubSegment(relPath) {
  */
 export function buildDirOwnerMap(registrySource) {
     const dirOwners = new Map();
-    for (const block of registrySource.matchAll(COMPONENT_BLOCK_REGEX)) {
-        const name = block[2];
-        for (const file of block[3].matchAll(QUOTED_STRING_REGEX)) {
+    const names = [...registrySource.matchAll(NAME_REGEX)];
+    let nameIdx = 0;
+    for (const filesMatch of registrySource.matchAll(FILES_REGEX)) {
+        while (nameIdx + 1 < names.length && names[nameIdx + 1].index < filesMatch.index) {
+            nameIdx++;
+        }
+        const owner = names[nameIdx];
+        if (!owner || owner.index > filesMatch.index) continue;
+        const name = owner[1];
+        for (const file of filesMatch[1].matchAll(QUOTED_STRING_REGEX)) {
             const dir = posix.dirname(file[1]);
             const owners = dirOwners.get(dir) ?? new Set();
             owners.add(name);

@@ -79,7 +79,7 @@ describe('diffRegistryEntries', () => {
 
     it('detects a removed entry', () => {
         const head = REGISTRY_BASE.replace(
-            /\s+eyedropper:\s*\{[^}]+\},\n/,
+            /\n[^\S\n]*eyedropper:\s*\{[^}]+\},\n/,
             '\n',
         );
         const changed = diffRegistryEntries(REGISTRY_BASE, head);

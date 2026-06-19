@@ -136,7 +136,7 @@ describe('ContextMenu Integration', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         const items = document.querySelectorAll('[data-slot="context-menu-item"]');
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render separator', async () => {
@@ -246,7 +246,7 @@ describe('ContextMenu RTL Support', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         const items = document.querySelectorAll('[data-slot="context-menu-item"]');
-        expect(items.length).toBe(2);
+        expect(items).toHaveLength(2);
     });
 
     it('should render shortcuts in RTL', async () => {
@@ -262,7 +262,7 @@ describe('ContextMenu RTL Support', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         const shortcuts = document.querySelectorAll('[data-slot="context-menu-shortcut"]');
-        expect(shortcuts.length).toBe(2);
+        expect(shortcuts).toHaveLength(2);
         // Verify shortcut text
         expect(shortcuts[0]?.textContent).toContain('⌘C');
         expect(shortcuts[1]?.textContent).toContain('⌘V');
@@ -317,7 +317,7 @@ describe('ContextMenu Items-Driven Mode', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         const items = document.querySelectorAll('[data-slot="context-menu-item"]');
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
         expect(items[0]?.textContent?.trim()).toContain('Copy');
         expect(items[1]?.textContent?.trim()).toContain('Paste');
         expect(items[2]?.textContent?.trim()).toContain('Delete');
@@ -331,7 +331,7 @@ describe('ContextMenu Items-Driven Mode', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         const separators = document.querySelectorAll('[data-slot="context-menu-separator"]');
-        expect(separators.length).toBe(1);
+        expect(separators).toHaveLength(1);
     });
 
     it('should render label from items input', async () => {
@@ -342,7 +342,7 @@ describe('ContextMenu Items-Driven Mode', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         const labels = document.querySelectorAll('[data-slot="context-menu-label"]');
-        expect(labels.length).toBe(1);
+        expect(labels).toHaveLength(1);
         expect(labels[0]?.textContent?.trim()).toBe('Actions');
     });
 
@@ -367,7 +367,7 @@ describe('ContextMenu Items-Driven Mode', () => {
         await new Promise(resolve => setTimeout(resolve, 50));
 
         const subTriggers = document.querySelectorAll('[data-slot="context-menu-sub-trigger"]');
-        expect(subTriggers.length).toBe(1);
+        expect(subTriggers).toHaveLength(1);
         expect(subTriggers[0]?.textContent?.trim()).toContain('More');
     });
 

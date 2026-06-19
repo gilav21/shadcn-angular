@@ -11,8 +11,13 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 function tokenFromEnvFiles() {
   for (const file of [path.join(repoRoot, 'packages', '.env'), path.join(repoRoot, '.env')]) {
     if (!existsSync(file)) continue;
-    const match = /^\s*SONAR_TOKEN\s*=\s*(.+?)\s*$/m.exec(readFileSync(file, 'utf8'));
-    if (match) return match[1].replace(/^["']|["']$/g, '');
+    for (const rawLine of readFileSync(file, 'utf8').split('\n')) {
+      const line = rawLine.trim();
+      if (!line.startsWith('SONAR_TOKEN')) continue;
+      const rest = line.slice('SONAR_TOKEN'.length).trimStart();
+      if (!rest.startsWith('=')) continue;
+      return rest.slice(1).trim().replace(/^["']|["']$/g, '');
+    }
   }
   return undefined;
 }

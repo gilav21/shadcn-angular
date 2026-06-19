@@ -126,12 +126,12 @@ describe('NavigationMenu Integration', () => {
 
     it('should render menu items', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-item"]'));
-        expect(items.length).toBe(2);
+        expect(items).toHaveLength(2);
     });
 
     it('should render menu triggers', () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-trigger"]'));
-        expect(triggers.length).toBe(2);
+        expect(triggers).toHaveLength(2);
     });
 
     it('should have aria-expanded on triggers', () => {
@@ -184,7 +184,7 @@ describe('NavigationMenu Integration', () => {
         await fixture.whenStable();
 
         const links = fixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-link"]'));
-        expect(links.length).toBe(2);
+        expect(links).toHaveLength(2);
     });
 
     it('should have role="menuitem" on links', async () => {
@@ -412,12 +412,12 @@ describe('NavigationMenu Simple Mode', () => {
 
     it('should render menu items from items array', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-item"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render triggers for items with children', () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-trigger"]'));
-        expect(triggers.length).toBe(2);
+        expect(triggers).toHaveLength(2);
     });
 
     it('should render trigger labels from item data', () => {
@@ -445,7 +445,7 @@ describe('NavigationMenu Simple Mode', () => {
         expect(content).toBeTruthy();
 
         const links = content.queryAll(By.css('[data-slot="navigation-menu-link"]'));
-        expect(links.length).toBe(2);
+        expect(links).toHaveLength(2);
         expect(links[0].nativeElement.getAttribute('href')).toBe('/docs');
         expect(links[1].nativeElement.getAttribute('href')).toBe('/docs/components');
     });
@@ -472,7 +472,7 @@ describe('NavigationMenu Simple Mode', () => {
         const content = fixture.debugElement.query(By.css('[data-slot="navigation-menu-content"]'));
         expect(content.nativeElement.textContent).toContain('Blog');
         const paragraphs = content.queryAll(By.css('p'));
-        expect(paragraphs.length).toBe(0);
+        expect(paragraphs).toHaveLength(0);
     });
 
     it('should fall back to custom mode when content is projected', async () => {
@@ -500,7 +500,7 @@ describe('NavigationMenu Simple Mode', () => {
         mixedFixture.detectChanges();
 
         const links = mixedFixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-link"]'));
-        expect(links.length).toBe(1);
+        expect(links).toHaveLength(1);
         expect(links[0].nativeElement.getAttribute('href')).toBe('/custom');
         expect(links[0].nativeElement.textContent).toContain('Custom Link');
     });

@@ -180,7 +180,7 @@ describe('startAutoScroll', () => {
         scroller.stop();
         flushFrames(2);
 
-        expect(scrollCalls.length).toBe(1);
+        expect(scrollCalls).toHaveLength(1);
     });
 
     it('stop() is idempotent', () => {

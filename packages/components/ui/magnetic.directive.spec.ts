@@ -70,7 +70,7 @@ describe('UiMagneticDirective', () => {
         magnetEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 60, clientY: 25, bubbles: true }));
 
         const transform = directive.transform();
-        const match = /translate\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px\)/.exec(transform);
+        const match = /translate\((-?\d+(?:\.\d+)?)px,\s*(-?\d+(?:\.\d+)?)px\)/.exec(transform);
         expect(match).toBeTruthy();
 
         const pullX = Number.parseFloat(match![1]);

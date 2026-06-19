@@ -59,7 +59,7 @@ describe('BarRaceChartComponent', () => {
     });
 
     it('should compute display bars from current frame', () => {
-        expect(component.displayBars().length).toBe(3);
+        expect(component.displayBars()).toHaveLength(3);
     });
 
     it('should render an SVG element', () => {
@@ -83,7 +83,7 @@ describe('BarRaceChartComponent', () => {
             fixture.detectChanges();
 
             const bars = component.displayBars();
-            expect(bars.length).toBe(2);
+            expect(bars).toHaveLength(2);
             expect(bars[0].name).toBe('Item B');
             expect(bars[1].name).toBe('Item C');
         });
@@ -108,7 +108,7 @@ describe('BarRaceChartComponent', () => {
             fixture.componentRef.setInput('frames', [[]]);
             fixture.detectChanges();
 
-            expect(component.displayBars().length).toBe(0);
+            expect(component.displayBars()).toHaveLength(0);
         });
 
         it('should update bars when frame changes', () => {
@@ -157,7 +157,7 @@ describe('BarRaceChartComponent', () => {
 
             vi.advanceTimersByTime(500);
             expect(component.isPlaying()).toBe(false);
-            expect(completeEvents.length).toBe(1);
+            expect(completeEvents).toHaveLength(1);
         });
 
         it('should emit frameChange for each frame advancement', () => {

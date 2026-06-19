@@ -29,7 +29,7 @@ describe('ColumnRangeChartComponent', () => {
     });
 
     it('should compute bars from data', () => {
-        expect(component.bars().length).toBe(3);
+        expect(component.bars()).toHaveLength(3);
     });
 
     it('should render an SVG element', () => {
@@ -52,13 +52,10 @@ describe('ColumnRangeChartComponent', () => {
 
     it('should give taller bars to data points with wider ranges', () => {
         const bars = component.bars();
-        const janRange = 10 - (-5);
-        const marRange = 18 - 2;
         const janBar = bars[0];
         const marBar = bars[2];
 
-        expect(janRange).toBe(15);
-        expect(marRange).toBe(16);
+        // Jan range = 10 - (-5) = 15; Mar range = 18 - 2 = 16 (wider) => Mar bar is taller.
         expect(marBar.height).toBeGreaterThan(janBar.height);
     });
 

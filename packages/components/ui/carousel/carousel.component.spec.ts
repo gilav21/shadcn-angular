@@ -112,7 +112,7 @@ describe('Carousel Integration', () => {
 
     it('should render carousel items', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="carousel-item"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render previous button', () => {
@@ -127,12 +127,12 @@ describe('Carousel Integration', () => {
 
     it('should have aria-roledescription="slide" on items', () => {
         const items = fixture.debugElement.queryAll(By.css('[aria-roledescription="slide"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should have role="group" on items', () => {
         const items = fixture.debugElement.queryAll(By.css('[role="group"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 });
 

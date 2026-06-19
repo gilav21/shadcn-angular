@@ -98,12 +98,12 @@ describe('Breadcrumb Integration', () => {
 
     it('should render breadcrumb items', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-item"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render breadcrumb links', () => {
         const links = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-link"] a'));
-        expect(links.length).toBe(2);
+        expect(links).toHaveLength(2);
     });
 
     it('should render breadcrumb page', () => {
@@ -114,7 +114,7 @@ describe('Breadcrumb Integration', () => {
 
     it('should render separators', () => {
         const separators = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-separator"]'));
-        expect(separators.length).toBe(2);
+        expect(separators).toHaveLength(2);
     });
 
     it('should have separator with aria-hidden', () => {
@@ -183,7 +183,7 @@ describe('Breadcrumb RTL Support', () => {
         expect(list).toBeTruthy();
 
         const items = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-item"]'));
-        expect(items.length).toBe(2);
+        expect(items).toHaveLength(2);
     });
 });
 
@@ -218,12 +218,12 @@ describe('Breadcrumb Simple Mode (Data-Driven)', () => {
 
     it('should render all items from input array', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-item"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render links for non-current items', () => {
         const links = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-link"]'));
-        expect(links.length).toBe(2);
+        expect(links).toHaveLength(2);
     });
 
     it('should render current page with aria-current', () => {
@@ -234,7 +234,7 @@ describe('Breadcrumb Simple Mode (Data-Driven)', () => {
 
     it('should auto-insert separators between items', () => {
         const separators = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-separator"]'));
-        expect(separators.length).toBe(2); // 3 items = 2 separators
+        expect(separators).toHaveLength(2); // 3 items = 2 separators
     });
 
     it('should render correct href on links', () => {
@@ -266,7 +266,7 @@ describe('Breadcrumb Skeleton Mode', () => {
 
     it('should render skeleton crumbs with separators between them', () => {
         // 3 crumbs + 2 separators by default
-        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(5);
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton'))).toHaveLength(5);
         expect(fixture.debugElement.query(By.css('[data-slot="breadcrumb-item"]'))).toBeNull();
     });
 
@@ -274,7 +274,7 @@ describe('Breadcrumb Skeleton Mode', () => {
         fixture.componentRef.setInput('skeletonCount', 2);
         fixture.detectChanges();
         // 2 crumbs + 1 separator
-        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(3);
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton'))).toHaveLength(3);
     });
 });
 

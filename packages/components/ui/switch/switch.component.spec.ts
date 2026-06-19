@@ -66,7 +66,7 @@ describe('SwitchComponent', () => {
         fixture.componentRef.setInput('skeleton', true);
         fixture.componentRef.setInput('label', 'Notifications');
         fixture.detectChanges();
-        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(2);
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton'))).toHaveLength(2);
         expect(fixture.debugElement.query(By.css('button'))).toBeNull();
         expect(fixture.debugElement.query(By.css('label'))).toBeNull();
     });

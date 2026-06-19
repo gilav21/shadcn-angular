@@ -246,7 +246,7 @@ describe('readOle2 — regular streams', () => {
 
         const ole = readOle2(file);
         const stream = ole.streams.get('Stream')!;
-        expect(stream.length).toBe(bigSize);
+        expect(stream).toHaveLength(bigSize);
         expect(stream[0]).toBe(0xaa);
         expect(stream[SECTOR - 1]).toBe(0xaa);
         expect(stream[SECTOR]).toBe(0xbb);
@@ -326,7 +326,7 @@ describe('readOle2 — mini streams', () => {
 
         const ole = readOle2(file);
         const stream = ole.streams.get('CompObj')!;
-        expect(stream.length).toBe(smallSize);
+        expect(stream).toHaveLength(smallSize);
         expect(stream[0]).toBe(1);
         expect(stream[63]).toBe(64);
         expect(stream[64]).toBe(65);
@@ -368,7 +368,7 @@ describe('readOle2 — mini streams', () => {
         const tiny = ole.streams.get('Tiny')!;
         // Result buffer is sized to `size` (200) even though the chain stops
         // early: first two mini-sectors (128 bytes) carry real data.
-        expect(tiny.length).toBe(smallSize);
+        expect(tiny).toHaveLength(smallSize);
         expect(tiny[0]).toBe(0);
         expect(tiny[64]).toBe(64); // mini-sector index 1 follows index 0
     });
@@ -391,7 +391,7 @@ describe('readOle2 — mini streams', () => {
 
         const ole = readOle2(file);
         const stream = ole.streams.get('Small')!;
-        expect(stream.length).toBe(smallSize);
+        expect(stream).toHaveLength(smallSize);
         expect(stream[0]).toBe(0x7f);
         expect(stream[smallSize - 1]).toBe(0x7f);
     });
@@ -452,7 +452,7 @@ describe('readOle2 — DIFAT extension & FAT edge cases', () => {
 
         const ole = readOle2(file);
         const doc = ole.streams.get('Doc')!;
-        expect(doc.length).toBe(5);
+        expect(doc).toHaveLength(5);
         expect(Array.from(doc)).toEqual([10, 20, 30, 40, 50]);
     });
 });
@@ -503,7 +503,7 @@ describe('readOle2 — directory edge cases', () => {
 
         const ole = readOle2(file);
         // Only two real entries, the zeroed slots produce no entry.
-        expect(ole.entries.length).toBe(2);
+        expect(ole.entries).toHaveLength(2);
         expect(ole.entries.map(e => e.name)).toEqual(['Root Entry', 'Only']);
     });
 });

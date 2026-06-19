@@ -242,10 +242,10 @@ describe('ShortcutBindingService', () => {
                 makeRegistration({ actionId: 'a', defaultShortcut: 'ctrl+1' }),
                 makeRegistration({ actionId: 'b', defaultShortcut: 'ctrl+2' }),
             ]);
-            expect(service.getShortcutBindingViews().length).toBe(2);
+            expect(service.getShortcutBindingViews()).toHaveLength(2);
 
             service.unregisterComponent(handle.componentId);
-            expect(service.getShortcutBindingViews().length).toBe(0);
+            expect(service.getShortcutBindingViews()).toHaveLength(0);
         });
     });
 
