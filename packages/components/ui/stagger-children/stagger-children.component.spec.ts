@@ -51,7 +51,7 @@ describe('StaggerChildrenComponent', () => {
     it('should render all child elements', () => {
         const hostEl = fixture.debugElement.query(By.directive(StaggerChildrenComponent));
         const children = hostEl.nativeElement.querySelectorAll(':scope > div');
-        expect(children.length).toBe(3);
+        expect(children).toHaveLength(3);
     });
 
     it('should hide children by setting opacity to 0 after init', () => {

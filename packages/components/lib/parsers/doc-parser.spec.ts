@@ -50,7 +50,7 @@ describe('parseDoc — piece table (ANSI/compressed)', () => {
         const result = parseDoc(doc);
 
         expect(result.plainText).toBe('Hello World\nSecond line');
-        expect(result.elements.length).toBe(2);
+        expect(result.elements).toHaveLength(2);
         expect(result.elements[0].text).toBe('Hello World');
         expect(result.elements[1].text).toBe('Second line');
         expect(result.elements[0].type).toBe('paragraph');
@@ -214,7 +214,7 @@ describe('parseDoc — fallback path (no usable piece table)', () => {
             { name: '0Table', data: new Uint8Array(8) },
         ]));
         expect(result.plainText).toBe('');
-        expect(result.elements.length).toBe(0);
+        expect(result.elements).toHaveLength(0);
     });
 });
 

@@ -143,12 +143,12 @@ describe('Pagination Integration', () => {
 
     it('should render pagination items', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="pagination-item"]'));
-        expect(items.length).toBe(6);
+        expect(items).toHaveLength(6);
     });
 
     it('should render pagination links', () => {
         const links = fixture.debugElement.queryAll(By.css('[data-slot="pagination-link"]'));
-        expect(links.length).toBe(3);
+        expect(links).toHaveLength(3);
     });
 
     it('should render previous button', () => {
@@ -268,7 +268,7 @@ describe('Pagination RTL Support', () => {
         await fixture.whenStable();
 
         const links = fixture.debugElement.queryAll(By.css('[data-slot="pagination-link"]'));
-        expect(links.length).toBe(2);
+        expect(links).toHaveLength(2);
     });
 
     it('should have active state in RTL', async () => {

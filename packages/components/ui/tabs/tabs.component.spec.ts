@@ -110,7 +110,7 @@ describe('TabsListComponent', () => {
     it('should render skeleton pills instead of the tablist when skeleton is true', () => {
         fixture.componentRef.setInput('skeleton', true);
         fixture.detectChanges();
-        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(3);
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton'))).toHaveLength(3);
         expect(fixture.debugElement.query(By.css('[role="tablist"]'))).toBeNull();
     });
 
@@ -118,7 +118,7 @@ describe('TabsListComponent', () => {
         fixture.componentRef.setInput('skeleton', true);
         fixture.componentRef.setInput('skeletonCount', 5);
         fixture.detectChanges();
-        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(5);
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton'))).toHaveLength(5);
     });
 });
 
@@ -138,7 +138,7 @@ describe('Tabs Integration', () => {
 
     it('should render tabs with triggers and content', () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="tabs-trigger"]'));
-        expect(triggers.length).toBe(3);
+        expect(triggers).toHaveLength(3);
     });
 
     it('should show default tab content initially', () => {

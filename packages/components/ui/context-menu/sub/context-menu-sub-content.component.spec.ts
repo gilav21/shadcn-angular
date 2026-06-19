@@ -220,7 +220,7 @@ describe('ContextMenuSubContentComponent', () => {
         await settlePortal(fixture);
         subComponent().enter();
         await settlePortal(fixture);
-        expect(document.querySelectorAll('[data-context-menu-sub-portal]').length).toBe(1);
+        expect(document.querySelectorAll('[data-context-menu-sub-portal]')).toHaveLength(1);
     });
 
     it('focusFirst focuses the first non-disabled menuitem', async () => {

@@ -120,6 +120,6 @@ describe('performInstall', () => {
 
     expect(result.installed).toEqual([]);
     expect(result.skipped).toContain('badge');
-    expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0);
+    expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
   });
 });

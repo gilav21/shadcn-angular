@@ -412,7 +412,7 @@ describe('TreeComponent - expandAllCollapsed Batching', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(emissions.length).toBe(1);
+        expect(emissions).toHaveLength(1);
         expect(treeInstance.isExpanded('root-1')).toBe(true);
     });
 });

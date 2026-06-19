@@ -483,36 +483,36 @@ describe('RichTextImageResizerComponent', () => {
 
         it('renders four corner handles by default', () => {
             setTarget();
-            expect(query(cornerSelector).length).toBe(4);
+            expect(query(cornerSelector)).toHaveLength(4);
         });
 
         it('hides corner handles when resizable is false', () => {
             fixture.componentRef.setInput('resizable', false);
             setTarget();
-            expect(query(cornerSelector).length).toBe(0);
+            expect(query(cornerSelector)).toHaveLength(0);
         });
 
         it('hides edge handles while aspect ratio is locked', () => {
             setTarget();
-            expect(query(edgeSelector).length).toBe(0);
+            expect(query(edgeSelector)).toHaveLength(0);
         });
 
         it('shows four edge handles when aspect ratio is unlocked', () => {
             fixture.componentRef.setInput('lockAspectRatio', false);
             setTarget();
-            expect(query(edgeSelector).length).toBe(4);
+            expect(query(edgeSelector)).toHaveLength(4);
         });
 
         it('renders alignment buttons plus delete by default', () => {
             setTarget();
-            expect(query('button').length).toBe(5);
+            expect(query('button')).toHaveLength(5);
         });
 
         it('keeps only the delete button when showAlignment is false', () => {
             fixture.componentRef.setInput('showAlignment', false);
             setTarget();
             const buttons = query('button');
-            expect(buttons.length).toBe(1);
+            expect(buttons).toHaveLength(1);
             expect(buttons[0].getAttribute('title')).toBe(
                 RICH_TEXT_LOCALES['en'].imageResizer.deleteImage,
             );

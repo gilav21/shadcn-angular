@@ -34,10 +34,10 @@ describe('DataTableMultiselectFilterComponent', () => {
 
   it('should render all options with checkboxes', () => {
     const items = fixture.debugElement.queryAll(By.css('ui-command-item'));
-    expect(items.length).toBe(STRING_OPTIONS.length);
+    expect(items).toHaveLength(STRING_OPTIONS.length);
 
     const checkboxes = fixture.debugElement.queryAll(By.css('ui-checkbox'));
-    expect(checkboxes.length).toBe(STRING_OPTIONS.length);
+    expect(checkboxes).toHaveLength(STRING_OPTIONS.length);
   });
 
   it('should toggle option on and emit filterChange', () => {
@@ -139,7 +139,7 @@ describe('DataTableMultiselectFilterComponent with objects', () => {
 
   it('should render object options with displayWith', () => {
     const items = fixture.debugElement.queryAll(By.css('ui-command-item'));
-    expect(items.length).toBe(PRIORITY_OPTIONS.length);
+    expect(items).toHaveLength(PRIORITY_OPTIONS.length);
   });
 
   it('should emit extracted values via valueWith', () => {

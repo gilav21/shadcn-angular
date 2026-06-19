@@ -119,12 +119,12 @@ describe('RadioGroup Integration', () => {
 
     it('should render radio group with items', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="radio-group-item"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('renders a native radio input per item', () => {
         const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should be unchecked by default', () => {
@@ -299,7 +299,7 @@ describe('RadioGroupItem with Label', () => {
 
     it('should render labels for all items', () => {
         const labels = fixture.debugElement.queryAll(By.css('label'));
-        expect(labels.length).toBe(3);
+        expect(labels).toHaveLength(3);
     });
 
     it('should display correct label text', () => {
@@ -324,7 +324,7 @@ describe('RadioGroupItem with Label', () => {
 
     it('should render items in flex container with gap', () => {
         const containers = fixture.debugElement.queryAll(By.css('div.flex.items-center.gap-2'));
-        expect(containers.length).toBe(3);
+        expect(containers).toHaveLength(3);
     });
 
     it('should select item by clicking radio button', async () => {

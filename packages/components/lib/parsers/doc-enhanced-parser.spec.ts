@@ -244,7 +244,7 @@ describe('parseDocEnhanced — basic text + paragraphs', () => {
 
         expect(result.plainText).toBe('First para\nSecond para');
         const paras = paragraphs(result);
-        expect(paras.length).toBe(2);
+        expect(paras).toHaveLength(2);
         expect(paras[0].runs.map(r => r.text).join('')).toBe('First para');
         expect(paras[1].runs.map(r => r.text).join('')).toBe('Second para');
     });

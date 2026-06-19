@@ -32,7 +32,7 @@ export interface ToastData {
   id: string;
   title?: string;
   description?: string;
-  variant?: ToastVariant;
+  variant?: NonNullable<ToastVariant>;
   duration?: number;
   action?: { label: string; onClick: () => void };
   showCountdown?: boolean;

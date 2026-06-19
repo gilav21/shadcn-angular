@@ -42,7 +42,7 @@ describe('StackedBarChartComponent', () => {
     });
 
     it('should compute stacked bars from series and categories', () => {
-        expect(component.stackedBars().length).toBe(2);
+        expect(component.stackedBars()).toHaveLength(2);
     });
 
     it('should render an SVG element', () => {
@@ -59,14 +59,14 @@ describe('StackedBarChartComponent', () => {
     describe('stackedBars computed', () => {
         it('should create one stacked bar per category', () => {
             const bars = component.stackedBars();
-            expect(bars.length).toBe(2);
+            expect(bars).toHaveLength(2);
             expect(bars[0].category).toBe('Q1');
             expect(bars[1].category).toBe('Q2');
         });
 
         it('should create one segment per series in each bar', () => {
             const bars = component.stackedBars();
-            expect(bars[0].segments.length).toBe(2);
+            expect(bars[0].segments).toHaveLength(2);
             expect(bars[0].segments[0].seriesName).toBe('Series A');
             expect(bars[0].segments[1].seriesName).toBe('Series B');
         });
@@ -194,7 +194,7 @@ describe('StackedBarChartComponent', () => {
             const segment = bar.segments[0];
             component.onSegmentClick(new MouseEvent('click'), segment, bar);
 
-            expect(clickEvents.length).toBe(1);
+            expect(clickEvents).toHaveLength(1);
             expect(clickEvents[0]).toEqual({
                 series: 'Series A',
                 category: 'Q1',
@@ -214,7 +214,7 @@ describe('StackedBarChartComponent', () => {
             const segment = bar.segments[1];
             component.onSegmentClick(new MouseEvent('click'), segment, bar);
 
-            expect(clickEvents.length).toBe(1);
+            expect(clickEvents).toHaveLength(1);
             expect(clickEvents[0]).toEqual({
                 series: 'Series B',
                 category: 'Q2',
@@ -279,7 +279,7 @@ describe('StackedBarChartComponent', () => {
             const legendDots = fixture.nativeElement.querySelectorAll(
                 '.w-3.h-3.rounded-sm',
             );
-            expect(legendDots.length).toBe(0);
+            expect(legendDots).toHaveLength(0);
         });
     });
 
@@ -337,8 +337,8 @@ describe('StackedBarChartComponent', () => {
 
         it('should create three segments per category', () => {
             const bars = component.stackedBars();
-            expect(bars[0].segments.length).toBe(3);
-            expect(bars[1].segments.length).toBe(3);
+            expect(bars[0].segments).toHaveLength(3);
+            expect(bars[1].segments).toHaveLength(3);
         });
 
         it('should compute correct totals', () => {

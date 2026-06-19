@@ -34,7 +34,7 @@ describe('FlipTextComponent', () => {
         fixture.detectChanges();
 
         const charSpans = fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span'));
-        expect(charSpans.length).toBe(2);
+        expect(charSpans).toHaveLength(2);
         expect(charSpans[0].nativeElement.textContent).toBe('H');
         expect(charSpans[1].nativeElement.textContent).toBe('i');
     });
@@ -44,7 +44,7 @@ describe('FlipTextComponent', () => {
         fixture.detectChanges();
 
         const comp = fixture.debugElement.query(By.directive(FlipTextComponent)).componentInstance as FlipTextComponent;
-        expect(comp.characters().length).toBe(5);
+        expect(comp.characters()).toHaveLength(5);
     });
 
     it('should render non-breaking space for space characters', () => {
@@ -93,10 +93,10 @@ describe('FlipTextComponent', () => {
     it('should update characters when text input changes', () => {
         host.text.set('Hi');
         fixture.detectChanges();
-        expect(fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span')).length).toBe(2);
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span'))).toHaveLength(2);
 
         host.text.set('Hello');
         fixture.detectChanges();
-        expect(fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span')).length).toBe(5);
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span'))).toHaveLength(5);
     });
 });

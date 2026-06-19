@@ -175,7 +175,7 @@ describe('Menubar Integration', () => {
 
     it('should render menu triggers', () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'));
-        expect(triggers.length).toBe(2);
+        expect(triggers).toHaveLength(2);
     });
 
     it('should not show content when closed', () => {
@@ -200,7 +200,7 @@ describe('Menubar Integration', () => {
         await fixture.whenStable();
 
         const items = fixture.debugElement.queryAll(By.css('[data-slot="menubar-item"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render separator', async () => {

@@ -26,7 +26,7 @@ describe('TextRevealComponent', () => {
         fixture.detectChanges();
 
         const spans = fixture.debugElement.queryAll(By.css('span'));
-        expect(spans.length).toBe(2);
+        expect(spans).toHaveLength(2);
     });
 
     it('should render each word in a separate span', () => {
@@ -34,7 +34,7 @@ describe('TextRevealComponent', () => {
         fixture.detectChanges();
 
         const spans = fixture.debugElement.queryAll(By.css('span'));
-        expect(spans.length).toBe(4);
+        expect(spans).toHaveLength(4);
         expect(spans[0].nativeElement.textContent).toContain('The');
         expect(spans[1].nativeElement.textContent).toContain('quick');
         expect(spans[2].nativeElement.textContent).toContain('brown');
@@ -92,7 +92,7 @@ describe('TextRevealComponent', () => {
         fixture.detectChanges();
 
         const spans = fixture.debugElement.queryAll(By.css('span'));
-        expect(spans.length).toBe(1);
+        expect(spans).toHaveLength(1);
         expect(spans[0].nativeElement.textContent.trim()).toBe('');
     });
 
@@ -109,7 +109,7 @@ describe('TextRevealComponent', () => {
         fixture.detectChanges();
 
         const spans = fixture.debugElement.queryAll(By.css('span'));
-        expect(spans.length).toBe(5);
+        expect(spans).toHaveLength(5);
         expect(spans[0].nativeElement.style.animationDelay).toBe('0ms');
         expect(spans[1].nativeElement.style.animationDelay).toBe('100ms');
         expect(spans[2].nativeElement.style.animationDelay).toBe('200ms');
@@ -135,6 +135,6 @@ describe('TextRevealComponent', () => {
         expect(component.words()).toEqual(['Hello', 'World', 'Again']);
 
         const spans = fixture.debugElement.queryAll(By.css('span'));
-        expect(spans.length).toBe(3);
+        expect(spans).toHaveLength(3);
     });
 });

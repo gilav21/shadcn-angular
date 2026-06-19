@@ -62,14 +62,14 @@ describe('DataTableComponent', () => {
         const body = fixture.debugElement.query(By.css('[data-slot="table-body"]'));
         const rows = body.queryAll(By.css('[data-slot="table-row"]'));
         // 5 data rows + 1 spacer row
-        expect(rows.length).toBe(6);
+        expect(rows).toHaveLength(6);
     });
 
     it('should filter data correctly', () => {
         component.onFilterChange('Alice');
         fixture.detectChanges();
 
-        expect(component.processedData().length).toBe(1);
+        expect(component.processedData()).toHaveLength(1);
         expect(component.processedData()[0].name).toBe('Alice');
     });
 
@@ -84,7 +84,7 @@ describe('DataTableComponent', () => {
 
         component.onFilterChange('1'); // matches id only
         fixture.detectChanges();
-        expect(component.filteredData().length).toBe(0);
+        expect(component.filteredData()).toHaveLength(0);
     });
 
     it('should use custom globalFilterFn when provided', () => {
@@ -94,7 +94,7 @@ describe('DataTableComponent', () => {
         component.onFilterChange('admin');
         fixture.detectChanges();
 
-        expect(component.filteredData().length).toBe(2);
+        expect(component.filteredData()).toHaveLength(2);
         expect(component.filteredData()[0].name).toBe('Alice');
     });
 
@@ -311,14 +311,14 @@ describe('DataTableComponent', () => {
         component.paginationState.set({ pageIndex: 0, pageSize: 2 });
         fixture.detectChanges();
 
-        expect(component.processedData().length).toBe(2);
+        expect(component.processedData()).toHaveLength(2);
         expect(component.processedData()[0].name).toBe('Alice'); // Sorted by default or insertion order? insertion order here.
 
         // Go to next page
         component.onPaginationChange({ pageIndex: 1, pageSize: 2 });
         fixture.detectChanges();
 
-        expect(component.processedData().length).toBe(2);
+        expect(component.processedData()).toHaveLength(2);
         expect(component.processedData()[0].name).toBe('Charlie');
     });
 
@@ -1271,7 +1271,7 @@ describe('DataTableComponent', () => {
             fixture.detectChanges();
 
             const resizeHandles = fixture.debugElement.queryAll(By.css('[role="separator"]'));
-            expect(resizeHandles.length).toBe(0);
+            expect(resizeHandles).toHaveLength(0);
         });
 
         it('should show resize handles when enableColumnResize is true', () => {
@@ -1318,7 +1318,7 @@ describe('DataTableComponent', () => {
             fixture.detectChanges();
 
             // Initially empty
-            expect(Object.keys(component.columnWidths()).length).toBe(0);
+            expect(Object.keys(component.columnWidths())).toHaveLength(0);
 
             // Simulate width change
             component.columnWidths.set({ 'name': '250px' });
@@ -1419,7 +1419,7 @@ describe('DataTableComponent', () => {
             fixture.componentRef.setInput('globalFilter', 'Alice');
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()).toHaveLength(1);
             expect(component.filteredData()[0].name).toBe('Alice');
         });
 
@@ -1432,7 +1432,7 @@ describe('DataTableComponent', () => {
             fixture.componentRef.setInput('columnFilters', { role: 'Admin' });
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(2);
+            expect(component.filteredData()).toHaveLength(2);
             expect(component.filteredData().every(row => row.role === 'Admin')).toBe(true);
         });
 
@@ -1456,7 +1456,7 @@ describe('DataTableComponent', () => {
             fixture.detectChanges();
 
             const selected = component.selectedRows();
-            expect(selected.length).toBe(2);
+            expect(selected).toHaveLength(2);
             expect(selected.map(r => r.name)).toEqual(['Alice', 'Charlie']);
         });
 
@@ -1479,7 +1479,7 @@ describe('DataTableComponent', () => {
             expect(component.isRowSelected(TEST_DATA[0])).toBe(true);
             expect(component.isRowSelected(TEST_DATA[1])).toBe(false);
             expect(component.isRowSelected(TEST_DATA[3])).toBe(false);
-            expect(component.selectedRows().length).toBe(3);
+            expect(component.selectedRows()).toHaveLength(3);
         });
 
         it('should clear all selection via clearSelection()', () => {
@@ -1489,7 +1489,7 @@ describe('DataTableComponent', () => {
             component.clearSelection();
             fixture.detectChanges();
 
-            expect(component.selectedRows().length).toBe(0);
+            expect(component.selectedRows()).toHaveLength(0);
             expect(component.isAllSelected()).toBe(false);
         });
 
@@ -1498,7 +1498,7 @@ describe('DataTableComponent', () => {
             fixture.detectChanges();
 
             expect(component.isAllSelected()).toBe(true);
-            expect(component.selectedRows().length).toBe(TEST_DATA.length);
+            expect(component.selectedRows()).toHaveLength(TEST_DATA.length);
         });
     });
 
@@ -1615,7 +1615,7 @@ describe('DataTableComponent', () => {
             fixture.componentRef.setInput('columnFilters', { role: ['Manager'] });
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()).toHaveLength(1);
             expect(component.filteredData()[0].name).toBe('Eve');
         });
 
@@ -1639,7 +1639,7 @@ describe('DataTableComponent', () => {
             fixture.componentRef.setInput('columnFilters', { role: ['Admin'] });
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(TEST_DATA.length);
+            expect(component.filteredData()).toHaveLength(TEST_DATA.length);
         });
 
         it('should merge custom filterComponentOutputs with filterChange', () => {
@@ -1826,7 +1826,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
     describe('Tree Flattening and Visibility', () => {
         it('should show only root rows when all collapsed (default)', () => {
             const rows = component.processedTreeRows();
-            expect(rows.length).toBe(3);
+            expect(rows).toHaveLength(3);
             expect(rows.map(r => r.row.id)).toEqual(['1', '2', '3']);
         });
 
@@ -1907,7 +1907,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             fixture.detectChanges();
 
             const rows = component.processedTreeRows();
-            expect(rows.length).toBe(9);
+            expect(rows).toHaveLength(9);
         });
 
         it('should collapse all sub-rows', () => {
@@ -1918,7 +1918,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             fixture.detectChanges();
 
             const rows = component.processedTreeRows();
-            expect(rows.length).toBe(3);
+            expect(rows).toHaveLength(3);
         });
 
         it('should report isAllSubRowsExpanded correctly', () => {
@@ -1949,7 +1949,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             fixture.detectChanges();
 
             const rows = component.processedTreeRows();
-            expect(rows.length).toBe(9);
+            expect(rows).toHaveLength(9);
         });
 
         it('should keep all collapsed when subRowDefaultExpanded is 0', () => {
@@ -1957,7 +1957,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             fixture.detectChanges();
 
             const rows = component.processedTreeRows();
-            expect(rows.length).toBe(3);
+            expect(rows).toHaveLength(3);
         });
     });
 
@@ -2150,7 +2150,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             fixture.detectChanges();
 
             const rows = component.processedTreeRows();
-            expect(rows.length).toBe(3);
+            expect(rows).toHaveLength(3);
         });
 
         it('should report correct activeTotalItems for root-only pagination', () => {
@@ -2198,7 +2198,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
 
         it('should return child rows via getChildRows', () => {
             const children = component.getChildRows(TREE_DATA[0]);
-            expect(children.length).toBe(2);
+            expect(children).toHaveLength(2);
             expect(children[0].id).toBe('1-1');
         });
 
@@ -2359,7 +2359,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             fixture.detectChanges();
 
             const actions = component.getRowActions(TEST_DATA[0], 0);
-            expect(actions.length).toBe(3);
+            expect(actions).toHaveLength(3);
             expect(actions[0].label).toBe('View');
             expect(actions[1].type).toBe('separator');
             expect(actions[2].label).toBe('Delete');
@@ -2394,7 +2394,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
 
             const buttons = fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'));
             expect(buttons.length).toBeGreaterThan(0);
-            expect(buttons.length).toBe(component.processedData().length);
+            expect(buttons).toHaveLength(component.processedData().length);
         });
 
         it('should not render dropdown trigger buttons when showRowActionsColumn is false', () => {
@@ -2403,7 +2403,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             fixture.detectChanges();
 
             const buttons = fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'));
-            expect(buttons.length).toBe(0);
+            expect(buttons).toHaveLength(0);
         });
 
         it('should exclude _actions column from global filter columns', () => {
@@ -2413,7 +2413,7 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             component.onFilterChange('View');
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(0);
+            expect(component.filteredData()).toHaveLength(0);
         });
     });
 });
@@ -2443,12 +2443,12 @@ describe('buildTreeFromFlat', () => {
             (r, children) => ({ ...r, children })
         );
 
-        expect(tree.length).toBe(2);
+        expect(tree).toHaveLength(2);
         expect(tree[0].name).toBe('Root A');
-        expect(tree[0].children!.length).toBe(2);
-        expect(tree[0].children![0].children!.length).toBe(1);
+        expect(tree[0].children!).toHaveLength(2);
+        expect(tree[0].children![0].children!).toHaveLength(1);
         expect(tree[0].children![0].children![0].name).toBe('Grandchild A1-1');
-        expect(tree[1].children!.length).toBe(1);
+        expect(tree[1].children!).toHaveLength(1);
     });
 
     it('should return empty array for empty input', () => {
@@ -2473,7 +2473,7 @@ describe('buildTreeFromFlat', () => {
             (r, children) => ({ ...r, children })
         );
 
-        expect(tree.length).toBe(1);
+        expect(tree).toHaveLength(1);
         expect(tree[0].name).toBe('Alone');
         expect(tree[0].children).toBeUndefined();
     });
@@ -2526,14 +2526,14 @@ describe('DataTableComponent - Date filter integration', () => {
         });
 
         it('should show all rows when no date filter is set', () => {
-            expect(component.filteredData().length).toBe(5);
+            expect(component.filteredData()).toHaveLength(5);
         });
 
         it('should filter to exact date match', () => {
             fixture.componentRef.setInput('columnFilters', { createdAt: new Date(2024, 2, 15) });
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()).toHaveLength(1);
             expect(component.filteredData()[0].name).toBe('Beta');
         });
 
@@ -2541,24 +2541,24 @@ describe('DataTableComponent - Date filter integration', () => {
             fixture.componentRef.setInput('columnFilters', { createdAt: new Date(2024, 0, 1) });
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(0);
+            expect(component.filteredData()).toHaveLength(0);
         });
 
         it('should show all rows when filter is cleared to null', () => {
             fixture.componentRef.setInput('columnFilters', { createdAt: new Date(2024, 2, 15) });
             fixture.detectChanges();
-            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()).toHaveLength(1);
 
             fixture.componentRef.setInput('columnFilters', { createdAt: null });
             fixture.detectChanges();
-            expect(component.filteredData().length).toBe(5);
+            expect(component.filteredData()).toHaveLength(5);
         });
 
         it('should update filter via onColumnFilterChange', () => {
             component.onColumnFilterChange('createdAt', new Date(2024, 3, 1));
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()).toHaveLength(1);
             expect(component.filteredData()[0].name).toBe('Gamma');
         });
     });
@@ -2583,7 +2583,7 @@ describe('DataTableComponent - Date filter integration', () => {
         });
 
         it('should show all rows when no range filter is set', () => {
-            expect(component.filteredData().length).toBe(5);
+            expect(component.filteredData()).toHaveLength(5);
         });
 
         it('should filter rows within date range inclusively', () => {
@@ -2594,7 +2594,7 @@ describe('DataTableComponent - Date filter integration', () => {
             fixture.componentRef.setInput('columnFilters', { createdAt: range });
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(2);
+            expect(component.filteredData()).toHaveLength(2);
             expect(component.filteredData().map(r => r.name)).toEqual(['Beta', 'Gamma']);
         });
 
@@ -2606,7 +2606,7 @@ describe('DataTableComponent - Date filter integration', () => {
             fixture.componentRef.setInput('columnFilters', { createdAt: range });
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(4);
+            expect(component.filteredData()).toHaveLength(4);
             expect(component.filteredData().map(r => r.name)).toEqual(['Beta', 'Gamma', 'Delta', 'Epsilon']);
         });
 
@@ -2615,7 +2615,7 @@ describe('DataTableComponent - Date filter integration', () => {
             fixture.componentRef.setInput('columnFilters', { createdAt: range });
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(5);
+            expect(component.filteredData()).toHaveLength(5);
         });
 
         it('should filter with only start date (open-ended range)', () => {
@@ -2623,7 +2623,7 @@ describe('DataTableComponent - Date filter integration', () => {
             fixture.componentRef.setInput('columnFilters', { createdAt: range });
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(2);
+            expect(component.filteredData()).toHaveLength(2);
             expect(component.filteredData().map(r => r.name)).toEqual(['Delta', 'Epsilon']);
         });
 
@@ -2632,7 +2632,7 @@ describe('DataTableComponent - Date filter integration', () => {
             fixture.componentRef.setInput('columnFilters', { createdAt: range });
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()).toHaveLength(1);
             expect(component.filteredData()[0].name).toBe('Alpha');
         });
 
@@ -2644,7 +2644,7 @@ describe('DataTableComponent - Date filter integration', () => {
             component.onColumnFilterChange('createdAt', range);
             fixture.detectChanges();
 
-            expect(component.filteredData().length).toBe(2);
+            expect(component.filteredData()).toHaveLength(2);
             expect(component.filteredData().map(r => r.name)).toEqual(['Gamma', 'Delta']);
         });
     });
@@ -2716,7 +2716,7 @@ describe('DataTableComponent - Row Grouping', () => {
         const dataRowsForPending = rows.filter(
             (r) => r.kind === 'data' && r.row.status === 'pending',
         );
-        expect(dataRowsForPending.length).toBe(0);
+        expect(dataRowsForPending).toHaveLength(0);
 
         const pendingGroup = rows.find(
             (r) => r.kind === 'group' && r.groupKey === 'pending',
@@ -2759,7 +2759,7 @@ describe('DataTableComponent - Row Grouping', () => {
         component.ngAfterViewInit();
 
         expect(component.groupingActive()).toBe(false);
-        expect(component.groupedDisplayRows().length).toBe(0);
+        expect(component.groupedDisplayRows()).toHaveLength(0);
         expect(
             warnSpy.mock.calls.some((call) =>
                 String(call[0]).includes('groupBy is set together with'),
@@ -2785,7 +2785,7 @@ describe('DataTableComponent - Row Grouping', () => {
         component.expandAllGroups();
         fixture.detectChanges();
         expect(component.collapsedGroups()).toEqual({});
-        expect(component.groupedDisplayRows().length).toBe(8);
+        expect(component.groupedDisplayRows()).toHaveLength(8);
     });
 
     it('paginator total reflects groupedDisplayRows length in grouped mode', () => {
@@ -2801,7 +2801,7 @@ describe('DataTableComponent - Row Grouping', () => {
         fixture.componentRef.setInput('paginationState', { pageIndex: 0, pageSize: 3 });
         fixture.detectChanges();
         const page0 = component.pagedGroupedDisplayRows();
-        expect(page0.length).toBe(3);
+        expect(page0).toHaveLength(3);
         expect(page0[0].kind).toBe('group');
         expect((page0[0] as { groupKey: string }).groupKey).toBe('pending');
         expect((page0[1] as { row: OrderData }).row.id).toBe('o1');
@@ -2810,7 +2810,7 @@ describe('DataTableComponent - Row Grouping', () => {
         fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
         fixture.detectChanges();
         const page1 = component.pagedGroupedDisplayRows();
-        expect(page1.length).toBe(3);
+        expect(page1).toHaveLength(3);
         expect((page1[0] as { groupKey: string }).groupKey).toBe('shipped');
         expect((page1[1] as { row: OrderData }).row.id).toBe('o2');
         expect((page1[2] as { row: OrderData }).row.id).toBe('o5');
@@ -2818,7 +2818,7 @@ describe('DataTableComponent - Row Grouping', () => {
         fixture.componentRef.setInput('paginationState', { pageIndex: 2, pageSize: 3 });
         fixture.detectChanges();
         const page2 = component.pagedGroupedDisplayRows();
-        expect(page2.length).toBe(2);
+        expect(page2).toHaveLength(2);
         expect((page2[0] as { groupKey: string }).groupKey).toBe('delivered');
         expect((page2[1] as { row: OrderData }).row.id).toBe('o4');
     });
@@ -3024,13 +3024,13 @@ describe('DataTableComponent - Export & Clipboard', () => {
     it('builds export rows with headers and all visible data', () => {
         const data = component.getExportData();
         expect(data[0]).toEqual(['ID', 'Name', 'Score']);
-        expect(data.length).toBe(6); // header + 5 rows
+        expect(data).toHaveLength(6); // header + 5 rows
         expect(data[1]).toEqual(['1', 'Alice', '30']);
     });
 
     it('omits headers when includeHeaders is false', () => {
         const data = component.getExportData({ includeHeaders: false });
-        expect(data.length).toBe(5);
+        expect(data).toHaveLength(5);
         expect(data[0]).toEqual(['1', 'Alice', '30']);
     });
 
@@ -3038,7 +3038,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
         component.onFilterChange('Alice');
         fixture.detectChanges();
         const data = component.getExportData();
-        expect(data.length).toBe(2); // header + Alice
+        expect(data).toHaveLength(2); // header + Alice
         expect(data[1][1]).toBe('Alice');
     });
 
@@ -3046,7 +3046,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
         component.onFilterChange('Alice');
         fixture.detectChanges();
         const data = component.getExportData({ onlyFiltered: false });
-        expect(data.length).toBe(6);
+        expect(data).toHaveLength(6);
     });
 
     it('exports rows in the active sort order, not raw data order', () => {
@@ -3176,7 +3176,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
         const text = writeText.mock.calls[0][0] as string;
         const lines = text.split('\n');
         expect(lines[0]).toBe('ID\tName\tScore');
-        expect(lines.length).toBe(6);
+        expect(lines).toHaveLength(6);
         vi.unstubAllGlobals();
     });
 
@@ -3192,7 +3192,7 @@ describe('DataTableComponent - Export & Clipboard', () => {
         const text = writeText.mock.calls[0][0] as string;
         const lines = text.split('\n');
         expect(lines[0]).toBe('ID\tName\tScore');
-        expect(lines.length).toBe(3); // header + Bob + David
+        expect(lines).toHaveLength(3); // header + Bob + David
         expect(lines[1]).toContain('Bob');
         expect(lines[2]).toContain('David');
         vi.unstubAllGlobals();

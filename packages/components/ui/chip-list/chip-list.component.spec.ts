@@ -48,7 +48,7 @@ describe('ChipListComponent', () => {
     it('should render initial chips', () => {
         fixture.detectChanges();
         const chips = fixture.debugElement.queryAll(By.directive(BadgeComponent));
-        expect(chips.length).toBe(2);
+        expect(chips).toHaveLength(2);
         expect(chips[0].nativeElement.textContent).toContain('React');
         expect(chips[1].nativeElement.textContent).toContain('Angular');
     });
@@ -76,7 +76,7 @@ describe('ChipListComponent', () => {
         fixture.detectChanges();
 
         // Check component's internal state
-        expect(chipList.chips().length).toBe(3);
+        expect(chipList.chips()).toHaveLength(3);
         expect(chipList.chips()).toContain('Vue');
         expect(chipList.inputValue()).toBe(''); // Should clear input
     });
@@ -88,7 +88,7 @@ describe('ChipListComponent', () => {
         removeBtn.nativeElement.click();
         fixture.detectChanges();
 
-        expect(host.chips.length).toBe(1);
+        expect(host.chips).toHaveLength(1);
         expect(host.chips).not.toContain('React');
         expect(host.chips).toContain('Angular');
     });
@@ -116,7 +116,7 @@ describe('ChipListComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(host.chips.length).toBe(1);
+        expect(host.chips).toHaveLength(1);
         // Should remove 'Angular' (last one)
         expect(host.chips).toEqual(['React']);
     });

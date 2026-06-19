@@ -299,7 +299,7 @@ describe('FileViewerComponent rendering internals', () => {
         it('creates a media blob url and tracks it', () => {
             const before = api.blobUrls.length;
             api.processMedia(new Uint8Array([1, 2, 3]), 'audio/mpeg');
-            expect(api.blobUrls.length).toBe(before + 1);
+            expect(api.blobUrls).toHaveLength(before + 1);
             expect(component.mediaSrc()).toBeTruthy();
         });
 
@@ -1138,7 +1138,7 @@ describe('zip-reader', () => {
     it('should list zip entries', () => {
         const zip = createMinimalZip();
         const entries = listZipEntries(zip);
-        expect(entries.length).toBe(1);
+        expect(entries).toHaveLength(1);
         expect(entries[0].path).toBe('hello.txt');
     });
 

@@ -1276,14 +1276,14 @@ describe('parsePdfPaged', () => {
             .obj(10, '/Title (Section 1.1) /Parent 9 0 R /A << /S /GoTo /D [3 0 R /Fit] >>')
             .build();
         const result = await parsePdfPaged(pdf);
-        expect(result.outline.length).toBe(1);
+        expect(result.outline).toHaveLength(1);
         expect(result.outline[0].title).toBe('Chapter 1');
         // NOTE: getPages() returns resolved page DICTS (not refs), so
         // buildPageObjNumMap() builds an empty ref->index map and outline
         // destinations referencing pages by indirect ref resolve to -1.
         // This is the parser's actual (arguably buggy) behavior.
         expect(result.outline[0].pageIndex).toBe(-1);
-        expect(result.outline[0].children.length).toBe(1);
+        expect(result.outline[0].children).toHaveLength(1);
         expect(result.outline[0].children[0].title).toBe('Section 1.1');
     });
 
@@ -1399,7 +1399,7 @@ describe('parsePdf - per-fragment extraction mode', () => {
         const pages = reader.getPages();
         const { textItems } = extractPageContent(reader, pages[0], 0, { perFragment: true });
         const visible = textItems.filter(t => t.text.trim().length > 0);
-        expect(visible.length).toBe(5);
+        expect(visible).toHaveLength(5);
         // x positions are strictly increasing per character
         for (let i = 1; i < visible.length; i++) {
             expect(visible[i].x).toBeGreaterThan(visible[i - 1].x);
@@ -2280,7 +2280,7 @@ describe('parsePdf - outline edge cases', () => {
             .obj(11, '/Title (Plain Item)')
             .build();
         const result = await parsePdfPaged(pdf);
-        expect(result.outline.length).toBe(3);
+        expect(result.outline).toHaveLength(3);
         expect(result.outline[0].title).toBe('Named Dest');
         expect(result.outline[0].pageIndex).toBe(-1);
         expect(result.outline[1].title).toBe('GoTo Item');

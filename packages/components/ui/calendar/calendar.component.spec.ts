@@ -135,7 +135,7 @@ describe('CalendarComponent', () => {
             component.selectDay(day);
             fixture.detectChanges();
             const sel = component.selected() as Date[];
-            expect(sel.length).toBe(1);
+            expect(sel).toHaveLength(1);
             expect(sel[0].getDate()).toBe(12);
             expect(component.isSelected(day)).toBe(true);
         });
@@ -147,7 +147,7 @@ describe('CalendarComponent', () => {
             component.selectDay(new Date(component.currentYear(), component.currentMonth(), 12));
             fixture.detectChanges();
             const sel = component.selected() as Date[];
-            expect(sel.length).toBe(0);
+            expect(sel).toHaveLength(0);
         });
 
         it('keeps multiple distinct days', () => {

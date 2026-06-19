@@ -1893,7 +1893,7 @@ describe('spacing optimization', () => {
         // letter-spacing class is present and non-zero after folding.
         const lsClasses = extractAllClasses(result.globalCss, 'ls');
         const hasNonZeroLs = [...lsClasses.values()].some(
-            v => /letter-spacing:(-?\d*\.?\d+)px/.test(v) && !/letter-spacing:0px/.test(v),
+            v => /letter-spacing:(-?(?:\d+\.\d+|\.\d+|\d+))px/.test(v) && !/letter-spacing:0px/.test(v),
         );
         expect(hasNonZeroLs).toBe(true);
         expect(result.pages[0].text.replaceAll(' ', '')).toContain('ABCDEFGH');

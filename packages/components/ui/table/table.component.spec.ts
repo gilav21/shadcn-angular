@@ -179,13 +179,13 @@ describe('TableBodyComponent Skeleton Mode', () => {
 
   it('should render 5 skeleton rows by default', () => {
     const rows = fixture.debugElement.queryAll(By.css('[data-slot="table-row"]'));
-    expect(rows.length).toBe(5);
-    expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(5);
+    expect(rows).toHaveLength(5);
+    expect(fixture.debugElement.queryAll(By.css('ui-skeleton'))).toHaveLength(5);
   });
 
   it('should honor skeletonRows', () => {
     fixture.componentRef.setInput('skeletonRows', 2);
     fixture.detectChanges();
-    expect(fixture.debugElement.queryAll(By.css('[data-slot="table-row"]')).length).toBe(2);
+    expect(fixture.debugElement.queryAll(By.css('[data-slot="table-row"]'))).toHaveLength(2);
   });
 });

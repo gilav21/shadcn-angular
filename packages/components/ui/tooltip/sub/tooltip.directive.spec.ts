@@ -140,7 +140,7 @@ describe('TooltipDirective', () => {
         vi.advanceTimersByTime(200);
         fire('mouseenter');
         vi.advanceTimersByTime(200);
-        expect(document.body.querySelectorAll(TOOLTIP_SELECTOR).length).toBe(1);
+        expect(document.body.querySelectorAll(TOOLTIP_SELECTOR)).toHaveLength(1);
     });
 
     it('renders updated tooltip text', () => {

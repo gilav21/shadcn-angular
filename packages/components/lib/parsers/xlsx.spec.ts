@@ -40,7 +40,7 @@ describe('generateXlsx', () => {
         expect(ss).toContain('<si><t>Name</t></si>');
         expect(ss).toContain('<si><t>Alice</t></si>');
         // Only two <si> entries total.
-        expect((ss.match(/<si>/g) ?? []).length).toBe(2);
+        expect(ss.match(/<si>/g) ?? []).toHaveLength(2);
 
         const sheet = decode(files.get('xl/worksheets/sheet1.xml')!);
         // First row: both cells reference shared-string index 0 ("Name").

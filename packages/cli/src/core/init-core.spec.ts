@@ -34,7 +34,7 @@ describe('tsconfig comment stripping (linear-time regexes)', () => {
       .replaceAll(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, '')
       .replaceAll(/\/\/[^\n\r]*/g, '');
   const stripLazy = (raw: string): string =>
-    raw.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/.*$/gm, '');
+    raw.replaceAll(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, '').replaceAll(/\/\/[^\n\r]*/g, '');
 
   const cases = [
     '{ /* c */ "a": 1 }',

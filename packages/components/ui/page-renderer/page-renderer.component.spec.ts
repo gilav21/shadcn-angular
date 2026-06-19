@@ -101,7 +101,7 @@ describe('PageRendererComponent', () => {
 
         // PageRendererComponent computes 'dashboardItems' which contains the resolved inputs
         const renderItems = component.dashboardItems();
-        expect(renderItems.length).toBe(1);
+        expect(renderItems).toHaveLength(1);
 
         const item = renderItems[0];
         expect(item).toBeDefined();
@@ -122,7 +122,7 @@ describe('PageRendererComponent', () => {
         fixture.detectChanges();
 
         const renderItems = component.dashboardItems();
-        expect(renderItems.length).toBe(1);
+        expect(renderItems).toHaveLength(1);
         expect(renderItems[0]?.inputs).toBeDefined();
         expect(renderItems[0]?.inputs?.['description']).toBe('SuperAdmin');
     });
