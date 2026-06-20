@@ -210,7 +210,8 @@ describe('RichTextEditorComponent', () => {
         expect(img?.getAttribute('onerror')).toBeNull();
         expect(img?.attributes.getNamedItem('onerror')).toBeNull();
         expect(img?.getAttribute('alt')).toBe('x" onerror="alert(1)" data-x="1');
-        expect(img?.attributes.length).toBe(2);
+        const attrNames = Array.from(img?.attributes ?? []).map((a) => a.name).sort();
+        expect(attrNames).toStrictEqual(['alt', 'data-align', 'src', 'style']);
     });
 
     it('opens mention popover for mention handles with dots, underscores, and hyphens', () => {
