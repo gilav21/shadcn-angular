@@ -86,12 +86,12 @@ describe('CommandComponent', () => {
 
     it('should render command items', () => {
         const items = fixture.debugElement.queryAll(By.directive(CommandItemComponent));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render command groups', () => {
         const groups = fixture.debugElement.queryAll(By.directive(CommandGroupComponent));
-        expect(groups.length).toBe(2);
+        expect(groups).toHaveLength(2);
     });
 
     it('should render command separator', () => {
@@ -116,7 +116,7 @@ describe('CommandComponent', () => {
         it('should show all items when search is empty', () => {
             const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
             const hiddenItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('hidden'));
-            expect(hiddenItems.length).toBe(0);
+            expect(hiddenItems).toHaveLength(0);
         });
 
         it('should filter items based on search input', () => {
@@ -129,8 +129,8 @@ describe('CommandComponent', () => {
             const visibleItems = Array.from(itemDivs).filter((el: any) => !el.classList.contains('hidden'));
             const hiddenItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('hidden'));
 
-            expect(visibleItems.length).toBe(1);
-            expect(hiddenItems.length).toBe(2);
+            expect(visibleItems).toHaveLength(1);
+            expect(hiddenItems).toHaveLength(2);
             expect((visibleItems[0] as HTMLElement).textContent).toContain('Calendar');
         });
 
@@ -143,7 +143,7 @@ describe('CommandComponent', () => {
             const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
             const visibleItems = Array.from(itemDivs).filter((el: any) => !el.classList.contains('hidden'));
 
-            expect(visibleItems.length).toBe(1);
+            expect(visibleItems).toHaveLength(1);
             expect((visibleItems[0] as HTMLElement).textContent).toContain('Calendar');
         });
 
@@ -160,7 +160,7 @@ describe('CommandComponent', () => {
 
             const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
             const hiddenItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('hidden'));
-            expect(hiddenItems.length).toBe(0);
+            expect(hiddenItems).toHaveLength(0);
         });
 
         it('should match partial text in item value', () => {
@@ -172,7 +172,7 @@ describe('CommandComponent', () => {
             const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
             const visibleItems = Array.from(itemDivs).filter((el: any) => !el.classList.contains('hidden'));
 
-            expect(visibleItems.length).toBe(1);
+            expect(visibleItems).toHaveLength(1);
             expect((visibleItems[0] as HTMLElement).textContent).toContain('Profile');
         });
     });
@@ -188,7 +188,7 @@ describe('CommandComponent', () => {
             const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
             const activeItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('bg-accent'));
 
-            expect(activeItems.length).toBe(1);
+            expect(activeItems).toHaveLength(1);
         });
 
         it('should move to the next item on repeated ArrowDown', () => {
@@ -355,7 +355,7 @@ describe('CommandComponent', () => {
         it('should show all groups when search is empty', () => {
             const groupDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-group"]');
             const hiddenGroups = Array.from(groupDivs).filter((el: any) => el.classList.contains('hidden'));
-            expect(hiddenGroups.length).toBe(0);
+            expect(hiddenGroups).toHaveLength(0);
         });
 
         it('should hide Settings group when searching for an item only in Suggestions', () => {
@@ -423,7 +423,7 @@ describe('CommandComponent', () => {
             const visibleItems = Array.from(
                 fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')
             ).filter((el: any) => !el.classList.contains('hidden')) as HTMLElement[];
-            expect(visibleItems.length).toBe(1);
+            expect(visibleItems).toHaveLength(1);
 
             input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
             fixture.detectChanges();
@@ -445,7 +445,7 @@ describe('CommandComponent', () => {
                 fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')
             ).filter((el: any) => !el.classList.contains('hidden')) as HTMLElement[];
 
-            expect(itemDivs.length).toBe(1);
+            expect(itemDivs).toHaveLength(1);
             expect(itemDivs[0].classList.contains('bg-accent')).toBe(true);
         });
     });

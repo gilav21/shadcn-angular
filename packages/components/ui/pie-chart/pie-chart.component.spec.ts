@@ -29,7 +29,7 @@ describe('PieChartComponent', () => {
     });
 
     it('should compute slices from data', () => {
-        expect(component.slices().length).toBe(3);
+        expect(component.slices()).toHaveLength(3);
     });
 
     it('should compute total correctly', () => {
@@ -111,7 +111,7 @@ describe('PieChartComponent', () => {
         fixture.detectChanges();
 
         const buttons = fixture.nativeElement.querySelectorAll('button');
-        expect(buttons.length).toBe(3);
+        expect(buttons).toHaveLength(3);
     });
 
     it('should not render legend buttons when legendPosition is none', () => {
@@ -119,7 +119,7 @@ describe('PieChartComponent', () => {
         fixture.detectChanges();
 
         const buttons = fixture.nativeElement.querySelectorAll('button');
-        expect(buttons.length).toBe(0);
+        expect(buttons).toHaveLength(0);
     });
 
     it('should return empty slices for empty data', () => {

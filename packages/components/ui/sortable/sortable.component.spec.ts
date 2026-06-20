@@ -92,7 +92,7 @@ describe('SortableComponent', () => {
 
     it('should render one item per entry in items()', () => {
         const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render data-slot="sortable-item" on each row', () => {

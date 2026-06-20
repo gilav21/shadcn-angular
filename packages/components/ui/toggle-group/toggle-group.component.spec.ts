@@ -149,7 +149,7 @@ describe('ToggleGroup Data-Driven Mode', () => {
 
     it('should render items from the items input', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
         expect(items[0].nativeElement.textContent.trim()).toBe('B');
         expect(items[1].nativeElement.textContent.trim()).toBe('I');
         expect(items[2].nativeElement.textContent.trim()).toBe('U');

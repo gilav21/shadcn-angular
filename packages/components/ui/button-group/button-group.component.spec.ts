@@ -191,7 +191,7 @@ describe('ButtonGroup Integration', () => {
         const buttons = fixture.debugElement.queryAll(By.directive(ButtonComponent));
 
         expect(group).toBeTruthy();
-        expect(buttons.length).toBe(3);
+        expect(buttons).toHaveLength(3);
     });
 
     it('should switch orientation correctly', async () => {
@@ -225,7 +225,7 @@ describe('ButtonGroup RTL Support', () => {
 
     it('should render correctly in LTR mode', () => {
         const buttons = fixture.debugElement.queryAll(By.directive(ButtonComponent));
-        expect(buttons.length).toBe(3);
+        expect(buttons).toHaveLength(3);
 
         // Verify DOM order is maintained (First, Second, Third)
         expect(buttons[0].nativeElement.textContent.trim()).toBe('First');

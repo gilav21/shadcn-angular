@@ -54,7 +54,7 @@ describe('inflate — round-trips against real DEFLATE streams', () => {
         const original = repeat('abcabcabc-', 500);
         const compressed = await deflateRaw(original);
         const result = inflate(compressed);
-        expect(result.length).toBe(original.length);
+        expect(result).toHaveLength(original.length);
         expect(Array.from(result)).toEqual(Array.from(original));
     });
 
@@ -62,7 +62,7 @@ describe('inflate — round-trips against real DEFLATE streams', () => {
         const original = new Uint8Array(0);
         const compressed = await deflateRaw(original);
         const result = inflate(compressed);
-        expect(result.length).toBe(0);
+        expect(result).toHaveLength(0);
     });
 
     it('reconstructs binary data spanning all byte values', async () => {

@@ -155,7 +155,7 @@ describe('ComparisonSliderComponent', () => {
     it('should not render beforeLabel chip when omitted', () => {
         fixture.detectChanges();
         const chips: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('span');
-        expect(chips.length).toBe(0);
+        expect(chips).toHaveLength(0);
     });
 
     it('should render afterLabel chip when provided', () => {

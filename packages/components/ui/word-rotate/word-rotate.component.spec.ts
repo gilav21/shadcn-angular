@@ -36,7 +36,7 @@ describe('WordRotateComponent', () => {
 
     it('should render a span for each word', () => {
         const wordSpans = fixture.debugElement.queryAll(By.css('[data-slot="word-rotate"] span'));
-        expect(wordSpans.length).toBe(3);
+        expect(wordSpans).toHaveLength(3);
     });
 
     it('should contain the text of each word in separate spans', () => {
@@ -102,6 +102,6 @@ describe('WordRotateComponent', () => {
         fixture.detectChanges();
 
         const wordSpans = fixture.debugElement.queryAll(By.css('[data-slot="word-rotate"] span'));
-        expect(wordSpans.length).toBe(2);
+        expect(wordSpans).toHaveLength(2);
     });
 });

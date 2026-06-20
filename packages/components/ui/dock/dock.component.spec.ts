@@ -71,7 +71,7 @@ describe('DockComponent', () => {
 
         it('should render projected dock items', () => {
             const items = fixture.debugElement.queryAll(By.directive(DockItemComponent));
-            expect(items.length).toBe(2);
+            expect(items).toHaveLength(2);
         });
 
         it('should have data-slot on dock root', () => {
@@ -159,19 +159,19 @@ describe('DockComponent', () => {
 
         it('should render items from data input', () => {
             const items = fixture.debugElement.queryAll(By.directive(DockItemComponent));
-            expect(items.length).toBe(3);
+            expect(items).toHaveLength(3);
         });
 
         it('should render labels from item data', () => {
             const labels = fixture.debugElement.queryAll(By.directive(DockLabelComponent));
-            expect(labels.length).toBe(3);
+            expect(labels).toHaveLength(3);
             expect(labels[0].nativeElement.textContent.trim()).toBe('Home');
             expect(labels[1].nativeElement.textContent.trim()).toBe('Settings');
         });
 
         it('should render icons from item data', () => {
             const icons = fixture.debugElement.queryAll(By.directive(DockIconComponent));
-            expect(icons.length).toBe(3);
+            expect(icons).toHaveLength(3);
             expect(icons[0].nativeElement.textContent.trim()).toBe('H');
         });
 

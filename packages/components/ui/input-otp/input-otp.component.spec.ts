@@ -38,7 +38,7 @@ describe('InputOTPComponent', () => {
         otpComponent = fixture.debugElement.query(By.directive(InputOTPComponent)).componentInstance;
 
         const slots = fixture.debugElement.queryAll(By.css('[class*="border-y"]')); // Slot class selector approximation
-        expect(slots.length).toBe(6);
+        expect(slots).toHaveLength(6);
     });
 
     it('should display value in slots', () => {

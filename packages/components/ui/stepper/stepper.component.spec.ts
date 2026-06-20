@@ -86,17 +86,17 @@ describe('StepperComponent', () => {
 
         it('should render stepper items', () => {
             const items = fixture.debugElement.queryAll(By.css('[data-slot="stepper-item"]'));
-            expect(items.length).toBe(3);
+            expect(items).toHaveLength(3);
         });
 
         it('should render stepper triggers', () => {
             const triggers = fixture.debugElement.queryAll(By.css('[data-slot="stepper-trigger"]'));
-            expect(triggers.length).toBe(3);
+            expect(triggers).toHaveLength(3);
         });
 
         it('should render stepper titles', () => {
             const titles = fixture.debugElement.queryAll(By.css('[data-slot="stepper-title"]'));
-            expect(titles.length).toBe(3);
+            expect(titles).toHaveLength(3);
         });
     });
 
@@ -127,7 +127,7 @@ describe('StepperComponent', () => {
     describe('Step Content', () => {
         it('should show only current step content', () => {
             const contents = fixture.debugElement.queryAll(By.css('[data-slot="stepper-content"]'));
-            expect(contents.length).toBe(1);
+            expect(contents).toHaveLength(1);
             expect(contents[0].nativeElement.textContent).toContain('Step 1 content');
         });
 
@@ -137,7 +137,7 @@ describe('StepperComponent', () => {
             await fixture.whenStable();
 
             const contents = fixture.debugElement.queryAll(By.css('[data-slot="stepper-content"]'));
-            expect(contents.length).toBe(1);
+            expect(contents).toHaveLength(1);
             expect(contents[0].nativeElement.textContent).toContain('Step 2 content');
         });
     });
@@ -218,7 +218,7 @@ describe('StepperComponent', () => {
             const items = fixture.debugElement.queryAll(By.directive(StepperItemComponent));
 
             expect(stepper).toBeTruthy();
-            expect(items.length).toBe(3);
+            expect(items).toHaveLength(3);
         });
     });
 
@@ -230,7 +230,7 @@ describe('StepperComponent', () => {
 
         it('marks each projected step as a list item (role="listitem")', () => {
             const items = fixture.debugElement.queryAll(By.css('[role="listitem"]'));
-            expect(items.length).toBe(3);
+            expect(items).toHaveLength(3);
         });
 
         it('should have focusable trigger buttons', () => {
@@ -308,17 +308,17 @@ describe('Stepper Simple Mode (Data-Driven)', () => {
 
     it('should render stepper items automatically', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="stepper-item"]'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should render stepper triggers', () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="stepper-trigger"]'));
-        expect(triggers.length).toBe(3);
+        expect(triggers).toHaveLength(3);
     });
 
     it('should render step titles from config', () => {
         const titles = fixture.debugElement.queryAll(By.css('[data-slot="stepper-title"]'));
-        expect(titles.length).toBe(3);
+        expect(titles).toHaveLength(3);
         expect(titles[0].nativeElement.textContent).toContain('Account');
         expect(titles[1].nativeElement.textContent).toContain('Profile');
         expect(titles[2].nativeElement.textContent).toContain('Complete');
@@ -326,7 +326,7 @@ describe('Stepper Simple Mode (Data-Driven)', () => {
 
     it('should render descriptions when provided', () => {
         const descriptions = fixture.debugElement.queryAll(By.css('[data-slot="stepper-description"]'));
-        expect(descriptions.length).toBe(2); // Only 2 have descriptions
+        expect(descriptions).toHaveLength(2); // Only 2 have descriptions
     });
 
     it('should mark first step as current', () => {

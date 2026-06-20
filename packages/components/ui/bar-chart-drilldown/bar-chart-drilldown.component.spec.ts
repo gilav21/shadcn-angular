@@ -41,7 +41,7 @@ describe('BarChartDrilldownComponent', () => {
     });
 
     it('should compute bars from data', () => {
-        expect(component.bars().length).toBe(2);
+        expect(component.bars()).toHaveLength(2);
     });
 
     it('should not be drilled down initially', () => {
@@ -63,7 +63,7 @@ describe('BarChartDrilldownComponent', () => {
 
             expect(component.isDrilledDown()).toBe(true);
             expect(component.currentDrilldownId()).toBe('a-detail');
-            expect(drilldownEvents.length).toBe(1);
+            expect(drilldownEvents).toHaveLength(1);
             expect(drilldownEvents[0]).toEqual({
                 seriesId: 'a-detail',
                 parentPoint: sampleData[0],
@@ -75,7 +75,7 @@ describe('BarChartDrilldownComponent', () => {
             component.onBarClick(new MouseEvent('click'), drillableBar);
 
             expect(component.currentData()).toEqual(sampleDrilldownSeries[0].data);
-            expect(component.currentData().length).toBe(3);
+            expect(component.currentData()).toHaveLength(3);
         });
 
         it('should update currentSeriesName to the drilldown series name', () => {
@@ -89,7 +89,7 @@ describe('BarChartDrilldownComponent', () => {
             const drillableBar = component.bars()[0];
             component.onBarClick(new MouseEvent('click'), drillableBar);
 
-            expect(component.bars().length).toBe(3);
+            expect(component.bars()).toHaveLength(3);
             expect(component.bars()[0].data.name).toBe('Sub A1');
         });
 
@@ -118,7 +118,7 @@ describe('BarChartDrilldownComponent', () => {
 
             component.onBarClick(new MouseEvent('click'), nonDrillableBar);
 
-            expect(clickEvents.length).toBe(1);
+            expect(clickEvents).toHaveLength(1);
             expect(clickEvents[0]).toEqual(
                 expect.objectContaining({ point: sampleData[1], index: 1 }),
             );
@@ -136,7 +136,7 @@ describe('BarChartDrilldownComponent', () => {
             const nonDrillableBar = component.bars()[1];
             component.onBarClick(new MouseEvent('click'), nonDrillableBar);
 
-            expect(clickEvents.length).toBe(2);
+            expect(clickEvents).toHaveLength(2);
         });
 
         it('should include the MouseEvent in the emitted click event', () => {
@@ -170,7 +170,7 @@ describe('BarChartDrilldownComponent', () => {
             component.onBarClick(new MouseEvent('click'), drillableBar);
             component.onDrillUp();
 
-            expect(drillupEvents.length).toBe(1);
+            expect(drillupEvents).toHaveLength(1);
         });
 
         it('should restore currentData to the original top-level data', () => {
@@ -206,7 +206,7 @@ describe('BarChartDrilldownComponent', () => {
             const drilledBars = component.bars();
             component.onBarClick(new MouseEvent('click'), drilledBars[0]);
 
-            expect(drilldownEvents.length).toBe(0);
+            expect(drilldownEvents).toHaveLength(0);
             expect(component.currentDrilldownId()).toBe('a-detail');
         });
     });
@@ -226,7 +226,7 @@ describe('BarChartDrilldownComponent', () => {
             const bar = component.bars()[1];
             component.onBarHover(bar);
 
-            expect(hoverEvents.length).toBe(1);
+            expect(hoverEvents).toHaveLength(1);
             expect(hoverEvents[0]).toEqual(
                 expect.objectContaining({ point: sampleData[1], index: 1 }),
             );
@@ -248,7 +248,7 @@ describe('BarChartDrilldownComponent', () => {
 
             component.onBarLeave();
 
-            expect(hoverEvents.length).toBe(1);
+            expect(hoverEvents).toHaveLength(1);
             expect(hoverEvents[0]).toBeNull();
         });
 
@@ -371,7 +371,7 @@ describe('BarChartDrilldownComponent', () => {
             fixture.componentRef.setInput('data', []);
             fixture.detectChanges();
 
-            expect(component.bars().length).toBe(0);
+            expect(component.bars()).toHaveLength(0);
         });
 
         it('should assign positive width and height to bars with positive values', () => {

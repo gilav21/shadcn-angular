@@ -29,7 +29,7 @@ describe('BarChartComponent', () => {
     });
 
     it('should compute bars from data', () => {
-        expect(component.bars().length).toBe(3);
+        expect(component.bars()).toHaveLength(3);
     });
 
     it('should default to vertical orientation', () => {
@@ -140,7 +140,7 @@ describe('BarChartComponent', () => {
         fixture.detectChanges();
 
         const bars = component.bars();
-        expect(bars.length).toBe(3);
+        expect(bars).toHaveLength(3);
         expect(bars[2].width).toBeGreaterThan(bars[0].width);
     });
 });

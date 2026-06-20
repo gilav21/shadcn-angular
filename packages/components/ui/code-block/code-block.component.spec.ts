@@ -387,14 +387,14 @@ describe('CodeBlockComponent', () => {
         it('renders no chevrons when collapseScope is false (default)', () => {
             fixture.componentRef.setInput('code', tsCode);
             fixture.detectChanges();
-            expect(chevrons(fixture).length).toBe(0);
+            expect(chevrons(fixture)).toHaveLength(0);
         });
 
         it('renders one chevron per brace-detected scope in TS', () => {
             fixture.componentRef.setInput('code', tsCode);
             fixture.componentRef.setInput('collapseScope', true);
             fixture.detectChanges();
-            expect(chevrons(fixture).length).toBe(2);
+            expect(chevrons(fixture)).toHaveLength(2);
         });
 
         it('toggleScope hides interior lines and shows the collapsed marker', () => {
@@ -408,7 +408,7 @@ describe('CodeBlockComponent', () => {
 
             expect(visibleLineCount(fixture)).toBeLessThan(before);
             expect(component.isCollapsed(0)).toBe(true);
-            expect(collapsedMarkers(fixture).length).toBe(1);
+            expect(collapsedMarkers(fixture)).toHaveLength(1);
 
             component.toggleScope(0);
             fixture.detectChanges();
@@ -440,7 +440,7 @@ describe('CodeBlockComponent', () => {
             fixture.componentRef.setInput('code', htmlCode);
             fixture.componentRef.setInput('collapseScope', true);
             fixture.detectChanges();
-            expect(chevrons(fixture).length).toBe(1);
+            expect(chevrons(fixture)).toHaveLength(1);
         });
 
         it('detects XML tag-pair scopes including namespaced tags', () => {
@@ -456,7 +456,7 @@ describe('CodeBlockComponent', () => {
             fixture.componentRef.setInput('code', xmlSrc);
             fixture.componentRef.setInput('collapseScope', true);
             fixture.detectChanges();
-            expect(chevrons(fixture).length).toBe(2);
+            expect(chevrons(fixture)).toHaveLength(2);
         });
 
         it('detects JSON scopes via braces and brackets', () => {
@@ -464,7 +464,7 @@ describe('CodeBlockComponent', () => {
             fixture.componentRef.setInput('code', jsonCode);
             fixture.componentRef.setInput('collapseScope', true);
             fixture.detectChanges();
-            expect(chevrons(fixture).length).toBe(2);
+            expect(chevrons(fixture)).toHaveLength(2);
         });
 
         it('seeds initial collapsed state from defaultCollapsed=0', () => {
@@ -475,7 +475,7 @@ describe('CodeBlockComponent', () => {
 
             expect(component.isCollapsed(0)).toBe(true);
             expect(component.isCollapsed(5)).toBe(true);
-            expect(collapsedMarkers(fixture).length).toBe(2);
+            expect(collapsedMarkers(fixture)).toHaveLength(2);
         });
 
         it('does not collapse outermost scopes when defaultCollapsed=1', () => {
@@ -511,7 +511,7 @@ describe('CodeBlockComponent', () => {
             });
             fixture.detectChanges();
 
-            expect(chevrons(fixture).length).toBe(1);
+            expect(chevrons(fixture)).toHaveLength(1);
             component.toggleScope(0);
             fixture.detectChanges();
             expect(visibleLineCount(fixture)).toBe(1);
@@ -522,7 +522,7 @@ describe('CodeBlockComponent', () => {
             fixture.componentRef.setInput('code', '+++[->+++<]\n+++');
             fixture.componentRef.setInput('collapseScope', true);
             fixture.detectChanges();
-            expect(chevrons(fixture).length).toBe(0);
+            expect(chevrons(fixture)).toHaveLength(0);
         });
 
         it('clears collapsed state when collapseScope is turned off', () => {
@@ -550,7 +550,7 @@ describe('CodeBlockComponent', () => {
             fixture.detectChanges();
 
             const els = lineNumberEls(fixture);
-            expect(els.length).toBe(3);
+            expect(els).toHaveLength(3);
             expect(els.map(e => e.nativeElement.textContent.trim())).toEqual(['1', '2', '3']);
         });
 
@@ -559,7 +559,7 @@ describe('CodeBlockComponent', () => {
             fixture.componentRef.setInput('lineNumbers', false);
             fixture.detectChanges();
 
-            expect(lineNumberEls(fixture).length).toBe(0);
+            expect(lineNumberEls(fixture)).toHaveLength(0);
         });
 
         it('hides line numbers for lines inside a collapsed scope', () => {
@@ -573,7 +573,7 @@ describe('CodeBlockComponent', () => {
             fixture.componentRef.setInput('code', tsCode);
             fixture.componentRef.setInput('collapseScope', true);
             fixture.detectChanges();
-            expect(lineNumberEls(fixture).length).toBe(4);
+            expect(lineNumberEls(fixture)).toHaveLength(4);
 
             component.toggleScope(0);
             fixture.detectChanges();

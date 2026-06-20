@@ -105,7 +105,7 @@ describe('FileUploadComponent', () => {
             uploadComponent.addFiles([mockFile]);
             fixture.detectChanges();
 
-            expect(component.files.length).toBe(1);
+            expect(component.files).toHaveLength(1);
             expect(component.files[0].file.name).toBe('test.pdf');
         });
 
@@ -128,7 +128,7 @@ describe('FileUploadComponent', () => {
             uploadComponent.addFiles([file1, file2]);
             fixture.detectChanges();
 
-            expect(component.files.length).toBe(2);
+            expect(component.files).toHaveLength(2);
         });
     });
 
@@ -143,7 +143,7 @@ describe('FileUploadComponent', () => {
             uploadComponent.addFiles([largeFile]);
             fixture.detectChanges();
 
-            expect(component.files.length).toBe(0);
+            expect(component.files).toHaveLength(0);
             expect(component.lastError).toBeTruthy();
             expect(component.lastError?.error).toContain('maximum size');
         });
@@ -162,7 +162,7 @@ describe('FileUploadComponent', () => {
             uploadComponent.addFiles(files);
             fixture.detectChanges();
 
-            expect(component.files.length).toBe(2);
+            expect(component.files).toHaveLength(2);
         });
 
         it('should validate file type with accept', async () => {
@@ -176,7 +176,7 @@ describe('FileUploadComponent', () => {
             uploadComponent.addFiles([pdfFile, imageFile]);
             fixture.detectChanges();
 
-            expect(component.files.length).toBe(1);
+            expect(component.files).toHaveLength(1);
             expect(component.files[0].file.name).toBe('image.png');
         });
 
@@ -191,7 +191,7 @@ describe('FileUploadComponent', () => {
             uploadComponent.addFiles([pdfFile, txtFile]);
             fixture.detectChanges();
 
-            expect(component.files.length).toBe(1);
+            expect(component.files).toHaveLength(1);
             expect(component.files[0].file.name).toBe('doc.pdf');
         });
     });
@@ -208,7 +208,7 @@ describe('FileUploadComponent', () => {
             uploadComponent.removeFile(fileId);
             fixture.detectChanges();
 
-            expect(component.files.length).toBe(0);
+            expect(component.files).toHaveLength(0);
         });
 
         it('should emit fileRemoved event', async () => {
@@ -237,7 +237,7 @@ describe('FileUploadComponent', () => {
             uploadComponent.clearFiles();
             fixture.detectChanges();
 
-            expect(component.files.length).toBe(0);
+            expect(component.files).toHaveLength(0);
         });
     });
 

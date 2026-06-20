@@ -66,7 +66,7 @@ describe('RatingComponent', () => {
 
         it('should render correct number of stars', () => {
             const stars = fixture.debugElement.queryAll(By.css('button'));
-            expect(stars.length).toBe(5);
+            expect(stars).toHaveLength(5);
         });
 
         it('should render 10 stars when max is 10', async () => {
@@ -75,7 +75,7 @@ describe('RatingComponent', () => {
             await fixture.whenStable();
 
             const stars = fixture.debugElement.queryAll(By.css('button'));
-            expect(stars.length).toBe(10);
+            expect(stars).toHaveLength(10);
         });
     });
 
@@ -84,7 +84,7 @@ describe('RatingComponent', () => {
             await fixture.whenStable();
             fixture.detectChanges();
             const filledStars = fixture.debugElement.queryAll(By.css('[fill="currentColor"]'));
-            expect(filledStars.length).toBe(3); // value is 3
+            expect(filledStars).toHaveLength(3); // value is 3
         });
 
         it('should update value on click', async () => {
@@ -222,7 +222,7 @@ describe('RatingComponent', () => {
             const stars = fixture.debugElement.queryAll(By.css('button'));
 
             expect(rating).toBeTruthy();
-            expect(stars.length).toBe(5);
+            expect(stars).toHaveLength(5);
         });
     });
 

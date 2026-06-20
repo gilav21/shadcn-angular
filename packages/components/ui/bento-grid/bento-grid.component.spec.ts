@@ -85,7 +85,7 @@ describe('BentoGridComponent', () => {
 
     it('should render items as bento-item elements', () => {
         const items = fixture.debugElement.queryAll(By.css('.bento-item'));
-        expect(items.length).toBe(3);
+        expect(items).toHaveLength(3);
     });
 
     it('should display string content in items', () => {
@@ -127,7 +127,7 @@ describe('BentoGridComponent', () => {
         await fixture.whenStable();
 
         const items = fixture.debugElement.queryAll(By.css('.bento-item'));
-        expect(items.length).toBe(1);
+        expect(items).toHaveLength(1);
         expect(items[0].nativeElement.textContent).toContain('New Item');
     });
 
@@ -390,7 +390,7 @@ describe('BentoGridComponent', () => {
             grid.deleteItem('2');
 
             expect(component.lastItemsChange).toBeTruthy();
-            expect(component.lastItemsChange!.length).toBe(2);
+            expect(component.lastItemsChange!).toHaveLength(2);
             expect(component.lastItemsChange!.find(i => i.id === '2')).toBeUndefined();
         });
 
@@ -418,7 +418,7 @@ describe('BentoGridComponent', () => {
             const emittedItems = component.lastItemsChange!;
 
             const remaining = emittedItems.filter(i => i.id !== '2' && i.id !== '3');
-            expect(remaining.length).toBe(2);
+            expect(remaining).toHaveLength(2);
 
             const original = remaining.find(i => i.id === '1');
             expect(original).toBeTruthy();
@@ -457,7 +457,7 @@ describe('BentoGridComponent', () => {
 
             expect(component.lastItemsChange).toBeTruthy();
             const emittedItems = component.lastItemsChange!;
-            expect(emittedItems.length).toBe(2);
+            expect(emittedItems).toHaveLength(2);
 
             const original = emittedItems.find(i => i.id === '1');
             expect(original).toBeTruthy();
@@ -491,7 +491,7 @@ describe('BentoGridComponent', () => {
             grid.addItemAt(4, 2, 1, 1);
 
             expect(component.lastItemsChange).toBeTruthy();
-            expect(component.lastItemsChange!.length).toBe(4);
+            expect(component.lastItemsChange!).toHaveLength(4);
 
             const addedItem = component.lastItemsChange!.find(
                 i => i.x === 4 && i.y === 2 && i.cols === 1 && i.rows === 1
@@ -570,7 +570,7 @@ describe('BentoGridComponent', () => {
         it('should produce no grid cells when not editable', () => {
             component.editable.set(false);
             fixture.detectChanges();
-            expect(getGrid().gridCells().length).toBe(0);
+            expect(getGrid().gridCells()).toHaveLength(0);
         });
     });
 
@@ -659,7 +659,7 @@ describe('BentoGridComponent', () => {
             const item: DashboardItem = { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' };
             const ev = new MouseEvent('contextmenu', { clientX: 50, clientY: 60 });
             grid.onContextMenu(ev, item, menu as never);
-            expect(menu.calls.length).toBe(1);
+            expect(menu.calls).toHaveLength(1);
             expect(menu.calls[0]).toEqual([50, 60, item]);
         });
 
@@ -670,7 +670,7 @@ describe('BentoGridComponent', () => {
             const menu = fakeMenu();
             const item: DashboardItem = { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' };
             grid.onContextMenu(new MouseEvent('contextmenu'), item, menu as never);
-            expect(menu.calls.length).toBe(0);
+            expect(menu.calls).toHaveLength(0);
         });
 
         it('onContainerContextMenu shows empty-cell menu on free cell', () => {
@@ -684,7 +684,7 @@ describe('BentoGridComponent', () => {
             Object.defineProperty(ev, 'currentTarget', { value: containerEl });
             Object.defineProperty(ev, 'target', { value: containerEl });
             grid.onContainerContextMenu(ev, menu as never);
-            expect(menu.calls.length).toBe(1);
+            expect(menu.calls).toHaveLength(1);
             expect((menu.calls[0][2] as { type: string }).type).toBe('empty');
         });
 
@@ -697,7 +697,7 @@ describe('BentoGridComponent', () => {
             const ev = new MouseEvent('contextmenu');
             Object.defineProperty(ev, 'target', { value: itemEl });
             grid.onContainerContextMenu(ev, menu as never);
-            expect(menu.calls.length).toBe(0);
+            expect(menu.calls).toHaveLength(0);
         });
 
         it('onContainerContextMenu does nothing when not editable', () => {
@@ -710,7 +710,7 @@ describe('BentoGridComponent', () => {
             Object.defineProperty(ev, 'currentTarget', { value: containerEl });
             Object.defineProperty(ev, 'target', { value: containerEl });
             grid.onContainerContextMenu(ev, menu as never);
-            expect(menu.calls.length).toBe(0);
+            expect(menu.calls).toHaveLength(0);
         });
 
         it('onContainerContextMenu does not show menu over an occupied cell', () => {
@@ -728,7 +728,7 @@ describe('BentoGridComponent', () => {
             Object.defineProperty(ev, 'currentTarget', { value: containerEl });
             Object.defineProperty(ev, 'target', { value: containerEl });
             grid.onContainerContextMenu(ev, menu as never);
-            expect(menu.calls.length).toBe(0);
+            expect(menu.calls).toHaveLength(0);
         });
     });
 
@@ -822,8 +822,9 @@ describe('BentoGridComponent', () => {
         });
 
         it('onContainerDragLeave is a no-op (covered)', () => {
-            getGrid().onContainerDragLeave(new Event('dragleave') as DragEvent);
-            expect(true).toBe(true);
+            expect(() =>
+                getGrid().onContainerDragLeave(new Event('dragleave') as DragEvent),
+            ).not.toThrow();
         });
     });
 
@@ -864,7 +865,7 @@ describe('BentoGridComponent', () => {
             const externalDrops: { widgetId: string; targetId: string | null }[] = [];
             grid.externalDrop.subscribe(e => externalDrops.push(e));
             grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
-            expect(externalDrops.length).toBe(1);
+            expect(externalDrops).toHaveLength(1);
             expect(externalDrops[0].widgetId).toBe('w9');
             expect(externalDrops[0].targetId).toBe('2');
         });
@@ -877,7 +878,7 @@ describe('BentoGridComponent', () => {
             const drops: unknown[] = [];
             grid.externalDrop.subscribe(e => drops.push(e));
             grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
-            expect(drops.length).toBe(0);
+            expect(drops).toHaveLength(0);
         });
 
         it('onDrop does nothing when not editable', () => {
@@ -916,7 +917,7 @@ describe('BentoGridComponent', () => {
             const drops: { widgetId: string; targetId: string | null }[] = [];
             grid.externalDrop.subscribe(e => drops.push(e));
             grid.onContainerDrop(ev);
-            expect(drops.length).toBe(1);
+            expect(drops).toHaveLength(1);
             expect(drops[0].widgetId).toBe('wX');
             expect(drops[0].targetId).toBeNull();
         });
@@ -931,7 +932,7 @@ describe('BentoGridComponent', () => {
             const drops: unknown[] = [];
             grid.externalDrop.subscribe(e => drops.push(e));
             grid.onContainerDrop(ev);
-            expect(drops.length).toBe(0);
+            expect(drops).toHaveLength(0);
         });
 
         it('onContainerDrop does nothing when not editable', () => {

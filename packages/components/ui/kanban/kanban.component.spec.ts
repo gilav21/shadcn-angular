@@ -121,12 +121,12 @@ describe('KanbanComponent', () => {
 
         it('should render all columns', () => {
             const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
-            expect(columns.length).toBe(3);
+            expect(columns).toHaveLength(3);
         });
 
         it('should render column titles', () => {
             const headers = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column-header"]'));
-            expect(headers.length).toBe(3);
+            expect(headers).toHaveLength(3);
 
             const titles = fixture.nativeElement.querySelectorAll('.text-sm.font-semibold');
             expect(titles[0].textContent).toContain('To Do');
@@ -140,9 +140,9 @@ describe('KanbanComponent', () => {
             const doingCards = columns[1].queryAll(By.css('[data-slot="kanban-card"]'));
             const doneCards = columns[2].queryAll(By.css('[data-slot="kanban-card"]'));
 
-            expect(todoCards.length).toBe(2);
-            expect(doingCards.length).toBe(1);
-            expect(doneCards.length).toBe(0);
+            expect(todoCards).toHaveLength(2);
+            expect(doingCards).toHaveLength(1);
+            expect(doneCards).toHaveLength(0);
         });
 
         it('should display card titles', () => {
@@ -167,7 +167,7 @@ describe('KanbanComponent', () => {
 
         it('should render card count badges on columns', () => {
             const badges = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column-header"] [data-slot="badge"]'));
-            expect(badges.length).toBe(3);
+            expect(badges).toHaveLength(3);
         });
 
         it('should filter cards by search term', async () => {
@@ -176,7 +176,7 @@ describe('KanbanComponent', () => {
             await fixture.whenStable();
 
             const cards = fixture.debugElement.queryAll(By.css('[data-slot="kanban-card"]'));
-            expect(cards.length).toBe(1);
+            expect(cards).toHaveLength(1);
             expect(cards[0].nativeElement.textContent).toContain('Task 1');
         });
 
@@ -189,7 +189,7 @@ describe('KanbanComponent', () => {
             const indicators = fixture.debugElement.queryAll(
                 By.css('[data-slot="kanban-drop-indicator"]')
             );
-            expect(indicators.length).toBe(3);
+            expect(indicators).toHaveLength(3);
             indicators.forEach(ind => {
                 expect(ind.nativeElement.classList).toContain('opacity-0');
             });
@@ -275,7 +275,7 @@ describe('KanbanComponent', () => {
             const buttons = fixture.debugElement.queryAll(
                 By.css('[data-slot="kanban-add-card-button"]')
             );
-            expect(buttons.length).toBe(3);
+            expect(buttons).toHaveLength(3);
         });
 
         it('should render empty state in column with no cards', () => {
@@ -307,7 +307,7 @@ describe('KanbanComponent', () => {
             kanban.onMoveCardToColumn(card, 'doing');
             fixture.detectChanges();
 
-            expect(component.cardsChanged.length).toBe(3);
+            expect(component.cardsChanged).toHaveLength(3);
             const movedCard = component.cardsChanged.find(c => c.id === 'card-1');
             expect(movedCard?.columnId).toBe('doing');
         });
@@ -345,7 +345,7 @@ describe('KanbanComponent', () => {
             kanban.onDeleteCard(card);
             fixture.detectChanges();
 
-            expect(component.cardsChanged.length).toBe(2);
+            expect(component.cardsChanged).toHaveLength(2);
             expect(component.cardDeletedId).toBeNull();
 
             vi.advanceTimersByTime(6000);
@@ -438,7 +438,7 @@ describe('KanbanComponent', () => {
             kanban.onMoveColumnLeft(todoCol);
             fixture.detectChanges();
 
-            expect(component.columnsChanged.length).toBe(0);
+            expect(component.columnsChanged).toHaveLength(0);
         });
 
         it('should capture snapshot on moveCard for history', () => {
@@ -473,7 +473,7 @@ describe('KanbanComponent', () => {
             const kanban = getKanban();
             kanban.moveCard('missing', 'doing', 0);
             fixture.detectChanges();
-            expect(component.cardsChanged.length).toBe(0);
+            expect(component.cardsChanged).toHaveLength(0);
         });
 
         it('undoCardDelete restores the card and hides the toast', () => {
@@ -483,7 +483,7 @@ describe('KanbanComponent', () => {
             kanban.onDeleteCard(card);
             fixture.detectChanges();
             expect(kanban.deleteToastVisible()).toBe(true);
-            expect(component.cardsChanged.length).toBe(2);
+            expect(component.cardsChanged).toHaveLength(2);
 
             kanban.undoCardDelete();
             fixture.detectChanges();
@@ -596,7 +596,7 @@ describe('KanbanComponent', () => {
             const kanban = getKanban();
             kanban.onMoveColumnRight(component.columns()[2]);
             fixture.detectChanges();
-            expect(component.columnsChanged.length).toBe(0);
+            expect(component.columnsChanged).toHaveLength(0);
         });
 
         it('onBoardContextMenu shows the board menu when not on a column', () => {
@@ -675,7 +675,7 @@ describe('KanbanComponent', () => {
             fixture.detectChanges();
             expect(col.collapsed()).toBe(true);
             const columnEl = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'))[0];
-            expect(columnEl.queryAll(By.css('[data-slot="kanban-card"]')).length).toBe(0);
+            expect(columnEl.queryAll(By.css('[data-slot="kanban-card"]'))).toHaveLength(0);
         });
 
         it('column header context menu opens the column menu', () => {
@@ -772,7 +772,7 @@ describe('KanbanComponent', () => {
             Object.defineProperty(dropEv, 'dataTransfer', { value: { getData: () => '' } });
             col.onDrop(dropEv);
             fixture.detectChanges();
-            expect(component.cardsChanged.length).toBe(0);
+            expect(component.cardsChanged).toHaveLength(0);
         });
 
         it('dragleave clears state only when the enter count reaches zero', () => {

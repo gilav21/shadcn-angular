@@ -75,7 +75,7 @@ describe('VirtualScrollComponent', () => {
     });
 
     it('should accept items input', () => {
-        expect(host.items().length).toBe(100);
+        expect(host.items()).toHaveLength(100);
     });
 
     it('should render the virtual scroll container', () => {
@@ -172,7 +172,7 @@ describe('VirtualScrollComponent', () => {
         fixture.detectChanges();
 
         const renderedItems = fixture.nativeElement.querySelectorAll('.test-item');
-        expect(renderedItems.length).toBe(0);
+        expect(renderedItems).toHaveLength(0);
     });
 
     it('should emit windowChange output when render range changes', () => {

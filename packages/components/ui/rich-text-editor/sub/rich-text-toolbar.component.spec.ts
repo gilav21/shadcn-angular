@@ -32,7 +32,7 @@ describe('RichTextToolbarComponent', () => {
             fixture.componentRef.setInput('items', ['bold', 'italic', 'separator', 'underline']);
             fixture.detectChanges();
             const buttons = fixture.nativeElement.querySelectorAll('button');
-            expect(buttons.length).toBe(3);
+            expect(buttons).toHaveLength(3);
         });
 
         it('renders a separator element for the separator item', () => {
@@ -384,7 +384,7 @@ describe('RichTextToolbarComponent', () => {
             fixture.componentRef.setInput('customItems', [customItem]);
             fixture.detectChanges();
             const buttons = fixture.nativeElement.querySelectorAll('button');
-            expect(buttons.length).toBe(1);
+            expect(buttons).toHaveLength(1);
             expect(buttons[0].getAttribute('title')).toBe('Custom');
         });
 

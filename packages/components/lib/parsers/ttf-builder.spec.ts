@@ -241,7 +241,7 @@ describe('buildTtf', () => {
         const font = new TtfFont(toArrayBuffer(ttf));
         const raw = font.getRawGlyph(1);
         expect(raw).not.toBeNull();
-        expect(raw!.length).toBe(140000);
+        expect(raw!).toHaveLength(140000);
         const rv = new DataView(raw!.buffer, raw!.byteOffset, raw!.byteLength);
         expect(i16(rv, 6)).toBe(50);
     });

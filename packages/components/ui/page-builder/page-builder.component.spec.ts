@@ -70,7 +70,7 @@ describe('PageBuilderComponent', () => {
         component.addItem(mockComponents[0]);
         fixture.detectChanges();
 
-        expect(component.items().length).toBe(1);
+        expect(component.items()).toHaveLength(1);
         const item = component.items()[0];
         expect(item.content).toBe(MockWidgetComponent);
         expect(item.cols).toBe(2);
@@ -108,7 +108,7 @@ describe('PageBuilderComponent', () => {
         component.onDeleteItem();
         fixture.detectChanges();
 
-        expect(component.items().length).toBe(0);
+        expect(component.items()).toHaveLength(0);
         expect(component.selectedItemId()).toBeNull();
     });
 
@@ -149,7 +149,7 @@ describe('PageBuilderComponent', () => {
         saveBtn.nativeElement.click();
 
         expect(emitted).toBeDefined();
-        expect(emitted!.items.length).toBe(1);
+        expect(emitted!.items).toHaveLength(1);
         expect(emitted!.items[0].componentId).toBe('mock-widget');
         expect(emitted!.grid.rowHeight).toBe('20px');
         expect(emitted!.grid.squareCells).toBe(true);
@@ -179,7 +179,7 @@ describe('PageBuilderComponent', () => {
         expect(component.gridCols()).toBe(8);
         expect(component.gridRowHeight()).toBe('40px');
         expect(component.gridGap()).toBe('2rem');
-        expect(component.items().length).toBe(1);
+        expect(component.items()).toHaveLength(1);
         const loaded = component.items()[0];
         expect(loaded.id).toBe('seed-1');
         expect(loaded.content).toBe(MockWidgetComponent);
@@ -292,7 +292,7 @@ describe('PageBuilderComponent — editor behavior', () => {
 
         it('ignores an external drop for an unknown widget id', () => {
             component.onExternalDrop({ widgetId: 'does-not-exist', targetId: null });
-            expect(component.items().length).toBe(0);
+            expect(component.items()).toHaveLength(0);
         });
     });
 
@@ -500,7 +500,7 @@ describe('PageBuilderComponent — editor behavior', () => {
             await component.handleFileInput({ target: { files: [file] } } as unknown as Event);
 
             expect(alertSpy).toHaveBeenCalledWith('Invalid layout file format');
-            expect(component.items().length).toBe(1);
+            expect(component.items()).toHaveLength(1);
         });
 
         it('alerts on unparseable JSON', async () => {
@@ -512,7 +512,7 @@ describe('PageBuilderComponent — editor behavior', () => {
 
         it('does nothing when no file is selected', async () => {
             await component.handleFileInput({ target: { files: [] } } as unknown as Event);
-            expect(component.items().length).toBe(0);
+            expect(component.items()).toHaveLength(0);
         });
     });
 

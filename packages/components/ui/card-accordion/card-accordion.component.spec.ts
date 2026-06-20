@@ -88,7 +88,7 @@ describe('CardAccordion integration', () => {
 
   it('should render all items closed initially', () => {
     const open = triggers().filter((t) => t.nativeElement.getAttribute('aria-expanded') === 'true');
-    expect(open.length).toBe(0);
+    expect(open).toHaveLength(0);
   });
 
   it('should open content and rotate the chevron on trigger click', async () => {

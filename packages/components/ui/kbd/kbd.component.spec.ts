@@ -27,7 +27,7 @@ describe('KbdComponent', () => {
 
     it('should create and render kbd elements', () => {
         const kbds = fixture.debugElement.queryAll(By.directive(KbdComponent));
-        expect(kbds.length).toBe(2);
+        expect(kbds).toHaveLength(2);
     });
 
     it('should use <kbd> tag', () => {
