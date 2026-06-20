@@ -18,6 +18,7 @@ import { setMotion } from './commands/set-motion.js';
 import { setLocale } from './commands/set-locale.js';
 import { changeTheme } from './commands/change-theme.js';
 import { startMcpServer } from './mcp/server.js';
+import { loadRegistry } from './registry/load.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')) as { version: string };
 
@@ -27,6 +28,16 @@ program
     .name('shadcn-angular')
     .description('CLI for adding shadcn-angular components to your Angular project')
     .version(pkg.version);
+
+// Refresh the component registry from GitHub before any command runs, honoring
+// the command's --branch / --registry / --remote when present. This lets
+// component, dependency, and lib-file changes ship without an npm republish —
+// only the CLI code or registry schema does. Falls back to the bundled
+// snapshot (with a warning) when the fetch fails.
+program.hook('preAction', async (_thisCommand, actionCommand) => {
+    const opts = actionCommand.opts<{ branch?: string; registry?: string; remote?: boolean }>();
+    await loadRegistry({ branch: opts.branch, registry: opts.registry, remote: opts.remote });
+});
 
 program
     .command('init')
@@ -174,4 +185,4 @@ program
         await startMcpServer(process.cwd());
     });
 
-program.parse();
+await program.parseAsync();

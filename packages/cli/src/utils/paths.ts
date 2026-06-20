@@ -26,6 +26,11 @@ export function getLibRegistryBaseUrl(branch: string, customRegistry?: string): 
     return `${base}/lib`;
 }
 
+export function getRegistryManifestUrl(branch: string, customRegistry?: string): string {
+    const base = customRegistry ?? getDefaultRegistryBaseUrl(branch);
+    return `${base}/registry.json`;
+}
+
 function getDefaultBlocksBaseUrl(branch: string): string {
     validateBranch(branch);
     return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/blocks`;
@@ -49,6 +54,11 @@ export function getLocalLibDir(): string | null {
 
 export function getLocalBlocksDir(): string | null {
     const localPath = path.resolve(__dirname, '../../../blocks');
+    return fs.existsSync(localPath) ? localPath : null;
+}
+
+export function getLocalRegistryJson(): string | null {
+    const localPath = path.resolve(__dirname, '../../../components/registry.json');
     return fs.existsSync(localPath) ? localPath : null;
 }
 

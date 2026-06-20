@@ -1212,6 +1212,16 @@ export function getReverseDependents(name: ComponentName): Set<ComponentName> {
 }
 
 let _reverseDepGraph: Map<ComponentName, ComponentName[]> | null = null;
+
+/**
+ * Clears memoized derived state. Called by `loadRegistry` after the live
+ * `registry` object is repopulated so introspection helpers
+ * (`getReverseDependents`, …) recompute against the fresh data.
+ */
+export function __resetRegistryCaches(): void {
+    _reverseDepGraph = null;
+}
+
 function reverseDepGraph(): Map<ComponentName, ComponentName[]> {
     if (_reverseDepGraph) return _reverseDepGraph;
     const graph = new Map<ComponentName, ComponentName[]>();

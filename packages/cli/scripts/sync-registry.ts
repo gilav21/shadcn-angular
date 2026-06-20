@@ -26,6 +26,10 @@ const CLI_SRC = path.resolve(SCRIPT_DIR, '../src');
 const COMPONENTS_ROOT = path.resolve(SCRIPT_DIR, '../../components');
 const BLOCKS_ROOT = path.resolve(SCRIPT_DIR, '../../blocks');
 const REGISTRY_PATH = path.join(CLI_SRC, 'registry/index.ts');
+// Data-only manifest the live CLI fetches from GitHub. Generated from the TS
+// registry so a component/dependency/libFile change ships without an npm
+// republish. Kept in lock-step with index.ts by --fix.
+const REGISTRY_JSON_PATH = path.join(COMPONENTS_ROOT, 'registry.json');
 
 // utils.ts is always installed during init — not a component libFile
 const BASELINE_LIB_FILES = new Set(['utils.ts']);
@@ -376,6 +380,18 @@ function validateBlockFiles(blocks: ComponentUpdate[]): string[] {
     return problems;
 }
 
+// ── registry.json manifest ──────────────────────────────────────────────
+
+// Serializes the (already-written) TS registry to the data-only manifest the
+// live CLI fetches. Imports the registry object fresh so it reflects any edits
+// applyUpdates just made on disk.
+async function writeRegistryJson(): Promise<void> {
+    const mod = await import(`../src/registry/index.js?t=${process.hrtime.bigint()}`) as { registry: unknown };
+    const json = JSON.stringify(mod.registry, null, 2);
+    writeFileSync(REGISTRY_JSON_PATH, json + '\n');
+    console.log(`Registry manifest written to ${path.relative(process.cwd(), REGISTRY_JSON_PATH)}`);
+}
+
 // ── Main ────────────────────────────────────────────────────────────────
 
 // A block's source lives in packages/blocks/<name>/, and the component
@@ -418,7 +434,7 @@ function analyzeAllEntries(entries: RegistryEntry[], blockEntries: RegistryEntry
     return { updates, blockUpdates, deepImports, hasChanges };
 }
 
-function main(): void {
+async function main(): Promise<void> {
     const fix = process.argv.includes('--fix');
     const allEntries = parseRegistry();
     const blockEntries = allEntries.filter(e => e.isBlock);
@@ -447,15 +463,23 @@ function main(): void {
         return;
     }
 
-    if (!hasChanges) { console.log('All components and blocks are in sync.'); return; }
+    if (!hasChanges) {
+        console.log('All components and blocks are in sync.');
+        if (fix) await writeRegistryJson();
+        return;
+    }
 
     console.log('');
     if (fix) {
         applyUpdates([...updates, ...blockUpdates]);
+        await writeRegistryJson();
     } else {
         console.log('Run with --fix to update the registry.');
         process.exitCode = 1;
     }
 }
 
-main();
+main().catch((error: unknown) => {
+    console.error(error);
+    process.exitCode = 1;
+});
