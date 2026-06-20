@@ -38,9 +38,27 @@ interface CliFlags {
     readonly ui: boolean;
     /** `--debug` — open the Playwright Inspector, step through actions. */
     readonly debug: boolean;
+    /**
+     * `--remote` — install components by fetching from GitHub raw instead of
+     * the local monorepo copy, exercising the real network path (registry.json
+     * + component/lib files). Implied by `--branch`.
+     */
+    readonly remote: boolean;
+    /**
+     * `--branch <name>` — fetch from this GitHub branch (implies `--remote`).
+     * Use to validate a pushed feature branch end-to-end before merge.
+     */
+    readonly branch?: string;
 }
 
-const KNOWN_FLAGS = new Set(['--headed', '--ui', '--debug']);
+const VALUELESS_FLAGS = new Set(['--headed', '--ui', '--debug', '--remote']);
+
+/** Extra `init`/`add` args that force the CLI to fetch from a remote branch. */
+function remoteCliArgs(flags: CliFlags): string[] {
+    if (flags.branch) return ['--remote', '--branch', flags.branch];
+    if (flags.remote) return ['--remote'];
+    return [];
+}
 
 async function runOne(spec: ComponentSpec, flags: CliFlags): Promise<RunResult> {
     const label = specLabel(spec);
@@ -53,8 +71,9 @@ async function runOne(spec: ComponentSpec, flags: CliFlags): Promise<RunResult> 
         await resetFixtureApp();
         await assertFixtureClean('after reset');
 
-        await runCli([...(spec.initArgs ?? ['init', '--yes'])]);
-        await runCli(['add', ...spec.names, '--yes']);
+        const remoteArgs = remoteCliArgs(flags);
+        await runCli([...(spec.initArgs ?? ['init', '--yes']), ...remoteArgs]);
+        await runCli(['add', ...spec.names, '--yes', ...remoteArgs]);
         await npmInstall();
 
         installHarness(specHarness(spec));
@@ -121,24 +140,46 @@ interface ParsedArgs {
     readonly flags: CliFlags;
 }
 
-function parseArgs(): ParsedArgs {
-    const raw = process.argv.slice(2);
-    const flags: CliFlags = {
-        headed: raw.includes('--headed'),
-        ui: raw.includes('--ui'),
-        debug: raw.includes('--debug'),
-    };
+function parseRawArgs(raw: readonly string[]): { flags: CliFlags; names: string[] } {
+    let headed = false, ui = false, debug = false, remote = false;
+    let branch: string | undefined;
+    const names: string[] = [];
+    const unknownFlags: string[] = [];
 
-    const names = raw.filter(a => !a.startsWith('--'));
-    const unknownFlags = raw.filter(a => a.startsWith('--') && !KNOWN_FLAGS.has(a));
+    for (let i = 0; i < raw.length; i++) {
+        const arg = raw[i];
+        if (arg === '--branch') {
+            branch = raw[++i];
+            if (!branch || branch.startsWith('--')) {
+                console.error('[e2e] --branch requires a branch name (e.g. --branch feat/x)');
+                process.exit(2);
+            }
+        } else if (arg === '--headed') headed = true;
+        else if (arg === '--ui') ui = true;
+        else if (arg === '--debug') debug = true;
+        else if (arg === '--remote') remote = true;
+        else if (arg.startsWith('--')) unknownFlags.push(arg);
+        else names.push(arg);
+    }
+
     if (unknownFlags.length > 0) {
         console.error(`[e2e] Unknown flag(s): ${unknownFlags.join(', ')}`);
-        console.error(`[e2e] Available flags: ${[...KNOWN_FLAGS].join(', ')}`);
+        console.error(`[e2e] Available flags: ${[...VALUELESS_FLAGS].join(', ')}, --branch <name>`);
         process.exit(2);
     }
 
+    return { flags: { headed, ui, debug, remote: remote || !!branch, branch }, names };
+}
+
+function parseArgs(): ParsedArgs {
+    const { flags, names } = parseRawArgs(process.argv.slice(2));
+
     if (names.length === 0) {
-        return { components: ALL_COMPONENTS, cliSpecs: CLI_SPECS, flags };
+        // Remote runs validate the install/fetch path; the CLI-mechanics specs
+        // run against the local CLI and add no remote-fetch coverage, so skip
+        // them (notably add-all-smoke, which would install everything locally).
+        const cliSpecs = flags.remote ? [] : CLI_SPECS;
+        return { components: ALL_COMPONENTS, cliSpecs, flags };
     }
 
     const requested = new Set(names);
@@ -182,10 +223,13 @@ async function main(): Promise<void> {
 }
 
 function describeMode(flags: CliFlags): string {
-    if (flags.ui) return ' [ui mode]';
-    if (flags.debug) return ' [debug mode]';
-    if (flags.headed) return ' [headed]';
-    return '';
+    const parts: string[] = [];
+    if (flags.ui) parts.push('ui mode');
+    else if (flags.debug) parts.push('debug mode');
+    else if (flags.headed) parts.push('headed');
+    if (flags.branch) parts.push(`remote: ${flags.branch}`);
+    else if (flags.remote) parts.push('remote: master');
+    return parts.length > 0 ? ` [${parts.join(', ')}]` : '';
 }
 
 function printSummary(results: readonly RunResult[]): void {
