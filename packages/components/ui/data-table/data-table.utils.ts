@@ -1,3 +1,5 @@
+import type { AggregateFn } from './data-table.types';
+
 export interface RowRange {
     readonly start: number;
     readonly end: number;
@@ -245,6 +247,33 @@ export function buildTreeFromFlat<T>(
 
     const roots = childrenMap.get(null) ?? [];
     return roots.map(attachChildren);
+}
+
+/**
+ * Reduce a list of cell values to a single aggregate string. Shared by column
+ * footers and the range-selection readout so both compute identically.
+ * `count` counts all values; the numeric aggregates ignore non-finite values.
+ */
+export function computeAggregateValue(values: unknown[], fn: AggregateFn): string {
+    if (typeof fn === 'function') return fn(values);
+
+    const nums = values.map(Number).filter(Number.isFinite);
+    if (nums.length === 0 && fn !== 'count') return '';
+
+    switch (fn) {
+        case 'sum':
+            return String(nums.reduce((a, b) => a + b, 0));
+        case 'avg':
+            return String(Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) / 100);
+        case 'count':
+            return String(values.length);
+        case 'min':
+            return String(Math.min(...nums));
+        case 'max':
+            return String(Math.max(...nums));
+        default:
+            return '';
+    }
 }
 
 export interface RowGroup<T> {

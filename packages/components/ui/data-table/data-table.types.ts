@@ -262,6 +262,30 @@ export interface CellRange {
     endCol: string;
 }
 
+/** Live aggregate readout for the currently selected cell range. */
+export interface RangeAggregateStats {
+    /** Total cells in the range (all columns × rows). */
+    count: number;
+    /** How many of those cells held a finite number. */
+    numericCount: number;
+    sum: string;
+    avg: string;
+    min: string;
+    max: string;
+}
+
+/** One numeric column of a range, as a chart series. */
+export interface RangeChartSeries {
+    name: string;
+    values: number[];
+}
+
+/** The selected range reshaped for charting: row labels + one series per numeric column. */
+export interface RangeChartPayload {
+    categories: string[];
+    series: RangeChartSeries[];
+}
+
 export type RowDragPosition = 'above' | 'below' | 'on';
 
 export interface RowReorderEvent<T> {

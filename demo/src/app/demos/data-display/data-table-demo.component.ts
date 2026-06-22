@@ -7,7 +7,9 @@ import {
   CardComponent,
   CardContentComponent,
   CheckboxComponent,
+  BarChartComponent,
   CellIcon,
+  ChartDataPoint,
   ColumnDef,
   ColumnResizeEvent,
   ContextMenuComponent,
@@ -41,6 +43,7 @@ import {
   CellEditEvent,
   CellEditErrorEvent,
   RowReorderEvent,
+  RangeChartPayload,
   DataTableExportQuery,
   columnHelper,
   dateFilterFn,
@@ -607,6 +610,7 @@ class OpsTicketDetailComponent {
     ContextMenuShortcutComponent,
     ...ContextMenuIntegrations,
     FpsMeterComponent,
+    BarChartComponent,
   ],
   templateUrl: './data-table-demo.component.html',
 })
@@ -1448,6 +1452,25 @@ export class DataTableDemoComponent {
       },
     ];
   });
+
+  // ── Range Actions Demo (A2) ──
+  readonly rangeActionColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '110px', sticky: true },
+      { accessorKey: 'clientName', header: locale.colClient, width: 'auto' },
+      { accessorKey: 'amount', header: locale.colAmount, width: '160px', enableSorting: true },
+    ];
+  });
+  readonly rangeChartData = signal<ChartDataPoint[]>([]);
+
+  onRangeChart(payload: RangeChartPayload): void {
+    const series = payload.series[0];
+    if (!series) return;
+    this.rangeChartData.set(
+      payload.categories.map((name, i) => ({ name, value: series.values[i] ?? 0 })),
+    );
+  }
 
   // ── Row Grouping Demo ──
   readonly groupCollapsed = signal<Record<string, boolean>>({});

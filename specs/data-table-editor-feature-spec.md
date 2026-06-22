@@ -108,21 +108,39 @@ width, icon glyphs + conditional classes appear, no wrapper when undeclared.
 
 ---
 
-## WS1 · A2 — Range-selection actions  *(PENDING)*
+## WS1 · A2 — Range-selection actions  *(IMPLEMENTED)*
 
-**Goal:** select a cell range → live Sum/Avg/Count of the selection + "Chart it"
-using the library's existing chart components (no charting dep).
+**Goal:** select a cell range → live Sum/Avg/Count of the selection + "Chart it".
 
-- **DRY refactor:** extract `computeAggregate()`'s body into a pure
-  `computeAggregateValue(values, fn: AggregateFn): string` shared by the footer
-  and the new readout.
-- Read selection via `normalizedCellRange` + `getCellValue`. Build
-  `ChartDataPoint[]`/`ChartSeries[]` from `packages/components/lib/chart.types.ts`
-  (`getChartColor`, `formatChartValue`); render `ui-bar-chart` / `ui-pie-chart` /
-  `ui-stacked-bar-chart` inside a `ui-dialog` with a type switcher.
-- New input `enableRangeActions`. Floating bar anchored to the range
-  (`data-slot="range-actions"`), `max-w-[calc(100vw-2rem)]`, RTL-aware. Emits
-  `rangeChartOpen`. Row/selection counts stay demo-side.
+**Design decision — keep the table lean.** Importing the chart components into
+the core data-table would make them **hard registry dependencies for every
+consumer**, even those who never enable range actions. So A2 ships *emit-only*:
+the "Chart" button emits `rangeChartOpen` with a `RangeChartPayload`; the
+**consumer** renders it with whatever chart they like (the demo wires it to
+`ui-bar-chart`). A built-in default chart dialog (with the chart dependency) is
+**deferred** pending an explicit decision — see open question below.
+
+- **DRY refactor (done):** `computeAggregateValue(values, fn: AggregateFn)`
+  extracted to `data-table.utils.ts`; `computeAggregate()` now delegates to it,
+  so footer and range readout compute identically.
+- **State:** `rangeColumns` (private) reshapes the selection per column from
+  `normalizedCellRange` + `processedData` + `getCellValue` (mirrors
+  `copyCellRangeToClipboard`'s extraction). `rangeSelectionStats` →
+  `{ count, numericCount, sum, avg, min, max } | null` (null unless a ≥2-cell
+  range and `enableRangeActions`). `rangeChartPayload` → first non-numeric column
+  = categories (else `Row N`), numeric columns = series.
+- **UI:** new input `enableRangeActions` (opt-in). A sticky-bottom readout bar
+  *inside the scroll container* (`data-slot="range-actions"`,
+  `max-w-[calc(100vw-2rem)]`, RTL-aware) shows the live stats + a "Chart" button.
+  Output `rangeChartOpen`. Labels via 6 optional locale keys (en + he
+  translated; others fall back to English).
+- **Tests:** 13 (5 util + 8 component: stats, non-numeric counting, gating,
+  single-cell null, chart payload with/without label column, emit, DOM readout).
+  Story `RangeSelectionActions`; demo section wires the payload to a bar chart.
+
+**Open question:** ship a built-in chart dialog (bar/pie/stacked type switcher
+reusing `ui-bar-chart`/`ui-pie-chart`/`ui-stacked-bar-chart`), accepting the
+added registry dependency on those chart components? Or keep emit-only?
 
 ---
 
@@ -187,3 +205,10 @@ aiProvider = input<((req: AiRequest) => AiResult) | undefined>(undefined);
   in addition to a literal `{ glyph }`; demo showcases named icons
   (check / x / loader), story keeps glyph arrows. 10th test added (named-icon
   render branch). Green under browser.
+- **2026-06-22** — `dataBar.track` wired (optional groove behind the fill;
+  rendered only when set). 11th A1 test.
+- **2026-06-22** — **A2 implemented** (emit-only): `computeAggregateValue` DRY
+  refactor, `rangeSelectionStats` / `rangeChartPayload`, `enableRangeActions`
+  input + sticky readout bar + `rangeChartOpen` output, 6 optional locale keys
+  (en/he), 13 tests, story + demo (bar chart wired). Built-in chart dialog
+  deferred. Full data-table spec 319/319 green under browser; demo builds clean.

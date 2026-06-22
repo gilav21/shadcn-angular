@@ -4,7 +4,7 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext, DataTableExportQuery } from './data-table.types';
 import { ContextMenuItem } from '../context-menu';
-import { buildTreeFromFlat } from './data-table.utils';
+import { buildTreeFromFlat, computeAggregateValue } from './data-table.utils';
 import type { DataTableLocale } from './data-table.locales';
 import { dateFilterFn } from './sub/data-table-date-filter.component';
 import { dateRangeFilterFn } from './sub/data-table-date-range-filter.component';
@@ -4464,5 +4464,124 @@ describe('DataTableComponent conditional formatting (A1)', () => {
     it('does not wrap cells when the column declares no formatting', () => {
         const formatted = fixture.debugElement.queryAll(By.css('[data-slot="cell-formatted"]'));
         expect(formatted).toHaveLength(0);
+    });
+});
+
+describe('computeAggregateValue (A2 util)', () => {
+    it('sums, averages, min/max numeric values and ignores non-numeric', () => {
+        const values = ['Alice', 10, 20, 'Bob', 30, 40];
+        expect(computeAggregateValue(values, 'sum')).toBe('100');
+        expect(computeAggregateValue(values, 'avg')).toBe('25');
+        expect(computeAggregateValue(values, 'min')).toBe('10');
+        expect(computeAggregateValue(values, 'max')).toBe('40');
+    });
+
+    it('counts every value (numeric or not)', () => {
+        expect(computeAggregateValue(['Alice', 10, 20], 'count')).toBe('3');
+    });
+
+    it('returns empty string for numeric aggregates over no numbers', () => {
+        expect(computeAggregateValue(['a', 'b'], 'sum')).toBe('');
+    });
+
+    it('rounds averages to two decimals', () => {
+        expect(computeAggregateValue([1, 2], 'avg')).toBe('1.5');
+        expect(computeAggregateValue([1, 1, 2], 'avg')).toBe('1.33');
+    });
+
+    it('supports a custom aggregate function', () => {
+        expect(computeAggregateValue([1, 2, 3], (vals) => `n=${vals.length}`)).toBe('n=3');
+    });
+});
+
+interface SalesRow {
+    rep: string;
+    q1: number;
+    q2: number;
+}
+
+const SALES_DATA: SalesRow[] = [
+    { rep: 'Alice', q1: 10, q2: 20 },
+    { rep: 'Bob', q1: 30, q2: 40 },
+];
+
+const SALES_COLUMNS: ColumnDef<SalesRow>[] = [
+    { accessorKey: 'rep', header: 'Rep' },
+    { accessorKey: 'q1', header: 'Q1' },
+    { accessorKey: 'q2', header: 'Q2' },
+];
+
+describe('DataTableComponent range-selection actions (A2)', () => {
+    let component: DataTableComponent<SalesRow>;
+    let fixture: ComponentFixture<DataTableComponent<SalesRow>>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataTableComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<SalesRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', SALES_DATA);
+        fixture.componentRef.setInput('columns', SALES_COLUMNS);
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.componentRef.setInput('enableRangeActions', true);
+        fixture.detectChanges();
+    });
+
+    it('computes live aggregates over a numeric range', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 1, endCol: 'q2' });
+        const stats = component.rangeSelectionStats();
+        expect(stats).toEqual({ count: 4, numericCount: 4, sum: '100', avg: '25', min: '10', max: '40' });
+    });
+
+    it('counts non-numeric cells but only aggregates numbers', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'rep', endRow: 1, endCol: 'q2' });
+        const stats = component.rangeSelectionStats();
+        expect(stats?.count).toBe(6);
+        expect(stats?.numericCount).toBe(4);
+        expect(stats?.sum).toBe('100');
+    });
+
+    it('is null when enableRangeActions is off', () => {
+        fixture.componentRef.setInput('enableRangeActions', false);
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 1, endCol: 'q2' });
+        expect(component.rangeSelectionStats()).toBeNull();
+    });
+
+    it('is null for a single-cell range', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 0, endCol: 'q1' });
+        expect(component.rangeSelectionStats()).toBeNull();
+    });
+
+    it('builds a chart payload with numeric columns as series and a label column as categories', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'rep', endRow: 1, endCol: 'q2' });
+        const payload = component.rangeChartPayload();
+        expect(payload?.categories).toEqual(['Alice', 'Bob']);
+        expect(payload?.series).toEqual([
+            { name: 'Q1', values: [10, 30] },
+            { name: 'Q2', values: [20, 40] },
+        ]);
+    });
+
+    it('falls back to Row N categories when the range has no label column', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 1, endCol: 'q2' });
+        expect(component.rangeChartPayload()?.categories).toEqual(['Row 1', 'Row 2']);
+    });
+
+    it('emits rangeChartOpen with the payload when openRangeChart is called', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 1, endCol: 'q2' });
+        let emitted: unknown = null;
+        component.rangeChartOpen.subscribe((p) => (emitted = p));
+        component.openRangeChart();
+        expect(emitted).toEqual(component.rangeChartPayload());
+    });
+
+    it('renders the readout bar with the live sum when a range is selected', () => {
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="range-actions"]'))).toHaveLength(0);
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 1, endCol: 'q2' });
+        fixture.detectChanges();
+        const bar = fixture.debugElement.query(By.css('[data-slot="range-actions"]'));
+        expect(bar).toBeTruthy();
+        expect((bar.nativeElement as HTMLElement).textContent).toContain('100');
     });
 });

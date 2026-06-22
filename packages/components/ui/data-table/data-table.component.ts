@@ -77,6 +77,8 @@ import {
   DataTableDisplayRow,
   ColorScale,
   ResolvedCellFormatting,
+  RangeAggregateStats,
+  RangeChartPayload,
 } from "./data-table.types";
 import {
   computeRowRange,
@@ -84,6 +86,7 @@ import {
   computeVariableRowRange,
   buildPrefixSums,
   partitionIntoGroups,
+  computeAggregateValue,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
 
@@ -243,6 +246,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly cellFlashDuration = input(500);
   readonly enableCellRangeSelection = input(false);
   readonly cellRange = signal<CellRange | null>(null);
+  /**
+   * Show a contextual readout when a cell range is selected: live Sum / Avg /
+   * Count of the selection, plus a "Chart" action. Requires
+   * `enableCellRangeSelection`. Opt-in; off by default.
+   */
+  readonly enableRangeActions = input(false);
+  /** Emitted when the user opens the range chart; carries the chart payload. */
+  readonly rangeChartOpen = output<RangeChartPayload>();
   readonly columnResize = output<ColumnResizeEvent>();
 
   /**
@@ -1802,6 +1813,93 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     );
   }
 
+  /** Selected range reshaped per column: header + cell values, or null when no range. */
+  private readonly rangeColumns = computed(() => {
+    const range = this.normalizedCellRange();
+    if (!range) return null;
+    const keys = this.navigableColumnKeys().slice(range.minCol, range.maxCol + 1);
+    const data = this.processedData();
+    const columns = this.enhancedColumns();
+    const result = keys.map((key) => {
+      const col = columns.find((c) => String(c.accessorKey) === key);
+      return { key, header: col?.header ?? key, col, values: [] as unknown[] };
+    });
+    for (let r = range.minRow; r <= range.maxRow; r++) {
+      const row = data[r];
+      if (!row) continue;
+      for (const entry of result) {
+        if (entry.col) {
+          entry.values.push(this.getCellValue(row, entry.col.accessorKey, entry.col));
+        }
+      }
+    }
+    return result;
+  });
+
+  /** Live Sum / Avg / Count / Min / Max of the selected range; null unless a multi-cell range is active. */
+  readonly rangeSelectionStats = computed<RangeAggregateStats | null>(() => {
+    if (!this.enableRangeActions()) return null;
+    const cols = this.rangeColumns();
+    if (!cols) return null;
+    const values = cols.flatMap((c) => c.values);
+    if (values.length < 2) return null;
+    const numericCount = values.map(Number).filter(Number.isFinite).length;
+    return {
+      count: values.length,
+      numericCount,
+      sum: computeAggregateValue(values, "sum"),
+      avg: computeAggregateValue(values, "avg"),
+      min: computeAggregateValue(values, "min"),
+      max: computeAggregateValue(values, "max"),
+    };
+  });
+
+  /** The selected range as chart data: first column → categories, numeric columns → series. */
+  readonly rangeChartPayload = computed<RangeChartPayload | null>(() => {
+    const cols = this.rangeColumns();
+    if (!cols || cols.length === 0) return null;
+    const rowCount = cols[0].values.length;
+    if (rowCount === 0) return null;
+    const numericCols = cols.filter((c) =>
+      c.values.some((v) => Number.isFinite(Number(v))),
+    );
+    if (numericCols.length === 0) return null;
+    const labelCol = cols.find((c) => !numericCols.includes(c));
+    const categories = this._rangeCategories(labelCol?.values, rowCount);
+    const series = numericCols.map((c) => ({
+      name: c.header,
+      values: c.values.map((v) => (Number.isFinite(Number(v)) ? Number(v) : 0)),
+    }));
+    return { categories, series };
+  });
+
+  private _rangeCategories(labelValues: unknown[] | undefined, rowCount: number): string[] {
+    if (labelValues) {
+      return labelValues.map((v) => String(v ?? ""));
+    }
+    return Array.from({ length: rowCount }, (_, i) => `Row ${i + 1}`);
+  }
+
+  /** Emit the chart payload for the selected range. No-op when it has no numeric data. */
+  openRangeChart(): void {
+    const payload = this.rangeChartPayload();
+    if (!payload) return;
+    this.rangeChartOpen.emit(payload);
+  }
+
+  /** Localized labels for the range readout (English fallback). */
+  readonly rangeLabels = computed(() => {
+    const l = this.t();
+    return {
+      count: l.rangeCount ?? "Count",
+      sum: l.rangeSum ?? "Sum",
+      avg: l.rangeAvg ?? "Avg",
+      min: l.rangeMin ?? "Min",
+      max: l.rangeMax ?? "Max",
+      chart: l.rangeChart ?? "Chart",
+    };
+  });
+
   readonly hasFooter = computed(() => {
     const mode = this.showFooter();
     if (mode === false) return false;
@@ -2523,7 +2621,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private _resolveDataBar(
     col: ColumnDef<T>,
     value: unknown,
-  ): { width: string; color: string; track: string } | null {
+  ): { width: string; color: string; track: string | null } | null {
     if (!col.dataBar) {
       return null;
     }
@@ -3758,33 +3856,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private computeAggregate(rows: T[], col: ColumnDef<T>): string {
     const fn = col.aggregateFn;
     if (!fn) return "";
-
     const values = rows.map((row) =>
       this.getCellValue(row, col.accessorKey, col),
     );
-
-    if (typeof fn === "function") return fn(values);
-
-    const nums = values.map(Number).filter(Number.isFinite);
-    if (nums.length === 0 && fn !== "count") return "";
-
-    switch (fn) {
-      case "sum":
-        return String(nums.reduce((a, b) => a + b, 0));
-      case "avg":
-        return String(
-          Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) /
-            100,
-        );
-      case "count":
-        return String(rows.length);
-      case "min":
-        return String(Math.min(...nums));
-      case "max":
-        return String(Math.max(...nums));
-      default:
-        return "";
-    }
+    return computeAggregateValue(values, fn);
   }
 
   showAllColumns(): void {

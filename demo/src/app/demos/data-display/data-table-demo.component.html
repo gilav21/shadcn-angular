@@ -679,6 +679,32 @@
   </div>
 </section>
 
+<!-- Range Actions Demo (A2) -->
+<section class="space-y-4">
+  <h2 id="data-table-range-actions" class="text-2xl font-semibold scroll-m-20">Range selection actions</h2>
+  <p class="text-muted-foreground">
+    Drag-select a block of cells (or click a cell, then shift-click another). A readout bar shows the live
+    <strong>Count / Sum / Avg / Min / Max</strong> of the selection. Click <strong>Chart</strong> to emit the
+    range as a chart payload — wired here to a bar chart.
+  </p>
+  <div class="rounded-md border h-[320px] sm:h-[420px] overflow-auto relative">
+    <ui-data-table
+      [data]="payments()"
+      [columns]="rangeActionColumns()"
+      [enableCellRangeSelection]="true"
+      [enableRangeActions]="true"
+      [showToolbar]="false"
+      [showPagination]="false"
+      (rangeChartOpen)="onRangeChart($event)"
+    />
+  </div>
+  @if (rangeChartData().length) {
+    <div class="rounded-md border p-4">
+      <ui-bar-chart [data]="rangeChartData()" [height]="240" />
+    </div>
+  }
+</section>
+
 <!-- Row Grouping Demo -->
 <section class="space-y-4">
   <h2 id="data-table-grouping" class="text-2xl font-semibold scroll-m-20">{{ t().sectionRowGrouping }}</h2>

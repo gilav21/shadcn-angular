@@ -1211,3 +1211,38 @@ export const ConditionalFormatting: StoryObj<DataTableComponent<PerfRow>> = {
         columns: perfColumns,
     },
 };
+
+const rangeColumns: ColumnDef<PerfRow>[] = [
+    { accessorKey: 'rep', header: 'Rep' },
+    { accessorKey: 'sales', header: 'Sales', enableSorting: true },
+    { accessorKey: 'score', header: 'Score', enableSorting: true },
+];
+
+export const RangeSelectionActions: StoryObj<DataTableComponent<PerfRow>> = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Click a cell, then shift-click another (or drag) to select a range. A readout bar shows the
+                    live <strong>Count / Sum / Avg / Min / Max</strong>; the <strong>Chart</strong> button emits
+                    (rangeChartOpen) with the selection as chart data.
+                </p>
+                <div class="h-[360px] overflow-auto rounded-md border">
+                    <ui-data-table
+                        [data]="data"
+                        [columns]="columns"
+                        [enableCellRangeSelection]="true"
+                        [enableRangeActions]="true"
+                        [showToolbar]="false"
+                        [showPagination]="false"
+                    />
+                </div>
+            </div>
+        `,
+    }),
+    args: {
+        data: perfRows,
+        columns: rangeColumns,
+    },
+};
