@@ -661,6 +661,24 @@
   </div>
 </section>
 
+<!-- Conditional Formatting Demo (A1) -->
+<section class="space-y-4">
+  <h2 id="data-table-conditional-formatting" class="text-2xl font-semibold scroll-m-20">Conditional formatting</h2>
+  <p class="text-muted-foreground">
+    Drive cell styling from the value, declaratively on the <code class="text-xs bg-muted px-1 rounded">ColumnDef</code> —
+    no custom cell components. Amount uses an inline <code class="text-xs bg-muted px-1 rounded">dataBar</code>;
+    Status uses <code class="text-xs bg-muted px-1 rounded">iconSet</code> + <code class="text-xs bg-muted px-1 rounded">cellClassRules</code>.
+  </p>
+  <div class="h-[300px] sm:h-[400px]">
+    <ui-data-table
+      [data]="payments()"
+      [columns]="conditionalColumns()"
+      [showToolbar]="false"
+      [showPagination]="false"
+    />
+  </div>
+</section>
+
 <!-- Row Grouping Demo -->
 <section class="space-y-4">
   <h2 id="data-table-grouping" class="text-2xl font-semibold scroll-m-20">{{ t().sectionRowGrouping }}</h2>

@@ -1406,6 +1406,43 @@ export class DataTableDemoComponent {
     ];
   });
 
+  // ── Conditional Formatting Demo (A1) ──
+  private statusIcon(status: Payment['status']): { icon: string; class?: string } | undefined {
+    if (status === 'success') return { icon: '✓', class: 'text-green-600' };
+    if (status === 'failed') return { icon: '✕', class: 'text-red-600' };
+    if (status === 'processing') return { icon: '⟳', class: 'text-blue-600' };
+    return { icon: '•', class: 'text-muted-foreground' };
+  }
+
+  readonly conditionalColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '110px', sticky: true },
+      { accessorKey: 'clientName', header: locale.colClient, width: 'auto' },
+      {
+        accessorKey: 'amount',
+        header: locale.colAmount,
+        width: '220px',
+        enableSorting: true,
+        cell: (row) => `$${row.amount.toFixed(2)}`,
+        // Inline data bar scaled to the dataset's upper bound.
+        dataBar: { min: 0, max: 5500, color: 'color-mix(in srgb, var(--primary) 28%, transparent)' },
+      },
+      {
+        accessorKey: 'status',
+        header: locale.colStatus,
+        width: '160px',
+        enableSorting: true,
+        iconSet: (v) => this.statusIcon(v as Payment['status']),
+        cellClassRules: [
+          { when: (v) => v === 'success', class: 'text-green-600 font-medium' },
+          { when: (v) => v === 'failed', class: 'text-red-600 font-medium' },
+          { when: (v) => v === 'processing', class: 'text-blue-600' },
+        ],
+      },
+    ];
+  });
+
   // ── Row Grouping Demo ──
   readonly groupCollapsed = signal<Record<string, boolean>>({});
   readonly groupingColumns = computed<ColumnDef<Payment>[]>(() => {

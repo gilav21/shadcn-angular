@@ -4315,3 +4315,131 @@ describe('DataTableComponent - deep tree reorder removal', () => {
         expect(result.map((n) => n.id)).toEqual(['a', 'b', 'a1x']);
     });
 });
+
+interface ScoreRow {
+    id: string;
+    name: string;
+    score: number;
+}
+
+const SCORE_DATA: ScoreRow[] = [
+    { id: '1', name: 'Alice', score: 0 },
+    { id: '2', name: 'Bob', score: 50 },
+    { id: '3', name: 'Charlie', score: 100 },
+];
+
+describe('DataTableComponent conditional formatting (A1)', () => {
+    let component: DataTableComponent<ScoreRow>;
+    let fixture: ComponentFixture<DataTableComponent<ScoreRow>>;
+
+    function setColumns(scoreCol: Partial<ColumnDef<ScoreRow>>): void {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'name', header: 'Name' },
+            { accessorKey: 'score', header: 'Score', ...scoreCol },
+        ] as ColumnDef<ScoreRow>[]);
+        fixture.detectChanges();
+    }
+
+    function scoreColumn(): ColumnDef<ScoreRow> {
+        return component.columns().find((c) => c.accessorKey === 'score')!;
+    }
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataTableComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<ScoreRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', SCORE_DATA);
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'name', header: 'Name' },
+            { accessorKey: 'score', header: 'Score' },
+        ] as ColumnDef<ScoreRow>[]);
+        fixture.detectChanges();
+    });
+
+    it('returns null when the column declares no conditional formatting', () => {
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[1])).toBeNull();
+    });
+
+    it('applies cellClassRules whose predicate matches and joins multiple', () => {
+        setColumns({
+            cellClassRules: [
+                { when: (v) => (v as number) >= 50, class: 'text-green-600' },
+                { when: (v) => (v as number) === 100, class: 'font-bold' },
+                { when: (v) => (v as number) < 0, class: 'text-red-600' },
+            ],
+        });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[2])?.class).toBe(
+            'text-green-600 font-bold',
+        );
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[0])?.class).toBe('');
+    });
+
+    it('returns the style object from cellStyleRules', () => {
+        setColumns({
+            cellStyleRules: (v) => ((v as number) > 75 ? { color: 'gold' } : undefined),
+        });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[2])?.style).toEqual({
+            color: 'gold',
+        });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[0])?.style).toEqual({});
+    });
+
+    it('produces a color-mix background from colorScale based on value position', () => {
+        setColumns({ colorScale: { min: 0, max: 100, from: 'white', to: 'red' } });
+        const mid = component.getCellFormatting(scoreColumn(), SCORE_DATA[1])?.style[
+            'background-color'
+        ];
+        expect(mid).toBe('color-mix(in srgb, red 50%, white)');
+    });
+
+    it('computes a clamped data bar width as a percentage', () => {
+        setColumns({ dataBar: { min: 0, max: 100, color: 'steelblue' } });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[1])?.dataBar).toEqual({
+            width: '50%',
+            color: 'steelblue',
+            track: 'transparent',
+        });
+        // value at/above max clamps to 100%
+        expect(
+            component.getCellFormatting(scoreColumn(), SCORE_DATA[2])?.dataBar?.width,
+        ).toBe('100%');
+    });
+
+    it('resolves an icon from iconSet', () => {
+        setColumns({
+            iconSet: (v) => ((v as number) >= 100 ? { icon: '🏆', class: 'text-amber-500' } : undefined),
+        });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[2])?.icon).toEqual({
+            icon: '🏆',
+            class: 'text-amber-500',
+        });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[0])?.icon).toBeNull();
+    });
+
+    it('renders data bars in the DOM with the computed width', () => {
+        setColumns({ dataBar: { min: 0, max: 100, color: 'steelblue' } });
+        const bars = fixture.debugElement.queryAll(By.css('[data-slot="cell-data-bar"]'));
+        expect(bars).toHaveLength(3);
+        const widths = bars.map((b) => (b.nativeElement as HTMLElement).style.width);
+        expect(widths).toEqual(['0%', '50%', '100%']);
+    });
+
+    it('renders icon-set glyphs and conditional classes in the DOM', () => {
+        setColumns({
+            iconSet: (v) => ((v as number) >= 100 ? { icon: '🏆' } : undefined),
+            cellClassRules: [{ when: (v) => (v as number) >= 100, class: 'is-top' }],
+        });
+        const icons = fixture.debugElement.queryAll(By.css('[data-slot="cell-icon"]'));
+        expect(icons).toHaveLength(1);
+        expect((icons[0].nativeElement as HTMLElement).textContent).toContain('🏆');
+        const topCells = fixture.debugElement.queryAll(By.css('[data-slot="cell-formatted"].is-top'));
+        expect(topCells).toHaveLength(1);
+    });
+
+    it('does not wrap cells when the column declares no formatting', () => {
+        const formatted = fixture.debugElement.queryAll(By.css('[data-slot="cell-formatted"]'));
+        expect(formatted).toHaveLength(0);
+    });
+});

@@ -1,6 +1,6 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
 import { DataTableComponent } from './data-table.component';
-import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext } from './data-table.types';
+import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext, CellIcon } from './data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { InputComponent } from '../input';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from '../context-menu';
@@ -1138,5 +1138,76 @@ export const InlineEditing: Story = {
     args: {
         data: sampleData.slice(0, 6),
         columns: editableColumns,
+    },
+};
+
+interface PerfRow {
+    rep: string;
+    sales: number;
+    growth: number;
+    score: number;
+}
+
+const perfRows: PerfRow[] = [
+    { rep: 'Alice', sales: 92000, growth: 0.24, score: 96 },
+    { rep: 'Bob', sales: 41000, growth: -0.08, score: 58 },
+    { rep: 'Charlie', sales: 67000, growth: 0.11, score: 74 },
+    { rep: 'Dora', sales: 15000, growth: -0.31, score: 33 },
+    { rep: 'Evan', sales: 78000, growth: 0.05, score: 81 },
+];
+
+function growthIcon(value: unknown): CellIcon | undefined {
+    const n = value as number;
+    if (n > 0) return { icon: '▲', class: 'text-green-600' };
+    if (n < 0) return { icon: '▼', class: 'text-red-600' };
+    return undefined;
+}
+
+const perfColumns: ColumnDef<PerfRow>[] = [
+    { accessorKey: 'rep', header: 'Rep' },
+    {
+        accessorKey: 'sales',
+        header: 'Sales',
+        cell: (r) => `$${r.sales.toLocaleString()}`,
+        // Inline data bar scaled to the column max.
+        dataBar: { min: 0, max: 100000, color: 'color-mix(in srgb, var(--primary) 30%, transparent)' },
+    },
+    {
+        accessorKey: 'growth',
+        header: 'Growth',
+        cell: (r) => `${(r.growth * 100).toFixed(0)}%`,
+        // Value-driven text color + a trend glyph.
+        cellClassRules: [
+            { when: (v) => (v as number) > 0, class: 'font-medium' },
+            { when: (v) => (v as number) < 0, class: 'font-medium' },
+        ],
+        iconSet: growthIcon,
+    },
+    {
+        accessorKey: 'score',
+        header: 'Score',
+        // Heat-map background interpolated white -> emerald across 0..100.
+        colorScale: { min: 0, max: 100, from: 'transparent', to: 'color-mix(in srgb, #10b981 45%, transparent)' },
+    },
+];
+
+export const ConditionalFormatting: StoryObj<DataTableComponent<PerfRow>> = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Per-column conditional formatting: <strong>data bars</strong> on Sales,
+                    value-driven <strong>icons + classes</strong> on Growth, and a
+                    <strong>color scale</strong> heat-map on Score — all declarative on the ColumnDef,
+                    no custom cell components.
+                </p>
+                <ui-data-table [data]="data" [columns]="columns" [showToolbar]="false" [showPagination]="false" />
+            </div>
+        `,
+    }),
+    args: {
+        data: perfRows,
+        columns: perfColumns,
     },
 };

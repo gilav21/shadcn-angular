@@ -59,9 +59,55 @@ export interface ColumnDef<T> {
     floatingFilterComponent?: Type<unknown>;
     floatingFilterTemplate?: TemplateRef<unknown>;
     enableCellFlash?: boolean;
+    /** Conditional formatting: CSS classes applied when a predicate matches the cell value. */
+    cellClassRules?: CellClassRule<T>[];
+    /** Conditional formatting: inline styles derived from the cell value (e.g. text color). */
+    cellStyleRules?: (value: unknown, row: T) => Record<string, string> | undefined;
+    /** Heat-map background that interpolates `from`→`to` by where the value sits in `[min, max]`. */
+    colorScale?: ColorScale;
+    /** Inline horizontal bar whose width is the value's position in `[min, max]` (Excel data bars). */
+    dataBar?: DataBar;
+    /** Returns an icon to prefix the cell value, or `undefined` for none (Excel icon sets). */
+    iconSet?: (value: unknown, row: T) => CellIcon | undefined;
 }
 
 export type AggregateFn = 'sum' | 'avg' | 'count' | 'min' | 'max' | ((values: unknown[]) => string);
+
+export interface CellClassRule<T> {
+    when: (value: unknown, row: T) => boolean;
+    class: string;
+}
+
+export interface ColorScale {
+    min: number;
+    max: number;
+    /** Color at `min` (CSS color). */
+    from: string;
+    /** Color at `max` (CSS color). */
+    to: string;
+}
+
+export interface DataBar {
+    min: number;
+    max: number;
+    /** Bar fill color (CSS color). */
+    color: string;
+    /** Track color behind the bar; defaults to transparent. */
+    track?: string;
+}
+
+export interface CellIcon {
+    icon: string;
+    class?: string;
+}
+
+/** Resolved, value-aware formatting for a single cell. `null` when the column declares none. */
+export interface ResolvedCellFormatting {
+    class: string;
+    style: Record<string, string>;
+    dataBar: { width: string; color: string; track: string } | null;
+    icon: CellIcon | null;
+}
 
 export interface EnhancedColumnDef<T> extends ColumnDef<T> {
     _stickyLeft?: number;

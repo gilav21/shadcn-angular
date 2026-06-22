@@ -75,6 +75,8 @@ import {
   CellStyleColumn,
   GroupRow,
   DataTableDisplayRow,
+  ColorScale,
+  ResolvedCellFormatting,
 } from "./data-table.types";
 import {
   computeRowRange,
@@ -2458,6 +2460,102 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
 
     return (row as Record<string, unknown>)[key as string];
+  }
+
+  /**
+   * Resolve value-aware conditional formatting for a cell. Returns `null` when
+   * the column declares none, so unformatted cells render with zero overhead.
+   */
+  getCellFormatting(col: ColumnDef<T>, row: T): ResolvedCellFormatting | null {
+    if (!this._hasConditionalFormatting(col)) {
+      return null;
+    }
+    const value = this.getCellValue(row, col.accessorKey, col);
+    return {
+      class: this._resolveCellClassRules(col, value, row),
+      style: this._resolveCellStyle(col, value, row),
+      dataBar: this._resolveDataBar(col, value),
+      icon: col.iconSet?.(value, row) ?? null,
+    };
+  }
+
+  private _hasConditionalFormatting(col: ColumnDef<T>): boolean {
+    return (
+      col.cellClassRules !== undefined ||
+      col.cellStyleRules !== undefined ||
+      col.colorScale !== undefined ||
+      col.dataBar !== undefined ||
+      col.iconSet !== undefined
+    );
+  }
+
+  private _resolveCellClassRules(col: ColumnDef<T>, value: unknown, row: T): string {
+    if (!col.cellClassRules) {
+      return "";
+    }
+    const out: string[] = [];
+    for (const rule of col.cellClassRules) {
+      if (rule.when(value, row)) {
+        out.push(rule.class);
+      }
+    }
+    return out.join(" ");
+  }
+
+  private _resolveCellStyle(col: ColumnDef<T>, value: unknown, row: T): Record<string, string> {
+    const style = col.cellStyleRules?.(value, row) ?? {};
+    if (!col.colorScale) {
+      return style;
+    }
+    const bg = this._colorScaleBackground(col.colorScale, value);
+    return bg ? { ...style, "background-color": bg } : style;
+  }
+
+  private _colorScaleBackground(scale: ColorScale, value: unknown): string | null {
+    const num = this._toFiniteNumber(value);
+    if (num === null) {
+      return null;
+    }
+    const pct = this._positionPercent(num, scale.min, scale.max);
+    return `color-mix(in srgb, ${scale.to} ${pct}%, ${scale.from})`;
+  }
+
+  private _resolveDataBar(
+    col: ColumnDef<T>,
+    value: unknown,
+  ): { width: string; color: string; track: string } | null {
+    if (!col.dataBar) {
+      return null;
+    }
+    const num = this._toFiniteNumber(value);
+    if (num === null) {
+      return null;
+    }
+    const pct = this._positionPercent(num, col.dataBar.min, col.dataBar.max);
+    return {
+      width: `${pct}%`,
+      color: col.dataBar.color,
+      track: col.dataBar.track ?? "transparent",
+    };
+  }
+
+  private _toFiniteNumber(value: unknown): number | null {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === "string") {
+      const num = Number.parseFloat(value);
+      return Number.isFinite(num) ? num : null;
+    }
+    return null;
+  }
+
+  private _positionPercent(value: number, min: number, max: number): number {
+    if (max === min) {
+      return 0;
+    }
+    const pct = ((value - min) / (max - min)) * 100;
+    return Math.max(0, Math.min(100, pct));
   }
 
   getCellStringValue(row: T, column: ColumnDef<T>): string {

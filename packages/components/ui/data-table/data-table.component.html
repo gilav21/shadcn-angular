@@ -42,10 +42,38 @@
             *ngTemplateOutlet="col.template; context: { $implicit: row }"
           ></ng-container>
         }
-      } @else if (col.cell) {
-        {{ col.cell(row) }}
       } @else {
-        {{ getCellValue(row, col.accessorKey, col) }}
+        @let fmt = getCellFormatting(col, row);
+        @if (fmt) {
+          <span
+            data-slot="cell-formatted"
+            class="relative flex w-full items-center gap-1.5 {{ fmt.class }}"
+            [style]="fmt.style"
+          >
+            @if (fmt.dataBar) {
+              <span
+                data-slot="cell-data-bar"
+                class="pointer-events-none absolute inset-y-0.5 start-0 rounded-sm"
+                [style.width]="fmt.dataBar.width"
+                [style.background-color]="fmt.dataBar.color"
+              ></span>
+            }
+            @if (fmt.icon) {
+              <span data-slot="cell-icon" class="relative shrink-0 {{ fmt.icon.class }}">{{ fmt.icon.icon }}</span>
+            }
+            <span class="relative min-w-0 truncate">
+              @if (col.cell) {
+                {{ col.cell(row) }}
+              } @else {
+                {{ getCellValue(row, col.accessorKey, col) }}
+              }
+            </span>
+          </span>
+        } @else if (col.cell) {
+          {{ col.cell(row) }}
+        } @else {
+          {{ getCellValue(row, col.accessorKey, col) }}
+        }
       }
     </ng-template>
 
