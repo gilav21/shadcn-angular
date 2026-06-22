@@ -7,6 +7,7 @@ import {
   CardComponent,
   CardContentComponent,
   CheckboxComponent,
+  CellIcon,
   ColumnDef,
   ColumnResizeEvent,
   ContextMenuComponent,
@@ -1407,11 +1408,11 @@ export class DataTableDemoComponent {
   });
 
   // ── Conditional Formatting Demo (A1) ──
-  private statusIcon(status: Payment['status']): { icon: string; class?: string } | undefined {
-    if (status === 'success') return { icon: '✓', class: 'text-green-600' };
-    if (status === 'failed') return { icon: '✕', class: 'text-red-600' };
-    if (status === 'processing') return { icon: '⟳', class: 'text-blue-600' };
-    return { icon: '•', class: 'text-muted-foreground' };
+  private statusIcon(status: Payment['status']): CellIcon | undefined {
+    if (status === 'success') return { name: 'check', class: 'text-green-600' };
+    if (status === 'failed') return { name: 'x', class: 'text-red-600' };
+    if (status === 'processing') return { name: 'loader', class: 'text-blue-600' };
+    return { glyph: '•', class: 'text-muted-foreground' };
   }
 
   readonly conditionalColumns = computed<ColumnDef<Payment>[]>(() => {

@@ -97,7 +97,11 @@ export interface DataBar {
 }
 
 export interface CellIcon {
-    icon: string;
+    /** A named icon from the `ui-icon` set (e.g. `'chevron-up'`). Takes precedence over `glyph`. */
+    name?: string;
+    /** A literal glyph/emoji string (e.g. `'▲'`, `'🏆'`). Used when `name` is not set. */
+    glyph?: string;
+    /** Extra CSS classes for the icon (e.g. color). */
     class?: string;
 }
 

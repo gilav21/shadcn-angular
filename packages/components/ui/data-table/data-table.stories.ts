@@ -1158,8 +1158,8 @@ const perfRows: PerfRow[] = [
 
 function growthIcon(value: unknown): CellIcon | undefined {
     const n = value as number;
-    if (n > 0) return { icon: '▲', class: 'text-green-600' };
-    if (n < 0) return { icon: '▼', class: 'text-red-600' };
+    if (n > 0) return { glyph: '▲', class: 'text-green-600' };
+    if (n < 0) return { glyph: '▼', class: 'text-red-600' };
     return undefined;
 }
 

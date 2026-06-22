@@ -4409,10 +4409,10 @@ describe('DataTableComponent conditional formatting (A1)', () => {
 
     it('resolves an icon from iconSet', () => {
         setColumns({
-            iconSet: (v) => ((v as number) >= 100 ? { icon: '🏆', class: 'text-amber-500' } : undefined),
+            iconSet: (v) => ((v as number) >= 100 ? { glyph: '🏆', class: 'text-amber-500' } : undefined),
         });
         expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[2])?.icon).toEqual({
-            icon: '🏆',
+            glyph: '🏆',
             class: 'text-amber-500',
         });
         expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[0])?.icon).toBeNull();
@@ -4428,14 +4428,25 @@ describe('DataTableComponent conditional formatting (A1)', () => {
 
     it('renders icon-set glyphs and conditional classes in the DOM', () => {
         setColumns({
-            iconSet: (v) => ((v as number) >= 100 ? { icon: '🏆' } : undefined),
+            iconSet: (v) => ((v as number) >= 100 ? { glyph: '🏆' } : undefined),
             cellClassRules: [{ when: (v) => (v as number) >= 100, class: 'is-top' }],
         });
-        const icons = fixture.debugElement.queryAll(By.css('[data-slot="cell-icon"]'));
+        const icons = fixture.debugElement.queryAll(By.css('span[data-slot="cell-icon"]'));
         expect(icons).toHaveLength(1);
         expect((icons[0].nativeElement as HTMLElement).textContent).toContain('🏆');
         const topCells = fixture.debugElement.queryAll(By.css('[data-slot="cell-formatted"].is-top'));
         expect(topCells).toHaveLength(1);
+    });
+
+    it('renders a named ui-icon when iconSet returns { name }', () => {
+        setColumns({
+            iconSet: (v) => ((v as number) >= 100 ? { name: 'chevron-up' } : undefined),
+        });
+        const namedIcons = fixture.debugElement.queryAll(By.css('ui-icon[data-slot="cell-icon"]'));
+        expect(namedIcons).toHaveLength(1);
+        // glyph branch must not also render
+        const glyphSpans = fixture.debugElement.queryAll(By.css('span[data-slot="cell-icon"]'));
+        expect(glyphSpans).toHaveLength(0);
     });
 
     it('does not wrap cells when the column declares no formatting', () => {

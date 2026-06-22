@@ -59,7 +59,7 @@ iconSet?: (value: unknown, row: T) => CellIcon | undefined;           // value �
 interface CellClassRule<T> { when: (value: unknown, row: T) => boolean; class: string; }
 interface ColorScale { min: number; max: number; from: string; to: string; }
 interface DataBar   { min: number; max: number; color: string; track?: string; }
-interface CellIcon  { icon: string; class?: string; }
+interface CellIcon  { name?: string; glyph?: string; class?: string; }  // name -> <ui-icon>, else glyph string
 interface ResolvedCellFormatting {       // returned by getCellFormatting()
   class: string;
   style: Record<string, string>;
@@ -75,7 +75,9 @@ the barrel `export *`.)*
 - **One public resolver**, `getCellFormatting(col, row): ResolvedCellFormatting
   | null`, plus small private helpers (`_hasConditionalFormatting`,
   `_resolveCellClassRules`, `_resolveCellStyle`, `_colorScaleBackground`,
-  `_resolveDataBar`, `_toFiniteNumber`, `_positionPercent`). Returns `null` when
+  `_resolveDataBar`, `_toFiniteNumber`, `_positionPercent`). `iconSet` may
+  return `{ name }` (rendered as a `ui-icon`) or `{ glyph }` (a literal
+  string/emoji); `name` wins when both are present. Returns `null` when
   the column declares nothing → unformatted cells render exactly as before, zero
   overhead. Each helper kept small for cognitive-complexity ≤ 15.
 - **Color scale & heat** use native CSS `color-mix(in srgb, <to> <pct>%, <from>)`
@@ -181,3 +183,7 @@ aiProvider = input<((req: AiRequest) => AiResult) | undefined>(undefined);
   types + `getCellFormatting` resolver + single-site `#cellContentTpl` wiring +
   9 tests (green, 304/304 in file under browser) + story + demo. Branch
   `feat/data-table-conditional-formatting`. A2/WS2/WS3 pending.
+- **2026-06-22** — `iconSet` extended to accept a named `ui-icon` (`{ name }`)
+  in addition to a literal `{ glyph }`; demo showcases named icons
+  (check / x / loader), story keeps glyph arrows. 10th test added (named-icon
+  render branch). Green under browser.

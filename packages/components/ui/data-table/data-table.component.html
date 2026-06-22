@@ -59,7 +59,16 @@
               ></span>
             }
             @if (fmt.icon) {
-              <span data-slot="cell-icon" class="relative shrink-0 {{ fmt.icon.class }}">{{ fmt.icon.icon }}</span>
+              @if (fmt.icon.name) {
+                <ui-icon
+                  data-slot="cell-icon"
+                  [name]="fmt.icon.name"
+                  size="xs"
+                  class="relative shrink-0 {{ fmt.icon.class }}"
+                />
+              } @else if (fmt.icon.glyph) {
+                <span data-slot="cell-icon" class="relative shrink-0 {{ fmt.icon.class }}">{{ fmt.icon.glyph }}</span>
+              }
             }
             <span class="relative min-w-0 truncate">
               @if (col.cell) {
