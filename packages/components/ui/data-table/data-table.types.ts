@@ -109,7 +109,8 @@ export interface CellIcon {
 export interface ResolvedCellFormatting {
     class: string;
     style: Record<string, string>;
-    dataBar: { width: string; color: string; track: string } | null;
+    /** `track` is `null` when the column declares no track (groove is not rendered). */
+    dataBar: { width: string; color: string; track: string | null } | null;
     icon: CellIcon | null;
 }
 

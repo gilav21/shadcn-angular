@@ -51,6 +51,13 @@
             [style]="fmt.style"
           >
             @if (fmt.dataBar) {
+              @if (fmt.dataBar.track) {
+                <span
+                  data-slot="cell-data-bar-track"
+                  class="pointer-events-none absolute inset-x-0 inset-y-0.5 rounded-sm"
+                  [style.background-color]="fmt.dataBar.track"
+                ></span>
+              }
               <span
                 data-slot="cell-data-bar"
                 class="pointer-events-none absolute inset-y-0.5 start-0 rounded-sm"

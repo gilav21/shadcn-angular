@@ -1426,8 +1426,13 @@ export class DataTableDemoComponent {
         width: '220px',
         enableSorting: true,
         cell: (row) => `$${row.amount.toFixed(2)}`,
-        // Inline data bar scaled to the dataset's upper bound.
-        dataBar: { min: 0, max: 5500, color: 'color-mix(in srgb, var(--primary) 28%, transparent)' },
+        // Inline data bar scaled to the dataset's upper bound, with a faint track groove.
+        dataBar: {
+          min: 0,
+          max: 5500,
+          color: 'color-mix(in srgb, var(--primary) 28%, transparent)',
+          track: 'color-mix(in srgb, var(--muted-foreground) 12%, transparent)',
+        },
       },
       {
         accessorKey: 'status',

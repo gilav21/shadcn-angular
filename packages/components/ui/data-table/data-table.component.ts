@@ -2535,7 +2535,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return {
       width: `${pct}%`,
       color: col.dataBar.color,
-      track: col.dataBar.track ?? "transparent",
+      track: col.dataBar.track ?? null,
     };
   }
 

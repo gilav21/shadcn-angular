@@ -4399,7 +4399,7 @@ describe('DataTableComponent conditional formatting (A1)', () => {
         expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[1])?.dataBar).toEqual({
             width: '50%',
             color: 'steelblue',
-            track: 'transparent',
+            track: null,
         });
         // value at/above max clamps to 100%
         expect(
@@ -4424,6 +4424,18 @@ describe('DataTableComponent conditional formatting (A1)', () => {
         expect(bars).toHaveLength(3);
         const widths = bars.map((b) => (b.nativeElement as HTMLElement).style.width);
         expect(widths).toEqual(['0%', '50%', '100%']);
+    });
+
+    it('renders a data-bar track only when track is set', () => {
+        setColumns({ dataBar: { min: 0, max: 100, color: 'steelblue' } });
+        expect(
+            fixture.debugElement.queryAll(By.css('[data-slot="cell-data-bar-track"]')),
+        ).toHaveLength(0);
+
+        setColumns({ dataBar: { min: 0, max: 100, color: 'steelblue', track: '#eee' } });
+        const tracks = fixture.debugElement.queryAll(By.css('[data-slot="cell-data-bar-track"]'));
+        expect(tracks).toHaveLength(3);
+        expect((tracks[0].nativeElement as HTMLElement).style.backgroundColor).toBeTruthy();
     });
 
     it('renders icon-set glyphs and conditional classes in the DOM', () => {
