@@ -1,4 +1,5 @@
 import type { LocaleMeta } from '../../lib/i18n';
+import type { FilterBuilderLabels } from './sub/data-table-filter-builder.component';
 
 /**
  * Locale dictionary for `<ui-data-table>` and its filter / pagination
@@ -31,6 +32,8 @@ export interface DataTableLocale extends LocaleMeta {
     selectAllRows: string;
     /** Multiselect-filter "Clear" button label (clears the multiselect selection — distinct from `clearSort`). */
     clearAll: string;
+    /** Localized strings for the advanced AND/OR filter builder (A5). Falls back to English when absent. */
+    advancedFilter?: FilterBuilderLabels;
 }
 
 export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
@@ -55,6 +58,31 @@ export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
         searchPlaceholder: 'Search...',
         selectAllRows: 'Select all',
         clearAll: 'Clear',
+        advancedFilter: {
+            and: 'AND',
+            or: 'OR',
+            matchAll: 'match all of the rules below',
+            matchAny: 'match any of the rules below',
+            addCondition: '+ Condition',
+            addGroup: '+ Group',
+            removeGroup: 'Remove group',
+            removeCondition: 'Remove condition',
+            valuePlaceholder: 'value',
+            operators: {
+                contains: 'contains',
+                notContains: 'does not contain',
+                equals: 'equals',
+                notEquals: 'not equals',
+                startsWith: 'starts with',
+                endsWith: 'ends with',
+                gt: 'greater than',
+                gte: 'greater or equal',
+                lt: 'less than',
+                lte: 'less or equal',
+                isEmpty: 'is empty',
+                isNotEmpty: 'is not empty',
+            },
+        },
     },
     he: {
         code: 'he',
@@ -78,6 +106,31 @@ export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
         searchPlaceholder: '...חיפוש',
         selectAllRows: 'בחר הכל',
         clearAll: 'נקה',
+        advancedFilter: {
+            and: 'וגם',
+            or: 'או',
+            matchAll: 'התאמה לכל הכללים הבאים',
+            matchAny: 'התאמה לאחד מהכללים הבאים',
+            addCondition: '+ תנאי',
+            addGroup: '+ קבוצה',
+            removeGroup: 'הסר קבוצה',
+            removeCondition: 'הסר תנאי',
+            valuePlaceholder: 'ערך',
+            operators: {
+                contains: 'מכיל',
+                notContains: 'לא מכיל',
+                equals: 'שווה',
+                notEquals: 'לא שווה',
+                startsWith: 'מתחיל ב־',
+                endsWith: 'מסתיים ב־',
+                gt: 'גדול מ־',
+                gte: 'גדול או שווה',
+                lt: 'קטן מ־',
+                lte: 'קטן או שווה',
+                isEmpty: 'ריק',
+                isNotEmpty: 'לא ריק',
+            },
+        },
     },
     ar: {
         code: 'ar',

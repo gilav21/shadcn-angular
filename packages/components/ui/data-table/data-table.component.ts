@@ -39,7 +39,10 @@ import {
 } from "../popover";
 import { DataTableColumnHeaderComponent } from "./sub/data-table-column-header.component";
 import { DataTablePaginationComponent } from "./sub/data-table-pagination.component";
-import { DataTableFilterBuilderComponent } from "./sub/data-table-filter-builder.component";
+import {
+  DataTableFilterBuilderComponent,
+  DEFAULT_FILTER_BUILDER_LABELS,
+} from "./sub/data-table-filter-builder.component";
 import { UiComponentOutletDirective } from "../component-outlet.directive";
 import {
   ContextMenuComponent,
@@ -565,6 +568,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   /** {key,header} pairs offered by the builder (the user-defined columns). */
   readonly filterBuilderColumns = computed(() =>
     this.columns().map((c) => ({ key: String(c.accessorKey), header: c.header })),
+  );
+  /** Localized strings for the builder (locale `advancedFilter` section over English defaults). */
+  readonly filterBuilderLabels = computed(
+    () => this.t().advancedFilter ?? DEFAULT_FILTER_BUILDER_LABELS,
   );
   /** Number of leaf conditions in the active advanced filter (for the toolbar badge). */
   readonly advancedFilterCount = computed(() => this._countConditions(this.advancedFilter()));
@@ -4280,7 +4287,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return null;
   }
 
-  /** Measure the widest content (header + rendered cells) of a column, in px. */
+  /**
+   * Measure the widest *intrinsic* content (header + rendered cells) of a column.
+   * Each cell's content is cloned into an off-screen `width:max-content` element
+   * so the measurement is the natural content width — not the cell's stretched
+   * width — which lets auto-fit both grow and shrink.
+   */
   private measureColumnContent(columnKey: string): number {
     const container = this.scrollContainerRef()?.nativeElement;
     if (!container) return 0;
@@ -4289,13 +4301,21 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     ).filter(
       (el) => el.dataset["column"] === columnKey || el.dataset["columnId"] === columnKey,
     );
+    if (cells.length === 0) return 0;
+
+    const measurer = this._document.createElement("div");
+    measurer.style.cssText =
+      "position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;width:max-content;";
+    this._document.body.appendChild(measurer);
     let max = 0;
-    const range = this._document.createRange();
     for (const cell of cells) {
-      range.selectNodeContents(cell);
-      const width = range.getBoundingClientRect().width;
+      const style = globalThis.getComputedStyle(cell);
+      measurer.style.font = style.font || `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      measurer.innerHTML = cell.innerHTML;
+      const width = measurer.getBoundingClientRect().width;
       if (width > max) max = width;
     }
+    measurer.remove();
     return max;
   }
 

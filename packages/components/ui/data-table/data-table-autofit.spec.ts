@@ -54,6 +54,13 @@ describe('DataTableComponent column auto-fit (A8)', () => {
     expect(note).toBeGreaterThan(name);
   });
 
+  it('shrinks a column that is wider than its content', () => {
+    component.columnWidths.set({ name: '600px' });
+    fixture.detectChanges();
+    component.autoSizeColumn('name');
+    expect(Number.parseInt(component.columnWidths()['name'], 10)).toBeLessThan(600);
+  });
+
   it('auto-sizes every navigable column', () => {
     component.autoSizeAllColumns();
     const widths = component.columnWidths();

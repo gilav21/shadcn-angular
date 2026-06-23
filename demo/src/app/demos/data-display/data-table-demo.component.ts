@@ -643,6 +643,15 @@ export class DataTableDemoComponent {
   readonly pivotTableColumns = computed<ColumnDef<Record<string, unknown>>[]>(() =>
     this.pivotResult().columns.map((c) => ({ accessorKey: c.key, header: c.header, width: 'auto' })),
   );
+  /** Toggles the demo table between the raw flat source and the pivoted result. */
+  readonly pivotMode = signal(true);
+  /** Columns for the raw, un-pivoted source table. */
+  readonly pivotSourceColumns: ColumnDef<Record<string, unknown>>[] = [
+    { accessorKey: 'region', header: 'Region' },
+    { accessorKey: 'product', header: 'Product' },
+    { accessorKey: 'quarter', header: 'Quarter' },
+    { accessorKey: 'sales', header: 'Sales' },
+  ];
 
   scrollTo(id: string, event: Event) {
     event.preventDefault();

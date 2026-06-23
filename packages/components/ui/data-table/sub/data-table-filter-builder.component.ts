@@ -9,19 +9,49 @@ export interface FilterBuilderColumn {
     header: string;
 }
 
-const OPERATORS: { value: FilterOperator; label: string }[] = [
-    { value: 'contains', label: 'contains' },
-    { value: 'notContains', label: 'does not contain' },
-    { value: 'equals', label: 'equals' },
-    { value: 'notEquals', label: 'not equals' },
-    { value: 'startsWith', label: 'starts with' },
-    { value: 'endsWith', label: 'ends with' },
-    { value: 'gt', label: 'greater than' },
-    { value: 'gte', label: 'greater or equal' },
-    { value: 'lt', label: 'less than' },
-    { value: 'lte', label: 'less or equal' },
-    { value: 'isEmpty', label: 'is empty' },
-    { value: 'isNotEmpty', label: 'is not empty' },
+/** Localizable strings for the filter builder (English defaults). */
+export interface FilterBuilderLabels {
+    and: string;
+    or: string;
+    matchAll: string;
+    matchAny: string;
+    addCondition: string;
+    addGroup: string;
+    removeGroup: string;
+    removeCondition: string;
+    valuePlaceholder: string;
+    operators: Record<FilterOperator, string>;
+}
+
+export const DEFAULT_FILTER_BUILDER_LABELS: FilterBuilderLabels = {
+    and: 'AND',
+    or: 'OR',
+    matchAll: 'match all of the rules below',
+    matchAny: 'match any of the rules below',
+    addCondition: '+ Condition',
+    addGroup: '+ Group',
+    removeGroup: 'Remove group',
+    removeCondition: 'Remove condition',
+    valuePlaceholder: 'value',
+    operators: {
+        contains: 'contains',
+        notContains: 'does not contain',
+        equals: 'equals',
+        notEquals: 'not equals',
+        startsWith: 'starts with',
+        endsWith: 'ends with',
+        gt: 'greater than',
+        gte: 'greater or equal',
+        lt: 'less than',
+        lte: 'less or equal',
+        isEmpty: 'is empty',
+        isNotEmpty: 'is not empty',
+    },
+};
+
+const OPERATOR_ORDER: FilterOperator[] = [
+    'contains', 'notContains', 'equals', 'notEquals', 'startsWith', 'endsWith',
+    'gt', 'gte', 'lt', 'lte', 'isEmpty', 'isNotEmpty',
 ];
 
 const VALUELESS: ReadonlySet<FilterOperator> = new Set(['isEmpty', 'isNotEmpty']);
@@ -37,55 +67,55 @@ const VALUELESS: ReadonlySet<FilterOperator> = new Set(['isEmpty', 'isNotEmpty']
     template: `
         <div class="space-y-2 rounded-md border bg-background p-2" data-slot="filter-group">
             <div class="flex items-center gap-2">
-                <div class="inline-flex overflow-hidden rounded-md border text-xs">
+                <div class="inline-flex shrink-0 overflow-hidden rounded-md border text-xs">
                     <button type="button" class="px-2 py-1" [class.bg-accent]="group().combinator === 'and'"
-                        (click)="setCombinator('and')">AND</button>
+                        (click)="setCombinator('and')">{{ labels().and }}</button>
                     <button type="button" class="px-2 py-1 border-s" [class.bg-accent]="group().combinator === 'or'"
-                        (click)="setCombinator('or')">OR</button>
+                        (click)="setCombinator('or')">{{ labels().or }}</button>
                 </div>
                 <span class="text-xs text-muted-foreground">
-                    match {{ group().combinator === 'and' ? 'all' : 'any' }} of the rules below
+                    {{ group().combinator === 'and' ? labels().matchAll : labels().matchAny }}
                 </span>
             </div>
 
             @for (rule of group().rules; track $index) {
                 @if (rule.type === 'condition') {
-                    <div class="flex flex-wrap items-center gap-1" data-slot="filter-condition">
-                        <select class="h-8 rounded-md border bg-background px-1 text-sm"
+                    <div class="flex items-center gap-1" data-slot="filter-condition">
+                        <select class="h-8 w-24 shrink-0 rounded-md border bg-background px-1 text-sm"
                             [value]="rule.column" (change)="patch($index, { column: selectValue($event) })">
                             @for (c of columns(); track c.key) {
                                 <option [value]="c.key">{{ c.header }}</option>
                             }
                         </select>
-                        <select class="h-8 rounded-md border bg-background px-1 text-sm"
+                        <select class="h-8 w-28 shrink-0 rounded-md border bg-background px-1 text-sm"
                             [value]="rule.operator" (change)="patchOperator($index, $event)">
-                            @for (op of operators; track op.value) {
-                                <option [value]="op.value">{{ op.label }}</option>
+                            @for (op of operatorOrder; track op) {
+                                <option [value]="op">{{ labels().operators[op] }}</option>
                             }
                         </select>
                         @if (needsValue(rule.operator)) {
-                            <input type="text" placeholder="value"
-                                class="h-8 w-28 rounded-md border bg-background px-2 text-sm"
+                            <input type="text" [placeholder]="labels().valuePlaceholder"
+                                class="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm"
                                 [value]="asText(rule.value)" (input)="patch($index, { value: selectValue($event) })" />
                         }
-                        <button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive"
-                            [attr.aria-label]="'Remove condition'" (click)="removeRule($index)">
+                        <button type="button" class="ms-auto inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-destructive"
+                            [attr.aria-label]="labels().removeCondition" (click)="removeRule($index)">
                             <ui-icon name="x" size="xs" />
                         </button>
                     </div>
                 } @else {
                     <div class="border-s-2 ps-2" data-slot="filter-subgroup">
-                        <ui-data-table-filter-builder [group]="rule" [columns]="columns()"
+                        <ui-data-table-filter-builder [group]="rule" [columns]="columns()" [labels]="labels()"
                             (groupChange)="updateRule($index, $event)" />
                         <button type="button" class="mt-1 text-xs text-muted-foreground hover:text-destructive"
-                            (click)="removeRule($index)">Remove group</button>
+                            (click)="removeRule($index)">{{ labels().removeGroup }}</button>
                     </div>
                 }
             }
 
             <div class="flex flex-wrap gap-2">
-                <ui-button size="sm" variant="outline" (click)="addCondition()">+ Condition</ui-button>
-                <ui-button size="sm" variant="ghost" (click)="addGroup()">+ Group</ui-button>
+                <ui-button size="sm" variant="outline" (click)="addCondition()">{{ labels().addCondition }}</ui-button>
+                <ui-button size="sm" variant="ghost" (click)="addGroup()">{{ labels().addGroup }}</ui-button>
             </div>
         </div>
     `,
@@ -94,9 +124,10 @@ const VALUELESS: ReadonlySet<FilterOperator> = new Set(['isEmpty', 'isNotEmpty']
 export class DataTableFilterBuilderComponent {
     readonly group = input.required<FilterGroup>();
     readonly columns = input.required<FilterBuilderColumn[]>();
+    readonly labels = input<FilterBuilderLabels>(DEFAULT_FILTER_BUILDER_LABELS);
     readonly groupChange = output<FilterGroup>();
 
-    readonly operators = OPERATORS;
+    readonly operatorOrder = OPERATOR_ORDER;
 
     needsValue(operator: FilterOperator): boolean {
         return !VALUELESS.has(operator);

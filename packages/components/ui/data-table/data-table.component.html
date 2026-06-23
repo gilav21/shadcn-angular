@@ -329,6 +329,7 @@
                     <ui-data-table-filter-builder
                       [group]="advancedFilterGroup()"
                       [columns]="filterBuilderColumns()"
+                      [labels]="filterBuilderLabels()"
                       (groupChange)="onAdvancedFilterChange($event)"
                     />
                     @if (advancedFilterCount() > 0) {
