@@ -4656,15 +4656,37 @@ describe('DataTableComponent fill handle (B1)', () => {
         expect(component.data().map((r) => r.n)).toEqual([1, 1, 1, 0]);
     });
 
-    it('renders the fill handle on the focused cell', () => {
+    it('computes a handle position for the focused cell (any render path)', () => {
         component.focusedCell.set({ rowIndex: 1, columnKey: 'n' });
         fixture.detectChanges();
+        const pos = component['computeFillHandlePosition']();
+        expect(pos).not.toBeNull();
+        expect(typeof pos?.top).toBe('number');
+        expect(typeof pos?.left).toBe('number');
+    });
+
+    it('has no handle position when nothing is focused or selected', () => {
+        component.focusedCell.set(null);
+        component.cellRange.set(null);
+        fixture.detectChanges();
+        expect(component['computeFillHandlePosition']()).toBeNull();
+    });
+
+    it('positions the overlay via the after-render effect end-to-end', async () => {
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'n' });
+        fixture.detectChanges();
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+        fixture.detectChanges();
+        expect(component.fillHandlePosition()).not.toBeNull();
         expect(fixture.debugElement.queryAll(By.css('[data-slot="fill-handle"]'))).toHaveLength(1);
     });
 
-    it('does not render the fill handle when enableFillHandle is off', () => {
+    it('renders the overlay handle when a position is set, gated by enableFillHandle', () => {
+        component.fillHandlePosition.set({ top: 12, left: 34 });
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="fill-handle"]'))).toHaveLength(1);
+
         fixture.componentRef.setInput('enableFillHandle', false);
-        component.focusedCell.set({ rowIndex: 1, columnKey: 'n' });
         fixture.detectChanges();
         expect(fixture.debugElement.queryAll(By.css('[data-slot="fill-handle"]'))).toHaveLength(0);
     });

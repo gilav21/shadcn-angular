@@ -2,6 +2,7 @@ import {
   Component,
   computed,
   effect,
+  afterRenderEffect,
   input,
   output,
   model,
@@ -2061,10 +2062,41 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this.focusedCell();
   });
 
-  isFillHandleCell(rowIndex: number, columnKey: string): boolean {
+  /** Pixel position of the fill handle within the scroll container's content, or null when hidden. */
+  readonly fillHandlePosition = signal<{ top: number; left: number } | null>(null);
+
+  private computeFillHandlePosition(): { top: number; left: number } | null {
     const cell = this.fillHandleCell();
-    return cell !== null && cell.rowIndex === rowIndex && cell.columnKey === columnKey;
+    if (!cell) return null;
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return null;
+    const rowEl = container.querySelector(`[data-row-index="${cell.rowIndex}"]`);
+    if (!rowEl) return null;
+    const cellEl = Array.from(
+      rowEl.querySelectorAll<HTMLElement>("[data-column]"),
+    ).find((el) => el.dataset["column"] === cell.columnKey);
+    if (!cellEl) return null;
+    const containerRect = container.getBoundingClientRect();
+    const rect = cellEl.getBoundingClientRect();
+    const x = this.isRtl() ? rect.left : rect.right;
+    return {
+      top: rect.bottom - containerRect.top + container.scrollTop,
+      left: x - containerRect.left + container.scrollLeft,
+    };
   }
+
+  // Re-position the single fill-handle overlay after each relevant render. Works
+  // across the flat, virtual and tree paths since all expose data-row-index /
+  // data-column; the virtual-visible signals are read so it tracks scroll.
+  private readonly _fillHandlePositionEffect = afterRenderEffect(() => {
+    this.fillHandleCell();
+    this.data();
+    this.virtualVisibleRows();
+    this.virtualVisibleTreeRows();
+    this.fillHandlePosition.set(
+      this.enableFillHandle() ? this.computeFillHandlePosition() : null,
+    );
+  });
 
   private _fillSource: { minRow: number; maxRow: number; minCol: number; maxCol: number } | null = null;
   private readonly _fillPreviewEndRow = signal<number | null>(null);

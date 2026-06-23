@@ -167,8 +167,12 @@ component touches the registry index → **CLI publish required on merge**.
   editing); `(mousedown)`+`(touchstart)` drag (touch-action:none) → target row
   via `elementFromPoint`→`[data-row-index]`; dashed `bg-primary/5` preview in
   `getCellClass`; release applies; listeners torn down on end + `ngOnDestroy`.
-  Main flat-row path (tree/virtual = follow-up). 7 engine + 8 component tests,
-  story + demo. Deferred: B3 undo entry, date-step series.
+  The handle is a **single overlay** in the scroll container, positioned by an
+  `afterRenderEffect` that finds the handle cell via `[data-row-index]` +
+  `[data-column]` and computes scroll-invariant content coords — so it works
+  across the **flat, virtual and tree** paths (the effect reads the
+  virtual-visible signals to track virtual scroll). 7 engine + 10 component
+  tests, story + demo.
 - **B2 smart paste (IMPLEMENTED):** pure `parseClipboardGrid(text)` in utils —
   tab-separated when any tab is present (Excel / the table's own copy-out), else
   comma with quoted-cell support; CRLF/CR normalized, trailing newline dropped.
