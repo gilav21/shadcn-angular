@@ -24,6 +24,13 @@ import {
     type ComponentSpec,
 } from './specs.js';
 
+// Force the Angular CLI non-interactive for every `ng` the suite spawns
+// (`ng build`/`ng serve` in the scaffolded consumer apps). Without this the
+// CLI's first-run analytics prompt ("share usage data … with the Angular Team
+// at Google") blocks on stdin and the run hangs. Child processes inherit
+// `process.env`, so setting it once here covers all spawn sites.
+process.env.NG_CLI_ANALYTICS ||= 'false';
+
 interface RunResult {
     readonly label: string;
     readonly passed: boolean;
