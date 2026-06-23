@@ -7,7 +7,9 @@ import {
   CardComponent,
   CardContentComponent,
   CheckboxComponent,
+  CellIcon,
   ColumnDef,
+  DataTableRangeChartComponent,
   ColumnResizeEvent,
   ContextMenuComponent,
   ContextMenuContentComponent,
@@ -40,13 +42,17 @@ import {
   CellEditEvent,
   CellEditErrorEvent,
   RowReorderEvent,
+  RangeChartPayload,
   DataTableExportQuery,
   columnHelper,
   dateFilterFn,
   dateRangeFilterFn,
   multiselectFilterFn,
+  computePivot,
+  PivotAggregate,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { AiRequest } from '../../../../../packages/components/lib/ai';
 import { DATA_TABLE_DEMO_LOCALES } from './data-table-demo.locales';
 import { Payment, OrgNode, OpsTicket } from '../shared/types';
 import { StatusCellComponent } from '../../cells/status-cell.component';
@@ -606,6 +612,7 @@ class OpsTicketDetailComponent {
     ContextMenuShortcutComponent,
     ...ContextMenuIntegrations,
     FpsMeterComponent,
+    DataTableRangeChartComponent,
   ],
   templateUrl: './data-table-demo.component.html',
 })
@@ -613,6 +620,125 @@ export class DataTableDemoComponent {
   private readonly toastService = inject(ToastService);
   private readonly localeId = inject(UI_LOCALE_ID);
   readonly t = computed(() => DATA_TABLE_DEMO_LOCALES[this.localeId()] ?? DATA_TABLE_DEMO_LOCALES['en']);
+
+  // ── AI assist demo (mock provider, no network) ──
+  readonly aiQuery = signal('');
+  readonly aiRows = signal<{ id: string; customer: string; status: string; summary: string }[]>([
+    { id: '1', customer: 'Acme Retail', status: 'success', summary: '' },
+    { id: '2', customer: 'Globex', status: 'failed', summary: '' },
+    { id: '3', customer: 'Initech', status: 'pending', summary: '' },
+    { id: '4', customer: 'Hooli', status: 'success', summary: '' },
+  ]);
+  readonly aiColumns: ColumnDef<{ id: string; customer: string; status: string; summary: string }>[] = [
+    { accessorKey: 'customer', header: 'Customer', width: '180px' },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      width: '140px',
+      enableFiltering: true,
+      filterFn: (row, value) => !value || row.status === value,
+    },
+    {
+      accessorKey: 'summary',
+      header: 'Summary',
+      width: 'auto',
+      valueSetter: (row, v) => ({ ...row, summary: v as string }),
+    },
+  ];
+
+  /** Mock AI provider: compiles a NL query to a filter spec, and fills summaries. */
+  readonly tableAiProvider = (req: AiRequest): string => {
+    if (req.task === 'nl-filter') {
+      const query = req.input.toLowerCase();
+      const status = ['success', 'failed', 'pending', 'processing'].find(s => query.includes(s));
+      return JSON.stringify(status ? { columnFilters: { status } } : { globalFilter: req.input });
+    }
+    if (req.task === 'table-fill') {
+      const row = JSON.parse(req.input) as { customer: string; status: string };
+      return `${row.customer}'s latest payment is ${row.status}.`;
+    }
+    return '';
+  };
+
+  // Copy-paste guidance for wiring a real AI backend (rendered as plain text).
+  readonly aiTableFrontendCode = [
+    "// In your component — point the provider at YOUR backend.",
+    "// A one-shot Promise is enough for the table (no streaming needed).",
+    "import { AiRequest } from '@gilav21/shadcn-angular';",
+    "",
+    "readonly aiProvider = (req: AiRequest): Promise<string> =>",
+    "  fetch('/api/ai', {",
+    "    method: 'POST',",
+    "    headers: { 'content-type': 'application/json' },",
+    "    body: JSON.stringify(req),   // { task, input, prompt, context }",
+    "    signal: req.signal,",
+    "  }).then((r) => r.text());",
+  ].join('\n');
+
+  readonly aiTableBackendCode = [
+    "// Backend (Node / Express) — the API key stays here, never in the browser.",
+    "import Anthropic from '@anthropic-ai/sdk';",
+    "const client = new Anthropic();",
+    "",
+    "// nl-filter → return JSON; table-fill → return the cell value.",
+    "// req.context carries { columns } (nl-filter) or { column } (table-fill).",
+    "function systemFor(task, context) {",
+    "  if (task === 'nl-filter') {",
+    "    return 'Convert the request into a filter for these columns: ' +",
+    "      JSON.stringify(context.columns) + '. Reply with ONLY JSON of shape ' +",
+    "      '{ \"globalFilter\"?: string, \"columnFilters\"?: { [columnKey]: value } }.';",
+    "  }",
+    "  return 'Generate the value for the ' + context.column + ' cell. Return only the value.';",
+    "}",
+    "",
+    "app.post('/api/ai', async (req, res) => {",
+    "  const { task, input, prompt, context } = req.body;",
+    "  const msg = await client.messages.create({",
+    "    model: 'claude-opus-4-8',",
+    "    max_tokens: 1024,",
+    "    system: systemFor(task, context ?? {}),",
+    "    messages: [{ role: 'user', content: prompt ? prompt + ' — ' + input : input }],",
+    "  });",
+    "  res.type('text/plain').send(msg.content[0].type === 'text' ? msg.content[0].text : '');",
+    "});",
+  ].join('\n');
+
+  // ── Pivot Demo (A6) ──
+  readonly pivotSource = signal([
+    { region: 'NA', product: 'Widgets', quarter: 'Q1', sales: 1200 },
+    { region: 'NA', product: 'Gadgets', quarter: 'Q1', sales: 800 },
+    { region: 'NA', product: 'Widgets', quarter: 'Q2', sales: 1500 },
+    { region: 'EU', product: 'Widgets', quarter: 'Q1', sales: 600 },
+    { region: 'EU', product: 'Gadgets', quarter: 'Q2', sales: 950 },
+    { region: 'APAC', product: 'Widgets', quarter: 'Q2', sales: 700 },
+    { region: 'APAC', product: 'Gadgets', quarter: 'Q1', sales: 400 },
+  ]);
+  readonly pivotDims = ['region', 'product', 'quarter'] as const;
+  readonly pivotAggs: PivotAggregate[] = ['sum', 'avg', 'count', 'min', 'max'];
+  readonly pivotRowDim = signal<string>('region');
+  readonly pivotColDim = signal<string>('product');
+  readonly pivotAgg = signal<PivotAggregate>('sum');
+  readonly pivotResult = computed(() =>
+    computePivot(this.pivotSource(), {
+      rows: [this.pivotRowDim()],
+      column: this.pivotColDim(),
+      value: 'sales',
+      aggregate: this.pivotAgg(),
+      showRowTotals: true,
+    }),
+  );
+  readonly pivotTableColumns = computed<ColumnDef<Record<string, unknown>>[]>(() =>
+    this.pivotResult().columns.map((c) => ({ accessorKey: c.key, header: c.header, width: 'auto' })),
+  );
+  /** Toggles the demo table between the raw flat source and the pivoted result. */
+  readonly pivotMode = signal(true);
+  /** Columns for the raw, un-pivoted source table. */
+  readonly pivotSourceColumns: ColumnDef<Record<string, unknown>>[] = [
+    { accessorKey: 'region', header: 'Region' },
+    { accessorKey: 'product', header: 'Product' },
+    { accessorKey: 'quarter', header: 'Quarter' },
+    { accessorKey: 'sales', header: 'Sales' },
+  ];
 
   scrollTo(id: string, event: Event) {
     event.preventDefault();
@@ -1405,6 +1531,96 @@ export class DataTableDemoComponent {
       { accessorKey: 'status', header: locale.colStatus, width: '130px' },
     ];
   });
+
+  // ── Conditional Formatting Demo (A1) ──
+  private statusIcon(status: Payment['status']): CellIcon | undefined {
+    if (status === 'success') return { name: 'check', class: 'text-green-600' };
+    if (status === 'failed') return { name: 'x', class: 'text-red-600' };
+    if (status === 'processing') return { name: 'loader', class: 'text-blue-600' };
+    return { glyph: '•', class: 'text-muted-foreground' };
+  }
+
+  readonly conditionalColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '110px', sticky: true },
+      { accessorKey: 'clientName', header: locale.colClient, width: 'auto' },
+      {
+        accessorKey: 'amount',
+        header: locale.colAmount,
+        width: '220px',
+        enableSorting: true,
+        cell: (row) => `$${row.amount.toFixed(2)}`,
+        // Inline data bar scaled to the dataset's upper bound, with a faint track groove.
+        dataBar: {
+          min: 0,
+          max: 5500,
+          color: 'color-mix(in srgb, var(--primary) 28%, transparent)',
+          track: 'color-mix(in srgb, var(--muted-foreground) 12%, transparent)',
+        },
+      },
+      {
+        accessorKey: 'status',
+        header: locale.colStatus,
+        width: '160px',
+        enableSorting: true,
+        iconSet: (v) => this.statusIcon(v as Payment['status']),
+        cellClassRules: [
+          { when: (v) => v === 'success', class: 'text-green-600 font-medium' },
+          { when: (v) => v === 'failed', class: 'text-red-600 font-medium' },
+          { when: (v) => v === 'processing', class: 'text-blue-600' },
+        ],
+      },
+    ];
+  });
+
+  // ── Range Actions Demo (A2) ──
+  readonly rangeActionColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '110px', sticky: true },
+      { accessorKey: 'clientName', header: locale.colClient, width: 'auto' },
+      { accessorKey: 'amount', header: locale.colAmount, width: '160px', enableSorting: true },
+    ];
+  });
+  readonly rangeChartPayload = signal<RangeChartPayload | null>(null);
+  readonly rangeChartDialogOpen = signal(false);
+
+  onRangeChart(payload: RangeChartPayload): void {
+    this.rangeChartPayload.set(payload);
+    this.rangeChartDialogOpen.set(true);
+  }
+
+  // ── Fill Handle Demo (B1) ──
+  readonly fillData = signal<{ id: string; sku: string; qty: number; date: string }[]>([
+    { id: '1', sku: 'SKU-001', qty: 10, date: '2024-01-01' },
+    { id: '2', sku: 'SKU-002', qty: 20, date: '2024-01-08' },
+    { id: '3', sku: '', qty: 0, date: '' },
+    { id: '4', sku: '', qty: 0, date: '' },
+    { id: '5', sku: '', qty: 0, date: '' },
+    { id: '6', sku: '', qty: 0, date: '' },
+  ]);
+  readonly fillColumns: ColumnDef<{ id: string; sku: string; qty: number; date: string }>[] = [
+    { accessorKey: 'id', header: '#', width: '70px' },
+    {
+      accessorKey: 'sku',
+      header: 'SKU',
+      width: 'auto',
+      valueSetter: (row, v) => ({ ...row, sku: v as string }),
+    },
+    {
+      accessorKey: 'qty',
+      header: 'Qty',
+      width: '110px',
+      valueSetter: (row, v) => ({ ...row, qty: v as number }),
+    },
+    {
+      accessorKey: 'date',
+      header: 'Date',
+      width: '140px',
+      valueSetter: (row, v) => ({ ...row, date: v as string }),
+    },
+  ];
 
   // ── Row Grouping Demo ──
   readonly groupCollapsed = signal<Record<string, boolean>>({});

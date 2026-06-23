@@ -2,6 +2,7 @@ import {
   Component,
   computed,
   effect,
+  afterRenderEffect,
   input,
   output,
   model,
@@ -19,6 +20,7 @@ import {
 import { CommonModule, DOCUMENT } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { cn, isRtl, stringifyValue } from "../../lib/utils";
+import { onPointerDrag, onLongPress } from "../../lib/touch";
 import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from "../../lib/i18n";
 import { DATA_TABLE_LOCALES, type DataTableLocale } from "./data-table.locales";
 import { generateXlsx } from "../../lib/parsers/xlsx";
@@ -39,6 +41,10 @@ import {
 } from "../popover";
 import { DataTableColumnHeaderComponent } from "./sub/data-table-column-header.component";
 import { DataTablePaginationComponent } from "./sub/data-table-pagination.component";
+import {
+  DataTableFilterBuilderComponent,
+  DEFAULT_FILTER_BUILDER_LABELS,
+} from "./sub/data-table-filter-builder.component";
 import { UiComponentOutletDirective } from "../component-outlet.directive";
 import {
   ContextMenuComponent,
@@ -75,6 +81,15 @@ import {
   CellStyleColumn,
   GroupRow,
   DataTableDisplayRow,
+  ColorScale,
+  ResolvedCellFormatting,
+  RangeAggregateStats,
+  RangeChartPayload,
+  FillSeriesEvent,
+  CellsPasteEvent,
+  FilterGroup,
+  PivotConfig,
+  PivotResult,
 } from "./data-table.types";
 import {
   computeRowRange,
@@ -82,10 +97,27 @@ import {
   computeVariableRowRange,
   buildPrefixSums,
   partitionIntoGroups,
+  computeAggregateValue,
+  buildFillValues,
+  parseClipboardGrid,
+  parseNlFilterSpec,
+  type NlFilterSpec,
+  evaluateAdvancedFilter,
+  computePivot,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
+import { AiProvider, runAiTask } from "../../lib/ai";
+import { lastValueFrom } from "rxjs";
 
 const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
+
+/** One reversible cell write captured for the edit-history (B3) stack. */
+interface EditChange {
+  rowId: string;
+  columnKey: string;
+  before: unknown;
+  after: unknown;
+}
 
 /** Per-instance counter for unique element ids (e.g. inline edit-error links). */
 let dataTableUid = 0;
@@ -115,6 +147,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
     PopoverContentComponent,
     DataTableColumnHeaderComponent,
     DataTablePaginationComponent,
+    DataTableFilterBuilderComponent,
     UiComponentOutletDirective,
     ContextMenuComponent,
     ButtonComponent,
@@ -241,6 +274,42 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly cellFlashDuration = input(500);
   readonly enableCellRangeSelection = input(false);
   readonly cellRange = signal<CellRange | null>(null);
+  /**
+   * Show a contextual readout when a cell range is selected: live Sum / Avg /
+   * Count of the selection, plus a "Chart" action. Requires
+   * `enableCellRangeSelection`. Opt-in; off by default.
+   */
+  readonly enableRangeActions = input(false);
+  /** Emitted when the user opens the range chart; carries the chart payload. */
+  readonly rangeChartOpen = output<RangeChartPayload>();
+  /**
+   * Show an Excel-style fill handle at the corner of the focused cell / range.
+   * Drag it down to fill the pattern into the rows below. Requires
+   * `enableCellRangeSelection`. Only columns with a `valueSetter` are filled.
+   */
+  readonly enableFillHandle = input(false);
+  /** Emitted after a fill-handle drag applies values to new rows. */
+  readonly fillSeries = output<FillSeriesEvent>();
+  /**
+   * Allow pasting a clipboard grid (TSV/CSV) into cells starting at the focused
+   * cell (`Ctrl/Cmd+V`). Only columns with a `valueSetter` are written.
+   */
+  readonly enableClipboardPaste = input(false);
+  /** Emitted after a clipboard grid is pasted into cells. */
+  readonly cellsPaste = output<CellsPasteEvent>();
+  /**
+   * Track inline edits, fills and pastes on an undo/redo stack
+   * (`Ctrl/Cmd+Z` / `Ctrl/Cmd+Y` / `Ctrl/Cmd+Shift+Z`). Undo re-applies the
+   * inverse value through each column's `valueSetter` and re-emits `cellEdit`.
+   */
+  readonly enableEditHistory = input(false);
+  readonly editUndo = output<void>();
+  readonly editRedo = output<void>();
+  private readonly _undoStack = signal<EditChange[][]>([]);
+  private readonly _redoStack = signal<EditChange[][]>([]);
+  private _recordingChanges: EditChange[] | null = null;
+  readonly canUndo = computed(() => this._undoStack().length > 0);
+  readonly canRedo = computed(() => this._redoStack().length > 0);
   readonly columnResize = output<ColumnResizeEvent>();
 
   /**
@@ -547,6 +616,71 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly srAnnouncement = signal("");
   readonly globalFilter = model("");
   readonly columnFilters = model<Record<string, unknown>>({});
+  /**
+   * Bring-your-own AI hook. Enables natural-language filtering
+   * (`applyNaturalLanguageFilter`) and column AI-fill (`aiFillColumn`). Optional;
+   * no provider → those methods no-op (graceful degradation).
+   */
+  readonly aiProvider = input<AiProvider | undefined>(undefined);
+  readonly hasAi = computed(() => this.aiProvider() !== undefined);
+  /** Emitted after a natural-language query is compiled into a filter. */
+  readonly nlFilter = output<{ query: string; spec: NlFilterSpec }>();
+  /** Emitted after an AI column-fill completes. */
+  readonly aiFillComplete = output<{ columnKey: string; count: number }>();
+  /** When true (and `aiProvider` is set), the toolbar shows a natural-language filter box. */
+  readonly enableNlFilter = input(true);
+  readonly aiFilterQuery = signal("");
+  readonly aiFilterRunning = signal(false);
+  readonly nlFilterPlaceholder = computed(
+    () => this.t().nlFilterPlaceholder ?? "Ask in plain English…",
+  );
+
+  /** Run the toolbar's natural-language filter query through the provider. */
+  async runAiFilter(): Promise<void> {
+    const query = this.aiFilterQuery().trim();
+    if (!query || this.aiFilterRunning()) return;
+    this.aiFilterRunning.set(true);
+    try {
+      await this.applyNaturalLanguageFilter(query);
+    } finally {
+      this.aiFilterRunning.set(false);
+    }
+  }
+
+  /** Advanced AND/OR filter tree (A5). Applied in addition to global/column filters. */
+  readonly advancedFilter = model<FilterGroup | null>(null);
+  /** Show the advanced-filter builder button in the toolbar. */
+  readonly enableAdvancedFilter = input(false);
+  /** Non-null filter group for the builder UI (an empty AND group when unset). */
+  readonly advancedFilterGroup = computed<FilterGroup>(
+    () => this.advancedFilter() ?? { type: "group", combinator: "and", rules: [] },
+  );
+  /** {key,header} pairs offered by the builder (the user-defined columns). */
+  readonly filterBuilderColumns = computed(() =>
+    this.columns().map((c) => ({ key: String(c.accessorKey), header: c.header })),
+  );
+  /** Localized strings for the builder (locale `advancedFilter` section over English defaults). */
+  readonly filterBuilderLabels = computed(
+    () => this.t().advancedFilter ?? DEFAULT_FILTER_BUILDER_LABELS,
+  );
+  /** Number of leaf conditions in the active advanced filter (for the toolbar badge). */
+  readonly advancedFilterCount = computed(() => this._countConditions(this.advancedFilter()));
+
+  private _countConditions(group: FilterGroup | null): number {
+    if (!group) return 0;
+    return group.rules.reduce(
+      (sum, rule) => sum + (rule.type === "group" ? this._countConditions(rule) : 1),
+      0,
+    );
+  }
+
+  onAdvancedFilterChange(group: FilterGroup): void {
+    this.advancedFilter.set(group);
+  }
+
+  clearAdvancedFilter(): void {
+    this.advancedFilter.set(null);
+  }
   readonly sortState = model<SortState>({ column: "", direction: null });
   readonly multiSortState = model<SortState[]>([]);
   readonly paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
@@ -576,8 +710,30 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       data = this.applyGlobalFilterToData(data, globalFilterValue);
     }
 
-    return this.applyColumnFiltersToData(data);
+    data = this.applyColumnFiltersToData(data);
+    return this.applyAdvancedFilter(data);
   });
+
+  /**
+   * Compute a pivot (rows × columns × values) of this table's current data,
+   * using its accessors (so `accessorFn` / dotted keys work). Bind the result's
+   * `columns` / `rows` to another `<ui-data-table>` to render the pivot.
+   */
+  getPivot(config: PivotConfig): PivotResult {
+    return computePivot(this.data(), config, (row, key) => this.getCellValue(row, key));
+  }
+
+  private applyAdvancedFilter(data: T[]): T[] {
+    const group = this.advancedFilter();
+    if (!group || group.rules.length === 0) return data;
+    const columns = this.enhancedColumns();
+    return data.filter((row) =>
+      evaluateAdvancedFilter(group, (column) => {
+        const col = columns.find((c) => String(c.accessorKey) === column);
+        return this.getCellValue(row, col?.accessorKey ?? column, col);
+      }),
+    );
+  }
 
   private applyGlobalFilterToData(data: T[], globalFilterValue: string): T[] {
     const columns = this.enhancedColumns().filter(
@@ -1210,6 +1366,23 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.setupViewportObserver();
     this.validateConfiguration();
+    this.setupTouchRangeSelection();
+  }
+
+  private _longPressCleanup: (() => void) | null = null;
+
+  /** Touch: long-press a cell to enter range-selection, then drag to extend. */
+  private setupTouchRangeSelection(): void {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+    this._longPressCleanup = onLongPress(container, (event) => {
+      if (!this.enableCellRangeSelection() || this.editingCell() !== null) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const cell = this.cellFromElement(this._document.elementFromPoint(touch.clientX, touch.clientY));
+      if (!cell) return;
+      this.startRangeDrag(cell, false);
+    });
   }
 
   private checkPaginationVsVirtualScroll(warnings: string[]): void {
@@ -1400,6 +1573,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.flashTimers.forEach((t) => clearTimeout(t));
     this._document.removeEventListener('wheel', this.dragWheelHandler, { capture: true });
     this._document.removeEventListener('drag', this.dragEventHandler);
+    this._document.removeEventListener('mousemove', this._onFillMove);
+    this._document.removeEventListener('mouseup', this._onFillEnd);
+    this._document.removeEventListener('touchmove', this._onFillMove);
+    this._document.removeEventListener('touchend', this._onFillEnd);
+    this._rangeDragCleanup?.();
+    this._longPressCleanup?.();
     this.viewportObserver?.disconnect();
     this.rowResizeObserver?.disconnect();
   }
@@ -1800,6 +1979,310 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     );
   }
 
+  /** Selected range reshaped per column: header + cell values, or null when no range. */
+  private readonly rangeColumns = computed(() => {
+    const range = this.normalizedCellRange();
+    if (!range) return null;
+    const keys = this.navigableColumnKeys().slice(range.minCol, range.maxCol + 1);
+    const data = this.processedData();
+    const columns = this.enhancedColumns();
+    const result = keys.map((key) => {
+      const col = columns.find((c) => String(c.accessorKey) === key);
+      return { key, header: col?.header ?? key, col, values: [] as unknown[] };
+    });
+    for (let r = range.minRow; r <= range.maxRow; r++) {
+      const row = data[r];
+      if (!row) continue;
+      for (const entry of result) {
+        if (entry.col) {
+          entry.values.push(this.getCellValue(row, entry.col.accessorKey, entry.col));
+        }
+      }
+    }
+    return result;
+  });
+
+  /** Live Sum / Avg / Count / Min / Max of the selected range; null unless a multi-cell range is active. */
+  readonly rangeSelectionStats = computed<RangeAggregateStats | null>(() => {
+    if (!this.enableRangeActions()) return null;
+    const cols = this.rangeColumns();
+    if (!cols) return null;
+    const values = cols.flatMap((c) => c.values);
+    if (values.length < 2) return null;
+    const numericCount = values.map(Number).filter(Number.isFinite).length;
+    return {
+      count: values.length,
+      numericCount,
+      sum: computeAggregateValue(values, "sum"),
+      avg: computeAggregateValue(values, "avg"),
+      min: computeAggregateValue(values, "min"),
+      max: computeAggregateValue(values, "max"),
+    };
+  });
+
+  /** The selected range as chart data: first column → categories, numeric columns → series. */
+  readonly rangeChartPayload = computed<RangeChartPayload | null>(() => {
+    const cols = this.rangeColumns();
+    if (!cols || cols.length === 0) return null;
+    const rowCount = cols[0].values.length;
+    if (rowCount === 0) return null;
+    const numericCols = cols.filter((c) =>
+      c.values.some((v) => Number.isFinite(Number(v))),
+    );
+    if (numericCols.length === 0) return null;
+    const labelCol = cols.find((c) => !numericCols.includes(c));
+    const categories = this._rangeCategories(labelCol?.values, rowCount);
+    const series = numericCols.map((c) => ({
+      name: c.header,
+      values: c.values.map((v) => (Number.isFinite(Number(v)) ? Number(v) : 0)),
+    }));
+    return { categories, series };
+  });
+
+  private _rangeCategories(labelValues: unknown[] | undefined, rowCount: number): string[] {
+    if (labelValues) {
+      return labelValues.map((v) => String(v ?? ""));
+    }
+    return Array.from({ length: rowCount }, (_, i) => `Row ${i + 1}`);
+  }
+
+  /** Emit the chart payload for the selected range. No-op when it has no numeric data. */
+  openRangeChart(): void {
+    const payload = this.rangeChartPayload();
+    if (!payload) return;
+    this.rangeChartOpen.emit(payload);
+  }
+
+  /** The current fill source: the selected range, or the focused cell as a 1×1 range. */
+  private fillSourceRange(): { minRow: number; maxRow: number; minCol: number; maxCol: number } | null {
+    const range = this.normalizedCellRange();
+    if (range) return range;
+    const focused = this.focusedCell();
+    if (!focused) return null;
+    const colIdx = this.navigableColumnKeys().indexOf(focused.columnKey);
+    if (colIdx < 0) return null;
+    return { minRow: focused.rowIndex, maxRow: focused.rowIndex, minCol: colIdx, maxCol: colIdx };
+  }
+
+  private fillColumn(key: string, source: { minRow: number; maxRow: number }, fillCount: number): boolean {
+    const col = this.enhancedColumns().find((c) => String(c.accessorKey) === key);
+    if (!col?.valueSetter) return false;
+    const data = this.processedData();
+    const sourceValues: unknown[] = [];
+    for (let r = source.minRow; r <= source.maxRow; r++) {
+      const row = data[r];
+      if (row) sourceValues.push(this.getCellValue(row, col.accessorKey, col));
+    }
+    const fillValues = buildFillValues(sourceValues, fillCount);
+    let applied = false;
+    for (let i = 0; i < fillCount; i++) {
+      const rowIndex = source.maxRow + 1 + i;
+      const targetRow = this.processedData()[rowIndex];
+      if (!targetRow) continue;
+      const value = fillValues[i];
+      if (this.validateEdit(col, targetRow, value, { rowIndex, columnKey: key })) {
+        this.applyValueSetter(col, targetRow, value);
+        applied = true;
+      }
+    }
+    return applied;
+  }
+
+  /**
+   * Excel-style fill: extend the source range/cell down to `targetEndRow`,
+   * filling each column's pattern into the new rows. No-op when the target is
+   * not below the source.
+   */
+  fillDownTo(targetEndRow: number): void {
+    const source = this.fillSourceRange();
+    if (!source || targetEndRow <= source.maxRow) return;
+    const keys = this.navigableColumnKeys().slice(source.minCol, source.maxCol + 1);
+    const fillCount = targetEndRow - source.maxRow;
+    let filledKeys: string[] = [];
+    this.runAsCommand(() => {
+      filledKeys = keys.filter((key) => this.fillColumn(key, source, fillCount));
+    });
+    if (filledKeys.length === 0) return;
+    this.cellRange.set({
+      startRow: source.minRow,
+      startCol: keys[0],
+      endRow: targetEndRow,
+      endCol: keys[keys.length - 1],
+    });
+    this.fillSeries.emit({
+      source: { minRow: source.minRow, maxRow: source.maxRow },
+      filled: { startRow: source.maxRow + 1, endRow: targetEndRow },
+      columnKeys: filledKeys,
+    });
+  }
+
+  private coercePasteValue(raw: string, row: T, col: ColumnDef<T>): unknown {
+    const current = this.getCellValue(row, col.accessorKey, col);
+    if (typeof current === "number") {
+      const num = Number(raw);
+      return Number.isFinite(num) ? num : raw;
+    }
+    if (typeof current === "boolean") {
+      return raw.toLowerCase() === "true";
+    }
+    return raw;
+  }
+
+  private pasteCell(rowIndex: number, key: string, raw: string): "applied" | "rejected" | "skipped" {
+    const col = this.enhancedColumns().find((c) => String(c.accessorKey) === key);
+    const targetRow = this.processedData()[rowIndex];
+    if (!col?.valueSetter || !targetRow) return "skipped";
+    const value = this.coercePasteValue(raw, targetRow, col);
+    if (!this.validateEdit(col, targetRow, value, { rowIndex, columnKey: key })) {
+      return "rejected";
+    }
+    this.applyValueSetter(col, targetRow, value);
+    return "applied";
+  }
+
+  private pasteGridAt(startRow: number, startColumn: string, grid: string[][]): void {
+    const keys = this.navigableColumnKeys();
+    const startCol = keys.indexOf(startColumn);
+    if (startCol < 0) return;
+    let cellsApplied = 0;
+    let cellsRejected = 0;
+    this.runAsCommand(() => {
+      grid.forEach((cells, r) => {
+        cells.forEach((raw, c) => {
+          if (startCol + c >= keys.length) return;
+          const key = keys[startCol + c];
+          const result = this.pasteCell(startRow + r, key, raw);
+          if (result === "applied") cellsApplied++;
+          else if (result === "rejected") cellsRejected++;
+        });
+      });
+    });
+    this.cellsPaste.emit({
+      startRow,
+      startColumn,
+      rowsAffected: grid.length,
+      cellsApplied,
+      cellsRejected,
+    });
+  }
+
+  private async pasteFromClipboard(startRow: number, startColumn: string): Promise<void> {
+    const text = await navigator.clipboard.readText();
+    const grid = parseClipboardGrid(text);
+    if (grid.length > 0) this.pasteGridAt(startRow, startColumn, grid);
+  }
+
+  /** Which cell shows the fill handle: bottom-right of the range, or the focused cell. Null while editing. */
+  private readonly fillHandleCell = computed<{ rowIndex: number; columnKey: string } | null>(() => {
+    if (!this.enableFillHandle() || this.editingCell() !== null) return null;
+    const range = this.normalizedCellRange();
+    if (range) {
+      const keys = this.navigableColumnKeys();
+      return { rowIndex: range.maxRow, columnKey: keys[range.maxCol] };
+    }
+    return this.focusedCell();
+  });
+
+  /** Pixel position of the fill handle within the scroll container's content, or null when hidden. */
+  readonly fillHandlePosition = signal<{ top: number; left: number } | null>(null);
+
+  private computeFillHandlePosition(): { top: number; left: number } | null {
+    const cell = this.fillHandleCell();
+    if (!cell) return null;
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return null;
+    const rowEl = container.querySelector(`[data-row-index="${cell.rowIndex}"]`);
+    if (!rowEl) return null;
+    const cellEl = Array.from(
+      rowEl.querySelectorAll<HTMLElement>("[data-column]"),
+    ).find((el) => el.dataset["column"] === cell.columnKey);
+    if (!cellEl) return null;
+    const containerRect = container.getBoundingClientRect();
+    const rect = cellEl.getBoundingClientRect();
+    const x = this.isRtl() ? rect.left : rect.right;
+    return {
+      top: rect.bottom - containerRect.top + container.scrollTop,
+      left: x - containerRect.left + container.scrollLeft,
+    };
+  }
+
+  // Re-position the single fill-handle overlay after each relevant render. Works
+  // across the flat, virtual and tree paths since all expose data-row-index /
+  // data-column; the virtual-visible signals are read so it tracks scroll.
+  private readonly _fillHandlePositionEffect = afterRenderEffect(() => {
+    this.fillHandleCell();
+    this.data();
+    this.virtualVisibleRows();
+    this.virtualVisibleTreeRows();
+    this.fillHandlePosition.set(
+      this.enableFillHandle() ? this.computeFillHandlePosition() : null,
+    );
+  });
+
+  private _fillSource: { minRow: number; maxRow: number; minCol: number; maxCol: number } | null = null;
+  private readonly _fillPreviewEndRow = signal<number | null>(null);
+
+  isCellInFillPreview(rowIndex: number, columnKey: string): boolean {
+    const source = this._fillSource;
+    const end = this._fillPreviewEndRow();
+    if (!source || end === null) return false;
+    const colIdx = this.navigableColumnKeys().indexOf(columnKey);
+    return (
+      rowIndex > source.maxRow &&
+      rowIndex <= end &&
+      colIdx >= source.minCol &&
+      colIdx <= source.maxCol
+    );
+  }
+
+  onFillHandleStart(event: Event): void {
+    this._fillSource = this.fillSourceRange();
+    if (!this._fillSource) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this._fillPreviewEndRow.set(this._fillSource.maxRow);
+    this._document.addEventListener("mousemove", this._onFillMove);
+    this._document.addEventListener("mouseup", this._onFillEnd);
+    this._document.addEventListener("touchmove", this._onFillMove, { passive: false });
+    this._document.addEventListener("touchend", this._onFillEnd);
+  }
+
+  private readonly _onFillMove = (event: MouseEvent | TouchEvent): void => {
+    const point = "touches" in event ? event.touches[0] : event;
+    if (!point) return;
+    if ("touches" in event) event.preventDefault();
+    const target = this._document.elementFromPoint(point.clientX, point.clientY);
+    const rowEl = target?.closest<HTMLElement>("[data-row-index]");
+    const raw = rowEl?.dataset["rowIndex"];
+    if (raw === undefined) return;
+    const idx = Number(raw);
+    if (Number.isFinite(idx)) this._fillPreviewEndRow.set(idx);
+  };
+
+  private readonly _onFillEnd = (): void => {
+    this._document.removeEventListener("mousemove", this._onFillMove);
+    this._document.removeEventListener("mouseup", this._onFillEnd);
+    this._document.removeEventListener("touchmove", this._onFillMove);
+    this._document.removeEventListener("touchend", this._onFillEnd);
+    const end = this._fillPreviewEndRow();
+    this._fillPreviewEndRow.set(null);
+    this._fillSource = null;
+    if (end !== null) this.fillDownTo(end);
+  };
+
+  /** Localized labels for the range readout (English fallback). */
+  readonly rangeLabels = computed(() => {
+    const l = this.t();
+    return {
+      count: l.rangeCount ?? "Count",
+      sum: l.rangeSum ?? "Sum",
+      avg: l.rangeAvg ?? "Avg",
+      min: l.rangeMin ?? "Min",
+      max: l.rangeMax ?? "Max",
+      chart: l.rangeChart ?? "Chart",
+    };
+  });
+
   readonly hasFooter = computed(() => {
     const mode = this.showFooter();
     if (mode === false) return false;
@@ -1892,10 +2375,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       focused.rowIndex === rowIndex &&
       focused.columnKey === key
     ) {
-      return base + " ring-1 ring-ring/40 ring-inset";
+      // Active/anchor cell: stays prominent even inside a tinted range.
+      return base + " bg-background ring-2 ring-primary ring-inset relative z-10";
     }
     if (rowIndex !== undefined && this.isCellInRange(rowIndex, key)) {
-      return base + " bg-primary/10";
+      return base + " bg-primary/15";
+    }
+    if (rowIndex !== undefined && this.isCellInFillPreview(rowIndex, key)) {
+      return base + " bg-primary/5 ring-1 ring-dashed ring-primary/40 ring-inset";
     }
     return base;
   }
@@ -2460,6 +2947,102 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return (row as Record<string, unknown>)[key as string];
   }
 
+  /**
+   * Resolve value-aware conditional formatting for a cell. Returns `null` when
+   * the column declares none, so unformatted cells render with zero overhead.
+   */
+  getCellFormatting(col: ColumnDef<T>, row: T): ResolvedCellFormatting | null {
+    if (!this._hasConditionalFormatting(col)) {
+      return null;
+    }
+    const value = this.getCellValue(row, col.accessorKey, col);
+    return {
+      class: this._resolveCellClassRules(col, value, row),
+      style: this._resolveCellStyle(col, value, row),
+      dataBar: this._resolveDataBar(col, value),
+      icon: col.iconSet?.(value, row) ?? null,
+    };
+  }
+
+  private _hasConditionalFormatting(col: ColumnDef<T>): boolean {
+    return (
+      col.cellClassRules !== undefined ||
+      col.cellStyleRules !== undefined ||
+      col.colorScale !== undefined ||
+      col.dataBar !== undefined ||
+      col.iconSet !== undefined
+    );
+  }
+
+  private _resolveCellClassRules(col: ColumnDef<T>, value: unknown, row: T): string {
+    if (!col.cellClassRules) {
+      return "";
+    }
+    const out: string[] = [];
+    for (const rule of col.cellClassRules) {
+      if (rule.when(value, row)) {
+        out.push(rule.class);
+      }
+    }
+    return out.join(" ");
+  }
+
+  private _resolveCellStyle(col: ColumnDef<T>, value: unknown, row: T): Record<string, string> {
+    const style = col.cellStyleRules?.(value, row) ?? {};
+    if (!col.colorScale) {
+      return style;
+    }
+    const bg = this._colorScaleBackground(col.colorScale, value);
+    return bg ? { ...style, "background-color": bg } : style;
+  }
+
+  private _colorScaleBackground(scale: ColorScale, value: unknown): string | null {
+    const num = this._toFiniteNumber(value);
+    if (num === null) {
+      return null;
+    }
+    const pct = this._positionPercent(num, scale.min, scale.max);
+    return `color-mix(in srgb, ${scale.to} ${pct}%, ${scale.from})`;
+  }
+
+  private _resolveDataBar(
+    col: ColumnDef<T>,
+    value: unknown,
+  ): { width: string; color: string; track: string | null } | null {
+    if (!col.dataBar) {
+      return null;
+    }
+    const num = this._toFiniteNumber(value);
+    if (num === null) {
+      return null;
+    }
+    const pct = this._positionPercent(num, col.dataBar.min, col.dataBar.max);
+    return {
+      width: `${pct}%`,
+      color: col.dataBar.color,
+      track: col.dataBar.track ?? null,
+    };
+  }
+
+  private _toFiniteNumber(value: unknown): number | null {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === "string") {
+      const num = Number.parseFloat(value);
+      return Number.isFinite(num) ? num : null;
+    }
+    return null;
+  }
+
+  private _positionPercent(value: number, min: number, max: number): number {
+    if (max === min) {
+      return 0;
+    }
+    const pct = ((value - min) / (max - min)) * 100;
+    return Math.max(0, Math.min(100, pct));
+  }
+
   getCellStringValue(row: T, column: ColumnDef<T>): string {
     if (column.cell) {
       return column.cell(row);
@@ -2642,22 +3225,83 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     if (key === "_selection" || key === "_expander" || key === "_actions")
       return;
     event.stopPropagation();
-
-    if (this.enableCellRangeSelection() && (event as MouseEvent).shiftKey) {
-      const focused = this.focusedCell();
-      if (focused) {
-        this.cellRange.set({
-          startRow: focused.rowIndex,
-          startCol: focused.columnKey,
-          endRow: rowIndex,
-          endCol: key,
-        });
-        return;
-      }
-    }
-
+    // When range selection is on, focus + range are managed by the pointer-drag
+    // handler (onTableMouseDown); a plain click just focuses here for keyboard.
     this.focusedCell.set({ rowIndex, columnKey: key });
-    if (this.enableCellRangeSelection()) {
+  }
+
+  private _rangeAnchor: { rowIndex: number; columnKey: string } | null = null;
+  private _rangeDragCleanup: (() => void) | null = null;
+
+  /** Resolve the cell (rowIndex + columnKey) under a DOM element, or null. */
+  private cellFromElement(target: EventTarget | null): { rowIndex: number; columnKey: string } | null {
+    const el = target instanceof Element ? target : null;
+    const rowEl = el?.closest<HTMLElement>("[data-row-index]");
+    const cellEl = el?.closest<HTMLElement>("[data-column]");
+    const rawRow = rowEl?.dataset["rowIndex"];
+    const columnKey = cellEl?.dataset["column"];
+    if (rawRow === undefined || columnKey === undefined) return null;
+    const rowIndex = Number(rawRow);
+    if (!Number.isFinite(rowIndex)) return null;
+    const special = columnKey === "_selection" || columnKey === "_expander" || columnKey === "_actions";
+    return special ? null : { rowIndex, columnKey };
+  }
+
+  /** Delegated mousedown — starts a click-drag range selection (left button only). */
+  onTableMouseDown(event: MouseEvent): void {
+    if (!this.enableCellRangeSelection() || event.button !== 0) return;
+    if (this.editingCell() !== null) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest("input,textarea,select,button,a,[data-slot='fill-handle']")) {
+      return;
+    }
+    const cell = this.cellFromElement(target);
+    if (!cell) return;
+    event.preventDefault();
+    this.startRangeDrag(cell, event.shiftKey);
+  }
+
+  private startRangeDrag(cell: { rowIndex: number; columnKey: string }, extend: boolean): void {
+    this._document.getSelection()?.removeAllRanges();
+    const focused = this.focusedCell();
+    const anchor = extend && focused ? focused : cell;
+    this._rangeAnchor = anchor;
+    this.focusedCell.set(anchor);
+    this.cellRange.set({
+      startRow: anchor.rowIndex,
+      startCol: anchor.columnKey,
+      endRow: cell.rowIndex,
+      endCol: cell.columnKey,
+    });
+    this._rangeDragCleanup?.();
+    this._rangeDragCleanup = onPointerDrag(
+      (x, y, ev) => {
+        if ("touches" in ev) ev.preventDefault();
+        this.onRangeDragMove(x, y);
+      },
+      () => this.onRangeDragEnd(),
+    );
+  }
+
+  private onRangeDragMove(clientX: number, clientY: number): void {
+    const anchor = this._rangeAnchor;
+    if (!anchor) return;
+    const cell = this.cellFromElement(this._document.elementFromPoint(clientX, clientY));
+    if (!cell) return;
+    this.cellRange.set({
+      startRow: anchor.rowIndex,
+      startCol: anchor.columnKey,
+      endRow: cell.rowIndex,
+      endCol: cell.columnKey,
+    });
+  }
+
+  private onRangeDragEnd(): void {
+    this._rangeDragCleanup = null;
+    this._rangeAnchor = null;
+    const range = this.cellRange();
+    // A click with no drag (1×1 range) collapses to a plain focus.
+    if (range && range.startRow === range.endRow && range.startCol === range.endCol) {
       this.cellRange.set(null);
     }
   }
@@ -2715,8 +3359,38 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this.processedData().length;
   });
 
+  private handlePasteKeydown(event: KeyboardEvent): boolean {
+    if (!this.enableClipboardPaste()) return false;
+    const isPaste = (event.ctrlKey || event.metaKey) && event.key === "v";
+    if (!isPaste || this.editingCell() !== null) return false;
+    const focused = this.focusedCell();
+    if (!focused) return false;
+    event.preventDefault();
+    void this.pasteFromClipboard(focused.rowIndex, focused.columnKey);
+    return true;
+  }
+
+  private handleHistoryKeydown(event: KeyboardEvent): boolean {
+    if (!this.enableEditHistory() || this.editingCell() !== null) return false;
+    if (!event.ctrlKey && !event.metaKey) return false;
+    const key = event.key.toLowerCase();
+    if (key === "z" && !event.shiftKey) {
+      event.preventDefault();
+      this.undoEdit();
+      return true;
+    }
+    if (key === "y" || (key === "z" && event.shiftKey)) {
+      event.preventDefault();
+      this.redoEdit();
+      return true;
+    }
+    return false;
+  }
+
   onTableKeydown(event: KeyboardEvent): void {
     if (this.handleCopyKeydown(event)) return;
+    if (this.handlePasteKeydown(event)) return;
+    if (this.handleHistoryKeydown(event)) return;
     this.handleNavigationKeydown(event);
   }
 
@@ -2963,7 +3637,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       newValue,
       rowIndex: editing.rowIndex,
     });
-    this.applyValueSetter(col, row, newValue);
+    this.runAsCommand(() => this.applyValueSetter(col, row, newValue));
 
     this.editingCell.set(null);
     this.refocusTable();
@@ -3017,14 +3691,128 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private applyValueSetter(col: ColumnDef<T>, row: T, newValue: unknown): void {
     if (!col.valueSetter) return;
 
+    const getId = this.getRowId();
+    const before = this.getCellValue(row, col.accessorKey, col);
     const updatedRow = col.valueSetter(row, newValue);
     const data = [...this.data()];
-    const getId = this.getRowId();
     const dataIndex = data.findIndex((r) => getId(r) === getId(row));
-    if (dataIndex !== -1) {
-      data[dataIndex] = updatedRow;
-      this.data.set(data);
+    if (dataIndex === -1) return;
+    data[dataIndex] = updatedRow;
+    this.data.set(data);
+    this._recordingChanges?.push({
+      rowId: getId(row),
+      columnKey: String(col.accessorKey),
+      before,
+      after: newValue,
+    });
+  }
+
+  /** Run `fn`, capturing every `applyValueSetter` write into one undo command. */
+  private runAsCommand(fn: () => void): void {
+    if (!this.enableEditHistory()) {
+      fn();
+      return;
     }
+    const batch: EditChange[] = [];
+    const previous = this._recordingChanges;
+    this._recordingChanges = batch;
+    try {
+      fn();
+    } finally {
+      this._recordingChanges = previous;
+    }
+    if (batch.length > 0) {
+      this._undoStack.update((stack) => [...stack, batch]);
+      this._redoStack.set([]);
+    }
+  }
+
+  /** Write a value by row id + column key and re-emit `cellEdit` (used by undo/redo). */
+  private writeCellByKey(rowId: string, columnKey: string, value: unknown): void {
+    const col = this.columns().find((c) => String(c.accessorKey) === columnKey);
+    if (!col?.valueSetter) return;
+    const getId = this.getRowId();
+    const data = [...this.data()];
+    const index = data.findIndex((r) => getId(r) === rowId);
+    if (index === -1) return;
+    const before = this.getCellValue(data[index], col.accessorKey, col);
+    data[index] = col.valueSetter(data[index], value);
+    this.data.set(data);
+    this.cellEdit.emit({ row: data[index], column: col, oldValue: before, newValue: value, rowIndex: index });
+  }
+
+  /** Undo the most recent edit/fill/paste command (reverts each cell in reverse). */
+  undoEdit(): void {
+    const stack = this._undoStack();
+    const command = stack.at(-1);
+    if (!command) return;
+    this._undoStack.update((s) => s.slice(0, -1));
+    for (let i = command.length - 1; i >= 0; i--) {
+      this.writeCellByKey(command[i].rowId, command[i].columnKey, command[i].before);
+    }
+    this._redoStack.update((s) => [...s, command]);
+    this.editUndo.emit();
+  }
+
+  /** Redo the most recently undone command. */
+  redoEdit(): void {
+    const stack = this._redoStack();
+    const command = stack.at(-1);
+    if (!command) return;
+    this._redoStack.update((s) => s.slice(0, -1));
+    for (const change of command) {
+      this.writeCellByKey(change.rowId, change.columnKey, change.after);
+    }
+    this._undoStack.update((s) => [...s, command]);
+    this.editRedo.emit();
+  }
+
+  /**
+   * Compile a natural-language query into filters via the AI provider and apply
+   * them to `globalFilter` / `columnFilters`. The provider returns a JSON filter
+   * spec; only known columns are honored. No-op without a provider or query.
+   */
+  async applyNaturalLanguageFilter(query: string): Promise<void> {
+    const provider = this.aiProvider();
+    if (!provider || !query.trim()) return;
+    const columns = this.columns().map((c) => ({
+      key: String(c.accessorKey),
+      header: c.header,
+    }));
+    const raw = await lastValueFrom(
+      runAiTask(provider, { task: "nl-filter", input: query, context: { columns } }),
+    );
+    const spec = parseNlFilterSpec(raw, columns.map((c) => c.key));
+    this.nlFilter.emit({ query, spec });
+    if (spec.globalFilter !== undefined) this.globalFilter.set(spec.globalFilter);
+    if (spec.columnFilters) this.columnFilters.set(spec.columnFilters);
+  }
+
+  /**
+   * Fill a column's cells from an AI prompt — one provider call per filtered row,
+   * applied through the column's `valueSetter` (and `editValidator` if present).
+   * No-op when there's no provider or the column has no `valueSetter`.
+   */
+  async aiFillColumn(columnKey: string, prompt: string): Promise<void> {
+    const provider = this.aiProvider();
+    const col = this.enhancedColumns().find((c) => String(c.accessorKey) === columnKey);
+    if (!provider || !col?.valueSetter) return;
+    const rows = this.filteredData();
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const value = await lastValueFrom(
+        runAiTask(provider, {
+          task: "table-fill",
+          input: JSON.stringify(row),
+          prompt,
+          context: { column: col.header },
+        }),
+      );
+      if (this.validateEdit(col, row, value, { rowIndex: i, columnKey })) {
+        this.applyValueSetter(col, row, value);
+      }
+    }
+    this.aiFillComplete.emit({ columnKey, count: rows.length });
   }
 
   cancelEdit(): void {
@@ -3660,33 +4448,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private computeAggregate(rows: T[], col: ColumnDef<T>): string {
     const fn = col.aggregateFn;
     if (!fn) return "";
-
     const values = rows.map((row) =>
       this.getCellValue(row, col.accessorKey, col),
     );
-
-    if (typeof fn === "function") return fn(values);
-
-    const nums = values.map(Number).filter(Number.isFinite);
-    if (nums.length === 0 && fn !== "count") return "";
-
-    switch (fn) {
-      case "sum":
-        return String(nums.reduce((a, b) => a + b, 0));
-      case "avg":
-        return String(
-          Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) /
-            100,
-        );
-      case "count":
-        return String(rows.length);
-      case "min":
-        return String(Math.min(...nums));
-      case "max":
-        return String(Math.max(...nums));
-      default:
-        return "";
-    }
+    return computeAggregateValue(values, fn);
   }
 
   showAllColumns(): void {
@@ -4219,6 +4984,81 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       return headerCell.offsetWidth;
     }
     return null;
+  }
+
+  /**
+   * Measure the widest *intrinsic* content (header + rendered cells) of a column.
+   * Each cell's content is cloned into an off-screen `width:max-content` element
+   * so the measurement is the natural content width — not the cell's stretched
+   * width — which lets auto-fit both grow and shrink.
+   */
+  private measureColumnContent(columnKey: string): number {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return 0;
+    const cells = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-column], [data-column-id]"),
+    ).filter(
+      (el) => el.dataset["column"] === columnKey || el.dataset["columnId"] === columnKey,
+    );
+    if (cells.length === 0) return 0;
+
+    const measurer = this._document.createElement("div");
+    measurer.style.cssText =
+      "position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;width:max-content;";
+    this._document.body.appendChild(measurer);
+    let max = 0;
+    for (const cell of cells) {
+      const style = globalThis.getComputedStyle(cell);
+      measurer.style.font = style.font || `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      measurer.innerHTML = cell.innerHTML;
+      const width = measurer.getBoundingClientRect().width;
+      if (width > max) max = width;
+    }
+    measurer.remove();
+    return max;
+  }
+
+  /**
+   * Resize a column to fit its widest content (Excel-style auto-fit). Measures
+   * only rendered cells, so with virtual scroll it fits what's on screen.
+   */
+  autoSizeColumn(columnKey: string): void {
+    const content = this.measureColumnContent(columnKey);
+    if (content <= 0) return;
+    const col = this.enhancedColumns().find((c) => String(c.accessorKey) === columnKey);
+    const minWidth = Number.parseInt(col?._minWidth ?? "50", 10) || 50;
+    const newWidth = `${Math.max(minWidth, Math.ceil(content) + 24)}px`;
+    const oldWidth = this.columnWidths()[columnKey] ?? col?._width ?? "auto";
+    this.columnWidths.update((widths) => ({ ...widths, [columnKey]: newWidth }));
+    this.columnResize.emit({ columnKey, oldWidth, newWidth });
+  }
+
+  /** Auto-fit every (non-special) column to its content. */
+  autoSizeAllColumns(): void {
+    for (const key of this.navigableColumnKeys()) {
+      this.autoSizeColumn(key);
+    }
+  }
+
+  /** Distribute the visible width evenly across the (non-special) columns. */
+  fitColumnsToViewport(): void {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+    const keys = this.navigableColumnKeys();
+    if (keys.length === 0) return;
+    const each = Math.max(50, Math.floor(container.clientWidth / keys.length));
+    const next = { ...this.columnWidths() };
+    for (const key of keys) {
+      next[key] = `${each}px`;
+    }
+    this.columnWidths.set(next);
+  }
+
+  /** Double-click the resize handle → auto-fit that column. */
+  onResizeDoubleClick(event: MouseEvent, col: CellStyleColumn): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.autoSizeColumn(String(col.accessorKey));
   }
 
   scrollToRow(index: number): void {

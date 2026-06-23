@@ -59,9 +59,60 @@ export interface ColumnDef<T> {
     floatingFilterComponent?: Type<unknown>;
     floatingFilterTemplate?: TemplateRef<unknown>;
     enableCellFlash?: boolean;
+    /** Conditional formatting: CSS classes applied when a predicate matches the cell value. */
+    cellClassRules?: CellClassRule<T>[];
+    /** Conditional formatting: inline styles derived from the cell value (e.g. text color). */
+    cellStyleRules?: (value: unknown, row: T) => Record<string, string> | undefined;
+    /** Heat-map background that interpolates `from`→`to` by where the value sits in `[min, max]`. */
+    colorScale?: ColorScale;
+    /** Inline horizontal bar whose width is the value's position in `[min, max]` (Excel data bars). */
+    dataBar?: DataBar;
+    /** Returns an icon to prefix the cell value, or `undefined` for none (Excel icon sets). */
+    iconSet?: (value: unknown, row: T) => CellIcon | undefined;
 }
 
 export type AggregateFn = 'sum' | 'avg' | 'count' | 'min' | 'max' | ((values: unknown[]) => string);
+
+export interface CellClassRule<T> {
+    when: (value: unknown, row: T) => boolean;
+    class: string;
+}
+
+export interface ColorScale {
+    min: number;
+    max: number;
+    /** Color at `min` (CSS color). */
+    from: string;
+    /** Color at `max` (CSS color). */
+    to: string;
+}
+
+export interface DataBar {
+    min: number;
+    max: number;
+    /** Bar fill color (CSS color). */
+    color: string;
+    /** Track color behind the bar; defaults to transparent. */
+    track?: string;
+}
+
+export interface CellIcon {
+    /** A named icon from the `ui-icon` set (e.g. `'chevron-up'`). Takes precedence over `glyph`. */
+    name?: string;
+    /** A literal glyph/emoji string (e.g. `'▲'`, `'🏆'`). Used when `name` is not set. */
+    glyph?: string;
+    /** Extra CSS classes for the icon (e.g. color). */
+    class?: string;
+}
+
+/** Resolved, value-aware formatting for a single cell. `null` when the column declares none. */
+export interface ResolvedCellFormatting {
+    class: string;
+    style: Record<string, string>;
+    /** `track` is `null` when the column declares no track (groove is not rendered). */
+    dataBar: { width: string; color: string; track: string | null } | null;
+    icon: CellIcon | null;
+}
 
 export interface EnhancedColumnDef<T> extends ColumnDef<T> {
     _stickyLeft?: number;
@@ -167,6 +218,64 @@ export interface DataTableExportQuery {
     sortStates: SortState[];
 }
 
+export type PivotAggregate = 'sum' | 'avg' | 'count' | 'min' | 'max';
+
+/** Config for {@link computePivot}: row dimension(s) × one column dimension × one value. */
+export interface PivotConfig {
+    /** Column keys whose distinct combinations form the pivot rows. */
+    rows: string[];
+    /** Column key whose distinct values spread across the pivot columns. */
+    column: string;
+    /** Column key whose values are aggregated at each (row × column) cell. */
+    value: string;
+    aggregate: PivotAggregate;
+    /** Add a trailing "Total" column aggregating across the row. */
+    showRowTotals?: boolean;
+}
+
+export interface PivotColumn {
+    key: string;
+    header: string;
+}
+
+export interface PivotResult {
+    columns: PivotColumn[];
+    rows: Record<string, unknown>[];
+    /** The dynamic pivot-column keys (excludes the row-dimension and total columns). */
+    pivotColumnKeys: string[];
+}
+
+export type FilterOperator =
+    | 'equals'
+    | 'notEquals'
+    | 'contains'
+    | 'notContains'
+    | 'startsWith'
+    | 'endsWith'
+    | 'gt'
+    | 'gte'
+    | 'lt'
+    | 'lte'
+    | 'isEmpty'
+    | 'isNotEmpty';
+
+/** A single leaf condition in an advanced-filter tree. */
+export interface FilterCondition {
+    type: 'condition';
+    column: string;
+    operator: FilterOperator;
+    value?: unknown;
+}
+
+/** An AND/OR group of conditions and nested groups. */
+export interface FilterGroup {
+    type: 'group';
+    combinator: 'and' | 'or';
+    rules: FilterRule[];
+}
+
+export type FilterRule = FilterCondition | FilterGroup;
+
 export type SubRowSelectionMode = 'self' | 'descendants' | 'filteredDescendants';
 
 export type SubRowFilterMode = 'includeChildren' | 'excludeChildren' | 'includeParentOnChildMatch';
@@ -209,6 +318,53 @@ export interface CellRange {
     startCol: string;
     endRow: number;
     endCol: string;
+}
+
+/** Live aggregate readout for the currently selected cell range. */
+export interface RangeAggregateStats {
+    /** Total cells in the range (all columns × rows). */
+    count: number;
+    /** How many of those cells held a finite number. */
+    numericCount: number;
+    sum: string;
+    avg: string;
+    min: string;
+    max: string;
+}
+
+/** One numeric column of a range, as a chart series. */
+export interface RangeChartSeries {
+    name: string;
+    values: number[];
+}
+
+/** The selected range reshaped for charting: row labels + one series per numeric column. */
+export interface RangeChartPayload {
+    categories: string[];
+    series: RangeChartSeries[];
+}
+
+/** Emitted after a clipboard grid is pasted into cells. */
+export interface CellsPasteEvent {
+    /** Top-left target of the paste. */
+    startRow: number;
+    startColumn: string;
+    /** Rows the paste spanned (some may have been out of range). */
+    rowsAffected: number;
+    /** Cells successfully written. */
+    cellsApplied: number;
+    /** Cells rejected by a column's `editValidator`. */
+    cellsRejected: number;
+}
+
+/** Emitted after an Excel-style fill-handle drag applies values to new rows. */
+export interface FillSeriesEvent {
+    /** Source range the fill pattern was read from. */
+    source: { minRow: number; maxRow: number };
+    /** Rows that received filled values (inclusive). */
+    filled: { startRow: number; endRow: number };
+    /** Column keys that were filled (only those with a `valueSetter`). */
+    columnKeys: string[];
 }
 
 export type RowDragPosition = 'above' | 'below' | 'on';

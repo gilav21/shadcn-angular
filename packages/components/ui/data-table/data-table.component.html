@@ -42,10 +42,54 @@
             *ngTemplateOutlet="col.template; context: { $implicit: row }"
           ></ng-container>
         }
-      } @else if (col.cell) {
-        {{ col.cell(row) }}
       } @else {
-        {{ getCellValue(row, col.accessorKey, col) }}
+        @let fmt = getCellFormatting(col, row);
+        @if (fmt) {
+          <span
+            data-slot="cell-formatted"
+            class="relative flex w-full items-center gap-1.5 {{ fmt.class }}"
+            [style]="fmt.style"
+          >
+            @if (fmt.dataBar) {
+              @if (fmt.dataBar.track; as track) {
+                <span
+                  data-slot="cell-data-bar-track"
+                  class="pointer-events-none absolute inset-x-0 inset-y-0.5 rounded-sm"
+                  [style.background-color]="track"
+                ></span>
+              }
+              <span
+                data-slot="cell-data-bar"
+                class="pointer-events-none absolute inset-y-0.5 start-0 rounded-sm"
+                [style.width]="fmt.dataBar.width"
+                [style.background-color]="fmt.dataBar.color"
+              ></span>
+            }
+            @if (fmt.icon) {
+              @if (fmt.icon.name) {
+                <ui-icon
+                  data-slot="cell-icon"
+                  [name]="fmt.icon.name"
+                  size="xs"
+                  class="relative shrink-0 {{ fmt.icon.class }}"
+                />
+              } @else if (fmt.icon.glyph) {
+                <span data-slot="cell-icon" class="relative shrink-0 {{ fmt.icon.class }}">{{ fmt.icon.glyph }}</span>
+              }
+            }
+            <span class="relative min-w-0 truncate">
+              @if (col.cell) {
+                {{ col.cell(row) }}
+              } @else {
+                {{ getCellValue(row, col.accessorKey, col) }}
+              }
+            </span>
+          </span>
+        } @else if (col.cell) {
+          {{ col.cell(row) }}
+        } @else {
+          {{ getCellValue(row, col.accessorKey, col) }}
+        }
       }
     </ng-template>
 
@@ -214,7 +258,7 @@
         <input
           data-edit-input
           [type]="col.editType === 'number' ? 'number' : 'text'"
-          class="w-full h-full bg-background border-0 outline-none text-sm px-1"
+          class="w-full h-full bg-background border-0 outline-none text-sm px-1 select-text"
           [class.ring-1]="editErr"
           [class.ring-inset]="editErr"
           [class.ring-destructive]="editErr"
@@ -302,13 +346,60 @@
       </output>
       @if (showToolbar()) {
         <div class="flex flex-wrap items-center justify-between gap-2 flex-none">
-          <div class="flex flex-1 items-center space-x-2">
+          <div class="flex flex-1 flex-wrap items-center gap-2">
             <ui-input
               [placeholder]="filterPlaceholder()"
               [ngModel]="globalFilter()"
               (ngModelChange)="onFilterChange($event)"
               class="h-8 w-full sm:w-[150px] lg:w-[250px]"
             />
+            @if (hasAi() && enableNlFilter()) {
+              <div class="flex items-center gap-1" data-slot="table-nl-filter">
+                <span aria-hidden="true" class="text-sm">✨</span>
+                <ui-input
+                  [placeholder]="nlFilterPlaceholder()"
+                  [ngModel]="aiFilterQuery()"
+                  (ngModelChange)="aiFilterQuery.set($event)"
+                  [disabled]="aiFilterRunning()"
+                  (keydown.enter)="runAiFilter()"
+                  class="h-8 w-full sm:w-[200px]"
+                />
+              </div>
+            }
+            @if (enableAdvancedFilter()) {
+              <ui-popover>
+                <ui-popover-trigger>
+                  <button
+                    type="button"
+                    data-slot="advanced-filter-trigger"
+                    class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-input bg-background px-3 h-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <ui-icon name="filter" size="xs" />
+                    <span class="hidden sm:inline">{{ filterBuilderLabels().filterButton }}</span>
+                    @if (advancedFilterCount() > 0) {
+                      <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs text-primary-foreground">{{ advancedFilterCount() }}</span>
+                    }
+                  </button>
+                </ui-popover-trigger>
+                <ui-popover-content class="w-[min(420px,calc(100vw-2rem))] p-2">
+                  <div class="space-y-2">
+                    <ui-data-table-filter-builder
+                      [group]="advancedFilterGroup()"
+                      [columns]="filterBuilderColumns()"
+                      [labels]="filterBuilderLabels()"
+                      (groupChange)="onAdvancedFilterChange($event)"
+                    />
+                    @if (advancedFilterCount() > 0) {
+                      <button
+                        type="button"
+                        class="text-xs text-muted-foreground hover:text-destructive"
+                        (click)="clearAdvancedFilter()"
+                      >{{ filterBuilderLabels().clearFilters }}</button>
+                    }
+                  </div>
+                </ui-popover-content>
+              </ui-popover>
+            }
           </div>
           @if (showColumnVisibilityToggle() && hideableColumns().length > 0) {
             <ui-popover>
@@ -349,8 +440,10 @@
         class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full"
         [class.contain-strict]="isVirtualScrollActive()"
         [class.will-change-scroll]="isVirtualScrollActive()"
+        [class.select-none]="enableCellRangeSelection()"
         (keydown)="onTableKeydown($event)"
         (click)="onTableClick()"
+        (mousedown)="onTableMouseDown($event)"
         (contextmenu)="onRowContextMenu($event)"
         (scroll)="isVirtualScrollActive() ? onVirtualScroll($event) : null"
         (dragover)="onContainerDragOver($event)"
@@ -620,8 +713,9 @@
                       [class.-translate-x-1/2]="isRtl()"
                       (mousedown)="onResizeStart($event, col)"
                       (touchstart)="onResizeTouchStart($event, col)"
+                      (dblclick)="onResizeDoubleClick($event, col)"
                       role="separator"
-                      [attr.aria-label]="'Resize ' + col.header + ' column'"
+                      [attr.aria-label]="'Resize ' + col.header + ' column (double-click to auto-fit)'"
                     >
                       <div
                         [class]="resizeLineClass(col)"
@@ -1351,6 +1445,45 @@
             </div>
           }
         </ui-table>
+
+        @if (enableFillHandle() && fillHandlePosition(); as pos) {
+          <span
+            data-slot="fill-handle"
+            class="absolute z-20 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 cursor-crosshair rounded-[2px] border border-background bg-primary"
+            style="touch-action: none;"
+            aria-hidden="true"
+            [style.top.px]="pos.top"
+            [style.left.px]="pos.left"
+            (mousedown)="onFillHandleStart($event)"
+            (touchstart)="onFillHandleStart($event)"
+          ></span>
+        }
+
+        @if (enableRangeActions() && rangeSelectionStats(); as stats) {
+          <div
+            data-slot="range-actions"
+            class="sticky bottom-0 z-20 flex max-w-[calc(100vw-2rem)] flex-wrap items-center gap-x-4 gap-y-1 border-t bg-background/95 px-3 py-1.5 text-xs backdrop-blur-sm"
+          >
+            <span class="text-muted-foreground">{{ rangeLabels().count }}: <span class="text-foreground font-medium">{{ stats.count }}</span></span>
+            @if (stats.numericCount > 0) {
+              <span class="text-muted-foreground">{{ rangeLabels().sum }}: <span class="text-foreground font-medium">{{ stats.sum }}</span></span>
+              <span class="text-muted-foreground">{{ rangeLabels().avg }}: <span class="text-foreground font-medium">{{ stats.avg }}</span></span>
+              <span class="text-muted-foreground">{{ rangeLabels().min }}: <span class="text-foreground font-medium">{{ stats.min }}</span></span>
+              <span class="text-muted-foreground">{{ rangeLabels().max }}: <span class="text-foreground font-medium">{{ stats.max }}</span></span>
+              @if (rangeChartPayload()) {
+                <ui-button
+                  size="sm"
+                  variant="outline"
+                  class="ms-auto h-6 px-2"
+                  [attr.aria-label]="rangeLabels().chart"
+                  (click)="openRangeChart()"
+                >
+                  <ui-icon name="bar-chart-3" size="xs" class="me-1" />{{ rangeLabels().chart }}
+                </ui-button>
+              }
+            }
+          </div>
+        }
       </div>
 
       @if (showPagination()) {

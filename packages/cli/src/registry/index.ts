@@ -267,7 +267,7 @@ export const registry = defineRegistry({
     category: 'data-display',
     description: 'Feature-rich table with sorting, filtering, pagination, and column tools.',
     tags: ['data-table', 'table', 'grid', 'datagrid', 'sorting', 'filter'],
-    files: ['data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.locales.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
+    files: ['data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.locales.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-filter-builder.component.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
     peerFiles: [
       'context-menu-integrations.ts',
       'context-menu-attach.directive.ts',
@@ -276,7 +276,7 @@ export const registry = defineRegistry({
       'data-table-context-menu.directive.ts',
     ],
     dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'skeleton', 'table'],
-    libFiles: ['component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
+    libFiles: ['ai.ts', 'component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },
     ],
@@ -696,7 +696,7 @@ export const registry = defineRegistry({
     tags: ['rich-text-editor', 'wysiwyg', 'editor', 'text', 'formatting'],
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-image.utils.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-image-resizer.component.html', 'rich-text-editor/sub/rich-text-image-resizer.component.ts', 'rich-text-editor/sub/rich-text-mention.component.html', 'rich-text-editor/sub/rich-text-mention.component.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
     dependencies: ['autocomplete', 'button', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
-    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
+    libFiles: ['ai.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
@@ -1117,6 +1117,12 @@ export const registry = defineRegistry({
     tags: ['accordion', 'card', 'collapse', 'expand', 'disclosure'],
     files: ['card-accordion/card-accordion.component.css', 'card-accordion/card-accordion.component.html', 'card-accordion/card-accordion.component.ts', 'card-accordion/index.ts', 'card-accordion/sub/card-accordion-actions.component.ts', 'card-accordion/sub/card-accordion-content.component.css', 'card-accordion/sub/card-accordion-content.component.html', 'card-accordion/sub/card-accordion-content.component.ts', 'card-accordion/sub/card-accordion-item.component.css', 'card-accordion/sub/card-accordion-item.component.html', 'card-accordion/sub/card-accordion-item.component.ts', 'card-accordion/sub/card-accordion-trigger.component.css', 'card-accordion/sub/card-accordion-trigger.component.html', 'card-accordion/sub/card-accordion-trigger.component.ts'],
     dependencies: ['accordion', 'skeleton'],
+  },
+  'data-table-range-chart': {
+    name: 'data-table-range-chart',
+    files: ['data-table-range-chart/data-table-range-chart.component.html', 'data-table-range-chart/data-table-range-chart.component.ts'],
+    libFiles: ['chart.types.ts'],
+    dependencies: ['bar-chart', 'button', 'dialog', 'pie-chart', 'stacked-bar-chart'],
   },
 });
 

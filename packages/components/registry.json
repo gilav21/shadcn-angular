@@ -687,6 +687,7 @@
       "data-table/sub/data-table-date-range-filter.component.html",
       "data-table/sub/data-table-date-range-filter.component.ts",
       "data-table/sub/data-table-date-utils.ts",
+      "data-table/sub/data-table-filter-builder.component.ts",
       "data-table/sub/data-table-multiselect-filter.component.html",
       "data-table/sub/data-table-multiselect-filter.component.ts",
       "data-table/sub/data-table-pagination.component.html",
@@ -716,6 +717,7 @@
       "table"
     ],
     "libFiles": [
+      "ai.ts",
       "component-pool.service.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
@@ -2069,6 +2071,7 @@
       "separator"
     ],
     "libFiles": [
+      "ai.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
@@ -3222,6 +3225,23 @@
     "dependencies": [
       "accordion",
       "skeleton"
+    ]
+  },
+  "data-table-range-chart": {
+    "name": "data-table-range-chart",
+    "files": [
+      "data-table-range-chart/data-table-range-chart.component.html",
+      "data-table-range-chart/data-table-range-chart.component.ts"
+    ],
+    "libFiles": [
+      "chart.types.ts"
+    ],
+    "dependencies": [
+      "bar-chart",
+      "button",
+      "dialog",
+      "pie-chart",
+      "stacked-bar-chart"
     ]
   }
 }

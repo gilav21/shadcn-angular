@@ -1,0 +1,38 @@
+<ui-dialog [(open)]="open">
+  <ui-dialog-content class="w-full max-w-[calc(100vw-2rem)] sm:max-w-2xl">
+    <ui-dialog-header>
+      <ui-dialog-title>{{ title() }}</ui-dialog-title>
+    </ui-dialog-header>
+
+    <div [class]="classes()" data-slot="range-chart">
+      <div class="flex flex-wrap items-center gap-2" data-slot="range-chart-switcher">
+        @for (type of chartTypes; track type) {
+          @if (type !== 'stacked' || hasMultipleSeries()) {
+            <ui-button
+              size="sm"
+              [variant]="chartType() === type ? 'default' : 'outline'"
+              [attr.aria-pressed]="chartType() === type"
+              (click)="selectChartType(type)"
+            >
+              {{ type }}
+            </ui-button>
+          }
+        }
+      </div>
+
+      <div class="min-h-[260px] w-full" data-slot="range-chart-canvas">
+        @switch (chartType()) {
+          @case ('pie') {
+            <ui-pie-chart [data]="barData()" [size]="280" />
+          }
+          @case ('stacked') {
+            <ui-stacked-bar-chart [series]="stackedSeries()" [categories]="categories()" [height]="280" />
+          }
+          @default {
+            <ui-bar-chart [data]="barData()" [height]="280" />
+          }
+        }
+      </div>
+    </div>
+  </ui-dialog-content>
+</ui-dialog>

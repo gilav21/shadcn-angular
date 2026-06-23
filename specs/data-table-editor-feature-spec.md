@@ -1,0 +1,256 @@
+# Data Table & Rich Text Editor — Feature Roadmap Spec
+
+> **Status:** living document. WS1 (A1, A2 + chart dialog) and WS2 (B1, B2, B3)
+> implemented; WS3 (AI hook) pending.
+> **Constraint (hard):** strictly self-contained — no new runtime deps, no
+> required backend. AI ships only as a bring-your-own-provider callback that
+> degrades gracefully (mirrors the existing `mentionSearch` / `imageUploader`).
+
+## Context
+
+The data table is positioned to "replace 99% of ag-grid use cases" and the rich
+text editor is already a dependency-free Notion/Word-class component. Both are
+feature-complete enough that the valuable work is **closing genuine gaps** and
+adding **delighters**, not rebuilding basics.
+
+This spec captures the approved roadmap: three independent workstreams shipped
+as separate branches / PRs. Brainstorm catalog and scoring live in
+`C:\Users\dasha\.claude\plans\i-want-you-to-cheeky-bunny.md`.
+
+### Scope decisions
+
+- **Cut: A3 status bar.** ~70% overlapped the existing footer aggregations
+  (`showFooter` + `aggregateFn`). Its only net-new bit — live aggregates of a
+  *selected cell range* — is folded into **A2**. The demo's hand-rolled
+  `selectionCount()` stays demo-side.
+- **Cut: all editor power-ups (category C)** — margin comments, track changes,
+  callout blocks, math, embeds, footnotes, multi-column, PDF/DOCX export.
+  ("More code for things I don't believe in.") The editor still gains AI via D1.
+
+## Workstreams (build order)
+
+1. **WS1 — ag-grid wow bundle**: A1 conditional formatting + A2 range-selection
+   actions (live aggregate readout + charts). Zero external surface.
+2. **WS2 — Excel fill bundle**: B1 fill handle, B2 smart paste, B3 edit undo/redo.
+3. **WS3 — AI hook**: `aiProvider` callback on both components.
+
+Every workstream owes the `.claude/CLAUDE.md` gate: `OnPush`, `class` input,
+`data-slot` hooks, a11y + RTL, touch parity, responsive, SonarQube zero-issues,
+tests for both modes, Storybook, demo page, `e2e:scaffold` coverage, and a
+registry-publish check.
+
+---
+
+## WS1 · A1 — Conditional formatting  *(IMPLEMENTED)*
+
+**Goal:** value-driven cell styling declared on the `ColumnDef`, no custom cell
+component required. Two usage modes preserved: project a `component`/`template`
+for full control (formatting is *not* applied there); use the simple inputs
+below for the common case.
+
+### Public API — new optional `ColumnDef<T>` fields
+
+```ts
+cellClassRules?: CellClassRule<T>[];                                   // value → CSS classes
+cellStyleRules?: (value: unknown, row: T) => Record<string,string> | undefined;
+colorScale?: ColorScale;        // { min, max, from, to } heat-map background
+dataBar?: DataBar;              // { min, max, color, track? } inline Excel data bar
+iconSet?: (value: unknown, row: T) => CellIcon | undefined;           // value → glyph prefix
+
+interface CellClassRule<T> { when: (value: unknown, row: T) => boolean; class: string; }
+interface ColorScale { min: number; max: number; from: string; to: string; }
+interface DataBar   { min: number; max: number; color: string; track?: string; }
+interface CellIcon  { name?: string; glyph?: string; class?: string; }  // name -> <ui-icon>, else glyph string
+interface ResolvedCellFormatting {       // returned by getCellFormatting()
+  class: string;
+  style: Record<string, string>;
+  dataBar: { width: string; color: string; track: string } | null;
+  icon: CellIcon | null;
+}
+```
+*(All in `packages/components/ui/data-table/data-table.types.ts`, re-exported via
+the barrel `export *`.)*
+
+### Implementation
+
+- **One public resolver**, `getCellFormatting(col, row): ResolvedCellFormatting
+  | null`, plus small private helpers (`_hasConditionalFormatting`,
+  `_resolveCellClassRules`, `_resolveCellStyle`, `_colorScaleBackground`,
+  `_resolveDataBar`, `_toFiniteNumber`, `_positionPercent`). `iconSet` may
+  return `{ name }` (rendered as a `ui-icon`) or `{ glyph }` (a literal
+  string/emoji); `name` wins when both are present. Returns `null` when
+  the column declares nothing → unformatted cells render exactly as before, zero
+  overhead. Each helper kept small for cognitive-complexity ≤ 15.
+- **Color scale & heat** use native CSS `color-mix(in srgb, <to> <pct>%, <from>)`
+  — zero-dep, already used elsewhere in the component (tree row tint).
+- **Single render site:** the shared `#cellContentTpl` in
+  `data-table.component.html`. The value branches (`col.cell` + default) are
+  wrapped only when `getCellFormatting` returns non-null, with:
+  - `<span data-slot="cell-formatted" class="… {{fmt.class}}" [style]="fmt.style">`
+  - `<span data-slot="cell-data-bar">` absolutely positioned behind text (width %)
+  - `<span data-slot="cell-icon">` glyph prefix
+  - the value text in a `relative min-w-0 truncate` span (paints above the bar).
+  - **Not touched:** the ~8 `getCellClass`/`getCellStyle` call sites (those stay
+    cached + value-independent). Value-aware work lives only in the template.
+
+### Tests (`data-table.component.spec.ts`, `conditional formatting (A1)` block)
+
+Logic: null-when-undeclared, class-rule matching + join, style rules, color-mix
+output, clamped data-bar %, icon resolution. DOM: data bars render with computed
+width, icon glyphs + conditional classes appear, no wrapper when undeclared.
+**9 tests, green under `vitest --browser=chromium` (304/304 in the file).**
+
+### Demo & Storybook
+
+- Story `ConditionalFormatting` (`data-table.stories.ts`): data bars on Sales,
+  icon+class on Growth, color-scale heat on Score.
+- Demo section "Conditional formatting" (`data-table-demo.component`):
+  `conditionalColumns()` — amount data bar + status icon/classes.
+
+---
+
+## WS1 · A2 — Range-selection actions  *(IMPLEMENTED)*
+
+**Goal:** select a cell range → live Sum/Avg/Count of the selection + "Chart it".
+
+**Design decision — keep the table lean.** Importing the chart components into
+the core data-table would make them **hard registry dependencies for every
+consumer**, even those who never enable range actions. So A2 ships *emit-only*:
+the "Chart" button emits `rangeChartOpen` with a `RangeChartPayload`; the
+**consumer** renders it with whatever chart they like. A built-in default chart
+dialog ships as a **separate opt-in component** (`data-table-range-chart`) so the
+core table never depends on the chart components — see the "Resolved" note below.
+
+- **DRY refactor (done):** `computeAggregateValue(values, fn: AggregateFn)`
+  extracted to `data-table.utils.ts`; `computeAggregate()` now delegates to it,
+  so footer and range readout compute identically.
+- **State:** `rangeColumns` (private) reshapes the selection per column from
+  `normalizedCellRange` + `processedData` + `getCellValue` (mirrors
+  `copyCellRangeToClipboard`'s extraction). `rangeSelectionStats` →
+  `{ count, numericCount, sum, avg, min, max } | null` (null unless a ≥2-cell
+  range and `enableRangeActions`). `rangeChartPayload` → first non-numeric column
+  = categories (else `Row N`), numeric columns = series.
+- **UI:** new input `enableRangeActions` (opt-in). A sticky-bottom readout bar
+  *inside the scroll container* (`data-slot="range-actions"`,
+  `max-w-[calc(100vw-2rem)]`, RTL-aware) shows the live stats + a "Chart" button.
+  Output `rangeChartOpen`. Labels via 6 optional locale keys (en + he
+  translated; others fall back to English).
+- **Tests:** 13 (5 util + 8 component: stats, non-numeric counting, gating,
+  single-cell null, chart payload with/without label column, emit, DOM readout).
+  Story `RangeSelectionActions`; demo section wires the payload to a bar chart.
+
+**Resolved:** ship the chart dialog as a **separate, opt-in component**
+(`data-table-range-chart`, selector `ui-data-table-range-chart`) — its own
+registry entry that depends on the chart + dialog components. Only consumers who
+import it pull those deps; the **core data-table stays chart-free**. It declares
+its own `RangeChartData` input shape (structurally compatible with
+`RangeChartPayload`) so it does **not** depend on the data table either. Wire:
+`(rangeChartOpen)="payload.set($event); open.set(true)"` →
+`<ui-data-table-range-chart [payload] [(open)]>`. Bar/pie/stacked type switcher
+(stacked hidden for single-series). 7 tests, 2 stories; demo uses it. Adding this
+component touches the registry index → **CLI publish required on merge**.
+
+---
+
+## WS2 — Excel fill bundle  *(COMPLETE)*
+
+- **B1 fill handle (IMPLEMENTED):** pure engine `buildFillValues(source, count)`
+  in utils. Detection order (per column): arithmetic numbers → **dates** (day
+  step or month step with day-of-month clamp; ISO `YYYY-MM-DD` strings or `Date`
+  objects, output kind preserved) → **weekday names** → **month names** (full or
+  abbreviated, casing preserved, cyclic) → trailing-number text with zero-pad
+  preserved (`SKU-008 → SKU-010`) → cycle. Trailing digits scanned manually (no
+  regex); the only regex is the fixed-width ISO matcher. `fillDownTo(targetEndRow)` reads source (`normalizedCellRange` or
+  `focusedCell` 1×1), extrapolates per column, writes via `validateEdit` +
+  `applyValueSetter` (only columns with a `valueSetter`), extends the selection,
+  emits `fillSeries`. New input `enableFillHandle` + `<span data-slot=
+  "fill-handle">` at the handle cell (`fillHandleCell` computed; hidden while
+  editing); `(mousedown)`+`(touchstart)` drag (touch-action:none) → target row
+  via `elementFromPoint`→`[data-row-index]`; dashed `bg-primary/5` preview in
+  `getCellClass`; release applies; listeners torn down on end + `ngOnDestroy`.
+  The handle is a **single overlay** in the scroll container, positioned by an
+  `afterRenderEffect` that finds the handle cell via `[data-row-index]` +
+  `[data-column]` and computes scroll-invariant content coords — so it works
+  across the **flat, virtual and tree** paths (the effect reads the
+  virtual-visible signals to track virtual scroll). 7 engine + 10 component
+  tests, story + demo.
+- **B2 smart paste (IMPLEMENTED):** pure `parseClipboardGrid(text)` in utils —
+  tab-separated when any tab is present (Excel / the table's own copy-out), else
+  comma with quoted-cell support; CRLF/CR normalized, trailing newline dropped.
+  New input `enableClipboardPaste`; `handlePasteKeydown` (wired into
+  `onTableKeydown`, skipped while editing) reads the clipboard and
+  `pasteGridAt(startRow, startColumn, grid)` writes from the focused cell across
+  columns/rows via `validateEdit` + `applyValueSetter`. Values are coerced to the
+  target cell's current type (number/boolean/string). Only `valueSetter` columns
+  are written; out-of-range cells skipped; rejects counted. Emits one
+  `cellsPaste` (`rowsAffected` / `cellsApplied` / `cellsRejected`). 7 parser +
+  3 component tests; demo + story enable it on the fill table. A whole paste is
+  one undoable command (B3 wraps it).
+- **B3 edit undo/redo (IMPLEMENTED):** new input `enableEditHistory`. Two signal
+  stacks of `EditChange[]` commands. `runAsCommand(fn)` records every
+  `applyValueSetter` write made during `fn` into one command — so an inline edit,
+  a fill, or a paste each becomes a single undoable unit (B1 + B2 now wrapped, and
+  the B1 "one undo entry" follow-up is closed). `applyValueSetter` captures
+  `before`/`after` while recording. `undoEdit()` reverts each cell in reverse via
+  `writeCellByKey` (re-applies through the column's `valueSetter` by row id +
+  column key, re-emitting `cellEdit`); `redoEdit()` re-applies. `canUndo()` /
+  `canRedo()` computeds + `editUndo` / `editRedo` outputs. `handleHistoryKeydown`
+  (`Ctrl/Cmd+Z` / `Ctrl/Cmd+Y` / `+Shift+Z`, skipped while editing) wired into
+  `onTableKeydown`. A new edit clears the redo stack. The table doesn't own the
+  data array, so undo re-emits `cellEdit` with inverse values (immutable-data
+  contract). 5 tests; demo gains Undo/Redo buttons (bound to `canUndo`/`canRedo`).
+
+---
+
+## WS3 — AI assist via `aiProvider` hook  *(PENDING)*
+
+One optional provider callback powers AI in both components; zero deps; no
+provider wired → no AI UI (mirrors `mentionSearch` / `imageUploader`).
+
+```ts
+type AiTask = 'rewrite'|'shorten'|'expand'|'fix-grammar'|'translate'|'summarize'
+            |'continue'|'custom'|'table-fill'|'nl-filter';
+interface AiRequest { task: AiTask; input: string; prompt?: string;
+                      context?: Record<string, unknown>; signal?: AbortSignal; }
+type AiResult = Observable<string> | Promise<string> | string;   // streaming via Observable
+aiProvider = input<((req: AiRequest) => AiResult) | undefined>(undefined);
+```
+
+- **Editor:** "✨ Ask AI" on the floating toolbar + `/ai` slash command (guarded
+  by `when: () => !!aiProvider`); streams output into a live `TextNode`
+  placeholder; Accept/Discard/Retry; save/restore selection via existing
+  `savedRange`/`restoreSelection`.
+- **Table:** AI-fill a column (apply via `valueSetter`+`validateEdit`, one undo
+  entry); natural-language filter (provider returns a JSON filter spec → mapped
+  onto `globalFilter`/`columnFilters`, shown as removable chips; provider code is
+  never executed, only its data).
+- Demo ships a tiny mock provider so AI is exercisable offline / in e2e.
+
+---
+
+## Verification
+
+- Per workstream: `vitest --browser=chromium` (authoritative; headless lacks
+  layout — a pre-existing PageDown test only passes in the browser),
+  `sonar` skill (zero issues), `e2e:scaffold` + `e2e -- <name>`.
+- Full suite `npm run test-visual` — **zero failures tolerated**.
+- Registry: run `sync-registry --fix` + `validate-registry`; publish the CLI
+  package only if the registry index / CLI / utils actually change.
+
+## Change log (living history)
+
+- **2026-06-22** — Roadmap approved; A3 + category C cut. **A1 implemented**:
+  types + `getCellFormatting` resolver + single-site `#cellContentTpl` wiring +
+  9 tests (green, 304/304 in file under browser) + story + demo. Branch
+  `feat/data-table-conditional-formatting`. A2/WS2/WS3 pending.
+- **2026-06-22** — `iconSet` extended to accept a named `ui-icon` (`{ name }`)
+  in addition to a literal `{ glyph }`; demo showcases named icons
+  (check / x / loader), story keeps glyph arrows. 10th test added (named-icon
+  render branch). Green under browser.
+- **2026-06-22** — `dataBar.track` wired (optional groove behind the fill;
+  rendered only when set). 11th A1 test.
+- **2026-06-22** — **A2 implemented** (emit-only): `computeAggregateValue` DRY
+  refactor, `rangeSelectionStats` / `rangeChartPayload`, `enableRangeActions`
+  input + sticky readout bar + `rangeChartOpen` output, 6 optional locale keys
+  (en/he), 13 tests, story + demo (bar chart wired). Built-in chart dialog
+  deferred. Full data-table spec 319/319 green under browser; demo builds clean.

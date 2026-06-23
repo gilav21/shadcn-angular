@@ -9,3 +9,4 @@ export * from './sub/data-table-date-filter.component';
 export * from './sub/data-table-date-range-filter.component';
 export * from '../../lib/component-pool.service';
 export * from './data-table-column-builder';
+export * from './sub/data-table-filter-builder.component';
