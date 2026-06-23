@@ -68,6 +68,8 @@ export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
             removeGroup: 'Remove group',
             removeCondition: 'Remove condition',
             valuePlaceholder: 'value',
+            filterButton: 'Filter',
+            clearFilters: 'Clear all filters',
             operators: {
                 contains: 'contains',
                 notContains: 'does not contain',
@@ -116,6 +118,8 @@ export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
             removeGroup: 'הסר קבוצה',
             removeCondition: 'הסר תנאי',
             valuePlaceholder: 'ערך',
+            filterButton: 'סינון',
+            clearFilters: 'נקה את כל הסינונים',
             operators: {
                 contains: 'מכיל',
                 notContains: 'לא מכיל',

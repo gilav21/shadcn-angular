@@ -9,7 +9,7 @@ export interface FilterBuilderColumn {
     header: string;
 }
 
-/** Localizable strings for the filter builder (English defaults). */
+/** Localizable strings for the filter builder + its toolbar chrome (English defaults). */
 export interface FilterBuilderLabels {
     and: string;
     or: string;
@@ -20,6 +20,10 @@ export interface FilterBuilderLabels {
     removeGroup: string;
     removeCondition: string;
     valuePlaceholder: string;
+    /** Toolbar trigger button label (rendered by the host data-table, not the builder). */
+    filterButton: string;
+    /** "Clear all filters" link below the builder (rendered by the host data-table). */
+    clearFilters: string;
     operators: Record<FilterOperator, string>;
 }
 
@@ -33,6 +37,8 @@ export const DEFAULT_FILTER_BUILDER_LABELS: FilterBuilderLabels = {
     removeGroup: 'Remove group',
     removeCondition: 'Remove condition',
     valuePlaceholder: 'value',
+    filterButton: 'Filter',
+    clearFilters: 'Clear all filters',
     operators: {
         contains: 'contains',
         notContains: 'does not contain',
