@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { delay, of } from 'rxjs';
+import { delay, of, Observable } from 'rxjs';
+import { AiRequest } from '../../../../../packages/components/lib/ai';
 import {
   RichTextEditorComponent,
   SwitchComponent,
@@ -43,6 +44,17 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         <h3 class="text-lg font-medium">{{ t().floatingHeading }}</h3>
         <ui-rich-text-editor mode="markdown" toolbar="floating"
           [placeholder]="t().floatingPlaceholder" minHeight="120px" />
+      </div>
+
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">AI assist</h3>
+        <p class="text-sm text-muted-foreground">
+          Select some text, then click the <strong>✨ Ask AI</strong> chip to rewrite, shorten, expand, fix grammar,
+          summarize, continue, or run a custom prompt. The output streams in; Accept / Discard / Try again.
+          This demo wires a <strong>mock</strong> provider (no network) to show the flow.
+        </p>
+        <ui-rich-text-editor mode="markdown" toolbar="top" [aiProvider]="mockAiProvider"
+          [placeholder]="'Type a sentence, select it, then click ✨ Ask AI…'" minHeight="140px" />
       </div>
 
       <div class="space-y-2">
@@ -353,6 +365,47 @@ export class RichTextEditorDemoComponent {
       item.value.toLowerCase().includes(normalized)
     );
   };
+
+  /** Mock AI provider — streams a canned transformation word-by-word (no network). */
+  readonly mockAiProvider = (req: AiRequest): Observable<string> => {
+    const words = this.mockAiOutput(req).split(' ');
+    return new Observable<string>(subscriber => {
+      let i = 0;
+      const id = setInterval(() => {
+        i++;
+        subscriber.next(words.slice(0, i).join(' '));
+        if (i >= words.length) {
+          clearInterval(id);
+          subscriber.complete();
+        }
+      }, 50);
+      return () => clearInterval(id);
+    });
+  };
+
+  private mockAiOutput(req: AiRequest): string {
+    const input = req.input.trim();
+    const wordCount = input.split(/\s+/).filter(Boolean).length;
+    if (req.task === 'shorten') {
+      return input.split(/\s+/).slice(0, Math.max(1, Math.ceil(wordCount / 2))).join(' ') + '.';
+    }
+    if (req.task === 'expand') {
+      return `${input} Moreover, this expanded version adds supporting detail and a touch more context for the reader.`;
+    }
+    if (req.task === 'fix-grammar') {
+      return input.charAt(0).toUpperCase() + input.slice(1).replace(/\s+/g, ' ');
+    }
+    if (req.task === 'summarize') {
+      return `In short: ${input.split(/\s+/).slice(0, 8).join(' ')}…`;
+    }
+    if (req.task === 'continue') {
+      return ' …and from there the idea naturally led to the next step.';
+    }
+    if (req.task === 'custom') {
+      return `(${req.prompt ?? ''}) ${input}`;
+    }
+    return `Improved: ${input}`;
+  }
 
   readonly searchTags = (query: string): TagItem[] => {
     const normalized = query.trim().toLowerCase();

@@ -4643,3 +4643,111 @@ describe('RichTextEditorComponent — i18n integration', () => {
         expect(result).toBe('Page 3 of 7');
     });
 });
+
+describe('RichTextEditorComponent AI assist', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    function selectAll(): void {
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        const sel = document.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+    }
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [RichTextEditorComponent] }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('hasAi reflects whether a provider is set', () => {
+        expect(component.hasAi()).toBe(false);
+        fixture.componentRef.setInput('aiProvider', () => 'x');
+        expect(component.hasAi()).toBe(true);
+    });
+
+    it('replaces the selection with the result and keeps it on accept', () => {
+        fixture.componentRef.setInput('aiProvider', (req: { input: string }) => `[${req.input}]`);
+        fixture.detectChanges();
+        component.writeValue('hello world');
+        fixture.detectChanges();
+        selectAll();
+
+        component.openAiPanel();
+        component.runAi('rewrite');
+        expect(editor.querySelector('[data-ai-draft]')?.textContent).toBe('[hello world]');
+
+        component.acceptAi();
+        expect(editor.textContent).toContain('[hello world]');
+        expect(editor.querySelector('[data-ai-draft]')).toBeNull();
+    });
+
+    it('restores the original selection on discard', () => {
+        fixture.componentRef.setInput('aiProvider', () => 'REPLACED');
+        fixture.detectChanges();
+        component.writeValue('keep me');
+        fixture.detectChanges();
+        selectAll();
+
+        component.openAiPanel();
+        component.runAi('rewrite');
+        expect(editor.textContent).toContain('REPLACED');
+
+        component.discardAi();
+        expect(editor.textContent).toContain('keep me');
+        expect(editor.textContent).not.toContain('REPLACED');
+    });
+
+    it('streams progressive output from an Observable provider', () => {
+        const subject = new Subject<string>();
+        fixture.componentRef.setInput('aiProvider', () => subject);
+        fixture.detectChanges();
+        component.writeValue('seed');
+        fixture.detectChanges();
+        selectAll();
+
+        component.openAiPanel();
+        component.runAi('rewrite');
+        expect(component.aiPhase()).toBe('loading');
+
+        subject.next('Hel');
+        expect(editor.querySelector('[data-ai-draft]')?.textContent).toBe('Hel');
+        subject.next('Hello');
+        expect(editor.querySelector('[data-ai-draft]')?.textContent).toBe('Hello');
+
+        subject.complete();
+        expect(component.aiPhase()).toBe('review');
+        component.acceptAi();
+        expect(editor.textContent).toContain('Hello');
+    });
+
+    it('surfaces provider errors and stays in review', () => {
+        const subject = new Subject<string>();
+        fixture.componentRef.setInput('aiProvider', () => subject);
+        fixture.detectChanges();
+        component.writeValue('x');
+        fixture.detectChanges();
+        selectAll();
+
+        component.openAiPanel();
+        component.runAi('rewrite');
+        subject.error(new Error('boom'));
+
+        expect(component.aiErrorMessage()).toBe('boom');
+        expect(component.aiPhase()).toBe('review');
+        component.discardAi();
+    });
+
+    it('does nothing when no provider is set', () => {
+        component.writeValue('text');
+        fixture.detectChanges();
+        selectAll();
+        component.openAiPanel();
+        expect(component.aiPanelOpen()).toBe(false);
+    });
+});

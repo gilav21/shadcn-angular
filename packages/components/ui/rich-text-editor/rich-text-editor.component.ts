@@ -26,6 +26,7 @@ import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, fr
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { isValidImageDataUrl } from '../../lib/parsers/image-validator';
+import { AiProvider, AiTask, runAiTask } from '../../lib/ai';
 import { RichTextToolbarComponent, ToolbarItem, DEFAULT_FONT_FAMILIES, FontFamilyStrategy } from './sub/rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './sub/rich-text-mention.component';
 import { RichTextImageResizerComponent } from './sub/rich-text-image-resizer.component';
@@ -785,6 +786,20 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      * @see {@link RichTextEntitySearchFn} for the full type and examples.
      */
     mentionSearch = input<RichTextEntitySearchFn<MentionItem>>(() => []);
+
+    /**
+     * Bring-your-own AI hook. When provided, an "✨ Ask AI" affordance appears on
+     * text selection and via the `/ai` slash command; when omitted, no AI UI is
+     * shown (graceful degradation, like `mentionSearch`). The provider receives
+     * an {@link AiRequest} and returns text, a Promise, or an Observable (the
+     * latter may stream progressive output).
+     */
+    aiProvider = input<AiProvider | undefined>(undefined);
+    readonly hasAi = computed(() => this.aiProvider() !== undefined);
+    /** Emitted when an AI task starts / completes / errors. */
+    readonly aiRequest = output<{ task: AiTask; prompt?: string }>();
+    readonly aiResult = output<string>();
+    readonly aiError = output<string>();
 
     /**
      * Controls how selected mentions are rendered in the editor content.
@@ -2076,6 +2091,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.updateActiveFormats();
         const selection = this.document.getSelection();
         this.selectedText.set(selection?.toString() ?? '');
+        this.updateAiTrigger(selection);
         if (selection && !selection.isCollapsed && this.toolbar() === 'floating') {
             this.updateFloatingToolbarPosition();
             this.showFloatingToolbar.set(true);
@@ -2087,6 +2103,221 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 }
             }, 100);
         }
+    }
+
+    // ── AI assist ──
+    readonly showAiTrigger = signal(false);
+    readonly aiTriggerPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    readonly aiPanelOpen = signal(false);
+    readonly aiPhase = signal<'menu' | 'loading' | 'review'>('menu');
+    readonly aiPanelPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    readonly aiErrorMessage = signal<string | null>(null);
+    readonly aiCustomPrompt = signal('');
+    readonly aiTasks: { task: AiTask; label: string }[] = [
+        { task: 'rewrite', label: 'Improve writing' },
+        { task: 'fix-grammar', label: 'Fix spelling & grammar' },
+        { task: 'shorten', label: 'Make shorter' },
+        { task: 'expand', label: 'Make longer' },
+        { task: 'summarize', label: 'Summarize' },
+        { task: 'continue', label: 'Continue writing' },
+    ];
+    private aiSubscription: Subscription | null = null;
+    private aiController: AbortController | null = null;
+    private aiDraftEl: HTMLElement | null = null;
+    private aiRange: Range | null = null;
+    private aiSavedHtml = '';
+    private aiSavedText = '';
+    private aiContinueMode = false;
+
+    private updateAiTrigger(selection: Selection | null): void {
+        if (this.aiPanelOpen()) return;
+        const active = !!selection && !selection.isCollapsed && this.hasAi() && !this.readonly() && !this.disabled();
+        if (active && selection) {
+            const rect = selection.getRangeAt(0).getBoundingClientRect();
+            this.aiTriggerPosition.set({ x: rect.left, y: rect.top - 40 });
+            this.showAiTrigger.set(true);
+        } else {
+            this.showAiTrigger.set(false);
+        }
+    }
+
+    /** Open the AI menu, capturing the current selection (or caret for continue). */
+    openAiPanel(): void {
+        if (!this.hasAi()) return;
+        this.captureAiSelection();
+        this.aiErrorMessage.set(null);
+        this.aiCustomPrompt.set('');
+        this.aiPhase.set('menu');
+        this.showAiTrigger.set(false);
+        if (this.aiRange) {
+            const rect = this.aiRange.getBoundingClientRect();
+            this.aiPanelPosition.set({ x: Math.max(8, rect.left), y: rect.bottom + 8 });
+        }
+        this.aiPanelOpen.set(true);
+    }
+
+    private captureAiSelection(): void {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            this.aiRange = null;
+            this.aiSavedText = '';
+            this.aiSavedHtml = '';
+            return;
+        }
+        const range = selection.getRangeAt(0);
+        this.aiRange = range.cloneRange();
+        if (range.collapsed) {
+            this.aiSavedText = this.editorDiv?.nativeElement?.textContent ?? '';
+            this.aiSavedHtml = '';
+        } else {
+            this.aiSavedText = selection.toString();
+            const wrapper = this.document.createElement('div');
+            wrapper.appendChild(range.cloneContents());
+            this.aiSavedHtml = wrapper.innerHTML;
+        }
+    }
+
+    /** Run a built-in AI task on the captured selection. */
+    runAi(task: AiTask, prompt?: string): void {
+        const provider = this.aiProvider();
+        if (!provider || !this.aiRange) return;
+        this.cancelAi();
+        this.aiContinueMode = task === 'continue';
+        this.beginAiDraft();
+        if (this.aiDraftEl) this.streamAi(task, prompt);
+    }
+
+    /** Run the user's free-form prompt. */
+    runCustomAi(): void {
+        const prompt = this.aiCustomPrompt().trim();
+        if (prompt) this.runAi('custom', prompt);
+    }
+
+    /** Re-run the last task into the existing draft. */
+    retryAi(task: AiTask, prompt?: string): void {
+        if (!this.aiDraftEl) {
+            this.runAi(task, prompt);
+            return;
+        }
+        this.cancelAi();
+        this.aiDraftEl.textContent = '';
+        this.streamAi(task, prompt);
+    }
+
+    private aiLastTask: AiTask = 'rewrite';
+    private aiLastPrompt: string | undefined;
+
+    /** Re-run whichever task produced the current draft. */
+    retryLastAi(): void {
+        this.retryAi(this.aiLastTask, this.aiLastPrompt);
+    }
+
+    private streamAi(task: AiTask, prompt?: string): void {
+        const provider = this.aiProvider();
+        if (!provider) return;
+        this.aiLastTask = task;
+        this.aiLastPrompt = prompt;
+        this.aiRequest.emit({ task, prompt });
+        this.aiErrorMessage.set(null);
+        this.aiPhase.set('loading');
+        this.aiController = new AbortController();
+        this.aiSubscription = runAiTask(provider, {
+            task,
+            input: this.aiSavedText,
+            prompt,
+            signal: this.aiController.signal,
+        }).subscribe({
+            next: (text) => this.updateAiDraft(text),
+            error: (err) => {
+                const message = err instanceof Error ? err.message : 'AI request failed';
+                this.aiErrorMessage.set(message);
+                this.aiError.emit(message);
+                this.aiPhase.set('review');
+            },
+            complete: () => {
+                this.aiResult.emit(this.aiDraftEl?.textContent ?? '');
+                this.aiPhase.set('review');
+            },
+        });
+    }
+
+    private beginAiDraft(): void {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        if (!editor || !selection || !this.aiRange) return;
+        editor.focus();
+        selection.removeAllRanges();
+        selection.addRange(this.aiRange);
+        const range = selection.getRangeAt(0);
+        if (this.aiContinueMode) {
+            range.collapse(false);
+        } else {
+            range.deleteContents();
+        }
+        const span = this.document.createElement('span');
+        span.setAttribute('data-ai-draft', '');
+        span.className = 'rte-ai-draft bg-primary/10 rounded-sm';
+        range.insertNode(span);
+        this.aiDraftEl = span;
+    }
+
+    private updateAiDraft(text: string): void {
+        if (this.aiDraftEl) this.aiDraftEl.textContent = text;
+    }
+
+    /** Keep the generated text, unwrapping the draft marker. */
+    acceptAi(): void {
+        const span = this.aiDraftEl;
+        if (span?.parentNode) {
+            const parent = span.parentNode;
+            while (span.firstChild) parent.insertBefore(span.firstChild, span);
+            parent.removeChild(span);
+        }
+        this.finishAi();
+        this.syncContentFromEditor();
+    }
+
+    /** Drop the draft and restore the original selection. */
+    discardAi(): void {
+        this.cancelAi();
+        const span = this.aiDraftEl;
+        if (span?.parentNode) {
+            if (this.aiSavedHtml) {
+                const template = this.document.createElement('template');
+                template.innerHTML = this.sanitizer.sanitize(this.aiSavedHtml);
+                span.parentNode.replaceChild(template.content.cloneNode(true), span);
+            } else {
+                span.parentNode.removeChild(span);
+            }
+        }
+        this.finishAi();
+        this.syncContentFromEditor();
+    }
+
+    /** Close the AI menu without running anything (or discard an in-progress draft). */
+    closeAiPanel(): void {
+        if (this.aiDraftEl) {
+            this.discardAi();
+            return;
+        }
+        this.finishAi();
+    }
+
+    private cancelAi(): void {
+        this.aiSubscription?.unsubscribe();
+        this.aiSubscription = null;
+        this.aiController?.abort();
+        this.aiController = null;
+    }
+
+    private finishAi(): void {
+        this.cancelAi();
+        this.aiDraftEl = null;
+        this.aiRange = null;
+        this.aiSavedHtml = '';
+        this.aiSavedText = '';
+        this.aiPanelOpen.set(false);
+        this.aiPhase.set('menu');
     }
 
     onHistoryPanelOpenChange(nextOpen: boolean): void {
@@ -6235,6 +6466,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     ngOnDestroy(): void {
+        this.cancelAi();
         this.shortcutHandle?.unregister();
         this.shortcutHandle = null;
         if (this.historyDebounceTimer) {
