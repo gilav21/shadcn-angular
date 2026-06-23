@@ -1,0 +1,16 @@
+{
+  "name": "shadcn-angular-ai-backend-example",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Minimal AI backend for the shadcn-angular aiProvider hook (editor + data table).",
+  "scripts": {
+    "start": "node server.mjs",
+    "start:env": "node --env-file=.env server.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
