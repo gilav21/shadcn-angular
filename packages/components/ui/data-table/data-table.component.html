@@ -258,7 +258,7 @@
         <input
           data-edit-input
           [type]="col.editType === 'number' ? 'number' : 'text'"
-          class="w-full h-full bg-background border-0 outline-none text-sm px-1"
+          class="w-full h-full bg-background border-0 outline-none text-sm px-1 select-text"
           [class.ring-1]="editErr"
           [class.ring-inset]="editErr"
           [class.ring-destructive]="editErr"
@@ -393,8 +393,10 @@
         class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full"
         [class.contain-strict]="isVirtualScrollActive()"
         [class.will-change-scroll]="isVirtualScrollActive()"
+        [class.select-none]="enableCellRangeSelection()"
         (keydown)="onTableKeydown($event)"
         (click)="onTableClick()"
+        (mousedown)="onTableMouseDown($event)"
         (contextmenu)="onRowContextMenu($event)"
         (scroll)="isVirtualScrollActive() ? onVirtualScroll($event) : null"
         (dragover)="onContainerDragOver($event)"

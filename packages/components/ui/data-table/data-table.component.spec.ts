@@ -1180,19 +1180,62 @@ describe('DataTableComponent', () => {
         expect(component.draggedRowId()).toBe('2');
     });
 
-    it('should set cell range on shift-click', () => {
+    function cellEl(rowIndex: number, columnKey: string): HTMLElement {
+        return fixture.debugElement.query(
+            By.css(`[data-row-index="${rowIndex}"] [data-column="${columnKey}"]`),
+        ).nativeElement as HTMLElement;
+    }
+
+    it('extends the cell range on shift + mousedown from the focused anchor', () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+
+        cellEl(2, 'role').dispatchEvent(
+            new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey: true }),
+        );
+
+        expect(component.cellRange()).toEqual({ startRow: 0, startCol: 'id', endRow: 2, endCol: 'role' });
+        globalThis.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('selects a range by click-dragging without shift', () => {
         fixture.componentRef.setInput('enableCellRangeSelection', true);
         fixture.detectChanges();
 
-        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
-        const shiftClickEvent = { stopPropagation: () => {}, shiftKey: true } as any;
-        component.onCellClick(2, { accessorKey: 'role', header: 'Role' } as any, shiftClickEvent);
+        cellEl(0, 'id').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+        const target = cellEl(2, 'name').getBoundingClientRect();
+        globalThis.dispatchEvent(
+            new MouseEvent('mousemove', { clientX: target.left + target.width / 2, clientY: target.top + target.height / 2 }),
+        );
 
-        const range = component.cellRange();
-        expect(range).toEqual({
-            startRow: 0, startCol: 'id',
-            endRow: 2, endCol: 'role',
-        });
+        expect(component.cellRange()).toEqual({ startRow: 0, startCol: 'id', endRow: 2, endCol: 'name' });
+        globalThis.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('collapses a no-drag click to a plain focus (no range)', () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+
+        cellEl(1, 'name').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+        globalThis.dispatchEvent(new MouseEvent('mouseup'));
+
+        expect(component.cellRange()).toBeNull();
+        expect(component.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'name' });
+    });
+
+    it('styles the active cell and range cells distinctly', () => {
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'name' });
+        component.cellRange.set({ startRow: 1, startCol: 'name', endRow: 2, endCol: 'role' });
+        expect(component.getCellClass({ accessorKey: 'name', _width: 'auto' } as any, 1)).toContain('ring-primary');
+        expect(component.getCellClass({ accessorKey: 'role', _width: 'auto' } as any, 2)).toContain('bg-primary/15');
+    });
+
+    it('disables native text selection while range selection is enabled', () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+        const container = fixture.debugElement.query(By.css('[tabindex="0"].overflow-auto')).nativeElement as HTMLElement;
+        expect(container.classList.contains('select-none')).toBe(true);
     });
 
     it('should detect cells in range', () => {

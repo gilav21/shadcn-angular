@@ -20,6 +20,7 @@ import {
 import { CommonModule, DOCUMENT } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { cn, isRtl, stringifyValue } from "../../lib/utils";
+import { onPointerDrag, onLongPress } from "../../lib/touch";
 import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from "../../lib/i18n";
 import { DATA_TABLE_LOCALES, type DataTableLocale } from "./data-table.locales";
 import { generateXlsx } from "../../lib/parsers/xlsx";
@@ -1264,6 +1265,23 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.setupViewportObserver();
     this.validateConfiguration();
+    this.setupTouchRangeSelection();
+  }
+
+  private _longPressCleanup: (() => void) | null = null;
+
+  /** Touch: long-press a cell to enter range-selection, then drag to extend. */
+  private setupTouchRangeSelection(): void {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+    this._longPressCleanup = onLongPress(container, (event) => {
+      if (!this.enableCellRangeSelection() || this.editingCell() !== null) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const cell = this.cellFromElement(this._document.elementFromPoint(touch.clientX, touch.clientY));
+      if (!cell) return;
+      this.startRangeDrag(cell, false);
+    });
   }
 
   private checkPaginationVsVirtualScroll(warnings: string[]): void {
@@ -1458,6 +1476,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this._document.removeEventListener('mouseup', this._onFillEnd);
     this._document.removeEventListener('touchmove', this._onFillMove);
     this._document.removeEventListener('touchend', this._onFillEnd);
+    this._rangeDragCleanup?.();
+    this._longPressCleanup?.();
     this.viewportObserver?.disconnect();
     this.rowResizeObserver?.disconnect();
   }
@@ -2254,10 +2274,11 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       focused.rowIndex === rowIndex &&
       focused.columnKey === key
     ) {
-      return base + " ring-1 ring-ring/40 ring-inset";
+      // Active/anchor cell: stays prominent even inside a tinted range.
+      return base + " bg-background ring-2 ring-primary ring-inset relative z-10";
     }
     if (rowIndex !== undefined && this.isCellInRange(rowIndex, key)) {
-      return base + " bg-primary/10";
+      return base + " bg-primary/15";
     }
     if (rowIndex !== undefined && this.isCellInFillPreview(rowIndex, key)) {
       return base + " bg-primary/5 ring-1 ring-dashed ring-primary/40 ring-inset";
@@ -3103,22 +3124,83 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     if (key === "_selection" || key === "_expander" || key === "_actions")
       return;
     event.stopPropagation();
-
-    if (this.enableCellRangeSelection() && (event as MouseEvent).shiftKey) {
-      const focused = this.focusedCell();
-      if (focused) {
-        this.cellRange.set({
-          startRow: focused.rowIndex,
-          startCol: focused.columnKey,
-          endRow: rowIndex,
-          endCol: key,
-        });
-        return;
-      }
-    }
-
+    // When range selection is on, focus + range are managed by the pointer-drag
+    // handler (onTableMouseDown); a plain click just focuses here for keyboard.
     this.focusedCell.set({ rowIndex, columnKey: key });
-    if (this.enableCellRangeSelection()) {
+  }
+
+  private _rangeAnchor: { rowIndex: number; columnKey: string } | null = null;
+  private _rangeDragCleanup: (() => void) | null = null;
+
+  /** Resolve the cell (rowIndex + columnKey) under a DOM element, or null. */
+  private cellFromElement(target: EventTarget | null): { rowIndex: number; columnKey: string } | null {
+    const el = target instanceof Element ? target : null;
+    const rowEl = el?.closest<HTMLElement>("[data-row-index]");
+    const cellEl = el?.closest<HTMLElement>("[data-column]");
+    const rawRow = rowEl?.dataset["rowIndex"];
+    const columnKey = cellEl?.dataset["column"];
+    if (rawRow === undefined || columnKey === undefined) return null;
+    const rowIndex = Number(rawRow);
+    if (!Number.isFinite(rowIndex)) return null;
+    const special = columnKey === "_selection" || columnKey === "_expander" || columnKey === "_actions";
+    return special ? null : { rowIndex, columnKey };
+  }
+
+  /** Delegated mousedown — starts a click-drag range selection (left button only). */
+  onTableMouseDown(event: MouseEvent): void {
+    if (!this.enableCellRangeSelection() || event.button !== 0) return;
+    if (this.editingCell() !== null) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest("input,textarea,select,button,a,[data-slot='fill-handle']")) {
+      return;
+    }
+    const cell = this.cellFromElement(target);
+    if (!cell) return;
+    event.preventDefault();
+    this.startRangeDrag(cell, event.shiftKey);
+  }
+
+  private startRangeDrag(cell: { rowIndex: number; columnKey: string }, extend: boolean): void {
+    this._document.getSelection()?.removeAllRanges();
+    const focused = this.focusedCell();
+    const anchor = extend && focused ? focused : cell;
+    this._rangeAnchor = anchor;
+    this.focusedCell.set(anchor);
+    this.cellRange.set({
+      startRow: anchor.rowIndex,
+      startCol: anchor.columnKey,
+      endRow: cell.rowIndex,
+      endCol: cell.columnKey,
+    });
+    this._rangeDragCleanup?.();
+    this._rangeDragCleanup = onPointerDrag(
+      (x, y, ev) => {
+        if ("touches" in ev) ev.preventDefault();
+        this.onRangeDragMove(x, y);
+      },
+      () => this.onRangeDragEnd(),
+    );
+  }
+
+  private onRangeDragMove(clientX: number, clientY: number): void {
+    const anchor = this._rangeAnchor;
+    if (!anchor) return;
+    const cell = this.cellFromElement(this._document.elementFromPoint(clientX, clientY));
+    if (!cell) return;
+    this.cellRange.set({
+      startRow: anchor.rowIndex,
+      startCol: anchor.columnKey,
+      endRow: cell.rowIndex,
+      endCol: cell.columnKey,
+    });
+  }
+
+  private onRangeDragEnd(): void {
+    this._rangeDragCleanup = null;
+    this._rangeAnchor = null;
+    const range = this.cellRange();
+    // A click with no drag (1×1 range) collapses to a plain focus.
+    if (range && range.startRow === range.endRow && range.startCol === range.endCol) {
       this.cellRange.set(null);
     }
   }
