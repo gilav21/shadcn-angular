@@ -1470,15 +1470,15 @@ export class DataTableDemoComponent {
   }
 
   // ── Fill Handle Demo (B1) ──
-  readonly fillData = signal<{ id: string; sku: string; qty: number }[]>([
-    { id: '1', sku: 'SKU-001', qty: 10 },
-    { id: '2', sku: 'SKU-002', qty: 20 },
-    { id: '3', sku: '', qty: 0 },
-    { id: '4', sku: '', qty: 0 },
-    { id: '5', sku: '', qty: 0 },
-    { id: '6', sku: '', qty: 0 },
+  readonly fillData = signal<{ id: string; sku: string; qty: number; date: string }[]>([
+    { id: '1', sku: 'SKU-001', qty: 10, date: '2024-01-01' },
+    { id: '2', sku: 'SKU-002', qty: 20, date: '2024-01-08' },
+    { id: '3', sku: '', qty: 0, date: '' },
+    { id: '4', sku: '', qty: 0, date: '' },
+    { id: '5', sku: '', qty: 0, date: '' },
+    { id: '6', sku: '', qty: 0, date: '' },
   ]);
-  readonly fillColumns: ColumnDef<{ id: string; sku: string; qty: number }>[] = [
+  readonly fillColumns: ColumnDef<{ id: string; sku: string; qty: number; date: string }>[] = [
     { accessorKey: 'id', header: '#', width: '70px' },
     {
       accessorKey: 'sku',
@@ -1489,8 +1489,14 @@ export class DataTableDemoComponent {
     {
       accessorKey: 'qty',
       header: 'Qty',
-      width: '120px',
+      width: '110px',
       valueSetter: (row, v) => ({ ...row, qty: v as number }),
+    },
+    {
+      accessorKey: 'date',
+      header: 'Date',
+      width: '140px',
+      valueSetter: (row, v) => ({ ...row, date: v as string }),
     },
   ];
 

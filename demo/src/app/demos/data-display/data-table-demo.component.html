@@ -709,11 +709,11 @@
 <section class="space-y-4">
   <h2 id="data-table-fill-handle" class="text-2xl font-semibold scroll-m-20">Fill handle (drag to fill)</h2>
   <p class="text-muted-foreground">
-    Click a cell (or select a range) in <strong>SKU</strong> or <strong>Qty</strong>, then drag the small
-    square at its bottom-right corner down the column. The series is extrapolated Excel-style:
-    numbers step arithmetically, <code class="text-xs bg-muted px-1 rounded">SKU-002</code> →
-    <code class="text-xs bg-muted px-1 rounded">SKU-003</code>… Only columns with a
-    <code class="text-xs bg-muted px-1 rounded">valueSetter</code> are filled.
+    Click a cell (or select a range), then drag the small square at its bottom-right corner down the column.
+    The series is extrapolated Excel-style: numbers step arithmetically,
+    <code class="text-xs bg-muted px-1 rounded">SKU-002</code> → <code class="text-xs bg-muted px-1 rounded">SKU-003</code>,
+    dates step by the detected interval (the two seed dates are a week apart), and weekday/month names cycle.
+    Only columns with a <code class="text-xs bg-muted px-1 rounded">valueSetter</code> are filled.
   </p>
   <div class="rounded-md border h-[320px] sm:h-[380px] overflow-auto relative">
     <ui-data-table
