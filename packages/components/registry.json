@@ -2155,6 +2155,7 @@
       "bar-chart/index.ts"
     ],
     "libFiles": [
+      "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
     ]
@@ -2176,6 +2177,7 @@
       "bar-chart-drilldown/index.ts"
     ],
     "libFiles": [
+      "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
     ]
@@ -2197,6 +2199,7 @@
       "stacked-bar-chart/stacked-bar-chart.component.ts"
     ],
     "libFiles": [
+      "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
     ]
@@ -2218,6 +2221,7 @@
       "column-range-chart/index.ts"
     ],
     "libFiles": [
+      "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
     ]
@@ -2240,6 +2244,7 @@
       "bar-race-chart/index.ts"
     ],
     "libFiles": [
+      "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts",
       "i18n/calendar.locales.ts",

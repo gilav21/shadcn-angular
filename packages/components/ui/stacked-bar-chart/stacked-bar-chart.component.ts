@@ -8,8 +8,10 @@ import {
   inject,
   ElementRef,
   AfterViewInit,
+  DestroyRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { observeChartWidth } from '../../lib/chart-responsive';
 import {
   ChartSeries,
   StackingMode,
@@ -53,6 +55,8 @@ interface StackedSegment {
 export class StackedBarChartComponent implements AfterViewInit {
   dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
 
   private readonly _domRtl = signal(false);
 
@@ -90,7 +94,7 @@ export class StackedBarChartComponent implements AfterViewInit {
   private readonly hoveredKey = signal<{ category: number; series: number } | null>(null);
   tooltipPosition = signal({ x: 0, y: 0 });
 
-  svgWidth = computed(() => this.width());
+  svgWidth = computed(() => this._measuredWidth() ?? this.width());
   svgHeight = computed(() => this.height());
 
   padding = computed(() => ({
@@ -205,7 +209,7 @@ export class StackedBarChartComponent implements AfterViewInit {
     getChartSummary('Stacked column chart', this.categories().length, this.title())
   );
 
-  containerClasses = computed(() => cn('relative inline-block max-w-full', this.class()));
+  containerClasses = computed(() => cn('relative block w-full', this.class()));
 
   getTickPosition(tick: number): number {
     const maxVal = this.maxValue();
