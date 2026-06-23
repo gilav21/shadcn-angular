@@ -714,15 +714,23 @@
     <code class="text-xs bg-muted px-1 rounded">SKU-002</code> → <code class="text-xs bg-muted px-1 rounded">SKU-003</code>,
     dates step by the detected interval (the two seed dates are a week apart), and weekday/month names cycle.
     You can also <strong>paste</strong> a block copied from Excel/Sheets (<code class="text-xs bg-muted px-1 rounded">Ctrl/⌘+V</code>)
-    onto a focused cell. Only columns with a <code class="text-xs bg-muted px-1 rounded">valueSetter</code> are written.
+    onto a focused cell, and <strong>undo/redo</strong> any fill, paste or inline edit
+    (<code class="text-xs bg-muted px-1 rounded">Ctrl/⌘+Z</code> / <code class="text-xs bg-muted px-1 rounded">Ctrl/⌘+Y</code>).
+    Only columns with a <code class="text-xs bg-muted px-1 rounded">valueSetter</code> are written.
   </p>
+  <div class="flex flex-wrap items-center gap-2">
+    <ui-button variant="outline" size="sm" [disabled]="!fillTable.canUndo()" (click)="fillTable.undoEdit()">Undo</ui-button>
+    <ui-button variant="outline" size="sm" [disabled]="!fillTable.canRedo()" (click)="fillTable.redoEdit()">Redo</ui-button>
+  </div>
   <div class="rounded-md border h-[320px] sm:h-[380px] overflow-auto relative">
     <ui-data-table
+      #fillTable
       [(data)]="fillData"
       [columns]="fillColumns"
       [enableCellRangeSelection]="true"
       [enableFillHandle]="true"
       [enableClipboardPaste]="true"
+      [enableEditHistory]="true"
       [showToolbar]="false"
       [showPagination]="false"
     />

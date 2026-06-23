@@ -151,7 +151,7 @@ component touches the registry index → **CLI publish required on merge**.
 
 ---
 
-## WS2 — Excel fill bundle  *(B1 done; B2/B3 pending)*
+## WS2 — Excel fill bundle  *(COMPLETE)*
 
 - **B1 fill handle (IMPLEMENTED):** pure engine `buildFillValues(source, count)`
   in utils. Detection order (per column): arithmetic numbers → **dates** (day
@@ -181,10 +181,19 @@ component touches the registry index → **CLI publish required on merge**.
   `cellsPaste` (`rowsAffected` / `cellsApplied` / `cellsRejected`). 7 parser +
   3 component tests; demo + story enable it on the fill table. Deferred: B3 undo
   entry.
-- **B3 edit undo/redo:** internal `{apply, revert}` command stack over
-  `valueSetter`; `Ctrl+Z`/`Ctrl+Y` in `onTableKeydown`; `canUndo()/canRedo()` +
-  `editUndo`/`editRedo` outputs; toolbar buttons. Documents the immutable-data
-  contract (re-emits `cellEdit` with inverse values).
+- **B3 edit undo/redo (IMPLEMENTED):** new input `enableEditHistory`. Two signal
+  stacks of `EditChange[]` commands. `runAsCommand(fn)` records every
+  `applyValueSetter` write made during `fn` into one command — so an inline edit,
+  a fill, or a paste each becomes a single undoable unit (B1 + B2 now wrapped, and
+  the B1 "one undo entry" follow-up is closed). `applyValueSetter` captures
+  `before`/`after` while recording. `undoEdit()` reverts each cell in reverse via
+  `writeCellByKey` (re-applies through the column's `valueSetter` by row id +
+  column key, re-emitting `cellEdit`); `redoEdit()` re-applies. `canUndo()` /
+  `canRedo()` computeds + `editUndo` / `editRedo` outputs. `handleHistoryKeydown`
+  (`Ctrl/Cmd+Z` / `Ctrl/Cmd+Y` / `+Shift+Z`, skipped while editing) wired into
+  `onTableKeydown`. A new edit clears the redo stack. The table doesn't own the
+  data array, so undo re-emits `cellEdit` with inverse values (immutable-data
+  contract). 5 tests; demo gains Undo/Redo buttons (bound to `canUndo`/`canRedo`).
 
 ---
 

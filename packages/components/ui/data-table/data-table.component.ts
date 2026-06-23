@@ -96,6 +96,14 @@ import { ComponentPoolService } from "../../lib/component-pool.service";
 
 const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
 
+/** One reversible cell write captured for the edit-history (B3) stack. */
+interface EditChange {
+  rowId: string;
+  columnKey: string;
+  before: unknown;
+  after: unknown;
+}
+
 /** Per-instance counter for unique element ids (e.g. inline edit-error links). */
 let dataTableUid = 0;
 
@@ -273,6 +281,19 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly enableClipboardPaste = input(false);
   /** Emitted after a clipboard grid is pasted into cells. */
   readonly cellsPaste = output<CellsPasteEvent>();
+  /**
+   * Track inline edits, fills and pastes on an undo/redo stack
+   * (`Ctrl/Cmd+Z` / `Ctrl/Cmd+Y` / `Ctrl/Cmd+Shift+Z`). Undo re-applies the
+   * inverse value through each column's `valueSetter` and re-emits `cellEdit`.
+   */
+  readonly enableEditHistory = input(false);
+  readonly editUndo = output<void>();
+  readonly editRedo = output<void>();
+  private readonly _undoStack = signal<EditChange[][]>([]);
+  private readonly _redoStack = signal<EditChange[][]>([]);
+  private _recordingChanges: EditChange[] | null = null;
+  readonly canUndo = computed(() => this._undoStack().length > 0);
+  readonly canRedo = computed(() => this._redoStack().length > 0);
   readonly columnResize = output<ColumnResizeEvent>();
 
   /**
@@ -1955,7 +1976,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     if (!source || targetEndRow <= source.maxRow) return;
     const keys = this.navigableColumnKeys().slice(source.minCol, source.maxCol + 1);
     const fillCount = targetEndRow - source.maxRow;
-    const filledKeys = keys.filter((key) => this.fillColumn(key, source, fillCount));
+    let filledKeys: string[] = [];
+    this.runAsCommand(() => {
+      filledKeys = keys.filter((key) => this.fillColumn(key, source, fillCount));
+    });
     if (filledKeys.length === 0) return;
     this.cellRange.set({
       startRow: source.minRow,
@@ -2000,13 +2024,15 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     if (startCol < 0) return;
     let cellsApplied = 0;
     let cellsRejected = 0;
-    grid.forEach((cells, r) => {
-      cells.forEach((raw, c) => {
-        if (startCol + c >= keys.length) return;
-        const key = keys[startCol + c];
-        const result = this.pasteCell(startRow + r, key, raw);
-        if (result === "applied") cellsApplied++;
-        else if (result === "rejected") cellsRejected++;
+    this.runAsCommand(() => {
+      grid.forEach((cells, r) => {
+        cells.forEach((raw, c) => {
+          if (startCol + c >= keys.length) return;
+          const key = keys[startCol + c];
+          const result = this.pasteCell(startRow + r, key, raw);
+          if (result === "applied") cellsApplied++;
+          else if (result === "rejected") cellsRejected++;
+        });
       });
     });
     this.cellsPaste.emit({
@@ -3129,9 +3155,27 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return true;
   }
 
+  private handleHistoryKeydown(event: KeyboardEvent): boolean {
+    if (!this.enableEditHistory() || this.editingCell() !== null) return false;
+    if (!event.ctrlKey && !event.metaKey) return false;
+    const key = event.key.toLowerCase();
+    if (key === "z" && !event.shiftKey) {
+      event.preventDefault();
+      this.undoEdit();
+      return true;
+    }
+    if (key === "y" || (key === "z" && event.shiftKey)) {
+      event.preventDefault();
+      this.redoEdit();
+      return true;
+    }
+    return false;
+  }
+
   onTableKeydown(event: KeyboardEvent): void {
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
+    if (this.handleHistoryKeydown(event)) return;
     this.handleNavigationKeydown(event);
   }
 
@@ -3378,7 +3422,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       newValue,
       rowIndex: editing.rowIndex,
     });
-    this.applyValueSetter(col, row, newValue);
+    this.runAsCommand(() => this.applyValueSetter(col, row, newValue));
 
     this.editingCell.set(null);
     this.refocusTable();
@@ -3432,14 +3476,80 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private applyValueSetter(col: ColumnDef<T>, row: T, newValue: unknown): void {
     if (!col.valueSetter) return;
 
+    const getId = this.getRowId();
+    const before = this.getCellValue(row, col.accessorKey, col);
     const updatedRow = col.valueSetter(row, newValue);
     const data = [...this.data()];
-    const getId = this.getRowId();
     const dataIndex = data.findIndex((r) => getId(r) === getId(row));
-    if (dataIndex !== -1) {
-      data[dataIndex] = updatedRow;
-      this.data.set(data);
+    if (dataIndex === -1) return;
+    data[dataIndex] = updatedRow;
+    this.data.set(data);
+    this._recordingChanges?.push({
+      rowId: getId(row),
+      columnKey: String(col.accessorKey),
+      before,
+      after: newValue,
+    });
+  }
+
+  /** Run `fn`, capturing every `applyValueSetter` write into one undo command. */
+  private runAsCommand(fn: () => void): void {
+    if (!this.enableEditHistory()) {
+      fn();
+      return;
     }
+    const batch: EditChange[] = [];
+    const previous = this._recordingChanges;
+    this._recordingChanges = batch;
+    try {
+      fn();
+    } finally {
+      this._recordingChanges = previous;
+    }
+    if (batch.length > 0) {
+      this._undoStack.update((stack) => [...stack, batch]);
+      this._redoStack.set([]);
+    }
+  }
+
+  /** Write a value by row id + column key and re-emit `cellEdit` (used by undo/redo). */
+  private writeCellByKey(rowId: string, columnKey: string, value: unknown): void {
+    const col = this.columns().find((c) => String(c.accessorKey) === columnKey);
+    if (!col?.valueSetter) return;
+    const getId = this.getRowId();
+    const data = [...this.data()];
+    const index = data.findIndex((r) => getId(r) === rowId);
+    if (index === -1) return;
+    const before = this.getCellValue(data[index], col.accessorKey, col);
+    data[index] = col.valueSetter(data[index], value);
+    this.data.set(data);
+    this.cellEdit.emit({ row: data[index], column: col, oldValue: before, newValue: value, rowIndex: index });
+  }
+
+  /** Undo the most recent edit/fill/paste command (reverts each cell in reverse). */
+  undoEdit(): void {
+    const stack = this._undoStack();
+    const command = stack.at(-1);
+    if (!command) return;
+    this._undoStack.update((s) => s.slice(0, -1));
+    for (let i = command.length - 1; i >= 0; i--) {
+      this.writeCellByKey(command[i].rowId, command[i].columnKey, command[i].before);
+    }
+    this._redoStack.update((s) => [...s, command]);
+    this.editUndo.emit();
+  }
+
+  /** Redo the most recently undone command. */
+  redoEdit(): void {
+    const stack = this._redoStack();
+    const command = stack.at(-1);
+    if (!command) return;
+    this._redoStack.update((s) => s.slice(0, -1));
+    for (const change of command) {
+      this.writeCellByKey(change.rowId, change.columnKey, change.after);
+    }
+    this._undoStack.update((s) => [...s, command]);
+    this.editRedo.emit();
   }
 
   cancelEdit(): void {

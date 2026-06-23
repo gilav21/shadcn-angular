@@ -4731,3 +4731,79 @@ describe('DataTableComponent smart paste (B2)', () => {
         expect(event).toMatchObject({ cellsApplied: 1, cellsRejected: 1, rowsAffected: 2 });
     });
 });
+
+describe('DataTableComponent edit history (B3)', () => {
+    let component: DataTableComponent<FillRow>;
+    let fixture: ComponentFixture<DataTableComponent<FillRow>>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<FillRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', [
+            { id: '1', n: 1, label: 'Item 1' },
+            { id: '2', n: 2, label: 'Item 2' },
+            { id: '3', n: 0, label: '' },
+            { id: '4', n: 0, label: '' },
+        ]);
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'n', header: 'N', valueSetter: (row: FillRow, v: unknown) => ({ ...row, n: v as number }) },
+            { accessorKey: 'label', header: 'Label', valueSetter: (row: FillRow, v: unknown) => ({ ...row, label: v as string }) },
+        ] as ColumnDef<FillRow>[]);
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.componentRef.setInput('enableFillHandle', true);
+        fixture.componentRef.setInput('enableEditHistory', true);
+        fixture.detectChanges();
+    });
+
+    it('undoes and redoes a fill as one command', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        expect(component.data().map((r) => r.n)).toEqual([1, 2, 3, 4]);
+
+        component.undoEdit();
+        expect(component.data().map((r) => r.n)).toEqual([1, 2, 0, 0]);
+
+        component.redoEdit();
+        expect(component.data().map((r) => r.n)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('tracks canUndo / canRedo', () => {
+        expect(component.canUndo()).toBe(false);
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        expect(component.canUndo()).toBe(true);
+        expect(component.canRedo()).toBe(false);
+        component.undoEdit();
+        expect(component.canUndo()).toBe(false);
+        expect(component.canRedo()).toBe(true);
+    });
+
+    it('undoes an inline edit', () => {
+        component.editingCell.set({ rowIndex: 0, columnKey: 'n' });
+        component.editValue.set(99);
+        component.commitEdit();
+        expect(component.data()[0].n).toBe(99);
+        component.undoEdit();
+        expect(component.data()[0].n).toBe(1);
+    });
+
+    it('clears the redo stack when a new edit happens after an undo', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        component.undoEdit();
+        expect(component.canRedo()).toBe(true);
+        // a fresh fill should drop the redo history
+        component.cellRange.set({ startRow: 0, startCol: 'label', endRow: 1, endCol: 'label' });
+        component.fillDownTo(3);
+        expect(component.canRedo()).toBe(false);
+    });
+
+    it('does not record history when disabled', () => {
+        fixture.componentRef.setInput('enableEditHistory', false);
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        expect(component.canUndo()).toBe(false);
+    });
+});

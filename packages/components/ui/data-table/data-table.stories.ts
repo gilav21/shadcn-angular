@@ -1283,6 +1283,7 @@ export const FillHandle: StoryObj<DataTableComponent<FillRow>> = {
                         [enableCellRangeSelection]="true"
                         [enableFillHandle]="true"
                         [enableClipboardPaste]="true"
+                        [enableEditHistory]="true"
                         [showToolbar]="false"
                         [showPagination]="false"
                     />
