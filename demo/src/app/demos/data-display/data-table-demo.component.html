@@ -334,6 +334,19 @@
   </div>
 </section>
 
+<!-- Advanced Filter Builder Demo (A5) -->
+<section class="space-y-4">
+  <h2 id="data-table-advanced-filter" class="text-2xl font-semibold scroll-m-20">Advanced filter builder</h2>
+  <p class="text-muted-foreground">
+    Click <strong>Filter</strong> in the toolbar to build nested <strong>AND/OR</strong> conditions
+    (e.g. <em>amount &gt; 1000</em> <strong>AND</strong> (<em>status equals success</em> <strong>OR</strong>
+    <em>client contains "ben"</em>)). The badge shows the active condition count.
+  </p>
+  <div class="rounded-md border h-[400px] sm:h-[560px] overflow-auto relative">
+    <ui-data-table [data]="payments()" [columns]="paymentColumns()" [enableAdvancedFilter]="true" />
+  </div>
+</section>
+
 <!-- Server-Side Data Table Section -->
 <section class="space-y-4">
   <h2 id="data-table-server" class="text-2xl font-semibold scroll-m-20">{{ t().sectionServerSide }}</h2>

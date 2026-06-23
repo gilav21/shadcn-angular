@@ -1,6 +1,59 @@
+import type { FilterGroup, FilterOperator, FilterRule } from './data-table.types';
+
 export interface RowRange {
     readonly start: number;
     readonly end: number;
+}
+
+function asString(value: unknown): string {
+    return value == null ? '' : String(value);
+}
+
+function looseEquals(cell: unknown, value: unknown): boolean {
+    const a = Number(cell);
+    const b = Number(value);
+    if (Number.isFinite(a) && Number.isFinite(b)) return a === b;
+    return asString(cell).toLowerCase() === asString(value).toLowerCase();
+}
+
+const FILTER_OPS: Record<FilterOperator, (cell: unknown, value: unknown) => boolean> = {
+    isEmpty: (cell) => asString(cell).trim() === '',
+    isNotEmpty: (cell) => asString(cell).trim() !== '',
+    equals: (cell, value) => looseEquals(cell, value),
+    notEquals: (cell, value) => !looseEquals(cell, value),
+    contains: (cell, value) => asString(cell).toLowerCase().includes(asString(value).toLowerCase()),
+    notContains: (cell, value) => !asString(cell).toLowerCase().includes(asString(value).toLowerCase()),
+    startsWith: (cell, value) => asString(cell).toLowerCase().startsWith(asString(value).toLowerCase()),
+    endsWith: (cell, value) => asString(cell).toLowerCase().endsWith(asString(value).toLowerCase()),
+    gt: (cell, value) => Number(cell) > Number(value),
+    gte: (cell, value) => Number(cell) >= Number(value),
+    lt: (cell, value) => Number(cell) < Number(value),
+    lte: (cell, value) => Number(cell) <= Number(value),
+};
+
+/** Test a single cell value against an advanced-filter operator. */
+export function matchesCondition(cell: unknown, operator: FilterOperator, value: unknown): boolean {
+    return (FILTER_OPS[operator] ?? (() => true))(cell, value);
+}
+
+function evaluateRule(rule: FilterRule, getValue: (column: string) => unknown): boolean {
+    if (rule.type === 'group') {
+        return evaluateAdvancedFilter(rule, getValue);
+    }
+    return matchesCondition(getValue(rule.column), rule.operator, rule.value);
+}
+
+/**
+ * Evaluate an advanced-filter group tree against a row. An empty group matches
+ * everything; `and` requires every rule, `or` requires any. Nested groups recurse.
+ */
+export function evaluateAdvancedFilter(
+    group: FilterGroup,
+    getValue: (column: string) => unknown,
+): boolean {
+    if (group.rules.length === 0) return true;
+    const results = group.rules.map((rule) => evaluateRule(rule, getValue));
+    return group.combinator === 'and' ? results.every(Boolean) : results.some(Boolean);
 }
 
 export interface ColumnRange {

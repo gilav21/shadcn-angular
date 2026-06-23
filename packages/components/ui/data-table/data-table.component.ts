@@ -39,6 +39,7 @@ import {
 } from "../popover";
 import { DataTableColumnHeaderComponent } from "./sub/data-table-column-header.component";
 import { DataTablePaginationComponent } from "./sub/data-table-pagination.component";
+import { DataTableFilterBuilderComponent } from "./sub/data-table-filter-builder.component";
 import { UiComponentOutletDirective } from "../component-outlet.directive";
 import {
   ContextMenuComponent,
@@ -75,6 +76,7 @@ import {
   CellStyleColumn,
   GroupRow,
   DataTableDisplayRow,
+  FilterGroup,
 } from "./data-table.types";
 import {
   computeRowRange,
@@ -82,6 +84,7 @@ import {
   computeVariableRowRange,
   buildPrefixSums,
   partitionIntoGroups,
+  evaluateAdvancedFilter,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
 
@@ -115,6 +118,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
     PopoverContentComponent,
     DataTableColumnHeaderComponent,
     DataTablePaginationComponent,
+    DataTableFilterBuilderComponent,
     UiComponentOutletDirective,
     ContextMenuComponent,
     ButtonComponent,
@@ -547,6 +551,36 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly srAnnouncement = signal("");
   readonly globalFilter = model("");
   readonly columnFilters = model<Record<string, unknown>>({});
+  /** Advanced AND/OR filter tree (A5). Applied in addition to global/column filters. */
+  readonly advancedFilter = model<FilterGroup | null>(null);
+  /** Show the advanced-filter builder button in the toolbar. */
+  readonly enableAdvancedFilter = input(false);
+  /** Non-null filter group for the builder UI (an empty AND group when unset). */
+  readonly advancedFilterGroup = computed<FilterGroup>(
+    () => this.advancedFilter() ?? { type: "group", combinator: "and", rules: [] },
+  );
+  /** {key,header} pairs offered by the builder (the user-defined columns). */
+  readonly filterBuilderColumns = computed(() =>
+    this.columns().map((c) => ({ key: String(c.accessorKey), header: c.header })),
+  );
+  /** Number of leaf conditions in the active advanced filter (for the toolbar badge). */
+  readonly advancedFilterCount = computed(() => this._countConditions(this.advancedFilter()));
+
+  private _countConditions(group: FilterGroup | null): number {
+    if (!group) return 0;
+    return group.rules.reduce(
+      (sum, rule) => sum + (rule.type === "group" ? this._countConditions(rule) : 1),
+      0,
+    );
+  }
+
+  onAdvancedFilterChange(group: FilterGroup): void {
+    this.advancedFilter.set(group);
+  }
+
+  clearAdvancedFilter(): void {
+    this.advancedFilter.set(null);
+  }
   readonly sortState = model<SortState>({ column: "", direction: null });
   readonly multiSortState = model<SortState[]>([]);
   readonly paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
@@ -576,8 +610,21 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       data = this.applyGlobalFilterToData(data, globalFilterValue);
     }
 
-    return this.applyColumnFiltersToData(data);
+    data = this.applyColumnFiltersToData(data);
+    return this.applyAdvancedFilter(data);
   });
+
+  private applyAdvancedFilter(data: T[]): T[] {
+    const group = this.advancedFilter();
+    if (!group || group.rules.length === 0) return data;
+    const columns = this.enhancedColumns();
+    return data.filter((row) =>
+      evaluateAdvancedFilter(group, (column) => {
+        const col = columns.find((c) => String(c.accessorKey) === column);
+        return this.getCellValue(row, col?.accessorKey ?? column, col);
+      }),
+    );
+  }
 
   private applyGlobalFilterToData(data: T[], globalFilterValue: string): T[] {
     const columns = this.enhancedColumns().filter(

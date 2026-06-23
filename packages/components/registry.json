@@ -687,6 +687,7 @@
       "data-table/sub/data-table-date-range-filter.component.html",
       "data-table/sub/data-table-date-range-filter.component.ts",
       "data-table/sub/data-table-date-utils.ts",
+      "data-table/sub/data-table-filter-builder.component.ts",
       "data-table/sub/data-table-multiselect-filter.component.html",
       "data-table/sub/data-table-multiselect-filter.component.ts",
       "data-table/sub/data-table-pagination.component.html",

@@ -167,6 +167,37 @@ export interface DataTableExportQuery {
     sortStates: SortState[];
 }
 
+export type FilterOperator =
+    | 'equals'
+    | 'notEquals'
+    | 'contains'
+    | 'notContains'
+    | 'startsWith'
+    | 'endsWith'
+    | 'gt'
+    | 'gte'
+    | 'lt'
+    | 'lte'
+    | 'isEmpty'
+    | 'isNotEmpty';
+
+/** A single leaf condition in an advanced-filter tree. */
+export interface FilterCondition {
+    type: 'condition';
+    column: string;
+    operator: FilterOperator;
+    value?: unknown;
+}
+
+/** An AND/OR group of conditions and nested groups. */
+export interface FilterGroup {
+    type: 'group';
+    combinator: 'and' | 'or';
+    rules: FilterRule[];
+}
+
+export type FilterRule = FilterCondition | FilterGroup;
+
 export type SubRowSelectionMode = 'self' | 'descendants' | 'filteredDescendants';
 
 export type SubRowFilterMode = 'includeChildren' | 'excludeChildren' | 'includeParentOnChildMatch';

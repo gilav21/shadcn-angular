@@ -309,6 +309,39 @@
               (ngModelChange)="onFilterChange($event)"
               class="h-8 w-full sm:w-[150px] lg:w-[250px]"
             />
+            @if (enableAdvancedFilter()) {
+              <ui-popover>
+                <ui-popover-trigger>
+                  <button
+                    type="button"
+                    data-slot="advanced-filter-trigger"
+                    class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-input bg-background px-3 h-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    <ui-icon name="filter" size="xs" />
+                    <span class="hidden sm:inline">Filter</span>
+                    @if (advancedFilterCount() > 0) {
+                      <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-xs text-primary-foreground">{{ advancedFilterCount() }}</span>
+                    }
+                  </button>
+                </ui-popover-trigger>
+                <ui-popover-content class="w-[min(420px,calc(100vw-2rem))] p-2">
+                  <div class="space-y-2">
+                    <ui-data-table-filter-builder
+                      [group]="advancedFilterGroup()"
+                      [columns]="filterBuilderColumns()"
+                      (groupChange)="onAdvancedFilterChange($event)"
+                    />
+                    @if (advancedFilterCount() > 0) {
+                      <button
+                        type="button"
+                        class="text-xs text-muted-foreground hover:text-destructive"
+                        (click)="clearAdvancedFilter()"
+                      >Clear all filters</button>
+                    }
+                  </div>
+                </ui-popover-content>
+              </ui-popover>
+            }
           </div>
           @if (showColumnVisibilityToggle() && hideableColumns().length > 0) {
             <ui-popover>
