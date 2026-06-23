@@ -1,4 +1,12 @@
-import type { AggregateFn } from './data-table.types';
+import type {
+    AggregateFn,
+    FilterGroup,
+    FilterOperator,
+    FilterRule,
+    PivotAggregate,
+    PivotConfig,
+    PivotResult,
+} from './data-table.types';
 
 export interface RowRange {
     readonly start: number;
@@ -651,4 +659,146 @@ export function partitionIntoGroups<T>(
         groupValue: value.groupValue,
         rows: value.rows,
     }));
+}
+
+// ── Advanced filter evaluation (A5) ──
+function asString(value: unknown): string {
+    return value == null ? '' : String(value);
+}
+
+function looseEquals(cell: unknown, value: unknown): boolean {
+    const a = Number(cell);
+    const b = Number(value);
+    if (Number.isFinite(a) && Number.isFinite(b)) return a === b;
+    return asString(cell).toLowerCase() === asString(value).toLowerCase();
+}
+
+const FILTER_OPS: Record<FilterOperator, (cell: unknown, value: unknown) => boolean> = {
+    isEmpty: (cell) => asString(cell).trim() === '',
+    isNotEmpty: (cell) => asString(cell).trim() !== '',
+    equals: (cell, value) => looseEquals(cell, value),
+    notEquals: (cell, value) => !looseEquals(cell, value),
+    contains: (cell, value) => asString(cell).toLowerCase().includes(asString(value).toLowerCase()),
+    notContains: (cell, value) => !asString(cell).toLowerCase().includes(asString(value).toLowerCase()),
+    startsWith: (cell, value) => asString(cell).toLowerCase().startsWith(asString(value).toLowerCase()),
+    endsWith: (cell, value) => asString(cell).toLowerCase().endsWith(asString(value).toLowerCase()),
+    gt: (cell, value) => Number(cell) > Number(value),
+    gte: (cell, value) => Number(cell) >= Number(value),
+    lt: (cell, value) => Number(cell) < Number(value),
+    lte: (cell, value) => Number(cell) <= Number(value),
+};
+
+/** Test a single cell value against an advanced-filter operator. */
+export function matchesCondition(cell: unknown, operator: FilterOperator, value: unknown): boolean {
+    return (FILTER_OPS[operator] ?? (() => true))(cell, value);
+}
+
+function evaluateRule(rule: FilterRule, getValue: (column: string) => unknown): boolean {
+    if (rule.type === 'group') {
+        return evaluateAdvancedFilter(rule, getValue);
+    }
+    return matchesCondition(getValue(rule.column), rule.operator, rule.value);
+}
+
+/**
+ * Evaluate an advanced-filter group tree against a row. An empty group matches
+ * everything; `and` requires every rule, `or` requires any. Nested groups recurse.
+ */
+export function evaluateAdvancedFilter(
+    group: FilterGroup,
+    getValue: (column: string) => unknown,
+): boolean {
+    if (group.rules.length === 0) return true;
+    const results = group.rules.map((rule) => evaluateRule(rule, getValue));
+    return group.combinator === 'and' ? results.every(Boolean) : results.some(Boolean);
+}
+
+// ── Pivot transform (A6) ──
+const PIVOT_KEY_PREFIX = 'pivot:';
+const PIVOT_TOTAL_KEY = '__total__';
+
+function defaultGetValue(row: unknown, key: string): unknown {
+    return (row as Record<string, unknown>)[key];
+}
+
+function aggregateNumbers(values: number[], fn: PivotAggregate): number {
+    if (fn === 'count') return values.length;
+    if (values.length === 0) return 0;
+    const sum = values.reduce((a, b) => a + b, 0);
+    switch (fn) {
+        case 'sum':
+            return sum;
+        case 'avg':
+            return Math.round((sum / values.length) * 100) / 100;
+        case 'min':
+            return Math.min(...values);
+        case 'max':
+            return Math.max(...values);
+        default:
+            return 0;
+    }
+}
+
+function aggregateCell<T>(
+    rows: T[],
+    config: PivotConfig,
+    getValue: (row: T, key: string) => unknown,
+): number {
+    if (config.aggregate === 'count') return rows.length;
+    const nums = rows
+        .map((row) => Number(getValue(row, config.value)))
+        .filter((n) => Number.isFinite(n));
+    return aggregateNumbers(nums, config.aggregate);
+}
+
+/**
+ * Transform a flat dataset into a pivot table (rows × columns × values). The
+ * row dimension(s) become the leading columns, each distinct value of
+ * `config.column` becomes a column, and each cell is the aggregate of
+ * `config.value`. Pure — bind the result's `columns`/`rows` to a data table.
+ */
+export function computePivot<T>(
+    data: readonly T[],
+    config: PivotConfig,
+    getValue: (row: T, key: string) => unknown = defaultGetValue,
+): PivotResult {
+    const columnValues = Array.from(
+        new Set(data.map((row) => String(getValue(row, config.column)))),
+    ).sort((a, b) => a.localeCompare(b));
+
+    const groups = new Map<string, { dim: Record<string, unknown>; rows: T[] }>();
+    for (const row of data) {
+        const dimValues = config.rows.map((key) => getValue(row, key));
+        const groupKey = dimValues.map(String).join(' ');
+        let group = groups.get(groupKey);
+        if (!group) {
+            const dim: Record<string, unknown> = {};
+            config.rows.forEach((key, i) => (dim[key] = dimValues[i]));
+            group = { dim, rows: [] };
+            groups.set(groupKey, group);
+        }
+        group.rows.push(row);
+    }
+
+    const columns = [
+        ...config.rows.map((key) => ({ key, header: key })),
+        ...columnValues.map((value) => ({ key: PIVOT_KEY_PREFIX + value, header: value })),
+        ...(config.showRowTotals ? [{ key: PIVOT_TOTAL_KEY, header: 'Total' }] : []),
+    ];
+
+    const rows = Array.from(groups.values()).map((group) => {
+        const out: Record<string, unknown> = { ...group.dim };
+        for (const value of columnValues) {
+            const cellRows = group.rows.filter(
+                (row) => String(getValue(row, config.column)) === value,
+            );
+            out[PIVOT_KEY_PREFIX + value] = aggregateCell(cellRows, config, getValue);
+        }
+        if (config.showRowTotals) {
+            out[PIVOT_TOTAL_KEY] = aggregateCell(group.rows, config, getValue);
+        }
+        return out;
+    });
+
+    return { columns, rows, pivotColumnKeys: columnValues.map((v) => PIVOT_KEY_PREFIX + v) };
 }

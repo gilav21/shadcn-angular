@@ -375,12 +375,99 @@
 <section class="space-y-4">
   <h2 id="data-table-resizable" class="text-2xl font-semibold scroll-m-20">{{ t().sectionResizable }}</h2>
   <p class="text-muted-foreground">
-    Drag the right edge of column headers to resize columns. Minimum width is enforced.
+    Drag the right edge of a column header to resize. <strong>Double-click</strong> that edge to
+    <strong>auto-fit</strong> the column to its content, or use the buttons below.
   </p>
+  <div class="flex flex-wrap items-center gap-2">
+    <ui-button size="sm" variant="outline" (click)="resizableTable.autoSizeAllColumns()">Auto-fit all columns</ui-button>
+    <ui-button size="sm" variant="outline" (click)="resizableTable.fitColumnsToViewport()">Fit to viewport</ui-button>
+  </div>
 
   <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
-    <ui-data-table [data]="payments()" [columns]="resizableColumns()" [enableColumnResize]="true"
+    <ui-data-table #resizableTable [data]="payments()" [columns]="resizableColumns()" [enableColumnResize]="true"
       (columnResize)="onColumnResize($event)" />
+  </div>
+</section>
+
+<!-- Advanced Filter Builder Demo (A5) -->
+<section class="space-y-4">
+  <h2 id="data-table-advanced-filter" class="text-2xl font-semibold scroll-m-20">Advanced filter builder</h2>
+  <p class="text-muted-foreground">
+    Click <strong>Filter</strong> in the toolbar to build nested <strong>AND/OR</strong> conditions
+    (e.g. <em>amount &gt; 1000</em> <strong>AND</strong> (<em>status equals success</em> <strong>OR</strong>
+    <em>client contains "ben"</em>)). The badge shows the active condition count.
+  </p>
+  <div class="rounded-md border h-[400px] sm:h-[560px] overflow-auto relative">
+    <ui-data-table [data]="payments()" [columns]="paymentColumns()" [enableAdvancedFilter]="true" />
+  </div>
+</section>
+
+<!-- Pivot Demo (A6) -->
+<section class="space-y-4">
+  <h2 id="data-table-pivot" class="text-2xl font-semibold scroll-m-20">Pivot mode</h2>
+  <p class="text-muted-foreground">
+    A pivot table <strong>summarizes</strong> a long, flat list into a compact cross-tab. Instead of
+    reading 7 individual sales rows, you collapse them onto a grid: one <strong>dimension down the
+    side</strong> (rows), another <strong>across the top</strong> (columns), and a
+    <strong>number aggregated</strong> in every cell. It answers questions like
+    <em>"total sales per region per product"</em> at a glance.
+  </p>
+  <div class="rounded-md border bg-muted/30 p-4 text-sm space-y-2">
+    <p class="font-medium">How it works</p>
+    <ol class="list-decimal ms-5 space-y-1 text-muted-foreground">
+      <li>Start with flat rows — each has a <code class="bg-muted px-1 rounded">region</code>,
+        <code class="bg-muted px-1 rounded">product</code>,
+        <code class="bg-muted px-1 rounded">quarter</code> and a numeric
+        <code class="bg-muted px-1 rounded">sales</code> value.</li>
+      <li>Choose which field becomes the <strong>rows</strong>, which becomes the
+        <strong>columns</strong>, and which <strong>aggregate</strong> (sum/avg/count/min/max)
+        fills the cells.</li>
+      <li>Call <code class="bg-muted px-1 rounded">computePivot(data, config)</code> — it groups,
+        aggregates, and returns <code class="bg-muted px-1 rounded">{{ '{' }} columns, rows {{ '}' }}</code>
+        ready to bind to a data table.</li>
+    </ol>
+    <p class="text-muted-foreground">
+      Flip the switch below to compare the <strong>raw 7-row source</strong> with the
+      <strong>pivoted summary</strong> — same data, two very different shapes.
+    </p>
+  </div>
+  <div class="flex flex-wrap items-end gap-4">
+    <label class="flex items-center gap-2 text-sm">
+      <ui-switch [(checked)]="pivotMode" />
+      <span>{{ pivotMode() ? 'Showing pivot' : 'Showing raw data' }}</span>
+    </label>
+    @if (pivotMode()) {
+      <label class="text-sm">
+        <span class="block text-xs text-muted-foreground mb-1">Rows</span>
+        <select class="h-8 rounded-md border bg-background px-2 text-sm"
+          [value]="pivotRowDim()" (change)="pivotRowDim.set($any($event.target).value)">
+          @for (d of pivotDims; track d) { <option [value]="d">{{ d }}</option> }
+        </select>
+      </label>
+      <label class="text-sm">
+        <span class="block text-xs text-muted-foreground mb-1">Columns</span>
+        <select class="h-8 rounded-md border bg-background px-2 text-sm"
+          [value]="pivotColDim()" (change)="pivotColDim.set($any($event.target).value)">
+          @for (d of pivotDims; track d) { <option [value]="d">{{ d }}</option> }
+        </select>
+      </label>
+      <label class="text-sm">
+        <span class="block text-xs text-muted-foreground mb-1">Aggregate of sales</span>
+        <select class="h-8 rounded-md border bg-background px-2 text-sm"
+          [value]="pivotAgg()" (change)="pivotAgg.set($any($event.target).value)">
+          @for (a of pivotAggs; track a) { <option [value]="a">{{ a }}</option> }
+        </select>
+      </label>
+    }
+  </div>
+  <div class="rounded-md border h-[300px] overflow-auto relative">
+    @if (pivotMode()) {
+      <ui-data-table [data]="pivotResult().rows" [columns]="pivotTableColumns()"
+        [showToolbar]="false" [showPagination]="false" />
+    } @else {
+      <ui-data-table [data]="pivotSource()" [columns]="pivotSourceColumns"
+        [showToolbar]="false" [showPagination]="false" />
+    }
   </div>
 </section>
 

@@ -48,6 +48,8 @@ import {
   dateFilterFn,
   dateRangeFilterFn,
   multiselectFilterFn,
+  computePivot,
+  PivotAggregate,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { AiRequest } from '../../../../../packages/components/lib/ai';
@@ -700,6 +702,43 @@ export class DataTableDemoComponent {
     "  res.type('text/plain').send(msg.content[0].type === 'text' ? msg.content[0].text : '');",
     "});",
   ].join('\n');
+
+  // ── Pivot Demo (A6) ──
+  readonly pivotSource = signal([
+    { region: 'NA', product: 'Widgets', quarter: 'Q1', sales: 1200 },
+    { region: 'NA', product: 'Gadgets', quarter: 'Q1', sales: 800 },
+    { region: 'NA', product: 'Widgets', quarter: 'Q2', sales: 1500 },
+    { region: 'EU', product: 'Widgets', quarter: 'Q1', sales: 600 },
+    { region: 'EU', product: 'Gadgets', quarter: 'Q2', sales: 950 },
+    { region: 'APAC', product: 'Widgets', quarter: 'Q2', sales: 700 },
+    { region: 'APAC', product: 'Gadgets', quarter: 'Q1', sales: 400 },
+  ]);
+  readonly pivotDims = ['region', 'product', 'quarter'] as const;
+  readonly pivotAggs: PivotAggregate[] = ['sum', 'avg', 'count', 'min', 'max'];
+  readonly pivotRowDim = signal<string>('region');
+  readonly pivotColDim = signal<string>('product');
+  readonly pivotAgg = signal<PivotAggregate>('sum');
+  readonly pivotResult = computed(() =>
+    computePivot(this.pivotSource(), {
+      rows: [this.pivotRowDim()],
+      column: this.pivotColDim(),
+      value: 'sales',
+      aggregate: this.pivotAgg(),
+      showRowTotals: true,
+    }),
+  );
+  readonly pivotTableColumns = computed<ColumnDef<Record<string, unknown>>[]>(() =>
+    this.pivotResult().columns.map((c) => ({ accessorKey: c.key, header: c.header, width: 'auto' })),
+  );
+  /** Toggles the demo table between the raw flat source and the pivoted result. */
+  readonly pivotMode = signal(true);
+  /** Columns for the raw, un-pivoted source table. */
+  readonly pivotSourceColumns: ColumnDef<Record<string, unknown>>[] = [
+    { accessorKey: 'region', header: 'Region' },
+    { accessorKey: 'product', header: 'Product' },
+    { accessorKey: 'quarter', header: 'Quarter' },
+    { accessorKey: 'sales', header: 'Sales' },
+  ];
 
   scrollTo(id: string, event: Event) {
     event.preventDefault();

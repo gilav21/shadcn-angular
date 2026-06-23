@@ -41,6 +41,10 @@ import {
 } from "../popover";
 import { DataTableColumnHeaderComponent } from "./sub/data-table-column-header.component";
 import { DataTablePaginationComponent } from "./sub/data-table-pagination.component";
+import {
+  DataTableFilterBuilderComponent,
+  DEFAULT_FILTER_BUILDER_LABELS,
+} from "./sub/data-table-filter-builder.component";
 import { UiComponentOutletDirective } from "../component-outlet.directive";
 import {
   ContextMenuComponent,
@@ -83,6 +87,9 @@ import {
   RangeChartPayload,
   FillSeriesEvent,
   CellsPasteEvent,
+  FilterGroup,
+  PivotConfig,
+  PivotResult,
 } from "./data-table.types";
 import {
   computeRowRange,
@@ -95,6 +102,8 @@ import {
   parseClipboardGrid,
   parseNlFilterSpec,
   type NlFilterSpec,
+  evaluateAdvancedFilter,
+  computePivot,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
 import { AiProvider, runAiTask } from "../../lib/ai";
@@ -138,6 +147,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
     PopoverContentComponent,
     DataTableColumnHeaderComponent,
     DataTablePaginationComponent,
+    DataTableFilterBuilderComponent,
     UiComponentOutletDirective,
     ContextMenuComponent,
     ButtonComponent,
@@ -636,6 +646,41 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       this.aiFilterRunning.set(false);
     }
   }
+
+  /** Advanced AND/OR filter tree (A5). Applied in addition to global/column filters. */
+  readonly advancedFilter = model<FilterGroup | null>(null);
+  /** Show the advanced-filter builder button in the toolbar. */
+  readonly enableAdvancedFilter = input(false);
+  /** Non-null filter group for the builder UI (an empty AND group when unset). */
+  readonly advancedFilterGroup = computed<FilterGroup>(
+    () => this.advancedFilter() ?? { type: "group", combinator: "and", rules: [] },
+  );
+  /** {key,header} pairs offered by the builder (the user-defined columns). */
+  readonly filterBuilderColumns = computed(() =>
+    this.columns().map((c) => ({ key: String(c.accessorKey), header: c.header })),
+  );
+  /** Localized strings for the builder (locale `advancedFilter` section over English defaults). */
+  readonly filterBuilderLabels = computed(
+    () => this.t().advancedFilter ?? DEFAULT_FILTER_BUILDER_LABELS,
+  );
+  /** Number of leaf conditions in the active advanced filter (for the toolbar badge). */
+  readonly advancedFilterCount = computed(() => this._countConditions(this.advancedFilter()));
+
+  private _countConditions(group: FilterGroup | null): number {
+    if (!group) return 0;
+    return group.rules.reduce(
+      (sum, rule) => sum + (rule.type === "group" ? this._countConditions(rule) : 1),
+      0,
+    );
+  }
+
+  onAdvancedFilterChange(group: FilterGroup): void {
+    this.advancedFilter.set(group);
+  }
+
+  clearAdvancedFilter(): void {
+    this.advancedFilter.set(null);
+  }
   readonly sortState = model<SortState>({ column: "", direction: null });
   readonly multiSortState = model<SortState[]>([]);
   readonly paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
@@ -665,8 +710,30 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       data = this.applyGlobalFilterToData(data, globalFilterValue);
     }
 
-    return this.applyColumnFiltersToData(data);
+    data = this.applyColumnFiltersToData(data);
+    return this.applyAdvancedFilter(data);
   });
+
+  /**
+   * Compute a pivot (rows × columns × values) of this table's current data,
+   * using its accessors (so `accessorFn` / dotted keys work). Bind the result's
+   * `columns` / `rows` to another `<ui-data-table>` to render the pivot.
+   */
+  getPivot(config: PivotConfig): PivotResult {
+    return computePivot(this.data(), config, (row, key) => this.getCellValue(row, key));
+  }
+
+  private applyAdvancedFilter(data: T[]): T[] {
+    const group = this.advancedFilter();
+    if (!group || group.rules.length === 0) return data;
+    const columns = this.enhancedColumns();
+    return data.filter((row) =>
+      evaluateAdvancedFilter(group, (column) => {
+        const col = columns.find((c) => String(c.accessorKey) === column);
+        return this.getCellValue(row, col?.accessorKey ?? column, col);
+      }),
+    );
+  }
 
   private applyGlobalFilterToData(data: T[], globalFilterValue: string): T[] {
     const columns = this.enhancedColumns().filter(
@@ -4917,6 +4984,81 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       return headerCell.offsetWidth;
     }
     return null;
+  }
+
+  /**
+   * Measure the widest *intrinsic* content (header + rendered cells) of a column.
+   * Each cell's content is cloned into an off-screen `width:max-content` element
+   * so the measurement is the natural content width — not the cell's stretched
+   * width — which lets auto-fit both grow and shrink.
+   */
+  private measureColumnContent(columnKey: string): number {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return 0;
+    const cells = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-column], [data-column-id]"),
+    ).filter(
+      (el) => el.dataset["column"] === columnKey || el.dataset["columnId"] === columnKey,
+    );
+    if (cells.length === 0) return 0;
+
+    const measurer = this._document.createElement("div");
+    measurer.style.cssText =
+      "position:absolute;left:-99999px;top:0;visibility:hidden;white-space:nowrap;width:max-content;";
+    this._document.body.appendChild(measurer);
+    let max = 0;
+    for (const cell of cells) {
+      const style = globalThis.getComputedStyle(cell);
+      measurer.style.font = style.font || `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      measurer.innerHTML = cell.innerHTML;
+      const width = measurer.getBoundingClientRect().width;
+      if (width > max) max = width;
+    }
+    measurer.remove();
+    return max;
+  }
+
+  /**
+   * Resize a column to fit its widest content (Excel-style auto-fit). Measures
+   * only rendered cells, so with virtual scroll it fits what's on screen.
+   */
+  autoSizeColumn(columnKey: string): void {
+    const content = this.measureColumnContent(columnKey);
+    if (content <= 0) return;
+    const col = this.enhancedColumns().find((c) => String(c.accessorKey) === columnKey);
+    const minWidth = Number.parseInt(col?._minWidth ?? "50", 10) || 50;
+    const newWidth = `${Math.max(minWidth, Math.ceil(content) + 24)}px`;
+    const oldWidth = this.columnWidths()[columnKey] ?? col?._width ?? "auto";
+    this.columnWidths.update((widths) => ({ ...widths, [columnKey]: newWidth }));
+    this.columnResize.emit({ columnKey, oldWidth, newWidth });
+  }
+
+  /** Auto-fit every (non-special) column to its content. */
+  autoSizeAllColumns(): void {
+    for (const key of this.navigableColumnKeys()) {
+      this.autoSizeColumn(key);
+    }
+  }
+
+  /** Distribute the visible width evenly across the (non-special) columns. */
+  fitColumnsToViewport(): void {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+    const keys = this.navigableColumnKeys();
+    if (keys.length === 0) return;
+    const each = Math.max(50, Math.floor(container.clientWidth / keys.length));
+    const next = { ...this.columnWidths() };
+    for (const key of keys) {
+      next[key] = `${each}px`;
+    }
+    this.columnWidths.set(next);
+  }
+
+  /** Double-click the resize handle → auto-fit that column. */
+  onResizeDoubleClick(event: MouseEvent, col: CellStyleColumn): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.autoSizeColumn(String(col.accessorKey));
   }
 
   scrollToRow(index: number): void {
