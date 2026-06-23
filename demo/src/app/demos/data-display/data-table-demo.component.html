@@ -698,11 +698,11 @@
       (rangeChartOpen)="onRangeChart($event)"
     />
   </div>
-  @if (rangeChartData().length) {
-    <div class="rounded-md border p-4">
-      <ui-bar-chart [data]="rangeChartData()" [height]="240" />
-    </div>
-  }
+  <ui-data-table-range-chart
+    [payload]="rangeChartPayload()"
+    [(open)]="rangeChartDialogOpen"
+    title="Range chart"
+  />
 </section>
 
 <!-- Row Grouping Demo -->

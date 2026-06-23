@@ -138,9 +138,16 @@ the "Chart" button emits `rangeChartOpen` with a `RangeChartPayload`; the
   single-cell null, chart payload with/without label column, emit, DOM readout).
   Story `RangeSelectionActions`; demo section wires the payload to a bar chart.
 
-**Open question:** ship a built-in chart dialog (bar/pie/stacked type switcher
-reusing `ui-bar-chart`/`ui-pie-chart`/`ui-stacked-bar-chart`), accepting the
-added registry dependency on those chart components? Or keep emit-only?
+**Resolved:** ship the chart dialog as a **separate, opt-in component**
+(`data-table-range-chart`, selector `ui-data-table-range-chart`) — its own
+registry entry that depends on the chart + dialog components. Only consumers who
+import it pull those deps; the **core data-table stays chart-free**. It declares
+its own `RangeChartData` input shape (structurally compatible with
+`RangeChartPayload`) so it does **not** depend on the data table either. Wire:
+`(rangeChartOpen)="payload.set($event); open.set(true)"` →
+`<ui-data-table-range-chart [payload] [(open)]>`. Bar/pie/stacked type switcher
+(stacked hidden for single-series). 7 tests, 2 stories; demo uses it. Adding this
+component touches the registry index → **CLI publish required on merge**.
 
 ---
 

@@ -78,6 +78,7 @@ export * from './eyedropper';
 export * from './confetti.directive';
 export * from './number-ticker';
 export * from './data-table';
+export * from './data-table-range-chart';
 export * from './chat';
 export * from './streaming-text';
 export * from './sparkles';

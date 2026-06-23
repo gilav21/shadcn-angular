@@ -7,10 +7,9 @@ import {
   CardComponent,
   CardContentComponent,
   CheckboxComponent,
-  BarChartComponent,
   CellIcon,
-  ChartDataPoint,
   ColumnDef,
+  DataTableRangeChartComponent,
   ColumnResizeEvent,
   ContextMenuComponent,
   ContextMenuContentComponent,
@@ -610,7 +609,7 @@ class OpsTicketDetailComponent {
     ContextMenuShortcutComponent,
     ...ContextMenuIntegrations,
     FpsMeterComponent,
-    BarChartComponent,
+    DataTableRangeChartComponent,
   ],
   templateUrl: './data-table-demo.component.html',
 })
@@ -1462,14 +1461,12 @@ export class DataTableDemoComponent {
       { accessorKey: 'amount', header: locale.colAmount, width: '160px', enableSorting: true },
     ];
   });
-  readonly rangeChartData = signal<ChartDataPoint[]>([]);
+  readonly rangeChartPayload = signal<RangeChartPayload | null>(null);
+  readonly rangeChartDialogOpen = signal(false);
 
   onRangeChart(payload: RangeChartPayload): void {
-    const series = payload.series[0];
-    if (!series) return;
-    this.rangeChartData.set(
-      payload.categories.map((name, i) => ({ name, value: series.values[i] ?? 0 })),
-    );
+    this.rangeChartPayload.set(payload);
+    this.rangeChartDialogOpen.set(true);
   }
 
   // ── Row Grouping Demo ──
