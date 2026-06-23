@@ -1,6 +1,7 @@
 # Data Table & Rich Text Editor — Feature Roadmap Spec
 
-> **Status:** living document. Workstream 1 / A1 implemented; rest pending.
+> **Status:** living document. WS1 (A1, A2 + chart dialog) and WS2 (B1, B2, B3)
+> implemented; WS3 (AI hook) pending.
 > **Constraint (hard):** strictly self-contained — no new runtime deps, no
 > required backend. AI ships only as a bring-your-own-provider callback that
 > degrades gracefully (mirrors the existing `mentionSearch` / `imageUploader`).
@@ -116,9 +117,9 @@ width, icon glyphs + conditional classes appear, no wrapper when undeclared.
 the core data-table would make them **hard registry dependencies for every
 consumer**, even those who never enable range actions. So A2 ships *emit-only*:
 the "Chart" button emits `rangeChartOpen` with a `RangeChartPayload`; the
-**consumer** renders it with whatever chart they like (the demo wires it to
-`ui-bar-chart`). A built-in default chart dialog (with the chart dependency) is
-**deferred** pending an explicit decision — see open question below.
+**consumer** renders it with whatever chart they like. A built-in default chart
+dialog ships as a **separate opt-in component** (`data-table-range-chart`) so the
+core table never depends on the chart components — see the "Resolved" note below.
 
 - **DRY refactor (done):** `computeAggregateValue(values, fn: AggregateFn)`
   extracted to `data-table.utils.ts`; `computeAggregate()` now delegates to it,
@@ -183,8 +184,8 @@ component touches the registry index → **CLI publish required on merge**.
   target cell's current type (number/boolean/string). Only `valueSetter` columns
   are written; out-of-range cells skipped; rejects counted. Emits one
   `cellsPaste` (`rowsAffected` / `cellsApplied` / `cellsRejected`). 7 parser +
-  3 component tests; demo + story enable it on the fill table. Deferred: B3 undo
-  entry.
+  3 component tests; demo + story enable it on the fill table. A whole paste is
+  one undoable command (B3 wraps it).
 - **B3 edit undo/redo (IMPLEMENTED):** new input `enableEditHistory`. Two signal
   stacks of `EditChange[]` commands. `runAsCommand(fn)` records every
   `applyValueSetter` write made during `fn` into one command — so an inline edit,
