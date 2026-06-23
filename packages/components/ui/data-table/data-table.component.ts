@@ -562,6 +562,25 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly nlFilter = output<{ query: string; spec: NlFilterSpec }>();
   /** Emitted after an AI column-fill completes. */
   readonly aiFillComplete = output<{ columnKey: string; count: number }>();
+  /** When true (and `aiProvider` is set), the toolbar shows a natural-language filter box. */
+  readonly enableNlFilter = input(true);
+  readonly aiFilterQuery = signal("");
+  readonly aiFilterRunning = signal(false);
+  readonly nlFilterPlaceholder = computed(
+    () => this.t().nlFilterPlaceholder ?? "Ask in plain English…",
+  );
+
+  /** Run the toolbar's natural-language filter query through the provider. */
+  async runAiFilter(): Promise<void> {
+    const query = this.aiFilterQuery().trim();
+    if (!query || this.aiFilterRunning()) return;
+    this.aiFilterRunning.set(true);
+    try {
+      await this.applyNaturalLanguageFilter(query);
+    } finally {
+      this.aiFilterRunning.set(false);
+    }
+  }
   readonly sortState = model<SortState>({ column: "", direction: null });
   readonly multiSortState = model<SortState[]>([]);
   readonly paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });

@@ -31,6 +31,8 @@ export interface DataTableLocale extends LocaleMeta {
     selectAllRows: string;
     /** Multiselect-filter "Clear" button label (clears the multiselect selection — distinct from `clearSort`). */
     clearAll: string;
+    /** Placeholder for the AI natural-language filter box (optional — falls back to English). */
+    nlFilterPlaceholder?: string;
 }
 
 export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
@@ -55,6 +57,7 @@ export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
         searchPlaceholder: 'Search...',
         selectAllRows: 'Select all',
         clearAll: 'Clear',
+        nlFilterPlaceholder: 'Ask in plain English…',
     },
     he: {
         code: 'he',
@@ -78,6 +81,7 @@ export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
         searchPlaceholder: '...חיפוש',
         selectAllRows: 'בחר הכל',
         clearAll: 'נקה',
+        nlFilterPlaceholder: '…שאל בשפה חופשית',
     },
     ar: {
         code: 'ar',

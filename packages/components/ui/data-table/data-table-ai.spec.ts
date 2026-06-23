@@ -1,5 +1,6 @@
 import { beforeEach, describe, it, expect } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { parseNlFilterSpec } from './data-table.utils';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef } from './data-table.types';
@@ -95,5 +96,22 @@ describe('DataTableComponent AI (table-side)', () => {
     fixture.componentRef.setInput('aiProvider', () => 'x');
     await component.aiFillColumn('name', 'p');
     expect(component.data().map((r) => r.name)).toEqual(['Alice', 'Bob']);
+  });
+
+  it('runs the toolbar NL-filter query through the provider', async () => {
+    fixture.componentRef.setInput('aiProvider', () => JSON.stringify({ globalFilter: 'bob' }));
+    component.aiFilterQuery.set('show bob');
+    await component.runAiFilter();
+    expect(component.globalFilter()).toBe('bob');
+    expect(component.aiFilterRunning()).toBe(false);
+  });
+
+  it('shows the NL-filter input only with a provider + visible toolbar', () => {
+    fixture.componentRef.setInput('showToolbar', true);
+    fixture.detectChanges();
+    expect(fixture.debugElement.queryAll(By.css('[data-slot="table-nl-filter"]'))).toHaveLength(0);
+    fixture.componentRef.setInput('aiProvider', () => '{}');
+    fixture.detectChanges();
+    expect(fixture.debugElement.queryAll(By.css('[data-slot="table-nl-filter"]'))).toHaveLength(1);
   });
 });
