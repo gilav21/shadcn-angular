@@ -556,6 +556,51 @@ deliberate-regression recipe.
 
 ---
 
+## When a CLI npm Publish Is Required
+
+The CLI fetches the **live registry manifest and all component/lib source from
+the git branch at runtime** — the npm package only carries CLI *logic* plus an
+offline fallback snapshot. So most changes ship the moment they land on `master`,
+with **no publish needed**. Verify the boundary against
+`packages/cli/src/registry/load.ts` and `packages/cli/src/core/fetch.ts` before
+asserting — do not guess.
+
+How the runtime fetch works:
+
+- At startup `loadRegistry()` fetches
+  `…/{branch}/packages/components/registry.json` and overwrites the in-memory
+  registry in place (`registry/load.ts`). The literal in
+  `packages/cli/src/registry/index.ts` is **only an offline fallback**, so its
+  regeneration by `sync-registry --fix` does **not** force a publish.
+- Component files are fetched from `…/{branch}/packages/components/ui/<file>` and
+  lib files from `…/lib/<file>` at install time (`core/fetch.ts`).
+
+**Publish IS required only when the bundled CLI changes:**
+
+1. **CLI logic / actions** — real code under `packages/cli/src/**` (commands,
+   `core/`, `mcp/`, `utils/`, `registry/load.ts`, `utils/paths.ts`).
+2. **The manifest *shape*** — the `ComponentDefinition` interface in
+   `registry/index.ts` and the `isValidRegistryShape` validator in `load.ts`.
+   If the JSON shape changes, already-installed CLIs can't parse the new
+   `registry.json`.
+3. **Utils baselines** — `registry/legacy-baselines.ts`, `core/baseline.ts`.
+
+**Publish is NOT required for** (all served live from `master`):
+
+- Registry **data** edits — adding/editing components, deps, `npmDependencies`,
+  `files[]`, `libFiles[]` in `registry.json` (and the regenerated `index.ts`
+  snapshot).
+- Plain component / lib **source** edits under `packages/components/ui/**` and
+  `packages/components/lib/**` — including brand-new component or lib files.
+- Demo, stories, e2e harness, dev scripts (`scripts/**`) — never shipped in the
+  CLI package.
+
+So: a PR that only touches components, lib source, and `registry.json` goes live
+on merge. Add a PR to the pending-releases memory **only** if it changes CLI
+logic, the manifest schema, or utils baselines.
+
+---
+
 ## 5. Responsive Design (Zero Tolerance)
 
 Every component MUST render correctly across all viewport widths:
