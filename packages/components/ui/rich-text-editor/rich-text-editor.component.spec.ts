@@ -4750,4 +4750,17 @@ describe('RichTextEditorComponent AI assist', () => {
         component.openAiPanel();
         expect(component.aiPanelOpen()).toBe(false);
     });
+
+    it('registers the /ai slash command only when a provider is set', () => {
+        expect(component.localizedSlashCommands().some((c) => c.id === 'insert.ai')).toBe(false);
+        fixture.componentRef.setInput('aiProvider', () => 'x');
+        expect(component.localizedSlashCommands().some((c) => c.id === 'insert.ai')).toBe(true);
+    });
+
+    it('exposes the six built-in AI tasks with localized labels', () => {
+        expect(component.aiTasks().map((t) => t.task)).toEqual([
+            'rewrite', 'fix-grammar', 'shorten', 'expand', 'summarize', 'continue',
+        ]);
+        expect(component.aiLabels().trigger).toBe('✨ Ask AI');
+    });
 });

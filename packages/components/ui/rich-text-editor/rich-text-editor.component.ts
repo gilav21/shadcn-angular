@@ -968,10 +968,29 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     readonly isRtl = this.i18n.isRtl;
     readonly dir = this.i18n.dir;
 
-    localizedSlashCommands = computed(() => [
-        ...buildDefaultSlashCommands(this.resolvedLocale().slashCommands),
-        this.buildOutlineSlashCommand(),
-    ]);
+    localizedSlashCommands = computed(() => {
+        const commands = [
+            ...buildDefaultSlashCommands(this.resolvedLocale().slashCommands),
+            this.buildOutlineSlashCommand(),
+        ];
+        if (this.hasAi()) {
+            commands.push(this.buildAiSlashCommand());
+        }
+        return commands;
+    });
+
+    /** Builds the `/ai` slash command (only registered when an `aiProvider` is set). */
+    private buildAiSlashCommand(): RichTextSlashCommand {
+        const a = this.aiLabels();
+        return {
+            id: 'insert.ai',
+            label: a.slash,
+            description: a.slashDescription,
+            keywords: ['ai', 'assist', 'rewrite', 'summarize', 'generate'],
+            order: 5,
+            run: () => this.openAiPanel(),
+        };
+    }
 
     /** Builds the `/outline` slash command, which opens the document outline docked. */
     private buildOutlineSlashCommand(): RichTextSlashCommand {
@@ -2113,14 +2132,39 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     readonly aiPanelPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly aiErrorMessage = signal<string | null>(null);
     readonly aiCustomPrompt = signal('');
-    readonly aiTasks: { task: AiTask; label: string }[] = [
-        { task: 'rewrite', label: 'Improve writing' },
-        { task: 'fix-grammar', label: 'Fix spelling & grammar' },
-        { task: 'shorten', label: 'Make shorter' },
-        { task: 'expand', label: 'Make longer' },
-        { task: 'summarize', label: 'Summarize' },
-        { task: 'continue', label: 'Continue writing' },
-    ];
+    private static readonly DEFAULT_AI_LABELS = {
+        trigger: '✨ Ask AI',
+        slash: 'Ask AI',
+        slashDescription: 'Rewrite, summarize, or generate with AI',
+        rewrite: 'Improve writing',
+        fixGrammar: 'Fix spelling & grammar',
+        shorten: 'Make shorter',
+        expand: 'Make longer',
+        summarize: 'Summarize',
+        continueWriting: 'Continue writing',
+        promptPlaceholder: 'Ask AI to…',
+        go: 'Go',
+        generating: 'Generating…',
+        accept: 'Accept',
+        discard: 'Discard',
+        retry: 'Try again',
+        failed: 'AI request failed',
+    };
+    readonly aiLabels = computed(() => ({
+        ...RichTextEditorComponent.DEFAULT_AI_LABELS,
+        ...(this.resolvedLocale().ai ?? {}),
+    }));
+    readonly aiTasks = computed<{ task: AiTask; label: string }[]>(() => {
+        const a = this.aiLabels();
+        return [
+            { task: 'rewrite', label: a.rewrite },
+            { task: 'fix-grammar', label: a.fixGrammar },
+            { task: 'shorten', label: a.shorten },
+            { task: 'expand', label: a.expand },
+            { task: 'summarize', label: a.summarize },
+            { task: 'continue', label: a.continueWriting },
+        ];
+    });
     private aiSubscription: Subscription | null = null;
     private aiController: AbortController | null = null;
     private aiDraftEl: HTMLElement | null = null;
@@ -2229,7 +2273,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }).subscribe({
             next: (text) => this.updateAiDraft(text),
             error: (err) => {
-                const message = err instanceof Error ? err.message : 'AI request failed';
+                const message = err instanceof Error ? err.message : this.aiLabels().failed;
                 this.aiErrorMessage.set(message);
                 this.aiError.emit(message);
                 this.aiPhase.set('review');

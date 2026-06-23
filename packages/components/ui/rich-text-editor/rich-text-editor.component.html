@@ -435,7 +435,7 @@
       (mousedown)="$event.preventDefault()"
       (click)="openAiPanel()"
     >
-      ✨ Ask AI
+      {{ aiLabels().trigger }}
     </button>
   }
 
@@ -448,7 +448,7 @@
     >
       @if (aiPhase() === 'menu') {
         <div class="flex flex-col gap-0.5" data-slot="rich-text-ai-menu">
-          @for (t of aiTasks; track t.task) {
+          @for (t of aiTasks(); track t.task) {
             <button
               type="button"
               class="flex w-full items-center rounded px-2 py-1.5 text-left text-sm hover:bg-accent"
@@ -462,27 +462,27 @@
             <input
               type="text"
               class="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-              placeholder="Ask AI to…"
+              [placeholder]="aiLabels().promptPlaceholder"
               [value]="aiCustomPrompt()"
               (input)="aiCustomPrompt.set($any($event.target).value)"
               (keydown.enter)="runCustomAi()"
               (mousedown)="$event.stopPropagation()"
             />
-            <ui-button size="sm" [disabled]="!aiCustomPrompt().trim()" (click)="runCustomAi()">Go</ui-button>
+            <ui-button size="sm" [disabled]="!aiCustomPrompt().trim()" (click)="runCustomAi()">{{ aiLabels().go }}</ui-button>
           </div>
         </div>
       } @else {
         <div class="flex flex-col gap-2" data-slot="rich-text-ai-review">
           @if (aiPhase() === 'loading') {
-            <p class="px-1 text-xs text-muted-foreground" data-slot="rich-text-ai-loading">Generating…</p>
+            <p class="px-1 text-xs text-muted-foreground" data-slot="rich-text-ai-loading">{{ aiLabels().generating }}</p>
           }
           @if (aiErrorMessage()) {
             <p class="px-1 text-xs text-destructive" role="alert" data-slot="rich-text-ai-error">{{ aiErrorMessage() }}</p>
           }
           <div class="flex flex-wrap gap-1">
-            <ui-button size="sm" [disabled]="aiPhase() === 'loading'" (click)="acceptAi()">Accept</ui-button>
-            <ui-button size="sm" variant="outline" (click)="discardAi()">Discard</ui-button>
-            <ui-button size="sm" variant="ghost" [disabled]="aiPhase() === 'loading'" (click)="retryLastAi()">Try again</ui-button>
+            <ui-button size="sm" [disabled]="aiPhase() === 'loading'" (click)="acceptAi()">{{ aiLabels().accept }}</ui-button>
+            <ui-button size="sm" variant="outline" (click)="discardAi()">{{ aiLabels().discard }}</ui-button>
+            <ui-button size="sm" variant="ghost" [disabled]="aiPhase() === 'loading'" (click)="retryLastAi()">{{ aiLabels().retry }}</ui-button>
           </div>
         </div>
       }
