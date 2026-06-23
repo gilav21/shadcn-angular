@@ -324,6 +324,28 @@
       [showPagination]="false"
     />
   </div>
+
+  <details class="rounded-md border bg-muted/30 p-3">
+    <summary class="cursor-pointer text-sm font-medium">Wire up a real AI backend</summary>
+    <div class="mt-3 space-y-3 text-sm">
+      <p class="text-muted-foreground">
+        <code class="bg-muted px-1 rounded">aiProvider</code> is a callback you point at <strong>your</strong> backend —
+        <strong>never call the model from the browser</strong> (the API key would leak). The table calls it with
+        <code class="bg-muted px-1 rounded">task: 'nl-filter'</code> (return JSON
+        <code class="bg-muted px-1 rounded">&#123; globalFilter?, columnFilters? &#125;</code>) and
+        <code class="bg-muted px-1 rounded">task: 'table-fill'</code> (return the cell value). Only known columns in the
+        returned filter are applied, so a stray column name can't break filtering.
+      </p>
+      <div>
+        <p class="mb-1 font-medium">1 — Frontend provider</p>
+        <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ aiTableFrontendCode }}</pre>
+      </div>
+      <div>
+        <p class="mb-1 font-medium">2 — Backend (Claude via the official SDK)</p>
+        <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ aiTableBackendCode }}</pre>
+      </div>
+    </div>
+  </details>
 </section>
 
 <section class="space-y-4">

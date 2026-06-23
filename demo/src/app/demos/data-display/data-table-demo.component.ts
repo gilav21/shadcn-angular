@@ -654,6 +654,49 @@ export class DataTableDemoComponent {
     return '';
   };
 
+  // Copy-paste guidance for wiring a real AI backend (rendered as plain text).
+  readonly aiTableFrontendCode = [
+    "// In your component — point the provider at YOUR backend.",
+    "// A one-shot Promise is enough for the table (no streaming needed).",
+    "import { AiRequest } from '@gilav21/shadcn-angular';",
+    "",
+    "readonly aiProvider = (req: AiRequest): Promise<string> =>",
+    "  fetch('/api/ai', {",
+    "    method: 'POST',",
+    "    headers: { 'content-type': 'application/json' },",
+    "    body: JSON.stringify(req),   // { task, input, prompt, context }",
+    "    signal: req.signal,",
+    "  }).then((r) => r.text());",
+  ].join('\n');
+
+  readonly aiTableBackendCode = [
+    "// Backend (Node / Express) — the API key stays here, never in the browser.",
+    "import Anthropic from '@anthropic-ai/sdk';",
+    "const client = new Anthropic();",
+    "",
+    "// nl-filter → return JSON; table-fill → return the cell value.",
+    "// req.context carries { columns } (nl-filter) or { column } (table-fill).",
+    "function systemFor(task, context) {",
+    "  if (task === 'nl-filter') {",
+    "    return 'Convert the request into a filter for these columns: ' +",
+    "      JSON.stringify(context.columns) + '. Reply with ONLY JSON of shape ' +",
+    "      '{ \"globalFilter\"?: string, \"columnFilters\"?: { [columnKey]: value } }.';",
+    "  }",
+    "  return 'Generate the value for the ' + context.column + ' cell. Return only the value.';",
+    "}",
+    "",
+    "app.post('/api/ai', async (req, res) => {",
+    "  const { task, input, prompt, context } = req.body;",
+    "  const msg = await client.messages.create({",
+    "    model: 'claude-opus-4-8',",
+    "    max_tokens: 1024,",
+    "    system: systemFor(task, context ?? {}),",
+    "    messages: [{ role: 'user', content: prompt ? prompt + ' — ' + input : input }],",
+    "  });",
+    "  res.type('text/plain').send(msg.content[0].type === 'text' ? msg.content[0].text : '');",
+    "});",
+  ].join('\n');
+
   scrollTo(id: string, event: Event) {
     event.preventDefault();
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
