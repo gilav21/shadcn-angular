@@ -4221,6 +4221,68 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return null;
   }
 
+  /** Measure the widest content (header + rendered cells) of a column, in px. */
+  private measureColumnContent(columnKey: string): number {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return 0;
+    const cells = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-column], [data-column-id]"),
+    ).filter(
+      (el) => el.dataset["column"] === columnKey || el.dataset["columnId"] === columnKey,
+    );
+    let max = 0;
+    const range = this._document.createRange();
+    for (const cell of cells) {
+      range.selectNodeContents(cell);
+      const width = range.getBoundingClientRect().width;
+      if (width > max) max = width;
+    }
+    return max;
+  }
+
+  /**
+   * Resize a column to fit its widest content (Excel-style auto-fit). Measures
+   * only rendered cells, so with virtual scroll it fits what's on screen.
+   */
+  autoSizeColumn(columnKey: string): void {
+    const content = this.measureColumnContent(columnKey);
+    if (content <= 0) return;
+    const col = this.enhancedColumns().find((c) => String(c.accessorKey) === columnKey);
+    const minWidth = Number.parseInt(col?._minWidth ?? "50", 10) || 50;
+    const newWidth = `${Math.max(minWidth, Math.ceil(content) + 24)}px`;
+    const oldWidth = this.columnWidths()[columnKey] ?? col?._width ?? "auto";
+    this.columnWidths.update((widths) => ({ ...widths, [columnKey]: newWidth }));
+    this.columnResize.emit({ columnKey, oldWidth, newWidth });
+  }
+
+  /** Auto-fit every (non-special) column to its content. */
+  autoSizeAllColumns(): void {
+    for (const key of this.navigableColumnKeys()) {
+      this.autoSizeColumn(key);
+    }
+  }
+
+  /** Distribute the visible width evenly across the (non-special) columns. */
+  fitColumnsToViewport(): void {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+    const keys = this.navigableColumnKeys();
+    if (keys.length === 0) return;
+    const each = Math.max(50, Math.floor(container.clientWidth / keys.length));
+    const next = { ...this.columnWidths() };
+    for (const key of keys) {
+      next[key] = `${each}px`;
+    }
+    this.columnWidths.set(next);
+  }
+
+  /** Double-click the resize handle → auto-fit that column. */
+  onResizeDoubleClick(event: MouseEvent, col: CellStyleColumn): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.autoSizeColumn(String(col.accessorKey));
+  }
+
   scrollToRow(index: number): void {
     const container = this.scrollContainerRef()?.nativeElement;
     if (!container) return;

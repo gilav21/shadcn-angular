@@ -620,8 +620,9 @@
                       [class.-translate-x-1/2]="isRtl()"
                       (mousedown)="onResizeStart($event, col)"
                       (touchstart)="onResizeTouchStart($event, col)"
+                      (dblclick)="onResizeDoubleClick($event, col)"
                       role="separator"
-                      [attr.aria-label]="'Resize ' + col.header + ' column'"
+                      [attr.aria-label]="'Resize ' + col.header + ' column (double-click to auto-fit)'"
                     >
                       <div
                         [class]="resizeLineClass(col)"
