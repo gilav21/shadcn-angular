@@ -39,6 +39,8 @@ export interface DataTableLocale extends LocaleMeta {
     rangeMax?: string;
     /** Label/aria for the "Chart" action in the range readout. */
     rangeChart?: string;
+    /** Placeholder for the AI natural-language filter box (optional — falls back to English). */
+    nlFilterPlaceholder?: string;
 }
 
 export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
@@ -69,6 +71,7 @@ export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
         rangeMin: 'Min',
         rangeMax: 'Max',
         rangeChart: 'Chart',
+        nlFilterPlaceholder: 'Ask in plain English…',
     },
     he: {
         code: 'he',
@@ -98,6 +101,7 @@ export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
         rangeMin: 'מינימום',
         rangeMax: 'מקסימום',
         rangeChart: 'תרשים',
+        nlFilterPlaceholder: '…שאל בשפה חופשית',
     },
     ar: {
         code: 'ar',

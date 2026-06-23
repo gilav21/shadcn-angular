@@ -293,6 +293,61 @@
 
 <!-- Demos -->
 
+<!-- AI assist Demo (WS3 — mock provider) -->
+<section class="space-y-4">
+  <h2 id="data-table-ai" class="text-2xl font-semibold scroll-m-20">AI assist</h2>
+  <p class="text-muted-foreground">
+    Pass an <code class="text-xs bg-muted px-1 rounded">aiProvider</code> to unlock
+    <strong>natural-language filtering</strong> (type "show failed rows" → it compiles to a column filter)
+    and <strong>AI column fill</strong>. This demo wires a mock provider (no network).
+  </p>
+  <div class="flex flex-wrap items-center gap-2">
+    <input
+      type="text"
+      class="h-9 w-full sm:w-72 rounded-md border bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+      placeholder="Ask in plain English, e.g. show failed rows"
+      [value]="aiQuery()"
+      (input)="aiQuery.set($any($event.target).value)"
+      (keydown.enter)="aiTable.applyNaturalLanguageFilter(aiQuery())"
+    />
+    <ui-button size="sm" (click)="aiTable.applyNaturalLanguageFilter(aiQuery())">Filter with AI</ui-button>
+    <ui-button size="sm" variant="outline" (click)="aiTable.aiFillColumn('summary', 'one short sentence')">AI fill summaries</ui-button>
+    <ui-button size="sm" variant="ghost" (click)="aiQuery.set(''); aiTable.globalFilter.set(''); aiTable.columnFilters.set({})">Clear</ui-button>
+  </div>
+  <div class="rounded-md border h-[300px] sm:h-[360px] overflow-auto relative">
+    <ui-data-table
+      #aiTable
+      [(data)]="aiRows"
+      [columns]="aiColumns"
+      [aiProvider]="tableAiProvider"
+      [showToolbar]="false"
+      [showPagination]="false"
+    />
+  </div>
+
+  <details class="rounded-md border bg-muted/30 p-3">
+    <summary class="cursor-pointer text-sm font-medium">Wire up a real AI backend</summary>
+    <div class="mt-3 space-y-3 text-sm">
+      <p class="text-muted-foreground">
+        <code class="bg-muted px-1 rounded">aiProvider</code> is a callback you point at <strong>your</strong> backend —
+        <strong>never call the model from the browser</strong> (the API key would leak). The table calls it with
+        <code class="bg-muted px-1 rounded">task: 'nl-filter'</code> (return JSON
+        <code class="bg-muted px-1 rounded">&#123; globalFilter?, columnFilters? &#125;</code>) and
+        <code class="bg-muted px-1 rounded">task: 'table-fill'</code> (return the cell value). Only known columns in the
+        returned filter are applied, so a stray column name can't break filtering.
+      </p>
+      <div>
+        <p class="mb-1 font-medium">1 — Frontend provider</p>
+        <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ aiTableFrontendCode }}</pre>
+      </div>
+      <div>
+        <p class="mb-1 font-medium">2 — Backend (Claude via the official SDK)</p>
+        <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ aiTableBackendCode }}</pre>
+      </div>
+    </div>
+  </details>
+</section>
+
 <section class="space-y-4">
   <h2 id="data-table" class="text-2xl font-semibold scroll-m-20">{{ t().sectionClientSide }}</h2>
   <p class="text-muted-foreground">

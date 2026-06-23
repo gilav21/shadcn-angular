@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { delay, of } from 'rxjs';
+import { delay, of, Observable } from 'rxjs';
+import { AiRequest } from '../../../../../packages/components/lib/ai';
 import {
   RichTextEditorComponent,
   SwitchComponent,
@@ -43,6 +44,42 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         <h3 class="text-lg font-medium">{{ t().floatingHeading }}</h3>
         <ui-rich-text-editor mode="markdown" toolbar="floating"
           [placeholder]="t().floatingPlaceholder" minHeight="120px" />
+      </div>
+
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">AI assist</h3>
+        <p class="text-sm text-muted-foreground">
+          Select some text, then click the <strong>✨ Ask AI</strong> chip to rewrite, shorten, expand, fix grammar,
+          summarize, continue, or run a custom prompt. The output streams in; Accept / Discard / Try again.
+          This demo wires a <strong>mock</strong> provider (no network) to show the flow.
+        </p>
+        <ui-rich-text-editor mode="markdown" toolbar="top" [aiProvider]="mockAiProvider"
+          [placeholder]="'Type a sentence, select it, then click ✨ Ask AI…'" minHeight="140px" />
+
+        <details class="mt-2 rounded-md border bg-muted/30 p-3">
+          <summary class="cursor-pointer text-sm font-medium">Wire up a real AI backend</summary>
+          <div class="mt-3 space-y-3 text-sm">
+            <p class="text-muted-foreground">
+              <code class="bg-muted px-1 rounded">aiProvider</code> is just a callback that returns
+              <code class="bg-muted px-1 rounded">string</code> · <code class="bg-muted px-1 rounded">Promise&lt;string&gt;</code> ·
+              <code class="bg-muted px-1 rounded">Observable&lt;string&gt;</code>. Point it at <strong>your</strong> backend —
+              <strong>never call the model directly from the browser</strong>, or your API key leaks. For the editor's live
+              streaming, return an Observable that emits the <strong>full text so far</strong> on each chunk.
+            </p>
+            <div>
+              <p class="mb-1 font-medium">1 — Frontend provider</p>
+              <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ aiFrontendCode }}</pre>
+            </div>
+            <div>
+              <p class="mb-1 font-medium">2 — Backend (Claude via the official SDK, streaming)</p>
+              <pre class="overflow-auto rounded-md bg-muted p-3 text-xs leading-relaxed">{{ aiBackendCode }}</pre>
+            </div>
+            <p class="text-muted-foreground">
+              A one-shot <code class="bg-muted px-1 rounded">Promise&lt;string&gt;</code> provider works too — the editor
+              just inserts the whole result at once instead of streaming.
+            </p>
+          </div>
+        </details>
       </div>
 
       <div class="space-y-2">
@@ -353,6 +390,111 @@ export class RichTextEditorDemoComponent {
       item.value.toLowerCase().includes(normalized)
     );
   };
+
+  /** Mock AI provider — streams a canned transformation word-by-word (no network). */
+  readonly mockAiProvider = (req: AiRequest): Observable<string> => {
+    const words = this.mockAiOutput(req).split(' ');
+    return new Observable<string>(subscriber => {
+      let i = 0;
+      const id = setInterval(() => {
+        i++;
+        subscriber.next(words.slice(0, i).join(' '));
+        if (i >= words.length) {
+          clearInterval(id);
+          subscriber.complete();
+        }
+      }, 50);
+      return () => clearInterval(id);
+    });
+  };
+
+  private mockAiOutput(req: AiRequest): string {
+    const input = req.input.trim();
+    const wordCount = input.split(/\s+/).filter(Boolean).length;
+    if (req.task === 'shorten') {
+      return input.split(/\s+/).slice(0, Math.max(1, Math.ceil(wordCount / 2))).join(' ') + '.';
+    }
+    if (req.task === 'expand') {
+      return `${input} Moreover, this expanded version adds supporting detail and a touch more context for the reader.`;
+    }
+    if (req.task === 'fix-grammar') {
+      return input.charAt(0).toUpperCase() + input.slice(1).replace(/\s+/g, ' ');
+    }
+    if (req.task === 'summarize') {
+      return `In short: ${input.split(/\s+/).slice(0, 8).join(' ')}…`;
+    }
+    if (req.task === 'continue') {
+      return ' …and from there the idea naturally led to the next step.';
+    }
+    if (req.task === 'custom') {
+      return `(${req.prompt ?? ''}) ${input}`;
+    }
+    return `Improved: ${input}`;
+  }
+
+  // Copy-paste guidance for wiring a real AI backend (rendered as plain text).
+  readonly aiFrontendCode = [
+    "// In your component — point the provider at YOUR backend.",
+    "// The API key lives on the server and never touches the browser.",
+    "import { AiRequest } from '@gilav21/shadcn-angular';",
+    "import { Observable } from 'rxjs';",
+    "",
+    "// Streaming provider → drives the editor's live typewriter effect.",
+    "readonly aiProvider = (req: AiRequest): Observable<string> =>",
+    "  new Observable<string>((sub) => {",
+    "    const ctrl = new AbortController();",
+    "    req.signal?.addEventListener('abort', () => ctrl.abort());",
+    "    let text = '';",
+    "    fetch('/api/ai', {",
+    "      method: 'POST',",
+    "      headers: { 'content-type': 'application/json' },",
+    "      body: JSON.stringify(req),   // { task, input, prompt, context }",
+    "      signal: ctrl.signal,",
+    "    }).then(async (res) => {",
+    "      const reader = res.body!.getReader();",
+    "      const decoder = new TextDecoder();",
+    "      for (;;) {",
+    "        const { done, value } = await reader.read();",
+    "        if (done) break;",
+    "        text += decoder.decode(value, { stream: true });",
+    "        sub.next(text);            // emit the FULL text so far",
+    "      }",
+    "      sub.complete();",
+    "    }).catch((err) => sub.error(err));",
+    "    return () => ctrl.abort();",
+    "  });",
+  ].join('\n');
+
+  readonly aiBackendCode = [
+    "// Backend (Node / Express) — holds ANTHROPIC_API_KEY; the browser never sees it.",
+    "// npm i @anthropic-ai/sdk",
+    "import Anthropic from '@anthropic-ai/sdk';",
+    "const client = new Anthropic();",
+    "",
+    "const SYSTEM: Record<string, string> = {",
+    "  rewrite: 'Rewrite the text to read better. Return only the rewritten text.',",
+    "  shorten: 'Make the text shorter. Return only the result.',",
+    "  expand: 'Expand the text with useful detail. Return only the result.',",
+    "  'fix-grammar': 'Fix spelling and grammar. Return only the corrected text.',",
+    "  summarize: 'Summarize the text in one or two sentences.',",
+    "  continue: 'Continue the text naturally. Return only the continuation.',",
+    "  custom: 'Apply the user instruction to the given text.',",
+    "};",
+    "",
+    "app.post('/api/ai', async (req, res) => {",
+    "  const { task, input, prompt } = req.body;",
+    "  res.setHeader('content-type', 'text/plain; charset=utf-8');",
+    "  const stream = client.messages.stream({",
+    "    model: 'claude-opus-4-8',",
+    "    max_tokens: 1024,",
+    "    system: SYSTEM[task] ?? 'You are a helpful writing assistant.',",
+    "    messages: [{ role: 'user', content: prompt ? prompt + ' — ' + input : input }],",
+    "  });",
+    "  stream.on('text', (delta) => res.write(delta));  // stream tokens to the browser",
+    "  await stream.finalMessage();",
+    "  res.end();",
+    "});",
+  ].join('\n');
 
   readonly searchTags = (query: string): TagItem[] => {
     const normalized = query.trim().toLowerCase();

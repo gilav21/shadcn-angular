@@ -346,13 +346,26 @@
       </output>
       @if (showToolbar()) {
         <div class="flex flex-wrap items-center justify-between gap-2 flex-none">
-          <div class="flex flex-1 items-center space-x-2">
+          <div class="flex flex-1 flex-wrap items-center gap-2">
             <ui-input
               [placeholder]="filterPlaceholder()"
               [ngModel]="globalFilter()"
               (ngModelChange)="onFilterChange($event)"
               class="h-8 w-full sm:w-[150px] lg:w-[250px]"
             />
+            @if (hasAi() && enableNlFilter()) {
+              <div class="flex items-center gap-1" data-slot="table-nl-filter">
+                <span aria-hidden="true" class="text-sm">✨</span>
+                <ui-input
+                  [placeholder]="nlFilterPlaceholder()"
+                  [ngModel]="aiFilterQuery()"
+                  (ngModelChange)="aiFilterQuery.set($event)"
+                  [disabled]="aiFilterRunning()"
+                  (keydown.enter)="runAiFilter()"
+                  class="h-8 w-full sm:w-[200px]"
+                />
+              </div>
+            }
           </div>
           @if (showColumnVisibilityToggle() && hideableColumns().length > 0) {
             <ui-popover>

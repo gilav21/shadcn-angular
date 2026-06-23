@@ -50,6 +50,7 @@ import {
   multiselectFilterFn,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { AiRequest } from '../../../../../packages/components/lib/ai';
 import { DATA_TABLE_DEMO_LOCALES } from './data-table-demo.locales';
 import { Payment, OrgNode, OpsTicket } from '../shared/types';
 import { StatusCellComponent } from '../../cells/status-cell.component';
@@ -617,6 +618,88 @@ export class DataTableDemoComponent {
   private readonly toastService = inject(ToastService);
   private readonly localeId = inject(UI_LOCALE_ID);
   readonly t = computed(() => DATA_TABLE_DEMO_LOCALES[this.localeId()] ?? DATA_TABLE_DEMO_LOCALES['en']);
+
+  // ── AI assist demo (mock provider, no network) ──
+  readonly aiQuery = signal('');
+  readonly aiRows = signal<{ id: string; customer: string; status: string; summary: string }[]>([
+    { id: '1', customer: 'Acme Retail', status: 'success', summary: '' },
+    { id: '2', customer: 'Globex', status: 'failed', summary: '' },
+    { id: '3', customer: 'Initech', status: 'pending', summary: '' },
+    { id: '4', customer: 'Hooli', status: 'success', summary: '' },
+  ]);
+  readonly aiColumns: ColumnDef<{ id: string; customer: string; status: string; summary: string }>[] = [
+    { accessorKey: 'customer', header: 'Customer', width: '180px' },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      width: '140px',
+      enableFiltering: true,
+      filterFn: (row, value) => !value || row.status === value,
+    },
+    {
+      accessorKey: 'summary',
+      header: 'Summary',
+      width: 'auto',
+      valueSetter: (row, v) => ({ ...row, summary: v as string }),
+    },
+  ];
+
+  /** Mock AI provider: compiles a NL query to a filter spec, and fills summaries. */
+  readonly tableAiProvider = (req: AiRequest): string => {
+    if (req.task === 'nl-filter') {
+      const query = req.input.toLowerCase();
+      const status = ['success', 'failed', 'pending', 'processing'].find(s => query.includes(s));
+      return JSON.stringify(status ? { columnFilters: { status } } : { globalFilter: req.input });
+    }
+    if (req.task === 'table-fill') {
+      const row = JSON.parse(req.input) as { customer: string; status: string };
+      return `${row.customer}'s latest payment is ${row.status}.`;
+    }
+    return '';
+  };
+
+  // Copy-paste guidance for wiring a real AI backend (rendered as plain text).
+  readonly aiTableFrontendCode = [
+    "// In your component — point the provider at YOUR backend.",
+    "// A one-shot Promise is enough for the table (no streaming needed).",
+    "import { AiRequest } from '@gilav21/shadcn-angular';",
+    "",
+    "readonly aiProvider = (req: AiRequest): Promise<string> =>",
+    "  fetch('/api/ai', {",
+    "    method: 'POST',",
+    "    headers: { 'content-type': 'application/json' },",
+    "    body: JSON.stringify(req),   // { task, input, prompt, context }",
+    "    signal: req.signal,",
+    "  }).then((r) => r.text());",
+  ].join('\n');
+
+  readonly aiTableBackendCode = [
+    "// Backend (Node / Express) — the API key stays here, never in the browser.",
+    "import Anthropic from '@anthropic-ai/sdk';",
+    "const client = new Anthropic();",
+    "",
+    "// nl-filter → return JSON; table-fill → return the cell value.",
+    "// req.context carries { columns } (nl-filter) or { column } (table-fill).",
+    "function systemFor(task, context) {",
+    "  if (task === 'nl-filter') {",
+    "    return 'Convert the request into a filter for these columns: ' +",
+    "      JSON.stringify(context.columns) + '. Reply with ONLY JSON of shape ' +",
+    "      '{ \"globalFilter\"?: string, \"columnFilters\"?: { [columnKey]: value } }.';",
+    "  }",
+    "  return 'Generate the value for the ' + context.column + ' cell. Return only the value.';",
+    "}",
+    "",
+    "app.post('/api/ai', async (req, res) => {",
+    "  const { task, input, prompt, context } = req.body;",
+    "  const msg = await client.messages.create({",
+    "    model: 'claude-opus-4-8',",
+    "    max_tokens: 1024,",
+    "    system: systemFor(task, context ?? {}),",
+    "    messages: [{ role: 'user', content: prompt ? prompt + ' — ' + input : input }],",
+    "  });",
+    "  res.type('text/plain').send(msg.content[0].type === 'text' ? msg.content[0].text : '');",
+    "});",
+  ].join('\n');
 
   scrollTo(id: string, event: Event) {
     event.preventDefault();

@@ -716,6 +716,7 @@
       "table"
     ],
     "libFiles": [
+      "ai.ts",
       "component-pool.service.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
@@ -2069,6 +2070,7 @@
       "separator"
     ],
     "libFiles": [
+      "ai.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",

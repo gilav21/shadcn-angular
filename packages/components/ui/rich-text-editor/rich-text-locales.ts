@@ -118,6 +118,26 @@ export interface RichTextLocale extends LocaleMeta {
         outlineDescription: string;
     };
 
+    /** AI assist labels (optional — fall back to English when a locale omits them). */
+    ai?: {
+        trigger: string;
+        slash: string;
+        slashDescription: string;
+        rewrite: string;
+        fixGrammar: string;
+        shorten: string;
+        expand: string;
+        summarize: string;
+        continueWriting: string;
+        promptPlaceholder: string;
+        go: string;
+        generating: string;
+        accept: string;
+        discard: string;
+        retry: string;
+        failed: string;
+    };
+
     history: {
         button: string;
         title: string;
@@ -315,6 +335,24 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outline: 'Outline',
             outlineDescription: 'Open the document outline',
         },
+        ai: {
+            trigger: '✨ Ask AI',
+            slash: 'Ask AI',
+            slashDescription: 'Rewrite, summarize, or generate with AI',
+            rewrite: 'Improve writing',
+            fixGrammar: 'Fix spelling & grammar',
+            shorten: 'Make shorter',
+            expand: 'Make longer',
+            summarize: 'Summarize',
+            continueWriting: 'Continue writing',
+            promptPlaceholder: 'Ask AI to…',
+            go: 'Go',
+            generating: 'Generating…',
+            accept: 'Accept',
+            discard: 'Discard',
+            retry: 'Try again',
+            failed: 'AI request failed',
+        },
         history: {
             button: 'History ({count})',
             title: 'Revision History',
@@ -505,6 +543,24 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             horizontalRuleDescription: 'הכנסת קו מפריד אופקי',
             outline: 'תוכן עניינים',
             outlineDescription: 'פתיחת תוכן העניינים של המסמך',
+        },
+        ai: {
+            trigger: '✨ שאל AI',
+            slash: 'שאל AI',
+            slashDescription: 'שכתוב, סיכום או יצירה בעזרת AI',
+            rewrite: 'שפר ניסוח',
+            fixGrammar: 'תקן איות ודקדוק',
+            shorten: 'קצר',
+            expand: 'הרחב',
+            summarize: 'סכם',
+            continueWriting: 'המשך לכתוב',
+            promptPlaceholder: '…בקש מ-AI',
+            go: 'בצע',
+            generating: '…מייצר',
+            accept: 'אשר',
+            discard: 'בטל',
+            retry: 'נסה שוב',
+            failed: 'בקשת ה-AI נכשלה',
         },
         history: {
             button: 'היסטוריה ({count})',
