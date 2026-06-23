@@ -286,6 +286,16 @@ export interface RangeChartPayload {
     series: RangeChartSeries[];
 }
 
+/** Emitted after an Excel-style fill-handle drag applies values to new rows. */
+export interface FillSeriesEvent {
+    /** Source range the fill pattern was read from. */
+    source: { minRow: number; maxRow: number };
+    /** Rows that received filled values (inclusive). */
+    filled: { startRow: number; endRow: number };
+    /** Column keys that were filled (only those with a `valueSetter`). */
+    columnKeys: string[];
+}
+
 export type RowDragPosition = 'above' | 'below' | 'on';
 
 export interface RowReorderEvent<T> {

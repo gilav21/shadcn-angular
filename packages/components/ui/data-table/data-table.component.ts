@@ -79,6 +79,7 @@ import {
   ResolvedCellFormatting,
   RangeAggregateStats,
   RangeChartPayload,
+  FillSeriesEvent,
 } from "./data-table.types";
 import {
   computeRowRange,
@@ -87,6 +88,7 @@ import {
   buildPrefixSums,
   partitionIntoGroups,
   computeAggregateValue,
+  buildFillValues,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
 
@@ -254,6 +256,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly enableRangeActions = input(false);
   /** Emitted when the user opens the range chart; carries the chart payload. */
   readonly rangeChartOpen = output<RangeChartPayload>();
+  /**
+   * Show an Excel-style fill handle at the corner of the focused cell / range.
+   * Drag it down to fill the pattern into the rows below. Requires
+   * `enableCellRangeSelection`. Only columns with a `valueSetter` are filled.
+   */
+  readonly enableFillHandle = input(false);
+  /** Emitted after a fill-handle drag applies values to new rows. */
+  readonly fillSeries = output<FillSeriesEvent>();
   readonly columnResize = output<ColumnResizeEvent>();
 
   /**
@@ -1413,6 +1423,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.flashTimers.forEach((t) => clearTimeout(t));
     this._document.removeEventListener('wheel', this.dragWheelHandler, { capture: true });
     this._document.removeEventListener('drag', this.dragEventHandler);
+    this._document.removeEventListener('mousemove', this._onFillMove);
+    this._document.removeEventListener('mouseup', this._onFillEnd);
+    this._document.removeEventListener('touchmove', this._onFillMove);
+    this._document.removeEventListener('touchend', this._onFillEnd);
     this.viewportObserver?.disconnect();
     this.rowResizeObserver?.disconnect();
   }
@@ -1887,6 +1901,133 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.rangeChartOpen.emit(payload);
   }
 
+  /** The current fill source: the selected range, or the focused cell as a 1×1 range. */
+  private fillSourceRange(): { minRow: number; maxRow: number; minCol: number; maxCol: number } | null {
+    const range = this.normalizedCellRange();
+    if (range) return range;
+    const focused = this.focusedCell();
+    if (!focused) return null;
+    const colIdx = this.navigableColumnKeys().indexOf(focused.columnKey);
+    if (colIdx < 0) return null;
+    return { minRow: focused.rowIndex, maxRow: focused.rowIndex, minCol: colIdx, maxCol: colIdx };
+  }
+
+  private fillColumn(key: string, source: { minRow: number; maxRow: number }, fillCount: number): boolean {
+    const col = this.enhancedColumns().find((c) => String(c.accessorKey) === key);
+    if (!col?.valueSetter) return false;
+    const data = this.processedData();
+    const sourceValues: unknown[] = [];
+    for (let r = source.minRow; r <= source.maxRow; r++) {
+      const row = data[r];
+      if (row) sourceValues.push(this.getCellValue(row, col.accessorKey, col));
+    }
+    const fillValues = buildFillValues(sourceValues, fillCount);
+    let applied = false;
+    for (let i = 0; i < fillCount; i++) {
+      const rowIndex = source.maxRow + 1 + i;
+      const targetRow = this.processedData()[rowIndex];
+      if (!targetRow) continue;
+      const value = fillValues[i];
+      if (this.validateEdit(col, targetRow, value, { rowIndex, columnKey: key })) {
+        this.applyValueSetter(col, targetRow, value);
+        applied = true;
+      }
+    }
+    return applied;
+  }
+
+  /**
+   * Excel-style fill: extend the source range/cell down to `targetEndRow`,
+   * filling each column's pattern into the new rows. No-op when the target is
+   * not below the source.
+   */
+  fillDownTo(targetEndRow: number): void {
+    const source = this.fillSourceRange();
+    if (!source || targetEndRow <= source.maxRow) return;
+    const keys = this.navigableColumnKeys().slice(source.minCol, source.maxCol + 1);
+    const fillCount = targetEndRow - source.maxRow;
+    const filledKeys = keys.filter((key) => this.fillColumn(key, source, fillCount));
+    if (filledKeys.length === 0) return;
+    this.cellRange.set({
+      startRow: source.minRow,
+      startCol: keys[0],
+      endRow: targetEndRow,
+      endCol: keys[keys.length - 1],
+    });
+    this.fillSeries.emit({
+      source: { minRow: source.minRow, maxRow: source.maxRow },
+      filled: { startRow: source.maxRow + 1, endRow: targetEndRow },
+      columnKeys: filledKeys,
+    });
+  }
+
+  /** Which cell shows the fill handle: bottom-right of the range, or the focused cell. Null while editing. */
+  private readonly fillHandleCell = computed<{ rowIndex: number; columnKey: string } | null>(() => {
+    if (!this.enableFillHandle() || this.editingCell() !== null) return null;
+    const range = this.normalizedCellRange();
+    if (range) {
+      const keys = this.navigableColumnKeys();
+      return { rowIndex: range.maxRow, columnKey: keys[range.maxCol] };
+    }
+    return this.focusedCell();
+  });
+
+  isFillHandleCell(rowIndex: number, columnKey: string): boolean {
+    const cell = this.fillHandleCell();
+    return cell !== null && cell.rowIndex === rowIndex && cell.columnKey === columnKey;
+  }
+
+  private _fillSource: { minRow: number; maxRow: number; minCol: number; maxCol: number } | null = null;
+  private readonly _fillPreviewEndRow = signal<number | null>(null);
+
+  isCellInFillPreview(rowIndex: number, columnKey: string): boolean {
+    const source = this._fillSource;
+    const end = this._fillPreviewEndRow();
+    if (!source || end === null) return false;
+    const colIdx = this.navigableColumnKeys().indexOf(columnKey);
+    return (
+      rowIndex > source.maxRow &&
+      rowIndex <= end &&
+      colIdx >= source.minCol &&
+      colIdx <= source.maxCol
+    );
+  }
+
+  onFillHandleStart(event: Event): void {
+    this._fillSource = this.fillSourceRange();
+    if (!this._fillSource) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this._fillPreviewEndRow.set(this._fillSource.maxRow);
+    this._document.addEventListener("mousemove", this._onFillMove);
+    this._document.addEventListener("mouseup", this._onFillEnd);
+    this._document.addEventListener("touchmove", this._onFillMove, { passive: false });
+    this._document.addEventListener("touchend", this._onFillEnd);
+  }
+
+  private readonly _onFillMove = (event: MouseEvent | TouchEvent): void => {
+    const point = "touches" in event ? event.touches[0] : event;
+    if (!point) return;
+    if ("touches" in event) event.preventDefault();
+    const target = this._document.elementFromPoint(point.clientX, point.clientY);
+    const rowEl = target?.closest<HTMLElement>("[data-row-index]");
+    const raw = rowEl?.dataset["rowIndex"];
+    if (raw === undefined) return;
+    const idx = Number(raw);
+    if (Number.isFinite(idx)) this._fillPreviewEndRow.set(idx);
+  };
+
+  private readonly _onFillEnd = (): void => {
+    this._document.removeEventListener("mousemove", this._onFillMove);
+    this._document.removeEventListener("mouseup", this._onFillEnd);
+    this._document.removeEventListener("touchmove", this._onFillMove);
+    this._document.removeEventListener("touchend", this._onFillEnd);
+    const end = this._fillPreviewEndRow();
+    this._fillPreviewEndRow.set(null);
+    this._fillSource = null;
+    if (end !== null) this.fillDownTo(end);
+  };
+
   /** Localized labels for the range readout (English fallback). */
   readonly rangeLabels = computed(() => {
     const l = this.t();
@@ -1996,6 +2137,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
     if (rowIndex !== undefined && this.isCellInRange(rowIndex, key)) {
       return base + " bg-primary/10";
+    }
+    if (rowIndex !== undefined && this.isCellInFillPreview(rowIndex, key)) {
+      return base + " bg-primary/5 ring-1 ring-dashed ring-primary/40 ring-inset";
     }
     return base;
   }

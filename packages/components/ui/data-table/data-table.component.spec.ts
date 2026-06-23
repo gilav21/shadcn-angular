@@ -4585,3 +4585,98 @@ describe('DataTableComponent range-selection actions (A2)', () => {
         expect((bar.nativeElement as HTMLElement).textContent).toContain('100');
     });
 });
+
+interface FillRow {
+    id: string;
+    n: number;
+    label: string;
+}
+
+describe('DataTableComponent fill handle (B1)', () => {
+    let component: DataTableComponent<FillRow>;
+    let fixture: ComponentFixture<DataTableComponent<FillRow>>;
+    let data: FillRow[];
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<FillRow>);
+        component = fixture.componentInstance;
+        data = [
+            { id: '1', n: 1, label: 'Item 1' },
+            { id: '2', n: 2, label: 'Item 2' },
+            { id: '3', n: 0, label: '' },
+            { id: '4', n: 0, label: '' },
+        ];
+        fixture.componentRef.setInput('data', data);
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'n', header: 'N', valueSetter: (row: FillRow, v: unknown) => ({ ...row, n: v as number }) },
+            { accessorKey: 'label', header: 'Label', valueSetter: (row: FillRow, v: unknown) => ({ ...row, label: v as string }) },
+        ] as ColumnDef<FillRow>[]);
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.componentRef.setInput('enableFillHandle', true);
+        fixture.detectChanges();
+    });
+
+    it('fills a numeric series down from a selected range', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        const rows = component.data();
+        expect(rows.map((r) => r.n)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('fills a trailing-number text series down', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'label', endRow: 1, endCol: 'label' });
+        component.fillDownTo(3);
+        expect(component.data().map((r) => r.label)).toEqual(['Item 1', 'Item 2', 'Item 3', 'Item 4']);
+    });
+
+    it('emits fillSeries with the filled rows and columns', () => {
+        let event: unknown = null;
+        component.fillSeries.subscribe((e) => (event = e));
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        expect(event).toEqual({
+            source: { minRow: 0, maxRow: 1 },
+            filled: { startRow: 2, endRow: 3 },
+            columnKeys: ['n'],
+        });
+    });
+
+    it('is a no-op when the target row is not below the source', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(1);
+        expect(component.data().map((r) => r.n)).toEqual([1, 2, 0, 0]);
+    });
+
+    it('falls back to the focused cell as a 1×1 source when no range is selected', () => {
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'n' });
+        component.fillDownTo(2);
+        // single value repeats
+        expect(component.data().map((r) => r.n)).toEqual([1, 1, 1, 0]);
+    });
+
+    it('renders the fill handle on the focused cell', () => {
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'n' });
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="fill-handle"]'))).toHaveLength(1);
+    });
+
+    it('does not render the fill handle when enableFillHandle is off', () => {
+        fixture.componentRef.setInput('enableFillHandle', false);
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'n' });
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="fill-handle"]'))).toHaveLength(0);
+    });
+
+    it('marks fill-preview cells while dragging', () => {
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'n' });
+        component.onFillHandleStart(new MouseEvent('mousedown'));
+        expect(component.isCellInFillPreview(2, 'n')).toBe(false);
+        // simulate the pointer reaching row 3 by reusing the public preview predicate
+        component['_fillPreviewEndRow'].set(3);
+        expect(component.isCellInFillPreview(2, 'n')).toBe(true);
+        expect(component.isCellInFillPreview(2, 'label')).toBe(false);
+        component['_onFillEnd']();
+    });
+});

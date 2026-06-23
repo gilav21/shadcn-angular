@@ -1318,8 +1318,18 @@
                     class="border-0"
                   >
                     @for (col of enhancedColumns(); track col.accessorKey) {
-                      <ui-table-cell [class]="getCellClass(col, i)" [attr.data-column]="String(col.accessorKey)" [style]="getCellStyle(col)" (click)="onCellClick(i, col, $event)" (keydown.enter)="onCellClick(i, col, $event)" (keydown.space)="onCellClick(i, col, $event)" (dblclick)="onCellDblClick(i, col, $event)" (touchend)="onCellTouchEnd($event, i, col)">
+                      <ui-table-cell [class]="getCellClass(col, i)" [class.relative]="isFillHandleCell(i, String(col.accessorKey))" [attr.data-column]="String(col.accessorKey)" [style]="getCellStyle(col)" (click)="onCellClick(i, col, $event)" (keydown.enter)="onCellClick(i, col, $event)" (keydown.space)="onCellClick(i, col, $event)" (dblclick)="onCellDblClick(i, col, $event)" (touchend)="onCellTouchEnd($event, i, col)">
                         <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: col, row: row, rowIndex: i, treeRow: null, recycle: false }"></ng-container>
+                        @if (isFillHandleCell(i, String(col.accessorKey))) {
+                          <span
+                            data-slot="fill-handle"
+                            class="absolute bottom-0 end-0 z-10 h-2.5 w-2.5 translate-x-1/2 translate-y-1/2 cursor-crosshair rounded-[2px] border border-background bg-primary"
+                            style="touch-action: none;"
+                            aria-hidden="true"
+                            (mousedown)="onFillHandleStart($event)"
+                            (touchstart)="onFillHandleStart($event)"
+                          ></span>
+                        }
                       </ui-table-cell>
                     }
                     @if (!hasFlexibleColumns()) {

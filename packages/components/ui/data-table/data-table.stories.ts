@@ -1246,3 +1246,51 @@ export const RangeSelectionActions: StoryObj<DataTableComponent<PerfRow>> = {
         columns: rangeColumns,
     },
 };
+
+interface FillRow {
+    id: string;
+    sku: string;
+    qty: number;
+}
+
+const fillRows: FillRow[] = [
+    { id: '1', sku: 'SKU-001', qty: 10 },
+    { id: '2', sku: 'SKU-002', qty: 20 },
+    { id: '3', sku: '', qty: 0 },
+    { id: '4', sku: '', qty: 0 },
+    { id: '5', sku: '', qty: 0 },
+];
+
+const fillColumns: ColumnDef<FillRow>[] = [
+    { accessorKey: 'id', header: '#', width: '70px' },
+    { accessorKey: 'sku', header: 'SKU', valueSetter: (row, v) => ({ ...row, sku: v as string }) },
+    { accessorKey: 'qty', header: 'Qty', valueSetter: (row, v) => ({ ...row, qty: v as number }) },
+];
+
+export const FillHandle: StoryObj<DataTableComponent<FillRow>> = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Click a cell in SKU or Qty, then drag the square at its bottom-right corner down the column to
+                    fill the series (numbers step; SKU-002 → SKU-003…). Only columns with a valueSetter fill.
+                </p>
+                <div class="h-[340px] overflow-auto rounded-md border">
+                    <ui-data-table
+                        [(data)]="data"
+                        [columns]="columns"
+                        [enableCellRangeSelection]="true"
+                        [enableFillHandle]="true"
+                        [showToolbar]="false"
+                        [showPagination]="false"
+                    />
+                </div>
+            </div>
+        `,
+    }),
+    args: {
+        data: fillRows,
+        columns: fillColumns,
+    },
+};

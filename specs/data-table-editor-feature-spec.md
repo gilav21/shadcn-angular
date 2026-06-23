@@ -151,12 +151,21 @@ component touches the registry index → **CLI publish required on merge**.
 
 ---
 
-## WS2 — Excel fill bundle  *(PENDING)*
+## WS2 — Excel fill bundle  *(B1 done; B2/B3 pending)*
 
-- **B1 fill handle:** `data-slot="fill-handle"` at the range corner;
-  `(mousedown)`+`(touchstart)` drag to extend a preview, release to fill. Series
-  detection (numeric step, date step, trailing-number text, else copy). Applies
-  via `applyValueSetter` + `validateEdit`; emits `fillSeries`; one undo entry.
+- **B1 fill handle (IMPLEMENTED):** pure engine `buildFillValues(source, count)`
+  in utils (arithmetic numbers; trailing-number text with zero-pad preserved,
+  e.g. `SKU-008 → SKU-010`; else cycle — trailing digits scanned manually, no
+  regex). `fillDownTo(targetEndRow)` reads source (`normalizedCellRange` or
+  `focusedCell` 1×1), extrapolates per column, writes via `validateEdit` +
+  `applyValueSetter` (only columns with a `valueSetter`), extends the selection,
+  emits `fillSeries`. New input `enableFillHandle` + `<span data-slot=
+  "fill-handle">` at the handle cell (`fillHandleCell` computed; hidden while
+  editing); `(mousedown)`+`(touchstart)` drag (touch-action:none) → target row
+  via `elementFromPoint`→`[data-row-index]`; dashed `bg-primary/5` preview in
+  `getCellClass`; release applies; listeners torn down on end + `ngOnDestroy`.
+  Main flat-row path (tree/virtual = follow-up). 7 engine + 8 component tests,
+  story + demo. Deferred: B3 undo entry, date-step series.
 - **B2 smart paste:** `Ctrl/Cmd+V` on a focused cell → parse TSV/CSV → write a
   grid from the focused cell across visible columns; rejects → `editError`;
   emits `cellsPaste`; one undo entry.

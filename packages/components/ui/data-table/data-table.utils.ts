@@ -249,6 +249,86 @@ export function buildTreeFromFlat<T>(
     return roots.map(attachChildren);
 }
 
+interface TrailingNumbers {
+    prefix: string;
+    numbers: { value: number; width: number }[];
+}
+
+function toNumberSeries(source: unknown[]): number[] | null {
+    const nums: number[] = [];
+    for (const v of source) {
+        if (typeof v !== 'number' || !Number.isFinite(v)) return null;
+        nums.push(v);
+    }
+    return nums;
+}
+
+function fillNumericSeries(nums: number[], count: number): number[] {
+    const step = nums.length >= 2 ? nums[nums.length - 1] - nums[nums.length - 2] : 0;
+    const last = nums[nums.length - 1];
+    return Array.from({ length: count }, (_, i) => last + step * (i + 1));
+}
+
+function splitTrailingDigits(v: string): { prefix: string; digits: string } | null {
+    let end = v.length;
+    while (end > 0) {
+        const ch = v[end - 1];
+        if (ch < '0' || ch > '9') break;
+        end--;
+    }
+    return end === v.length ? null : { prefix: v.slice(0, end), digits: v.slice(end) };
+}
+
+function detectTrailingNumbers(source: unknown[]): TrailingNumbers | null {
+    let prefix: string | null = null;
+    const numbers: { value: number; width: number }[] = [];
+    for (const v of source) {
+        if (typeof v !== 'string') return null;
+        const split = splitTrailingDigits(v);
+        if (!split) return null;
+        if (prefix === null) prefix = split.prefix;
+        else if (prefix !== split.prefix) return null;
+        numbers.push({ value: Number.parseInt(split.digits, 10), width: split.digits.length });
+    }
+    return prefix === null ? null : { prefix, numbers };
+}
+
+function padNumber(n: number, width: number): string {
+    const body = Math.abs(n).toString().padStart(width, '0');
+    return n < 0 ? `-${body}` : body;
+}
+
+function fillTrailingNumbers(info: TrailingNumbers, count: number): string[] {
+    const { prefix, numbers } = info;
+    const last = numbers[numbers.length - 1];
+    const step = numbers.length >= 2 ? last.value - numbers[numbers.length - 2].value : 1;
+    return Array.from({ length: count }, (_, i) =>
+        prefix + padNumber(last.value + step * (i + 1), last.width),
+    );
+}
+
+function cycleValues(source: unknown[], count: number): unknown[] {
+    return Array.from({ length: count }, (_, i) => source[i % source.length]);
+}
+
+/**
+ * Extrapolate `count` more values from a fill source (Excel-style drag-to-fill):
+ * arithmetic step for numbers, incrementing trailing numbers in text (padding
+ * preserved), else cycle the source pattern.
+ */
+export function buildFillValues(source: unknown[], count: number): unknown[] {
+    if (count <= 0) return [];
+    if (source.length === 0) return new Array(count).fill('');
+
+    const numeric = toNumberSeries(source);
+    if (numeric) return fillNumericSeries(numeric, count);
+
+    const trailing = detectTrailingNumbers(source);
+    if (trailing) return fillTrailingNumbers(trailing, count);
+
+    return cycleValues(source, count);
+}
+
 /**
  * Reduce a list of cell values to a single aggregate string. Shared by column
  * footers and the range-selection readout so both compute identically.

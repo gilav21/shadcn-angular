@@ -1469,6 +1469,31 @@ export class DataTableDemoComponent {
     this.rangeChartDialogOpen.set(true);
   }
 
+  // ── Fill Handle Demo (B1) ──
+  readonly fillData = signal<{ id: string; sku: string; qty: number }[]>([
+    { id: '1', sku: 'SKU-001', qty: 10 },
+    { id: '2', sku: 'SKU-002', qty: 20 },
+    { id: '3', sku: '', qty: 0 },
+    { id: '4', sku: '', qty: 0 },
+    { id: '5', sku: '', qty: 0 },
+    { id: '6', sku: '', qty: 0 },
+  ]);
+  readonly fillColumns: ColumnDef<{ id: string; sku: string; qty: number }>[] = [
+    { accessorKey: 'id', header: '#', width: '70px' },
+    {
+      accessorKey: 'sku',
+      header: 'SKU',
+      width: 'auto',
+      valueSetter: (row, v) => ({ ...row, sku: v as string }),
+    },
+    {
+      accessorKey: 'qty',
+      header: 'Qty',
+      width: '120px',
+      valueSetter: (row, v) => ({ ...row, qty: v as number }),
+    },
+  ];
+
   // ── Row Grouping Demo ──
   readonly groupCollapsed = signal<Record<string, boolean>>({});
   readonly groupingColumns = computed<ColumnDef<Payment>[]>(() => {
