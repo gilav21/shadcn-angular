@@ -1118,6 +1118,12 @@ export const registry = defineRegistry({
     files: ['card-accordion/card-accordion.component.css', 'card-accordion/card-accordion.component.html', 'card-accordion/card-accordion.component.ts', 'card-accordion/index.ts', 'card-accordion/sub/card-accordion-actions.component.ts', 'card-accordion/sub/card-accordion-content.component.css', 'card-accordion/sub/card-accordion-content.component.html', 'card-accordion/sub/card-accordion-content.component.ts', 'card-accordion/sub/card-accordion-item.component.css', 'card-accordion/sub/card-accordion-item.component.html', 'card-accordion/sub/card-accordion-item.component.ts', 'card-accordion/sub/card-accordion-trigger.component.css', 'card-accordion/sub/card-accordion-trigger.component.html', 'card-accordion/sub/card-accordion-trigger.component.ts'],
     dependencies: ['accordion', 'skeleton'],
   },
+  'data-table-range-chart': {
+    name: 'data-table-range-chart',
+    files: ['data-table-range-chart/data-table-range-chart.component.html', 'data-table-range-chart/data-table-range-chart.component.ts'],
+    libFiles: ['chart.types.ts'],
+    dependencies: ['bar-chart', 'button', 'dialog', 'pie-chart', 'stacked-bar-chart'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

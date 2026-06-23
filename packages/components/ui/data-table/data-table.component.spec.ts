@@ -4,7 +4,7 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext, DataTableExportQuery } from './data-table.types';
 import { ContextMenuItem } from '../context-menu';
-import { buildTreeFromFlat } from './data-table.utils';
+import { buildTreeFromFlat, computeAggregateValue } from './data-table.utils';
 import type { DataTableLocale } from './data-table.locales';
 import { dateFilterFn } from './sub/data-table-date-filter.component';
 import { dateRangeFilterFn } from './sub/data-table-date-range-filter.component';
@@ -1180,19 +1180,62 @@ describe('DataTableComponent', () => {
         expect(component.draggedRowId()).toBe('2');
     });
 
-    it('should set cell range on shift-click', () => {
+    function cellEl(rowIndex: number, columnKey: string): HTMLElement {
+        return fixture.debugElement.query(
+            By.css(`[data-row-index="${rowIndex}"] [data-column="${columnKey}"]`),
+        ).nativeElement as HTMLElement;
+    }
+
+    it('extends the cell range on shift + mousedown from the focused anchor', () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+
+        cellEl(2, 'role').dispatchEvent(
+            new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey: true }),
+        );
+
+        expect(component.cellRange()).toEqual({ startRow: 0, startCol: 'id', endRow: 2, endCol: 'role' });
+        globalThis.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('selects a range by click-dragging without shift', () => {
         fixture.componentRef.setInput('enableCellRangeSelection', true);
         fixture.detectChanges();
 
-        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
-        const shiftClickEvent = { stopPropagation: () => {}, shiftKey: true } as any;
-        component.onCellClick(2, { accessorKey: 'role', header: 'Role' } as any, shiftClickEvent);
+        cellEl(0, 'id').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+        const target = cellEl(2, 'name').getBoundingClientRect();
+        globalThis.dispatchEvent(
+            new MouseEvent('mousemove', { clientX: target.left + target.width / 2, clientY: target.top + target.height / 2 }),
+        );
 
-        const range = component.cellRange();
-        expect(range).toEqual({
-            startRow: 0, startCol: 'id',
-            endRow: 2, endCol: 'role',
-        });
+        expect(component.cellRange()).toEqual({ startRow: 0, startCol: 'id', endRow: 2, endCol: 'name' });
+        globalThis.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('collapses a no-drag click to a plain focus (no range)', () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+
+        cellEl(1, 'name').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+        globalThis.dispatchEvent(new MouseEvent('mouseup'));
+
+        expect(component.cellRange()).toBeNull();
+        expect(component.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'name' });
+    });
+
+    it('styles the active cell and range cells distinctly', () => {
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'name' });
+        component.cellRange.set({ startRow: 1, startCol: 'name', endRow: 2, endCol: 'role' });
+        expect(component.getCellClass({ accessorKey: 'name', _width: 'auto' } as any, 1)).toContain('ring-primary');
+        expect(component.getCellClass({ accessorKey: 'role', _width: 'auto' } as any, 2)).toContain('bg-primary/15');
+    });
+
+    it('disables native text selection while range selection is enabled', () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+        const container = fixture.debugElement.query(By.css('[tabindex="0"].overflow-auto')).nativeElement as HTMLElement;
+        expect(container.classList.contains('select-none')).toBe(true);
     });
 
     it('should detect cells in range', () => {
@@ -4313,5 +4356,519 @@ describe('DataTableComponent - deep tree reorder removal', () => {
         expect(a1.children ?? []).toHaveLength(0);
         // a1x now sits after 'b' at root
         expect(result.map((n) => n.id)).toEqual(['a', 'b', 'a1x']);
+    });
+});
+
+interface ScoreRow {
+    id: string;
+    name: string;
+    score: number;
+}
+
+const SCORE_DATA: ScoreRow[] = [
+    { id: '1', name: 'Alice', score: 0 },
+    { id: '2', name: 'Bob', score: 50 },
+    { id: '3', name: 'Charlie', score: 100 },
+];
+
+describe('DataTableComponent conditional formatting (A1)', () => {
+    let component: DataTableComponent<ScoreRow>;
+    let fixture: ComponentFixture<DataTableComponent<ScoreRow>>;
+
+    function setColumns(scoreCol: Partial<ColumnDef<ScoreRow>>): void {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'name', header: 'Name' },
+            { accessorKey: 'score', header: 'Score', ...scoreCol },
+        ] as ColumnDef<ScoreRow>[]);
+        fixture.detectChanges();
+    }
+
+    function scoreColumn(): ColumnDef<ScoreRow> {
+        return component.columns().find((c) => c.accessorKey === 'score')!;
+    }
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataTableComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<ScoreRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', SCORE_DATA);
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'name', header: 'Name' },
+            { accessorKey: 'score', header: 'Score' },
+        ] as ColumnDef<ScoreRow>[]);
+        fixture.detectChanges();
+    });
+
+    it('returns null when the column declares no conditional formatting', () => {
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[1])).toBeNull();
+    });
+
+    it('applies cellClassRules whose predicate matches and joins multiple', () => {
+        setColumns({
+            cellClassRules: [
+                { when: (v) => (v as number) >= 50, class: 'text-green-600' },
+                { when: (v) => (v as number) === 100, class: 'font-bold' },
+                { when: (v) => (v as number) < 0, class: 'text-red-600' },
+            ],
+        });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[2])?.class).toBe(
+            'text-green-600 font-bold',
+        );
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[0])?.class).toBe('');
+    });
+
+    it('returns the style object from cellStyleRules', () => {
+        setColumns({
+            cellStyleRules: (v) => ((v as number) > 75 ? { color: 'gold' } : undefined),
+        });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[2])?.style).toEqual({
+            color: 'gold',
+        });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[0])?.style).toEqual({});
+    });
+
+    it('produces a color-mix background from colorScale based on value position', () => {
+        setColumns({ colorScale: { min: 0, max: 100, from: 'white', to: 'red' } });
+        const mid = component.getCellFormatting(scoreColumn(), SCORE_DATA[1])?.style[
+            'background-color'
+        ];
+        expect(mid).toBe('color-mix(in srgb, red 50%, white)');
+    });
+
+    it('computes a clamped data bar width as a percentage', () => {
+        setColumns({ dataBar: { min: 0, max: 100, color: 'steelblue' } });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[1])?.dataBar).toEqual({
+            width: '50%',
+            color: 'steelblue',
+            track: null,
+        });
+        // value at/above max clamps to 100%
+        expect(
+            component.getCellFormatting(scoreColumn(), SCORE_DATA[2])?.dataBar?.width,
+        ).toBe('100%');
+    });
+
+    it('resolves an icon from iconSet', () => {
+        setColumns({
+            iconSet: (v) => ((v as number) >= 100 ? { glyph: '🏆', class: 'text-amber-500' } : undefined),
+        });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[2])?.icon).toEqual({
+            glyph: '🏆',
+            class: 'text-amber-500',
+        });
+        expect(component.getCellFormatting(scoreColumn(), SCORE_DATA[0])?.icon).toBeNull();
+    });
+
+    it('renders data bars in the DOM with the computed width', () => {
+        setColumns({ dataBar: { min: 0, max: 100, color: 'steelblue' } });
+        const bars = fixture.debugElement.queryAll(By.css('[data-slot="cell-data-bar"]'));
+        expect(bars).toHaveLength(3);
+        const widths = bars.map((b) => (b.nativeElement as HTMLElement).style.width);
+        expect(widths).toEqual(['0%', '50%', '100%']);
+    });
+
+    it('renders a data-bar track only when track is set', () => {
+        setColumns({ dataBar: { min: 0, max: 100, color: 'steelblue' } });
+        expect(
+            fixture.debugElement.queryAll(By.css('[data-slot="cell-data-bar-track"]')),
+        ).toHaveLength(0);
+
+        setColumns({ dataBar: { min: 0, max: 100, color: 'steelblue', track: '#eee' } });
+        const tracks = fixture.debugElement.queryAll(By.css('[data-slot="cell-data-bar-track"]'));
+        expect(tracks).toHaveLength(3);
+        expect((tracks[0].nativeElement as HTMLElement).style.backgroundColor).toBeTruthy();
+    });
+
+    it('renders icon-set glyphs and conditional classes in the DOM', () => {
+        setColumns({
+            iconSet: (v) => ((v as number) >= 100 ? { glyph: '🏆' } : undefined),
+            cellClassRules: [{ when: (v) => (v as number) >= 100, class: 'is-top' }],
+        });
+        const icons = fixture.debugElement.queryAll(By.css('span[data-slot="cell-icon"]'));
+        expect(icons).toHaveLength(1);
+        expect((icons[0].nativeElement as HTMLElement).textContent).toContain('🏆');
+        const topCells = fixture.debugElement.queryAll(By.css('[data-slot="cell-formatted"].is-top'));
+        expect(topCells).toHaveLength(1);
+    });
+
+    it('renders a named ui-icon when iconSet returns { name }', () => {
+        setColumns({
+            iconSet: (v) => ((v as number) >= 100 ? { name: 'chevron-up' } : undefined),
+        });
+        const namedIcons = fixture.debugElement.queryAll(By.css('ui-icon[data-slot="cell-icon"]'));
+        expect(namedIcons).toHaveLength(1);
+        // glyph branch must not also render
+        const glyphSpans = fixture.debugElement.queryAll(By.css('span[data-slot="cell-icon"]'));
+        expect(glyphSpans).toHaveLength(0);
+    });
+
+    it('does not wrap cells when the column declares no formatting', () => {
+        const formatted = fixture.debugElement.queryAll(By.css('[data-slot="cell-formatted"]'));
+        expect(formatted).toHaveLength(0);
+    });
+});
+
+describe('computeAggregateValue (A2 util)', () => {
+    it('sums, averages, min/max numeric values and ignores non-numeric', () => {
+        const values = ['Alice', 10, 20, 'Bob', 30, 40];
+        expect(computeAggregateValue(values, 'sum')).toBe('100');
+        expect(computeAggregateValue(values, 'avg')).toBe('25');
+        expect(computeAggregateValue(values, 'min')).toBe('10');
+        expect(computeAggregateValue(values, 'max')).toBe('40');
+    });
+
+    it('counts every value (numeric or not)', () => {
+        expect(computeAggregateValue(['Alice', 10, 20], 'count')).toBe('3');
+    });
+
+    it('returns empty string for numeric aggregates over no numbers', () => {
+        expect(computeAggregateValue(['a', 'b'], 'sum')).toBe('');
+    });
+
+    it('rounds averages to two decimals', () => {
+        expect(computeAggregateValue([1, 2], 'avg')).toBe('1.5');
+        expect(computeAggregateValue([1, 1, 2], 'avg')).toBe('1.33');
+    });
+
+    it('supports a custom aggregate function', () => {
+        expect(computeAggregateValue([1, 2, 3], (vals) => `n=${vals.length}`)).toBe('n=3');
+    });
+});
+
+interface SalesRow {
+    rep: string;
+    q1: number;
+    q2: number;
+}
+
+const SALES_DATA: SalesRow[] = [
+    { rep: 'Alice', q1: 10, q2: 20 },
+    { rep: 'Bob', q1: 30, q2: 40 },
+];
+
+const SALES_COLUMNS: ColumnDef<SalesRow>[] = [
+    { accessorKey: 'rep', header: 'Rep' },
+    { accessorKey: 'q1', header: 'Q1' },
+    { accessorKey: 'q2', header: 'Q2' },
+];
+
+describe('DataTableComponent range-selection actions (A2)', () => {
+    let component: DataTableComponent<SalesRow>;
+    let fixture: ComponentFixture<DataTableComponent<SalesRow>>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataTableComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<SalesRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', SALES_DATA);
+        fixture.componentRef.setInput('columns', SALES_COLUMNS);
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.componentRef.setInput('enableRangeActions', true);
+        fixture.detectChanges();
+    });
+
+    it('computes live aggregates over a numeric range', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 1, endCol: 'q2' });
+        const stats = component.rangeSelectionStats();
+        expect(stats).toEqual({ count: 4, numericCount: 4, sum: '100', avg: '25', min: '10', max: '40' });
+    });
+
+    it('counts non-numeric cells but only aggregates numbers', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'rep', endRow: 1, endCol: 'q2' });
+        const stats = component.rangeSelectionStats();
+        expect(stats?.count).toBe(6);
+        expect(stats?.numericCount).toBe(4);
+        expect(stats?.sum).toBe('100');
+    });
+
+    it('is null when enableRangeActions is off', () => {
+        fixture.componentRef.setInput('enableRangeActions', false);
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 1, endCol: 'q2' });
+        expect(component.rangeSelectionStats()).toBeNull();
+    });
+
+    it('is null for a single-cell range', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 0, endCol: 'q1' });
+        expect(component.rangeSelectionStats()).toBeNull();
+    });
+
+    it('builds a chart payload with numeric columns as series and a label column as categories', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'rep', endRow: 1, endCol: 'q2' });
+        const payload = component.rangeChartPayload();
+        expect(payload?.categories).toEqual(['Alice', 'Bob']);
+        expect(payload?.series).toEqual([
+            { name: 'Q1', values: [10, 30] },
+            { name: 'Q2', values: [20, 40] },
+        ]);
+    });
+
+    it('falls back to Row N categories when the range has no label column', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 1, endCol: 'q2' });
+        expect(component.rangeChartPayload()?.categories).toEqual(['Row 1', 'Row 2']);
+    });
+
+    it('emits rangeChartOpen with the payload when openRangeChart is called', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 1, endCol: 'q2' });
+        let emitted: unknown = null;
+        component.rangeChartOpen.subscribe((p) => (emitted = p));
+        component.openRangeChart();
+        expect(emitted).toEqual(component.rangeChartPayload());
+    });
+
+    it('renders the readout bar with the live sum when a range is selected', () => {
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="range-actions"]'))).toHaveLength(0);
+        component.cellRange.set({ startRow: 0, startCol: 'q1', endRow: 1, endCol: 'q2' });
+        fixture.detectChanges();
+        const bar = fixture.debugElement.query(By.css('[data-slot="range-actions"]'));
+        expect(bar).toBeTruthy();
+        expect((bar.nativeElement as HTMLElement).textContent).toContain('100');
+    });
+});
+
+interface FillRow {
+    id: string;
+    n: number;
+    label: string;
+}
+
+describe('DataTableComponent fill handle (B1)', () => {
+    let component: DataTableComponent<FillRow>;
+    let fixture: ComponentFixture<DataTableComponent<FillRow>>;
+    let data: FillRow[];
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<FillRow>);
+        component = fixture.componentInstance;
+        data = [
+            { id: '1', n: 1, label: 'Item 1' },
+            { id: '2', n: 2, label: 'Item 2' },
+            { id: '3', n: 0, label: '' },
+            { id: '4', n: 0, label: '' },
+        ];
+        fixture.componentRef.setInput('data', data);
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'n', header: 'N', valueSetter: (row: FillRow, v: unknown) => ({ ...row, n: v as number }) },
+            { accessorKey: 'label', header: 'Label', valueSetter: (row: FillRow, v: unknown) => ({ ...row, label: v as string }) },
+        ] as ColumnDef<FillRow>[]);
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.componentRef.setInput('enableFillHandle', true);
+        fixture.detectChanges();
+    });
+
+    it('fills a numeric series down from a selected range', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        const rows = component.data();
+        expect(rows.map((r) => r.n)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('fills a trailing-number text series down', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'label', endRow: 1, endCol: 'label' });
+        component.fillDownTo(3);
+        expect(component.data().map((r) => r.label)).toEqual(['Item 1', 'Item 2', 'Item 3', 'Item 4']);
+    });
+
+    it('emits fillSeries with the filled rows and columns', () => {
+        let event: unknown = null;
+        component.fillSeries.subscribe((e) => (event = e));
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        expect(event).toEqual({
+            source: { minRow: 0, maxRow: 1 },
+            filled: { startRow: 2, endRow: 3 },
+            columnKeys: ['n'],
+        });
+    });
+
+    it('is a no-op when the target row is not below the source', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(1);
+        expect(component.data().map((r) => r.n)).toEqual([1, 2, 0, 0]);
+    });
+
+    it('falls back to the focused cell as a 1×1 source when no range is selected', () => {
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'n' });
+        component.fillDownTo(2);
+        // single value repeats
+        expect(component.data().map((r) => r.n)).toEqual([1, 1, 1, 0]);
+    });
+
+    it('computes a handle position for the focused cell (any render path)', () => {
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'n' });
+        fixture.detectChanges();
+        const pos = component['computeFillHandlePosition']();
+        expect(pos).not.toBeNull();
+        expect(typeof pos?.top).toBe('number');
+        expect(typeof pos?.left).toBe('number');
+    });
+
+    it('has no handle position when nothing is focused or selected', () => {
+        component.focusedCell.set(null);
+        component.cellRange.set(null);
+        fixture.detectChanges();
+        expect(component['computeFillHandlePosition']()).toBeNull();
+    });
+
+    it('positions the overlay via the after-render effect end-to-end', async () => {
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'n' });
+        fixture.detectChanges();
+        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+        fixture.detectChanges();
+        expect(component.fillHandlePosition()).not.toBeNull();
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="fill-handle"]'))).toHaveLength(1);
+    });
+
+    it('renders the overlay handle when a position is set, gated by enableFillHandle', () => {
+        component.fillHandlePosition.set({ top: 12, left: 34 });
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="fill-handle"]'))).toHaveLength(1);
+
+        fixture.componentRef.setInput('enableFillHandle', false);
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="fill-handle"]'))).toHaveLength(0);
+    });
+
+    it('marks fill-preview cells while dragging', () => {
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'n' });
+        component.onFillHandleStart(new MouseEvent('mousedown'));
+        expect(component.isCellInFillPreview(2, 'n')).toBe(false);
+        // simulate the pointer reaching row 3 by reusing the public preview predicate
+        component['_fillPreviewEndRow'].set(3);
+        expect(component.isCellInFillPreview(2, 'n')).toBe(true);
+        expect(component.isCellInFillPreview(2, 'label')).toBe(false);
+        component['_onFillEnd']();
+    });
+});
+
+describe('DataTableComponent smart paste (B2)', () => {
+    let component: DataTableComponent<FillRow>;
+    let fixture: ComponentFixture<DataTableComponent<FillRow>>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<FillRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', [
+            { id: '1', n: 0, label: '' },
+            { id: '2', n: 0, label: '' },
+            { id: '3', n: 0, label: '' },
+        ]);
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            {
+                accessorKey: 'n',
+                header: 'N',
+                valueSetter: (row: FillRow, v: unknown) => ({ ...row, n: v as number }),
+                editValidator: (v: unknown) => (v as number) < 100 || 'too big',
+            },
+            { accessorKey: 'label', header: 'Label', valueSetter: (row: FillRow, v: unknown) => ({ ...row, label: v as string }) },
+        ] as ColumnDef<FillRow>[]);
+        fixture.componentRef.setInput('enableClipboardPaste', true);
+        fixture.detectChanges();
+    });
+
+    it('writes a grid from the start cell across columns and rows, coercing numbers', () => {
+        component['pasteGridAt'](0, 'n', [['10', 'a'], ['20', 'b']]);
+        const rows = component.data();
+        expect(rows[0]).toMatchObject({ n: 10, label: 'a' });
+        expect(rows[1]).toMatchObject({ n: 20, label: 'b' });
+        // numeric column received real numbers, not strings
+        expect(typeof rows[0].n).toBe('number');
+    });
+
+    it('skips columns without a valueSetter and cells beyond the data', () => {
+        // start at 'id' (no valueSetter) — that column is skipped, 'n' gets the 2nd value
+        component['pasteGridAt'](0, 'id', [['x', '42']]);
+        expect(component.data()[0]).toMatchObject({ id: '1', n: 42 });
+    });
+
+    it('rejects cells failing the editValidator and reports counts', () => {
+        let event: { cellsApplied: number; cellsRejected: number } | null = null;
+        component.cellsPaste.subscribe((e) => (event = e));
+        component['pasteGridAt'](0, 'n', [['5'], ['999']]);
+        expect(component.data().map((r) => r.n)).toEqual([5, 0, 0]);
+        expect(event).toMatchObject({ cellsApplied: 1, cellsRejected: 1, rowsAffected: 2 });
+    });
+});
+
+describe('DataTableComponent edit history (B3)', () => {
+    let component: DataTableComponent<FillRow>;
+    let fixture: ComponentFixture<DataTableComponent<FillRow>>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<FillRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', [
+            { id: '1', n: 1, label: 'Item 1' },
+            { id: '2', n: 2, label: 'Item 2' },
+            { id: '3', n: 0, label: '' },
+            { id: '4', n: 0, label: '' },
+        ]);
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'n', header: 'N', valueSetter: (row: FillRow, v: unknown) => ({ ...row, n: v as number }) },
+            { accessorKey: 'label', header: 'Label', valueSetter: (row: FillRow, v: unknown) => ({ ...row, label: v as string }) },
+        ] as ColumnDef<FillRow>[]);
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.componentRef.setInput('enableFillHandle', true);
+        fixture.componentRef.setInput('enableEditHistory', true);
+        fixture.detectChanges();
+    });
+
+    it('undoes and redoes a fill as one command', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        expect(component.data().map((r) => r.n)).toEqual([1, 2, 3, 4]);
+
+        component.undoEdit();
+        expect(component.data().map((r) => r.n)).toEqual([1, 2, 0, 0]);
+
+        component.redoEdit();
+        expect(component.data().map((r) => r.n)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('tracks canUndo / canRedo', () => {
+        expect(component.canUndo()).toBe(false);
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        expect(component.canUndo()).toBe(true);
+        expect(component.canRedo()).toBe(false);
+        component.undoEdit();
+        expect(component.canUndo()).toBe(false);
+        expect(component.canRedo()).toBe(true);
+    });
+
+    it('undoes an inline edit', () => {
+        component.editingCell.set({ rowIndex: 0, columnKey: 'n' });
+        component.editValue.set(99);
+        component.commitEdit();
+        expect(component.data()[0].n).toBe(99);
+        component.undoEdit();
+        expect(component.data()[0].n).toBe(1);
+    });
+
+    it('clears the redo stack when a new edit happens after an undo', () => {
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        component.undoEdit();
+        expect(component.canRedo()).toBe(true);
+        // a fresh fill should drop the redo history
+        component.cellRange.set({ startRow: 0, startCol: 'label', endRow: 1, endCol: 'label' });
+        component.fillDownTo(3);
+        expect(component.canRedo()).toBe(false);
+    });
+
+    it('does not record history when disabled', () => {
+        fixture.componentRef.setInput('enableEditHistory', false);
+        component.cellRange.set({ startRow: 0, startCol: 'n', endRow: 1, endCol: 'n' });
+        component.fillDownTo(3);
+        expect(component.canUndo()).toBe(false);
     });
 });

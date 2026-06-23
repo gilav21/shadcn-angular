@@ -3223,5 +3223,22 @@
       "accordion",
       "skeleton"
     ]
+  },
+  "data-table-range-chart": {
+    "name": "data-table-range-chart",
+    "files": [
+      "data-table-range-chart/data-table-range-chart.component.html",
+      "data-table-range-chart/data-table-range-chart.component.ts"
+    ],
+    "libFiles": [
+      "chart.types.ts"
+    ],
+    "dependencies": [
+      "bar-chart",
+      "button",
+      "dialog",
+      "pie-chart",
+      "stacked-bar-chart"
+    ]
   }
 }

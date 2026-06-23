@@ -1,6 +1,6 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
 import { DataTableComponent } from './data-table.component';
-import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext } from './data-table.types';
+import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext, CellIcon } from './data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { InputComponent } from '../input';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from '../context-menu';
@@ -1138,5 +1138,161 @@ export const InlineEditing: Story = {
     args: {
         data: sampleData.slice(0, 6),
         columns: editableColumns,
+    },
+};
+
+interface PerfRow {
+    rep: string;
+    sales: number;
+    growth: number;
+    score: number;
+}
+
+const perfRows: PerfRow[] = [
+    { rep: 'Alice', sales: 92000, growth: 0.24, score: 96 },
+    { rep: 'Bob', sales: 41000, growth: -0.08, score: 58 },
+    { rep: 'Charlie', sales: 67000, growth: 0.11, score: 74 },
+    { rep: 'Dora', sales: 15000, growth: -0.31, score: 33 },
+    { rep: 'Evan', sales: 78000, growth: 0.05, score: 81 },
+];
+
+function growthIcon(value: unknown): CellIcon | undefined {
+    const n = value as number;
+    if (n > 0) return { glyph: '▲', class: 'text-green-600' };
+    if (n < 0) return { glyph: '▼', class: 'text-red-600' };
+    return undefined;
+}
+
+const perfColumns: ColumnDef<PerfRow>[] = [
+    { accessorKey: 'rep', header: 'Rep' },
+    {
+        accessorKey: 'sales',
+        header: 'Sales',
+        cell: (r) => `$${r.sales.toLocaleString()}`,
+        // Inline data bar scaled to the column max.
+        dataBar: { min: 0, max: 100000, color: 'color-mix(in srgb, var(--primary) 30%, transparent)' },
+    },
+    {
+        accessorKey: 'growth',
+        header: 'Growth',
+        cell: (r) => `${(r.growth * 100).toFixed(0)}%`,
+        // Value-driven text color + a trend glyph.
+        cellClassRules: [
+            { when: (v) => (v as number) > 0, class: 'font-medium' },
+            { when: (v) => (v as number) < 0, class: 'font-medium' },
+        ],
+        iconSet: growthIcon,
+    },
+    {
+        accessorKey: 'score',
+        header: 'Score',
+        // Heat-map background interpolated white -> emerald across 0..100.
+        colorScale: { min: 0, max: 100, from: 'transparent', to: 'color-mix(in srgb, #10b981 45%, transparent)' },
+    },
+];
+
+export const ConditionalFormatting: StoryObj<DataTableComponent<PerfRow>> = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Per-column conditional formatting: <strong>data bars</strong> on Sales,
+                    value-driven <strong>icons + classes</strong> on Growth, and a
+                    <strong>color scale</strong> heat-map on Score — all declarative on the ColumnDef,
+                    no custom cell components.
+                </p>
+                <ui-data-table [data]="data" [columns]="columns" [showToolbar]="false" [showPagination]="false" />
+            </div>
+        `,
+    }),
+    args: {
+        data: perfRows,
+        columns: perfColumns,
+    },
+};
+
+const rangeColumns: ColumnDef<PerfRow>[] = [
+    { accessorKey: 'rep', header: 'Rep' },
+    { accessorKey: 'sales', header: 'Sales', enableSorting: true },
+    { accessorKey: 'score', header: 'Score', enableSorting: true },
+];
+
+export const RangeSelectionActions: StoryObj<DataTableComponent<PerfRow>> = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Click a cell, then shift-click another (or drag) to select a range. A readout bar shows the
+                    live <strong>Count / Sum / Avg / Min / Max</strong>; the <strong>Chart</strong> button emits
+                    (rangeChartOpen) with the selection as chart data.
+                </p>
+                <div class="h-[360px] overflow-auto rounded-md border">
+                    <ui-data-table
+                        [data]="data"
+                        [columns]="columns"
+                        [enableCellRangeSelection]="true"
+                        [enableRangeActions]="true"
+                        [showToolbar]="false"
+                        [showPagination]="false"
+                    />
+                </div>
+            </div>
+        `,
+    }),
+    args: {
+        data: perfRows,
+        columns: rangeColumns,
+    },
+};
+
+interface FillRow {
+    id: string;
+    sku: string;
+    qty: number;
+}
+
+const fillRows: FillRow[] = [
+    { id: '1', sku: 'SKU-001', qty: 10 },
+    { id: '2', sku: 'SKU-002', qty: 20 },
+    { id: '3', sku: '', qty: 0 },
+    { id: '4', sku: '', qty: 0 },
+    { id: '5', sku: '', qty: 0 },
+];
+
+const fillColumns: ColumnDef<FillRow>[] = [
+    { accessorKey: 'id', header: '#', width: '70px' },
+    { accessorKey: 'sku', header: 'SKU', valueSetter: (row, v) => ({ ...row, sku: v as string }) },
+    { accessorKey: 'qty', header: 'Qty', valueSetter: (row, v) => ({ ...row, qty: v as number }) },
+];
+
+export const FillHandle: StoryObj<DataTableComponent<FillRow>> = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Click a cell in SKU or Qty, then drag the square at its bottom-right corner down the column to
+                    fill the series (numbers step; SKU-002 → SKU-003…). Only columns with a valueSetter fill.
+                </p>
+                <div class="h-[340px] overflow-auto rounded-md border">
+                    <ui-data-table
+                        [(data)]="data"
+                        [columns]="columns"
+                        [enableCellRangeSelection]="true"
+                        [enableFillHandle]="true"
+                        [enableClipboardPaste]="true"
+                        [enableEditHistory]="true"
+                        [showToolbar]="false"
+                        [showPagination]="false"
+                    />
+                </div>
+            </div>
+        `,
+    }),
+    args: {
+        data: fillRows,
+        columns: fillColumns,
     },
 };

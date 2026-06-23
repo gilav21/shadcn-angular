@@ -31,6 +31,14 @@ export interface DataTableLocale extends LocaleMeta {
     selectAllRows: string;
     /** Multiselect-filter "Clear" button label (clears the multiselect selection — distinct from `clearSort`). */
     clearAll: string;
+    /** Range-selection readout labels. Optional — fall back to English when a locale omits them. */
+    rangeCount?: string;
+    rangeSum?: string;
+    rangeAvg?: string;
+    rangeMin?: string;
+    rangeMax?: string;
+    /** Label/aria for the "Chart" action in the range readout. */
+    rangeChart?: string;
 }
 
 export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
@@ -55,6 +63,12 @@ export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
         searchPlaceholder: 'Search...',
         selectAllRows: 'Select all',
         clearAll: 'Clear',
+        rangeCount: 'Count',
+        rangeSum: 'Sum',
+        rangeAvg: 'Avg',
+        rangeMin: 'Min',
+        rangeMax: 'Max',
+        rangeChart: 'Chart',
     },
     he: {
         code: 'he',
@@ -78,6 +92,12 @@ export const DATA_TABLE_LOCALES: Record<string, DataTableLocale> = {
         searchPlaceholder: '...חיפוש',
         selectAllRows: 'בחר הכל',
         clearAll: 'נקה',
+        rangeCount: 'כמות',
+        rangeSum: 'סכום',
+        rangeAvg: 'ממוצע',
+        rangeMin: 'מינימום',
+        rangeMax: 'מקסימום',
+        rangeChart: 'תרשים',
     },
     ar: {
         code: 'ar',

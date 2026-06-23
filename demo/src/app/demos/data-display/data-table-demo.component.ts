@@ -7,7 +7,9 @@ import {
   CardComponent,
   CardContentComponent,
   CheckboxComponent,
+  CellIcon,
   ColumnDef,
+  DataTableRangeChartComponent,
   ColumnResizeEvent,
   ContextMenuComponent,
   ContextMenuContentComponent,
@@ -40,6 +42,7 @@ import {
   CellEditEvent,
   CellEditErrorEvent,
   RowReorderEvent,
+  RangeChartPayload,
   DataTableExportQuery,
   columnHelper,
   dateFilterFn,
@@ -606,6 +609,7 @@ class OpsTicketDetailComponent {
     ContextMenuShortcutComponent,
     ...ContextMenuIntegrations,
     FpsMeterComponent,
+    DataTableRangeChartComponent,
   ],
   templateUrl: './data-table-demo.component.html',
 })
@@ -1405,6 +1409,96 @@ export class DataTableDemoComponent {
       { accessorKey: 'status', header: locale.colStatus, width: '130px' },
     ];
   });
+
+  // ── Conditional Formatting Demo (A1) ──
+  private statusIcon(status: Payment['status']): CellIcon | undefined {
+    if (status === 'success') return { name: 'check', class: 'text-green-600' };
+    if (status === 'failed') return { name: 'x', class: 'text-red-600' };
+    if (status === 'processing') return { name: 'loader', class: 'text-blue-600' };
+    return { glyph: '•', class: 'text-muted-foreground' };
+  }
+
+  readonly conditionalColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '110px', sticky: true },
+      { accessorKey: 'clientName', header: locale.colClient, width: 'auto' },
+      {
+        accessorKey: 'amount',
+        header: locale.colAmount,
+        width: '220px',
+        enableSorting: true,
+        cell: (row) => `$${row.amount.toFixed(2)}`,
+        // Inline data bar scaled to the dataset's upper bound, with a faint track groove.
+        dataBar: {
+          min: 0,
+          max: 5500,
+          color: 'color-mix(in srgb, var(--primary) 28%, transparent)',
+          track: 'color-mix(in srgb, var(--muted-foreground) 12%, transparent)',
+        },
+      },
+      {
+        accessorKey: 'status',
+        header: locale.colStatus,
+        width: '160px',
+        enableSorting: true,
+        iconSet: (v) => this.statusIcon(v as Payment['status']),
+        cellClassRules: [
+          { when: (v) => v === 'success', class: 'text-green-600 font-medium' },
+          { when: (v) => v === 'failed', class: 'text-red-600 font-medium' },
+          { when: (v) => v === 'processing', class: 'text-blue-600' },
+        ],
+      },
+    ];
+  });
+
+  // ── Range Actions Demo (A2) ──
+  readonly rangeActionColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '110px', sticky: true },
+      { accessorKey: 'clientName', header: locale.colClient, width: 'auto' },
+      { accessorKey: 'amount', header: locale.colAmount, width: '160px', enableSorting: true },
+    ];
+  });
+  readonly rangeChartPayload = signal<RangeChartPayload | null>(null);
+  readonly rangeChartDialogOpen = signal(false);
+
+  onRangeChart(payload: RangeChartPayload): void {
+    this.rangeChartPayload.set(payload);
+    this.rangeChartDialogOpen.set(true);
+  }
+
+  // ── Fill Handle Demo (B1) ──
+  readonly fillData = signal<{ id: string; sku: string; qty: number; date: string }[]>([
+    { id: '1', sku: 'SKU-001', qty: 10, date: '2024-01-01' },
+    { id: '2', sku: 'SKU-002', qty: 20, date: '2024-01-08' },
+    { id: '3', sku: '', qty: 0, date: '' },
+    { id: '4', sku: '', qty: 0, date: '' },
+    { id: '5', sku: '', qty: 0, date: '' },
+    { id: '6', sku: '', qty: 0, date: '' },
+  ]);
+  readonly fillColumns: ColumnDef<{ id: string; sku: string; qty: number; date: string }>[] = [
+    { accessorKey: 'id', header: '#', width: '70px' },
+    {
+      accessorKey: 'sku',
+      header: 'SKU',
+      width: 'auto',
+      valueSetter: (row, v) => ({ ...row, sku: v as string }),
+    },
+    {
+      accessorKey: 'qty',
+      header: 'Qty',
+      width: '110px',
+      valueSetter: (row, v) => ({ ...row, qty: v as number }),
+    },
+    {
+      accessorKey: 'date',
+      header: 'Date',
+      width: '140px',
+      valueSetter: (row, v) => ({ ...row, date: v as string }),
+    },
+  ];
 
   // ── Row Grouping Demo ──
   readonly groupCollapsed = signal<Record<string, boolean>>({});
