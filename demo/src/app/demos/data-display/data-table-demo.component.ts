@@ -45,6 +45,8 @@ import {
   dateFilterFn,
   dateRangeFilterFn,
   multiselectFilterFn,
+  computePivot,
+  PivotAggregate,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { DATA_TABLE_DEMO_LOCALES } from './data-table-demo.locales';
@@ -613,6 +615,34 @@ export class DataTableDemoComponent {
   private readonly toastService = inject(ToastService);
   private readonly localeId = inject(UI_LOCALE_ID);
   readonly t = computed(() => DATA_TABLE_DEMO_LOCALES[this.localeId()] ?? DATA_TABLE_DEMO_LOCALES['en']);
+
+  // ── Pivot Demo (A6) ──
+  readonly pivotSource = signal([
+    { region: 'NA', product: 'Widgets', quarter: 'Q1', sales: 1200 },
+    { region: 'NA', product: 'Gadgets', quarter: 'Q1', sales: 800 },
+    { region: 'NA', product: 'Widgets', quarter: 'Q2', sales: 1500 },
+    { region: 'EU', product: 'Widgets', quarter: 'Q1', sales: 600 },
+    { region: 'EU', product: 'Gadgets', quarter: 'Q2', sales: 950 },
+    { region: 'APAC', product: 'Widgets', quarter: 'Q2', sales: 700 },
+    { region: 'APAC', product: 'Gadgets', quarter: 'Q1', sales: 400 },
+  ]);
+  readonly pivotDims = ['region', 'product', 'quarter'] as const;
+  readonly pivotAggs: PivotAggregate[] = ['sum', 'avg', 'count', 'min', 'max'];
+  readonly pivotRowDim = signal<string>('region');
+  readonly pivotColDim = signal<string>('product');
+  readonly pivotAgg = signal<PivotAggregate>('sum');
+  readonly pivotResult = computed(() =>
+    computePivot(this.pivotSource(), {
+      rows: [this.pivotRowDim()],
+      column: this.pivotColDim(),
+      value: 'sales',
+      aggregate: this.pivotAgg(),
+      showRowTotals: true,
+    }),
+  );
+  readonly pivotTableColumns = computed<ColumnDef<Record<string, unknown>>[]>(() =>
+    this.pivotResult().columns.map((c) => ({ accessorKey: c.key, header: c.header, width: 'auto' })),
+  );
 
   scrollTo(id: string, event: Event) {
     event.preventDefault();

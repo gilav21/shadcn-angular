@@ -77,6 +77,8 @@ import {
   GroupRow,
   DataTableDisplayRow,
   FilterGroup,
+  PivotConfig,
+  PivotResult,
 } from "./data-table.types";
 import {
   computeRowRange,
@@ -85,6 +87,7 @@ import {
   buildPrefixSums,
   partitionIntoGroups,
   evaluateAdvancedFilter,
+  computePivot,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
 
@@ -613,6 +616,15 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     data = this.applyColumnFiltersToData(data);
     return this.applyAdvancedFilter(data);
   });
+
+  /**
+   * Compute a pivot (rows × columns × values) of this table's current data,
+   * using its accessors (so `accessorFn` / dotted keys work). Bind the result's
+   * `columns` / `rows` to another `<ui-data-table>` to render the pivot.
+   */
+  getPivot(config: PivotConfig): PivotResult {
+    return computePivot(this.data(), config, (row, key) => this.getCellValue(row, key));
+  }
 
   private applyAdvancedFilter(data: T[]): T[] {
     const group = this.advancedFilter();
