@@ -293,6 +293,39 @@
 
 <!-- Demos -->
 
+<!-- AI assist Demo (WS3 — mock provider) -->
+<section class="space-y-4">
+  <h2 id="data-table-ai" class="text-2xl font-semibold scroll-m-20">AI assist</h2>
+  <p class="text-muted-foreground">
+    Pass an <code class="text-xs bg-muted px-1 rounded">aiProvider</code> to unlock
+    <strong>natural-language filtering</strong> (type "show failed rows" → it compiles to a column filter)
+    and <strong>AI column fill</strong>. This demo wires a mock provider (no network).
+  </p>
+  <div class="flex flex-wrap items-center gap-2">
+    <input
+      type="text"
+      class="h-9 w-full sm:w-72 rounded-md border bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+      placeholder="Ask in plain English, e.g. show failed rows"
+      [value]="aiQuery()"
+      (input)="aiQuery.set($any($event.target).value)"
+      (keydown.enter)="aiTable.applyNaturalLanguageFilter(aiQuery())"
+    />
+    <ui-button size="sm" (click)="aiTable.applyNaturalLanguageFilter(aiQuery())">Filter with AI</ui-button>
+    <ui-button size="sm" variant="outline" (click)="aiTable.aiFillColumn('summary', 'one short sentence')">AI fill summaries</ui-button>
+    <ui-button size="sm" variant="ghost" (click)="aiQuery.set(''); aiTable.globalFilter.set(''); aiTable.columnFilters.set({})">Clear</ui-button>
+  </div>
+  <div class="rounded-md border h-[300px] sm:h-[360px] overflow-auto relative">
+    <ui-data-table
+      #aiTable
+      [(data)]="aiRows"
+      [columns]="aiColumns"
+      [aiProvider]="tableAiProvider"
+      [showToolbar]="false"
+      [showPagination]="false"
+    />
+  </div>
+</section>
+
 <section class="space-y-4">
   <h2 id="data-table" class="text-2xl font-semibold scroll-m-20">{{ t().sectionClientSide }}</h2>
   <p class="text-muted-foreground">

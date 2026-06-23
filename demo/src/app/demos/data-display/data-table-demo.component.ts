@@ -47,6 +47,7 @@ import {
   multiselectFilterFn,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { AiRequest } from '../../../../../packages/components/lib/ai';
 import { DATA_TABLE_DEMO_LOCALES } from './data-table-demo.locales';
 import { Payment, OrgNode, OpsTicket } from '../shared/types';
 import { StatusCellComponent } from '../../cells/status-cell.component';
@@ -613,6 +614,45 @@ export class DataTableDemoComponent {
   private readonly toastService = inject(ToastService);
   private readonly localeId = inject(UI_LOCALE_ID);
   readonly t = computed(() => DATA_TABLE_DEMO_LOCALES[this.localeId()] ?? DATA_TABLE_DEMO_LOCALES['en']);
+
+  // ── AI assist demo (mock provider, no network) ──
+  readonly aiQuery = signal('');
+  readonly aiRows = signal<{ id: string; customer: string; status: string; summary: string }[]>([
+    { id: '1', customer: 'Acme Retail', status: 'success', summary: '' },
+    { id: '2', customer: 'Globex', status: 'failed', summary: '' },
+    { id: '3', customer: 'Initech', status: 'pending', summary: '' },
+    { id: '4', customer: 'Hooli', status: 'success', summary: '' },
+  ]);
+  readonly aiColumns: ColumnDef<{ id: string; customer: string; status: string; summary: string }>[] = [
+    { accessorKey: 'customer', header: 'Customer', width: '180px' },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      width: '140px',
+      enableFiltering: true,
+      filterFn: (row, value) => !value || row.status === value,
+    },
+    {
+      accessorKey: 'summary',
+      header: 'Summary',
+      width: 'auto',
+      valueSetter: (row, v) => ({ ...row, summary: v as string }),
+    },
+  ];
+
+  /** Mock AI provider: compiles a NL query to a filter spec, and fills summaries. */
+  readonly tableAiProvider = (req: AiRequest): string => {
+    if (req.task === 'nl-filter') {
+      const query = req.input.toLowerCase();
+      const status = ['success', 'failed', 'pending', 'processing'].find(s => query.includes(s));
+      return JSON.stringify(status ? { columnFilters: { status } } : { globalFilter: req.input });
+    }
+    if (req.task === 'table-fill') {
+      const row = JSON.parse(req.input) as { customer: string; status: string };
+      return `${row.customer}'s latest payment is ${row.status}.`;
+    }
+    return '';
+  };
 
   scrollTo(id: string, event: Event) {
     event.preventDefault();

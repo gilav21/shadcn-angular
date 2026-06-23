@@ -82,8 +82,12 @@ import {
   computeVariableRowRange,
   buildPrefixSums,
   partitionIntoGroups,
+  parseNlFilterSpec,
+  type NlFilterSpec,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
+import { AiProvider, runAiTask } from "../../lib/ai";
+import { lastValueFrom } from "rxjs";
 
 const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
 
@@ -547,6 +551,17 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly srAnnouncement = signal("");
   readonly globalFilter = model("");
   readonly columnFilters = model<Record<string, unknown>>({});
+  /**
+   * Bring-your-own AI hook. Enables natural-language filtering
+   * (`applyNaturalLanguageFilter`) and column AI-fill (`aiFillColumn`). Optional;
+   * no provider → those methods no-op (graceful degradation).
+   */
+  readonly aiProvider = input<AiProvider | undefined>(undefined);
+  readonly hasAi = computed(() => this.aiProvider() !== undefined);
+  /** Emitted after a natural-language query is compiled into a filter. */
+  readonly nlFilter = output<{ query: string; spec: NlFilterSpec }>();
+  /** Emitted after an AI column-fill completes. */
+  readonly aiFillComplete = output<{ columnKey: string; count: number }>();
   readonly sortState = model<SortState>({ column: "", direction: null });
   readonly multiSortState = model<SortState[]>([]);
   readonly paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
@@ -3025,6 +3040,54 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       data[dataIndex] = updatedRow;
       this.data.set(data);
     }
+  }
+
+  /**
+   * Compile a natural-language query into filters via the AI provider and apply
+   * them to `globalFilter` / `columnFilters`. The provider returns a JSON filter
+   * spec; only known columns are honored. No-op without a provider or query.
+   */
+  async applyNaturalLanguageFilter(query: string): Promise<void> {
+    const provider = this.aiProvider();
+    if (!provider || !query.trim()) return;
+    const columns = this.columns().map((c) => ({
+      key: String(c.accessorKey),
+      header: c.header,
+    }));
+    const raw = await lastValueFrom(
+      runAiTask(provider, { task: "nl-filter", input: query, context: { columns } }),
+    );
+    const spec = parseNlFilterSpec(raw, columns.map((c) => c.key));
+    this.nlFilter.emit({ query, spec });
+    if (spec.globalFilter !== undefined) this.globalFilter.set(spec.globalFilter);
+    if (spec.columnFilters) this.columnFilters.set(spec.columnFilters);
+  }
+
+  /**
+   * Fill a column's cells from an AI prompt — one provider call per filtered row,
+   * applied through the column's `valueSetter` (and `editValidator` if present).
+   * No-op when there's no provider or the column has no `valueSetter`.
+   */
+  async aiFillColumn(columnKey: string, prompt: string): Promise<void> {
+    const provider = this.aiProvider();
+    const col = this.enhancedColumns().find((c) => String(c.accessorKey) === columnKey);
+    if (!provider || !col?.valueSetter) return;
+    const rows = this.filteredData();
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const value = await lastValueFrom(
+        runAiTask(provider, {
+          task: "table-fill",
+          input: JSON.stringify(row),
+          prompt,
+          context: { column: col.header },
+        }),
+      );
+      if (this.validateEdit(col, row, value, { rowIndex: i, columnKey })) {
+        this.applyValueSetter(col, row, value);
+      }
+    }
+    this.aiFillComplete.emit({ columnKey, count: rows.length });
   }
 
   cancelEdit(): void {
