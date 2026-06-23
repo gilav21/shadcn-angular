@@ -514,6 +514,48 @@ export function buildFillValues(source: unknown[], count: number): unknown[] {
     return cycleValues(source, count);
 }
 
+function parseCsvLine(line: string): string[] {
+    const cells: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    let i = 0;
+    while (i < line.length) {
+        const ch = line[i];
+        if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (ch === ',' && !inQuotes) {
+            cells.push(current);
+            current = '';
+        } else {
+            current += ch;
+        }
+        i++;
+    }
+    cells.push(current);
+    return cells;
+}
+
+/**
+ * Parse clipboard text into a grid of cell strings. Tab-separated when any tab
+ * is present (Excel / the table's own copy-out), otherwise comma-separated with
+ * quoted-cell support. A single trailing newline is dropped.
+ */
+export function parseClipboardGrid(text: string): string[][] {
+    if (text === '') return [];
+    const normalized = text.replaceAll(/\r\n?/g, '\n');
+    const body = normalized.endsWith('\n') ? normalized.slice(0, -1) : normalized;
+    const lines = body.split('\n');
+    if (lines.some((line) => line.includes('\t'))) {
+        return lines.map((line) => line.split('\t'));
+    }
+    return lines.map(parseCsvLine);
+}
+
 /**
  * Reduce a list of cell values to a single aggregate string. Shared by column
  * footers and the range-selection readout so both compute identically.

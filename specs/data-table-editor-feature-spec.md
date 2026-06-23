@@ -169,9 +169,18 @@ component touches the registry index → **CLI publish required on merge**.
   `getCellClass`; release applies; listeners torn down on end + `ngOnDestroy`.
   Main flat-row path (tree/virtual = follow-up). 7 engine + 8 component tests,
   story + demo. Deferred: B3 undo entry, date-step series.
-- **B2 smart paste:** `Ctrl/Cmd+V` on a focused cell → parse TSV/CSV → write a
-  grid from the focused cell across visible columns; rejects → `editError`;
-  emits `cellsPaste`; one undo entry.
+- **B2 smart paste (IMPLEMENTED):** pure `parseClipboardGrid(text)` in utils —
+  tab-separated when any tab is present (Excel / the table's own copy-out), else
+  comma with quoted-cell support; CRLF/CR normalized, trailing newline dropped.
+  New input `enableClipboardPaste`; `handlePasteKeydown` (wired into
+  `onTableKeydown`, skipped while editing) reads the clipboard and
+  `pasteGridAt(startRow, startColumn, grid)` writes from the focused cell across
+  columns/rows via `validateEdit` + `applyValueSetter`. Values are coerced to the
+  target cell's current type (number/boolean/string). Only `valueSetter` columns
+  are written; out-of-range cells skipped; rejects counted. Emits one
+  `cellsPaste` (`rowsAffected` / `cellsApplied` / `cellsRejected`). 7 parser +
+  3 component tests; demo + story enable it on the fill table. Deferred: B3 undo
+  entry.
 - **B3 edit undo/redo:** internal `{apply, revert}` command stack over
   `valueSetter`; `Ctrl+Z`/`Ctrl+Y` in `onTableKeydown`; `canUndo()/canRedo()` +
   `editUndo`/`editRedo` outputs; toolbar buttons. Documents the immutable-data

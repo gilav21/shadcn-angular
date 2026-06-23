@@ -713,7 +713,8 @@
     The series is extrapolated Excel-style: numbers step arithmetically,
     <code class="text-xs bg-muted px-1 rounded">SKU-002</code> → <code class="text-xs bg-muted px-1 rounded">SKU-003</code>,
     dates step by the detected interval (the two seed dates are a week apart), and weekday/month names cycle.
-    Only columns with a <code class="text-xs bg-muted px-1 rounded">valueSetter</code> are filled.
+    You can also <strong>paste</strong> a block copied from Excel/Sheets (<code class="text-xs bg-muted px-1 rounded">Ctrl/⌘+V</code>)
+    onto a focused cell. Only columns with a <code class="text-xs bg-muted px-1 rounded">valueSetter</code> are written.
   </p>
   <div class="rounded-md border h-[320px] sm:h-[380px] overflow-auto relative">
     <ui-data-table
@@ -721,6 +722,7 @@
       [columns]="fillColumns"
       [enableCellRangeSelection]="true"
       [enableFillHandle]="true"
+      [enableClipboardPaste]="true"
       [showToolbar]="false"
       [showPagination]="false"
     />

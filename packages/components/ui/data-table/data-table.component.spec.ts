@@ -4680,3 +4680,54 @@ describe('DataTableComponent fill handle (B1)', () => {
         component['_onFillEnd']();
     });
 });
+
+describe('DataTableComponent smart paste (B2)', () => {
+    let component: DataTableComponent<FillRow>;
+    let fixture: ComponentFixture<DataTableComponent<FillRow>>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<FillRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', [
+            { id: '1', n: 0, label: '' },
+            { id: '2', n: 0, label: '' },
+            { id: '3', n: 0, label: '' },
+        ]);
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            {
+                accessorKey: 'n',
+                header: 'N',
+                valueSetter: (row: FillRow, v: unknown) => ({ ...row, n: v as number }),
+                editValidator: (v: unknown) => (v as number) < 100 || 'too big',
+            },
+            { accessorKey: 'label', header: 'Label', valueSetter: (row: FillRow, v: unknown) => ({ ...row, label: v as string }) },
+        ] as ColumnDef<FillRow>[]);
+        fixture.componentRef.setInput('enableClipboardPaste', true);
+        fixture.detectChanges();
+    });
+
+    it('writes a grid from the start cell across columns and rows, coercing numbers', () => {
+        component['pasteGridAt'](0, 'n', [['10', 'a'], ['20', 'b']]);
+        const rows = component.data();
+        expect(rows[0]).toMatchObject({ n: 10, label: 'a' });
+        expect(rows[1]).toMatchObject({ n: 20, label: 'b' });
+        // numeric column received real numbers, not strings
+        expect(typeof rows[0].n).toBe('number');
+    });
+
+    it('skips columns without a valueSetter and cells beyond the data', () => {
+        // start at 'id' (no valueSetter) — that column is skipped, 'n' gets the 2nd value
+        component['pasteGridAt'](0, 'id', [['x', '42']]);
+        expect(component.data()[0]).toMatchObject({ id: '1', n: 42 });
+    });
+
+    it('rejects cells failing the editValidator and reports counts', () => {
+        let event: { cellsApplied: number; cellsRejected: number } | null = null;
+        component.cellsPaste.subscribe((e) => (event = e));
+        component['pasteGridAt'](0, 'n', [['5'], ['999']]);
+        expect(component.data().map((r) => r.n)).toEqual([5, 0, 0]);
+        expect(event).toMatchObject({ cellsApplied: 1, cellsRejected: 1, rowsAffected: 2 });
+    });
+});

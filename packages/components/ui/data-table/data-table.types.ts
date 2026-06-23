@@ -286,6 +286,19 @@ export interface RangeChartPayload {
     series: RangeChartSeries[];
 }
 
+/** Emitted after a clipboard grid is pasted into cells. */
+export interface CellsPasteEvent {
+    /** Top-left target of the paste. */
+    startRow: number;
+    startColumn: string;
+    /** Rows the paste spanned (some may have been out of range). */
+    rowsAffected: number;
+    /** Cells successfully written. */
+    cellsApplied: number;
+    /** Cells rejected by a column's `editValidator`. */
+    cellsRejected: number;
+}
+
 /** Emitted after an Excel-style fill-handle drag applies values to new rows. */
 export interface FillSeriesEvent {
     /** Source range the fill pattern was read from. */

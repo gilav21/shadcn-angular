@@ -80,6 +80,7 @@ import {
   RangeAggregateStats,
   RangeChartPayload,
   FillSeriesEvent,
+  CellsPasteEvent,
 } from "./data-table.types";
 import {
   computeRowRange,
@@ -89,6 +90,7 @@ import {
   partitionIntoGroups,
   computeAggregateValue,
   buildFillValues,
+  parseClipboardGrid,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
 
@@ -264,6 +266,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly enableFillHandle = input(false);
   /** Emitted after a fill-handle drag applies values to new rows. */
   readonly fillSeries = output<FillSeriesEvent>();
+  /**
+   * Allow pasting a clipboard grid (TSV/CSV) into cells starting at the focused
+   * cell (`Ctrl/Cmd+V`). Only columns with a `valueSetter` are written.
+   */
+  readonly enableClipboardPaste = input(false);
+  /** Emitted after a clipboard grid is pasted into cells. */
+  readonly cellsPaste = output<CellsPasteEvent>();
   readonly columnResize = output<ColumnResizeEvent>();
 
   /**
@@ -1961,6 +1970,60 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     });
   }
 
+  private coercePasteValue(raw: string, row: T, col: ColumnDef<T>): unknown {
+    const current = this.getCellValue(row, col.accessorKey, col);
+    if (typeof current === "number") {
+      const num = Number(raw);
+      return Number.isFinite(num) ? num : raw;
+    }
+    if (typeof current === "boolean") {
+      return raw.toLowerCase() === "true";
+    }
+    return raw;
+  }
+
+  private pasteCell(rowIndex: number, key: string, raw: string): "applied" | "rejected" | "skipped" {
+    const col = this.enhancedColumns().find((c) => String(c.accessorKey) === key);
+    const targetRow = this.processedData()[rowIndex];
+    if (!col?.valueSetter || !targetRow) return "skipped";
+    const value = this.coercePasteValue(raw, targetRow, col);
+    if (!this.validateEdit(col, targetRow, value, { rowIndex, columnKey: key })) {
+      return "rejected";
+    }
+    this.applyValueSetter(col, targetRow, value);
+    return "applied";
+  }
+
+  private pasteGridAt(startRow: number, startColumn: string, grid: string[][]): void {
+    const keys = this.navigableColumnKeys();
+    const startCol = keys.indexOf(startColumn);
+    if (startCol < 0) return;
+    let cellsApplied = 0;
+    let cellsRejected = 0;
+    grid.forEach((cells, r) => {
+      cells.forEach((raw, c) => {
+        if (startCol + c >= keys.length) return;
+        const key = keys[startCol + c];
+        const result = this.pasteCell(startRow + r, key, raw);
+        if (result === "applied") cellsApplied++;
+        else if (result === "rejected") cellsRejected++;
+      });
+    });
+    this.cellsPaste.emit({
+      startRow,
+      startColumn,
+      rowsAffected: grid.length,
+      cellsApplied,
+      cellsRejected,
+    });
+  }
+
+  private async pasteFromClipboard(startRow: number, startColumn: string): Promise<void> {
+    const text = await navigator.clipboard.readText();
+    const grid = parseClipboardGrid(text);
+    if (grid.length > 0) this.pasteGridAt(startRow, startColumn, grid);
+  }
+
   /** Which cell shows the fill handle: bottom-right of the range, or the focused cell. Null while editing. */
   private readonly fillHandleCell = computed<{ rowIndex: number; columnKey: string } | null>(() => {
     if (!this.enableFillHandle() || this.editingCell() !== null) return null;
@@ -3055,8 +3118,20 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this.processedData().length;
   });
 
+  private handlePasteKeydown(event: KeyboardEvent): boolean {
+    if (!this.enableClipboardPaste()) return false;
+    const isPaste = (event.ctrlKey || event.metaKey) && event.key === "v";
+    if (!isPaste || this.editingCell() !== null) return false;
+    const focused = this.focusedCell();
+    if (!focused) return false;
+    event.preventDefault();
+    void this.pasteFromClipboard(focused.rowIndex, focused.columnKey);
+    return true;
+  }
+
   onTableKeydown(event: KeyboardEvent): void {
     if (this.handleCopyKeydown(event)) return;
+    if (this.handlePasteKeydown(event)) return;
     this.handleNavigationKeydown(event);
   }
 
