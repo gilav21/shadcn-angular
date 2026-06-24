@@ -440,3 +440,37 @@ step; record scores in this doc's completion log.
 - `_`-prefixed → not registered specs (per `_git.ts`/`_types.ts` convention);
   consumed by the upcoming `stale-selector-build.ts`, `doctor-lib-drift.ts`, and
   page-builder stale-layout specs.
+
+### Step 2 — B5 selector alias (DONE)
+- `virtual-scroll.component.ts:37` → `selector: '[uiVirtualItem],[virtualItem]'`;
+  unit test both bind. `stale-selector-build` e2e passes (consumer using old
+  `virtualItem` builds clean through the NG8113-fatal gate). Also fixed a
+  pre-existing test failure (data-table-range-chart missing category/tags).
+  Commit on `fix/upgrade-tooling-registry`.
+
+### Step 3 — B2/B3 lib reconciliation (DONE)
+- `core/lib-reconcile.ts` + `registry/lib-baselines.ts` (generator
+  `scripts/gen-lib-baselines.mjs`); doctor reports/repairs lib drift; install
+  fingerprints lib files; `refresh_lib` MCP verb; `update_component` reconciles
+  core lib. `doctor-lib-drift` e2e passes ("Refreshed 1 lib file(s): utils.ts"
+  → green build). Unit: lib-reconcile.spec (10).
+
+### Step 4 — B6b + B6a (DONE)
+- B6b: `installedComponents` detects by ANY file (was `files[0]` only), so a
+  stale component whose entry path changed isn't invisible to doctor. Test added.
+- B6a: `cross-component-typecheck` e2e installs page-builder (+bento-grid
+  closure) and builds a consumer forcing both into the compile graph — passes.
+
+### Step 5 — B1 diff rewrite (DONE)
+- `diff-core.ts`: LCS edit script + hunk grouping + real `@@ -a,b +c,d @@`
+  headers; summary mode (symbol diff); `diff_component` defaults to summary,
+  full capped at 24KB on file boundaries. diff-core.spec rewritten incl. the
+  one-insert→one-hunk<2KB regression.
+
+### Step 6 — B4 breaking metadata + B5 codemod (DONE)
+- `ComponentDefinition.breaking[]` (interface + registry.json + index.ts) for
+  virtual-scroll/context-menu/file-viewer; `get_install_plan` + `update_component`
+  surface them; `core/codemod.ts scanStaleSelectors` warns (file:line) about
+  consumer templates using a renamed selector, opt-in `fix`. codemod.spec (7).
+
+CLI suite: 381 tests pass. Per-cluster commits on `fix/upgrade-tooling-registry`.

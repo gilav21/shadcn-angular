@@ -18,7 +18,9 @@ import Anthropic from '@anthropic-ai/sdk';
 const client = new Anthropic();
 
 const app = express();
-app.use(cors()); // allow the Angular dev server (http://localhost:4200) to call us
+app.disable('x-powered-by'); // don't advertise the framework/version
+// Allow only the Angular dev server origin (this is a local example backend).
+app.use(cors({ origin: 'http://localhost:4200' }));
 app.use(express.json());
 
 // ── Per-task system prompts ───────────────────────────────────────────────
