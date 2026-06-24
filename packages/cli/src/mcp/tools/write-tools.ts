@@ -141,22 +141,55 @@ function registerUpdateTool(server: McpServer, cwd: string): void {
     });
 }
 
+/** Default byte budget for a `full` diff before hunks are omitted (keeps under the token cap). */
+const DIFF_FULL_MAX_BYTES = 24_000;
+
+/**
+ * Cap a `full` diff response at a byte budget, truncating at FILE boundaries (a
+ * file's diff is kept whole or replaced by a marker) — never mid-file, so the
+ * 190 KB whole-file dumps the old positional diff produced can't blow the token
+ * cap. Mutates `out` in place.
+ */
+function capFullDiffs(out: ComponentDiff[], maxBytes: number): void {
+    let used = 0;
+    let truncating = false;
+    for (const component of out) {
+        for (const file of component.files) {
+            if (file.diff === null) continue;
+            if (truncating) {
+                file.diff = `… omitted (response capped at ${maxBytes} bytes — request this file alone for its hunks)`;
+                continue;
+            }
+            used += file.diff.length;
+            if (used > maxBytes) {
+                truncating = true;
+                file.diff = `… omitted (response capped at ${maxBytes} bytes — request this file alone for its hunks)`;
+            }
+        }
+    }
+}
+
 function registerDiffTool(server: McpServer, cwd: string): void {
     server.registerTool('diff_component', {
         title: 'Diff components',
-        description: 'Show how locally installed components differ from the registry version.',
-        inputSchema: { names: z.array(z.string()).min(1) },
+        description: 'Show how locally installed components differ from the registry version. Defaults to a compact summary of changed public symbols (added/removed inputs, outputs, models, methods); pass mode "full" for unified-diff hunks.',
+        inputSchema: {
+            names: z.array(z.string()).min(1),
+            mode: z.enum(['summary', 'full']).optional().describe('summary (default): changed symbol names only; full: unified-diff hunks.'),
+        },
         annotations: { readOnlyHint: true },
-    }, async ({ names }) => {
+    }, async ({ names, mode }) => {
         const invalid = validateNames(names);
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
         const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
+        const resolvedMode = mode ?? 'summary';
         const out: ComponentDiff[] = [];
         for (const name of names as ComponentName[]) {
-            out.push(await diffComponentFiles(name, targetDir, { branch: 'master' }, config.aliases.utils, getPrefix(config)));
+            out.push(await diffComponentFiles(name, targetDir, { branch: 'master' }, config.aliases.utils, getPrefix(config), resolvedMode));
         }
+        if (resolvedMode === 'full') capFullDiffs(out, DIFF_FULL_MAX_BYTES);
         return json(out);
     });
 }
