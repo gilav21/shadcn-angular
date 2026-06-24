@@ -31,13 +31,13 @@ describe('MCP server (in-memory)', () => {
   it('exposes the full tool set with correct annotations', async () => {
     const { tools } = await client.listTools();
     const names = tools.map(t => t.name);
-    expect(tools).toHaveLength(17);
+    expect(tools).toHaveLength(18);
     for (const expected of [
       'list_components', 'search_components', 'get_component',
       'get_component_source', 'get_component_examples', 'get_install_plan',
       'init_project', 'add_component', 'update_component', 'diff_component',
       'set_density', 'set_radius', 'set_motion', 'set_locale', 'change_theme',
-      'get_project_status', 'doctor_fix',
+      'get_project_status', 'doctor_fix', 'refresh_lib',
     ]) {
       expect(names, expected).toContain(expected);
     }

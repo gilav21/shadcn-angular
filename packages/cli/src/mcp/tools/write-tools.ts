@@ -17,7 +17,7 @@ import { changeThemeCore, VALID_THEMES } from '../../commands/change-theme.js';
 import { setLocaleCore } from '../../commands/set-locale.js';
 import { applyInitDefaults, type InitDefaults } from '../../commands/init.js';
 import { isValidHex } from '../../utils/color.js';
-import { collectDoctorReport, buildFixPlan, doctorFixCore } from '../../commands/doctor.js';
+import { collectDoctorReport, buildFixPlan, doctorFixCore, refreshLibCore } from '../../commands/doctor.js';
 import type { ThemeColor } from '../../templates/styles.js';
 
 function validateNames(names: string[]): string[] {
@@ -127,12 +127,17 @@ function registerUpdateTool(server: McpServer, cwd: string): void {
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
+        const options = { branch: 'master', overwrite: true, registry: config.registry };
         const result = await performInstall({
             components: names as ComponentName[],
             overwrite: names as ComponentName[],
-            cwd, config, options: { branch: 'master', overwrite: true },
+            cwd, config, options,
         });
-        return json(result);
+        // Reconcile shared lib files too: a component update can introduce a new
+        // lib export (e.g. utils.ts `stringifyValue`) that the component's own
+        // closure won't refresh, since core lib files belong to no component.
+        const lib = await refreshLibCore(cwd, config, options, {});
+        return json({ ...result, libRefreshed: lib.refreshed, libWarnings: lib.warnings });
     });
 }
 
@@ -260,6 +265,29 @@ function registerDoctorTool(server: McpServer, cwd: string): void {
     });
 }
 
+function registerRefreshLibTool(server: McpServer, cwd: string): void {
+    server.registerTool('refresh_lib', {
+        title: 'Refresh shared lib files',
+        description: 'Reconcile shared lib/ files (utils.ts, i18n, parsers, tokens, etc.) with the registry. By default refreshes only files that are pristine-but-stale or missing (e.g. a utils.ts behind a new export an upgraded component imports); lib files you customized are protected unless force is set. Pass dryRun to preview.',
+        inputSchema: {
+            files: z.array(z.string()).optional().describe('Specific lib file paths to refresh (e.g. ["utils.ts"]). Default: all required by installed components plus the core set.'),
+            force: z.boolean().optional().describe('Also overwrite lib files you customized (normally protected).'),
+            dryRun: z.boolean().optional().describe('Return the target set without writing.'),
+        },
+        annotations: { destructiveHint: true },
+    }, async (args) => {
+        try {
+            const config = await getConfig(cwd);
+            if (!config) return err('Project not initialized — run init_project first.');
+            const options = { branch: 'master', registry: config.registry };
+            const result = await refreshLibCore(cwd, config, options, args);
+            return json(result);
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+}
+
 export function registerWriteTools(server: McpServer, cwd: string): void {
     registerInitTool(server, cwd);
     registerAddTool(server, cwd);
@@ -269,4 +297,5 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
     registerRadiusMotionLocaleTool(server, cwd);
     registerThemeTool(server, cwd);
     registerDoctorTool(server, cwd);
+    registerRefreshLibTool(server, cwd);
 }

@@ -66,7 +66,8 @@ describe('classifyDrift', () => {
 function makeReport(partial: Partial<DoctorReport>): DoctorReport {
   return {
     missingFiles: [], modified: [], userEdited: [], updateAvailable: [],
-    legacy: [], missingNpmDeps: [], ok: false, ...partial,
+    legacy: [], missingNpmDeps: [], libStale: [], libMissing: [], libUserEdited: [],
+    ok: false, ...partial,
   };
 }
 
