@@ -258,6 +258,21 @@ stale component as current and never offered to replace it — so the customer k
 old code that then broke against the freshly-hardened bento-grid. **"Fixed at
 HEAD" only fixed the source; the CLI never shipped it to the consumer.**
 
+**CONFIRMED root cause (reproduced against the customer repo `D:\Development\
+oneFile-1\ui`, 2026-06-24).** The registry's current page-builder `files[0]` is
+`page-builder/index.ts`, but the customer carries a **pre-folderization**
+page-builder: no `index.ts` barrel, an inline template (no separate
+`.component.html`), no `sub/` folder, plus an orphan `page-renderer.component.ts`.
+Only `page-builder/page-builder.component.ts` overlaps the registry file list.
+With the old `files[0]`-only check, `installedComponents()` returned **false**
+for page-builder → it was absent from the doctor report entirely (not
+update-available, not user-edited, not legacy), so doctor reported a clean bill
+while the stale code shipped. There is also **no manifest entry** for it. The
+"detect by any file" fix returns **true** (component.ts is present), after which
+`classifyComponent` sees the 4 missing files + the changed `.ts` and schedules a
+reinstall — delivering the corrected page-builder. Verified directly: old=false,
+new=true against the real install.
+
 **Why a stale component can escape detection** (`plan.ts` + `doctor.ts`). A stale
 component at the *current* expected path *should* be caught: `checkFileConflict`
 (`plan.ts:40`) normalizes local vs live-master content → `'changed'` →
