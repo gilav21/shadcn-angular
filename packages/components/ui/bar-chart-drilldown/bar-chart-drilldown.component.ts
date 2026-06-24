@@ -8,8 +8,10 @@ import {
   ElementRef,
   inject,
   AfterViewInit,
+  DestroyRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { observeChartWidth } from '../../lib/chart-responsive';
 import {
   DrilldownDataPoint,
   DrilldownSeries,
@@ -38,6 +40,8 @@ import {
 export class BarChartDrilldownComponent implements AfterViewInit {
   dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
 
   private readonly _domRtl = signal(false);
 
@@ -80,7 +84,7 @@ export class BarChartDrilldownComponent implements AfterViewInit {
   hoveredIndex = signal<number | null>(null);
   tooltipPosition = signal({ x: 0, y: 0 });
 
-  svgWidth = computed(() => this.width());
+  svgWidth = computed(() => this._measuredWidth() ?? this.width());
   svgHeight = computed(() => this.height());
 
   isDrilledDown = computed(() => this.currentDrilldownId() !== null);
@@ -177,7 +181,7 @@ export class BarChartDrilldownComponent implements AfterViewInit {
     getChartSummary('Column chart with drilldown', this.currentData().length, this.currentSeriesName())
   );
 
-  containerClasses = computed(() => cn('relative inline-block max-w-full', this.class()));
+  containerClasses = computed(() => cn('relative block w-full', this.class()));
 
   hasDrilldown(bar: BarRect): boolean {
     const point = bar.data as DrilldownDataPoint;

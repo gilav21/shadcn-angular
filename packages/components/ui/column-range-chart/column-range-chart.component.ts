@@ -8,8 +8,10 @@ import {
   inject,
   ElementRef,
   AfterViewInit,
+  DestroyRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { observeChartWidth } from '../../lib/chart-responsive';
 import { RangeDataPoint, ChartClickEvent, ChartDirection } from '../../lib/chart.types';
 import {
   getChartColor,
@@ -41,6 +43,8 @@ interface RangeBar {
 export class ColumnRangeChartComponent implements AfterViewInit {
   dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
 
   private readonly _domRtl = signal(false);
 
@@ -76,7 +80,7 @@ export class ColumnRangeChartComponent implements AfterViewInit {
   hoveredIndex = signal<number | null>(null);
   tooltipPosition = signal({ x: 0, y: 0 });
 
-  svgWidth = computed(() => this.width());
+  svgWidth = computed(() => this._measuredWidth() ?? this.width());
   svgHeight = computed(() => this.height());
 
   padding = computed(() => ({
@@ -168,7 +172,7 @@ export class ColumnRangeChartComponent implements AfterViewInit {
     getChartSummary('Column range chart', this.data().length, this.title())
   );
 
-  containerClasses = computed(() => cn('relative inline-block max-w-full', this.class()));
+  containerClasses = computed(() => cn('relative block w-full', this.class()));
 
   getTickPosition(tick: number): number {
     const range = this.dataRange();

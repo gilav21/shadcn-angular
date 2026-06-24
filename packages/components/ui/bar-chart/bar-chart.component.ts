@@ -8,8 +8,10 @@ import {
   ElementRef,
   inject,
   AfterViewInit,
+  DestroyRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { observeChartWidth } from '../../lib/chart-responsive';
 import {
   ChartDataPoint,
   ChartClickEvent,
@@ -36,6 +38,8 @@ import {
 })
 export class BarChartComponent implements AfterViewInit {
   private readonly el = inject(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
 
   data = input.required<ChartDataPoint[]>();
   orientation = input<ChartOrientation>('vertical');
@@ -83,7 +87,7 @@ export class BarChartComponent implements AfterViewInit {
     this._domRtl.set(isRtl(this.el.nativeElement));
   }
 
-  svgWidth = computed(() => this.width());
+  svgWidth = computed(() => this._measuredWidth() ?? this.width());
   svgHeight = computed(() => this.height());
 
   padding = computed(() => ({
@@ -191,7 +195,7 @@ export class BarChartComponent implements AfterViewInit {
     return getChartSummary(type, this.data().length, this.title());
   });
 
-  containerClasses = computed(() => cn('relative inline-block max-w-full', this.class()));
+  containerClasses = computed(() => cn('relative block w-full', this.class()));
 
   getTickPosition(tick: number): number {
     const range = this.dataRange();

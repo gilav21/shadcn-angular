@@ -9,8 +9,10 @@ import {
   ElementRef,
   inject,
   AfterViewInit,
+  DestroyRef,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { observeChartWidth } from '../../lib/chart-responsive';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { BAR_RACE_CHART_LOCALES, type BarRaceChartLocale } from './bar-race-chart.locales';
 import { ChartDataPoint, ChartDirection } from '../../lib/chart.types';
@@ -45,6 +47,8 @@ interface RaceBar {
 export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
   dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
 
   private readonly _domRtl = signal(false);
 
@@ -92,7 +96,7 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
   private animationTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly colorMap = new Map<string, string>();
 
-  svgWidth = computed(() => this.width());
+  svgWidth = computed(() => this._measuredWidth() ?? this.width());
   svgHeight = computed(() => this.height());
 
   barHeight = computed(() => {
@@ -186,7 +190,7 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
     getChartSummary('Bar race chart', this.currentFrame().length, this.title())
   );
 
-  containerClasses = computed(() => cn('relative inline-block max-w-full', this.class()));
+  containerClasses = computed(() => cn('relative block w-full', this.class()));
 
   constructor() {
     setTimeout(() => {

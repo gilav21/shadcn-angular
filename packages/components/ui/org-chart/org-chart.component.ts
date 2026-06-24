@@ -226,7 +226,7 @@ export class OrgChartComponent {
       : `Organization chart with ${count} members`;
   });
 
-  containerClasses = computed(() => cn('relative inline-block max-w-full', this.class()));
+  containerClasses = computed(() => cn('relative block w-full max-w-full', this.class()));
 
   getNodeColor(pos: OrgNodePosition): string {
     if (pos.node.color) return pos.node.color;
