@@ -4,6 +4,8 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import { isComponentName, type ComponentName } from '../../registry/index.js';
 import { performInstall } from '../../core/install.js';
+import { collectBreakingChanges } from '../../core/plan.js';
+import { scanStaleSelectors } from '../../core/codemod.js';
 import { initProject } from '../../core/init-core.js';
 import { diffComponentFiles, type ComponentDiff } from '../../core/diff-core.js';
 import { getConfig, getDefaultConfig, getPrefix, type Config } from '../../utils/config.js';
@@ -137,7 +139,17 @@ function registerUpdateTool(server: McpServer, cwd: string): void {
         // lib export (e.g. utils.ts `stringifyValue`) that the component's own
         // closure won't refresh, since core lib files belong to no component.
         const lib = await refreshLibCore(cwd, config, options, {});
-        return json({ ...result, libRefreshed: lib.refreshed, libWarnings: lib.warnings });
+        // Announce breaking API changes and warn (don't rewrite) about consumer
+        // templates still using a renamed selector — the silent NG8113 class.
+        const breakingChanges = collectBreakingChanges(names as ComponentName[]);
+        const staleSelectors = await scanStaleSelectors(cwd, names as ComponentName[]);
+        return json({
+            ...result,
+            libRefreshed: lib.refreshed,
+            libWarnings: lib.warnings,
+            breakingChanges,
+            staleSelectors,
+        });
     });
 }
 

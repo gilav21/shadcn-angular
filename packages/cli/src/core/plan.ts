@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import { fetchAndTransform, normalizeContent, type FetchOptions } from './fetch.js';
 import { DEFAULT_PREFIX } from '../utils/prefix.js';
-import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
+import { registry, type BreakingChange, type ComponentDefinition, type ComponentName } from '../registry/index.js';
 
 export interface AddOptions extends FetchOptions {
     yes?: boolean;
@@ -143,6 +143,21 @@ export async function detectConflicts(
     return { toInstall, toSkip, conflicting, peerFilesToUpdate, contentCache };
 }
 
+export interface ComponentBreaking {
+    component: string;
+    changes: readonly BreakingChange[];
+}
+
+/** Breaking-change entries for the given components, in stable name order. */
+export function collectBreakingChanges(components: Iterable<ComponentName>): ComponentBreaking[] {
+    const out: ComponentBreaking[] = [];
+    for (const name of components) {
+        const changes = registry[name].breaking;
+        if (changes?.length) out.push({ component: name, changes });
+    }
+    return out.sort((a, b) => a.component.localeCompare(b.component));
+}
+
 /** Serializable plan summary for the MCP `get_install_plan` tool. */
 export interface InstallPlan {
     toInstall: string[];
@@ -150,6 +165,8 @@ export interface InstallPlan {
     conflicting: string[];
     peerFilesToUpdate: string[];
     npmDependencies: string[];
+    /** Breaking-change notes for components in the plan, surfaced before any file is written. */
+    breakingChanges: ComponentBreaking[];
 }
 
 export function summarizePlan(
@@ -166,5 +183,6 @@ export function summarizePlan(
         conflicting: result.conflicting,
         peerFilesToUpdate: [...result.peerFilesToUpdate],
         npmDependencies: [...npm],
+        breakingChanges: collectBreakingChanges(allComponents),
     };
 }

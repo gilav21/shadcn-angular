@@ -48,6 +48,29 @@ export interface ComponentDefinition {
   readonly tags?: readonly string[];
   /** 'component' (default) or 'block' (a composed page that reuses components). */
   readonly type?: 'component' | 'block';
+  /**
+   * Machine-readable breaking-change log surfaced by `get_install_plan` /
+   * `update`, so a public-API break (a renamed selector/output, a hardened
+   * input type) is announced before files are written instead of only showing
+   * up as a downstream `tsc` error or, worse, a silent empty render.
+   * `codemod: 'selector'` entries also drive the post-update stale-selector scan.
+   */
+  readonly breaking?: readonly BreakingChange[];
+}
+
+export type BreakingKind = 'selector' | 'input' | 'output' | 'type' | 'removal';
+
+export interface BreakingChange {
+  /** The kind of public-API surface that changed. */
+  readonly kind: BreakingKind;
+  /** The old form (e.g. an old selector `[virtualItem]` or output name `error`). */
+  readonly from: string;
+  /** The new form, when it is a rename (e.g. `[uiVirtualItem]`, `loadError`). */
+  readonly to?: string;
+  /** One-line migration note shown to the consumer. */
+  readonly note: string;
+  /** Which automated assist applies, if any. */
+  readonly codemod?: 'selector' | 'output-rename' | 'none';
 }
 
 function defineRegistry<T extends Record<string, ComponentDefinition>>(reg: T): { readonly [K in keyof T]: ComponentDefinition } {
@@ -214,6 +237,9 @@ export const registry = defineRegistry({
     tags: ['context-menu', 'right-click', 'menu', 'dropdown', 'actions'],
     files: ['context-menu/context-menu.component.ts', 'context-menu/index.ts', 'context-menu/sub/context-menu-content.component.ts', 'context-menu/sub/context-menu-item.component.ts', 'context-menu/sub/context-menu-label.component.ts', 'context-menu/sub/context-menu-separator.component.ts', 'context-menu/sub/context-menu-shortcut.component.ts', 'context-menu/sub/context-menu-sub-content.component.ts', 'context-menu/sub/context-menu-sub-trigger.component.ts', 'context-menu/sub/context-menu-sub.component.ts', 'context-menu/sub/context-menu-trigger.component.ts', 'context-menu/sub/context-menu-trigger.directive.ts'],
     libFiles: ['touch.ts'],
+    breaking: [
+      { kind: 'type', from: 'data: signal<StoredSuggestion>', to: 'data: signal<unknown>', note: 'The context-menu `data` signal is now typed `unknown`; cast or narrow it at the read site (e.g. `$any(contextMenu.data())` or a type guard).', codemod: 'none' },
+    ],
   },
   'date-picker': {
     name: 'date-picker',
@@ -311,6 +337,10 @@ export const registry = defineRegistry({
     description: 'Renders only visible rows of large lists for high-performance scrolling.',
     tags: ['virtual-scroll', 'virtualization', 'list', 'performance', 'windowing'],
     files: ['virtual-scroll/index.ts', 'virtual-scroll/virtual-scroll.component.css', 'virtual-scroll/virtual-scroll.component.html', 'virtual-scroll/virtual-scroll.component.ts'],
+    breaking: [
+      { kind: 'selector', from: 'virtualItem', to: 'uiVirtualItem', note: 'The item-template directive selector was renamed `[virtualItem]` -> `[uiVirtualItem]`. The old selector still works as a deprecated alias; rename `<ng-template virtualItem>` to `<ng-template uiVirtualItem>` in your templates.', codemod: 'selector' },
+      { kind: 'type', from: 'items: T[]', to: 'items: T[] where T extends VirtualItem', note: 'The `items` input is now generic over `T extends VirtualItem` (requires an `id: string | number`). Give your row type an `id`, or cast at the binding.', codemod: 'none' },
+    ],
   },
   'input-mask': {
     name: 'input-mask',
@@ -375,6 +405,9 @@ export const registry = defineRegistry({
     files: ['file-viewer/file-viewer.component.css', 'file-viewer/file-viewer.component.html', 'file-viewer/file-viewer.component.ts', 'file-viewer/index.ts'],
     dependencies: ['spinner'],
     libFiles: ['parsers/doc-enhanced-parser.ts', 'parsers/docx-parser.ts', 'parsers/file-type-detector.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/ole2-reader.ts', 'parsers/pdf-parser.ts', 'parsers/pdf-pixel-perfect.ts', 'parsers/ppt-parser.ts', 'parsers/pptx-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/ttf-builder.ts', 'parsers/ttf-parser.ts', 'parsers/xlsx-reader.ts', 'parsers/zip-reader.ts'],
+    breaking: [
+      { kind: 'output', from: 'error', to: 'loadError', note: 'The `error` output was renamed `loadError`. Update `(error)=...` bindings to `(loadError)=...`.', codemod: 'output-rename' },
+    ],
   },
   'hover-card': {
     name: 'hover-card',
