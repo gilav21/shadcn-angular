@@ -54,12 +54,25 @@ export function classifyDrift(
     return { userEdited, updateAvailable };
 }
 
-/** Components whose entry file exists under the target directory. */
+/**
+ * Components with at least one of their registry files present under the target
+ * directory. Detecting by ANY file (not just `files[0]`) is deliberate: when a
+ * component's file set changes across versions — its entry file renamed or
+ * moved, files added — keying solely on the current `files[0]` makes a stale
+ * older install invisible to `doctor`, so it is reported as neither
+ * update-available nor missing and the consumer keeps shipping stale code with
+ * a clean bill of health (report B6b). Detecting by any file makes the stale
+ * install visible; `classifyComponent` then flags the missing/changed files for
+ * reinstall.
+ */
 export async function installedComponents(targetDir: string): Promise<ComponentName[]> {
     const names: ComponentName[] = [];
     for (const name of getComponentNames()) {
-        if (await fs.pathExists(path.join(targetDir, registry[name].files[0]))) {
-            names.push(name);
+        for (const file of registry[name].files) {
+            if (await fs.pathExists(path.join(targetDir, file))) {
+                names.push(name);
+                break;
+            }
         }
     }
     return names;
