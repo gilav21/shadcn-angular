@@ -304,3 +304,32 @@ describe('VirtualScrollComponent', () => {
         expect(vsComponent.scrollTop()).toBe(0);
     });
 });
+
+@Component({
+    template: `
+        <div style="height: 300px; width: 400px;">
+            <ui-virtual-scroll [items]="items()" [minItemHeight]="50" [buffer]="5">
+                <ng-template virtualItem let-item>
+                    <div class="test-item" style="height: 50px;">{{ $any(item).name }}</div>
+                </ng-template>
+            </ui-virtual-scroll>
+        </div>
+    `,
+    imports: [VirtualScrollComponent, VirtualItemDirective]
+})
+class DeprecatedSelectorHostComponent {
+    readonly items = signal<TestItem[]>(createItems(100));
+}
+
+describe('VirtualScrollComponent deprecated [virtualItem] selector alias', () => {
+    it('binds VirtualItemDirective via the old [virtualItem] selector and renders rows', async () => {
+        await TestBed.configureTestingModule({
+            imports: [DeprecatedSelectorHostComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(DeprecatedSelectorHostComponent);
+        fixture.detectChanges();
+
+        const rendered = fixture.nativeElement.querySelectorAll('.test-item');
+        expect(rendered.length).toBeGreaterThan(0);
+    });
+});

@@ -3234,6 +3234,15 @@
   },
   "data-table-range-chart": {
     "name": "data-table-range-chart",
+    "category": "charts",
+    "description": "Dialog that visualizes a data table's selected range as a bar, pie, or stacked bar chart.",
+    "tags": [
+      "data-table-range-chart",
+      "chart",
+      "range",
+      "dialog",
+      "visualization"
+    ],
     "files": [
       "data-table-range-chart/data-table-range-chart.component.html",
       "data-table-range-chart/data-table-range-chart.component.ts"

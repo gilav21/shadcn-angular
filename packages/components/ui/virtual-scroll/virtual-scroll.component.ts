@@ -34,7 +34,13 @@ export interface VirtualScrollState {
 }
 
 @Directive({
-  selector: '[uiVirtualItem]',
+  // `[virtualItem]` is a deprecated alias for `[uiVirtualItem]`: the selector
+  // was renamed, and a bare rename silently breaks consumer templates still
+  // using the old attribute (the directive stops matching, the list renders
+  // zero rows, and Angular only emits an NG8113 *warning*). Keeping both bound
+  // makes the rename non-breaking; `[virtualItem]` is slated for removal in a
+  // future major.
+  selector: '[uiVirtualItem],[virtualItem]',
   standalone: true,
 })
 export class VirtualItemDirective {
