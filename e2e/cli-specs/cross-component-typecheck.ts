@@ -18,21 +18,29 @@ import { npmInstall, buildClean } from './_build.js';
  */
 const CONSUMER = `import { Component } from '@angular/core';
 import { PageBuilderComponent } from '@/components/ui/page-builder';
+import { PageRendererComponent } from '@/components/ui/page-renderer';
 import { DashboardItem } from '@/components/ui/bento-grid';
+import type { PageData } from '@/components/ui/page-builder';
 
 @Component({
   selector: 'app-page-builder-consumer',
   standalone: true,
-  imports: [PageBuilderComponent],
-  // Importing PageBuilderComponent forces page-builder.component.ts (which
-  // consumes bento-grid's DashboardItem) to compile against the installed
-  // bento-grid — that is the cross-component typecheck this gate exists for.
-  template: \`<ui-page-builder />\`,
+  imports: [PageBuilderComponent, PageRendererComponent],
+  // Importing these forces page-builder.component.ts AND page-renderer.component.ts
+  // (both consume bento-grid's DashboardItem / showBorders input) to compile
+  // against the installed bento-grid — the cross-component typecheck this gate
+  // exists for. page-renderer feeds its grid.showBorders into bento-grid's
+  // non-optional showBorders input, so a missing coercion (report B8) fails here.
+  template: \`<ui-page-builder /><ui-page-renderer [data]="data" />\`,
 })
 export class PageBuilderConsumerComponent {
   readonly items: DashboardItem[] = [
     { id: '1', x: 0, y: 0, cols: 1, rows: 1, content: 'progress', inputs: { value: 40 } },
   ];
+  readonly data: PageData = {
+    grid: { cols: 12, rowHeight: '40px', columnWidth: '1fr', gap: '8px', borderRadius: '4px', itemPadding: '4px' },
+    items: [],
+  };
 }
 `;
 
@@ -46,8 +54,9 @@ export const routes: Routes = [
 
 const spec: CliSpec = async ({ runCli, fixtureApp }) => {
     await runCli(['init', '--yes']);
-    // Resolves + installs bento-grid, icon, select, switch alongside page-builder.
-    await runCli(['add', 'page-builder', '--yes']);
+    // Resolves + installs bento-grid (+ closure) for both page-builder and the
+    // extracted page-renderer, so each is typechecked against the same bento-grid.
+    await runCli(['add', 'page-builder', 'page-renderer', '--yes']);
 
     const pagesDir = path.join(fixtureApp, 'src/app/test-pages');
     fs.mkdirSync(pagesDir, { recursive: true });
