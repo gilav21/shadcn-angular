@@ -5,10 +5,11 @@ import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { detectConflicts, type AddOptions } from '../core/plan.js';
-import { readManifest, fileStatus, type FileStatus, type Manifest } from '../core/manifest.js';
+import { readManifest, writeManifest, removeFiles, fileStatus, type FileStatus, type Manifest } from '../core/manifest.js';
 import { scanLayouts } from '../core/layout.js';
 import { performInstall } from '../core/install.js';
 import { collectLibDrift, refreshLibFiles } from '../core/lib-reconcile.js';
+import { collectStaleReport, rewriteMovedImports, type StaleEntry } from '../core/clean-reinstall.js';
 import { installPackages } from '../utils/package-manager.js';
 
 export interface DoctorReport {
@@ -28,6 +29,8 @@ export interface DoctorReport {
     libMissing: string[];
     /** Shared lib files that differ from the registry but are user-edited (protected). */
     libUserEdited: string[];
+    /** Pristine ui files the registry no longer ships (prune / migrate / keep-warn). */
+    stale: StaleEntry[];
     ok: boolean;
 }
 
@@ -120,12 +123,17 @@ export async function collectDoctorReport(
     const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
     const lib = await collectLibDrift(libDir, installed, manifest, options);
 
+    const { entries: stale } = await collectStaleReport(
+        targetDir, cwd, getPrefix(config), config.aliases.utils, config.aliases.ui || 'src/components/ui',
+    );
+    const staleActionable = stale.some(e => e.action === 'prune' || e.action === 'migrate');
+
     const ok = missingFiles.length === 0 && modified.length === 0
         && missingNpmDeps.length === 0 && legacy.length === 0
-        && lib.stale.length === 0 && lib.missing.length === 0;
+        && lib.stale.length === 0 && lib.missing.length === 0 && !staleActionable;
     return {
         missingFiles, modified, userEdited, updateAvailable, legacy, missingNpmDeps,
-        libStale: lib.stale, libMissing: lib.missing, libUserEdited: lib.userEdited, ok,
+        libStale: lib.stale, libMissing: lib.missing, libUserEdited: lib.userEdited, stale, ok,
     };
 }
 
@@ -157,6 +165,12 @@ export interface DoctorFixPlan {
     refreshLib: string[];
     /** Shared lib files protected from auto-fix because the user customized them. */
     libProtected: string[];
+    /** Pristine stale ui files to delete (registry no longer ships them). */
+    stalePrune: string[];
+    /** Files relocated to a new component — install it, re-point imports, prune the old. */
+    staleMigrate: StaleEntry[];
+    /** Pristine stale files the consumer still imports but which have no declared move (manual). */
+    staleKeepWarn: string[];
     /** True when the plan contains at least one automatic action. */
     hasActions: boolean;
 }
@@ -165,6 +179,9 @@ export interface DoctorFixPlan {
 export function buildFixPlan(report: DoctorReport): DoctorFixPlan {
     const reinstall = [...new Set([...report.missingFiles, ...report.updateAvailable])] as ComponentName[];
     const refreshLib = [...new Set([...report.libMissing, ...report.libStale])];
+    const stalePrune = report.stale.filter(e => e.action === 'prune').map(e => e.file);
+    const staleMigrate = report.stale.filter(e => e.action === 'migrate');
+    const staleKeepWarn = report.stale.filter(e => e.action === 'keep-warn').map(e => e.file);
     return {
         reinstall,
         npmDeps: report.missingNpmDeps,
@@ -172,7 +189,11 @@ export function buildFixPlan(report: DoctorReport): DoctorFixPlan {
         legacy: report.legacy,
         refreshLib,
         libProtected: report.libUserEdited,
-        hasActions: reinstall.length > 0 || report.missingNpmDeps.length > 0 || refreshLib.length > 0,
+        stalePrune,
+        staleMigrate,
+        staleKeepWarn,
+        hasActions: reinstall.length > 0 || report.missingNpmDeps.length > 0 || refreshLib.length > 0
+            || stalePrune.length > 0 || staleMigrate.length > 0,
     };
 }
 
@@ -209,7 +230,72 @@ export async function doctorFixCore(
         if (refreshed.length > 0) actions.push(`Refreshed ${refreshed.length} lib file(s): ${refreshed.join(', ')}`);
         for (const warning of warnings) actions.push(`Warning: ${warning}`);
     }
+    await applyStaleActions(cwd, config, options, actions);
     return actions;
+}
+
+/**
+ * Migrate relocated components (install the new component, re-point consumer
+ * imports, prune the old file) and delete pristine stale files the registry no
+ * longer ships. Re-collects the stale report HERE — after the component
+ * reinstalls above — so the import graph it classifies against is current (a
+ * just-reinstalled component importing `sub/x` no longer protects the old `x`).
+ * Stale files are removed from the manifest too so a later run doesn't re-detect
+ * them.
+ */
+async function migrateOneMove(
+    move: StaleEntry['move'], cwd: string, config: Config, options: AddOptions, targetDir: string, actions: string[],
+): Promise<void> {
+    if (!move) return;
+    const result = await performInstall({
+        components: [move.toComponent], overwrite: [move.toComponent],
+        cwd, config, options: { ...options, yes: true, overwrite: true },
+    });
+    const rewritten = await rewriteMovedImports(cwd, move);
+    await fs.remove(path.join(targetDir, move.fromFile));
+    actions.push(
+        `Migrated ${move.fromFile} → ${move.toComponent} component` +
+        (result.installed.length ? ` (installed ${move.toComponent})` : '') +
+        (rewritten.length ? `; re-pointed ${rewritten.length} import(s)` : '') +
+        `; removed the old file.`,
+    );
+}
+
+async function pruneStaleFiles(toPrune: string[], cwd: string, targetDir: string, actions: string[]): Promise<void> {
+    if (toPrune.length === 0) return;
+    const manifest = await readManifest(cwd);
+    for (const file of toPrune) {
+        await fs.remove(path.join(targetDir, file));
+        removeFiles(manifest, [file]);
+    }
+    try {
+        await writeManifest(cwd, manifest);
+    } catch (err: unknown) {
+        actions.push(`Warning: could not update components.lock.json: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    actions.push(`Removed ${toPrune.length} stale file(s) the registry no longer ships: ${toPrune.join(', ')}`);
+}
+
+async function applyStaleActions(
+    cwd: string, config: Config, options: AddOptions, actions: string[],
+): Promise<void> {
+    const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
+    const uiAlias = config.aliases.ui || 'src/components/ui';
+    const scan = (): ReturnType<typeof collectStaleReport> =>
+        collectStaleReport(targetDir, cwd, getPrefix(config), config.aliases.utils, uiAlias);
+
+    // Migrate moves first (they install + re-point imports), then re-scan so the
+    // prune list reflects the post-migration import graph.
+    let { entries } = await scan();
+    for (const entry of entries.filter(e => e.action === 'migrate')) {
+        await migrateOneMove(entry.move, cwd, config, options, targetDir, actions);
+    }
+
+    ({ entries } = await scan());
+    await pruneStaleFiles(entries.filter(e => e.action === 'prune').map(e => e.file), cwd, targetDir, actions);
+    for (const entry of entries.filter(e => e.action === 'keep-warn')) {
+        actions.push(`Warning: ${entry.file} is a stale shadcn file you still import — update the import to its new location, then delete it.`);
+    }
 }
 
 export interface RefreshLibInput {
@@ -276,6 +362,12 @@ function printReport(report: DoctorReport): void {
     printSection('Shared lib files behind the registry:', report.libStale, chalk.cyan);
     printSection('Shared lib files missing:', report.libMissing, chalk.yellow);
     printSection('Shared lib files you customized (protected):', report.libUserEdited, chalk.yellow);
+    printSection('Stale files the registry no longer ships (will be removed):',
+        report.stale.filter(e => e.action === 'prune').map(e => e.file), chalk.cyan);
+    printSection('Relocated to a new component (will be migrated):',
+        report.stale.filter(e => e.action === 'migrate').map(e => `${e.file} → ${e.move?.toComponent}`), chalk.cyan);
+    printSection('Stale files you still import (update the import, then delete):',
+        report.stale.filter(e => e.action === 'keep-warn').map(e => e.file), chalk.yellow);
     console.log('');
 }
 
@@ -283,8 +375,11 @@ function printFixPlan(plan: DoctorFixPlan): void {
     printSection('Would re-install from the registry:', plan.reinstall, chalk.cyan);
     printSection('Would install npm dependencies:', plan.npmDeps, chalk.cyan);
     printSection('Would refresh shared lib files:', plan.refreshLib, chalk.cyan);
+    printSection('Would remove stale files:', plan.stalePrune, chalk.cyan);
+    printSection('Would migrate relocated components:', plan.staleMigrate.map(e => `${e.file} → ${e.move?.toComponent}`), chalk.cyan);
     printSection('Protected (your edits — review with `diff <name>`):', plan.protected, chalk.yellow);
     printSection('Protected lib files (your edits):', plan.libProtected, chalk.yellow);
+    printSection('Stale files you still import (manual):', plan.staleKeepWarn, chalk.yellow);
     printSection('Legacy layout — run `npx shadcn-angular migrate`:', plan.legacy, chalk.magenta);
     console.log('');
 }
@@ -293,7 +388,8 @@ function printFixPlan(plan: DoctorFixPlan): void {
 function cleanExceptUserEdits(report: DoctorReport): boolean {
     return report.missingFiles.length === 0 && report.updateAvailable.length === 0
         && report.missingNpmDeps.length === 0 && report.legacy.length === 0
-        && report.libStale.length === 0 && report.libMissing.length === 0;
+        && report.libStale.length === 0 && report.libMissing.length === 0
+        && !report.stale.some(e => e.action === 'prune' || e.action === 'migrate');
 }
 
 export interface DoctorOptions extends AddOptions {
