@@ -196,6 +196,7 @@ export async function doctorFixCore(
             options: { ...options, yes: true },
         });
         actions.push(`Re-installed ${result.installed.length} component(s): ${result.installed.join(', ')}`);
+        if (result.pruned.length > 0) actions.push(`Pruned ${result.pruned.length} obsolete file(s): ${result.pruned.join(', ')}`);
         for (const warning of result.warnings) actions.push(`Warning: ${warning}`);
     }
     if (plan.npmDeps.length > 0) {

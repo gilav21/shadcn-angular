@@ -14,7 +14,7 @@ vi.mock('../core/fetch.js', () => ({
   normalizeContent: (s: string) => s.replaceAll('\r\n', '\n').trim(),
 }));
 vi.mock('../core/install.js', () => ({
-  performInstall: vi.fn(async () => ({ installed: ['button', 'card'], skipped: [], declined: [], warnings: [] })),
+  performInstall: vi.fn(async () => ({ installed: ['button', 'card'], skipped: [], declined: [], pruned: [], warnings: [] })),
 }));
 vi.mock('../utils/package-manager.js', () => ({
   installPackages: vi.fn(async () => undefined),
@@ -148,7 +148,7 @@ describe('doctorFixCore', () => {
 
   it('surfaces install warnings as actions', async () => {
     (performInstall as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      installed: ['button'], skipped: [], declined: [], warnings: ['peer file skipped'],
+      installed: ['button'], skipped: [], declined: [], pruned: [], warnings: ['peer file skipped'],
     });
     const plan = buildFixPlan(makeReport({ missingFiles: ['button'] }));
     const actions = await doctorFixCore('/proj', cfg, { branch: 'master' }, plan);

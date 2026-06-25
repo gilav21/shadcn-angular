@@ -298,12 +298,17 @@ function registerDoctorTool(server: McpServer, cwd: string): void {
             const options = { branch: 'master', registry: config.registry };
             const report = await collectDoctorReport(cwd, config, options);
             const plan = buildFixPlan(report);
+            // Announce breaking API changes for the components doctor will reinstall —
+            // doctor_fix is the primary upgrade path, so these must surface here, not
+            // only via update_component (report B4). Stale-selector usages too.
+            const breakingChanges = collectBreakingChanges(plan.reinstall);
             if (args.dryRun || report.ok) {
-                return json({ ok: report.ok, plan, actions: [] });
+                return json({ ok: report.ok, plan, actions: [], breakingChanges });
             }
             const actions = await doctorFixCore(cwd, config, options, plan);
             const after = await collectDoctorReport(cwd, config, options);
-            return json({ ok: after.ok, plan, actions, remaining: after });
+            const staleSelectors = await scanStaleSelectors(cwd, plan.reinstall);
+            return json({ ok: after.ok, plan, actions, remaining: after, breakingChanges, staleSelectors });
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));
         }

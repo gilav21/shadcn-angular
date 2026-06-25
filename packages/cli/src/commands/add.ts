@@ -237,13 +237,17 @@ async function resolveBlockDestination(
 // Main entry point
 // ---------------------------------------------------------------------------
 
-function printInstallResult(result: { installed: ComponentName[]; warnings: string[]; skipped: string[]; declined: ComponentName[] }, spinner: Ora): void {
+function printInstallResult(result: { installed: ComponentName[]; warnings: string[]; skipped: string[]; declined: ComponentName[]; pruned: string[] }, spinner: Ora): void {
     if (result.installed.length > 0) {
         spinner.succeed(chalk.green(`Success! Added ${result.installed.length} component(s)`));
         console.log('\n' + chalk.dim('Components added:'));
         for (const name of result.installed) console.log(chalk.dim('  - ') + chalk.cyan(name));
     } else {
         spinner.info('No new components installed.');
+    }
+    if (result.pruned.length > 0) {
+        console.log('\n' + chalk.dim('Pruned obsolete files:'));
+        for (const rel of result.pruned) console.log(chalk.dim('  - ') + chalk.gray(rel));
     }
     for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
     printSkipSummary(result.skipped, result.declined);

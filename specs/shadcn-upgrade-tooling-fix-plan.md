@@ -489,3 +489,43 @@ step; record scores in this doc's completion log.
   consumer templates using a renamed selector, opt-in `fix`. codemod.spec (7).
 
 CLI suite: 381 tests pass. Per-cluster commits on `fix/upgrade-tooling-registry`.
+
+---
+
+## 0.0.42 re-test follow-up (2026-06-25) — B7 + B4-surfacing
+
+The customer re-ran the upgrade on published **0.0.42** (this work, merged via
+PR #90). B1/B2/B3/B5-selector/B6 verified fixed. Remaining, fixed here on
+branch `fix/upgrade-tooling-b7`:
+
+### B7 — NEW regression from B6b's reinstall (build-breaking, DONE)
+- The B6b "detect stale component by any file" fix reinstalls a pre-folderization
+  page-builder into the new layout but left old-layout orphans. A stale
+  `page-builder/page-builder.types.ts` (older, structurally INCOMPATIBLE PageData
+  — required `showBorders`/`squareCells` + `any` vs the new optional + `unknown`)
+  clashed with the relocated `lib` copy → TS2345. Reproduced against the customer
+  repo: app imports `PageData` from the deep path; new component imports from lib.
+- Fix: `ComponentDefinition.obsoleteFiles` + `performInstall` prunes them on
+  reinstall (protecting user-modified copies, removing them from the manifest).
+  page-builder ships `page-builder.types.ts` as a backward-compat **re-export
+  shim** of lib (routed through the barrel so sync keeps it in `files[]`), so the
+  legacy deep path resolves to the SAME relocated types — reinstall overwrites the
+  stale duplicate with the shim, killing the clash. Barrel re-exports the types
+  (stable public entrypoint). `page-renderer` (extracted to its own component and
+  still used by the consumer's `<ui-page-renderer>`) is NOT pruned — surfaced as a
+  breaking note instead. Verified: `page-builder-layout` e2e (seed stale types +
+  orphan → reinstall → shim restored, orphan pruned, green build).
+
+### B4 — surface breaking changes in doctor_fix (DONE)
+- The customer ran `doctor_fix` (the primary upgrade path), but B4's breaking
+  metadata was only surfaced via `update_component`/`get_install_plan`. `doctor_fix`
+  now returns `breakingChanges` + `staleSelectors` for the components it reinstalls.
+
+### Inherent (surface-only, not a tooling defect)
+- context-menu `data: signal<unknown>` and virtual-scroll `items: T extends
+  VirtualItem` are deliberate type-hardening choices (reverting reintroduces `any`
+  / drops id-based tracking — both against repo rules). They can't be
+  auto-codemodded; the consumer adds a cast / an `id`. Now announced upfront by
+  `doctor_fix` (B4) instead of surprising the consumer at build time.
+
+CLI suite: 383 tests pass; check:all green.
