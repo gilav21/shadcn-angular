@@ -146,8 +146,8 @@ Add context menus to table rows:
 
 | Output | Event Type | Description |
 |--------|------------|-------------|
-| rowContextMenu | { row: any, index: number, event: MouseEvent } | Emitted when a row is right-clicked |
-| cellContextMenu | { row: any, column: string, index: number, event: MouseEvent } | Emitted when a cell is right-clicked |
+| rowContextMenu | { row: T, index: number, event: MouseEvent } | Emitted when a row is right-clicked (T = your data-table row type, so row is typed) |
+| cellContextMenu | { row: T, column: string, index: number, event: MouseEvent } | Emitted when a cell is right-clicked (row is typed) |
         `,
       },
     },
@@ -157,6 +157,14 @@ Add context menus to table rows:
 export default meta;
 
 type Story = StoryObj;
+
+/** Row type the attach-directive demo carries through `[contextMenuData]`. */
+interface AttachItem {
+  id: number;
+  name: string;
+  type: string;
+  status: string;
+}
 
 @Component({
   selector: 'sb-context-menu-attach-demo',
@@ -251,7 +259,7 @@ type Story = StoryObj;
   `,
 })
 class ContextMenuAttachDemoComponent {
-  items = signal([
+  items = signal<AttachItem[]>([
     { id: 1, name: 'Project Alpha', type: 'Project', status: 'Active' },
     { id: 2, name: 'Design System', type: 'Resource', status: 'In Progress' },
     { id: 3, name: 'API Documentation', type: 'Document', status: 'Draft' },
@@ -259,10 +267,18 @@ class ContextMenuAttachDemoComponent {
     { id: 5, name: 'Q4 Roadmap', type: 'Planning', status: 'Active' },
   ]);
 
-  selectedItem = signal<any>(null);
-  lastAction = signal<string>('');
+  /**
+   * THE TYPED PATTERN. `ContextMenuAttachDirective<T>` is generic over its
+   * `[contextMenuData]`, so `(contextMenuTriggered)` emits a typed `$event.item`
+   * (`AttachItem` here). Capture it in a typed signal and read THAT in the menu
+   * items — no `$any`, full type safety in every handler. Prefer this over
+   * reading `contextMenu.data()` (which is `unknown` because the menu itself
+   * can't know what each trigger attached).
+   */
+  readonly selectedItem = signal<AttachItem | null>(null);
+  readonly lastAction = signal<string>('');
 
-  onAction(action: string, item: any) {
+  onAction(action: string, item: AttachItem | null): void {
     this.lastAction.set(`${action} on "${item?.name ?? 'Unknown'}"`);
   }
 }
@@ -342,21 +358,30 @@ class TreeContextMenuDemoComponent { }
       </div>
 
       <div style="margin-top: 20px; padding: 16px; background: #f1f5f9; border-radius: 6px;">
-        <h4 style="font-weight: 600; margin-bottom: 8px;">Usage Example:</h4>
-        <pre style="font-size: 12px; overflow-x: auto;"><code>&lt;ui-context-menu #tableMenu&gt;
-  &lt;ui-context-menu-content&gt;
-    &lt;ui-context-menu-item&gt;Edit Row&lt;/ui-context-menu-item&gt;
-    &lt;ui-context-menu-item&gt;Duplicate&lt;/ui-context-menu-item&gt;
-    &lt;ui-context-menu-separator&gt;&lt;/ui-context-menu-separator&gt;
-    &lt;ui-context-menu-item variant="destructive"&gt;
-      Delete Row
-    &lt;/ui-context-menu-item&gt;
-  &lt;/ui-context-menu-content&gt;
-&lt;/ui-context-menu&gt;
+        <h4 style="font-weight: 600; margin-bottom: 8px;">Recommended typed pattern (0 <code>$any</code>):</h4>
+        <p style="font-size: 13px; color: #475569; margin-bottom: 8px;">
+          <code>(rowContextMenu)</code> is generic over your data-table's row type, so
+          <code>$event.row</code> is fully typed. Capture it in a typed signal and read THAT
+          in the menu items — never <code>$any(menu.data())</code>.
+        </p>
+        <pre style="font-size: 12px; overflow-x: auto;"><code>// component
+readonly menuRow = signal&lt;Ticket | null&gt;(null);
+// onEdit(row: Ticket) receives a typed row — no cast
 
-&lt;table ui-table [uiTableContextMenu]="tableMenu"&gt;
-  ...
-&lt;/table&gt;</code></pre>
+&lt;!-- template --&gt;
+&lt;ui-data-table
+  [data]="tickets()"
+  [columns]="columns"
+  [uiDataTableContextMenu]="rowMenu"
+  (rowContextMenu)="menuRow.set($event.row)" /&gt;   &lt;!-- $event.row: Ticket --&gt;
+
+&lt;ui-context-menu #rowMenu&gt;
+  &lt;ui-context-menu-content&gt;
+    &lt;ui-context-menu-item (click)="onEdit(menuRow()!)"&gt;Edit&lt;/ui-context-menu-item&gt;
+    &lt;ui-context-menu-item variant="destructive"
+                          (click)="onDelete(menuRow()!)"&gt;Delete&lt;/ui-context-menu-item&gt;
+  &lt;/ui-context-menu-content&gt;
+&lt;/ui-context-menu&gt;</code></pre>
       </div>
     </div>
   `,
