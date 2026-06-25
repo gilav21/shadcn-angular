@@ -333,3 +333,38 @@ describe('VirtualScrollComponent deprecated [virtualItem] selector alias', () =>
         expect(rendered.length).toBeGreaterThan(0);
     });
 });
+
+// A consumer row type with NO `id` field and NO index signature — must satisfy
+// the relaxed `T extends VirtualItem` constraint (the cast a stricter VirtualItem
+// previously forced is no longer needed).
+interface Group {
+    name: string;
+    count: number;
+}
+
+@Component({
+    template: `
+        <div style="height: 300px; width: 400px;">
+            <ui-virtual-scroll [items]="groups()" [minItemHeight]="50">
+                <ng-template uiVirtualItem let-g>
+                    <div class="group-item" style="height: 50px;">{{ $any(g).name }}</div>
+                </ng-template>
+            </ui-virtual-scroll>
+        </div>
+    `,
+    imports: [VirtualScrollComponent, VirtualItemDirective],
+})
+class NoIdHostComponent {
+    readonly groups = signal<Group[]>(
+        Array.from({ length: 30 }, (_, i) => ({ name: `Group ${i}`, count: i })),
+    );
+}
+
+describe('VirtualScrollComponent with an id-less row type', () => {
+    it('accepts and renders items that have no id (relaxed VirtualItem)', async () => {
+        await TestBed.configureTestingModule({ imports: [NoIdHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(NoIdHostComponent);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelectorAll('.group-item').length).toBeGreaterThan(0);
+    });
+});

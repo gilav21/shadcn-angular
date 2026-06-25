@@ -20,9 +20,14 @@ import {
 import { CommonModule } from '@angular/common';
 import { cn } from '../../lib/utils';
 
+/**
+ * Minimal shape virtual-scroll needs from a row. `id` is optional and used only
+ * for stable tracking when present (`trackByFn` falls back to the render index
+ * otherwise), so ANY object type satisfies it — a consumer's existing row type
+ * does not need an `id` field or an index signature to be virtualized.
+ */
 export interface VirtualItem {
-  id: string | number;
-  [key: string]: unknown;
+  id?: string | number;
 }
 
 export interface VirtualScrollState {
@@ -66,7 +71,7 @@ export class VirtualItemDirective {
   styleUrl: './virtual-scroll.component.css',
   host: { class: 'contents' },
 })
-export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewInit, OnDestroy {
+export class VirtualScrollComponent<T extends object = VirtualItem> implements AfterViewInit, OnDestroy {
   items = input<T[]>([]);
   minItemHeight = input<number>(50);
   buffer = input<number>(5);
@@ -337,8 +342,8 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
     }
   }
 
-  trackByFn(item: T & { _virtualIndex?: number }): string | number {
-    return item.id ?? item._virtualIndex;
+  trackByFn(item: T & { id?: string | number; _virtualIndex?: number }): string | number {
+    return item.id ?? item._virtualIndex ?? 0;
   }
 
   private calculateScrollProgress(): number {
