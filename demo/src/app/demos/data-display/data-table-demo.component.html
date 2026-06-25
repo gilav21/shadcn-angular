@@ -432,10 +432,10 @@
     </p>
   </div>
   <div class="flex flex-wrap items-end gap-4">
-    <label class="flex items-center gap-2 text-sm">
-      <ui-switch [(checked)]="pivotMode" />
+    <div class="flex items-center gap-2 text-sm">
+      <ui-switch [(checked)]="pivotMode" aria-label="Toggle pivot mode" />
       <span>{{ pivotMode() ? 'Showing pivot' : 'Showing raw data' }}</span>
-    </label>
+    </div>
     @if (pivotMode()) {
       <label class="text-sm">
         <span class="block text-xs text-muted-foreground mb-1">Rows</span>

@@ -71,18 +71,22 @@ async function writePeerFiles(
     }
 }
 
-async function installSingleLibFile(libFile: string, targetPath: string, options: AddOptions, warnings: string[]): Promise<void> {
+async function installSingleLibFile(libFile: string, targetPath: string, options: AddOptions, warnings: string[], manifest: Manifest): Promise<void> {
     try {
         const content = await fetchLibContent(libFile, options);
         const exists = await fs.pathExists(targetPath);
         if (!exists || options.overwrite) {
             await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
+            // Fingerprint the lib file so future drift is detectable (pristine vs
+            // user-edited) the same way component files are — this is what lets
+            // `doctor`/`update` later refresh a stale lib file safely.
+            recordFile(manifest, libFile, content, '(lib)');
             return;
         }
         const local = normalizeContent(await fs.readFile(targetPath, 'utf-8'));
         if (local !== normalizeContent(content)) {
-            warnings.push(`Lib file ${libFile} differs from remote (use --overwrite to update)`);
+            warnings.push(`Lib file ${libFile} differs from remote (run doctor_fix or update to refresh)`);
         }
     } catch (err: unknown) {
         warnings.push(`Could not install lib file ${libFile}: ${err instanceof Error ? err.message : String(err)}`);
@@ -90,7 +94,7 @@ async function installSingleLibFile(libFile: string, targetPath: string, options
 }
 
 async function installLibFiles(
-    components: Set<ComponentName>, libDir: string, options: AddOptions, warnings: string[],
+    components: Set<ComponentName>, libDir: string, options: AddOptions, warnings: string[], manifest: Manifest,
 ): Promise<void> {
     const required = new Set<string>();
     for (const name of components) {
@@ -99,7 +103,7 @@ async function installLibFiles(
     if (required.size === 0) return;
     await fs.ensureDir(libDir);
     for (const libFile of required) {
-        await installSingleLibFile(libFile, path.join(libDir, libFile), options, warnings);
+        await installSingleLibFile(libFile, path.join(libDir, libFile), options, warnings, manifest);
     }
 }
 
@@ -240,7 +244,7 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     const installed = await writeAllComponents(finalComponents, targetDir, blocksBase, baseCtx, result.peerFilesToUpdate);
 
     const libDir = resolveProjectPath(input.cwd, aliasToProjectPath(utilsAlias));
-    await installLibFiles(new Set(finalComponents), libDir, input.options, warnings);
+    await installLibFiles(new Set(finalComponents), libDir, input.options, warnings, manifest);
     await installNpmDependencies(finalComponents, input.cwd, warnings);
     await ensureShortcutService(targetDir, input.cwd, input.config, input.options);
     try {

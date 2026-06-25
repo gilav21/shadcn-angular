@@ -8,6 +8,7 @@ import { detectConflicts, type AddOptions } from '../core/plan.js';
 import { readManifest, fileStatus, type FileStatus, type Manifest } from '../core/manifest.js';
 import { scanLayouts } from '../core/layout.js';
 import { performInstall } from '../core/install.js';
+import { collectLibDrift, refreshLibFiles } from '../core/lib-reconcile.js';
 import { installPackages } from '../utils/package-manager.js';
 
 export interface DoctorReport {
@@ -21,6 +22,12 @@ export interface DoctorReport {
     /** Folderized components installed in the legacy flat layout. */
     legacy: string[];
     missingNpmDeps: string[];
+    /** Shared lib files behind the registry but safe to refresh. */
+    libStale: string[];
+    /** Shared lib files required by installed components but absent on disk. */
+    libMissing: string[];
+    /** Shared lib files that differ from the registry but are user-edited (protected). */
+    libUserEdited: string[];
     ok: boolean;
 }
 
@@ -47,12 +54,25 @@ export function classifyDrift(
     return { userEdited, updateAvailable };
 }
 
-/** Components whose entry file exists under the target directory. */
+/**
+ * Components with at least one of their registry files present under the target
+ * directory. Detecting by ANY file (not just `files[0]`) is deliberate: when a
+ * component's file set changes across versions — its entry file renamed or
+ * moved, files added — keying solely on the current `files[0]` makes a stale
+ * older install invisible to `doctor`, so it is reported as neither
+ * update-available nor missing and the consumer keeps shipping stale code with
+ * a clean bill of health (report B6b). Detecting by any file makes the stale
+ * install visible; `classifyComponent` then flags the missing/changed files for
+ * reinstall.
+ */
 export async function installedComponents(targetDir: string): Promise<ComponentName[]> {
     const names: ComponentName[] = [];
     for (const name of getComponentNames()) {
-        if (await fs.pathExists(path.join(targetDir, registry[name].files[0]))) {
-            names.push(name);
+        for (const file of registry[name].files) {
+            if (await fs.pathExists(path.join(targetDir, file))) {
+                names.push(name);
+                break;
+            }
         }
     }
     return names;
@@ -97,9 +117,16 @@ export async function collectDoctorReport(
     const { userEdited, updateAvailable } = classifyDrift(modified, localStatus);
     const { legacy } = await scanLayouts(targetDir, getPrefix(config));
 
+    const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
+    const lib = await collectLibDrift(libDir, installed, manifest, options);
+
     const ok = missingFiles.length === 0 && modified.length === 0
-        && missingNpmDeps.length === 0 && legacy.length === 0;
-    return { missingFiles, modified, userEdited, updateAvailable, legacy, missingNpmDeps, ok };
+        && missingNpmDeps.length === 0 && legacy.length === 0
+        && lib.stale.length === 0 && lib.missing.length === 0;
+    return {
+        missingFiles, modified, userEdited, updateAvailable, legacy, missingNpmDeps,
+        libStale: lib.stale, libMissing: lib.missing, libUserEdited: lib.userEdited, ok,
+    };
 }
 
 /** Worst local-vs-manifest status across a component's files (modified > untracked > clean). */
@@ -126,6 +153,10 @@ export interface DoctorFixPlan {
     protected: string[];
     /** Legacy-layout components — fixing requires `migrate` (not run automatically). */
     legacy: string[];
+    /** Shared lib files to refresh from the registry (missing or pristine-but-stale). */
+    refreshLib: string[];
+    /** Shared lib files protected from auto-fix because the user customized them. */
+    libProtected: string[];
     /** True when the plan contains at least one automatic action. */
     hasActions: boolean;
 }
@@ -133,12 +164,15 @@ export interface DoctorFixPlan {
 /** Map a doctor report to the repair actions `--fix` would take. */
 export function buildFixPlan(report: DoctorReport): DoctorFixPlan {
     const reinstall = [...new Set([...report.missingFiles, ...report.updateAvailable])] as ComponentName[];
+    const refreshLib = [...new Set([...report.libMissing, ...report.libStale])];
     return {
         reinstall,
         npmDeps: report.missingNpmDeps,
         protected: report.userEdited,
         legacy: report.legacy,
-        hasActions: reinstall.length > 0 || report.missingNpmDeps.length > 0,
+        refreshLib,
+        libProtected: report.libUserEdited,
+        hasActions: reinstall.length > 0 || report.missingNpmDeps.length > 0 || refreshLib.length > 0,
     };
 }
 
@@ -168,7 +202,62 @@ export async function doctorFixCore(
         await installPackages(plan.npmDeps, { cwd });
         actions.push(`Installed npm dependencies: ${plan.npmDeps.join(', ')}`);
     }
+    if (plan.refreshLib.length > 0) {
+        const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
+        const { refreshed, warnings } = await refreshLibFiles(plan.refreshLib, libDir, cwd, options);
+        if (refreshed.length > 0) actions.push(`Refreshed ${refreshed.length} lib file(s): ${refreshed.join(', ')}`);
+        for (const warning of warnings) actions.push(`Warning: ${warning}`);
+    }
     return actions;
+}
+
+export interface RefreshLibInput {
+    /** Specific lib file paths to refresh (default: all required by installed components + core). */
+    files?: string[];
+    /** Also overwrite lib files the user customized (normally protected). */
+    force?: boolean;
+    /** Report the target set without writing. */
+    dryRun?: boolean;
+}
+
+export interface RefreshLibResult {
+    refreshed: string[];
+    /** Files that would be refreshed (always populated; equals `refreshed` unless dryRun). */
+    targets: string[];
+    /** Customized lib files left untouched (only when not forcing). */
+    protectedFiles: string[];
+    warnings: string[];
+}
+
+/**
+ * Reconcile shared lib files with the registry. Without `files`, refreshes the
+ * safe set (pristine-but-stale + missing) and, with `force`, also the customized
+ * ones. An explicit `files` list is treated as user consent to overwrite exactly
+ * those. Powers the `refresh_lib` MCP verb so the "lib file differs" warning is
+ * actionable through the tooling (report B3).
+ */
+export async function refreshLibCore(
+    cwd: string, config: Config, options: AddOptions, input: RefreshLibInput,
+): Promise<RefreshLibResult> {
+    const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
+    const installed = await installedComponents(targetDir);
+    const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
+    const manifest = await readManifest(cwd);
+    const drift = await collectLibDrift(libDir, installed, manifest, options);
+
+    let targets: string[];
+    if (input.files && input.files.length > 0) {
+        targets = input.files;
+    } else {
+        targets = [...new Set([...drift.stale, ...drift.missing, ...(input.force ? drift.userEdited : [])])];
+    }
+    const protectedFiles = input.files || input.force ? [] : drift.userEdited;
+
+    if (input.dryRun) {
+        return { refreshed: [], targets, protectedFiles, warnings: [] };
+    }
+    const { refreshed, warnings } = await refreshLibFiles(targets, libDir, cwd, options);
+    return { refreshed, targets, protectedFiles, warnings };
 }
 
 function printSection(title: string, items: string[], colorFn: (s: string) => string): void {
@@ -183,13 +272,18 @@ function printReport(report: DoctorReport): void {
     printSection('Update available (newer registry version):', report.updateAvailable, chalk.cyan);
     printSection('Legacy single-file layout — run `migrate`:', report.legacy, chalk.magenta);
     printSection('Missing npm dependencies:', report.missingNpmDeps, chalk.red);
+    printSection('Shared lib files behind the registry:', report.libStale, chalk.cyan);
+    printSection('Shared lib files missing:', report.libMissing, chalk.yellow);
+    printSection('Shared lib files you customized (protected):', report.libUserEdited, chalk.yellow);
     console.log('');
 }
 
 function printFixPlan(plan: DoctorFixPlan): void {
     printSection('Would re-install from the registry:', plan.reinstall, chalk.cyan);
     printSection('Would install npm dependencies:', plan.npmDeps, chalk.cyan);
+    printSection('Would refresh shared lib files:', plan.refreshLib, chalk.cyan);
     printSection('Protected (your edits — review with `diff <name>`):', plan.protected, chalk.yellow);
+    printSection('Protected lib files (your edits):', plan.libProtected, chalk.yellow);
     printSection('Legacy layout — run `npx shadcn-angular migrate`:', plan.legacy, chalk.magenta);
     console.log('');
 }
@@ -197,7 +291,8 @@ function printFixPlan(plan: DoctorFixPlan): void {
 /** Healthy apart from user edits (which `--fix` deliberately never repairs). */
 function cleanExceptUserEdits(report: DoctorReport): boolean {
     return report.missingFiles.length === 0 && report.updateAvailable.length === 0
-        && report.missingNpmDeps.length === 0 && report.legacy.length === 0;
+        && report.missingNpmDeps.length === 0 && report.legacy.length === 0
+        && report.libStale.length === 0 && report.libMissing.length === 0;
 }
 
 export interface DoctorOptions extends AddOptions {

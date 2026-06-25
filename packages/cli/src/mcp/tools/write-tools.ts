@@ -4,6 +4,8 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import { isComponentName, type ComponentName } from '../../registry/index.js';
 import { performInstall } from '../../core/install.js';
+import { collectBreakingChanges } from '../../core/plan.js';
+import { scanStaleSelectors } from '../../core/codemod.js';
 import { initProject } from '../../core/init-core.js';
 import { diffComponentFiles, type ComponentDiff } from '../../core/diff-core.js';
 import { getConfig, getDefaultConfig, getPrefix, type Config } from '../../utils/config.js';
@@ -17,7 +19,7 @@ import { changeThemeCore, VALID_THEMES } from '../../commands/change-theme.js';
 import { setLocaleCore } from '../../commands/set-locale.js';
 import { applyInitDefaults, type InitDefaults } from '../../commands/init.js';
 import { isValidHex } from '../../utils/color.js';
-import { collectDoctorReport, buildFixPlan, doctorFixCore } from '../../commands/doctor.js';
+import { collectDoctorReport, buildFixPlan, doctorFixCore, refreshLibCore } from '../../commands/doctor.js';
 import type { ThemeColor } from '../../templates/styles.js';
 
 function validateNames(names: string[]): string[] {
@@ -127,31 +129,79 @@ function registerUpdateTool(server: McpServer, cwd: string): void {
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
+        const options = { branch: 'master', overwrite: true, registry: config.registry };
         const result = await performInstall({
             components: names as ComponentName[],
             overwrite: names as ComponentName[],
-            cwd, config, options: { branch: 'master', overwrite: true },
+            cwd, config, options,
         });
-        return json(result);
+        // Reconcile shared lib files too: a component update can introduce a new
+        // lib export (e.g. utils.ts `stringifyValue`) that the component's own
+        // closure won't refresh, since core lib files belong to no component.
+        const lib = await refreshLibCore(cwd, config, options, {});
+        // Announce breaking API changes and warn (don't rewrite) about consumer
+        // templates still using a renamed selector — the silent NG8113 class.
+        const breakingChanges = collectBreakingChanges(names as ComponentName[]);
+        const staleSelectors = await scanStaleSelectors(cwd, names as ComponentName[]);
+        return json({
+            ...result,
+            libRefreshed: lib.refreshed,
+            libWarnings: lib.warnings,
+            breakingChanges,
+            staleSelectors,
+        });
     });
+}
+
+/** Default byte budget for a `full` diff before hunks are omitted (keeps under the token cap). */
+const DIFF_FULL_MAX_BYTES = 24_000;
+
+/**
+ * Cap a `full` diff response at a byte budget, truncating at FILE boundaries (a
+ * file's diff is kept whole or replaced by a marker) — never mid-file, so the
+ * 190 KB whole-file dumps the old positional diff produced can't blow the token
+ * cap. Mutates `out` in place.
+ */
+function capFullDiffs(out: ComponentDiff[], maxBytes: number): void {
+    let used = 0;
+    let truncating = false;
+    for (const component of out) {
+        for (const file of component.files) {
+            if (file.diff === null) continue;
+            if (truncating) {
+                file.diff = `… omitted (response capped at ${maxBytes} bytes — request this file alone for its hunks)`;
+                continue;
+            }
+            used += file.diff.length;
+            if (used > maxBytes) {
+                truncating = true;
+                file.diff = `… omitted (response capped at ${maxBytes} bytes — request this file alone for its hunks)`;
+            }
+        }
+    }
 }
 
 function registerDiffTool(server: McpServer, cwd: string): void {
     server.registerTool('diff_component', {
         title: 'Diff components',
-        description: 'Show how locally installed components differ from the registry version.',
-        inputSchema: { names: z.array(z.string()).min(1) },
+        description: 'Show how locally installed components differ from the registry version. Defaults to a compact summary of changed public symbols (added/removed inputs, outputs, models, methods); pass mode "full" for unified-diff hunks.',
+        inputSchema: {
+            names: z.array(z.string()).min(1),
+            mode: z.enum(['summary', 'full']).optional().describe('summary (default): changed symbol names only; full: unified-diff hunks.'),
+        },
         annotations: { readOnlyHint: true },
-    }, async ({ names }) => {
+    }, async ({ names, mode }) => {
         const invalid = validateNames(names);
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
         const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
+        const resolvedMode = mode ?? 'summary';
         const out: ComponentDiff[] = [];
         for (const name of names as ComponentName[]) {
-            out.push(await diffComponentFiles(name, targetDir, { branch: 'master' }, config.aliases.utils, getPrefix(config)));
+            out.push(await diffComponentFiles(name, targetDir, { branch: 'master' }, config.aliases.utils, getPrefix(config), resolvedMode));
         }
+        if (resolvedMode === 'full') capFullDiffs(out, DIFF_FULL_MAX_BYTES);
         return json(out);
     });
 }
@@ -260,6 +310,29 @@ function registerDoctorTool(server: McpServer, cwd: string): void {
     });
 }
 
+function registerRefreshLibTool(server: McpServer, cwd: string): void {
+    server.registerTool('refresh_lib', {
+        title: 'Refresh shared lib files',
+        description: 'Reconcile shared lib/ files (utils.ts, i18n, parsers, tokens, etc.) with the registry. By default refreshes only files that are pristine-but-stale or missing (e.g. a utils.ts behind a new export an upgraded component imports); lib files you customized are protected unless force is set. Pass dryRun to preview.',
+        inputSchema: {
+            files: z.array(z.string()).optional().describe('Specific lib file paths to refresh (e.g. ["utils.ts"]). Default: all required by installed components plus the core set.'),
+            force: z.boolean().optional().describe('Also overwrite lib files you customized (normally protected).'),
+            dryRun: z.boolean().optional().describe('Return the target set without writing.'),
+        },
+        annotations: { destructiveHint: true },
+    }, async (args) => {
+        try {
+            const config = await getConfig(cwd);
+            if (!config) return err('Project not initialized — run init_project first.');
+            const options = { branch: 'master', registry: config.registry };
+            const result = await refreshLibCore(cwd, config, options, args);
+            return json(result);
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+}
+
 export function registerWriteTools(server: McpServer, cwd: string): void {
     registerInitTool(server, cwd);
     registerAddTool(server, cwd);
@@ -269,4 +342,5 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
     registerRadiusMotionLocaleTool(server, cwd);
     registerThemeTool(server, cwd);
     registerDoctorTool(server, cwd);
+    registerRefreshLibTool(server, cwd);
 }

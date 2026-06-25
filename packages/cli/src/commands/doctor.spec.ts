@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
-import { collectDoctorReport, classifyDrift, buildFixPlan, doctorFixCore, type DoctorReport } from './doctor.js';
+import { collectDoctorReport, classifyDrift, buildFixPlan, doctorFixCore, installedComponents, type DoctorReport } from './doctor.js';
+import { registry, getComponentNames } from '../registry/index.js';
 import { getDefaultConfig } from '../utils/config.js';
 import { performInstall } from '../core/install.js';
 import { installPackages } from '../utils/package-manager.js';
@@ -43,6 +44,22 @@ describe('collectDoctorReport', () => {
   });
 });
 
+describe('installedComponents', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('detects a component by ANY of its files, not only files[0] (B6b)', async () => {
+    // A multi-file component whose ENTRY file (files[0]) is absent but a later
+    // file is present — the stale-after-rename case that must not go invisible.
+    const multi = getComponentNames().find(n => registry[n].files.length > 1)!;
+    const laterFile = registry[multi].files[1];
+    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async (p: string) => String(p).replaceAll('\\', '/').endsWith(laterFile),
+    );
+    const installed = await installedComponents('/proj/ui');
+    expect(installed).toContain(multi);
+  });
+});
+
 describe('classifyDrift', () => {
   it('flags user-edited when local differs from the manifest baseline', () => {
     const out = classifyDrift(['button'], { button: 'modified' });
@@ -66,7 +83,8 @@ describe('classifyDrift', () => {
 function makeReport(partial: Partial<DoctorReport>): DoctorReport {
   return {
     missingFiles: [], modified: [], userEdited: [], updateAvailable: [],
-    legacy: [], missingNpmDeps: [], ok: false, ...partial,
+    legacy: [], missingNpmDeps: [], libStale: [], libMissing: [], libUserEdited: [],
+    ok: false, ...partial,
   };
 }
 

@@ -29,7 +29,7 @@ import {
 // CLI's first-run analytics prompt ("share usage data … with the Angular Team
 // at Google") blocks on stdin and the run hangs. Child processes inherit
 // `process.env`, so setting it once here covers all spawn sites.
-process.env.NG_CLI_ANALYTICS ||= 'false';
+process.env['NG_CLI_ANALYTICS'] ||= 'false';
 
 interface RunResult {
     readonly label: string;

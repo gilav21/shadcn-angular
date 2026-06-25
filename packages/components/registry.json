@@ -521,6 +521,15 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "breaking": [
+      {
+        "kind": "type",
+        "from": "data: signal<StoredSuggestion>",
+        "to": "data: signal<unknown>",
+        "note": "The context-menu `data` signal is now typed `unknown`; cast or narrow it at the read site (e.g. `$any(contextMenu.data())` or a type guard).",
+        "codemod": "none"
+      }
     ]
   },
   "date-picker": {
@@ -840,6 +849,22 @@
       "virtual-scroll/virtual-scroll.component.css",
       "virtual-scroll/virtual-scroll.component.html",
       "virtual-scroll/virtual-scroll.component.ts"
+    ],
+    "breaking": [
+      {
+        "kind": "selector",
+        "from": "virtualItem",
+        "to": "uiVirtualItem",
+        "note": "The item-template directive selector was renamed `[virtualItem]` -> `[uiVirtualItem]`. The old selector still works as a deprecated alias; rename `<ng-template virtualItem>` to `<ng-template uiVirtualItem>` in your templates.",
+        "codemod": "selector"
+      },
+      {
+        "kind": "type",
+        "from": "items: T[]",
+        "to": "items: T[] where T extends VirtualItem",
+        "note": "The `items` input is now generic over `T extends VirtualItem` (requires an `id: string | number`). Give your row type an `id`, or cast at the binding.",
+        "codemod": "none"
+      }
     ]
   },
   "input-mask": {
@@ -1050,6 +1075,15 @@
       "parsers/ttf-parser.ts",
       "parsers/xlsx-reader.ts",
       "parsers/zip-reader.ts"
+    ],
+    "breaking": [
+      {
+        "kind": "output",
+        "from": "error",
+        "to": "loadError",
+        "note": "The `error` output was renamed `loadError`. Update `(error)=...` bindings to `(loadError)=...`.",
+        "codemod": "output-rename"
+      }
     ]
   },
   "hover-card": {
@@ -3234,6 +3268,15 @@
   },
   "data-table-range-chart": {
     "name": "data-table-range-chart",
+    "category": "charts",
+    "description": "Dialog that visualizes a data table's selected range as a bar, pie, or stacked bar chart.",
+    "tags": [
+      "data-table-range-chart",
+      "chart",
+      "range",
+      "dialog",
+      "visualization"
+    ],
     "files": [
       "data-table-range-chart/data-table-range-chart.component.html",
       "data-table-range-chart/data-table-range-chart.component.ts"
