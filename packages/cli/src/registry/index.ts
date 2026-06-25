@@ -56,6 +56,15 @@ export interface ComponentDefinition {
    * `codemod: 'selector'` entries also drive the post-update stale-selector scan.
    */
   readonly breaking?: readonly BreakingChange[];
+  /**
+   * Files from a previous layout that the current `files`/`libFiles` set no
+   * longer ships and that must be pruned when the component is (re)installed —
+   * e.g. a type file relocated to `lib/` or a sub-component moved into `sub/`.
+   * Without this, a reinstall writes the new layout but leaves the old files as
+   * orphans, and a stale duplicate type clashes with its relocated copy
+   * (report B7). Pruned on reinstall unless the local copy is user-modified.
+   */
+  readonly obsoleteFiles?: readonly string[];
 }
 
 export type BreakingKind = 'selector' | 'input' | 'output' | 'type' | 'removal';
@@ -818,8 +827,12 @@ export const registry = defineRegistry({
     description: 'Drag-and-drop visual builder for composing pages from configurable blocks.',
     tags: ['page-builder', 'builder', 'editor', 'drag-drop', 'cms'],
     dependencies: ['bento-grid', 'icon', 'select', 'switch'],
-    files: ['page-builder/index.ts', 'page-builder/page-builder.component.html', 'page-builder/page-builder.component.ts', 'page-builder/sub/property-editor.component.html', 'page-builder/sub/property-editor.component.ts'],
+    files: ['page-builder/index.ts', 'page-builder/page-builder.component.html', 'page-builder/page-builder.component.ts', 'page-builder/page-builder.types.ts', 'page-builder/sub/property-editor.component.html', 'page-builder/sub/property-editor.component.ts'],
     libFiles: ['page-builder.types.ts'],
+    obsoleteFiles: ['page-builder/property-editor.component.ts'],
+    breaking: [
+      { kind: 'removal', from: 'page-builder/page-renderer.component (PageRendererComponent)', to: 'page-renderer', note: 'PageRendererComponent was extracted into its own `page-renderer` component. If you render <ui-page-renderer>, run `add page-renderer` and import it from "@/components/ui/page-renderer" (the old in-folder copy still compiles via the page-builder.types shim but is no longer maintained).', codemod: 'none' },
+    ],
   },
   'page-renderer': {
     name: 'page-renderer',

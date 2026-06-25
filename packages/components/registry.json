@@ -2358,11 +2358,24 @@
       "page-builder/index.ts",
       "page-builder/page-builder.component.html",
       "page-builder/page-builder.component.ts",
+      "page-builder/page-builder.types.ts",
       "page-builder/sub/property-editor.component.html",
       "page-builder/sub/property-editor.component.ts"
     ],
     "libFiles": [
       "page-builder.types.ts"
+    ],
+    "obsoleteFiles": [
+      "page-builder/property-editor.component.ts"
+    ],
+    "breaking": [
+      {
+        "kind": "removal",
+        "from": "page-builder/page-renderer.component (PageRendererComponent)",
+        "to": "page-renderer",
+        "note": "PageRendererComponent was extracted into its own `page-renderer` component. If you render <ui-page-renderer>, run `add page-renderer` and import it from \"@/components/ui/page-renderer\" (the old in-folder copy still compiles via the page-builder.types shim but is no longer maintained).",
+        "codemod": "none"
+      }
     ]
   },
   "page-renderer": {

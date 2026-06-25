@@ -12,6 +12,7 @@ vi.mock('fs-extra', () => ({
     existsSync: vi.fn(() => false),
     readJson: vi.fn(async () => ({ version: 1, files: {} })),
     writeJson: vi.fn(async () => undefined),
+    remove: vi.fn(async () => undefined),
   },
 }));
 vi.mock('./fetch.js', () => ({
@@ -121,5 +122,46 @@ describe('performInstall', () => {
     expect(result.installed).toEqual([]);
     expect(result.skipped).toContain('badge');
     expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
+  });
+});
+
+describe('performInstall prunes obsolete files (B7)', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('deletes a reinstalled component\'s obsolete old-layout file', async () => {
+    // page-builder declares `page-builder/property-editor.component.ts` obsolete
+    // (replaced by sub/). Present on disk + untracked (no manifest) => pruned.
+    const OBSOLETE = 'page-builder/property-editor.component.ts';
+    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async (p: string) => String(p).replaceAll('\\', '/').endsWith(OBSOLETE),
+    );
+
+    const result = await performInstall({ ...base, components: ['page-builder'], options: { branch: 'master', overwrite: true } });
+
+    expect(result.pruned).toContain(OBSOLETE);
+    const removed = (fs.remove as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .map(c => String(c[0]).replaceAll('\\', '/'));
+    expect(removed.some(p => p.endsWith(OBSOLETE))).toBe(true);
+  });
+
+  it('keeps an obsolete file the user modified from baseline', async () => {
+    const OBSOLETE = 'page-builder/property-editor.component.ts';
+    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async (p: string) => {
+        const norm = String(p).replaceAll('\\', '/');
+        return norm.endsWith(OBSOLETE) || norm.endsWith('components.lock.json');
+      },
+    );
+    // Manifest records a DIFFERENT baseline for the obsolete file => "modified" => protected.
+    (fs.readJson as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      version: 1,
+      files: { [OBSOLETE]: { sha256: 'deadbeef', component: 'page-builder' } },
+    });
+    (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('USER EDITED');
+
+    const result = await performInstall({ ...base, components: ['page-builder'], options: { branch: 'master', overwrite: true } });
+
+    expect(result.pruned).not.toContain(OBSOLETE);
+    expect(result.warnings.some(w => w.includes(OBSOLETE))).toBe(true);
   });
 });

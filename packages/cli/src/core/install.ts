@@ -8,13 +8,15 @@ import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
 import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
-import { readManifest, writeManifest, recordFile, type Manifest } from './manifest.js';
+import { readManifest, writeManifest, recordFile, fileStatus, removeFiles, type Manifest } from './manifest.js';
 
 export interface InstallResult {
     installed: ComponentName[];
     skipped: string[];
     /** Conflicting components that were NOT in the overwrite set. */
     declined: ComponentName[];
+    /** Old-layout files deleted because the current manifest no longer ships them. */
+    pruned: string[];
     warnings: string[];
 }
 
@@ -235,7 +237,7 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     prunePeerFilesForDeclined(declined, finalComponents, result.peerFilesToUpdate);
 
     if (finalComponents.length === 0) {
-        return { installed: [], skipped: result.toSkip, declined, warnings };
+        return { installed: [], skipped: result.toSkip, declined, pruned: [], warnings };
     }
 
     const manifest = await readManifest(input.cwd);
@@ -246,6 +248,7 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     const libDir = resolveProjectPath(input.cwd, aliasToProjectPath(utilsAlias));
     await installLibFiles(new Set(finalComponents), libDir, input.options, warnings, manifest);
     await installNpmDependencies(finalComponents, input.cwd, warnings);
+    const pruned = await pruneObsoleteFiles(finalComponents, targetDir, manifest, warnings);
     await ensureShortcutService(targetDir, input.cwd, input.config, input.options);
     try {
         await writeManifest(input.cwd, manifest);
@@ -253,5 +256,33 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
         warnings.push(`Could not write components.lock.json: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    return { installed, skipped: result.toSkip, declined, warnings };
+    return { installed, skipped: result.toSkip, declined, pruned, warnings };
+}
+
+/**
+ * Delete old-layout files the current registry no longer ships for a
+ * (re)installed component — a type relocated to `lib/`, a sub-component moved
+ * into `sub/`. Without this, a reinstall writes the new layout but leaves the
+ * old files as orphans, and a stale duplicate type clashes with its relocated
+ * copy (report B7). A file the user has edited from our recorded baseline is
+ * kept and flagged, never silently removed.
+ */
+async function pruneObsoleteFiles(
+    finalComponents: ComponentName[], targetDir: string, manifest: Manifest, warnings: string[],
+): Promise<string[]> {
+    const pruned: string[] = [];
+    for (const name of finalComponents) {
+        for (const rel of registry[name].obsoleteFiles ?? []) {
+            const abs = path.join(targetDir, rel);
+            if (!await fs.pathExists(abs)) continue;
+            if (fileStatus(manifest, rel, await fs.readFile(abs, 'utf-8')) === 'modified') {
+                warnings.push(`Kept ${rel}: it differs from the version we installed (delete it manually if intended).`);
+                continue;
+            }
+            await fs.remove(abs);
+            removeFiles(manifest, [rel]);
+            pruned.push(rel);
+        }
+    }
+    return pruned;
 }
