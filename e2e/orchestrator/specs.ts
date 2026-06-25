@@ -197,6 +197,7 @@ export const CLI_SPECS: readonly CliSpecEntry[] = [
     { label: 'doctor-lib-drift',        module: 'doctor-lib-drift' },
     { label: 'cross-component-typecheck', module: 'cross-component-typecheck' },
     { label: 'page-builder-layout',     module: 'page-builder-layout' },
+    { label: 'clean-reinstall',         module: 'clean-reinstall' },
     { label: 'migrate',                 module: 'migrate' },
     { label: 'migrate-build',           module: 'migrate-build' },
     // add-all-smoke is intentionally last — it's the slowest spec

@@ -34,6 +34,25 @@ export function canonicalHash(content: string, prefix: string, utilsAlias: strin
     return createHash('sha256').update(canonicalize(content, prefix, utilsAlias), 'utf8').digest('hex');
 }
 
+/**
+ * Like `canonicalize`, but also strips the `.component` suffix from relative
+ * imports (`from '../select.component'` → `from '../select'`). The flat→folder
+ * `migrate` import-rewrite produces that exact transform in installed files, so
+ * an installed (migrated) component and the historical flat source it came from
+ * canonicalize to the same value — letting clean-reinstall recognize a pristine
+ * but superseded file across that refactor. Kept separate from `canonicalize`
+ * so the migrate `LEGACY_BASELINES` (which hash flat sources verbatim) are
+ * unaffected.
+ */
+export function canonicalizeComponentFile(content: string, prefix: string, utilsAlias: string): string {
+    return canonicalize(content, prefix, utilsAlias)
+        .replaceAll(/(from '(?:\.\.?\/)+[\w/-]+)\.component'/g, "$1'");
+}
+
+export function componentFileHash(content: string, prefix: string, utilsAlias: string): string {
+    return createHash('sha256').update(canonicalizeComponentFile(content, prefix, utilsAlias), 'utf8').digest('hex');
+}
+
 export type Baselines = Readonly<Record<string, readonly string[]>>;
 
 export function loadBaselines(): Baselines {
