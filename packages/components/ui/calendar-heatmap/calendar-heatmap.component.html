@@ -1,0 +1,52 @@
+<div
+  [class]="classes()"
+  [attr.data-slot]="'calendar-heatmap'"
+  role="img"
+  [attr.aria-label]="ariaLabel()"
+>
+  <svg [attr.viewBox]="viewBox()" width="100%" [attr.height]="svgHeight()" class="block w-full">
+    @for (wl of weekdayLabels(); track wl.label) {
+      <text [attr.x]="0" [attr.y]="wl.y" class="fill-muted-foreground text-[9px]">{{ wl.label }}</text>
+    }
+
+    @for (cell of cells(); track cell.day.date) {
+      <rect
+        [attr.data-slot]="'calendar-day'"
+        [attr.x]="cell.x"
+        [attr.y]="cell.y"
+        [attr.width]="cell.size"
+        [attr.height]="cell.size"
+        [attr.rx]="2"
+        [attr.fill]="cell.color"
+        class="cursor-pointer"
+        tabindex="0"
+        role="button"
+        [attr.aria-label]="cell.day.date + ': ' + cell.day.value"
+        (mouseenter)="onCellEnter(cell)"
+        (mouseleave)="onLeave()"
+        (focus)="onCellEnter(cell)"
+        (blur)="onLeave()"
+      />
+    }
+  </svg>
+
+  @if (showLegend()) {
+    <div class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+      <span>Less</span>
+      @for (color of legendStops(); track $index) {
+        <span class="inline-block size-3 rounded-[2px]" [style.background]="color"></span>
+      }
+      <span>More</span>
+    </div>
+  }
+
+  @if (showTooltip()) {
+    <ui-chart-tooltip
+      [visible]="hovered() !== null"
+      [x]="tooltipPos().x"
+      [y]="tooltipPos().y"
+      [title]="hoverTitle()"
+      [rows]="tooltipRows()"
+    />
+  }
+</div>

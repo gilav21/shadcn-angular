@@ -16,9 +16,13 @@ import {
   GaugeChartComponent,
   RadarChartComponent,
   BulletChartComponent,
+  HeatmapComponent,
+  CalendarHeatmapComponent,
   ChartSeries,
   XYSeries,
   XYZSeries,
+  HeatmapCell,
+  CalendarDay,
 } from '../../../../../packages/components/ui';
 import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
 
@@ -41,6 +45,8 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
     GaugeChartComponent,
     RadarChartComponent,
     BulletChartComponent,
+    HeatmapComponent,
+    CalendarHeatmapComponent,
   ],
   template: `
     <section class="space-y-6">
@@ -102,6 +108,18 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
           <p class="text-sm text-muted-foreground">{{ t().bulletChartDescription }}</p>
           <ui-bullet-chart [value]="70" [target]="80" [ranges]="[50, 75, 100]" [width]="420"
             [height]="44" label="Revenue" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().heatmapHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().heatmapDescription }}</p>
+          <ui-heatmap [data]="heatmapData" [width]="460" [showValues]="true" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().calendarHeatmapHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().calendarHeatmapDescription }}</p>
+          <ui-calendar-heatmap [data]="calendarData" [cellSize]="13" />
         </div>
 
         <div class="space-y-4">
@@ -216,4 +234,21 @@ export class ChartsDemoComponent {
       { name: 'Comfort', value: 8 }, { name: 'Price', value: 6 }, { name: 'Safety', value: 7 },
     ] },
   ];
+  protected readonly heatmapData: HeatmapCell[] = (() => {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    const hours = ['9am', '12pm', '3pm', '6pm', '9pm'];
+    return days.flatMap((row, ri) =>
+      hours.map((col, ci) => ({ row, col, value: ((ri * 7 + ci * 3) % 10) + 1 })),
+    );
+  })();
+  protected readonly calendarData: CalendarDay[] = (() => {
+    const out: CalendarDay[] = [];
+    const start = Date.UTC(2026, 0, 1);
+    for (let i = 0; i < 180; i++) {
+      const d = new Date(start + i * 86_400_000);
+      const date = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+      out.push({ date, value: (i * 13) % 11 });
+    }
+    return out;
+  })();
 }

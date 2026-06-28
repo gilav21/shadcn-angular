@@ -101,6 +101,19 @@ export interface GaugeThreshold {
     value: number;
     color: string;
 }
+
+/** A single cell in a grid heatmap. */
+export interface HeatmapCell {
+    row: string;
+    col: string;
+    value: number;
+}
+
+/** A single day in a calendar heatmap. */
+export interface CalendarDay {
+    date: string;
+    value: number;
+}
 export type ChartDirection = 'ltr' | 'rtl' | 'auto';
 export type StackingMode = 'absolute' | 'percent';
 export type EasingFunction = 'linear' | 'easeOut' | 'easeInOut' | 'easeOutQuart';

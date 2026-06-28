@@ -3557,9 +3557,9 @@
       "comparison"
     ],
     "files": [
+      "radar-chart/index.ts",
       "radar-chart/radar-chart.component.html",
-      "radar-chart/radar-chart.component.ts",
-      "radar-chart/index.ts"
+      "radar-chart/radar-chart.component.ts"
     ],
     "libFiles": [
       "chart-polar.ts",
@@ -3568,6 +3568,58 @@
     ],
     "dependencies": [
       "chart-legend"
+    ]
+  },
+  "heatmap": {
+    "name": "heatmap",
+    "category": "charts",
+    "description": "Grid heatmap with a sequential color scale, cell tooltips, and a gradient legend.",
+    "tags": [
+      "heatmap",
+      "matrix",
+      "grid",
+      "chart",
+      "density"
+    ],
+    "files": [
+      "heatmap/heatmap.component.html",
+      "heatmap/heatmap.component.ts",
+      "heatmap/index.ts"
+    ],
+    "libFiles": [
+      "chart-responsive.ts",
+      "chart-scale.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-tooltip"
+    ]
+  },
+  "calendar-heatmap": {
+    "name": "calendar-heatmap",
+    "category": "charts",
+    "description": "GitHub-style contribution calendar: days as cells colored by value, with tooltips.",
+    "tags": [
+      "calendar-heatmap",
+      "calendar",
+      "contributions",
+      "heatmap",
+      "chart"
+    ],
+    "files": [
+      "calendar-heatmap/calendar-heatmap.component.html",
+      "calendar-heatmap/calendar-heatmap.component.ts",
+      "calendar-heatmap/index.ts"
+    ],
+    "libFiles": [
+      "chart-responsive.ts",
+      "chart-scale.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-tooltip"
     ]
   }
 }

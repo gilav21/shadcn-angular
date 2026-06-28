@@ -109,6 +109,8 @@ export * from './bubble-chart';
 export * from './gauge-chart';
 export * from './radar-chart';
 export * from './bullet-chart';
+export * from './heatmap';
+export * from './calendar-heatmap';
 export * from './chart-tooltip';
 export * from './chart-legend';
 export * from './chart-brush';
