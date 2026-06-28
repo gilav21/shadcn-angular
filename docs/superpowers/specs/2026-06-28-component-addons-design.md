@@ -1,7 +1,7 @@
 # Component Addons ("Puzzle") System — Design Spec
 
 **Date:** 2026-06-28
-**Status:** Approved design — ready for implementation planning
+**Status:** Approved — implementation in progress (Phase 1)
 
 ## Context
 
@@ -130,15 +130,20 @@ generalizes that idea to all extension points.
 - The existing **informational `optionalDependencies`** is migrated to real
   addon entries and then retired.
 
-**CLI UX (`packages/cli/src/core/` + commands):** two distinct commands —
-`add` makes an addon *available*, `apply` optionally wires it into a usage.
+**CLI UX (`packages/cli/src/core/` + commands).** Two distinct commands.
+At a glance:
+
+| Command | Installs files/deps? | Edits your app code? | Use when |
+| --- | --- | --- | --- |
+| `add data-table[/addon]` | yes | **no** | make a base/addon *available*; you wire it yourself |
+| `apply data-table/addon` | yes (installs first if missing) | **yes**, targeted | the "add that real quick" one-liner: install + wire |
 
 `add` — **install only, never touches consumer app code:**
 - `add data-table` → after resolving the base, if it has `addons`, show an
   interactive **multiselect**: `all / none / pick`. Default = **none** (lean
   base); non-interactive flags `--with ai,export` / `--addons all` / `--no-addons`.
-- `add data-table/ai` → the **"later, real quick"** path: install a single addon
-  onto an already-installed base. If the base is missing, offer to add it too.
+- `add data-table/ai` → install a **single addon** onto an already-installed base
+  *without wiring it*. If the base is missing, offer to add it too.
 - On install the CLI: writes the addon files into the library folder, installs
   the addon's own `npmDependencies`/`libFiles` (so `xlsx` only arrives with
   `export`). **It does not read or edit any consuming component.** It prints a
@@ -217,7 +222,8 @@ cell-range is high-risk and low-reward for v1).
 1. **Mechanism first, one pilot addon.** Build the registry/CLI/sync addon
    support + the `DataTableAddonHost` contract, and extract **one** clean addon
    (`data-table/context-menu` or `data-table/export`) end-to-end. Prove the
-   zero-touch auto-wire and the `add data-table/<addon>` flow.
+   DI auto-wire and both the `add data-table/<addon>` (install-only) and
+   `apply data-table/<addon>` (install + targeted wire) flows.
 2. **Extract the rest of data-table's v1 addons** against the proven contract.
 3. **Apply to rich-text** (reuse the `RichTextCommandRegistry` precedent).
 4. **Retire `optionalDependencies`** once all are migrated.
