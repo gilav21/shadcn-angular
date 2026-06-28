@@ -59,6 +59,35 @@ beforeAll(() => {
     touch('ui/dual/index.ts');
     touch('lib/utils.ts');
     mkdirSync(path.join(root, 'ui/emptydir'), { recursive: true });
+
+    // Addon fixture: a base component (data-table) with an addons/ subtree.
+    // The base's component file reaches into the addon (a one-directional
+    // boundary violation), while the addon correctly depends on its parent
+    // through the barrel.
+    touch(
+        'ui/data-table/index.ts',
+        "export * from './data-table.component';\nexport * from './data-table.host';",
+    );
+    touch(
+        'ui/data-table/data-table.component.ts',
+        "import { DataTableExport } from './addons/export';\nexport class DataTableComponent {}",
+    );
+    touch('ui/data-table/data-table.host.ts', 'export abstract class DataTableAddonHost {}');
+    touch('ui/data-table/addons/export/index.ts', "export * from './export.directive';");
+    touch(
+        'ui/data-table/addons/export/export.directive.ts',
+        "import { DataTableAddonHost } from '../..';\nexport class DataTableExport {}",
+    );
+
+    // A base whose barrel index.ts DIRECTLY re-exports an addon — the
+    // barrel-re-export form of the boundary violation.
+    touch(
+        'ui/widget/index.ts',
+        "export * from './widget.component';\nexport * from './addons/foo';",
+    );
+    touch('ui/widget/widget.component.ts', 'export class WidgetComponent {}');
+    touch('ui/widget/addons/foo/index.ts', "export * from './foo.directive';");
+    touch('ui/widget/addons/foo/foo.directive.ts', 'export class WidgetFoo {}');
 });
 
 afterAll(() => {
@@ -233,6 +262,46 @@ describe('classifyImport', () => {
     });
 });
 
+describe('classifyImport — addons', () => {
+    const entryFileToComponent = new Map<string, string>([
+        ['ui/data-table/index.ts', 'data-table'],
+        ['ui/data-table/addons/export/index.ts', 'data-table/export'],
+    ]);
+    const ctx: BoundaryContext = {
+        entryFileToComponent,
+        dirOwners: buildDirOwners(entryFileToComponent),
+    };
+
+    it('flags a base reaching into its own addon barrel as an addon-boundary', () => {
+        expect(
+            classifyImport('ui/data-table/addons/export/index.ts', 'data-table', ctx),
+        ).toEqual({ kind: 'addon-boundary', owner: 'data-table/export' });
+    });
+
+    it('flags a base reaching into a deep addon file as an addon-boundary', () => {
+        expect(
+            classifyImport('ui/data-table/addons/export/export.directive.ts', 'data-table', ctx),
+        ).toEqual({ kind: 'addon-boundary', owner: 'data-table/export' });
+    });
+
+    it('classifies an addon importing its parent barrel as a dependency', () => {
+        expect(classifyImport('ui/data-table/index.ts', 'data-table/export', ctx)).toEqual({
+            kind: 'dependency',
+            owner: 'data-table',
+        });
+    });
+
+    it('classifies an addon own file as own', () => {
+        expect(
+            classifyImport(
+                'ui/data-table/addons/export/export.directive.ts',
+                'data-table/export',
+                ctx,
+            ),
+        ).toEqual({ kind: 'own' });
+    });
+});
+
 // ---------------------------------------------------------------------------
 // walkTree — end-to-end over the fixture tree
 // ---------------------------------------------------------------------------
@@ -283,6 +352,68 @@ describe('walkTree', () => {
     });
 });
 
+describe('walkTree — addons', () => {
+    function context(): BoundaryContext {
+        const entryFileToComponent = new Map<string, string>([
+            ['ui/data-table/index.ts', 'data-table'],
+            ['ui/data-table/addons/export/index.ts', 'data-table/export'],
+        ]);
+        return { entryFileToComponent, dirOwners: buildDirOwners(entryFileToComponent) };
+    }
+
+    it('records an addon-boundary violation when a base reaches into its addons/', () => {
+        const { addonViolations, ownFiles } = walkTree(
+            'ui/data-table/index.ts',
+            'data-table',
+            context(),
+            root,
+        );
+        expect(addonViolations).toHaveLength(1);
+        expect(addonViolations[0]).toEqual({
+            fromFile: 'ui/data-table/data-table.component.ts',
+            importedFile: 'ui/data-table/addons/export/index.ts',
+            addon: 'data-table/export',
+        });
+        // The base must NOT absorb the addon's files.
+        expect(ownFiles.has('ui/data-table/addons/export/index.ts')).toBe(false);
+        expect(ownFiles.has('ui/data-table/addons/export/export.directive.ts')).toBe(false);
+    });
+
+    it('flags a base barrel that directly re-exports an addon', () => {
+        const entryFileToComponent = new Map<string, string>([
+            ['ui/widget/index.ts', 'widget'],
+            ['ui/widget/addons/foo/index.ts', 'widget/foo'],
+        ]);
+        const ctx: BoundaryContext = {
+            entryFileToComponent,
+            dirOwners: buildDirOwners(entryFileToComponent),
+        };
+        const { addonViolations, ownFiles } = walkTree('ui/widget/index.ts', 'widget', ctx, root);
+        expect(addonViolations).toHaveLength(1);
+        expect(addonViolations[0]).toEqual({
+            fromFile: 'ui/widget/index.ts',
+            importedFile: 'ui/widget/addons/foo/index.ts',
+            addon: 'widget/foo',
+        });
+        expect(ownFiles.has('ui/widget/addons/foo/index.ts')).toBe(false);
+        expect(ownFiles.has('ui/widget/widget.component.ts')).toBe(true);
+    });
+
+    it('walks an addon and records its parent as a dependency, not own', () => {
+        const { ownFiles, discoveredDeps, addonViolations } = walkTree(
+            'ui/data-table/addons/export/index.ts',
+            'data-table/export',
+            context(),
+            root,
+        );
+        expect(ownFiles.has('ui/data-table/addons/export/index.ts')).toBe(true);
+        expect(ownFiles.has('ui/data-table/addons/export/export.directive.ts')).toBe(true);
+        expect([...discoveredDeps]).toEqual(['data-table']);
+        expect(ownFiles.has('ui/data-table/index.ts')).toBe(false);
+        expect(addonViolations).toEqual([]);
+    });
+});
+
 // ---------------------------------------------------------------------------
 // getEntryFile
 // ---------------------------------------------------------------------------
@@ -315,6 +446,15 @@ describe('getEntryFile', () => {
 
     it('falls back to the first file when no convention matches', () => {
         expect(getEntryFile('mystery', ['some-helper.ts'])).toBe('some-helper.ts');
+    });
+
+    it('resolves an addon name to its addons/<addon>/index.ts barrel', () => {
+        expect(
+            getEntryFile('data-table/export', [
+                'data-table/addons/export/export.directive.ts',
+                'data-table/addons/export/index.ts',
+            ]),
+        ).toBe('data-table/addons/export/index.ts');
     });
 });
 

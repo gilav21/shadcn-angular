@@ -19,6 +19,7 @@ import {
     getEntryFile,
     type BoundaryContext,
     type DeepImport,
+    type AddonBoundary,
 } from './sync-registry-lib';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -119,9 +120,9 @@ function buildBoundaryMap(entries: RegistryEntry[]): Map<string, string> {
 function analyzeComponent(
     entry: RegistryEntry,
     ctx: BoundaryContext,
-): { update: ComponentUpdate; changed: boolean; deepImports: DeepImport[] } {
+): { update: ComponentUpdate; changed: boolean; deepImports: DeepImport[]; addonViolations: AddonBoundary[] } {
     const entryFile = 'ui/' + getEntryFile(entry.name, entry.files);
-    const { ownFiles, discoveredDeps, deepImports } =
+    const { ownFiles, discoveredDeps, deepImports, addonViolations } =
         walkTree(entryFile, entry.name, ctx, COMPONENTS_ROOT);
     const { uiFiles, libFiles: discoveredLibs } = splitFiles(ownFiles);
 
@@ -151,6 +152,7 @@ function analyzeComponent(
         update: { name: entry.name, files: uiFiles, libFiles: mergedLibFiles, dependencies: finalDeps },
         changed,
         deepImports,
+        addonViolations,
     };
 }
 
@@ -224,6 +226,24 @@ function reportDeepImports(deepImports: DeepImport[]): void {
         console.warn(`    reaches into the '${di.owner}' component folder: ${di.importedFile}`);
     }
     console.warn("Import the owning component through its barrel ('../<name>') instead.");
+}
+
+// A base component reaching into its own addons/ subtree breaks the
+// one-directional boundary (addons depend on the base, never the reverse) and
+// would fold the addon's opt-in files back into the always-installed base.
+// Unlike deep imports this is a hard error: it aborts the sync in both modes.
+function reportAddonViolations(violations: AddonBoundary[]): void {
+    if (violations.length === 0) return;
+    const seen = new Set<string>();
+    console.error('\nError: base component reaches into its own addons/ folder (boundary violation):');
+    for (const v of violations) {
+        const key = `${v.fromFile}\0${v.importedFile}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        console.error(`  ${v.fromFile}`);
+        console.error(`    reaches into the '${v.addon}' addon: ${v.importedFile}`);
+    }
+    console.error('A base must never import or re-export an addon. Remove the import/barrel re-export.');
 }
 
 function findNamePos(source: string, name: string): number {
@@ -411,6 +431,7 @@ interface AnalysisResult {
     updates: ComponentUpdate[];
     blockUpdates: ComponentUpdate[];
     deepImports: DeepImport[];
+    addonViolations: AddonBoundary[];
     hasChanges: boolean;
 }
 
@@ -419,11 +440,13 @@ function analyzeAllEntries(entries: RegistryEntry[], blockEntries: RegistryEntry
     const updates: ComponentUpdate[] = [];
     const blockUpdates: ComponentUpdate[] = [];
     const deepImports: DeepImport[] = [];
+    const addonViolations: AddonBoundary[] = [];
     for (const entry of entries) {
         const result = analyzeComponent(entry, ctx);
         if (result.changed) hasChanges = true;
         updates.push(result.update);
         deepImports.push(...result.deepImports);
+        addonViolations.push(...result.addonViolations);
     }
     for (const entry of blockEntries) {
         const result = analyzeBlock(entry, ctx);
@@ -431,7 +454,7 @@ function analyzeAllEntries(entries: RegistryEntry[], blockEntries: RegistryEntry
         blockUpdates.push(result.update);
         deepImports.push(...result.deepImports);
     }
-    return { updates, blockUpdates, deepImports, hasChanges };
+    return { updates, blockUpdates, deepImports, addonViolations, hasChanges };
 }
 
 async function main(): Promise<void> {
@@ -451,8 +474,16 @@ async function main(): Promise<void> {
     const ctx: BoundaryContext = { entryFileToComponent, dirOwners: buildDirOwners(entryFileToComponent) };
     console.log(`Scanning ${entries.length} components and ${blockEntries.length} blocks...\n`);
 
-    const { updates, blockUpdates, deepImports, hasChanges } = analyzeAllEntries(entries, blockEntries, ctx);
+    const { updates, blockUpdates, deepImports, addonViolations, hasChanges } =
+        analyzeAllEntries(entries, blockEntries, ctx);
     if (!fix) reportDeepImports(deepImports);
+
+    if (addonViolations.length > 0) {
+        reportAddonViolations(addonViolations);
+        console.error('\nAborting before write — fix the boundary violation(s) above.');
+        process.exitCode = 1;
+        return;
+    }
 
     const missingFiles = [...validateRegistryFiles(updates), ...validateBlockFiles(blockUpdates)];
     if (missingFiles.length > 0) {
