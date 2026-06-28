@@ -452,3 +452,19 @@ Phase 5 (funnel/waterfall). Each phase independently shippable.
 | Date | Phase / Chart | Review-gate score | Notes |
 | ---- | ------------- | ----------------- | ----- |
 | 2026-06-29 | Phase 0 foundation (chart-scale, chart-path, chart-interaction, chart-tooltip, chart-legend, chart-brush) | **93** | TDD, 66 passing tests, additive invariant held (no dep/existing-chart changes). Reviewer rationale: correct scale/path/stacking/interaction math; documented deviations sound; SonarQube-conscious. Fixed post-review: pointerToSvg zero-height guard. **Open follow-ups:** (1) brush create/move/resize handles are pointer-only — add `role`/`tabindex`/keyboard activation per §9; (2) brush "Reset" label is hardcoded English — route through the i18n path per §8 once locale wiring lands; (3) `nearestPointX` is a linear scan (perf-only vs spec's binary search). |
+| 2026-06-29 | Phase 1 — line-chart, area-chart, combo-chart (+ `bandAreaPath`) | _pending gate_ | TDD: line 13, area 8, combo 7. Crosshair + interactive legend + monotone/step curves; area stacked (absolute/percent); combo dual-axis Pareto. Demo (10 locales) + stories + e2e (3/3 pass). Caught & fixed AOT-only `private area()` template bug via e2e. |
+| 2026-06-29 | Phase 2 — scatter-chart, bubble-chart | _pending gate_ | TDD: scatter 7, bubble 6. 2-D nearest-point hover, sqrt sizeScale for bubbles. New types XYDataPoint/XYZDataPoint/XYSeries/XYZSeries (additive). Demo + stories + e2e (2/2 pass). |
+| 2026-06-29 | Phase 3 — gauge-chart, radar-chart, bullet-chart (+ `chart-polar`) | _pending gate_ | TDD: gauge 7, radar 7, bullet 7, chart-polar 5. Threshold zones, spider polygons + interactive legend, KPI bar with target. New type GaugeThreshold. Demo + stories + e2e (3/3 pass after fixture-fix). |
+| 2026-06-29 | Phase 4 — heatmap, calendar-heatmap | _pending gate_ | TDD: heatmap 6, calendar 7. Sequential HSL color scale, GitHub-style week×weekday calendar. New types HeatmapCell/CalendarDay. Demo + stories + e2e (2/2 pass). |
+| 2026-06-29 | Phase 5 — funnel-chart, waterfall-chart | _pending gate_ | TDD: funnel 7, waterfall 7. Conversion funnel (vs-first/vs-previous %), running-total bridge with connectors + total columns. New types WaterfallBar/WaterfallPointType. Demo + stories + e2e (2/2 pass). |
+| 2026-06-29 | e2e infra fix | n/a | Reverted a fixture-app `.gitignore` addition that broke `git clean -fd` in `e2e:reset` (clean skips ignored files), which had left stale `components.lock.json`/`chart.types.ts` causing `add` to skip shared-lib refreshes. Documented: reset the fixture before commits so installs never pollute git. |
+
+### Summary
+**14 new charts** (line, area, combo, scatter, bubble, gauge, radar, bullet,
+heatmap, calendar-heatmap, funnel, waterfall) + **3 shared interactivity
+components** (chart-tooltip, chart-legend, chart-brush) + **5 new pure-function
+lib files** (chart-scale, chart-path, chart-interaction, chart-polar; plus
+bandAreaPath). **928 unit tests pass**; demo AOT-builds with every chart across
+10 locales; all 14 per-chart e2e harnesses pass. No new
+runtime dependencies; the existing 9 charts and `chart.utils.ts`/`chart.types.ts`
+signatures are unchanged (additive only).
