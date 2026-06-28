@@ -111,6 +111,8 @@ export * from './radar-chart';
 export * from './bullet-chart';
 export * from './heatmap';
 export * from './calendar-heatmap';
+export * from './funnel-chart';
+export * from './waterfall-chart';
 export * from './chart-tooltip';
 export * from './chart-legend';
 export * from './chart-brush';

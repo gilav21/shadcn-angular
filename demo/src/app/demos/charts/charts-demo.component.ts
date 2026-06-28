@@ -18,11 +18,15 @@ import {
   BulletChartComponent,
   HeatmapComponent,
   CalendarHeatmapComponent,
+  FunnelChartComponent,
+  WaterfallChartComponent,
   ChartSeries,
   XYSeries,
   XYZSeries,
   HeatmapCell,
   CalendarDay,
+  ChartDataPoint,
+  WaterfallBar,
 } from '../../../../../packages/components/ui';
 import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
 
@@ -47,6 +51,8 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
     BulletChartComponent,
     HeatmapComponent,
     CalendarHeatmapComponent,
+    FunnelChartComponent,
+    WaterfallChartComponent,
   ],
   template: `
     <section class="space-y-6">
@@ -120,6 +126,19 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
           <h3 class="text-lg font-semibold">{{ t().calendarHeatmapHeading }}</h3>
           <p class="text-sm text-muted-foreground">{{ t().calendarHeatmapDescription }}</p>
           <ui-calendar-heatmap [data]="calendarData" [cellSize]="13" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().funnelChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().funnelChartDescription }}</p>
+          <ui-funnel-chart [data]="funnelData" [width]="440" [height]="300" [title]="t().funnelChartHeading" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().waterfallChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().waterfallChartDescription }}</p>
+          <ui-waterfall-chart [dir]="dir()" [data]="waterfallData" [width]="560" [height]="340"
+            [showValues]="true" [title]="t().waterfallChartHeading" />
         </div>
 
         <div class="space-y-4">
@@ -251,4 +270,14 @@ export class ChartsDemoComponent {
     }
     return out;
   })();
+  protected readonly funnelData: ChartDataPoint[] = [
+    { name: 'Visits', value: 1000 }, { name: 'Signups', value: 600 },
+    { name: 'Trials', value: 300 }, { name: 'Paid', value: 120 },
+  ];
+  protected readonly waterfallData: WaterfallBar[] = [
+    { name: 'Start', value: 1200, type: 'total' },
+    { name: 'Sales', value: 450 }, { name: 'Returns', value: -180 },
+    { name: 'Services', value: 300 }, { name: 'Costs', value: -520 },
+    { name: 'Net', value: 1250, type: 'total' },
+  ];
 }

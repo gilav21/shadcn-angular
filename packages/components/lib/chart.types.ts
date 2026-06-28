@@ -114,6 +114,16 @@ export interface CalendarDay {
     date: string;
     value: number;
 }
+
+export type WaterfallPointType = 'relative' | 'total';
+
+/** A single bar in a waterfall chart. */
+export interface WaterfallBar {
+    name: string;
+    value: number;
+    type?: WaterfallPointType;
+    color?: string;
+}
 export type ChartDirection = 'ltr' | 'rtl' | 'auto';
 export type StackingMode = 'absolute' | 'percent';
 export type EasingFunction = 'linear' | 'easeOut' | 'easeInOut' | 'easeOutQuart';

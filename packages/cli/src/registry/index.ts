@@ -1284,6 +1284,24 @@ export const registry = defineRegistry({
     libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-tooltip'],
   },
+  'funnel-chart': {
+    name: 'funnel-chart',
+    category: 'charts',
+    description: 'Conversion funnel of narrowing stages with per-stage percentages and tooltips.',
+    tags: ['funnel-chart', 'funnel', 'conversion', 'chart', 'stages'],
+    files: ['funnel-chart/funnel-chart.component.html', 'funnel-chart/funnel-chart.component.ts', 'funnel-chart/index.ts'],
+    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    dependencies: ['chart-tooltip'],
+  },
+  'waterfall-chart': {
+    name: 'waterfall-chart',
+    category: 'charts',
+    description: 'Waterfall chart of running totals with floating bars, connectors, and total columns.',
+    tags: ['waterfall-chart', 'waterfall', 'bridge', 'chart', 'running-total'],
+    files: ['waterfall-chart/waterfall-chart.component.html', 'waterfall-chart/waterfall-chart.component.ts', 'waterfall-chart/index.ts'],
+    libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    dependencies: ['chart-tooltip'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

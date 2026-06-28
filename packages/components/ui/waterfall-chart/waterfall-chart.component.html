@@ -1,0 +1,76 @@
+<div
+  [class]="classes()"
+  [attr.data-slot]="'waterfall-chart'"
+  role="img"
+  [attr.aria-label]="ariaLabel()"
+>
+  <svg
+    #chartSvg
+    [attr.viewBox]="viewBox()"
+    width="100%"
+    [attr.height]="height()"
+    class="block w-full overflow-visible"
+    (mousemove)="onPointerMove($event)"
+    (mouseleave)="onPointerLeave()"
+    (touchstart)="onPointerMove($event)"
+    (touchmove)="onPointerMove($event)"
+    style="touch-action: none"
+  >
+    @for (g of yTicks(); track g.value) {
+      <line [attr.x1]="0" [attr.x2]="svgWidth()" [attr.y1]="g.y" [attr.y2]="g.y"
+        class="stroke-border" stroke-width="1" stroke-dasharray="2 3" />
+      <text [attr.x]="4" [attr.y]="g.y - 2" class="fill-muted-foreground text-[10px]">{{ g.value }}</text>
+    }
+
+    @if (showConnectors()) {
+      @for (c of connectors(); track $index) {
+        <line
+          [attr.data-slot]="'waterfall-connector'"
+          [attr.x1]="c.x1"
+          [attr.y1]="c.y1"
+          [attr.x2]="c.x2"
+          [attr.y2]="c.y2"
+          class="stroke-muted-foreground/50"
+          stroke-width="1"
+          stroke-dasharray="3 2"
+        />
+      }
+    }
+
+    @for (bar of bars(); track bar.name; let i = $index) {
+      <rect
+        [attr.data-slot]="'waterfall-bar'"
+        [attr.x]="bar.x"
+        [attr.y]="bar.y"
+        [attr.width]="bar.width"
+        [attr.height]="bar.height"
+        [attr.rx]="barRadius()"
+        [attr.fill]="bar.color"
+        [attr.fill-opacity]="hovered() === null || hovered() === i ? 1 : 0.6"
+        class="cursor-pointer transition-[fill-opacity]"
+        tabindex="0"
+        role="button"
+        [attr.aria-label]="bar.name + ': ' + bar.value + ' (total ' + bar.toLevel + ')'"
+        (click)="onBarClick(i)"
+        (keydown.enter)="onBarClick(i)"
+      />
+      @if (showValues()) {
+        <text [attr.x]="bar.centerX" [attr.y]="bar.y - 4" text-anchor="middle"
+          class="pointer-events-none fill-foreground text-[10px]">{{ bar.value }}</text>
+      }
+      <text [attr.x]="bar.centerX" [attr.y]="height() - 10" text-anchor="middle"
+        class="fill-muted-foreground text-[10px]">{{ bar.name }}</text>
+    }
+  </svg>
+
+  @if (showTooltip()) {
+    <ui-chart-tooltip
+      [visible]="hovered() !== null"
+      [x]="tooltipPos().x"
+      [y]="tooltipPos().y"
+      [title]="hoverTitle()"
+      [rows]="tooltipRows()"
+      [flipX]="tooltipPos().x > svgWidth() * 0.7"
+    />
+  }
+</div>
