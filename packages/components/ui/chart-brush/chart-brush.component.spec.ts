@@ -70,6 +70,30 @@ describe('ChartBrushComponent', () => {
         expect(emitted).toEqual({ start: 100, end: 250 });
     });
 
+    it('renders a visible reset control when a selection exists and clears it on click', () => {
+        fixture.componentRef.setInput('selection', { start: 100, end: 200 });
+        fixture.detectChanges();
+        let emitted: { start: number; end: number } | null | undefined;
+        component.selectionChange.subscribe(s => (emitted = s));
+        const btn: HTMLElement | null = fixture.nativeElement.querySelector('[data-slot="chart-brush-reset"]');
+        expect(btn).toBeTruthy();
+        btn!.click();
+        expect(emitted).toBeNull();
+    });
+
+    it('hides the reset control when there is no selection', () => {
+        fixture.componentRef.setInput('selection', null);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-slot="chart-brush-reset"]')).toBeNull();
+    });
+
+    it('seeds the dragged edge immediately on resize begin', () => {
+        fixture.componentRef.setInput('selection', { start: 100, end: 200 });
+        fixture.detectChanges();
+        component.beginResize('start', 120);
+        expect(component.current()).toEqual({ start: 120, end: 200 });
+    });
+
     it('reset clears the selection and emits null', () => {
         fixture.componentRef.setInput('selection', { start: 100, end: 200 });
         fixture.detectChanges();

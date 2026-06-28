@@ -95,7 +95,10 @@ export class ChartBrushComponent {
         const sel = this.current();
         if (!sel) return;
         this.mode = edge === 'start' ? 'resize-start' : 'resize-end';
-        this._internal.set({ ...sel });
+        const seeded = edge === 'start'
+            ? { start: this.clamp(x), end: sel.end }
+            : { start: sel.start, end: this.clamp(x) };
+        this._internal.set(seeded);
     }
 
     pointerMoveTo(x: number): void {

@@ -1,3 +1,15 @@
+<div class="relative w-full">
+@if (current()) {
+  <button
+    type="button"
+    [attr.data-slot]="'chart-brush-reset'"
+    class="absolute right-1 top-1 z-10 rounded border bg-background/90 px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+    aria-label="Reset zoom"
+    (click)="reset()"
+  >
+    Reset
+  </button>
+}
 <svg
   #brushSvg
   [attr.viewBox]="viewBox()"
@@ -52,3 +64,4 @@
     />
   }
 </svg>
+</div>

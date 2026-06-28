@@ -154,7 +154,13 @@ Pure functions (no Angular). The missing continuous-axis primitive.
 Component (renders positioned content). `index.ts` barrel. Selector
 `ui-chart-tooltip`, `data-slot="chart-tooltip"`.
 - Inputs: `visible`, `x`, `y`, `title`, `rows:{label;value;color}[]`,
-  `formatter?`, `class`.
+  `flipX`, `flipY`, `class`.
+  - **Implementation note:** `rows` carry pre-formatted display strings, so the
+    earlier `formatter?` idea was dropped (formatting happens in the host chart
+    via `formatChartValue`). Edge-flip is realized as `flipX`/`flipY` boolean
+    inputs the host toggles when the anchor nears the right/bottom edge
+    (`-translate-x-full` / `-translate-y-full`), alongside the
+    `max-w-[calc(100vw-2rem)]` overflow guard.
 - Reproduces the exact existing markup
   (`absolute z-50 px-3 py-2 bg-popover text-popover-foreground rounded-md
   shadow-lg border pointer-events-none`) → visually identical to today.
@@ -168,9 +174,13 @@ Component (renders positioned content). `index.ts` barrel. Selector
 
 ### 5.5 `ui-chart-legend` (`ui/chart-legend/`)
 Selector `ui-chart-legend`, `data-slot="chart-legend"`.
-- Inputs: `items:{key;label;color}[]`, `hidden:Set<string>`,
+- Inputs: `items:{key;label;color}[]`, `hidden:string[]`,
   `position:LegendPosition`, `interactive` (default true), `class`.
 - Output: `toggle = output<string>()` (series key).
+- **Implementation note:** `hidden` is modeled as `string[]` rather than
+  `Set<string>` — Angular template binding and `setInput` ergonomics favor a
+  plain array; the host still owns the state and treats it as a set
+  semantically.
 - **State model:** host chart owns `signal<Set<string>>` of *hidden* keys and
   filters its own series `computed`. Legend is presentational + emits.
   Keyboard: each item `role="button"`, `tabindex=0`, Enter/Space toggles; tap
@@ -441,4 +451,4 @@ Phase 5 (funnel/waterfall). Each phase independently shippable.
 
 | Date | Phase / Chart | Review-gate score | Notes |
 | ---- | ------------- | ----------------- | ----- |
-| _pending_ | Phase 0 foundation | — | not started |
+| 2026-06-29 | Phase 0 foundation (chart-scale, chart-path, chart-interaction, chart-tooltip, chart-legend, chart-brush) | **93** | TDD, 66 passing tests, additive invariant held (no dep/existing-chart changes). Reviewer rationale: correct scale/path/stacking/interaction math; documented deviations sound; SonarQube-conscious. Fixed post-review: pointerToSvg zero-height guard. **Open follow-ups:** (1) brush create/move/resize handles are pointer-only — add `role`/`tabindex`/keyboard activation per §9; (2) brush "Reset" label is hardcoded English — route through the i18n path per §8 once locale wiring lands; (3) `nearestPointX` is a linear scan (perf-only vs spec's binary search). |

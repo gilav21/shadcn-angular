@@ -57,6 +57,13 @@ describe('ChartTooltipComponent', () => {
         expect(tooltipEl()!.className).toContain('max-w-[calc(100vw-2rem)]');
     });
 
+    it('flips horizontally past the right edge when flipX is set', () => {
+        fixture.componentRef.setInput('visible', true);
+        fixture.componentRef.setInput('flipX', true);
+        fixture.detectChanges();
+        expect(tooltipEl()!.className).toContain('-translate-x-full');
+    });
+
     it('merges a custom class', () => {
         fixture.componentRef.setInput('visible', true);
         fixture.componentRef.setInput('class', 'my-custom');

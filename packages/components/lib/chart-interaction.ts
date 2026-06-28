@@ -81,7 +81,7 @@ export function pointerToSvg(evt: MouseEvent | TouchEvent, svg: SVGSVGElement): 
     const localY = clientY - rect.top;
 
     const viewBox = svg.viewBox.baseVal;
-    if (viewBox && viewBox.width > 0 && rect.width > 0) {
+    if (viewBox && viewBox.width > 0 && rect.width > 0 && rect.height > 0) {
         return {
             x: (localX / rect.width) * viewBox.width,
             y: (localY / rect.height) * viewBox.height,
