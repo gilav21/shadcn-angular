@@ -7,7 +7,6 @@ import {
     signal,
     viewChild,
     ElementRef,
-    HostListener,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { pointerToSvg } from '../../lib/chart-interaction';
@@ -31,6 +30,10 @@ type BrushMode = 'idle' | 'create' | 'move' | 'resize-start' | 'resize-end';
     templateUrl: './chart-brush.component.html',
     host: {
         class: 'block',
+        '(window:mousemove)': 'onWindowMove($event)',
+        '(window:touchmove)': 'onWindowMove($event)',
+        '(window:mouseup)': 'onWindowUp()',
+        '(window:touchend)': 'onWindowUp()',
     },
 })
 export class ChartBrushComponent {
@@ -161,16 +164,12 @@ export class ChartBrushComponent {
         this.beginResize(edge, this.localX(evt));
     }
 
-    @HostListener('window:mousemove', ['$event'])
-    @HostListener('window:touchmove', ['$event'])
     onWindowMove(evt: MouseEvent | TouchEvent): void {
         if (this.mode === 'idle') return;
         if ('touches' in evt) evt.preventDefault();
         this.pointerMoveTo(this.localX(evt));
     }
 
-    @HostListener('window:mouseup')
-    @HostListener('window:touchend')
     onWindowUp(): void {
         this.end();
     }

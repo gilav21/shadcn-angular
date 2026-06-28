@@ -1196,6 +1196,24 @@ export const registry = defineRegistry({
     files: ['chart-brush/chart-brush.component.html', 'chart-brush/chart-brush.component.ts', 'chart-brush/index.ts'],
     libFiles: ['chart-interaction.ts'],
   },
+  'line-chart': {
+    name: 'line-chart',
+    category: 'charts',
+    description: 'Multi-series line chart with crosshair, hover tooltip, smoothing curves, and a clickable legend that toggles series.',
+    tags: ['line-chart', 'line', 'chart', 'time-series', 'trend'],
+    files: ['line-chart/index.ts', 'line-chart/line-chart.component.html', 'line-chart/line-chart.component.ts'],
+    libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    dependencies: ['chart-legend', 'chart-tooltip'],
+  },
+  'area-chart': {
+    name: 'area-chart',
+    category: 'charts',
+    description: 'Area chart with optional stacking (absolute or percent), smoothing curves, crosshair, and an interactive legend.',
+    tags: ['area-chart', 'area', 'stacked-area', 'chart', 'trend'],
+    files: ['area-chart/area-chart.component.html', 'area-chart/area-chart.component.ts', 'area-chart/index.ts'],
+    libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    dependencies: ['chart-legend', 'chart-tooltip'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

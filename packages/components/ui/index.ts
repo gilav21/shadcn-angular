@@ -101,6 +101,11 @@ export * from './stacked-bar-chart';
 export * from './column-range-chart';
 export * from './bar-race-chart';
 export * from './org-chart';
+export * from './line-chart';
+export * from './area-chart';
+export * from './chart-tooltip';
+export * from './chart-legend';
+export * from './chart-brush';
 export * from '../lib/chart.types';
 export * from '../lib/chart.utils';
 

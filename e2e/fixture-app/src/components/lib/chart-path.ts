@@ -108,19 +108,6 @@ export function areaPath(points: Point[], baselineY: number, curve: CurveType = 
     return `${top} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
 }
 
-/**
- * Build a closed area path between an upper and lower poly-line (stacked area).
- * The upper edge uses the requested curve; the lower edge is traversed in
- * reverse with straight segments to enclose the band.
- */
-export function bandAreaPath(upper: Point[], lower: Point[], curve: CurveType = 'linear'): string {
-    if (upper.length === 0 || lower.length === 0) return '';
-    const top = linePath(upper, curve);
-    const reversedLower = [...lower].reverse();
-    const lowerEdge = reversedLower.reduce((acc, p) => `${acc} L ${p.x} ${p.y}`, '');
-    return `${top}${lowerEdge} Z`;
-}
-
 /** Compute cumulative stacking bands per series and category. */
 export function stackSeries(series: ChartSeries[], mode: StackingMode = 'absolute'): StackBand[][] {
     const result: StackBand[][] = series.map(() => []);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { linePath, areaPath, stackSeries } from './chart-path';
+import { linePath, areaPath, bandAreaPath, stackSeries } from './chart-path';
 import type { ChartSeries } from './chart.types';
 
 describe('linePath', () => {
@@ -39,6 +39,28 @@ describe('areaPath', () => {
         expect(path.startsWith('M 0 20')).toBe(true);
         expect(path).toContain('100'); // baseline y appears
         expect(path.trim().endsWith('Z')).toBe(true);
+    });
+});
+
+describe('bandAreaPath', () => {
+    const upper = [{ x: 0, y: 10 }, { x: 10, y: 20 }];
+    const lower = [{ x: 0, y: 40 }, { x: 10, y: 30 }];
+
+    it('returns an empty string when there are no points', () => {
+        expect(bandAreaPath([], [], 'linear')).toBe('');
+    });
+
+    it('starts at the first upper point and closes the band', () => {
+        const path = bandAreaPath(upper, lower, 'linear');
+        expect(path.startsWith('M 0 10')).toBe(true);
+        expect(path.trim().endsWith('Z')).toBe(true);
+    });
+
+    it('traverses the lower edge in reverse to enclose the area', () => {
+        const path = bandAreaPath(upper, lower, 'linear');
+        // after the top edge it must reach the last lower point then walk back
+        expect(path).toContain('L 10 30');
+        expect(path).toContain('L 0 40');
     });
 });
 

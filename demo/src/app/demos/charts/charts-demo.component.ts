@@ -8,6 +8,7 @@ import {
   StackedBarChartComponent,
   ColumnRangeChartComponent,
   BarRaceChartComponent,
+  LineChartComponent,
 } from '../../../../../packages/components/ui';
 import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
 
@@ -22,6 +23,7 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
     StackedBarChartComponent,
     ColumnRangeChartComponent,
     BarRaceChartComponent,
+    LineChartComponent,
   ],
   template: `
     <section class="space-y-6">
@@ -31,6 +33,13 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
       </p>
 
       <div class="space-y-8">
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().lineChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().lineChartDescription }}</p>
+          <ui-line-chart [dir]="dir()" [series]="t().stackedSeries" [width]="560" [height]="300"
+            curve="monotone" [title]="t().lineChartHeading" />
+        </div>
+
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">{{ t().pieChartHeading }}</h3>
           <p class="text-sm text-muted-foreground">{{ t().pieChartDescription }}</p>
