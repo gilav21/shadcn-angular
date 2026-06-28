@@ -104,6 +104,8 @@ export * from './org-chart';
 export * from './line-chart';
 export * from './area-chart';
 export * from './combo-chart';
+export * from './scatter-chart';
+export * from './bubble-chart';
 export * from './chart-tooltip';
 export * from './chart-legend';
 export * from './chart-brush';

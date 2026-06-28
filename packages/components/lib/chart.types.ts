@@ -40,6 +40,34 @@ export interface ChartSeries {
     color?: string;
 }
 
+/** A point in continuous x/y space (for scatter charts). */
+export interface XYDataPoint {
+    x: number;
+    y: number;
+    label?: string;
+}
+
+/** A point that also carries a magnitude `z` (for bubble charts). */
+export interface XYZDataPoint extends XYDataPoint {
+    z: number;
+}
+
+/** A series of continuous x/y points. */
+export interface XYSeries {
+    id?: string;
+    name: string;
+    points: XYDataPoint[];
+    color?: string;
+}
+
+/** A series of x/y/z points (bubble charts). */
+export interface XYZSeries {
+    id?: string;
+    name: string;
+    points: XYZDataPoint[];
+    color?: string;
+}
+
 export interface DrilldownSeries {
     id: string;
     name: string;

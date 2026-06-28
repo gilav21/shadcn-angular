@@ -3444,5 +3444,61 @@
       "chart-legend",
       "chart-tooltip"
     ]
+  },
+  "scatter-chart": {
+    "name": "scatter-chart",
+    "category": "charts",
+    "description": "Scatter plot over continuous x/y axes with nearest-point hover tooltip and an interactive legend.",
+    "tags": [
+      "scatter-chart",
+      "scatter",
+      "xy",
+      "correlation",
+      "chart"
+    ],
+    "files": [
+      "scatter-chart/index.ts",
+      "scatter-chart/scatter-chart.component.html",
+      "scatter-chart/scatter-chart.component.ts"
+    ],
+    "libFiles": [
+      "chart-interaction.ts",
+      "chart-responsive.ts",
+      "chart-scale.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-legend",
+      "chart-tooltip"
+    ]
+  },
+  "bubble-chart": {
+    "name": "bubble-chart",
+    "category": "charts",
+    "description": "Scatter plot with a third dimension encoded as area-proportional bubble size.",
+    "tags": [
+      "bubble-chart",
+      "bubble",
+      "xy",
+      "scatter",
+      "chart"
+    ],
+    "files": [
+      "bubble-chart/bubble-chart.component.html",
+      "bubble-chart/bubble-chart.component.ts",
+      "bubble-chart/index.ts"
+    ],
+    "libFiles": [
+      "chart-interaction.ts",
+      "chart-responsive.ts",
+      "chart-scale.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-legend",
+      "chart-tooltip"
+    ]
   }
 }

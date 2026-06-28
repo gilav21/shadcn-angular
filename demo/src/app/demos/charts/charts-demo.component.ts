@@ -11,7 +11,11 @@ import {
   LineChartComponent,
   AreaChartComponent,
   ComboChartComponent,
+  ScatterChartComponent,
+  BubbleChartComponent,
   ChartSeries,
+  XYSeries,
+  XYZSeries,
 } from '../../../../../packages/components/ui';
 import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
 
@@ -29,6 +33,8 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
     LineChartComponent,
     AreaChartComponent,
     ComboChartComponent,
+    ScatterChartComponent,
+    BubbleChartComponent,
   ],
   template: `
     <section class="space-y-6">
@@ -57,6 +63,20 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
           <p class="text-sm text-muted-foreground">{{ t().comboChartDescription }}</p>
           <ui-combo-chart [dir]="dir()" [barSeries]="comboBars()" [showCumulative]="true"
             [width]="560" [height]="320" [title]="t().comboChartHeading" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().scatterChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().scatterChartDescription }}</p>
+          <ui-scatter-chart [dir]="dir()" [series]="scatterSeries" [width]="560" [height]="320"
+            [title]="t().scatterChartHeading" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().bubbleChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().bubbleChartDescription }}</p>
+          <ui-bubble-chart [dir]="dir()" [series]="bubbleSeries" [width]="560" [height]="360"
+            [title]="t().bubbleChartHeading" />
         </div>
 
         <div class="space-y-4">
@@ -139,4 +159,21 @@ export class ChartsDemoComponent {
   protected readonly comboBars = computed<ChartSeries[]>(
     () => [{ name: this.t().barVerticalHeading, data: this.t().barChartData }],
   );
+  protected readonly scatterSeries: XYSeries[] = [
+    { name: 'Group A', points: [
+      { x: 12, y: 22 }, { x: 18, y: 30 }, { x: 25, y: 18 }, { x: 30, y: 40 }, { x: 36, y: 33 },
+    ] },
+    { name: 'Group B', points: [
+      { x: 15, y: 55 }, { x: 22, y: 48 }, { x: 28, y: 62 }, { x: 35, y: 51 }, { x: 41, y: 70 },
+    ] },
+  ];
+  protected readonly bubbleSeries: XYZSeries[] = [
+    { name: 'Products', points: [
+      { x: 10, y: 20, z: 30 }, { x: 22, y: 35, z: 80 }, { x: 30, y: 15, z: 50 },
+      { x: 38, y: 42, z: 120 }, { x: 46, y: 28, z: 65 },
+    ] },
+    { name: 'Services', points: [
+      { x: 14, y: 50, z: 40 }, { x: 26, y: 60, z: 95 }, { x: 34, y: 48, z: 70 },
+    ] },
+  ];
 }
