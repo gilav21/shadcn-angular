@@ -147,6 +147,10 @@ generalizes that idea to all extension points.
 `apply` — **explicit, opt-in, targeted wiring (the only command that edits app code):**
 - `apply data-table/export [targeting]` → inserts the addon's `import` + attribute
   into the dev's `<ui-data-table>` usage(s) via best-effort AST edit.
+- **Installs the addon first if it isn't already present** (runs the `add` step
+  internally), so `apply` is the true one-liner: install + wire in one command —
+  the "let me add that real quick" path. If the addon is already installed it
+  skips straight to wiring. (`add` alone remains available for install-without-wiring.)
 - **Targeting hints** filter *which* usages get wired, so the CLI never guesses:
   - `--all` → every `<ui-data-table>` in scope
   - `--class <name>` → instances whose `class="…"` contains the token
