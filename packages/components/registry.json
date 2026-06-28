@@ -3304,5 +3304,57 @@
       "pie-chart",
       "stacked-bar-chart"
     ]
+  },
+  "chart-tooltip": {
+    "name": "chart-tooltip",
+    "category": "charts",
+    "description": "Reusable positioned tooltip for chart hover details.",
+    "tags": [
+      "chart",
+      "tooltip",
+      "overlay"
+    ],
+    "files": [
+      "chart-tooltip/chart-tooltip.component.html",
+      "chart-tooltip/chart-tooltip.component.ts",
+      "chart-tooltip/index.ts"
+    ]
+  },
+  "chart-legend": {
+    "name": "chart-legend",
+    "category": "charts",
+    "description": "Interactive chart legend with series show/hide toggling.",
+    "tags": [
+      "chart",
+      "legend",
+      "interactive"
+    ],
+    "files": [
+      "chart-legend/chart-legend.component.html",
+      "chart-legend/chart-legend.component.ts",
+      "chart-legend/index.ts"
+    ],
+    "libFiles": [
+      "chart.types.ts"
+    ]
+  },
+  "chart-brush": {
+    "name": "chart-brush",
+    "category": "charts",
+    "description": "Zoom, pan, and brush selection overlay for dense cartesian charts.",
+    "tags": [
+      "chart",
+      "brush",
+      "zoom",
+      "pan"
+    ],
+    "files": [
+      "chart-brush/chart-brush.component.html",
+      "chart-brush/chart-brush.component.ts",
+      "chart-brush/index.ts"
+    ],
+    "libFiles": [
+      "chart-interaction.ts"
+    ]
   }
 }
