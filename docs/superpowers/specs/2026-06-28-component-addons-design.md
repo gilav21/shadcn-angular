@@ -30,10 +30,16 @@ ag-grid structurally cannot do.
 ### Decisions already locked (with the user)
 1. **Opt-in unit = files.** An addon is a separately-installable set of files,
    chosen by the dev. A feature that is never wanted should not exist in their repo.
-2. **Attach mechanism = auto-wire, zero-touch.** The base exposes extension
-   points; the addon attaches via Angular DI with no runtime registration and no
-   editing of the (owned) base component file. CLI adds the file and wires the
-   one attribute/import.
+2. **Attach mechanism = DI host contract, zero runtime ceremony.** The base
+   exposes extension points; the addon attaches via Angular DI with no runtime
+   registration. Once the addon's attribute is present on a `<ui-data-table>`
+   tag, it "just works" — no `registerModules()`, no provider wiring in app code.
+3. **`add` and wiring are SEPARATE commands.** `add` only makes the addon
+   *available* (copies files, installs deps) and **never touches the dev's app
+   code**. A separate **`apply`** command does the optional, explicit,
+   targeted text-wiring into a chosen usage. The dev controls where the feature
+   is actually used — the CLI does not guess or silently edit consumer files on
+   `add`.
 
 ### What today's code actually looks like (verified)
 - AI is **already zero-dependency**: `lib/ai.ts` is 55 lines of types + a
@@ -124,19 +130,37 @@ generalizes that idea to all extension points.
 - The existing **informational `optionalDependencies`** is migrated to real
   addon entries and then retired.
 
-**CLI UX (`packages/cli/src/core/` + commands):**
+**CLI UX (`packages/cli/src/core/` + commands):** two distinct commands —
+`add` makes an addon *available*, `apply` optionally wires it into a usage.
+
+`add` — **install only, never touches consumer app code:**
 - `add data-table` → after resolving the base, if it has `addons`, show an
   interactive **multiselect**: `all / none / pick`. Default = **none** (lean
   base); non-interactive flags `--with ai,export` / `--addons all` / `--no-addons`.
 - `add data-table/ai` → the **"later, real quick"** path: install a single addon
   onto an already-installed base. If the base is missing, offer to add it too.
-- On install the CLI: writes the addon files, installs the addon's own
-  `npmDependencies`/`libFiles` (so `xlsx` only arrives with `export`), then
-  **auto-wires**: best-effort insert of the `import` + attribute into the
-  consuming usage; if it can't find a unique usage, **print the exact snippet**
-  to paste (graceful fallback, never a hard failure).
-- `update` preserves the set of installed addons. `why` and `list` surface addons.
-- MCP tools `add_component`, `get_install_plan`, `get_component` surface addons.
+- On install the CLI: writes the addon files into the library folder, installs
+  the addon's own `npmDependencies`/`libFiles` (so `xlsx` only arrives with
+  `export`). **It does not read or edit any consuming component.** It prints a
+  one-line hint: add the `dtExport` attribute where you want it, or run `apply`.
+
+`apply` — **explicit, opt-in, targeted wiring (the only command that edits app code):**
+- `apply data-table/export [targeting]` → inserts the addon's `import` + attribute
+  into the dev's `<ui-data-table>` usage(s) via best-effort AST edit.
+- **Targeting hints** filter *which* usages get wired, so the CLI never guesses:
+  - `--all` → every `<ui-data-table>` in scope
+  - `--class <name>` → instances whose `class="…"` contains the token
+  - `--id <name>` → instances matching that id / template-ref / `data-testid`
+- **Scope = path-scoped** by default: the current directory, or an explicit path
+  arg (`apply data-table/export ./src/app/orders`). `--all` means "all usages
+  *within that scope*", keeping blast radius small.
+- **Snippet fallback** (never a hard failure): if no target is given and >1 usage
+  matches, or nothing matches, print the exact import + attribute lines to paste.
+- Idempotent: re-running on an already-wired usage is a no-op.
+
+`update` preserves the set of installed addons. `why` and `list` surface addons.
+MCP tools `add_component`, `get_install_plan`, `get_component` surface addons;
+an `apply_addon` MCP tool mirrors the `apply` command.
 
 **Resolver (`packages/cli/src/core/resolve.ts` / `install.ts`):**
 - `resolveDependencies` learns to resolve selected addons alongside the base and
@@ -189,10 +213,13 @@ cell-range is high-risk and low-reward for v1).
   `parent`, `attach`, `addons`; migrate `optionalDependencies`.
 - `packages/cli/src/registry/load.ts` — `isValidRegistryShape` accepts new fields.
 - `packages/cli/src/core/resolve.ts`, `plan.ts`, `install.ts` — addon resolution,
-  per-addon npm/lib install, auto-wire/print-snippet step.
+  per-addon npm/lib install (no consumer-file editing in the `add` path).
 - `packages/cli/src/commands/add*` — multiselect prompt, `--with/--addons/--no-addons`,
-  `add <parent>/<addon>` shorthand.
-- `packages/cli/src/mcp/tools/*` — surface addons in read/write tools.
+  `add <parent>/<addon>` shorthand. **Install-only; never edits app code.**
+- `packages/cli/src/commands/apply*` (NEW) — best-effort AST insert of import +
+  attribute, `--all/--class/--id` targeting, path-scoped, snippet fallback.
+- `packages/cli/src/mcp/tools/*` — surface addons in read/write tools; add an
+  `apply_addon` tool mirroring `apply`.
 - `packages/cli/scripts/sync-registry.ts` (+ `sync-registry-lib.ts`) — discover
   `addons/`, enforce boundary, emit addon entries.
 - `packages/components/ui/data-table/data-table.host.ts` — host contract (NEW).
@@ -204,10 +231,14 @@ cell-range is high-risk and low-reward for v1).
 
 ## Open decisions (call out, don't block)
 - Exact base/addon split per component (per-component pass in Phase 2/3).
-- Auto-apply by import-only vs require attribute — **recommend attribute** for
-  per-usage opt-in; revisit if devs want global-on.
-- CLI auto-insert of the attribute into existing usages: start with **best-effort
-  AST insert + snippet-print fallback**; full AST rewrite can come later.
+- Addon directive uses an **attribute selector** (`[dtExport]`) so the feature is
+  off until the dev writes that attribute on a specific table — per-usage opt-in.
+  (Alternative: an element selector that auto-applies to *every* `<ui-data-table>`
+  once imported — rejected; too blunt for real apps with multiple tables.)
+- `apply` targeting set — start with `--all` / `--class` / `--id`; add more hints
+  (e.g. `--name` for component class) only if needed.
+- `apply` scope — **default path-scoped** (current dir / explicit path arg) rather
+  than whole-project, to keep edits' blast radius small.
 - Default addon selection on `add` — **recommend `none`** (lean by default).
 
 ## Publish impact
@@ -221,9 +252,14 @@ Publish Is Required".)
   without addons and a base + selected addons; addon brings its own npm dep
   (`xlsx` only with `export`).
 - CLI e2e (the real gate): scaffold a pristine consumer app, `add data-table`
-  (lean — assert no `xlsx` in package.json, no addon files), then
-  `add data-table/export` (assert files written, `xlsx` added, usage auto-wired),
-  then drive Playwright to confirm the export button works. Mirror for `context-menu`.
+  (lean — assert no `xlsx` in package.json, no addon files). Then
+  `add data-table/export` — assert addon files written + `xlsx` added, and assert
+  **the consumer component is untouched** (add must not edit app code). Then
+  `apply data-table/export --id ordersTable` — assert the import + `dtExport`
+  attribute were inserted into the targeted usage only, and drive Playwright to
+  confirm the export button works. Also assert the **snippet fallback** path:
+  `apply` with two matching usages and no target prints the snippet and edits
+  nothing. Mirror for `context-menu`.
 - `npm run e2e:scaffold -- data-table` updates / add an addon-specific harness.
 - Confirm the base component compiles and tree-shakes with **no** addon imports
   (proves one-directional decoupling).
