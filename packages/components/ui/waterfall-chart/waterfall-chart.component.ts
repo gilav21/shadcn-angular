@@ -164,7 +164,7 @@ export class WaterfallChartComponent implements AfterViewInit {
         const lines: { x1: number; y1: number; x2: number; y2: number }[] = [];
         for (let i = 0; i < bars.length - 1; i++) {
             const y = ys.scale(this.levels()[i].to);
-            lines.push({ x1: bars[i].x, y1: y, x2: bars[i + 1].x + bars[i + 1].width, y2: y });
+            lines.push({ x1: bars[i].x + bars[i].width, y1: y, x2: bars[i + 1].x, y2: y });
         }
         return lines;
     });
