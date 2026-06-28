@@ -122,7 +122,7 @@ generalizes that idea to all extension points.
   ```ts
   type?: 'component' | 'block' | 'addon';
   parent?: ComponentName;                 // addon → its base
-  attach?: { import: string; selector?: string; snippet?: string };
+  attach?: { import: string; selector: string; snippet?: string };  // selector required: an addon needs an attribute to attach
   addons?: readonly string[];             // base → its available addon keys
   ```
 - `attach` tells the CLI how to wire: which symbol to import and which attribute
@@ -291,3 +291,14 @@ Publish Is Required".)
 - `npm run e2e:scaffold -- data-table` updates / add an addon-specific harness.
 - Confirm the base component compiles and tree-shakes with **no** addon imports
   (proves one-directional decoupling).
+
+---
+
+## Completion Log
+
+Each task is implemented test-first (TDD) and must pass an independent
+review-gate at **≥95** before advancing. Highest score recorded.
+
+| Task | Completed | Score | Rationale |
+| --- | --- | --- | --- |
+| 1 — Registry schema: addon fields + validator | 2026-06-29 | 95 | Faithfully adds `AddonAttach` (`selector` required), `type:'addon'`, optional `parent`/`attach`/`addons` to `ComponentDefinition`, and hardens `isValidRegistryShape` via small well-factored helpers that reject malformed addons/addons-arrays while preserving snapshot fallback. Tests cover the full risk surface; change is appropriately minimal (stops short of resolver-level checks that belong to later tasks); no `any`, all new members `readonly`, complexity well under 15. |

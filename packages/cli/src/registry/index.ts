@@ -27,6 +27,29 @@ export interface OptionalDependency {
   readonly description: string;
 }
 
+/**
+ * How `apply` wires an addon into a consumer's `<ui-{parent}>` usage. The CLI
+ * never reads or edits app code on `add` — only `apply` consumes this.
+ */
+export interface AddonAttach {
+  /**
+   * The import to insert, as `<Symbol> from <module>` where module is relative
+   * to the consumer's component (e.g. `DataTableExport from './ui/data-table/addons/export'`).
+   * The actual path is resolved by the CLI against the install location.
+   */
+  readonly import: string;
+  /**
+   * The attribute added to the base usage tag to activate the addon
+   * (e.g. `dtExport` → `<ui-data-table dtExport>`).
+   */
+  readonly selector: string;
+  /**
+   * Optional override for the paste-snippet shown when `apply` can't safely
+   * auto-edit. Defaults to a snippet derived from `import` + `selector`.
+   */
+  readonly snippet?: string;
+}
+
 export interface ComponentDefinition {
   readonly name: string;
   readonly files: readonly string[];
@@ -46,8 +69,29 @@ export interface ComponentDefinition {
   readonly category?: Category;
   /** Free-text search keywords (synonyms, use-cases). 3-6 per component. */
   readonly tags?: readonly string[];
-  /** 'component' (default) or 'block' (a composed page that reuses components). */
-  readonly type?: 'component' | 'block';
+  /**
+   * 'component' (default), 'block' (a composed page that reuses components), or
+   * 'addon' (an opt-in feature attached to a parent component — see `parent`).
+   */
+  readonly type?: 'component' | 'block' | 'addon';
+  /**
+   * For `type: 'addon'` entries: the parent component this addon attaches to
+   * (e.g. `data-table`). Addons are keyed `parent/addon` in the registry and are
+   * never auto-pulled by resolving the parent — they are opt-in.
+   */
+  readonly parent?: string;
+  /**
+   * For `type: 'addon'` entries: how the `apply` command wires the addon into a
+   * consumer usage. Unused by `add` (which only installs files).
+   */
+  readonly attach?: AddonAttach;
+  /**
+   * For addon-capable base components: the addon keys available for it
+   * (e.g. `['data-table/export', 'data-table/context-menu']`). Surfaced by
+   * `add`'s multiselect and by discovery tools; resolving the base does NOT
+   * install these.
+   */
+  readonly addons?: readonly string[];
   /**
    * Machine-readable breaking-change log surfaced by `get_install_plan` /
    * `update`, so a public-API break (a renamed selector/output, a hardened
