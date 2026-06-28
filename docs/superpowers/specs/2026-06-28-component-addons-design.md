@@ -151,24 +151,29 @@ generalizes that idea to all extension points.
   internally), so `apply` is the true one-liner: install + wire in one command —
   the "let me add that real quick" path. If the addon is already installed it
   skips straight to wiring. (`add` alone remains available for install-without-wiring.)
-- **Targeting hints** filter *which* usages get wired, so the CLI never guesses.
-  Two distinct "class" notions exist — keep them separate flags:
-  - `--all` → every `<ui-data-table>` in scope
-  - `--component <Name>` (alias `--in`) → only usages inside the named **Angular
-    component class** (e.g. `OrdersPageComponent`). Repeatable / comma-separated.
+- Targeting is **two independent questions** — keep them conceptually and in the
+  flag design separate:
+
+  **(1) Which files?** (file selection)
+  - Positional **component class name(s)** — e.g.
+    `apply data-table/export DashboardComponent` (repeatable / comma-separated),
+    or an explicit path (`apply data-table/export ./src/app/orders`).
+  - **Default:** if the cwd is truly a single-component dir, that component's
+    files. Otherwise the dev must name the component(s) or pass a path (no
+    whole-project guessing).
+
+  **(2) Which `<ui-data-table>` instances inside the selected files?**
+  (instance selection) — flags, never collide with the file question:
+  - `--all` → every instance in the selected files
   - `--class <token>` → instances whose tag **CSS `class="…"`** contains the token
   - `--id <token>` → instances matching that id / template-ref / `data-testid`
-- **Scope = path-scoped** by default: the current directory, or an explicit path
-  arg (`apply data-table/export ./src/app/orders`). `--all` means "all usages
-  *within that scope*", keeping blast radius small. `--component`/`--class`/`--id`
-  further filter within the scope.
-- **Interactive pick** when no targeting hint is given and >1 usage is found: list
-  the matched usages grouped by their host component and let the dev multiselect
-  which to wire. (This is the "make it a choice" path.)
+  - **Default:** if a selected file has exactly one instance, wire it; if >1 and
+    no instance flag, **interactive multiselect** (the "make it a choice" path).
+
 - **Snippet fallback** (never a hard failure): in non-interactive runs (CI, `--yes`)
-  where the target is still ambiguous, or nothing matches, print the exact import +
+  where the instance is still ambiguous, or nothing matches, print the exact import +
   attribute lines to paste and edit nothing.
-- Idempotent: re-running on an already-wired usage is a no-op.
+- Idempotent: re-running on an already-wired instance is a no-op.
 
 `update` preserves the set of installed addons. `why` and `list` surface addons.
 MCP tools `add_component`, `get_install_plan`, `get_component` surface addons;
@@ -247,14 +252,14 @@ cell-range is high-risk and low-reward for v1).
   off until the dev writes that attribute on a specific table — per-usage opt-in.
   (Alternative: an element selector that auto-applies to *every* `<ui-data-table>`
   once imported — rejected; too blunt for real apps with multiple tables.)
-- `apply` targeting set — `--all`, `--component`/`--in` (Angular component class),
-  `--class` (tag CSS class), `--id`. The two "class" notions are deliberately
-  separate flags to avoid ambiguity. Add more hints only if a real need appears.
-- `apply` with no target + >1 usage — **interactive multiselect** (grouped by host
-  component); snippet-print is the non-interactive fallback only.
-- `apply` scope — **default path-scoped** (current dir / explicit path arg) rather
-  than whole-project, to keep edits' blast radius small; targeting flags filter
-  within that scope.
+- `apply` targeting is **two levels**: (1) *which files* — positional component
+  class name(s) or a path, defaulting to the single component in the current dir;
+  (2) *which instances in those files* — `--all` / `--class` (tag CSS class) /
+  `--id`. The component name (file selection) is never an instance filter.
+- `apply` with selected files but no instance flag + >1 instance — **interactive
+  multiselect**; snippet-print is the non-interactive fallback only.
+- `apply` file default — only auto-selects when the cwd is truly a single-component
+  dir; otherwise require an explicit component name / path (no project-wide guess).
 - Default addon selection on `add` — **recommend `none`** (lean by default).
 
 ## Publish impact
@@ -271,11 +276,12 @@ Publish Is Required".)
   (lean — assert no `xlsx` in package.json, no addon files). Then
   `add data-table/export` — assert addon files written + `xlsx` added, and assert
   **the consumer component is untouched** (add must not edit app code). Then
-  `apply data-table/export --id ordersTable` — assert the import + `dtExport`
-  attribute were inserted into the targeted usage only, and drive Playwright to
-  confirm the export button works. Also assert the **snippet fallback** path:
-  `apply` with two matching usages and no target prints the snippet and edits
-  nothing. Mirror for `context-menu`.
+  `apply data-table/export DashboardComponent --id ordersTable` — assert file
+  selection (only `DashboardComponent`'s files touched) AND instance selection
+  (only the `ordersTable` instance wired), then drive Playwright to confirm the
+  export button works. Also assert the **snippet fallback** path: `apply` on a
+  file with two instances and no instance flag, non-interactively, prints the
+  snippet and edits nothing. Mirror for `context-menu`.
 - `npm run e2e:scaffold -- data-table` updates / add an addon-specific harness.
 - Confirm the base component compiles and tree-shakes with **no** addon imports
   (proves one-directional decoupling).
