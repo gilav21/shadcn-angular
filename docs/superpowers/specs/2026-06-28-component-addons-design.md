@@ -151,15 +151,23 @@ generalizes that idea to all extension points.
   internally), so `apply` is the true one-liner: install + wire in one command —
   the "let me add that real quick" path. If the addon is already installed it
   skips straight to wiring. (`add` alone remains available for install-without-wiring.)
-- **Targeting hints** filter *which* usages get wired, so the CLI never guesses:
+- **Targeting hints** filter *which* usages get wired, so the CLI never guesses.
+  Two distinct "class" notions exist — keep them separate flags:
   - `--all` → every `<ui-data-table>` in scope
-  - `--class <name>` → instances whose `class="…"` contains the token
-  - `--id <name>` → instances matching that id / template-ref / `data-testid`
+  - `--component <Name>` (alias `--in`) → only usages inside the named **Angular
+    component class** (e.g. `OrdersPageComponent`). Repeatable / comma-separated.
+  - `--class <token>` → instances whose tag **CSS `class="…"`** contains the token
+  - `--id <token>` → instances matching that id / template-ref / `data-testid`
 - **Scope = path-scoped** by default: the current directory, or an explicit path
   arg (`apply data-table/export ./src/app/orders`). `--all` means "all usages
-  *within that scope*", keeping blast radius small.
-- **Snippet fallback** (never a hard failure): if no target is given and >1 usage
-  matches, or nothing matches, print the exact import + attribute lines to paste.
+  *within that scope*", keeping blast radius small. `--component`/`--class`/`--id`
+  further filter within the scope.
+- **Interactive pick** when no targeting hint is given and >1 usage is found: list
+  the matched usages grouped by their host component and let the dev multiselect
+  which to wire. (This is the "make it a choice" path.)
+- **Snippet fallback** (never a hard failure): in non-interactive runs (CI, `--yes`)
+  where the target is still ambiguous, or nothing matches, print the exact import +
+  attribute lines to paste and edit nothing.
 - Idempotent: re-running on an already-wired usage is a no-op.
 
 `update` preserves the set of installed addons. `why` and `list` surface addons.
@@ -239,10 +247,14 @@ cell-range is high-risk and low-reward for v1).
   off until the dev writes that attribute on a specific table — per-usage opt-in.
   (Alternative: an element selector that auto-applies to *every* `<ui-data-table>`
   once imported — rejected; too blunt for real apps with multiple tables.)
-- `apply` targeting set — start with `--all` / `--class` / `--id`; add more hints
-  (e.g. `--name` for component class) only if needed.
+- `apply` targeting set — `--all`, `--component`/`--in` (Angular component class),
+  `--class` (tag CSS class), `--id`. The two "class" notions are deliberately
+  separate flags to avoid ambiguity. Add more hints only if a real need appears.
+- `apply` with no target + >1 usage — **interactive multiselect** (grouped by host
+  component); snippet-print is the non-interactive fallback only.
 - `apply` scope — **default path-scoped** (current dir / explicit path arg) rather
-  than whole-project, to keep edits' blast radius small.
+  than whole-project, to keep edits' blast radius small; targeting flags filter
+  within that scope.
 - Default addon selection on `add` — **recommend `none`** (lean by default).
 
 ## Publish impact
