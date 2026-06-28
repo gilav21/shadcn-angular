@@ -1,0 +1,106 @@
+<div
+  [class]="classes()"
+  [attr.data-slot]="'combo-chart'"
+  role="img"
+  [attr.aria-label]="ariaLabel()"
+>
+  <svg
+    #chartSvg
+    [attr.viewBox]="viewBox()"
+    width="100%"
+    [attr.height]="height()"
+    class="block w-full overflow-visible"
+    (mousemove)="onPointerMove($event)"
+    (mouseleave)="onPointerLeave()"
+    (touchstart)="onPointerMove($event)"
+    (touchmove)="onPointerMove($event)"
+    style="touch-action: none"
+  >
+    @if (showGrid()) {
+      @for (g of primaryTicks(); track g.value) {
+        <line
+          [attr.data-slot]="'grid-line'"
+          [attr.x1]="area().left"
+          [attr.x2]="area().right"
+          [attr.y1]="g.y"
+          [attr.y2]="g.y"
+          class="stroke-border"
+          stroke-width="1"
+          stroke-dasharray="2 3"
+        />
+      }
+    }
+
+    @for (g of primaryTicks(); track g.value) {
+      <text
+        [attr.x]="area().left - 8"
+        [attr.y]="g.y + 3"
+        text-anchor="end"
+        class="fill-muted-foreground text-[10px]"
+      >{{ g.value }}</text>
+    }
+
+    @for (c of categoryCenters(); track c.name) {
+      <text
+        [attr.x]="c.x"
+        [attr.y]="height() - 10"
+        text-anchor="middle"
+        class="fill-muted-foreground text-[10px]"
+      >{{ c.name }}</text>
+    }
+
+    @for (b of bars(); track b.key; let i = $index) {
+      <rect
+        [attr.data-slot]="'combo-bar'"
+        [attr.x]="b.x"
+        [attr.y]="b.y"
+        [attr.width]="b.width"
+        [attr.height]="b.height"
+        [attr.rx]="barRadius()"
+        [attr.fill]="b.color"
+        class="cursor-pointer transition-opacity"
+        [attr.opacity]="hoveredIndex() === null || hoveredIndex() === (i % categories().length) ? 1 : 0.55"
+        (click)="onBarClick(0, i % categories().length)"
+      />
+    }
+
+    @if (crosshairX() !== null) {
+      <line
+        [attr.data-slot]="'crosshair'"
+        [attr.x1]="crosshairX()"
+        [attr.x2]="crosshairX()"
+        [attr.y1]="area().top"
+        [attr.y2]="area().bottom"
+        class="stroke-muted-foreground/40"
+        stroke-width="1"
+      />
+    }
+
+    @for (l of lines(); track l.key) {
+      <path
+        [attr.data-slot]="'combo-line'"
+        [attr.d]="l.path"
+        fill="none"
+        [attr.stroke]="l.color"
+        stroke-width="2"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+      />
+    }
+  </svg>
+
+  @if (showTooltip()) {
+    <ui-chart-tooltip
+      [visible]="hoveredIndex() !== null && tooltipRows().length > 0"
+      [x]="tooltipPos().x"
+      [y]="tooltipPos().y"
+      [title]="hoverTitle()"
+      [rows]="tooltipRows()"
+      [flipX]="tooltipPos().x > svgWidth() * 0.7"
+    />
+  }
+
+  @if (showLegend()) {
+    <ui-chart-legend class="mt-2 justify-center" [items]="legendItems()" [interactive]="false" />
+  }
+</div>

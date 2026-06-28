@@ -9,6 +9,9 @@ import {
   ColumnRangeChartComponent,
   BarRaceChartComponent,
   LineChartComponent,
+  AreaChartComponent,
+  ComboChartComponent,
+  ChartSeries,
 } from '../../../../../packages/components/ui';
 import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
 
@@ -24,6 +27,8 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
     ColumnRangeChartComponent,
     BarRaceChartComponent,
     LineChartComponent,
+    AreaChartComponent,
+    ComboChartComponent,
   ],
   template: `
     <section class="space-y-6">
@@ -38,6 +43,20 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
           <p class="text-sm text-muted-foreground">{{ t().lineChartDescription }}</p>
           <ui-line-chart [dir]="dir()" [series]="t().stackedSeries" [width]="560" [height]="300"
             curve="monotone" [title]="t().lineChartHeading" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().areaChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().areaChartDescription }}</p>
+          <ui-area-chart [dir]="dir()" [series]="t().stackedSeries" [width]="560" [height]="300"
+            curve="monotone" [stacked]="true" [title]="t().areaChartHeading" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().comboChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().comboChartDescription }}</p>
+          <ui-combo-chart [dir]="dir()" [barSeries]="comboBars()" [showCumulative]="true"
+            [width]="560" [height]="320" [title]="t().comboChartHeading" />
         </div>
 
         <div class="space-y-4">
@@ -117,4 +136,7 @@ export class ChartsDemoComponent {
     () => CHARTS_DEMO_LOCALES[this.localeId()] ?? CHARTS_DEMO_LOCALES['en'],
   );
   readonly dir = computed<'ltr' | 'rtl'>(() => this.t().rtl ? 'rtl' : 'ltr');
+  protected readonly comboBars = computed<ChartSeries[]>(
+    () => [{ name: this.t().barVerticalHeading, data: this.t().barChartData }],
+  );
 }

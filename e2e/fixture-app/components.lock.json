@@ -1,6 +1,18 @@
 {
   "version": 1,
   "files": {
+    "area-chart/area-chart.component.html": {
+      "sha256": "50681aa2c8386299c9708b51946e96dc569a2108d6aedeaf7dfb9b72f97f6759",
+      "component": "area-chart"
+    },
+    "area-chart/area-chart.component.ts": {
+      "sha256": "0b8238f93d8589acba9d18f0435357a625d9cf647a917c7bb9abb8be98e60414",
+      "component": "area-chart"
+    },
+    "area-chart/index.ts": {
+      "sha256": "fc3553ff8e7d8fb70a84ef7aeddfd16e199b9561d6eceb4d16c58a4cb05a5b4a",
+      "component": "area-chart"
+    },
     "chart-interaction.ts": {
       "sha256": "3f9881a4e6801e2df2ad6d4dd3c2275a9f13f2c0990564cc6671675a339fd788",
       "component": "(lib)"

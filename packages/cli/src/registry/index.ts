@@ -1214,6 +1214,15 @@ export const registry = defineRegistry({
     libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
   },
+  'combo-chart': {
+    name: 'combo-chart',
+    category: 'charts',
+    description: 'Combined bar + line chart with a dual axis and optional cumulative Pareto line.',
+    tags: ['combo-chart', 'pareto', 'bar', 'line', 'dual-axis', 'chart'],
+    files: ['combo-chart/combo-chart.component.html', 'combo-chart/combo-chart.component.ts', 'combo-chart/index.ts'],
+    libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    dependencies: ['chart-legend', 'chart-tooltip'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;
