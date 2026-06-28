@@ -1,0 +1,68 @@
+<div
+  [class]="classes()"
+  [attr.data-slot]="'radar-chart'"
+  role="img"
+  [attr.aria-label]="ariaLabel()"
+>
+  <svg [attr.viewBox]="viewBox()" [attr.width]="size()" [attr.height]="size()" class="overflow-visible">
+    @for (ring of rings(); track $index) {
+      <polygon
+        [attr.data-slot]="'radar-ring'"
+        [attr.points]="ring"
+        fill="none"
+        class="stroke-border"
+        stroke-width="1"
+      />
+    }
+
+    @for (spoke of spokes(); track spoke.axis) {
+      <line
+        [attr.x1]="center()"
+        [attr.y1]="center()"
+        [attr.x2]="spoke.x"
+        [attr.y2]="spoke.y"
+        class="stroke-border"
+        stroke-width="1"
+      />
+      <text
+        [attr.x]="spoke.labelX"
+        [attr.y]="spoke.labelY"
+        text-anchor="middle"
+        dominant-baseline="middle"
+        class="fill-muted-foreground text-[10px]"
+      >{{ spoke.axis }}</text>
+    }
+
+    @for (poly of seriesPolygons(); track poly.key) {
+      <path
+        [attr.data-slot]="'radar-series'"
+        [attr.d]="poly.path"
+        [attr.fill]="poly.color"
+        [attr.fill-opacity]="fillOpacity()"
+        [attr.stroke]="poly.color"
+        stroke-width="2"
+        stroke-linejoin="round"
+      />
+      @for (v of poly.vertices; track v.axis) {
+        <circle
+          [attr.cx]="v.x"
+          [attr.cy]="v.y"
+          r="3"
+          [attr.fill]="poly.color"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="poly.name + ', ' + v.axis + ': ' + v.value"
+        />
+      }
+    }
+  </svg>
+
+  @if (showLegend()) {
+    <ui-chart-legend
+      class="mt-2 justify-center"
+      [items]="legendItems()"
+      [hidden]="hiddenSeries()"
+      (toggle)="toggleSeries($event)"
+    />
+  }
+</div>

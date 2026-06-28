@@ -13,6 +13,9 @@ import {
   ComboChartComponent,
   ScatterChartComponent,
   BubbleChartComponent,
+  GaugeChartComponent,
+  RadarChartComponent,
+  BulletChartComponent,
   ChartSeries,
   XYSeries,
   XYZSeries,
@@ -35,6 +38,9 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
     ComboChartComponent,
     ScatterChartComponent,
     BubbleChartComponent,
+    GaugeChartComponent,
+    RadarChartComponent,
+    BulletChartComponent,
   ],
   template: `
     <section class="space-y-6">
@@ -77,6 +83,25 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
           <p class="text-sm text-muted-foreground">{{ t().bubbleChartDescription }}</p>
           <ui-bubble-chart [dir]="dir()" [series]="bubbleSeries" [width]="560" [height]="360"
             [title]="t().bubbleChartHeading" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().gaugeChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().gaugeChartDescription }}</p>
+          <ui-gauge-chart [value]="72" unit="%" label="CPU" [thresholds]="gaugeThresholds" [size]="240" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().radarChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().radarChartDescription }}</p>
+          <ui-radar-chart [series]="radarSeries" [size]="340" [levels]="4" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().bulletChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().bulletChartDescription }}</p>
+          <ui-bullet-chart [value]="70" [target]="80" [ranges]="[50, 75, 100]" [width]="420"
+            [height]="44" label="Revenue" />
         </div>
 
         <div class="space-y-4">
@@ -174,6 +199,21 @@ export class ChartsDemoComponent {
     ] },
     { name: 'Services', points: [
       { x: 14, y: 50, z: 40 }, { x: 26, y: 60, z: 95 }, { x: 34, y: 48, z: 70 },
+    ] },
+  ];
+  protected readonly gaugeThresholds = [
+    { value: 0, color: 'hsl(142, 71%, 45%)' },
+    { value: 60, color: 'hsl(48, 96%, 53%)' },
+    { value: 85, color: 'hsl(0, 84%, 60%)' },
+  ];
+  protected readonly radarSeries: ChartSeries[] = [
+    { name: 'Product A', data: [
+      { name: 'Speed', value: 8 }, { name: 'Power', value: 6 }, { name: 'Range', value: 9 },
+      { name: 'Comfort', value: 5 }, { name: 'Price', value: 7 }, { name: 'Safety', value: 8 },
+    ] },
+    { name: 'Product B', data: [
+      { name: 'Speed', value: 5 }, { name: 'Power', value: 9 }, { name: 'Range', value: 4 },
+      { name: 'Comfort', value: 8 }, { name: 'Price', value: 6 }, { name: 'Safety', value: 7 },
     ] },
   ];
 }

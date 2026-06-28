@@ -1,0 +1,46 @@
+<div
+  [class]="classes()"
+  [attr.data-slot]="'bullet-chart'"
+  role="img"
+  [attr.aria-label]="ariaLabel()"
+>
+  <svg [attr.viewBox]="viewBox()" width="100%" [attr.height]="height()" class="block w-full">
+    <g transform="translate(4, 0)">
+      @for (band of rangeBands(); track $index) {
+        <rect
+          [attr.data-slot]="'bullet-range'"
+          [attr.x]="band.x"
+          [attr.y]="0"
+          [attr.width]="band.width"
+          [attr.height]="height()"
+          [attr.rx]="2"
+          class="fill-muted-foreground"
+          [attr.fill-opacity]="band.opacity"
+        />
+      }
+
+      <rect
+        [attr.data-slot]="'bullet-measure'"
+        [attr.x]="0"
+        [attr.y]="barY()"
+        [attr.width]="measureWidth()"
+        [attr.height]="measureHeight()"
+        [attr.rx]="2"
+        [attr.fill]="measureColor()"
+        class="transition-[width]"
+      />
+
+      @if (targetX() !== null) {
+        <line
+          [attr.data-slot]="'bullet-target'"
+          [attr.x1]="targetX()"
+          [attr.x2]="targetX()"
+          [attr.y1]="height() * 0.18"
+          [attr.y2]="height() * 0.82"
+          class="stroke-foreground"
+          stroke-width="3"
+        />
+      }
+    </g>
+  </svg>
+</div>

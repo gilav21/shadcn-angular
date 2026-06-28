@@ -95,6 +95,12 @@ export interface DrilldownEvent {
 
 export type LegendPosition = 'top' | 'bottom' | 'left' | 'right' | 'none';
 export type ChartOrientation = 'horizontal' | 'vertical';
+
+/** A colored threshold (zone) for gauge / bullet charts. */
+export interface GaugeThreshold {
+    value: number;
+    color: string;
+}
 export type ChartDirection = 'ltr' | 'rtl' | 'auto';
 export type StackingMode = 'absolute' | 'percent';
 export type EasingFunction = 'linear' | 'easeOut' | 'easeInOut' | 'easeOutQuart';

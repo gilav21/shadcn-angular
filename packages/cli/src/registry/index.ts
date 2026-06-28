@@ -1241,6 +1241,31 @@ export const registry = defineRegistry({
     libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
   },
+  'gauge-chart': {
+    name: 'gauge-chart',
+    category: 'charts',
+    description: 'Radial gauge for a single KPI with colored threshold zones and a semicircular value arc.',
+    tags: ['gauge-chart', 'gauge', 'kpi', 'radial', 'chart'],
+    files: ['gauge-chart/gauge-chart.component.html', 'gauge-chart/gauge-chart.component.ts', 'gauge-chart/index.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts'],
+  },
+  'bullet-chart': {
+    name: 'bullet-chart',
+    category: 'charts',
+    description: 'Compact linear KPI bar with qualitative range bands and a target marker.',
+    tags: ['bullet-chart', 'bullet', 'kpi', 'target', 'chart'],
+    files: ['bullet-chart/bullet-chart.component.html', 'bullet-chart/bullet-chart.component.ts', 'bullet-chart/index.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+  },
+  'radar-chart': {
+    name: 'radar-chart',
+    category: 'charts',
+    description: 'Radar (spider) chart comparing multiple series across shared axes, with an interactive legend.',
+    tags: ['radar-chart', 'radar', 'spider', 'chart', 'comparison'],
+    files: ['radar-chart/radar-chart.component.html', 'radar-chart/radar-chart.component.ts', 'radar-chart/index.ts'],
+    libFiles: ['chart-polar.ts', 'chart.types.ts', 'chart.utils.ts'],
+    dependencies: ['chart-legend'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;
