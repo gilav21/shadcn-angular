@@ -119,6 +119,7 @@ program
     .description('Update installed components to the latest registry version')
     .argument('[components...]', 'Components to update (all installed if omitted)')
     .option('-y, --yes', 'Install newly-required dependencies without prompting')
+    .option('-o, --overwrite', 'Overwrite local changes whole-file instead of 3-way merging')
     .option('--dry-run', 'Show what would update without writing')
     .option('--remote', 'Force remote fetch from GitHub registry')
     .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')

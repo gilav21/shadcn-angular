@@ -107,22 +107,33 @@ async function writePeerFiles(
     }
 }
 
+async function writeLibFile(targetPath: string, libFile: string, content: string, manifest: Manifest): Promise<void> {
+    await fs.ensureDir(path.dirname(targetPath));
+    await fs.writeFile(targetPath, content);
+    // Fingerprint the lib file so future drift is detectable (pristine vs
+    // user-edited) the same way component files are — this is what lets
+    // `doctor`/`update` later refresh a stale lib file safely.
+    recordFile(manifest, libFile, content, '(lib)');
+}
+
 async function installSingleLibFile(libFile: string, targetPath: string, options: AddOptions, warnings: string[], manifest: Manifest): Promise<void> {
     try {
         const content = await fetchLibContent(libFile, options);
-        const exists = await fs.pathExists(targetPath);
-        if (!exists || options.overwrite) {
-            await fs.ensureDir(path.dirname(targetPath));
-            await fs.writeFile(targetPath, content);
-            // Fingerprint the lib file so future drift is detectable (pristine vs
-            // user-edited) the same way component files are — this is what lets
-            // `doctor`/`update` later refresh a stale lib file safely.
-            recordFile(manifest, libFile, content, '(lib)');
+        if (!await fs.pathExists(targetPath)) {
+            await writeLibFile(targetPath, libFile, content, manifest);
             return;
         }
-        const local = normalizeContent(await fs.readFile(targetPath, 'utf-8'));
-        if (local !== normalizeContent(content)) {
-            warnings.push(`Lib file ${libFile} differs from remote (run doctor_fix or update to refresh)`);
+        const local = await fs.readFile(targetPath, 'utf-8');
+        const upToDate = normalizeContent(local) === normalizeContent(content);
+        // Refresh a pristine lib file (or when forced) — but never clobber a
+        // locally-edited one; lib files aren't 3-way merged, so an edited lib is
+        // preserved and flagged. `clean` means it matches our recorded baseline.
+        if (options.overwrite || fileStatus(manifest, libFile, local) === 'clean') {
+            if (!upToDate) await writeLibFile(targetPath, libFile, content, manifest);
+            return;
+        }
+        if (!upToDate) {
+            warnings.push(`Lib file ${libFile} differs from remote (run doctor_fix or update --overwrite to refresh)`);
         }
     } catch (err: unknown) {
         warnings.push(`Could not install lib file ${libFile}: ${err instanceof Error ? err.message : String(err)}`);

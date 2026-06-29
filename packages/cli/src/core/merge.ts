@@ -68,6 +68,28 @@ export function emptyMergeReport(): MergeReport {
     return { mergedClean: [], mergedConflicted: [], overwritten: [], skipped: [], fellBack: [] };
 }
 
+/** True when a file was written with unresolved conflict markers (drives a non-zero exit in CI). */
+export function hasUnresolvedConflicts(report: MergeReport): boolean {
+    return report.mergedConflicted.length > 0;
+}
+
+/** Plain-text summary lines for the post-update report (the caller adds color). */
+export function formatMergeSummary(report: MergeReport): string[] {
+    const lines: string[] = [];
+    if (report.mergedClean.length > 0) lines.push(`Merged cleanly: ${report.mergedClean.length}`);
+    if (report.mergedConflicted.length > 0) {
+        lines.push(`Merged with conflicts (resolve the <<<<<<< markers): ${report.mergedConflicted.length}`);
+        for (const f of report.mergedConflicted) lines.push(`  ! ${f}`);
+    }
+    if (report.overwritten.length > 0) lines.push(`Updated: ${report.overwritten.length}`);
+    if (report.skipped.length > 0) lines.push(`Already up to date: ${report.skipped.length}`);
+    if (report.fellBack.length > 0) {
+        lines.push(`Skipped (locally edited, no baseline to merge — re-run with --overwrite to take upstream): ${report.fellBack.length}`);
+        for (const f of report.fellBack) lines.push(`  ~ ${f}`);
+    }
+    return lines;
+}
+
 function tally(report: MergeReport, file: string, outcome: MergeOutcome): void {
     if (outcome === 'merged-clean') report.mergedClean.push(file);
     else if (outcome === 'merged-conflict') report.mergedConflicted.push(file);

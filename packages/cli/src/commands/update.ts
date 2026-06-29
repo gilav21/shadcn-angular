@@ -7,9 +7,10 @@ import { registry, getComponentNames, isComponentName, type ComponentName } from
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { resolveDependencies } from '../core/resolve.js';
 import { detectConflicts, printBreakingChanges, type AddOptions, type ConflictCheckResult } from '../core/plan.js';
-import { performInstall } from '../core/install.js';
+import { performInstall, type InstallResult } from '../core/install.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, type Manifest } from '../core/manifest.js';
+import { formatMergeSummary, hasUnresolvedConflicts } from '../core/merge.js';
 
 export async function resolveUpdateTargets(
     names: string[], cwd: string, config: Config,
@@ -118,9 +119,9 @@ async function warnCustomized(modified: ComponentName[], cwd: string, targetDir:
     }
     const customized = customizedAmong(modified, manifest, localContent, n => registry[n].files);
     if (customized.length === 0) return;
-    console.log(chalk.yellow('\nThese components have local edits that update will overwrite:'));
+    console.log(chalk.yellow('\nThese components have local edits — update will 3-way merge the upstream changes into them:'));
     for (const n of customized) console.log(chalk.yellow('  ~ ') + n);
-    console.log(chalk.dim('Review with `git diff` after updating and re-apply your changes.'));
+    console.log(chalk.dim('Conflicts (if any) are written as <<<<<<< markers; re-run with --overwrite to take upstream whole-file instead.'));
 }
 
 async function detectUpdates(
@@ -137,19 +138,38 @@ async function detectUpdates(
 async function applyUpdates(
     universe: Set<ComponentName>, conflicts: ConflictCheckResult,
     cwd: string, config: Config, options: AddOptions,
-): Promise<void> {
-    // `overwrite: true` refreshes shared lib files (utils, i18n, touch) for the
-    // updated set; the write set stays bounded to `universe` because
-    // precomputedConflicts is computed over exactly that set (no re-resolution).
+): Promise<InstallResult> {
+    // The write set is the `universe` (precomputedConflicts is computed over
+    // exactly that set — no re-resolution). Edited files 3-way merge against
+    // their recorded baseline by default; `--overwrite` (preserved in `options`)
+    // clobbers whole-file instead. Pristine shared lib files refresh either way.
     const result = await performInstall({
         components: [...universe],
         overwrite: [...universe],
         cwd, config,
-        options: { ...options, overwrite: true },
+        options,
         precomputedConflicts: conflicts,
     });
     console.log(chalk.green(`\nUpdated ${result.installed.length} component(s).`));
     for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
+    return result;
+}
+
+/** Print the per-file merge summary; return whether unresolved conflicts were written. */
+function reportMerge(result: InstallResult): boolean {
+    const lines = formatMergeSummary(result.mergeReport);
+    if (lines.length > 0) {
+        console.log(chalk.bold('\nMerge summary:'));
+        for (const line of lines) {
+            const color = line.includes('!') ? chalk.red : chalk.dim;
+            console.log(color('  ' + line));
+        }
+    }
+    if (hasUnresolvedConflicts(result.mergeReport)) {
+        console.log(chalk.red('\n⚠ Conflict markers (<<<<<<< / ======= / >>>>>>>) were written — resolve them, then build.'));
+        return true;
+    }
+    return false;
 }
 
 export async function update(names: string[], options: AddOptions): Promise<void> {
@@ -191,5 +211,9 @@ export async function update(names: string[], options: AddOptions): Promise<void
         return;
     }
 
-    await applyUpdates(universe, conflicts, cwd, config, options);
+    const result = await applyUpdates(universe, conflicts, cwd, config, options);
+    const hadConflicts = reportMerge(result);
+    // In non-interactive runs (CI / --yes) a written conflict must fail the
+    // command so a pipeline notices the unresolved markers.
+    if (hadConflicts && options.yes) process.exit(1);
 }

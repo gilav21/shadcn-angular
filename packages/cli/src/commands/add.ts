@@ -447,7 +447,10 @@ export async function add(components: string[], options: AddOptions): Promise<vo
     try {
         const result = await performInstall({
             components: componentsToAdd, optionalDeps: extraDeps,
-            overwrite: toOverwrite, cwd, config, options,
+            // The overwrite set came from an explicit choice (the --overwrite flag
+            // or the interactive overwrite prompt), so it's a whole-file clobber,
+            // not a 3-way merge.
+            overwrite: toOverwrite, forceOverwrite: true, cwd, config, options,
             path: componentPath, blocksPath, precomputedConflicts: conflicts,
         });
         printInstallResult(result, spinner);

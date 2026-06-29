@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
-import { classifyMerge, mergeWriteFile, emptyMergeReport, shouldAdvanceRef, type MergeWriteContext } from './merge.js';
+import {
+  classifyMerge, mergeWriteFile, emptyMergeReport, shouldAdvanceRef,
+  hasUnresolvedConflicts, formatMergeSummary, type MergeWriteContext, type MergeReport,
+} from './merge.js';
 import { emptyManifest, recordFile, recordComponentRef, getComponentRef, type Manifest } from './manifest.js';
 
 vi.mock('./ref.js', () => ({ fetchAtRef: vi.fn() }));
@@ -75,6 +78,36 @@ describe('classifyMerge', () => {
     expect(d.conflicts).toBe(1);
     expect(d.content).toContain('<<<<<<<');
     expect(d.content).toContain('>>>>>>>');
+  });
+});
+
+describe('merge report summary', () => {
+  function report(over: Partial<MergeReport>): MergeReport {
+    return { ...emptyMergeReport(), ...over };
+  }
+
+  it('flags unresolved conflicts only when a file was merged with markers', () => {
+    expect(hasUnresolvedConflicts(report({ mergedConflicted: ['a.ts'] }))).toBe(true);
+    expect(hasUnresolvedConflicts(report({ mergedClean: ['a.ts'], skipped: ['b.ts'] }))).toBe(false);
+    expect(hasUnresolvedConflicts(emptyMergeReport())).toBe(false);
+  });
+
+  it('summarizes each non-empty bucket and lists the conflicted/fell-back files', () => {
+    const lines = formatMergeSummary(report({
+      mergedClean: ['a.ts', 'b.ts'],
+      mergedConflicted: ['c.ts'],
+      overwritten: ['d.ts'],
+      skipped: ['e.ts'],
+      fellBack: ['f.ts'],
+    }));
+    const text = lines.join('\n');
+    expect(text).toContain('2'); // merged cleanly count
+    expect(text).toContain('c.ts'); // conflicted file listed
+    expect(text).toContain('f.ts'); // fell-back file listed
+  });
+
+  it('returns no lines for an empty report', () => {
+    expect(formatMergeSummary(emptyMergeReport())).toEqual([]);
   });
 });
 
