@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { init } from './commands/init.js';
 import { add } from './commands/add.js';
+import { apply } from './commands/apply.js';
 import { diff } from './commands/diff.js';
 import { list } from './commands/list.js';
 import { why } from './commands/why.js';
@@ -71,6 +72,22 @@ program
     .option('-b, --branch <branch>', 'GitHub branch to fetch components from', 'master')
     .option('-r, --registry <url>', 'Custom registry base URL (overrides components.json)')
     .action(add);
+
+program
+    .command('apply')
+    .description('Install an addon (if missing) and wire it into your component(s)')
+    .argument('<addon>', 'Addon key, e.g. data-table/context-menu')
+    .argument('[components...]', 'Component class name(s) to wire (else: current dir or scan)')
+    .option('-y, --yes', 'Non-interactive: wire all found, snippet-fallback when ambiguous')
+    .option('--scan', 'Scan the whole app for usages and choose interactively')
+    .option('--all', 'Wire every matching instance in the selected files')
+    .option('--class <token>', 'Wire instances whose tag class contains this token')
+    .option('--id <token>', 'Wire instances matching this id / template-ref / data-testid')
+    .option('--dry-run', 'Show what would be wired without writing')
+    .option('--remote', 'Force remote fetch from GitHub registry')
+    .option('-b, --branch <branch>', 'GitHub branch to fetch components from', 'master')
+    .option('-r, --registry <url>', 'Custom registry base URL (overrides components.json)')
+    .action(apply);
 
 program
     .command('diff')

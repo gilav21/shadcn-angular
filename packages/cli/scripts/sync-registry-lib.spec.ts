@@ -88,6 +88,13 @@ beforeAll(() => {
     touch('ui/widget/widget.component.ts', 'export class WidgetComponent {}');
     touch('ui/widget/addons/foo/index.ts', "export * from './foo.directive';");
     touch('ui/widget/addons/foo/foo.directive.ts', 'export class WidgetFoo {}');
+
+    // A consumer/compound component that USES an addon (imports its barrel).
+    touch('ui/panel/index.ts', "export * from './panel.component';");
+    touch(
+        'ui/panel/panel.component.ts',
+        "import { DataTableExport } from '../data-table/addons/export';\nexport class PanelComponent {}",
+    );
 });
 
 afterAll(() => {
@@ -397,6 +404,21 @@ describe('walkTree — addons', () => {
         });
         expect(ownFiles.has('ui/widget/addons/foo/index.ts')).toBe(false);
         expect(ownFiles.has('ui/widget/widget.component.ts')).toBe(true);
+    });
+
+    it('records a component that USES an addon (imports its barrel) as depending on it', () => {
+        const entryFileToComponent = new Map<string, string>([
+            ['ui/panel/index.ts', 'panel'],
+            ['ui/data-table/index.ts', 'data-table'],
+            ['ui/data-table/addons/export/index.ts', 'data-table/export'],
+        ]);
+        const ctx: BoundaryContext = {
+            entryFileToComponent,
+            dirOwners: buildDirOwners(entryFileToComponent),
+        };
+        const { discoveredDeps, addonViolations } = walkTree('ui/panel/index.ts', 'panel', ctx, root);
+        expect([...discoveredDeps]).toContain('data-table/export');
+        expect(addonViolations).toEqual([]); // a third-party consumer is NOT a boundary violation
     });
 
     it('walks an addon and records its parent as a dependency, not own', () => {
