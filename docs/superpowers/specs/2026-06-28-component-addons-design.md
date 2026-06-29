@@ -114,6 +114,53 @@ rich-text already has the pattern to mirror: `RichTextCommandRegistry`
 (injectable, `registerCommand` returns an unregister fn). The host contract
 generalizes that idea to all extension points.
 
+#### Generic slot mechanism (locked for the context-menu pilot)
+
+Some addon affordances need **template real-estate inside the base** (e.g. a
+visible ⋮ button in a row cell or a column header) that a directive cannot
+inject on its own. The base therefore exposes **generic, addon-agnostic slot
+registration** on the host contract — the base renders whatever is registered
+without knowing which addon registered it:
+
+```ts
+abstract registerCellAction(slot: CellActionSlot<T>): () => void;    // ⋮ per row
+abstract registerHeaderAction(slot: HeaderActionSlot<T>): () => void; // ⋮ per header
+```
+
+The base template iterates registered slots and renders their button (icon +
+click handler the slot supplies); the addon supplies the renderer + behavior.
+This is the reusable foundation future addons (export toolbar button, etc.)
+also build on.
+
+#### Task 3 pilot decisions (locked with the user)
+
+- **Pilot addon = `data-table/context-menu`** (the user's vision exemplar).
+- **Clean break + codemod.** `[rowActions]` / `[enableColumnMenu]` move off the
+  bare `<ui-data-table>` onto the `dtContextMenu` directive. The base sheds ALL
+  context-menu code *and* its dependency on the `context-menu` component. A
+  `breaking` registry entry (`kind:'input'`) announces it via
+  `get_install_plan`/`update`; demo/stories/e2e migrate to the directive form.
+- **Keep the visible ⋮ buttons** via the generic slot mechanism above (not
+  right-click-only). The directive also wires `contextmenu` (mouse) **and**
+  long-press (touch, via `lib/touch.ts`) so the menu is reachable on touch
+  (CLAUDE.md §6).
+- **Menu rendering is imperative**: the directive instantiates
+  `ContextMenuComponent` via `ViewContainerRef` + `setInput('items', …)` +
+  `show(x, y)` — confirmed self-managing its own overlay — so the base needs no
+  context-menu template.
+- **What stays in the base** (generic row/column primitives the contract
+  exposes): `enhancedColumns()`, row access by index, `getRowContext(row,index)`
+  (generic row metadata incl. selection + tree state), sort get/set, column
+  pin get/set, column visibility set + `showAllColumns()`, locale `t()`, and the
+  two slot registries. **What moves to the addon**: the `rowActions` /
+  `enableColumnMenu` inputs, all menu-building (row-action, column sort/pin/hide
+  menus), the event listeners, and the `ContextMenuComponent` rendering.
+
+Task 3 is split into sub-tasks, each gated ≥95: **3a** host contract + provider
++ generic slot machinery; **3b** the `dtContextMenu` addon directive; **3c**
+delete context-menu from the base + migrate its tests; **3d** registry addon
+entry + `breaking` codemod + demo/stories/e2e migration.
+
 ### 3. Registry & CLI mechanism
 
 **Registry schema (`ComponentDefinition` in `packages/cli/src/registry/index.ts`):**
