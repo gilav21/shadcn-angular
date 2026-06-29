@@ -70,16 +70,19 @@ ui/data-table/
   data-table.host.ts               # NEW: DataTableAddonHost contract (the API addons use)
   addons/
     context-menu/
-      context-menu.directive.ts    # selector: '[dtContextMenu]'
+      context-menu.directive.ts    # selector: '[uiDtContextMenu]'
       index.ts
     ai/
-      ai.directive.ts              # selector: '[dtAi]'  (+ ai.component.html for its UI panel)
+      ai.directive.ts              # selector: '[uiDtAi]'  (+ ai.component.html for its UI panel)
       index.ts
     export/
-      export.directive.ts          # selector: '[dtExport]' (pulls xlsx here, not in base)
+      export.directive.ts          # selector: '[uiDtExport]' (pulls xlsx here, not in base)
       index.ts
 ```
 
+- Addon directive selectors are **`ui`-prefixed** (lint-enforced by
+  `@angular-eslint/directive-selector`), so the consumer-facing attribute is
+  e.g. `uiDtContextMenu` (not `dtContextMenu`).
 - The base component
   **`providers: [{ provide: DataTableAddonHost, useExisting: DataTableComponent }]`**
   (or exposes itself as the token). Crucially the base **does not import any addon** —
@@ -89,7 +92,7 @@ ui/data-table/
   `host.registerContextMenuProvider(...)`, `host.registerToolbarSlot(...)`,
   reads `host.columns()`, calls `host.applyFilter(spec)`).
 - **Zero runtime registry, zero ceremony** — Angular's DI + selector matching is
-  the wiring. Per-usage opt-in via the attribute (`<ui-data-table dtContextMenu>`);
+  the wiring. Per-usage opt-in via the attribute (`<ui-data-table uiDtContextMenu>`);
   the directive only needs to be in the consuming standalone component's `imports`.
 
 ### 2. The host extension contract (the real API-design work)
@@ -136,7 +139,7 @@ also build on.
 
 - **Pilot addon = `data-table/context-menu`** (the user's vision exemplar).
 - **Clean break + codemod.** `[rowActions]` / `[enableColumnMenu]` move off the
-  bare `<ui-data-table>` onto the `dtContextMenu` directive. The base sheds ALL
+  bare `<ui-data-table>` onto the `uiDtContextMenu` directive. The base sheds ALL
   context-menu code *and* its dependency on the `context-menu` component. A
   `breaking` registry entry (`kind:'input'`) announces it via
   `get_install_plan`/`update`; demo/stories/e2e migrate to the directive form.
@@ -157,7 +160,7 @@ also build on.
   menus), the event listeners, and the `ContextMenuComponent` rendering.
 
 Task 3 is split into sub-tasks, each gated ≥95: **3a** host contract + provider
-+ generic slot machinery; **3b** the `dtContextMenu` addon directive; **3c**
++ generic slot machinery; **3b** the `uiDtContextMenu` addon directive; **3c**
 delete context-menu from the base + migrate its tests; **3d** registry addon
 entry + `breaking` codemod + demo/stories/e2e migration.
 
@@ -194,7 +197,7 @@ At a glance:
 - On install the CLI: writes the addon files into the library folder, installs
   the addon's own `npmDependencies`/`libFiles` (so `xlsx` only arrives with
   `export`). **It does not read or edit any consuming component.** It prints a
-  one-line hint: add the `dtExport` attribute where you want it, or run `apply`.
+  one-line hint: add the `uiDtExport` attribute where you want it, or run `apply`.
 
 `apply` — **explicit, opt-in, targeted wiring (the only command that edits app code):**
 - `apply data-table/export [targeting]` → inserts the addon's `import` + attribute
@@ -301,7 +304,7 @@ cell-range is high-risk and low-reward for v1).
 
 ## Open decisions (call out, don't block)
 - Exact base/addon split per component (per-component pass in Phase 2/3).
-- Addon directive uses an **attribute selector** (`[dtExport]`) so the feature is
+- Addon directive uses an **attribute selector** (`[uiDtExport]`) so the feature is
   off until the dev writes that attribute on a specific table — per-usage opt-in.
   (Alternative: an element selector that auto-applies to *every* `<ui-data-table>`
   once imported — rejected; too blunt for real apps with multiple tables.)
@@ -351,3 +354,4 @@ review-gate at **≥95** before advancing. Highest score recorded.
 | 1 — Registry schema: addon fields + validator | 2026-06-29 | 95 | Faithfully adds `AddonAttach` (`selector` required), `type:'addon'`, optional `parent`/`attach`/`addons` to `ComponentDefinition`, and hardens `isValidRegistryShape` via small well-factored helpers that reject malformed addons/addons-arrays while preserving snapshot fallback. Tests cover the full risk surface; change is appropriately minimal (stops short of resolver-level checks that belong to later tasks); no `any`, all new members `readonly`, complexity well under 15. |
 | 2 — sync-registry: addon-aware walk + boundary enforcement | 2026-06-29 | 95 | `getEntryFile` resolves a `parent/addon` name to its `addons/<addon>/index.ts` barrel; `addonReachedFromBase`/`classifyImport` flag a base reaching into its own `addons/` (checked before entry-owner lookup) and `walkTree` records the violation without absorbing addon files; `main` escalates to a hard `exitCode=1` abort in both check and `--fix` modes. One walk rule covers both the deep-import and barrel-re-export forms (tested end-to-end). Minimal, SonarQube-clean, matches the hand-authored-then-maintained pattern. |
 | 3a — Host contract + provider + generic slot registry | 2026-06-29 | 96 | `DataTableAddonHost<T>` abstract DI token exposes exactly the base-retained surface (columns, row access, getRowContext, sort/pin get-set, visibility, showAllColumns, getLocale) + cell/header slot register+list; `AddonSlotRegistry<S>` is a signal-backed reactive registry with identity-correct teardown; `DataTableComponent` implements + provides the token (useExisting/forwardRef). Purely additive (slot rendering + context-menu removal deferred to 3c); one-directional boundary holds (base imports no addon); `implements` compiles under strict root tsconfig. 9 tests (4 unit + 5 TestBed DI). |
+| 3b — uiDtContextMenu addon directive | 2026-06-29 | 96 | Opt-in `[uiDtContextMenu]` directive injects `DataTableAddonHost` via the parent barrel (`../..`), owns the `context-menu` dependency, and renders menus imperatively (`ContextMenuComponent` via `ViewContainerRef`). Slots register/unregister reactively (`effect`+`onCleanup`) keyed on `rowActions`/`enableColumnMenu`; reachable by mouse (`contextmenu`), touch (`onLongPress`), and ⋮ buttons; `ComponentRef`s + listener torn down on destroy. Column-menu logic is a faithful port (sort/pin/hide, separators, enableSorting/enableHiding omissions, faithful `{columnKey,column}` payload). 11 tests. Base imports no addon; sync reports in-sync. |
