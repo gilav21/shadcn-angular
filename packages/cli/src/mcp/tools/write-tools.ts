@@ -7,6 +7,7 @@ import { performInstall } from '../../core/install.js';
 import { collectBreakingChanges } from '../../core/plan.js';
 import { scanStaleSelectors } from '../../core/codemod.js';
 import { initProject } from '../../core/init-core.js';
+import { applyCore, resolveAddonInfo, ApplyError } from '../../core/apply-core.js';
 import { diffComponentFiles, type ComponentDiff } from '../../core/diff-core.js';
 import { getConfig, getDefaultConfig, getPrefix, type Config } from '../../utils/config.js';
 import { aliasToProjectPath, resolveProjectPath } from '../../utils/paths.js';
@@ -315,6 +316,42 @@ function registerDoctorTool(server: McpServer, cwd: string): void {
     });
 }
 
+function registerApplyAddonTool(server: McpServer, cwd: string): void {
+    server.registerTool('apply_addon', {
+        title: 'Apply an addon',
+        description: 'Install an addon (and its base if missing) and wire it into your app non-interactively: adds the directive import + the attribute on the base component\'s usage. Target by component class name(s), or omit to wire every app-code usage. Returns per-target wiring counts and a paste snippet for anything it could not auto-wire.',
+        inputSchema: {
+            addon: z.string().describe('Addon key, e.g. "data-table/context-menu".'),
+            components: z.array(z.string()).optional().describe('Component class name(s) to wire into (e.g. ["UsersTableComponent"]). Omit to scan all app-code usages.'),
+            all: z.boolean().optional().describe('Wire every matching tag instance in each target.'),
+            class: z.string().optional().describe('Only wire instances carrying this CSS class token.'),
+            id: z.string().optional().describe('Only wire the instance with this template ref / id / data-testid.'),
+            dryRun: z.boolean().optional().describe('Report what would be wired without writing or installing.'),
+        },
+        annotations: { destructiveHint: true },
+    }, async (args) => {
+        try {
+            resolveAddonInfo(args.addon, 'src/components/ui');
+        } catch (e) {
+            if (e instanceof ApplyError) return err(e.message);
+            throw e;
+        }
+        const config = await getConfig(cwd);
+        if (!config) return err('Project not initialized — run init_project first.');
+        try {
+            const options = {
+                branch: 'master', registry: config.registry, yes: true,
+                all: args.all, class: args.class, id: args.id, dryRun: args.dryRun,
+            };
+            const result = await applyCore(args.addon, args.components ?? [], options, cwd, config);
+            return json(result);
+        } catch (error) {
+            if (error instanceof ApplyError) return err(error.message);
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+}
+
 function registerRefreshLibTool(server: McpServer, cwd: string): void {
     server.registerTool('refresh_lib', {
         title: 'Refresh shared lib files',
@@ -348,4 +385,5 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
     registerThemeTool(server, cwd);
     registerDoctorTool(server, cwd);
     registerRefreshLibTool(server, cwd);
+    registerApplyAddonTool(server, cwd);
 }

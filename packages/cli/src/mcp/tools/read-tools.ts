@@ -54,6 +54,16 @@ function registerSearchTools(server: McpServer): void {
             directDependencies: def.dependencies ?? [],
             resolvedDependencies: resolved,
             npmDependencies: [...npm],
+            // Addon discovery: a base lists its opt-in addons; an addon entry
+            // exposes how to attach it (apply via the CLI `apply <name>`).
+            addons: def.addons ?? [],
+            ...(def.type === 'addon'
+                ? {
+                    parent: def.parent,
+                    attach: def.attach,
+                    requiresBaseFiles: def.requiresBaseFiles ?? [],
+                }
+                : {}),
         });
     });
 }

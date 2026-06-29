@@ -80,6 +80,13 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['dialog', 'dropdown-menu', 'select'],
         label: 'rtl',
     },
+    // addon system: install the lean data-table base AND its opt-in
+    // `context-menu` addon together, then prove they auto-wire via DI
+    // (the ⋮ row button + right-click menu) with `uiDtContextMenu`.
+    {
+        names: ['data-table', 'data-table/context-menu'],
+        label: 'data-table-context-menu',
+    },
     // cross-cutting: dark-mode CSS variable propagation.
     {
         names: ['button'],

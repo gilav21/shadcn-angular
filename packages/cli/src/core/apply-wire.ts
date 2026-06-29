@@ -5,6 +5,18 @@
  * confidently is left to the command's snippet fallback.
  */
 
+import type { AddOptions } from './plan.js';
+
+/** Options for the `apply` command — install/fetch flags plus targeting. */
+export interface ApplyOptions extends AddOptions {
+    /** Instance selection. */
+    all?: boolean;
+    class?: string;
+    id?: string;
+    /** Force the project-wide scan even when a component could be inferred. */
+    scan?: boolean;
+}
+
 function escapeRegExp(s: string): string {
     return s.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

@@ -3,51 +3,30 @@ import fs from 'fs-extra';
 import chalk from 'chalk';
 import ora from 'ora';
 import prompts from 'prompts';
-import { registry, type ComponentName } from '../registry/index.js';
-import { getConfig } from '../utils/config.js';
+import { getConfig, type Config } from '../utils/config.js';
 import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
 import { performInstall } from '../core/install.js';
-import type { AddOptions } from '../core/plan.js';
 import {
-    parseAttachSymbol,
-    addonImportModule,
-    missingBaseFiles,
     findTemplateInstances,
     insertSelectorAtInstances,
     wireDirectiveImport,
-    resolveTemplateLocation,
     decideInstances,
+    type ApplyOptions,
     type TemplateInstance,
 } from '../core/apply-wire.js';
+import {
+    ApplyError,
+    resolveAddonInfo,
+    collectComponentFiles,
+    toTarget,
+    readTemplate,
+    componentsUsingTag,
+    missingBaseFilesFor,
+    type AddonInfo,
+    type Target,
+} from '../core/apply-core.js';
 
-export interface ApplyOptions extends AddOptions {
-    /** Instance selection. */
-    all?: boolean;
-    class?: string;
-    id?: string;
-    /** Force the project-wide scan even when a component could be inferred. */
-    scan?: boolean;
-}
-
-const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.angular', 'coverage', '.vscode']);
-
-interface AddonInfo {
-    readonly name: ComponentName;
-    readonly parent: string;
-    readonly tag: string;
-    readonly selector: string;
-    readonly symbol: string;
-    readonly module: string;
-    readonly requiresBaseFiles: readonly string[];
-}
-
-/** A component file targeted for wiring + its resolved template source. */
-interface Target {
-    readonly className: string;
-    readonly tsPath: string;
-    readonly templatePath: string; // === tsPath for inline templates
-    readonly inline: boolean;
-}
+export type { ApplyOptions };
 
 function onCancel(): never {
     console.log(chalk.dim('Cancelled.'));
@@ -59,81 +38,14 @@ function fail(message: string): never {
     process.exit(1);
 }
 
+/** Resolve an addon for the CLI, turning an {@link ApplyError} into an exit. */
 function resolveAddon(addonName: string, uiAlias: string): AddonInfo {
-    const entry = registry[addonName as ComponentName];
-    if (!entry || entry.type !== 'addon' || !entry.attach || !entry.parent) {
-        const available = Object.values(registry).filter(c => c.type === 'addon').map(c => c.name);
-        fail(`"${addonName}" is not an addon. Available addons: ${available.join(', ') || '(none)'}`);
+    try {
+        return resolveAddonInfo(addonName, uiAlias);
+    } catch (e) {
+        if (e instanceof ApplyError) fail(e.message);
+        throw e;
     }
-    return {
-        name: addonName as ComponentName,
-        parent: entry.parent,
-        tag: `ui-${entry.parent}`,
-        selector: entry.attach.selector,
-        symbol: parseAttachSymbol(entry.attach.import),
-        module: addonImportModule(uiAlias, entry.parent, addonName),
-        requiresBaseFiles: entry.requiresBaseFiles ?? [],
-    };
-}
-
-async function collectComponentFiles(root: string, managed: string[]): Promise<string[]> {
-    const out: string[] = [];
-    const walk = async (dir: string): Promise<void> => {
-        let entries: fs.Dirent[];
-        try {
-            entries = await fs.readdir(dir, { withFileTypes: true });
-        } catch {
-            return; // unreadable dir — skip
-        }
-        for (const entry of entries) {
-            const full = path.join(dir, entry.name);
-            if (entry.isDirectory()) {
-                if (SKIP_DIRS.has(entry.name) || managed.some(m => full === m)) continue;
-                await walk(full);
-            } else if (entry.name.endsWith('.component.ts')) {
-                out.push(full);
-            }
-        }
-    };
-    await walk(root);
-    return out;
-}
-
-function classNameOf(source: string): string | null {
-    return /export\s+class\s+([A-Za-z_$][\w$]*)/.exec(source)?.[1] ?? null;
-}
-
-async function templatePathFor(tsPath: string, source: string): Promise<{ templatePath: string; inline: boolean } | null> {
-    const loc = resolveTemplateLocation(source);
-    if (!loc) return null;
-    if (loc.inline) return { templatePath: tsPath, inline: true };
-    return { templatePath: path.resolve(path.dirname(tsPath), loc.templateUrl), inline: false };
-}
-
-async function readTemplate(target: Target, tsSource: string): Promise<string> {
-    return target.inline ? tsSource : fs.readFile(target.templatePath, 'utf-8');
-}
-
-/** Build a Target from a component .ts path, or null if it has no template. */
-async function toTarget(tsPath: string): Promise<Target | null> {
-    const source = await fs.readFile(tsPath, 'utf-8');
-    const className = classNameOf(source);
-    const tpl = await templatePathFor(tsPath, source);
-    if (!className || !tpl) return null;
-    return { className, tsPath, templatePath: tpl.templatePath, inline: tpl.inline };
-}
-
-async function componentsUsingTag(files: string[], tag: string): Promise<{ target: Target; count: number }[]> {
-    const result: { target: Target; count: number }[] = [];
-    for (const file of files) {
-        const target = await toTarget(file);
-        if (!target) continue;
-        const source = await fs.readFile(target.tsPath, 'utf-8');
-        const template = await readTemplate(target, source);
-        const count = findTemplateInstances(template, tag).length;
-        if (count > 0) result.push({ target, count });
-    }
-    return result;
 }
 
 /** File selection by explicit component class name(s). */
@@ -242,6 +154,28 @@ async function wireTarget(addon: AddonInfo, target: Target, options: ApplyOption
     return edited.wired;
 }
 
+/** Install the addon (+ base) if missing and verify the contract is present. */
+async function installAndCheckCompat(addon: AddonInfo, cwd: string, uiAlias: string, options: ApplyOptions, config: Config): Promise<void> {
+    const spinner = ora(`Installing ${addon.name} if missing...`).start();
+    try {
+        await performInstall({ components: [addon.name], cwd, config, options });
+        spinner.succeed(`${addon.name} installed.`);
+    } catch (error) {
+        spinner.fail('Install failed');
+        console.error(error);
+        process.exit(1);
+    }
+
+    const uiDir = resolveProjectPath(cwd, aliasToProjectPath(uiAlias));
+    const missing = missingBaseFilesFor(addon, uiDir);
+    if (missing.length > 0) {
+        fail(
+            `Your ${addon.parent} predates the ${addon.name} addon — it is missing the contract file(s): ${missing.join(', ')}.\n` +
+            `Run \`npx @gilav21/shadcn-angular update ${addon.parent}\` (you own the source — review the changes), then re-run apply.`,
+        );
+    }
+}
+
 export async function apply(addonName: string, components: string[], options: ApplyOptions): Promise<void> {
     const cwd = process.cwd();
     const config = await getConfig(cwd);
@@ -251,38 +185,14 @@ export async function apply(addonName: string, components: string[], options: Ap
     const uiAlias = config.aliases.ui || 'src/components/ui';
     const addon = resolveAddon(addonName, uiAlias);
 
-    // 1. Install the addon (and its base) if not already present.
-    if (!options.dryRun) {
-        const spinner = ora(`Installing ${addon.name} if missing...`).start();
-        try {
-            await performInstall({ components: [addon.name], cwd, config, options });
-            spinner.succeed(`${addon.name} installed.`);
-        } catch (error) {
-            spinner.fail('Install failed');
-            console.error(error);
-            process.exit(1);
-        }
+    if (!options.dryRun) await installAndCheckCompat(addon, cwd, uiAlias, options, config);
 
-        // Compat guard: the installed base must provide the addon's contract.
-        // Robust to edits — only the contract file's presence matters, not version.
-        const uiDir = resolveProjectPath(cwd, aliasToProjectPath(uiAlias));
-        const missing = missingBaseFiles(addon.requiresBaseFiles, f => fs.existsSync(path.join(uiDir, f)));
-        if (missing.length > 0) {
-            fail(
-                `Your ${addon.parent} predates the ${addon.name} addon — it is missing the contract file(s): ${missing.join(', ')}.\n` +
-                `Run \`npx @gilav21/shadcn-angular update ${addon.parent}\` (you own the source — review the changes), then re-run apply.`,
-            );
-        }
-    }
-
-    // 2. Resolve target files — app code only (skip the managed ui/blocks dirs).
     const managed = [config.aliases.ui, config.aliases.blocks]
         .filter((a): a is string => Boolean(a))
         .map(a => resolveProjectPath(cwd, aliasToProjectPath(a)));
     const targets = await selectTargets(addon, components, options, cwd, managed);
     if (targets.length === 0) { console.log(chalk.dim('Nothing to wire.')); return; }
 
-    // 3. Wire each.
     let total = 0;
     for (const target of targets) total += await wireTarget(addon, target, options);
     if (total === 0) console.log(chalk.dim('No instances wired (already wired or none selected).'));
