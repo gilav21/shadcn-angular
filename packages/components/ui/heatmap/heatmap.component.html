@@ -4,7 +4,12 @@
   role="img"
   [attr.aria-label]="ariaLabel()"
 >
-  <svg [attr.viewBox]="viewBox()" width="100%" [attr.height]="svgHeight()" class="block w-full">
+  <svg
+    [attr.viewBox]="viewBox()"
+    [attr.width]="usedWidth()"
+    [attr.height]="svgHeight()"
+    class="block h-auto max-w-full"
+  >
     @for (c of colLabels(); track c.col) {
       <text [attr.x]="c.x" [attr.y]="14" text-anchor="middle" class="fill-muted-foreground text-[10px]">{{ c.col }}</text>
     }

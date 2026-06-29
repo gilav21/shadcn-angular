@@ -45,7 +45,8 @@ export class HeatmapComponent {
 
     readonly data = input.required<HeatmapCell[]>();
     readonly width = input(480);
-    readonly cellHeight = input(34);
+    readonly maxCellSize = input(52);
+    readonly minCellSize = input(18);
     readonly fromColor = input('hsl(214, 95%, 93%)');
     readonly toColor = input('hsl(221, 83%, 40%)');
     readonly showValues = input(false);
@@ -96,40 +97,47 @@ export class HeatmapComponent {
         return this.colorScale()(value);
     }
 
-    readonly cellWidth = computed(() => {
+    /** Square cell size: fills the available width up to maxCellSize, shrinks to minCellSize. */
+    readonly cellSize = computed(() => {
         const cols = this.cols().length;
-        if (cols === 0) return 0;
-        return (this.svgWidth() - ROW_LABEL_W - GAP * cols) / cols;
+        if (cols === 0) return this.maxCellSize();
+        const ideal = (this.svgWidth() - ROW_LABEL_W - GAP * cols) / cols;
+        return Math.max(this.minCellSize(), Math.min(this.maxCellSize(), ideal));
     });
 
-    readonly svgHeight = computed(() => COL_LABEL_H + this.rows().length * (this.cellHeight() + GAP));
-    readonly viewBox = computed(() => `0 0 ${this.svgWidth()} ${this.svgHeight()}`);
+    /** Intrinsic width of the drawn grid (cells are square, not stretched). */
+    readonly usedWidth = computed(() =>
+        ROW_LABEL_W + this.cols().length * (this.cellSize() + GAP),
+    );
+
+    readonly svgHeight = computed(() => COL_LABEL_H + this.rows().length * (this.cellSize() + GAP));
+    readonly viewBox = computed(() => `0 0 ${this.usedWidth()} ${this.svgHeight()}`);
 
     readonly colLabels = computed(() => {
-        const w = this.cellWidth();
+        const size = this.cellSize();
         return this.cols().map((col, ci) => ({
             col,
-            x: ROW_LABEL_W + ci * (w + GAP) + w / 2,
+            x: ROW_LABEL_W + ci * (size + GAP) + size / 2,
         }));
     });
 
-    readonly rowLabels = computed(() =>
-        this.rows().map((row, ri) => ({
+    readonly rowLabels = computed(() => {
+        const size = this.cellSize();
+        return this.rows().map((row, ri) => ({
             row,
-            y: COL_LABEL_H + ri * (this.cellHeight() + GAP) + this.cellHeight() / 2,
-        })),
-    );
+            y: COL_LABEL_H + ri * (size + GAP) + size / 2,
+        }));
+    });
 
     readonly placedCells = computed((): PlacedCell[] => {
-        const w = this.cellWidth();
-        const h = this.cellHeight();
+        const size = this.cellSize();
         const rowIndex = new Map(this.rows().map((r, i) => [r, i]));
         const colIndex = new Map(this.cols().map((c, i) => [c, i]));
         return this.data().map(cell => ({
-            x: ROW_LABEL_W + (colIndex.get(cell.col) ?? 0) * (w + GAP),
-            y: COL_LABEL_H + (rowIndex.get(cell.row) ?? 0) * (h + GAP),
-            w,
-            h,
+            x: ROW_LABEL_W + (colIndex.get(cell.col) ?? 0) * (size + GAP),
+            y: COL_LABEL_H + (rowIndex.get(cell.row) ?? 0) * (size + GAP),
+            w: size,
+            h: size,
             color: this.colorFor(cell.value),
             cell,
         }));

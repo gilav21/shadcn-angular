@@ -50,6 +50,18 @@ describe('HeatmapComponent', () => {
         expect(component.colorFor(1)).toBe('hsl(210, 90%, 95%)');
     });
 
+    it('renders square cells (width equals height)', () => {
+        for (const pc of component.placedCells()) {
+            expect(pc.w).toBe(pc.h);
+        }
+    });
+
+    it('caps the cell size so cells do not stretch to fill a wide container', () => {
+        fixture.componentRef.setInput('maxCellSize', 40);
+        fixture.detectChanges();
+        expect(component.cellSize()).toBeLessThanOrEqual(40);
+    });
+
     it('builds a tooltip row for the hovered cell', () => {
         component.setHover({ row: 'Tue', col: 'AM', value: 9 });
         const rows = component.tooltipRows();
