@@ -5,12 +5,8 @@ import {
     output,
     computed,
     signal,
-    inject,
-    ElementRef,
-    DestroyRef,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
-import { observeChartWidth } from '../../lib/chart-responsive';
 import { CalendarDay, ChartDirection } from '../../lib/chart.types';
 import { formatChartValue } from '../../lib/chart.utils';
 import { sequentialColorScale } from '../../lib/chart-scale';
@@ -48,10 +44,6 @@ function weekdayOf(ms: number): number {
     },
 })
 export class CalendarHeatmapComponent {
-    private readonly el = inject(ElementRef);
-    private readonly destroyRef = inject(DestroyRef);
-    private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
-
     readonly data = input.required<CalendarDay[]>();
     readonly cellSize = input(13);
     readonly fromColor = input('hsl(214, 95%, 92%)');
@@ -116,16 +108,11 @@ export class CalendarHeatmapComponent {
         return xs.length === 0 ? 0 : (Math.max(...xs) - LEFT_PAD) / (this.cellSize() + GAP) + 1;
     });
 
-    readonly svgWidth = computed(() => {
-        const measured = this._measuredWidth();
-        const intrinsic = LEFT_PAD + this.weekCount() * (this.cellSize() + GAP);
-        return measured ?? intrinsic;
-    });
+    /** Intrinsic width of the drawn calendar (cells are fixed-size, not stretched). */
+    readonly usedWidth = computed(() => LEFT_PAD + this.weekCount() * (this.cellSize() + GAP));
 
     readonly svgHeight = computed(() => TOP_PAD + 7 * (this.cellSize() + GAP));
-    readonly viewBox = computed(() =>
-        `0 0 ${LEFT_PAD + this.weekCount() * (this.cellSize() + GAP)} ${this.svgHeight()}`,
-    );
+    readonly viewBox = computed(() => `0 0 ${this.usedWidth()} ${this.svgHeight()}`);
 
     readonly weekdayLabels = computed(() => {
         const step = this.cellSize() + GAP;

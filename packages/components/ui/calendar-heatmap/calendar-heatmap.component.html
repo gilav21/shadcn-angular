@@ -4,7 +4,7 @@
   role="img"
   [attr.aria-label]="ariaLabel()"
 >
-  <svg [attr.viewBox]="viewBox()" width="100%" [attr.height]="svgHeight()" class="block w-full">
+  <svg [attr.viewBox]="viewBox()" [attr.width]="usedWidth()" [attr.height]="svgHeight()" class="block h-auto max-w-full">
     @for (wl of weekdayLabels(); track wl.label) {
       <text [attr.x]="0" [attr.y]="wl.y" class="fill-muted-foreground text-[9px]">{{ wl.label }}</text>
     }
