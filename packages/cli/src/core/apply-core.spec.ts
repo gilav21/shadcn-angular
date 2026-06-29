@@ -43,7 +43,7 @@ export class ${className} {}
     await fs.writeFile(file, COMPONENT('<ui-data-table></ui-data-table>'));
 
     const addon = resolveAddonInfo('data-table/context-menu', 'src/app/ui');
-    const result = await wireAddonCore(addon, ['FooComponent'], {}, dir, []);
+    const result = await wireAddonCore(addon, ['FooComponent'], { branch: 'master' }, dir, []);
 
     expect(result.totalWired).toBe(1);
     const after = await fs.readFile(file, 'utf-8');
@@ -57,7 +57,7 @@ export class ${className} {}
     await fs.writeFile(file, COMPONENT('<ui-data-table />', 'BarComponent'));
 
     const addon = resolveAddonInfo('data-table/context-menu', 'src/app/ui');
-    const result = await wireAddonCore(addon, [], {}, dir, []);
+    const result = await wireAddonCore(addon, [], { branch: 'master' }, dir, []);
 
     expect(result.totalWired).toBe(1);
     expect(result.targets[0].className).toBe('BarComponent');
@@ -70,7 +70,7 @@ export class ${className} {}
     await fs.writeFile(file, original);
 
     const addon = resolveAddonInfo('data-table/context-menu', 'src/app/ui');
-    const result = await wireAddonCore(addon, ['FooComponent'], { dryRun: true }, dir, []);
+    const result = await wireAddonCore(addon, ['FooComponent'], { dryRun: true, branch: 'master' }, dir, []);
 
     expect(result.totalWired).toBe(1);
     expect(await fs.readFile(file, 'utf-8')).toBe(original);
@@ -81,9 +81,9 @@ export class ${className} {}
     await fs.writeFile(file, COMPONENT('<ui-data-table></ui-data-table>'));
 
     const addon = resolveAddonInfo('data-table/context-menu', 'src/app/ui');
-    await wireAddonCore(addon, ['FooComponent'], {}, dir, []);
+    await wireAddonCore(addon, ['FooComponent'], { branch: 'master' }, dir, []);
     const afterFirst = await fs.readFile(file, 'utf-8');
-    const second = await wireAddonCore(addon, ['FooComponent'], {}, dir, []);
+    const second = await wireAddonCore(addon, ['FooComponent'], { branch: 'master' }, dir, []);
 
     expect(second.totalWired).toBe(0);
     expect(await fs.readFile(file, 'utf-8')).toBe(afterFirst);
