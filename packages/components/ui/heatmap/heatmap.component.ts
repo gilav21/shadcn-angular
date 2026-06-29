@@ -64,7 +64,7 @@ export class HeatmapComponent {
     readonly hovered = this._hover.asReadonly();
     readonly tooltipPos = this._tooltipPos.asReadonly();
 
-    readonly classes = computed(() => cn('relative w-full', this.class()));
+    readonly classes = computed(() => cn('relative w-fit max-w-full mr-auto', this.class()));
     readonly svgWidth = computed(() => this._measuredWidth() ?? this.width());
 
     private uniqueInOrder(pick: (c: HeatmapCell) => string): string[] {

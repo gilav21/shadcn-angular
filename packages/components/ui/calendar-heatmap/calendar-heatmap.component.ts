@@ -63,7 +63,7 @@ export class CalendarHeatmapComponent {
     readonly hovered = this._hover.asReadonly();
     readonly tooltipPos = this._tooltipPos.asReadonly();
 
-    readonly classes = computed(() => cn('relative w-full', this.class()));
+    readonly classes = computed(() => cn('relative w-fit max-w-full mr-auto', this.class()));
 
     private readonly originSunday = computed(() => {
         const times = this.data().map(d => parseYmd(d.date));
