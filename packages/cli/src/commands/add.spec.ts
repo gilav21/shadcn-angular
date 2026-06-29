@@ -3,6 +3,7 @@ import {
   resolveDependencies,
   promptOptionalDependencies,
   promptAddons,
+  collectAvailableAddons,
   normalizeContent,
   fetchAndTransform,
   checkFileConflict,
@@ -632,6 +633,24 @@ describe('promptAddons', () => {
   it('skips an addon already present in the resolved set', async () => {
     const resolved = new Set<ComponentName>(['data-table', 'data-table/context-menu']);
     expect(await promptAddons(resolved, { all: true, branch: 'master' })).toEqual([]);
+  });
+});
+
+describe('collectAvailableAddons (post-install discoverability)', () => {
+  it('lists an addon declared by an installed base that was not itself installed', () => {
+    const installed = new Set<ComponentName>(['data-table', 'button']);
+    const hints = collectAvailableAddons(installed);
+    expect(hints.map(h => h.addon)).toContain('data-table/context-menu');
+    expect(hints.find(h => h.addon === 'data-table/context-menu')?.parent).toBe('data-table');
+  });
+
+  it('omits an addon that was itself installed (already added)', () => {
+    const installed = new Set<ComponentName>(['data-table', 'data-table/context-menu']);
+    expect(collectAvailableAddons(installed)).toEqual([]);
+  });
+
+  it('returns [] when no installed component declares addons', () => {
+    expect(collectAvailableAddons(new Set<ComponentName>(['button', 'badge']))).toEqual([]);
   });
 });
 

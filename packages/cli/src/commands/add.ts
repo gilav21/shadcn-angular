@@ -202,6 +202,48 @@ export async function promptAddons(
 }
 
 // ---------------------------------------------------------------------------
+// Post-install addon discoverability
+// ---------------------------------------------------------------------------
+
+/** An addon available for an installed base but not itself installed. */
+export interface AddonHint {
+    readonly addon: ComponentName;
+    readonly parent: ComponentName;
+    readonly description: string;
+}
+
+/**
+ * Addons declared by the installed components that were not themselves
+ * installed — surfaced after every `add` so a dev who skipped the prompt
+ * (via `--yes`, `--no-addons`, CI, or just pressing Enter) still discovers them.
+ */
+export function collectAvailableAddons(installed: Set<ComponentName>): AddonHint[] {
+    const seen = new Set<string>();
+    const hints: AddonHint[] = [];
+    for (const name of installed) {
+        const component = registry[name];
+        if (!component.addons) continue;
+        for (const key of component.addons) {
+            if (installed.has(key as ComponentName) || seen.has(key)) continue;
+            seen.add(key);
+            hints.push({ addon: key as ComponentName, parent: name, description: registry[key as ComponentName]?.description ?? '' });
+        }
+    }
+    return hints;
+}
+
+/** Print a short, non-intrusive note about addons the dev can opt into later. */
+function printAvailableAddons(hints: AddonHint[]): void {
+    if (hints.length === 0) return;
+    console.log('');
+    console.log(chalk.cyan('Optional addons available (not installed):'));
+    for (const h of hints) {
+        console.log('  ' + chalk.bold(h.addon) + (h.description ? chalk.dim(' — ' + h.description) : ''));
+    }
+    console.log(chalk.dim(`  Add one with: npx @gilav21/shadcn-angular add ${hints[0].addon}`));
+}
+
+// ---------------------------------------------------------------------------
 // Overwrite prompt
 // ---------------------------------------------------------------------------
 
@@ -388,7 +430,7 @@ export async function add(components: string[], options: AddOptions): Promise<vo
 
     validateComponents(componentsToAdd);
 
-    const { extraDeps, componentPath, blocksPath, conflicts } =
+    const { allComponents, extraDeps, componentPath, blocksPath, conflicts } =
         await resolveComponentsAndConflicts(componentsToAdd, options, config, cwd);
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
 
@@ -397,8 +439,9 @@ export async function add(components: string[], options: AddOptions): Promise<vo
         contentCache);
     const declined = conflicting.filter(c => !toOverwrite.includes(c));
 
-    if (options.dryRun) { printDryRunSummary(toInstall, toOverwrite, toSkip, declined); return; }
-    if (toInstall.length === 0 && toOverwrite.length === 0) { printNothingToInstall(toSkip, declined); return; }
+    const addonHints = collectAvailableAddons(allComponents);
+    if (options.dryRun) { printDryRunSummary(toInstall, toOverwrite, toSkip, declined); printAvailableAddons(addonHints); return; }
+    if (toInstall.length === 0 && toOverwrite.length === 0) { printNothingToInstall(toSkip, declined); printAvailableAddons(addonHints); return; }
 
     const spinner = ora('Installing components...').start();
     try {
@@ -408,6 +451,7 @@ export async function add(components: string[], options: AddOptions): Promise<vo
             path: componentPath, blocksPath, precomputedConflicts: conflicts,
         });
         printInstallResult(result, spinner);
+        printAvailableAddons(addonHints);
     } catch (error) {
         spinner.fail('Failed to add components');
         console.error(error);
