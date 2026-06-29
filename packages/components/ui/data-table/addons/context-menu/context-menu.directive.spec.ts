@@ -29,6 +29,7 @@ class FakeHost<T> extends DataTableAddonHost<T> {
   rows: T[] = [];
   sort: Record<string, SortDirection> = {};
   pins: Record<string, ColumnPin> = {};
+  locale: DataTableLocale = {} as DataTableLocale;
   readonly sortCalls: [string, SortDirection][] = [];
   readonly pinCalls: [string, ColumnPin][] = [];
   readonly visibilityCalls: [string, boolean][] = [];
@@ -62,7 +63,7 @@ class FakeHost<T> extends DataTableAddonHost<T> {
     this.showAllCalls += 1;
   }
   getLocale(): DataTableLocale {
-    return {} as DataTableLocale;
+    return this.locale;
   }
   registerCellAction(slot: CellActionSlot<T>): () => void {
     return this.cell.register(slot);
@@ -173,6 +174,29 @@ describe('DataTableContextMenuDirective', () => {
     const desc = items.find((i) => i.label === 'Sort Descending') as ContextMenuItem;
     desc.click?.(desc);
     expect(host.sortCalls).toEqual([['name', 'desc']]);
+  });
+
+  it('localises column menu labels via the host locale', () => {
+    host.locale = {
+      sortAscending: 'מיון עולה',
+      sortDescending: 'מיון יורד',
+      pinLeft: 'הצמד לשמאל',
+      pinRight: 'הצמד לימין',
+      hideColumn: 'הסתר עמודה',
+      showAllColumns: 'הצג את כל העמודות',
+    } as DataTableLocale;
+    const { directive } = setup(host);
+    const labels = directive.buildColumnMenuItems(SORTABLE).map((i) => i.label);
+    expect(labels).toContain('מיון עולה');
+    expect(labels).toContain('הצמד לשמאל');
+    expect(labels).toContain('הסתר עמודה');
+    expect(labels).toContain('הצג את כל העמודות');
+  });
+
+  it('never surfaces undefined labels when the host locale omits keys', () => {
+    const { directive } = setup(host);
+    const labels = directive.buildColumnMenuItems(SORTABLE).filter((i) => i.type !== 'separator').map((i) => i.label);
+    expect(labels.every((l) => typeof l === 'string' && l.length > 0)).toBe(true);
   });
 
   it('omits sort items for a column with enableSorting:false', () => {

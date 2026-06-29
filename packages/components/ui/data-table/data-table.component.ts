@@ -54,10 +54,6 @@ import {
   DEFAULT_FILTER_BUILDER_LABELS,
 } from "./sub/data-table-filter-builder.component";
 import { UiComponentOutletDirective } from "../component-outlet.directive";
-import {
-  ContextMenuComponent,
-  ContextMenuItem,
-} from "../context-menu";
 import { ButtonComponent } from "../button";
 import { IconComponent } from "../icon";
 import { SkeletonComponent } from "../skeleton";
@@ -157,7 +153,6 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
     DataTablePaginationComponent,
     DataTableFilterBuilderComponent,
     UiComponentOutletDirective,
-    ContextMenuComponent,
     ButtonComponent,
     IconComponent,
     SkeletonComponent,
@@ -273,7 +268,6 @@ export class DataTableComponent<T>
 
   readonly enableColumnResize = input(false);
   readonly enableColumnReorder = input(false);
-  readonly enableColumnMenu = input(false);
   readonly showFooter = input<boolean | "auto">("auto");
   readonly enableFloatingFilters = input(false);
   readonly enableRowDrag = input(false);
@@ -591,33 +585,6 @@ export class DataTableComponent<T>
     return interpolate(template, { column: columnHeader });
   }
 
-  readonly rowActions = input<
-    ((context: RowActionContext<T>) => ContextMenuItem[]) | undefined
-  >(undefined);
-  readonly showRowActionsColumn = input<boolean | undefined>(undefined);
-  readonly showRowActionsContextMenu = input<boolean | undefined>(undefined);
-
-  readonly resolvedShowActionsColumn = computed(() => {
-    const explicit = this.showRowActionsColumn();
-    if (explicit !== undefined) return explicit;
-    return !!this.rowActions();
-  });
-
-  readonly resolvedShowContextMenu = computed(() => {
-    const explicit = this.showRowActionsContextMenu();
-    if (explicit !== undefined) return explicit;
-    return !!this.rowActions();
-  });
-
-  private readonly internalContextMenu = viewChild<ContextMenuComponent>(
-    "rowActionsContextMenu",
-  );
-  readonly activeContextMenuItems = signal<ContextMenuItem[]>([]);
-
-  private readonly columnMenuContextMenu = viewChild<ContextMenuComponent>(
-    "columnMenuContextMenu",
-  );
-  readonly activeColumnMenuItems = signal<ContextMenuItem[]>([]);
 
   readonly columnPinOverrides = signal<
     Record<string, "left" | "right" | undefined>
@@ -1821,7 +1788,7 @@ export class DataTableComponent<T>
       result = [{ accessorKey: '_expander', header: '', sticky: true, width: '40px', enableSorting: false }, ...result];
     }
 
-    if (this.resolvedShowActionsColumn()) {
+    if (this.cellActionSlots().length > 0) {
       result = [...result, { accessorKey: '_actions', header: '', width: '50px', enableSorting: false, enableHiding: false, enableReordering: false }];
     }
 
@@ -4381,107 +4348,6 @@ export class DataTableComponent<T>
     }
 
     return context;
-  }
-
-  getRowActions(row: T, index: number): ContextMenuItem[] {
-    const actionsFn = this.rowActions();
-    if (!actionsFn) return [];
-    return actionsFn(this.buildRowActionContext(row, index));
-  }
-
-  onRowContextMenu(event: MouseEvent): void {
-    const contextMenu = this.internalContextMenu();
-    if (!this.resolvedShowContextMenu() || !contextMenu) return;
-
-    const target = event.target as HTMLElement;
-    const rowEl = target.closest<HTMLElement>("[data-row-index]");
-    if (!rowEl) return;
-
-    event.preventDefault();
-
-    const index = Number.parseInt(rowEl.dataset["rowIndex"] ?? "0", 10);
-    const row = this.getRenderedRowAt(index);
-    if (!row) return;
-
-    const actionsFn = this.rowActions();
-    if (!actionsFn) return;
-
-    const context = this.buildRowActionContext(row, index);
-    this.activeContextMenuItems.set(actionsFn(context));
-    contextMenu.show(event.clientX, event.clientY, context);
-  }
-
-  onActionsButtonClick(event: Event, row: T, index: number): void {
-    event.stopPropagation();
-
-    const contextMenu = this.internalContextMenu();
-    if (!contextMenu) return;
-
-    const actionsFn = this.rowActions();
-    if (!actionsFn) return;
-
-    const context = this.buildRowActionContext(row, index);
-    this.activeContextMenuItems.set(actionsFn(context));
-
-    const target = event.target as HTMLElement;
-    const button = target.closest("button") ?? target;
-    const rect = button.getBoundingClientRect();
-    contextMenu.show(rect.right, rect.bottom, context);
-  }
-
-  onColumnMenuClick(event: MouseEvent, col: ColumnDef<T>): void {
-    event.stopPropagation();
-    const contextMenu = this.columnMenuContextMenu();
-    if (!contextMenu) return;
-
-    const key = String(col.accessorKey);
-    const items = this.buildColumnMenuItems(col);
-    this.activeColumnMenuItems.set(items);
-
-    const target = event.target as HTMLElement;
-    const button = target.closest("button") ?? target;
-    const rect = button.getBoundingClientRect();
-    contextMenu.show(rect.left, rect.bottom, { columnKey: key, column: col });
-  }
-
-  private buildColumnMenuItems(col: ColumnDef<T>): ContextMenuItem[] {
-    const key = String(col.accessorKey);
-    const currentSort = this.getSortDirection(key);
-    const currentPin = this.columnPinOverrides()[key] ?? col.pin;
-    const t = this.t();
-
-    const sortItems = this.buildSortMenuItems(key, col, currentSort);
-    const pinItems = this.buildPinMenuItems(key, currentPin);
-    const visibilityItems: ContextMenuItem[] = [
-      ...(col.enableHiding === false ? [] : [{ label: t.hideColumn ?? 'Hide Column', icon: 'eye-off', click: () => this.setColumnVisibility(key, false) }]),
-      { label: t.showAllColumns ?? 'Show All Columns', icon: 'eye', click: () => this.showAllColumns() },
-    ];
-
-    return [...sortItems, ...pinItems, ...visibilityItems];
-  }
-
-  private buildSortMenuItems(key: string, col: ColumnDef<T>, currentSort: SortDirection): ContextMenuItem[] {
-    if (col.enableSorting === false) return [];
-    const t = this.t();
-    const items: ContextMenuItem[] = [
-      { label: t.sortAscending ?? 'Sort Ascending', icon: 'arrow-up', disabled: currentSort === 'asc', click: () => this.onSortChange(key, 'asc') },
-      { label: t.sortDescending ?? 'Sort Descending', icon: 'arrow-down', disabled: currentSort === 'desc', click: () => this.onSortChange(key, 'desc') },
-    ];
-    if (currentSort) {
-      items.push({ label: t.clearSort ?? 'Clear Sort', icon: 'x', click: () => this.onSortChange(key, null) });
-    }
-    items.push({ type: 'separator' });
-    return items;
-  }
-
-  private buildPinMenuItems(key: string, currentPin: string | undefined): ContextMenuItem[] {
-    const items: ContextMenuItem[] = [];
-    const t = this.t();
-    if (currentPin !== 'left') items.push({ label: t.pinLeft ?? 'Pin Left', icon: 'pin', click: () => this.pinColumn(key, 'left') });
-    if (currentPin !== 'right') items.push({ label: t.pinRight ?? 'Pin Right', icon: 'pin', click: () => this.pinColumn(key, 'right') });
-    if (currentPin) items.push({ label: t.unpin ?? 'Unpin', icon: 'pin-off', click: () => this.pinColumn(key, undefined) });
-    items.push({ type: 'separator' });
-    return items;
   }
 
   pinColumn(columnKey: string, pin: "left" | "right" | undefined): void {

@@ -354,7 +354,7 @@ export const registry = defineRegistry({
       'table-context-menu.directive.ts',
       'data-table-context-menu.directive.ts',
     ],
-    dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'skeleton', 'table'],
+    dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'icon', 'input', 'pagination', 'popover', 'select', 'skeleton', 'table'],
     libFiles: ['ai.ts', 'component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },

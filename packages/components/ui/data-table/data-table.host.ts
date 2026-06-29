@@ -15,7 +15,7 @@ export interface CellActionSlot<T = unknown> {
   readonly id: string;
   readonly icon?: string;
   readonly ariaLabel?: string;
-  readonly onClick: (event: MouseEvent, context: RowActionContext<T>) => void;
+  readonly onClick: (event: Event, context: RowActionContext<T>) => void;
 }
 
 /**
@@ -25,7 +25,7 @@ export interface HeaderActionSlot<T = unknown> {
   readonly id: string;
   readonly icon?: string;
   readonly ariaLabel?: string;
-  readonly onClick: (event: MouseEvent, column: ColumnDef<T>) => void;
+  readonly onClick: (event: Event, column: ColumnDef<T>) => void;
 }
 
 /**

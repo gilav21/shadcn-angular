@@ -141,14 +141,14 @@ export class DataTableContextMenuDirective<T = unknown> {
     return row ? this.host.getRowContext(row, index) : null;
   }
 
-  private openRowMenuFromButton(event: MouseEvent, context: RowActionContext<T>): void {
+  private openRowMenuFromButton(event: Event, context: RowActionContext<T>): void {
     const rect = buttonRect(event.target);
-    this.openRowMenu(rect?.right ?? event.clientX, rect?.bottom ?? event.clientY, context);
+    this.openRowMenu(rect?.right ?? 0, rect?.bottom ?? 0, context);
   }
 
-  private openColumnMenuFromButton(event: MouseEvent, column: ColumnDef<T>): void {
+  private openColumnMenuFromButton(event: Event, column: ColumnDef<T>): void {
     const rect = buttonRect(event.target);
-    this.openColumnMenu(rect?.left ?? event.clientX, rect?.bottom ?? event.clientY, column);
+    this.openColumnMenu(rect?.left ?? 0, rect?.bottom ?? 0, column);
   }
 
   private openRowMenu(x: number, y: number, context: RowActionContext<T>): void {
