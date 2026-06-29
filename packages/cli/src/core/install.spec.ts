@@ -52,6 +52,8 @@ describe('performInstall', () => {
     const result = await performInstall({ ...base, components: ['badge'] });
     expect(result.installed).toContain('badge');
     expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
+    // The merge report is threaded out; newly-created files land in `overwritten`.
+    expect(result.mergeReport.overwritten.length).toBeGreaterThan(0);
   });
 
   it('records installed files in components.lock.json with content hashes', async () => {
@@ -80,21 +82,43 @@ describe('performInstall', () => {
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
     (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('LOCAL EDIT');
 
-    const overwriteRun = await performInstall({ ...base, components: ['separator'], overwrite: ['separator'] });
+    // With the explicit --overwrite escape hatch, the edited file is overwritten
+    // whole. (Without --overwrite and with no recorded baseline, the merge layer
+    // skips + warns rather than clobbering — covered in merge.spec.ts.)
+    const overwriteRun = await performInstall({
+      ...base, components: ['separator'], overwrite: ['separator'],
+      options: { branch: 'master', overwrite: true },
+    });
     expect(overwriteRun.installed).toContain('separator');
     expect(overwriteRun.declined).toEqual([]);
     expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
   });
 
+  it('treats an interactive overwrite selection (forceOverwrite) as a whole-file clobber', async () => {
+    // No --overwrite flag, but the caller marked the overwrite set as an
+    // explicit override (interactive selection) → clobber whole-file + advance ref.
+    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+    (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('LOCAL EDIT');
+
+    const run = await performInstall({
+      ...base, components: ['separator'], overwrite: ['separator'], forceOverwrite: true,
+    });
+    expect(run.installed).toContain('separator');
+    expect(run.declined).toEqual([]);
+    expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
+  });
+
   it('honors precomputedConflicts instead of detecting again', async () => {
     // Files appear present on disk, which would normally classify as skip/conflict,
-    // but the caller-supplied plan says "install badge" — that must win.
+    // but the caller-supplied plan says "install badge" — that must win. With
+    // --overwrite the present-but-different files are taken whole-file.
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
     (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('whatever');
 
     const result = await performInstall({
       ...base,
       components: ['badge'],
+      options: { branch: 'master', overwrite: true },
       precomputedConflicts: {
         toInstall: ['badge'],
         toSkip: [],

@@ -217,6 +217,21 @@ pending-releases memory when it lands. (Registry data is unaffected.)
    whole-file-overwrite bypass and add it to `update`. The spec's `--force`
    wording is superseded — keeping two flags for the same behavior is confusing.
    (`migrate --force` = "dirty tree" is unrelated and unchanged.)
+4. **Explicit override = clobber + advance ref.** An explicit override —
+   the `--overwrite` flag OR an interactive "overwrite" selection
+   (`InstallInput.forceOverwrite`) — overwrites the file whole and advances the
+   ref. The no-baseline **warn-and-skip** fallback applies ONLY to an edited
+   file with no recorded baseline AND no explicit override; it does **not**
+   advance the ref (recording a ref a file isn't actually at would be lying).
+   Write-set authorization (the `overwrite` array) is separate from clobber
+   intent: `update`'s programmatic write set 3-way merges, it does not clobber.
+5. **Ref advancement is component-level and conservative.** Because the ref is
+   per-component but outcomes are per-file, a component's ref advances only when
+   at least one file was written and **none** fell back (`shouldAdvanceRef`).
+   Otherwise a fell-back file would sit under a ref it isn't at, and a later
+   update would compute its BASE at the wrong ref. (Per-file refs would lift
+   this — see the ref-granularity open decision; deferred to keep the lock-file
+   small.)
 
 ## Completion Log
 
@@ -227,3 +242,4 @@ Per-task review-gate results (bar ≥95, project policy). Highest score per task
 | 1 | `core/merge3.ts` — vendored pure line-based diff3 (+19 unit tests) | 2026-06-29 | 96 | Correct, self-contained diff3; empirically lossless on adjacency, interleaving, delete-vs-edit, LCS-ambiguous, co-located insertions, empty/one-line/no-trailing-newline, idempotent re-merge. Eslint/sonarjs clean, readonly, no `any`. Caught & fixed a false-conflict bug on adjacent disjoint edits before it shipped. |
 | 2 | `core/ref.ts` — branch→ref + ref-pinned BASE fetch (git local / GitHub remote); `transformSource` extraction; `getRepoSlug` (+15 tests) | 2026-06-29 | 96 | Local/remote detection matches the locked decision; all custom-registry + failure paths → null without throwing; remote fetch pins the ref URL. Caught & fixed an execa trailing-newline-strip bug (would inject phantom EOF hunks); fix + the execa contract it relies on are both test-guarded. |
 | 3 | `core/manifest.ts` — per-component `ref`, `MANIFEST_VERSION`→2, back-compat read (+8 tests) | 2026-06-29 | 97 | Purely additive `components?` field; all 9 `Manifest` consumers still compile; refs round-trip write→read; old ref-less manifest reads clean to undefined; `components` omitted when empty, sorted when present. |
+| 4 | merge write-path: `core/merge.ts` (`classifyMerge`/`mergeWriteFile`/`shouldAdvanceRef`/`MergeReport`) + `install.ts` integration (+ tests) | 2026-06-29 | 96 | Decision tree correct vs all locked decisions; explicit override (flag/interactive) clobbers + advances ref; no-baseline fallback warns + skips without advancing; conservative component-level ref advancement fixes the per-file/per-component hazard (caught at review 93, fixed via `shouldAdvanceRef`); BASE fetched only for a real merge; edits never silently lost. |
