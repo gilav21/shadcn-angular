@@ -765,6 +765,9 @@
       "context-menu",
       "data-table"
     ],
+    "requiresBaseFiles": [
+      "data-table/data-table.host.ts"
+    ],
     "category": "data-display",
     "description": "Opt-in right-click + ⋮ context menus (row actions, column sort/pin/hide) for the data-table.",
     "tags": [

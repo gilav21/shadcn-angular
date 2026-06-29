@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
-import { classifyComponent, summarizePlan } from './plan.js';
+import { classifyComponent, summarizePlan, collectBreakingChanges } from './plan.js';
 import { registry } from '../registry/index.js';
 
 vi.mock('fs-extra', () => ({
@@ -69,6 +69,24 @@ describe('classifyComponent', () => {
     } finally {
       entry.peerFiles = original;
     }
+  });
+});
+
+describe('collectBreakingChanges (data-table context-menu migration)', () => {
+  it('surfaces the rowActions / enableColumnMenu input breaking changes for data-table', () => {
+    const breaking = collectBreakingChanges(['data-table']);
+    expect(breaking).toHaveLength(1);
+    const { component, changes } = breaking[0];
+    expect(component).toBe('data-table');
+    expect(changes.every(c => c.kind === 'input')).toBe(true);
+    expect(changes.some(c => c.from.includes('rowActions'))).toBe(true);
+    expect(changes.some(c => c.from.includes('enableColumnMenu'))).toBe(true);
+    // every note must point the dev at the migration (the uiDtContextMenu directive)
+    expect(changes.every(c => c.note.includes('uiDtContextMenu') || c.note.toLowerCase().includes('apply'))).toBe(true);
+  });
+
+  it('returns [] for a component with no breaking changes', () => {
+    expect(collectBreakingChanges(['button'])).toEqual([]);
   });
 });
 

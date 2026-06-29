@@ -6,7 +6,7 @@ import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { registry, getComponentNames, isComponentName, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { resolveDependencies } from '../core/resolve.js';
-import { detectConflicts, type AddOptions, type ConflictCheckResult } from '../core/plan.js';
+import { detectConflicts, printBreakingChanges, type AddOptions, type ConflictCheckResult } from '../core/plan.js';
 import { performInstall } from '../core/install.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, type Manifest } from '../core/manifest.js';
@@ -184,6 +184,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
 
     printUpdatePlan(conflicts.conflicting, conflicts.toInstall);
     await warnCustomized(conflicts.conflicting, cwd, targetDir);
+    printBreakingChanges([...conflicts.conflicting, ...conflicts.toInstall]);
 
     if (options.dryRun) {
         console.log(chalk.dim('\n[Dry Run] No changes written.'));

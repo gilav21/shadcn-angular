@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   parseAttachSymbol,
   addonImportModule,
+  missingBaseFiles,
   findTemplateInstances,
   filterInstances,
   insertSelectorAtInstances,
@@ -31,6 +32,19 @@ describe('addonImportModule', () => {
   it('trims a trailing slash on the alias', () => {
     expect(addonImportModule('@/components/ui/', 'data-table', 'data-table/context-menu'))
       .toBe('@/components/ui/data-table/addons/context-menu');
+  });
+});
+
+describe('missingBaseFiles', () => {
+  it('returns the required contract files that are absent in the base', () => {
+    const present = new Set(['data-table/data-table.host.ts']);
+    expect(missingBaseFiles(['data-table/data-table.host.ts'], f => present.has(f))).toEqual([]);
+    expect(missingBaseFiles(['data-table/data-table.host.ts', 'data-table/x.ts'], f => present.has(f)))
+      .toEqual(['data-table/x.ts']);
+  });
+
+  it('returns [] when the addon requires no contract files', () => {
+    expect(missingBaseFiles([], () => false)).toEqual([]);
   });
 });
 

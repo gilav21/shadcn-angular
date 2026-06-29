@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import path from 'node:path';
+import chalk from 'chalk';
 import { fetchAndTransform, normalizeContent, type FetchOptions } from './fetch.js';
 import { DEFAULT_PREFIX } from '../utils/prefix.js';
 import { registry, type BreakingChange, type ComponentDefinition, type ComponentName } from '../registry/index.js';
@@ -160,6 +161,21 @@ export function collectBreakingChanges(components: Iterable<ComponentName>): Com
         if (changes?.length) out.push({ component: name, changes });
     }
     return out.sort((a, b) => a.component.localeCompare(b.component));
+}
+
+/** Print breaking-change notes for the given components (no-op when none). */
+export function printBreakingChanges(components: Iterable<ComponentName>): void {
+    const breaking = collectBreakingChanges(components);
+    if (breaking.length === 0) return;
+    console.log('');
+    console.log(chalk.yellow('⚠ Breaking changes — review before relying on these components:'));
+    for (const cb of breaking) {
+        for (const change of cb.changes) {
+            const arrow = change.to ? ` → ${change.to}` : '';
+            console.log(chalk.yellow(`  ${cb.component}: ${change.from}${arrow}`));
+            console.log(chalk.dim(`    ${change.note}`));
+        }
+    }
 }
 
 /** Serializable plan summary for the MCP `get_install_plan` tool. */

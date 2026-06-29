@@ -11,6 +11,7 @@ import type { AddOptions } from '../core/plan.js';
 import {
     parseAttachSymbol,
     addonImportModule,
+    missingBaseFiles,
     findTemplateInstances,
     insertSelectorAtInstances,
     wireDirectiveImport,
@@ -37,6 +38,7 @@ interface AddonInfo {
     readonly selector: string;
     readonly symbol: string;
     readonly module: string;
+    readonly requiresBaseFiles: readonly string[];
 }
 
 /** A component file targeted for wiring + its resolved template source. */
@@ -70,6 +72,7 @@ function resolveAddon(addonName: string, uiAlias: string): AddonInfo {
         selector: entry.attach.selector,
         symbol: parseAttachSymbol(entry.attach.import),
         module: addonImportModule(uiAlias, entry.parent, addonName),
+        requiresBaseFiles: entry.requiresBaseFiles ?? [],
     };
 }
 
@@ -258,6 +261,17 @@ export async function apply(addonName: string, components: string[], options: Ap
             spinner.fail('Install failed');
             console.error(error);
             process.exit(1);
+        }
+
+        // Compat guard: the installed base must provide the addon's contract.
+        // Robust to edits — only the contract file's presence matters, not version.
+        const uiDir = resolveProjectPath(cwd, aliasToProjectPath(uiAlias));
+        const missing = missingBaseFiles(addon.requiresBaseFiles, f => fs.existsSync(path.join(uiDir, f)));
+        if (missing.length > 0) {
+            fail(
+                `Your ${addon.parent} predates the ${addon.name} addon — it is missing the contract file(s): ${missing.join(', ')}.\n` +
+                `Run \`npx @gilav21/shadcn-angular update ${addon.parent}\` (you own the source — review the changes), then re-run apply.`,
+            );
         }
     }
 

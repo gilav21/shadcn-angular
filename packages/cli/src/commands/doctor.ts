@@ -4,7 +4,7 @@ import chalk from 'chalk';
 import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
-import { detectConflicts, type AddOptions } from '../core/plan.js';
+import { detectConflicts, printBreakingChanges, type AddOptions } from '../core/plan.js';
 import { readManifest, writeManifest, removeFiles, fileStatus, type FileStatus, type Manifest } from '../core/manifest.js';
 import { scanLayouts } from '../core/layout.js';
 import { performInstall } from '../core/install.js';
@@ -368,6 +368,7 @@ function printReport(report: DoctorReport): void {
         report.stale.filter(e => e.action === 'migrate').map(e => `${e.file} → ${e.move?.toComponent}`), chalk.cyan);
     printSection('Stale files you still import (update the import, then delete):',
         report.stale.filter(e => e.action === 'keep-warn').map(e => e.file), chalk.yellow);
+    printBreakingChanges(report.updateAvailable as ComponentName[]);
     console.log('');
 }
 

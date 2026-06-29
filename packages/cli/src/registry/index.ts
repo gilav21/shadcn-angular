@@ -86,6 +86,14 @@ export interface ComponentDefinition {
    */
   readonly attach?: AddonAttach;
   /**
+   * For `type: 'addon'` entries: base files (ui-relative) that embody the
+   * contract this addon needs (e.g. `data-table/data-table.host.ts`). `apply`
+   * refuses to wire if the installed base lacks them — a capability check that
+   * is robust to the dev EDITING the base (only the contract's presence matters,
+   * not byte-for-byte version equality).
+   */
+  readonly requiresBaseFiles?: readonly string[];
+  /**
    * For addon-capable base components: the addon keys available for it
    * (e.g. `['data-table/export', 'data-table/context-menu']`). Surfaced by
    * `add`'s multiselect and by discovery tools; resolving the base does NOT
@@ -362,6 +370,7 @@ export const registry = defineRegistry({
     files: ['data-table/addons/context-menu/context-menu.directive.ts', 'data-table/addons/context-menu/index.ts'],
     libFiles: ['touch.ts'],
     dependencies: ['context-menu', 'data-table'],
+    requiresBaseFiles: ['data-table/data-table.host.ts'],
     category: 'data-display',
     description: 'Opt-in right-click + ⋮ context menus (row actions, column sort/pin/hide) for the data-table.',
     tags: ['context-menu', 'row-actions', 'column-menu', 'addon'],

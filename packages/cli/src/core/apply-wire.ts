@@ -23,6 +23,15 @@ export function addonImportModule(uiAlias: string, parent: string, addonName: st
     return `${base}/${parent}/addons/${short}`;
 }
 
+/**
+ * The addon's required base contract files that are absent. Compatibility is a
+ * capability check, not a version/hash check: a base the dev has EDITED is still
+ * compatible as long as it still ships the contract (e.g. `data-table.host.ts`).
+ */
+export function missingBaseFiles(required: readonly string[], exists: (relPath: string) => boolean): string[] {
+    return required.filter(f => !exists(f));
+}
+
 // ── Template instances ──────────────────────────────────────────────────
 
 export interface TemplateInstance {
