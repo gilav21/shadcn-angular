@@ -24,8 +24,8 @@ export interface LoadRegistryOptions {
 }
 
 function isValidAddonEntry(entry: Record<string, unknown>): boolean {
-    if (typeof entry.parent !== 'string') return false;
-    const attach = entry.attach;
+    if (typeof entry['parent'] !== 'string') return false;
+    const attach = entry['attach'];
     if (typeof attach !== 'object' || attach === null) return false;
     const { import: imp, selector } = attach as Record<string, unknown>;
     return typeof imp === 'string' && typeof selector === 'string';
@@ -38,9 +38,9 @@ function isStringArray(value: unknown): boolean {
 function isValidRegistryEntry(entry: unknown): boolean {
     if (typeof entry !== 'object' || entry === null) return false;
     const e = entry as Record<string, unknown>;
-    if (typeof e.name !== 'string' || !Array.isArray(e.files)) return false;
-    if (e.addons !== undefined && !isStringArray(e.addons)) return false;
-    if (e.type === 'addon') return isValidAddonEntry(e);
+    if (typeof e['name'] !== 'string' || !Array.isArray(e['files'])) return false;
+    if (e['addons'] !== undefined && !isStringArray(e['addons'])) return false;
+    if (e['type'] === 'addon') return isValidAddonEntry(e);
     return true;
 }
 

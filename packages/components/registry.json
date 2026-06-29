@@ -685,6 +685,7 @@
       "data-table/data-table-column-builder.ts",
       "data-table/data-table.component.html",
       "data-table/data-table.component.ts",
+      "data-table/data-table.host.ts",
       "data-table/data-table.locales.ts",
       "data-table/data-table.types.ts",
       "data-table/data-table.utils.ts",

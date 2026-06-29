@@ -14,6 +14,7 @@ import {
   TemplateRef,
   ElementRef,
   inject,
+  forwardRef,
   AfterViewInit,
   OnDestroy,
 } from "@angular/core";
@@ -23,6 +24,13 @@ import { cn, isRtl, stringifyValue } from "../../lib/utils";
 import { onPointerDrag, onLongPress } from "../../lib/touch";
 import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from "../../lib/i18n";
 import { DATA_TABLE_LOCALES, type DataTableLocale } from "./data-table.locales";
+import {
+  DataTableAddonHost,
+  AddonSlotRegistry,
+  type CellActionSlot,
+  type HeaderActionSlot,
+  type ColumnPin,
+} from "./data-table.host";
 import { generateXlsx } from "../../lib/parsers/xlsx";
 import {
   TableComponent,
@@ -158,6 +166,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   providers: [
     ComponentPoolService,
     provideComponentLocale(() => DataTableComponent),
+    { provide: DataTableAddonHost, useExisting: forwardRef(() => DataTableComponent) },
   ],
   host: {
     class: "block h-full w-full",
@@ -165,7 +174,9 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   },
   templateUrl: './data-table.component.html',
 })
-export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
+export class DataTableComponent<T>
+  implements AfterViewInit, OnDestroy, DataTableAddonHost<T>
+{
   protected readonly EMPTY_RECORD = EMPTY_RECORD;
   private readonly _document = inject(DOCUMENT);
   private readonly _el = inject(ElementRef);
@@ -4314,6 +4325,41 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   getRenderedRowAt(index: number): T | undefined {
     return this.processedData()[index];
+  }
+
+  // ── Addon host contract (DataTableAddonHost) ───────────────────────────
+  // Generic, addon-agnostic extension surface. The base provides itself as the
+  // DataTableAddonHost token; addon directives reach these through DI without
+  // the base ever importing an addon.
+  private readonly _cellActions = new AddonSlotRegistry<CellActionSlot<T>>();
+  private readonly _headerActions = new AddonSlotRegistry<HeaderActionSlot<T>>();
+
+  registerCellAction(slot: CellActionSlot<T>): () => void {
+    return this._cellActions.register(slot);
+  }
+
+  registerHeaderAction(slot: HeaderActionSlot<T>): () => void {
+    return this._headerActions.register(slot);
+  }
+
+  cellActionSlots(): readonly CellActionSlot<T>[] {
+    return this._cellActions.slots();
+  }
+
+  headerActionSlots(): readonly HeaderActionSlot<T>[] {
+    return this._headerActions.slots();
+  }
+
+  getColumnPin(columnKey: string): ColumnPin {
+    return this.columnPinOverrides()[columnKey];
+  }
+
+  getRowContext(row: T, index: number): RowActionContext<T> {
+    return this.buildRowActionContext(row, index);
+  }
+
+  getLocale(): DataTableLocale {
+    return this.t();
   }
 
   getRenderedTreeRowAt(index: number): FlattenedTreeRow<T> | undefined {
