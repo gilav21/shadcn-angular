@@ -409,3 +409,51 @@ export function walkBlockTree(
     collectBlockFile(state, entryFile);
     return { ownFiles: state.ownFiles, dependencies: state.dependencies, libFiles: state.libFiles, deepImports: state.deepImports };
 }
+
+// ── Registry source parsing ─────────────────────────────────────────────
+
+/** A registry entry's drift-prone arrays, extracted from the index.ts source. */
+export interface RegistryEntry {
+    name: string;
+    files: string[];
+    libFiles: string[];
+    dependencies: string[];
+    isBlock: boolean;
+}
+
+/**
+ * Parse registry entries from the `index.ts` source. Entries are identified by
+ * their `name:` value (not the object key), so addon entries keyed
+ * `parent/addon` — whose `name` contains a `/` — are recognised.
+ */
+export function parseRegistrySource(source: string): RegistryEntry[] {
+    const entries: RegistryEntry[] = [];
+
+    const blockRegex = /['"]?([\w/-]{1,256})['"]?\s{0,4096}:\s{0,4096}\{[^}]{0,100000}name:\s{0,4096}['"]([^'"]{1,256})['"][^}]{0,100000}files:\s{0,4096}\[([^\]]{0,100000})\]/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = blockRegex.exec(source)) !== null) {
+        const name = match[2];
+        const filesRaw = match[3];
+        const files = [...filesRaw.matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]);
+
+        const matchStart = match.index ?? 0;
+        const blockEnd = source.indexOf('},', matchStart + match[0].length);
+        const fullBlock = blockEnd === -1 ? source.slice(matchStart) : source.slice(matchStart, blockEnd);
+        const libFilesMatch = /libFiles:\s*\[([\s\S]*?)\]/.exec(fullBlock);
+        const libFiles = libFilesMatch
+            ? [...libFilesMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
+            : [];
+
+        const depsMatch = /dependencies:\s*\[([\s\S]*?)\]/.exec(fullBlock);
+        const dependencies = depsMatch
+            ? [...depsMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
+            : [];
+
+        const isBlock = /type:\s*['"]block['"]/.test(fullBlock);
+
+        entries.push({ name, files, libFiles, dependencies, isBlock });
+    }
+
+    return entries;
+}

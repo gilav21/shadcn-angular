@@ -562,7 +562,7 @@ describe('promptOptionalDependencies', () => {
   });
 
   it('returns all optional dep names with --all flag', async () => {
-    const resolved = new Set<ComponentName>(['data-table', 'table', 'input', 'button', 'ripple', 'checkbox', 'select', 'pagination', 'popover', 'component-outlet', 'icon']);
+    const resolved = new Set<ComponentName>(['tree', 'table', 'input', 'button', 'ripple', 'checkbox', 'select', 'pagination', 'popover', 'component-outlet', 'icon']);
     const result = await promptOptionalDependencies(resolved, { all: true, branch: 'master' });
     expect(result).toContain('context-menu');
   });
@@ -586,11 +586,18 @@ describe('promptOptionalDependencies', () => {
 // ---------------------------------------------------------------------------
 
 describe('registry optional dependencies', () => {
-  it('data-table has context-menu as optional dependency', () => {
+  it('data-table exposes context-menu as an opt-in addon (not an optional dependency)', () => {
     const dt = registry['data-table'];
-    expect(dt.optionalDependencies).toBeDefined();
-    const names = dt.optionalDependencies!.map((d: { name: string }) => d.name);
-    expect(names).toContain('context-menu');
+    // The old informational optionalDependency was retired in favour of a real
+    // addon entry that `add`/`apply` install on demand.
+    expect(dt.optionalDependencies).toBeUndefined();
+    expect(dt.addons).toContain('data-table/context-menu');
+
+    const addon = registry['data-table/context-menu'];
+    expect(addon).toBeDefined();
+    expect(addon.type).toBe('addon');
+    expect(addon.parent).toBe('data-table');
+    expect(addon.attach?.selector).toBe('uiDtContextMenu');
   });
 
   it('tree has context-menu as optional dependency', () => {

@@ -1,5 +1,6 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
 import { DataTableComponent } from './data-table.component';
+import { DataTableContextMenuDirective } from './addons/context-menu';
 import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext, CellIcon } from './data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { InputComponent } from '../input';
@@ -225,7 +226,7 @@ const meta: Meta<DataTableComponent<User>> = {
     tags: ['autodocs'],
     decorators: [
         moduleMetadata({
-            imports: [DataTableComponent],
+            imports: [DataTableComponent, DataTableContextMenuDirective],
         }),
         applicationConfig({
             providers: [],
@@ -759,6 +760,7 @@ export const WithRowActions: Story = {
             <div class="h-[600px] w-full p-4">
                 <p class="text-sm text-muted-foreground mb-2">Right-click a row or click the "..." button for actions. Admin users cannot be deleted.</p>
                 <ui-data-table
+                    uiDtContextMenu
                     [data]="data"
                     [columns]="columns"
                     [showToolbar]="showToolbar"
@@ -775,64 +777,6 @@ export const WithRowActions: Story = {
         showToolbar: true,
         showPagination: true,
         enableRowSelection: true,
-    },
-};
-
-export const WithRowActionsColumnOnly: Story = {
-    render: (args) => ({
-        props: {
-            ...args,
-            rowActions: (ctx: RowActionContext<User>): ContextMenuItem[] => [
-                { label: 'View', click: () => alert(`View: ${ctx.row.name}`) },
-                { label: 'Edit', click: () => alert(`Edit: ${ctx.row.name}`) },
-            ],
-        },
-        template: `
-            <div class="h-[600px] w-full p-4">
-                <p class="text-sm text-muted-foreground mb-2">Only the action column (no context menu on right-click).</p>
-                <ui-data-table
-                    [data]="data"
-                    [columns]="columns"
-                    [showPagination]="showPagination"
-                    [rowActions]="rowActions"
-                    [showRowActionsContextMenu]="false"
-                />
-            </div>
-        `,
-    }),
-    args: {
-        data: sampleData,
-        columns: columns,
-        showPagination: true,
-    },
-};
-
-export const WithRowActionsContextMenuOnly: Story = {
-    render: (args) => ({
-        props: {
-            ...args,
-            rowActions: (ctx: RowActionContext<User>): ContextMenuItem[] => [
-                { label: 'View', click: () => alert(`View: ${ctx.row.name}`) },
-                { label: 'Edit', click: () => alert(`Edit: ${ctx.row.name}`) },
-            ],
-        },
-        template: `
-            <div class="h-[600px] w-full p-4">
-                <p class="text-sm text-muted-foreground mb-2">Only context menu on right-click (no action column).</p>
-                <ui-data-table
-                    [data]="data"
-                    [columns]="columns"
-                    [showPagination]="showPagination"
-                    [rowActions]="rowActions"
-                    [showRowActionsColumn]="false"
-                />
-            </div>
-        `,
-    }),
-    args: {
-        data: sampleData,
-        columns: columns,
-        showPagination: true,
     },
 };
 

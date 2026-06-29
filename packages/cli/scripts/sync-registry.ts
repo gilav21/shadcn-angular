@@ -18,6 +18,8 @@ import {
     buildDirOwners,
     getEntryFile,
     type BoundaryContext,
+    parseRegistrySource,
+    type RegistryEntry,
     type DeepImport,
     type AddonBoundary,
 } from './sync-registry-lib';
@@ -37,45 +39,8 @@ const BASELINE_LIB_FILES = new Set(['utils.ts']);
 
 // ── Parse registry ──────────────────────────────────────────────────────
 
-interface RegistryEntry {
-    name: string;
-    files: string[];
-    libFiles: string[];
-    dependencies: string[];
-    isBlock: boolean;
-}
-
 function parseRegistry(): RegistryEntry[] {
-    const source = readFileSync(REGISTRY_PATH, 'utf-8');
-    const entries: RegistryEntry[] = [];
-
-    const blockRegex = /['"]?([\w-]{1,256})['"]?\s{0,4096}:\s{0,4096}\{[^}]{0,100000}name:\s{0,4096}['"]([^'"]{1,256})['"][^}]{0,100000}files:\s{0,4096}\[([^\]]{0,100000})\]/g;
-    let match: RegExpExecArray | null;
-
-    while ((match = blockRegex.exec(source)) !== null) {
-        const name = match[2];
-        const filesRaw = match[3];
-        const files = [...filesRaw.matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]);
-
-        const matchStart = match.index ?? 0;
-        const blockEnd = source.indexOf('},', matchStart + match[0].length);
-        const fullBlock = blockEnd === -1 ? source.slice(matchStart) : source.slice(matchStart, blockEnd);
-        const libFilesMatch = /libFiles:\s*\[([\s\S]*?)\]/.exec(fullBlock);
-        const libFiles = libFilesMatch
-            ? [...libFilesMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
-            : [];
-
-        const depsMatch = /dependencies:\s*\[([\s\S]*?)\]/.exec(fullBlock);
-        const dependencies = depsMatch
-            ? [...depsMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
-            : [];
-
-        const isBlock = /type:\s*['"]block['"]/.test(fullBlock);
-
-        entries.push({ name, files, libFiles, dependencies, isBlock });
-    }
-
-    return entries;
+    return parseRegistrySource(readFileSync(REGISTRY_PATH, 'utf-8'));
 }
 
 // ── Split files into ui/ and lib/ ───────────────────────────────────────
@@ -510,7 +475,12 @@ async function main(): Promise<void> {
     }
 }
 
-main().catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-});
+// Only run the sync when executed directly (e.g. `tsx sync-registry.ts`), not
+// when imported (e.g. by a unit test importing `parseRegistrySource`).
+const invokedPath = process.argv[1];
+if (invokedPath && path.resolve(invokedPath) === fileURLToPath(import.meta.url)) {
+    main().catch((error: unknown) => {
+        console.error(error);
+        process.exitCode = 1;
+    });
+}

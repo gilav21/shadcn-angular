@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
 import { classifyComponent, summarizePlan } from './plan.js';
+import { registry } from '../registry/index.js';
 
 vi.mock('fs-extra', () => ({
   default: {
@@ -46,23 +47,28 @@ describe('classifyComponent', () => {
   });
 
   it('queues a peer file that is MISSING on disk, not just changed (Bug 2)', async () => {
-    // data-table is the only registry entry with peerFiles; nothing on disk →
-    // every file (including its peer directives) reads as "missing".
-    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(false);
-    const peerSet = new Set<string>();
-    await classifyComponent(
-      'data-table', '/proj/ui', opts, '@/lib', new Map(), peerSet,
-    );
-    // Before the fix, "missing" peer files were skipped (only "changed" queued),
-    // so the context-menu directives never installed and the build broke. All
-    // five of data-table's peer files must now be queued.
-    expect([...peerSet].sort((a, b) => a.localeCompare(b))).toEqual([
-      'context-menu-attach.directive.ts',
-      'context-menu-integrations.ts',
-      'data-table-context-menu.directive.ts',
-      'table-context-menu.directive.ts',
-      'tree-context-menu.directive.ts',
-    ]);
+    // peerFiles is an opt-in mechanism; no shipped component currently declares
+    // any, so inject a fixture to exercise the missing-file path. With nothing
+    // on disk, every peer file reads as "missing".
+    const entry = registry['data-table'] as { peerFiles?: readonly string[] };
+    const original = entry.peerFiles;
+    entry.peerFiles = ['alpha.directive.ts', 'beta.directive.ts'];
+    try {
+      (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+      const peerSet = new Set<string>();
+      await classifyComponent(
+        'data-table', '/proj/ui', opts, '@/lib', new Map(), peerSet,
+      );
+      // Before the fix, "missing" peer files were skipped (only "changed" queued),
+      // so peer directives never installed and the build broke. All declared peer
+      // files must now be queued.
+      expect([...peerSet].sort((a, b) => a.localeCompare(b))).toEqual([
+        'alpha.directive.ts',
+        'beta.directive.ts',
+      ]);
+    } finally {
+      entry.peerFiles = original;
+    }
   });
 });
 

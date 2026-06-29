@@ -14,11 +14,11 @@ import {
   DataTableAddonHost,
   type ColumnDef,
   type ColumnPin,
+  type DataTableLocale,
   type RowActionContext,
   type SortDirection,
 } from '../..';
 import { ContextMenuComponent, type ContextMenuItem } from '../../../context-menu';
-import type { DataTableLocale } from '../../data-table.locales';
 import { onLongPress } from '../../../../lib/touch';
 
 /** Builds a consumer-provided row-action menu for a given row context. */
