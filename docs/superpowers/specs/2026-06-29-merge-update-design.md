@@ -201,3 +201,27 @@ pending-releases memory when it lands. (Registry data is unaffected.)
   small; revisit only if components start mixing refs.
 - **Custom-registry ref resolution:** GitHub is first-class; other hosts fall
   back (no merge) until/unless a ref-resolution adapter is added.
+
+---
+
+## Implementation decisions (locked at implementation, 2026-06-29)
+
+1. **BASE transport.** Resolved two ways: GitHub API branch→SHA + raw fetch at
+   that SHA for remote installs; **git** (`git rev-parse` + `git show
+   <ref>:<path>`) when running against the local components dir (monorepo /
+   offline — where the e2e lives). Both go through `transform`. `null` (→
+   fallback) for non-GitHub custom registries or any failure.
+2. **diff3 engine = vendored zero-dep** line-based diff3 in `core/merge3.ts`
+   (git-style markers). No new npm dependency.
+3. **One overwrite flag.** Reuse the existing **`--overwrite`** as the single
+   whole-file-overwrite bypass and add it to `update`. The spec's `--force`
+   wording is superseded — keeping two flags for the same behavior is confusing.
+   (`migrate --force` = "dirty tree" is unrelated and unchanged.)
+
+## Completion Log
+
+Per-task review-gate results (bar ≥95, project policy). Highest score per task.
+
+| Task | Description | Completed | Score | Rationale |
+| ---- | ----------- | --------- | ----- | --------- |
+| 1 | `core/merge3.ts` — vendored pure line-based diff3 (+19 unit tests) | 2026-06-29 | 96 | Correct, self-contained diff3; empirically lossless on adjacency, interleaving, delete-vs-edit, LCS-ambiguous, co-located insertions, empty/one-line/no-trailing-newline, idempotent re-merge. Eslint/sonarjs clean, readonly, no `any`. Caught & fixed a false-conflict bug on adjacent disjoint edits before it shipped. |
