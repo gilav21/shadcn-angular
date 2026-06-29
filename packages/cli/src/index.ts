@@ -63,6 +63,8 @@ program
     .option('-y, --yes', 'Skip confirmation prompt')
     .option('-o, --overwrite', 'Overwrite existing files')
     .option('-a, --all', 'Add all available components')
+    .option('--with <addons>', 'Comma-separated addons to include (or "all")')
+    .option('--no-addons', 'Skip optional addons (do not prompt)')
     .option('-p, --path <path>', 'The path to add the component to')
     .option('--remote', 'Force remote fetch from GitHub registry')
     .option('--dry-run', 'Show what would be installed without making changes')

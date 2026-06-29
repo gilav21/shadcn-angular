@@ -12,6 +12,10 @@ export interface AddOptions extends FetchOptions {
     dryRun?: boolean;
     /** `migrate`: proceed even if the git working tree is dirty / not a repo. */
     force?: boolean;
+    /** `add`: comma-separated addons to include (or the token `all`). */
+    with?: string;
+    /** `add`: `false` (via `--no-addons`) skips all addon prompts/installs. */
+    addons?: boolean;
 }
 
 export interface ConflictCheckResult {

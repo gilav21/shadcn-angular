@@ -33,9 +33,14 @@ const onCancel = (): void => {
 // Component selection & dependency resolution
 // ---------------------------------------------------------------------------
 
+/** Top-level addable components — addons are surfaced via the addon prompt, not here. */
+function selectableComponentNames(): ComponentName[] {
+    return getComponentNames().filter(name => registry[name].type !== 'addon');
+}
+
 async function selectComponents(components: string[], options: AddOptions): Promise<ComponentName[]> {
     if (options.all) {
-        return getComponentNames();
+        return selectableComponentNames();
     }
 
     if (components.length === 0) {
@@ -43,7 +48,7 @@ async function selectComponents(components: string[], options: AddOptions): Prom
             type: 'multiselect',
             name: 'selected',
             message: 'Which components would you like to add?',
-            choices: getComponentNames().map(name => ({
+            choices: selectableComponentNames().map(name => ({
                 title: name,
                 value: name,
             })),
@@ -59,7 +64,7 @@ function validateComponents(names: ComponentName[]): void {
     const invalid = names.filter(c => !(c in registry));
     if (invalid.length > 0) {
         console.log(chalk.red(`Invalid component(s): ${invalid.join(', ')}`));
-        console.log(chalk.dim('Available components: ' + getComponentNames().join(', ')));
+        console.log(chalk.dim('Available components: ' + selectableComponentNames().join(', ')));
         process.exit(1);
     }
 }
@@ -102,6 +107,90 @@ export async function promptOptionalDependencies(
         message: 'Optional companion components available:',
         choices: choices.map(c => ({
             title: c.name + ' ' + chalk.dim('- ' + c.description + ' (for ' + c.requestedBy + ')'),
+            value: c.name,
+        })),
+        hint: '- Space to select, Enter to confirm (or press Enter to skip)',
+    }, { onCancel });
+
+    return selected ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Addon prompt
+// ---------------------------------------------------------------------------
+
+interface AddonChoice {
+    readonly name: string;
+    readonly description: string;
+    readonly parent: string;
+}
+
+/** Match a single `--with` token to an addon key (exact key, else unambiguous short name). */
+function matchAddonToken(token: string, choices: AddonChoice[]): ComponentName | null {
+    const exact = choices.find(c => c.name === token);
+    if (exact) return exact.name as ComponentName;
+
+    const shortMatches = choices.filter(c => c.name.endsWith('/' + token));
+    if (shortMatches.length === 1) return shortMatches[0].name as ComponentName;
+
+    const available = choices.map(c => c.name).join(', ');
+    if (shortMatches.length > 1) {
+        console.warn(chalk.yellow(`Ambiguous addon "${token}" — matches ${shortMatches.map(c => c.name).join(', ')}. Use the full key.`));
+    } else {
+        console.warn(chalk.yellow(`Unknown addon "${token}" — skipping. Available: ${available}`));
+    }
+    return null;
+}
+
+/** Resolve a `--with` value (a comma list, or the token `all`) against the available addons. */
+function selectAddonsByFlag(withValue: string, choices: AddonChoice[]): ComponentName[] {
+    const tokens = withValue.split(',').map(t => t.trim()).filter(Boolean);
+    if (tokens.includes('all')) return choices.map(c => c.name as ComponentName);
+
+    const selected: ComponentName[] = [];
+    for (const token of tokens) {
+        const match = matchAddonToken(token, choices);
+        if (match) selected.push(match);
+    }
+    return selected;
+}
+
+/**
+ * Offer the addons declared by the resolved base components. Addons are opt-in
+ * (lean by default): `--no-addons`/`--yes` install none, `--with <list|all>`
+ * selects non-interactively, `--all` includes every available addon, and
+ * otherwise an interactive multiselect is shown (nothing selected by default).
+ */
+export async function promptAddons(
+    resolved: Set<ComponentName>,
+    options: AddOptions,
+): Promise<ComponentName[]> {
+    const seen = new Set<string>();
+    const choices: AddonChoice[] = [];
+
+    for (const name of resolved) {
+        const component = registry[name];
+        if (!component.addons) continue;
+
+        for (const key of component.addons) {
+            if (resolved.has(key as ComponentName) || seen.has(key)) continue;
+            seen.add(key);
+            choices.push({ name: key, description: registry[key as ComponentName]?.description ?? '', parent: name });
+        }
+    }
+
+    if (choices.length === 0) return [];
+    if (options.addons === false) return [];
+    if (options.with !== undefined) return selectAddonsByFlag(options.with, choices);
+    if (options.yes) return [];
+    if (options.all) return choices.map(c => c.name as ComponentName);
+
+    const { selected } = await prompts({
+        type: 'multiselect',
+        name: 'selected',
+        message: 'Optional addons available:',
+        choices: choices.map(c => ({
+            title: c.name + ' ' + chalk.dim('- ' + c.description + ' (for ' + c.parent + ')'),
             value: c.name,
         })),
         hint: '- Space to select, Enter to confirm (or press Enter to skip)',
@@ -256,11 +345,13 @@ function printInstallResult(result: { installed: ComponentName[]; warnings: stri
 
 async function resolveComponentsAndConflicts(
     componentsToAdd: ComponentName[], options: AddOptions, config: Config, cwd: string,
-): Promise<{ allComponents: Set<ComponentName>; optionalChoices: ComponentName[]; componentPath: string | undefined; blocksPath: string | undefined; conflicts: ConflictCheckResult }> {
+): Promise<{ allComponents: Set<ComponentName>; extraDeps: ComponentName[]; componentPath: string | undefined; blocksPath: string | undefined; conflicts: ConflictCheckResult }> {
     const resolvedComponents = resolveDependencies(componentsToAdd);
     const optionalChoices = await promptOptionalDependencies(resolvedComponents, options);
-    const allComponents = optionalChoices.length > 0
-        ? resolveDependencies([...resolvedComponents, ...optionalChoices])
+    const addonChoices = await promptAddons(resolvedComponents, options);
+    const extras = [...optionalChoices, ...addonChoices];
+    const allComponents = extras.length > 0
+        ? resolveDependencies([...resolvedComponents, ...extras])
         : resolvedComponents;
     const hasBlock = [...allComponents].some(n => registry[n].type === 'block');
     const { componentPath, blocksPath } = await resolveBlockDestination(hasBlock, options, config);
@@ -270,7 +361,7 @@ async function resolveComponentsAndConflicts(
     const checkSpinner = ora('Checking for conflicts...').start();
     const conflicts = await detectConflicts(allComponents, targetDir, options, config.aliases.utils, getPrefix(config));
     checkSpinner.stop();
-    return { allComponents, optionalChoices, componentPath, blocksPath, conflicts };
+    return { allComponents, extraDeps: extras, componentPath, blocksPath, conflicts };
 }
 
 export async function add(components: string[], options: AddOptions): Promise<void> {
@@ -295,7 +386,7 @@ export async function add(components: string[], options: AddOptions): Promise<vo
 
     validateComponents(componentsToAdd);
 
-    const { optionalChoices, componentPath, blocksPath, conflicts } =
+    const { extraDeps, componentPath, blocksPath, conflicts } =
         await resolveComponentsAndConflicts(componentsToAdd, options, config, cwd);
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
 
@@ -310,7 +401,7 @@ export async function add(components: string[], options: AddOptions): Promise<vo
     const spinner = ora('Installing components...').start();
     try {
         const result = await performInstall({
-            components: componentsToAdd, optionalDeps: optionalChoices,
+            components: componentsToAdd, optionalDeps: extraDeps,
             overwrite: toOverwrite, cwd, config, options,
             path: componentPath, blocksPath, precomputedConflicts: conflicts,
         });
