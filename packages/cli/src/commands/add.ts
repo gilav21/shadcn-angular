@@ -125,19 +125,21 @@ interface AddonChoice {
     readonly parent: string;
 }
 
-/** Match a single `--with` token to an addon key (exact key, else unambiguous short name). */
+/**
+ * Match a single `--with` token to an addon. Requires the full `parent/addon`
+ * key (the same form as `add parent/addon`) — a bare short name like
+ * `context-menu` is rejected with a hint, since short names collide across
+ * bases (e.g. a future `data-table/ai` vs `rich-text-editor/ai`).
+ */
 function matchAddonToken(token: string, choices: AddonChoice[]): ComponentName | null {
     const exact = choices.find(c => c.name === token);
     if (exact) return exact.name as ComponentName;
 
     const shortMatches = choices.filter(c => c.name.endsWith('/' + token));
-    if (shortMatches.length === 1) return shortMatches[0].name as ComponentName;
-
-    const available = choices.map(c => c.name).join(', ');
-    if (shortMatches.length > 1) {
-        console.warn(chalk.yellow(`Ambiguous addon "${token}" — matches ${shortMatches.map(c => c.name).join(', ')}. Use the full key.`));
+    if (shortMatches.length > 0) {
+        console.warn(chalk.yellow(`Use the full addon key for "${token}": ${shortMatches.map(c => c.name).join(' or ')}.`));
     } else {
-        console.warn(chalk.yellow(`Unknown addon "${token}" — skipping. Available: ${available}`));
+        console.warn(chalk.yellow(`Unknown addon "${token}" — skipping. Available: ${choices.map(c => c.name).join(', ')}`));
     }
     return null;
 }

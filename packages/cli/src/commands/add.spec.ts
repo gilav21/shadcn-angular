@@ -603,12 +603,15 @@ describe('promptAddons', () => {
     expect(await promptAddons(resolved, { all: true, branch: 'master' })).toContain('data-table/context-menu');
   });
 
-  it('selects a specific addon by short name via --with', async () => {
+  it('rejects a bare short name and asks for the full parent/addon key', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const resolved = new Set<ComponentName>(['data-table']);
-    expect(await promptAddons(resolved, { with: 'context-menu', branch: 'master' })).toEqual(['data-table/context-menu']);
+    const result = await promptAddons(resolved, { with: 'context-menu', branch: 'master' });
+    expect(result).toEqual([]);
+    expect(warn).toHaveBeenCalled();
   });
 
-  it('selects a specific addon by full key via --with', async () => {
+  it('selects an addon by its full parent/addon key via --with', async () => {
     const resolved = new Set<ComponentName>(['data-table']);
     expect(await promptAddons(resolved, { with: 'data-table/context-menu', branch: 'master' })).toEqual(['data-table/context-menu']);
   });
