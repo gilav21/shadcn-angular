@@ -189,6 +189,24 @@ pending-releases memory when it lands. (Registry data is unaffected.)
 - **Back-compat:** a project with an old (ref-less) manifest updates via the
   fallback without error.
 
+## Post-review follow-ups (full review, 2026-06-30)
+
+The full end-to-end review (final score 95, shippable) raised three non-blocking
+items (none are data loss):
+- **(B) MCP `update_component` clobbered instead of merging — FIXED.** The tool
+  dropped `overwrite: true`; it now 3-way merges by default (mirroring the CLI
+  `update`), surfaces conflicts via `mergeReport`, and takes an `overwrite` arg
+  for the whole-file escape hatch.
+- **(A) Mixed-fallback baseline/ref edge — accepted (deferred).** When a component
+  keeps an old ref (a sibling file fell back) but another file advanced, a later
+  update can compute that file's BASE at the old ref and surface a *spurious*
+  (visible) conflict — never data loss. This is inherent to the per-component-ref
+  choice; see the ref-granularity open decision (per-file refs would lift it).
+- **(C) `apply` declines an edited base rather than merging it — by design.** Per
+  Implementation-decision #6, `apply` is scoped to install-if-missing + contract
+  check + reporting + `--overwrite`; updating/merging an edited base is `update`'s
+  job (`apply` tells the user to run `update <parent>` when the contract is missing).
+
 ## Open decisions (call out, don't block)
 
 - **Merge granularity:** line-based diff3 (recommended — simple, language-

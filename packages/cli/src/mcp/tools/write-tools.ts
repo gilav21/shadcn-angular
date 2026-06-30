@@ -121,15 +121,18 @@ function registerAddTool(server: McpServer, cwd: string): void {
 function registerUpdateTool(server: McpServer, cwd: string): void {
     server.registerTool('update_component', {
         title: 'Update components',
-        description: 'Re-install components from the registry, overwriting local copies. Equivalent to add_component with overwrite for the given names.',
-        inputSchema: { names: z.array(z.string()).min(1) },
+        description: 'Update components from the registry. By default 3-way MERGES upstream changes into your local edits (conflicts are written as <<<<<<< markers and reported in mergeReport.mergedConflicted); pass overwrite:true to replace your edits whole-file instead. Mirrors the `update` CLI command.',
+        inputSchema: {
+            names: z.array(z.string()).min(1),
+            overwrite: z.boolean().optional().describe('Replace local edits whole-file instead of 3-way merging.'),
+        },
         annotations: { destructiveHint: true },
-    }, async ({ names }) => {
+    }, async ({ names, overwrite }) => {
         const invalid = validateNames(names);
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
-        const options = { branch: 'master', overwrite: true, registry: config.registry };
+        const options = { branch: 'master', overwrite, registry: config.registry };
         const result = await performInstall({
             components: names as ComponentName[],
             overwrite: names as ComponentName[],
