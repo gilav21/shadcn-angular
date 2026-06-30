@@ -1,3 +1,4 @@
+import { stringifyValue } from '../../lib/utils';
 import type {
     AggregateFn,
     FilterGroup,
@@ -309,8 +310,9 @@ function toNumberSeries(source: unknown[]): number[] | null {
 }
 
 function fillNumericSeries(nums: number[], count: number): number[] {
-    const step = nums.length >= 2 ? nums[nums.length - 1] - nums[nums.length - 2] : 0;
-    const last = nums[nums.length - 1];
+    const last = nums.at(-1) ?? 0;
+    const prev = nums.at(-2) ?? last;
+    const step = nums.length >= 2 ? last - prev : 0;
     return Array.from({ length: count }, (_, i) => last + step * (i + 1));
 }
 
@@ -345,8 +347,10 @@ function padNumber(n: number, width: number): string {
 
 function fillTrailingNumbers(info: TrailingNumbers, count: number): string[] {
     const { prefix, numbers } = info;
-    const last = numbers[numbers.length - 1];
-    const step = numbers.length >= 2 ? last.value - numbers[numbers.length - 2].value : 1;
+    const last = numbers.at(-1);
+    if (!last) return [];
+    const prev = numbers.at(-2) ?? last;
+    const step = numbers.length >= 2 ? last.value - prev.value : 1;
     return Array.from({ length: count }, (_, i) =>
         prefix + padNumber(last.value + step * (i + 1), last.width),
     );
@@ -436,7 +440,8 @@ function detectDateSeries(source: unknown[]): DateSeries | null {
         items.push(parsed.ymd);
     }
     if (kind === null) return null;
-    const last = items[items.length - 1];
+    const last = items.at(-1);
+    if (!last) return null;
     if (items.length === 1) return { last, kind, mode: 'day', step: 1 };
 
     const sameDom = items.every((it) => it.d === items[0].d);
@@ -503,7 +508,8 @@ function detectNameSeries(source: unknown[], table: NameTable): NameSeries | nul
         matches.push(match);
     }
     const len = table.full.length;
-    const last = matches[matches.length - 1];
+    const last = matches.at(-1);
+    if (!last) return null;
     const base = { lastIndex: last.index, form: last.form, casing: last.casing, table };
     if (matches.length === 1) return { ...base, step: 1 };
 
@@ -663,7 +669,7 @@ export function partitionIntoGroups<T>(
 
 // ── Advanced filter evaluation (A5) ──
 function asString(value: unknown): string {
-    return value == null ? '' : String(value);
+    return stringifyValue(value);
 }
 
 function looseEquals(cell: unknown, value: unknown): boolean {

@@ -70,7 +70,7 @@ async function collectFiles(root: string): Promise<string[]> {
 function staleSelectorRegex(token: string): RegExp {
     // `<ng-template` (any attrs) then the bare attribute token at a word boundary
     // — scoped to ng-template usage so an unrelated identifier isn't flagged.
-    return new RegExp(`<ng-template\\b[^>]*\\b${token}\\b`);
+    return new RegExp(String.raw`<ng-template\b[^>]*\b${token}\b`);
 }
 
 /**
@@ -95,7 +95,7 @@ export async function scanStaleSelectors(
             });
             if (fix && re.test(content)) {
                 content = content.replaceAll(
-                    new RegExp(`(<ng-template\\b[^>]*\\b)${rename.from}\\b`, 'g'),
+                    new RegExp(String.raw`(<ng-template\b[^>]*\b)${rename.from}\b`, 'g'),
                     `$1${rename.to}`,
                 );
                 changed = true;

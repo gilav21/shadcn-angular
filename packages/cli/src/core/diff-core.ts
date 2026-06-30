@@ -79,7 +79,7 @@ function hunkRanges(ops: EditOp[], context: number): Array<[number, number]> {
         if (ops[idx].tag === 'eq') continue;
         const start = Math.max(0, idx - context);
         const end = Math.min(ops.length - 1, idx + context);
-        const last = ranges[ranges.length - 1];
+        const last = ranges.at(-1);
         if (last && start <= last[1] + 1) last[1] = Math.max(last[1], end);
         else ranges.push([start, end]);
     }

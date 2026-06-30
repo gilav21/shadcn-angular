@@ -21,7 +21,6 @@ import { setLocaleCore } from '../../commands/set-locale.js';
 import { applyInitDefaults, type InitDefaults } from '../../commands/init.js';
 import { isValidHex } from '../../utils/color.js';
 import { collectDoctorReport, buildFixPlan, doctorFixCore, refreshLibCore } from '../../commands/doctor.js';
-import type { ThemeColor } from '../../templates/styles.js';
 
 function validateNames(names: string[]): string[] {
     return names.filter(n => !isComponentName(n));
@@ -272,7 +271,7 @@ function registerThemeTool(server: McpServer, cwd: string): void {
         title: 'Change color theme',
         description: `Change the color theme (replaces color CSS vars in :root and .dark). Available themes: ${VALID_THEMES.join(', ')}. Alternatively pass "from" with a brand hex color to generate a custom theme.`,
         inputSchema: {
-            name: z.enum(VALID_THEMES as [ThemeColor, ...ThemeColor[]]).optional().describe('Preset theme name'),
+            name: z.enum(VALID_THEMES).optional().describe('Preset theme name'),
             from: z.string().optional().describe('Brand hex color (e.g. "#3b82f6") to generate the theme from — mutually exclusive with name'),
         },
         annotations: { destructiveHint: true },

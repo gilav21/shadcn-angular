@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { ButtonComponent } from '../../button';
 import { IconComponent } from '../../icon';
+import { stringifyValue } from '../../../lib/utils';
 import { FilterGroup, FilterOperator, FilterRule } from '../data-table.types';
 
 /** {key,header} pairs the builder offers as filterable columns. */
@@ -140,7 +141,7 @@ export class DataTableFilterBuilderComponent {
     }
 
     asText(value: unknown): string {
-        return value == null ? '' : String(value);
+        return stringifyValue(value);
     }
 
     selectValue(event: Event): string {

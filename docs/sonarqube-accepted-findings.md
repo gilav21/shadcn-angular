@@ -70,6 +70,23 @@ interactive role (it contains its own nested controls):
 
 (The drawer's backdrop-click dismissal — previously a `MouseEventWithoutKeyboardEquivalentCheck` finding — was fixed by making the overlay a native `<button aria-label="Close">`, which has built-in keyboard activation.)
 
+## `Web:MouseEventWithoutKeyboardEquivalentCheck` — `<ui-button (click)>`
+
+Kept only where the element with the `(click)` handler is a **`<ui-button>`** — the
+library's button primitive, which renders a native `<button>` and is therefore
+already keyboard-activatable (Enter/Space fire `click`). SonarQube's static HTML
+analyzer can't see through the custom tag, so it reports a missing keyboard
+handler; **adding one would make the action fire twice on Enter** (once from
+ui-button's native activation, once from the redundant `(keydown)`). Raw-element
+cases (e.g. the drawer backdrop above) are still fixed with a native `<button>`,
+not suppressed — this exemption is scoped to the `ui-button` primitive only.
+
+| File | Instances |
+| --- | --- |
+| `data-table-range-chart/data-table-range-chart.component.html` | 1 |
+| `data-table/data-table.component.html` | 1 |
+| `rich-text-editor/rich-text-editor.component.html` | 4 |
+
 ## `typescript:S6268` — "make sure disabling Angular built-in sanitization is safe"
 
 Every `bypassSecurityTrust*` call in the package operates **only on

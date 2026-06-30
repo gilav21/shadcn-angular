@@ -2019,7 +2019,7 @@ export class DataTableComponent<T>
 
   private _rangeCategories(labelValues: unknown[] | undefined, rowCount: number): string[] {
     if (labelValues) {
-      return labelValues.map((v) => String(v ?? ""));
+      return labelValues.map((v) => stringifyValue(v));
     }
     return Array.from({ length: rowCount }, (_, i) => `Row ${i + 1}`);
   }

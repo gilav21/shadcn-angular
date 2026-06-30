@@ -82,7 +82,7 @@ async function walkRel(root: string, rel = ''): Promise<string[]> {
 }
 
 function escapeRegExp(s: string): string {
-    return s.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return s.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 /** A ui-relative path reduced to its import key (no extension, no `.component` suffix). */
@@ -208,7 +208,7 @@ function toUiRel(projectRoot: string, uiDir: string, projectRel: string): string
 
 /** Rewrite a moved component's import specifier across one source file. */
 export function rewriteMovedImport(content: string, move: ComponentMove): { content: string; changed: boolean } {
-    const re = new RegExp(`(from\\s*['"][^'"]*?)${escapeRegExp(move.fromImport)}(['"])`, 'g');
+    const re = new RegExp(String.raw`(from\s*['"][^'"]*?)${escapeRegExp(move.fromImport)}(['"])`, 'g');
     let changed = false;
     const next = content.replaceAll(re, (_full, pre: string, quote: string) => {
         changed = true;

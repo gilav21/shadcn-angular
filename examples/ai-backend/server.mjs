@@ -96,8 +96,8 @@ app.post('/api/ai', async (req, res) => {
     res.end();
   } catch (err) {
     console.error('[ai] request failed:', err);
-    if (!res.headersSent) res.status(500).json({ error: 'AI request failed.' });
-    else res.end();
+    if (res.headersSent) res.end();
+    else res.status(500).json({ error: 'AI request failed.' });
   }
 });
 

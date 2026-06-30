@@ -479,8 +479,10 @@ async function main(): Promise<void> {
 // when imported (e.g. by a unit test importing `parseRegistrySource`).
 const invokedPath = process.argv[1];
 if (invokedPath && path.resolve(invokedPath) === fileURLToPath(import.meta.url)) {
-    main().catch((error: unknown) => {
+    try {
+        await main();
+    } catch (error: unknown) {
         console.error(error);
         process.exitCode = 1;
-    });
+    }
 }

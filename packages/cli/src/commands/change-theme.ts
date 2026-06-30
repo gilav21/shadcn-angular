@@ -7,7 +7,7 @@ import { resolveTokenCssPath } from '../utils/styles-vars.js';
 import { baseColors, themeColors, type ThemeColor, type BaseColor } from '../templates/styles.js';
 import { buildBrandTriplet, isValidHex } from '../utils/color.js';
 
-export const VALID_THEMES: ThemeColor[] = [
+export const VALID_THEMES: [ThemeColor, ...ThemeColor[]] = [
     'zinc', 'slate', 'stone', 'gray', 'neutral',
     'red', 'rose', 'orange', 'green', 'blue', 'yellow', 'violet', 'amber',
 ];

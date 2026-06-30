@@ -18,7 +18,7 @@ export interface ApplyOptions extends AddOptions {
 }
 
 function escapeRegExp(s: string): string {
-    return s.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return s.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 /** Extract the imported symbol from an attach `import` value (`"Symbol from '…'"`). */
@@ -78,7 +78,7 @@ function findTagEnd(s: string, from: number): number {
 }
 
 function tagHasSelector(text: string, selector: string): boolean {
-    return new RegExp(`(?<![\\w-])\\[?${escapeRegExp(selector)}\\]?(?![\\w-])`).test(text);
+    return new RegExp(String.raw`(?<![\w-])\[?${escapeRegExp(selector)}\]?(?![\w-])`).test(text);
 }
 
 function collectIds(text: string): string[] {
@@ -92,7 +92,7 @@ function collectIds(text: string): string[] {
 /** Find every opening tag of `tag` in `template` (quote-aware; exact tag name). */
 export function findTemplateInstances(template: string, tag: string): TemplateInstance[] {
     const instances: TemplateInstance[] = [];
-    const opener = new RegExp(`<${escapeRegExp(tag)}(?=[\\s/>])`, 'g');
+    const opener = new RegExp(String.raw`<${escapeRegExp(tag)}(?=[\s/>])`, 'g');
     let m: RegExpExecArray | null;
     while ((m = opener.exec(template)) !== null) {
         const start = m.index;
@@ -234,7 +234,7 @@ export function wireDirectiveImport(
 
     let content = source;
     let changed = false;
-    const symbolWord = new RegExp(`\\b${escapeRegExp(symbol)}\\b`);
+    const symbolWord = new RegExp(String.raw`\b${escapeRegExp(symbol)}\b`);
 
     // Import statements end at the first ';' after `import` — handles multi-line
     // `import { … }` blocks (a single-line regex would miss them and double-add).
@@ -242,8 +242,9 @@ export function wireDirectiveImport(
     const importedAlready = imports.some(stmt => symbolWord.test(stmt.text));
     if (!importedAlready) {
         const importStmt = `import { ${symbol} } from '${module}';`;
-        if (imports.length > 0) {
-            const at = imports[imports.length - 1].end;
+        const lastImport = imports.at(-1);
+        if (lastImport) {
+            const at = lastImport.end;
             content = content.slice(0, at) + `\n${importStmt}` + content.slice(at);
         } else {
             content = `${importStmt}\n${content}`;

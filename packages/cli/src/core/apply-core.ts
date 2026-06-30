@@ -61,7 +61,7 @@ export interface WireResult {
 /** Resolve an addon key to its attach metadata, throwing on a non-addon. */
 export function resolveAddonInfo(addonName: string, uiAlias: string): AddonInfo {
     const entry = registry[addonName as ComponentName];
-    if (!entry || entry.type !== 'addon' || !entry.attach || !entry.parent) {
+    if (entry?.type !== 'addon' || !entry.attach || !entry.parent) {
         const available = Object.values(registry).filter(c => c.type === 'addon').map(c => c.name);
         throw new ApplyError(`"${addonName}" is not an addon. Available addons: ${available.join(', ') || '(none)'}`);
     }
@@ -97,7 +97,7 @@ export async function collectComponentFiles(root: string, managed: string[]): Pr
         for (const entry of entries) {
             const full = path.join(dir, entry.name);
             if (entry.isDirectory()) {
-                if (SKIP_DIRS.has(entry.name) || managed.some(m => full === m)) continue;
+                if (SKIP_DIRS.has(entry.name) || managed.includes(full)) continue;
                 await walk(full);
             } else if (entry.name.endsWith('.component.ts')) {
                 out.push(full);
