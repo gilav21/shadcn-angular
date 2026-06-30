@@ -79,6 +79,7 @@ program
     .argument('<addon>', 'Addon key, e.g. data-table/context-menu')
     .argument('[components...]', 'Component class name(s) to wire (else: current dir or scan)')
     .option('-y, --yes', 'Non-interactive: wire all found, snippet-fallback when ambiguous')
+    .option('-o, --overwrite', 'Overwrite a locally-edited base/addon whole-file instead of 3-way merging')
     .option('--scan', 'Scan the whole app for usages and choose interactively')
     .option('--all', 'Wire every matching instance in the selected files')
     .option('--class <token>', 'Wire instances whose tag class contains this token')

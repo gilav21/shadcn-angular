@@ -10,7 +10,7 @@ import { detectConflicts, printBreakingChanges, type AddOptions, type ConflictCh
 import { performInstall, type InstallResult } from '../core/install.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, type Manifest } from '../core/manifest.js';
-import { formatMergeSummary, hasUnresolvedConflicts } from '../core/merge.js';
+import { reportMergeSummary } from './merge-report.js';
 
 export async function resolveUpdateTargets(
     names: string[], cwd: string, config: Config,
@@ -155,23 +155,6 @@ async function applyUpdates(
     return result;
 }
 
-/** Print the per-file merge summary; return whether unresolved conflicts were written. */
-function reportMerge(result: InstallResult): boolean {
-    const lines = formatMergeSummary(result.mergeReport);
-    if (lines.length > 0) {
-        console.log(chalk.bold('\nMerge summary:'));
-        for (const line of lines) {
-            const color = line.includes('!') ? chalk.red : chalk.dim;
-            console.log(color('  ' + line));
-        }
-    }
-    if (hasUnresolvedConflicts(result.mergeReport)) {
-        console.log(chalk.red('\n⚠ Conflict markers (<<<<<<< / ======= / >>>>>>>) were written — resolve them, then build.'));
-        return true;
-    }
-    return false;
-}
-
 export async function update(names: string[], options: AddOptions): Promise<void> {
     const cwd = process.cwd();
     const config = await getConfig(cwd);
@@ -212,7 +195,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
     }
 
     const result = await applyUpdates(universe, conflicts, cwd, config, options);
-    const hadConflicts = reportMerge(result);
+    const hadConflicts = reportMergeSummary(result.mergeReport);
     // In non-interactive runs (CI / --yes) a written conflict must fail the
     // command so a pipeline notices the unresolved markers.
     if (hadConflicts && options.yes) process.exit(1);

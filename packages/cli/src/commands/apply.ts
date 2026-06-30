@@ -6,6 +6,7 @@ import prompts from 'prompts';
 import { getConfig, type Config } from '../utils/config.js';
 import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
 import { performInstall } from '../core/install.js';
+import { reportMergeSummary } from './merge-report.js';
 import {
     findTemplateInstances,
     insertSelectorAtInstances,
@@ -154,12 +155,19 @@ async function wireTarget(addon: AddonInfo, target: Target, options: ApplyOption
     return edited.wired;
 }
 
-/** Install the addon (+ base) if missing and verify the contract is present. */
-async function installAndCheckCompat(addon: AddonInfo, cwd: string, uiAlias: string, options: ApplyOptions, config: Config): Promise<void> {
+/**
+ * Install the addon (+ base) if missing and verify the contract is present.
+ * Returns whether the install wrote unresolved conflict markers (an edited base
+ * was 3-way merged), so the caller can fail a non-interactive run.
+ */
+async function installAndCheckCompat(addon: AddonInfo, cwd: string, uiAlias: string, options: ApplyOptions, config: Config): Promise<boolean> {
     const spinner = ora(`Installing ${addon.name} if missing...`).start();
+    let hadConflicts = false;
     try {
-        await performInstall({ components: [addon.name], cwd, config, options });
+        const result = await performInstall({ components: [addon.name], cwd, config, options });
         spinner.succeed(`${addon.name} installed.`);
+        for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
+        hadConflicts = reportMergeSummary(result.mergeReport);
     } catch (error) {
         spinner.fail('Install failed');
         console.error(error);
@@ -174,6 +182,7 @@ async function installAndCheckCompat(addon: AddonInfo, cwd: string, uiAlias: str
             `Run \`npx @gilav21/shadcn-angular update ${addon.parent}\` (you own the source — review the changes), then re-run apply.`,
         );
     }
+    return hadConflicts;
 }
 
 export async function apply(addonName: string, components: string[], options: ApplyOptions): Promise<void> {
@@ -185,15 +194,20 @@ export async function apply(addonName: string, components: string[], options: Ap
     const uiAlias = config.aliases.ui || 'src/components/ui';
     const addon = resolveAddon(addonName, uiAlias);
 
-    if (!options.dryRun) await installAndCheckCompat(addon, cwd, uiAlias, options, config);
+    const hadConflicts = options.dryRun ? false : await installAndCheckCompat(addon, cwd, uiAlias, options, config);
 
     const managed = [config.aliases.ui, config.aliases.blocks]
         .filter((a): a is string => Boolean(a))
         .map(a => resolveProjectPath(cwd, aliasToProjectPath(a)));
     const targets = await selectTargets(addon, components, options, cwd, managed);
-    if (targets.length === 0) { console.log(chalk.dim('Nothing to wire.')); return; }
+    if (targets.length === 0) { console.log(chalk.dim('Nothing to wire.')); }
+    else {
+        let total = 0;
+        for (const target of targets) total += await wireTarget(addon, target, options);
+        if (total === 0) console.log(chalk.dim('No instances wired (already wired or none selected).'));
+    }
 
-    let total = 0;
-    for (const target of targets) total += await wireTarget(addon, target, options);
-    if (total === 0) console.log(chalk.dim('No instances wired (already wired or none selected).'));
+    // A merged-with-conflicts base in a non-interactive run must fail the command
+    // so a pipeline notices the unresolved markers (mirrors `update`).
+    if (hadConflicts && options.yes) process.exit(1);
 }

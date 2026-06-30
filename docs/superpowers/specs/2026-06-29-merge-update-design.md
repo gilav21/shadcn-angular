@@ -232,6 +232,16 @@ pending-releases memory when it lands. (Registry data is unaffected.)
    update would compute its BASE at the wrong ref. (Per-file refs would lift
    this — see the ref-granularity open decision; deferred to keep the lock-file
    small.)
+6. **File-layout deviations from the "representative" list (reconciled).**
+   `fetchAtRef` lives in **`core/ref.ts`**, not `core/fetch.ts` — ref resolution
+   and the ref-pinned fetch are co-located, and the pure prefix/alias rewrite was
+   extracted as `transformSource` in `fetch.ts` and reused by both. `core/plan.ts`
+   is **unchanged**: the per-file merge decision lives in the new `core/merge.ts`
+   (`classifyMerge`/`mergeWriteFile`), so `plan.ts`'s component-level classify
+   didn't need touching. The `apply` path is fully wired (Task 7): it prints the
+   merge summary + fell-back warnings via the shared `commands/merge-report.ts`
+   `reportMergeSummary`, exits non-zero on written conflicts under `--yes`, and
+   accepts `--overwrite` (the same `resolveForcedSet` clobber path as `update`).
 
 ## Completion Log
 
@@ -245,3 +255,4 @@ Per-task review-gate results (bar ≥95, project policy). Highest score per task
 | 4 | merge write-path: `core/merge.ts` (`classifyMerge`/`mergeWriteFile`/`shouldAdvanceRef`/`MergeReport`) + `install.ts` integration (+ tests) | 2026-06-29 | 96 | Decision tree correct vs all locked decisions; explicit override (flag/interactive) clobbers + advances ref; no-baseline fallback warns + skips without advancing; conservative component-level ref advancement fixes the per-file/per-component hazard (caught at review 93, fixed via `shouldAdvanceRef`); BASE fetched only for a real merge; edits never silently lost. |
 | 5 | command wiring + reporting: `update` merge-default + `--overwrite`, `add` `forceOverwrite`, pristine lib refresh, merge summary + non-zero exit on conflicts (+ helpers + tests) | 2026-06-29 | 96 | `update` drops blanket overwrite → edited files 3-way merge (write set stays bounded), `--overwrite` clobbers; `add` explicit selection clobbers only the chosen set; pristine libs refresh while edited libs are preserved; non-zero exit gated on conflicts + `--yes`; summary helpers unit-tested. |
 | 6 | real-CLI e2e gate: `e2e/cli-specs/merge-update.ts` (+ `CLI_SPECS` registration) | 2026-06-29 | 96 | Drives the built CLI against the fixture; BASE=`git show HEAD`, THEIRS=temporarily-mutated working tree (restored in `finally`, verified byte-identical). All 5 gate items load-bearing: clean merge (edit survives + upstream applied + no markers + exit 0), conflict (full `<<</===/>>>` markers + non-zero exit under `--yes`), `--overwrite` clobbers, `--dry-run` writes nothing, ref-less manifest → keep-and-warn fallback. `npm run e2e -- merge-update` → 1/1, git clean. |
+| 7 | `apply` path closure + shared `commands/merge-report.ts` (+ tests) | 2026-06-30 | 96 | `apply` now prints the merge summary + fell-back warnings (no longer dropped), exits non-zero on written conflicts under `--yes`, and accepts `--overwrite` (reuses `resolveForcedSet`). `reportMergeSummary` extracted + shared with `update` (DRY, byte-identical behavior); unit-tested empty/clean/conflict. Closes the last "Files to modify" item. |
