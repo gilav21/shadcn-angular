@@ -178,9 +178,13 @@ function emitConflict(st: MergeState, ours: readonly string[], theirs: readonly 
 }
 
 export function merge3(base: string, ours: string, theirs: string): Merge3Result {
-    const B = base.split('\n');
-    const O = ours.split('\n');
-    const T = theirs.split('\n');
+    // Normalize line endings to LF before diffing so a consumer's CRLF file
+    // doesn't read as an edit on every line (which would spuriously conflict
+    // with any upstream change). The merged output is LF — matching how the CLI
+    // writes source and how content hashes are normalized elsewhere.
+    const B = base.replaceAll('\r\n', '\n').split('\n');
+    const O = ours.replaceAll('\r\n', '\n').split('\n');
+    const T = theirs.replaceAll('\r\n', '\n').split('\n');
     const oursHunks = changeHunks(B, O);
     const theirsHunks = changeHunks(B, T);
     const st: MergeState = { bp: 0, op: 0, tp: 0, oi: 0, ti: 0, conflicts: 0, out: [] };

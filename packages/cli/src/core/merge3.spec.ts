@@ -164,6 +164,22 @@ describe('merge3', () => {
     expect(r.content).toContain('<<<<<<<');
   });
 
+  it('does not spuriously conflict when OURS uses CRLF and BASE/THEIRS use LF', () => {
+    const base = 'a\nb\nc\n';
+    const ours = 'X\r\nb\r\nc\r\n';   // CRLF + a real edit on line 1
+    const theirs = 'a\nb\nC\n';        // LF + an edit on line 3 (disjoint)
+    const r = merge3(base, ours, theirs);
+    expect(r.conflicts).toBe(0);
+    expect(r.content).toBe('X\nb\nC\n');
+  });
+
+  it('treats a pure CRLF/LF difference as no change', () => {
+    const base = 'a\nb\nc\n';
+    const r = merge3(base, 'a\r\nb\r\nc\r\n', base);
+    expect(r.conflicts).toBe(0);
+    expect(r.content).toBe('a\nb\nc\n');
+  });
+
   it('marker labels identify ours vs theirs sides', () => {
     const r = merge3('a\nb\nc\n', 'a\nOURS\nc\n', 'a\nTHEIRS\nc\n');
     const lines = r.content.split('\n');

@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
-import { ApplyError, resolveAddonInfo, wireAddonCore } from './apply-core.js';
+import { ApplyError, resolveAddonInfo, wireAddonCore, applyCore } from './apply-core.js';
+import { getDefaultConfig } from '../utils/config.js';
+import { emptyMergeReport } from './merge.js';
 
 describe('resolveAddonInfo', () => {
   it('resolves a real addon entry to its attach metadata', () => {
@@ -87,5 +89,19 @@ export class ${className} {}
 
     expect(second.totalWired).toBe(0);
     expect(await fs.readFile(file, 'utf-8')).toBe(afterFirst);
+  });
+});
+
+describe('applyCore merge reporting', () => {
+  let dir: string;
+  beforeEach(async () => { dir = await fs.mkdtemp(path.join(os.tmpdir(), 'apply-core-merge-')); });
+  afterEach(async () => { await fs.remove(dir); });
+
+  it('threads a mergeReport through the result (empty on a dry-run, no install)', async () => {
+    const result = await applyCore('data-table/context-menu', [], { branch: 'master', dryRun: true }, dir, getDefaultConfig());
+    // The field must exist so the MCP apply_addon tool can surface install conflicts
+    // (previously the performInstall result was discarded).
+    expect(result.mergeReport).toEqual(emptyMergeReport());
+    expect(result.installed).toBe(false);
   });
 });

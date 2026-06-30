@@ -11,6 +11,7 @@ import { registry, type ComponentName } from '../registry/index.js';
 import type { Config } from '../utils/config.js';
 import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
 import { performInstall } from './install.js';
+import { emptyMergeReport, type MergeReport } from './merge.js';
 import type { ApplyOptions } from './apply-wire.js';
 import {
     parseAttachSymbol,
@@ -213,6 +214,8 @@ export interface ApplyCoreResult {
     readonly installed: boolean;
     readonly targets: WiredTarget[];
     readonly totalWired: number;
+    /** Per-file merge outcomes from installing the base/addon (conflicts surface here). */
+    readonly mergeReport: MergeReport;
     /** The paste snippet — always available so callers can show manual wiring. */
     readonly snippet: { import: string; selector: string; tag: string };
 }
@@ -229,9 +232,11 @@ export async function applyCore(
     const addon = resolveAddonInfo(addonName, uiAlias);
 
     let installed = false;
+    let mergeReport = emptyMergeReport();
     if (!options.dryRun) {
-        await performInstall({ components: [addon.name], cwd, config, options });
+        const installResult = await performInstall({ components: [addon.name], cwd, config, options });
         installed = true;
+        mergeReport = installResult.mergeReport;
 
         const uiDir = resolveProjectPath(cwd, aliasToProjectPath(uiAlias));
         const missing = missingBaseFilesFor(addon, uiDir);
@@ -253,6 +258,7 @@ export async function applyCore(
         installed,
         targets: result.targets,
         totalWired: result.totalWired,
+        mergeReport,
         snippet: {
             import: `import { ${addon.symbol} } from '${addon.module}';`,
             selector: addon.selector,
