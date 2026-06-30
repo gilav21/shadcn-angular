@@ -244,6 +244,29 @@ describe('mergeWriteFile (IO orchestration)', () => {
     expect(c.report.mergedConflicted).toContain(FILE);
   });
 
+  it('preserves a merged edit across a SECOND update (baseline tracks upstream, not the merged result)', async () => {
+    // The manifest baseline must be the pristine upstream the file was brought
+    // up to — NOT the merged disk content. Otherwise the unedited-since-merge
+    // file equals its baseline next time, `isClean` is true, and the refresh
+    // fast-path silently overwrites the user's earlier merged edit.
+    const m = emptyManifest();
+    recordComponentRef(m, 'button', 'V1');
+    await writeOurs('A\nb\nc\n');             // OURS = pristine V1 + user edit on line 1
+    recordFile(m, FILE, 'a\nb\nc\n', 'button'); // recorded baseline = pristine V1
+    fetchAtRefMock.mockResolvedValue('a\nb\nc\n'); // BASE @ V1
+
+    const o1 = await mergeWriteFile(FILE, ctx({ theirs: 'a\nb\nC\n', manifest: m })); // upstream V2 edits line 3
+    expect(o1).toBe('merged-clean');
+    expect(await fs.readFile(path.join(dir, FILE), 'utf-8')).toBe('A\nb\nC\n'); // edit + upstream
+    recordComponentRef(m, 'button', 'V2'); // component ref advances (writeAllComponents does this)
+
+    // Second update, user did NOT re-edit; upstream advances V2 → V3 (line 3 again).
+    fetchAtRefMock.mockResolvedValue('a\nb\nC\n'); // BASE @ V2 = pristine V2
+    const o2 = await mergeWriteFile(FILE, ctx({ theirs: 'a\nb\nC2\n', manifest: m }));
+    expect(o2).toBe('merged-clean'); // must re-merge, NOT 'refreshed'
+    expect(await fs.readFile(path.join(dir, FILE), 'utf-8')).toBe('A\nb\nC2\n'); // the 'A' edit survives
+  });
+
   it('falls back (keeps OURS, no ref advance) when BASE is unavailable', async () => {
     await writeOurs('edited\n');
     const m = emptyManifest();

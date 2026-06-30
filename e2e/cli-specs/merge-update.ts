@@ -50,6 +50,36 @@ async function cleanMerge(c: Ctx): Promise<void> {
     restoreMono(c);
 }
 
+/**
+ * A merged edit must survive a SECOND consecutive update (the durable-
+ * customization scenario). Regression guard: if the manifest baseline recorded
+ * the merged result instead of the pristine upstream, the unedited-since-merge
+ * file would equal its baseline and the refresh fast-path would silently
+ * clobber the earlier edit.
+ */
+async function editSurvivesSecondUpdate(c: Ctx): Promise<void> {
+    await freshInstall(c);
+    writeFix(c, `// USER_PERSIST\n${readFix(c)}`); // user edit (top)
+    setMonoUpstream(c, 'UPSTREAM_ONE'); // first upstream change (bottom)
+    let res = await c.cli.captureCli(['update', 'button', '--yes']);
+    assertEquals(res.code, 0, `first update should be clean\n${res.stdout}`);
+    assertContains(readFix(c), 'USER_PERSIST', 'edit present after the first update');
+    assertContains(readFix(c), 'UPSTREAM_ONE', 'first upstream change applied');
+
+    // Second update: the user does NOT re-edit; upstream additionally changes a
+    // disjoint middle line (and keeps UPSTREAM_ONE so it's a strict advance).
+    const lines = c.original.split('\n');
+    lines[Math.floor(lines.length / 2)] = '// UPSTREAM_TWO';
+    fs.writeFileSync(c.monoTs, `${lines.join('\n')}\n// UPSTREAM_ONE\n`);
+    res = await c.cli.captureCli(['update', 'button', '--yes']);
+    assertEquals(res.code, 0, `second update should be clean (no conflict)\n${res.stdout}`);
+    const after = readFix(c);
+    assertContains(after, 'USER_PERSIST', 'the user edit MUST survive a second update (no fast-path clobber)');
+    assertContains(after, 'UPSTREAM_TWO', 'second upstream change applied');
+    assertNotContains(after, '<<<<<<<', 'second update is clean, no markers');
+    restoreMono(c);
+}
+
 /** An edit and an upstream change on the same line conflict (markers + non-zero exit). */
 async function realConflict(c: Ctx): Promise<void> {
     await freshInstall(c);
@@ -122,6 +152,7 @@ const spec: CliSpec = async (cli) => {
     try {
         await cli.runCli(['init', '--yes']);
         await cleanMerge(c);
+        await editSurvivesSecondUpdate(c);
         await realConflict(c);
         await overwriteClobbers(c);
         await dryRunWritesNothing(c);

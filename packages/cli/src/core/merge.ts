@@ -154,7 +154,14 @@ export async function mergeWriteFile(file: string, ctx: MergeWriteContext): Prom
     if (decision.content !== null) {
         await fs.ensureDir(path.dirname(targetPath));
         await fs.writeFile(targetPath, decision.content);
-        recordFile(ctx.manifest, file, decision.content, ctx.component);
+    }
+    // Record the baseline as THEIRS — the pristine upstream the file was brought
+    // up to at the now-advanced ref — NOT the (possibly merged) disk content. If
+    // we recorded the merged result, the next update would see the file as
+    // `clean` (== baseline) and fast-path-overwrite the user's merged edits.
+    // `fellback-kept` keeps its old baseline (the ref didn't advance).
+    if (decision.outcome !== 'fellback-kept') {
+        recordFile(ctx.manifest, file, ctx.theirs, ctx.component);
     }
     tally(ctx.report, file, decision.outcome);
     return decision.outcome;
