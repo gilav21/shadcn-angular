@@ -2,15 +2,20 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
+import prompts from 'prompts';
 import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { registry, getComponentNames, isComponentName, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { resolveDependencies } from '../core/resolve.js';
-import { detectConflicts, printBreakingChanges, type AddOptions, type ConflictCheckResult } from '../core/plan.js';
+import {
+    detectConflicts, collectBreakingChanges, collectSuggestedAddons, printBreakingChanges,
+    type AddOptions, type ConflictCheckResult,
+} from '../core/plan.js';
 import { performInstall, type InstallResult } from '../core/install.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, type Manifest } from '../core/manifest.js';
 import { reportMergeSummary } from './merge-report.js';
+import { apply } from './apply.js';
 
 export async function resolveUpdateTargets(
     names: string[], cwd: string, config: Config,
@@ -45,6 +50,38 @@ export function partitionClosure(
         else newlyRequired.push(name);
     }
     return { alreadyInstalled, newlyRequired };
+}
+
+function onCancel(): never {
+    console.log(chalk.dim('Cancelled.'));
+    process.exit(0);
+}
+
+/**
+ * Offer to run `apply <addon>` for any breaking change that names one. Skipped
+ * entirely under `--yes` (a non-interactive run can't be asked, and installing
+ * an addon — new files, new template wiring — is a bigger action than the
+ * file merge `update` already performs, so the safe default is "don't").
+ *
+ * Deliberately calls the *interactive* `apply()` (not the silent, non-prompting
+ * `core/apply-core.ts` `applyCore()`): once the user has opted in here, they
+ * still get `apply`'s own per-usage target-selection prompt rather than having
+ * every usage wired unconditionally — this only runs in the `!options.yes`
+ * branch, so `apply`'s internal `process.exit(hadConflicts && options.yes)`
+ * guard can't fire (options.yes is false on this path).
+ */
+async function promptApplyAddons(addons: readonly string[], options: AddOptions): Promise<void> {
+    if (options.yes) return;
+    for (const addonName of addons) {
+        const { run } = await prompts({
+            type: 'confirm',
+            name: 'run',
+            message: `Run \`apply ${addonName}\` now to fix this?`,
+            initial: true,
+        }, { onCancel });
+        if (run) await apply(addonName, [], options);
+        else console.log(chalk.dim(`Skipped — run \`npx @gilav21/shadcn-angular apply ${addonName}\` later.`));
+    }
 }
 
 function abortConfig(): never {
@@ -185,9 +222,10 @@ export async function update(names: string[], options: AddOptions): Promise<void
         return;
     }
 
+    const touched = [...conflicts.conflicting, ...conflicts.toInstall];
     printUpdatePlan(conflicts.conflicting, conflicts.toInstall);
     await warnCustomized(conflicts.conflicting, cwd, targetDir);
-    printBreakingChanges([...conflicts.conflicting, ...conflicts.toInstall]);
+    printBreakingChanges(touched);
 
     if (options.dryRun) {
         console.log(chalk.dim('\n[Dry Run] No changes written.'));
@@ -196,6 +234,10 @@ export async function update(names: string[], options: AddOptions): Promise<void
 
     const result = await applyUpdates(universe, conflicts, cwd, config, options);
     const hadConflicts = reportMergeSummary(result.mergeReport);
+
+    const suggestedAddons = collectSuggestedAddons(collectBreakingChanges(touched));
+    await promptApplyAddons(suggestedAddons, options);
+
     // In non-interactive runs (CI / --yes) a written conflict must fail the
     // command so a pipeline notices the unresolved markers.
     if (hadConflicts && options.yes) process.exit(1);

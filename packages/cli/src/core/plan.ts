@@ -163,6 +163,17 @@ export function collectBreakingChanges(components: Iterable<ComponentName>): Com
     return out.sort((a, b) => a.component.localeCompare(b.component));
 }
 
+/** Distinct addon keys suggested as the fix for the given breaking changes, sorted. */
+export function collectSuggestedAddons(breaking: readonly ComponentBreaking[]): string[] {
+    const addons = new Set<string>();
+    for (const cb of breaking) {
+        for (const change of cb.changes) {
+            if (change.suggestedAddon) addons.add(change.suggestedAddon);
+        }
+    }
+    return [...addons].sort((a, b) => a.localeCompare(b));
+}
+
 /** Print breaking-change notes for the given components (no-op when none). */
 export function printBreakingChanges(components: Iterable<ComponentName>): void {
     const breaking = collectBreakingChanges(components);

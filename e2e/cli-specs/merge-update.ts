@@ -138,6 +138,30 @@ async function backCompatFallback(c: Ctx): Promise<void> {
     restoreMono(c);
 }
 
+/**
+ * `update`'s post-merge "run apply <addon> now?" prompt (added for data-table's
+ * rowActions/enableColumnMenu → context-menu addon breaking change) must be
+ * skipped entirely under `--yes` — no prompt, no addon auto-install — since a
+ * non-interactive run can't be asked and installing an addon edits app code,
+ * a bigger action than the file merge `update` already performs.
+ */
+async function addonSuggestionSkippedUnderYes(cli: CliSpecContext, repoRoot: string): Promise<void> {
+    const dtMonoTs = path.join(repoRoot, 'packages/components/ui/data-table/data-table.component.ts');
+    const dtOriginal = fs.readFileSync(dtMonoTs, 'utf-8');
+    const dtFixTs = path.join(cli.fixtureApp, 'src/components/ui/data-table/data-table.component.ts');
+    const addonDir = path.join(cli.fixtureApp, 'src/components/ui/data-table/addons/context-menu');
+    try {
+        await cli.runCli(['add', 'data-table', '--yes']);
+        fs.writeFileSync(dtMonoTs, `${dtOriginal}\n// DATA_TABLE_UPSTREAM_CHANGE\n`);
+        const res = await cli.captureCli(['update', 'data-table', '--yes']);
+        assertEquals(res.code, 0, `update --yes must not hang/fail on an addon-suggesting breaking change\n${res.stdout}`);
+        assertContains(fs.readFileSync(dtFixTs, 'utf-8'), 'DATA_TABLE_UPSTREAM_CHANGE', 'the upstream change was still merged in');
+        assertEquals(fs.existsSync(addonDir), false, '--yes must not auto-install the suggested addon');
+    } finally {
+        fs.writeFileSync(dtMonoTs, dtOriginal);
+    }
+}
+
 const spec: CliSpec = async (cli) => {
     const repoRoot = execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf-8' }).trim();
     const monoTs = path.join(repoRoot, 'packages/components/ui/button/button.component.ts');
@@ -157,6 +181,7 @@ const spec: CliSpec = async (cli) => {
         await overwriteClobbers(c);
         await dryRunWritesNothing(c);
         await backCompatFallback(c);
+        await addonSuggestionSkippedUnderYes(cli, repoRoot);
     } finally {
         // Bulletproof: the monorepo source must be byte-identical after the spec.
         fs.writeFileSync(monoTs, c.original);

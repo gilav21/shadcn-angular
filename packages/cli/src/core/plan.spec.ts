@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
-import { classifyComponent, summarizePlan, collectBreakingChanges } from './plan.js';
+import { classifyComponent, summarizePlan, collectBreakingChanges, collectSuggestedAddons } from './plan.js';
 import { registry } from '../registry/index.js';
 
 vi.mock('fs-extra', () => ({
@@ -87,6 +87,27 @@ describe('collectBreakingChanges (data-table context-menu migration)', () => {
 
   it('returns [] for a component with no breaking changes', () => {
     expect(collectBreakingChanges(['button'])).toEqual([]);
+  });
+});
+
+describe('collectSuggestedAddons', () => {
+  it('dedupes the addon suggested by multiple breaking changes on the same component', () => {
+    const breaking = collectBreakingChanges(['data-table']);
+    expect(collectSuggestedAddons(breaking)).toEqual(['data-table/context-menu']);
+  });
+
+  it('returns [] when no breaking change suggests an addon', () => {
+    const breaking = collectBreakingChanges(['file-viewer']);
+    expect(collectSuggestedAddons(breaking)).toEqual([]);
+  });
+
+  it('sorts and dedupes across multiple components', () => {
+    const breaking = [
+      { component: 'b', changes: [{ kind: 'input' as const, from: 'x', note: 'n', suggestedAddon: 'z/addon' }] },
+      { component: 'a', changes: [{ kind: 'input' as const, from: 'y', note: 'n', suggestedAddon: 'z/addon' }] },
+      { component: 'c', changes: [{ kind: 'input' as const, from: 'w', note: 'n', suggestedAddon: 'a/addon' }] },
+    ];
+    expect(collectSuggestedAddons(breaking)).toEqual(['a/addon', 'z/addon']);
   });
 });
 
