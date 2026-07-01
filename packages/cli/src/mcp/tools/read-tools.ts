@@ -12,6 +12,35 @@ import { getConfig, getDefaultConfig, getPrefix } from '../../utils/config.js';
 import { getLocalComponentsDir } from '../../utils/paths.js';
 import { json, err } from './result.js';
 
+function buildComponentRecord(name: ComponentName): Record<string, unknown> {
+    const def = registry[name];
+    const resolved = [...resolveDependencies([name])];
+    const npm = new Set<string>();
+    for (const c of resolved) for (const d of registry[c].npmDependencies ?? []) npm.add(d);
+    return {
+        name,
+        type: def.type ?? 'component',
+        category: def.category,
+        description: def.description,
+        tags: def.tags,
+        files: def.files,
+        libFiles: def.libFiles ?? [],
+        directDependencies: def.dependencies ?? [],
+        resolvedDependencies: resolved,
+        npmDependencies: [...npm],
+        // Addon discovery: a base lists its opt-in addons; an addon entry
+        // exposes how to attach it (apply via the CLI `apply <name>`).
+        addons: def.addons ?? [],
+        ...(def.type === 'addon'
+            ? {
+                parent: def.parent,
+                attach: def.attach,
+                requiresBaseFiles: def.requiresBaseFiles ?? [],
+            }
+            : {}),
+    };
+}
+
 function registerSearchTools(server: McpServer): void {
     server.registerTool('list_components', {
         title: 'List components',
@@ -39,32 +68,7 @@ function registerSearchTools(server: McpServer): void {
         annotations: { readOnlyHint: true },
     }, async ({ name }) => {
         if (!isComponentName(name)) return err(`Unknown component: ${name}`);
-        const def = registry[name];
-        const resolved = [...resolveDependencies([name])];
-        const npm = new Set<string>();
-        for (const c of resolved) for (const d of registry[c].npmDependencies ?? []) npm.add(d);
-        return json({
-            name,
-            type: def.type ?? 'component',
-            category: def.category,
-            description: def.description,
-            tags: def.tags,
-            files: def.files,
-            libFiles: def.libFiles ?? [],
-            directDependencies: def.dependencies ?? [],
-            resolvedDependencies: resolved,
-            npmDependencies: [...npm],
-            // Addon discovery: a base lists its opt-in addons; an addon entry
-            // exposes how to attach it (apply via the CLI `apply <name>`).
-            addons: def.addons ?? [],
-            ...(def.type === 'addon'
-                ? {
-                    parent: def.parent,
-                    attach: def.attach,
-                    requiresBaseFiles: def.requiresBaseFiles ?? [],
-                }
-                : {}),
-        });
+        return json(buildComponentRecord(name));
     });
 }
 

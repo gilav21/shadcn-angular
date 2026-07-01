@@ -166,7 +166,7 @@ export class X {}`;
     const out = wireDirectiveImport(src, 'DataTableContextMenuDirective', '@/components/ui/data-table/addons/context-menu')!;
     expect(out.changed).toBe(false);
     // exactly the original two occurrences (multi-line import + imports[]) — no duplicate import added
-    expect((out.content.match(/DataTableContextMenuDirective/g) ?? []).length).toBe(2);
+    expect(out.content.match(/DataTableContextMenuDirective/g) ?? []).toHaveLength(2);
   });
 });
 

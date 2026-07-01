@@ -49,7 +49,11 @@ describe('classifyComponent', () => {
   it('queues a peer file that is MISSING on disk, not just changed (Bug 2)', async () => {
     // peerFiles is an opt-in mechanism; no shipped component currently declares
     // any, so inject a fixture to exercise the missing-file path. With nothing
-    // on disk, every peer file reads as "missing".
+    // on disk, every peer file reads as "missing". This is now the sole
+    // regression guard for Bug 2 — the former e2e/cli-specs/peerfiles-missing.ts
+    // asserted against data-table's real peerFiles, which were retired when
+    // context-menu moved to an opt-in addon (commit 511514e); it was retired
+    // rather than kept failing against data that no longer exists.
     const entry = registry['data-table'] as { peerFiles?: readonly string[] };
     const original = entry.peerFiles;
     entry.peerFiles = ['alpha.directive.ts', 'beta.directive.ts'];
