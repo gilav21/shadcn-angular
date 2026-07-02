@@ -1111,3 +1111,4 @@ supported in `mode="html"`.
 | 12 | 2026-07-03 | T12 — locales + RTL | 92 | en/he via `createLocaleBindings`; dialog/popover/form localized + `[attr.dir]`; 60 tests green. |
 | 13 | 2026-07-03 | T13 — registry addon entry | 96 | `type:addon`/`parent`/`attach`/`requiresBaseFiles`; barrel imports keep files[] addon-only; no publish. |
 | 14 | 2026-07-03 | T14 — e2e harness | 93 | `rte-actions` multi-component EXPLICIT_SPECS; 3 Playwright tests. |
+| 15 | 2026-07-03 | T15 — demo + stories | 91 | 4 stories + demo page (en/he) registered; demo builds; extra gallery variants deferred. |
