@@ -13,6 +13,7 @@ import type {
     RichTextActionParamsForm, RichTextActionTrigger,
 } from './rich-text-actions.types';
 import { RICH_TEXT_ACTIONS_LOCALES, type RichTextActionsLocale } from './rich-text-actions.locales';
+import { interpolate } from '../../../../lib/i18n';
 
 /** The state the directive passes into the attach/edit dialog. */
 export interface ActionsDialogContext {
@@ -49,7 +50,7 @@ export class RichTextActionsDialogComponent {
 
     readonly dir = computed<'rtl' | null>(() => (this.locale().rtl ? 'rtl' : null));
     readonly attachTitle = computed(() =>
-        this.locale().dialog.attachToText.replace('{text}', this.context().selectionText));
+        interpolate(this.locale().dialog.attachToText, { text: this.context().selectionText }));
 
     readonly confirm = output<ActionsDialogConfirm>();
     readonly dismiss = output<void>();

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal } from '@angular/core';
 import type { ActionParams, RichTextActionField } from './rich-text-actions.types';
+import { interpolate } from '../../../../lib/i18n';
 
 /** Renders declarative action fields (tier 1) and emits params + validity. */
 @Component({
@@ -37,7 +38,7 @@ export class RichTextActionsFormComponent {
 
     private fieldError(field: RichTextActionField, value: unknown): string | null {
         const empty = value === undefined || value === '' || value === null;
-        if (field.required && empty) return this.requiredTemplate().replace('{field}', field.label);
+        if (field.required && empty) return interpolate(this.requiredTemplate(), { field: field.label });
         if (!empty && field.validate) return field.validate(value);
         return null;
     }
