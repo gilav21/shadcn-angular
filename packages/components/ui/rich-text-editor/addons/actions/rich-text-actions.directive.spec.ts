@@ -9,9 +9,10 @@ import type { RichTextActionDefinition } from './rich-text-actions.types';
 @Component({
     standalone: true,
     imports: [RichTextEditorComponent, RichTextActionsDirective],
-    template: `<ui-rich-text-editor mode="html" [uiRteActions]="defs"></ui-rich-text-editor>`,
+    template: `<ui-rich-text-editor mode="html" [readonly]="ro" [uiRteActions]="defs"></ui-rich-text-editor>`,
 })
 class HostCmp {
+    ro = false;
     defs: RichTextActionDefinition[] = [
         {
             id: 'open-dialog', label: 'Open dialog', triggers: ['click'],
@@ -195,5 +196,54 @@ describe('RichTextActionsDirective', () => {
         } finally {
             console.error = origErr;
         }
+    });
+
+    function caretInside(fixture: ReturnType<typeof TestBed.createComponent<HostCmp>>, html: string): HTMLElement {
+        fixture.detectChanges();
+        const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        editor.innerHTML = html;
+        const span = editor.querySelector('span')!;
+        const range = document.createRange();
+        range.selectNodeContents(span.firstChild ?? span);
+        range.collapse(true);
+        const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+        editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+        return editor;
+    }
+
+    it('shows the edit popover when the caret enters an actioned span', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"x"}\'>t</span></p>');
+        const popover = document.querySelector('[data-slot="rich-text-actions-popover"]');
+        expect(popover).toBeTruthy();
+        expect(popover!.textContent).toContain('Open dialog');
+        expect(popover!.querySelector('[data-testid="rta-edit"]')).toBeTruthy();
+    });
+
+    it('removes a trigger and unwraps a bare span', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        const editor = caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"x"}\'>t</span></p>');
+        (document.querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+        expect(editor.querySelector('span[data-action-click]')).toBeFalsy();
+        expect(editor.querySelector('p')!.textContent).toBe('t');
+    });
+
+    it('renders an unknown action id as remove-only', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        caretInside(fixture, '<p><span data-action-click="ghost-id">t</span></p>');
+        const popover = document.querySelector('[data-slot="rich-text-actions-popover"]')!;
+        expect(popover.textContent).toContain('unavailable');
+        expect(popover.querySelector('[data-testid="rta-edit"]')).toBeFalsy();
+        expect(popover.querySelector('[data-testid="rta-remove"]')).toBeTruthy();
+    });
+
+    it('hides all entry points when the editor is readonly', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        fixture.componentInstance.ro = true;
+        caretInside(fixture, '<p><span data-action-click="open-dialog">t</span></p>');
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]')).toBeFalsy();
+        expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeFalsy();
     });
 });

@@ -1,13 +1,19 @@
-import { Directive, DestroyRef, effect, inject, input, output, ViewContainerRef } from '@angular/core';
+import {
+    Directive, DestroyRef, afterNextRender, effect, inject, input, output, signal,
+    ViewContainerRef, type ComponentRef,
+} from '@angular/core';
 import { RichTextEditorAddonHost } from '../../rich-text-editor.host';
 import { RichTextSanitizerService } from '../../rich-text-sanitizer.service';
 import { RichTextMarkdownService } from '../../rich-text-markdown.service';
 import {
-    assertFlatParams, readActions, validateActionId, validateActionParams, writeAction,
+    assertFlatParams, readActions, removeAction, validateActionId, validateActionParams, writeAction,
 } from './rich-text-actions.serializer';
 import {
     RichTextActionsDialogComponent, type ActionsDialogConfirm,
 } from './rich-text-actions-dialog.component';
+import {
+    RichTextActionsPopoverComponent, type PopoverActionRow,
+} from './rich-text-actions-popover.component';
 import {
     ACTION_ATTRS,
     type ActionParams,
@@ -54,10 +60,19 @@ export class RichTextActionsDirective {
     }>();
 
     protected readonly overlays: (() => void)[] = [];
+    private popoverRef?: ComponentRef<RichTextActionsPopoverComponent>;
+    private popoverTarget: HTMLElement | null = null;
+    private readonly refreshPopoverBound = (): void => this.refreshPopover();
+    private readonly viewReady = signal(false);
 
     constructor() {
-        const destroyRef = inject(DestroyRef);
+        afterNextRender(() => this.viewReady.set(true));
+        this.registerBaseHooks();
+        this.registerViewHooks();
+        inject(DestroyRef).onDestroy(() => this.closeOverlays());
+    }
 
+    private registerBaseHooks(): void {
         effect((onCleanup) => {
             if (this.uiRteActions().length === 0) return;
             onCleanup(this.sanitizer.registerAttributeRules([
@@ -99,8 +114,25 @@ export class RichTextActionsDirective {
                 run: () => this.openAttachFlow(),
             }));
         });
+    }
 
-        destroyRef.onDestroy(() => this.closeOverlays());
+    private registerViewHooks(): void {
+        effect((onCleanup) => {
+            if (!this.viewReady() || this.uiRteActions().length === 0) return;
+            onCleanup(this.injectVisualizationStyles());
+        });
+
+        effect((onCleanup) => {
+            if (!this.viewReady() || this.uiRteActions().length === 0) return;
+            const root = this.host.contentRoot;
+            root.addEventListener('mouseup', this.refreshPopoverBound);
+            root.addEventListener('keyup', this.refreshPopoverBound);
+            onCleanup(() => {
+                root.removeEventListener('mouseup', this.refreshPopoverBound);
+                root.removeEventListener('keyup', this.refreshPopoverBound);
+                this.hidePopover();
+            });
+        });
     }
 
     private canAttach(): boolean {
@@ -179,6 +211,109 @@ export class RichTextActionsDirective {
 
     protected closeOverlays(): void {
         for (const off of this.overlays.splice(0)) off();
+    }
+
+    private refreshPopover(): void {
+        if (this.host.disabled() || this.host.readonly()) {
+            this.hidePopover();
+            return;
+        }
+        const el = this.host.selection().closestWithAttrs(ACTION_ATTRS);
+        if (!el) {
+            this.hidePopover();
+            return;
+        }
+        if (el === this.popoverTarget) return;
+        this.showPopover(el);
+    }
+
+    private showPopover(el: HTMLElement): void {
+        this.hidePopover();
+        this.popoverTarget = el;
+        const rows = this.buildPopoverRows(el);
+        const ref = this.vcr.createComponent(RichTextActionsPopoverComponent);
+        ref.setInput('actions', rows);
+        ref.setInput('canAdd', rows.length < 2);
+        this.positionPopover(ref, el);
+        ref.instance.edit.subscribe((trigger: RichTextActionTrigger) => this.editAction(el, trigger));
+        ref.instance.remove.subscribe((trigger: RichTextActionTrigger) => this.removeTrigger(el, trigger));
+        ref.instance.add.subscribe(() => this.openAttachFlow());
+        this.popoverRef = ref;
+    }
+
+    private buildPopoverRows(el: HTMLElement): PopoverActionRow[] {
+        const defs = this.uiRteActions();
+        return readActions(el).map((a) => {
+            const def = defs.find((d) => d.id === a.id);
+            return { trigger: a.trigger, id: a.id, label: def?.label ?? a.id, available: !!def };
+        });
+    }
+
+    private positionPopover(ref: ComponentRef<RichTextActionsPopoverComponent>, el: HTMLElement): void {
+        const host = ref.location.nativeElement as HTMLElement;
+        const rect = el.getBoundingClientRect();
+        host.style.position = 'fixed';
+        host.style.left = `${Math.round(rect.left)}px`;
+        host.style.top = `${Math.round(rect.bottom + 4)}px`;
+        host.style.zIndex = '9999';
+    }
+
+    private hidePopover(): void {
+        this.popoverRef?.destroy();
+        this.popoverRef = undefined;
+        this.popoverTarget = null;
+    }
+
+    private editAction(el: HTMLElement, trigger: RichTextActionTrigger): void {
+        const action = readActions(el).find((a) => a.trigger === trigger);
+        const def = action ? this.uiRteActions().find((d) => d.id === action.id) : undefined;
+        if (!action || !def) return;
+        this.hidePopover();
+        const target: ApplyTarget = { kind: 'text', existing: el, image: null };
+        const ref = this.vcr.createComponent(RichTextActionsDialogComponent);
+        ref.setInput('definitions', this.uiRteActions());
+        ref.setInput('context', {
+            mode: 'edit', targetKind: 'text', selectionText: el.textContent ?? '',
+            occupiedTriggers: readActions(el).map((a) => a.trigger),
+            prefill: { def, trigger, params: action.params },
+        });
+        const teardown = (): void => { ref.destroy(); };
+        this.overlays.push(teardown);
+        ref.instance.dismiss.subscribe(() => this.closeOverlay(teardown));
+        ref.instance.confirm.subscribe((payload: ActionsDialogConfirm) => {
+            if (this.applyAction(payload.def, payload.trigger, payload.params, target)) this.closeOverlay(teardown);
+        });
+    }
+
+    private removeTrigger(el: HTMLElement, trigger: RichTextActionTrigger): void {
+        const removedId = el.getAttribute(`data-action-${trigger}`) ?? '';
+        this.hidePopover();
+        this.host.mutateContent(() => {
+            removeAction(el, trigger);
+            const stillActioned = ACTION_ATTRS.some((a) => el.hasAttribute(a));
+            if (!stillActioned && el.tagName === 'SPAN' && el.attributes.length === 0) {
+                const parent = el.parentNode;
+                while (el.firstChild) parent?.insertBefore(el.firstChild, el);
+                parent?.removeChild(el);
+            }
+        });
+        this.actionRemoved.emit({ actionId: removedId, trigger, targetKind: 'text' });
+    }
+
+    private injectVisualizationStyles(): () => void {
+        const doc = this.host.contentRoot.ownerDocument;
+        const existing = doc.querySelector('style[data-rte-actions-style]');
+        if (existing) return () => undefined;
+        const style = doc.createElement('style');
+        style.setAttribute('data-rte-actions-style', '');
+        style.textContent =
+            'ui-rich-text-editor [data-action-click],ui-rich-text-editor [data-action-hover]{' +
+            'text-decoration:underline dotted;text-underline-offset:3px;' +
+            'background:color-mix(in srgb,currentColor 6%,transparent);}' +
+            'ui-rich-text-editor img[data-action-click],ui-rich-text-editor img[data-action-hover]{' +
+            'outline:2px dashed currentColor;outline-offset:2px;}';
+        doc.head.appendChild(style);
+        return () => style.remove();
     }
 
     private applyAction(

@@ -80,7 +80,10 @@ export class RichTextActionsDialogComponent {
         return true;
     });
 
+    private prefillApplied = false;
+
     constructor() {
+        effect(() => this.applyPrefill(this.context().prefill));
         effect(() => this.syncCustomForm(this.selectedDef(), this.formHost()));
         effect(() => {
             const ref = this.customForm();
@@ -89,6 +92,15 @@ export class RichTextActionsDialogComponent {
             this.formValid.set(ref.instance.valid());
         });
         inject(DestroyRef).onDestroy(() => this.destroyCustomForm());
+    }
+
+    private applyPrefill(prefill: ActionsDialogContext['prefill']): void {
+        if (this.prefillApplied || !prefill) return;
+        this.prefillApplied = true;
+        this.pickAction(prefill.def.id);
+        this.selectedTrigger.set(prefill.trigger);
+        this.currentParams.set({ ...prefill.params });
+        this.formValid.set(true);
     }
 
     readonly confirmLabel = computed(() => {

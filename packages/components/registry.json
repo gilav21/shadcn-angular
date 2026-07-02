@@ -3723,6 +3723,8 @@
       "rich-text-editor/addons/actions/rich-text-actions-dialog.component.ts",
       "rich-text-editor/addons/actions/rich-text-actions-form.component.html",
       "rich-text-editor/addons/actions/rich-text-actions-form.component.ts",
+      "rich-text-editor/addons/actions/rich-text-actions-popover.component.html",
+      "rich-text-editor/addons/actions/rich-text-actions-popover.component.ts",
       "rich-text-editor/addons/actions/rich-text-actions.directive.ts",
       "rich-text-editor/addons/actions/rich-text-actions.serializer.ts",
       "rich-text-editor/addons/actions/rich-text-actions.types.ts",
