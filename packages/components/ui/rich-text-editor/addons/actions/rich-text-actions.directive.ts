@@ -63,6 +63,7 @@ export class RichTextActionsDirective {
     private popoverRef?: ComponentRef<RichTextActionsPopoverComponent>;
     private popoverTarget: HTMLElement | null = null;
     private readonly refreshPopoverBound = (): void => this.refreshPopover();
+    private readonly outsidePointerBound = (e: Event): void => this.onOutsidePointer(e);
     private readonly viewReady = signal(false);
 
     constructor() {
@@ -125,11 +126,14 @@ export class RichTextActionsDirective {
         effect((onCleanup) => {
             if (!this.viewReady() || this.uiRteActions().length === 0) return;
             const root = this.host.contentRoot;
+            const doc = root.ownerDocument;
             root.addEventListener('mouseup', this.refreshPopoverBound);
             root.addEventListener('keyup', this.refreshPopoverBound);
+            doc.addEventListener('mousedown', this.outsidePointerBound);
             onCleanup(() => {
                 root.removeEventListener('mouseup', this.refreshPopoverBound);
                 root.removeEventListener('keyup', this.refreshPopoverBound);
+                doc.removeEventListener('mousedown', this.outsidePointerBound);
                 this.hidePopover();
             });
         });
@@ -250,18 +254,35 @@ export class RichTextActionsDirective {
     }
 
     private positionPopover(ref: ComponentRef<RichTextActionsPopoverComponent>, el: HTMLElement): void {
-        const host = ref.location.nativeElement as HTMLElement;
+        const host = ref.location.nativeElement as HTMLElement & { showPopover?: () => void };
         const rect = el.getBoundingClientRect();
         host.style.position = 'fixed';
+        host.style.inset = 'auto';
+        host.style.margin = '0';
         host.style.left = `${Math.round(rect.left)}px`;
         host.style.top = `${Math.round(rect.bottom + 4)}px`;
-        host.style.zIndex = '9999';
+        // Render in the native top layer so the popover sits above any modal
+        // the editor lives inside; fall back to a high z-index otherwise.
+        if (typeof host.showPopover === 'function') {
+            host.setAttribute('popover', 'manual');
+            host.showPopover();
+        } else {
+            host.style.zIndex = '9999';
+        }
     }
 
     private hidePopover(): void {
         this.popoverRef?.destroy();
         this.popoverRef = undefined;
         this.popoverTarget = null;
+    }
+
+    private onOutsidePointer(event: Event): void {
+        if (!this.popoverRef) return;
+        const node = event.target as Node | null;
+        const popoverEl = this.popoverRef.location.nativeElement as HTMLElement;
+        if (node && (popoverEl.contains(node) || this.popoverTarget?.contains(node))) return;
+        this.hidePopover();
     }
 
     private editAction(el: HTMLElement, trigger: RichTextActionTrigger): void {
@@ -302,10 +323,14 @@ export class RichTextActionsDirective {
 
     private injectVisualizationStyles(): () => void {
         const doc = this.host.contentRoot.ownerDocument;
-        const existing = doc.querySelector('style[data-rte-actions-style]');
-        if (existing) return () => undefined;
+        const existing = doc.querySelector('style[data-rte-actions-style]') as HTMLStyleElement | null;
+        if (existing) {
+            existing.dataset['refcount'] = String(Number(existing.dataset['refcount'] ?? '1') + 1);
+            return () => this.releaseVisualizationStyles(doc);
+        }
         const style = doc.createElement('style');
         style.setAttribute('data-rte-actions-style', '');
+        style.dataset['refcount'] = '1';
         style.textContent =
             'ui-rich-text-editor [data-action-click],ui-rich-text-editor [data-action-hover]{' +
             'text-decoration:underline dotted;text-underline-offset:3px;' +
@@ -313,7 +338,15 @@ export class RichTextActionsDirective {
             'ui-rich-text-editor img[data-action-click],ui-rich-text-editor img[data-action-hover]{' +
             'outline:2px dashed currentColor;outline-offset:2px;}';
         doc.head.appendChild(style);
-        return () => style.remove();
+        return () => this.releaseVisualizationStyles(doc);
+    }
+
+    private releaseVisualizationStyles(doc: Document): void {
+        const style = doc.querySelector('style[data-rte-actions-style]') as HTMLStyleElement | null;
+        if (!style) return;
+        const next = Number(style.dataset['refcount'] ?? '1') - 1;
+        if (next <= 0) style.remove();
+        else style.dataset['refcount'] = String(next);
     }
 
     private applyAction(
