@@ -152,8 +152,11 @@ markers:
 Resolve the markers, then rebuild. Other flags:
 
 - **`--overwrite`** — take the upstream file whole-file, discarding local edits
-  (no merge).
-- **`--dry-run`** — preview what would change without writing.
+  (no merge). Teams that always want this can set it as the default in
+  `components.json`: `{ "update": { "overwrite": true } }` (an explicit CLI flag
+  still wins).
+- **`--dry-run`** — preview what would change without writing, including a
+  per-file merge prediction (would merge cleanly / WOULD CONFLICT / would keep).
 - **`--yes`** — install any newly-required dependencies without prompting. In CI,
   `update --yes` exits non-zero whenever it writes conflict markers, so a merge
   that needs human attention fails the build instead of passing silently.

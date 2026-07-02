@@ -10,7 +10,7 @@ import { registry, type ComponentDefinition, type ComponentName } from '../regis
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { readManifest, writeManifest, recordFile, recordComponentRef, fileStatus, removeFiles, type Manifest } from './manifest.js';
 import { resolveRef } from './ref.js';
-import { mergeWriteFile, emptyMergeReport, shouldAdvanceRef, type MergeReport, type MergeOutcome, type MergeWriteContext } from './merge.js';
+import { mergeWriteFile, previewMergeFile, emptyMergeReport, shouldAdvanceRef, type MergeReport, type MergeOutcome, type MergeWriteContext } from './merge.js';
 import { isPristineLib } from './lib-reconcile.js';
 
 export interface InstallResult {
@@ -365,4 +365,55 @@ async function pruneObsoleteFiles(
         }
     }
     return pruned;
+}
+
+/** One file's predicted merge outcome for `update --dry-run` (no write, no record). */
+export interface MergePreview {
+    readonly file: string;
+    readonly outcome: MergeOutcome;
+}
+
+/**
+ * Predict per-file merge outcomes for the given (conflicting) components exactly
+ * as {@link performInstall} would decide them — same THEIRS (from the conflict
+ * scan's content cache or a fresh fetch), same BASE resolution, same
+ * force-overwrite gate — WITHOUT writing any file or recording anything. Powers
+ * `update --dry-run`'s merge preview.
+ */
+export async function previewComponentMerges(
+    names: ComponentName[], conflicts: ConflictCheckResult, input: InstallInput,
+): Promise<MergePreview[]> {
+    const targetDir = resolveTargetDir(input);
+    const manifest = await readManifest(input.cwd);
+    const blocksBase = resolveProjectPath(input.cwd, aliasToProjectPath(getBlocksAlias(input.config)));
+    const base: Omit<WriteFilesContext, 'targetDir' | 'kind'> = {
+        options: input.options,
+        utilsAlias: input.config.aliases.utils,
+        contentCache: conflicts.contentCache,
+        prefix: getPrefix(input.config),
+        warnings: [],
+        manifest,
+        currentRef: null,
+        // `update`'s dry-run mirrors its write: --overwrite clobbers whole-file,
+        // otherwise edited files are 3-way merged (never force-overwritten here).
+        forceWholeFile: !!input.options.overwrite,
+        report: emptyMergeReport(),
+    };
+    const previews: MergePreview[] = [];
+    for (const name of names) {
+        const component = registry[name];
+        const isBlock = component.type === 'block';
+        const kind: SourceKind = isBlock ? 'block' : 'component';
+        const ctx: WriteFilesContext = { ...base, targetDir: isBlock ? blocksBase : targetDir, kind };
+        for (const file of component.files) {
+            try {
+                const decision = await previewMergeFile(file, await mergeContextFor(file, component, ctx, kind));
+                previews.push({ file, outcome: decision.outcome });
+            } catch {
+                // A preview fetch failure is non-fatal — skip the file; the real
+                // run surfaces the error. We only omit it from the preview.
+            }
+        }
+    }
+    return previews;
 }

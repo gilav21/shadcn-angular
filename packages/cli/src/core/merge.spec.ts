@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  classifyMerge, mergeWriteFile, emptyMergeReport, shouldAdvanceRef,
+  classifyMerge, mergeWriteFile, previewMergeFile, emptyMergeReport, shouldAdvanceRef,
   hasUnresolvedConflicts, formatMergeSummary, type MergeWriteContext, type MergeReport,
 } from './merge.js';
 import { emptyManifest, recordFile, recordComponentRef, getComponentRef, type Manifest } from './manifest.js';
@@ -138,6 +138,23 @@ describe('shouldAdvanceRef (component-level, conservative)', () => {
   });
 });
 
+/** Shared MergeWriteContext factory for the IO suites below. */
+function contextFor(
+  targetDir: string, over: Partial<MergeWriteContext> & { theirs: string; manifest: Manifest },
+): MergeWriteContext {
+  return {
+    targetDir,
+    component: 'button',
+    options: { branch: 'master' },
+    utilsAlias: '@/lib',
+    prefix: 'ui',
+    kind: 'component',
+    forceWholeFile: false,
+    report: emptyMergeReport(),
+    ...over,
+  };
+}
+
 describe('mergeWriteFile (IO orchestration)', () => {
   let dir: string;
   const FILE = 'button/button.component.ts';
@@ -148,19 +165,8 @@ describe('mergeWriteFile (IO orchestration)', () => {
   });
   afterEach(async () => { await fs.remove(dir); });
 
-  function ctx(over: Partial<MergeWriteContext> & { theirs: string; manifest: Manifest }): MergeWriteContext {
-    return {
-      targetDir: dir,
-      component: 'button',
-      options: { branch: 'master' },
-      utilsAlias: '@/lib',
-      prefix: 'ui',
-      kind: 'component',
-      forceWholeFile: false,
-      report: emptyMergeReport(),
-      ...over,
-    };
-  }
+  const ctx = (over: Partial<MergeWriteContext> & { theirs: string; manifest: Manifest }): MergeWriteContext =>
+    contextFor(dir, over);
 
   async function writeOurs(content: string): Promise<void> {
     await fs.ensureDir(path.join(dir, 'button'));
@@ -353,5 +359,68 @@ describe('mergeWriteFile (IO orchestration)', () => {
     expect(await fs.readFile(path.join(dir, FILE), 'utf-8')).toBe('edited\n'); // untouched
     expect(getComponentRef(m, 'button')).toBeUndefined(); // not advanced
     expect(c.report.fellBack).toContain(FILE);
+  });
+});
+
+/**
+ * `previewMergeFile` powers `update --dry-run`: it must predict exactly what
+ * `mergeWriteFile` would do — same read/classify path including the BASE fetch —
+ * while writing nothing and recording nothing.
+ */
+describe('previewMergeFile (dry-run prediction)', () => {
+  let dir: string;
+  const FILE = 'button/button.component.ts';
+
+  beforeEach(async () => {
+    dir = await fs.mkdtemp(path.join(os.tmpdir(), 'merge-preview-'));
+    fetchAtRefMock.mockReset();
+  });
+  afterEach(async () => { await fs.remove(dir); });
+
+  const ctx = (over: Partial<MergeWriteContext> & { theirs: string; manifest: Manifest }): MergeWriteContext =>
+    contextFor(dir, over);
+
+  it('predicts a clean merge without writing or recording anything', async () => {
+    await fs.ensureDir(path.join(dir, 'button'));
+    await fs.writeFile(path.join(dir, FILE), '// edit\na\nb\n'); // edited OURS
+    const m = emptyManifest();
+    recordFile(m, FILE, 'a\nb\n', 'button');
+    recordComponentRef(m, 'button', 'oldref');
+    fetchAtRefMock.mockResolvedValue('a\nb\n'); // BASE
+    const c = ctx({ theirs: 'a\nb\nc\n', manifest: m });
+
+    const decision = await previewMergeFile(FILE, c);
+
+    expect(decision.outcome).toBe('merged-clean');
+    expect(await fs.readFile(path.join(dir, FILE), 'utf-8')).toBe('// edit\na\nb\n'); // NOT written
+    expect(m.files[FILE].sha256).not.toBe(''); // manifest entry untouched…
+    expect(c.report.mergedClean).toEqual([]); // …and nothing tallied
+  });
+
+  it('predicts a conflict identically to mergeWriteFile', async () => {
+    await fs.ensureDir(path.join(dir, 'button'));
+    await fs.writeFile(path.join(dir, FILE), 'MINE\nb\n');
+    const m = emptyManifest();
+    recordFile(m, FILE, 'a\nb\n', 'button');
+    recordComponentRef(m, 'button', 'oldref');
+    fetchAtRefMock.mockResolvedValue('a\nb\n');
+    const c = ctx({ theirs: 'THEIRS\nb\n', manifest: m });
+
+    const preview = await previewMergeFile(FILE, c);
+    const written = await mergeWriteFile(FILE, ctx({ theirs: 'THEIRS\nb\n', manifest: m }));
+
+    expect(preview.outcome).toBe('merged-conflict');
+    expect(written).toBe('merged-conflict'); // preview matches the real outcome
+  });
+
+  it('predicts the no-baseline fallback', async () => {
+    await fs.ensureDir(path.join(dir, 'button'));
+    await fs.writeFile(path.join(dir, FILE), 'edited\n');
+    const m = emptyManifest();
+    recordFile(m, FILE, 'original\n', 'button'); // modified, no component ref
+    fetchAtRefMock.mockResolvedValue(null);
+    const decision = await previewMergeFile(FILE, ctx({ theirs: 'new\n', manifest: m }));
+    expect(decision.outcome).toBe('fellback-kept');
+    expect(await fs.readFile(path.join(dir, FILE), 'utf-8')).toBe('edited\n');
   });
 });

@@ -25,6 +25,13 @@ export interface Config {
         /** Destination for installed blocks. Defaults to `@/blocks`. */
         blocks?: string;
     };
+    /**
+     * Update-command defaults. `overwrite: true` makes `update`/`apply` take the
+     * upstream version whole-file (no 3-way merge) unless a CLI flag overrides it.
+     */
+    update?: {
+        overwrite?: boolean;
+    };
 }
 
 /** Returns the configured prefix or the default when none is set. */
@@ -69,12 +76,20 @@ function validateAliases(obj: Record<string, unknown>): boolean {
     return true;
 }
 
+function validateUpdate(obj: Record<string, unknown>): boolean {
+    if (!('update' in obj) || obj['update'] === undefined) return true;
+    if (typeof obj['update'] !== 'object' || obj['update'] === null) return false;
+    const upd = obj['update'] as Record<string, unknown>;
+    return !('overwrite' in upd) || upd['overwrite'] === undefined || typeof upd['overwrite'] === 'boolean';
+}
+
 function validateConfig(data: unknown): data is Config {
     if (!data || typeof data !== 'object') return false;
     const obj = data as Record<string, unknown>;
     if (!validateTailwind(obj)) return false;
     if (!validateAliases(obj)) return false;
     if ('prefix' in obj && obj['prefix'] !== undefined && !isValidPrefix(obj['prefix'])) return false;
+    if (!validateUpdate(obj)) return false;
     return true;
 }
 

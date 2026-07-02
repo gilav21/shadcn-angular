@@ -197,6 +197,7 @@ export async function apply(addonName: string, components: string[], options: Ap
     const config = await getConfig(cwd);
     if (!config) fail('components.json not found. Run `npx @gilav21/shadcn-angular init` first.');
     if (!options.registry && config.registry) options.registry = config.registry;
+    options.overwrite ??= config.update?.overwrite;
 
     const uiAlias = config.aliases.ui || 'src/components/ui';
     const addon = resolveAddon(addonName, uiAlias, getPrefix(config));

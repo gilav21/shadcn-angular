@@ -11,7 +11,8 @@ import {
     detectConflicts, collectBreakingChanges, collectSuggestedAddons, printBreakingChanges,
     type AddOptions, type ConflictCheckResult,
 } from '../core/plan.js';
-import { performInstall, type InstallResult } from '../core/install.js';
+import { performInstall, previewComponentMerges, type InstallResult, type MergePreview } from '../core/install.js';
+import { printBreakingUsages } from '../core/breaking-scan.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, getComponentRef, type Manifest } from '../core/manifest.js';
 import { reportMergeSummary } from './merge-report.js';
@@ -245,6 +246,27 @@ async function detectUpdates(
     return conflicts;
 }
 
+const PREVIEW_LABELS: Readonly<Partial<Record<MergePreview['outcome'], string>>> = {
+    'merged-clean': 'would merge cleanly',
+    'merged-conflict': 'WOULD CONFLICT (<<<<<<< markers)',
+    'fellback-kept': 'would keep your file (no baseline)',
+    overwritten: 'would overwrite (local edits discarded)',
+    refreshed: 'would refresh (unedited)',
+    skipped: 'already up to date',
+    created: 'would add',
+};
+
+/** Print `update --dry-run`'s per-file merge prediction for edited components. */
+function printMergePreview(previews: MergePreview[]): void {
+    if (previews.length === 0) return;
+    console.log(chalk.bold('\nDry-run merge preview (files):'));
+    for (const p of previews) {
+        const label = PREVIEW_LABELS[p.outcome] ?? p.outcome;
+        const color = p.outcome === 'merged-conflict' ? chalk.red : chalk.dim;
+        console.log(color(`  ${label}: ${p.file}`));
+    }
+}
+
 async function applyUpdates(
     universe: Set<ComponentName>, conflicts: ConflictCheckResult,
     cwd: string, config: Config, options: AddOptions,
@@ -270,6 +292,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
     const config = await getConfig(cwd);
     if (!config) abortConfig();
     if (!options.registry && config.registry) options.registry = config.registry;
+    options.overwrite ??= config.update?.overwrite;
 
     const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
     const scan = await scanLayouts(targetDir, getPrefix(config));
@@ -299,8 +322,15 @@ export async function update(names: string[], options: AddOptions): Promise<void
     printUpdatePlan(conflicts.conflicting, conflicts.toInstall);
     await warnCustomized(conflicts.conflicting, cwd, targetDir, options);
     printBreakingChanges(touched);
+    const managed = [config.aliases.ui, config.aliases.blocks]
+        .filter((a): a is string => Boolean(a))
+        .map(a => resolveProjectPath(cwd, aliasToProjectPath(a)));
+    await printBreakingUsages(touched, cwd, managed);
 
     if (options.dryRun) {
+        printMergePreview(await previewComponentMerges(
+            conflicts.conflicting, conflicts, { components: [...universe], cwd, config, options },
+        ));
         console.log(chalk.dim('\n[Dry Run] No changes written.'));
         return;
     }

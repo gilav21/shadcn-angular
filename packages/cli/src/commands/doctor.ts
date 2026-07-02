@@ -9,6 +9,7 @@ import { readManifest, writeManifest, removeFiles, fileStatus, type FileStatus, 
 import { scanLayouts } from '../core/layout.js';
 import { performInstall } from '../core/install.js';
 import { collectLibDrift, refreshLibFiles } from '../core/lib-reconcile.js';
+import { printBreakingUsages } from '../core/breaking-scan.js';
 import { collectStaleReport, rewriteMovedImports, type StaleEntry } from '../core/clean-reinstall.js';
 import { installPackages } from '../utils/package-manager.js';
 
@@ -453,5 +454,9 @@ export async function doctor(options: DoctorOptions): Promise<void> {
         return;
     }
     printReport(report);
+    const managed = [config.aliases.ui, config.aliases.blocks]
+        .filter((a): a is string => Boolean(a))
+        .map(a => resolveProjectPath(cwd, aliasToProjectPath(a)));
+    await printBreakingUsages(report.updateAvailable as ComponentName[], cwd, managed);
     process.exit(1);
 }

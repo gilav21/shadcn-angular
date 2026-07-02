@@ -175,11 +175,18 @@ async function resolveBase(file: string, ctx: MergeWriteContext): Promise<string
     return fetchAtRef(file, ref, ctx.options, ctx.utilsAlias, ctx.prefix, ctx.kind);
 }
 
+interface FileDecision {
+    readonly decision: MergeDecision;
+    /** Current on-disk content (THEIRS-independent), needed to restore OURS's EOL on write. */
+    readonly ours: string | null;
+}
+
 /**
- * Apply the per-file decision for one file and perform the resulting write +
- * manifest updates. Returns the outcome (also tallied into `ctx.report`).
+ * The read + classify half shared by {@link mergeWriteFile} and
+ * {@link previewMergeFile}: resolve OURS, decide if a BASE fetch is needed, and
+ * run {@link classifyMerge} — with NO write and NO manifest/report mutation.
  */
-export async function mergeWriteFile(file: string, ctx: MergeWriteContext): Promise<MergeOutcome> {
+async function decideMergeFile(file: string, ctx: MergeWriteContext): Promise<FileDecision> {
     const targetPath = path.join(ctx.targetDir, file);
     const exists = await fs.pathExists(targetPath);
     const ours = exists ? await fs.readFile(targetPath, 'utf-8') : null;
@@ -193,6 +200,26 @@ export async function mergeWriteFile(file: string, ctx: MergeWriteContext): Prom
     const base = needsBase ? await resolveBase(file, ctx) : null;
 
     const decision = classifyMerge({ ours, theirs: ctx.theirs, base, isClean, forceWholeFile: ctx.forceWholeFile });
+    return { decision, ours };
+}
+
+/**
+ * Predict what {@link mergeWriteFile} would do to one file — same read/classify
+ * logic (including a BASE fetch when a 3-way merge is implied) — WITHOUT writing
+ * the file or recording anything. Powers `update --dry-run`'s merge preview.
+ */
+export async function previewMergeFile(file: string, ctx: MergeWriteContext): Promise<MergeDecision> {
+    const { decision } = await decideMergeFile(file, ctx);
+    return decision;
+}
+
+/**
+ * Apply the per-file decision for one file and perform the resulting write +
+ * manifest updates. Returns the outcome (also tallied into `ctx.report`).
+ */
+export async function mergeWriteFile(file: string, ctx: MergeWriteContext): Promise<MergeOutcome> {
+    const targetPath = path.join(ctx.targetDir, file);
+    const { decision, ours } = await decideMergeFile(file, ctx);
 
     if (decision.content !== null) {
         await fs.ensureDir(path.dirname(targetPath));
