@@ -1,0 +1,114 @@
+import { Directive, DestroyRef, effect, inject, input, output } from '@angular/core';
+import { RichTextEditorAddonHost } from '../../rich-text-editor.host';
+import { RichTextSanitizerService } from '../../rich-text-sanitizer.service';
+import { RichTextMarkdownService } from '../../rich-text-markdown.service';
+import { validateActionId, validateActionParams } from './rich-text-actions.serializer';
+import {
+    ACTION_ATTRS,
+    type ActionParams,
+    type ActionTargetKind,
+    type RichTextActionDefinition,
+    type RichTextActionTrigger,
+} from './rich-text-actions.types';
+
+const ATTACH_ID = 'actions.attach';
+const ATTACH_ICON =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" ' +
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>';
+
+/**
+ * Opt-in actions addon for `<ui-rich-text-editor>`. Attaches via DI to the
+ * `RichTextEditorAddonHost` the base provides; contributes the "Attach action"
+ * toolbar button + `/action` slash command, widens the sanitizer allow-list
+ * for `data-action-*` attributes, and teaches markdown to preserve action
+ * spans. The base editor ships no action code.
+ */
+@Directive({
+    selector: 'ui-rich-text-editor[uiRteActions]',
+    standalone: true,
+})
+export class RichTextActionsDirective {
+    private readonly host = inject(RichTextEditorAddonHost);
+    private readonly sanitizer = inject(RichTextSanitizerService);
+    private readonly markdown = inject(RichTextMarkdownService);
+
+    /** The registered action definitions. Empty/absent → no UI appears. */
+    readonly uiRteActions = input<RichTextActionDefinition[]>([]);
+    /** Contribute the toolbar button (default true). */
+    readonly uiRteActionsToolbar = input(true);
+    /** Contribute the `/action` slash command (default true). */
+    readonly uiRteActionsSlashCommand = input(true);
+
+    readonly actionAttached = output<{
+        actionId: string; trigger: RichTextActionTrigger; params: ActionParams; targetKind: ActionTargetKind;
+    }>();
+    readonly actionRemoved = output<{
+        actionId: string; trigger: RichTextActionTrigger; targetKind: ActionTargetKind;
+    }>();
+
+    protected readonly overlays: (() => void)[] = [];
+
+    constructor() {
+        const destroyRef = inject(DestroyRef);
+
+        effect((onCleanup) => {
+            if (this.uiRteActions().length === 0) return;
+            onCleanup(this.sanitizer.registerAttributeRules([
+                { tag: '*', attr: 'data-action-click', validate: validateActionId },
+                { tag: '*', attr: 'data-action-hover', validate: validateActionId },
+                { tag: '*', attr: 'data-action-click-params', requiresAttr: 'data-action-click', validate: validateActionParams },
+                { tag: '*', attr: 'data-action-hover-params', requiresAttr: 'data-action-hover', validate: validateActionParams },
+            ]));
+        });
+
+        effect((onCleanup) => {
+            if (this.uiRteActions().length === 0) return;
+            onCleanup(this.markdown.registerSpanSerializer({
+                serialize: (el, inner) => {
+                    if (!ACTION_ATTRS.some((a) => el.hasAttribute(a))) return null;
+                    const clone = el.cloneNode(false) as HTMLElement;
+                    clone.innerHTML = inner;
+                    return clone.outerHTML;
+                },
+            }));
+        });
+
+        effect((onCleanup) => {
+            if (this.uiRteActions().length === 0 || !this.uiRteActionsToolbar()) return;
+            onCleanup(this.host.toolbarSlots.register({
+                id: ATTACH_ID, icon: ATTACH_ICON, tooltip: 'Attach action', order: 500,
+                isEnabled: () => this.canAttach(),
+                onClick: () => this.openAttachFlow(),
+            }));
+        });
+
+        effect((onCleanup) => {
+            if (this.uiRteActions().length === 0 || !this.uiRteActionsSlashCommand()) return;
+            onCleanup(this.host.commands.registerCommand({
+                id: ATTACH_ID, label: 'Attach action',
+                description: 'Attach a click or hover action to the selection',
+                keywords: ['action', 'link', 'dialog', 'hover'], order: 220,
+                when: (ctx) => ctx.hasSelection && !ctx.readonly,
+                run: () => this.openAttachFlow(),
+            }));
+        });
+
+        destroyRef.onDestroy(() => this.closeOverlays());
+    }
+
+    private canAttach(): boolean {
+        if (this.host.disabled() || this.host.readonly()) return false;
+        const sel = this.host.selection();
+        return sel.kind !== 'none' || !!sel.closestWithAttrs(ACTION_ATTRS);
+    }
+
+    /** Open the attach flow. Implemented fully in a later task; saves the selection here. */
+    protected openAttachFlow(): void {
+        this.host.saveSelection();
+    }
+
+    protected closeOverlays(): void {
+        for (const off of this.overlays.splice(0)) off();
+    }
+}

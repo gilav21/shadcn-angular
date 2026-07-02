@@ -1367,6 +1367,11 @@ export const registry = defineRegistry({
     libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-tooltip'],
   },
+  'rich-text-actions': {
+    name: 'rich-text-actions',
+    files: ['rich-text-editor/addons/actions/rich-text-actions.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions.serializer.ts', 'rich-text-editor/addons/actions/rich-text-actions.types.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
+    libFiles: ['addon-slots.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;
