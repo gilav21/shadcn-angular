@@ -5,8 +5,8 @@ import {
 
 /**
  * Binds {@link bindRichTextActions} to a host element and keeps it re-bound
- * across `[innerHTML]` swaps (via a debounced `MutationObserver`). Delivers
- * typed action events to the handler map.
+ * across `[innerHTML]` swaps (a `MutationObserver` re-binds once per coalesced
+ * mutation batch). Delivers typed action events to the handler map.
  *
  * @example
  * ```html
