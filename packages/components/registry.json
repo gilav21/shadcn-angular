@@ -719,6 +719,7 @@
       "table"
     ],
     "libFiles": [
+      "addon-slots.ts",
       "ai.ts",
       "component-pool.service.ts",
       "i18n/calendar.locales.ts",
@@ -3698,9 +3699,9 @@
       "running-total"
     ],
     "files": [
+      "waterfall-chart/index.ts",
       "waterfall-chart/waterfall-chart.component.html",
-      "waterfall-chart/waterfall-chart.component.ts",
-      "waterfall-chart/index.ts"
+      "waterfall-chart/waterfall-chart.component.ts"
     ],
     "libFiles": [
       "chart-interaction.ts",

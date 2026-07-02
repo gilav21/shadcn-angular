@@ -358,7 +358,7 @@ export const registry = defineRegistry({
     tags: ['data-table', 'table', 'grid', 'datagrid', 'sorting', 'filter'],
     files: ['data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.host.ts', 'data-table/data-table.locales.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-filter-builder.component.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
     dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'icon', 'input', 'pagination', 'popover', 'select', 'skeleton', 'table'],
-    libFiles: ['ai.ts', 'component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
+    libFiles: ['addon-slots.ts', 'ai.ts', 'component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
     addons: ['data-table/context-menu'],
     breaking: [
       { kind: 'input', from: '[rowActions] / [showRowActionsColumn] / [showRowActionsContextMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'Right-click / row-action menus moved to the opt-in context-menu addon. Run `npx @gilav21/shadcn-angular apply data-table/context-menu`, add `uiDtContextMenu` to the <ui-data-table> tag, and move [rowActions] onto it. [showRowActionsColumn] has no replacement — the dedicated actions column is gone, remove that binding.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
@@ -1363,7 +1363,7 @@ export const registry = defineRegistry({
     category: 'charts',
     description: 'Waterfall chart of running totals with floating bars, connectors, and total columns.',
     tags: ['waterfall-chart', 'waterfall', 'bridge', 'chart', 'running-total'],
-    files: ['waterfall-chart/waterfall-chart.component.html', 'waterfall-chart/waterfall-chart.component.ts', 'waterfall-chart/index.ts'],
+    files: ['waterfall-chart/index.ts', 'waterfall-chart/waterfall-chart.component.html', 'waterfall-chart/waterfall-chart.component.ts'],
     libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-tooltip'],
   },
