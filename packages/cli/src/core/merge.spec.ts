@@ -267,6 +267,74 @@ describe('mergeWriteFile (IO orchestration)', () => {
     expect(await fs.readFile(path.join(dir, FILE), 'utf-8')).toBe('A\nb\nC2\n'); // the 'A' edit survives
   });
 
+  it('preserves OURS CRLF line endings on a clean 3-way merge (M2)', async () => {
+    await writeOurs('A\r\nb\r\nc\r\n'); // CRLF + user edited line 1
+    const m = emptyManifest();
+    recordFile(m, FILE, 'original-different\n', 'button'); // modified vs baseline
+    recordComponentRef(m, 'button', 'OLD_SHA');
+    fetchAtRefMock.mockResolvedValue('a\nb\nc\n'); // BASE (LF)
+    const c = ctx({ theirs: 'a\nb\nC\n', manifest: m }); // upstream changed line 3 (LF)
+    const outcome = await mergeWriteFile(FILE, c);
+    expect(outcome).toBe('merged-clean');
+    // both changes present AND OURS's CRLF convention preserved
+    expect(await fs.readFile(path.join(dir, FILE), 'utf-8')).toBe('A\r\nb\r\nC\r\n');
+  });
+
+  it('preserves OURS CRLF line endings on conflict markers (M2)', async () => {
+    await writeOurs('a\r\nOURS\r\nc\r\n'); // CRLF
+    const m = emptyManifest();
+    recordFile(m, FILE, 'modified\n', 'button');
+    recordComponentRef(m, 'button', 'OLD_SHA');
+    fetchAtRefMock.mockResolvedValue('a\nb\nc\n'); // BASE
+    const c = ctx({ theirs: 'a\nTHEIRS\nc\n', manifest: m });
+    const outcome = await mergeWriteFile(FILE, c);
+    expect(outcome).toBe('merged-conflict');
+    const written = await fs.readFile(path.join(dir, FILE), 'utf-8');
+    expect(written).toContain('<<<<<<< ours\r\n'); // markers are CRLF-terminated too
+    expect(written).toContain('OURS');
+    expect(written).toContain('THEIRS');
+    expect(written.includes('\n') && !/[^\r]\n/.test(written)).toBe(true); // every LF preceded by CR
+  });
+
+  it('keeps LF line endings when OURS is LF (no spurious CRLF conversion)', async () => {
+    await writeOurs('A\nb\nc\n'); // LF
+    const m = emptyManifest();
+    recordFile(m, FILE, 'original-different\n', 'button');
+    recordComponentRef(m, 'button', 'OLD_SHA');
+    fetchAtRefMock.mockResolvedValue('a\nb\nc\n'); // BASE
+    const c = ctx({ theirs: 'a\nb\nC\n', manifest: m });
+    const outcome = await mergeWriteFile(FILE, c);
+    expect(outcome).toBe('merged-clean');
+    const written = await fs.readFile(path.join(dir, FILE), 'utf-8');
+    expect(written).toBe('A\nb\nC\n');
+    expect(written).not.toContain('\r');
+  });
+
+  it('does NOT force CRLF on a refresh even when OURS was CRLF (refresh takes THEIRS verbatim)', async () => {
+    await writeOurs('a\r\nb\r\nc\r\n'); // CRLF but unedited (normalized hash == baseline)
+    const m = emptyManifest();
+    recordFile(m, FILE, 'a\r\nb\r\nc\r\n', 'button'); // clean: normalized disk == recorded
+    const c = ctx({ theirs: 'a\nb\nNEW\n', manifest: m });
+    const outcome = await mergeWriteFile(FILE, c);
+    expect(outcome).toBe('refreshed');
+    const written = await fs.readFile(path.join(dir, FILE), 'utf-8');
+    expect(written).toBe('a\nb\nNEW\n'); // THEIRS verbatim (LF), no conversion
+  });
+
+  it('leaves mixed-EOL OURS as LF when CRLF does not dominate (tie/minority favors LF)', async () => {
+    await writeOurs('A\r\nb\nc\n'); // 1 CRLF vs 2 lone LFs → LF dominates
+    const m = emptyManifest();
+    recordFile(m, FILE, 'original-different\n', 'button');
+    recordComponentRef(m, 'button', 'OLD_SHA');
+    fetchAtRefMock.mockResolvedValue('a\nb\nc\n'); // BASE
+    const c = ctx({ theirs: 'a\nb\nC\n', manifest: m });
+    const outcome = await mergeWriteFile(FILE, c);
+    expect(outcome).toBe('merged-clean');
+    const written = await fs.readFile(path.join(dir, FILE), 'utf-8');
+    expect(written).toBe('A\nb\nC\n'); // not CRLF — CRLF was the minority
+    expect(written).not.toContain('\r');
+  });
+
   it('falls back (keeps OURS, no ref advance) when BASE is unavailable', async () => {
     await writeOurs('edited\n');
     const m = emptyManifest();

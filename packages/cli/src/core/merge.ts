@@ -125,6 +125,29 @@ export interface MergeWriteContext {
     readonly report: MergeReport;
 }
 
+/** True when OURS's dominant EOL is CRLF (more CRLF pairs than lone LFs); a tie favors LF. */
+function prefersCrlf(ours: string): boolean {
+    const crlf = ours.split('\r\n').length - 1;
+    const totalLf = ours.split('\n').length - 1;
+    return crlf > totalLf - crlf;
+}
+
+/** Rewrite an LF-bodied string to CRLF (collapse any stray CRLF first so we never emit CR CR LF). */
+function toCrlf(content: string): string {
+    return content.replaceAll('\r\n', '\n').replaceAll('\n', '\r\n');
+}
+
+/**
+ * Restore OURS's line-ending convention on merged output. merge3 always emits
+ * LF; a CRLF-dominant OURS would otherwise have every line silently rewritten.
+ * Only the 3-way-merge outcomes get this — created/refreshed/overwritten take
+ * THEIRS verbatim, so they keep upstream's (LF) endings.
+ */
+function restoreOursEol(content: string, ours: string | null, outcome: MergeOutcome): string {
+    const merged = outcome === 'merged-clean' || outcome === 'merged-conflict';
+    return merged && ours !== null && prefersCrlf(ours) ? toCrlf(content) : content;
+}
+
 /** Obtain BASE (recorded-ref content) only when an actual merge is needed. */
 async function resolveBase(file: string, ctx: MergeWriteContext): Promise<string | null> {
     const ref = getComponentRef(ctx.manifest, ctx.component);
@@ -153,7 +176,7 @@ export async function mergeWriteFile(file: string, ctx: MergeWriteContext): Prom
 
     if (decision.content !== null) {
         await fs.ensureDir(path.dirname(targetPath));
-        await fs.writeFile(targetPath, decision.content);
+        await fs.writeFile(targetPath, restoreOursEol(decision.content, ours, decision.outcome));
     }
     // Record the baseline as THEIRS — the pristine upstream the file was brought
     // up to at the now-advanced ref — NOT the (possibly merged) disk content. If
