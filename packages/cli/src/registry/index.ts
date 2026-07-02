@@ -801,6 +801,7 @@ export const registry = defineRegistry({
     category: 'editor',
     description: 'WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.',
     tags: ['rich-text-editor', 'wysiwyg', 'editor', 'text', 'formatting'],
+    addons: ['rich-text-editor/actions'],
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-image.utils.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-image-resizer.component.html', 'rich-text-editor/sub/rich-text-image-resizer.component.ts', 'rich-text-editor/sub/rich-text-mention.component.html', 'rich-text-editor/sub/rich-text-mention.component.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
     dependencies: ['autocomplete', 'button', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
     libFiles: ['addon-slots.ts', 'ai.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
@@ -1367,11 +1368,21 @@ export const registry = defineRegistry({
     libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-tooltip'],
   },
-  'rich-text-actions': {
-    name: 'rich-text-actions',
-    files: ['rich-text-editor/addons/actions/rich-text-actions-dialog.component.html', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-form.component.html', 'rich-text-editor/addons/actions/rich-text-actions-form.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.html', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.ts', 'rich-text-editor/addons/actions/rich-text-actions.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions.locales.ts', 'rich-text-editor/addons/actions/rich-text-actions.serializer.ts', 'rich-text-editor/addons/actions/rich-text-actions.types.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
+  'rich-text-editor/actions': {
+    name: 'rich-text-editor/actions',
+    type: 'addon',
+    parent: 'rich-text-editor',
+    category: 'editor',
+    description: 'Attach premade click/hover actions to text and images; dev-defined callbacks fire on the rendered HTML.',
+    tags: ['rich-text', 'actions', 'hover-card', 'dialog', 'interactive', 'addon'],
+    files: ['rich-text-editor/addons/actions/actions-runtime.ts', 'rich-text-editor/addons/actions/index.ts', 'rich-text-editor/addons/actions/presets/hover-card.preset.ts', 'rich-text-editor/addons/actions/presets/index.ts', 'rich-text-editor/addons/actions/presets/open-dialog.preset.ts', 'rich-text-editor/addons/actions/presets/preset-overlay.utils.ts', 'rich-text-editor/addons/actions/rich-text-actions-bind.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.html', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-form.component.html', 'rich-text-editor/addons/actions/rich-text-actions-form.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.html', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.ts', 'rich-text-editor/addons/actions/rich-text-actions.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions.locales.ts', 'rich-text-editor/addons/actions/rich-text-actions.serializer.ts', 'rich-text-editor/addons/actions/rich-text-actions.types.ts'],
     libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts'],
-    dependencies: ['button', 'dialog'],
+    dependencies: ['button', 'dialog', 'rich-text-editor'],
+    requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-command-registry.service.ts'],
+    attach: {
+      import: "RichTextActionsDirective from './ui/rich-text-editor/addons/actions'",
+      selector: 'uiRteActions',
+    },
   },
 });
 

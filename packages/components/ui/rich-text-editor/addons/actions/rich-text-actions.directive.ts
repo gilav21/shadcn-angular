@@ -2,9 +2,7 @@ import {
     Directive, DestroyRef, afterNextRender, effect, inject, input, output, signal,
     ViewContainerRef, type ComponentRef,
 } from '@angular/core';
-import { RichTextEditorAddonHost } from '../../rich-text-editor.host';
-import { RichTextSanitizerService } from '../../rich-text-sanitizer.service';
-import { RichTextMarkdownService } from '../../rich-text-markdown.service';
+import { RichTextEditorAddonHost, RichTextSanitizerService, RichTextMarkdownService } from '../..';
 import {
     assertFlatParams, readActions, removeAction, validateActionId, validateActionParams, writeAction,
 } from './rich-text-actions.serializer';
