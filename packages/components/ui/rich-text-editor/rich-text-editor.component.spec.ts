@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of, Subject, throwError } from 'rxjs';
 import { RichTextEditorComponent } from './rich-text-editor.component';
+import { RichTextEditorAddonHost } from './rich-text-editor.host';
 import { DEFAULT_FONT_FAMILIES } from './sub/rich-text-toolbar.component';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 import { RichTextCommandRegistry, RichTextSlashCommandContext } from './rich-text-command-registry.service';
@@ -4762,5 +4763,102 @@ describe('RichTextEditorComponent AI assist', () => {
             'rewrite', 'fix-grammar', 'shorten', 'expand', 'summarize', 'continue',
         ]);
         expect(component.aiLabels().trigger).toBe('✨ Ask AI');
+    });
+});
+
+describe('RichTextEditorComponent - addon host', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [RichTextEditorComponent] }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('is provided via DI as RichTextEditorAddonHost', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        expect(host).toBe(component);
+    });
+
+    it('renders a registered toolbar slot after built-ins and fires its onClick', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        const clicks: Event[] = [];
+        host.toolbarSlots.register({
+            id: 'demo', icon: '<svg></svg>', tooltip: 'Demo', order: 500,
+            onClick: (e) => clicks.push(e),
+        });
+        fixture.detectChanges();
+        const btn = fixture.nativeElement.querySelector('[data-addon-slot="demo"]') as HTMLButtonElement;
+        expect(btn).toBeTruthy();
+        btn.click();
+        expect(clicks.length).toBe(1);
+    });
+
+    it('selection() reports none when the editor is empty and unfocused', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        expect(host.selection().kind).toBe('none');
+    });
+
+    it('selection() reports text kind and the selected string', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        editor.innerHTML = '<p>hello world</p>';
+        const node = editor.querySelector('p')!.firstChild!;
+        const range = document.createRange();
+        range.setStart(node, 0); range.setEnd(node, 5);
+        const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+        const snap = host.selection();
+        expect(snap.kind).toBe('text');
+        expect(snap.text).toBe('hello');
+    });
+
+    it('wrapSelection wraps the current text range in the built element', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        editor.innerHTML = '<p>hello world</p>';
+        const node = editor.querySelector('p')!.firstChild!;
+        const range = document.createRange();
+        range.setStart(node, 0); range.setEnd(node, 5);
+        const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+        host.saveSelection();
+        const created = host.wrapSelection(() => {
+            const s = document.createElement('span');
+            s.setAttribute('data-action-click', 'a');
+            return s;
+        });
+        expect(created.length).toBeGreaterThan(0);
+        expect(editor.querySelector('span[data-action-click="a"]')?.textContent).toBe('hello');
+    });
+
+    it('mutateContent applies a change and pushes an undoable history entry', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        host.mutateContent((root) => { root.innerHTML = '<p>abc</p>'; });
+        const before = editor.innerHTML;
+        host.mutateContent((root) => {
+            const span = document.createElement('span');
+            span.setAttribute('data-action-click', 'a');
+            span.textContent = 'X';
+            root.querySelector('p')!.appendChild(span);
+        });
+        expect(editor.querySelector('span[data-action-click="a"]')).toBeTruthy();
+        (component as unknown as { undo(): void }).undo();
+        fixture.detectChanges();
+        expect(editor.innerHTML).toBe(before);
+    });
+
+    it('saveSelection/restoreSelection survive a focus change', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        editor.innerHTML = '<p>hello world</p>';
+        const node = editor.querySelector('p')!.firstChild!;
+        const range = document.createRange();
+        range.setStart(node, 6); range.setEnd(node, 11);
+        const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+        host.saveSelection();
+        sel.removeAllRanges();
+        host.restoreSelection();
+        expect(window.getSelection()!.toString()).toBe('world');
     });
 });

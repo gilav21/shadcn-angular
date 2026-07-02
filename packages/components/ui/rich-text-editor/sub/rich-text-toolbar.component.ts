@@ -25,6 +25,7 @@ import {
 import { AutocompleteComponent } from '../../autocomplete';
 import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
 import { RichTextCustomToolbarItem } from '../rich-text-editor.component';
+import type { RichTextToolbarSlot } from '../rich-text-editor.host';
 
 /**
  * Identifier for a toolbar button or visual separator. Pass an array of these
@@ -267,6 +268,11 @@ export class RichTextToolbarComponent {
   fileImport = output<File>();
   customItems = input<RichTextCustomToolbarItem[]>([]);
   customItemClick = output<string>();
+  addonSlots = input<readonly RichTextToolbarSlot[]>([]);
+  addonSlotClick = output<{ slot: RichTextToolbarSlot; event: Event }>();
+
+  readonly orderedAddonSlots = computed(() =>
+    [...this.addonSlots()].sort((a, b) => (a.order ?? 1000) - (b.order ?? 1000)));
 
   tableGridHoverRows = signal(0);
   tableGridHoverCols = signal(0);
@@ -319,6 +325,25 @@ export class RichTextToolbarComponent {
       active && 'bg-accent text-accent-foreground',
       this.compact() && 'p-1'
     );
+  }
+
+  addonButtonClasses(slot: RichTextToolbarSlot): string {
+    return cn(
+      'inline-flex items-center justify-center rounded-md p-1.5 text-sm font-medium transition-colors',
+      'hover:bg-accent hover:text-accent-foreground',
+      'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+      'disabled:pointer-events-none disabled:opacity-50',
+      this.addonSlotActive(slot) && 'bg-accent text-accent-foreground',
+      this.compact() && 'p-1'
+    );
+  }
+
+  addonSlotEnabled(slot: RichTextToolbarSlot): boolean {
+    return slot.isEnabled ? slot.isEnabled() : true;
+  }
+
+  addonSlotActive(slot: RichTextToolbarSlot): boolean {
+    return slot.isActive ? slot.isActive() : false;
   }
 
   isActive(item: ToolbarItem): boolean {
