@@ -4,6 +4,22 @@ import { isValidImageMagicBytes } from '../../lib/parsers/image-validator';
 import { sanitizeSvg } from '../../lib/parsers/svg-sanitizer';
 
 /**
+ * A per-attribute rule an addon contributes to widen the sanitizer allow-list.
+ * Locked attributes (`on*`, `href`, `src`, `style`, `class`) can never be
+ * contributed — the security boundary stays centralized in this service.
+ */
+export interface SanitizerAttributeRule {
+    /** `'*'` (any element) or a lowercase tag name. */
+    tag: string;
+    /** The attribute name this rule governs (lowercase). */
+    attr: string;
+    /** If set, this attribute is dropped unless the companion attribute survives. */
+    requiresAttr?: string;
+    /** Return the value to keep, or null to strip. Defaults to keeping as-is. */
+    validate?: (value: string, element: HTMLElement) => string | null;
+}
+
+/**
  * Comprehensive HTML sanitization service for rich text editor.
  * Uses browser's DOMParser and TreeWalker for zero-dependency sanitization.
  * 
@@ -128,6 +144,65 @@ export class RichTextSanitizerService {
     // Event handler attributes pattern
     private readonly EVENT_HANDLER_PATTERN = /^on\w+$/i;
 
+    // Attributes an addon rule may never target — the security boundary stays here.
+    private readonly LOCKED_ATTRS = new Set(['href', 'src', 'style', 'class']);
+    private readonly contributedRules = new Map<string, { rule: SanitizerAttributeRule; count: number }>();
+
+    /**
+     * Register addon attribute rules. Ref-counted and additive; returns a teardown
+     * that decrements each rule's count and removes it at zero. Throws if any rule
+     * targets a locked or event-handler attribute.
+     */
+    registerAttributeRules(rules: SanitizerAttributeRule[]): () => void {
+        for (const rule of rules) {
+            const attr = rule.attr.toLowerCase();
+            if (this.LOCKED_ATTRS.has(attr) || this.EVENT_HANDLER_PATTERN.test(attr)) {
+                throw new Error(`Cannot contribute a sanitizer rule for locked attribute "${rule.attr}".`);
+            }
+        }
+        for (const rule of rules) {
+            const key = this.ruleKey(rule.tag, rule.attr);
+            const existing = this.contributedRules.get(key);
+            if (existing) {
+                existing.count += 1;
+            } else {
+                this.contributedRules.set(key, { rule, count: 1 });
+            }
+        }
+        return () => {
+            for (const rule of rules) {
+                const key = this.ruleKey(rule.tag, rule.attr);
+                const entry = this.contributedRules.get(key);
+                if (!entry) continue;
+                entry.count -= 1;
+                if (entry.count <= 0) this.contributedRules.delete(key);
+            }
+        };
+    }
+
+    private ruleKey(tag: string, attr: string): string {
+        return `${tag.toLowerCase()}|${attr.toLowerCase()}`;
+    }
+
+    private findContributedRule(tagName: string, attrName: string): SanitizerAttributeRule | undefined {
+        return this.contributedRules.get(this.ruleKey(tagName, attrName))?.rule
+            ?? this.contributedRules.get(this.ruleKey('*', attrName))?.rule;
+    }
+
+    private dropOrphanCompanionAttributes(root: HTMLElement): void {
+        const companions = Array.from(this.contributedRules.values())
+            .map((e) => e.rule)
+            .filter((r) => r.requiresAttr);
+        for (const rule of companions) {
+            const requires = rule.requiresAttr as string;
+            for (const el of Array.from(root.querySelectorAll(`[${rule.attr}]`))) {
+                if (!el.hasAttribute(requires)) {
+                    el.removeAttribute(rule.attr);
+                }
+            }
+        }
+    }
+
     // Control, whitespace, and zero-width / bidi / format characters that
     // browsers ignore or normalize inside URLs; stripped before a URL scheme
     // is inspected so they cannot mask a dangerous protocol.
@@ -152,6 +227,7 @@ export class RichTextSanitizerService {
 
         // Process all child nodes of body
         this.processNodes(doc.body, cleanContainer);
+        this.dropOrphanCompanionAttributes(cleanContainer);
 
         return this.normalizeStyleQuotes(cleanContainer.innerHTML);
     }
@@ -332,11 +408,22 @@ export class RichTextSanitizerService {
                 allowedGlobal?.has(attrName);
 
             if (!isAllowed) {
+                this.applyContributedAttribute(tagName, attrName, attr.value, target);
                 continue;
             }
 
             this.applyAllowedAttribute(attrName, attr.value, target);
         }
+    }
+
+    private applyContributedAttribute(
+        tagName: string, attrName: string, value: string, target: HTMLElement,
+    ): void {
+        const rule = this.findContributedRule(tagName, attrName);
+        if (!rule) return;
+        const kept = rule.validate ? rule.validate(value, target) : value;
+        if (kept === null) return;
+        target.setAttribute(attrName, kept);
     }
 
     private applyAllowedAttribute(attrName: string, value: string, target: HTMLElement): void {
