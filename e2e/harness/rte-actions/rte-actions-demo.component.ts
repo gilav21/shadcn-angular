@@ -70,6 +70,9 @@ export class RteActionsDemoComponent {
         },
     ];
 
+    // Pre-seeded, already-sanitized editor output (e2e scaffolding); the inert
+    // data-action-* hooks must survive Angular's binding sanitizer.
+    // eslint-disable-next-line sonarjs/no-angular-bypass-sanitization
     protected readonly publishedHtml: SafeHtml = this.sanitizer.bypassSecurityTrustHtml(
         '<p>See our <span data-action-click="open-dialog" ' +
         'data-action-click-params=\'{"dialogId":"pricing"}\'>pricing</span> page.</p>',

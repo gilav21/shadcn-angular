@@ -438,7 +438,7 @@ describe('RichTextSanitizerService', () => {
     describe('attribute-rule contribution API', () => {
         const idRule = {
             tag: '*', attr: 'data-action-click',
-            validate: (v: string) => (/^[\w][\w.-]*$/.test(v) ? v : null),
+            validate: (v: string) => (/^\w[\w.-]*$/.test(v) ? v : null),
         };
         const paramsRule = {
             tag: '*', attr: 'data-action-click-params', requiresAttr: 'data-action-click',

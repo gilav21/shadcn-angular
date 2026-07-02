@@ -4796,7 +4796,7 @@ describe('RichTextEditorComponent - addon host', () => {
         const btn = fixture.nativeElement.querySelector('[data-addon-slot="demo"]') as HTMLButtonElement;
         expect(btn).toBeTruthy();
         btn.click();
-        expect(clicks.length).toBe(1);
+        expect(clicks).toHaveLength(1);
     });
 
     it('selection() reports none when the editor is empty and unfocused', () => {
