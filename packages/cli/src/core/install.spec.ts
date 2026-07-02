@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
 import { performInstall, planInstall } from './install.js';
 import { getDefaultConfig } from '../utils/config.js';
+import { isPristineLib } from './lib-reconcile.js';
 
 vi.mock('fs-extra', () => ({
   default: {
@@ -22,6 +23,8 @@ vi.mock('./fetch.js', () => ({
 }));
 vi.mock('../utils/package-manager.js', () => ({ installPackages: vi.fn(async () => undefined) }));
 vi.mock('../utils/shortcut-registry.js', () => ({ writeShortcutRegistryIndex: vi.fn(async () => undefined) }));
+// Control baseline recognition for the L5 pre-manifest pristine-lib path.
+vi.mock('./lib-reconcile.js', () => ({ isPristineLib: vi.fn(() => false) }));
 
 const base = { cwd: '/proj', config: getDefaultConfig(), options: { branch: 'master' } };
 
@@ -188,5 +191,42 @@ describe('performInstall prunes obsolete files (B7)', () => {
 
     expect(result.pruned).not.toContain(OBSOLETE);
     expect(result.warnings.some(w => w.includes(OBSOLETE))).toBe(true);
+  });
+});
+
+describe('installSingleLibFile pre-manifest pristine refresh (L5)', () => {
+  // input-group ships a single lib file and no registry deps, so the only lib
+  // file installLibFiles touches is input-group.token.ts.
+  const LIB = 'input-group.token.ts';
+  const isPristineMock = isPristineLib as unknown as ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Lib file present on disk, everything else (incl. lock.json) absent =>
+    // component files install fresh and the lib file reads as 'untracked'.
+    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async (p: string) => String(p).replaceAll('\\', '/').endsWith(LIB),
+    );
+    (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockImplementation(
+      async (p: string) => String(p).replaceAll('\\', '/').endsWith(LIB) ? 'STALE PRISTINE' : '',
+    );
+  });
+
+  it('refreshes an untracked lib file a published baseline recognizes', async () => {
+    isPristineMock.mockReturnValue(true);
+    const result = await performInstall({ ...base, components: ['input-group'] });
+    const writes = (fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .map(c => String(c[0]).replaceAll('\\', '/'));
+    expect(writes.some(p => p.endsWith(LIB))).toBe(true);
+    expect(result.warnings.some(w => w.includes(LIB))).toBe(false);
+  });
+
+  it('keeps and warns about an untracked lib file no baseline recognizes', async () => {
+    isPristineMock.mockReturnValue(false);
+    const result = await performInstall({ ...base, components: ['input-group'] });
+    const writes = (fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .map(c => String(c[0]).replaceAll('\\', '/'));
+    expect(writes.some(p => p.endsWith(LIB))).toBe(false);
+    expect(result.warnings.some(w => w.includes(LIB))).toBe(true);
   });
 });

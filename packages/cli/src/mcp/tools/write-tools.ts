@@ -5,6 +5,7 @@ import path from 'node:path';
 import { isComponentName, type ComponentName } from '../../registry/index.js';
 import { performInstall } from '../../core/install.js';
 import { collectBreakingChanges } from '../../core/plan.js';
+import { hasUnresolvedConflicts } from '../../core/merge.js';
 import { scanStaleSelectors } from '../../core/codemod.js';
 import { initProject } from '../../core/init-core.js';
 import { applyCore, resolveAddonInfo, ApplyError } from '../../core/apply-core.js';
@@ -121,7 +122,7 @@ function registerAddTool(server: McpServer, cwd: string): void {
 function registerUpdateTool(server: McpServer, cwd: string): void {
     server.registerTool('update_component', {
         title: 'Update components',
-        description: 'Update components from the registry. By default 3-way MERGES upstream changes into your local edits (conflicts are written as <<<<<<< markers and reported in mergeReport.mergedConflicted); pass overwrite:true to replace your edits whole-file instead. Mirrors the `update` CLI command.',
+        description: 'Update components from the registry. By default 3-way MERGES upstream changes into your local edits (conflicts are written as <<<<<<< markers and reported in mergeReport.mergedConflicted); pass overwrite:true to replace your edits whole-file instead. Files with local edits but no recorded merge baseline are KEPT unchanged and listed in mergeReport.fellBack — re-run with overwrite:true to take upstream for those. Mirrors the `update` CLI command.',
         inputSchema: {
             names: z.array(z.string()).min(1),
             overwrite: z.boolean().optional().describe('Replace local edits whole-file instead of 3-way merging.'),
@@ -148,6 +149,7 @@ function registerUpdateTool(server: McpServer, cwd: string): void {
         const staleSelectors = await scanStaleSelectors(cwd, names as ComponentName[]);
         return json({
             ...result,
+            hadConflicts: hasUnresolvedConflicts(result.mergeReport),
             libRefreshed: lib.refreshed,
             libWarnings: lib.warnings,
             breakingChanges,
@@ -321,7 +323,7 @@ function registerDoctorTool(server: McpServer, cwd: string): void {
 function registerApplyAddonTool(server: McpServer, cwd: string): void {
     server.registerTool('apply_addon', {
         title: 'Apply an addon',
-        description: 'Install an addon (and its base if missing) and wire it into your app non-interactively: adds the directive import + the attribute on the base component\'s usage. Target by component class name(s), or omit to wire every app-code usage. Returns per-target wiring counts and a paste snippet for anything it could not auto-wire.',
+        description: 'Install an addon (and its base if missing) and wire it into your app non-interactively: adds the directive import + the attribute on the base component\'s usage. Target by component class name(s), or omit to wire every app-code usage. Returns per-target wiring counts and a paste snippet for anything it could not auto-wire. If the base had local edits it is 3-way merged; check hadConflicts / mergeReport.mergedConflicted for files written with <<<<<<< conflict markers before reporting success.',
         inputSchema: {
             addon: z.string().describe('Addon key, e.g. "data-table/context-menu".'),
             components: z.array(z.string()).optional().describe('Component class name(s) to wire into (e.g. ["UsersTableComponent"]). Omit to scan all app-code usages.'),
@@ -346,7 +348,7 @@ function registerApplyAddonTool(server: McpServer, cwd: string): void {
                 all: args.all, class: args.class, id: args.id, dryRun: args.dryRun,
             };
             const result = await applyCore(args.addon, args.components ?? [], options, cwd, config);
-            return json(result);
+            return json({ ...result, hadConflicts: hasUnresolvedConflicts(result.mergeReport) });
         } catch (error) {
             if (error instanceof ApplyError) return err(error.message);
             return err(error instanceof Error ? error.message : String(error));

@@ -198,6 +198,8 @@ export interface InstallPlan {
     npmDependencies: string[];
     /** Breaking-change notes for components in the plan, surfaced before any file is written. */
     breakingChanges: ComponentBreaking[];
+    /** Addon keys suggested as the fix for the plan's breaking changes (deduped, sorted). */
+    suggestedAddons: string[];
 }
 
 export function summarizePlan(
@@ -208,12 +210,14 @@ export function summarizePlan(
     for (const name of allComponents) {
         for (const dep of registry[name].npmDependencies ?? []) npm.add(dep);
     }
+    const breakingChanges = collectBreakingChanges(allComponents);
     return {
         toInstall: result.toInstall,
         toSkip: result.toSkip,
         conflicting: result.conflicting,
         peerFilesToUpdate: [...result.peerFilesToUpdate],
         npmDependencies: [...npm],
-        breakingChanges: collectBreakingChanges(allComponents),
+        breakingChanges,
+        suggestedAddons: collectSuggestedAddons(breakingChanges),
     };
 }

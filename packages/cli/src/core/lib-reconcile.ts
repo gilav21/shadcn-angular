@@ -48,7 +48,7 @@ export function requiredLibFiles(installed: Iterable<ComponentName>): string[] {
 }
 
 /** True when `local` matches a known published revision of this lib file. */
-function isPristineLib(file: string, local: string): boolean {
+export function isPristineLib(file: string, local: string): boolean {
     return LIB_BASELINES[file]?.includes(hashContent(local)) ?? false;
 }
 

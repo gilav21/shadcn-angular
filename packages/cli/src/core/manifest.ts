@@ -6,6 +6,9 @@ import { normalizeContent } from './fetch.js';
 export const MANIFEST_FILENAME = 'components.lock.json';
 export const MANIFEST_VERSION = 2;
 
+/** Guards the once-per-process legacy-lockfile warning (see {@link warnLegacyManifest}). */
+let warnedLegacyManifest = false;
+
 export interface ManifestEntry {
     sha256: string;
     component: string;
@@ -37,6 +40,23 @@ function readComponents(data: Partial<Manifest>): Record<string, ComponentRecord
     return c && typeof c === 'object' ? c : undefined;
 }
 
+/**
+ * Surface a version skew: when this (v2+) CLI reads a lockfile last written by
+ * an older CLI (version < MANIFEST_VERSION) that still recorded files, warn once
+ * per process — the pre-v2 file carries no per-component merge baselines, so the
+ * next update re-records them.
+ */
+function warnLegacyManifest(data: Partial<Manifest>): void {
+    if (warnedLegacyManifest) return;
+    if (typeof data.version !== 'number' || data.version >= MANIFEST_VERSION) return;
+    if (!data.files || Object.keys(data.files).length === 0) return;
+    warnedLegacyManifest = true;
+    console.warn(
+        'components.lock.json was last written by an older CLI (v1) — ' +
+        'per-component merge baselines will be re-recorded on the next update.',
+    );
+}
+
 export async function readManifest(cwd: string): Promise<Manifest> {
     const p = path.join(cwd, MANIFEST_FILENAME);
     if (!await fs.pathExists(p)) return emptyManifest();
@@ -44,6 +64,7 @@ export async function readManifest(cwd: string): Promise<Manifest> {
         const data = await fs.readJson(p) as Partial<Manifest>;
         // eslint-disable-next-line sonarjs/different-types-comparison -- data is runtime JSON; files may be null even though Partial<Manifest> excludes null
         if (!data || typeof data.files !== 'object' || data.files === null) return emptyManifest();
+        warnLegacyManifest(data);
         return { version: data.version ?? MANIFEST_VERSION, files: data.files, components: readComponents(data) };
     } catch {
         return emptyManifest();
