@@ -355,7 +355,7 @@ function printSection(title: string, items: string[], colorFn: (s: string) => st
 
 function printReport(report: DoctorReport): void {
     printSection('Partially installed (missing files):', report.missingFiles, chalk.yellow);
-    printSection('Locally modified (your edits — back them up before update):', report.userEdited, chalk.yellow);
+    printSection('Locally modified (your edits — `update` will 3-way merge upstream changes into them):', report.userEdited, chalk.yellow);
     printSection('Update available (newer registry version):', report.updateAvailable, chalk.cyan);
     printSection('Legacy single-file layout — run `migrate`:', report.legacy, chalk.magenta);
     printSection('Missing npm dependencies:', report.missingNpmDeps, chalk.red);
@@ -381,7 +381,7 @@ function printFixPlan(plan: DoctorFixPlan): void {
     printSection('Protected (your edits — review with `diff <name>`):', plan.protected, chalk.yellow);
     printSection('Protected lib files (your edits):', plan.libProtected, chalk.yellow);
     printSection('Stale files you still import (manual):', plan.staleKeepWarn, chalk.yellow);
-    printSection('Legacy layout — run `npx shadcn-angular migrate`:', plan.legacy, chalk.magenta);
+    printSection('Legacy layout — run `npx @gilav21/shadcn-angular migrate`:', plan.legacy, chalk.magenta);
     console.log('');
 }
 

@@ -361,7 +361,7 @@ export const registry = defineRegistry({
     libFiles: ['ai.ts', 'component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
     addons: ['data-table/context-menu'],
     breaking: [
-      { kind: 'input', from: '[rowActions] / [showRowActionsColumn] / [showRowActionsContextMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'Right-click / row-action menus moved to the opt-in context-menu addon. Run `npx shadcn-angular apply data-table/context-menu`, add `uiDtContextMenu` to the <ui-data-table> tag, and move [rowActions] onto it. [showRowActionsColumn] has no replacement — the dedicated actions column is gone, remove that binding.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
+      { kind: 'input', from: '[rowActions] / [showRowActionsColumn] / [showRowActionsContextMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'Right-click / row-action menus moved to the opt-in context-menu addon. Run `npx @gilav21/shadcn-angular apply data-table/context-menu`, add `uiDtContextMenu` to the <ui-data-table> tag, and move [rowActions] onto it. [showRowActionsColumn] has no replacement — the dedicated actions column is gone, remove that binding.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
       { kind: 'input', from: '[enableColumnMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'The per-column sort/pin/hide header menu moved to the context-menu addon. Add `uiDtContextMenu` and move [enableColumnMenu] onto it.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
     ],
   },
@@ -413,7 +413,7 @@ export const registry = defineRegistry({
     files: ['virtual-scroll/index.ts', 'virtual-scroll/virtual-scroll.component.css', 'virtual-scroll/virtual-scroll.component.html', 'virtual-scroll/virtual-scroll.component.ts'],
     breaking: [
       { kind: 'selector', from: 'virtualItem', to: 'uiVirtualItem', note: 'The item-template directive selector was renamed `[virtualItem]` -> `[uiVirtualItem]`. The old selector still works as a deprecated alias; rename `<ng-template virtualItem>` to `<ng-template uiVirtualItem>` in your templates.', codemod: 'selector' },
-      { kind: 'type', from: 'items: T[]', to: 'items: T[] where T extends VirtualItem', note: 'The `items` input is now generic over `T extends VirtualItem` (requires an `id: string | number`). Give your row type an `id`, or cast at the binding.', codemod: 'none' },
+      { kind: 'type', from: 'items: T[]', to: 'items: T[] where T extends object', note: 'The `items` input is now generic over `T extends object`; any object row type binds unchanged. An `id: string | number` is optional and used for stable tracking when present.', codemod: 'none' },
     ],
   },
   'input-mask': {

@@ -291,7 +291,7 @@ async function promptOverwrite(
 
     console.log(chalk.yellow(`\n${conflicting.length} component(s) have local changes or are different from remote:`));
     showConflictDiffs(conflicting, targetDir, contentCache);
-    console.log(chalk.dim('\n  Use `npx shadcn-angular diff <component>` for full diffs.\n'));
+    console.log(chalk.dim('\n  Use `npx @gilav21/shadcn-angular diff <component>` for full diffs.\n'));
 
     const { selected } = await prompts({
         type: 'multiselect',
