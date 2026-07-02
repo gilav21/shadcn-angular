@@ -59,13 +59,22 @@ export function classifyMerge(inputs: MergeInputs): MergeDecision {
 export interface MergeReport {
     mergedClean: string[];
     mergedConflicted: string[];
+    /** Files that were absent → newly written whole (`created`). */
+    created: string[];
+    /** Unedited files fast-pathed to upstream (`refreshed`, no edits lost). */
+    refreshed: string[];
+    /** Edited files clobbered whole-file under `--overwrite` (local edits discarded). */
     overwritten: string[];
     skipped: string[];
     fellBack: string[];
 }
 
 export function emptyMergeReport(): MergeReport {
-    return { mergedClean: [], mergedConflicted: [], overwritten: [], skipped: [], fellBack: [] };
+    return {
+        mergedClean: [], mergedConflicted: [],
+        created: [], refreshed: [], overwritten: [],
+        skipped: [], fellBack: [],
+    };
 }
 
 /** True when a file was written with unresolved conflict markers (drives a non-zero exit in CI). */
@@ -76,12 +85,17 @@ export function hasUnresolvedConflicts(report: MergeReport): boolean {
 /** Plain-text summary lines for the post-update report (the caller adds color). */
 export function formatMergeSummary(report: MergeReport): string[] {
     const lines: string[] = [];
-    if (report.mergedClean.length > 0) lines.push(`Merged cleanly: ${report.mergedClean.length}`);
+    if (report.mergedClean.length > 0) {
+        lines.push(`Merged cleanly: ${report.mergedClean.length}`);
+        for (const f of report.mergedClean) lines.push(`  ~ ${f}`);
+    }
     if (report.mergedConflicted.length > 0) {
         lines.push(`Merged with conflicts (resolve the <<<<<<< markers): ${report.mergedConflicted.length}`);
         for (const f of report.mergedConflicted) lines.push(`  ! ${f}`);
     }
-    if (report.overwritten.length > 0) lines.push(`Updated: ${report.overwritten.length}`);
+    if (report.created.length > 0) lines.push(`Added: ${report.created.length}`);
+    if (report.refreshed.length > 0) lines.push(`Refreshed (unedited): ${report.refreshed.length}`);
+    if (report.overwritten.length > 0) lines.push(`Overwrote (local edits discarded): ${report.overwritten.length}`);
     if (report.skipped.length > 0) lines.push(`Already up to date: ${report.skipped.length}`);
     if (report.fellBack.length > 0) {
         lines.push(`Skipped (locally edited, no baseline to merge — re-run with --overwrite to take upstream): ${report.fellBack.length}`);
@@ -90,12 +104,18 @@ export function formatMergeSummary(report: MergeReport): string[] {
     return lines;
 }
 
+const TALLY_BUCKET: Record<MergeOutcome, keyof MergeReport> = {
+    'created': 'created',
+    'refreshed': 'refreshed',
+    'overwritten': 'overwritten',
+    'skipped': 'skipped',
+    'merged-clean': 'mergedClean',
+    'merged-conflict': 'mergedConflicted',
+    'fellback-kept': 'fellBack',
+};
+
 function tally(report: MergeReport, file: string, outcome: MergeOutcome): void {
-    if (outcome === 'merged-clean') report.mergedClean.push(file);
-    else if (outcome === 'merged-conflict') report.mergedConflicted.push(file);
-    else if (outcome === 'skipped') report.skipped.push(file);
-    else if (outcome === 'fellback-kept') report.fellBack.push(file);
-    else report.overwritten.push(file); // created | refreshed | overwritten
+    report[TALLY_BUCKET[outcome]].push(file);
 }
 
 /**

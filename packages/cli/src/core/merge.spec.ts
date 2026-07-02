@@ -96,14 +96,21 @@ describe('merge report summary', () => {
     const lines = formatMergeSummary(report({
       mergedClean: ['a.ts', 'b.ts'],
       mergedConflicted: ['c.ts'],
+      created: ['g.ts'],
+      refreshed: ['h.ts'],
       overwritten: ['d.ts'],
       skipped: ['e.ts'],
       fellBack: ['f.ts'],
     }));
     const text = lines.join('\n');
-    expect(text).toContain('2'); // merged cleanly count
+    expect(text).toContain('Merged cleanly: 2');
+    expect(text).toContain('a.ts'); // merged-clean files now listed
     expect(text).toContain('c.ts'); // conflicted file listed
     expect(text).toContain('f.ts'); // fell-back file listed
+    expect(text).toContain('Added: 1'); // created bucket, distinct label
+    expect(text).toContain('Refreshed (unedited): 1');
+    expect(text).toContain('Overwrote (local edits discarded): 1');
+    expect(text).not.toContain('Updated:'); // old ambiguous label is gone
   });
 
   it('returns no lines for an empty report', () => {
@@ -168,7 +175,7 @@ describe('mergeWriteFile (IO orchestration)', () => {
     expect(await fs.readFile(path.join(dir, FILE), 'utf-8')).toBe('new\n');
     // mergeWriteFile records the FILE hash; component-ref advancement is decided
     // at the component level (shouldAdvanceRef), not per file.
-    expect(c.report.overwritten).toContain(FILE);
+    expect(c.report.created).toContain(FILE);
   });
 
   it('skips an up-to-date file (no fetch of BASE)', async () => {
