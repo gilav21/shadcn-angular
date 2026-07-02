@@ -6,6 +6,7 @@ import { getUtilsTemplate } from '../templates/utils.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex } from '../utils/shortcut-registry.js';
 import { fetchLibContent, type FetchOptions } from './fetch.js';
+import { readManifest, writeManifest, recordFile, type Manifest } from './manifest.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 
 export function resolveAliasOrPath(cwd: string, aliasOrPath: string): string {
@@ -84,26 +85,46 @@ export interface InitProjectResult {
     warnings: string[];
 }
 
+/**
+ * Write the shared lib files init ships and fingerprint the ones `doctor`
+ * tracks. `utils.ts` and (when requested) `shortcut-binding.service.ts` are
+ * registry lib files: recording their baselines in the manifest is what lets a
+ * later `doctor` classify them as pristine (safe to refresh) rather than
+ * untracked — which, before this, made a fresh install fail `doctor` (H4).
+ */
+async function writeLibFiles(
+    input: InitProjectInput, libDir: string, manifest: Manifest, created: string[],
+): Promise<void> {
+    const { createShortcutRegistry, fetchOptions, cwd, config } = input;
+    await fs.ensureDir(libDir);
+
+    const utilsContent = getUtilsTemplate();
+    await fs.writeFile(path.join(libDir, 'utils.ts'), utilsContent);
+    recordFile(manifest, 'utils.ts', utilsContent, '(lib)');
+    created.push('utils.ts');
+
+    if (createShortcutRegistry) {
+        const content = await fetchLibContent('shortcut-binding.service.ts', fetchOptions);
+        await fs.writeFile(path.join(libDir, 'shortcut-binding.service.ts'), content);
+        recordFile(manifest, 'shortcut-binding.service.ts', content, '(lib)');
+        await writeShortcutRegistryIndex(cwd, config, []);
+        created.push('shortcut-binding.service.ts', 'shortcut-registry.index.ts');
+    }
+}
+
 /** Non-interactive project initialization. Caller has already resolved config. */
 export async function initProject(input: InitProjectInput): Promise<InitProjectResult> {
-    const { cwd, config, createShortcutRegistry, fetchOptions } = input;
+    const { cwd, config } = input;
     const created: string[] = [];
     const warnings: string[] = [];
 
     await fs.writeJson(path.join(cwd, 'components.json'), config, { spaces: 2 });
     created.push('components.json');
 
-    const libDir = resolveAliasOrPath(cwd, config.aliases.utils);
-    await fs.ensureDir(libDir);
-    await fs.writeFile(path.join(libDir, 'utils.ts'), getUtilsTemplate());
-    created.push('utils.ts');
+    const manifest = await readManifest(cwd);
 
-    if (createShortcutRegistry) {
-        const content = await fetchLibContent('shortcut-binding.service.ts', fetchOptions);
-        await fs.writeFile(path.join(libDir, 'shortcut-binding.service.ts'), content);
-        await writeShortcutRegistryIndex(cwd, config, []);
-        created.push('shortcut-binding.service.ts', 'shortcut-registry.index.ts');
-    }
+    const libDir = resolveAliasOrPath(cwd, config.aliases.utils);
+    await writeLibFiles(input, libDir, manifest, created);
 
     const userStylesPath = resolveProjectPath(cwd, config.tailwind.css);
     const stylesDir = path.dirname(userStylesPath);
@@ -121,6 +142,9 @@ export async function initProject(input: InitProjectInput): Promise<InitProjectR
     await installMissingDeps(cwd);
     await setupPostcss(cwd, warnings);
     await autoConfigureTsconfig(cwd, warnings);
+
+    await writeManifest(cwd, manifest);
+    created.push('components.lock.json');
 
     return { created, warnings };
 }
