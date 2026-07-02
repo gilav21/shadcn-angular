@@ -1369,8 +1369,9 @@ export const registry = defineRegistry({
   },
   'rich-text-actions': {
     name: 'rich-text-actions',
-    files: ['rich-text-editor/addons/actions/rich-text-actions.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions.serializer.ts', 'rich-text-editor/addons/actions/rich-text-actions.types.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
+    files: ['rich-text-editor/addons/actions/rich-text-actions-dialog.component.html', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-form.component.html', 'rich-text-editor/addons/actions/rich-text-actions-form.component.ts', 'rich-text-editor/addons/actions/rich-text-actions.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions.serializer.ts', 'rich-text-editor/addons/actions/rich-text-actions.types.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
     libFiles: ['addon-slots.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts'],
+    dependencies: ['button', 'dialog'],
   },
 });
 

@@ -1,8 +1,13 @@
-import { Directive, DestroyRef, effect, inject, input, output } from '@angular/core';
+import { Directive, DestroyRef, effect, inject, input, output, ViewContainerRef } from '@angular/core';
 import { RichTextEditorAddonHost } from '../../rich-text-editor.host';
 import { RichTextSanitizerService } from '../../rich-text-sanitizer.service';
 import { RichTextMarkdownService } from '../../rich-text-markdown.service';
-import { validateActionId, validateActionParams } from './rich-text-actions.serializer';
+import {
+    assertFlatParams, readActions, validateActionId, validateActionParams, writeAction,
+} from './rich-text-actions.serializer';
+import {
+    RichTextActionsDialogComponent, type ActionsDialogConfirm,
+} from './rich-text-actions-dialog.component';
 import {
     ACTION_ATTRS,
     type ActionParams,
@@ -32,6 +37,7 @@ export class RichTextActionsDirective {
     private readonly host = inject(RichTextEditorAddonHost);
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdown = inject(RichTextMarkdownService);
+    private readonly vcr = inject(ViewContainerRef);
 
     /** The registered action definitions. Empty/absent → no UI appears. */
     readonly uiRteActions = input<RichTextActionDefinition[]>([]);
@@ -103,12 +109,61 @@ export class RichTextActionsDirective {
         return sel.kind !== 'none' || !!sel.closestWithAttrs(ACTION_ATTRS);
     }
 
-    /** Open the attach flow. Implemented fully in a later task; saves the selection here. */
     protected openAttachFlow(): void {
         this.host.saveSelection();
+        const sel = this.host.selection();
+        const existing = sel.closestWithAttrs(ACTION_ATTRS);
+        const targetKind: ActionTargetKind = sel.kind === 'image' ? 'image' : 'text';
+        const occupied = existing ? readActions(existing).map((a) => a.trigger) : [];
+        const ref = this.vcr.createComponent(RichTextActionsDialogComponent);
+        ref.setInput('definitions', this.uiRteActions());
+        ref.setInput('context', {
+            mode: existing ? 'edit' : 'create', targetKind,
+            selectionText: sel.text, occupiedTriggers: occupied, prefill: null,
+        });
+        const teardown = (): void => { ref.destroy(); };
+        this.overlays.push(teardown);
+        ref.instance.dismiss.subscribe(() => this.closeOverlay(teardown));
+        ref.instance.confirm.subscribe((payload: ActionsDialogConfirm) => {
+            const applied = this.applyAction(payload.def, payload.trigger, payload.params, targetKind, existing);
+            if (applied) this.closeOverlay(teardown);
+        });
+    }
+
+    private closeOverlay(teardown: () => void): void {
+        const i = this.overlays.indexOf(teardown);
+        if (i !== -1) this.overlays.splice(i, 1);
+        teardown();
     }
 
     protected closeOverlays(): void {
         for (const off of this.overlays.splice(0)) off();
+    }
+
+    private applyAction(
+        def: RichTextActionDefinition, trigger: RichTextActionTrigger,
+        params: ActionParams, targetKind: ActionTargetKind, existing: HTMLElement | null,
+    ): boolean {
+        try {
+            assertFlatParams(params);
+        } catch (err) {
+            console.error('[rich-text-actions] refused to attach non-flat params:', err);
+            return false;
+        }
+        if (targetKind === 'image') {
+            const img = this.host.selection().imageElement;
+            if (img) this.host.mutateContent(() => writeAction(img, trigger, def.id, params));
+        } else if (existing) {
+            this.host.mutateContent(() => writeAction(existing, trigger, def.id, params));
+        } else {
+            const doc = this.host.contentRoot.ownerDocument;
+            this.host.wrapSelection(() => {
+                const span = doc.createElement('span');
+                writeAction(span, trigger, def.id, params);
+                return span;
+            });
+        }
+        this.actionAttached.emit({ actionId: def.id, trigger, params, targetKind });
+        return true;
     }
 }

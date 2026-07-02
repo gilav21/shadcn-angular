@@ -48,4 +48,35 @@ describe('RichTextActionsDirective', () => {
         expect(sanitizer.sanitize('<span data-action-click="open-dialog">x</span>'))
             .toBe('<span>x</span>');
     });
+
+    it('attaches a click action to a text selection and emits actionAttached', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        fixture.detectChanges();
+        const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        editor.innerHTML = '<p>hello world</p>';
+        const node = editor.querySelector('p')!.firstChild!;
+        const range = document.createRange();
+        range.setStart(node, 0); range.setEnd(node, 5);
+        const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+        editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+
+        const slot = fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]') as HTMLButtonElement;
+        expect(slot.disabled).toBe(false);
+        slot.click();
+        fixture.detectChanges();
+
+        (document.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+        const dialogInput = document.querySelector('input[data-field="dialogId"]') as HTMLInputElement;
+        dialogInput.value = 'pricing';
+        dialogInput.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        const span = editor.querySelector('span[data-action-click="open-dialog"]');
+        expect(span?.getAttribute('data-action-click-params')).toBe('{"dialogId":"pricing"}');
+        expect(span?.textContent).toBe('hello');
+    });
 });

@@ -1,0 +1,73 @@
+<ui-dialog [open]="true" (openChange)="onOpenChange($event)">
+  <ui-dialog-content class="max-w-[calc(100vw-2rem)] sm:max-w-md">
+    <ui-dialog-header>
+      <ui-dialog-title>
+        @if (context().mode === 'edit') {
+          Edit action
+        } @else if (context().targetKind === 'image') {
+          Attach action to image
+        } @else {
+          Attach action to “{{ context().selectionText }}”
+        }
+      </ui-dialog-title>
+    </ui-dialog-header>
+
+    <div class="space-y-4">
+      <input
+        type="text" [value]="query()" placeholder="Search actions…"
+        (input)="query.set($any($event.target).value)"
+        class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+      />
+
+      <div class="max-h-56 overflow-y-auto rounded-md border" role="listbox">
+        @for (def of visibleDefs(); track def.id) {
+          <button
+            type="button" role="option" [attr.data-action-option]="def.id"
+            [attr.aria-selected]="selectedDef()?.id === def.id"
+            (click)="pickAction(def.id)"
+            class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+            [class.bg-accent]="selectedDef()?.id === def.id"
+          >
+            <span class="truncate">{{ def.label }}</span>
+            <span class="text-xs text-muted-foreground">{{ def.triggers.join(' / ') }}</span>
+          </button>
+        } @empty {
+          <p class="px-3 py-2 text-sm text-muted-foreground">No actions available.</p>
+        }
+      </div>
+
+      @if (selectedDef(); as def) {
+        @if (def.triggers.length > 1) {
+          <div class="flex flex-wrap items-center gap-3">
+            @for (t of def.triggers; track t) {
+              <label class="flex items-center gap-1.5 text-sm">
+                <input
+                  type="radio" name="rta-trigger" [checked]="selectedTrigger() === t"
+                  (change)="selectTrigger(t)"
+                />
+                {{ t }}
+                @if (occupiedByTrigger().has(t)) {
+                  <span class="text-xs text-muted-foreground">(replaces existing)</span>
+                }
+              </label>
+            }
+          </div>
+        }
+
+        @if (def.fields && def.fields.length > 0) {
+          <ui-rich-text-actions-form
+            [fields]="def.fields" [params]="currentParams()"
+            (paramsChange)="onParamsChange($event)" (validChange)="onValidChange($event)"
+          />
+        }
+      }
+    </div>
+
+    <ui-dialog-footer>
+      <ui-button data-testid="rta-cancel" variant="ghost" (click)="dismiss.emit()">Cancel</ui-button>
+      <ui-button data-testid="rta-confirm" [disabled]="!canConfirm()" (click)="onConfirm()">
+        {{ confirmLabel() }}
+      </ui-button>
+    </ui-dialog-footer>
+  </ui-dialog-content>
+</ui-dialog>

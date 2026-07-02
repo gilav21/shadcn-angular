@@ -1,0 +1,56 @@
+<div class="space-y-3">
+  @for (field of fields(); track field.key) {
+    <div class="space-y-1">
+      <label [for]="'rtaf-' + field.key" class="text-sm font-medium block">
+        {{ field.label }}@if (field.required) {<span class="text-destructive"> *</span>}
+      </label>
+
+      @switch (field.type) {
+        @case ('textarea') {
+          <textarea
+            [id]="'rtaf-' + field.key" [attr.data-field]="field.key"
+            [value]="stringValue(field.key)" [placeholder]="field.placeholder ?? ''"
+            (input)="onFieldInput(field, $any($event.target).value)"
+            class="flex min-h-[72px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm"
+          ></textarea>
+        }
+        @case ('checkbox') {
+          <input
+            type="checkbox" [id]="'rtaf-' + field.key" [attr.data-field]="field.key"
+            [checked]="boolValue(field.key)"
+            (change)="onFieldInput(field, $any($event.target).checked)"
+          />
+        }
+        @case ('select') {
+          <select
+            [id]="'rtaf-' + field.key" [attr.data-field]="field.key"
+            [value]="stringValue(field.key)"
+            (change)="onFieldInput(field, $any($event.target).value)"
+            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+          >
+            <option value="" disabled>{{ field.placeholder ?? 'Select…' }}</option>
+            @for (opt of field.options ?? []; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        }
+        @default {
+          <input
+            [type]="field.type === 'number' ? 'number' : 'text'"
+            [id]="'rtaf-' + field.key" [attr.data-field]="field.key"
+            [value]="stringValue(field.key)" [placeholder]="field.placeholder ?? ''"
+            (input)="onFieldInput(field, $any($event.target).value)"
+            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+          />
+        }
+      }
+
+      @if (field.description) {
+        <p class="text-xs text-muted-foreground">{{ field.description }}</p>
+      }
+      @if (errors()[field.key]; as err) {
+        <p class="text-xs text-destructive">{{ err }}</p>
+      }
+    </div>
+  }
+</div>
