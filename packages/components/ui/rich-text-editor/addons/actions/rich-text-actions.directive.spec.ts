@@ -175,4 +175,25 @@ describe('RichTextActionsDirective', () => {
             console.error = origErr;
         }
     });
+
+    it('logs a diagnostic when an action declares multiple param tiers', async () => {
+        const messages: string[] = [];
+        const origErr = console.error;
+        console.error = (...a: unknown[]) => { messages.push(String(a[0])); };
+        try {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.componentInstance.defs = [{
+                id: 'multi', label: 'Multi', triggers: ['click'],
+                fields: [{ key: 'a', label: 'A', type: 'text' }],
+                resolveParams: async () => ({ a: '1' }),
+            }];
+            await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="multi"]') as HTMLButtonElement).click();
+            await Promise.resolve(); await Promise.resolve();
+            fixture.detectChanges();
+            expect(messages.some((m) => m.includes('multiple param tiers'))).toBe(true);
+        } finally {
+            console.error = origErr;
+        }
+    });
 });

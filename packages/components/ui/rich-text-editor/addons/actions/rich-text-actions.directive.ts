@@ -172,7 +172,8 @@ export class RichTextActionsDirective {
 
     private closeOverlay(teardown: () => void): void {
         const i = this.overlays.indexOf(teardown);
-        if (i !== -1) this.overlays.splice(i, 1);
+        if (i === -1) return;
+        this.overlays.splice(i, 1);
         teardown();
     }
 
