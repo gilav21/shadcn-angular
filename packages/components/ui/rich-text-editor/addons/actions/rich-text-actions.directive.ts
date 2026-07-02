@@ -164,11 +164,15 @@ export class RichTextActionsDirective {
             return false;
         } else {
             const doc = this.host.contentRoot.ownerDocument;
-            this.host.wrapSelection(() => {
+            const created = this.host.wrapSelection(() => {
                 const span = doc.createElement('span');
                 writeAction(span, trigger, def.id, params);
                 return span;
             });
+            if (created.length === 0) {
+                console.error('[rich-text-actions] lost the text selection before applying the action.');
+                return false;
+            }
         }
         this.actionAttached.emit({ actionId: def.id, trigger, params, targetKind: target.kind });
         return true;
