@@ -1101,3 +1101,4 @@ supported in `mode="html"`.
 | 2 | 2026-07-02 | T2 — sanitizer attribute-rule API | 93 | Ref-counted `registerAttributeRules`; locked attrs rejected; companion post-pass; 70 tests green. |
 | 3 | 2026-07-02 | T3 — markdown span-serializer | 93 | `registerSpanSerializer` + `toHtml` raw-tag protection; round-trip lossless; 83 tests green. |
 | 4 | 2026-07-02 | T4 — addon host + toolbar slots | 93 | Host via DI (no addon import); selection/wrap/mutate/save/restore + toolbar slots; 340 tests green. |
+| 5 | 2026-07-02 | T5 — addon skeleton | 93 | Types + serializer + directive registering rules/serializer/toolbar/slash; all torn down; 11 tests green. |
