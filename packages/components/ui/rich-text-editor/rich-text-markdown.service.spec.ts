@@ -1,13 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
+import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 
 describe('RichTextMarkdownService', () => {
     let service: RichTextMarkdownService;
+    let sanitizer: RichTextSanitizerService;
 
     beforeEach(() => {
-        TestBed.configureTestingModule({ providers: [RichTextMarkdownService] });
+        TestBed.configureTestingModule({ providers: [RichTextMarkdownService, RichTextSanitizerService] });
         service = TestBed.inject(RichTextMarkdownService);
+        sanitizer = TestBed.inject(RichTextSanitizerService);
     });
 
     // =====================================================================
@@ -460,6 +463,70 @@ describe('RichTextMarkdownService', () => {
             const r = service.insertCodeBlock('', 0);
             expect(r.text).toBe('\n```\n\n```\n');
             expect(r.position).toBe(5);
+        });
+    });
+
+    describe('span-serializer extension', () => {
+        const actionSerializer = {
+            serialize(el: HTMLElement, inner: string): string | null {
+                const hasAction = Object.keys(el.dataset).some((k) => k.startsWith('action'));
+                if (!hasAction) return null;
+                const clone = el.cloneNode(false) as HTMLElement;
+                clone.innerHTML = inner;
+                return clone.outerHTML;
+            },
+        };
+
+        it('serializes an action span as inline HTML with inner markdown preserved', () => {
+            const offSpan = service.registerSpanSerializer(actionSerializer);
+            const offRules = sanitizer.registerAttributeRules([
+                { tag: '*', attr: 'data-action-click', validate: (v) => v },
+            ]);
+            const html = '<p>hi <span data-action-click="a"><strong>bold</strong></span></p>';
+            const md = service.toMarkdown(html);
+            expect(md).toContain('data-action-click="a"');
+            expect(md).toContain('**bold**');
+            offRules();
+            offSpan();
+        });
+
+        it('leaves mention/tag spans to the built-in handler (regression)', () => {
+            const off = service.registerSpanSerializer(actionSerializer);
+            expect(service.toMarkdown('<p><span data-mention="alice">Alice</span></p>'))
+                .toContain('@alice');
+            off();
+        });
+
+        it('round-trips html->md->html losslessly for an action span', () => {
+            const offSpan = service.registerSpanSerializer(actionSerializer);
+            const offRules = sanitizer.registerAttributeRules([
+                { tag: '*', attr: 'data-action-click', validate: (v) => v },
+                {
+                    tag: '*', attr: 'data-action-click-params', requiresAttr: 'data-action-click',
+                    validate: (v) => v,
+                },
+            ]);
+            const html = '<p><span data-action-click="a" data-action-click-params=\'{"x":1}\'>word</span></p>';
+            const md = service.toMarkdown(html);
+            const back = service.toHtml(md);
+            expect(back).toContain('data-action-click="a"');
+            expect(back).toContain('data-action-click-params');
+            expect(back).toContain('word');
+            offRules();
+            offSpan();
+        });
+
+        it('keeps inner markdown semantics inside an actioned span through toHtml', () => {
+            const offSpan = service.registerSpanSerializer(actionSerializer);
+            const offRules = sanitizer.registerAttributeRules([
+                { tag: '*', attr: 'data-action-click', validate: (v) => v },
+            ]);
+            const html = '<p><span data-action-click="a"><strong>bold</strong></span></p>';
+            const back = service.toHtml(service.toMarkdown(html));
+            expect(back).toContain('<strong>bold</strong>');
+            expect(back).toContain('data-action-click="a"');
+            offRules();
+            offSpan();
         });
     });
 });

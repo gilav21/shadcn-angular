@@ -1,6 +1,15 @@
 import { Injectable, inject } from '@angular/core';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 
+/**
+ * A serializer an addon registers to control how specific spans become
+ * markdown. Consulted before the built-in mention/tag handling.
+ */
+export interface MarkdownSpanSerializer {
+    /** Return markdown / inline-HTML for this span, or null to pass to the next handler. */
+    serialize(element: HTMLElement, innerMarkdown: string): string | null;
+}
+
 type ListType = 'ul' | 'ol' | 'task';
 
 interface ListContext {
@@ -106,6 +115,19 @@ function buildListContextHtml(ctx: ListContext): string {
 @Injectable({ providedIn: 'root' })
 export class RichTextMarkdownService {
     private readonly sanitizer = inject(RichTextSanitizerService);
+    private readonly spanSerializers: MarkdownSpanSerializer[] = [];
+
+    /**
+     * Register a span serializer consulted before the built-in mention/tag
+     * handling in {@link toMarkdown}. Returns a teardown that unregisters it.
+     */
+    registerSpanSerializer(serializer: MarkdownSpanSerializer): () => void {
+        this.spanSerializers.push(serializer);
+        return () => {
+            const i = this.spanSerializers.indexOf(serializer);
+            if (i !== -1) this.spanSerializers.splice(i, 1);
+        };
+    }
 
     // =========================================================================
     // MARKDOWN → HTML
@@ -121,6 +143,12 @@ export class RichTextMarkdownService {
 
         // Normalize line endings
         html = html.replaceAll('\r\n', '\n');
+
+        // Protect raw inline span/action-image tags so escaping and block
+        // parsing leave them intact; their inner content still flows through
+        // the pipeline (bold/links stay markdown-processed).
+        const protectedTags: string[] = [];
+        html = this.protectRawTags(html, protectedTags);
 
         // Escape HTML entities in content (before processing)
         html = this.escapeHtmlInContent(html);
@@ -142,8 +170,35 @@ export class RichTextMarkdownService {
         html = this.parseInlineCode(html);
         html = this.parseLineBreaks(html);
 
+        // Restore protected tags before the sanitizer runs so it still
+        // validates them (action attributes survive only if an addon
+        // registered the matching sanitizer rules).
+        html = this.restoreRawTags(html, protectedTags);
+
         // Final sanitization pass
         return this.sanitizer.sanitize(html);
+    }
+
+    /**
+     * Replace raw `<span …>` / `</span>` tags and `data-action-*` image tags
+     * with placeholder tokens the markdown pipeline treats as opaque text.
+     * Only action content produces raw spans in markdown, so this never
+     * disturbs ordinary prose.
+     */
+    private protectRawTags(markdown: string, store: string[]): string {
+        const push = (match: string): string => {
+            const token = `${store.length}`;
+            store.push(match);
+            return token;
+        };
+        return markdown
+            .replaceAll(/<span\b[^>]{0,4096}>/gi, push)
+            .replaceAll(/<\/span>/gi, push)
+            .replaceAll(/<img\b[^>]{0,4096}\bdata-action-[\w-]{1,64}[^>]{0,4096}>/gi, push);
+    }
+
+    private restoreRawTags(html: string, store: string[]): string {
+        return html.replaceAll(/(\d{1,9})/g, (_match, index: string) => store[Number(index)] ?? '');
     }
 
     /**
@@ -477,6 +532,10 @@ export class RichTextMarkdownService {
     }
 
     private spanToMarkdown(element: HTMLElement, inner: string): string {
+        for (const serializer of this.spanSerializers) {
+            const out = serializer.serialize(element, inner);
+            if (out !== null) return out;
+        }
         if ('mention' in element.dataset) {
             return `@${element.dataset['mention']}`;
         }
