@@ -321,6 +321,20 @@ describe('mergeWriteFile (IO orchestration)', () => {
     expect(written).toBe('a\nb\nNEW\n'); // THEIRS verbatim (LF), no conversion
   });
 
+  it('leaves mixed-EOL OURS as LF when CRLF does not dominate (tie/minority favors LF)', async () => {
+    await writeOurs('A\r\nb\nc\n'); // 1 CRLF vs 2 lone LFs → LF dominates
+    const m = emptyManifest();
+    recordFile(m, FILE, 'original-different\n', 'button');
+    recordComponentRef(m, 'button', 'OLD_SHA');
+    fetchAtRefMock.mockResolvedValue('a\nb\nc\n'); // BASE
+    const c = ctx({ theirs: 'a\nb\nC\n', manifest: m });
+    const outcome = await mergeWriteFile(FILE, c);
+    expect(outcome).toBe('merged-clean');
+    const written = await fs.readFile(path.join(dir, FILE), 'utf-8');
+    expect(written).toBe('A\nb\nC\n'); // not CRLF — CRLF was the minority
+    expect(written).not.toContain('\r');
+  });
+
   it('falls back (keeps OURS, no ref advance) when BASE is unavailable', async () => {
     await writeOurs('edited\n');
     const m = emptyManifest();

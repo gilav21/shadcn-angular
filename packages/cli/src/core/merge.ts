@@ -125,7 +125,7 @@ export interface MergeWriteContext {
     readonly report: MergeReport;
 }
 
-/** True when OURS's dominant EOL is CRLF (more CRLF pairs than lone LFs). */
+/** True when OURS's dominant EOL is CRLF (more CRLF pairs than lone LFs); a tie favors LF. */
 function prefersCrlf(ours: string): boolean {
     const crlf = ours.split('\r\n').length - 1;
     const totalLf = ours.split('\n').length - 1;
