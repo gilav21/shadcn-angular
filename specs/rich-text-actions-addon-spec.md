@@ -1107,3 +1107,4 @@ supported in `mode="html"`.
 | 8 | 2026-07-02 | T8 — edit popover | 92 | Caret-driven top-layer popover, remove/unwrap, edit-prefill, unknown-id, readonly gating; 30 tests green. |
 | 9 | 2026-07-02 | T9 — framework-free runtime | 96 | Delegated listeners; hover/click/focus/tap-to-hover; a11y; no `@angular`; 15 tests green. |
 | 10 | 2026-07-02 | T10 — render-side bind directive | 93 | `[uiRichTextActions]` wraps runtime; effect + observer re-bind; clean teardown; 47 tests green. |
+| 11 | 2026-07-02 | T11 — optional presets | 92 | hover-card + open-dialog presets (top-layer, grace-area, Esc, teardown, zero-lock-in); 59 tests green. |

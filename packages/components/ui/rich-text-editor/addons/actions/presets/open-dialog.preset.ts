@@ -96,12 +96,7 @@ export function openDialogHandlers(
     injector: Injector, o: OpenDialogPresetOptions = {},
 ): Record<string, RichTextActionHandler> {
     const id = o.id ?? DEFAULT_ID;
-    const openOverlays = new Set<MountedOverlay<PresetDialogComponent>>();
-
-    const teardown = (overlay: MountedOverlay<PresetDialogComponent>): void => {
-        openOverlays.delete(overlay);
-        overlay.destroy();
-    };
+    const openDismissers = new Set<() => void>();
 
     const handler: RichTextActionHandler = (event: RichTextActionEvent) => {
         const params = event.params;
@@ -116,12 +111,13 @@ export function openDialogHandlers(
             contentInjector,
         });
         overlay.host.style.inset = '0';
-        openOverlays.add(overlay);
         const onKeydown = (e: KeyboardEvent): void => { if (e.key === 'Escape') dismiss(); };
         const dismiss = (): void => {
             document.removeEventListener('keydown', onKeydown);
-            teardown(overlay);
+            openDismissers.delete(dismiss);
+            overlay.destroy();
         };
+        openDismissers.add(dismiss);
         document.addEventListener('keydown', onKeydown);
         overlay.instance.confirm.subscribe(() => {
             o.onConfirm?.(params);
@@ -131,8 +127,7 @@ export function openDialogHandlers(
     };
 
     injector.get(DestroyRef, null, { optional: true })?.onDestroy(() => {
-        for (const overlay of openOverlays) overlay.destroy();
-        openOverlays.clear();
+        for (const dismiss of [...openDismissers]) dismiss();
     });
     return { [id]: handler };
 }
