@@ -5423,7 +5423,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.editorDiv?.nativeElement?.focus();
     }
 
-    // ── Addon host surface (RichTextEditorAddonHost) ──────────────────────
+    /** Registry of addon-contributed toolbar buttons (addon host surface). */
     readonly toolbarSlots = new AddonSlotRegistry<RichTextToolbarSlot>();
 
     /** The editor's slash-command registry (addon host surface). */
