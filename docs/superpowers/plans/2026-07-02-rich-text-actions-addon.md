@@ -3133,6 +3133,7 @@ git commit -m "docs: record rte-actions completion logs + publish-boundary verif
 | --- | --- | --- | --- |
 | T1 | 2026-07-02 | 96 | Verbatim extraction to `lib/addon-slots.ts`; re-export keeps data-table's import path; unused `signal` dropped; spec verifies register/teardown/re-export identity. All 530 data-table+lib tests green. |
 | T2 | 2026-07-02 | 93 | `registerAttributeRules` ref-counted; locked-attr (`on*`/href/src/style/class) rejected case-insensitively before registration; `on*` still stripped ahead of contributed rules; companion post-pass drops orphan params. Fixed the `as string` assertion + added uppercase locked-attr coverage post-review. 70 tests green, lint clean. |
+| T3 | 2026-07-02 | 93 | Discovery spec found `toHtml` mangled action spans (both directions lost actions). `registerSpanSerializer` hook + `toHtml` raw-tag protection (`protectRawTags`/`restoreRawTags`, U+E000/E001 delimiters, restored before sanitize). Text-run round-trip lossless with inner formatting. Documented markdown limits: nested span-in-span, action images. Post-review: collision-strip input, removed non-JSDoc comments, fixed JSDoc. 83 tests green, lint clean. |
 
 ---
 

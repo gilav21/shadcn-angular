@@ -144,9 +144,6 @@ export class RichTextMarkdownService {
         // Normalize line endings
         html = html.replaceAll('\r\n', '\n');
 
-        // Protect raw inline span/action-image tags so escaping and block
-        // parsing leave them intact; their inner content still flows through
-        // the pipeline (bold/links stay markdown-processed).
         const protectedTags: string[] = [];
         html = this.protectRawTags(html, protectedTags);
 
@@ -170,9 +167,6 @@ export class RichTextMarkdownService {
         html = this.parseInlineCode(html);
         html = this.parseLineBreaks(html);
 
-        // Restore protected tags before the sanitizer runs so it still
-        // validates them (action attributes survive only if an addon
-        // registered the matching sanitizer rules).
         html = this.restoreRawTags(html, protectedTags);
 
         // Final sanitization pass
@@ -180,18 +174,22 @@ export class RichTextMarkdownService {
     }
 
     /**
-     * Replace raw `<span …>` / `</span>` tags and `data-action-*` image tags
-     * with placeholder tokens the markdown pipeline treats as opaque text.
-     * Only action content produces raw spans in markdown, so this never
-     * disturbs ordinary prose.
+     * Replace every raw `<span …>` / `</span>` tag and `data-action-*` image
+     * tag with a placeholder token the markdown pipeline treats as opaque
+     * text, so escaping and block parsing leave the tag intact while its inner
+     * content is still processed. The restored tags are re-sanitized, so
+     * protecting non-action spans (rare in markdown) is harmless. Any private-
+     * use delimiter chars already in the input are stripped first so user
+     * content can never spoof a token.
      */
     private protectRawTags(markdown: string, store: string[]): string {
+        const cleaned = markdown.replaceAll(/[]/g, '');
         const push = (match: string): string => {
             const token = `${store.length}`;
             store.push(match);
             return token;
         };
-        return markdown
+        return cleaned
             .replaceAll(/<span\b[^>]{0,4096}>/gi, push)
             .replaceAll(/<\/span>/gi, push)
             .replaceAll(/<img\b[^>]{0,4096}\bdata-action-[\w-]{1,64}[^>]{0,4096}>/gi, push);

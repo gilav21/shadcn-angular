@@ -1071,12 +1071,25 @@ sequential on its deps.
 | --- | --- |
 | Root-provided sanitizer means app-wide rules | Accepted (matches command registry); ref-counted; validators keep it tight. |
 | Markdown inline-HTML passthrough unknown | T3 starts with a discovery spec — no assumption. |
-| `mode="markdown"` consumers with action content | Round-trip guaranteed by T3's tests; if impossible, escalate to maintainer, record fallback here. |
+| `mode="markdown"` consumers with action content | RESOLVED in T3 — see the T3 markdown-mode note below. |
 | Hover on touch | tap-to-hover default, `'off'` opt-out; documented. |
 | Params in HTML are visible/tamperable by readers | By design — docs state params are client data, never secrets; callbacks must validate. |
 | Presets add `hover-card` to the addon's deps | Accepted — presets are the headline DX win; skipping them costs nothing at runtime. |
 | Nested action spans | Innermost-wins via `closest()`; documented; no UI encourages nesting. |
 | Selection wrap across blocks | Reuses editor's existing inline-format splitting via `wrapSelection` host API. |
+
+**T3 markdown-mode note (resolved).** The discovery spec found `toHtml`'s
+`escapeHtmlInContent` mangled action spans — it escaped the `>` closing an
+attribute value and the `<` in `</span>` — so both markdown directions lost
+the action. Fixed by protecting raw `<span>`/`</span>`/`data-action-*` `<img>`
+tags with placeholder tokens around the parse pipeline, restored before the
+sanitizer runs (so restored HTML is still validated). Text-run actions now
+round-trip in markdown mode with inner formatting preserved. Two accepted
+markdown-mode limitations: (a) a nested `<span>` inside an action span may not
+round-trip (per-tag protection is non-greedy, not balanced); (b) action
+**images** lose `data-action-*` through `toMarkdown` (`handleImageTag` emits
+`![alt](src)`; only a span serializer was in T3 scope). Both are fully
+supported in `mode="html"`.
 
 ---
 
@@ -1086,3 +1099,4 @@ sequential on its deps.
 | --- | --- | --- | --- | --- |
 | 1 | 2026-07-02 | T1 — extract AddonSlotRegistry to lib | 96 | Verbatim move to `lib/addon-slots.ts`, re-exported from host; 530 tests green. |
 | 2 | 2026-07-02 | T2 — sanitizer attribute-rule API | 93 | Ref-counted `registerAttributeRules`; locked attrs rejected; companion post-pass; 70 tests green. |
+| 3 | 2026-07-02 | T3 — markdown span-serializer | 93 | `registerSpanSerializer` + `toHtml` raw-tag protection; round-trip lossless; 83 tests green. |
