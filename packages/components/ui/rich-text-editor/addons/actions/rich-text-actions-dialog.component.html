@@ -14,7 +14,7 @@
 
     <div class="space-y-4">
       <input
-        type="text" [value]="query()" placeholder="Search actions…"
+        type="text" [value]="query()" placeholder="Search actions…" aria-label="Search actions"
         (input)="query.set($any($event.target).value)"
         class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
       />

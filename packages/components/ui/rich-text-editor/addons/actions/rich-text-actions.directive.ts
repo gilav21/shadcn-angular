@@ -112,20 +112,26 @@ export class RichTextActionsDirective {
     protected openAttachFlow(): void {
         this.host.saveSelection();
         const sel = this.host.selection();
-        const existing = sel.closestWithAttrs(ACTION_ATTRS);
         const targetKind: ActionTargetKind = sel.kind === 'image' ? 'image' : 'text';
-        const occupied = existing ? readActions(existing).map((a) => a.trigger) : [];
+        // Capture the target now — the dialog steals focus, collapsing the
+        // live selection, so a confirm-time re-read would return nothing.
+        const target: ApplyTarget = {
+            kind: targetKind,
+            existing: sel.closestWithAttrs(ACTION_ATTRS),
+            image: sel.kind === 'image' ? sel.imageElement : null,
+        };
+        const occupied = target.existing ? readActions(target.existing).map((a) => a.trigger) : [];
         const ref = this.vcr.createComponent(RichTextActionsDialogComponent);
         ref.setInput('definitions', this.uiRteActions());
         ref.setInput('context', {
-            mode: existing ? 'edit' : 'create', targetKind,
+            mode: target.existing ? 'edit' : 'create', targetKind,
             selectionText: sel.text, occupiedTriggers: occupied, prefill: null,
         });
         const teardown = (): void => { ref.destroy(); };
         this.overlays.push(teardown);
         ref.instance.dismiss.subscribe(() => this.closeOverlay(teardown));
         ref.instance.confirm.subscribe((payload: ActionsDialogConfirm) => {
-            const applied = this.applyAction(payload.def, payload.trigger, payload.params, targetKind, existing);
+            const applied = this.applyAction(payload.def, payload.trigger, payload.params, target);
             if (applied) this.closeOverlay(teardown);
         });
     }
@@ -142,7 +148,7 @@ export class RichTextActionsDirective {
 
     private applyAction(
         def: RichTextActionDefinition, trigger: RichTextActionTrigger,
-        params: ActionParams, targetKind: ActionTargetKind, existing: HTMLElement | null,
+        params: ActionParams, target: ApplyTarget,
     ): boolean {
         try {
             assertFlatParams(params);
@@ -150,11 +156,12 @@ export class RichTextActionsDirective {
             console.error('[rich-text-actions] refused to attach non-flat params:', err);
             return false;
         }
-        if (targetKind === 'image') {
-            const img = this.host.selection().imageElement;
-            if (img) this.host.mutateContent(() => writeAction(img, trigger, def.id, params));
-        } else if (existing) {
-            this.host.mutateContent(() => writeAction(existing, trigger, def.id, params));
+        const el = target.kind === 'image' ? target.image : target.existing;
+        if (el) {
+            this.host.mutateContent(() => writeAction(el, trigger, def.id, params));
+        } else if (target.kind === 'image') {
+            console.error('[rich-text-actions] lost the image target before applying the action.');
+            return false;
         } else {
             const doc = this.host.contentRoot.ownerDocument;
             this.host.wrapSelection(() => {
@@ -163,7 +170,16 @@ export class RichTextActionsDirective {
                 return span;
             });
         }
-        this.actionAttached.emit({ actionId: def.id, trigger, params, targetKind });
+        this.actionAttached.emit({ actionId: def.id, trigger, params, targetKind: target.kind });
         return true;
     }
+}
+
+/** The DOM target captured when the attach flow opens. */
+interface ApplyTarget {
+    kind: ActionTargetKind;
+    /** An existing action element the caret sits inside, or null. */
+    existing: HTMLElement | null;
+    /** The selected image, when `kind === 'image'`. */
+    image: HTMLImageElement | null;
 }

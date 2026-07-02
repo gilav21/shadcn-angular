@@ -79,4 +79,38 @@ describe('RichTextActionsDirective', () => {
         expect(span?.getAttribute('data-action-click-params')).toBe('{"dialogId":"pricing"}');
         expect(span?.textContent).toBe('hello');
     });
+
+    it('applies an action to an image target captured before the dialog steals focus', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        fixture.detectChanges();
+        const editorCmp = fixture.debugElement.children[0].componentInstance as RichTextEditorComponent;
+        const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        editor.innerHTML = '<p><img src="https://example.com/a.png" alt="a"></p>';
+        const img = editor.querySelector('img') as HTMLImageElement;
+        editorCmp.selectedImage.set(img);
+        const range = document.createRange();
+        range.selectNode(img);
+        const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+        editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+
+        const slot = fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]') as HTMLButtonElement;
+        slot.click();
+        fixture.detectChanges();
+        // The dialog collapses the live selection; the fix captures the image up front.
+        sel.removeAllRanges();
+        editorCmp.selectedImage.set(null);
+
+        (document.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+        const dialogInput = document.querySelector('input[data-field="dialogId"]') as HTMLInputElement;
+        dialogInput.value = 'pricing';
+        dialogInput.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        expect(editor.querySelector('img[data-action-click="open-dialog"]')?.getAttribute('data-action-click-params'))
+            .toBe('{"dialogId":"pricing"}');
+    });
 });
