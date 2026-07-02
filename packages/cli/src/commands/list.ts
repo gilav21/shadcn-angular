@@ -18,6 +18,13 @@ async function buildStatuses(names: readonly ComponentName[], targetDir: string)
     return statuses;
 }
 
+/** Dim `(addon of <parent>)` suffix for addon entries; '' for everything else. */
+function addonSuffix(name: string): string {
+    const def = registry[name as ComponentName];
+    if (def?.type !== 'addon') return '';
+    return chalk.dim(` (addon of ${def.parent})`);
+}
+
 function printStatusGroup(heading: string, statuses: ComponentStatus[]): void {
     const installed = statuses.filter(s => s.installed).sort((a, b) => a.name.localeCompare(b.name));
     const notInstalled = statuses.filter(s => !s.installed).sort((a, b) => a.name.localeCompare(b.name));
@@ -26,11 +33,11 @@ function printStatusGroup(heading: string, statuses: ComponentStatus[]): void {
     if (installed.length === 0) {
         console.log(chalk.dim('  None'));
     } else {
-        for (const s of installed) console.log(chalk.green('  ✓ ') + s.name);
+        for (const s of installed) console.log(chalk.green('  ✓ ') + s.name + addonSuffix(s.name));
     }
 
     console.log(chalk.bold(`\n${heading} — available (${notInstalled.length}):`));
-    for (const s of notInstalled) console.log(chalk.dim('  - ') + s.name);
+    for (const s of notInstalled) console.log(chalk.dim('  - ') + s.name + addonSuffix(s.name));
 }
 
 export async function list(): Promise<void> {

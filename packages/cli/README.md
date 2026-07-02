@@ -83,27 +83,89 @@ npx @gilav21/shadcn-angular add
 
 | Flag | Description |
 | ------ | ------------- |
-| `-y, --yes` | Skip all prompts (no optional deps, no overwrite) |
-| `-o, --overwrite` | Overwrite existing files that differ from the registry |
+| `-y, --yes` | Skip all prompts (skips the addon prompt, overwrites conflicts) |
+| `-o, --overwrite` | Overwrite existing files whole-file (`add` never 3-way merges) |
 | `-a, --all` | Install every available component |
+| `--with <addons>` | Install addon(s) too — `parent/addon` keys, comma-separated, or `all` |
+| `--no-addons` | Skip optional addons without prompting |
 | `-p, --path <path>` | Custom install directory (overrides `components.json`) |
 | `--remote` | Force fetch from GitHub (skip local registry) |
+| `--dry-run` | Show what would be installed without making changes |
 | `-b, --branch <branch>` | GitHub branch to fetch from (default: `master`) |
 
-## Optional Dependencies
+## Addons
 
-Some components offer companion components that enhance their functionality.
-When you add such a component, the CLI will prompt you to optionally install them.
+Some components ship a **lean base** plus **opt-in addons** — extra features that
+resolving the base does *not* pull in automatically. For example, `data-table`
+exposes a `data-table/context-menu` addon for right-click row, header, and column
+menus.
 
-For example, `data-table` offers `context-menu`
-for right-click menus on rows and headers.
-`tree` also offers `context-menu` for right-click menus on tree nodes.
+After you `add` a component, the CLI lists the addons available for it:
 
-Behavior with flags:
+```bash
+npx @gilav21/shadcn-angular add data-table
+# Optional addons available (not installed):
+#   data-table/context-menu — ...
+#   Wire one in with: npx @gilav21/shadcn-angular apply data-table/context-menu
+```
 
-- **Interactive (default)** — you pick which optional companions to include
-- **`--yes`** — skips optional dependencies entirely (useful in CI)
-- **`--all`** — automatically includes all optional dependencies
+Use `apply` to install an addon (if it isn't already present) **and** wire it into
+your existing usage:
+
+```bash
+npx @gilav21/shadcn-angular apply data-table/context-menu
+```
+
+This adds the addon's directive to your `<ui-data-table>` tags (the
+`uiDtContextMenu` attribute) and its import to the component, so the feature is
+live without hand-editing templates. Pass component class name(s) to target
+specific instances, or `--scan` to search the whole app and choose interactively.
+
+Related `add` flags:
+
+- **`add --with <parent/addon>`** — install the addon's files alongside the base
+  (comma-separated keys, or `all`) **without** wiring them in.
+- **`add --no-addons`** — skip the addon prompt entirely (useful in CI).
+
+## Updating components
+
+`update` pulls the latest registry version of your installed components:
+
+```bash
+npx @gilav21/shadcn-angular update             # all installed components
+npx @gilav21/shadcn-angular update data-table  # only the named components
+```
+
+By default `update` performs a **3-way merge**, so your local edits survive and
+only the upstream changes are layered on top. When an upstream change collides
+with one of your edits, the conflict is written into the file as git-style
+markers:
+
+```text
+<<<<<<< ours
+...your version...
+=======
+...upstream version...
+>>>>>>> theirs
+```
+
+Resolve the markers, then rebuild. Other flags:
+
+- **`--overwrite`** — take the upstream file whole-file, discarding local edits
+  (no merge).
+- **`--dry-run`** — preview what would change without writing.
+- **`--yes`** — install any newly-required dependencies without prompting. In CI,
+  `update --yes` exits non-zero whenever it writes conflict markers, so a merge
+  that needs human attention fails the build instead of passing silently.
+
+### `components.lock.json`
+
+`init` and `add` maintain a `components.lock.json` at your project root — commit
+it. Version 2 records a per-component `ref` (the commit each component's files
+were last brought up to); those refs are the baseline the `update` 3-way merge
+diffs against. The file is backward-compatible: an older CLI that rewrites it may
+drop the `ref` records, which is harmless — they are simply re-recorded on your
+next `update`.
 
 ## Available Components
 

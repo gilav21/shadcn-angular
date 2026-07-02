@@ -240,7 +240,7 @@ function printAvailableAddons(hints: AddonHint[]): void {
     for (const h of hints) {
         console.log('  ' + chalk.bold(h.addon) + (h.description ? chalk.dim(' — ' + h.description) : ''));
     }
-    console.log(chalk.dim(`  Add one with: npx @gilav21/shadcn-angular add ${hints[0].addon}`));
+    console.log(chalk.dim(`  Wire one in with: npx @gilav21/shadcn-angular apply ${hints[0].addon}`));
 }
 
 // ---------------------------------------------------------------------------

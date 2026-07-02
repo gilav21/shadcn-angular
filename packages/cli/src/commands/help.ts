@@ -67,12 +67,8 @@ function formatComponentList(names: readonly string[], columns = 4): string {
   return lines.join('\n');
 }
 
-function buildCommandsSection(): string[] {
-  const branchDefault = chalk.gray('(default: master)');
-
+function buildInstallCommands(branchDefault: string): string[] {
   return [
-    chalk.bold('Commands'),
-    '',
     '  ' + chalk.cyan('init') + '   Initialize shadcn-angular in your project',
     '    ' + chalk.gray('-y, --yes') + '            Skip confirmation prompt',
     '    ' + chalk.gray('-d, --defaults') + '       Use default configuration',
@@ -82,13 +78,37 @@ function buildCommandsSection(): string[] {
     '  ' + chalk.cyan('add') + '    Add component(s) to your project',
     '    ' + chalk.gray('[components...]') + '       One or more component names',
     '    ' + chalk.gray('-y, --yes') + '            Skip prompts and overwrite conflicts',
-    '    ' + chalk.gray('-o, --overwrite') + '      Overwrite existing files',
+    '    ' + chalk.gray('-o, --overwrite') + '      Overwrite existing files whole-file (no 3-way merge)',
     '    ' + chalk.gray('-a, --all') + '            Add all available components',
+    '    ' + chalk.gray('--with') + ' <addons>      Include addon(s): parent/addon, comma-separated, or "all"',
+    '    ' + chalk.gray('--no-addons') + '          Skip optional addons without prompting',
     '    ' + chalk.gray('-p, --path') + ' <path>     Custom install path',
     '    ' + chalk.gray('--remote') + '             Force remote fetch from GitHub registry',
     '    ' + chalk.gray('--dry-run') + '            Show what would be installed without changes',
     '    ' + chalk.gray('-b, --branch') + ' <branch> GitHub branch to fetch from ' + branchDefault,
     '',
+    '  ' + chalk.cyan('apply') + '  Install an addon (if missing) and wire it into your component(s)',
+    '    ' + chalk.gray('<addon>') + '              Addon key, e.g. data-table/context-menu',
+    '    ' + chalk.gray('[components...]') + '       Component class name(s) to wire (else scans current dir)',
+    '    ' + chalk.gray('-y, --yes') + '            Wire all found; snippet fallback when ambiguous',
+    '    ' + chalk.gray('-o, --overwrite') + '      Overwrite a locally-edited base/addon whole-file (no 3-way merge)',
+    '    ' + chalk.gray('--scan') + '               Scan the whole app for usages and choose interactively',
+    '    ' + chalk.gray('--all') + '                Wire every matching instance in the selected files',
+    '    ' + chalk.gray('--dry-run') + '            Show what would be wired without writing',
+    '    ' + chalk.gray('-b, --branch') + ' <branch> GitHub branch to fetch from ' + branchDefault,
+    '',
+    '  ' + chalk.cyan('update') + ' Update installed components to the latest registry version',
+    '    ' + chalk.gray('[components...]') + '       Components to update (all installed if omitted)',
+    '    ' + chalk.gray('-y, --yes') + '            Install newly-required dependencies without prompting',
+    '    ' + chalk.gray('-o, --overwrite') + '      Take upstream whole-file instead of 3-way merging your edits',
+    '    ' + chalk.gray('--dry-run') + '            Preview what would update without writing',
+    '    ' + chalk.gray('-b, --branch') + ' <branch> GitHub branch to fetch from ' + branchDefault,
+    '',
+  ];
+}
+
+function buildInspectCommands(branchDefault: string): string[] {
+  return [
     '  ' + chalk.cyan('diff') + '   Show differences between local and remote versions',
     '    ' + chalk.gray('[components...]') + '       Components to diff (all installed if omitted)',
     '    ' + chalk.gray('--remote') + '             Force remote fetch from GitHub registry',
@@ -96,17 +116,42 @@ function buildCommandsSection(): string[] {
     '',
     '  ' + chalk.cyan('list') + '   List all components and their install status',
     '',
+    '  ' + chalk.cyan('doctor') + ' Check installed components for drift, missing files, and missing deps',
+    '    ' + chalk.gray('--fix') + '                Repair missing files/deps (never touches your edits)',
+    '    ' + chalk.gray('--dry-run') + '            Show what --fix would do without changes',
+    '',
+    '  ' + chalk.cyan('why') + ' <components...>   Print files, deps, and reverse-dependents for component(s)',
+    '',
+    '  ' + chalk.cyan('status') + ' Show project status: design tokens, component health, and config',
+    '',
+    '  ' + chalk.cyan('search') + ' [query...]    Search components by name, tag, or description',
+    '',
+    '  ' + chalk.cyan('migrate') + ' Migrate legacy single-file components to the folder/trio layout',
+    '',
     '  ' + chalk.cyan('help') + '   Show this reference',
     '',
   ];
 }
 
-function buildOptionalDepsSection(): string[] {
+function buildCommandsSection(): string[] {
+  const branchDefault = chalk.gray('(default: master)');
   return [
-    chalk.bold('Optional Dependencies'),
+    chalk.bold('Commands'),
     '',
-    '  Some components offer companion packages during installation.',
-    '  With ' + chalk.cyan('--yes') + ' they are skipped; with ' + chalk.cyan('--all') + ' they are included automatically.',
+    ...buildInstallCommands(branchDefault),
+    ...buildInspectCommands(branchDefault),
+  ];
+}
+
+function buildAddonsSection(): string[] {
+  return [
+    chalk.bold('Addons'),
+    '',
+    '  Some components ship a lean base plus opt-in addons that resolving the',
+    '  base does NOT pull in. After ' + chalk.cyan('add') + ' the available addons are listed.',
+    '  ' + chalk.cyan('apply <parent/addon>') + ' installs the addon (if missing) and wires it into',
+    '  your component usage, e.g. ' + chalk.cyan('apply data-table/context-menu') + '.',
+    '  Install without wiring via ' + chalk.cyan('add --with <parent/addon>') + '; opt out with ' + chalk.cyan('--no-addons') + '.',
     '',
   ];
 }
@@ -156,7 +201,7 @@ export function help(): void {
     chalk.bold.underline('shadcn-angular CLI'),
     '',
     ...buildCommandsSection(),
-    ...buildOptionalDepsSection(),
+    ...buildAddonsSection(),
     ...buildComponentsSection(),
     ...buildBlocksSection(),
   ];
