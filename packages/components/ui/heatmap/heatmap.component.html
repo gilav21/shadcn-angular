@@ -1,0 +1,69 @@
+<div
+  [class]="classes()"
+  [attr.data-slot]="'heatmap'"
+  role="img"
+  [attr.aria-label]="ariaLabel()"
+>
+  <svg
+    [attr.viewBox]="viewBox()"
+    [attr.width]="usedWidth()"
+    [attr.height]="svgHeight()"
+    class="block h-auto max-w-full"
+  >
+    @for (c of colLabels(); track c.col) {
+      <text [attr.x]="c.x" [attr.y]="14" text-anchor="middle" class="fill-muted-foreground text-[10px]">{{ c.col }}</text>
+    }
+    @for (r of rowLabels(); track r.row) {
+      <text [attr.x]="0" [attr.y]="r.y + 3" class="fill-muted-foreground text-[10px]">{{ r.row }}</text>
+    }
+
+    @for (pc of placedCells(); track pc.cell.row + '-' + pc.cell.col) {
+      <rect
+        [attr.data-slot]="'heatmap-cell'"
+        [attr.x]="pc.x"
+        [attr.y]="pc.y"
+        [attr.width]="pc.w"
+        [attr.height]="pc.h"
+        [attr.rx]="3"
+        [attr.fill]="pc.color"
+        class="cursor-pointer"
+        tabindex="0"
+        role="button"
+        [attr.aria-label]="pc.cell.row + ', ' + pc.cell.col + ': ' + pc.cell.value"
+        (mouseenter)="onCellEnter(pc)"
+        (mouseleave)="onLeave()"
+        (focus)="onCellEnter(pc)"
+        (blur)="onLeave()"
+      />
+      @if (showValues()) {
+        <text
+          [attr.x]="pc.x + pc.w / 2"
+          [attr.y]="pc.y + pc.h / 2 + 3"
+          text-anchor="middle"
+          class="pointer-events-none fill-foreground text-[10px]"
+        >{{ pc.cell.value }}</text>
+      }
+    }
+  </svg>
+
+  @if (showLegend()) {
+    <div class="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+      <span>Low</span>
+      @for (stop of legendStops(); track stop.value) {
+        <span class="inline-block size-3 rounded-[2px]" [style.background]="stop.color"></span>
+      }
+      <span>High</span>
+    </div>
+  }
+
+  @if (showTooltip()) {
+    <ui-chart-tooltip
+      [visible]="hovered() !== null"
+      [x]="tooltipPos().x"
+      [y]="tooltipPos().y"
+      [title]="hoverTitle()"
+      [rows]="tooltipRows()"
+      [flipX]="tooltipPos().x > svgWidth() * 0.7"
+    />
+  }
+</div>

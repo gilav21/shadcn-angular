@@ -1,0 +1,46 @@
+<div
+  [class]="classes()"
+  [attr.data-slot]="'funnel-chart'"
+  role="img"
+  [attr.aria-label]="ariaLabel()"
+>
+  <svg [attr.viewBox]="viewBox()" width="100%" [attr.height]="height()" class="block w-full">
+    @for (stage of stages(); track stage.name) {
+      <polygon
+        [attr.data-slot]="'funnel-stage'"
+        [attr.points]="stage.points"
+        [attr.fill]="stage.color"
+        [attr.fill-opacity]="hovered() === null || hovered() === stage.index ? 0.9 : 0.55"
+        class="cursor-pointer transition-[fill-opacity]"
+        tabindex="0"
+        role="button"
+        [attr.aria-label]="stage.name + ': ' + stage.value + ' (' + formatPercent(stage.percent) + ')'"
+        (mouseenter)="onStageEnter(stage)"
+        (mouseleave)="onLeave()"
+        (focus)="onStageEnter(stage)"
+        (blur)="onLeave()"
+        (click)="onStageClick(stage.index)"
+        (keydown.enter)="onStageClick(stage.index)"
+      />
+      @if (showValues()) {
+        <text
+          [attr.x]="stage.centerX"
+          [attr.y]="stage.midY"
+          text-anchor="middle"
+          dominant-baseline="middle"
+          class="pointer-events-none fill-primary-foreground text-xs font-medium"
+        >{{ stage.name }} · {{ formatPercent(stage.percent) }}</text>
+      }
+    }
+  </svg>
+
+  @if (showTooltip()) {
+    <ui-chart-tooltip
+      [visible]="hovered() !== null"
+      [x]="tooltipPos().x"
+      [y]="tooltipPos().y"
+      [title]="hoverTitle()"
+      [rows]="tooltipRows()"
+    />
+  }
+</div>

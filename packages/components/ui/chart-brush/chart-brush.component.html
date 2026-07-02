@@ -1,0 +1,67 @@
+<div class="relative w-full">
+@if (current()) {
+  <button
+    type="button"
+    [attr.data-slot]="'chart-brush-reset'"
+    class="absolute right-1 top-1 z-10 rounded border bg-background/90 px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground"
+    aria-label="Reset zoom"
+    (click)="reset()"
+  >
+    Reset
+  </button>
+}
+<svg
+  #brushSvg
+  [attr.viewBox]="viewBox()"
+  [attr.height]="height()"
+  [class]="classes()"
+  [attr.data-slot]="'chart-brush'"
+  preserveAspectRatio="none"
+  role="group"
+  aria-label="Zoom brush"
+>
+  <rect
+    [attr.x]="0"
+    [attr.y]="0"
+    [attr.width]="width()"
+    [attr.height]="height()"
+    class="fill-muted/40"
+    style="touch-action: none; cursor: crosshair"
+    (mousedown)="onCreateDown($event)"
+    (touchstart)="onCreateDown($event)"
+  />
+
+  @if (rect(); as r) {
+    <rect
+      [attr.x]="r.x"
+      [attr.y]="0"
+      [attr.width]="r.width"
+      [attr.height]="height()"
+      class="fill-primary/20 stroke-primary"
+      style="touch-action: none; cursor: move"
+      (mousedown)="onMoveDown($event)"
+      (touchstart)="onMoveDown($event)"
+    />
+    <rect
+      [attr.x]="r.x - 3"
+      [attr.y]="0"
+      [attr.width]="6"
+      [attr.height]="height()"
+      class="fill-primary"
+      style="touch-action: none; cursor: ew-resize"
+      (mousedown)="onResizeDown($event, 'start')"
+      (touchstart)="onResizeDown($event, 'start')"
+    />
+    <rect
+      [attr.x]="r.x + r.width - 3"
+      [attr.y]="0"
+      [attr.width]="6"
+      [attr.height]="height()"
+      class="fill-primary"
+      style="touch-action: none; cursor: ew-resize"
+      (mousedown)="onResizeDown($event, 'end')"
+      (touchstart)="onResizeDown($event, 'end')"
+    />
+  }
+</svg>
+</div>

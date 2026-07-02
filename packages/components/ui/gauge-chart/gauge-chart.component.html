@@ -1,0 +1,39 @@
+<div
+  [class]="classes()"
+  [attr.data-slot]="'gauge-chart'"
+  role="img"
+  [attr.aria-label]="ariaLabel()"
+>
+  <svg [attr.viewBox]="viewBox()" width="100%" [attr.height]="viewBoxHeight()" class="block overflow-visible">
+    <path
+      [attr.data-slot]="'gauge-track'"
+      [attr.d]="trackPath()"
+      class="fill-muted"
+    />
+    @if (valuePath()) {
+      <path
+        [attr.data-slot]="'gauge-value'"
+        [attr.d]="valuePath()"
+        [attr.fill]="activeColor()"
+        class="transition-[d]"
+      />
+    }
+
+    @if (showValue()) {
+      <text
+        [attr.x]="center()"
+        [attr.y]="center() - 2"
+        text-anchor="middle"
+        class="fill-foreground text-xl font-semibold"
+      >{{ displayValue() }}</text>
+    }
+    @if (label()) {
+      <text
+        [attr.x]="center()"
+        [attr.y]="center() + 18"
+        text-anchor="middle"
+        class="fill-muted-foreground text-xs"
+      >{{ label() }}</text>
+    }
+  </svg>
+</div>
