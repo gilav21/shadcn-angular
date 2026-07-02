@@ -28,7 +28,7 @@ describe('AreaChartComponent', () => {
     });
 
     it('renders one area path per visible series', () => {
-        expect(fixture.nativeElement.querySelectorAll('path[data-slot="area-series"]').length).toBe(2);
+        expect(fixture.nativeElement.querySelectorAll('path[data-slot="area-series"]')).toHaveLength(2);
     });
 
     it('uses each series max for the y-domain when not stacked', () => {
@@ -53,7 +53,7 @@ describe('AreaChartComponent', () => {
     it('hides a series when toggled off via the legend', () => {
         component.toggleSeries('Mobile');
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelectorAll('path[data-slot="area-series"]').length).toBe(1);
+        expect(fixture.nativeElement.querySelectorAll('path[data-slot="area-series"]')).toHaveLength(1);
     });
 
     it('applies the configured fill opacity to areas', () => {

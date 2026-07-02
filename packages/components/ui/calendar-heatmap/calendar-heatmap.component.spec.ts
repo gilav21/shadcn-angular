@@ -30,7 +30,7 @@ describe('CalendarHeatmapComponent', () => {
     });
 
     it('renders one cell per day', () => {
-        expect(fixture.nativeElement.querySelectorAll('rect[data-slot="calendar-day"]').length).toBe(4);
+        expect(fixture.nativeElement.querySelectorAll('rect[data-slot="calendar-day"]')).toHaveLength(4);
     });
 
     it('derives the value domain from the data', () => {

@@ -50,7 +50,7 @@ describe('LineChartComponent', () => {
     it('computes one path per visible series', () => {
         expect(component.seriesPaths()).toHaveLength(2);
         const paths = fixture.nativeElement.querySelectorAll('path[data-slot="line-series"]');
-        expect(paths.length).toBe(2);
+        expect(paths).toHaveLength(2);
     });
 
     it('builds a non-empty path string for each series', () => {
@@ -117,6 +117,6 @@ describe('LineChartComponent', () => {
     it('drops grid lines when showGrid is false', () => {
         fixture.componentRef.setInput('showGrid', false);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelectorAll('line[data-slot="grid-line"]').length).toBe(0);
+        expect(fixture.nativeElement.querySelectorAll('line[data-slot="grid-line"]')).toHaveLength(0);
     });
 });

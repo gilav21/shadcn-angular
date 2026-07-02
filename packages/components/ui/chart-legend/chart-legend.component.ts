@@ -16,7 +16,7 @@ export interface ChartLegendItem {
 
 /**
  * Shared chart legend. Presentational: the host chart owns the set of hidden
- * series keys and updates it in response to `toggle`. Supports keyboard and
+ * series keys and updates it in response to `itemToggle`. Supports keyboard and
  * touch activation (tap = click, no hover dependency).
  */
 @Component({
@@ -34,7 +34,7 @@ export class ChartLegendComponent {
     readonly interactive = input(true);
     readonly class = input('');
 
-    readonly toggle = output<string>();
+    readonly itemToggle = output<string>();
 
     readonly classes = computed(() =>
         cn(
@@ -50,7 +50,7 @@ export class ChartLegendComponent {
 
     onActivate(key: string): void {
         if (this.interactive()) {
-            this.toggle.emit(key);
+            this.itemToggle.emit(key);
         }
     }
 

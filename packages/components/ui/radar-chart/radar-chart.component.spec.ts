@@ -39,7 +39,7 @@ describe('RadarChartComponent', () => {
 
     it('renders one polygon per visible series', () => {
         expect(component.seriesPolygons()).toHaveLength(2);
-        expect(fixture.nativeElement.querySelectorAll('path[data-slot="radar-series"]').length).toBe(2);
+        expect(fixture.nativeElement.querySelectorAll('path[data-slot="radar-series"]')).toHaveLength(2);
     });
 
     it('derives the max value across all series', () => {
@@ -49,7 +49,7 @@ describe('RadarChartComponent', () => {
     it('renders the configured number of grid rings', () => {
         fixture.componentRef.setInput('levels', 5);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelectorAll('polygon[data-slot="radar-ring"]').length).toBe(5);
+        expect(fixture.nativeElement.querySelectorAll('polygon[data-slot="radar-ring"]')).toHaveLength(5);
     });
 
     it('hides a series when toggled off via the legend', () => {

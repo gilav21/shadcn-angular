@@ -30,7 +30,7 @@ describe('FunnelChartComponent', () => {
     });
 
     it('renders one trapezoid per stage', () => {
-        expect(fixture.nativeElement.querySelectorAll('polygon[data-slot="funnel-stage"]').length).toBe(4);
+        expect(fixture.nativeElement.querySelectorAll('polygon[data-slot="funnel-stage"]')).toHaveLength(4);
     });
 
     it('computes percentages relative to the first stage by default', () => {

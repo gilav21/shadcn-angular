@@ -33,7 +33,7 @@ describe('ComboChartComponent', () => {
 
     it('renders one bar per category per bar series', () => {
         const bars = fixture.nativeElement.querySelectorAll('rect[data-slot="combo-bar"]');
-        expect(bars.length).toBe(4);
+        expect(bars).toHaveLength(4);
     });
 
     it('derives categories from the first bar series', () => {
@@ -63,7 +63,7 @@ describe('ComboChartComponent', () => {
         ];
         fixture.componentRef.setInput('lineSeries', lineSeries);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelectorAll('path[data-slot="combo-line"]').length).toBe(1);
+        expect(fixture.nativeElement.querySelectorAll('path[data-slot="combo-line"]')).toHaveLength(1);
     });
 
     it('honors an explicit rtl direction', () => {

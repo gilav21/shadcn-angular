@@ -28,7 +28,7 @@ describe('ScatterChartComponent', () => {
     });
 
     it('renders one circle per point across all visible series', () => {
-        expect(fixture.nativeElement.querySelectorAll('circle[data-slot="scatter-point"]').length).toBe(5);
+        expect(fixture.nativeElement.querySelectorAll('circle[data-slot="scatter-point"]')).toHaveLength(5);
     });
 
     it('derives x and y domains from the data extents', () => {
@@ -47,7 +47,7 @@ describe('ScatterChartComponent', () => {
     it('hides a series when toggled off via the legend', () => {
         component.toggleSeries('Group B');
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelectorAll('circle[data-slot="scatter-point"]').length).toBe(3);
+        expect(fixture.nativeElement.querySelectorAll('circle[data-slot="scatter-point"]')).toHaveLength(3);
     });
 
     it('builds a tooltip row for the hovered point with its coordinates', () => {

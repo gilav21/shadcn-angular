@@ -35,7 +35,7 @@ describe('HeatmapComponent', () => {
     });
 
     it('renders one cell per data point', () => {
-        expect(fixture.nativeElement.querySelectorAll('rect[data-slot="heatmap-cell"]').length).toBe(4);
+        expect(fixture.nativeElement.querySelectorAll('rect[data-slot="heatmap-cell"]')).toHaveLength(4);
     });
 
     it('derives the value domain from the data', () => {

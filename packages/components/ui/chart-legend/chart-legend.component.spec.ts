@@ -34,14 +34,14 @@ describe('ChartLegendComponent', () => {
 
     it('emits toggle with the series key when an interactive item is clicked', () => {
         let emitted: string | undefined;
-        component.toggle.subscribe(k => (emitted = k));
+        component.itemToggle.subscribe(k => (emitted = k));
         legendItems()[1].click();
         expect(emitted).toBe('cost');
     });
 
     it('emits toggle on Enter keydown', () => {
         let emitted: string | undefined;
-        component.toggle.subscribe(k => (emitted = k));
+        component.itemToggle.subscribe(k => (emitted = k));
         legendItems()[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
         expect(emitted).toBe('rev');
     });
@@ -58,7 +58,7 @@ describe('ChartLegendComponent', () => {
         fixture.componentRef.setInput('interactive', false);
         fixture.detectChanges();
         let emitted: string | undefined;
-        component.toggle.subscribe(k => (emitted = k));
+        component.itemToggle.subscribe(k => (emitted = k));
         const el = legendItems()[0];
         el.click();
         expect(emitted).toBeUndefined();

@@ -29,7 +29,7 @@ describe('BulletChartComponent', () => {
     });
 
     it('renders one qualitative band per range', () => {
-        expect(fixture.nativeElement.querySelectorAll('rect[data-slot="bullet-range"]').length).toBe(3);
+        expect(fixture.nativeElement.querySelectorAll('rect[data-slot="bullet-range"]')).toHaveLength(3);
     });
 
     it('renders a measure bar whose width reflects the value', () => {

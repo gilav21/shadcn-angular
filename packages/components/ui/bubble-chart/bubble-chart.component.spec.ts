@@ -31,7 +31,7 @@ describe('BubbleChartComponent', () => {
     });
 
     it('renders one bubble per point', () => {
-        expect(fixture.nativeElement.querySelectorAll('circle[data-slot="bubble-point"]').length).toBe(3);
+        expect(fixture.nativeElement.querySelectorAll('circle[data-slot="bubble-point"]')).toHaveLength(3);
     });
 
     it('maps larger z values to larger radii', () => {
@@ -60,6 +60,6 @@ describe('BubbleChartComponent', () => {
     it('hides a series when toggled off via the legend', () => {
         component.toggleSeries('Markets');
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelectorAll('circle[data-slot="bubble-point"]').length).toBe(0);
+        expect(fixture.nativeElement.querySelectorAll('circle[data-slot="bubble-point"]')).toHaveLength(0);
     });
 });

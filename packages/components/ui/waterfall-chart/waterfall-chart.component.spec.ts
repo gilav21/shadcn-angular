@@ -30,7 +30,7 @@ describe('WaterfallChartComponent', () => {
     });
 
     it('renders one bar per data point', () => {
-        expect(fixture.nativeElement.querySelectorAll('rect[data-slot="waterfall-bar"]').length).toBe(4);
+        expect(fixture.nativeElement.querySelectorAll('rect[data-slot="waterfall-bar"]')).toHaveLength(4);
     });
 
     it('accumulates running totals across relative bars', () => {
@@ -58,7 +58,7 @@ describe('WaterfallChartComponent', () => {
     it('renders connectors between consecutive bars when enabled', () => {
         fixture.componentRef.setInput('showConnectors', true);
         fixture.detectChanges();
-        expect(fixture.nativeElement.querySelectorAll('line[data-slot="waterfall-connector"]').length).toBe(3);
+        expect(fixture.nativeElement.querySelectorAll('line[data-slot="waterfall-connector"]')).toHaveLength(3);
     });
 
     it('builds a tooltip row for the hovered bar', () => {

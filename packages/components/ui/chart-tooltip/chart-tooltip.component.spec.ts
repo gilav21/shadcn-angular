@@ -3,7 +3,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ChartTooltipComponent } from './chart-tooltip.component';
 
 describe('ChartTooltipComponent', () => {
-    let component: ChartTooltipComponent;
     let fixture: ComponentFixture<ChartTooltipComponent>;
 
     beforeEach(async () => {
@@ -11,7 +10,6 @@ describe('ChartTooltipComponent', () => {
             imports: [ChartTooltipComponent],
         }).compileComponents();
         fixture = TestBed.createComponent(ChartTooltipComponent);
-        component = fixture.componentInstance;
     });
 
     function tooltipEl(): HTMLElement | null {
