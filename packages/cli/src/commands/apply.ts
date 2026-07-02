@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import chalk from 'chalk';
 import ora from 'ora';
 import prompts from 'prompts';
-import { getConfig, type Config } from '../utils/config.js';
+import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
 import { performInstall } from '../core/install.js';
 import { reportMergeSummary } from './merge-report.js';
@@ -40,9 +40,9 @@ function fail(message: string): never {
 }
 
 /** Resolve an addon for the CLI, turning an {@link ApplyError} into an exit. */
-function resolveAddon(addonName: string, uiAlias: string): AddonInfo {
+function resolveAddon(addonName: string, uiAlias: string, prefix: string): AddonInfo {
     try {
-        return resolveAddonInfo(addonName, uiAlias);
+        return resolveAddonInfo(addonName, uiAlias, prefix);
     } catch (e) {
         if (e instanceof ApplyError) fail(e.message);
         throw e;
@@ -97,8 +97,8 @@ async function selectTargets(
     return selectByScan(addon, files, options, root);
 }
 
-function printSnippet(addon: AddonInfo): void {
-    console.log(chalk.yellow('\nCould not auto-wire — add this manually:'));
+function printSnippet(addon: AddonInfo, className: string): void {
+    console.log(chalk.yellow(`\nCould not auto-wire ${className} — add this manually:`));
     console.log(chalk.dim(`  import { ${addon.symbol} } from '${addon.module}';`));
     console.log(chalk.dim(`  // @Component imports: [ … ${addon.symbol} ]`));
     console.log(chalk.dim(`  // on the <${addon.tag}> tag: ${addon.selector}`));
@@ -130,7 +130,7 @@ async function wireTarget(addon: AddonInfo, target: Target, options: ApplyOption
     const instances = findTemplateInstances(template, addon.tag);
 
     const chosen = await chooseInstances(addon, instances, options);
-    if (chosen === 'snippet') { printSnippet(addon); return 0; }
+    if (chosen === 'snippet') { printSnippet(addon, target.className); return 0; }
     if (chosen.length === 0) return 0;
 
     const edited = insertSelectorAtInstances(template, chosen, addon.selector);
@@ -138,7 +138,7 @@ async function wireTarget(addon: AddonInfo, target: Target, options: ApplyOption
     // Wire the directive import into the component .ts (always).
     const tsForImport = target.inline ? edited.content : tsSource;
     const wiredTs = wireDirectiveImport(tsForImport, addon.symbol, addon.module);
-    if (!wiredTs) { printSnippet(addon); return 0; }
+    if (!wiredTs) { printSnippet(addon, target.className); return 0; }
 
     if (options.dryRun) {
         console.log(chalk.dim(`  [dry-run] ${target.className}: would wire ${edited.wired} instance(s)`));
@@ -151,7 +151,11 @@ async function wireTarget(addon: AddonInfo, target: Target, options: ApplyOption
         await fs.writeFile(target.templatePath, edited.content);
         await fs.writeFile(target.tsPath, wiredTs.content);
     }
-    console.log(chalk.green(`  ✓ ${target.className}: wired ${edited.wired} instance(s)`));
+    if (edited.wired > 0) {
+        console.log(chalk.green(`  ✓ ${target.className}: wired ${edited.wired} instance(s)`));
+    } else {
+        console.log(chalk.dim(`  ${target.className}: already wired`));
+    }
     return edited.wired;
 }
 
@@ -162,27 +166,30 @@ async function wireTarget(addon: AddonInfo, target: Target, options: ApplyOption
  */
 async function installAndCheckCompat(addon: AddonInfo, cwd: string, uiAlias: string, options: ApplyOptions, config: Config): Promise<boolean> {
     const spinner = ora(`Installing ${addon.name} if missing...`).start();
-    let hadConflicts = false;
     try {
         const result = await performInstall({ components: [addon.name], cwd, config, options });
+
+        // Verify the contract BEFORE declaring success, so a base that predates
+        // the addon fails the spinner outright instead of the jarring
+        // "✔ installed" immediately followed by a hard contract error.
+        const uiDir = resolveProjectPath(cwd, aliasToProjectPath(uiAlias));
+        const missing = missingBaseFilesFor(addon, uiDir);
+        if (missing.length > 0) {
+            spinner.fail(
+                `Your ${addon.parent} predates the ${addon.name} addon — it is missing the contract file(s): ${missing.join(', ')}.\n` +
+                `Run \`npx @gilav21/shadcn-angular update ${addon.parent}\` (you own the source — review the changes), then re-run apply.`,
+            );
+            process.exit(1);
+        }
+
         spinner.succeed(`${addon.name} installed.`);
         for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
-        hadConflicts = reportMergeSummary(result.mergeReport);
+        return reportMergeSummary(result.mergeReport);
     } catch (error) {
         spinner.fail('Install failed');
         console.error(error);
         process.exit(1);
     }
-
-    const uiDir = resolveProjectPath(cwd, aliasToProjectPath(uiAlias));
-    const missing = missingBaseFilesFor(addon, uiDir);
-    if (missing.length > 0) {
-        fail(
-            `Your ${addon.parent} predates the ${addon.name} addon — it is missing the contract file(s): ${missing.join(', ')}.\n` +
-            `Run \`npx @gilav21/shadcn-angular update ${addon.parent}\` (you own the source — review the changes), then re-run apply.`,
-        );
-    }
-    return hadConflicts;
 }
 
 export async function apply(addonName: string, components: string[], options: ApplyOptions): Promise<void> {
@@ -192,7 +199,7 @@ export async function apply(addonName: string, components: string[], options: Ap
     if (!options.registry && config.registry) options.registry = config.registry;
 
     const uiAlias = config.aliases.ui || 'src/components/ui';
-    const addon = resolveAddon(addonName, uiAlias);
+    const addon = resolveAddon(addonName, uiAlias, getPrefix(config));
 
     const hadConflicts = options.dryRun ? false : await installAndCheckCompat(addon, cwd, uiAlias, options, config);
 

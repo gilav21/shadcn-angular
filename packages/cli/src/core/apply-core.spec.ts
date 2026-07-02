@@ -15,6 +15,18 @@ describe('resolveAddonInfo', () => {
     expect(info.requiresBaseFiles).toContain('data-table/data-table.host.ts');
   });
 
+  it('defaults the tag to the ui- prefix when none is given', () => {
+    expect(resolveAddonInfo('data-table/context-menu', 'src/app/ui').tag).toBe('ui-data-table');
+  });
+
+  it('uses the configured prefix for the base tag (prefixed install)', () => {
+    const info = resolveAddonInfo('data-table/context-menu', 'src/app/ui', 'acme');
+    expect(info.tag).toBe('acme-data-table');
+    // The attribute selector is a camelCase directive selector — the prefix
+    // rewrite never touches it, so it stays canonical regardless of prefix.
+    expect(info.selector).toBe('uiDtContextMenu');
+  });
+
   it('throws ApplyError (not process.exit) for a non-addon component', () => {
     expect(() => resolveAddonInfo('button', 'src/app/ui')).toThrow(ApplyError);
   });

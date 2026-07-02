@@ -151,8 +151,9 @@ export type InstanceDecision =
 
 /**
  * Decide which instances to wire without doing IO: an explicit flag filters; a
- * single unwired instance auto-selects; otherwise it's ambiguous — 'snippet'
- * non-interactively (`--yes`), else 'prompt' to ask the dev.
+ * single unwired instance auto-selects; `--yes` wires every unwired instance
+ * (non-interactive means do the work); otherwise it's ambiguous and interactive
+ * — 'prompt' to ask the dev.
  */
 export function decideInstances(
     selector: string, all: TemplateInstance[], options: InstanceSelectionOptions,
@@ -164,8 +165,11 @@ export function decideInstances(
         return matched.length > 0 ? { kind: 'instances', instances: matched } : { kind: 'snippet' };
     }
     const unwired = all.filter(i => !i.hasSelector(selector));
-    if (unwired.length <= 1) return { kind: 'instances', instances: all };
-    if (options.yes) return { kind: 'snippet' };
+    // A single unwired instance auto-selects; `--yes` (non-interactive: "do the
+    // work") wires every unwired instance — same as `--all`. Only an ambiguous
+    // interactive run falls through to a prompt. `insertSelectorAtInstances` is
+    // idempotent, so passing `all` only touches the unwired ones.
+    if (unwired.length <= 1 || options.yes) return { kind: 'instances', instances: all };
     return { kind: 'prompt' };
 }
 

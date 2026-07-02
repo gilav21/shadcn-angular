@@ -219,8 +219,10 @@ describe('decideInstances', () => {
     expect(d).toEqual({ kind: 'instances', instances: one });
   });
 
-  it('returns "snippet" when ambiguous and non-interactive (--yes)', () => {
-    expect(decideInstances('uiDtContextMenu', two, { yes: true }).kind).toBe('snippet');
+  it('wires ALL instances when ambiguous and non-interactive (--yes means do the work)', () => {
+    const d = decideInstances('uiDtContextMenu', two, { yes: true });
+    expect(d.kind).toBe('instances');
+    expect(d.kind === 'instances' && d.instances).toHaveLength(2);
   });
 
   it('returns "prompt" when ambiguous and interactive', () => {

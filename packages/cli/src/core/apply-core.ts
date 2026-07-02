@@ -8,7 +8,8 @@
 import path from 'node:path';
 import fs from 'fs-extra';
 import { registry, type ComponentName } from '../registry/index.js';
-import type { Config } from '../utils/config.js';
+import { getPrefix, type Config } from '../utils/config.js';
+import { DEFAULT_PREFIX } from '../utils/prefix.js';
 import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
 import { performInstall } from './install.js';
 import { emptyMergeReport, type MergeReport } from './merge.js';
@@ -59,8 +60,15 @@ export interface WireResult {
     readonly totalWired: number;
 }
 
-/** Resolve an addon key to its attach metadata, throwing on a non-addon. */
-export function resolveAddonInfo(addonName: string, uiAlias: string): AddonInfo {
+/**
+ * Resolve an addon key to its attach metadata, throwing on a non-addon. The
+ * base tag carries the consumer's configured `prefix` (from `init --prefix`),
+ * because a prefixed install rewrites `<ui-{parent}>` to `<{prefix}-{parent}>`
+ * — otherwise the app scan finds nothing and `apply` is a silent no-op. The
+ * `attach.selector` is a camelCase attribute directive selector that the prefix
+ * transform never touches, so it stays canonical regardless of prefix.
+ */
+export function resolveAddonInfo(addonName: string, uiAlias: string, prefix: string = DEFAULT_PREFIX): AddonInfo {
     const entry = registry[addonName as ComponentName];
     if (entry?.type !== 'addon' || !entry.attach || !entry.parent) {
         const available = Object.values(registry).filter(c => c.type === 'addon').map(c => c.name);
@@ -69,7 +77,7 @@ export function resolveAddonInfo(addonName: string, uiAlias: string): AddonInfo 
     return {
         name: addonName as ComponentName,
         parent: entry.parent,
-        tag: `ui-${entry.parent}`,
+        tag: `${prefix}-${entry.parent}`,
         selector: entry.attach.selector,
         symbol: parseAttachSymbol(entry.attach.import),
         module: addonImportModule(uiAlias, entry.parent, addonName),
@@ -173,8 +181,9 @@ async function wireOneTarget(addon: AddonInfo, target: Target, options: ApplyOpt
     const template = await readTemplate(target, tsSource);
     const instances = findTemplateInstances(template, addon.tag);
 
-    // Non-interactive: an explicit flag filters; a single unwired instance
-    // auto-wires; genuine ambiguity falls back to a snippet (never a prompt).
+    // Non-interactive (`yes: true`): an explicit flag filters; otherwise every
+    // unwired instance is wired (never a prompt). Snippet only when a filter
+    // matched nothing or the .ts has no imports[] to edit.
     const decision = decideInstances(addon.selector, instances, { ...options, yes: true });
     if (decision.kind !== 'instances') return { className: target.className, wired: 0, snippet: true };
 
@@ -229,7 +238,7 @@ export async function applyCore(
     addonName: string, components: string[], options: ApplyOptions, cwd: string, config: Config,
 ): Promise<ApplyCoreResult> {
     const uiAlias = config.aliases.ui || 'src/components/ui';
-    const addon = resolveAddonInfo(addonName, uiAlias);
+    const addon = resolveAddonInfo(addonName, uiAlias, getPrefix(config));
 
     let installed = false;
     let mergeReport = emptyMergeReport();
