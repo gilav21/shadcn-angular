@@ -1105,3 +1105,4 @@ supported in `mode="html"`.
 | 6 | 2026-07-02 | T6 — attach dialog + form + apply | 93 | Tier-1 form + picker dialog + apply (text/image/merge); fixed image capture bug; 19 tests green. |
 | 7 | 2026-07-02 | T7 — tiers 2 + 3 | 92 | Dynamic form hosting (two-effect, no NG0602), external flow, precedence + non-flat reject; 24 tests green. |
 | 8 | 2026-07-02 | T8 — edit popover | 92 | Caret-driven top-layer popover, remove/unwrap, edit-prefill, unknown-id, readonly gating; 30 tests green. |
+| 9 | 2026-07-02 | T9 — framework-free runtime | 96 | Delegated listeners; hover/click/focus/tap-to-hover; a11y; no `@angular`; 15 tests green. |
