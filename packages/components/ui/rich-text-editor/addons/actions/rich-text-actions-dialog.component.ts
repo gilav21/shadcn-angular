@@ -1,4 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+    ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, output, signal,
+    viewChild, ViewContainerRef, computed, type ComponentRef,
+} from '@angular/core';
 import {
     DialogComponent, DialogContentComponent, DialogHeaderComponent,
     DialogTitleComponent, DialogFooterComponent,
@@ -6,7 +9,8 @@ import {
 import { ButtonComponent } from '../../../button';
 import { RichTextActionsFormComponent } from './rich-text-actions-form.component';
 import type {
-    ActionParams, ActionTargetKind, RichTextActionDefinition, RichTextActionTrigger,
+    ActionParams, ActionTargetKind, RichTextActionDefinition,
+    RichTextActionParamsForm, RichTextActionTrigger,
 } from './rich-text-actions.types';
 
 /** The state the directive passes into the attach/edit dialog. */
@@ -45,11 +49,16 @@ export class RichTextActionsDialogComponent {
     readonly dismiss = output<void>();
     readonly pick = output<RichTextActionDefinition>();
 
+    readonly formHost = viewChild('formHost', { read: ViewContainerRef });
+
     readonly query = signal('');
     readonly selectedDef = signal<RichTextActionDefinition | null>(null);
     readonly selectedTrigger = signal<RichTextActionTrigger | null>(null);
     readonly currentParams = signal<ActionParams>({});
     readonly formValid = signal(false);
+
+    private readonly customForm = signal<ComponentRef<RichTextActionParamsForm> | null>(null);
+    private renderedFormForDefId: string | null = null;
 
     readonly visibleDefs = computed(() => {
         const kind = this.context().targetKind;
@@ -61,12 +70,26 @@ export class RichTextActionsDialogComponent {
 
     readonly occupiedByTrigger = computed(() => new Set(this.context().occupiedTriggers));
 
+    readonly busy = signal(false);
+
     readonly canConfirm = computed(() => {
         const def = this.selectedDef();
-        if (!def || !this.selectedTrigger()) return false;
+        if (!def || !this.selectedTrigger() || def.resolveParams) return false;
+        if (def.formComponent) return this.formValid();
         if (def.fields && def.fields.length > 0) return this.formValid();
         return true;
     });
+
+    constructor() {
+        effect(() => this.syncCustomForm(this.selectedDef(), this.formHost()));
+        effect(() => {
+            const ref = this.customForm();
+            if (!ref) return;
+            this.currentParams.set(ref.instance.params());
+            this.formValid.set(ref.instance.valid());
+        });
+        inject(DestroyRef).onDestroy(() => this.destroyCustomForm());
+    }
 
     readonly confirmLabel = computed(() => {
         const trigger = this.selectedTrigger();
@@ -79,8 +102,41 @@ export class RichTextActionsDialogComponent {
         this.selectedTrigger.set(def && def.triggers.length === 1 ? def.triggers[0] : null);
         const prefill = this.context().prefill;
         this.currentParams.set(prefill && prefill.def.id === id ? { ...prefill.params } : {});
-        this.formValid.set(!def?.fields || def.fields.length === 0);
+        this.formValid.set(this.initialValidity(def));
         if (def) this.pick.emit(def);
+    }
+
+    private initialValidity(def: RichTextActionDefinition | null): boolean {
+        if (!def) return false;
+        if (def.formComponent) return false;
+        return !def.fields || def.fields.length === 0;
+    }
+
+    setBusy(value: boolean): void {
+        this.busy.set(value);
+    }
+
+    private syncCustomForm(def: RichTextActionDefinition | null, anchor: ViewContainerRef | undefined): void {
+        const wantId = def?.formComponent && !def.resolveParams ? def.id : null;
+        if (wantId === this.renderedFormForDefId) return;
+        this.destroyCustomForm();
+        this.renderedFormForDefId = null;
+        if (!wantId || !def?.formComponent || !anchor) return;
+        anchor.clear();
+        const ref = anchor.createComponent(def.formComponent);
+        ref.instance.context = {
+            mode: this.context().mode, trigger: this.selectedTrigger() ?? def.triggers[0],
+            currentParams: this.currentParams(), selectionText: this.context().selectionText,
+            targetKind: this.context().targetKind, targetElement: null,
+        };
+        ref.instance.params.set({ ...this.currentParams() });
+        this.customForm.set(ref);
+        this.renderedFormForDefId = wantId;
+    }
+
+    private destroyCustomForm(): void {
+        this.customForm()?.destroy();
+        this.customForm.set(null);
     }
 
     selectTrigger(trigger: RichTextActionTrigger): void {

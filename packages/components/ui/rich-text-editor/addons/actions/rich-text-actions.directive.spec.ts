@@ -113,4 +113,66 @@ describe('RichTextActionsDirective', () => {
         expect(editor.querySelector('img[data-action-click="open-dialog"]')?.getAttribute('data-action-click-params'))
             .toBe('{"dialogId":"pricing"}');
     });
+
+    async function attachFirstAction(fixture: ReturnType<typeof TestBed.createComponent<HostCmp>>): Promise<HTMLElement> {
+        fixture.detectChanges();
+        const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        editor.innerHTML = '<p>go</p>';
+        const node = editor.querySelector('p')!.firstChild!;
+        const range = document.createRange(); range.setStart(node, 0); range.setEnd(node, 2);
+        const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+        editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+        (fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+        return editor;
+    }
+
+    it('tier 3 resolveParams runs without a dialog form and attaches resolved params', async () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        fixture.componentInstance.defs = [{
+            id: 'campaign', label: 'Campaign', triggers: ['click'],
+            resolveParams: async () => ({ campaignId: 'c-42' }),
+        }];
+        const editor = await attachFirstAction(fixture);
+        (document.querySelector('[data-action-option="campaign"]') as HTMLButtonElement).click();
+        await Promise.resolve(); await Promise.resolve();
+        fixture.detectChanges();
+        expect(editor.querySelector('span[data-action-click="campaign"]')?.getAttribute('data-action-click-params'))
+            .toBe('{"campaignId":"c-42"}');
+    });
+
+    it('tier 3 resolveParams returning null cancels cleanly with no attach', async () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        fixture.componentInstance.defs = [{
+            id: 'campaign', label: 'Campaign', triggers: ['click'],
+            resolveParams: async () => null,
+        }];
+        const editor = await attachFirstAction(fixture);
+        (document.querySelector('[data-action-option="campaign"]') as HTMLButtonElement).click();
+        await Promise.resolve(); await Promise.resolve();
+        fixture.detectChanges();
+        expect(editor.querySelector('span[data-action-click]')).toBeFalsy();
+    });
+
+    it('rejects non-flat params from a tier and does not attach', async () => {
+        const errors: unknown[] = [];
+        const origErr = console.error;
+        console.error = (...a: unknown[]) => { errors.push(a); };
+        try {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.componentInstance.defs = [{
+                id: 'bad', label: 'Bad', triggers: ['click'],
+                resolveParams: async () => ({ nested: { x: 1 } } as unknown as Record<string, string | number | boolean>),
+            }];
+            const editor = await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="bad"]') as HTMLButtonElement).click();
+            await Promise.resolve(); await Promise.resolve();
+            fixture.detectChanges();
+            expect(editor.querySelector('span[data-action-click="bad"]')).toBeFalsy();
+            expect(errors.length).toBeGreaterThan(0);
+        } finally {
+            console.error = origErr;
+        }
+    });
 });

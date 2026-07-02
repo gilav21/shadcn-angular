@@ -1,7 +1,21 @@
+import { Component, computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, it, expect } from 'vitest';
 import { RichTextActionsDialogComponent } from './rich-text-actions-dialog.component';
-import type { RichTextActionDefinition } from './rich-text-actions.types';
+import type {
+    ActionParams, RichTextActionDefinition, RichTextActionParamsContext, RichTextActionParamsForm,
+} from './rich-text-actions.types';
+
+@Component({
+    standalone: true,
+    template: `<input data-testid="custom" (input)="onIn($any($event.target).value)" />`,
+})
+class CustomFormComponent implements RichTextActionParamsForm {
+    context!: RichTextActionParamsContext;
+    readonly params = signal<ActionParams>({});
+    readonly valid = computed(() => Object.keys(this.params()).length > 0);
+    onIn(v: string): void { this.params.set({ entityId: v }); }
+}
 
 const defs: RichTextActionDefinition[] = [
     {
@@ -59,5 +73,30 @@ describe('RichTextActionsDialogComponent', () => {
         const cancelBtn = fixture.nativeElement.querySelector('[data-testid="rta-cancel"] button') as HTMLButtonElement;
         cancelBtn.click();
         expect(dismissed).toBe(true);
+    });
+
+    it('renders a tier-2 formComponent and gates confirm on its valid signal', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('definitions', [
+            { id: 'x', label: 'X', triggers: ['click'], formComponent: CustomFormComponent },
+        ] satisfies RichTextActionDefinition[]);
+        ref.setInput('context', {
+            mode: 'create', targetKind: 'text', selectionText: 's', occupiedTriggers: [], prefill: null,
+        });
+        fixture.detectChanges();
+        fixture.componentInstance.pickAction('x');
+        fixture.detectChanges();
+        const confirmBtn = fixture.nativeElement.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement;
+        expect(confirmBtn.disabled).toBe(true);
+        const custom = fixture.nativeElement.querySelector('[data-testid="custom"]') as HTMLInputElement;
+        custom.value = 'e-1';
+        custom.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        expect(confirmBtn.disabled).toBe(false);
+        let payload: { params: ActionParams } | null = null;
+        fixture.componentInstance.confirm.subscribe((p) => (payload = p));
+        confirmBtn.click();
+        expect(payload!.params).toEqual({ entityId: 'e-1' });
     });
 });

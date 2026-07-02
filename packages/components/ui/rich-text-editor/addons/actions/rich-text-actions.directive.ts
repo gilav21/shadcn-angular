@@ -130,10 +130,44 @@ export class RichTextActionsDirective {
         const teardown = (): void => { ref.destroy(); };
         this.overlays.push(teardown);
         ref.instance.dismiss.subscribe(() => this.closeOverlay(teardown));
+        ref.instance.pick.subscribe((def: RichTextActionDefinition) => this.onPick(def, ref.instance, teardown, target));
         ref.instance.confirm.subscribe((payload: ActionsDialogConfirm) => {
             const applied = this.applyAction(payload.def, payload.trigger, payload.params, target);
             if (applied) this.closeOverlay(teardown);
         });
+    }
+
+    private onPick(
+        def: RichTextActionDefinition, dialog: RichTextActionsDialogComponent,
+        teardown: () => void, target: ApplyTarget,
+    ): void {
+        this.warnOnMultipleTiers(def);
+        if (!def.resolveParams) return;
+        const trigger = def.triggers[0];
+        dialog.setBusy(true);
+        def.resolveParams({
+            mode: target.existing ? 'edit' : 'create', trigger,
+            currentParams: {}, selectionText: this.host.selection().text,
+            targetKind: target.kind, targetElement: target.existing,
+        })
+            .then((params) => {
+                this.closeOverlay(teardown);
+                if (params !== null) this.applyAction(def, trigger, params, target);
+            })
+            .catch((err: unknown) => {
+                this.closeOverlay(teardown);
+                console.error('[rich-text-actions] resolveParams rejected:', err);
+            });
+    }
+
+    private warnOnMultipleTiers(def: RichTextActionDefinition): void {
+        const tiers = [def.resolveParams, def.formComponent, def.fields?.length].filter(Boolean).length;
+        if (tiers > 1) {
+            console.error(
+                `[rich-text-actions] action "${def.id}" declares multiple param tiers; ` +
+                'precedence is resolveParams > formComponent > fields.',
+            );
+        }
     }
 
     private closeOverlay(teardown: () => void): void {

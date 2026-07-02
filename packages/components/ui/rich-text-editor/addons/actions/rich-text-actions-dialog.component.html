@@ -19,7 +19,10 @@
         class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
       />
 
-      <div class="max-h-56 overflow-y-auto rounded-md border" role="listbox">
+      <div
+        class="max-h-56 overflow-y-auto rounded-md border" role="listbox"
+        [class.pointer-events-none]="busy()" [class.opacity-50]="busy()"
+      >
         @for (def of visibleDefs(); track def.id) {
           <button
             type="button" role="option" [attr.data-action-option]="def.id"
@@ -54,7 +57,9 @@
           </div>
         }
 
-        @if (def.fields && def.fields.length > 0) {
+        @if (def.formComponent) {
+          <ng-container #formHost />
+        } @else if (def.fields && def.fields.length > 0) {
           <ui-rich-text-actions-form
             [fields]="def.fields" [params]="currentParams()"
             (paramsChange)="onParamsChange($event)" (validChange)="onValidChange($event)"
