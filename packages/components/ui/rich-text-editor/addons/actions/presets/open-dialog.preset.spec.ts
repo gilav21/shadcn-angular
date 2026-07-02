@@ -1,6 +1,6 @@
 import { Component, Injector, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { openDialogAction, openDialogHandlers, ACTION_PARAMS } from './open-dialog.preset';
 import type { RichTextActionEvent } from '../actions-runtime';
 
@@ -17,7 +17,16 @@ class CustomBodyComponent {
     readonly params = inject(ACTION_PARAMS);
 }
 
+@Component({ standalone: true, template: '' })
+class HostForInjector {
+    readonly injector = inject(Injector);
+}
+
 describe('open-dialog preset', () => {
+    afterEach(() => {
+        document.querySelectorAll('[data-slot="preset-dialog"]').forEach((el) => el.remove());
+    });
+
     it('definition declares click trigger + title/body/confirmLabel fields', () => {
         const def = openDialogAction();
         expect(def.triggers).toEqual(['click']);
@@ -60,5 +69,15 @@ describe('open-dialog preset', () => {
         };
         expect(Object.keys(handlers).sort((a, b) => a.localeCompare(b))).toEqual(['custom', 'dialog.a', 'dialog.b']);
         expect(openDialogAction({ id: 'dialog.a' }).id).toBe('dialog.a');
+    });
+
+    it('teardown on injector destroy removes any open dialog', () => {
+        const fixture = TestBed.createComponent(HostForInjector);
+        fixture.detectChanges();
+        const handlers = openDialogHandlers(fixture.componentInstance.injector);
+        handlers['preset.open-dialog'](clickEvent({ title: 'T', body: 'B' }));
+        expect(document.querySelector('[data-slot="preset-dialog"]')).toBeTruthy();
+        fixture.destroy();
+        expect(document.querySelector('[data-slot="preset-dialog"]')).toBeFalsy();
     });
 });

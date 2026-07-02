@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, type Injector, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, type Injector, input } from '@angular/core';
 import { mountTopLayer, anchorOverlay, type MountedOverlay } from './preset-overlay.utils';
 import type { RichTextActionDefinition, RichTextActionField } from '../rich-text-actions.types';
 import type { RichTextActionEvent, RichTextActionHandler } from '../actions-runtime';
@@ -64,25 +64,43 @@ export function hoverCardHandlers(
     const closeDelay = o.closeDelay ?? 200;
     let open: MountedOverlay<PresetHoverCardComponent> | null = null;
     let closeTimer: ReturnType<typeof setTimeout> | null = null;
+    let onKeydown: ((e: KeyboardEvent) => void) | null = null;
+
+    const cancelClose = (): void => {
+        if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
+    };
 
     const close = (): void => {
+        cancelClose();
+        if (onKeydown) { document.removeEventListener('keydown', onKeydown); onKeydown = null; }
         open?.destroy();
         open = null;
     };
 
-    const handler: RichTextActionHandler = (event: RichTextActionEvent) => {
-        if (event.phase === 'start') {
-            if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
-            close();
-            open = mountTopLayer(injector, PresetHoverCardComponent, {
-                title: String(event.params['title'] ?? ''),
-                body: String(event.params['body'] ?? ''),
-            });
-            anchorOverlay(open.host, event.element);
-        } else {
-            closeTimer = setTimeout(close, closeDelay);
-        }
+    const scheduleClose = (): void => {
+        cancelClose();
+        closeTimer = setTimeout(close, closeDelay);
     };
 
+    const handler: RichTextActionHandler = (event: RichTextActionEvent) => {
+        if (event.phase === 'end') {
+            scheduleClose();
+            return;
+        }
+        cancelClose();
+        close();
+        open = mountTopLayer(injector, PresetHoverCardComponent, {
+            title: String(event.params['title'] ?? ''),
+            body: String(event.params['body'] ?? ''),
+        });
+        anchorOverlay(open.host, event.element);
+        // Grace area: keep the card open while the pointer is over it.
+        open.host.addEventListener('mouseenter', cancelClose);
+        open.host.addEventListener('mouseleave', scheduleClose);
+        onKeydown = (e: KeyboardEvent): void => { if (e.key === 'Escape') close(); };
+        document.addEventListener('keydown', onKeydown);
+    };
+
+    injector.get(DestroyRef, null, { optional: true })?.onDestroy(close);
     return { [id]: handler };
 }

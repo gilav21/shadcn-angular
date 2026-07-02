@@ -1,7 +1,8 @@
 import {
-    ChangeDetectionStrategy, Component, InjectionToken, Injector, input, output, type Type,
+    ChangeDetectionStrategy, Component, DestroyRef, InjectionToken, Injector, input, output, type Type,
 } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
+import { ButtonComponent } from '../../../../button';
 import { mountTopLayer, type MountedOverlay } from './preset-overlay.utils';
 import type { ActionParams, RichTextActionDefinition, RichTextActionField } from '../rich-text-actions.types';
 import type { RichTextActionEvent, RichTextActionHandler } from '../actions-runtime';
@@ -46,7 +47,7 @@ export function openDialogAction(o: OpenDialogPresetOptions = {}): RichTextActio
     selector: 'ui-preset-dialog',
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [NgComponentOutlet],
+    imports: [NgComponentOutlet, ButtonComponent],
     template: `
         <div class="fixed inset-0 flex items-center justify-center">
             <button
@@ -66,15 +67,10 @@ export function openDialogAction(o: OpenDialogPresetOptions = {}): RichTextActio
                     <p class="text-sm text-muted-foreground">{{ body() }}</p>
                 }
                 <div class="mt-4 flex flex-wrap justify-end gap-2">
-                    <button
-                        type="button" class="rounded-md px-3 py-1.5 text-sm hover:bg-accent"
-                        (click)="dismiss.emit()"
-                    >Close</button>
-                    <button
-                        type="button" data-testid="preset-dialog-confirm"
-                        class="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground"
-                        (click)="confirm.emit()"
-                    >{{ confirmLabel() || 'OK' }}</button>
+                    <ui-button variant="ghost" (click)="dismiss.emit()">Close</ui-button>
+                    <ui-button data-testid="preset-dialog-confirm" (click)="confirm.emit()">
+                        {{ confirmLabel() || 'OK' }}
+                    </ui-button>
                 </div>
             </div>
         </div>
@@ -100,6 +96,12 @@ export function openDialogHandlers(
     injector: Injector, o: OpenDialogPresetOptions = {},
 ): Record<string, RichTextActionHandler> {
     const id = o.id ?? DEFAULT_ID;
+    const openOverlays = new Set<MountedOverlay<PresetDialogComponent>>();
+
+    const teardown = (overlay: MountedOverlay<PresetDialogComponent>): void => {
+        openOverlays.delete(overlay);
+        overlay.destroy();
+    };
 
     const handler: RichTextActionHandler = (event: RichTextActionEvent) => {
         const params = event.params;
@@ -114,12 +116,23 @@ export function openDialogHandlers(
             contentInjector,
         });
         overlay.host.style.inset = '0';
+        openOverlays.add(overlay);
+        const onKeydown = (e: KeyboardEvent): void => { if (e.key === 'Escape') dismiss(); };
+        const dismiss = (): void => {
+            document.removeEventListener('keydown', onKeydown);
+            teardown(overlay);
+        };
+        document.addEventListener('keydown', onKeydown);
         overlay.instance.confirm.subscribe(() => {
             o.onConfirm?.(params);
-            overlay.destroy();
+            dismiss();
         });
-        overlay.instance.dismiss.subscribe(() => overlay.destroy());
+        overlay.instance.dismiss.subscribe(dismiss);
     };
 
+    injector.get(DestroyRef, null, { optional: true })?.onDestroy(() => {
+        for (const overlay of openOverlays) overlay.destroy();
+        openOverlays.clear();
+    });
     return { [id]: handler };
 }

@@ -1,8 +1,15 @@
-import { Injector } from '@angular/core';
+import { Component, Injector, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { hoverCardAction, hoverCardHandlers } from './hover-card.preset';
 import type { RichTextActionEvent } from '../actions-runtime';
+
+@Component({ standalone: true, template: '' })
+class HostForInjector {
+    readonly injector = inject(Injector);
+}
+
+const wait = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 function hoverEvent(phase: 'start' | 'end', params: Record<string, unknown>): RichTextActionEvent {
     const el = document.createElement('span');
@@ -14,6 +21,10 @@ function hoverEvent(phase: 'start' | 'end', params: Record<string, unknown>): Ri
 }
 
 describe('hover-card preset', () => {
+    afterEach(() => {
+        document.querySelectorAll('[data-slot="preset-hover-card"]').forEach((el) => el.remove());
+    });
+
     it('action definition declares a hover trigger and title/body fields', () => {
         const def = hoverCardAction();
         expect(def.triggers).toEqual(['hover']);
@@ -37,5 +48,36 @@ describe('hover-card preset', () => {
         expect(document.body.textContent).toContain('B');
         expect(document.body.textContent).toContain('T');
         handlers['preset.hover-card'](hoverEvent('end', { title: 'T', body: 'B' }));
+    });
+
+    it('grace area: moving the pointer into the card cancels the close timer', async () => {
+        const injector = TestBed.inject(Injector);
+        const handlers = hoverCardHandlers(injector, { closeDelay: 20 });
+        handlers['preset.hover-card'](hoverEvent('start', { body: 'B' }));
+        const card = document.querySelector('[data-slot="preset-hover-card"]') as HTMLElement;
+        handlers['preset.hover-card'](hoverEvent('end', { body: 'B' }));
+        card.dispatchEvent(new MouseEvent('mouseenter'));
+        await wait(40);
+        expect(document.querySelector('[data-slot="preset-hover-card"]')).toBeTruthy();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    });
+
+    it('Escape closes the card', () => {
+        const injector = TestBed.inject(Injector);
+        const handlers = hoverCardHandlers(injector);
+        handlers['preset.hover-card'](hoverEvent('start', { body: 'B' }));
+        expect(document.querySelector('[data-slot="preset-hover-card"]')).toBeTruthy();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(document.querySelector('[data-slot="preset-hover-card"]')).toBeFalsy();
+    });
+
+    it('teardown on injector destroy removes any open card', () => {
+        const fixture = TestBed.createComponent(HostForInjector);
+        fixture.detectChanges();
+        const handlers = hoverCardHandlers(fixture.componentInstance.injector);
+        handlers['preset.hover-card'](hoverEvent('start', { body: 'B' }));
+        expect(document.querySelector('[data-slot="preset-hover-card"]')).toBeTruthy();
+        fixture.destroy();
+        expect(document.querySelector('[data-slot="preset-hover-card"]')).toBeFalsy();
     });
 });
