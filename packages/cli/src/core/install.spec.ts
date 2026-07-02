@@ -52,8 +52,9 @@ describe('performInstall', () => {
     const result = await performInstall({ ...base, components: ['badge'] });
     expect(result.installed).toContain('badge');
     expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
-    // The merge report is threaded out; newly-created files land in `overwritten`.
-    expect(result.mergeReport.overwritten.length).toBeGreaterThan(0);
+    // The merge report is threaded out; newly-created files land in `created`.
+    expect(result.mergeReport.created.length).toBeGreaterThan(0);
+    expect(result.mergeReport.overwritten).toEqual([]);
   });
 
   it('records installed files in components.lock.json with content hashes', async () => {

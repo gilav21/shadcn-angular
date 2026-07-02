@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
-import { resolveUpdateTargets, partitionClosure, customizedAmong } from './update.js';
+import {
+  resolveUpdateTargets, partitionClosure, customizedAmong,
+  shouldOfferAddonApply, filterUninstalledAddons, classifyCustomized,
+} from './update.js';
 import { getDefaultConfig } from '../utils/config.js';
 import { emptyManifest, recordFile } from '../core/manifest.js';
 import type { ComponentName } from '../registry/index.js';
@@ -65,5 +68,61 @@ describe('customizedAmong', () => {
     recordFile(m, 'button/button.component.ts', 'orig', 'button');
     const local = new Map([['button/button.component.ts', 'orig']]);
     expect(customizedAmong(['button'] as ComponentName[], m, local, filesOf)).toEqual([]);
+  });
+});
+
+
+describe('shouldOfferAddonApply', () => {
+  it('offers only on an interactive TTY without --yes', () => {
+    expect(shouldOfferAddonApply({ yes: false, isTTY: true })).toBe(true);
+  });
+
+  it('does NOT offer under --yes (a non-interactive run cannot be asked)', () => {
+    expect(shouldOfferAddonApply({ yes: true, isTTY: true })).toBe(false);
+  });
+
+  it('does NOT offer on a non-TTY stdin (piped / CI) — would auto-accept otherwise', () => {
+    expect(shouldOfferAddonApply({ yes: false, isTTY: false })).toBe(false);
+    expect(shouldOfferAddonApply({ yes: true, isTTY: false })).toBe(false);
+  });
+});
+
+describe('filterUninstalledAddons', () => {
+  it('drops addons whose first registry file already exists on disk', async () => {
+    const seen: string[] = [];
+    const out = await filterUninstalledAddons(['context-menu'], async (f) => {
+      seen.push(f);
+      return true; // installed
+    });
+    expect(out).toEqual([]);
+    expect(seen).toHaveLength(1); // probed the addon's first file
+  });
+
+  it('keeps addons whose files are absent (still worth offering)', async () => {
+    const out = await filterUninstalledAddons(['context-menu'], async () => false);
+    expect(out).toEqual(['context-menu']);
+  });
+
+  it('keeps unknown names rather than silently dropping them', async () => {
+    const out = await filterUninstalledAddons(['not-a-real-addon'], async () => true);
+    expect(out).toEqual(['not-a-real-addon']);
+  });
+});
+
+describe('classifyCustomized', () => {
+  const names = ['button', 'card'] as ComponentName[];
+
+  it('routes every customized component to overwrite when --overwrite is set', () => {
+    const b = classifyCustomized(names, true, () => true);
+    expect(b.overwrite).toEqual(names);
+    expect(b.merge).toEqual([]);
+    expect(b.noBaseline).toEqual([]);
+  });
+
+  it('splits into merge (has baseline) vs no-baseline when not overwriting', () => {
+    const b = classifyCustomized(names, false, (n) => n === 'button');
+    expect(b.overwrite).toEqual([]);
+    expect(b.merge).toEqual(['button']);
+    expect(b.noBaseline).toEqual(['card']);
   });
 });

@@ -9,7 +9,7 @@ import { formatMergeSummary, hasUnresolvedConflicts, type MergeReport } from '..
 export function reportMergeSummary(report: MergeReport): boolean {
     const lines = formatMergeSummary(report);
     if (lines.length > 0) {
-        console.log(chalk.bold('\nMerge summary:'));
+        console.log(chalk.bold('\nMerge summary (files):'));
         for (const line of lines) {
             const color = line.includes('!') ? chalk.red : chalk.dim;
             console.log(color('  ' + line));

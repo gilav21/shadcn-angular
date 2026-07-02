@@ -13,7 +13,7 @@ import {
 } from '../core/plan.js';
 import { performInstall, type InstallResult } from '../core/install.js';
 import { scanLayouts } from '../core/layout.js';
-import { readManifest, fileStatus, type Manifest } from '../core/manifest.js';
+import { readManifest, fileStatus, getComponentRef, type Manifest } from '../core/manifest.js';
 import { reportMergeSummary } from './merge-report.js';
 import { apply } from './apply.js';
 
@@ -58,20 +58,36 @@ function onCancel(): never {
 }
 
 /**
- * Offer to run `apply <addon>` for any breaking change that names one. Skipped
- * entirely under `--yes` (a non-interactive run can't be asked, and installing
- * an addon — new files, new template wiring — is a bigger action than the
- * file merge `update` already performs, so the safe default is "don't").
+ * Whether to interactively offer `apply <addon>`. Suppressed under `--yes` and
+ * on a non-TTY stdin (piped input / CI): a non-interactive run can't be asked,
+ * and `prompts` would otherwise auto-accept the `initial: true` confirm and
+ * silently install the addon — the opposite of the conservative default.
+ * Installing an addon (new files, new template wiring) is a bigger action than
+ * the file merge `update` already performs, so when we can't ask, we don't.
+ */
+export function shouldOfferAddonApply(env: { readonly yes?: boolean; readonly isTTY: boolean }): boolean {
+    return !env.yes && env.isTTY;
+}
+
+const applyLaterHint = (addonName: string): string =>
+    chalk.dim(`Skipped — run \`npx @gilav21/shadcn-angular apply ${addonName}\` later.`);
+
+/**
+ * Offer to run `apply <addon>` for any breaking change that names one. When the
+ * offer is suppressed (see {@link shouldOfferAddonApply}) the addons are left
+ * uninstalled and the "apply later" hint is printed for each.
  *
  * Deliberately calls the *interactive* `apply()` (not the silent, non-prompting
  * `core/apply-core.ts` `applyCore()`): once the user has opted in here, they
- * still get `apply`'s own per-usage target-selection prompt rather than having
- * every usage wired unconditionally — this only runs in the `!options.yes`
- * branch, so `apply`'s internal `process.exit(hadConflicts && options.yes)`
- * guard can't fire (options.yes is false on this path).
+ * still get `apply`'s own per-usage target-selection prompt. This only runs on
+ * the interactive path (never `--yes`), so `apply`'s internal
+ * `process.exit(hadConflicts && options.yes)` guard can't fire.
  */
 async function promptApplyAddons(addons: readonly string[], options: AddOptions): Promise<void> {
-    if (options.yes) return;
+    if (!shouldOfferAddonApply({ yes: options.yes, isTTY: !!process.stdin.isTTY })) {
+        for (const addonName of addons) console.log(applyLaterHint(addonName));
+        return;
+    }
     for (const addonName of addons) {
         const { run } = await prompts({
             type: 'confirm',
@@ -80,8 +96,24 @@ async function promptApplyAddons(addons: readonly string[], options: AddOptions)
             initial: true,
         }, { onCancel });
         if (run) await apply(addonName, [], options);
-        else console.log(chalk.dim(`Skipped — run \`npx @gilav21/shadcn-angular apply ${addonName}\` later.`));
+        else console.log(applyLaterHint(addonName));
     }
+}
+
+/**
+ * Drop addons already installed on disk (their first registry file exists) so
+ * the post-update offer doesn't re-nag about a fix the user has already applied.
+ * `exists` receives the addon's first registry-relative file path.
+ */
+export async function filterUninstalledAddons(
+    addons: readonly string[], exists: (registryFile: string) => Promise<boolean>,
+): Promise<string[]> {
+    const result: string[] = [];
+    for (const name of addons) {
+        const first = isComponentName(name) ? registry[name].files[0] : undefined;
+        if (!first || !(await exists(first))) result.push(name);
+    }
+    return result;
 }
 
 function abortConfig(): never {
@@ -144,7 +176,48 @@ export function customizedAmong(
     );
 }
 
-async function warnCustomized(modified: ComponentName[], cwd: string, targetDir: string): Promise<void> {
+interface CustomizedBuckets {
+    readonly overwrite: ComponentName[];
+    readonly merge: ComponentName[];
+    readonly noBaseline: ComponentName[];
+}
+
+/**
+ * Classify customized components by the advice `update` can honestly give:
+ * `--overwrite` replaces every one whole-file; otherwise a component with a
+ * recorded baseline is 3-way merged, while one WITHOUT a baseline cannot be
+ * merged (its edits are kept and warned — no merge is promised).
+ */
+export function classifyCustomized(
+    customized: readonly ComponentName[], overwrite: boolean, hasRef: (n: ComponentName) => boolean,
+): CustomizedBuckets {
+    if (overwrite) return { overwrite: [...customized], merge: [], noBaseline: [] };
+    const merge: ComponentName[] = [];
+    const noBaseline: ComponentName[] = [];
+    for (const n of customized) (hasRef(n) ? merge : noBaseline).push(n);
+    return { overwrite: [], merge, noBaseline };
+}
+
+function printCustomizedAdvice(buckets: CustomizedBuckets): void {
+    if (buckets.overwrite.length > 0) {
+        console.log(chalk.yellow('\nThese components have local edits — --overwrite will replace them whole-file (no merge):'));
+        for (const n of buckets.overwrite) console.log(chalk.yellow('  ~ ') + n);
+    }
+    if (buckets.merge.length > 0) {
+        console.log(chalk.yellow('\nThese components have local edits — update will 3-way merge the upstream changes into them:'));
+        for (const n of buckets.merge) console.log(chalk.yellow('  ~ ') + n);
+        console.log(chalk.dim('Conflicts (if any) are written as <<<<<<< markers; re-run with --overwrite to take upstream whole-file instead.'));
+    }
+    if (buckets.noBaseline.length > 0) {
+        console.log(chalk.yellow('\nThese components have local edits but no recorded baseline — your edited files will be kept and warned:'));
+        for (const n of buckets.noBaseline) console.log(chalk.yellow('  ~ ') + n);
+        console.log(chalk.dim('Use --overwrite to take the upstream version whole-file instead.'));
+    }
+}
+
+async function warnCustomized(
+    modified: ComponentName[], cwd: string, targetDir: string, options: AddOptions,
+): Promise<void> {
     if (modified.length === 0) return;
     const manifest = await readManifest(cwd);
     const localContent = new Map<string, string>();
@@ -156,9 +229,9 @@ async function warnCustomized(modified: ComponentName[], cwd: string, targetDir:
     }
     const customized = customizedAmong(modified, manifest, localContent, n => registry[n].files);
     if (customized.length === 0) return;
-    console.log(chalk.yellow('\nThese components have local edits — update will 3-way merge the upstream changes into them:'));
-    for (const n of customized) console.log(chalk.yellow('  ~ ') + n);
-    console.log(chalk.dim('Conflicts (if any) are written as <<<<<<< markers; re-run with --overwrite to take upstream whole-file instead.'));
+    printCustomizedAdvice(classifyCustomized(
+        customized, !!options.overwrite, n => getComponentRef(manifest, n) !== undefined,
+    ));
 }
 
 async function detectUpdates(
@@ -224,7 +297,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
 
     const touched = [...conflicts.conflicting, ...conflicts.toInstall];
     printUpdatePlan(conflicts.conflicting, conflicts.toInstall);
-    await warnCustomized(conflicts.conflicting, cwd, targetDir);
+    await warnCustomized(conflicts.conflicting, cwd, targetDir, options);
     printBreakingChanges(touched);
 
     if (options.dryRun) {
@@ -236,7 +309,10 @@ export async function update(names: string[], options: AddOptions): Promise<void
     const hadConflicts = reportMergeSummary(result.mergeReport);
 
     const suggestedAddons = collectSuggestedAddons(collectBreakingChanges(touched));
-    await promptApplyAddons(suggestedAddons, options);
+    const uninstalledAddons = await filterUninstalledAddons(
+        suggestedAddons, f => fs.pathExists(path.join(targetDir, f)),
+    );
+    await promptApplyAddons(uninstalledAddons, options);
 
     // In non-interactive runs (CI / --yes) a written conflict must fail the
     // command so a pipeline notices the unresolved markers.
