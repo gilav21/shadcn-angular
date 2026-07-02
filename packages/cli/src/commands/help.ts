@@ -124,7 +124,7 @@ function buildInspectCommands(branchDefault: string): string[] {
     '',
     '  ' + chalk.cyan('status') + ' Show project status: design tokens, component health, and config',
     '',
-    '  ' + chalk.cyan('search') + ' <query...>    Search components by name, tag, or description',
+    '  ' + chalk.cyan('search') + ' [query...]    Search components by name, tag, or description',
     '',
     '  ' + chalk.cyan('migrate') + ' Migrate legacy single-file components to the folder/trio layout',
     '',
