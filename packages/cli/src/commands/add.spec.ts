@@ -776,7 +776,7 @@ describe('install pipeline for a trio + sub/ component', () => {
 // ---------------------------------------------------------------------------
 
 describe('help command', () => {
-  it('prints commands, optional dependencies, and component categories', async () => {
+  it('prints commands, addons, and component categories', async () => {
     const { help } = await import('./help.js');
     const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -788,7 +788,9 @@ describe('help command', () => {
     expect(output).toContain('Commands');
     expect(output).toContain('init');
     expect(output).toContain('add');
-    expect(output).toContain('Optional Dependencies');
+    expect(output).toContain('Addons');
+    expect(output).toContain('apply');
+    expect(output).toContain('update');
     expect(output).toContain('Available Components');
     expect(output).toContain('Form');
     expect(output).toContain('Navigation');

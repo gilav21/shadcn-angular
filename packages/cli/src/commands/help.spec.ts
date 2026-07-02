@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { groupByCategory, groupBlocks } from './help.js';
+import { describe, it, expect, vi } from 'vitest';
+import { groupByCategory, groupBlocks, help } from './help.js';
 import { registry, getComponentNames, CATEGORIES } from '../registry/index.js';
 
 describe('groupByCategory', () => {
@@ -37,6 +37,22 @@ describe('groupBlocks', () => {
     const groups = groupBlocks();
     for (const list of Object.values(groups)) {
       for (const name of list) expect(registry[name as keyof typeof registry].type).toBe('block');
+    }
+  });
+});
+
+describe('help output', () => {
+  it('documents the apply and update commands (and the other top-level commands)', () => {
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      help();
+      const out = spy.mock.calls.map(call => call.join(' ')).join(' ');
+      expect(out).toContain('apply');
+      expect(out).toContain('update');
+      expect(out).toContain('doctor');
+      expect(out).toContain('data-table/context-menu');
+    } finally {
+      spy.mockRestore();
     }
   });
 });

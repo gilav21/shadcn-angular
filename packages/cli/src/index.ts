@@ -62,7 +62,7 @@ program
     .description('Add a component to your project')
     .argument('[components...]', 'The components to add')
     .option('-y, --yes', 'Skip confirmation prompt')
-    .option('-o, --overwrite', 'Overwrite existing files')
+    .option('-o, --overwrite', 'Overwrite existing files whole-file (add never 3-way merges; see update/apply)')
     .option('-a, --all', 'Add all available components')
     .option('--with <addons>', 'Comma-separated addon keys (parent/addon) to include, or "all"')
     .option('--no-addons', 'Skip optional addons (do not prompt)')

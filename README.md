@@ -30,7 +30,16 @@ npx @gilav21/shadcn-angular init
 
 # Add a component
 npx @gilav21/shadcn-angular add button
+
+# Install an addon and wire it into your component (e.g. data-table's context menu)
+npx @gilav21/shadcn-angular apply data-table/context-menu
+
+# Pull the latest upstream version, 3-way merging into your local edits
+npx @gilav21/shadcn-angular update
 ```
+
+See [`packages/cli/README.md`](./packages/cli/README.md) for the full CLI
+reference, including addons and the update merge flow.
 
 ## Local Development
 
