@@ -38,7 +38,7 @@ export function bindRichTextActions(
     const decorateClass = options.decorateClass === undefined ? 'rte-action' : options.decorateClass;
     const touchHover = options.touchHoverBehavior ?? 'tap-to-hover';
     const decorated: HTMLElement[] = [];
-    const tappedForHover = new WeakSet<HTMLElement>();
+    let tapHoverEl: HTMLElement | null = null;
 
     decorateExisting(container, { a11y, decorateClass, decorated });
 
@@ -48,7 +48,7 @@ export function bindRichTextActions(
     const onOut = (e: Event): void => dispatchHover(e as MouseEvent, container, options, 'end');
     const onFocusIn = (e: Event): void => dispatchFocusHover(e, container, options, 'start');
     const onFocusOut = (e: Event): void => dispatchFocusHover(e, container, options, 'end');
-    const onTouchEnd = (e: Event): void => handleTouch(e, container, options, touchHover, tappedForHover);
+    const onTouchEnd = (e: Event): void => { tapHoverEl = handleTouch(e, container, options, touchHover, tapHoverEl); };
 
     container.addEventListener('click', onClick);
     container.addEventListener('keydown', onKeydown);
@@ -155,16 +155,35 @@ function dispatchFocusHover(
     if (el) emit(options, el, HOVER_ATTR, 'hover', e, phase);
 }
 
+/**
+ * Handle a touch tap. Returns the element currently held open by tap-to-hover
+ * (or null). `'off'` lets the browser's synthetic click drive click actions.
+ * On tap-to-hover: the first tap on a hover element shows it (and
+ * `preventDefault`s the synthetic click); a tap elsewhere closes it (hover
+ * `end`); a second tap on the held element (or a tap on a click-only element)
+ * fires the click. Emitting always `preventDefault`s to avoid a synthetic
+ * double-fire.
+ */
 function handleTouch(
     e: Event, container: HTMLElement, options: BindRichTextActionsOptions,
-    touchHover: 'tap-to-hover' | 'off', tappedForHover: WeakSet<HTMLElement>,
-): void {
+    touchHover: 'tap-to-hover' | 'off', current: HTMLElement | null,
+): HTMLElement | null {
+    if (touchHover === 'off') return null;
     const hoverEl = actionedAncestor(e.target, container, HOVER_ATTR);
-    if (hoverEl && touchHover === 'tap-to-hover' && !tappedForHover.has(hoverEl)) {
-        tappedForHover.add(hoverEl);
+    let next = current;
+    if (current && current !== hoverEl) {
+        emit(options, current, HOVER_ATTR, 'hover', e, 'end');
+        next = null;
+    }
+    if (hoverEl && next !== hoverEl) {
+        e.preventDefault();
         emit(options, hoverEl, HOVER_ATTR, 'hover', e, 'start');
-        return;
+        return hoverEl;
     }
     const clickEl = actionedAncestor(e.target, container, CLICK_ATTR);
-    if (clickEl) emit(options, clickEl, CLICK_ATTR, 'click', e, 'start');
+    if (clickEl) {
+        e.preventDefault();
+        emit(options, clickEl, CLICK_ATTR, 'click', e, 'start');
+    }
+    return next;
 }

@@ -133,10 +133,24 @@ describe('bindRichTextActions', () => {
             touchHoverBehavior: 'tap-to-hover',
         });
         const span = el.querySelector('span') as HTMLElement;
-        span.dispatchEvent(new Event('touchend', { bubbles: true }));
+        const firstTap = new Event('touchend', { bubbles: true, cancelable: true });
+        span.dispatchEvent(firstTap);
         expect(events).toEqual(['hover:start']);
-        span.dispatchEvent(new Event('touchend', { bubbles: true }));
+        expect(firstTap.defaultPrevented).toBe(true);
+        span.dispatchEvent(new Event('touchend', { bubbles: true, cancelable: true }));
         expect(events).toContain('click');
+        off(); el.remove();
+    });
+
+    it('tap-to-hover: tapping outside the held element delivers hover end', () => {
+        const el = container('<span data-action-hover="h">t</span><em>outside</em>');
+        const phases: string[] = [];
+        const off = bindRichTextActions(el, {
+            handlers: { h: (e) => phases.push(e.phase) }, touchHoverBehavior: 'tap-to-hover',
+        });
+        (el.querySelector('span') as HTMLElement).dispatchEvent(new Event('touchend', { bubbles: true, cancelable: true }));
+        (el.querySelector('em') as HTMLElement).dispatchEvent(new Event('touchend', { bubbles: true, cancelable: true }));
+        expect(phases).toEqual(['start', 'end']);
         off(); el.remove();
     });
 
