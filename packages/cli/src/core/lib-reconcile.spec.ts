@@ -80,6 +80,19 @@ describe('collectLibDrift', () => {
     expect(report.stale).toEqual([]);
   });
 
+  it('treats a manifest-modified file matching a published baseline as stale, not user-edited', async () => {
+    // A byte-exact historical revision is never a user edit — e.g. the manifest
+    // was fingerprinted at init (new content) but the disk carries an old
+    // pristine copy (old consumer, branch checkout). Refreshing is safe.
+    pathExists.mockResolvedValue(true);
+    readFile.mockResolvedValue(PRISTINE_OLD);
+    const manifest: Manifest = emptyManifest();
+    recordFile(manifest, 'utils.ts', 'REMOTE-CURRENT', '(lib)'); // baseline != local
+    const report = await collectLibDrift('/lib', ['label'], manifest, opts);
+    expect(report.stale).toEqual(['utils.ts']);
+    expect(report.userEdited).toEqual([]);
+  });
+
   it('treats an untracked file matching a published baseline as stale (safe)', async () => {
     pathExists.mockResolvedValue(true);
     readFile.mockResolvedValue(PRISTINE_OLD); // hashes to a baseline, no manifest entry

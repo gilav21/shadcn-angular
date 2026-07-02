@@ -54,11 +54,12 @@ export function isPristineLib(file: string, local: string): boolean {
 
 /**
  * Classify one lib file. A file identical to the registry is `clean`; one that
- * differs is `stale` (safe to refresh) only when it is unmodified from what we
+ * differs is `stale` (safe to refresh) when it is unmodified from what we
  * installed (manifest `clean`) or matches a published baseline (a pristine but
- * out-of-date copy). Anything else that differs — a manifest `modified` file, or
- * an `untracked` file that matches no baseline (e.g. an `i18n.token.ts` a user
- * customized via `set-locale`) — is `userEdited` and protected.
+ * out-of-date copy — regardless of what the manifest recorded, since no user
+ * edit reproduces a byte-exact historical revision). Anything else that differs
+ * (e.g. an `i18n.token.ts` a user customized via `set-locale`) is `userEdited`
+ * and protected.
  */
 async function classifyLibFile(
     file: string, libDir: string, manifest: Manifest, options: FetchOptions,
@@ -76,8 +77,10 @@ async function classifyLibFile(
     if (normalizeContent(local) === normalizeContent(remote)) return 'clean';
 
     const status = fileStatus(manifest, file, local);
-    if (status === 'modified') return 'userEdited';
     if (status === 'clean') return 'stale';
+    // A byte-exact published revision is never a user edit — even when the
+    // manifest fingerprint disagrees (old copy on disk, newer baseline recorded
+    // at init/add). Pristine-but-stale is safe to refresh.
     return isPristineLib(file, local) ? 'stale' : 'userEdited';
 }
 
