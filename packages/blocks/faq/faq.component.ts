@@ -36,7 +36,7 @@ export class FaqBlockComponent {
     {
       question: 'How do I install a component?',
       answer:
-        'Use the CLI to add any component directly to your project: run “npx shadcn-angular add button”. The command copies the source files into your codebase and wires up the required dependencies automatically.',
+        'Use the CLI to add any component directly to your project: run “npx @gilav21/shadcn-angular add button”. The command copies the source files into your codebase and wires up the required dependencies automatically.',
     },
     {
       question: 'Do I own the code, or is it a dependency?',
