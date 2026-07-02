@@ -1104,3 +1104,4 @@ supported in `mode="html"`.
 | 5 | 2026-07-02 | T5 — addon skeleton | 93 | Types + serializer + directive registering rules/serializer/toolbar/slash; all torn down; 11 tests green. |
 | 6 | 2026-07-02 | T6 — attach dialog + form + apply | 93 | Tier-1 form + picker dialog + apply (text/image/merge); fixed image capture bug; 19 tests green. |
 | 7 | 2026-07-02 | T7 — tiers 2 + 3 | 92 | Dynamic form hosting (two-effect, no NG0602), external flow, precedence + non-flat reject; 24 tests green. |
+| 8 | 2026-07-02 | T8 — edit popover | 92 | Caret-driven top-layer popover, remove/unwrap, edit-prefill, unknown-id, readonly gating; 30 tests green. |
