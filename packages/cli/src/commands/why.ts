@@ -5,7 +5,9 @@ import {
     suggestComponentName,
     getReverseDependents,
     type ComponentName,
+    type ComponentDefinition,
 } from '../registry/index.js';
+import { parseAttachSymbol } from '../core/apply-wire.js';
 
 /**
  * `why <component> [<component> …]` — registry introspection.
@@ -40,6 +42,32 @@ export function why(names: string[]): void {
     if (failed) process.exit(1);
 }
 
+/** One labelled line for `why`'s addon output. */
+export interface AddonMetaLine {
+    readonly label: string;
+    readonly value: string;
+}
+
+/**
+ * Addon-related lines for `why`, mirroring what MCP `get_component` surfaces: a
+ * base lists its opt-in `addons`; an `addon` entry shows the parent it attaches
+ * to and how (`Attach: <selector> (import <symbol>)`). Returned uncolored so it
+ * is unit-testable independent of the terminal styling.
+ */
+export function formatAddonMeta(def: ComponentDefinition): AddonMetaLine[] {
+    const lines: AddonMetaLine[] = [];
+    const addons = def.addons ?? [];
+    if (addons.length > 0) lines.push({ label: 'Addons', value: addons.join(', ') });
+    if (def.type === 'addon' && def.parent) {
+        lines.push({ label: 'Addon of', value: def.parent });
+        if (def.attach) {
+            const symbol = parseAttachSymbol(def.attach.import);
+            lines.push({ label: 'Attach', value: `${def.attach.selector} (import ${symbol})` });
+        }
+    }
+    return lines;
+}
+
 function printComponent(name: ComponentName): void {
     const def = registry[name];
 
@@ -56,6 +84,10 @@ function printComponent(name: ComponentName): void {
             direct.map(d => chalk.cyan(d)).join(chalk.dim(', ')));
     } else {
         console.log('\n  ' + chalk.bold('Direct dependencies:') + chalk.dim(' none'));
+    }
+
+    for (const { label, value } of formatAddonMeta(def)) {
+        console.log('\n  ' + chalk.bold(`${label}:`) + ' ' + chalk.cyan(value));
     }
 
     const reverse = [...getReverseDependents(name)].sort((a, b) => a.localeCompare(b));
