@@ -39,8 +39,10 @@ action code.
 
 ### Explicit non-goals (v1)
 
-- No built-in hover-card/dialog rendering (the demo shows how; the library
-  doesn't do it for you).
+- The **core** runtime never renders UI — it only delivers events. Built-in
+  hover-card/dialog rendering exists, but only as the **optional presets
+  layer** (§4.6): prebuilt handlers/definitions a dev can opt into, compose
+  with their own handlers, or ignore entirely. No lock-in either way.
 - No actions on whole block elements (paragraphs, quotes) — text runs and
   images only.
 - No more than one action per trigger per element (one `click` + one `hover`
@@ -110,7 +112,28 @@ Marketing wants "Enterprise plan" to show a summary hover card *and* open the
 full pricing dialog on click. Two attach passes on the same selection; the span
 carries both `data-action-hover` and `data-action-click`.
 
-### UC-8 — Degradation without runtime
+### UC-8 — Zero-config presets (batteries included)
+
+A dev wants the feature working in minutes without designing actions or
+writing handlers. They spread the preset definitions into the editor and the
+preset handlers into the renderer:
+
+```ts
+readonly actionDefs = [hoverCardAction(), openDialogAction()];
+readonly handlers = {
+  ...hoverCardHandlers(this.injector),
+  ...openDialogHandlers(this.injector),
+  'my-custom-action': (e) => this.doMyThing(e),   // freely composed
+};
+```
+
+Authors now attach "Hover card" (title + body authored inline in the params
+form) and "Open dialog" (title + body + optional confirm-button label); the
+presets render real `ui-hover-card` / `ui-dialog` UI on the published page.
+The dev later swaps the dialog preset for their own handler without touching
+content — the serialized HTML is identical either way.
+
+### UC-9 — Degradation without runtime
 
 The same HTML is rendered in an email digest and a plain CMS preview. No
 runtime is bound → the text renders as ordinary styled text; nothing is
@@ -142,8 +165,8 @@ blob and over id-reference side-channels):
 
 | Attribute | Value constraint | Enforced by |
 | --- | --- | --- |
-| `data-action-click` / `data-action-hover` | action id matching `/^[\w][\w.-]*$/` (same namespacing style as slash-command ids) | sanitizer validator + attach-time check |
-| `data-action-click-params` / `data-action-hover-params` | JSON **object**, depth 1, values `string \| number \| boolean` only; max serialized length 4096 chars | sanitizer validator (parse → shape-check → re-serialize canonical JSON) + attach-time check |
+| `data-action-click` / `data-action-hover` | action id matching `/^[\w][\w.-]*$/` | sanitizer validator + attach check |
+| `data-action-click-params` / `-hover-params` | flat JSON object of primitives, ≤4096 chars | sanitizer validator (parse, check, re-serialize) + attach check |
 
 - A `*-params` attribute without its matching id attribute is stripped.
 - Invalid JSON / nested objects / arrays / functions-as-strings are stripped
@@ -173,6 +196,9 @@ blob and over id-reference side-channels):
 ```ts
 // rich-text-actions.types.ts (addon)
 export type RichTextActionTrigger = 'click' | 'hover';
+
+/** Flat params object — the only shape that serializes into the HTML. */
+export type ActionParams = Record<string, string | number | boolean>;
 
 export interface RichTextActionField {
   key: string;                                   // param key, /^[\w.-]+$/
@@ -371,7 +397,70 @@ justified). Cleans up via `DestroyRef`.
 **Non-Angular surfaces** get `bindRichTextActions` directly — it is exported
 from the addon barrel and has no Angular imports (enforced by a spec test).
 
-### 4.5 Reader-facing styling
+### 4.5 Optional presets — built-in hover card & dialog (zero lock-in)
+
+The presets layer is **sugar over the public APIs only**: preset action
+definitions are ordinary `RichTextActionDefinition`s, preset handlers are
+ordinary `RichTextActionHandler`s. They live in a separate module
+(`presets/`) that the core never imports — a dev who ignores presets carries
+no hover-card/dialog dependency at runtime beyond the installed source.
+
+```ts
+// presets/hover-card.preset.ts
+export interface HoverCardPresetOptions {
+  id?: string;                  // default 'preset.hover-card'
+  label?: string;               // picker label, default from locale
+  /** Extra fields appended to the built-ins (title, body). */
+  extraFields?: RichTextActionField[];
+  /** Override rendering: given params + anchor, return content override. */
+  content?: (params: ActionParams, element: HTMLElement) => string | TemplateRef<unknown>;
+  side?: 'top' | 'bottom' | 'left' | 'right';   // default 'top'
+  openDelay?: number;           // ms, default 150
+  closeDelay?: number;          // ms, default 300 (allows moving into the card)
+}
+export function hoverCardAction(o?: HoverCardPresetOptions): RichTextActionDefinition;
+export function hoverCardHandlers(injector: Injector, o?: HoverCardPresetOptions): Record<string, RichTextActionHandler>;
+
+// presets/open-dialog.preset.ts
+export interface OpenDialogPresetOptions {
+  id?: string;                  // default 'preset.open-dialog'
+  label?: string;
+  extraFields?: RichTextActionField[];
+  /** Render a custom component inside the dialog body instead of authored text. */
+  component?: Type<unknown>;    // receives params via an ACTION_PARAMS injection token
+  /** Called when the optional confirm button is pressed. */
+  onConfirm?: (params: ActionParams) => void;
+  size?: 'sm' | 'md' | 'lg';    // default 'md'
+}
+export function openDialogAction(o?: OpenDialogPresetOptions): RichTextActionDefinition;
+export function openDialogHandlers(injector: Injector, o?: OpenDialogPresetOptions): Record<string, RichTextActionHandler>;
+```
+
+Behavior (normative):
+
+- **Authored content**: `hoverCardAction()` declares tier-1 fields
+  `title (text)` + `body (textarea, required)`; `openDialogAction()` declares
+  `title (text, required)` + `body (textarea)` + `confirmLabel (text)`. So the
+  *author* writes the card/dialog content inline in the editor — the true
+  zero-config path. `extraFields` / `content` / `component` scale it up.
+- **Rendering**: handlers create real `ui-hover-card`-styled floating content
+  and `ui-dialog` instances **imperatively** through the provided `Injector`
+  (`createComponent`, appended via the overlay top-layer pattern from the
+  overlays memory) — no host component required, works from any container the
+  bind directive sits on. Teardown on hover `end` / dialog close / unbind.
+- **Hover-card grace area**: pointer may move from anchor into the card
+  (`closeDelay`); card is keyboard-dismissable (`Esc`) and stays open while
+  focused — the a11y behavior devs get "for free" and usually get wrong.
+- **Composition**: `hoverCardHandlers()` returns a plain
+  `{ [id]: handler }` map — spread it next to custom handlers (UC-8). Two
+  presets with custom `id`s can coexist (e.g. two dialog variants).
+- **No lock-in, provably**: swapping a preset for a hand-written handler
+  requires **zero content changes** — a preset test asserts the serialized
+  HTML contains nothing preset-specific beyond the action id and params.
+- Presets are Angular-dependent by nature; the framework-free guarantee
+  (§4.4) applies to `actions-runtime.ts` only and a spec keeps enforcing it.
+
+### 4.6 Reader-facing styling
 
 The runtime adds `rte-action` (+ `rte-action-click` / `rte-action-hover`) to
 actioned elements. The addon ships **no forced styles**; the demo/docs provide
@@ -546,6 +635,11 @@ packages/components/ui/rich-text-editor/
       rich-text-actions.locales.ts    # i18n strings (en, he at minimum)
       actions-runtime.ts              # framework-free bindRichTextActions
       rich-text-actions-bind.directive.ts  # [uiRichTextActions] render-side wrapper
+      presets/
+        hover-card.preset.ts          # hoverCardAction() + hoverCardHandlers()
+        open-dialog.preset.ts         # openDialogAction() + openDialogHandlers()
+        preset-overlay.utils.ts       # shared imperative-create/top-layer helpers
+        index.ts                      # presets barrel (core barrel re-exports it)
       *.spec.ts                       # co-located specs for all of the above
 ```
 
@@ -723,7 +817,7 @@ event dispatch is decomposed (`resolveActionTarget`, `dispatchHover`,
   "description": "Attach premade click/hover actions to text and images; dev-defined callbacks fire on the rendered HTML.",
   "tags": ["rich-text", "actions", "hover-card", "dialog", "interactive", "addon"],
   "files": [ "rich-text-editor/addons/actions/…all files…" ],
-  "dependencies": ["rich-text-editor", "dialog", "command", "select", "input", "checkbox", "button", "popover", "icon", "label"],
+  "dependencies": ["rich-text-editor", "dialog", "hover-card", "command", "select", "input", "checkbox", "button", "popover", "icon", "label"],
   "libFiles": ["touch.ts", "addon-slots.ts", "i18n/…"],
   "requiresBaseFiles": [
     "rich-text-editor/rich-text-editor.host.ts",
@@ -770,17 +864,22 @@ Sections (each with copy-paste code blocks):
    rendering `htmlChange` output through `[uiRichTextActions]`, opening a real
    `ui-dialog` and anchoring a real `ui-hover-card`. This is the flagship
    answer to "give devs the easiest way".
-2. **Three tiers of param forms** — same action implemented with `fields`,
+2. **Presets quick start** — `hoverCardAction()` + `openDialogAction()` with
+   `hoverCardHandlers()` / `openDialogHandlers()` wired in ~10 lines; author
+   writes the card/dialog content inline; a toggle swaps the dialog preset
+   for a hand-written handler on the *same content* to prove zero lock-in.
+3. **Three tiers of param forms** — same action implemented with `fields`,
    `formComponent` (async searchable picker), and `resolveParams` (external
    wizard), toggleable.
-3. **Touch & keyboard** — hover action demonstrated with tap-to-hover; visible
+4. **Touch & keyboard** — hover action demonstrated with tap-to-hover; visible
    note on coarse-pointer behavior.
-4. **Degradation** — the same HTML rendered with no runtime bound.
-5. **Styling recipes** — the CSS snippet from §4.5, RTL sample.
+5. **Degradation** — the same HTML rendered with no runtime bound.
+6. **Styling recipes** — the CSS snippet from §4.6, RTL sample.
 
 ### 9.2 Storybook (`rich-text-actions.stories.ts` in the addon folder)
 
-- `Default` (three actions, tier 1), `CustomFormComponent`, `ResolveParams`,
+- `Default` (three actions, tier 1), `Presets` (hover-card + dialog presets,
+  zero custom handlers), `CustomFormComponent`, `ResolveParams`,
   `ImageActions`, `EditAndRemove` (pre-seeded content), `RendererOnly`
   (bind-directive against static HTML), `RTL`, `Readonly` (entry points
   hidden). Controls for `uiRteActionsToolbar` / `…SlashCommand`.
@@ -801,69 +900,112 @@ Sections (each with copy-paste code blocks):
 
 ### 10.2 Sanitizer (base, `rich-text-sanitizer.service.spec.ts` additions)
 
-8. contributed rule allows `data-action-click` on span/img
-9. contributed validator strips invalid params JSON but keeps the id attr
-10. orphan `*-params` without id attr is stripped (companion-attribute rule)
-11. registration teardown removes the rules; ref-count keeps them while a second editor lives
-12. attempting to contribute `onclick` / `href` / `style` / `class` throws
-13. `on*` handlers still stripped from actioned elements (regression)
-14. `rich-text-security.spec.ts`: hostile payloads — `data-action-click-params` containing `"</span><script>"`, `javascript:` strings inside param values (allowed as *data*, must round-trip inertly), zero-width-obfuscated attr names
+- **8.** contributed rule allows `data-action-click` on span/img
+- **9.** contributed validator strips invalid params JSON but keeps the id attr
+- **10.** orphan `*-params` without id attr is stripped (companion-attribute rule)
+- **11.** registration teardown removes the rules; ref-count keeps them while a
+  second editor lives
+- **12.** attempting to contribute `onclick` / `href` / `style` / `class` throws
+- **13.** `on*` handlers still stripped from actioned elements (regression)
+- **14.** `rich-text-security.spec.ts`: hostile payloads —
+  `data-action-click-params` containing `"</span><script>"`, `javascript:`
+  strings inside param values (allowed as *data*, must round-trip inertly),
+  zero-width-obfuscated attr names
 
 ### 10.3 Markdown (base additions)
 
-15. actioned span round-trips html→md→html losslessly (attrs + inner formatting)
-16. actioned span containing bold/link keeps inner markdown semantics
-17. mention/tag spans unaffected by registered serializer (regression)
-18. md→html passthrough of the inline-HTML form re-sanitizes correctly
+- **15.** actioned span round-trips html→md→html losslessly (attrs + inner formatting)
+- **16.** actioned span containing bold/link keeps inner markdown semantics
+- **17.** mention/tag spans unaffected by registered serializer (regression)
+- **18.** md→html passthrough of the inline-HTML form re-sanitizes correctly
 
 ### 10.4 Addon host (base, `rich-text-editor.component.spec.ts` additions)
 
-19. toolbar slot renders in top toolbar ordered after built-ins; click fires; `isEnabled` gates
-20. toolbar slot renders in floating toolbar
-21. `selection()` reports text / image / none kinds correctly
-22. `wrapSelection` wraps a simple range; splits across block boundaries; merges onto exact-cover existing span
-23. `mutateContent` produces one history entry; undo restores pre-attach HTML; redo re-applies
-24. `saveSelection`/`restoreSelection` survive a dialog open/close cycle
+- **19.** toolbar slot renders in top toolbar ordered after built-ins; click
+  fires; `isEnabled` gates
+- **20.** toolbar slot renders in floating toolbar
+- **21.** `selection()` reports text / image / none kinds correctly
+- **22.** `wrapSelection` wraps a simple range; splits across block boundaries;
+  merges onto exact-cover existing span
+- **23.** `mutateContent` produces one history entry; undo restores pre-attach
+  HTML; redo re-applies
+- **24.** `saveSelection`/`restoreSelection` survive a dialog open/close cycle
 
-### 10.5 Addon directive + authoring UI (`rich-text-actions.directive.spec.ts`, dialog/popover/form specs)
+### 10.5 Addon directive + authoring UI (directive/dialog/popover/form specs)
 
-25. no defs → no toolbar slot, no slash command, no sanitizer rules
-26. defs present → all three registered; destroy tears all down
-27. attach flow (tier 1): pick action → fill required select → Attach → span carries correct attrs; `(actionAttached)` emits
-28. Attach disabled until `required` fields valid; `validate` message shown
-29. tier 2: formComponent instantiated with context + initial params; Apply gated on `valid()`; returned params serialized
-30. tier 3: `resolveParams` called with correct context; `null` cancels cleanly; resolved params attached with no dialog
-31. tier precedence: `resolveParams` wins over `formComponent` wins over `fields`; dev-mode warn on multiple
-32. non-flat params returned by tier 2/3 rejected with console.error, dialog stays open (tier 2)
-33. both triggers attachable to one span (UC-7); occupied trigger shows Replace and replaces
-34. image target: attrs land on `img`; actions with `targets:['text']` hidden in picker
-35. edit popover appears when caret enters actioned span; lists both actions; edit prefills `currentParams`
-36. remove single trigger keeps the other; removing last action unwraps bare span; keeps span with other styling
-37. unknown action id in content → popover shows unavailable row, remove-only
-38. readonly/disabled editor → no entry points
-39. locale override changes dialog strings; RTL rendering sanity
-40. slash command `when` hides without selection; runs attach flow with selection
+- **25.** no defs → no toolbar slot, no slash command, no sanitizer rules
+- **26.** defs present → all three registered; destroy tears all down
+- **27.** attach flow (tier 1): pick action → fill required select → Attach →
+  span carries correct attrs; `(actionAttached)` emits
+- **28.** Attach disabled until `required` fields valid; `validate` message shown
+- **29.** tier 2: formComponent instantiated with context + initial params;
+  Apply gated on `valid()`; returned params serialized
+- **30.** tier 3: `resolveParams` called with correct context; `null` cancels
+  cleanly; resolved params attached with no dialog
+- **31.** tier precedence: `resolveParams` > `formComponent` > `fields`;
+  dev-mode warn on multiple
+- **32.** non-flat params returned by tier 2/3 rejected with console.error,
+  dialog stays open (tier 2)
+- **33.** both triggers attachable to one span (UC-7); occupied trigger shows
+  Replace and replaces
+- **34.** image target: attrs land on `img`; actions with `targets:['text']`
+  hidden in picker
+- **35.** edit popover appears when caret enters actioned span; lists both
+  actions; edit prefills `currentParams`
+- **36.** remove single trigger keeps the other; removing last action unwraps
+  bare span; keeps span with other styling
+- **37.** unknown action id in content → popover shows unavailable row, remove-only
+- **38.** readonly/disabled editor → no entry points
+- **39.** locale override changes dialog strings; RTL rendering sanity
+- **40.** slash command `when` hides without selection; runs attach flow with selection
 
-### 10.6 Runtime (`actions-runtime.spec.ts` — pure DOM, no Angular imports; a spec asserts the module graph has no `@angular/*` import)
+### 10.6 Runtime (`actions-runtime.spec.ts` — pure DOM; a spec asserts the module graph has no `@angular/*` import)
 
-41. click on actioned span fires handler with id/params/element/domEvent
-42. click on nested actioned spans fires innermost only, once
-43. hover enter/leave delivers `start`/`end` pair; moving between child nodes of the same span does not re-fire
-44. focusin/focusout mirror hover for keyboard; Enter/Space activate click actions
-45. `'*'` catch-all receives events with no specific handler; specific + catch-all both fire (specific first)
-46. malformed params on element → handler receives `{}` (runtime distrusts input)
-47. tap-to-hover: first tap → hover start, click suppressed; second tap → click; tap outside → hover end; `touchHoverBehavior:'off'` delivers nothing
-48. a11y affordances applied (tabindex/role/class) and fully reverted on unbind
-49. unbind removes all listeners (no handler calls after); double-bind on same container throws or safely rebinds (pick: safe rebind, assert)
-50. `decorateClass: null` adds no classes
+- **41.** click on actioned span fires handler with id/params/element/domEvent
+- **42.** click on nested actioned spans fires innermost only, once
+- **43.** hover enter/leave delivers `start`/`end` pair; moving between child
+  nodes of the same span does not re-fire
+- **44.** focusin/focusout mirror hover for keyboard; Enter/Space activate
+  click actions
+- **45.** `'*'` catch-all receives events with no specific handler; specific +
+  catch-all both fire (specific first)
+- **46.** malformed params on element → handler receives `{}` (runtime
+  distrusts input)
+- **47.** tap-to-hover: first tap → hover start, click suppressed; second tap →
+  click; tap outside → hover end; `touchHoverBehavior:'off'` delivers nothing
+- **48.** a11y affordances applied (tabindex/role/class) and fully reverted on unbind
+- **49.** unbind removes all listeners (no handler calls after); double-bind on
+  same container safely rebinds (assert)
+- **50.** `decorateClass: null` adds no classes
 
 ### 10.7 Render directive (`rich-text-actions-bind.directive.spec.ts`)
 
-51. binds on init, delivers events, cleans up on destroy
-52. `[innerHTML]` content swap re-binds (MutationObserver path) — new elements deliver events
-53. handler input replacement takes effect without duplicate delivery
+- **51.** binds on init, delivers events, cleans up on destroy
+- **52.** `[innerHTML]` content swap re-binds (MutationObserver path) — new
+  elements deliver events
+- **53.** handler input replacement takes effect without duplicate delivery
 
-### 10.8 E2E (`e2e/orchestrator/specs.ts` — EXPLICIT_SPECS entry)
+### 10.8 Presets (`presets/hover-card.preset.spec.ts`, `presets/open-dialog.preset.spec.ts`)
+
+- **54.** `hoverCardAction()` returns a valid definition (hover trigger,
+  title/body fields); `extraFields` appended; custom `id`/`label` respected
+- **55.** `hoverCardHandlers()`: hover `start` renders the card with authored
+  title/body anchored to the element; `end` removes it after `closeDelay`
+- **56.** grace area: pointer moving from anchor into the card keeps it open;
+  `Esc` closes; card stays open while focused (keyboard a11y)
+- **57.** `openDialogHandlers()`: click opens a dialog with authored
+  title/body/confirm label; close tears down; `onConfirm` fires with params
+- **58.** `component` option renders the custom component with params injected
+  via the `ACTION_PARAMS` token
+- **59.** two presets with custom ids coexist; returned handler maps spread and
+  compose with hand-written handlers
+- **60.** zero lock-in: serialized HTML for a preset action contains only the
+  action id + params (nothing preset-specific); the same HTML drives a
+  hand-written replacement handler unchanged
+- **61.** preset overlays render in the top layer above an open modal
+  (overlay top-layer pattern); teardown on unbind removes any open overlay
+
+### 10.9 E2E (`e2e/orchestrator/specs.ts` — EXPLICIT_SPECS entry)
 
 ```ts
 {
@@ -872,15 +1014,22 @@ Sections (each with copy-paste code blocks):
 }
 ```
 
-54. addon installs on pristine app; `apply_addon` wiring compiles (AOT)
-55. author attaches a click action via toolbar; published pane click opens real dialog
-56. hover action shows hover card on hover; Esc/blur hides
-57. content survives editor→storage→renderer round trip (attrs intact post-sanitize)
-58. base-only install (existing `rich-text-editor` spec) still passes — base unchanged behaviorally without addon (regression)
+- **62.** addon installs on pristine app; `apply_addon` wiring compiles (AOT)
+- **63.** author attaches a click action via toolbar; published pane click
+  opens real dialog
+- **64.** hover action shows hover card on hover; Esc/blur hides
+- **65.** presets quick-start path: `hoverCardAction()` + `hoverCardHandlers()`
+  compile and work in the pristine consumer app (AOT)
+- **66.** content survives editor→storage→renderer round trip (attrs intact
+  post-sanitize)
+- **67.** base-only install (existing `rich-text-editor` spec) still passes —
+  base unchanged behaviorally without addon (regression)
 
-### 10.9 Suite gates
+### 10.10 Suite gates
 
-- `npm run test-visual` fully green (zero-failure policy), `npm run e2e:impact -- --base origin/master` subset green locally, sonar/eslint clean, `sync-registry.ts` no warnings (no deep imports).
+- `npm run test-visual` fully green (zero-failure policy)
+- `npm run e2e:impact -- --base origin/master` subset green locally
+- sonar/eslint clean; `sync-registry.ts` no warnings (no deep imports)
 
 ---
 
@@ -893,24 +1042,26 @@ claiming behavior.
 
 | # | Task | Scope | Key deliverables | Depends on |
 | --- | --- | --- | --- | --- |
-| T1 | Extract `AddonSlotRegistry` to `lib/addon-slots.ts`, re-export from `data-table.host.ts` | lib + data-table | moved class, back-compat re-export, existing data-table specs green | — |
-| T2 | Sanitizer contribution API (§7.3) | base | `registerAttributeRules` + ref-count + companion-attr post-pass + hard-reject list; tests 8–14 | — |
-| T3 | Markdown span-serializer extension (§7.4) | base | `registerSpanSerializer`; **first** write the round-trip spec to discover current inline-HTML passthrough behavior, then extend minimally; tests 15–18 | — |
-| T4 | `RichTextEditorAddonHost` (§7.2): host class, editor provides it, toolbar slot rendering (top + floating), selection snapshot, wrap/mutate/save/restore | base | tests 19–24; no behavior change for non-addon users | T1 |
-| T5 | Addon skeleton: folder, types (§4.1–4.2), serializer module, directive registering sanitizer rules + markdown serializer + slash command + toolbar slot with teardown | addon | tests 1–7, 25–26 | T2, T3, T4 |
-| T6 | Attach dialog + tier-1 generated form + trigger/target logic + apply-to-DOM (text wrap, image, replace-occupied) | addon | tests 27–28, 33–34, 40 + dialog a11y/responsive/density checks | T5 |
-| T7 | Tier 2 (`formComponent` contract + hosting) and tier 3 (`resolveParams`), precedence + validation errors | addon | tests 29–32 | T6 |
-| T8 | Edit popover (list/edit/remove/unwrap/unknown-id) + in-editor visualization stylesheet + readonly gating | addon | tests 35–39 | T6 |
-| T9 | Framework-free runtime `actions-runtime.ts` (§4.4) | addon | tests 41–50 incl. no-Angular-import assertion | T5 (types only) |
+| T1 | Extract `AddonSlotRegistry` to `lib/addon-slots.ts` | lib | moved class, back-compat re-export, data-table specs green | — |
+| T2 | Sanitizer contribution API (§7.3) | base | `registerAttributeRules`, ref-count, companion-attr post-pass, hard-reject list; tests 8–14 | — |
+| T3 | Markdown span-serializer extension (§7.4) | base | discovery spec FIRST (inline-HTML passthrough), then `registerSpanSerializer`; tests 15–18 | — |
+| T4 | `RichTextEditorAddonHost` (§7.2): host, toolbar slots, selection, wrap/mutate | base | tests 19–24; zero behavior change without addon | T1 |
+| T5 | Addon skeleton: types (§4.1–4.2), serializer module, directive registrations + teardown | addon | tests 1–7, 25–26 | T2–T4 |
+| T6 | Attach dialog, tier-1 form, trigger/target logic, apply-to-DOM | addon | tests 27–28, 33–34, 40; a11y/responsive/density checks | T5 |
+| T7 | Tier 2 (`formComponent`) + tier 3 (`resolveParams`), precedence, validation errors | addon | tests 29–32 | T6 |
+| T8 | Edit popover (edit/remove/unwrap/unknown-id), in-editor visualization, readonly gating | addon | tests 35–39 | T6 |
+| T9 | Framework-free runtime `actions-runtime.ts` (§4.4) | addon | tests 41–50 incl. no-Angular-import assertion | T5 (types) |
 | T10 | Render directive `[uiRichTextActions]` | addon | tests 51–53 | T9 |
-| T11 | Locales (en/he), RTL pass, touch pass across dialog/popover/runtime | addon | test 39 + manual viewport checks 320→1920 | T6–T10 |
-| T12 | Registry: `sync-registry --fix`, entry shape per §8.1, `validate-registry`, `why rich-text-editor` shows addon | tooling | registry.json + snapshot regenerated, zero warnings | T5–T10 |
-| T13 | E2E: harness via EXPLICIT_SPECS `rte-actions` (multi-component — do NOT scaffold single), tests 54–58 | e2e | spec passing locally | T12 |
-| T14 | Demo page (§9.1) + Storybook stories (§9.2) + docs section in component docs | demo | flagship side-by-side demo | T10 |
-| T15 | Full-suite gates (§10.9) + spec log update (this file's Completion Log) + publish-boundary re-verification (§8.2) | all | green evidence pasted into log | all |
+| T11 | Presets (§4.5): hover-card + open-dialog defs/handlers, overlay utils, `ACTION_PARAMS` token | addon | tests 54–61 | T5, T10 |
+| T12 | Locales (en/he), RTL pass, touch pass across dialog/popover/runtime/presets | addon | test 39; viewport checks 320→1920 | T6–T11 |
+| T13 | Registry: `sync-registry --fix` (incl. presets), `validate-registry` | tooling | registry + snapshot regenerated, zero warnings | T5–T11 |
+| T14 | E2E via EXPLICIT_SPECS `rte-actions` (multi-component — do NOT scaffold single) | e2e | tests 62–67 passing locally | T13 |
+| T15 | Demo page (§9.1), Storybook (§9.2), docs section | demo | flagship side-by-side + presets quick start | T11 |
+| T16 | Full-suite gates (§10.10), Completion Log update, publish-boundary re-verification (§8.2) | all | green evidence pasted into log | all |
 
 Suggested parallelization: T2, T3 and T1→T4 are independent tracks; T9 can
-start alongside T6. Everything else is sequential on its deps.
+start alongside T6; T11 can start once T10 lands. Everything else is
+sequential on its deps.
 
 ---
 
@@ -918,11 +1069,12 @@ start alongside T6. Everything else is sequential on its deps.
 
 | Item | Resolution |
 | --- | --- |
-| Root-provided sanitizer means app-wide rules | Accepted (matches command registry); ref-counted; validators keep it tight. Revisit only if per-instance sanitizers appear. |
+| Root-provided sanitizer means app-wide rules | Accepted (matches command registry); ref-counted; validators keep it tight. |
 | Markdown inline-HTML passthrough unknown | T3 starts with a discovery spec — no assumption. |
-| `mode="markdown"` consumers with action content | Round-trip guaranteed by T3's tests; if passthrough proves structurally impossible, fallback decision recorded here before proceeding: actions addon documents `mode="html"` requirement (escalate to maintainer first). |
+| `mode="markdown"` consumers with action content | Round-trip guaranteed by T3's tests; if impossible, escalate to maintainer, record fallback here. |
 | Hover on touch | tap-to-hover default, `'off'` opt-out; documented. |
-| Params in HTML are visible/tamperable by readers | By design — devs are told (docs) params are client data, never secrets, and callbacks must validate. |
+| Params in HTML are visible/tamperable by readers | By design — docs state params are client data, never secrets; callbacks must validate. |
+| Presets add `hover-card` to the addon's deps | Accepted — presets are the headline DX win; skipping them costs nothing at runtime. |
 | Nested action spans | Innermost-wins via `closest()`; documented; no UI encourages nesting. |
 | Selection wrap across blocks | Reuses editor's existing inline-format splitting via `wrapSelection` host API. |
 
@@ -932,4 +1084,4 @@ start alongside T6. Everything else is sequential on its deps.
 
 | Row | Date | Task | Reviewer score | Notes |
 | --- | --- | --- | --- | --- |
-| _(append as tasks complete)_ | | | | |
+| *(append as tasks complete)* | | | | |
