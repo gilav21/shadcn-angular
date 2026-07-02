@@ -109,12 +109,29 @@ export interface BoundaryContext {
     readonly dirOwners: Map<string, Set<string>>;
 }
 
-export type ImportKind = 'own' | 'dependency' | 'deep-import';
+export type ImportKind = 'own' | 'dependency' | 'deep-import' | 'addon-boundary';
 
 export interface ImportClassification {
     readonly kind: ImportKind;
-    /** Owning component — set for `dependency` and `deep-import`. */
+    /**
+     * Owning component — set for `dependency` and `deep-import`. For
+     * `addon-boundary` it is the addon key (`parent/addon`) the base reached into.
+     */
     readonly owner?: string;
+}
+
+/**
+ * If a base component (`currentComponent` has no `/`) reaches a file inside its
+ * own `addons/` subtree, return the addon key (`parent/addon`) it reached into;
+ * otherwise null. This is the one-directional boundary: addons depend on the
+ * base, never the reverse.
+ */
+function addonReachedFromBase(resolvedFile: string, currentComponent: string): string | null {
+    if (currentComponent.includes('/')) return null;
+    const prefix = `ui/${currentComponent}/addons/`;
+    if (!resolvedFile.startsWith(prefix)) return null;
+    const addonName = resolvedFile.slice(prefix.length).split('/')[0];
+    return addonName ? `${currentComponent}/${addonName}` : null;
 }
 
 /**
@@ -130,6 +147,9 @@ export function classifyImport(
     currentComponent: string,
     ctx: BoundaryContext,
 ): ImportClassification {
+    const addon = addonReachedFromBase(resolvedFile, currentComponent);
+    if (addon) return { kind: 'addon-boundary', owner: addon };
+
     const entryOwner = ctx.entryFileToComponent.get(resolvedFile);
     if (entryOwner) {
         return entryOwner === currentComponent
@@ -157,6 +177,11 @@ export function classifyImport(
 export function getEntryFile(name: string, files: readonly string[]): string {
     const baseName = name.split('/').at(-1) ?? name;
 
+    if (name.includes('/')) {
+        const addonBarrel = files.find(f => f.endsWith(`addons/${baseName}/index.ts`));
+        if (addonBarrel) return addonBarrel;
+    }
+
     const barrel = files.find(f => f === `${baseName}/index.ts`);
     if (barrel) return barrel;
 
@@ -176,10 +201,25 @@ export interface DeepImport {
     readonly owner: string;
 }
 
+/**
+ * A base component reaching into its own `addons/` subtree — the
+ * one-directional boundary violation. The base must never import or re-export
+ * an addon (addons depend on the base, never the reverse).
+ */
+export interface AddonBoundary {
+    /** The base file containing the offending import/re-export. */
+    readonly fromFile: string;
+    /** The addon file it reached into. */
+    readonly importedFile: string;
+    /** The addon key (`parent/addon`) that was reached into. */
+    readonly addon: string;
+}
+
 export interface WalkResult {
     readonly ownFiles: Set<string>;
     readonly discoveredDeps: Set<string>;
     readonly deepImports: DeepImport[];
+    readonly addonViolations: AddonBoundary[];
 }
 
 /**
@@ -199,6 +239,7 @@ export function walkTree(
     const ownFiles = new Set<string>();
     const discoveredDeps = new Set<string>();
     const deepImports: DeepImport[] = [];
+    const addonViolations: AddonBoundary[] = [];
 
     function addAssets(file: string, content: string): void {
         if (!file.endsWith('.component.ts')) return;
@@ -215,6 +256,10 @@ export function walkTree(
         const { kind, owner } = classifyImport(resolved, componentName, ctx);
         if (kind === 'dependency' && owner) {
             discoveredDeps.add(owner);
+            return;
+        }
+        if (kind === 'addon-boundary' && owner) {
+            addonViolations.push({ fromFile, importedFile: resolved, addon: owner });
             return;
         }
         if (kind === 'deep-import' && owner) {
@@ -239,7 +284,7 @@ export function walkTree(
     }
 
     collect(entryFile);
-    return { ownFiles, discoveredDeps, deepImports };
+    return { ownFiles, discoveredDeps, deepImports, addonViolations };
 }
 
 // ── Block import walking ─────────────────────────────────────────────────
@@ -363,4 +408,52 @@ export function walkBlockTree(
     };
     collectBlockFile(state, entryFile);
     return { ownFiles: state.ownFiles, dependencies: state.dependencies, libFiles: state.libFiles, deepImports: state.deepImports };
+}
+
+// ── Registry source parsing ─────────────────────────────────────────────
+
+/** A registry entry's drift-prone arrays, extracted from the index.ts source. */
+export interface RegistryEntry {
+    name: string;
+    files: string[];
+    libFiles: string[];
+    dependencies: string[];
+    isBlock: boolean;
+}
+
+/**
+ * Parse registry entries from the `index.ts` source. Entries are identified by
+ * their `name:` value (not the object key), so addon entries keyed
+ * `parent/addon` — whose `name` contains a `/` — are recognised.
+ */
+export function parseRegistrySource(source: string): RegistryEntry[] {
+    const entries: RegistryEntry[] = [];
+
+    const blockRegex = /['"]?([\w/-]{1,256})['"]?\s{0,4096}:\s{0,4096}\{[^}]{0,100000}name:\s{0,4096}['"]([^'"]{1,256})['"][^}]{0,100000}files:\s{0,4096}\[([^\]]{0,100000})\]/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = blockRegex.exec(source)) !== null) {
+        const name = match[2];
+        const filesRaw = match[3];
+        const files = [...filesRaw.matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]);
+
+        const matchStart = match.index ?? 0;
+        const blockEnd = source.indexOf('},', matchStart + match[0].length);
+        const fullBlock = blockEnd === -1 ? source.slice(matchStart) : source.slice(matchStart, blockEnd);
+        const libFilesMatch = /libFiles:\s*\[([\s\S]*?)\]/.exec(fullBlock);
+        const libFiles = libFilesMatch
+            ? [...libFilesMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
+            : [];
+
+        const depsMatch = /dependencies:\s*\[([\s\S]*?)\]/.exec(fullBlock);
+        const dependencies = depsMatch
+            ? [...depsMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
+            : [];
+
+        const isBlock = /type:\s*['"]block['"]/.test(fullBlock);
+
+        entries.push({ name, files, libFiles, dependencies, isBlock });
+    }
+
+    return entries;
 }

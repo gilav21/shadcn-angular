@@ -67,6 +67,22 @@ export async function fetchLibContent(file: string, options: FetchOptions): Prom
     return response.text();
 }
 
+/**
+ * Rewrite raw source into the consumer's prefix/alias space. The `../lib/` →
+ * alias rewrite only applies to TypeScript sources; template (`.html`) and
+ * style (`.css`) files are copied verbatim apart from the prefix rewrite. Pure
+ * (no IO) so a ref-pinned fetch (`core/ref.ts`) can bring a historical version
+ * into the same space as the current one.
+ */
+export function transformSource(
+    file: string, raw: string, utilsAlias: string, prefix: string = DEFAULT_PREFIX,
+): string {
+    const withAlias = file.endsWith('.ts')
+        ? raw.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/')
+        : raw;
+    return applyPrefixTransforms(file, withAlias, prefix);
+}
+
 export async function fetchAndTransform(
     file: string,
     options: FetchOptions,
@@ -75,11 +91,5 @@ export async function fetchAndTransform(
     kind: SourceKind = 'component',
 ): Promise<string> {
     const raw = await fetchComponentContent(file, options, kind);
-    // The `../lib/` → alias rewrite only applies to TypeScript sources.
-    // Template (.html) and style (.css) files are copied verbatim apart
-    // from any prefix rewrite below.
-    const withAlias = file.endsWith('.ts')
-        ? raw.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/')
-        : raw;
-    return applyPrefixTransforms(file, withAlias, prefix);
+    return transformSource(file, raw, utilsAlias, prefix);
 }

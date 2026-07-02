@@ -7,6 +7,7 @@ import { performInstall } from '../../core/install.js';
 import { collectBreakingChanges } from '../../core/plan.js';
 import { scanStaleSelectors } from '../../core/codemod.js';
 import { initProject } from '../../core/init-core.js';
+import { applyCore, resolveAddonInfo, ApplyError } from '../../core/apply-core.js';
 import { diffComponentFiles, type ComponentDiff } from '../../core/diff-core.js';
 import { getConfig, getDefaultConfig, getPrefix, type Config } from '../../utils/config.js';
 import { aliasToProjectPath, resolveProjectPath } from '../../utils/paths.js';
@@ -20,7 +21,6 @@ import { setLocaleCore } from '../../commands/set-locale.js';
 import { applyInitDefaults, type InitDefaults } from '../../commands/init.js';
 import { isValidHex } from '../../utils/color.js';
 import { collectDoctorReport, buildFixPlan, doctorFixCore, refreshLibCore } from '../../commands/doctor.js';
-import type { ThemeColor } from '../../templates/styles.js';
 
 function validateNames(names: string[]): string[] {
     return names.filter(n => !isComponentName(n));
@@ -121,15 +121,18 @@ function registerAddTool(server: McpServer, cwd: string): void {
 function registerUpdateTool(server: McpServer, cwd: string): void {
     server.registerTool('update_component', {
         title: 'Update components',
-        description: 'Re-install components from the registry, overwriting local copies. Equivalent to add_component with overwrite for the given names.',
-        inputSchema: { names: z.array(z.string()).min(1) },
+        description: 'Update components from the registry. By default 3-way MERGES upstream changes into your local edits (conflicts are written as <<<<<<< markers and reported in mergeReport.mergedConflicted); pass overwrite:true to replace your edits whole-file instead. Mirrors the `update` CLI command.',
+        inputSchema: {
+            names: z.array(z.string()).min(1),
+            overwrite: z.boolean().optional().describe('Replace local edits whole-file instead of 3-way merging.'),
+        },
         annotations: { destructiveHint: true },
-    }, async ({ names }) => {
+    }, async ({ names, overwrite }) => {
         const invalid = validateNames(names);
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
-        const options = { branch: 'master', overwrite: true, registry: config.registry };
+        const options = { branch: 'master', overwrite, registry: config.registry };
         const result = await performInstall({
             components: names as ComponentName[],
             overwrite: names as ComponentName[],
@@ -271,7 +274,7 @@ function registerThemeTool(server: McpServer, cwd: string): void {
         title: 'Change color theme',
         description: `Change the color theme (replaces color CSS vars in :root and .dark). Available themes: ${VALID_THEMES.join(', ')}. Alternatively pass "from" with a brand hex color to generate a custom theme.`,
         inputSchema: {
-            name: z.enum(VALID_THEMES as [ThemeColor, ...ThemeColor[]]).optional().describe('Preset theme name'),
+            name: z.enum(VALID_THEMES).optional().describe('Preset theme name'),
             from: z.string().optional().describe('Brand hex color (e.g. "#3b82f6") to generate the theme from — mutually exclusive with name'),
         },
         annotations: { destructiveHint: true },
@@ -315,6 +318,42 @@ function registerDoctorTool(server: McpServer, cwd: string): void {
     });
 }
 
+function registerApplyAddonTool(server: McpServer, cwd: string): void {
+    server.registerTool('apply_addon', {
+        title: 'Apply an addon',
+        description: 'Install an addon (and its base if missing) and wire it into your app non-interactively: adds the directive import + the attribute on the base component\'s usage. Target by component class name(s), or omit to wire every app-code usage. Returns per-target wiring counts and a paste snippet for anything it could not auto-wire.',
+        inputSchema: {
+            addon: z.string().describe('Addon key, e.g. "data-table/context-menu".'),
+            components: z.array(z.string()).optional().describe('Component class name(s) to wire into (e.g. ["UsersTableComponent"]). Omit to scan all app-code usages.'),
+            all: z.boolean().optional().describe('Wire every matching tag instance in each target.'),
+            class: z.string().optional().describe('Only wire instances carrying this CSS class token.'),
+            id: z.string().optional().describe('Only wire the instance with this template ref / id / data-testid.'),
+            dryRun: z.boolean().optional().describe('Report what would be wired without writing or installing.'),
+        },
+        annotations: { destructiveHint: true },
+    }, async (args) => {
+        try {
+            resolveAddonInfo(args.addon, 'src/components/ui');
+        } catch (e) {
+            if (e instanceof ApplyError) return err(e.message);
+            throw e;
+        }
+        const config = await getConfig(cwd);
+        if (!config) return err('Project not initialized — run init_project first.');
+        try {
+            const options = {
+                branch: 'master', registry: config.registry, yes: true,
+                all: args.all, class: args.class, id: args.id, dryRun: args.dryRun,
+            };
+            const result = await applyCore(args.addon, args.components ?? [], options, cwd, config);
+            return json(result);
+        } catch (error) {
+            if (error instanceof ApplyError) return err(error.message);
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+}
+
 function registerRefreshLibTool(server: McpServer, cwd: string): void {
     server.registerTool('refresh_lib', {
         title: 'Refresh shared lib files',
@@ -348,4 +387,5 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
     registerThemeTool(server, cwd);
     registerDoctorTool(server, cwd);
     registerRefreshLibTool(server, cwd);
+    registerApplyAddonTool(server, cwd);
 }

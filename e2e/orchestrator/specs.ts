@@ -80,6 +80,13 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['dialog', 'dropdown-menu', 'select'],
         label: 'rtl',
     },
+    // addon system: install the lean data-table base AND its opt-in
+    // `context-menu` addon together, then prove they auto-wire via DI
+    // (the ⋮ row button + right-click menu) with `uiDtContextMenu`.
+    {
+        names: ['data-table', 'data-table/context-menu'],
+        label: 'data-table-context-menu',
+    },
     // cross-cutting: dark-mode CSS variable propagation.
     {
         names: ['button'],
@@ -192,7 +199,7 @@ export const CLI_SPECS: readonly CliSpecEntry[] = [
     { label: 'list-and-diff',           module: 'list-and-diff' },
     { label: 'update-bounded',          module: 'update-bounded' },
     { label: 'update-guards',           module: 'update-guards' },
-    { label: 'peerfiles-missing',       module: 'peerfiles-missing' },
+    { label: 'merge-update',            module: 'merge-update' },
     { label: 'stale-selector-build',    module: 'stale-selector-build' },
     { label: 'doctor-lib-drift',        module: 'doctor-lib-drift' },
     { label: 'cross-component-typecheck', module: 'cross-component-typecheck' },

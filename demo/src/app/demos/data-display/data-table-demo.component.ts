@@ -51,6 +51,7 @@ import {
   computePivot,
   PivotAggregate,
 } from '../../../../../packages/components/ui';
+import { DataTableContextMenuDirective } from '../../../../../packages/components/ui/data-table/addons/context-menu';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { AiRequest } from '../../../../../packages/components/lib/ai';
 import { DATA_TABLE_DEMO_LOCALES } from './data-table-demo.locales';
@@ -604,6 +605,7 @@ class OpsTicketDetailComponent {
     ToggleGroupComponent,
     ToggleGroupItemComponent,
     DataTableComponent,
+    DataTableContextMenuDirective,
     ContextMenuComponent,
     ContextMenuContentComponent,
     ContextMenuItemComponent,

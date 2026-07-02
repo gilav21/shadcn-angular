@@ -1,6 +1,7 @@
 export * from './data-table.types';
 export * from './data-table.utils';
 export * from './data-table.locales';
+export * from './data-table.host';
 export * from './sub/data-table-column-header.component';
 export * from './sub/data-table-pagination.component';
 export * from './data-table.component';

@@ -3,7 +3,6 @@ import { Component } from '@angular/core';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext, DataTableExportQuery } from './data-table.types';
-import { ContextMenuItem } from '../context-menu';
 import { buildTreeFromFlat, computeAggregateValue } from './data-table.utils';
 import type { DataTableLocale } from './data-table.locales';
 import { dateFilterFn } from './sub/data-table-date-filter.component';
@@ -2330,134 +2329,96 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
         });
     });
 
-    describe('Row Actions', () => {
-        const rowActionsFn = (ctx: RowActionContext<TestData>): ContextMenuItem[] => [
-            { label: 'View', click: () => {} },
-            { type: 'separator' },
-            { label: 'Delete', disabled: ctx.row.role === 'Admin', click: () => {} },
-        ];
+});
 
-        it('should add _actions column when rowActions is provided', () => {
-            fixture.componentRef.setInput('rowActions', rowActionsFn);
-            fixture.detectChanges();
+describe('DataTableComponent - Addon host slots & context', () => {
+    let component: DataTableComponent<TestData>;
+    let fixture: ComponentFixture<DataTableComponent<TestData>>;
 
-            const cols = component.enhancedColumns();
-            const actionsCol = cols.find(c => c.accessorKey === '_actions');
-            expect(actionsCol).toBeTruthy();
-            expect(actionsCol!.enableSorting).toBe(false);
-            expect(actionsCol!.enableHiding).toBe(false);
-        });
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<TestData>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', TEST_DATA);
+        fixture.componentRef.setInput('columns', TEST_COLUMNS);
+        fixture.detectChanges();
+    });
 
-        it('should not add _actions column when rowActions is undefined', () => {
-            fixture.detectChanges();
+    function registerCellSlot(
+        onClick: (event: Event, context: RowActionContext<TestData>) => void = () => {},
+    ): void {
+        component.registerCellAction({ id: 'context-menu', icon: 'more-vertical', ariaLabel: 'Row actions', onClick });
+    }
 
-            const cols = component.enhancedColumns();
-            const actionsCol = cols.find(c => c.accessorKey === '_actions');
-            expect(actionsCol).toBeUndefined();
-        });
+    it('adds the _actions column when a cell action slot is registered', () => {
+        registerCellSlot();
+        fixture.detectChanges();
 
-        it('should hide _actions column when showRowActionsColumn is false', () => {
-            fixture.componentRef.setInput('rowActions', rowActionsFn);
-            fixture.componentRef.setInput('showRowActionsColumn', false);
-            fixture.detectChanges();
+        const actionsCol = component.enhancedColumns().find(c => c.accessorKey === '_actions');
+        expect(actionsCol).toBeTruthy();
+        expect(actionsCol!.enableSorting).toBe(false);
+        expect(actionsCol!.enableHiding).toBe(false);
+    });
 
-            const cols = component.enhancedColumns();
-            const actionsCol = cols.find(c => c.accessorKey === '_actions');
-            expect(actionsCol).toBeUndefined();
-        });
+    it('omits the _actions column when no cell action slot is registered', () => {
+        expect(component.enhancedColumns().find(c => c.accessorKey === '_actions')).toBeUndefined();
+    });
 
-        it('should resolve showActionsColumn to true by default when rowActions is set', () => {
-            fixture.componentRef.setInput('rowActions', rowActionsFn);
-            fixture.detectChanges();
+    it('removes the _actions column when the slot is unregistered', () => {
+        const remove = component.registerCellAction({ id: 'context-menu', onClick: () => {} });
+        fixture.detectChanges();
+        expect(component.enhancedColumns().find(c => c.accessorKey === '_actions')).toBeTruthy();
 
-            expect(component.resolvedShowActionsColumn()).toBe(true);
-        });
+        remove();
+        fixture.detectChanges();
+        expect(component.enhancedColumns().find(c => c.accessorKey === '_actions')).toBeUndefined();
+    });
 
-        it('should resolve showContextMenu to true by default when rowActions is set', () => {
-            fixture.componentRef.setInput('rowActions', rowActionsFn);
-            fixture.detectChanges();
+    it('renders one ⋮ button per row for a registered cell slot', () => {
+        registerCellSlot();
+        fixture.detectChanges();
 
-            expect(component.resolvedShowContextMenu()).toBe(true);
-        });
+        const buttons = fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'));
+        expect(buttons).toHaveLength(component.processedData().length);
+    });
 
-        it('should resolve showActionsColumn to false when explicitly set', () => {
-            fixture.componentRef.setInput('rowActions', rowActionsFn);
-            fixture.componentRef.setInput('showRowActionsColumn', false);
-            fixture.detectChanges();
+    it('invokes the slot onClick with the row context when a ⋮ button is clicked', () => {
+        let captured: RowActionContext<TestData> | undefined;
+        registerCellSlot((_event, context) => { captured = context; });
+        fixture.detectChanges();
 
-            expect(component.resolvedShowActionsColumn()).toBe(false);
-        });
+        fixture.debugElement.query(By.css('[aria-label="Row actions"]')).nativeElement.click();
+        expect(captured?.row).toBe(component.processedData()[0]);
+        expect(captured?.index).toBe(0);
+    });
 
-        it('should resolve showContextMenu to false when explicitly set', () => {
-            fixture.componentRef.setInput('rowActions', rowActionsFn);
-            fixture.componentRef.setInput('showRowActionsContextMenu', false);
-            fixture.detectChanges();
+    it('keeps global filtering working with the _actions column present', () => {
+        registerCellSlot();
+        fixture.detectChanges();
 
-            expect(component.resolvedShowContextMenu()).toBe(false);
-        });
+        component.onFilterChange('Alice');
+        fixture.detectChanges();
+        expect(component.filteredData()).toHaveLength(1);
+    });
 
-        it('should build correct RowActionContext', () => {
-            fixture.componentRef.setInput('rowActions', rowActionsFn);
-            fixture.componentRef.setInput('enableRowSelection', true);
-            fixture.detectChanges();
+    it('renders one ⋮ header button per data column for a registered header slot', () => {
+        component.registerHeaderAction({ id: 'context-menu', icon: 'more-vertical', onClick: () => {} });
+        fixture.detectChanges();
 
-            const actions = component.getRowActions(TEST_DATA[0], 0);
-            expect(actions).toHaveLength(3);
-            expect(actions[0].label).toBe('View');
-            expect(actions[1].type).toBe('separator');
-            expect(actions[2].label).toBe('Delete');
-            expect(actions[2].disabled).toBe(true);
-        });
+        const buttons = fixture.debugElement.queryAll(By.css('[aria-label^="Column menu for"]'));
+        expect(buttons).toHaveLength(TEST_COLUMNS.length);
+    });
 
-        it('should pass selected state in RowActionContext', () => {
-            let capturedCtx: RowActionContext<TestData> | undefined;
-            const capturingActions = (ctx: RowActionContext<TestData>): ContextMenuItem[] => {
-                capturedCtx = ctx;
-                return [{ label: 'Test' }];
-            };
+    it('getRowContext reports the row, index, and selection state', () => {
+        fixture.componentRef.setInput('enableRowSelection', true);
+        component.rowSelection.set({ '1': true });
+        fixture.detectChanges();
 
-            fixture.componentRef.setInput('rowActions', capturingActions);
-            fixture.componentRef.setInput('enableRowSelection', true);
-            component.rowSelection.set({ '1': true });
-            fixture.detectChanges();
-
-            component.getRowActions(TEST_DATA[0], 0);
-            expect(capturedCtx).toBeTruthy();
-            expect(capturedCtx!.selected).toBe(true);
-            expect(capturedCtx!.index).toBe(0);
-            expect(capturedCtx!.row).toBe(TEST_DATA[0]);
-
-            component.getRowActions(TEST_DATA[1], 1);
-            expect(capturedCtx!.selected).toBe(false);
-        });
-
-        it('should render dropdown trigger buttons when actions column is enabled', () => {
-            fixture.componentRef.setInput('rowActions', rowActionsFn);
-            fixture.detectChanges();
-
-            const buttons = fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'));
-            expect(buttons.length).toBeGreaterThan(0);
-            expect(buttons).toHaveLength(component.processedData().length);
-        });
-
-        it('should not render dropdown trigger buttons when showRowActionsColumn is false', () => {
-            fixture.componentRef.setInput('rowActions', rowActionsFn);
-            fixture.componentRef.setInput('showRowActionsColumn', false);
-            fixture.detectChanges();
-
-            const buttons = fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'));
-            expect(buttons).toHaveLength(0);
-        });
-
-        it('should exclude _actions column from global filter columns', () => {
-            fixture.componentRef.setInput('rowActions', rowActionsFn);
-            fixture.detectChanges();
-
-            component.onFilterChange('View');
-            fixture.detectChanges();
-
-            expect(component.filteredData()).toHaveLength(0);
-        });
+        const ctx = component.getRowContext(TEST_DATA[0], 0);
+        expect(ctx.row).toBe(TEST_DATA[0]);
+        expect(ctx.index).toBe(0);
+        expect(ctx.selected).toBe(true);
+        expect(component.getRowContext(TEST_DATA[1], 1).selected).toBe(false);
     });
 });
 
@@ -2920,22 +2881,6 @@ describe('DataTableComponent — i18n integration', () => {
         expect(host.getAttribute('dir')).toBe('rtl');
     });
 
-    it('column menu builder uses localised labels for sort / pin / hide actions', async () => {
-        const fixture = await setup('he');
-        const cmp = fixture.componentInstance;
-        const builder = (cmp as unknown as {
-            buildColumnMenuItems: (col: ColumnDef<Row>) => ContextMenuItem[];
-        }).buildColumnMenuItems.bind(cmp);
-        const items = builder({ accessorKey: 'name', header: 'Name' });
-        const labels = items.map(i => ('label' in i ? i.label : '__sep__'));
-        expect(labels).toContain('מיון עולה');
-        expect(labels).toContain('מיון יורד');
-        expect(labels).toContain('הצמד לשמאל');
-        expect(labels).toContain('הצמד לימין');
-        expect(labels).toContain('הסתר עמודה');
-        expect(labels).toContain('הצג את כל העמודות');
-    });
-
     it('accepts a fully custom DataTableLocale object as input', async () => {
         const custom: DataTableLocale = {
             code: 'xx', rtl: true,
@@ -3002,20 +2947,6 @@ describe('DataTableComponent — i18n integration', () => {
         expect(cmp.toggleColumnsLabel()).toBe('Toggle columns');
         // toggleColumnAriaLabel must not throw on a missing template.
         expect(cmp.toggleColumnAriaLabel('Name')).toBe('Toggle Name column');
-
-        // Column-menu builders also fall back per-field so a partial locale
-        // never surfaces literal "undefined" labels in the popover.
-        const builder = (cmp as unknown as {
-            buildColumnMenuItems: (col: ColumnDef<Row>) => ContextMenuItem[];
-        }).buildColumnMenuItems.bind(cmp);
-        const items = builder({ accessorKey: 'name', header: 'Name' });
-        const labels = items.map(i => ('label' in i ? i.label : '__sep__'));
-        expect(labels).toContain('Sort Ascending');
-        expect(labels).toContain('Sort Descending');
-        expect(labels).toContain('Pin Left');
-        expect(labels).toContain('Pin Right');
-        expect(labels).toContain('Hide Column');
-        expect(labels).toContain('Show All Columns');
     });
 });
 
@@ -3481,66 +3412,6 @@ describe('DataTableComponent - Inline edit keyboard flow', () => {
         // focus advanced to score column, which is editable -> editing started
         expect(component.focusedCell()?.columnKey).toBe('score');
         expect(component.editingCell()).toEqual({ rowIndex: 0, columnKey: 'score' });
-    });
-});
-
-describe('DataTableComponent - Column menu', () => {
-    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
-    let component: DataTableComponent<NumRow>;
-
-    beforeEach(async () => {
-        ({ fixture, component } = await makeNumTable());
-        fixture.componentRef.setInput('enableColumnMenu', true);
-        fixture.detectChanges();
-    });
-
-    it('opens the column menu and populates sort/pin/visibility items', () => {
-        const target = document.createElement('button');
-        document.body.appendChild(target);
-        const evt = { stopPropagation: vi.fn(), target } as unknown as MouseEvent;
-        component.onColumnMenuClick(evt, NUM_COLUMNS[2]);
-
-        const items = component.activeColumnMenuItems();
-        const labels = items.map((i) => ('label' in i ? i.label : '__sep__'));
-        expect(labels).toContain('Sort Ascending');
-        expect(labels).toContain('Sort Descending');
-        expect(labels).toContain('Pin Left');
-        expect(labels).toContain('Pin Right');
-        expect(labels).toContain('Show All Columns');
-        document.body.removeChild(target);
-    });
-
-    it('column menu sort item invokes onSortChange', () => {
-        const target = document.createElement('button');
-        document.body.appendChild(target);
-        component.onColumnMenuClick({ stopPropagation: vi.fn(), target } as unknown as MouseEvent, NUM_COLUMNS[2]);
-        const items = component.activeColumnMenuItems();
-        const asc = items.find((i) => 'label' in i && i.label === 'Sort Ascending') as { click: () => void };
-        asc.click();
-        expect(component.sortState()).toEqual({ column: 'score', direction: 'asc' });
-        document.body.removeChild(target);
-    });
-
-    it('column menu pin item invokes pinColumn', () => {
-        const target = document.createElement('button');
-        document.body.appendChild(target);
-        component.onColumnMenuClick({ stopPropagation: vi.fn(), target } as unknown as MouseEvent, NUM_COLUMNS[2]);
-        const items = component.activeColumnMenuItems();
-        const pinLeft = items.find((i) => 'label' in i && i.label === 'Pin Left') as { click: () => void };
-        pinLeft.click();
-        fixture.detectChanges();
-        expect(component.columnPinOverrides()['score']).toBe('left');
-        document.body.removeChild(target);
-    });
-
-    it('includes a Clear Sort item only when the column is sorted', () => {
-        component.onSortChange('score', 'asc');
-        const target = document.createElement('button');
-        document.body.appendChild(target);
-        component.onColumnMenuClick({ stopPropagation: vi.fn(), target } as unknown as MouseEvent, NUM_COLUMNS[2]);
-        const labels = component.activeColumnMenuItems().map((i) => ('label' in i ? i.label : '__sep__'));
-        expect(labels).toContain('Clear Sort');
-        document.body.removeChild(target);
     });
 });
 
@@ -4142,68 +4013,6 @@ describe('DataTableComponent - scrollToColumn', () => {
         component.scrollToColumn('c');
         expect(container.scrollLeft).toBe(250); // 100 + 150
         vi.restoreAllMocks();
-    });
-});
-
-describe('DataTableComponent - Row action menus', () => {
-    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
-    let component: DataTableComponent<NumRow>;
-
-    const actionsFn = () => [{ label: 'View', click: () => undefined }];
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
-        fixture = TestBed.createComponent(DataTableComponent<NumRow>);
-        component = fixture.componentInstance;
-        fixture.componentRef.setInput('data', structuredClone(NUM_DATA));
-        fixture.componentRef.setInput('columns', NUM_COLUMNS);
-        fixture.componentRef.setInput('rowActions', actionsFn);
-        fixture.componentRef.setInput('getRowId', (r: NumRow) => r.id);
-        fixture.componentRef.setInput('showPagination', false);
-        fixture.detectChanges();
-    });
-
-    it('onActionsButtonClick opens the context menu at the button position', () => {
-        const menu = (component as unknown as { internalContextMenu: () => { show: (...a: unknown[]) => void } | undefined }).internalContextMenu();
-        expect(menu).toBeTruthy();
-        const showSpy = vi.spyOn(menu!, 'show').mockImplementation(() => undefined);
-
-        const button = document.createElement('button');
-        button.getBoundingClientRect = () => ({ right: 120, bottom: 80 } as DOMRect);
-        document.body.appendChild(button);
-        component.onActionsButtonClick({ stopPropagation: vi.fn(), target: button } as unknown as Event, NUM_DATA[1], 1);
-
-        expect(component.activeContextMenuItems()).toEqual([{ label: 'View', click: expect.any(Function) }]);
-        expect(showSpy).toHaveBeenCalledWith(120, 80, expect.objectContaining({ row: NUM_DATA[1], index: 1 }));
-        document.body.removeChild(button);
-    });
-
-    it('onRowContextMenu opens the menu for the right-clicked row', () => {
-        const menu = (component as unknown as { internalContextMenu: () => { show: (...a: unknown[]) => void } | undefined }).internalContextMenu();
-        const showSpy = vi.spyOn(menu!, 'show').mockImplementation(() => undefined);
-
-        const rowEl = document.createElement('div');
-        rowEl.setAttribute('data-row-index', '2');
-        const target = document.createElement('span');
-        rowEl.appendChild(target);
-        document.body.appendChild(rowEl);
-
-        const preventDefault = vi.fn();
-        component.onRowContextMenu({ target, clientX: 5, clientY: 6, preventDefault } as unknown as MouseEvent);
-
-        expect(preventDefault).toHaveBeenCalled();
-        expect(showSpy).toHaveBeenCalledWith(5, 6, expect.objectContaining({ index: 2, row: NUM_DATA[2] }));
-        document.body.removeChild(rowEl);
-    });
-
-    it('onRowContextMenu is a no-op when the target is outside any row', () => {
-        const menu = (component as unknown as { internalContextMenu: () => { show: (...a: unknown[]) => void } | undefined }).internalContextMenu();
-        const showSpy = vi.spyOn(menu!, 'show').mockImplementation(() => undefined);
-        const target = document.createElement('span');
-        document.body.appendChild(target);
-        component.onRowContextMenu({ target, preventDefault: vi.fn() } as unknown as MouseEvent);
-        expect(showSpy).not.toHaveBeenCalled();
-        document.body.removeChild(target);
     });
 });
 

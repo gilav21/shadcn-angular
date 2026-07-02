@@ -8,7 +8,9 @@ import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
 import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
-import { readManifest, writeManifest, recordFile, fileStatus, removeFiles, type Manifest } from './manifest.js';
+import { readManifest, writeManifest, recordFile, recordComponentRef, fileStatus, removeFiles, type Manifest } from './manifest.js';
+import { resolveRef } from './ref.js';
+import { mergeWriteFile, emptyMergeReport, shouldAdvanceRef, type MergeReport, type MergeOutcome, type MergeWriteContext } from './merge.js';
 
 export interface InstallResult {
     installed: ComponentName[];
@@ -18,6 +20,8 @@ export interface InstallResult {
     /** Old-layout files deleted because the current manifest no longer ships them. */
     pruned: string[];
     warnings: string[];
+    /** Per-file merge outcomes (merged/overwritten/skipped/conflicted/fell-back). */
+    mergeReport: MergeReport;
 }
 
 interface WriteFilesContext {
@@ -29,21 +33,52 @@ interface WriteFilesContext {
     warnings: string[];
     manifest: Manifest;
     kind?: SourceKind;
+    /** Current ref every written component is advanced TO (`null` ⇒ no advance). */
+    currentRef: string | null;
+    /** `--overwrite`: bypass the 3-way merge and write the upstream version whole-file. */
+    forceWholeFile: boolean;
+    report: MergeReport;
+}
+
+/** Build the per-file merge context, fetching THEIRS (from cache or remote). */
+async function mergeContextFor(
+    file: string, component: ComponentDefinition, ctx: WriteFilesContext, kind: SourceKind,
+): Promise<MergeWriteContext> {
+    const theirs = ctx.contentCache.get(file) ?? await fetchAndTransform(file, ctx.options, ctx.utilsAlias, ctx.prefix, kind);
+    return {
+        targetDir: ctx.targetDir,
+        component: component.name,
+        theirs,
+        options: ctx.options,
+        utilsAlias: ctx.utilsAlias,
+        prefix: ctx.prefix,
+        kind,
+        manifest: ctx.manifest,
+        forceWholeFile: ctx.forceWholeFile,
+        report: ctx.report,
+    };
+}
+
+/** One-line notice when a file is skipped because it's edited and has no baseline to merge. */
+function warnFellBack(file: string, warnings: string[]): void {
+    warnings.push(
+        `Skipped ${file}: locally edited and no recorded baseline to 3-way merge — ` +
+        `re-run with --overwrite to take the upstream version (your changes are kept).`,
+    );
 }
 
 async function writeComponentFiles(
     component: ComponentDefinition,
     ctx: WriteFilesContext,
+    outcomes: MergeOutcome[],
 ): Promise<boolean> {
     const kind = ctx.kind ?? 'component';
     let success = true;
     for (const file of component.files) {
-        const targetPath = path.join(ctx.targetDir, file);
         try {
-            const content = ctx.contentCache.get(file) ?? await fetchAndTransform(file, ctx.options, ctx.utilsAlias, ctx.prefix, kind);
-            await fs.ensureDir(path.dirname(targetPath));
-            await fs.writeFile(targetPath, content);
-            recordFile(ctx.manifest, file, content, component.name);
+            const outcome = await mergeWriteFile(file, await mergeContextFor(file, component, ctx, kind));
+            outcomes.push(outcome);
+            if (outcome === 'fellback-kept') warnFellBack(file, ctx.warnings);
         } catch (err: unknown) {
             ctx.warnings.push(`Could not add ${file}: ${err instanceof Error ? err.message : String(err)}`);
             success = false;
@@ -56,39 +91,49 @@ async function writePeerFiles(
     component: ComponentDefinition,
     ctx: WriteFilesContext,
     peerFilesToUpdate: Set<string>,
+    outcomes: MergeOutcome[],
 ): Promise<void> {
     if (!component.peerFiles) return;
     const kind = ctx.kind ?? 'component';
     for (const file of component.peerFiles) {
         if (!peerFilesToUpdate.has(file)) continue;
-        const targetPath = path.join(ctx.targetDir, file);
         try {
-            const content = ctx.contentCache.get(file) ?? await fetchAndTransform(file, ctx.options, ctx.utilsAlias, ctx.prefix, kind);
-            await fs.ensureDir(path.dirname(targetPath));
-            await fs.writeFile(targetPath, content);
-            recordFile(ctx.manifest, file, content, component.name);
+            const outcome = await mergeWriteFile(file, await mergeContextFor(file, component, ctx, kind));
+            outcomes.push(outcome);
+            if (outcome === 'fellback-kept') warnFellBack(file, ctx.warnings);
         } catch (err: unknown) {
             ctx.warnings.push(`Could not update peer file ${file}: ${err instanceof Error ? err.message : String(err)}`);
         }
     }
 }
 
+async function writeLibFile(targetPath: string, libFile: string, content: string, manifest: Manifest): Promise<void> {
+    await fs.ensureDir(path.dirname(targetPath));
+    await fs.writeFile(targetPath, content);
+    // Fingerprint the lib file so future drift is detectable (pristine vs
+    // user-edited) the same way component files are — this is what lets
+    // `doctor`/`update` later refresh a stale lib file safely.
+    recordFile(manifest, libFile, content, '(lib)');
+}
+
 async function installSingleLibFile(libFile: string, targetPath: string, options: AddOptions, warnings: string[], manifest: Manifest): Promise<void> {
     try {
         const content = await fetchLibContent(libFile, options);
-        const exists = await fs.pathExists(targetPath);
-        if (!exists || options.overwrite) {
-            await fs.ensureDir(path.dirname(targetPath));
-            await fs.writeFile(targetPath, content);
-            // Fingerprint the lib file so future drift is detectable (pristine vs
-            // user-edited) the same way component files are — this is what lets
-            // `doctor`/`update` later refresh a stale lib file safely.
-            recordFile(manifest, libFile, content, '(lib)');
+        if (!await fs.pathExists(targetPath)) {
+            await writeLibFile(targetPath, libFile, content, manifest);
             return;
         }
-        const local = normalizeContent(await fs.readFile(targetPath, 'utf-8'));
-        if (local !== normalizeContent(content)) {
-            warnings.push(`Lib file ${libFile} differs from remote (run doctor_fix or update to refresh)`);
+        const local = await fs.readFile(targetPath, 'utf-8');
+        const upToDate = normalizeContent(local) === normalizeContent(content);
+        // Refresh a pristine lib file (or when forced) — but never clobber a
+        // locally-edited one; lib files aren't 3-way merged, so an edited lib is
+        // preserved and flagged. `clean` means it matches our recorded baseline.
+        if (options.overwrite || fileStatus(manifest, libFile, local) === 'clean') {
+            if (!upToDate) await writeLibFile(targetPath, libFile, content, manifest);
+            return;
+        }
+        if (!upToDate) {
+            warnings.push(`Lib file ${libFile} differs from remote (run doctor_fix or update --overwrite to refresh)`);
         }
     } catch (err: unknown) {
         warnings.push(`Could not install lib file ${libFile}: ${err instanceof Error ? err.message : String(err)}`);
@@ -152,8 +197,15 @@ export interface InstallInput {
     components: ComponentName[];
     /** Optional companion components to also include. */
     optionalDeps?: ComponentName[];
-    /** Subset of conflicting components the caller authorizes overwriting. */
+    /** Subset of conflicting components the caller authorizes writing (the write set). */
     overwrite?: ComponentName[];
+    /**
+     * The `overwrite` set was chosen as an EXPLICIT override (the `--overwrite`
+     * flag or an interactive "overwrite" selection) — clobber those components
+     * whole-file rather than 3-way merging. `update`'s programmatic write set
+     * leaves this false so edited files merge instead of being clobbered.
+     */
+    forceOverwrite?: boolean;
     cwd: string;
     config: Config;
     options: AddOptions;
@@ -201,8 +253,9 @@ function prunePeerFilesForDeclined(declined: ComponentName[], finalComponents: C
 
 async function writeAllComponents(
     finalComponents: ComponentName[], targetDir: string, blocksBase: string,
-    ctx: Omit<WriteFilesContext, 'targetDir' | 'kind'>,
+    ctx: Omit<WriteFilesContext, 'targetDir' | 'kind' | 'forceWholeFile'>,
     peerFilesToUpdate: Set<string>,
+    forcedSet: Set<ComponentName>,
 ): Promise<ComponentName[]> {
     const installed: ComponentName[] = [];
     for (const name of finalComponents) {
@@ -211,12 +264,31 @@ async function writeAllComponents(
         const dir = isBlock ? blocksBase : targetDir;
         const kind: SourceKind = isBlock ? 'block' : 'component';
         await fs.ensureDir(dir);
-        const writeCtx: WriteFilesContext = { ...ctx, targetDir: dir, kind };
-        const ok = await writeComponentFiles(component, writeCtx);
-        await writePeerFiles(component, writeCtx, peerFilesToUpdate);
+        const writeCtx: WriteFilesContext = { ...ctx, targetDir: dir, kind, forceWholeFile: forcedSet.has(name) };
+        const outcomes: MergeOutcome[] = [];
+        const ok = await writeComponentFiles(component, writeCtx, outcomes);
+        await writePeerFiles(component, writeCtx, peerFilesToUpdate, outcomes);
+        // Per-component ref advances only when no file fell back (see shouldAdvanceRef).
+        if (writeCtx.currentRef && shouldAdvanceRef(outcomes)) {
+            recordComponentRef(writeCtx.manifest, name, writeCtx.currentRef);
+        }
         if (ok) installed.push(name);
     }
     return installed;
+}
+
+/**
+ * Components to clobber whole-file (bypass the 3-way merge). The `--overwrite`
+ * flag forces every written component; an explicit `forceOverwrite` (interactive
+ * "overwrite" selection) forces just the chosen overwrite set. Otherwise the set
+ * is empty and edited files 3-way merge against their recorded baseline.
+ */
+function resolveForcedSet(
+    finalComponents: ComponentName[], toOverwrite: ComponentName[], input: InstallInput,
+): Set<ComponentName> {
+    if (input.options.overwrite) return new Set(finalComponents);
+    if (input.forceOverwrite) return new Set(toOverwrite);
+    return new Set();
 }
 
 export async function performInstall(input: InstallInput): Promise<InstallResult> {
@@ -237,13 +309,16 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     prunePeerFilesForDeclined(declined, finalComponents, result.peerFilesToUpdate);
 
     if (finalComponents.length === 0) {
-        return { installed: [], skipped: result.toSkip, declined, pruned: [], warnings };
+        return { installed: [], skipped: result.toSkip, declined, pruned: [], warnings, mergeReport: emptyMergeReport() };
     }
 
     const manifest = await readManifest(input.cwd);
+    const currentRef = await resolveRef(input.options);
+    const report = emptyMergeReport();
+    const forcedSet = resolveForcedSet(finalComponents, toOverwrite, input);
     const blocksBase = resolveProjectPath(input.cwd, input.blocksPath ?? aliasToProjectPath(getBlocksAlias(input.config)));
-    const baseCtx = { options: input.options, utilsAlias, contentCache: result.contentCache, prefix, warnings, manifest };
-    const installed = await writeAllComponents(finalComponents, targetDir, blocksBase, baseCtx, result.peerFilesToUpdate);
+    const baseCtx = { options: input.options, utilsAlias, contentCache: result.contentCache, prefix, warnings, manifest, currentRef, report };
+    const installed = await writeAllComponents(finalComponents, targetDir, blocksBase, baseCtx, result.peerFilesToUpdate, forcedSet);
 
     const libDir = resolveProjectPath(input.cwd, aliasToProjectPath(utilsAlias));
     await installLibFiles(new Set(finalComponents), libDir, input.options, warnings, manifest);
@@ -256,7 +331,7 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
         warnings.push(`Could not write components.lock.json: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    return { installed, skipped: result.toSkip, declined, pruned, warnings };
+    return { installed, skipped: result.toSkip, declined, pruned, warnings, mergeReport: report };
 }
 
 /**

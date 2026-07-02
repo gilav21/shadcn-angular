@@ -2152,7 +2152,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     };
     readonly aiLabels = computed(() => ({
         ...RichTextEditorComponent.DEFAULT_AI_LABELS,
-        ...(this.resolvedLocale().ai ?? {}),
+        ...this.resolvedLocale().ai,
     }));
     readonly aiTasks = computed<{ task: AiTask; label: string }[]>(() => {
         const a = this.aiLabels();
@@ -2299,7 +2299,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             range.deleteContents();
         }
         const span = this.document.createElement('span');
-        span.setAttribute('data-ai-draft', '');
+        span.dataset['aiDraft'] = '';
         span.className = 'rte-ai-draft bg-primary/10 rounded-sm';
         range.insertNode(span);
         this.aiDraftEl = span;
@@ -2315,7 +2315,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (span?.parentNode) {
             const parent = span.parentNode;
             while (span.firstChild) parent.insertBefore(span.firstChild, span);
-            parent.removeChild(span);
+            span.remove();
         }
         this.finishAi();
         this.syncContentFromEditor();
@@ -2331,7 +2331,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 template.innerHTML = this.sanitizer.sanitize(this.aiSavedHtml);
                 span.parentNode.replaceChild(template.content.cloneNode(true), span);
             } else {
-                span.parentNode.removeChild(span);
+                span.remove();
             }
         }
         this.finishAi();

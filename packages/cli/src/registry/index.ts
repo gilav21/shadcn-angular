@@ -27,6 +27,29 @@ export interface OptionalDependency {
   readonly description: string;
 }
 
+/**
+ * How `apply` wires an addon into a consumer's `<ui-{parent}>` usage. The CLI
+ * never reads or edits app code on `add` — only `apply` consumes this.
+ */
+export interface AddonAttach {
+  /**
+   * The import to insert, as `<Symbol> from <module>` where module is relative
+   * to the consumer's component (e.g. `DataTableExport from './ui/data-table/addons/export'`).
+   * The actual path is resolved by the CLI against the install location.
+   */
+  readonly import: string;
+  /**
+   * The attribute added to the base usage tag to activate the addon
+   * (e.g. `dtExport` → `<ui-data-table dtExport>`).
+   */
+  readonly selector: string;
+  /**
+   * Optional override for the paste-snippet shown when `apply` can't safely
+   * auto-edit. Defaults to a snippet derived from `import` + `selector`.
+   */
+  readonly snippet?: string;
+}
+
 export interface ComponentDefinition {
   readonly name: string;
   readonly files: readonly string[];
@@ -46,8 +69,37 @@ export interface ComponentDefinition {
   readonly category?: Category;
   /** Free-text search keywords (synonyms, use-cases). 3-6 per component. */
   readonly tags?: readonly string[];
-  /** 'component' (default) or 'block' (a composed page that reuses components). */
-  readonly type?: 'component' | 'block';
+  /**
+   * 'component' (default), 'block' (a composed page that reuses components), or
+   * 'addon' (an opt-in feature attached to a parent component — see `parent`).
+   */
+  readonly type?: 'component' | 'block' | 'addon';
+  /**
+   * For `type: 'addon'` entries: the parent component this addon attaches to
+   * (e.g. `data-table`). Addons are keyed `parent/addon` in the registry and are
+   * never auto-pulled by resolving the parent — they are opt-in.
+   */
+  readonly parent?: string;
+  /**
+   * For `type: 'addon'` entries: how the `apply` command wires the addon into a
+   * consumer usage. Unused by `add` (which only installs files).
+   */
+  readonly attach?: AddonAttach;
+  /**
+   * For `type: 'addon'` entries: base files (ui-relative) that embody the
+   * contract this addon needs (e.g. `data-table/data-table.host.ts`). `apply`
+   * refuses to wire if the installed base lacks them — a capability check that
+   * is robust to the dev EDITING the base (only the contract's presence matters,
+   * not byte-for-byte version equality).
+   */
+  readonly requiresBaseFiles?: readonly string[];
+  /**
+   * For addon-capable base components: the addon keys available for it
+   * (e.g. `['data-table/export', 'data-table/context-menu']`). Surfaced by
+   * `add`'s multiselect and by discovery tools; resolving the base does NOT
+   * install these.
+   */
+  readonly addons?: readonly string[];
   /**
    * Machine-readable breaking-change log surfaced by `get_install_plan` /
    * `update`, so a public-API break (a renamed selector/output, a hardened
@@ -80,6 +132,8 @@ export interface BreakingChange {
   readonly note: string;
   /** Which automated assist applies, if any. */
   readonly codemod?: 'selector' | 'output-rename' | 'none';
+  /** Addon key (`apply <suggestedAddon>`) that resolves this breaking change, if any. */
+  readonly suggestedAddon?: string;
 }
 
 function defineRegistry<T extends Record<string, ComponentDefinition>>(reg: T): { readonly [K in keyof T]: ComponentDefinition } {
@@ -302,19 +356,30 @@ export const registry = defineRegistry({
     category: 'data-display',
     description: 'Feature-rich table with sorting, filtering, pagination, and column tools.',
     tags: ['data-table', 'table', 'grid', 'datagrid', 'sorting', 'filter'],
-    files: ['data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.locales.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-filter-builder.component.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
-    peerFiles: [
-      'context-menu-integrations.ts',
-      'context-menu-attach.directive.ts',
-      'tree-context-menu.directive.ts',
-      'table-context-menu.directive.ts',
-      'data-table-context-menu.directive.ts',
-    ],
-    dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'skeleton', 'table'],
+    files: ['data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.host.ts', 'data-table/data-table.locales.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-filter-builder.component.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
+    dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'icon', 'input', 'pagination', 'popover', 'select', 'skeleton', 'table'],
     libFiles: ['ai.ts', 'component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
-    optionalDependencies: [
-      { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },
+    addons: ['data-table/context-menu'],
+    breaking: [
+      { kind: 'input', from: '[rowActions] / [showRowActionsColumn] / [showRowActionsContextMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'Right-click / row-action menus moved to the opt-in context-menu addon. Run `npx shadcn-angular apply data-table/context-menu`, add `uiDtContextMenu` to the <ui-data-table> tag, and move [rowActions] onto it. [showRowActionsColumn] has no replacement — the dedicated actions column is gone, remove that binding.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
+      { kind: 'input', from: '[enableColumnMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'The per-column sort/pin/hide header menu moved to the context-menu addon. Add `uiDtContextMenu` and move [enableColumnMenu] onto it.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
     ],
+  },
+  'data-table/context-menu': {
+    name: 'data-table/context-menu',
+    type: 'addon',
+    parent: 'data-table',
+    files: ['data-table/addons/context-menu/context-menu.directive.ts', 'data-table/addons/context-menu/index.ts'],
+    libFiles: ['touch.ts'],
+    dependencies: ['context-menu', 'data-table'],
+    requiresBaseFiles: ['data-table/data-table.host.ts'],
+    category: 'data-display',
+    description: 'Opt-in right-click + ⋮ context menus (row actions, column sort/pin/hide) for the data-table.',
+    tags: ['context-menu', 'row-actions', 'column-menu', 'addon'],
+    attach: {
+      import: "DataTableContextMenuDirective from './ui/data-table/addons/context-menu'",
+      selector: 'uiDtContextMenu',
+    },
   },
   dialog: {
     name: 'dialog',

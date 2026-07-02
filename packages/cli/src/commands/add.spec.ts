@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   resolveDependencies,
   promptOptionalDependencies,
+  promptAddons,
+  collectAvailableAddons,
   normalizeContent,
   fetchAndTransform,
   checkFileConflict,
@@ -562,7 +564,7 @@ describe('promptOptionalDependencies', () => {
   });
 
   it('returns all optional dep names with --all flag', async () => {
-    const resolved = new Set<ComponentName>(['data-table', 'table', 'input', 'button', 'ripple', 'checkbox', 'select', 'pagination', 'popover', 'component-outlet', 'icon']);
+    const resolved = new Set<ComponentName>(['tree', 'table', 'input', 'button', 'ripple', 'checkbox', 'select', 'pagination', 'popover', 'component-outlet', 'icon']);
     const result = await promptOptionalDependencies(resolved, { all: true, branch: 'master' });
     expect(result).toContain('context-menu');
   });
@@ -581,16 +583,94 @@ describe('promptOptionalDependencies', () => {
   });
 });
 
+describe('promptAddons', () => {
+  it('returns [] when no resolved component declares addons', async () => {
+    const resolved = new Set<ComponentName>(['button', 'badge']);
+    expect(await promptAddons(resolved, { branch: 'master' })).toEqual([]);
+  });
+
+  it('returns [] with --no-addons even when addons are available', async () => {
+    const resolved = new Set<ComponentName>(['data-table']);
+    expect(await promptAddons(resolved, { addons: false, branch: 'master' })).toEqual([]);
+  });
+
+  it('returns [] with --yes (lean, non-interactive default)', async () => {
+    const resolved = new Set<ComponentName>(['data-table']);
+    expect(await promptAddons(resolved, { yes: true, branch: 'master' })).toEqual([]);
+  });
+
+  it('returns all addon keys for the resolved bases with --all', async () => {
+    const resolved = new Set<ComponentName>(['data-table']);
+    expect(await promptAddons(resolved, { all: true, branch: 'master' })).toContain('data-table/context-menu');
+  });
+
+  it('rejects a bare short name and asks for the full parent/addon key', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const resolved = new Set<ComponentName>(['data-table']);
+    const result = await promptAddons(resolved, { with: 'context-menu', branch: 'master' });
+    expect(result).toEqual([]);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('selects an addon by its full parent/addon key via --with', async () => {
+    const resolved = new Set<ComponentName>(['data-table']);
+    expect(await promptAddons(resolved, { with: 'data-table/context-menu', branch: 'master' })).toEqual(['data-table/context-menu']);
+  });
+
+  it('supports --with all', async () => {
+    const resolved = new Set<ComponentName>(['data-table']);
+    expect(await promptAddons(resolved, { with: 'all', branch: 'master' })).toContain('data-table/context-menu');
+  });
+
+  it('warns and ignores an unknown addon token in --with', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const resolved = new Set<ComponentName>(['data-table']);
+    const result = await promptAddons(resolved, { with: 'does-not-exist', branch: 'master' });
+    expect(result).toEqual([]);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it('skips an addon already present in the resolved set', async () => {
+    const resolved = new Set<ComponentName>(['data-table', 'data-table/context-menu']);
+    expect(await promptAddons(resolved, { all: true, branch: 'master' })).toEqual([]);
+  });
+});
+
+describe('collectAvailableAddons (post-install discoverability)', () => {
+  it('lists an addon declared by an installed base that was not itself installed', () => {
+    const installed = new Set<ComponentName>(['data-table', 'button']);
+    const hints = collectAvailableAddons(installed);
+    expect(hints.map(h => h.addon)).toContain('data-table/context-menu');
+    expect(hints.find(h => h.addon === 'data-table/context-menu')?.parent).toBe('data-table');
+  });
+
+  it('omits an addon that was itself installed (already added)', () => {
+    const installed = new Set<ComponentName>(['data-table', 'data-table/context-menu']);
+    expect(collectAvailableAddons(installed)).toEqual([]);
+  });
+
+  it('returns [] when no installed component declares addons', () => {
+    expect(collectAvailableAddons(new Set<ComponentName>(['button', 'badge']))).toEqual([]);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Registry data integrity
 // ---------------------------------------------------------------------------
 
 describe('registry optional dependencies', () => {
-  it('data-table has context-menu as optional dependency', () => {
+  it('data-table exposes context-menu as an opt-in addon (not an optional dependency)', () => {
     const dt = registry['data-table'];
-    expect(dt.optionalDependencies).toBeDefined();
-    const names = dt.optionalDependencies!.map((d: { name: string }) => d.name);
-    expect(names).toContain('context-menu');
+    // The old informational optionalDependency was retired in favour of a real
+    // addon entry that `add`/`apply` install on demand.
+    expect(dt.optionalDependencies).toBeUndefined();
+    expect(dt.addons).toContain('data-table/context-menu');
+
+    const addon = registry['data-table/context-menu'];
+    expect(addon).toBeDefined();
+    expect(addon.type).toBe('addon');
+    expect(addon.parent).toBe('data-table');
+    expect(addon.attach?.selector).toBe('uiDtContextMenu');
   });
 
   it('tree has context-menu as optional dependency', () => {

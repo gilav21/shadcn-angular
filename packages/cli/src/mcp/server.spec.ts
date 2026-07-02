@@ -31,13 +31,13 @@ describe('MCP server (in-memory)', () => {
   it('exposes the full tool set with correct annotations', async () => {
     const { tools } = await client.listTools();
     const names = tools.map(t => t.name);
-    expect(tools).toHaveLength(18);
+    expect(tools).toHaveLength(19);
     for (const expected of [
       'list_components', 'search_components', 'get_component',
       'get_component_source', 'get_component_examples', 'get_install_plan',
       'init_project', 'add_component', 'update_component', 'diff_component',
       'set_density', 'set_radius', 'set_motion', 'set_locale', 'change_theme',
-      'get_project_status', 'doctor_fix', 'refresh_lib',
+      'get_project_status', 'doctor_fix', 'refresh_lib', 'apply_addon',
     ]) {
       expect(names, expected).toContain(expected);
     }
@@ -72,8 +72,42 @@ describe('MCP server (in-memory)', () => {
     expect(firstText(res)).toContain('Unknown component');
   });
 
+  it('get_component surfaces a base component\'s available addons', async () => {
+    const res = await callTool('get_component', { name: 'data-table' });
+    const def = JSON.parse(firstText(res)) as { addons: string[] };
+    expect(def.addons).toContain('data-table/context-menu');
+  });
+
+  it('get_component exposes an addon entry\'s attach + parent + requiresBaseFiles', async () => {
+    const res = await callTool('get_component', { name: 'data-table/context-menu' });
+    const def = JSON.parse(firstText(res)) as {
+      type: string; parent: string; attach: { selector: string }; requiresBaseFiles: string[];
+    };
+    expect(def.type).toBe('addon');
+    expect(def.parent).toBe('data-table');
+    expect(def.attach.selector).toBe('uiDtContextMenu');
+    expect(def.requiresBaseFiles).toContain('data-table/data-table.host.ts');
+  });
+
   it('get_install_plan errors cleanly when the project is uninitialized', async () => {
     const res = await callTool('get_install_plan', { names: ['button'] });
+    expect(res.isError).toBe(true);
+    expect(firstText(res)).toContain('init_project');
+  });
+
+  it('apply_addon is marked destructive', async () => {
+    const { tools } = await client.listTools();
+    expect(tools.find(t => t.name === 'apply_addon')?.annotations?.destructiveHint).toBe(true);
+  });
+
+  it('apply_addon rejects a component that is not an addon', async () => {
+    const res = await callTool('apply_addon', { addon: 'button' });
+    expect(res.isError).toBe(true);
+    expect(firstText(res)).toContain('not an addon');
+  });
+
+  it('apply_addon errors cleanly when the project is uninitialized', async () => {
+    const res = await callTool('apply_addon', { addon: 'data-table/context-menu' });
     expect(res.isError).toBe(true);
     expect(firstText(res)).toContain('init_project');
   });

@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import path from 'node:path';
+import chalk from 'chalk';
 import { fetchAndTransform, normalizeContent, type FetchOptions } from './fetch.js';
 import { DEFAULT_PREFIX } from '../utils/prefix.js';
 import { registry, type BreakingChange, type ComponentDefinition, type ComponentName } from '../registry/index.js';
@@ -12,6 +13,10 @@ export interface AddOptions extends FetchOptions {
     dryRun?: boolean;
     /** `migrate`: proceed even if the git working tree is dirty / not a repo. */
     force?: boolean;
+    /** `add`: comma-separated addons to include (or the token `all`). */
+    with?: string;
+    /** `add`: `false` (via `--no-addons`) skips all addon prompts/installs. */
+    addons?: boolean;
 }
 
 export interface ConflictCheckResult {
@@ -156,6 +161,32 @@ export function collectBreakingChanges(components: Iterable<ComponentName>): Com
         if (changes?.length) out.push({ component: name, changes });
     }
     return out.sort((a, b) => a.component.localeCompare(b.component));
+}
+
+/** Distinct addon keys suggested as the fix for the given breaking changes, sorted. */
+export function collectSuggestedAddons(breaking: readonly ComponentBreaking[]): string[] {
+    const addons = new Set<string>();
+    for (const cb of breaking) {
+        for (const change of cb.changes) {
+            if (change.suggestedAddon) addons.add(change.suggestedAddon);
+        }
+    }
+    return [...addons].sort((a, b) => a.localeCompare(b));
+}
+
+/** Print breaking-change notes for the given components (no-op when none). */
+export function printBreakingChanges(components: Iterable<ComponentName>): void {
+    const breaking = collectBreakingChanges(components);
+    if (breaking.length === 0) return;
+    console.log('');
+    console.log(chalk.yellow('⚠ Breaking changes — review before relying on these components:'));
+    for (const cb of breaking) {
+        for (const change of cb.changes) {
+            const arrow = change.to ? ` → ${change.to}` : '';
+            console.log(chalk.yellow(`  ${cb.component}: ${change.from}${arrow}`));
+            console.log(chalk.dim(`    ${change.note}`));
+        }
+    }
 }
 
 /** Serializable plan summary for the MCP `get_install_plan` tool. */

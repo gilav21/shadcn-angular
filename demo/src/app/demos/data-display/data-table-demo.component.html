@@ -364,7 +364,7 @@
   </div>
   <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
     <ui-data-table #clientTable [data]="payments()" [columns]="paymentColumns()" [enableRowSelection]="true"
-      [(rowSelection)]="selection" [rowActions]="paymentRowActions" />
+      [(rowSelection)]="selection" uiDtContextMenu [rowActions]="paymentRowActions" />
   </div>
   <div class="text-sm text-muted-foreground">
     Selected {{ selectionCount() }} rows. Click a cell then press Ctrl+C to copy its value.
@@ -918,6 +918,7 @@
   </p>
   <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
+      uiDtContextMenu
       [data]="payments()"
       [columns]="menuColumns()"
       [enableColumnMenu]="true"

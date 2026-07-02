@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { Command } from 'commander';
 import { init } from './commands/init.js';
 import { add } from './commands/add.js';
+import { apply } from './commands/apply.js';
 import { diff } from './commands/diff.js';
 import { list } from './commands/list.js';
 import { why } from './commands/why.js';
@@ -63,12 +64,31 @@ program
     .option('-y, --yes', 'Skip confirmation prompt')
     .option('-o, --overwrite', 'Overwrite existing files')
     .option('-a, --all', 'Add all available components')
+    .option('--with <addons>', 'Comma-separated addon keys (parent/addon) to include, or "all"')
+    .option('--no-addons', 'Skip optional addons (do not prompt)')
     .option('-p, --path <path>', 'The path to add the component to')
     .option('--remote', 'Force remote fetch from GitHub registry')
     .option('--dry-run', 'Show what would be installed without making changes')
     .option('-b, --branch <branch>', 'GitHub branch to fetch components from', 'master')
     .option('-r, --registry <url>', 'Custom registry base URL (overrides components.json)')
     .action(add);
+
+program
+    .command('apply')
+    .description('Install an addon (if missing) and wire it into your component(s)')
+    .argument('<addon>', 'Addon key, e.g. data-table/context-menu')
+    .argument('[components...]', 'Component class name(s) to wire (else: current dir or scan)')
+    .option('-y, --yes', 'Non-interactive: wire all found, snippet-fallback when ambiguous')
+    .option('-o, --overwrite', 'Overwrite a locally-edited base/addon whole-file instead of 3-way merging')
+    .option('--scan', 'Scan the whole app for usages and choose interactively')
+    .option('--all', 'Wire every matching instance in the selected files')
+    .option('--class <token>', 'Wire instances whose tag class contains this token')
+    .option('--id <token>', 'Wire instances matching this id / template-ref / data-testid')
+    .option('--dry-run', 'Show what would be wired without writing')
+    .option('--remote', 'Force remote fetch from GitHub registry')
+    .option('-b, --branch <branch>', 'GitHub branch to fetch components from', 'master')
+    .option('-r, --registry <url>', 'Custom registry base URL (overrides components.json)')
+    .action(apply);
 
 program
     .command('diff')
@@ -100,6 +120,7 @@ program
     .description('Update installed components to the latest registry version')
     .argument('[components...]', 'Components to update (all installed if omitted)')
     .option('-y, --yes', 'Install newly-required dependencies without prompting')
+    .option('-o, --overwrite', 'Overwrite local changes whole-file instead of 3-way merging')
     .option('--dry-run', 'Show what would update without writing')
     .option('--remote', 'Force remote fetch from GitHub registry')
     .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')

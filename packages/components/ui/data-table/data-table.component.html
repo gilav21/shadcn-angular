@@ -167,17 +167,19 @@
         </button>
       } @else if (col.accessorKey === "_actions") {
         @if (!isDisabled(row)) {
-          <ui-button
-            variant="ghost"
-            size="icon"
-            class="h-8 w-8"
-            ariaLabel="Row actions"
-            (click)="onActionsButtonClick($event, row, rowIndex)"
-            (keydown.enter)="onActionsButtonClick($event, row, rowIndex)"
-            (keydown.space)="onActionsButtonClick($event, row, rowIndex)"
-          >
-            <ui-icon name="more-vertical" size="sm" />
-          </ui-button>
+          @for (slot of cellActionSlots(); track slot.id) {
+            <ui-button
+              variant="ghost"
+              size="icon"
+              class="h-8 w-8"
+              [ariaLabel]="slot.ariaLabel ?? 'Row actions'"
+              (click)="slot.onClick($event, getRowContext(row, rowIndex))"
+              (keydown.enter)="slot.onClick($event, getRowContext(row, rowIndex))"
+              (keydown.space)="slot.onClick($event, getRowContext(row, rowIndex))"
+            >
+              <ui-icon [name]="slot.icon ?? 'more-vertical'" size="sm" />
+            </ui-button>
+          }
         }
       } @else if (
         col.editable && isEditing(rowIndex, String(col.accessorKey))
@@ -444,7 +446,6 @@
         (keydown)="onTableKeydown($event)"
         (click)="onTableClick()"
         (mousedown)="onTableMouseDown($event)"
-        (contextmenu)="onRowContextMenu($event)"
         (scroll)="isVirtualScrollActive() ? onVirtualScroll($event) : null"
         (dragover)="onContainerDragOver($event)"
         (drop)="onRowDrop($event)"
@@ -686,19 +687,20 @@
                       }
                     </div>
                     @if (
-                      enableColumnMenu() &&
                       col.accessorKey !== "_selection" &&
                       col.accessorKey !== "_expander" &&
                       col.accessorKey !== "_actions"
                     ) {
-                      <button
-                        type="button"
-                        class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 group-hover/head:opacity-100 touch-visible hover:bg-accent hover:text-accent-foreground transition-opacity"
-                        [attr.aria-label]="'Column menu for ' + col.header"
-                        (click)="onColumnMenuClick($event, col)"
-                      >
-                        <ui-icon name="more-vertical" size="xs" />
-                      </button>
+                      @for (slot of headerActionSlots(); track slot.id) {
+                        <button
+                          type="button"
+                          class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 group-hover/head:opacity-100 touch-visible hover:bg-accent hover:text-accent-foreground transition-opacity"
+                          [attr.aria-label]="'Column menu for ' + col.header"
+                          (click)="slot.onClick($event, col)"
+                        >
+                          <ui-icon [name]="slot.icon ?? 'more-vertical'" size="xs" />
+                        </button>
+                      }
                     }
                   </div>
                   @if (
@@ -1500,15 +1502,4 @@
         />
       }
     </div>
-    @if (rowActions()) {
-      <ui-context-menu
-        #rowActionsContextMenu
-        [items]="activeContextMenuItems()"
-      >
-      </ui-context-menu>
-    }
-    @if (enableColumnMenu()) {
-      <ui-context-menu #columnMenuContextMenu [items]="activeColumnMenuItems()">
-      </ui-context-menu>
-    }
     } <!-- end @else skeleton -->

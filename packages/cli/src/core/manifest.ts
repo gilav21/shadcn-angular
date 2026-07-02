@@ -4,15 +4,21 @@ import { createHash } from 'node:crypto';
 import { normalizeContent } from './fetch.js';
 
 export const MANIFEST_FILENAME = 'components.lock.json';
-export const MANIFEST_VERSION = 1;
+export const MANIFEST_VERSION = 2;
 
 export interface ManifestEntry {
     sha256: string;
     component: string;
 }
+/** Per-component install/merge metadata. `ref` is the commit a component's files were last brought up to. */
+export interface ComponentRecord {
+    ref: string;
+}
 export interface Manifest {
     version: number;
     files: Record<string, ManifestEntry>;
+    /** Optional (added in v2). Absent for manifests written before the 3-way-merge feature. */
+    components?: Record<string, ComponentRecord>;
 }
 export type FileStatus = 'clean' | 'modified' | 'untracked';
 
@@ -25,6 +31,12 @@ export function emptyManifest(): Manifest {
     return { version: MANIFEST_VERSION, files: {} };
 }
 
+/** Read `components` only when it's a real object (tolerates the old ref-less shape). */
+function readComponents(data: Partial<Manifest>): Record<string, ComponentRecord> | undefined {
+    const c = data.components;
+    return c && typeof c === 'object' ? c : undefined;
+}
+
 export async function readManifest(cwd: string): Promise<Manifest> {
     const p = path.join(cwd, MANIFEST_FILENAME);
     if (!await fs.pathExists(p)) return emptyManifest();
@@ -32,21 +44,33 @@ export async function readManifest(cwd: string): Promise<Manifest> {
         const data = await fs.readJson(p) as Partial<Manifest>;
         // eslint-disable-next-line sonarjs/different-types-comparison -- data is runtime JSON; files may be null even though Partial<Manifest> excludes null
         if (!data || typeof data.files !== 'object' || data.files === null) return emptyManifest();
-        return { version: data.version ?? MANIFEST_VERSION, files: data.files };
+        return { version: data.version ?? MANIFEST_VERSION, files: data.files, components: readComponents(data) };
     } catch {
         return emptyManifest();
     }
 }
 
+function sortByKey<T>(record: Record<string, T>): Record<string, T> {
+    return Object.fromEntries(Object.entries(record).sort(([a], [b]) => a.localeCompare(b)));
+}
+
 export async function writeManifest(cwd: string, manifest: Manifest): Promise<void> {
-    const sorted = Object.fromEntries(
-        Object.entries(manifest.files).sort(([a], [b]) => a.localeCompare(b)),
-    );
-    await fs.writeJson(
-        path.join(cwd, MANIFEST_FILENAME),
-        { version: MANIFEST_VERSION, files: sorted },
-        { spaces: 2 },
-    );
+    const out: Manifest = { version: MANIFEST_VERSION, files: sortByKey(manifest.files) };
+    if (manifest.components && Object.keys(manifest.components).length > 0) {
+        out.components = sortByKey(manifest.components);
+    }
+    await fs.writeJson(path.join(cwd, MANIFEST_FILENAME), out, { spaces: 2 });
+}
+
+/** Record (or advance) the commit ref a component's files were brought up to. */
+export function recordComponentRef(manifest: Manifest, component: string, ref: string): void {
+    manifest.components ??= {};
+    manifest.components[component] = { ref };
+}
+
+/** The recorded ref for a component, or `undefined` (→ merge fallback) when none. */
+export function getComponentRef(manifest: Manifest, component: string): string | undefined {
+    return manifest.components?.[component]?.ref;
 }
 
 export function recordFile(manifest: Manifest, file: string, content: string, component: string): void {

@@ -33,9 +33,14 @@ const onCancel = (): void => {
 // Component selection & dependency resolution
 // ---------------------------------------------------------------------------
 
+/** Top-level addable components — addons are surfaced via the addon prompt, not here. */
+function selectableComponentNames(): ComponentName[] {
+    return getComponentNames().filter(name => registry[name].type !== 'addon');
+}
+
 async function selectComponents(components: string[], options: AddOptions): Promise<ComponentName[]> {
     if (options.all) {
-        return getComponentNames();
+        return selectableComponentNames();
     }
 
     if (components.length === 0) {
@@ -43,7 +48,7 @@ async function selectComponents(components: string[], options: AddOptions): Prom
             type: 'multiselect',
             name: 'selected',
             message: 'Which components would you like to add?',
-            choices: getComponentNames().map(name => ({
+            choices: selectableComponentNames().map(name => ({
                 title: name,
                 value: name,
             })),
@@ -59,7 +64,7 @@ function validateComponents(names: ComponentName[]): void {
     const invalid = names.filter(c => !(c in registry));
     if (invalid.length > 0) {
         console.log(chalk.red(`Invalid component(s): ${invalid.join(', ')}`));
-        console.log(chalk.dim('Available components: ' + getComponentNames().join(', ')));
+        console.log(chalk.dim('Available components: ' + selectableComponentNames().join(', ')));
         process.exit(1);
     }
 }
@@ -108,6 +113,134 @@ export async function promptOptionalDependencies(
     }, { onCancel });
 
     return selected ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Addon prompt
+// ---------------------------------------------------------------------------
+
+interface AddonChoice {
+    readonly name: string;
+    readonly description: string;
+    readonly parent: string;
+}
+
+/**
+ * Match a single `--with` token to an addon. Requires the full `parent/addon`
+ * key (the same form as `add parent/addon`) — a bare short name like
+ * `context-menu` is rejected with a hint, since short names collide across
+ * bases (e.g. a future `data-table/ai` vs `rich-text-editor/ai`).
+ */
+function matchAddonToken(token: string, choices: AddonChoice[]): ComponentName | null {
+    const exact = choices.find(c => c.name === token);
+    if (exact) return exact.name as ComponentName;
+
+    const shortMatches = choices.filter(c => c.name.endsWith('/' + token));
+    if (shortMatches.length > 0) {
+        console.warn(chalk.yellow(`Use the full addon key for "${token}": ${shortMatches.map(c => c.name).join(' or ')}.`));
+    } else {
+        console.warn(chalk.yellow(`Unknown addon "${token}" — skipping. Available: ${choices.map(c => c.name).join(', ')}`));
+    }
+    return null;
+}
+
+/** Resolve a `--with` value (a comma list, or the token `all`) against the available addons. */
+function selectAddonsByFlag(withValue: string, choices: AddonChoice[]): ComponentName[] {
+    const tokens = withValue.split(',').map(t => t.trim()).filter(Boolean);
+    if (tokens.includes('all')) return choices.map(c => c.name as ComponentName);
+
+    const selected: ComponentName[] = [];
+    for (const token of tokens) {
+        const match = matchAddonToken(token, choices);
+        if (match) selected.push(match);
+    }
+    return selected;
+}
+
+/**
+ * Offer the addons declared by the resolved base components. Addons are opt-in
+ * (lean by default): `--no-addons`/`--yes` install none, `--with <list|all>`
+ * selects non-interactively, `--all` includes every available addon, and
+ * otherwise an interactive multiselect is shown (nothing selected by default).
+ */
+export async function promptAddons(
+    resolved: Set<ComponentName>,
+    options: AddOptions,
+): Promise<ComponentName[]> {
+    const seen = new Set<string>();
+    const choices: AddonChoice[] = [];
+
+    for (const name of resolved) {
+        const component = registry[name];
+        if (!component.addons) continue;
+
+        for (const key of component.addons) {
+            if (resolved.has(key as ComponentName) || seen.has(key)) continue;
+            seen.add(key);
+            choices.push({ name: key, description: registry[key as ComponentName]?.description ?? '', parent: name });
+        }
+    }
+
+    if (choices.length === 0) return [];
+    if (options.addons === false) return [];
+    if (options.with !== undefined) return selectAddonsByFlag(options.with, choices);
+    if (options.yes) return [];
+    if (options.all) return choices.map(c => c.name as ComponentName);
+
+    const { selected } = await prompts({
+        type: 'multiselect',
+        name: 'selected',
+        message: 'Optional addons available:',
+        choices: choices.map(c => ({
+            title: c.name + ' ' + chalk.dim('- ' + c.description + ' (for ' + c.parent + ')'),
+            value: c.name,
+        })),
+        hint: '- Space to select, Enter to confirm (or press Enter to skip)',
+    }, { onCancel });
+
+    return selected ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Post-install addon discoverability
+// ---------------------------------------------------------------------------
+
+/** An addon available for an installed base but not itself installed. */
+export interface AddonHint {
+    readonly addon: ComponentName;
+    readonly parent: ComponentName;
+    readonly description: string;
+}
+
+/**
+ * Addons declared by the installed components that were not themselves
+ * installed — surfaced after every `add` so a dev who skipped the prompt
+ * (via `--yes`, `--no-addons`, CI, or just pressing Enter) still discovers them.
+ */
+export function collectAvailableAddons(installed: Set<ComponentName>): AddonHint[] {
+    const seen = new Set<string>();
+    const hints: AddonHint[] = [];
+    for (const name of installed) {
+        const component = registry[name];
+        if (!component.addons) continue;
+        for (const key of component.addons) {
+            if (installed.has(key as ComponentName) || seen.has(key)) continue;
+            seen.add(key);
+            hints.push({ addon: key as ComponentName, parent: name, description: registry[key as ComponentName]?.description ?? '' });
+        }
+    }
+    return hints;
+}
+
+/** Print a short, non-intrusive note about addons the dev can opt into later. */
+function printAvailableAddons(hints: AddonHint[]): void {
+    if (hints.length === 0) return;
+    console.log('');
+    console.log(chalk.cyan('Optional addons available (not installed):'));
+    for (const h of hints) {
+        console.log('  ' + chalk.bold(h.addon) + (h.description ? chalk.dim(' — ' + h.description) : ''));
+    }
+    console.log(chalk.dim(`  Add one with: npx @gilav21/shadcn-angular add ${hints[0].addon}`));
 }
 
 // ---------------------------------------------------------------------------
@@ -256,11 +389,13 @@ function printInstallResult(result: { installed: ComponentName[]; warnings: stri
 
 async function resolveComponentsAndConflicts(
     componentsToAdd: ComponentName[], options: AddOptions, config: Config, cwd: string,
-): Promise<{ allComponents: Set<ComponentName>; optionalChoices: ComponentName[]; componentPath: string | undefined; blocksPath: string | undefined; conflicts: ConflictCheckResult }> {
+): Promise<{ allComponents: Set<ComponentName>; extraDeps: ComponentName[]; componentPath: string | undefined; blocksPath: string | undefined; conflicts: ConflictCheckResult }> {
     const resolvedComponents = resolveDependencies(componentsToAdd);
     const optionalChoices = await promptOptionalDependencies(resolvedComponents, options);
-    const allComponents = optionalChoices.length > 0
-        ? resolveDependencies([...resolvedComponents, ...optionalChoices])
+    const addonChoices = await promptAddons(resolvedComponents, options);
+    const extras = [...optionalChoices, ...addonChoices];
+    const allComponents = extras.length > 0
+        ? resolveDependencies([...resolvedComponents, ...extras])
         : resolvedComponents;
     const hasBlock = [...allComponents].some(n => registry[n].type === 'block');
     const { componentPath, blocksPath } = await resolveBlockDestination(hasBlock, options, config);
@@ -270,7 +405,7 @@ async function resolveComponentsAndConflicts(
     const checkSpinner = ora('Checking for conflicts...').start();
     const conflicts = await detectConflicts(allComponents, targetDir, options, config.aliases.utils, getPrefix(config));
     checkSpinner.stop();
-    return { allComponents, optionalChoices, componentPath, blocksPath, conflicts };
+    return { allComponents, extraDeps: extras, componentPath, blocksPath, conflicts };
 }
 
 export async function add(components: string[], options: AddOptions): Promise<void> {
@@ -295,7 +430,7 @@ export async function add(components: string[], options: AddOptions): Promise<vo
 
     validateComponents(componentsToAdd);
 
-    const { optionalChoices, componentPath, blocksPath, conflicts } =
+    const { allComponents, extraDeps, componentPath, blocksPath, conflicts } =
         await resolveComponentsAndConflicts(componentsToAdd, options, config, cwd);
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
 
@@ -304,17 +439,22 @@ export async function add(components: string[], options: AddOptions): Promise<vo
         contentCache);
     const declined = conflicting.filter(c => !toOverwrite.includes(c));
 
-    if (options.dryRun) { printDryRunSummary(toInstall, toOverwrite, toSkip, declined); return; }
-    if (toInstall.length === 0 && toOverwrite.length === 0) { printNothingToInstall(toSkip, declined); return; }
+    const addonHints = collectAvailableAddons(allComponents);
+    if (options.dryRun) { printDryRunSummary(toInstall, toOverwrite, toSkip, declined); printAvailableAddons(addonHints); return; }
+    if (toInstall.length === 0 && toOverwrite.length === 0) { printNothingToInstall(toSkip, declined); printAvailableAddons(addonHints); return; }
 
     const spinner = ora('Installing components...').start();
     try {
         const result = await performInstall({
-            components: componentsToAdd, optionalDeps: optionalChoices,
-            overwrite: toOverwrite, cwd, config, options,
+            components: componentsToAdd, optionalDeps: extraDeps,
+            // The overwrite set came from an explicit choice (the --overwrite flag
+            // or the interactive overwrite prompt), so it's a whole-file clobber,
+            // not a 3-way merge.
+            overwrite: toOverwrite, forceOverwrite: true, cwd, config, options,
             path: componentPath, blocksPath, precomputedConflicts: conflicts,
         });
         printInstallResult(result, spinner);
+        printAvailableAddons(addonHints);
     } catch (error) {
         spinner.fail('Failed to add components');
         console.error(error);

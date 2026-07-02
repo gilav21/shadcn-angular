@@ -11,9 +11,15 @@ export function validateBranch(branch: string): void {
     }
 }
 
+/** Owner/repo of the default (first-class) GitHub registry. */
+export function getRepoSlug(): { owner: string; repo: string } {
+    return { owner: 'gilav21', repo: 'shadcn-angular' };
+}
+
 function getDefaultRegistryBaseUrl(branch: string): string {
     validateBranch(branch);
-    return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/components`;
+    const { owner, repo } = getRepoSlug();
+    return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/packages/components`;
 }
 
 export function getRegistryBaseUrl(branch: string, customRegistry?: string): string {

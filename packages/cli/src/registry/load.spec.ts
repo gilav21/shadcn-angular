@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
-import { loadRegistry } from './load.js';
+import { loadRegistry, isValidRegistryShape } from './load.js';
 import { registry, __resetRegistryCaches, getReverseDependents, type ComponentDefinition } from './index.js';
 
 const mutable = registry as unknown as Record<string, ComponentDefinition>;
@@ -66,5 +66,98 @@ describe('loadRegistry', () => {
         expect(applied).toBe(false);
         expect(registry['accordion' as never]).toBeDefined();
         expect(warn).toHaveBeenCalledOnce();
+    });
+});
+
+describe('isValidRegistryShape', () => {
+    it('accepts a manifest of plain components', () => {
+        const manifest = {
+            button: { name: 'button', files: ['button/button.component.ts'] },
+        };
+        expect(isValidRegistryShape(manifest)).toBe(true);
+    });
+
+    it('rejects non-object input', () => {
+        expect(isValidRegistryShape(null)).toBe(false);
+        expect(isValidRegistryShape(42)).toBe(false);
+    });
+
+    it('rejects an entry missing name or files', () => {
+        expect(isValidRegistryShape({ x: { name: 'x' } })).toBe(false);
+        expect(isValidRegistryShape({ x: { files: [] } })).toBe(false);
+    });
+
+    it('accepts a well-formed addon entry', () => {
+        const manifest = {
+            'data-table': {
+                name: 'data-table',
+                files: ['data-table/data-table.component.ts'],
+            },
+            'data-table/export': {
+                name: 'data-table/export',
+                files: ['data-table/addons/export/export.directive.ts'],
+                type: 'addon',
+                parent: 'data-table',
+                attach: {
+                    import: "DataTableExport from './ui/data-table/addons/export'",
+                    selector: 'dtExport',
+                },
+            },
+        };
+        expect(isValidRegistryShape(manifest)).toBe(true);
+    });
+
+    it('rejects an addon entry missing parent', () => {
+        const manifest = {
+            'data-table/export': {
+                name: 'data-table/export',
+                files: ['data-table/addons/export/export.directive.ts'],
+                type: 'addon',
+                attach: { import: "DataTableExport from './x'", selector: 'dtExport' },
+            },
+        };
+        expect(isValidRegistryShape(manifest)).toBe(false);
+    });
+
+    it('rejects an addon entry missing attach', () => {
+        const manifest = {
+            'data-table/export': {
+                name: 'data-table/export',
+                files: ['data-table/addons/export/export.directive.ts'],
+                type: 'addon',
+                parent: 'data-table',
+            },
+        };
+        expect(isValidRegistryShape(manifest)).toBe(false);
+    });
+
+    it('accepts a base entry with a valid addons array', () => {
+        const manifest = {
+            'data-table': {
+                name: 'data-table',
+                files: ['data-table/data-table.component.ts'],
+                addons: ['data-table/export', 'data-table/context-menu'],
+            },
+        };
+        expect(isValidRegistryShape(manifest)).toBe(true);
+    });
+
+    it('rejects a base entry whose addons is not an array of strings', () => {
+        const make = (addons: unknown) => ({
+            a: { name: 'a', files: ['a/a.component.ts'], addons },
+        });
+        expect(isValidRegistryShape(make('data-table/export'))).toBe(false);
+        expect(isValidRegistryShape(make([1, 2]))).toBe(false);
+    });
+
+    it('rejects an addon entry whose attach lacks import or selector', () => {
+        const base = {
+            name: 'data-table/export',
+            files: ['data-table/addons/export/export.directive.ts'],
+            type: 'addon',
+            parent: 'data-table',
+        };
+        expect(isValidRegistryShape({ a: { ...base, attach: { selector: 'dtExport' } } })).toBe(false);
+        expect(isValidRegistryShape({ a: { ...base, attach: { import: 'X from "./x"' } } })).toBe(false);
     });
 });
