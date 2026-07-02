@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
@@ -98,5 +98,36 @@ describe('manifest persistence (back-compat)', () => {
     await writeManifest(dir, m);
     const raw = await fs.readJson(path.join(dir, MANIFEST_FILENAME)) as { components: Record<string, unknown> };
     expect(Object.keys(raw.components)).toEqual(['alpha', 'zebra']);
+  });
+
+  it('warns once per process when reading a pre-v2 lockfile with recorded files (M11)', async () => {
+    // A fresh module instance so the once-per-process flag is not already tripped
+    // by another test's read of a v1 manifest (test-order independence).
+    vi.resetModules();
+    const fresh = await import('./manifest.js');
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const legacy = { version: 1, files: { 'a.ts': { sha256: 'h', component: 'a' } } };
+      await fs.writeJson(path.join(dir, fresh.MANIFEST_FILENAME), legacy);
+      await fresh.readManifest(dir);
+      await fresh.readManifest(dir); // second read: already warned, no duplicate
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(String(spy.mock.calls[0][0])).toContain('older CLI');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('does not warn for a pre-v2 lockfile with no recorded files (M11)', async () => {
+    vi.resetModules();
+    const fresh = await import('./manifest.js');
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      await fs.writeJson(path.join(dir, fresh.MANIFEST_FILENAME), { version: 1, files: {} });
+      await fresh.readManifest(dir);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

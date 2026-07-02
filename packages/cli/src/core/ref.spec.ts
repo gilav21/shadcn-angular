@@ -80,6 +80,15 @@ describe('resolveRef (local-dir / git)', () => {
     execaMock.mockRejectedValue(new Error('not a git repo'));
     expect(await resolveRef({ branch: 'master' })).toBeNull();
   });
+
+  it('still resolves the local ref when a stray registry is passed in local mode (L1a)', async () => {
+    // Local-dir mode serves from the monorepo regardless of `registry`, so a
+    // stray --registry must not short-circuit to null and disable merging.
+    execaMock.mockResolvedValue({ stdout: 'localsha123\n' });
+    const sha = await resolveRef({ branch: 'master', registry: 'https://example.com/registry' });
+    expect(sha).toBe('localsha123');
+    expect(execaMock).toHaveBeenCalledWith('git', ['rev-parse', 'HEAD'], expect.anything());
+  });
 });
 
 describe('fetchAtRef', () => {
@@ -131,5 +140,19 @@ describe('fetchAtRef', () => {
   it('returns null when git show fails (ref/file absent)', async () => {
     execaMock.mockRejectedValue(new Error('bad object'));
     expect(await fetchAtRef('button/button.component.ts', 'oldsha', { branch: 'master' }, '@/lib')).toBeNull();
+  });
+
+  it('still fetches from git in local mode when a stray registry is passed (L1a)', async () => {
+    execaMock.mockResolvedValue({ stdout: "import { cn } from '../lib/utils';\n" });
+    const content = await fetchAtRef(
+      'button/button.component.ts', 'oldsha',
+      { branch: 'master', registry: 'https://example.com/registry' }, '@/lib', 'ui', 'component',
+    );
+    expect(content).toBe("import { cn } from '@/lib/utils';\n");
+    expect(execaMock).toHaveBeenCalledWith(
+      'git',
+      ['show', 'oldsha:packages/components/ui/button/button.component.ts'],
+      expect.anything(),
+    );
   });
 });

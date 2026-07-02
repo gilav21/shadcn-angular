@@ -111,4 +111,17 @@ describe('MCP server (in-memory)', () => {
     expect(res.isError).toBe(true);
     expect(firstText(res)).toContain('init_project');
   });
+
+  it('apply_addon description warns to check hadConflicts before reporting success (M10a)', async () => {
+    const { tools } = await client.listTools();
+    const desc = tools.find(t => t.name === 'apply_addon')?.description ?? '';
+    expect(desc).toContain('hadConflicts');
+    expect(desc).toContain('mergeReport.mergedConflicted');
+  });
+
+  it('update_component description surfaces mergeReport.fellBack for un-baselined edits (M10b)', async () => {
+    const { tools } = await client.listTools();
+    const desc = tools.find(t => t.name === 'update_component')?.description ?? '';
+    expect(desc).toContain('mergeReport.fellBack');
+  });
 });

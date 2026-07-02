@@ -37,18 +37,25 @@ export async function fetchComponentContent(
         ? getBlockRegistryBaseUrl(options.branch, options.registry)
         : getRegistryBaseUrl(options.branch, options.registry);
     const url = `${baseUrl}/${file}`;
+    let response: Response;
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch from ${url}: ${response.statusText}`);
-        }
-        return await response.text();
+        response = await fetch(url);
     } catch (error) {
+        // fetch() rejects on a transport failure (offline, DNS, ECONNREFUSED) —
+        // that is not a missing file, so don't report it as one.
         if (localDir) {
-            throw new Error(`File not found locally or remotely: ${file}`);
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Could not reach the registry (${url}): ${message}`);
         }
         throw error;
     }
+    if (!response.ok) {
+        if (localDir) {
+            throw new Error(`File not found locally or remotely: ${file}`);
+        }
+        throw new Error(`Failed to fetch from ${url}: ${response.statusText}`);
+    }
+    return await response.text();
 }
 
 export async function fetchLibContent(file: string, options: FetchOptions): Promise<string> {

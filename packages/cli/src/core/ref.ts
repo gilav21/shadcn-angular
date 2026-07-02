@@ -62,8 +62,10 @@ async function resolveRemoteSha(branch: string): Promise<string | null> {
 
 /** Resolve the branch in `options` to a commit ref, or `null` when not resolvable. */
 export async function resolveRef(options: FetchOptions): Promise<string | null> {
-    if (options.registry) return null;
+    // Local-dir mode serves content from the monorepo regardless of `registry`
+    // (see fetch.ts), so a stray registry override must not disable merging here.
     if (isLocalMode(options)) return resolveLocalRef();
+    if (options.registry) return null;
     return resolveRemoteSha(options.branch);
 }
 
@@ -90,8 +92,8 @@ export async function fetchAtRef(
     prefix: string = DEFAULT_PREFIX,
     kind: SourceKind = 'component',
 ): Promise<string | null> {
-    if (options.registry) return null;
     if (isLocalMode(options)) return fetchAtRefLocal(file, ref, utilsAlias, prefix, kind);
+    if (options.registry) return null;
     try {
         return await fetchAndTransform(file, { ...options, branch: ref, remote: true }, utilsAlias, prefix, kind);
     } catch {

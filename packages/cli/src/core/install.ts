@@ -11,6 +11,7 @@ import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { readManifest, writeManifest, recordFile, recordComponentRef, fileStatus, removeFiles, type Manifest } from './manifest.js';
 import { resolveRef } from './ref.js';
 import { mergeWriteFile, emptyMergeReport, shouldAdvanceRef, type MergeReport, type MergeOutcome, type MergeWriteContext } from './merge.js';
+import { isPristineLib } from './lib-reconcile.js';
 
 export interface InstallResult {
     installed: ComponentName[];
@@ -125,10 +126,14 @@ async function installSingleLibFile(libFile: string, targetPath: string, options
         }
         const local = await fs.readFile(targetPath, 'utf-8');
         const upToDate = normalizeContent(local) === normalizeContent(content);
+        const status = fileStatus(manifest, libFile, local);
         // Refresh a pristine lib file (or when forced) — but never clobber a
         // locally-edited one; lib files aren't 3-way merged, so an edited lib is
-        // preserved and flagged. `clean` means it matches our recorded baseline.
-        if (options.overwrite || fileStatus(manifest, libFile, local) === 'clean') {
+        // preserved and flagged. `clean` matches our recorded baseline; an
+        // `untracked` file that matches a published baseline is a pre-manifest
+        // pristine install (never recorded) and is equally safe to refresh.
+        const pristineUntracked = status === 'untracked' && isPristineLib(libFile, local);
+        if (options.overwrite || status === 'clean' || pristineUntracked) {
             if (!upToDate) await writeLibFile(targetPath, libFile, content, manifest);
             return;
         }

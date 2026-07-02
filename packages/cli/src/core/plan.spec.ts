@@ -125,4 +125,20 @@ describe('summarizePlan', () => {
     expect(plan.peerFilesToUpdate).toEqual(['p.ts']);
     expect(Array.isArray(plan.npmDependencies)).toBe(true);
   });
+
+  it('surfaces suggestedAddons for a plan whose breaking changes recommend one (C12)', () => {
+    const plan = summarizePlan(
+      { toInstall: ['data-table'], toSkip: [], conflicting: [], peerFilesToUpdate: new Set(), contentCache: new Map() },
+      new Set(['data-table']),
+    );
+    expect(plan.suggestedAddons).toEqual(['data-table/context-menu']);
+  });
+
+  it('reports an empty suggestedAddons list when nothing recommends an addon (C12)', () => {
+    const plan = summarizePlan(
+      { toInstall: ['badge'], toSkip: [], conflicting: [], peerFilesToUpdate: new Set(), contentCache: new Map() },
+      new Set(['badge']),
+    );
+    expect(plan.suggestedAddons).toEqual([]);
+  });
 });
