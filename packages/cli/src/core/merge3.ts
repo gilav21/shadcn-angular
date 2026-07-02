@@ -177,14 +177,25 @@ function emitConflict(st: MergeState, ours: readonly string[], theirs: readonly 
     st.tp = theirsEnd;
 }
 
-export function merge3(base: string, ours: string, theirs: string): Merge3Result {
-    // Normalize line endings to LF before diffing so a consumer's CRLF file
-    // doesn't read as an edit on every line (which would spuriously conflict
-    // with any upstream change). The merged output is LF — matching how the CLI
-    // writes source and how content hashes are normalized elsewhere.
-    const B = base.replaceAll('\r\n', '\n').split('\n');
-    const O = ours.replaceAll('\r\n', '\n').split('\n');
-    const T = theirs.replaceAll('\r\n', '\n').split('\n');
+const BOM = '﻿';
+
+/** Split a leading UTF-8 BOM off the text; `hadBom` records whether one was present. */
+function stripBom(s: string): { readonly hadBom: boolean; readonly text: string } {
+    return s.startsWith(BOM) ? { hadBom: true, text: s.slice(1) } : { hadBom: false, text: s };
+}
+
+/** Collapse CRLF and old-Mac lone-CR line endings to LF so an EOL convention doesn't read as a per-line edit. */
+function normalizeEol(s: string): string {
+    return s.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+}
+
+/** Give a non-empty string a trailing newline so a missing final newline can't collide with an upstream EOF append. */
+function ensureTerminated(s: string): string {
+    return s.length > 0 && !s.endsWith('\n') ? s + '\n' : s;
+}
+
+/** The core hunk walk over pre-normalized, newline-terminated line arrays. */
+function mergeLines(B: readonly string[], O: readonly string[], T: readonly string[]): MergeState {
     const oursHunks = changeHunks(B, O);
     const theirsHunks = changeHunks(B, T);
     const st: MergeState = { bp: 0, op: 0, tp: 0, oi: 0, ti: 0, conflicts: 0, out: [] };
@@ -206,6 +217,27 @@ export function merge3(base: string, ours: string, theirs: string): Merge3Result
         }
     }
     if (st.bp < B.length) st.out.push(...B.slice(st.bp));
+    return st;
+}
 
-    return { content: st.out.join('\n'), conflicts: st.conflicts };
+export function merge3(base: string, ours: string, theirs: string): Merge3Result {
+    // Transform order: strip a leading BOM → normalize EOLs (CRLF and lone CR →
+    // LF) → newline-terminate each input → 3-way merge → restore OURS's BOM and
+    // trailing-newline convention on the output (the file is the user's, so
+    // their EOF/BOM convention wins). EOL normalization keeps a consumer's CRLF
+    // file from reading as an edit on every line; termination keeps a missing
+    // final newline from colliding with an upstream EOF append (which produced a
+    // spurious, malformed conflict). The merged body is LF — matching how the
+    // CLI writes source and how content hashes are normalized elsewhere.
+    const oursBom = stripBom(ours);
+    const b = normalizeEol(stripBom(base).text);
+    const o = normalizeEol(oursBom.text);
+    const t = normalizeEol(stripBom(theirs).text);
+    const oursEndsWithNewline = o.length === 0 || o.endsWith('\n');
+    const st = mergeLines(ensureTerminated(b).split('\n'), ensureTerminated(o).split('\n'), ensureTerminated(t).split('\n'));
+
+    let content = st.out.join('\n');
+    if (!oursEndsWithNewline && content.endsWith('\n')) content = content.slice(0, -1);
+    if (oursBom.hadBom) content = BOM + content;
+    return { content, conflicts: st.conflicts };
 }

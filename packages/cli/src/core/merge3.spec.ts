@@ -188,4 +188,84 @@ describe('merge3', () => {
     expect(open).toMatch(/ours/i);
     expect(close).toMatch(/theirs/i);
   });
+
+  // --- Trailing-newline / EOL / BOM handling (review group 4) ---
+
+  it('does not spuriously conflict at EOF when OURS lacks a trailing newline and THEIRS appends (M1)', () => {
+    const base = 'a\nb\nc\n';
+    const ours = 'a\nB\nc';       // mid-file edit + NO trailing newline
+    const theirs = 'a\nb\nc\nd\n'; // upstream appends a line
+    const r = merge3(base, ours, theirs);
+    expect(r.conflicts).toBe(0);
+    // ours-wins EOF policy: OURS had no trailing newline → output has none
+    expect(r.content).toBe('a\nB\nc\nd');
+  });
+
+  it('preserves OURS no-trailing-newline when THEIRS edits elsewhere (not at EOF)', () => {
+    const base = 'a\nb\nc\n';
+    const ours = 'a\nB\nc';   // edit line 2, no trailing newline
+    const theirs = 'A\nb\nc\n'; // edit line 1
+    const r = merge3(base, ours, theirs);
+    expect(r.conflicts).toBe(0);
+    expect(r.content).toBe('A\nB\nc');
+  });
+
+  it('merges cleanly when BOTH sides lack a trailing newline', () => {
+    const base = 'a\nb\nc';
+    const ours = 'A\nb\nc';   // edit line 1, no trailing newline
+    const theirs = 'a\nb\nC'; // edit line 3, no trailing newline
+    const r = merge3(base, ours, theirs);
+    expect(r.conflicts).toBe(0);
+    expect(r.content).toBe('A\nb\nC');
+  });
+
+  it('merges cleanly when only BASE lacks a trailing newline (ours-wins EOF adds it)', () => {
+    const base = 'a\nb\nc';     // no trailing newline
+    const ours = 'A\nb\nc\n';   // edit line 1 + trailing newline
+    const theirs = 'a\nb\nC\n'; // edit line 3 + trailing newline
+    const r = merge3(base, ours, theirs);
+    expect(r.conflicts).toBe(0);
+    expect(r.content).toBe('A\nb\nC\n');
+  });
+
+  it('still conflicts when both sides edit the last line (no false clean from termination)', () => {
+    const base = 'a\nb\nc\n';
+    const ours = 'a\nb\nX';   // edit last line, no trailing newline
+    const theirs = 'a\nb\nY\n'; // edit last line
+    const r = merge3(base, ours, theirs);
+    expect(r.conflicts).toBe(1);
+    expect(r.content).toContain('<<<<<<<');
+    expect(r.content).toContain('X');
+    expect(r.content).toContain('Y');
+  });
+
+  it('normalizes old-Mac lone-CR line endings so a disjoint edit merges cleanly (L10)', () => {
+    const base = 'a\rb\rc';
+    const ours = 'A\rb\rc';   // edit line 1
+    const theirs = 'a\rb\rC'; // edit line 3
+    const r = merge3(base, ours, theirs);
+    expect(r.conflicts).toBe(0);
+    expect(r.content).toContain('A');
+    expect(r.content).toContain('C');
+    // collapsed to LF (matches how the CLI writes source), NOT one giant line
+    expect(r.content.split('\n').length).toBeGreaterThan(1);
+  });
+
+  it('strips a leading BOM before diffing and re-attaches OURS’s BOM to the output', () => {
+    const base = 'a\nb\nc\n';
+    const ours = '﻿a\nB\nc\n'; // BOM + edit line 2
+    const theirs = 'A\nb\nc\n';     // edit line 1 (disjoint)
+    const r = merge3(base, ours, theirs);
+    expect(r.conflicts).toBe(0);
+    expect(r.content).toBe('﻿A\nB\nc\n');
+  });
+
+  it('does not conflict on a leading BOM alone (BOM stripped from all three)', () => {
+    const base = 'a\nb\nc\n';
+    const ours = '﻿a\nb\nc\n'; // only difference is the BOM
+    const theirs = 'a\nB\nc\n';     // upstream edits line 2
+    const r = merge3(base, ours, theirs);
+    expect(r.conflicts).toBe(0);
+    expect(r.content).toBe('﻿a\nB\nc\n');
+  });
 });
