@@ -491,8 +491,8 @@ describe('RichTextSanitizerService', () => {
             expect(service.sanitize('<span data-action-click="a">x</span>')).toBe('<span>x</span>');
         });
 
-        it('throws when a rule targets a locked attribute', () => {
-            for (const attr of ['onclick', 'href', 'src', 'style', 'class']) {
+        it('throws when a rule targets a locked attribute (case-insensitive)', () => {
+            for (const attr of ['onclick', 'ONCLICK', 'onMouseOver', 'href', 'HREF', 'src', 'style', 'STYLE', 'class', 'Class']) {
                 expect(() => service.registerAttributeRules([{ tag: '*', attr }])).toThrow();
             }
         });

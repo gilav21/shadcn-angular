@@ -3132,6 +3132,7 @@ git commit -m "docs: record rte-actions completion logs + publish-boundary verif
 | Task | Date | Review-gate score | Notes |
 | --- | --- | --- | --- |
 | T1 | 2026-07-02 | 96 | Verbatim extraction to `lib/addon-slots.ts`; re-export keeps data-table's import path; unused `signal` dropped; spec verifies register/teardown/re-export identity. All 530 data-table+lib tests green. |
+| T2 | 2026-07-02 | 93 | `registerAttributeRules` ref-counted; locked-attr (`on*`/href/src/style/class) rejected case-insensitively before registration; `on*` still stripped ahead of contributed rules; companion post-pass drops orphan params. Fixed the `as string` assertion + added uppercase locked-attr coverage post-review. 70 tests green, lint clean. |
 
 ---
 

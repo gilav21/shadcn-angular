@@ -1085,3 +1085,4 @@ sequential on its deps.
 | Row | Date | Task | Reviewer score | Notes |
 | --- | --- | --- | --- | --- |
 | 1 | 2026-07-02 | T1 — extract AddonSlotRegistry to lib | 96 | Verbatim move to `lib/addon-slots.ts`, re-exported from host; 530 tests green. |
+| 2 | 2026-07-02 | T2 — sanitizer attribute-rule API | 93 | Ref-counted `registerAttributeRules`; locked attrs rejected; companion post-pass; 70 tests green. |

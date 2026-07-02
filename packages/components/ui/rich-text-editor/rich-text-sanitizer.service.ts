@@ -190,11 +190,9 @@ export class RichTextSanitizerService {
     }
 
     private dropOrphanCompanionAttributes(root: HTMLElement): void {
-        const companions = Array.from(this.contributedRules.values())
-            .map((e) => e.rule)
-            .filter((r) => r.requiresAttr);
-        for (const rule of companions) {
-            const requires = rule.requiresAttr as string;
+        for (const { rule } of this.contributedRules.values()) {
+            const requires = rule.requiresAttr;
+            if (!requires) continue;
             for (const el of Array.from(root.querySelectorAll(`[${rule.attr}]`))) {
                 if (!el.hasAttribute(requires)) {
                     el.removeAttribute(rule.attr);
