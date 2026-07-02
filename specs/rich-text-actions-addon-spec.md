@@ -1112,3 +1112,4 @@ supported in `mode="html"`.
 | 13 | 2026-07-03 | T13 — registry addon entry | 96 | `type:addon`/`parent`/`attach`/`requiresBaseFiles`; barrel imports keep files[] addon-only; no publish. |
 | 14 | 2026-07-03 | T14 — e2e harness | 93 | `rte-actions` multi-component EXPLICIT_SPECS; 3 Playwright tests. |
 | 15 | 2026-07-03 | T15 — demo + stories | 91 | 4 stories + demo page (en/he) registered; demo builds; extra gallery variants deferred. |
+| 16 | 2026-07-03 | T16 — full-suite gates | — | 1329 unit tests + rte-actions e2e green; demo builds; lint/tsc/ngc clean; no publish. |
