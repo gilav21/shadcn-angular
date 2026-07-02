@@ -12,6 +12,7 @@ import type {
     ActionParams, ActionTargetKind, RichTextActionDefinition,
     RichTextActionParamsForm, RichTextActionTrigger,
 } from './rich-text-actions.types';
+import { RICH_TEXT_ACTIONS_LOCALES, type RichTextActionsLocale } from './rich-text-actions.locales';
 
 /** The state the directive passes into the attach/edit dialog. */
 export interface ActionsDialogContext {
@@ -44,6 +45,11 @@ export interface ActionsDialogConfirm {
 export class RichTextActionsDialogComponent {
     readonly definitions = input<RichTextActionDefinition[]>([]);
     readonly context = input.required<ActionsDialogContext>();
+    readonly locale = input<RichTextActionsLocale>(RICH_TEXT_ACTIONS_LOCALES['en']);
+
+    readonly dir = computed<'rtl' | null>(() => (this.locale().rtl ? 'rtl' : null));
+    readonly attachTitle = computed(() =>
+        this.locale().dialog.attachToText.replace('{text}', this.context().selectionText));
 
     readonly confirm = output<ActionsDialogConfirm>();
     readonly dismiss = output<void>();
@@ -105,7 +111,8 @@ export class RichTextActionsDialogComponent {
 
     readonly confirmLabel = computed(() => {
         const trigger = this.selectedTrigger();
-        return trigger && this.occupiedByTrigger().has(trigger) ? 'Replace' : 'Attach';
+        const dialog = this.locale().dialog;
+        return trigger && this.occupiedByTrigger().has(trigger) ? dialog.replace : dialog.attach;
     });
 
     pickAction(id: string): void {

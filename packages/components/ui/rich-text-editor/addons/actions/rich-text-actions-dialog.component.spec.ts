@@ -75,6 +75,28 @@ describe('RichTextActionsDialogComponent', () => {
         expect(dismissed).toBe(true);
     });
 
+    it('renders Hebrew strings and RTL when a he locale is supplied', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('definitions', []);
+        ref.setInput('context', {
+            mode: 'create', targetKind: 'text', selectionText: 's', occupiedTriggers: [], prefill: null,
+        });
+        ref.setInput('locale', {
+            code: 'he', rtl: true,
+            dialog: {
+                attachToText: 'צירוף', attachToImage: '', editTitle: '', searchPlaceholder: '',
+                searchLabel: 'חיפוש', noActions: 'אין', replacesExisting: '', cancel: 'ביטול',
+                attach: 'צרף', replace: '',
+            },
+            popover: { unavailable: '', edit: '', remove: '', add: '' },
+            form: { required: '' },
+        });
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain('ביטול');
+        expect(fixture.nativeElement.querySelector('[dir="rtl"]')).toBeTruthy();
+    });
+
     it('renders a tier-2 formComponent and gates confirm on its valid signal', () => {
         const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
         const ref = fixture.componentRef;

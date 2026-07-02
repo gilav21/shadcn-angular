@@ -21,6 +21,8 @@ import {
     type RichTextActionDefinition,
     type RichTextActionTrigger,
 } from './rich-text-actions.types';
+import { RICH_TEXT_ACTIONS_LOCALES, type RichTextActionsLocale } from './rich-text-actions.locales';
+import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
 
 const ATTACH_ID = 'actions.attach';
 const ATTACH_ICON =
@@ -51,6 +53,10 @@ export class RichTextActionsDirective {
     readonly uiRteActionsToolbar = input(true);
     /** Contribute the `/action` slash command (default true). */
     readonly uiRteActionsSlashCommand = input(true);
+    /** Locale for the addon UI: a registry key (`'en'`/`'he'`) or a full dictionary. */
+    readonly uiRteActionsLocale = input<LocaleInput<RichTextActionsLocale>>();
+
+    private readonly i18n = createLocaleBindings(this.uiRteActionsLocale, RICH_TEXT_ACTIONS_LOCALES);
 
     readonly actionAttached = output<{
         actionId: string; trigger: RichTextActionTrigger; params: ActionParams; targetKind: ActionTargetKind;
@@ -159,6 +165,7 @@ export class RichTextActionsDirective {
         const occupied = target.existing ? readActions(target.existing).map((a) => a.trigger) : [];
         const ref = this.vcr.createComponent(RichTextActionsDialogComponent);
         ref.setInput('definitions', this.uiRteActions());
+        ref.setInput('locale', this.i18n.t());
         ref.setInput('context', {
             mode: target.existing ? 'edit' : 'create', targetKind,
             selectionText: sel.text, occupiedTriggers: occupied, prefill: null,
@@ -237,6 +244,7 @@ export class RichTextActionsDirective {
         const rows = this.buildPopoverRows(el);
         const ref = this.vcr.createComponent(RichTextActionsPopoverComponent);
         ref.setInput('actions', rows);
+        ref.setInput('locale', this.i18n.t());
         ref.setInput('canAdd', rows.length < 2);
         this.positionPopover(ref, el);
         ref.instance.edit.subscribe((trigger: RichTextActionTrigger) => this.editAction(el, trigger));
@@ -293,6 +301,7 @@ export class RichTextActionsDirective {
         const target: ApplyTarget = { kind: 'text', existing: el, image: null };
         const ref = this.vcr.createComponent(RichTextActionsDialogComponent);
         ref.setInput('definitions', this.uiRteActions());
+        ref.setInput('locale', this.i18n.t());
         ref.setInput('context', {
             mode: 'edit', targetKind: 'text', selectionText: el.textContent ?? '',
             occupiedTriggers: readActions(el).map((a) => a.trigger),

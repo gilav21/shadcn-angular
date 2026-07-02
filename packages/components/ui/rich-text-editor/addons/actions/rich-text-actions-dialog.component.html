@@ -1,20 +1,21 @@
 <ui-dialog [open]="true" (openChange)="onOpenChange($event)">
-  <ui-dialog-content class="max-w-[calc(100vw-2rem)] sm:max-w-md">
+  <ui-dialog-content class="max-w-[calc(100vw-2rem)] sm:max-w-md" [attr.dir]="dir()">
     <ui-dialog-header>
       <ui-dialog-title>
         @if (context().mode === 'edit') {
-          Edit action
+          {{ locale().dialog.editTitle }}
         } @else if (context().targetKind === 'image') {
-          Attach action to image
+          {{ locale().dialog.attachToImage }}
         } @else {
-          Attach action to “{{ context().selectionText }}”
+          {{ attachTitle() }}
         }
       </ui-dialog-title>
     </ui-dialog-header>
 
     <div class="space-y-4">
       <input
-        type="text" [value]="query()" placeholder="Search actions…" aria-label="Search actions"
+        type="text" [value]="query()"
+        [placeholder]="locale().dialog.searchPlaceholder" [attr.aria-label]="locale().dialog.searchLabel"
         (input)="query.set($any($event.target).value)"
         class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm"
       />
@@ -35,7 +36,7 @@
             <span class="text-xs text-muted-foreground">{{ def.triggers.join(' / ') }}</span>
           </button>
         } @empty {
-          <p class="px-3 py-2 text-sm text-muted-foreground">No actions available.</p>
+          <p class="px-3 py-2 text-sm text-muted-foreground">{{ locale().dialog.noActions }}</p>
         }
       </div>
 
@@ -50,7 +51,7 @@
                 />
                 {{ t }}
                 @if (occupiedByTrigger().has(t)) {
-                  <span class="text-xs text-muted-foreground">(replaces existing)</span>
+                  <span class="text-xs text-muted-foreground">{{ locale().dialog.replacesExisting }}</span>
                 }
               </label>
             }
@@ -61,7 +62,7 @@
           <ng-container #formHost />
         } @else if (def.fields && def.fields.length > 0) {
           <ui-rich-text-actions-form
-            [fields]="def.fields" [params]="currentParams()"
+            [fields]="def.fields" [params]="currentParams()" [requiredTemplate]="locale().form.required"
             (paramsChange)="onParamsChange($event)" (validChange)="onValidChange($event)"
           />
         }
@@ -69,7 +70,7 @@
     </div>
 
     <ui-dialog-footer>
-      <ui-button data-testid="rta-cancel" variant="ghost" (click)="dismiss.emit()">Cancel</ui-button>
+      <ui-button data-testid="rta-cancel" variant="ghost" (click)="dismiss.emit()">{{ locale().dialog.cancel }}</ui-button>
       <ui-button data-testid="rta-confirm" [disabled]="!canConfirm()" (click)="onConfirm()">
         {{ confirmLabel() }}
       </ui-button>

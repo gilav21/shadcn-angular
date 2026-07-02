@@ -1,10 +1,10 @@
-<div class="min-w-56 max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-1 shadow-md">
+<div class="min-w-56 max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-1 shadow-md" [attr.dir]="dir()">
   @for (row of actions(); track row.trigger) {
     <div class="flex items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm">
       <span class="truncate">
         {{ row.label }} · {{ row.trigger }}
         @if (!row.available) {
-          <span class="text-xs text-muted-foreground">(unavailable)</span>
+          <span class="text-xs text-muted-foreground">{{ locale().popover.unavailable }}</span>
         }
       </span>
       <span class="flex items-center gap-1">
@@ -12,12 +12,12 @@
           <button
             type="button" data-testid="rta-edit" class="text-xs underline"
             (click)="edit.emit(row.trigger)"
-          >Edit</button>
+          >{{ locale().popover.edit }}</button>
         }
         <button
           type="button" data-testid="rta-remove" class="text-xs text-destructive underline"
           (click)="remove.emit(row.trigger)"
-        >Remove</button>
+        >{{ locale().popover.remove }}</button>
       </span>
     </div>
   }
@@ -26,6 +26,6 @@
       type="button" data-testid="rta-add"
       class="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
       (click)="add.emit()"
-    >+ Add action</button>
+    >{{ locale().popover.add }}</button>
   }
 </div>

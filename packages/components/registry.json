@@ -3726,6 +3726,7 @@
       "rich-text-editor/addons/actions/rich-text-actions-popover.component.html",
       "rich-text-editor/addons/actions/rich-text-actions-popover.component.ts",
       "rich-text-editor/addons/actions/rich-text-actions.directive.ts",
+      "rich-text-editor/addons/actions/rich-text-actions.locales.ts",
       "rich-text-editor/addons/actions/rich-text-actions.serializer.ts",
       "rich-text-editor/addons/actions/rich-text-actions.types.ts",
       "rich-text-editor/rich-text-command-registry.service.ts",
@@ -3735,6 +3736,12 @@
     ],
     "libFiles": [
       "addon-slots.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
       "parsers/image-validator.ts",
       "parsers/svg-sanitizer.ts"
     ],

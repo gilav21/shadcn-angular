@@ -13,6 +13,8 @@ export class RichTextActionsFormComponent {
     readonly class = input('');
     readonly fields = input<RichTextActionField[]>([]);
     readonly params = input<ActionParams>({});
+    /** Localized required-field template; `{field}` is replaced with the label. */
+    readonly requiredTemplate = input('{field} is required');
 
     readonly paramsChange = output<ActionParams>();
     readonly validChange = output<boolean>();
@@ -35,7 +37,7 @@ export class RichTextActionsFormComponent {
 
     private fieldError(field: RichTextActionField, value: unknown): string | null {
         const empty = value === undefined || value === '' || value === null;
-        if (field.required && empty) return `${field.label} is required`;
+        if (field.required && empty) return this.requiredTemplate().replace('{field}', field.label);
         if (!empty && field.validate) return field.validate(value);
         return null;
     }
