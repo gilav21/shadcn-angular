@@ -3131,7 +3131,7 @@ git commit -m "docs: record rte-actions completion logs + publish-boundary verif
 
 | Task | Date | Review-gate score | Notes |
 | --- | --- | --- | --- |
-| *(append as tasks complete)* | | | |
+| T1 | 2026-07-02 | 96 | Verbatim extraction to `lib/addon-slots.ts`; re-export keeps data-table's import path; unused `signal` dropped; spec verifies register/teardown/re-export identity. All 530 data-table+lib tests green. |
 
 ---
 

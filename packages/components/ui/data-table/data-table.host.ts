@@ -29,7 +29,6 @@ export interface HeaderActionSlot<T = unknown> {
   readonly onClick: (event: Event, column: ColumnDef<T>) => void;
 }
 
-
 /**
  * The stable extension surface a data-table addon directive reaches through DI
  * (`inject(DataTableAddonHost)`). `DataTableComponent` provides itself as this

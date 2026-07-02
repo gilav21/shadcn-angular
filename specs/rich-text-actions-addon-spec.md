@@ -1084,4 +1084,4 @@ sequential on its deps.
 
 | Row | Date | Task | Reviewer score | Notes |
 | --- | --- | --- | --- | --- |
-| *(append as tasks complete)* | | | | |
+| 1 | 2026-07-02 | T1 — extract AddonSlotRegistry to lib | 96 | Verbatim move to `lib/addon-slots.ts`, re-exported from host; 530 tests green. |
