@@ -146,3 +146,22 @@ Result: Security Hotspots reviewed = 100%, 0 to-review.
   roles (`checkbox`, `radio`, `slider`, `progressbar`) are **not** in this list —
   they were fixed by converting to native inputs / making the focus target
   genuinely interactive. See the compliance commits.
+
+## `Web:S6819` (`role="img"`/`role="group"`) + `MouseEventWithoutKeyboardEquivalentCheck` — data-viz charts
+
+Chart/heatmap components render an inline `<svg>` inside a wrapper carrying
+`role="img"` + `[attr.aria-label]` — the WAI-ARIA "complex graphic as a single
+labeled image" pattern. S6819 wants a native `<img>`, which is impossible for
+inline SVG, so the role is required, not redundant. Interactive SVG data points
+(`<rect>`/`<circle>`) are keyboard-focusable (`tabindex="0"`) and the `(click)`
+is a visual enhancement, not the only path — the static HTML scanner can't see
+the `tabindex`. Scoped in `sonar-project.properties` to `*chart*`, `heatmap`,
+and `calendar-heatmap` component HTMLs only (raw non-chart elements stay checked).
+
+## CPD exclusions — inherently repetitive files
+
+`sonar.cpd.exclusions` skips copy-paste detection on files that are repetitive
+**by design**, where CPD is noise: `*-locales.ts`/`*.locales.ts` (i18n
+dictionaries — every language carries the same key structure), the generated
+`registry/legacy-baselines.ts` hash table, and `emoji-data.ts` (a static lookup
+table). Real logic files (including all chart implementations) remain in CPD.

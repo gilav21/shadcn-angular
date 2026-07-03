@@ -246,4 +246,33 @@ describe('RichTextActionsDirective', () => {
         expect(fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]')).toBeFalsy();
         expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeFalsy();
     });
+
+    it('edit reopens the dialog in edit mode with prefilled params and updates the action', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        const editor = caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"old"}\'>t</span></p>');
+        (document.querySelector('[data-testid="rta-edit"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        // Dialog opened in edit mode; the tier-1 field is prefilled from the action's params.
+        const field = document.querySelector('input[data-field="dialogId"]') as HTMLInputElement;
+        expect(field).toBeTruthy();
+        expect(field.value).toBe('old');
+        field.value = 'new';
+        field.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        expect(editor.querySelector('span[data-action-click="open-dialog"]')?.getAttribute('data-action-click-params'))
+            .toBe('{"dialogId":"new"}');
+    });
+
+    it('dismisses the edit popover on an outside pointerdown', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        caretInside(fixture, '<p><span data-action-click="open-dialog">t</span></p>');
+        expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeTruthy();
+        document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeFalsy();
+    });
 });

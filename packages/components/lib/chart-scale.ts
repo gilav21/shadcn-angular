@@ -66,7 +66,7 @@ export function niceDomain(min: number, max: number, count = 5): [number, number
         return [min - pad, min + pad];
     }
     const ticks = calculateAxisTicks(min, max, count);
-    return [ticks[0], ticks[ticks.length - 1]];
+    return [ticks[0], ticks.at(-1) ?? ticks[0]];
 }
 
 /** Categorical band scale (evenly spaced bands with optional padding). */
