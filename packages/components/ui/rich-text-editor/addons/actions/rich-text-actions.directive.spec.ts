@@ -288,6 +288,19 @@ describe('RichTextActionsDirective', () => {
         expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeFalsy();
     });
 
+    it('closes the edit popover (not just opens the dialog) when "Add action" is clicked', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        caretInside(fixture, '<p><span data-action-click="open-dialog">t</span></p>');
+        const add = document.querySelector('[data-testid="rta-add"]') as HTMLButtonElement;
+        expect(add).toBeTruthy();
+        add.click();
+        fixture.detectChanges();
+        // The lingering popover used to sit behind the dialog — it must be gone…
+        expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeFalsy();
+        // …and the attach dialog must be open.
+        expect(document.querySelector('[data-testid="rta-cancel"]')).toBeTruthy();
+    });
+
     it('logs and does not attach when tier-3 resolveParams rejects', async () => {
         const errors: string[] = [];
         const orig = console.error;

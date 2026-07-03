@@ -247,7 +247,7 @@ export class RichTextActionsDirective {
         this.positionPopover(ref, el);
         ref.instance.edit.subscribe((trigger: RichTextActionTrigger) => this.editAction(el, trigger));
         ref.instance.remove.subscribe((trigger: RichTextActionTrigger) => this.removeTrigger(el, trigger));
-        ref.instance.add.subscribe(() => this.openAttachFlow());
+        ref.instance.add.subscribe(() => { this.hidePopover(); this.openAttachFlow(); });
         this.popoverRef = ref;
     }
 
@@ -339,8 +339,12 @@ export class RichTextActionsDirective {
         style.dataset['rteActionsStyle'] = '';
         style.dataset['refcount'] = '1';
         style.textContent =
+            // A dotted BOTTOM BORDER (not text-decoration) marks actioned runs — using
+            // text-decoration here makes the browser report the run as already underlined,
+            // so the editor's underline command toggles off and never applies (issue: the
+            // affordance must not collide with the user's own underline formatting).
             'ui-rich-text-editor [data-action-click],ui-rich-text-editor [data-action-hover]{' +
-            'text-decoration:underline dotted;text-underline-offset:3px;' +
+            'border-bottom:1px dotted currentColor;' +
             'background:color-mix(in srgb,currentColor 6%,transparent);}' +
             'ui-rich-text-editor img[data-action-click],ui-rich-text-editor img[data-action-hover]{' +
             'outline:2px dashed currentColor;outline-offset:2px;}';

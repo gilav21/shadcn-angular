@@ -51,9 +51,32 @@ export function mountTopLayer<C>(
     };
 }
 
-/** Position a mounted overlay's host element near an anchor element's rect. */
+/** Clamp `value` into `[min, max]`, tolerating an inverted range (min > max). */
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), Math.max(min, max));
+}
+
+/**
+ * Position a mounted overlay's host near an anchor, kept inside the viewport:
+ * clamped horizontally, and flipped above the anchor when there is no room
+ * below. The overlay must already be in the DOM so its size can be measured.
+ */
 export function anchorOverlay(overlayHost: HTMLElement, anchor: HTMLElement, gap = 6): void {
     const rect = anchor.getBoundingClientRect();
-    overlayHost.style.left = `${Math.round(rect.left)}px`;
-    overlayHost.style.top = `${Math.round(rect.bottom + gap)}px`;
+    const size = overlayHost.getBoundingClientRect();
+    const docEl = overlayHost.ownerDocument.documentElement;
+    const vw = docEl.clientWidth;
+    const vh = docEl.clientHeight;
+    const margin = 8;
+
+    const left = clamp(rect.left, margin, vw - size.width - margin);
+    const below = rect.bottom + gap;
+    const noRoomBelow = below + size.height > vh - margin;
+    const canFlip = rect.top - gap - size.height >= margin;
+    const top = noRoomBelow && canFlip
+        ? rect.top - gap - size.height
+        : clamp(below, margin, vh - size.height - margin);
+
+    overlayHost.style.left = `${Math.round(left)}px`;
+    overlayHost.style.top = `${Math.round(top)}px`;
 }
