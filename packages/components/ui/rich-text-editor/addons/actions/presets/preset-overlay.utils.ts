@@ -51,6 +51,12 @@ export function mountTopLayer<C>(
     };
 }
 
+/** The resolved text direction of an element — so top-layer overlays (which are
+ *  detached from the anchor's DOM subtree) can mirror the anchored content. */
+export function directionOf(el: HTMLElement): 'ltr' | 'rtl' {
+    return el.ownerDocument.defaultView?.getComputedStyle(el).direction === 'rtl' ? 'rtl' : 'ltr';
+}
+
 /** Clamp `value` into `[min, max]`, tolerating an inverted range (min > max). */
 function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), Math.max(min, max));

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { anchorOverlay } from './preset-overlay.utils';
+import { anchorOverlay, directionOf } from './preset-overlay.utils';
 
 interface Rect { left: number; top: number; bottom: number; width: number; height: number; }
 
@@ -43,5 +43,22 @@ describe('anchorOverlay', () => {
         anchorOverlay(overlay, anchorEl({ left: 100, top: 300, bottom: 320, width: 30, height: 20 }));
         // Too tall to flip; clamp top into [8, vh-height-8] = [8, 2] → clamp() tolerates inverted range → 8
         expect(overlay.style.top).toBe('8px');
+    });
+});
+
+describe('directionOf', () => {
+    it('reads rtl from an element in an rtl subtree, ltr otherwise', () => {
+        const rtl = document.createElement('div');
+        rtl.dir = 'rtl';
+        document.body.appendChild(rtl);
+        const ltr = document.createElement('div');
+        document.body.appendChild(ltr);
+        try {
+            expect(directionOf(rtl)).toBe('rtl');
+            expect(directionOf(ltr)).toBe('ltr');
+        } finally {
+            rtl.remove();
+            ltr.remove();
+        }
     });
 });

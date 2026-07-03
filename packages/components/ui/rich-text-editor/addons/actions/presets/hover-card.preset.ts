@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, type Injector, input } from '@angular/core';
-import { mountTopLayer, anchorOverlay, type MountedOverlay } from './preset-overlay.utils';
+import { anchorOverlay, directionOf, mountTopLayer, type MountedOverlay } from './preset-overlay.utils';
 import type { RichTextActionDefinition, RichTextActionField } from '../rich-text-actions.types';
 import type { RichTextActionEvent, RichTextActionHandler } from '../actions-runtime';
 
@@ -38,7 +38,10 @@ export function hoverCardAction(o: HoverCardPresetOptions = {}): RichTextActionD
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-        <div class="max-w-[calc(100vw-2rem)] sm:max-w-xs rounded-md border bg-popover p-3 text-popover-foreground shadow-md">
+        <div
+            class="max-w-[calc(100vw-2rem)] sm:max-w-xs rounded-md border bg-popover p-3 text-popover-foreground shadow-md"
+            [attr.dir]="dir()"
+        >
             @if (title()) {
                 <p class="mb-1 text-sm font-semibold">{{ title() }}</p>
             }
@@ -50,6 +53,8 @@ export function hoverCardAction(o: HoverCardPresetOptions = {}): RichTextActionD
 export class PresetHoverCardComponent {
     readonly title = input('');
     readonly body = input('');
+    /** Text direction, so RTL content (title + body) aligns correctly. */
+    readonly dir = input<'ltr' | 'rtl'>('ltr');
 }
 
 /**
@@ -92,6 +97,7 @@ export function hoverCardHandlers(
         open = mountTopLayer(injector, PresetHoverCardComponent, {
             title: String(event.params['title'] ?? ''),
             body: String(event.params['body'] ?? ''),
+            dir: directionOf(event.element),
         });
         anchorOverlay(open.host, event.element);
         // Grace area: keep the card open while the pointer is over it.

@@ -3,7 +3,7 @@ import {
 } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 import { ButtonComponent } from '../../../../button';
-import { mountTopLayer, type MountedOverlay } from './preset-overlay.utils';
+import { directionOf, mountTopLayer, type MountedOverlay } from './preset-overlay.utils';
 import type { ActionParams, RichTextActionDefinition, RichTextActionField } from '../rich-text-actions.types';
 import type { RichTextActionEvent, RichTextActionHandler } from '../actions-runtime';
 
@@ -56,7 +56,7 @@ export function openDialogAction(o: OpenDialogPresetOptions = {}): RichTextActio
             ></button>
             <div
                 class="relative max-w-[calc(100vw-2rem)] sm:max-w-md rounded-lg border bg-background p-4 shadow-xl"
-                role="dialog" aria-modal="true"
+                role="dialog" aria-modal="true" [attr.dir]="dir()"
             >
                 @if (title()) {
                     <h2 class="mb-2 text-lg font-semibold">{{ title() }}</h2>
@@ -83,6 +83,8 @@ export class PresetDialogComponent {
     readonly confirmLabel = input('');
     readonly contentComponent = input<Type<unknown> | null>(null);
     readonly contentInjector = input<Injector | undefined>(undefined);
+    /** Text direction, so RTL content aligns correctly in the detached top layer. */
+    readonly dir = input<'ltr' | 'rtl'>('ltr');
     readonly confirm = output<void>();
     readonly dismiss = output<void>();
 }
@@ -109,6 +111,7 @@ export function openDialogHandlers(
             confirmLabel: String(params['confirmLabel'] ?? ''),
             contentComponent: o.component ?? null,
             contentInjector,
+            dir: directionOf(event.element),
         });
         overlay.host.style.inset = '0';
         const onKeydown = (e: KeyboardEvent): void => { if (e.key === 'Escape') dismiss(); };

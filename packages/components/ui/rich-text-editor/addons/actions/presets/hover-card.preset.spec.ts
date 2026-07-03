@@ -32,6 +32,16 @@ describe('hover-card preset', () => {
         expect(def.fields?.find((f) => f.key === 'body')?.required).toBe(true);
     });
 
+    it('renders the card in the anchored element\'s direction (rtl)', () => {
+        const injector = TestBed.inject(Injector);
+        const handlers = hoverCardHandlers(injector);
+        const ev = hoverEvent('start', { title: 'טיפ', body: 'תוכן' });
+        ev.element.dir = 'rtl';
+        handlers['preset.hover-card'](ev);
+        const inner = document.querySelector('[data-slot="preset-hover-card"] [dir]') as HTMLElement;
+        expect(inner?.getAttribute('dir')).toBe('rtl');
+    });
+
     it('custom id/label and extraFields are respected', () => {
         const def = hoverCardAction({
             id: 'hc2', label: 'My Card', extraFields: [{ key: 'k', label: 'K', type: 'text' }],
