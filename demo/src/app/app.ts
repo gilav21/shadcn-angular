@@ -191,6 +191,7 @@ export class AppComponent {
     { id: 'radio-group', name: 'Radio Group', category: 'Inputs', icon: '🔘' },
     { id: 'rating', name: 'Rating', category: 'Inputs', icon: '⭐' },
     { id: 'rich-text-editor', name: 'Rich Text Editor', category: 'Inputs', icon: '📝' },
+    { id: 'rich-text-actions', name: 'Rich Text Actions', category: 'Inputs', icon: '⚡' },
     { id: 'select', name: 'Select', category: 'Inputs', icon: '📋' },
     { id: 'slider', name: 'Slider', category: 'Inputs', icon: '🎚️' },
     { id: 'sortable', name: 'Sortable', category: 'Inputs', icon: '↕️' },

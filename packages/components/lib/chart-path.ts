@@ -103,7 +103,7 @@ export function linePath(points: Point[], curve: CurveType = 'linear'): string {
 export function areaPath(points: Point[], baselineY: number, curve: CurveType = 'linear'): string {
     if (points.length === 0) return '';
     const top = linePath(points, curve);
-    const lastX = points[points.length - 1].x;
+    const lastX = (points.at(-1) ?? points[0]).x;
     const firstX = points[0].x;
     return `${top} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
 }

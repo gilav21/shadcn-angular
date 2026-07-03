@@ -434,4 +434,74 @@ describe('RichTextSanitizerService', () => {
             expect(result).not.toContain('javascript');
         });
     });
+
+    describe('attribute-rule contribution API', () => {
+        const idRule = {
+            tag: '*', attr: 'data-action-click',
+            validate: (v: string) => (/^\w[\w.-]*$/.test(v) ? v : null),
+        };
+        const paramsRule = {
+            tag: '*', attr: 'data-action-click-params', requiresAttr: 'data-action-click',
+            validate: (v: string) => {
+                try {
+                    const o = JSON.parse(v);
+                    const ok = o && typeof o === 'object' && !Array.isArray(o) &&
+                        Object.values(o).every((x) => ['string', 'number', 'boolean'].includes(typeof x));
+                    return ok ? JSON.stringify(o) : null;
+                } catch { return null; }
+            },
+        };
+
+        it('allows a contributed attribute on a span', () => {
+            const off = service.registerAttributeRules([idRule]);
+            expect(service.sanitize('<span data-action-click="open-dialog">x</span>'))
+                .toBe('<span data-action-click="open-dialog">x</span>');
+            off();
+        });
+
+        it('strips a contributed attribute whose validator rejects the value', () => {
+            const off = service.registerAttributeRules([idRule]);
+            expect(service.sanitize('<span data-action-click="bad id!">x</span>'))
+                .toBe('<span>x</span>');
+            off();
+        });
+
+        it('keeps the id attr but strips invalid params JSON, then drops orphan params', () => {
+            const off = service.registerAttributeRules([idRule, paramsRule]);
+            const out = service.sanitize(
+                '<span data-action-click="a" data-action-click-params="{bad">x</span>');
+            expect(out).toBe('<span data-action-click="a">x</span>');
+            off();
+        });
+
+        it('strips a params attribute with no matching id attribute (companion rule)', () => {
+            const off = service.registerAttributeRules([idRule, paramsRule]);
+            expect(service.sanitize('<span data-action-click-params=\'{"a":1}\'>x</span>'))
+                .toBe('<span>x</span>');
+            off();
+        });
+
+        it('ref-counts: rule survives until the last teardown', () => {
+            const off1 = service.registerAttributeRules([idRule]);
+            const off2 = service.registerAttributeRules([idRule]);
+            off1();
+            expect(service.sanitize('<span data-action-click="a">x</span>'))
+                .toBe('<span data-action-click="a">x</span>');
+            off2();
+            expect(service.sanitize('<span data-action-click="a">x</span>')).toBe('<span>x</span>');
+        });
+
+        it('throws when a rule targets a locked attribute (case-insensitive)', () => {
+            for (const attr of ['onclick', 'ONCLICK', 'onMouseOver', 'href', 'HREF', 'src', 'style', 'STYLE', 'class', 'Class']) {
+                expect(() => service.registerAttributeRules([{ tag: '*', attr }])).toThrow();
+            }
+        });
+
+        it('still strips on* handlers from an element that also carries a contributed attr', () => {
+            const off = service.registerAttributeRules([idRule]);
+            const out = service.sanitize('<span data-action-click="a" onclick="alert(1)">x</span>');
+            expect(out).toBe('<span data-action-click="a">x</span>');
+            off();
+        });
+    });
 });

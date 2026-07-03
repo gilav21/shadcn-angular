@@ -87,6 +87,14 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['data-table', 'data-table/context-menu'],
         label: 'data-table-context-menu',
     },
+    // addon system (rich-text): install the editor + its `actions` addon +
+    // dialog together; prove the addon wires the "Attach action" toolbar
+    // button via the host slot, and the framework-free render runtime fires
+    // the dev callback (opening a real ui-dialog) on the published HTML.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/actions', 'dialog'],
+        label: 'rte-actions',
+    },
     // cross-cutting: dark-mode CSS variable propagation.
     {
         names: ['button'],

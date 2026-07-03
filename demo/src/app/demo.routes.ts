@@ -46,6 +46,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'emoji-picker', loadComponent: () => import('./demos/inputs/emoji-picker-demo.component').then(m => m.EmojiPickerDemoComponent) },
   { path: 'file-upload', loadComponent: () => import('./demos/inputs/file-upload-demo.component').then(m => m.FileUploadDemoComponent) },
   { path: 'rich-text-editor', loadComponent: () => import('./demos/inputs/rich-text-editor-demo.component').then(m => m.RichTextEditorDemoComponent) },
+  { path: 'rich-text-actions', loadComponent: () => import('./demos/inputs/rich-text-actions-demo.component').then(m => m.RichTextActionsDemoComponent) },
 
   // Overlay
   { path: 'dialog', loadComponent: () => import('./demos/overlay/dialog-demo.component').then(m => m.DialogDemoComponent) },

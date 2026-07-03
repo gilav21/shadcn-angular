@@ -49,6 +49,12 @@ import {
     RichTextSlashCommandAvailabilityContext,
     RichTextSlashCommandContext,
 } from './rich-text-command-registry.service';
+import { AddonSlotRegistry } from '../../lib/addon-slots';
+import {
+    RichTextEditorAddonHost,
+    type RichTextToolbarSlot,
+    type RichTextSelectionSnapshot,
+} from './rich-text-editor.host';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
 
@@ -693,13 +699,17 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             useExisting: forwardRef(() => RichTextEditorComponent),
             multi: true,
         },
+        {
+            provide: RichTextEditorAddonHost,
+            useExisting: forwardRef(() => RichTextEditorComponent),
+        },
     ],
     templateUrl: './rich-text-editor.component.html',
     host: {
         class: 'block',
     },
 })
-export class RichTextEditorComponent implements ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
+export class RichTextEditorComponent extends RichTextEditorAddonHost implements ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdownService = inject(RichTextMarkdownService);
     private readonly pasteNormalizer = inject(RichTextPasteNormalizerService);
@@ -1421,6 +1431,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     constructor() {
+        super();
         this.setupOutputEffects();
         this.setupMentionSearch();
         this.setupSlashCommandEffects();
@@ -5412,7 +5423,94 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.editorDiv?.nativeElement?.focus();
     }
 
-    private restoreSelection(): void {
+    /** Registry of addon-contributed toolbar buttons (addon host surface). */
+    readonly toolbarSlots = new AddonSlotRegistry<RichTextToolbarSlot>();
+
+    /** The editor's slash-command registry (addon host surface). */
+    get commands(): RichTextCommandRegistry {
+        return this.commandRegistry;
+    }
+
+    /** The contenteditable content root (addon host surface). */
+    get contentRoot(): HTMLElement {
+        return this.editorDiv?.nativeElement as HTMLElement;
+    }
+
+    /** Snapshot the current selection / caret target for an addon. */
+    selection(): RichTextSelectionSnapshot {
+        const editor = this.editorDiv?.nativeElement;
+        const sel = this.document.getSelection();
+        const empty: RichTextSelectionSnapshot = {
+            kind: 'none', text: '', range: null, imageElement: null, closestWithAttrs: () => null,
+        };
+        if (!editor || !sel || sel.rangeCount === 0) return empty;
+        const range = sel.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return empty;
+        const focusedImage = this.selectedImage();
+        if (focusedImage) {
+            return {
+                kind: 'image', text: '', range: range.cloneRange(), imageElement: focusedImage,
+                closestWithAttrs: (attrs) => this.closestElementWithAttrs(focusedImage, attrs, editor),
+            };
+        }
+        const text = range.toString();
+        return {
+            kind: text.length > 0 ? 'text' : 'none',
+            text, range: range.cloneRange(), imageElement: null,
+            closestWithAttrs: (attrs) => this.closestElementWithAttrs(range.startContainer, attrs, editor),
+        };
+    }
+
+    private closestElementWithAttrs(node: Node | null, attrs: readonly string[], boundary: HTMLElement): HTMLElement | null {
+        let el = node instanceof HTMLElement ? node : node?.parentElement ?? null;
+        while (el && boundary.contains(el)) {
+            if (attrs.some((a) => el?.hasAttribute(a))) return el;
+            el = el.parentElement;
+        }
+        return null;
+    }
+
+    /** Persist the current in-editor selection (addon host surface). */
+    saveSelection(): void {
+        const sel = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (sel && editor && sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).startContainer)) {
+            this.savedRange = sel.getRangeAt(0).cloneRange();
+        }
+    }
+
+    /** Run an addon mutation inside the editor transaction (history + emit). */
+    mutateContent(mutate: (root: HTMLElement) => void): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+        mutate(editor);
+        this.applyMutation({ pushHistory: true });
+    }
+
+    /** Wrap the saved text selection in the built element (addon host surface). */
+    wrapSelection(build: () => HTMLElement): HTMLElement[] {
+        this.restoreSelection();
+        const sel = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (!sel || sel.rangeCount === 0 || !editor) return [];
+        const range = sel.getRangeAt(0);
+        const wrapper = build();
+        try {
+            range.surroundContents(wrapper);
+        } catch {
+            wrapper.appendChild(range.extractContents());
+            range.insertNode(wrapper);
+        }
+        this.applyMutation({ pushHistory: true });
+        return [wrapper];
+    }
+
+    /** Handle a click on an addon-contributed toolbar slot. */
+    onAddonSlotClick(payload: { slot: RichTextToolbarSlot; event: Event }): void {
+        payload.slot.onClick(payload.event);
+    }
+
+    restoreSelection(): void {
         const editor = this.editorDiv?.nativeElement;
         if (!editor) return;
         const selection = this.document.getSelection();

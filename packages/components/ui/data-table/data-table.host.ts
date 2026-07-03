@@ -1,6 +1,7 @@
-import { signal } from '@angular/core';
 import type { ColumnDef, RowActionContext, SortDirection } from './data-table.types';
 import type { DataTableLocale } from './data-table.locales';
+
+export { AddonSlotRegistry } from '../../lib/addon-slots';
 
 /** A column pin position, or undefined for unpinned. */
 export type ColumnPin = 'left' | 'right' | undefined;
@@ -26,23 +27,6 @@ export interface HeaderActionSlot<T = unknown> {
   readonly icon?: string;
   readonly ariaLabel?: string;
   readonly onClick: (event: Event, column: ColumnDef<T>) => void;
-}
-
-/**
- * A generic, addon-agnostic registry of slot contributions. Registration is
- * reactive (the base template re-renders when a slot is added/removed) and
- * returns a teardown function, mirroring the `RichTextCommandRegistry` pattern.
- */
-export class AddonSlotRegistry<S> {
-  private readonly _slots = signal<readonly S[]>([]);
-  /** Reactive view of the registered slots, read by the base template. */
-  readonly slots = this._slots.asReadonly();
-
-  /** Register a slot; returns a teardown that removes exactly this slot. */
-  register(slot: S): () => void {
-    this._slots.update((list) => [...list, slot]);
-    return () => this._slots.update((list) => list.filter((s) => s !== slot));
-  }
 }
 
 /**

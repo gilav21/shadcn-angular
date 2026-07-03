@@ -20,6 +20,8 @@
     (fileImport)="onFileImport($event)"
     [customItems]="customToolbarItems()"
     (customItemClick)="onCustomToolbarAction($event)"
+    [addonSlots]="toolbarSlots.slots()"
+    (addonSlotClick)="onAddonSlotClick($event)"
   />
 }
 
@@ -421,6 +423,8 @@
         [locale]="resolvedLocale()"
         (formatCommand)="onFloatingFormatCommand($event)"
         (linkInsert)="onLinkInsert($event)"
+        [addonSlots]="toolbarSlots.slots()"
+        (addonSlotClick)="onAddonSlotClick($event)"
       />
     </div>
   }

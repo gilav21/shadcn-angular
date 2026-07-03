@@ -317,4 +317,16 @@
       <span [innerHTML]="getSafeIcon(custom.icon)"></span>
     </button>
   }
+  @for (slot of orderedAddonSlots(); track slot.id) {
+    <button
+      type="button"
+      [attr.data-addon-slot]="slot.id"
+      [class]="addonButtonClasses(slot)"
+      [title]="slot.tooltip"
+      [disabled]="interactionDisabled() || !addonSlotEnabled(slot)"
+      (click)="addonSlotClick.emit({ slot, event: $event })"
+    >
+      <span [innerHTML]="getSafeIcon(slot.icon)"></span>
+    </button>
+  }
 </div>

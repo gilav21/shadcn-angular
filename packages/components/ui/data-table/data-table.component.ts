@@ -2085,7 +2085,7 @@ export class DataTableComponent<T>
       startRow: source.minRow,
       startCol: keys[0],
       endRow: targetEndRow,
-      endCol: keys[keys.length - 1],
+      endCol: keys.at(-1) ?? keys[0],
     });
     this.fillSeries.emit({
       source: { minRow: source.minRow, maxRow: source.maxRow },
