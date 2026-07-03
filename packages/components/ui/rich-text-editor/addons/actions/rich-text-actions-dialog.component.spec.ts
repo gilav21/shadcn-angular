@@ -66,6 +66,36 @@ describe('RichTextActionsDialogComponent', () => {
         });
     });
 
+    it('a multi-trigger action with no fields confirms after selecting a trigger', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('definitions', [{ id: 'both', label: 'Both', triggers: ['click', 'hover'] }]);
+        ref.setInput('context', {
+            mode: 'create', targetKind: 'text', selectionText: 's', occupiedTriggers: [], prefill: null,
+        });
+        fixture.detectChanges();
+        const inst = fixture.componentInstance;
+        inst.pickAction('both');
+        fixture.detectChanges();
+        // No trigger chosen yet on a multi-trigger action → cannot confirm.
+        expect(inst.canConfirm()).toBe(false);
+        inst.selectTrigger('hover');
+        fixture.detectChanges();
+        expect(inst.canConfirm()).toBe(true);
+        let payload: { trigger: string } | null = null;
+        inst.confirm.subscribe((p) => (payload = p));
+        inst.onConfirm();
+        expect(payload!.trigger).toBe('hover');
+    });
+
+    it('emits dismiss when the dialog open state flips to false', () => {
+        const fixture = mount();
+        let dismissed = false;
+        fixture.componentInstance.dismiss.subscribe(() => (dismissed = true));
+        fixture.componentInstance.onOpenChange(false);
+        expect(dismissed).toBe(true);
+    });
+
     it('emits dismiss when the cancel button is clicked', () => {
         const fixture = mount();
         let dismissed = false;

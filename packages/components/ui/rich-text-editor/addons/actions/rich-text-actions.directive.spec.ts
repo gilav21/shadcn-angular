@@ -275,4 +275,40 @@ describe('RichTextActionsDirective', () => {
         fixture.detectChanges();
         expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeFalsy();
     });
+
+    it('logs and does not attach when tier-3 resolveParams rejects', async () => {
+        const errors: string[] = [];
+        const orig = console.error;
+        console.error = (...a: unknown[]) => { errors.push(String(a[0])); };
+        try {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.componentInstance.defs = [{
+                id: 'boom', label: 'Boom', triggers: ['click'],
+                resolveParams: async () => { throw new Error('nope'); },
+            }];
+            const editor = await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="boom"]') as HTMLButtonElement).click();
+            await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+            fixture.detectChanges();
+            expect(editor.querySelector('span[data-action-click="boom"]')).toBeFalsy();
+            expect(errors.some((m) => m.includes('resolveParams rejected'))).toBe(true);
+        } finally {
+            console.error = orig;
+        }
+    });
+
+    it('ref-counts the shared visualization stylesheet across two editor instances', () => {
+        const a = TestBed.createComponent(HostCmp);
+        a.detectChanges();
+        const b = TestBed.createComponent(HostCmp);
+        b.detectChanges();
+        const doc = a.nativeElement.ownerDocument as Document;
+        const style = doc.querySelector('style[data-rte-actions-style]') as HTMLStyleElement;
+        expect(style).toBeTruthy();
+        expect(style.dataset['refcount']).toBe('2');
+        a.destroy();
+        expect(doc.querySelector('style[data-rte-actions-style]')).toBeTruthy();
+        b.destroy();
+        expect(doc.querySelector('style[data-rte-actions-style]')).toBeFalsy();
+    });
 });

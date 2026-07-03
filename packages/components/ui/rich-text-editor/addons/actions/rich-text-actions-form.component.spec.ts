@@ -34,6 +34,22 @@ describe('RichTextActionsFormComponent', () => {
         expect(latest['count']).toBe(42);
     });
 
+    it('renders a checkbox field and emits a boolean param', () => {
+        const fixture = TestBed.createComponent(RichTextActionsFormComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('fields', [{ key: 'flag', label: 'Flag', type: 'checkbox' }]);
+        ref.setInput('params', { flag: true });
+        fixture.detectChanges();
+        const box = fixture.nativeElement.querySelector('input[data-field="flag"]') as HTMLInputElement;
+        expect(box.checked).toBe(true);
+        let latest: Record<string, unknown> = {};
+        fixture.componentInstance.paramsChange.subscribe((p: Record<string, unknown>) => (latest = p));
+        box.checked = false;
+        box.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+        expect(latest['flag']).toBe(false);
+    });
+
     it('shows a custom validate() error message', () => {
         const fixture = TestBed.createComponent(RichTextActionsFormComponent);
         const ref = fixture.componentRef;
