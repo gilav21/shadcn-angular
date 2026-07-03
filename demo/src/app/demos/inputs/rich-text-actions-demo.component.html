@@ -139,11 +139,11 @@
         [innerHTML]="readonlyTrusted" [uiRichTextActions]="readonlyHandlers"
       ></article>
     </div>
-    <div class="space-y-2" dir="rtl">
+    <div class="space-y-2">
       <h3 class="text-lg font-medium">{{ t().rtlHeading }}</h3>
       <p class="text-sm text-muted-foreground">{{ t().rtlHint }}</p>
       <article
-        class="rounded-lg border p-4 text-right leading-relaxed"
+        class="rounded-lg border p-4 leading-relaxed"
         dir="rtl" [innerHTML]="rtlTrusted" [uiRichTextActions]="rtlHandlers"
       ></article>
     </div>
