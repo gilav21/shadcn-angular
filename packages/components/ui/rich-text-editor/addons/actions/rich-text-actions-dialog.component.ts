@@ -163,6 +163,16 @@ export class RichTextActionsDialogComponent {
         this.selectedTrigger.set(trigger);
     }
 
+    /** Localized display name for a single trigger. */
+    triggerLabel(trigger: RichTextActionTrigger): string {
+        return this.locale().triggers[trigger];
+    }
+
+    /** Localized, `/`-joined labels for a list of triggers. */
+    triggerLabels(triggers: readonly RichTextActionTrigger[]): string {
+        return triggers.map((t) => this.triggerLabel(t)).join(' / ');
+    }
+
     onParamsChange(params: ActionParams): void {
         this.currentParams.set(params);
     }

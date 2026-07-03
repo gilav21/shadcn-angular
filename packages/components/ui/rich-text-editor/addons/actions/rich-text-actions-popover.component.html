@@ -2,7 +2,7 @@
   @for (row of actions(); track row.trigger) {
     <div class="flex items-center justify-between gap-3 rounded-sm px-2 py-1.5 text-sm">
       <span class="truncate">
-        {{ row.label }} · {{ row.trigger }}
+        {{ row.label }} · {{ triggerLabel(row.trigger) }}
         @if (!row.available) {
           <span class="text-xs text-muted-foreground">{{ locale().popover.unavailable }}</span>
         }

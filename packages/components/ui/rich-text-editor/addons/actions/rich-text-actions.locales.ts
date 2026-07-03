@@ -24,6 +24,11 @@ export interface RichTextActionsLocale extends LocaleMeta {
         /** `{field}` is interpolated with the field label. */
         required: string;
     };
+    /** Display names for the DOM triggers, shown in the picker and popover. */
+    triggers: {
+        click: string;
+        hover: string;
+    };
 }
 
 const en: RichTextActionsLocale = {
@@ -48,6 +53,10 @@ const en: RichTextActionsLocale = {
     },
     form: {
         required: '{field} is required',
+    },
+    triggers: {
+        click: 'click',
+        hover: 'hover',
     },
 };
 
@@ -74,6 +83,10 @@ const he: RichTextActionsLocale = {
     },
     form: {
         required: '{field} הוא שדה חובה',
+    },
+    triggers: {
+        click: 'לחיצה',
+        hover: 'ריחוף',
     },
 };
 

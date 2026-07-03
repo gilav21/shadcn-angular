@@ -27,4 +27,9 @@ export class RichTextActionsPopoverComponent {
     readonly edit = output<RichTextActionTrigger>();
     readonly remove = output<RichTextActionTrigger>();
     readonly add = output<void>();
+
+    /** Localized display name for a trigger. */
+    triggerLabel(trigger: RichTextActionTrigger): string {
+        return this.locale().triggers[trigger];
+    }
 }

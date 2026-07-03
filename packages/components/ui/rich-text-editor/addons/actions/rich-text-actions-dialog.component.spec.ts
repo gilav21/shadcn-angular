@@ -2,6 +2,7 @@ import { Component, computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, it, expect } from 'vitest';
 import { RichTextActionsDialogComponent } from './rich-text-actions-dialog.component';
+import { RICH_TEXT_ACTIONS_LOCALES } from './rich-text-actions.locales';
 import type {
     ActionParams, RichTextActionDefinition, RichTextActionParamsContext, RichTextActionParamsForm,
 } from './rich-text-actions.types';
@@ -96,6 +97,19 @@ describe('RichTextActionsDialogComponent', () => {
         expect(dismissed).toBe(true);
     });
 
+    it('shows localized trigger labels in the picker (he)', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('definitions', [{ id: 'x', label: 'X', triggers: ['click', 'hover'] }]);
+        ref.setInput('context', {
+            mode: 'create', targetKind: 'text', selectionText: 's', occupiedTriggers: [], prefill: null,
+        });
+        ref.setInput('locale', RICH_TEXT_ACTIONS_LOCALES['he']);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain('לחיצה / ריחוף');
+        expect(fixture.nativeElement.textContent).not.toContain('click');
+    });
+
     it('emits dismiss when the cancel button is clicked', () => {
         const fixture = mount();
         let dismissed = false;
@@ -121,6 +135,7 @@ describe('RichTextActionsDialogComponent', () => {
             },
             popover: { unavailable: '', edit: '', remove: '', add: '' },
             form: { required: '' },
+            triggers: { click: 'לחיצה', hover: 'ריחוף' },
         });
         fixture.detectChanges();
         expect(fixture.nativeElement.textContent).toContain('ביטול');
