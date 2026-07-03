@@ -127,7 +127,9 @@ export function openDialogHandlers(
     };
 
     injector.get(DestroyRef, null, { optional: true })?.onDestroy(() => {
-        for (const dismiss of [...openDismissers]) dismiss();
+        // Each dismiss() removes only itself from the set; deleting the current
+        // element during Set iteration is well-defined, so no snapshot is needed.
+        for (const dismiss of openDismissers) dismiss();
     });
     return { [id]: handler };
 }

@@ -56,7 +56,7 @@ export class RichTextActionsFormComponent {
         let value: string | number | boolean = String(raw);
         if (field.type === 'checkbox') value = Boolean(raw);
         else if (field.type === 'number') value = Number(raw);
-        const next = { ...this.model(), [field.key]: value } as ActionParams;
+        const next: ActionParams = { ...this.model(), [field.key]: value };
         this.model.set(next);
         this.paramsChange.emit(next);
     }

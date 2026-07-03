@@ -322,7 +322,7 @@ export class RichTextActionsDirective {
             if (!stillActioned && el.tagName === 'SPAN' && el.attributes.length === 0) {
                 const parent = el.parentNode;
                 while (el.firstChild) parent?.insertBefore(el.firstChild, el);
-                parent?.removeChild(el);
+                el.remove();
             }
         });
         this.actionRemoved.emit({ actionId: removedId, trigger, targetKind: 'text' });
@@ -336,7 +336,7 @@ export class RichTextActionsDirective {
             return () => this.releaseVisualizationStyles(doc);
         }
         const style = doc.createElement('style');
-        style.setAttribute('data-rte-actions-style', '');
+        style.dataset['rteActionsStyle'] = '';
         style.dataset['refcount'] = '1';
         style.textContent =
             'ui-rich-text-editor [data-action-click],ui-rich-text-editor [data-action-hover]{' +

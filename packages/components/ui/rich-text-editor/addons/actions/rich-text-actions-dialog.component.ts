@@ -119,9 +119,9 @@ export class RichTextActionsDialogComponent {
     pickAction(id: string): void {
         const def = this.definitions().find((d) => d.id === id) ?? null;
         this.selectedDef.set(def);
-        this.selectedTrigger.set(def && def.triggers.length === 1 ? def.triggers[0] : null);
+        this.selectedTrigger.set(def?.triggers.length === 1 ? def.triggers[0] : null);
         const prefill = this.context().prefill;
-        this.currentParams.set(prefill && prefill.def.id === id ? { ...prefill.params } : {});
+        this.currentParams.set(prefill?.def.id === id ? { ...prefill.params } : {});
         this.formValid.set(this.initialValidity(def));
         if (def) this.pick.emit(def);
     }

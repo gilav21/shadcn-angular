@@ -86,6 +86,7 @@ not suppressed — this exemption is scoped to the `ui-button` primitive only.
 | `data-table-range-chart/data-table-range-chart.component.html` | 1 |
 | `data-table/data-table.component.html` | 1 |
 | `rich-text-editor/rich-text-editor.component.html` | 4 |
+| `rich-text-editor/addons/actions/rich-text-actions-dialog.component.html` | 2 |
 
 ## `typescript:S6268` — "make sure disabling Angular built-in sanitization is safe"
 

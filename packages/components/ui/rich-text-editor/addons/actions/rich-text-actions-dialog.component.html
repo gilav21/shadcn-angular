@@ -21,13 +21,13 @@
       />
 
       <div
-        class="max-h-56 overflow-y-auto rounded-md border" role="listbox"
+        class="max-h-56 overflow-y-auto rounded-md border"
         [class.pointer-events-none]="busy()" [class.opacity-50]="busy()"
       >
         @for (def of visibleDefs(); track def.id) {
           <button
-            type="button" role="option" [attr.data-action-option]="def.id"
-            [attr.aria-selected]="selectedDef()?.id === def.id"
+            type="button" [attr.data-action-option]="def.id"
+            [attr.aria-pressed]="selectedDef()?.id === def.id"
             (click)="pickAction(def.id)"
             class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
             [class.bg-accent]="selectedDef()?.id === def.id"
