@@ -1,10 +1,22 @@
 import { Component } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { TestBed } from '@angular/core/testing';
 import { describe, it, expect } from 'vitest';
 import { RichTextEditorComponent } from '../../rich-text-editor.component';
 import { RichTextSanitizerService } from '../../rich-text-sanitizer.service';
 import { RichTextActionsDirective } from './rich-text-actions.directive';
-import type { RichTextActionDefinition } from './rich-text-actions.types';
+import type { ActionParams, RichTextActionDefinition, RichTextActionTrigger } from './rich-text-actions.types';
+
+interface ApplyTargetLike {
+    kind: 'text' | 'image';
+    existing: HTMLElement | null;
+    image: HTMLImageElement | null;
+}
+interface DirectiveInternals {
+    applyAction(
+        def: RichTextActionDefinition, trigger: RichTextActionTrigger, params: ActionParams, target: ApplyTargetLike,
+    ): boolean;
+}
 
 @Component({
     standalone: true,
@@ -310,5 +322,44 @@ describe('RichTextActionsDirective', () => {
         expect(doc.querySelector('style[data-rte-actions-style]')).toBeTruthy();
         b.destroy();
         expect(doc.querySelector('style[data-rte-actions-style]')).toBeFalsy();
+    });
+
+    it('registers a slash command whose run() opens the attach flow', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        fixture.detectChanges();
+        const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent)).componentInstance as {
+            commands: { listCommands(): { id: string; run: (ctx: unknown) => void }[] };
+        };
+        const cmd = editor.commands.listCommands().find((c) => c.id === 'actions.attach');
+        expect(cmd).toBeTruthy();
+        cmd!.run({ hasSelection: true, readonly: false });
+        fixture.detectChanges();
+        expect(document.querySelector('[data-testid="rta-cancel"]')).toBeTruthy();
+    });
+
+    it('refuses to write and returns false when the apply target was lost', () => {
+        const errors: string[] = [];
+        const orig = console.error;
+        console.error = (...a: unknown[]) => { errors.push(String(a[0])); };
+        try {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.detectChanges();
+            const de = fixture.debugElement.query(By.directive(RichTextActionsDirective));
+            const dir = de.injector.get(RichTextActionsDirective) as unknown as DirectiveInternals;
+            const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent))
+                .componentInstance as { wrapSelection: (f: () => HTMLElement) => HTMLElement[] };
+            const def: RichTextActionDefinition = { id: 'x', label: 'X', triggers: ['click'] };
+
+            // Image target captured but the element is gone → guard returns false.
+            expect(dir.applyAction(def, 'click', {}, { kind: 'image', existing: null, image: null })).toBe(false);
+            expect(errors.some((m) => m.includes('lost the image target'))).toBe(true);
+
+            // Text selection can no longer be wrapped (wrapSelection yields nothing) → guard returns false.
+            editor.wrapSelection = () => [];
+            expect(dir.applyAction(def, 'click', {}, { kind: 'text', existing: null, image: null })).toBe(false);
+            expect(errors.some((m) => m.includes('lost the text selection'))).toBe(true);
+        } finally {
+            console.error = orig;
+        }
     });
 });
