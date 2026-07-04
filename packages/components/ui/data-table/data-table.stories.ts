@@ -1,6 +1,7 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
 import { DataTableComponent } from './data-table.component';
 import { DataTableContextMenuDirective } from './addons/context-menu';
+import { DataTableExportDirective } from './addons/export';
 import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext, CellIcon } from './data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { InputComponent } from '../input';
@@ -667,6 +668,7 @@ export const WithContextMenu: Story = {
         },
         moduleMetadata: {
             imports: [
+                DataTableExportDirective,
                 ContextMenuComponent,
                 ContextMenuTriggerDirective,
                 ContextMenuContentComponent,
@@ -679,12 +681,14 @@ export const WithContextMenu: Story = {
         template: `
             <div class="h-[600px] w-full p-4">
                 <div class="flex items-center gap-2 mb-2">
-                    <button class="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 h-8 text-sm font-medium hover:bg-accent" (click)="grid.exportToCsv('users')">Export CSV</button>
-                    <button class="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 h-8 text-sm font-medium hover:bg-accent" (click)="grid.exportToExcel('users')">Export Excel</button>
+                    <button class="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 h-8 text-sm font-medium hover:bg-accent" (click)="exp.exportToCsv('users')">Export CSV</button>
+                    <button class="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 h-8 text-sm font-medium hover:bg-accent" (click)="exp.exportToExcel('users')">Export Excel</button>
                 </div>
                 <p class="text-sm text-muted-foreground mb-2">Click a cell then Ctrl+C to copy. Right-click for context menu.</p>
                 <ui-data-table
                     #grid
+                    uiDtExport
+                    #exp="uiDtExport"
                     [data]="data"
                     [columns]="columns"
                     [showToolbar]="showToolbar"

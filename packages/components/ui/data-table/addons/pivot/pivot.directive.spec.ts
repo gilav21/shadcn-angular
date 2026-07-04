@@ -1,8 +1,10 @@
 import { beforeEach, describe, it, expect } from 'vitest';
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { computePivot } from './data-table.utils';
-import { DataTableComponent } from './data-table.component';
-import { ColumnDef } from './data-table.types';
+import { By } from '@angular/platform-browser';
+import { DataTableComponent, type ColumnDef } from '../..';
+import { DataTablePivotDirective } from './pivot.directive';
+import { computePivot } from './pivot.utils';
 
 interface Sale {
   region: string;
@@ -17,8 +19,8 @@ const DATA: Sale[] = [
   { region: 'NA', product: 'A', sales: 20 },
 ];
 
-describe('computePivot (A6)', () => {
-  it('pivots region × product summing sales, with row totals', () => {
+describe('computePivot', () => {
+  it('pivots region x product summing sales, with row totals', () => {
     const result = computePivot(DATA, {
       rows: ['region'],
       column: 'product',
@@ -31,7 +33,6 @@ describe('computePivot (A6)', () => {
     expect(result.pivotColumnKeys).toHaveLength(2);
 
     const [pa, pb] = result.pivotColumnKeys;
-    // insertion order: NA first, then EU
     expect(result.rows[0]).toMatchObject({ region: 'NA', [pa]: 120, [pb]: 50, __total__: 170 });
     expect(result.rows[1]).toMatchObject({ region: 'EU', [pa]: 80, [pb]: 0, __total__: 80 });
   });
@@ -46,7 +47,7 @@ describe('computePivot (A6)', () => {
   it('averages cell values', () => {
     const result = computePivot(DATA, { rows: ['region'], column: 'product', value: 'sales', aggregate: 'avg' });
     const [pa] = result.pivotColumnKeys;
-    expect(result.rows[0][pa]).toBe(60); // (100 + 20) / 2
+    expect(result.rows[0][pa]).toBe(60);
   });
 
   it('supports multiple row dimensions', () => {
@@ -57,7 +58,7 @@ describe('computePivot (A6)', () => {
     ];
     const result = computePivot(data, { rows: ['region', 'tier'], column: 'product', value: 'sales', aggregate: 'sum' });
     expect(result.columns.slice(0, 2).map((c) => c.key)).toEqual(['region', 'tier']);
-    expect(result.rows).toHaveLength(2); // (NA,Gold) and (NA,Silver)
+    expect(result.rows).toHaveLength(2);
     expect(result.rows[0]).toMatchObject({ region: 'NA', tier: 'Gold' });
   });
 
@@ -68,25 +69,38 @@ describe('computePivot (A6)', () => {
   });
 });
 
-describe('DataTableComponent.getPivot (A6)', () => {
-  let component: DataTableComponent<Sale>;
-  let fixture: ComponentFixture<DataTableComponent<Sale>>;
+@Component({
+  selector: 'ui-test-pivot-host',
+  standalone: true,
+  imports: [DataTableComponent, DataTablePivotDirective],
+  template: `
+    <ui-data-table uiDtPivot #pv="uiDtPivot" [data]="data()" [columns]="columns" />
+  `,
+})
+class TestHostComponent {
+  readonly data = signal<Sale[]>(DATA);
+  readonly columns: ColumnDef<Sale>[] = [
+    { accessorKey: 'region', header: 'Region' },
+    { accessorKey: 'product', header: 'Product' },
+    { accessorKey: 'sales', header: 'Sales' },
+  ];
+}
+
+describe('DataTablePivotDirective', () => {
+  let fixture: ComponentFixture<TestHostComponent>;
 
   beforeEach(async () => {
-    await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
-    fixture = TestBed.createComponent(DataTableComponent<Sale>);
-    component = fixture.componentInstance;
-    fixture.componentRef.setInput('data', DATA);
-    fixture.componentRef.setInput('columns', [
-      { accessorKey: 'region', header: 'Region' },
-      { accessorKey: 'product', header: 'Product' },
-      { accessorKey: 'sales', header: 'Sales' },
-    ] as ColumnDef<Sale>[]);
+    await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(TestHostComponent);
     fixture.detectChanges();
   });
 
-  it('pivots the table data via getPivot', () => {
-    const result = component.getPivot({
+  it('pivots the table data via getPivot, reaching the base through the host', () => {
+    const directive = fixture.debugElement
+      .query(By.directive(DataTablePivotDirective))
+      .injector.get<DataTablePivotDirective<Sale>>(DataTablePivotDirective);
+
+    const result = directive.getPivot({
       rows: ['region'],
       column: 'product',
       value: 'sales',

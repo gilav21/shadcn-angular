@@ -5,7 +5,7 @@ import { registry } from '../registry/index.js';
 describe('formatAddonMeta', () => {
   it('lists a base component\'s opt-in addons', () => {
     const lines = formatAddonMeta(registry['data-table']);
-    expect(lines).toContainEqual({ label: 'Addons', value: 'data-table/context-menu' });
+    expect(lines).toContainEqual({ label: 'Addons', value: 'data-table/context-menu, data-table/export, data-table/pivot' });
     // A base is not itself an addon — no "Addon of" / "Attach" lines.
     expect(lines.some(l => l.label === 'Addon of')).toBe(false);
   });

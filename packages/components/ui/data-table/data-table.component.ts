@@ -31,7 +31,6 @@ import {
   type HeaderActionSlot,
   type ColumnPin,
 } from "./data-table.host";
-import { generateXlsx } from "../../lib/parsers/xlsx";
 import {
   TableComponent,
   TableHeaderComponent,
@@ -92,8 +91,6 @@ import {
   FillSeriesEvent,
   CellsPasteEvent,
   FilterGroup,
-  PivotConfig,
-  PivotResult,
 } from "./data-table.types";
 import {
   computeRowRange,
@@ -107,7 +104,6 @@ import {
   parseNlFilterSpec,
   type NlFilterSpec,
   evaluateAdvancedFilter,
-  computePivot,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
 import { AiProvider, runAiTask } from "../../lib/ai";
@@ -316,16 +312,6 @@ export class DataTableComponent<T>
   readonly canUndo = computed(() => this._undoStack().length > 0);
   readonly canRedo = computed(() => this._redoStack().length > 0);
   readonly columnResize = output<ColumnResizeEvent>();
-
-  /**
-   * Server-side export hook. Receives the current {@link DataTableExportQuery}
-   * (global filter, column filters, sort) so it can fetch ALL matching rows —
-   * filtered and sorted across every page — for CSV/Excel export. A no-arg
-   * provider remains valid (the query argument is simply ignored).
-   */
-  readonly exportDataProvider = input<
-    ((query: DataTableExportQuery) => Promise<T[]>) | undefined
-  >(undefined);
 
   readonly emptyStateComponent = input<Type<unknown>>();
   readonly emptyStateComponentInputs = input<Record<string, unknown>>({});
@@ -589,7 +575,11 @@ export class DataTableComponent<T>
   readonly columnPinOverrides = signal<
     Record<string, "left" | "right" | undefined>
   >({});
-  readonly exporting = signal(false);
+  /**
+   * Generic busy-overlay label an addon drives via {@link setBusy}; null when
+   * idle. The base owns no label text — it only renders the neutral overlay.
+   */
+  private readonly _busyLabel = signal<string | null>(null);
   /** Visually-hidden live-region text announcing sort/filter changes to AT. */
   readonly srAnnouncement = signal("");
   readonly globalFilter = model("");
@@ -691,15 +681,6 @@ export class DataTableComponent<T>
     data = this.applyColumnFiltersToData(data);
     return this.applyAdvancedFilter(data);
   });
-
-  /**
-   * Compute a pivot (rows × columns × values) of this table's current data,
-   * using its accessors (so `accessorFn` / dotted keys work). Bind the result's
-   * `columns` / `rows` to another `<ui-data-table>` to render the pivot.
-   */
-  getPivot(config: PivotConfig): PivotResult {
-    return computePivot(this.data(), config, (row, key) => this.getCellValue(row, key));
-  }
 
   private applyAdvancedFilter(data: T[]): T[] {
     const group = this.advancedFilter();
@@ -3039,7 +3020,7 @@ export class DataTableComponent<T>
 
   getExportData(
     options?: DataTableExportOptions,
-    customRows?: T[],
+    customRows?: readonly T[],
   ): string[][] {
     const includeHeaders = options?.includeHeaders !== false;
     const onlyVisible = options?.onlyVisible !== false;
@@ -3074,18 +3055,18 @@ export class DataTableComponent<T>
     return result;
   }
 
-  private async resolveExportRows(customData?: T[]): Promise<T[]> {
-    if (customData) return customData;
-    const provider = this.exportDataProvider();
-    // Server-side: hand the provider the current filter/sort so it can fetch
-    // ALL matching rows (every page), not just the loaded page.
-    if (provider) return provider(this.exportQuery());
-    // Client-side: export what the user sees — filtered AND sorted, all rows
-    // (not the current page).
+  /** The filtered + sorted rows across every page (addon export seam). */
+  getSortedRows(): readonly T[] {
     return this.sortedData();
   }
 
-  private exportQuery(): DataTableExportQuery {
+  /** The raw, unfiltered input rows (addon transform seam, e.g. pivot). */
+  getRawRows(): readonly T[] {
+    return this.data();
+  }
+
+  /** The active filter + sort query, for a server-side export provider. */
+  queryState(): DataTableExportQuery {
     return {
       globalFilter: this.globalFilter(),
       columnFilters: this.columnFilters(),
@@ -3094,51 +3075,14 @@ export class DataTableComponent<T>
     };
   }
 
-  async exportToCsv(filename?: string, customData?: T[]): Promise<void> {
-    this.exporting.set(true);
-    try {
-      const rows = await this.resolveExportRows(customData);
-      const data = this.getExportData(undefined, rows);
-      const csvContent = data
-        .map((row) =>
-          row
-            .map((cell) => {
-              if (
-                cell.includes(",") ||
-                cell.includes('"') ||
-                cell.includes("\n") ||
-                cell.includes("\r")
-              ) {
-                return '"' + cell.replaceAll('"', '""') + '"';
-              }
-              return cell;
-            })
-            .join(","),
-        )
-        .join("\r\n");
-
-      const blob = new Blob(["\uFEFF" + csvContent], {
-        type: "text/csv;charset=utf-8;",
-      });
-      this.downloadBlob(blob, (filename || "export") + ".csv");
-    } finally {
-      this.exporting.set(false);
-    }
+  /** Show (non-null label) or clear (null) the generic busy overlay. */
+  setBusy(label: string | null): void {
+    this._busyLabel.set(label);
   }
 
-  async exportToExcel(filename?: string, customData?: T[]): Promise<void> {
-    this.exporting.set(true);
-    try {
-      const rows = await this.resolveExportRows(customData);
-      const data = this.getExportData(undefined, rows);
-      const xlsxBytes = generateXlsx(data, { boldFirstRow: true });
-      const blob = new Blob([xlsxBytes.buffer as ArrayBuffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      this.downloadBlob(blob, (filename || "export") + ".xlsx");
-    } finally {
-      this.exporting.set(false);
-    }
+  /** The active busy-overlay label, or null when idle. */
+  busyLabel(): string | null {
+    return this._busyLabel();
   }
 
   async copyCellToClipboard(): Promise<void> {
@@ -4173,17 +4117,6 @@ export class DataTableComponent<T>
     return this.flattenTreeFull(rootSlice);
   }
 
-  private downloadBlob(blob: Blob, filename: string): void {
-    const url = URL.createObjectURL(blob);
-    const a = this._document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.style.display = "none";
-    this._document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
 
   private applyColumnOrder<U extends { accessorKey: string | keyof T }>(
     columns: U[],

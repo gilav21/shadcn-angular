@@ -48,10 +48,10 @@ import {
   dateFilterFn,
   dateRangeFilterFn,
   multiselectFilterFn,
-  computePivot,
-  PivotAggregate,
 } from '../../../../../packages/components/ui';
 import { DataTableContextMenuDirective } from '../../../../../packages/components/ui/data-table/addons/context-menu';
+import { DataTableExportDirective } from '../../../../../packages/components/ui/data-table/addons/export';
+import { computePivot, type PivotAggregate } from '../../../../../packages/components/ui/data-table/addons/pivot';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { AiRequest } from '../../../../../packages/components/lib/ai';
 import { DATA_TABLE_DEMO_LOCALES } from './data-table-demo.locales';
@@ -606,6 +606,7 @@ class OpsTicketDetailComponent {
     ToggleGroupItemComponent,
     DataTableComponent,
     DataTableContextMenuDirective,
+    DataTableExportDirective,
     ContextMenuComponent,
     ContextMenuContentComponent,
     ContextMenuItemComponent,

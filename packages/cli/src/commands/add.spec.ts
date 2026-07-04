@@ -631,8 +631,9 @@ describe('promptAddons', () => {
   });
 
   it('skips an addon already present in the resolved set', async () => {
+    // context-menu is already resolved (skipped); the others are offered.
     const resolved = new Set<ComponentName>(['data-table', 'data-table/context-menu']);
-    expect(await promptAddons(resolved, { all: true, branch: 'master' })).toEqual([]);
+    expect(await promptAddons(resolved, { all: true, branch: 'master' })).toEqual(['data-table/export', 'data-table/pivot']);
   });
 });
 
@@ -645,8 +646,9 @@ describe('collectAvailableAddons (post-install discoverability)', () => {
   });
 
   it('omits an addon that was itself installed (already added)', () => {
+    // context-menu is installed (omitted); the others stay discoverable.
     const installed = new Set<ComponentName>(['data-table', 'data-table/context-menu']);
-    expect(collectAvailableAddons(installed)).toEqual([]);
+    expect(collectAvailableAddons(installed).map(h => h.addon)).toEqual(['data-table/export', 'data-table/pivot']);
   });
 
   it('returns [] when no installed component declares addons', () => {

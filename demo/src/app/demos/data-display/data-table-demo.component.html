@@ -355,16 +355,17 @@
   </p>
 
   <div class="flex flex-wrap items-center gap-2 mb-2">
-    <ui-button variant="outline" size="sm" (click)="clientTable.exportToCsv('payments')" (keydown.enter)="clientTable.exportToCsv('payments')">
+    <ui-button variant="outline" size="sm" (click)="clientExp.exportToCsv('payments')" (keydown.enter)="clientExp.exportToCsv('payments')">
       Export CSV
     </ui-button>
-    <ui-button variant="outline" size="sm" (click)="clientTable.exportToExcel('payments')" (keydown.enter)="clientTable.exportToExcel('payments')">
+    <ui-button variant="outline" size="sm" (click)="clientExp.exportToExcel('payments')" (keydown.enter)="clientExp.exportToExcel('payments')">
       Export Excel
     </ui-button>
   </div>
   <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
     <ui-data-table #clientTable [data]="payments()" [columns]="paymentColumns()" [enableRowSelection]="true"
-      [(rowSelection)]="selection" uiDtContextMenu [rowActions]="paymentRowActions" />
+      [(rowSelection)]="selection" uiDtContextMenu [rowActions]="paymentRowActions"
+      uiDtExport #clientExp="uiDtExport" />
   </div>
   <div class="text-sm text-muted-foreground">
     Selected {{ selectionCount() }} rows. Click a cell then press Ctrl+C to copy its value.
@@ -479,10 +480,10 @@
   </p>
 
   <div class="flex flex-wrap items-center gap-2 mb-2">
-    <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-all')" (keydown.enter)="serverGrid.exportToExcel('payments-all')">
+    <ui-button variant="outline" size="sm" (click)="serverExp.exportToExcel('payments-all')" (keydown.enter)="serverExp.exportToExcel('payments-all')">
       Export All (filtered + sorted)
     </ui-button>
-    <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-page', serverData())" (keydown.enter)="serverGrid.exportToExcel('payments-page', serverData())">
+    <ui-button variant="outline" size="sm" (click)="serverExp.exportToExcel('payments-page', serverData())" (keydown.enter)="serverExp.exportToExcel('payments-page', serverData())">
       Export Current Page
     </ui-button>
   </div>
@@ -493,7 +494,7 @@
     </div>
     }
 
-    <ui-data-table #serverGrid [data]="serverData()" [columns]="paymentColumns()" [total]="serverTotal()"
+    <ui-data-table #serverGrid uiDtExport #serverExp="uiDtExport" [data]="serverData()" [columns]="paymentColumns()" [total]="serverTotal()"
       [localSorting]="false" [localPagination]="false" [localFiltering]="false"
       [exportDataProvider]="serverExportAll"
       (sortChange)="onServerSort($event)" (pageChange)="onServerPage($event)"
@@ -522,8 +523,8 @@
     <ui-button size="sm" variant="outline" (click)="moveOpsPriorityToFront()" (keydown.enter)="moveOpsPriorityToFront()">Move Priority Next</ui-button>
     <ui-button size="sm" variant="outline" (click)="saveOpsLayout()" (keydown.enter)="saveOpsLayout()">Save Layout</ui-button>
     <ui-button size="sm" variant="outline" (click)="restoreOpsLayout()" (keydown.enter)="restoreOpsLayout()">Restore Layout</ui-button>
-    <ui-button size="sm" variant="outline" (click)="opsGrid.exportToCsv('incidents')" (keydown.enter)="opsGrid.exportToCsv('incidents')">Export CSV</ui-button>
-    <ui-button size="sm" variant="outline" (click)="opsGrid.exportToExcel('incidents')" (keydown.enter)="opsGrid.exportToExcel('incidents')">Export Excel</ui-button>
+    <ui-button size="sm" variant="outline" (click)="opsExp.exportToCsv('incidents')" (keydown.enter)="opsExp.exportToCsv('incidents')">Export CSV</ui-button>
+    <ui-button size="sm" variant="outline" (click)="opsExp.exportToExcel('incidents')" (keydown.enter)="opsExp.exportToExcel('incidents')">Export Excel</ui-button>
 
     <div class="ml-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
       <span>Loader triggers:</span>
@@ -561,6 +562,7 @@
       (pageChange)="onOpsPage($event)" (filterChange)="onOpsFilter($event)"
       (columnFiltersChange)="onOpsColumnFilters($event)" [(columnOrder)]="opsColumnOrder"
       [(columnVisibility)]="opsColumnVisibility" [(expandedRows)]="opsExpandedRows"
+      uiDtExport #opsExp="uiDtExport"
       [uiDataTableContextMenu]="opsContextMenu" [exportDataProvider]="opsExportProvider" />
   </div>
 
@@ -571,10 +573,10 @@
         <ui-context-menu-shortcut>&#8984;C</ui-context-menu-shortcut>
       </ui-context-menu-item>
       <ui-context-menu-separator />
-      <ui-context-menu-item (click)="opsGrid.exportToCsv('incidents')" (keydown.enter)="opsGrid.exportToCsv('incidents')">
+      <ui-context-menu-item (click)="opsExp.exportToCsv('incidents')" (keydown.enter)="opsExp.exportToCsv('incidents')">
         Export CSV
       </ui-context-menu-item>
-      <ui-context-menu-item (click)="opsGrid.exportToExcel('incidents')" (keydown.enter)="opsGrid.exportToExcel('incidents')">
+      <ui-context-menu-item (click)="opsExp.exportToExcel('incidents')" (keydown.enter)="opsExp.exportToExcel('incidents')">
         Export Excel
       </ui-context-menu-item>
     </ui-context-menu-content>

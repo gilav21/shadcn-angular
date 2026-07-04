@@ -1,4 +1,10 @@
-import type { ColumnDef, RowActionContext, SortDirection } from './data-table.types';
+import type {
+  ColumnDef,
+  DataTableExportOptions,
+  DataTableExportQuery,
+  RowActionContext,
+  SortDirection,
+} from './data-table.types';
 import type { DataTableLocale } from './data-table.locales';
 
 export { AddonSlotRegistry } from '../../lib/addon-slots';
@@ -65,4 +71,26 @@ export abstract class DataTableAddonHost<T = unknown> {
   abstract cellActionSlots(): readonly CellActionSlot<T>[];
   /** The registered header-action slots (read by the base template). */
   abstract headerActionSlots(): readonly HeaderActionSlot<T>[];
+
+  /**
+   * Shape the current rows into a `string[][]` grid (header row + cells), the
+   * same view the base uses for copy. `rows` overrides the default source
+   * (filtered + sorted). Consumed by the export addon and clipboard features.
+   */
+  abstract getExportData(options?: DataTableExportOptions, rows?: readonly T[]): string[][];
+  /** The filtered + sorted rows across every page (not just the current page). */
+  abstract getSortedRows(): readonly T[];
+  /** The raw, unfiltered input rows (the `data` input), for transforms like pivot. */
+  abstract getRawRows(): readonly T[];
+  /** Resolve a cell's raw value for a row + column key (accessor or valueGetter). */
+  abstract getCellValue(row: T, key: string | keyof T, column?: ColumnDef<T>): unknown;
+  /** The active filter + sort query, for a server-side export provider. */
+  abstract queryState(): DataTableExportQuery;
+  /**
+   * Show or clear the base's generic busy overlay. An addon passes its own
+   * (localized) label to show it and `null` to hide it; the base owns no label.
+   */
+  abstract setBusy(label: string | null): void;
+  /** The active busy-overlay label, or null when idle (read by the base template). */
+  abstract busyLabel(): string | null;
 }

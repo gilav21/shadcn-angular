@@ -482,7 +482,7 @@
             }
           </div>
         }
-        @if (exporting()) {
+        @if (busyLabel(); as label) {
           <div
             class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
           >
@@ -492,7 +492,7 @@
               <span
                 class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"
               ></span>
-              <span>Exporting...</span>
+              <span>{{ label }}</span>
             </div>
           </div>
         }

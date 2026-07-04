@@ -218,33 +218,6 @@ export interface DataTableExportQuery {
     sortStates: SortState[];
 }
 
-export type PivotAggregate = 'sum' | 'avg' | 'count' | 'min' | 'max';
-
-/** Config for {@link computePivot}: row dimension(s) × one column dimension × one value. */
-export interface PivotConfig {
-    /** Column keys whose distinct combinations form the pivot rows. */
-    rows: string[];
-    /** Column key whose distinct values spread across the pivot columns. */
-    column: string;
-    /** Column key whose values are aggregated at each (row × column) cell. */
-    value: string;
-    aggregate: PivotAggregate;
-    /** Add a trailing "Total" column aggregating across the row. */
-    showRowTotals?: boolean;
-}
-
-export interface PivotColumn {
-    key: string;
-    header: string;
-}
-
-export interface PivotResult {
-    columns: PivotColumn[];
-    rows: Record<string, unknown>[];
-    /** The dynamic pivot-column keys (excludes the row-dimension and total columns). */
-    pivotColumnKeys: string[];
-}
-
 export type FilterOperator =
     | 'equals'
     | 'notEquals'
