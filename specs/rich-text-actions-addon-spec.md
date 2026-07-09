@@ -1202,6 +1202,35 @@ Usage:
   `style` → **zero style attribute written**; behavior is exactly v1 (fully
   backward-compatible).
 
+**Toolbar connectivity (verified, not assumed).** Because the seed is baked as
+inline style *content*, the editor's toolbar reads it exactly like
+author-applied formatting — `updateActiveFormats()`
+(`rich-text-editor.component.ts:5540`) drives the toggles from
+`document.queryCommandState(...)`, and font size/family from `getComputedStyle`.
+Measured in Chromium (Chrome 150) with a real `contenteditable`:
+
+| Seed declaration | Toolbar effect |
+| --- | --- |
+| `font-weight: bold` / `700` / `600` | **Bold toggle ON** (execCommand bold-state threshold is `≥600` in Chromium) |
+| `font-weight: 500` / `400` | Bold toggle **OFF** |
+| `text-decoration: underline` (or `text-decoration-line`) | **Underline toggle ON** (toggling it then removes the underline — expected, it's editable content) |
+| `font-style: italic` | **Italic toggle ON** |
+| `text-decoration: line-through` | **Strikethrough toggle ON** |
+| `font-size` / `font-family` | Size/family **dropdowns reflect it** (`getComputedStyle`) |
+| `color` / `background-color` | **No reflection today** — closed by Part D (§14.9) |
+
+The `≥600` threshold and underline behavior are browser-engine specifics; they
+were verified in-browser rather than assumed. This asymmetry is *why* Part A
+bakes inline style instead of using a CSS class or an addon stylesheet — with a
+class, `queryCommandState` sees nothing on the selection, so visibly-bold text
+would read **Bold: off** and clicking Bold would stack a second bold layer.
+
+**Affordance vs seed (no collision).** The in-editor affordance (§5.4)
+deliberately uses `border-bottom`, never `text-decoration: underline`, so it
+never fights the Underline toggle. A dev *seed* that includes
+`text-decoration: underline` is fine and reads as a normal, toggleable
+underline — the non-editable affordance and the editable seed coexist.
+
 ### 14.3 Part B — Combined action (one selection → click + hover)
 
 **API additions (additive):**
@@ -1399,3 +1428,76 @@ asserting.
 | Row | Date | Task | Reviewer score | Notes |
 | --- | --- | --- | --- | --- |
 | — | — | (pending) | — | — |
+
+### 14.9 Part D — Color-picker upgrade + fore/background reflection
+
+> **Scope note (read first):** this is a **base editor** change
+> (`rich-text-editor`), *not* addon-scoped — it affects every editor consumer,
+> not only those using the actions addon. It is included here because it closes
+> the color half of the toolbar-connectivity story (§14.2): a dev-seeded
+> `color`/`background-color` currently reflects nowhere. The upgrade is a
+> general editor improvement that happens to complete Part A.
+
+**Problem.** The toolbar's Text Color / Background Color controls are fixed
+swatch grids, and — unlike bold or font-size — the current selection's color is
+never read back. So an author (or a Part A seed) that sets `color`/
+`background-color` gets no active indication, and users can only pick from the
+preset swatches, not an arbitrary color.
+
+**Solution.** Replace the two swatch grids with the library's existing
+`ui-color-picker` (arbitrary color across hex/rgb/hsl/oklch, eyedropper,
+recents, WCAG contrast), **keeping the current swatches as quick-selects**, and
+read the selection's computed color back into the picker so seeded/author colors
+reflect.
+
+**API & wiring (base):**
+
+- The `fontColor` / `backgroundColor` toolbar popovers host
+  `<ui-color-picker>` instead of the raw swatch `@for` grids:
+  - `[presets]="textPalette"` / `[presets]="highlightPalette"` — the existing
+    palettes become the picker's quick-select swatches (no muscle-memory loss).
+  - Background picker `[alpha]="true"` (highlights need transparency); text
+    picker keeps alpha off.
+  - `(colorChange)="onColorSelect('fontColor' | 'backgroundColor', $event)"` —
+    the existing apply path (`foreColor`, and `hiliteColor`→`backColor`
+    fallback, plus mention-style sync) is **unchanged**.
+  - Value bound to new `currentFontColor` / `currentBackgroundColor` signals.
+  - Sensible defaults only: eyedropper on (its default), harmonies off (keep
+    the popover compact); `formats` left at the component default.
+- New `detectCurrentColors()` in `RichTextEditorComponent`, called from
+  `updateActiveFormats()` alongside `detectCurrentFontSize()` /
+  `detectCurrentFontFamily()`: reads `getComputedStyle(el).color` /
+  `.backgroundColor`, normalizes (`rgb()`→hex; `rgba(…,0)` / `transparent` →
+  "none"), and sets the two signals. This is what makes a Part A seed — and any
+  author-applied color — show as the picker's current value/active swatch.
+
+**Compatibility.** Quick-select swatches remain, so existing color specs that
+click a swatch keep working (selector updates only where the swatch DOM now
+lives inside the picker). Adds `color-picker` to the `rich-text-editor` registry
+`dependencies`. Component/lib source + registry **data** → served live from
+master, **no CLI publish** (re-verify in T-E3).
+
+**Test plan additions (extend §14.6):**
+
+- **86.** `fontColor` popover renders `ui-color-picker` with `textPalette`
+  presets; picking a preset still calls `onColorSelect('fontColor', …)`.
+- **87.** an arbitrary (non-palette) color is choosable and applied via `foreColor`.
+- **88.** `backgroundColor` picker applies `hiliteColor`/`backColor`; alpha /
+  `transparent` handled.
+- **89.** `detectCurrentColors()` reflects the selection's computed color into
+  the picker value (a seeded `color` shows as current).
+- **90.** a seeded `background-color` reflects in the background picker;
+  `transparent` → "none"/no active swatch.
+- **91.** regression: existing color specs (swatch click, mention-color sync)
+  still pass.
+
+**Task list additions (extend §14.7):**
+
+| # | Task | Scope | Key deliverables | Depends on |
+| --- | --- | --- | --- | --- |
+| T-E1 | Swap swatch grids → `ui-color-picker` in both color popovers (`presets` = current palettes; `alpha` for bg); wire `colorChange` → `onColorSelect` | base | tests 86–88 | — |
+| T-E2 | `detectCurrentColors()` in `updateActiveFormats()`; bind `currentFontColor`/`currentBackgroundColor` into the pickers | base | tests 89–90 | T-E1 |
+| T-E3 | Registry: add `color-picker` to `rich-text-editor` deps (`sync-registry --fix`); regression + RTL/touch/density pass; publish-boundary re-verify | tooling/base | test 91; no publish | T-E1 |
+
+Part D is independent of Parts A–C and can land on its own track; Part A's
+`color`/`background-color` seeds simply gain a reflecting control once it ships.
