@@ -7,10 +7,15 @@ import { RichTextActionsDirective } from './rich-text-actions.directive';
 import { RichTextActionsBindDirective } from './rich-text-actions-bind.directive';
 import { hoverCardAction, hoverCardHandlers } from './presets/hover-card.preset';
 import { openDialogAction, openDialogHandlers } from './presets/open-dialog.preset';
+import { linkedPreviewDialogAction, linkedPreviewDialogHandlers } from './presets/linked-preview-dialog.preset';
 import type { RichTextActionDefinition } from './rich-text-actions.types';
 import type { RichTextActionEvent } from './actions-runtime';
 
-type StoryVariant = 'tier1' | 'presets';
+type StoryVariant = 'tier1' | 'presets' | 'styled' | 'combined';
+
+const STARTER_STYLE: Record<string, string> = {
+    color: '#2563eb', textDecoration: 'underline dotted', textUnderlineOffset: '3px',
+};
 
 const TIER1_ACTION: RichTextActionDefinition = {
     id: 'open-dialog', label: 'Open dialog', icon: 'app-window', triggers: ['click'],
@@ -26,6 +31,19 @@ const PRESETS_CONTENT =
     'data-action-hover-params=\'{"title":"Tip","body":"A helpful hover card."}\'>this term</span> ' +
     'or click <span data-action-click="preset.open-dialog" ' +
     'data-action-click-params=\'{"title":"Pricing","body":"Our plans start at $9."}\'>here</span>.</p>';
+
+const STYLED_CONTENT =
+    '<p>The starter style paints newly-attached actions blue with a dotted underline — see our ' +
+    '<span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"pricing"}\'>pricing</span> ' +
+    'page.</p>';
+
+const COMBINED_PARAMS = '{"title":"Idempotent","body":"Calling it once or many times has the same effect."}';
+const COMBINED_CONTENT =
+    '<p>Hover or click <span data-action-hover="preset.linked-preview-dialog" ' +
+    `data-action-hover-params='${COMBINED_PARAMS}' ` +
+    'data-action-click="preset.linked-preview-dialog" ' +
+    `data-action-click-params='${COMBINED_PARAMS}'>idempotent</span> — hover shows a preview, click opens the ` +
+    'full dialog.</p>';
 
 /**
  * A self-contained playground: a `<ui-rich-text-editor>` with the actions addon
@@ -45,6 +63,7 @@ const PRESETS_CONTENT =
                     mode="html"
                     [readonly]="readonly()"
                     [uiRteActions]="defs()"
+                    [uiRteActionsStyle]="starterStyle()"
                     [uiRteActionsLocale]="rtl() ? 'he' : 'en'"
                     [ngModel]="content()"
                     (ngModelChange)="content.set($event)"
@@ -75,8 +94,18 @@ class RteActionsStory {
     protected readonly lastFired = signal('');
     protected readonly content = signal(TIER1_CONTENT);
 
-    protected readonly defs = computed<RichTextActionDefinition[]>(() =>
-        this.variant() === 'presets' ? [hoverCardAction(), openDialogAction()] : [TIER1_ACTION]);
+    protected readonly defs = computed<RichTextActionDefinition[]>(() => {
+        switch (this.variant()) {
+            case 'presets': return [hoverCardAction(), openDialogAction()];
+            case 'combined': return [linkedPreviewDialogAction()];
+            default: return [TIER1_ACTION];
+        }
+    });
+
+    // Only the `styled` story seeds a non-default starter style; other stories
+    // leave the addon's built-in default (an underline) untouched.
+    protected readonly starterStyle = computed<Record<string, string>>(() =>
+        this.variant() === 'styled' ? STARTER_STYLE : {});
 
     // The rich-text editor sanitizes its own HTML output; we render that trusted
     // result so the inert `data-action-*` attributes survive Angular's binding.
@@ -88,10 +117,20 @@ class RteActionsStory {
         'open-dialog': (e: RichTextActionEvent) => this.lastFired.set(`open-dialog(${e.params['dialogId']})`),
         ...hoverCardHandlers(this.injector),
         ...openDialogHandlers(this.injector),
+        ...linkedPreviewDialogHandlers(this.injector),
     };
 
     constructor() {
-        effect(() => this.content.set(this.variant() === 'presets' ? PRESETS_CONTENT : TIER1_CONTENT));
+        effect(() => this.content.set(this.contentFor(this.variant())));
+    }
+
+    private contentFor(variant: StoryVariant): string {
+        switch (variant) {
+            case 'presets': return PRESETS_CONTENT;
+            case 'styled': return STYLED_CONTENT;
+            case 'combined': return COMBINED_CONTENT;
+            default: return TIER1_CONTENT;
+        }
     }
 }
 
@@ -114,3 +153,9 @@ export const Readonly: Story = { args: { variant: 'tier1', readonly: true } };
 
 /** RTL locale (Hebrew) across the dialog and popover. */
 export const RTL: Story = { args: { variant: 'tier1', rtl: true } };
+
+/** `uiRteActionsStyle` seeds a global starter style (blue, dotted underline) on newly-attached actions. */
+export const StarterStyling: Story = { args: { variant: 'styled' } };
+
+/** `linkedPreviewDialogAction()` — one action definition, hover previews and click opens the full dialog. */
+export const CombinedAction: Story = { args: { variant: 'combined' } };

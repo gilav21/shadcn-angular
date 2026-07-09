@@ -30,6 +30,11 @@ export interface RichTextActionsDemoLocale extends LocaleMeta {
     rtlHeading: string;
     rtlHint: string;
     closeLabel: string;
+    v2Heading: string;
+    v2Hint: string;
+    v2StyleLabel: string;
+    v2CombinedLabel: string;
+    v2CodeTitle: string;
 }
 
 const en: RichTextActionsDemoLocale = {
@@ -73,6 +78,14 @@ const en: RichTextActionsDemoLocale = {
     rtlHeading: 'Right-to-left',
     rtlHint: 'Actions and preset overlays work in RTL layouts too.',
     closeLabel: 'Close',
+    v2Heading: '6 · Starter styling + combined action',
+    v2Hint:
+        'uiRteActionsStyle seeds the inline style a newly-attached action gets (here, a blue dotted underline), and ' +
+        'linkedPreviewDialogAction() is a single "combined" definition — hover shows a preview card, click opens ' +
+        'the full dialog, using one popover row in the attach UI instead of two.',
+    v2StyleLabel: 'uiRteActionsStyle',
+    v2CombinedLabel: 'linkedPreviewDialogAction()',
+    v2CodeTitle: 'Starter style + combined preset',
 };
 
 const he: RichTextActionsDemoLocale = {
@@ -115,6 +128,14 @@ const he: RichTextActionsDemoLocale = {
     rtlHeading: 'מימין לשמאל',
     rtlHint: 'פעולות ושכבות-על מוכנות עובדות גם בפריסות RTL.',
     closeLabel: 'סגור',
+    v2Heading: '6 · עיצוב התחלתי ופעולה משולבת',
+    v2Hint:
+        'uiRteActionsStyle קובע את הסגנון המוטבע שבו תזכה פעולה חדשה שצורפה (כאן, קו תחתון כחול מנוקד), ו-' +
+        'linkedPreviewDialogAction() היא הגדרה "משולבת" אחת — ריחוף מציג כרטיס תצוגה מקדימה, לחיצה פותחת את הדיאלוג ' +
+        'המלא, בשורת פופאובר אחת בטופס הצירוף במקום שתיים.',
+    v2StyleLabel: 'uiRteActionsStyle',
+    v2CombinedLabel: 'linkedPreviewDialogAction()',
+    v2CodeTitle: 'סגנון התחלתי + הגדרה משולבת',
 };
 
 export const RICH_TEXT_ACTIONS_DEMO_LOCALES: Record<string, RichTextActionsDemoLocale> = { en, he };
