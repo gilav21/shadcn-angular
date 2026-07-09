@@ -1362,6 +1362,20 @@ declarations). The addon must **not** call `registerAttributeRules` for
 falls back to a documented limitation rather than widening the security
 boundary.
 
+**T-A1 discovery finding (2026-07-09):** confirmed **kept**. On a `<span>`
+carrying `data-action-click`/`data-action-click-params` (registered via
+`registerAttributeRules`, as the addon does in production) plus
+`style="color:#2563eb;text-decoration:underline dotted"`, `sanitize()`
+preserves the inline `style` unchanged — it is already covered by the
+pre-existing global `style` entry in `ALLOWED_ATTRS['*']`, independent of the
+action attributes. No sanitizer change needed; Part A's seeded-style design is
+unblocked. See
+`packages/components/ui/rich-text-editor/rich-text-sanitizer.service.spec.ts`
+("preserves a safe inline style on an action span (v2 starter-style
+discovery)"). Note: the `data-action-*` attributes themselves only survive
+when the addon has registered its attribute rules — that requirement is
+existing, expected behavior (§7.3), not new information from this test.
+
 ### 14.6 Test plan additions
 
 Serializer / definition:
