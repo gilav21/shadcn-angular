@@ -9,7 +9,7 @@ import {
 import { ButtonComponent } from '../../../button';
 import { RichTextActionsFormComponent } from './rich-text-actions-form.component';
 import type {
-    ActionParams, ActionTargetKind, RichTextActionDefinition,
+    ActionParams, ActionParamsMode, ActionTargetKind, RichTextActionDefinition,
     RichTextActionParamsForm, RichTextActionTrigger,
 } from './rich-text-actions.types';
 import { RICH_TEXT_ACTIONS_LOCALES, type RichTextActionsLocale } from './rich-text-actions.locales';
@@ -29,6 +29,8 @@ export interface ActionsDialogConfirm {
     def: RichTextActionDefinition;
     trigger: RichTextActionTrigger;
     params: ActionParams;
+    /** Present when `def.combined` — per-trigger params for both attributes. */
+    combinedParams?: { click: ActionParams; hover: ActionParams };
 }
 
 /** Attach/edit dialog: searchable action picker + generated tier-1 form. */
@@ -64,6 +66,18 @@ export class RichTextActionsDialogComponent {
     readonly currentParams = signal<ActionParams>({});
     readonly formValid = signal(false);
 
+    readonly isCombined = computed(() => this.selectedDef()?.combined === true
+        && (this.selectedDef()?.triggers.length ?? 0) >= 2);
+
+    readonly paramsMode = computed<ActionParamsMode>(() => {
+        const def = this.selectedDef();
+        return def?.combined && def.paramsMode === 'separate' ? 'separate' : 'shared';
+    });
+
+    /** Second params bucket used only in combined + separate mode (hover group). */
+    readonly hoverParams = signal<ActionParams>({});
+    readonly hoverValid = signal(true);
+
     private readonly customForm = signal<ComponentRef<RichTextActionParamsForm> | null>(null);
     private renderedFormForDefId: string | null = null;
 
@@ -81,9 +95,14 @@ export class RichTextActionsDialogComponent {
 
     readonly canConfirm = computed(() => {
         const def = this.selectedDef();
-        if (!def || !this.selectedTrigger() || def.resolveParams) return false;
-        if (def.formComponent) return this.formValid();
-        if (def.fields && def.fields.length > 0) return this.formValid();
+        if (!def || def.resolveParams) return false;
+        if (this.isCombined()) {
+            return this.paramsMode() === 'separate'
+                ? this.formValid() && this.hoverValid()
+                : this.formValid();
+        }
+        if (!this.selectedTrigger()) return false;
+        if (def.formComponent || (def.fields && def.fields.length > 0)) return this.formValid();
         return true;
     });
 
@@ -119,11 +138,19 @@ export class RichTextActionsDialogComponent {
     pickAction(id: string): void {
         const def = this.definitions().find((d) => d.id === id) ?? null;
         this.selectedDef.set(def);
-        this.selectedTrigger.set(def?.triggers.length === 1 ? def.triggers[0] : null);
+        this.selectedTrigger.set(this.initialTrigger(def));
         const prefill = this.context().prefill;
         this.currentParams.set(prefill?.def.id === id ? { ...prefill.params } : {});
+        this.hoverParams.set({});
         this.formValid.set(this.initialValidity(def));
+        this.hoverValid.set(true);
         if (def) this.pick.emit(def);
+    }
+
+    private initialTrigger(def: RichTextActionDefinition | null): RichTextActionTrigger | null {
+        if (!def) return null;
+        if (def.triggers.length === 1) return def.triggers[0];
+        return def.combined ? 'click' : null;
     }
 
     private initialValidity(def: RichTextActionDefinition | null): boolean {
@@ -181,11 +208,32 @@ export class RichTextActionsDialogComponent {
         this.formValid.set(valid);
     }
 
+    onHoverParamsChange(params: ActionParams): void {
+        this.hoverParams.set(params);
+    }
+
+    onHoverValidChange(valid: boolean): void {
+        this.hoverValid.set(valid);
+    }
+
     onConfirm(): void {
         const def = this.selectedDef();
+        if (!def || !this.canConfirm()) return;
+        if (this.isCombined()) {
+            this.confirmCombined(def);
+            return;
+        }
         const trigger = this.selectedTrigger();
-        if (!def || !trigger || !this.canConfirm()) return;
+        if (!trigger) return;
         this.confirm.emit({ def, trigger, params: this.currentParams() });
+    }
+
+    private confirmCombined(def: RichTextActionDefinition): void {
+        const shared = this.currentParams();
+        const combinedParams = this.paramsMode() === 'separate'
+            ? { click: shared, hover: this.hoverParams() }
+            : { click: shared, hover: { ...shared } };
+        this.confirm.emit({ def, trigger: 'click', params: shared, combinedParams });
     }
 
     onOpenChange(open: boolean): void {

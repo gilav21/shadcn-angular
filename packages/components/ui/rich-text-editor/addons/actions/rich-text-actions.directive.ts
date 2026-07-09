@@ -5,7 +5,7 @@ import {
 import { RichTextEditorAddonHost, RichTextSanitizerService, RichTextMarkdownService } from '../..';
 import {
     applyStarterStyle, assertFlatParams, computeSeedStyleString, readActions, removeAction,
-    stripStyleIfMatches, validateActionId, validateActionParams, writeAction,
+    stripStyleIfMatches, validateActionId, validateActionParams, writeAction, writeCombined,
 } from './rich-text-actions.serializer';
 import {
     RichTextActionsDialogComponent, type ActionsDialogConfirm,
@@ -176,7 +176,9 @@ export class RichTextActionsDirective {
         ref.instance.dismiss.subscribe(() => this.closeOverlay(teardown));
         ref.instance.pick.subscribe((def: RichTextActionDefinition) => this.onPick(def, ref.instance, teardown, target));
         ref.instance.confirm.subscribe((payload: ActionsDialogConfirm) => {
-            const applied = this.applyAction(payload.def, payload.trigger, payload.params, target);
+            const applied = payload.combinedParams
+                ? this.applyCombined(payload.def, payload.combinedParams, target)
+                : this.applyAction(payload.def, payload.trigger, payload.params, target);
             if (applied) this.closeOverlay(teardown);
         });
     }
@@ -186,6 +188,7 @@ export class RichTextActionsDirective {
         teardown: () => void, target: ApplyTarget,
     ): void {
         this.warnOnMultipleTiers(def);
+        this.warnOnCombinedMisuse(def);
         if (!def.resolveParams) return;
         const trigger = def.triggers[0];
         dialog.setBusy(true);
@@ -210,6 +213,21 @@ export class RichTextActionsDirective {
             console.error(
                 `[rich-text-actions] action "${def.id}" declares multiple param tiers; ` +
                 'precedence is resolveParams > formComponent > fields.',
+            );
+        }
+    }
+
+    private warnOnCombinedMisuse(def: RichTextActionDefinition): void {
+        if (def.combined && def.triggers.length < 2) {
+            console.error(
+                `[rich-text-actions] action "${def.id}" is combined but declares fewer than two triggers; ` +
+                'treating as single-trigger.',
+            );
+        }
+        if (def.combined && def.paramsMode === 'separate' && (def.formComponent || def.resolveParams)) {
+            console.error(
+                `[rich-text-actions] action "${def.id}" combined+separate supports tier-1 fields only; ` +
+                'falling back to shared.',
             );
         }
     }
@@ -312,7 +330,10 @@ export class RichTextActionsDirective {
         this.overlays.push(teardown);
         ref.instance.dismiss.subscribe(() => this.closeOverlay(teardown));
         ref.instance.confirm.subscribe((payload: ActionsDialogConfirm) => {
-            if (this.applyAction(payload.def, payload.trigger, payload.params, target)) this.closeOverlay(teardown);
+            const applied = payload.combinedParams
+                ? this.applyCombined(payload.def, payload.combinedParams, target)
+                : this.applyAction(payload.def, payload.trigger, payload.params, target);
+            if (applied) this.closeOverlay(teardown);
         });
     }
 
@@ -402,6 +423,41 @@ export class RichTextActionsDirective {
             }
         }
         this.actionAttached.emit({ actionId: def.id, trigger, params, targetKind: target.kind });
+        return true;
+    }
+
+    private applyCombined(
+        def: RichTextActionDefinition, params: { click: ActionParams; hover: ActionParams }, target: ApplyTarget,
+    ): boolean {
+        try {
+            assertFlatParams(params.click);
+            assertFlatParams(params.hover);
+        } catch (err) {
+            console.error('[rich-text-actions] refused to attach non-flat combined params:', err);
+            return false;
+        }
+        const el = target.kind === 'image' ? target.image : target.existing;
+        if (el) {
+            this.host.mutateContent(() => writeCombined(el, def.id, params));
+        } else if (target.kind === 'image') {
+            console.error('[rich-text-actions] lost the image target before applying the action.');
+            return false;
+        } else {
+            const doc = this.host.contentRoot.ownerDocument;
+            const seed = this.mergedSeed(def);
+            const created = this.host.wrapSelection(() => {
+                const span = doc.createElement('span');
+                writeCombined(span, def.id, params);
+                applyStarterStyle(span, seed);
+                return span;
+            });
+            if (created.length === 0) {
+                console.error('[rich-text-actions] lost the text selection before applying the combined action.');
+                return false;
+            }
+        }
+        this.actionAttached.emit({ actionId: def.id, trigger: 'click', params: params.click, targetKind: target.kind });
+        this.actionAttached.emit({ actionId: def.id, trigger: 'hover', params: params.hover, targetKind: target.kind });
         return true;
     }
 }

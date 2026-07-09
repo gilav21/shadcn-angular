@@ -1,7 +1,7 @@
 import { Component, computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, it, expect } from 'vitest';
-import { RichTextActionsDialogComponent } from './rich-text-actions-dialog.component';
+import { RichTextActionsDialogComponent, type ActionsDialogConfirm } from './rich-text-actions-dialog.component';
 import { RICH_TEXT_ACTIONS_LOCALES } from './rich-text-actions.locales';
 import type {
     ActionParams, RichTextActionDefinition, RichTextActionParamsContext, RichTextActionParamsForm,
@@ -131,7 +131,7 @@ describe('RichTextActionsDialogComponent', () => {
             dialog: {
                 attachToText: 'צירוף', attachToImage: '', editTitle: '', searchPlaceholder: '',
                 searchLabel: 'חיפוש', noActions: 'אין', replacesExisting: '', cancel: 'ביטול',
-                attach: 'צרף', replace: '',
+                attach: 'צרף', replace: '', combinedBadge: '',
             },
             popover: { unavailable: '', edit: '', remove: '', add: '' },
             form: { required: '' },
@@ -165,5 +165,79 @@ describe('RichTextActionsDialogComponent', () => {
         fixture.componentInstance.confirm.subscribe((p) => (payload = p));
         confirmBtn.click();
         expect(payload!.params).toEqual({ entityId: 'e-1' });
+    });
+
+    it('shows a combined action as one row with no trigger radio and confirms both triggers', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('definitions', [
+            {
+                id: 'dictionary', label: 'Dictionary', icon: 'book', triggers: ['click', 'hover'],
+                combined: true, paramsMode: 'shared',
+                fields: [{ key: 'value', label: 'Value', type: 'text', required: true }],
+            },
+        ] satisfies RichTextActionDefinition[]);
+        ref.setInput('context', {
+            mode: 'create', targetKind: 'text', selectionText: 'sla', occupiedTriggers: [], prefill: null,
+        });
+        fixture.detectChanges();
+        fixture.componentInstance.pickAction('dictionary');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelectorAll('input[type="radio"][name="rta-trigger"]')).toHaveLength(0);
+
+        fixture.componentInstance.onParamsChange({ value: 'sla' });
+        fixture.componentInstance.onValidChange(true);
+        fixture.detectChanges();
+
+        let payload: ActionsDialogConfirm | undefined;
+        fixture.componentInstance.confirm.subscribe((p) => (payload = p));
+        const confirmBtn = fixture.nativeElement.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement;
+        expect(confirmBtn.disabled).toBe(false);
+        confirmBtn.click();
+        expect(payload?.combinedParams).toEqual({ click: { value: 'sla' }, hover: { value: 'sla' } });
+    });
+
+    it('renders two labelled field groups for paramsMode:separate', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('definitions', [
+            {
+                id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'],
+                combined: true, paramsMode: 'separate',
+                fieldsByTrigger: {
+                    hover: [{ key: 'previewLen', label: 'Preview length', type: 'number' }],
+                    click: [{ key: 'dialogId', label: 'Dialog', type: 'text' }],
+                },
+            },
+        ] satisfies RichTextActionDefinition[]);
+        ref.setInput('context', {
+            mode: 'create', targetKind: 'text', selectionText: 'sla', occupiedTriggers: [], prefill: null,
+        });
+        fixture.detectChanges();
+        fixture.componentInstance.pickAction('dictionary');
+        fixture.detectChanges();
+
+        const headers = Array.from(
+            fixture.nativeElement.querySelectorAll('[data-slot="rich-text-actions-dialog-section-header"]'),
+        ).map((el) => (el as HTMLElement).textContent);
+        expect(headers).toEqual([RICH_TEXT_ACTIONS_LOCALES['en'].triggers.hover, RICH_TEXT_ACTIONS_LOCALES['en'].triggers.click]);
+
+        expect(fixture.nativeElement.querySelector('input[data-field="previewLen"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('input[data-field="dialogId"]')).toBeTruthy();
+    });
+
+    it('shows the combined badge for a combined action', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('definitions', [
+            { id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'], combined: true },
+        ] satisfies RichTextActionDefinition[]);
+        ref.setInput('context', {
+            mode: 'create', targetKind: 'text', selectionText: 'sla', occupiedTriggers: [], prefill: null,
+        });
+        fixture.detectChanges();
+        fixture.componentInstance.pickAction('dictionary');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain(RICH_TEXT_ACTIONS_LOCALES['en'].dialog.combinedBadge);
     });
 });

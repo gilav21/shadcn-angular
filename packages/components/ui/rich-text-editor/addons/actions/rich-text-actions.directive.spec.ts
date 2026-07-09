@@ -378,6 +378,53 @@ describe('RichTextActionsDirective', () => {
         }
     });
 
+    it('attaches a combined action to both triggers in one undoable transaction', async () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        fixture.componentInstance.defs = [{
+            id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'],
+            combined: true, paramsMode: 'shared',
+            fields: [{ key: 'value', label: 'Value', type: 'text', required: true }],
+        }];
+        const editor = await attachFirstAction(fixture);
+        (document.querySelector('[data-action-option="dictionary"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+        const field = document.querySelector('input[data-field="value"]') as HTMLInputElement;
+        field.value = 'sla';
+        field.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+        fixture.detectChanges();
+
+        const span = editor.querySelector('span[data-action-click="dictionary"]') as HTMLElement;
+        expect(span).toBeTruthy();
+        expect(span.getAttribute('data-action-click')).toBe('dictionary');
+        expect(span.getAttribute('data-action-hover')).toBe('dictionary');
+
+        const editorCmp = fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .componentInstance as unknown as { onKeydown(e: KeyboardEvent): void };
+        editorCmp.onKeydown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
+        fixture.detectChanges();
+        expect(editor.querySelector('[data-action-click]')).toBeNull();
+    });
+
+    it('logs a diagnostic when a combined action declares fewer than two triggers', async () => {
+        const messages: string[] = [];
+        const orig = console.error;
+        console.error = (...a: unknown[]) => { messages.push(String(a[0])); };
+        try {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.componentInstance.defs = [{
+                id: 'bad-combined', label: 'Bad', triggers: ['click'], combined: true,
+            }];
+            await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="bad-combined"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            expect(messages.some((m) => m.includes('fewer than two triggers'))).toBe(true);
+        } finally {
+            console.error = orig;
+        }
+    });
+
     describe('starter style seeding', () => {
         it('seeds the merged starter style onto a newly created action span', async () => {
             const fixture = TestBed.createComponent(HostCmp);
