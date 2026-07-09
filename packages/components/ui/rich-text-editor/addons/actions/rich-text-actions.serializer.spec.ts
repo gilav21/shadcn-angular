@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     validateActionId, validateActionParams, writeAction, readActions, removeAction, assertFlatParams,
+    applyStarterStyle, computeSeedStyleString, stripStyleIfMatches,
 } from './rich-text-actions.serializer';
 
 describe('action serializer', () => {
@@ -62,5 +63,35 @@ describe('action serializer', () => {
     it('assertFlatParams throws on nested values', () => {
         expect(() => assertFlatParams({ a: { b: 1 } })).toThrow();
         expect(() => assertFlatParams({ a: 1, b: 'x', c: false })).not.toThrow();
+    });
+});
+
+describe('starter style helpers', () => {
+    it('applyStarterStyle writes camelCase keys as kebab CSS properties', () => {
+        const el = document.createElement('span');
+        applyStarterStyle(el, { color: '#2563eb', textUnderlineOffset: '3px' });
+        expect(el.style.color).toBe('rgb(37, 99, 235)');
+        expect(el.style.getPropertyValue('text-underline-offset')).toBe('3px');
+    });
+
+    it('computeSeedStyleString is the browser-canonical inline-style string', () => {
+        const seed = computeSeedStyleString(document, { color: '#2563eb' });
+        const el = document.createElement('span');
+        applyStarterStyle(el, { color: '#2563eb' });
+        expect(el.getAttribute('style')).toBe(seed);
+    });
+
+    it('stripStyleIfMatches removes an unedited seed but keeps an edited style', () => {
+        const seed = computeSeedStyleString(document, { color: '#2563eb' });
+        const unedited = document.createElement('span');
+        applyStarterStyle(unedited, { color: '#2563eb' });
+        stripStyleIfMatches(unedited, seed);
+        expect(unedited.hasAttribute('style')).toBe(false);
+
+        const edited = document.createElement('span');
+        applyStarterStyle(edited, { color: '#2563eb' });
+        edited.style.fontWeight = '700';
+        stripStyleIfMatches(edited, seed);
+        expect(edited.hasAttribute('style')).toBe(true);
     });
 });

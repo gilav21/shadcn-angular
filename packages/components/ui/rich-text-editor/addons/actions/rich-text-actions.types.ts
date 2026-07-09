@@ -64,6 +64,8 @@ export interface RichTextActionDefinition {
     triggers: RichTextActionTrigger[];
     /** Which targets the action may attach to. Default: both. */
     targets?: ActionTargetKind[];
+    /** Starter inline styles seeded onto a newly-created action span. Merged over the directive's `uiRteActionsStyle`. */
+    style?: Record<string, string>;
     /** Tier 1 — declarative fields; the addon generates the form. */
     fields?: RichTextActionField[];
     /** Tier 2 — a custom Angular form component rendered inside the addon dialog. */

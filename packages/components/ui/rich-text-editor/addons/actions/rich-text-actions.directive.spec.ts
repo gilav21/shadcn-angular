@@ -21,10 +21,12 @@ interface DirectiveInternals {
 @Component({
     standalone: true,
     imports: [RichTextEditorComponent, RichTextActionsDirective],
-    template: `<ui-rich-text-editor mode="html" [readonly]="ro" [uiRteActions]="defs"></ui-rich-text-editor>`,
+    template: `<ui-rich-text-editor mode="html" [readonly]="ro" [uiRteActions]="defs"
+        [uiRteActionsStyle]="styleSeed"></ui-rich-text-editor>`,
 })
 class HostCmp {
     ro = false;
+    styleSeed: Record<string, string> = {};
     defs: RichTextActionDefinition[] = [
         {
             id: 'open-dialog', label: 'Open dialog', triggers: ['click'],
@@ -374,5 +376,147 @@ describe('RichTextActionsDirective', () => {
         } finally {
             console.error = orig;
         }
+    });
+
+    describe('starter style seeding', () => {
+        it('seeds the merged starter style onto a newly created action span', async () => {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.componentInstance.styleSeed = { color: '#2563eb' };
+            fixture.componentInstance.defs = [
+                { id: 'd', label: 'D', triggers: ['click'], style: { fontWeight: '600' } },
+            ];
+            const editor = await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span[data-action-click="d"]') as HTMLElement;
+            expect(span.style.color).toBe('rgb(37, 99, 235)');
+            expect(span.style.fontWeight).toBe('600');
+        });
+
+        it('does not re-seed when adding a second trigger to an existing span', async () => {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.componentInstance.styleSeed = { color: '#2563eb' };
+            fixture.componentInstance.defs = [{ id: 'd', label: 'D', triggers: ['click', 'hover'] }];
+            const editor = await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            (document.querySelectorAll('input[type="radio"][name="rta-trigger"]')[0] as HTMLInputElement).click();
+            fixture.detectChanges();
+            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span[data-action-click="d"]') as HTMLElement;
+            span.style.setProperty('color', 'red');
+
+            const range = document.createRange();
+            range.selectNodeContents(span.firstChild ?? span);
+            range.collapse(true);
+            const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+            editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            fixture.detectChanges();
+
+            (document.querySelector('[data-testid="rta-add"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            const radios = document.querySelectorAll('input[type="radio"][name="rta-trigger"]');
+            (radios[1] as HTMLInputElement).click();
+            fixture.detectChanges();
+            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            expect(span.getAttribute('data-action-hover')).toBe('d');
+            expect(span.style.color).toBe('red');
+        });
+
+        it('ignores the style seed for image targets', () => {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.componentInstance.styleSeed = { color: '#2563eb' };
+            fixture.detectChanges();
+            const editorCmp = fixture.debugElement.children[0].componentInstance as RichTextEditorComponent;
+            const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+            editor.innerHTML = '<p><img src="https://example.com/a.png" alt="a"></p>';
+            const img = editor.querySelector('img') as HTMLImageElement;
+            editorCmp.selectedImage.set(img);
+            const range = document.createRange();
+            range.selectNode(img);
+            const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+            editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            fixture.detectChanges();
+
+            const slot = fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]') as HTMLButtonElement;
+            slot.click();
+            fixture.detectChanges();
+            sel.removeAllRanges();
+            editorCmp.selectedImage.set(null);
+
+            (document.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            const dialogInput = document.querySelector('input[data-field="dialogId"]') as HTMLInputElement;
+            dialogInput.value = 'pricing';
+            dialogInput.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            const attachedImg = editor.querySelector('img[data-action-click="open-dialog"]');
+            expect(attachedImg?.getAttribute('style')).toBeNull();
+        });
+
+        it('strips an unedited seed and unwraps the bare span on remove', async () => {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.componentInstance.styleSeed = { color: '#2563eb' };
+            fixture.componentInstance.defs = [{ id: 'd', label: 'D', triggers: ['click'] }];
+            const editor = await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span[data-action-click="d"]') as HTMLElement;
+            const range = document.createRange();
+            range.selectNodeContents(span.firstChild ?? span);
+            range.collapse(true);
+            const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+            editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            fixture.detectChanges();
+
+            (document.querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            expect(editor.querySelector('[data-action-click]')).toBeFalsy();
+            expect(editor.innerHTML).not.toContain('style=');
+        });
+
+        it('keeps an author-edited style span on remove', async () => {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.componentInstance.styleSeed = { color: '#2563eb' };
+            fixture.componentInstance.defs = [{ id: 'd', label: 'D', triggers: ['click'] }];
+            const editor = await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span[data-action-click="d"]') as HTMLElement;
+            span.style.fontWeight = '700';
+
+            const range = document.createRange();
+            range.selectNodeContents(span.firstChild ?? span);
+            range.collapse(true);
+            const sel = window.getSelection()!; sel.removeAllRanges(); sel.addRange(range);
+            editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+            fixture.detectChanges();
+
+            (document.querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            const remaining = editor.querySelector('span[style]');
+            expect(remaining).not.toBeNull();
+            expect(remaining?.textContent).toBe('go');
+        });
     });
 });

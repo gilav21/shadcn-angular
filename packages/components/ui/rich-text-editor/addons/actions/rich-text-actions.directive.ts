@@ -4,7 +4,8 @@ import {
 } from '@angular/core';
 import { RichTextEditorAddonHost, RichTextSanitizerService, RichTextMarkdownService } from '../..';
 import {
-    assertFlatParams, readActions, removeAction, validateActionId, validateActionParams, writeAction,
+    applyStarterStyle, assertFlatParams, computeSeedStyleString, readActions, removeAction,
+    stripStyleIfMatches, validateActionId, validateActionParams, writeAction,
 } from './rich-text-actions.serializer';
 import {
     RichTextActionsDialogComponent, type ActionsDialogConfirm,
@@ -53,6 +54,8 @@ export class RichTextActionsDirective {
     readonly uiRteActionsSlashCommand = input(true);
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`) or a full dictionary. */
     readonly uiRteActionsLocale = input<LocaleInput<RichTextActionsLocale>>();
+    /** Global default starter styles seeded onto every newly-created action span. */
+    readonly uiRteActionsStyle = input<Record<string, string>>({});
 
     private readonly i18n = createLocaleBindings(this.uiRteActionsLocale, RICH_TEXT_ACTIONS_LOCALES);
 
@@ -316,16 +319,24 @@ export class RichTextActionsDirective {
     private removeTrigger(el: HTMLElement, trigger: RichTextActionTrigger): void {
         const removedId = el.getAttribute(`data-action-${trigger}`) ?? '';
         this.hidePopover();
+        const def = this.uiRteActions().find((d) => d.id === removedId);
+        const seed = def ? computeSeedStyleString(el.ownerDocument, this.mergedSeed(def)) : '';
         this.host.mutateContent(() => {
             removeAction(el, trigger);
             const stillActioned = ACTION_ATTRS.some((a) => el.hasAttribute(a));
-            if (!stillActioned && el.tagName === 'SPAN' && el.attributes.length === 0) {
+            if (stillActioned) return;
+            stripStyleIfMatches(el, seed);
+            if (el.tagName === 'SPAN' && el.attributes.length === 0) {
                 const parent = el.parentNode;
                 while (el.firstChild) parent?.insertBefore(el.firstChild, el);
                 el.remove();
             }
         });
         this.actionRemoved.emit({ actionId: removedId, trigger, targetKind: 'text' });
+    }
+
+    private mergedSeed(def: RichTextActionDefinition): Record<string, string> {
+        return { ...this.uiRteActionsStyle(), ...(def.style ?? {}) };
     }
 
     private injectVisualizationStyles(): () => void {
@@ -378,9 +389,11 @@ export class RichTextActionsDirective {
             return false;
         } else {
             const doc = this.host.contentRoot.ownerDocument;
+            const seed = this.mergedSeed(def);
             const created = this.host.wrapSelection(() => {
                 const span = doc.createElement('span');
                 writeAction(span, trigger, def.id, params);
+                applyStarterStyle(span, seed);
                 return span;
             });
             if (created.length === 0) {
