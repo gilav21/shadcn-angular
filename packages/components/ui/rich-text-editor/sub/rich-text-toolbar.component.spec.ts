@@ -245,6 +245,55 @@ describe('RichTextToolbarComponent', () => {
             expect(picker).not.toBeNull();
         });
 
+        async function openColorPickerPresets(popoverId: 'fontColor' | 'backgroundColor'): Promise<HTMLElement> {
+            fixture.componentRef.setInput('items', [popoverId]);
+            fixture.detectChanges();
+            component.openPopoverPanel(popoverId);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const trigger: HTMLButtonElement = fixture.nativeElement.querySelector(
+                'ui-color-picker [data-slot="color-picker-trigger"]',
+            );
+            trigger.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            return fixture.nativeElement;
+        }
+
+        it('clicking a real text-palette preset swatch emits colorSelect via the color-picker', async () => {
+            const root = await openColorPickerPresets('fontColor');
+            const targetColor = component.colorPalette[1];
+            const swatch: HTMLButtonElement = root.querySelector(
+                `button[data-color-btn][aria-label="Select ${targetColor}"]`,
+            );
+            expect(swatch).not.toBeNull();
+
+            let emitted: { type: string; color: string } | undefined;
+            component.colorSelect.subscribe((e) => (emitted = e));
+            swatch.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(emitted).toEqual({ type: 'fontColor', color: targetColor });
+        });
+
+        it('clicking the "transparent" background preset emits colorSelect with a fully-transparent color', async () => {
+            const root = await openColorPickerPresets('backgroundColor');
+            const swatch: HTMLButtonElement = root.querySelector(
+                'button[data-color-btn][aria-label="Select transparent"]',
+            );
+            expect(swatch).not.toBeNull();
+
+            let emitted: { type: string; color: string } | undefined;
+            component.colorSelect.subscribe((e) => (emitted = e));
+            swatch.click();
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(emitted?.type).toBe('backgroundColor');
+            expect(emitted?.color).toBe('#00000000');
+        });
+
         it('emits colorSelect when the color-picker changes color', () => {
             fixture.componentRef.setInput('items', ['fontColor']);
             fixture.detectChanges();
