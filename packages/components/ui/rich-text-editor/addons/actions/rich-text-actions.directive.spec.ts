@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { TestBed } from '@angular/core/testing';
-import { describe, it, expect } from 'vitest';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { describe, it, expect, afterEach } from 'vitest';
 import { RichTextEditorComponent } from '../../rich-text-editor.component';
 import { RichTextSanitizerService } from '../../rich-text-sanitizer.service';
 import { RichTextActionsDirective } from './rich-text-actions.directive';
@@ -35,9 +35,48 @@ class HostCmp {
     ];
 }
 
+function removeLeftoverOverlays(): void {
+    const selectors = [
+        '[data-slot="rich-text-actions-dialog"]',
+        '[data-slot="rich-text-actions-popover"]',
+        '[data-slot="preset-dialog"]',
+        '[data-slot="hover-card"]',
+    ];
+    for (const selector of selectors) {
+        document.querySelectorAll(selector).forEach((el) => el.remove());
+    }
+}
+
+function currentDialog(): HTMLElement {
+    return document.querySelector('[data-slot="rich-text-actions-dialog"]') as HTMLElement;
+}
+
+function currentPopover(): HTMLElement {
+    return document.querySelector('[data-slot="rich-text-actions-popover"]') as HTMLElement;
+}
+
 describe('RichTextActionsDirective', () => {
-    it('registers a toolbar slot + sanitizer rules when defs are present', () => {
+    const openFixtures: ComponentFixture<HostCmp>[] = [];
+
+    function createFixture(): ComponentFixture<HostCmp> {
         const fixture = TestBed.createComponent(HostCmp);
+        openFixtures.push(fixture);
+        return fixture;
+    }
+
+    afterEach(() => {
+        window.getSelection()?.removeAllRanges();
+        while (openFixtures.length > 0) {
+            const fixture = openFixtures.pop()!;
+            if (!fixture.componentRef.hostView.destroyed) {
+                fixture.destroy();
+            }
+        }
+        removeLeftoverOverlays();
+    });
+
+    it('registers a toolbar slot + sanitizer rules when defs are present', () => {
+        const fixture = createFixture();
         fixture.detectChanges();
         const sanitizer = TestBed.inject(RichTextSanitizerService);
         expect(sanitizer.sanitize('<span data-action-click="open-dialog">x</span>'))
@@ -47,7 +86,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('registers nothing when defs are empty', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.componentInstance.defs = [];
         fixture.detectChanges();
         const sanitizer = TestBed.inject(RichTextSanitizerService);
@@ -56,7 +95,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('tears down registrations on destroy', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.detectChanges();
         fixture.destroy();
         const sanitizer = TestBed.inject(RichTextSanitizerService);
@@ -65,7 +104,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('attaches a click action to a text selection and emits actionAttached', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.detectChanges();
         const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
         editor.innerHTML = '<p>hello world</p>';
@@ -96,7 +135,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('applies an action to an image target captured before the dialog steals focus', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.detectChanges();
         const editorCmp = fixture.debugElement.children[0].componentInstance as RichTextEditorComponent;
         const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
@@ -129,7 +168,7 @@ describe('RichTextActionsDirective', () => {
             .toBe('{"dialogId":"pricing"}');
     });
 
-    async function attachFirstAction(fixture: ReturnType<typeof TestBed.createComponent<HostCmp>>): Promise<HTMLElement> {
+    async function attachFirstAction(fixture: ComponentFixture<HostCmp>): Promise<HTMLElement> {
         fixture.detectChanges();
         const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
         editor.innerHTML = '<p>go</p>';
@@ -144,7 +183,7 @@ describe('RichTextActionsDirective', () => {
     }
 
     it('tier 3 resolveParams runs without a dialog form and attaches resolved params', async () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.componentInstance.defs = [{
             id: 'campaign', label: 'Campaign', triggers: ['click'],
             resolveParams: async () => ({ campaignId: 'c-42' }),
@@ -158,7 +197,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('tier 3 resolveParams returning null cancels cleanly with no attach', async () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.componentInstance.defs = [{
             id: 'campaign', label: 'Campaign', triggers: ['click'],
             resolveParams: async () => null,
@@ -175,7 +214,7 @@ describe('RichTextActionsDirective', () => {
         const origErr = console.error;
         console.error = (...a: unknown[]) => { errors.push(a); };
         try {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.componentInstance.defs = [{
                 id: 'bad', label: 'Bad', triggers: ['click'],
                 resolveParams: async () => ({ nested: { x: 1 } } as unknown as Record<string, string | number | boolean>),
@@ -196,7 +235,7 @@ describe('RichTextActionsDirective', () => {
         const origErr = console.error;
         console.error = (...a: unknown[]) => { messages.push(String(a[0])); };
         try {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.componentInstance.defs = [{
                 id: 'multi', label: 'Multi', triggers: ['click'],
                 fields: [{ key: 'a', label: 'A', type: 'text' }],
@@ -212,7 +251,7 @@ describe('RichTextActionsDirective', () => {
         }
     });
 
-    function caretInside(fixture: ReturnType<typeof TestBed.createComponent<HostCmp>>, html: string): HTMLElement {
+    function caretInside(fixture: ComponentFixture<HostCmp>, html: string): HTMLElement {
         fixture.detectChanges();
         const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
         editor.innerHTML = html;
@@ -227,7 +266,7 @@ describe('RichTextActionsDirective', () => {
     }
 
     it('shows the edit popover when the caret enters an actioned span', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"x"}\'>t</span></p>');
         const popover = document.querySelector('[data-slot="rich-text-actions-popover"]');
         expect(popover).toBeTruthy();
@@ -236,7 +275,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('removes a trigger and unwraps a bare span', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         const editor = caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"x"}\'>t</span></p>');
         (document.querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
         fixture.detectChanges();
@@ -245,7 +284,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('renders a combined action as a single popover row and removes both triggers', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.componentInstance.defs = [
             { id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'], combined: true },
         ];
@@ -266,7 +305,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('still renders two rows for two separate single-trigger actions (regression)', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.componentInstance.defs = [
             { id: 'open-dialog', label: 'Open dialog', triggers: ['click'] },
             { id: 'term', label: 'Term', triggers: ['hover'] },
@@ -280,7 +319,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('renders an unknown action id as remove-only', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         caretInside(fixture, '<p><span data-action-click="ghost-id">t</span></p>');
         const popover = document.querySelector('[data-slot="rich-text-actions-popover"]')!;
         expect(popover.textContent).toContain('unavailable');
@@ -289,7 +328,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('hides all entry points when the editor is readonly', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.componentInstance.ro = true;
         caretInside(fixture, '<p><span data-action-click="open-dialog">t</span></p>');
         expect(fixture.nativeElement.querySelector('[data-addon-slot="actions.attach"]')).toBeFalsy();
@@ -297,7 +336,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('edit reopens the dialog in edit mode with prefilled params and updates the action', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         const editor = caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"old"}\'>t</span></p>');
         (document.querySelector('[data-testid="rta-edit"]') as HTMLButtonElement).click();
         fixture.detectChanges();
@@ -317,7 +356,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('dismisses the edit popover on an outside pointerdown', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         caretInside(fixture, '<p><span data-action-click="open-dialog">t</span></p>');
         expect(document.querySelector('[data-slot="rich-text-actions-popover"]')).toBeTruthy();
         document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
@@ -326,7 +365,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('closes the edit popover (not just opens the dialog) when "Add action" is clicked', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         caretInside(fixture, '<p><span data-action-click="open-dialog">t</span></p>');
         const add = document.querySelector('[data-testid="rta-add"]') as HTMLButtonElement;
         expect(add).toBeTruthy();
@@ -343,7 +382,7 @@ describe('RichTextActionsDirective', () => {
         const orig = console.error;
         console.error = (...a: unknown[]) => { errors.push(String(a[0])); };
         try {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.componentInstance.defs = [{
                 id: 'boom', label: 'Boom', triggers: ['click'],
                 resolveParams: async () => { throw new Error('nope'); },
@@ -360,9 +399,9 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('ref-counts the shared visualization stylesheet across two editor instances', () => {
-        const a = TestBed.createComponent(HostCmp);
+        const a = createFixture();
         a.detectChanges();
-        const b = TestBed.createComponent(HostCmp);
+        const b = createFixture();
         b.detectChanges();
         const doc = a.nativeElement.ownerDocument as Document;
         const style = doc.querySelector('style[data-rte-actions-style]') as HTMLStyleElement;
@@ -375,7 +414,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('registers a slash command whose run() opens the attach flow', () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.detectChanges();
         const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent)).componentInstance as {
             commands: { listCommands(): { id: string; run: (ctx: unknown) => void }[] };
@@ -392,7 +431,7 @@ describe('RichTextActionsDirective', () => {
         const orig = console.error;
         console.error = (...a: unknown[]) => { errors.push(String(a[0])); };
         try {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.detectChanges();
             const de = fixture.debugElement.query(By.directive(RichTextActionsDirective));
             const dir = de.injector.get(RichTextActionsDirective) as unknown as DirectiveInternals;
@@ -414,7 +453,7 @@ describe('RichTextActionsDirective', () => {
     });
 
     it('attaches a combined action to both triggers in one undoable transaction', async () => {
-        const fixture = TestBed.createComponent(HostCmp);
+        const fixture = createFixture();
         fixture.componentInstance.defs = [{
             id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'],
             combined: true, paramsMode: 'shared',
@@ -447,7 +486,7 @@ describe('RichTextActionsDirective', () => {
         const orig = console.error;
         console.error = (...a: unknown[]) => { messages.push(String(a[0])); };
         try {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.componentInstance.defs = [{
                 id: 'bad-combined', label: 'Bad', triggers: ['click'], combined: true,
             }];
@@ -465,7 +504,7 @@ describe('RichTextActionsDirective', () => {
         const orig = console.error;
         console.error = (...a: unknown[]) => { messages.push(String(a[0])); };
         try {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.componentInstance.defs = [{
                 id: 'weird-combined', label: 'Weird', triggers: ['click', 'hover'],
                 combined: true, paramsMode: 'separate',
@@ -487,7 +526,7 @@ describe('RichTextActionsDirective', () => {
 
     describe('starter style seeding', () => {
         it('seeds the merged starter style onto a newly created action span', async () => {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.componentInstance.styleSeed = { color: '#2563eb' };
             fixture.componentInstance.defs = [
                 { id: 'd', label: 'D', triggers: ['click'], style: { fontWeight: '600' } },
@@ -495,7 +534,7 @@ describe('RichTextActionsDirective', () => {
             const editor = await attachFirstAction(fixture);
             (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
             fixture.detectChanges();
-            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
             fixture.detectChanges();
 
             const span = editor.querySelector('span[data-action-click="d"]') as HTMLElement;
@@ -504,15 +543,15 @@ describe('RichTextActionsDirective', () => {
         });
 
         it('does not re-seed when adding a second trigger to an existing span', async () => {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.componentInstance.styleSeed = { color: '#2563eb' };
             fixture.componentInstance.defs = [{ id: 'd', label: 'D', triggers: ['click', 'hover'] }];
             const editor = await attachFirstAction(fixture);
             (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
             fixture.detectChanges();
-            (document.querySelectorAll('input[type="radio"][name="rta-trigger"]')[0] as HTMLInputElement).click();
+            (currentDialog().querySelectorAll('input[type="radio"][name="rta-trigger"]')[0] as HTMLInputElement).click();
             fixture.detectChanges();
-            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
             fixture.detectChanges();
 
             const span = editor.querySelector('span[data-action-click="d"]') as HTMLElement;
@@ -525,14 +564,14 @@ describe('RichTextActionsDirective', () => {
             editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
             fixture.detectChanges();
 
-            (document.querySelector('[data-testid="rta-add"]') as HTMLButtonElement).click();
+            (currentPopover().querySelector('[data-testid="rta-add"]') as HTMLButtonElement).click();
             fixture.detectChanges();
             (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
             fixture.detectChanges();
-            const radios = document.querySelectorAll('input[type="radio"][name="rta-trigger"]');
+            const radios = currentDialog().querySelectorAll('input[type="radio"][name="rta-trigger"]');
             (radios[1] as HTMLInputElement).click();
             fixture.detectChanges();
-            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
             fixture.detectChanges();
 
             expect(span.getAttribute('data-action-hover')).toBe('d');
@@ -540,7 +579,7 @@ describe('RichTextActionsDirective', () => {
         });
 
         it('ignores the style seed for image targets', () => {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.componentInstance.styleSeed = { color: '#2563eb' };
             fixture.detectChanges();
             const editorCmp = fixture.debugElement.children[0].componentInstance as RichTextEditorComponent;
@@ -562,11 +601,11 @@ describe('RichTextActionsDirective', () => {
 
             (document.querySelector('[data-action-option="open-dialog"]') as HTMLButtonElement).click();
             fixture.detectChanges();
-            const dialogInput = document.querySelector('input[data-field="dialogId"]') as HTMLInputElement;
+            const dialogInput = currentDialog().querySelector('input[data-field="dialogId"]') as HTMLInputElement;
             dialogInput.value = 'pricing';
             dialogInput.dispatchEvent(new Event('input'));
             fixture.detectChanges();
-            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
             fixture.detectChanges();
 
             const attachedImg = editor.querySelector('img[data-action-click="open-dialog"]');
@@ -574,13 +613,13 @@ describe('RichTextActionsDirective', () => {
         });
 
         it('strips an unedited seed and unwraps the bare span on remove', async () => {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.componentInstance.styleSeed = { color: '#2563eb' };
             fixture.componentInstance.defs = [{ id: 'd', label: 'D', triggers: ['click'] }];
             const editor = await attachFirstAction(fixture);
             (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
             fixture.detectChanges();
-            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
             fixture.detectChanges();
 
             const span = editor.querySelector('span[data-action-click="d"]') as HTMLElement;
@@ -591,7 +630,7 @@ describe('RichTextActionsDirective', () => {
             editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
             fixture.detectChanges();
 
-            (document.querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
+            (currentPopover().querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
             fixture.detectChanges();
 
             expect(editor.querySelector('[data-action-click]')).toBeFalsy();
@@ -599,13 +638,13 @@ describe('RichTextActionsDirective', () => {
         });
 
         it('keeps an author-edited style span on remove', async () => {
-            const fixture = TestBed.createComponent(HostCmp);
+            const fixture = createFixture();
             fixture.componentInstance.styleSeed = { color: '#2563eb' };
             fixture.componentInstance.defs = [{ id: 'd', label: 'D', triggers: ['click'] }];
             const editor = await attachFirstAction(fixture);
             (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
             fixture.detectChanges();
-            (document.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
             fixture.detectChanges();
 
             const span = editor.querySelector('span[data-action-click="d"]') as HTMLElement;
@@ -618,7 +657,7 @@ describe('RichTextActionsDirective', () => {
             editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
             fixture.detectChanges();
 
-            (document.querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
+            (currentPopover().querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
             fixture.detectChanges();
 
             const remaining = editor.querySelector('span[style]');

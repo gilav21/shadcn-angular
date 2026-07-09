@@ -2893,6 +2893,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     onColorSelect(event: { type: 'fontColor' | 'backgroundColor'; color: string }): void {
+        if (this.isReflectedColorEcho(event.type, event.color)) {
+            return;
+        }
         this.flushPendingHistoryPush();
         this.restoreSelection();
 
@@ -2909,6 +2912,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
 
         this.applyMutation({ focus: true });
+    }
+
+    /**
+     * True when an incoming color merely echoes the value the toolbar picker was
+     * just given to reflect the current selection (the color picker re-emits its
+     * programmatically-set value through `colorChange`). Applying it would run a
+     * `foreColor`/`hiliteColor` command on the selection and mutate content on a
+     * mere caret move, so the echo is ignored. A genuine user pick of a different
+     * color still differs from the reflected value and applies normally.
+     */
+    private isReflectedColorEcho(type: 'fontColor' | 'backgroundColor', color: string): boolean {
+        const current = type === 'fontColor' ? this.currentFontColor() : this.currentBackgroundColor();
+        return current !== '' && this.toHexColor(color) === this.toHexColor(current);
     }
 
     onFontSizeSelect(size: string): void {

@@ -245,6 +245,31 @@ describe('RichTextActionsDialogComponent', () => {
         expect(fixture.nativeElement.querySelector('input[data-field="dialogId"]')).toBeTruthy();
     });
 
+    it('preserves per-trigger params when editing a combined paramsMode:separate action', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        const def: RichTextActionDefinition = {
+            id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'],
+            combined: true, paramsMode: 'separate',
+            fieldsByTrigger: {
+                hover: [{ key: 'previewLen', label: 'Preview length', type: 'number' }],
+                click: [{ key: 'dialogId', label: 'Dialog', type: 'text' }],
+            },
+        };
+        ref.setInput('definitions', [def]);
+        ref.setInput('context', {
+            mode: 'edit', targetKind: 'text', selectionText: 'sla', occupiedTriggers: ['click', 'hover'],
+            prefill: { def, trigger: 'click', params: { dialogId: 'full' }, hoverParams: { previewLen: 120 } },
+        });
+        fixture.detectChanges();
+
+        let payload: ActionsDialogConfirm | undefined;
+        fixture.componentInstance.confirm.subscribe((p) => (payload = p));
+        fixture.componentInstance.onConfirm();
+
+        expect(payload?.combinedParams).toEqual({ click: { dialogId: 'full' }, hover: { previewLen: 120 } });
+    });
+
     it('shows the combined badge for a combined action', () => {
         const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
         const ref = fixture.componentRef;

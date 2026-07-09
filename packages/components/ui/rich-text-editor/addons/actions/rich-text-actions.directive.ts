@@ -340,7 +340,12 @@ export class RichTextActionsDirective {
         ref.setInput('context', {
             mode: 'edit', targetKind: 'text', selectionText: el.textContent ?? '',
             occupiedTriggers: readActions(el).map((a) => a.trigger),
-            prefill: { def, trigger, params: action.params },
+            prefill: {
+                def, trigger, params: action.params,
+                hoverParams: isCombinedOnElement(el)
+                    ? readActions(el).find((a) => a.trigger === 'hover')?.params
+                    : undefined,
+            },
         });
         const teardown = (): void => { ref.destroy(); };
         this.overlays.push(teardown);

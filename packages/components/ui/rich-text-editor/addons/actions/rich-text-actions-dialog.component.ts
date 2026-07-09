@@ -21,7 +21,11 @@ export interface ActionsDialogContext {
     targetKind: ActionTargetKind;
     selectionText: string;
     occupiedTriggers: RichTextActionTrigger[];
-    prefill: { def: RichTextActionDefinition; trigger: RichTextActionTrigger; params: ActionParams } | null;
+    prefill: {
+        def: RichTextActionDefinition; trigger: RichTextActionTrigger; params: ActionParams;
+        /** Hover-trigger params, supplied when editing a combined `paramsMode:'separate'` action. */
+        hoverParams?: ActionParams;
+    } | null;
 }
 
 /** The confirmed attach/edit payload emitted to the directive. */
@@ -124,6 +128,10 @@ export class RichTextActionsDialogComponent {
         this.selectedTrigger.set(prefill.trigger);
         this.currentParams.set({ ...prefill.params });
         this.formValid.set(true);
+        if (prefill.hoverParams) {
+            this.hoverParams.set({ ...prefill.hoverParams });
+            this.hoverValid.set(true);
+        }
     }
 
     readonly confirmLabel = computed(() => {

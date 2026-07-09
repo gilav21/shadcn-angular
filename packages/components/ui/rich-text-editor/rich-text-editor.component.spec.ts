@@ -1837,6 +1837,42 @@ describe('RichTextEditorComponent', () => {
 
             expect(component['currentBackgroundColor']()).toBe('');
         });
+
+        it('does not mutate content when the picker echoes the already-reflected color', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span style="color:#2563eb">SLA</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+            component['updateActiveFormats']();
+            const before = editor.innerHTML;
+
+            // The color picker re-emits its programmatically-set value; this echo must be ignored.
+            component.onColorSelect({ type: 'fontColor', color: component['currentFontColor']() });
+
+            expect(editor.innerHTML).toBe(before);
+            expect(editor.innerHTML).not.toContain('<font');
+        });
+
+        it('still applies a genuinely different picked color', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span style="color:#2563eb">SLA</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+            component['updateActiveFormats']();
+
+            component.onColorSelect({ type: 'fontColor', color: '#ff0000' });
+            fixture.detectChanges();
+
+            expect(editor.innerHTML.toLowerCase()).toContain('ff0000');
+        });
     });
 
     describe('document outline', () => {
