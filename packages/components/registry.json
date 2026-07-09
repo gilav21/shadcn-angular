@@ -2225,6 +2225,7 @@
     "dependencies": [
       "autocomplete",
       "button",
+      "color-picker",
       "dialog",
       "emoji-picker",
       "popover",

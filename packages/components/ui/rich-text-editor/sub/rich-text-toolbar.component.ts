@@ -23,6 +23,7 @@ import {
   EmojiPickerContentComponent,
 } from '../../emoji-picker';
 import { AutocompleteComponent } from '../../autocomplete';
+import { ColorPickerComponent } from '../../color-picker';
 import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
 import { RichTextCustomToolbarItem } from '../rich-text-editor.component';
 import type { RichTextToolbarSlot } from '../rich-text-editor.host';
@@ -227,6 +228,7 @@ export type FontFamilyStrategy = 'append' | 'replace';
     EmojiPickerTriggerComponent,
     EmojiPickerContentComponent,
     AutocompleteComponent,
+    ColorPickerComponent,
     FormsModule,
   ],
   templateUrl: './rich-text-toolbar.component.html',
@@ -252,6 +254,8 @@ export class RichTextToolbarComponent {
   selectedText = input<string>('');
   currentFontSize = input<string>('');
   currentFontFamily = input<string>('');
+  currentFontColor = input<string>('');
+  currentBackgroundColor = input<string>('');
   fontFamilyOptions = input<string[]>(DEFAULT_FONT_FAMILIES);
   compact = input<boolean>(false);
   class = input<string>('');

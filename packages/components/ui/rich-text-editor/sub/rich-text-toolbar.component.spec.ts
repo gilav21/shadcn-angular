@@ -225,6 +225,35 @@ describe('RichTextToolbarComponent', () => {
             expect(size).toBe('18');
         });
 
+        it('renders a ui-color-picker with the text palette as presets in the fontColor popover', async () => {
+            fixture.componentRef.setInput('items', ['fontColor']);
+            fixture.detectChanges();
+            component.openPopoverPanel('fontColor');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const picker = fixture.nativeElement.querySelector('ui-color-picker');
+            expect(picker).not.toBeNull();
+        });
+
+        it('renders a ui-color-picker with alpha enabled in the backgroundColor popover', async () => {
+            fixture.componentRef.setInput('items', ['backgroundColor']);
+            fixture.detectChanges();
+            component.openPopoverPanel('backgroundColor');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const picker = fixture.nativeElement.querySelector('ui-color-picker');
+            expect(picker).not.toBeNull();
+        });
+
+        it('emits colorSelect when the color-picker changes color', () => {
+            fixture.componentRef.setInput('items', ['fontColor']);
+            fixture.detectChanges();
+            let emitted: { type: string; color: string } | undefined;
+            component.colorSelect.subscribe((e) => (emitted = e));
+            component.onColorSelect('fontColor', '#123456');
+            expect(emitted).toEqual({ type: 'fontColor', color: '#123456' });
+        });
+
         it('guards insert handlers when disabled', () => {
             fixture.componentRef.setInput('disabled', true);
             fixture.detectChanges();

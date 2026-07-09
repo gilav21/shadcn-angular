@@ -137,19 +137,12 @@
         <ui-popover-content class="w-48 p-3" align="start" strategy="fixed">
           <div class="space-y-2">
             <p class="text-sm font-medium block m-0">{{ locale().color.textColor }}</p>
-            <div class="grid grid-cols-8 gap-1">
-              @for (color of colorPalette; track color) {
-                <button
-                  type="button"
-                  data-swatch
-                  class="aspect-square w-5 rounded border border-border hover:scale-110 transition-transform"
-                  [style.background-color]="color"
-                  [title]="color"
-                  [disabled]="interactionDisabled()"
-                  (click)="onColorSelect('fontColor', color)"
-                ></button>
-              }
-            </div>
+            <ui-color-picker
+              [presets]="colorPalette"
+              [ngModel]="currentFontColor()"
+              [disabled]="interactionDisabled()"
+              (colorChange)="onColorSelect('fontColor', $event)"
+            />
           </div>
         </ui-popover-content>
       </ui-popover>
@@ -222,19 +215,13 @@
         <ui-popover-content class="w-48 p-3" align="start" strategy="fixed">
           <div class="space-y-2">
             <p class="text-sm font-medium block m-0">{{ locale().color.highlightColor }}</p>
-            <div class="grid grid-cols-8 gap-1">
-              @for (color of highlightPalette; track color) {
-                <button
-                  type="button"
-                  data-swatch
-                  class="aspect-square w-5 rounded border border-border hover:scale-110 transition-transform"
-                  [style.background-color]="color"
-                  [title]="color"
-                  [disabled]="interactionDisabled()"
-                  (click)="onColorSelect('backgroundColor', color)"
-                ></button>
-              }
-            </div>
+            <ui-color-picker
+              [presets]="highlightPalette"
+              [alpha]="true"
+              [ngModel]="currentBackgroundColor()"
+              [disabled]="interactionDisabled()"
+              (colorChange)="onColorSelect('backgroundColor', $event)"
+            />
           </div>
         </ui-popover-content>
       </ui-popover>
