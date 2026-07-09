@@ -1,9 +1,8 @@
-import { DestroyRef, type Injector } from '@angular/core';
-import { anchorOverlay, directionOf, mountTopLayer, type MountedOverlay } from './preset-overlay.utils';
-import { PresetHoverCardComponent, type HoverCardPresetOptions } from './hover-card.preset';
-import { PresetDialogComponent, type OpenDialogPresetOptions } from './open-dialog.preset';
+import type { Injector } from '@angular/core';
+import { hoverCardHandlers, type HoverCardPresetOptions } from './hover-card.preset';
+import { openDialogHandlers, type OpenDialogPresetOptions } from './open-dialog.preset';
 import type { ActionParamsMode, RichTextActionDefinition, RichTextActionField } from '../rich-text-actions.types';
-import type { RichTextActionEvent, RichTextActionHandler } from '../actions-runtime';
+import type { RichTextActionHandler } from '../actions-runtime';
 
 /** Options for the combined hover-preview + click-dialog preset. */
 export interface LinkedPreviewDialogOptions {
@@ -15,9 +14,11 @@ export interface LinkedPreviewDialogOptions {
     paramsMode?: ActionParamsMode;
     /** Extra fields appended after the built-in `title`/`body`. */
     extraFields?: RichTextActionField[];
-    /** Close delay for the hover preview, ms. Default 200. */
+    /** Close delay for the hover preview, ms. Default 200 (from the hover-card preset). */
     closeDelay?: number;
+    /** Forwarded to the hover-card preset's rendering (grace-area/Esc logic reused as-is). */
     hover?: HoverCardPresetOptions;
+    /** Forwarded to the open-dialog preset's rendering (Esc-to-dismiss logic reused as-is). */
     dialog?: OpenDialogPresetOptions;
 }
 
@@ -40,54 +41,26 @@ export function linkedPreviewDialogAction(o: LinkedPreviewDialogOptions = {}): R
     };
 }
 
-/** Handlers for the combined preset — one id, branching on `event.trigger`. */
+/**
+ * Handlers for the combined preset — a single `{ [id]: handler }` entry whose
+ * handler branches on `event.trigger`, delegating to the hover-card preset's
+ * handler for `hover` events and the open-dialog preset's handler for
+ * `click` events (both re-keyed onto the combined id). This reuses the
+ * hover-card grace-area/Esc-to-close logic and the open-dialog Esc-to-dismiss
+ * logic verbatim, plus their own `DestroyRef` teardown, instead of
+ * reimplementing overlay lifecycle here.
+ */
 export function linkedPreviewDialogHandlers(
     injector: Injector, o: LinkedPreviewDialogOptions = {},
 ): Record<string, RichTextActionHandler> {
     const id = o.id ?? DEFAULT_ID;
-    const closeDelay = o.closeDelay ?? 200;
-    let card: MountedOverlay<PresetHoverCardComponent> | null = null;
-    let closeTimer: ReturnType<typeof setTimeout> | null = null;
-    const openDialogs = new Set<() => void>();
-
-    const closeCard = (): void => {
-        if (closeTimer) { clearTimeout(closeTimer); closeTimer = null; }
-        card?.destroy();
-        card = null;
-    };
-
-    const onHover = (event: RichTextActionEvent): void => {
-        if (event.phase === 'end') { closeTimer = setTimeout(closeCard, closeDelay); return; }
-        closeCard();
-        card = mountTopLayer(injector, PresetHoverCardComponent, {
-            title: String(event.params['title'] ?? ''),
-            body: String(event.params['body'] ?? ''),
-            dir: directionOf(event.element),
-        });
-        anchorOverlay(card.host, event.element);
-    };
-
-    const onClick = (event: RichTextActionEvent): void => {
-        const overlay: MountedOverlay<PresetDialogComponent> = mountTopLayer(injector, PresetDialogComponent, {
-            title: String(event.params['title'] ?? ''),
-            body: String(event.params['body'] ?? ''),
-            confirmLabel: String(event.params['confirmLabel'] ?? ''),
-            contentComponent: null, contentInjector: undefined,
-            dir: directionOf(event.element),
-        });
-        overlay.host.style.inset = '0';
-        const dismiss = (): void => { openDialogs.delete(dismiss); overlay.destroy(); };
-        openDialogs.add(dismiss);
-        overlay.instance.confirm.subscribe(dismiss);
-        overlay.instance.dismiss.subscribe(dismiss);
-    };
+    const hoverHandlers = hoverCardHandlers(injector, {
+        ...o.hover, id, closeDelay: o.hover?.closeDelay ?? o.closeDelay,
+    });
+    const dialogHandlers = openDialogHandlers(injector, { ...o.dialog, id });
 
     const handler: RichTextActionHandler = (event) =>
-        (event.trigger === 'hover' ? onHover(event) : onClick(event));
+        (event.trigger === 'hover' ? hoverHandlers[id](event) : dialogHandlers[id](event));
 
-    injector.get(DestroyRef, null, { optional: true })?.onDestroy(() => {
-        closeCard();
-        for (const dismiss of openDialogs) dismiss();
-    });
     return { [id]: handler };
 }
