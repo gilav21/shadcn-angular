@@ -106,7 +106,7 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
     // button via the host slot, and the framework-free render runtime fires
     // the dev callback (opening a real ui-dialog) on the published HTML.
     {
-        names: ['rich-text-editor', 'rich-text-editor/actions', 'dialog'],
+        names: ['rich-text-editor', 'rich-text-editor/actions', 'dialog', 'color-picker'],
         label: 'rte-actions',
     },
     // cross-cutting: dark-mode CSS variable propagation.
