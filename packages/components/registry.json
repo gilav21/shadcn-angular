@@ -844,9 +844,9 @@
     "type": "addon",
     "parent": "data-table",
     "files": [
+      "data-table/addons/pivot/index.ts",
       "data-table/addons/pivot/pivot.directive.ts",
-      "data-table/addons/pivot/pivot.utils.ts",
-      "data-table/addons/pivot/index.ts"
+      "data-table/addons/pivot/pivot.utils.ts"
     ],
     "dependencies": [
       "data-table"
@@ -3821,6 +3821,7 @@
       "rich-text-editor/addons/actions/index.ts",
       "rich-text-editor/addons/actions/presets/hover-card.preset.ts",
       "rich-text-editor/addons/actions/presets/index.ts",
+      "rich-text-editor/addons/actions/presets/linked-preview-dialog.preset.ts",
       "rich-text-editor/addons/actions/presets/open-dialog.preset.ts",
       "rich-text-editor/addons/actions/presets/preset-overlay.utils.ts",
       "rich-text-editor/addons/actions/rich-text-actions-bind.directive.ts",
