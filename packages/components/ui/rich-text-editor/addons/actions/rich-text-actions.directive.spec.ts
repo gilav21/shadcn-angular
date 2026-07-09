@@ -425,6 +425,31 @@ describe('RichTextActionsDirective', () => {
         }
     });
 
+    it('logs a diagnostic when combined+separate declares an unsupported tier-2/3 form', async () => {
+        const messages: string[] = [];
+        const orig = console.error;
+        console.error = (...a: unknown[]) => { messages.push(String(a[0])); };
+        try {
+            const fixture = TestBed.createComponent(HostCmp);
+            fixture.componentInstance.defs = [{
+                id: 'weird-combined', label: 'Weird', triggers: ['click', 'hover'],
+                combined: true, paramsMode: 'separate',
+                resolveParams: async () => ({ value: 'sla' }),
+            }];
+            const editor = await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="weird-combined"]') as HTMLButtonElement).click();
+            await Promise.resolve(); await Promise.resolve();
+            fixture.detectChanges();
+            expect(messages.some((m) => m.includes('tier-1 fields only'))).toBe(true);
+
+            const span = editor.querySelector('span[data-action-click="weird-combined"]');
+            expect(span?.getAttribute('data-action-click-params')).toBe('{"value":"sla"}');
+            expect(span?.getAttribute('data-action-hover-params')).toBe('{"value":"sla"}');
+        } finally {
+            console.error = orig;
+        }
+    });
+
     describe('starter style seeding', () => {
         it('seeds the merged starter style onto a newly created action span', async () => {
             const fixture = TestBed.createComponent(HostCmp);

@@ -240,4 +240,36 @@ describe('RichTextActionsDialogComponent', () => {
         fixture.detectChanges();
         expect(fixture.nativeElement.textContent).toContain(RICH_TEXT_ACTIONS_LOCALES['en'].dialog.combinedBadge);
     });
+
+    it('falls back combined+separate+formComponent to a single shared tier-2 form (unsupported combo per spec)', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('definitions', [
+            {
+                id: 'weird', label: 'Weird', triggers: ['click', 'hover'],
+                combined: true, paramsMode: 'separate', formComponent: CustomFormComponent,
+            },
+        ] satisfies RichTextActionDefinition[]);
+        ref.setInput('context', {
+            mode: 'create', targetKind: 'text', selectionText: 's', occupiedTriggers: [], prefill: null,
+        });
+        fixture.detectChanges();
+        fixture.componentInstance.pickAction('weird');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.paramsMode()).toBe('shared');
+        expect(fixture.nativeElement.querySelectorAll('[data-slot="rich-text-actions-dialog-section-header"]')).toHaveLength(0);
+        const custom = fixture.nativeElement.querySelector('[data-testid="custom"]') as HTMLInputElement;
+        expect(custom).toBeTruthy();
+        custom.value = 'e-9';
+        custom.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+
+        let payload: ActionsDialogConfirm | undefined;
+        fixture.componentInstance.confirm.subscribe((p) => (payload = p));
+        const confirmBtn = fixture.nativeElement.querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement;
+        expect(confirmBtn.disabled).toBe(false);
+        confirmBtn.click();
+        expect(payload?.combinedParams).toEqual({ click: { entityId: 'e-9' }, hover: { entityId: 'e-9' } });
+    });
 });

@@ -69,10 +69,7 @@ export class RichTextActionsDialogComponent {
     readonly isCombined = computed(() => this.selectedDef()?.combined === true
         && (this.selectedDef()?.triggers.length ?? 0) >= 2);
 
-    readonly paramsMode = computed<ActionParamsMode>(() => {
-        const def = this.selectedDef();
-        return def?.combined && def.paramsMode === 'separate' ? 'separate' : 'shared';
-    });
+    readonly paramsMode = computed<ActionParamsMode>(() => this.resolveParamsMode(this.selectedDef()));
 
     /** Second params bucket used only in combined + separate mode (hover group). */
     readonly hoverParams = signal<ActionParams>({});
@@ -145,6 +142,18 @@ export class RichTextActionsDialogComponent {
         this.formValid.set(this.initialValidity(def));
         this.hoverValid.set(true);
         if (def) this.pick.emit(def);
+    }
+
+    /**
+     * `separate` requires tier-1 `fieldsByTrigger` only — a `formComponent` or
+     * `resolveParams` under `separate` is an unsupported combo (§14.3) and
+     * silently falls back to `shared` so the dialog renders a working form
+     * instead of two empty field groups.
+     */
+    private resolveParamsMode(def: RichTextActionDefinition | null): ActionParamsMode {
+        if (!def?.combined || def.paramsMode !== 'separate') return 'shared';
+        if (def.formComponent || def.resolveParams) return 'shared';
+        return 'separate';
     }
 
     private initialTrigger(def: RichTextActionDefinition | null): RichTextActionTrigger | null {

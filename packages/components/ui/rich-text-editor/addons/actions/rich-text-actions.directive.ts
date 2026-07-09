@@ -199,12 +199,22 @@ export class RichTextActionsDirective {
         })
             .then((params) => {
                 this.closeOverlay(teardown);
-                if (params !== null) this.applyAction(def, trigger, params, target);
+                if (params !== null) this.applyResolvedParams(def, trigger, params, target);
             })
             .catch((err: unknown) => {
                 this.closeOverlay(teardown);
                 console.error('[rich-text-actions] resolveParams rejected:', err);
             });
+    }
+
+    /** Tier-3 resolveParams result: combined actions write the same params to both triggers. */
+    private applyResolvedParams(
+        def: RichTextActionDefinition, trigger: RichTextActionTrigger, params: ActionParams, target: ApplyTarget,
+    ): boolean {
+        if (def.combined && def.triggers.length >= 2) {
+            return this.applyCombined(def, { click: params, hover: params }, target);
+        }
+        return this.applyAction(def, trigger, params, target);
     }
 
     private warnOnMultipleTiers(def: RichTextActionDefinition): void {
