@@ -4,8 +4,8 @@ import {
 } from '@angular/core';
 import { RichTextEditorAddonHost, RichTextSanitizerService, RichTextMarkdownService } from '../..';
 import {
-    applyStarterStyle, assertFlatParams, computeSeedStyleString, readActions, removeAction,
-    stripStyleIfMatches, validateActionId, validateActionParams, writeAction, writeCombined,
+    applyStarterStyle, assertFlatParams, computeSeedStyleString, isCombinedOnElement, readActions,
+    removeAction, stripStyleIfMatches, validateActionId, validateActionParams, writeAction, writeCombined,
 } from './rich-text-actions.serializer';
 import {
     RichTextActionsDialogComponent, type ActionsDialogConfirm,
@@ -277,14 +277,20 @@ export class RichTextActionsDirective {
         ref.setInput('canAdd', rows.length < 2);
         this.positionPopover(ref, el);
         ref.instance.edit.subscribe((trigger: RichTextActionTrigger) => this.editAction(el, trigger));
-        ref.instance.remove.subscribe((trigger: RichTextActionTrigger) => this.removeTrigger(el, trigger));
+        ref.instance.remove.subscribe((row: PopoverActionRow) => this.removeRow(el, row));
         ref.instance.add.subscribe(() => { this.hidePopover(); this.openAttachFlow(); });
         this.popoverRef = ref;
     }
 
     private buildPopoverRows(el: HTMLElement): PopoverActionRow[] {
         const defs = this.uiRteActions();
-        return readActions(el).map((a) => {
+        const actions = readActions(el);
+        if (isCombinedOnElement(el)) {
+            const first = actions[0];
+            const def = defs.find((d) => d.id === first.id);
+            return [{ trigger: 'click', id: first.id, label: def?.label ?? first.id, available: !!def, combined: true }];
+        }
+        return actions.map((a) => {
             const def = defs.find((d) => d.id === a.id);
             return { trigger: a.trigger, id: a.id, label: def?.label ?? a.id, available: !!def };
         });
@@ -345,6 +351,32 @@ export class RichTextActionsDirective {
                 : this.applyAction(payload.def, payload.trigger, payload.params, target);
             if (applied) this.closeOverlay(teardown);
         });
+    }
+
+    private removeRow(el: HTMLElement, row: PopoverActionRow): void {
+        if (row.combined) {
+            this.removeCombined(el, row.id);
+            return;
+        }
+        this.removeTrigger(el, row.trigger);
+    }
+
+    private removeCombined(el: HTMLElement, id: string): void {
+        this.hidePopover();
+        const def = this.uiRteActions().find((d) => d.id === id);
+        const seed = def ? computeSeedStyleString(el.ownerDocument, this.mergedSeed(def)) : '';
+        this.host.mutateContent(() => {
+            removeAction(el, 'click');
+            removeAction(el, 'hover');
+            stripStyleIfMatches(el, seed);
+            if (el.tagName === 'SPAN' && el.attributes.length === 0) {
+                const parent = el.parentNode;
+                while (el.firstChild) parent?.insertBefore(el.firstChild, el);
+                el.remove();
+            }
+        });
+        this.actionRemoved.emit({ actionId: id, trigger: 'click', targetKind: 'text' });
+        this.actionRemoved.emit({ actionId: id, trigger: 'hover', targetKind: 'text' });
     }
 
     private removeTrigger(el: HTMLElement, trigger: RichTextActionTrigger): void {

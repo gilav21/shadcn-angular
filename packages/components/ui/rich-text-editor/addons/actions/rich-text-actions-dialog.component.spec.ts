@@ -197,6 +197,25 @@ describe('RichTextActionsDialogComponent', () => {
         expect(payload?.combinedParams).toEqual({ click: { value: 'sla' }, hover: { value: 'sla' } });
     });
 
+    it('labels the confirm button "Replace" for a combined action when only hover is occupied', () => {
+        const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
+        const ref = fixture.componentRef;
+        ref.setInput('definitions', [
+            {
+                id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'],
+                combined: true, paramsMode: 'shared',
+                fields: [{ key: 'value', label: 'Value', type: 'text', required: true }],
+            },
+        ] satisfies RichTextActionDefinition[]);
+        ref.setInput('context', {
+            mode: 'create', targetKind: 'text', selectionText: 'sla', occupiedTriggers: ['hover'], prefill: null,
+        });
+        fixture.detectChanges();
+        fixture.componentInstance.pickAction('dictionary');
+        fixture.detectChanges();
+        expect(fixture.componentInstance.confirmLabel()).toBe(RICH_TEXT_ACTIONS_LOCALES['en'].dialog.replace);
+    });
+
     it('renders two labelled field groups for paramsMode:separate', () => {
         const fixture = TestBed.createComponent(RichTextActionsDialogComponent);
         const ref = fixture.componentRef;

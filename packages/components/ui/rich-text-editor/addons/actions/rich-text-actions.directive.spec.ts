@@ -244,6 +244,41 @@ describe('RichTextActionsDirective', () => {
         expect(editor.querySelector('p')!.textContent).toBe('t');
     });
 
+    it('renders a combined action as a single popover row and removes both triggers', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        fixture.componentInstance.defs = [
+            { id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'], combined: true },
+        ];
+        const editor = caretInside(
+            fixture,
+            '<p><span data-action-click="dictionary" data-action-hover="dictionary">t</span></p>',
+        );
+        const directive = fixture.debugElement.children[0].injector.get(RichTextActionsDirective);
+        const removed: RichTextActionTrigger[] = [];
+        directive.actionRemoved.subscribe((e: { trigger: RichTextActionTrigger }) => removed.push(e.trigger));
+        const popover = document.querySelector('[data-slot="rich-text-actions-popover"]')!;
+        expect(popover.querySelectorAll('[data-testid="rta-remove"]')).toHaveLength(1);
+        (popover.querySelector('[data-testid="rta-remove"]') as HTMLButtonElement).click();
+        fixture.detectChanges();
+        expect(editor.querySelector('[data-action-click]')).toBeFalsy();
+        expect(editor.querySelector('[data-action-hover]')).toBeFalsy();
+        expect(removed).toEqual(['click', 'hover']);
+    });
+
+    it('still renders two rows for two separate single-trigger actions (regression)', () => {
+        const fixture = TestBed.createComponent(HostCmp);
+        fixture.componentInstance.defs = [
+            { id: 'open-dialog', label: 'Open dialog', triggers: ['click'] },
+            { id: 'term', label: 'Term', triggers: ['hover'] },
+        ];
+        caretInside(
+            fixture,
+            '<p><span data-action-click="open-dialog" data-action-hover="term">t</span></p>',
+        );
+        const popover = document.querySelector('[data-slot="rich-text-actions-popover"]')!;
+        expect(popover.querySelectorAll('[data-testid="rta-remove"]')).toHaveLength(2);
+    });
+
     it('renders an unknown action id as remove-only', () => {
         const fixture = TestBed.createComponent(HostCmp);
         caretInside(fixture, '<p><span data-action-click="ghost-id">t</span></p>');

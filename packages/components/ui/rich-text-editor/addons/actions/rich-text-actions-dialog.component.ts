@@ -127,10 +127,16 @@ export class RichTextActionsDialogComponent {
     }
 
     readonly confirmLabel = computed(() => {
-        const trigger = this.selectedTrigger();
         const dialog = this.locale().dialog;
-        return trigger && this.occupiedByTrigger().has(trigger) ? dialog.replace : dialog.attach;
+        return this.isOccupied() ? dialog.replace : dialog.attach;
     });
+
+    private isOccupied(): boolean {
+        const occupied = this.occupiedByTrigger();
+        if (this.isCombined()) return occupied.has('click') || occupied.has('hover');
+        const trigger = this.selectedTrigger();
+        return !!trigger && occupied.has(trigger);
+    }
 
     pickAction(id: string): void {
         const def = this.definitions().find((d) => d.id === id) ?? null;

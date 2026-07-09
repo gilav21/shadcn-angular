@@ -2,7 +2,7 @@
   @for (row of actions(); track row.trigger) {
     <div class="flex items-center justify-between gap-3 rounded-sm px-2 py-1.5 text-sm">
       <span class="truncate">
-        {{ row.label }} · {{ triggerLabel(row.trigger) }}
+        {{ row.label }} · {{ rowTriggerLabel(row) }}
         @if (!row.available) {
           <span class="text-xs text-muted-foreground">{{ locale().popover.unavailable }}</span>
         }
@@ -16,7 +16,7 @@
         }
         <button
           type="button" data-testid="rta-remove" class="text-xs text-destructive underline"
-          (click)="remove.emit(row.trigger)"
+          (click)="remove.emit(row)"
         >{{ locale().popover.remove }}</button>
       </span>
     </div>
