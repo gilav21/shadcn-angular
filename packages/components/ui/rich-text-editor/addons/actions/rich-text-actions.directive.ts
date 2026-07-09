@@ -404,7 +404,7 @@ export class RichTextActionsDirective {
     }
 
     private mergedSeed(def: RichTextActionDefinition): Record<string, string> {
-        return { ...this.uiRteActionsStyle(), ...(def.style ?? {}) };
+        return { ...this.uiRteActionsStyle(), ...def.style };
     }
 
     private injectVisualizationStyles(): () => void {

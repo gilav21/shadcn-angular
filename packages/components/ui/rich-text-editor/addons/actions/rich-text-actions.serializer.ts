@@ -120,7 +120,7 @@ export function writeCombined(
 
 /** True when both triggers carry an action and share the same id (a combined attach). */
 export function isCombinedOnElement(el: HTMLElement): boolean {
-    const click = el.getAttribute('data-action-click');
-    const hover = el.getAttribute('data-action-hover');
-    return click !== null && click === hover;
+    const click = el.dataset['actionClick'];
+    const hover = el.dataset['actionHover'];
+    return click !== undefined && click === hover;
 }
