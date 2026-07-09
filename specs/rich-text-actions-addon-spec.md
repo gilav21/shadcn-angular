@@ -1113,3 +1113,289 @@ supported in `mode="html"`.
 | 14 | 2026-07-03 | T14 — e2e harness | 93 | `rte-actions` multi-component EXPLICIT_SPECS; 3 Playwright tests. |
 | 15 | 2026-07-03 | T15 — demo + stories | 91 | 4 stories + demo page (en/he) registered; demo builds; extra gallery variants deferred. |
 | 16 | 2026-07-03 | T16 — full-suite gates | 96 | 5241 tests + e2e green; demo builds; SonarQube server scan clean (10 findings fixed); no publish. |
+
+---
+
+## 14. v2 Enhancements — Starter Styling + Combined Actions
+
+> **Status:** Approved design — ready for implementation planning
+> **Date:** 2026-07-09
+> **Author:** brainstormed with maintainer (customer request).
+> Additive to v1; nothing in §1–§13 is removed or reinterpreted. Existing
+> content, definitions, and serialized HTML continue to work unchanged.
+
+### 14.1 Motivation (customer request)
+
+Two asks from a customer already using the addon:
+
+1. **A dev-provided "first look" for actioned text.** Today the *output HTML*
+   of an actioned run is completely unstyled — the reader-facing look is the
+   dev's job (CSS recipe in §4.6). The customer wants developers to seed a
+   **starter visual** so actioned text looks intentional out of the box, while
+   authors can still restyle it freely in the editor.
+2. **A single action that wires both click *and* hover.** Today an author makes
+   two attach passes to get both triggers (UC-7). The customer wants one picker
+   selection that attaches both — e.g. **"Connect to dictionary"**: hover shows
+   a preview of the value, click opens the full dictionary dialog with that
+   value selected. One selection, two behaviors.
+
+### 14.2 Part A — Starter styling ("rich action class")
+
+**Model: seed inline styles at attach time (baked into content).** Chosen over
+a CSS-class/stylesheet approach specifically because the output HTML must be
+**self-contained** — the dev ships no extra CSS, and the styled look travels
+with the HTML (design pillar #1). Authors then edit the look like any other
+inline formatting.
+
+**API additions (additive, non-breaking):**
+
+```ts
+// Directive input — the global default look for every actioned span.
+readonly uiRteActionsStyle = input<Record<string, string>>({});
+
+// RichTextActionDefinition — optional per-action override, merged OVER the global default.
+export interface RichTextActionDefinition {
+  // …existing…
+  /** Starter inline styles seeded onto a newly-created action span. Merged over `uiRteActionsStyle`. */
+  style?: Record<string, string>;
+}
+```
+
+Usage:
+
+```html
+<ui-rich-text-editor
+  [uiRteActions]="defs"
+  [uiRteActionsStyle]="{ color:'#2563eb', textDecoration:'underline dotted', textUnderlineOffset:'3px' }" />
+```
+
+```ts
+{ id:'dictionary', label:'Connect to dictionary', style:{ color:'#7c3aed' }, /* … */ }
+```
+
+**Behavior (normative):**
+
+- **When applied:** only on **create** — i.e. when the addon wraps a brand-new
+  `span` around the selection (`wrapSelection`). The merged style
+  (`{ ...uiRteActionsStyle(), ...def.style }`) is written **once** via
+  `span.setAttribute('style', …)` (camelCase keys → kebab CSS properties;
+  canonical, deterministic ordering).
+- **Never re-seeded:** adding a second trigger to an existing span (UC-7),
+  editing params, or re-attaching does **not** touch `style` — author edits are
+  never clobbered.
+- **Editor vs output:** because it is baked content, the seed shows in **both**
+  the editor and the output HTML. The hardcoded in-editor affordance (dotted
+  bottom-border + faint tint, §5.4) is **unchanged** and layers on top as the
+  "this is actioned" marker.
+- **Author edits win:** the seed is ordinary inline style; the editor's format
+  commands (color, bold, highlight, etc.) overwrite/extend it normally. The
+  seed uses no `!important`.
+- **Images:** the seed applies to **text spans only**. An author's `<img>` is
+  never restyled (its visual is the image; the dashed-outline affordance
+  already marks it). `def.style` is ignored for image targets.
+- **Remove/unwrap:** when removing the last action from a span, if the span's
+  current `style` attribute is **byte-identical to the seed the addon would
+  have written** (recomputable from `uiRteActionsStyle()` + the removed
+  action's `style`, unedited), strip `style` too so the bare span unwraps per
+  §5.5. If the author changed it, keep the styled span (now their content).
+- **Empty config:** `uiRteActionsStyle` defaults to `{}` and no per-action
+  `style` → **zero style attribute written**; behavior is exactly v1 (fully
+  backward-compatible).
+
+### 14.3 Part B — Combined action (one selection → click + hover)
+
+**API additions (additive):**
+
+```ts
+export type ActionParamsMode = 'shared' | 'separate';
+
+export interface RichTextActionDefinition {
+  // …existing…
+  /** Attach BOTH click and hover in one picker selection. Requires `triggers` to include both. */
+  combined?: boolean;
+  /** Combined only. 'shared' (default): one form → identical params on both triggers.
+   *  'separate': per-trigger fields from `fieldsByTrigger`. */
+  paramsMode?: ActionParamsMode;
+  /** Combined + paramsMode:'separate' — tier-1 fields per trigger. */
+  fieldsByTrigger?: { click?: RichTextActionField[]; hover?: RichTextActionField[] };
+}
+```
+
+```ts
+{
+  id: 'dictionary', label: 'Connect to dictionary', icon: 'book',
+  triggers: ['click', 'hover'], combined: true, paramsMode: 'shared',
+  fields: [{ key:'value', label:'Dictionary value', type:'select', required:true, options:[…] }],
+}
+```
+
+**Serialization** (same id on both triggers; §3 format unchanged):
+
+```html
+<span
+  style="color:#7c3aed;text-decoration:underline dotted"
+  data-action-click="dictionary"  data-action-click-params='{"value":"sla"}'
+  data-action-hover="dictionary"  data-action-hover-params='{"value":"sla"}'
+>SLA</span>
+```
+
+`paramsMode:'separate'` writes different `-click-params` / `-hover-params`.
+
+**Behavior (normative):**
+
+- `combined:true` is **explicit opt-in.** Existing definitions with
+  `triggers:['click','hover']` and no `combined` keep v1's "pick one trigger"
+  radio (§5.2) — no behavior change.
+- **Precedence guard:** `combined` requires both triggers; a dev-mode
+  `console.error` fires (like the multi-tier warning, §4.1) if `combined:true`
+  with fewer than two triggers, and the action falls back to single-trigger.
+- **Params tiers under combined:**
+  - `paramsMode:'shared'` (default) — the existing tiers (`fields` /
+    `formComponent` / `resolveParams`) run **once**; the resolved params object
+    is written to **both** trigger attributes.
+  - `paramsMode:'separate'` — **tier-1 only** for v1 (`fieldsByTrigger`). The
+    dialog renders two labelled field groups (Hover / Click); each produces its
+    own params object. `formComponent` / `resolveParams` under `'separate'` is
+    out of scope for v1 (dev-mode `console.error`, falls back to `'shared'`).
+- **Attach:** one `wrapSelection` creates one span; the addon writes both
+  trigger attrs (+ per-mode params) + the starter seed (§14.2) in a single
+  `mutateContent` transaction (one undo entry restores the pristine text).
+
+**Authoring UX changes (§5 additions):**
+
+- **Picker (§5.2):** a combined action renders as **one** row with a
+  `click + hover` badge; selecting it shows **no** trigger radio. The "occupied
+  trigger → Replace" logic (§5.2) treats a combined attach as occupying both
+  triggers.
+- **Edit popover (§5.5):** a combined action renders as **one** row
+  (`📖 Connect to dictionary · click + hover  ✎ 🗑`). ✎ reopens the combined
+  form (both triggers/params); 🗑 removes **both** trigger attributes together
+  (then unwrap per §14.2). Two *separate* single-trigger actions on one span
+  (v1 UC-7) still render as two rows — the popover distinguishes them by
+  whether both attrs carry the same combined-capable id.
+
+**Runtime (§4.4): unchanged.** The delegated listeners already deliver
+`event.trigger`. A single handler keyed on the combined id branches:
+
+```ts
+handlers = {
+  dictionary: (e) => e.trigger === 'hover' ? showPreview(e) : openFullDialog(e),
+};
+```
+
+### 14.4 Part C — Combined preset (the dictionary example, batteries-included)
+
+A new preset composing the two existing presets into one combined action —
+lives in `presets/` alongside hover-card & open-dialog, imports neither the
+core nor Angular beyond what the existing presets already use.
+
+```ts
+// presets/linked-preview-dialog.preset.ts
+export interface LinkedPreviewDialogOptions {
+  id?: string;            // default 'preset.linked-preview-dialog'
+  label?: string;         // default 'Preview + dialog'
+  paramsMode?: ActionParamsMode;   // default 'shared'
+  extraFields?: RichTextActionField[];
+  hover?: HoverCardPresetOptions;      // forwarded to hover-card rendering
+  dialog?: OpenDialogPresetOptions;    // forwarded to open-dialog rendering
+}
+export function linkedPreviewDialogAction(o?: LinkedPreviewDialogOptions): RichTextActionDefinition; // combined:true
+export function linkedPreviewDialogHandlers(injector: Injector, o?: LinkedPreviewDialogOptions):
+  Record<string, RichTextActionHandler>;   // hover→card, click→dialog, keyed on the single id
+```
+
+Quick start:
+
+```ts
+readonly defs = [ linkedPreviewDialogAction() ];
+readonly handlers = { ...linkedPreviewDialogHandlers(this.injector) };
+```
+
+- The returned definition is `combined:true`, `triggers:['click','hover']`,
+  tier-1 fields (`title`/`body` for the hover card + `title`/`body`/
+  `confirmLabel` for the dialog, or a shared set under `paramsMode:'shared'`).
+- The returned handler map is a **single** `{ [id]: handler }` whose handler
+  branches on `event.trigger` — hover start/end drives the top-layer preview
+  card (reusing the hover-card grace-area/Esc logic), click opens the modal
+  (reusing the open-dialog logic).
+- **Zero lock-in** still provable: the serialized HTML carries only the id +
+  params + seeded style; a hand-written replacement handler drives the same
+  content unchanged.
+
+### 14.5 Serialization & security — no changes
+
+The v1 format (§3) and sanitizer contract (§7.3) are untouched. `style` is
+**not** a new addon-contributed attribute — the base sanitizer's existing
+handling of `style` on allowed elements governs it (the seed uses only safe
+declarations). The addon must **not** call `registerAttributeRules` for
+`style` (§7.3 hard-rejects it anyway). If the base sanitizer strips inline
+`style`, T-A1 begins with a discovery spec (zero-assumptions rule) and the seed
+falls back to a documented limitation rather than widening the security
+boundary.
+
+### 14.6 Test plan additions
+
+Serializer / definition:
+
+- **68.** `def.style` merges over `uiRteActionsStyle`; per-action wins on key clash.
+- **69.** seed written only on create; not on add-second-trigger / edit / re-attach.
+- **70.** remove-last-action strips an **unedited** seed and unwraps; keeps an **edited** style.
+- **71.** empty style config writes no `style` attribute (v1 parity).
+- **72.** image target ignores `style` seed.
+- **73.** `combined:true` writes both trigger attrs with the same id in one transaction (one undo).
+- **74.** `paramsMode:'shared'` writes identical params to both; `'separate'` writes per-trigger params.
+- **75.** `combined:true` with <2 triggers → dev-error + single-trigger fallback.
+- **76.** `paramsMode:'separate'` with formComponent/resolveParams → dev-error + shared fallback.
+
+Authoring UI:
+
+- **77.** combined action → single picker row, no trigger radio; attach writes both + seed.
+- **78.** edit popover shows combined as one row; 🗑 removes both triggers; ✎ reopens combined form.
+- **79.** v1 two-separate-actions on one span still render as two rows (regression).
+
+Sanitizer / base (discovery):
+
+- **80.** base sanitizer preserves a safe inline `style` on an action span (discovery spec for T-A1).
+
+Presets:
+
+- **81.** `linkedPreviewDialogAction()` returns `combined:true` with both triggers + fields.
+- **82.** `linkedPreviewDialogHandlers()`: hover renders preview card (start/end); click opens dialog; both from one id.
+- **83.** zero lock-in: serialized HTML for the combined preset carries only id/params/seed style.
+
+E2E (extend the existing `rte-actions` EXPLICIT_SPECS entry):
+
+- **84.** author attaches the combined dictionary action; published pane: hover shows preview, click opens dialog.
+- **85.** seeded style is present in `htmlChange` output and survives the storage→renderer round trip.
+
+Suite gates unchanged (§10.10): `npm run test-visual` green, e2e impact subset
+green, **`npm run coverage` → `npm run sonar` against `localhost:9000` clean on
+changed files** (mandatory done gate), `sync-registry` no warnings.
+
+### 14.7 Implementation task list (v2)
+
+Rules unchanged: TDD per task; per-task review-gate ≥95; compile + relevant
+specs green before advancing; zero-assumption verification.
+
+| # | Task | Scope | Key deliverables | Depends on |
+| --- | --- | --- | --- | --- |
+| T-A1 | Base discovery: does the sanitizer keep safe inline `style` on action spans? | base | test 80 FIRST; documented finding; no security-boundary widening | — |
+| T-A2 | Starter styling: `uiRteActionsStyle` input + `def.style`, seed-on-create, remove/unwrap, image skip | addon | tests 68–72; §14.2 | T-A1 |
+| T-B1 | Types: `combined`, `paramsMode`, `fieldsByTrigger`, `ActionParamsMode`; guards + fallbacks | addon | tests 73–76 (write path) | — |
+| T-B2 | Dialog: single row + no radio for combined; shared/separate param forms; one-transaction attach | addon | tests 77 | T-B1, T-A2 |
+| T-B3 | Edit popover: combined single row; remove-both; edit reopen; v1 two-row regression | addon | tests 78–79 | T-B2 |
+| T-C1 | Preset `linked-preview-dialog` (action + handlers), overlay reuse | addon | tests 81–83 | T-B2 |
+| T-D1 | Locales/RTL/touch pass for new dialog sections + preset; demo section + story | demo | RTL + viewport checks | T-B3, T-C1 |
+| T-D2 | E2E extend `rte-actions`; registry `sync-registry --fix` (new preset file); publish-boundary re-verify | e2e/tooling | tests 84–85; zero warnings; confirm no publish | T-C1 |
+| T-D3 | Full-suite gates (§10.10) incl. SonarQube server scan; Completion Log update | all | green evidence pasted into log | all |
+
+**Publish boundary:** addon component/lib source + registry `files[]` data only
+→ served live from master, **no CLI publish** (no `ComponentDefinition` shape
+change). T-D2 re-verifies against `packages/cli/src/registry/load.ts` before
+asserting.
+
+### 14.8 Completion Log (v2)
+
+| Row | Date | Task | Reviewer score | Notes |
+| --- | --- | --- | --- | --- |
+| — | — | (pending) | — | — |
