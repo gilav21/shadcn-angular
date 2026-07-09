@@ -26,6 +26,7 @@ import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, fr
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { isValidImageDataUrl } from '../../lib/parsers/image-validator';
+import { parseColor, formatHex } from '../../lib/color';
 import { AiProvider, AiTask, runAiTask } from '../../lib/ai';
 import { RichTextToolbarComponent, ToolbarItem, DEFAULT_FONT_FAMILIES, FontFamilyStrategy } from './sub/rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './sub/rich-text-mention.component';
@@ -1082,6 +1083,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     activeFormats = signal<Set<string>>(new Set());
     currentFontSize = signal<string>('');
     currentFontFamily = signal<string>('');
+    readonly currentFontColor = signal<string>('');
+    readonly currentBackgroundColor = signal<string>('');
     showFloatingToolbar = signal<boolean>(false);
     floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly emptyFormats = new Set<string>();
@@ -5551,6 +5554,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.activeFormats.set(formats);
         this.detectCurrentFontSize();
         this.detectCurrentFontFamily();
+        this.detectCurrentColors();
     }
 
     private detectTaskListFormat(formats: Set<string>): void {
@@ -5568,19 +5572,21 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    private detectCurrentFontSize(): void {
+    private selectedElement(): HTMLElement | null {
         const sel = this.document.getSelection();
         if (!sel || sel.rangeCount === 0) {
-            return;
+            return null;
         }
-        const range = sel.getRangeAt(0);
-        let element = range.commonAncestorContainer;
-
-        if (element.nodeType === Node.TEXT_NODE) {
-            element = element.parentElement ?? element;
+        let node: Node = sel.getRangeAt(0).commonAncestorContainer;
+        if (node.nodeType === Node.TEXT_NODE) {
+            node = node.parentElement ?? node;
         }
+        return node instanceof HTMLElement ? node : null;
+    }
 
-        if (!(element instanceof HTMLElement)) {
+    private detectCurrentFontSize(): void {
+        const element = this.selectedElement();
+        if (!element) {
             return;
         }
         const computedStyle = this.document.defaultView?.getComputedStyle(element);
@@ -5595,18 +5601,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private detectCurrentFontFamily(): void {
-        const sel = this.document.getSelection();
-        if (!sel || sel.rangeCount === 0) {
-            return;
-        }
-        const range = sel.getRangeAt(0);
-        let element = range.commonAncestorContainer;
-
-        if (element.nodeType === Node.TEXT_NODE) {
-            element = element.parentElement ?? element;
-        }
-
-        if (!(element instanceof HTMLElement)) {
+        const element = this.selectedElement();
+        if (!element) {
             return;
         }
         const computedStyle = this.document.defaultView?.getComputedStyle(element);
@@ -5618,6 +5614,30 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             const cleaned = fontFamily.split(',')[0].trim().replaceAll(/^["']|["']$/g, '');
             this.currentFontFamily.set(cleaned);
         }
+    }
+
+    private detectCurrentColors(): void {
+        const element = this.selectedElement();
+        const view = this.document.defaultView;
+        if (!element || !view) {
+            return;
+        }
+        const computedStyle = view.getComputedStyle(element);
+        this.currentFontColor.set(this.toHexColor(computedStyle.color));
+        const backgroundColor = computedStyle.backgroundColor;
+        this.currentBackgroundColor.set(
+            this.isTransparentColor(backgroundColor) ? '' : this.toHexColor(backgroundColor)
+        );
+    }
+
+    private toHexColor(value: string): string {
+        const rgba = parseColor(value);
+        return rgba ? formatHex(rgba) : value;
+    }
+
+    private isTransparentColor(value: string): boolean {
+        const rgba = parseColor(value);
+        return !rgba || rgba.a === 0;
     }
 
     private updateFloatingToolbarPosition(): void {

@@ -1187,7 +1187,7 @@ git commit -m "feat(rich-text-editor): T-E1 color popovers use ui-color-picker (
 - Consumes: existing `updateActiveFormats()`, `detectCurrentFontSize()` pattern, `getComputedStyle`.
 - Produces: `currentFontColor`/`currentBackgroundColor` signals fed into `<ui-rich-text-toolbar [currentFontColor]=… [currentBackgroundColor]=…>`.
 
-- [ ] **Step 1: Write failing editor test**
+- [x] **Step 1: Write failing editor test**
 
 Add to `rich-text-editor.component.spec.ts`:
 
@@ -1201,12 +1201,12 @@ it('reflects the selection computed color into currentFontColor', async () => {
 
 (Follow the file's existing selection helpers for arrange; `updateActiveFormats` is private — access via bracket notation as other tests in the file do.)
 
-- [ ] **Step 2: Run — verify FAIL**
+- [x] **Step 2: Run — verify FAIL**
 
 Run: `npx vitest --browser=chromium run packages/components/ui/rich-text-editor/rich-text-editor.component.spec.ts -t "currentFontColor"`
 Expected: FAIL — `currentFontColor` undefined.
 
-- [ ] **Step 3: Add signals + `detectCurrentColors()`**
+- [x] **Step 3: Add signals + `detectCurrentColors()`**
 
 In `rich-text-editor.component.ts`, near `currentFontSize`/`currentFontFamily` signal declarations:
 
@@ -1251,7 +1251,7 @@ function isTransparent(value: string): boolean {
 }
 ```
 
-- [ ] **Step 4: Call it from `updateActiveFormats()`**
+- [x] **Step 4: Call it from `updateActiveFormats()`**
 
 In `updateActiveFormats()`, after `this.detectCurrentFontFamily();`:
 
@@ -1259,7 +1259,7 @@ In `updateActiveFormats()`, after `this.detectCurrentFontFamily();`:
         this.detectCurrentColors();
 ```
 
-- [ ] **Step 5: Bind the signals into the toolbar**
+- [x] **Step 5: Bind the signals into the toolbar**
 
 Wherever `<ui-rich-text-toolbar>` is instantiated in `rich-text-editor.component.html` (both top and floating toolbars), add:
 
@@ -1268,12 +1268,12 @@ Wherever `<ui-rich-text-toolbar>` is instantiated in `rich-text-editor.component
   [currentBackgroundColor]="currentBackgroundColor()"
 ```
 
-- [ ] **Step 6: Run — verify PASS**
+- [x] **Step 6: Run — verify PASS**
 
 Run: `npx vitest --browser=chromium run packages/components/ui/rich-text-editor/rich-text-editor.component.spec.ts -t "currentFontColor"`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add packages/components/ui/rich-text-editor/rich-text-editor.component.ts \

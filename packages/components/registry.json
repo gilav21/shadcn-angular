@@ -2235,6 +2235,7 @@
     "libFiles": [
       "addon-slots.ts",
       "ai.ts",
+      "color.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",

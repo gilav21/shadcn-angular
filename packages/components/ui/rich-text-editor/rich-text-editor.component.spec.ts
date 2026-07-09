@@ -1789,6 +1789,56 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
+    describe('current colors', () => {
+        it('reflects the selection computed color into currentFontColor', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span style="color:#2563eb">SLA</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+
+            component['updateActiveFormats']();
+
+            expect(component['currentFontColor']().toLowerCase()).toContain('#2563eb');
+        });
+
+        it('reflects the selection computed background color into currentBackgroundColor', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span style="background-color:#f97316">SLA</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+
+            component['updateActiveFormats']();
+
+            expect(component['currentBackgroundColor']().toLowerCase()).toContain('#f97316');
+        });
+
+        it('treats a transparent background as no active background color', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span>Plain</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+
+            component['updateActiveFormats']();
+
+            expect(component['currentBackgroundColor']()).toBe('');
+        });
+    });
+
     describe('document outline', () => {
         const seedHeadings = () => {
             editor.innerHTML =
