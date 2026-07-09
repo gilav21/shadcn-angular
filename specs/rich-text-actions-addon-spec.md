@@ -1442,6 +1442,7 @@ asserting.
 | Row | Date | Task | Reviewer score | Notes |
 | --- | --- | --- | --- | --- |
 | 1 | 2026-07-09 | T-A1 discovery — sanitizer keeps inline style on action spans | 96/100 | Style is unconditionally allowed via `ALLOWED_ATTRS['*']`, applied before contributed-rule logic, so it survives regardless of `data-action-*` registration; test registers `idRule`/`paramsRule` (mirroring real addon usage in `rich-text-actions.directive.ts`) to correctly isolate the style question. Full sanitizer suite 71/71 green. |
+| 2 | 2026-07-09 | T-A2 — starter styling seeded onto action spans at attach time (`uiRteActionsStyle` + `def.style`) | 97/100 | `RichTextActionDefinition.style?`, `applyStarterStyle`/`computeSeedStyleString`/`stripStyleIfMatches` and the directive's `uiRteActionsStyle` input + `mergedSeed` were wired exactly per brief; seeding happens only in the create branch of `applyAction` (never for existing spans, second triggers, edits, or image targets), and `removeTrigger` strips the seed only when byte-identical to the original, preserving author edits. 36/36 tests green across both spec files (11 serializer + 25 directive), zero eslint findings, zero new tsc errors. SonarQube server scan (§4 DONE gate) could not be run in this environment — Docker unavailable and no `SONAR_TOKEN` — flagged as outstanding, not silently skipped. |
 
 ### 14.9 Part D — Color-picker upgrade + fore/background reflection
 
