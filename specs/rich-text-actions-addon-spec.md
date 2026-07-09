@@ -1525,3 +1525,49 @@ master, **no CLI publish** (re-verify in T-E3).
 
 Part D is independent of Parts A–C and can land on its own track; Part A's
 `color`/`background-color` seeds simply gain a reflecting control once it ships.
+
+### 14.10 Final gate + post-implementation fixes (2026-07-10)
+
+All twelve plan tasks (T-A1…T-E3) landed via per-task review-gate ≥95. The
+full-suite gate then surfaced issues the per-task filtered runs and the eslint
+subset had missed — recorded here per the living-history rule.
+
+**Regression found by the full suite — color-picker echo (fixed, commit 67c9a436).**
+Part D binds the selection's reflected colour into the toolbar `ui-color-picker`
+via `[ngModel]`. The shared `ColorPickerComponent` emits `colorChange` from a
+`currentColor()` effect on **every** value change, including programmatic
+`writeValue`. So reflecting a colour echoed back through the toolbar's
+`(colorChange)` → the editor's `onColorSelect` → `foreColor`/`hiliteColor`,
+mutating content on a mere caret move (wrapping runs in `<font>` tags). Fix:
+guard `onColorSelect` to ignore an incoming colour that merely echoes the
+already-reflected value (normalised compare via `toHexColor`); a genuinely
+different user pick still applies. Two regression tests assert selecting
+coloured text does not mutate content and that a different pick still applies.
+
+**Final-review Important — combined + separate edit dropped hover params (fixed, 67c9a436).**
+Editing a combined `paramsMode:'separate'` action prefilled only the click
+trigger's params, so the hover group re-serialised as `{}` on confirm. Fix:
+thread `hoverParams` through the edit prefill (`ActionsDialogContext.prefill`,
+`editAction`, `applyPrefill`). Regression test asserts both triggers' distinct
+params survive an edit.
+
+**Cross-file test flake — popover positioning (fixed, commit c137155f).**
+`popover.component.spec.ts` queried `[data-slot="popover-content"]` globally;
+a stray node leaked by an earlier spec file matched first and flaked the
+full-suite run (passed in isolation). Fixed with a defensive `beforeEach`
+cleanup. Also hardened the actions directive spec's isolation
+(`afterEach` teardown + fixture tracking) and closed coverage gaps #68
+(per-action style wins on a key clash) and #71 (no style attribute when nothing
+is configured).
+
+**Gate results.**
+- `npm run test-visual`: **5301 passed / 5301** (299 files), zero failures.
+- `npm run coverage` + `npm run sonar` against `http://localhost:9000`
+  (project `shadcn-angular`): round 1 reported **3 findings on changed code**
+  the eslint subset did not mirror — `typescript:S7761` ×2 (use `.dataset` over
+  `getAttribute` in `isCombinedOnElement`) and `typescript:S7744` (empty-object
+  spread in `mergedSeed`). Fixed (commit resolving S7761/S7744); the re-scan
+  reports **0 unresolved issues on the changed files**. SonarQube DONE gate
+  satisfied.
+- Publish boundary re-confirmed: component/lib source + registry data only →
+  **no CLI publish**.
