@@ -181,6 +181,10 @@ describe('PopoverContent positioning', () => {
     let component: PositionHostComponent;
 
     beforeEach(async () => {
+        // Guard against popover content leaked by an earlier spec file: these tests
+        // query `[data-slot="popover-content"]` globally, so a stray node from another
+        // file would be matched first and fail the positioning assertions.
+        document.querySelectorAll('[data-popover-portal],[data-slot="popover-content"]').forEach((n) => n.remove());
         await TestBed.configureTestingModule({
             imports: [PositionHostComponent],
         }).compileComponents();

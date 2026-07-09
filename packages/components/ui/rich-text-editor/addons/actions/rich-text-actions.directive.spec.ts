@@ -542,6 +542,35 @@ describe('RichTextActionsDirective', () => {
             expect(span.style.fontWeight).toBe('600');
         });
 
+        it('lets a per-action style win over the global default on a key clash', async () => {
+            const fixture = createFixture();
+            fixture.componentInstance.styleSeed = { color: '#111111' };
+            fixture.componentInstance.defs = [
+                { id: 'd', label: 'D', triggers: ['click'], style: { color: '#2563eb' } },
+            ];
+            const editor = await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span[data-action-click="d"]') as HTMLElement;
+            expect(span.style.color).toBe('rgb(37, 99, 235)');
+        });
+
+        it('writes no style attribute when no starter style is configured', async () => {
+            const fixture = createFixture();
+            fixture.componentInstance.defs = [{ id: 'd', label: 'D', triggers: ['click'] }];
+            const editor = await attachFirstAction(fixture);
+            (document.querySelector('[data-action-option="d"]') as HTMLButtonElement).click();
+            fixture.detectChanges();
+            (currentDialog().querySelector('[data-testid="rta-confirm"] button') as HTMLButtonElement).click();
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span[data-action-click="d"]') as HTMLElement;
+            expect(span.hasAttribute('style')).toBe(false);
+        });
+
         it('does not re-seed when adding a second trigger to an existing span', async () => {
             const fixture = createFixture();
             fixture.componentInstance.styleSeed = { color: '#2563eb' };
