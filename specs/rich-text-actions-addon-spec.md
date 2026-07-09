@@ -1441,7 +1441,7 @@ asserting.
 
 | Row | Date | Task | Reviewer score | Notes |
 | --- | --- | --- | --- | --- |
-| — | — | (pending) | — | — |
+| 1 | 2026-07-09 | T-A1 discovery — sanitizer keeps inline style on action spans | 96/100 | Style is unconditionally allowed via `ALLOWED_ATTRS['*']`, applied before contributed-rule logic, so it survives regardless of `data-action-*` registration; test registers `idRule`/`paramsRule` (mirroring real addon usage in `rich-text-actions.directive.ts`) to correctly isolate the style question. Full sanitizer suite 71/71 green. |
 
 ### 14.9 Part D — Color-picker upgrade + fore/background reflection
 
