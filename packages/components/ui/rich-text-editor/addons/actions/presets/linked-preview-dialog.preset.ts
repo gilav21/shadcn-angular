@@ -36,6 +36,7 @@ export function linkedPreviewDialogAction(o: LinkedPreviewDialogOptions = {}): R
         fields: [
             { key: 'title', label: 'Title', type: 'text' },
             { key: 'body', label: 'Body', type: 'textarea', required: true },
+            { key: 'confirmLabel', label: 'Confirm button label', type: 'text' },
             ...(o.extraFields ?? []),
         ],
     };
