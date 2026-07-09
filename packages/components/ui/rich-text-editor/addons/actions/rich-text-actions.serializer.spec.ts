@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     validateActionId, validateActionParams, writeAction, readActions, removeAction, assertFlatParams,
-    applyStarterStyle, computeSeedStyleString, stripStyleIfMatches,
+    applyStarterStyle, computeSeedStyleString, stripStyleIfMatches, writeCombined, isCombinedOnElement,
 } from './rich-text-actions.serializer';
 
 describe('action serializer', () => {
@@ -93,5 +93,27 @@ describe('starter style helpers', () => {
         edited.style.fontWeight = '700';
         stripStyleIfMatches(edited, seed);
         expect(edited.hasAttribute('style')).toBe(true);
+    });
+});
+
+describe('combined actions', () => {
+    it('writeCombined writes the same id on both triggers with per-trigger params', () => {
+        const el = document.createElement('span');
+        writeCombined(el, 'dictionary', { click: { value: 'sla' }, hover: { value: 'sla' } });
+        expect(el.getAttribute('data-action-click')).toBe('dictionary');
+        expect(el.getAttribute('data-action-hover')).toBe('dictionary');
+        expect(el.getAttribute('data-action-click-params')).toBe('{"value":"sla"}');
+        expect(el.getAttribute('data-action-hover-params')).toBe('{"value":"sla"}');
+    });
+
+    it('isCombinedOnElement is true only when both triggers carry the same id', () => {
+        const combined = document.createElement('span');
+        writeCombined(combined, 'dictionary', { click: {}, hover: {} });
+        expect(isCombinedOnElement(combined)).toBe(true);
+
+        const split = document.createElement('span');
+        writeAction(split, 'click', 'a', {});
+        writeAction(split, 'hover', 'b', {});
+        expect(isCombinedOnElement(split)).toBe(false);
     });
 });

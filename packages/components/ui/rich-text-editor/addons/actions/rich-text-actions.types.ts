@@ -9,6 +9,9 @@ export type ActionTargetKind = 'text' | 'image';
 /** Flat params object — the only shape that serializes into the HTML. */
 export type ActionParams = Record<string, string | number | boolean>;
 
+/** How a combined action gathers params. */
+export type ActionParamsMode = 'shared' | 'separate';
+
 /** The attribute names carrying an action id, one per trigger. */
 export const ACTION_ATTRS = ['data-action-click', 'data-action-hover'] as const;
 
@@ -66,6 +69,12 @@ export interface RichTextActionDefinition {
     targets?: ActionTargetKind[];
     /** Starter inline styles seeded onto a newly-created action span. Merged over the directive's `uiRteActionsStyle`. */
     style?: Record<string, string>;
+    /** Attach BOTH click and hover in one picker selection. Requires `triggers` to include both. */
+    combined?: boolean;
+    /** Combined only. `'shared'` (default): one form → identical params on both triggers. `'separate'`: per-trigger fields. */
+    paramsMode?: ActionParamsMode;
+    /** Combined + `paramsMode:'separate'` — tier-1 fields per trigger. */
+    fieldsByTrigger?: { click?: RichTextActionField[]; hover?: RichTextActionField[] };
     /** Tier 1 — declarative fields; the addon generates the form. */
     fields?: RichTextActionField[];
     /** Tier 2 — a custom Angular form component rendered inside the addon dialog. */

@@ -109,3 +109,18 @@ export function stripStyleIfMatches(el: HTMLElement, seed: string): void {
         el.removeAttribute('style');
     }
 }
+
+/** Write a combined action: the same id on both triggers, with per-trigger params. */
+export function writeCombined(
+    el: HTMLElement, id: string, params: { click: ActionParams; hover: ActionParams },
+): void {
+    writeAction(el, 'click', id, params.click);
+    writeAction(el, 'hover', id, params.hover);
+}
+
+/** True when both triggers carry an action and share the same id (a combined attach). */
+export function isCombinedOnElement(el: HTMLElement): boolean {
+    const click = el.getAttribute('data-action-click');
+    const hover = el.getAttribute('data-action-hover');
+    return click !== null && click === hover;
+}
