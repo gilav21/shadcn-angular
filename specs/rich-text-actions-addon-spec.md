@@ -1571,3 +1571,28 @@ is configured).
   satisfied.
 - Publish boundary re-confirmed: component/lib source + registry data only →
   **no CLI publish**.
+
+**Post-PR demo fixes (2026-07-10, found by running the live demo).**
+
+- **Color-picker init emit clobbered `[ngModel]` (fixed).** Published panes fed
+  by `[ngModel]` rendered empty until the first edit. A browser stack trace
+  pinned the cause to Part D: the toolbar's `ui-color-picker` emits `colorChange`
+  from its `currentColor()` construction effect on init → `onColorSelect` →
+  `applyMutation` → `syncContentFromEditor` → `onChange('')`, resetting the bound
+  content signal (the editor keeps its DOM via the deferred `writeValue`, but the
+  signal driving the published pane goes empty). This is the same Part D feedback
+  loop as the echo bug, but the **init variant**: the echo-guard missed it
+  because `currentFontColor()` is `''` before any selection, so `current !== ''`
+  is false. Fix: `onColorSelect` bails when `hasColorTarget()` is false (no
+  `savedRange` / live selection inside the editor) — a colour command with no
+  target is a no-op and must never force-focus the editor and emit an empty
+  model. Affects **every `[ngModel]` consumer**, not just the demo. +1 regression
+  test; verified in the running demo (all published panes render on load).
+- **Starter styling not visible in the demo (fixed).** The v2 demo section used
+  hardcoded action-span HTML with no inline `style`; the seed only applies on a
+  fresh attach (unit-tested working), so the pre-seeded example showed no starter
+  look. Fix: pre-seed the demo span with the same inline style a fresh attach
+  produces. Verified in the browser: the span computes `color: rgb(37,99,235)` +
+  `underline dotted` in both the editor and the published pane.
+- Gates after these fixes: `test-visual` **5302 / 5302**, demo builds, lint
+  clean, SonarQube re-scan **0 issues on changed files**.
