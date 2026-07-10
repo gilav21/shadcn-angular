@@ -2893,7 +2893,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     onColorSelect(event: { type: 'fontColor' | 'backgroundColor'; color: string }): void {
-        if (this.isReflectedColorEcho(event.type, event.color)) {
+        if (this.isReflectedColorEcho(event.type, event.color) || !this.hasColorTarget()) {
             return;
         }
         this.flushPendingHistoryPush();
@@ -2925,6 +2925,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private isReflectedColorEcho(type: 'fontColor' | 'backgroundColor', color: string): boolean {
         const current = type === 'fontColor' ? this.currentFontColor() : this.currentBackgroundColor();
         return current !== '' && this.toHexColor(color) === this.toHexColor(current);
+    }
+
+    /**
+     * True when there is a real selection/caret in the editor to apply a colour to.
+     * A colour command with no target is a no-op — and the toolbar's `ui-color-picker`
+     * emits a `colorChange` on init (its `currentColor()` effect fires on construction),
+     * which must NOT force-focus the editor and push an empty model value.
+     */
+    private hasColorTarget(): boolean {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return false;
+        if (this.savedRange && editor.contains(this.savedRange.startContainer)) return true;
+        const sel = this.document.getSelection();
+        return !!sel && sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).startContainer);
     }
 
     onFontSizeSelect(size: string): void {

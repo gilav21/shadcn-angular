@@ -119,9 +119,12 @@ const RTL_CONTENT =
     'המונח הזה</span> כדי לראות כרטיס ריחוף.</p>';
 
 const V2_PARAMS = '{"title":"Idempotent","body":"Calling it once or many times has the same effect."}';
+// The action span carries the same inline style a fresh attach seeds from
+// `uiRteActionsStyle` (V2_STARTER_STYLE) — so the starter look is visible on load.
+const V2_SEEDED_STYLE = 'color:#2563eb;text-decoration:underline dotted;text-underline-offset:3px';
 const V2_CONTENT =
     '<p>Newly-attached actions inherit the starter style. Hover or click ' +
-    `<span data-action-hover="preset.linked-preview-dialog" data-action-hover-params='${V2_PARAMS}' ` +
+    `<span style="${V2_SEEDED_STYLE}" data-action-hover="preset.linked-preview-dialog" data-action-hover-params='${V2_PARAMS}' ` +
     `data-action-click="preset.linked-preview-dialog" data-action-click-params='${V2_PARAMS}'>idempotent</span> — ` +
     'one combined action definition drives both a hover preview and a click dialog.</p>';
 

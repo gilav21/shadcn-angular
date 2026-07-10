@@ -1873,6 +1873,24 @@ describe('RichTextEditorComponent', () => {
 
             expect(editor.innerHTML.toLowerCase()).toContain('ff0000');
         });
+
+        it('ignores a color event with no selection so it cannot clobber the model on init', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            component.writeValue('<p>Seeded content</p>');
+            fixture.detectChanges();
+
+            // Simulate the color picker's construction-time colorChange echo: no
+            // selection/caret has ever been placed in the editor.
+            window.getSelection()?.removeAllRanges();
+            let emitted: string | undefined;
+            component.registerOnChange((v) => { emitted = v; });
+
+            component.onColorSelect({ type: 'fontColor', color: '#000000' });
+
+            expect(emitted).toBeUndefined();
+            expect(editor.innerHTML).toContain('Seeded content');
+        });
     });
 
     describe('document outline', () => {
