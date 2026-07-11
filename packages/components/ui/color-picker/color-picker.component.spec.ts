@@ -156,6 +156,15 @@ describe('ColorPickerComponent', () => {
     });
 
     describe('Saturation/Value area', () => {
+        it('prevents default on mousedown so a drag does not extend a page text selection', async () => {
+            await openAndGetPicker(fixture);
+            const area = document.querySelector('div[role="slider"]') as HTMLElement;
+            const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 });
+            area.dispatchEvent(ev);
+            expect(ev.defaultPrevented).toBe(true);
+            window.dispatchEvent(new MouseEvent('mouseup')); // release the drag listeners
+        });
+
         it('top-left selects white', async () => {
             const picker = await openAndGetPicker(fixture);
             stubAreaRect(picker);

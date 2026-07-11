@@ -2897,7 +2897,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
         this.flushPendingHistoryPush();
-        this.restoreSelection();
+        this.restoreColorTargetSelection();
 
         const mentionTargets = this.getMentionElementsInSelection();
 
@@ -2911,7 +2911,33 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             this.setMentionStyle(mentionTargets, 'backgroundColor', event.color);
         }
 
-        this.applyMutation({ focus: true });
+        // `foreColor`/`hiliteColor` apply to the range without needing editor focus and
+        // keep it selected. Do NOT focus the editor here: the colour picker lives in an
+        // open popover, and stealing focus back collapses the selection so the next pick
+        // (or a drag) has no target — the reported "de-selects and stops changing" bug.
+        this.applyMutation({ focus: false });
+    }
+
+    /**
+     * Set the selection a colour command applies to, WITHOUT focusing the editor.
+     * Prefers a live non-collapsed range already in the editor (a drag/pick keeps the
+     * document selection alive even while the picker popover holds focus); otherwise
+     * falls back to the range saved when the editor was last blurred.
+     */
+    private restoreColorTargetSelection(): void {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        if (!editor || !selection) {
+            return;
+        }
+        const live = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        if (live && !live.collapsed && editor.contains(live.startContainer)) {
+            return;
+        }
+        if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
+            selection.removeAllRanges();
+            selection.addRange(this.savedRange);
+        }
     }
 
     /**

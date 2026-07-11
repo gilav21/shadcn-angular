@@ -300,6 +300,10 @@ export class ColorPickerComponent implements ControlValueAccessor {
 
     onAreaMouseDown(event: MouseEvent): void {
         if (this.isDisabled()) return;
+        // Prevent the browser from starting/extending a native text selection while the
+        // user drags in the saturation area — otherwise dragging over a page that already
+        // has a selection (e.g. an editor) grows it and the picker's caller applies to it.
+        event.preventDefault();
         this.startAreaDrag(event.clientX, event.clientY);
     }
 

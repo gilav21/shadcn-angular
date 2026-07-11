@@ -1891,6 +1891,27 @@ describe('RichTextEditorComponent', () => {
             expect(emitted).toBeUndefined();
             expect(editor.innerHTML).toContain('Seeded content');
         });
+
+        it('applies successive colors without re-selecting and keeps the selection alive', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            editor.innerHTML = '<p>Recolor me</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            selectAllOf(editor.querySelector('p') as HTMLElement);
+
+            component.onColorSelect({ type: 'fontColor', color: '#ff0000' });
+            fixture.detectChanges();
+            expect(editor.innerHTML.toLowerCase()).toContain('ff0000');
+            expect(window.getSelection()?.isCollapsed).toBe(false);
+
+            // A second pick WITHOUT re-selecting still recolours — the colour command
+            // must not focus the editor and collapse the selection.
+            component.onColorSelect({ type: 'fontColor', color: '#0000ff' });
+            fixture.detectChanges();
+            expect(editor.innerHTML.toLowerCase()).toContain('0000ff');
+            expect(window.getSelection()?.isCollapsed).toBe(false);
+        });
     });
 
     describe('document outline', () => {
