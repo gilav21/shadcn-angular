@@ -32,9 +32,13 @@ const PRESETS_CONTENT =
     'or click <span data-action-click="preset.open-dialog" ' +
     'data-action-click-params=\'{"title":"Pricing","body":"Our plans start at $9."}\'>here</span>.</p>';
 
+// The action span carries the inline style a fresh attach seeds from STARTER_STYLE
+// (uiRteActionsStyle only applies on a new attach), so the starter look is visible on load.
+const STYLED_SEED = 'color:#2563eb;text-decoration:underline dotted;text-underline-offset:3px';
 const STYLED_CONTENT =
     '<p>The starter style paints newly-attached actions blue with a dotted underline — see our ' +
-    '<span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"pricing"}\'>pricing</span> ' +
+    `<span style="${STYLED_SEED}" data-action-click="open-dialog" ` +
+    'data-action-click-params=\'{"dialogId":"pricing"}\'>pricing</span> ' +
     'page.</p>';
 
 const COMBINED_PARAMS = '{"title":"Idempotent","body":"Calling it once or many times has the same effect."}';
