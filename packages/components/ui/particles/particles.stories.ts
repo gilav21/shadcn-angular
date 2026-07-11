@@ -11,21 +11,11 @@ const meta: Meta<ParticlesComponent> = {
         }),
     ],
     argTypes: {
-        count: {
-            control: 'number',
-        },
-        color: {
-            control: 'text',
-        },
-        speed: {
-            control: 'number',
-        },
-        connectDistance: {
-            control: 'number',
-        },
-        mouseInteraction: {
-            control: 'boolean',
-        },
+        count: { control: 'number', description: 'Number of particles rendered.' },
+        color: { control: 'color', description: 'Particle/connection color. Accepts any CSS color, including `currentColor` and `var(...)`.' },
+        speed: { control: 'number', description: 'Base particle movement speed.' },
+        connectDistance: { control: 'number', description: 'Max distance in pixels at which two particles are connected by a line.' },
+        mouseInteraction: { control: 'boolean', description: 'Enables particles reacting to the mouse cursor.' },
     },
     args: {
         count: 50,
@@ -39,33 +29,25 @@ const meta: Meta<ParticlesComponent> = {
 export default meta;
 type Story = StoryObj<ParticlesComponent>;
 
-export const Default: Story = {
-    args: {
-        count: 50,
-        speed: 0.5,
-        connectDistance: 120,
-        mouseInteraction: true,
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="relative w-full rounded-xl overflow-hidden border bg-background" style="height: 400px;">
-                <ui-particles
-                    [count]="count"
-                    [speed]="speed"
-                    [connectDistance]="connectDistance"
-                    [mouseInteraction]="mouseInteraction"
-                    class="absolute inset-0 w-full h-full"
-                    style="height: 400px;"
-                />
-                <div class="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
-                    <h2 class="text-3xl font-bold">Particle Network</h2>
-                    <p class="text-muted-foreground mt-2 text-sm">Move your mouse over the canvas to interact</p>
-                </div>
-            </div>
-        `,
-    }),
-};
+const TEMPLATE = `
+    <div class="relative w-full rounded-xl overflow-hidden border bg-background" style="height: 400px;">
+        <ui-particles
+            [count]="count" [color]="color" [speed]="speed"
+            [connectDistance]="connectDistance" [mouseInteraction]="mouseInteraction"
+            class="absolute inset-0 w-full h-full" style="height: 400px;" />
+        <div class="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
+            <h2 class="text-3xl font-bold">Particle Network</h2>
+            <p class="text-muted-foreground mt-2 text-sm">Move your mouse over the canvas to interact</p>
+        </div>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const HighCount: Story = {
     args: {
@@ -123,6 +105,13 @@ export const CustomColor: Story = {
             </div>
         `,
     }),
+};
+
+export const NoMouseInteraction: Story = {
+    args: {
+        mouseInteraction: false,
+    },
+    render,
 };
 
 export const DarkHero: Story = {

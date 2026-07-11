@@ -3,6 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { signal } from '@angular/core';
 import { RatingComponent } from './rating.component';
 
+// Every input is exposed as an interactive control (argTypes) with a sensible
+// default (args); the Playground binds all of them so the Controls panel drives
+// the live component. Dedicated stories below capture each distinct visual mode.
 const meta: Meta<RatingComponent> = {
     title: 'UI/Rating',
     component: RatingComponent,
@@ -13,17 +16,23 @@ const meta: Meta<RatingComponent> = {
     ],
     tags: ['autodocs'],
     argTypes: {
-        max: { control: 'number' },
-        precision: { control: 'select', options: [0.5, 1] },
-        readonly: { control: 'boolean' },
-        disabled: { control: 'boolean' },
-        size: { control: 'select', options: ['sm', 'md', 'lg'] },
+        max: { control: 'number', description: 'Number of stars in the group.', min: 1, max: 20 },
+        precision: { control: 'select', options: [0.5, 1], description: 'Selection precision — `0.5` allows half-star ratings.' },
+        readonly: { control: 'boolean', description: 'Displays the current rating without allowing interaction.' },
+        disabled: { control: 'boolean', description: 'Disables interaction and dims the stars.' },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
+        ariaLabel: { control: 'text', description: "Override for the group aria-label. Falls back to the locale's `rating` string." },
+        size: { control: 'select', options: ['sm', 'md', 'lg'], description: 'Star size.' },
+        locale: { control: false, description: 'Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set.' },
+        ratingChange: { control: false, description: 'Emits the new rating value when the user selects a star.' },
     },
     args: {
         max: 5,
         precision: 1,
         readonly: false,
         disabled: false,
+        class: '',
+        ariaLabel: undefined,
         size: 'md',
     },
 };
@@ -31,7 +40,8 @@ const meta: Meta<RatingComponent> = {
 export default meta;
 type Story = StoryObj<RatingComponent>;
 
-export const Default: Story = {
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = {
     render: (args) => ({
         props: { ...args, value: signal(3) },
         template: `
@@ -42,6 +52,8 @@ export const Default: Story = {
                 [precision]="precision"
                 [readonly]="readonly"
                 [disabled]="disabled"
+                [class]="class"
+                [ariaLabel]="ariaLabel"
                 [size]="size"
             />
         `,
@@ -122,6 +134,19 @@ export const TenStars: Story = {
                     [max]="10"
                 />
             </div>
+        `,
+    }),
+};
+
+export const CustomAriaLabel: Story = {
+    render: () => ({
+        props: { value: signal(3) },
+        template: `
+            <ui-rating
+                [ngModel]="value()"
+                (ngModelChange)="value.set($event)"
+                ariaLabel="Movie rating"
+            />
         `,
     }),
 };

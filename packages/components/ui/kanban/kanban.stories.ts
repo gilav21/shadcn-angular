@@ -27,6 +27,42 @@ const meta: Meta<KanbanComponent> = {
             ],
         }),
     ],
+    argTypes: {
+        columns: { control: 'object', description: 'Simple-mode column definitions.' },
+        cards: { control: 'object', description: 'Simple-mode card definitions.' },
+        locale: {
+            control: 'select',
+            options: ['en', 'he', 'ar', 'de', 'fr', 'es', 'ja', 'zh', 'ru', 'pt'],
+            description: 'Locale dictionary key (or a custom `KanbanLocale` object). Falls back to `UI_LOCALE_ID`.',
+        },
+        rtl: { control: 'boolean', description: 'Right-to-left layout; auto-synced from the resolved locale unless overridden.' },
+        haveLabels: { control: 'boolean', description: 'Shows label chips and the labels field in the card dialog.' },
+        haveAssignees: { control: 'boolean', description: 'Shows assignee avatars and the assignee field in the card dialog.' },
+        assigneeOptions: { control: 'object', description: 'Selectable assignees offered in the card dialog.' },
+        searchTerm: { control: 'text', description: 'Filters visible cards by title, description, or label text.' },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
+        columnsChange: { control: false, description: 'Emits the updated columns array.' },
+        cardsChange: { control: false, description: 'Emits the updated cards array.' },
+        cardMoved: { control: false, description: 'Emits when a card is dragged to a new column/position.' },
+        cardAdded: { control: false, description: 'Emits when a card is added via the dialog.' },
+        cardUpdated: { control: false, description: 'Emits when a card is edited.' },
+        cardDeleted: { control: false, description: 'Emits a card id once its delete-undo window expires.' },
+        columnAdded: { control: false, description: 'Emits when a column is added.' },
+        columnUpdated: { control: false, description: 'Emits when a column is renamed or its WIP limit changes.' },
+        columnDeleted: { control: false, description: 'Emits when a column is deleted.' },
+        historyChange: { control: false, description: 'Emits undo/redo availability state.' },
+    },
+    args: {
+        columns: [],
+        cards: [],
+        locale: undefined,
+        rtl: false,
+        haveLabels: true,
+        haveAssignees: true,
+        assigneeOptions: [],
+        searchTerm: '',
+        class: '',
+    },
 };
 
 export default meta;
@@ -104,6 +140,25 @@ const defaultCards: KanbanCard[] = [
         order: 0,
     },
 ];
+
+const TEMPLATE = `
+    <div class="h-[600px] overflow-auto bg-muted/30 rounded-xl border">
+        <ui-kanban
+            [columns]="columns" [cards]="cards" [locale]="locale" [rtl]="rtl"
+            [haveLabels]="haveLabels" [haveAssignees]="haveAssignees"
+            [assigneeOptions]="assigneeOptions" [searchTerm]="searchTerm" [class]="class" />
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every simple-mode input is wired to the Controls panel. */
+export const Playground: Story = {
+    args: { columns: defaultColumns, cards: defaultCards },
+    render,
+};
 
 export const Default: Story = {
     render: () => ({
@@ -352,6 +407,21 @@ export const WithContextMenus: Story = {
             </div>
         `,
     }),
+};
+
+export const WipLimitsAndLabelsToggle: Story = {
+    args: { columns: defaultColumns, cards: defaultCards, haveLabels: false, haveAssignees: false },
+    render,
+};
+
+export const SearchFiltered: Story = {
+    args: { columns: defaultColumns, cards: defaultCards, searchTerm: 'audit' },
+    render,
+};
+
+export const RtlHebrewLocale: Story = {
+    args: { columns: defaultColumns, cards: defaultCards, locale: 'he' },
+    render,
 };
 
 export const FullFeatured: Story = {

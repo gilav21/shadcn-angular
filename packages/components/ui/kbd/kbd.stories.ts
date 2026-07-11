@@ -1,25 +1,30 @@
-import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { Meta, StoryObj } from '@storybook/angular';
 import { KbdComponent } from './kbd.component';
 
 const meta: Meta<KbdComponent> = {
     title: 'UI/Kbd',
     component: KbdComponent,
     tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [KbdComponent],
-        }),
-    ],
+    argTypes: {
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
+    },
+    args: {
+        class: '',
+    },
 };
 
 export default meta;
 type Story = StoryObj<KbdComponent>;
 
-export const Default: Story = {
-    render: () => ({
-        template: `<ui-kbd>K</ui-kbd>`,
-    }),
-};
+const TEMPLATE = `<ui-kbd [class]="class">K</ui-kbd>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const SingleKey: Story = {
     render: () => ({

@@ -46,19 +46,47 @@ const meta: Meta<FileViewerComponent> = {
         }),
     ],
     argTypes: {
-        height: { control: 'text' },
-        zoom: { control: { type: 'range', min: 0.25, max: 3, step: 0.25 } },
-        filename: { control: 'text' },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
+        file: { control: false, description: 'File or Blob to preview. Takes precedence over src.' },
+        src: { control: 'text', description: 'URL to fetch and preview when no file/blob is provided.' },
+        type: {
+            control: 'select',
+            options: ['', 'image', 'pdf', 'xlsx', 'docx', 'pptx', 'doc', 'ppt', 'text', 'video', 'audio', 'unknown'],
+            description: 'Forces the viewer mode instead of auto-detecting it from the file/filename/MIME type.',
+        },
+        height: { control: 'text', description: 'CSS height of the viewer, e.g. "500px".' },
+        zoom: { control: { type: 'range', min: 0.25, max: 3, step: 0.25 }, description: 'Zoom level for zoomable content (image, docx, pptx, text, pdf).' },
+        page: { control: 'number', description: 'Current page for paginated content (pptx, pdf).', min: 1 },
+        filename: { control: 'text', description: 'Display filename override; falls back to the File object\'s name.' },
     },
     args: {
+        class: '',
+        file: null,
+        src: '',
+        type: '',
         height: '500px',
         zoom: 1,
+        page: 1,
         filename: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<FileViewerComponent>;
+
+const TEMPLATE = `
+    <ui-file-viewer
+        [file]="file" [src]="src" [type]="type" [height]="height"
+        [zoom]="zoom" [page]="page" [filename]="filename" [class]="class"
+    />`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: { ...args, file: args.file ?? createTextFile() },
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const TextFile: Story = {
     render: (args) => ({
@@ -81,6 +109,13 @@ export const UnknownFile: Story = {
             file: new File([new Uint8Array([0x00, 0x01, 0x02])], 'data.bin', { type: 'application/octet-stream' }),
         },
         template: `<ui-file-viewer [file]="file" [height]="height" filename="data.bin" />`,
+    }),
+};
+
+export const ExplicitTypeOverride: Story = {
+    render: (args) => ({
+        props: { ...args, file: createTextFile() },
+        template: `<ui-file-viewer [file]="file" [height]="height" type="text" filename="forced-text.log" />`,
     }),
 };
 

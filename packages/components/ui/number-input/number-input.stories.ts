@@ -14,16 +14,22 @@ const meta: Meta<NumberInputComponent> = {
         },
     },
     argTypes: {
+        value: { control: 'number', description: 'Current numeric value (or `null` when empty).' },
+        min: { control: 'number', description: 'Minimum allowed value.' },
+        max: { control: 'number', description: 'Maximum allowed value.' },
+        step: { control: 'number', description: 'Increment/decrement step.' },
+        disabled: { control: 'boolean', description: 'Disables interaction.' },
+        placeholder: { control: 'text', description: 'Placeholder shown when empty.' },
+        class: { control: 'text', description: 'Extra classes merged onto the wrapper.' },
         variant: {
             control: 'select',
             options: ['outline', 'underline', 'ghost'],
+            description: 'Visual style of the wrapper.',
         },
-        value: { control: 'number' },
-        min: { control: 'number' },
-        max: { control: 'number' },
-        step: { control: 'number' },
-        disabled: { control: 'boolean' },
-        placeholder: { control: 'text' },
+        locale: {
+            control: 'text',
+            description: 'BCP-47 locale tag for the input `lang` attribute. Falls back to the app-wide locale.',
+        },
     },
     args: {
         variant: 'outline',
@@ -31,18 +37,28 @@ const meta: Meta<NumberInputComponent> = {
         step: 1,
         disabled: false,
         placeholder: '0',
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<NumberInputComponent>;
 
-export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `<div class="max-w-xs"><ui-number-input [value]="value" [step]="step" [disabled]="disabled" [placeholder]="placeholder" [variant]="variant" /></div>`,
-    }),
-};
+const TEMPLATE = `
+    <div class="max-w-xs">
+        <ui-number-input
+            [value]="value" [min]="min" [max]="max" [step]="step"
+            [disabled]="disabled" [placeholder]="placeholder"
+            [variant]="variant" [class]="class" [locale]="locale" />
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const WithMinMax: Story = {
     args: {
@@ -51,10 +67,7 @@ export const WithMinMax: Story = {
         max: 10,
         step: 1,
     },
-    render: (args) => ({
-        props: args,
-        template: `<div class="max-w-xs"><ui-number-input [value]="value" [min]="min" [max]="max" [step]="step" [placeholder]="placeholder" /></div>`,
-    }),
+    render,
 };
 
 export const WithDecimalStep: Story = {
@@ -64,10 +77,7 @@ export const WithDecimalStep: Story = {
         min: 0,
         max: 5,
     },
-    render: (args) => ({
-        props: args,
-        template: `<div class="max-w-xs"><ui-number-input [value]="value" [min]="min" [max]="max" [step]="step" /></div>`,
-    }),
+    render,
 };
 
 export const Disabled: Story = {
@@ -75,10 +85,7 @@ export const Disabled: Story = {
         value: 42,
         disabled: true,
     },
-    render: (args) => ({
-        props: args,
-        template: `<div class="max-w-xs"><ui-number-input [value]="value" [disabled]="disabled" /></div>`,
-    }),
+    render,
 };
 
 export const Underline: Story = {
@@ -86,10 +93,7 @@ export const Underline: Story = {
         variant: 'underline',
         value: 10,
     },
-    render: (args) => ({
-        props: args,
-        template: `<div class="max-w-xs"><ui-number-input [value]="value" [variant]="variant" /></div>`,
-    }),
+    render,
 };
 
 export const Ghost: Story = {
@@ -97,10 +101,7 @@ export const Ghost: Story = {
         variant: 'ghost',
         value: 10,
     },
-    render: (args) => ({
-        props: args,
-        template: `<div class="max-w-xs"><ui-number-input [value]="value" [variant]="variant" /></div>`,
-    }),
+    render,
 };
 
 export const CustomClass: Story = {
@@ -108,8 +109,5 @@ export const CustomClass: Story = {
         value: 5,
         class: 'w-32',
     },
-    render: (args) => ({
-        props: args,
-        template: `<ui-number-input [value]="value" [class]="class" />`,
-    }),
+    render,
 };

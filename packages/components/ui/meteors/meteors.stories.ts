@@ -13,13 +13,16 @@ const meta: Meta<MeteorsComponent> = {
     argTypes: {
         count: {
             control: 'number',
+            description: 'Number of meteors rendered simultaneously.',
         },
         speed: {
             control: 'select',
             options: ['slow', 'medium', 'fast'],
+            description: 'Overall animation speed preset.',
         },
         color: {
-            control: 'text',
+            control: 'color',
+            description: 'Meteor color (any CSS color).',
         },
     },
     args: {
@@ -32,24 +35,22 @@ const meta: Meta<MeteorsComponent> = {
 export default meta;
 type Story = StoryObj<MeteorsComponent>;
 
-export const Default: Story = {
-    args: {
-        count: 20,
-        speed: 'medium',
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="relative h-96 w-full rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center">
-                <ui-meteors [count]="count" [speed]="speed" [color]="color" />
-                <div class="relative z-10 text-center">
-                    <h2 class="text-3xl font-bold text-white">Meteor Shower</h2>
-                    <p class="text-slate-400 mt-2">Animated background effect</p>
-                </div>
-            </div>
-        `,
-    }),
-};
+const TEMPLATE = `
+    <div class="relative h-96 w-full rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center">
+        <ui-meteors [count]="count" [speed]="speed" [color]="color" />
+        <div class="relative z-10 text-center">
+            <h2 class="text-3xl font-bold text-white">Meteor Shower</h2>
+            <p class="text-slate-400 mt-2">Animated background effect</p>
+        </div>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const HighCount: Story = {
     args: {

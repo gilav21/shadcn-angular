@@ -10,9 +10,9 @@ const meta: Meta = {
         }),
     ],
     argTypes: {
-        uiMagneticStrength: { control: 'number' },
-        uiMagneticRadius: { control: 'number' },
-        uiMagneticSmoothing: { control: 'number' },
+        uiMagneticStrength: { control: 'number', description: 'How strongly the element is pulled toward the pointer (0-1 typical).' },
+        uiMagneticRadius: { control: 'number', description: 'Pointer distance (px) within which the pull activates.' },
+        uiMagneticSmoothing: { control: 'number', description: 'Transition duration (ms) used to ease the pull.' },
     },
     args: {
         uiMagneticStrength: 0.3,
@@ -24,7 +24,8 @@ const meta: Meta = {
 export default meta;
 type Story = StoryObj;
 
-export const Default: Story = {
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = {
     render: (args) => ({
         props: args,
         template: `

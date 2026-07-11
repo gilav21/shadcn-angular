@@ -37,27 +37,39 @@ const meta: Meta<FieldComponent> = {
         }),
     ],
     argTypes: {
-        orientation: { control: 'select', options: ['vertical', 'horizontal'] },
+        orientation: {
+            control: 'select',
+            options: ['vertical', 'horizontal'],
+            description: 'Stacks the label/control vertically, or lays them out side-by-side.',
+        },
+        class: { control: 'text', description: 'Extra classes merged onto the field host.' },
     },
     args: {
         orientation: 'vertical',
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<FieldComponent>;
 
+const TEMPLATE = `
+    <ui-field [orientation]="orientation" [class]="class">
+        <ui-field-label for="email">Email</ui-field-label>
+        <ui-input id="email" placeholder="you@example.com" />
+        <ui-field-description>We will never share your email with anyone.</ui-field-description>
+    </ui-field>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
 export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
-            <ui-field [orientation]="orientation">
-                <ui-field-label for="email">Email</ui-field-label>
-                <ui-input id="email" placeholder="you@example.com" />
-                <ui-field-description>We will never share your email with anyone.</ui-field-description>
-            </ui-field>
-        `,
-    }),
+    render,
 };
 
 export const WithError: Story = {

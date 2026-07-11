@@ -12,38 +12,38 @@ const meta: Meta<FlipTextComponent> = {
         }),
     ],
     argTypes: {
-        text: {
-            control: 'text',
-        },
-        delay: {
-            control: 'number',
-        },
-        duration: {
-            control: 'number',
-        },
+        text: { control: 'text', description: 'Text to animate, one character flip per glyph.' },
+        delay: { control: 'number', description: 'Delay in ms between each character\'s flip-in animation.', min: 0, step: 5 },
+        duration: { control: 'number', description: 'Duration in ms of each character\'s flip-in animation.', min: 0, step: 50 },
+        class: { control: 'text', description: 'Extra classes merged onto the host span.' },
     },
     args: {
         text: 'Hello World',
         delay: 50,
         duration: 500,
+        class: 'text-5xl font-bold',
     },
 };
 
 export default meta;
 type Story = StoryObj<FlipTextComponent>;
 
+const TEMPLATE = `
+    <div class="flex items-center justify-center p-12">
+        <ui-flip-text [text]="text" [delay]="delay" [duration]="duration" [class]="class" />
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
 export const Default: Story = {
-    args: {
-        text: 'Hello World',
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="flex items-center justify-center p-12">
-                <ui-flip-text [text]="text" [delay]="delay" [duration]="duration" class="text-5xl font-bold" />
-            </div>
-        `,
-    }),
+    args: { text: 'Hello World' },
+    render,
 };
 
 export const LongText: Story = {

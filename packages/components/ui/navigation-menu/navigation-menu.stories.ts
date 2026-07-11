@@ -23,19 +23,32 @@ const meta: Meta<NavigationMenuComponent> = {
                 NavigationMenuTriggerComponent,
                 NavigationMenuContentComponent,
                 NavigationMenuLinkComponent,
-                NavigationMenuIndicatorComponent
+                NavigationMenuIndicatorComponent,
             ],
         }),
     ],
+    argTypes: {
+        items: {
+            control: 'object',
+            description: 'Data-driven items for simple mode. When provided (and no content is projected), renders the menu automatically.',
+        },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
+    },
+    args: {
+        items: [],
+        class: '',
+    },
 };
 
 export default meta;
 type Story = StoryObj<NavigationMenuComponent>;
 
-export const Default: Story = {
-    render: () => ({
+/** Interactive playground — template mode with projected content (default when `items` is empty). */
+export const Playground: Story = {
+    render: (args) => ({
+        props: args,
         template: `
-      <ui-navigation-menu>
+      <ui-navigation-menu [class]="class">
         <ui-navigation-menu-list>
           <ui-navigation-menu-item>
             <ui-navigation-menu-trigger>Item One</ui-navigation-menu-trigger>
@@ -130,9 +143,11 @@ const simpleItems: NavigationMenuItem[] = [
     { label: 'Documentation', href: '/docs' },
 ];
 
+/** Simple mode: `items` input drives the whole menu without any projected content. */
 export const SimpleMode: Story = {
-    render: () => ({
-        props: { items: simpleItems },
-        template: `<ui-navigation-menu [items]="items" />`,
+    args: { items: simpleItems },
+    render: (args) => ({
+        props: args,
+        template: `<ui-navigation-menu [items]="items" [class]="class" />`,
     }),
 };
