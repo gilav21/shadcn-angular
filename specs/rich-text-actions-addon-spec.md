@@ -1596,3 +1596,15 @@ is configured).
   `underline dotted` in both the editor and the published pane.
 - Gates after these fixes: `test-visual` **5302 / 5302**, demo builds, lint
   clean, SonarQube re-scan **0 issues on changed files**.
+- **Nested-popover fix (single popover for the toolbar colour picker).** The
+  toolbar embedded `<ui-color-picker>` — which owns its own trigger + popover —
+  inside the toolbar's own colour popover, so the colour icon opened a popover
+  that showed another trigger that opened a second popover. Added an `inline`
+  input to `ColorPickerComponent` (renders just the panel via an `ng-template`,
+  no built-in trigger/popover; default behaviour unchanged) and set
+  `[inline]="true"` in the toolbar's `fontColor`/`backgroundColor` popovers
+  (widened to fit). The toolbar colour **icon stays the trigger** and now opens a
+  single popover containing the picker. Verified live (one popover, no nested
+  trigger, full panel inside). +1 color-picker test; toolbar preset-click tests
+  updated to the single-popover flow. Gates: `test-visual` **5303 / 5303**, demo
+  builds, lint clean, SonarQube **0 issues on changed files**.
