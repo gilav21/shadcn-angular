@@ -503,5 +503,17 @@ describe('RichTextSanitizerService', () => {
             expect(out).toBe('<span data-action-click="a">x</span>');
             off();
         });
+
+        it('preserves a safe inline style on an action span (v2 starter-style discovery)', () => {
+            const off = service.registerAttributeRules([idRule, paramsRule]);
+            const html =
+                '<span style="color:#2563eb;text-decoration:underline dotted" ' +
+                'data-action-click="dictionary" data-action-click-params=\'{"value":"sla"}\'>SLA</span>';
+            const out = service.sanitize(html);
+            off();
+            expect(out).toContain('data-action-click="dictionary"');
+            expect(out.toLowerCase()).toContain('color');
+            expect(out.toLowerCase()).toContain('#2563eb');
+        });
     });
 });

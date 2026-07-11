@@ -87,12 +87,26 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['data-table', 'data-table/context-menu'],
         label: 'data-table-context-menu',
     },
+    // addon system: install the lean data-table base AND its opt-in `export`
+    // addon together, then prove export runs in a real consumer install (the
+    // xlsx dependency ships with the addon, not the base) via `uiDtExport`.
+    {
+        names: ['data-table', 'data-table/export'],
+        label: 'data-table-export',
+    },
+    // addon system: install the lean data-table base AND its opt-in `pivot`
+    // addon together, then prove getPivot runs through the host DI contract in
+    // a real consumer install via `uiDtPivot`.
+    {
+        names: ['data-table', 'data-table/pivot'],
+        label: 'data-table-pivot',
+    },
     // addon system (rich-text): install the editor + its `actions` addon +
     // dialog together; prove the addon wires the "Attach action" toolbar
     // button via the host slot, and the framework-free render runtime fires
     // the dev callback (opening a real ui-dialog) on the published HTML.
     {
-        names: ['rich-text-editor', 'rich-text-editor/actions', 'dialog'],
+        names: ['rich-text-editor', 'rich-text-editor/actions', 'dialog', 'color-picker'],
         label: 'rte-actions',
     },
     // cross-cutting: dark-mode CSS variable propagation.

@@ -82,7 +82,8 @@ describe('collectBreakingChanges (data-table context-menu migration)', () => {
     expect(breaking).toHaveLength(1);
     const { component, changes } = breaking[0];
     expect(component).toBe('data-table');
-    expect(changes.every(c => c.kind === 'input')).toBe(true);
+    // the context-menu migration entries are input-kind (other addons add their own)
+    expect(changes.some(c => c.kind === 'input')).toBe(true);
     expect(changes.some(c => c.from.includes('rowActions'))).toBe(true);
     expect(changes.some(c => c.from.includes('enableColumnMenu'))).toBe(true);
     // every note must point the dev at the migration (the uiDtContextMenu directive)
@@ -97,7 +98,7 @@ describe('collectBreakingChanges (data-table context-menu migration)', () => {
 describe('collectSuggestedAddons', () => {
   it('dedupes the addon suggested by multiple breaking changes on the same component', () => {
     const breaking = collectBreakingChanges(['data-table']);
-    expect(collectSuggestedAddons(breaking)).toEqual(['data-table/context-menu']);
+    expect(collectSuggestedAddons(breaking)).toEqual(['data-table/context-menu', 'data-table/export', 'data-table/pivot']);
   });
 
   it('returns [] when no breaking change suggests an addon', () => {
@@ -131,7 +132,7 @@ describe('summarizePlan', () => {
       { toInstall: ['data-table'], toSkip: [], conflicting: [], peerFilesToUpdate: new Set(), contentCache: new Map() },
       new Set(['data-table']),
     );
-    expect(plan.suggestedAddons).toEqual(['data-table/context-menu']);
+    expect(plan.suggestedAddons).toEqual(['data-table/context-menu', 'data-table/export', 'data-table/pivot']);
   });
 
   it('reports an empty suggestedAddons list when nothing recommends an addon (C12)', () => {

@@ -9,6 +9,8 @@ import {
 import {
     hoverCardAction,
     hoverCardHandlers,
+    linkedPreviewDialogAction,
+    linkedPreviewDialogHandlers,
     openDialogAction,
     openDialogHandlers,
     RichTextActionsBindDirective,
@@ -72,6 +74,13 @@ const ENTITY_DEF: RichTextActionDefinition = {
     },
 };
 
+// --- v2: starter styling + combined action -------------------------------------
+
+/** Global default inline style seeded onto newly-attached actions via `uiRteActionsStyle`. */
+const V2_STARTER_STYLE: Record<string, string> = {
+    color: '#2563eb', textDecoration: 'underline dotted', textUnderlineOffset: '3px',
+};
+
 // --- Seeded documents ---------------------------------------------------------
 
 const PLAYGROUND_CONTENT =
@@ -108,6 +117,16 @@ const RTL_CONTENT =
     '<p dir="rtl">רחפו מעל <span data-action-hover="preset.hover-card" ' +
     'data-action-hover-params=\'{"title":"טיפ","body":"כרטיס ריחוף מובנה — עובד גם מימין לשמאל."}\'>' +
     'המונח הזה</span> כדי לראות כרטיס ריחוף.</p>';
+
+const V2_PARAMS = '{"title":"Idempotent","body":"Calling it once or many times has the same effect."}';
+// The action span carries the same inline style a fresh attach seeds from
+// `uiRteActionsStyle` (V2_STARTER_STYLE) — so the starter look is visible on load.
+const V2_SEEDED_STYLE = 'color:#2563eb;text-decoration:underline dotted;text-underline-offset:3px';
+const V2_CONTENT =
+    '<p>Newly-attached actions inherit the starter style. Hover or click ' +
+    `<span style="${V2_SEEDED_STYLE}" data-action-hover="preset.linked-preview-dialog" data-action-hover-params='${V2_PARAMS}' ` +
+    `data-action-click="preset.linked-preview-dialog" data-action-click-params='${V2_PARAMS}'>idempotent</span> — ` +
+    'one combined action definition drives both a hover preview and a click dialog.</p>';
 
 // --- Copy-paste snippets ------------------------------------------------------
 
@@ -177,6 +196,20 @@ const SNIPPETS: Snippet[] = [
     },
 ];
 
+/** Shown in its own code block under section 6 ("Starter styling + combined action"), not the cookbook loop. */
+const V2_SNIPPET: Snippet = {
+    title: 'Starter style + combined action',
+    trigger: 'click', tier: 'v2',
+    code:
+        `// Seed the inline style newly-attached actions get:\n` +
+        `<ui-rich-text-editor [uiRteActions]="defs" [uiRteActionsStyle]="{\n` +
+        `  color: '#2563eb', textDecoration: 'underline dotted', textUnderlineOffset: '3px',\n` +
+        `}" />\n\n` +
+        `// One definition, hover previews and click opens the dialog:\n` +
+        `defs = [linkedPreviewDialogAction()];\n` +
+        `handlers = { ...linkedPreviewDialogHandlers(this.injector) };`,
+};
+
 type HandlerMap = Record<string, RichTextActionHandler>;
 interface Anchored { x: number; y: number; }
 
@@ -198,6 +231,7 @@ export class RichTextActionsDemoComponent {
         RICH_TEXT_ACTIONS_DEMO_LOCALES[this.localeId()] ?? RICH_TEXT_ACTIONS_DEMO_LOCALES['en']);
 
     protected readonly snippets = SNIPPETS;
+    protected readonly v2Snippet = V2_SNIPPET;
     protected readonly copiedTitle = signal('');
 
     // Editor registrations
@@ -206,10 +240,13 @@ export class RichTextActionsDemoComponent {
         hoverCardAction(), openDialogAction(),
     ];
     protected readonly tier3Defs: RichTextActionDefinition[] = [ENTITY_DEF];
+    protected readonly v2Defs: RichTextActionDefinition[] = [linkedPreviewDialogAction()];
+    protected readonly v2Style = V2_STARTER_STYLE;
 
     // Editable documents
     protected readonly playgroundContent = signal(PLAYGROUND_CONTENT);
     protected readonly tier3Content = signal(TIER3_CONTENT);
+    protected readonly v2Content = signal(V2_CONTENT);
 
     // Live overlay state driven by the render-side handlers
     protected readonly tooltip = signal<(Anchored & { text: string }) | null>(null);
@@ -225,6 +262,7 @@ export class RichTextActionsDemoComponent {
     protected readonly presetsTrusted: SafeHtml = this.trust(PRESETS_CONTENT);
     protected readonly readonlyTrusted: SafeHtml = this.trust(READONLY_CONTENT);
     protected readonly rtlTrusted: SafeHtml = this.trust(RTL_CONTENT);
+    protected readonly v2Trusted = computed<SafeHtml>(() => this.trust(this.v2Content()));
 
     /** Custom developer-owned handlers for the cookbook actions. */
     private readonly cookbookHandlers: HandlerMap = {
@@ -265,6 +303,8 @@ export class RichTextActionsDemoComponent {
     };
 
     protected readonly rtlHandlers: HandlerMap = { ...hoverCardHandlers(this.injector) };
+
+    protected readonly v2Handlers: HandlerMap = { ...linkedPreviewDialogHandlers(this.injector) };
 
     protected async copy(snippet: Snippet): Promise<void> {
         try {

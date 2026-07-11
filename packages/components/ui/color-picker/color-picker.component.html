@@ -1,24 +1,5 @@
-<ui-popover [open]="open()" (openChange)="open.set($event)" [attr.dir]="dir()">
-  <ui-popover-trigger>
-    <ng-content select="[colorPickerTrigger]" />
-    @if (!hasTrigger()) {
-      <button
-        type="button"
-        [class]="triggerClasses()"
-        [disabled]="isDisabled()"
-        [attr.data-slot]="'color-picker-trigger'"
-      >
-        <span
-          class="h-6 w-6 rounded border ui-color-picker-checker"
-          [style.backgroundColor]="currentColor()"
-        ></span>
-        <span class="flex-1 text-start text-sm truncate font-mono">{{ currentColor() || 'Select color' }}</span>
-        <ui-icon name="chevron-down" class="h-4 w-4 opacity-50" />
-      </button>
-    }
-  </ui-popover-trigger>
-  <ui-popover-content class="w-72 p-3" align="start" [restoreFocus]="false">
-    <div class="flex flex-col gap-3">
+<ng-template #colorPanel>
+  <div class="flex flex-col gap-3">
 
       @if (enableEyedropper() || enableImagePick()) {
         <div class="flex items-center justify-end gap-1">
@@ -423,6 +404,33 @@
           </ui-tabs-content>
         }
       </ui-tabs>
-    </div>
-  </ui-popover-content>
-</ui-popover>
+  </div>
+</ng-template>
+
+@if (inline()) {
+  <ng-container [ngTemplateOutlet]="colorPanel" />
+} @else {
+  <ui-popover [open]="open()" (openChange)="open.set($event)" [attr.dir]="dir()">
+    <ui-popover-trigger>
+      <ng-content select="[colorPickerTrigger]" />
+      @if (!hasTrigger()) {
+        <button
+          type="button"
+          [class]="triggerClasses()"
+          [disabled]="isDisabled()"
+          [attr.data-slot]="'color-picker-trigger'"
+        >
+          <span
+            class="h-6 w-6 rounded border ui-color-picker-checker"
+            [style.backgroundColor]="currentColor()"
+          ></span>
+          <span class="flex-1 text-start text-sm truncate font-mono">{{ currentColor() || 'Select color' }}</span>
+          <ui-icon name="chevron-down" class="h-4 w-4 opacity-50" />
+        </button>
+      }
+    </ui-popover-trigger>
+    <ui-popover-content class="w-72 p-3" align="start" [restoreFocus]="false">
+      <ng-container [ngTemplateOutlet]="colorPanel" />
+    </ui-popover-content>
+  </ui-popover>
+}

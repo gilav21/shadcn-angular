@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
-import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext, DataTableExportQuery } from './data-table.types';
+import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext } from './data-table.types';
 import { buildTreeFromFlat, computeAggregateValue } from './data-table.utils';
 import type { DataTableLocale } from './data-table.locales';
 import { dateFilterFn } from './sub/data-table-date-filter.component';
@@ -3049,90 +3049,28 @@ describe('DataTableComponent - Export & Clipboard', () => {
         expect(all[0]).toEqual(['ID', 'Name', 'Score']);
     });
 
-    it('exportToCsv quotes cells containing commas and triggers a download', async () => {
-        const data: NumRow[] = [{ id: '1', name: 'Smith, John', score: 1 }];
-        fixture.componentRef.setInput('data', data);
-        fixture.detectChanges();
-
-        const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-        const createSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
-        const revokeSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-
-        await component.exportToCsv('myfile');
-
-        expect(clickSpy).toHaveBeenCalled();
-        expect(createSpy).toHaveBeenCalled();
-        expect(revokeSpy).toHaveBeenCalled();
-        expect(component.exporting()).toBe(false);
-
-        clickSpy.mockRestore();
-        createSpy.mockRestore();
-        revokeSpy.mockRestore();
-    });
-
-    it('exportToCsv uses exportDataProvider when configured', async () => {
-        const providerRows: NumRow[] = [{ id: '99', name: 'Provided', score: 0 }];
-        const provider = vi.fn(async () => providerRows);
-        fixture.componentRef.setInput('exportDataProvider', provider);
-        fixture.detectChanges();
-
-        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-        vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
-        vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-
-        await component.exportToCsv();
-        expect(provider).toHaveBeenCalled();
-        vi.restoreAllMocks();
-    });
-
-    it('hands the exportDataProvider the live filter + sort query (not just the page)', async () => {
-        const provider = vi.fn(async (_query: DataTableExportQuery) => [] as NumRow[]);
-        fixture.componentRef.setInput('exportDataProvider', provider);
+    it('queryState reflects the live global filter and sort (export seam)', () => {
         component.onFilterChange('Alice');
         component.onSortChange('score', 'desc');
         fixture.detectChanges();
-
-        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-        vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
-        vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-
-        await component.exportToExcel('server-all');
-
-        expect(provider).toHaveBeenCalledTimes(1);
-        const query = provider.mock.calls[0][0];
+        const query = component.queryState();
         expect(query.globalFilter).toBe('Alice');
         expect(query.sort).toEqual({ column: 'score', direction: 'desc' });
         expect(query.columnFilters).toEqual({});
-        expect(Array.isArray(query.sortStates)).toBe(true);
-        vi.restoreAllMocks();
     });
 
-    it('passes per-column filters through to the exportDataProvider query', async () => {
-        const provider = vi.fn(async (_query: DataTableExportQuery) => [] as NumRow[]);
-        fixture.componentRef.setInput('exportDataProvider', provider);
+    it('queryState carries per-column filters', () => {
         component.onColumnFilterChange('name', 'Bob');
         fixture.detectChanges();
-
-        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-        vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
-        vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-
-        await component.exportToCsv('server-filtered');
-
-        const query = provider.mock.calls[0][0];
-        expect(query.columnFilters).toEqual({ name: 'Bob' });
-        vi.restoreAllMocks();
+        expect(component.queryState().columnFilters).toEqual({ name: 'Bob' });
     });
 
-    it('exportToExcel produces a blob and resets exporting flag', async () => {
-        const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-        vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
-        vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-
-        await component.exportToExcel('sheet');
-        expect(clickSpy).toHaveBeenCalled();
-        expect(component.exporting()).toBe(false);
-        vi.restoreAllMocks();
+    it('setBusy toggles the generic busy-overlay label read by the template', () => {
+        expect(component.busyLabel()).toBeNull();
+        component.setBusy('Exporting…');
+        expect(component.busyLabel()).toBe('Exporting…');
+        component.setBusy(null);
+        expect(component.busyLabel()).toBeNull();
     });
 
     it('copyRowToClipboard writes tab-separated cell values', async () => {

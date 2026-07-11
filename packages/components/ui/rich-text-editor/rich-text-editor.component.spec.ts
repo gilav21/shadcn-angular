@@ -1789,6 +1789,148 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
+    describe('current colors', () => {
+        it('reflects the selection computed color into currentFontColor', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span style="color:#2563eb">SLA</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+
+            component['updateActiveFormats']();
+
+            expect(component['currentFontColor']().toLowerCase()).toContain('#2563eb');
+        });
+
+        it('reflects the selection computed background color into currentBackgroundColor', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span style="background-color:#f97316">SLA</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+
+            component['updateActiveFormats']();
+
+            expect(component['currentBackgroundColor']().toLowerCase()).toContain('#f97316');
+        });
+
+        it('treats a transparent background as no active background color', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span>Plain</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+
+            component['updateActiveFormats']();
+
+            expect(component['currentBackgroundColor']()).toBe('');
+        });
+
+        it('does not mutate content when the picker echoes the already-reflected color', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span style="color:#2563eb">SLA</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+            component['updateActiveFormats']();
+            const before = editor.innerHTML;
+
+            // The color picker re-emits its programmatically-set value; this echo must be ignored.
+            component.onColorSelect({ type: 'fontColor', color: component['currentFontColor']() });
+
+            expect(editor.innerHTML).toBe(before);
+            expect(editor.innerHTML).not.toContain('<font');
+        });
+
+        it('still applies a genuinely different picked color', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span style="color:#2563eb">SLA</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+            component['updateActiveFormats']();
+
+            component.onColorSelect({ type: 'fontColor', color: '#ff0000' });
+            fixture.detectChanges();
+
+            expect(editor.innerHTML).toContain('rgb(255, 0, 0)');
+        });
+
+        it('ignores a color event with no selection so it cannot clobber the model on init', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            component.writeValue('<p>Seeded content</p>');
+            fixture.detectChanges();
+
+            // Simulate the color picker's construction-time colorChange echo: no
+            // selection/caret has ever been placed in the editor.
+            window.getSelection()?.removeAllRanges();
+            let emitted: string | undefined;
+            component.registerOnChange((v) => { emitted = v; });
+
+            component.onColorSelect({ type: 'fontColor', color: '#000000' });
+
+            expect(emitted).toBeUndefined();
+            expect(editor.innerHTML).toContain('Seeded content');
+        });
+
+        it('applies successive colors without re-selecting and keeps the selection alive', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            editor.innerHTML = '<p>Recolor me</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            selectAllOf(editor.querySelector('p') as HTMLElement);
+
+            component.onColorSelect({ type: 'fontColor', color: '#ff0000' });
+            fixture.detectChanges();
+            expect(editor.innerHTML).toContain('rgb(255, 0, 0)');
+            expect(window.getSelection()?.isCollapsed).toBe(false);
+
+            // A second pick WITHOUT re-selecting still recolours — the colour command
+            // must not focus the editor and collapse the selection.
+            component.onColorSelect({ type: 'fontColor', color: '#0000ff' });
+            fixture.detectChanges();
+            expect(editor.innerHTML).toContain('rgb(0, 0, 255)');
+            expect(window.getSelection()?.isCollapsed).toBe(false);
+        });
+
+        it('applies font color as an inline style, not a <font> tag, so it survives sanitization', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            editor.innerHTML = '<p>Colour me</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            selectAllOf(editor.querySelector('p') as HTMLElement);
+
+            component.onColorSelect({ type: 'fontColor', color: '#e67e22' });
+            fixture.detectChanges();
+
+            expect(editor.innerHTML.toLowerCase()).not.toContain('<font');
+            const styled = editor.querySelector('[style*="color"]') as HTMLElement | null;
+            expect(styled).not.toBeNull();
+            expect(styled?.style.color).not.toBe('');
+        });
+    });
+
     describe('document outline', () => {
         const seedHeadings = () => {
             editor.innerHTML =

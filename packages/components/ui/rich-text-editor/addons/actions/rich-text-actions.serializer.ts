@@ -84,3 +84,43 @@ function parseParams(raw: string | null): ActionParams {
         return {};
     }
 }
+
+function toKebab(key: string): string {
+    return key.replaceAll(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+}
+
+/** Write a starter-style object onto an element as inline CSS (camelCase keys → kebab properties). */
+export function applyStarterStyle(el: HTMLElement, style: Record<string, string>): void {
+    for (const [key, value] of Object.entries(style)) {
+        el.style.setProperty(toKebab(key), value);
+    }
+}
+
+/** The browser-canonical inline-style string a seed produces (for unedited-seed comparison on remove). */
+export function computeSeedStyleString(doc: Document, style: Record<string, string>): string {
+    const probe = doc.createElement('span');
+    applyStarterStyle(probe, style);
+    return probe.getAttribute('style') ?? '';
+}
+
+/** Remove the `style` attribute only if it is byte-identical to an unedited seed. */
+export function stripStyleIfMatches(el: HTMLElement, seed: string): void {
+    if (seed !== '' && el.getAttribute('style') === seed) {
+        el.removeAttribute('style');
+    }
+}
+
+/** Write a combined action: the same id on both triggers, with per-trigger params. */
+export function writeCombined(
+    el: HTMLElement, id: string, params: { click: ActionParams; hover: ActionParams },
+): void {
+    writeAction(el, 'click', id, params.click);
+    writeAction(el, 'hover', id, params.hover);
+}
+
+/** True when both triggers carry an action and share the same id (a combined attach). */
+export function isCombinedOnElement(el: HTMLElement): boolean {
+    const click = el.dataset['actionClick'];
+    const hover = el.dataset['actionHover'];
+    return click !== undefined && click === hover;
+}

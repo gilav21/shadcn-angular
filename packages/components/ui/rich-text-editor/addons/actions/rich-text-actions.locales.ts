@@ -13,6 +13,8 @@ export interface RichTextActionsLocale extends LocaleMeta {
         cancel: string;
         attach: string;
         replace: string;
+        /** Badge shown when the selected action attaches both triggers at once. */
+        combinedBadge: string;
     };
     popover: {
         unavailable: string;
@@ -44,6 +46,7 @@ const en: RichTextActionsLocale = {
         cancel: 'Cancel',
         attach: 'Attach',
         replace: 'Replace',
+        combinedBadge: 'Click + hover',
     },
     popover: {
         unavailable: '(unavailable)',
@@ -74,6 +77,7 @@ const he: RichTextActionsLocale = {
         cancel: 'ביטול',
         attach: 'צרף',
         replace: 'החלף',
+        combinedBadge: 'לחיצה + מעבר עכבר',
     },
     popover: {
         unavailable: '(לא זמין)',

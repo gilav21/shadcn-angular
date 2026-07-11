@@ -4,7 +4,8 @@ import {
 } from '@angular/core';
 import { RichTextEditorAddonHost, RichTextSanitizerService, RichTextMarkdownService } from '../..';
 import {
-    assertFlatParams, readActions, removeAction, validateActionId, validateActionParams, writeAction,
+    applyStarterStyle, assertFlatParams, computeSeedStyleString, isCombinedOnElement, readActions,
+    removeAction, stripStyleIfMatches, validateActionId, validateActionParams, writeAction, writeCombined,
 } from './rich-text-actions.serializer';
 import {
     RichTextActionsDialogComponent, type ActionsDialogConfirm,
@@ -53,6 +54,8 @@ export class RichTextActionsDirective {
     readonly uiRteActionsSlashCommand = input(true);
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`) or a full dictionary. */
     readonly uiRteActionsLocale = input<LocaleInput<RichTextActionsLocale>>();
+    /** Global default starter styles seeded onto every newly-created action span. */
+    readonly uiRteActionsStyle = input<Record<string, string>>({});
 
     private readonly i18n = createLocaleBindings(this.uiRteActionsLocale, RICH_TEXT_ACTIONS_LOCALES);
 
@@ -173,7 +176,9 @@ export class RichTextActionsDirective {
         ref.instance.dismiss.subscribe(() => this.closeOverlay(teardown));
         ref.instance.pick.subscribe((def: RichTextActionDefinition) => this.onPick(def, ref.instance, teardown, target));
         ref.instance.confirm.subscribe((payload: ActionsDialogConfirm) => {
-            const applied = this.applyAction(payload.def, payload.trigger, payload.params, target);
+            const applied = payload.combinedParams
+                ? this.applyCombined(payload.def, payload.combinedParams, target)
+                : this.applyAction(payload.def, payload.trigger, payload.params, target);
             if (applied) this.closeOverlay(teardown);
         });
     }
@@ -183,6 +188,7 @@ export class RichTextActionsDirective {
         teardown: () => void, target: ApplyTarget,
     ): void {
         this.warnOnMultipleTiers(def);
+        this.warnOnCombinedMisuse(def);
         if (!def.resolveParams) return;
         const trigger = def.triggers[0];
         dialog.setBusy(true);
@@ -193,12 +199,22 @@ export class RichTextActionsDirective {
         })
             .then((params) => {
                 this.closeOverlay(teardown);
-                if (params !== null) this.applyAction(def, trigger, params, target);
+                if (params !== null) this.applyResolvedParams(def, trigger, params, target);
             })
             .catch((err: unknown) => {
                 this.closeOverlay(teardown);
                 console.error('[rich-text-actions] resolveParams rejected:', err);
             });
+    }
+
+    /** Tier-3 resolveParams result: combined actions write the same params to both triggers. */
+    private applyResolvedParams(
+        def: RichTextActionDefinition, trigger: RichTextActionTrigger, params: ActionParams, target: ApplyTarget,
+    ): boolean {
+        if (def.combined && def.triggers.length >= 2) {
+            return this.applyCombined(def, { click: params, hover: params }, target);
+        }
+        return this.applyAction(def, trigger, params, target);
     }
 
     private warnOnMultipleTiers(def: RichTextActionDefinition): void {
@@ -207,6 +223,21 @@ export class RichTextActionsDirective {
             console.error(
                 `[rich-text-actions] action "${def.id}" declares multiple param tiers; ` +
                 'precedence is resolveParams > formComponent > fields.',
+            );
+        }
+    }
+
+    private warnOnCombinedMisuse(def: RichTextActionDefinition): void {
+        if (def.combined && def.triggers.length < 2) {
+            console.error(
+                `[rich-text-actions] action "${def.id}" is combined but declares fewer than two triggers; ` +
+                'treating as single-trigger.',
+            );
+        }
+        if (def.combined && def.paramsMode === 'separate' && (def.formComponent || def.resolveParams)) {
+            console.error(
+                `[rich-text-actions] action "${def.id}" combined+separate supports tier-1 fields only; ` +
+                'falling back to shared.',
             );
         }
     }
@@ -246,14 +277,20 @@ export class RichTextActionsDirective {
         ref.setInput('canAdd', rows.length < 2);
         this.positionPopover(ref, el);
         ref.instance.edit.subscribe((trigger: RichTextActionTrigger) => this.editAction(el, trigger));
-        ref.instance.remove.subscribe((trigger: RichTextActionTrigger) => this.removeTrigger(el, trigger));
+        ref.instance.remove.subscribe((row: PopoverActionRow) => this.removeRow(el, row));
         ref.instance.add.subscribe(() => { this.hidePopover(); this.openAttachFlow(); });
         this.popoverRef = ref;
     }
 
     private buildPopoverRows(el: HTMLElement): PopoverActionRow[] {
         const defs = this.uiRteActions();
-        return readActions(el).map((a) => {
+        const actions = readActions(el);
+        if (isCombinedOnElement(el)) {
+            const first = actions[0];
+            const def = defs.find((d) => d.id === first.id);
+            return [{ trigger: 'click', id: first.id, label: def?.label ?? first.id, available: !!def, combined: true }];
+        }
+        return actions.map((a) => {
             const def = defs.find((d) => d.id === a.id);
             return { trigger: a.trigger, id: a.id, label: def?.label ?? a.id, available: !!def };
         });
@@ -303,29 +340,71 @@ export class RichTextActionsDirective {
         ref.setInput('context', {
             mode: 'edit', targetKind: 'text', selectionText: el.textContent ?? '',
             occupiedTriggers: readActions(el).map((a) => a.trigger),
-            prefill: { def, trigger, params: action.params },
+            prefill: {
+                def, trigger, params: action.params,
+                hoverParams: isCombinedOnElement(el)
+                    ? readActions(el).find((a) => a.trigger === 'hover')?.params
+                    : undefined,
+            },
         });
         const teardown = (): void => { ref.destroy(); };
         this.overlays.push(teardown);
         ref.instance.dismiss.subscribe(() => this.closeOverlay(teardown));
         ref.instance.confirm.subscribe((payload: ActionsDialogConfirm) => {
-            if (this.applyAction(payload.def, payload.trigger, payload.params, target)) this.closeOverlay(teardown);
+            const applied = payload.combinedParams
+                ? this.applyCombined(payload.def, payload.combinedParams, target)
+                : this.applyAction(payload.def, payload.trigger, payload.params, target);
+            if (applied) this.closeOverlay(teardown);
         });
+    }
+
+    private removeRow(el: HTMLElement, row: PopoverActionRow): void {
+        if (row.combined) {
+            this.removeCombined(el, row.id);
+            return;
+        }
+        this.removeTrigger(el, row.trigger);
+    }
+
+    private removeCombined(el: HTMLElement, id: string): void {
+        this.hidePopover();
+        const def = this.uiRteActions().find((d) => d.id === id);
+        const seed = def ? computeSeedStyleString(el.ownerDocument, this.mergedSeed(def)) : '';
+        this.host.mutateContent(() => {
+            removeAction(el, 'click');
+            removeAction(el, 'hover');
+            stripStyleIfMatches(el, seed);
+            if (el.tagName === 'SPAN' && el.attributes.length === 0) {
+                const parent = el.parentNode;
+                while (el.firstChild) parent?.insertBefore(el.firstChild, el);
+                el.remove();
+            }
+        });
+        this.actionRemoved.emit({ actionId: id, trigger: 'click', targetKind: 'text' });
+        this.actionRemoved.emit({ actionId: id, trigger: 'hover', targetKind: 'text' });
     }
 
     private removeTrigger(el: HTMLElement, trigger: RichTextActionTrigger): void {
         const removedId = el.getAttribute(`data-action-${trigger}`) ?? '';
         this.hidePopover();
+        const def = this.uiRteActions().find((d) => d.id === removedId);
+        const seed = def ? computeSeedStyleString(el.ownerDocument, this.mergedSeed(def)) : '';
         this.host.mutateContent(() => {
             removeAction(el, trigger);
             const stillActioned = ACTION_ATTRS.some((a) => el.hasAttribute(a));
-            if (!stillActioned && el.tagName === 'SPAN' && el.attributes.length === 0) {
+            if (stillActioned) return;
+            stripStyleIfMatches(el, seed);
+            if (el.tagName === 'SPAN' && el.attributes.length === 0) {
                 const parent = el.parentNode;
                 while (el.firstChild) parent?.insertBefore(el.firstChild, el);
                 el.remove();
             }
         });
         this.actionRemoved.emit({ actionId: removedId, trigger, targetKind: 'text' });
+    }
+
+    private mergedSeed(def: RichTextActionDefinition): Record<string, string> {
+        return { ...this.uiRteActionsStyle(), ...def.style };
     }
 
     private injectVisualizationStyles(): () => void {
@@ -378,9 +457,11 @@ export class RichTextActionsDirective {
             return false;
         } else {
             const doc = this.host.contentRoot.ownerDocument;
+            const seed = this.mergedSeed(def);
             const created = this.host.wrapSelection(() => {
                 const span = doc.createElement('span');
                 writeAction(span, trigger, def.id, params);
+                applyStarterStyle(span, seed);
                 return span;
             });
             if (created.length === 0) {
@@ -389,6 +470,41 @@ export class RichTextActionsDirective {
             }
         }
         this.actionAttached.emit({ actionId: def.id, trigger, params, targetKind: target.kind });
+        return true;
+    }
+
+    private applyCombined(
+        def: RichTextActionDefinition, params: { click: ActionParams; hover: ActionParams }, target: ApplyTarget,
+    ): boolean {
+        try {
+            assertFlatParams(params.click);
+            assertFlatParams(params.hover);
+        } catch (err) {
+            console.error('[rich-text-actions] refused to attach non-flat combined params:', err);
+            return false;
+        }
+        const el = target.kind === 'image' ? target.image : target.existing;
+        if (el) {
+            this.host.mutateContent(() => writeCombined(el, def.id, params));
+        } else if (target.kind === 'image') {
+            console.error('[rich-text-actions] lost the image target before applying the action.');
+            return false;
+        } else {
+            const doc = this.host.contentRoot.ownerDocument;
+            const seed = this.mergedSeed(def);
+            const created = this.host.wrapSelection(() => {
+                const span = doc.createElement('span');
+                writeCombined(span, def.id, params);
+                applyStarterStyle(span, seed);
+                return span;
+            });
+            if (created.length === 0) {
+                console.error('[rich-text-actions] lost the text selection before applying the combined action.');
+                return false;
+            }
+        }
+        this.actionAttached.emit({ actionId: def.id, trigger: 'click', params: params.click, targetKind: target.kind });
+        this.actionAttached.emit({ actionId: def.id, trigger: 'hover', params: params.hover, targetKind: target.kind });
         return true;
     }
 }

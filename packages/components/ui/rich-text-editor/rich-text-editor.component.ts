@@ -26,6 +26,7 @@ import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, fr
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { isValidImageDataUrl } from '../../lib/parsers/image-validator';
+import { parseColor, formatHex } from '../../lib/color';
 import { AiProvider, AiTask, runAiTask } from '../../lib/ai';
 import { RichTextToolbarComponent, ToolbarItem, DEFAULT_FONT_FAMILIES, FontFamilyStrategy } from './sub/rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './sub/rich-text-mention.component';
@@ -1082,6 +1083,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     activeFormats = signal<Set<string>>(new Set());
     currentFontSize = signal<string>('');
     currentFontFamily = signal<string>('');
+    readonly currentFontColor = signal<string>('');
+    readonly currentBackgroundColor = signal<string>('');
     showFloatingToolbar = signal<boolean>(false);
     floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly emptyFormats = new Set<string>();
@@ -2890,11 +2893,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     onColorSelect(event: { type: 'fontColor' | 'backgroundColor'; color: string }): void {
+        if (this.isReflectedColorEcho(event.type, event.color) || !this.hasColorTarget()) {
+            return;
+        }
         this.flushPendingHistoryPush();
-        this.restoreSelection();
+        this.restoreColorTargetSelection();
 
         const mentionTargets = this.getMentionElementsInSelection();
 
+        // Emit inline `color`/`background-color` styles — which the sanitizer keeps — instead
+        // of the deprecated `<font color>` tag `foreColor` produces by default, which the
+        // sanitizer strips, so the colour would apply in the editor but vanish from the output.
+        this.execEditorCommand('styleWithCSS', 'true');
         if (event.type === 'fontColor') {
             this.execEditorCommand('foreColor', event.color);
             this.setMentionStyle(mentionTargets, 'color', event.color);
@@ -2904,8 +2914,62 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             }
             this.setMentionStyle(mentionTargets, 'backgroundColor', event.color);
         }
+        this.execEditorCommand('styleWithCSS', 'false');
 
-        this.applyMutation({ focus: true });
+        // `foreColor`/`hiliteColor` apply to the range without needing editor focus and
+        // keep it selected. Do NOT focus the editor here: the colour picker lives in an
+        // open popover, and stealing focus back collapses the selection so the next pick
+        // (or a drag) has no target — the reported "de-selects and stops changing" bug.
+        this.applyMutation({ focus: false });
+    }
+
+    /**
+     * Set the selection a colour command applies to, WITHOUT focusing the editor.
+     * Prefers a live non-collapsed range already in the editor (a drag/pick keeps the
+     * document selection alive even while the picker popover holds focus); otherwise
+     * falls back to the range saved when the editor was last blurred.
+     */
+    private restoreColorTargetSelection(): void {
+        const editor = this.editorDiv?.nativeElement;
+        const selection = this.document.getSelection();
+        if (!editor || !selection) {
+            return;
+        }
+        const live = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        if (live && !live.collapsed && editor.contains(live.startContainer)) {
+            return;
+        }
+        if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
+            selection.removeAllRanges();
+            selection.addRange(this.savedRange);
+        }
+    }
+
+    /**
+     * True when an incoming color merely echoes the value the toolbar picker was
+     * just given to reflect the current selection (the color picker re-emits its
+     * programmatically-set value through `colorChange`). Applying it would run a
+     * `foreColor`/`hiliteColor` command on the selection and mutate content on a
+     * mere caret move, so the echo is ignored. A genuine user pick of a different
+     * color still differs from the reflected value and applies normally.
+     */
+    private isReflectedColorEcho(type: 'fontColor' | 'backgroundColor', color: string): boolean {
+        const current = type === 'fontColor' ? this.currentFontColor() : this.currentBackgroundColor();
+        return current !== '' && this.toHexColor(color) === this.toHexColor(current);
+    }
+
+    /**
+     * True when there is a real selection/caret in the editor to apply a colour to.
+     * A colour command with no target is a no-op — and the toolbar's `ui-color-picker`
+     * emits a `colorChange` on init (its `currentColor()` effect fires on construction),
+     * which must NOT force-focus the editor and push an empty model value.
+     */
+    private hasColorTarget(): boolean {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return false;
+        if (this.savedRange && editor.contains(this.savedRange.startContainer)) return true;
+        const sel = this.document.getSelection();
+        return !!sel && sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).startContainer);
     }
 
     onFontSizeSelect(size: string): void {
@@ -5551,6 +5615,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.activeFormats.set(formats);
         this.detectCurrentFontSize();
         this.detectCurrentFontFamily();
+        this.detectCurrentColors();
     }
 
     private detectTaskListFormat(formats: Set<string>): void {
@@ -5568,19 +5633,21 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    private detectCurrentFontSize(): void {
+    private selectedElement(): HTMLElement | null {
         const sel = this.document.getSelection();
         if (!sel || sel.rangeCount === 0) {
-            return;
+            return null;
         }
-        const range = sel.getRangeAt(0);
-        let element = range.commonAncestorContainer;
-
-        if (element.nodeType === Node.TEXT_NODE) {
-            element = element.parentElement ?? element;
+        let node: Node = sel.getRangeAt(0).commonAncestorContainer;
+        if (node.nodeType === Node.TEXT_NODE) {
+            node = node.parentElement ?? node;
         }
+        return node instanceof HTMLElement ? node : null;
+    }
 
-        if (!(element instanceof HTMLElement)) {
+    private detectCurrentFontSize(): void {
+        const element = this.selectedElement();
+        if (!element) {
             return;
         }
         const computedStyle = this.document.defaultView?.getComputedStyle(element);
@@ -5595,18 +5662,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     private detectCurrentFontFamily(): void {
-        const sel = this.document.getSelection();
-        if (!sel || sel.rangeCount === 0) {
-            return;
-        }
-        const range = sel.getRangeAt(0);
-        let element = range.commonAncestorContainer;
-
-        if (element.nodeType === Node.TEXT_NODE) {
-            element = element.parentElement ?? element;
-        }
-
-        if (!(element instanceof HTMLElement)) {
+        const element = this.selectedElement();
+        if (!element) {
             return;
         }
         const computedStyle = this.document.defaultView?.getComputedStyle(element);
@@ -5618,6 +5675,30 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             const cleaned = fontFamily.split(',')[0].trim().replaceAll(/^["']|["']$/g, '');
             this.currentFontFamily.set(cleaned);
         }
+    }
+
+    private detectCurrentColors(): void {
+        const element = this.selectedElement();
+        const view = this.document.defaultView;
+        if (!element || !view) {
+            return;
+        }
+        const computedStyle = view.getComputedStyle(element);
+        this.currentFontColor.set(this.toHexColor(computedStyle.color));
+        const backgroundColor = computedStyle.backgroundColor;
+        this.currentBackgroundColor.set(
+            this.isTransparentColor(backgroundColor) ? '' : this.toHexColor(backgroundColor)
+        );
+    }
+
+    private toHexColor(value: string): string {
+        const rgba = parseColor(value);
+        return rgba ? formatHex(rgba) : value;
+    }
+
+    private isTransparentColor(value: string): boolean {
+        const rgba = parseColor(value);
+        return !rgba || rgba.a === 0;
     }
 
     private updateFloatingToolbarPosition(): void {

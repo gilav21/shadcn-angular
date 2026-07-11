@@ -358,11 +358,13 @@ export const registry = defineRegistry({
     tags: ['data-table', 'table', 'grid', 'datagrid', 'sorting', 'filter'],
     files: ['data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.host.ts', 'data-table/data-table.locales.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-filter-builder.component.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
     dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'icon', 'input', 'pagination', 'popover', 'select', 'skeleton', 'table'],
-    libFiles: ['addon-slots.ts', 'ai.ts', 'component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
-    addons: ['data-table/context-menu'],
+    libFiles: ['addon-slots.ts', 'ai.ts', 'component-pool.service.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
+    addons: ['data-table/context-menu', 'data-table/export', 'data-table/pivot'],
     breaking: [
       { kind: 'input', from: '[rowActions] / [showRowActionsColumn] / [showRowActionsContextMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'Right-click / row-action menus moved to the opt-in context-menu addon. Run `npx @gilav21/shadcn-angular apply data-table/context-menu`, add `uiDtContextMenu` to the <ui-data-table> tag, and move [rowActions] onto it. [showRowActionsColumn] has no replacement — the dedicated actions column is gone, remove that binding.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
       { kind: 'input', from: '[enableColumnMenu] on <ui-data-table>', to: 'the uiDtContextMenu directive', note: 'The per-column sort/pin/hide header menu moved to the context-menu addon. Add `uiDtContextMenu` and move [enableColumnMenu] onto it.', codemod: 'none', suggestedAddon: 'data-table/context-menu' },
+      { kind: 'input', from: '[exportDataProvider] on <ui-data-table> + the exportToCsv()/exportToExcel() methods', to: 'the uiDtExport directive', note: 'CSV/Excel export moved to the opt-in export addon (isolating the xlsx dependency). Run `npx @gilav21/shadcn-angular apply data-table/export`, add `uiDtExport #exp="uiDtExport"` to the <ui-data-table> tag, move [exportDataProvider] onto it, and call exp.exportToCsv()/exp.exportToExcel() instead of the grid.', codemod: 'none', suggestedAddon: 'data-table/export' },
+      { kind: 'removal', from: 'the getPivot() method + computePivot / PivotConfig / PivotResult exports on <ui-data-table>', to: 'the uiDtPivot directive', note: 'Pivot moved to the opt-in pivot addon. Run `npx @gilav21/shadcn-angular apply data-table/pivot`, add `uiDtPivot #pv="uiDtPivot"`, and call pv.getPivot(); import computePivot / Pivot* from the addon barrel instead of the data-table one.', codemod: 'none', suggestedAddon: 'data-table/pivot' },
     ],
   },
   'data-table/context-menu': {
@@ -379,6 +381,37 @@ export const registry = defineRegistry({
     attach: {
       import: "DataTableContextMenuDirective from './ui/data-table/addons/context-menu'",
       selector: 'uiDtContextMenu',
+    },
+  },
+  'data-table/export': {
+    name: 'data-table/export',
+    type: 'addon',
+    parent: 'data-table',
+    files: ['data-table/addons/export/export.directive.ts', 'data-table/addons/export/export.locales.ts', 'data-table/addons/export/index.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts'],
+    dependencies: ['data-table'],
+    requiresBaseFiles: ['data-table/data-table.host.ts'],
+    category: 'data-display',
+    description: 'Opt-in CSV/Excel export for the data-table (isolates the xlsx dependency from the base).',
+    tags: ['export', 'csv', 'excel', 'xlsx', 'addon'],
+    attach: {
+      import: "DataTableExportDirective from './ui/data-table/addons/export'",
+      selector: 'uiDtExport',
+    },
+  },
+  'data-table/pivot': {
+    name: 'data-table/pivot',
+    type: 'addon',
+    parent: 'data-table',
+    files: ['data-table/addons/pivot/index.ts', 'data-table/addons/pivot/pivot.directive.ts', 'data-table/addons/pivot/pivot.utils.ts'],
+    dependencies: ['data-table'],
+    requiresBaseFiles: ['data-table/data-table.host.ts'],
+    category: 'data-display',
+    description: 'Opt-in pivot transform (rows x columns x values) for the data-table; exposes getPivot + the pure computePivot.',
+    tags: ['pivot', 'aggregate', 'crosstab', 'addon'],
+    attach: {
+      import: "DataTablePivotDirective from './ui/data-table/addons/pivot'",
+      selector: 'uiDtPivot',
     },
   },
   dialog: {
@@ -803,8 +836,8 @@ export const registry = defineRegistry({
     tags: ['rich-text-editor', 'wysiwyg', 'editor', 'text', 'formatting'],
     addons: ['rich-text-editor/actions'],
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-image.utils.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-image-resizer.component.html', 'rich-text-editor/sub/rich-text-image-resizer.component.ts', 'rich-text-editor/sub/rich-text-mention.component.html', 'rich-text-editor/sub/rich-text-mention.component.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
-    dependencies: ['autocomplete', 'button', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
-    libFiles: ['addon-slots.ts', 'ai.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
+    dependencies: ['autocomplete', 'button', 'color-picker', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
+    libFiles: ['addon-slots.ts', 'ai.ts', 'color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
@@ -1375,7 +1408,7 @@ export const registry = defineRegistry({
     category: 'editor',
     description: 'Attach premade click/hover actions to text and images; dev-defined callbacks fire on the rendered HTML.',
     tags: ['rich-text', 'actions', 'hover-card', 'dialog', 'interactive', 'addon'],
-    files: ['rich-text-editor/addons/actions/actions-runtime.ts', 'rich-text-editor/addons/actions/index.ts', 'rich-text-editor/addons/actions/presets/hover-card.preset.ts', 'rich-text-editor/addons/actions/presets/index.ts', 'rich-text-editor/addons/actions/presets/open-dialog.preset.ts', 'rich-text-editor/addons/actions/presets/preset-overlay.utils.ts', 'rich-text-editor/addons/actions/rich-text-actions-bind.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.html', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-form.component.html', 'rich-text-editor/addons/actions/rich-text-actions-form.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.html', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.ts', 'rich-text-editor/addons/actions/rich-text-actions.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions.locales.ts', 'rich-text-editor/addons/actions/rich-text-actions.serializer.ts', 'rich-text-editor/addons/actions/rich-text-actions.types.ts'],
+    files: ['rich-text-editor/addons/actions/actions-runtime.ts', 'rich-text-editor/addons/actions/index.ts', 'rich-text-editor/addons/actions/presets/hover-card.preset.ts', 'rich-text-editor/addons/actions/presets/index.ts', 'rich-text-editor/addons/actions/presets/linked-preview-dialog.preset.ts', 'rich-text-editor/addons/actions/presets/open-dialog.preset.ts', 'rich-text-editor/addons/actions/presets/preset-overlay.utils.ts', 'rich-text-editor/addons/actions/rich-text-actions-bind.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.html', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-form.component.html', 'rich-text-editor/addons/actions/rich-text-actions-form.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.html', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.ts', 'rich-text-editor/addons/actions/rich-text-actions.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions.locales.ts', 'rich-text-editor/addons/actions/rich-text-actions.serializer.ts', 'rich-text-editor/addons/actions/rich-text-actions.types.ts'],
     libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts'],
     dependencies: ['button', 'dialog', 'rich-text-editor'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-command-registry.service.ts'],

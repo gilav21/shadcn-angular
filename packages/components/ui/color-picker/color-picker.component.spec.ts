@@ -21,6 +21,7 @@ import { ColorPickerComponent } from './color-picker.component';
                 [enableEyedropper]="enableEyedropper()"
                 [formats]="formats()"
                 [maxRecent]="maxRecent()"
+                [inline]="inline()"
             />
         </div>
     `,
@@ -39,6 +40,7 @@ class ColorPickerTestHostComponent {
     enableEyedropper = signal(true);
     formats = signal<readonly ('hex' | 'rgb' | 'hsl' | 'oklch')[]>(['hex', 'rgb', 'hsl']);
     maxRecent = signal(8);
+    inline = signal(false);
 }
 
 function stubAreaRect(picker: ColorPickerComponent): HTMLDivElement {
@@ -98,6 +100,18 @@ describe('ColorPickerComponent', () => {
         });
     });
 
+    describe('Inline mode', () => {
+        it('renders the panel directly with no trigger or popover', () => {
+            host.inline.set(true);
+            fixture.detectChanges();
+
+            expect(fixture.debugElement.query(By.css('ui-popover'))).toBeNull();
+            expect(fixture.debugElement.query(By.css('[data-slot="color-picker-trigger"]'))).toBeNull();
+            // The panel (preset swatches) renders directly, no second click needed.
+            expect(fixture.debugElement.query(By.css('button[data-color-btn]'))).toBeTruthy();
+        });
+    });
+
     describe('Color selection', () => {
         it('applies a preset color', async () => {
             const picker = await openAndGetPicker(fixture);
@@ -142,6 +156,15 @@ describe('ColorPickerComponent', () => {
     });
 
     describe('Saturation/Value area', () => {
+        it('prevents default on mousedown so a drag does not extend a page text selection', async () => {
+            await openAndGetPicker(fixture);
+            const area = document.querySelector('div[role="slider"]') as HTMLElement;
+            const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: 10, clientY: 10 });
+            area.dispatchEvent(ev);
+            expect(ev.defaultPrevented).toBe(true);
+            window.dispatchEvent(new MouseEvent('mouseup')); // release the drag listeners
+        });
+
         it('top-left selects white', async () => {
             const picker = await openAndGetPicker(fixture);
             stubAreaRect(picker);

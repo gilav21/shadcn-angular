@@ -41,7 +41,7 @@
       </div>
 
       @if (selectedDef(); as def) {
-        @if (def.triggers.length > 1) {
+        @if (!isCombined() && def.triggers.length > 1) {
           <div class="flex flex-wrap items-center gap-3">
             @for (t of def.triggers; track t) {
               <label class="flex items-center gap-1.5 text-sm">
@@ -58,7 +58,26 @@
           </div>
         }
 
-        @if (def.formComponent) {
+        @if (isCombined()) {
+          <span class="inline-flex rounded bg-accent px-2 py-0.5 text-xs">{{ locale().dialog.combinedBadge }}</span>
+        }
+
+        @if (isCombined() && paramsMode() === 'separate') {
+          <div class="space-y-2">
+            <p data-slot="rich-text-actions-dialog-section-header" class="text-sm font-medium">{{ locale().triggers.hover }}</p>
+            <ui-rich-text-actions-form
+              [fields]="def.fieldsByTrigger?.hover ?? []" [params]="hoverParams()"
+              [requiredTemplate]="locale().form.required"
+              (paramsChange)="onHoverParamsChange($event)" (validChange)="onHoverValidChange($event)"
+            />
+            <p data-slot="rich-text-actions-dialog-section-header" class="text-sm font-medium">{{ locale().triggers.click }}</p>
+            <ui-rich-text-actions-form
+              [fields]="def.fieldsByTrigger?.click ?? []" [params]="currentParams()"
+              [requiredTemplate]="locale().form.required"
+              (paramsChange)="onParamsChange($event)" (validChange)="onValidChange($event)"
+            />
+          </div>
+        } @else if (def.formComponent) {
           <ng-container #formHost />
         } @else if (def.fields && def.fields.length > 0) {
           <ui-rich-text-actions-form

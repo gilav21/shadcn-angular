@@ -9,6 +9,8 @@ export interface PopoverActionRow {
     label: string;
     /** False when no registered definition matches the id (remove-only). */
     available: boolean;
+    /** True when this row represents a combined action occupying both triggers. */
+    combined?: boolean;
 }
 
 /** Compact editor-side popover listing an element's actions with edit/remove/add. */
@@ -25,11 +27,17 @@ export class RichTextActionsPopoverComponent {
     readonly locale = input<RichTextActionsLocale>(RICH_TEXT_ACTIONS_LOCALES['en']);
     readonly dir = computed<'rtl' | null>(() => (this.locale().rtl ? 'rtl' : null));
     readonly edit = output<RichTextActionTrigger>();
-    readonly remove = output<RichTextActionTrigger>();
+    readonly remove = output<PopoverActionRow>();
     readonly add = output<void>();
 
     /** Localized display name for a trigger. */
     triggerLabel(trigger: RichTextActionTrigger): string {
         return this.locale().triggers[trigger];
+    }
+
+    /** Localized display name(s) for a row — both triggers when the row is combined. */
+    rowTriggerLabel(row: PopoverActionRow): string {
+        if (!row.combined) return this.triggerLabel(row.trigger);
+        return `${this.triggerLabel('click')} / ${this.triggerLabel('hover')}`;
     }
 }

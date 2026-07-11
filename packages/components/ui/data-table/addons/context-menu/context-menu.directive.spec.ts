@@ -10,6 +10,7 @@ import {
   type HeaderActionSlot,
   type ColumnPin,
   type ColumnDef,
+  type DataTableExportQuery,
   type RowActionContext,
   type SortDirection,
 } from '../..';
@@ -76,6 +77,25 @@ class FakeHost<T> extends DataTableAddonHost<T> {
   }
   headerActionSlots(): readonly HeaderActionSlot<T>[] {
     return this.header.slots();
+  }
+  getExportData(): string[][] {
+    return [];
+  }
+  getSortedRows(): readonly T[] {
+    return this.rows;
+  }
+  getRawRows(): readonly T[] {
+    return this.rows;
+  }
+  getCellValue(row: T, key: string | keyof T): unknown {
+    return (row as Record<string, unknown>)[String(key)];
+  }
+  queryState(): DataTableExportQuery {
+    return { globalFilter: '', columnFilters: {}, sort: { column: '', direction: null }, sortStates: [] };
+  }
+  setBusy(): void {}
+  busyLabel(): string | null {
+    return null;
   }
 }
 
