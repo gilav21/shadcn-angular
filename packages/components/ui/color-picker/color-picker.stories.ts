@@ -230,6 +230,32 @@ export const Disabled: Story = {
     }),
 };
 
+export const Inline: Story = {
+    render: () => ({
+        props: {
+            color: signal('#3b82f6'),
+            presets: ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#000000'],
+        },
+        template: `
+            <div class="space-y-2">
+                <p class="text-sm text-muted-foreground">
+                    Inline mode renders just the panel (no trigger or popover) for embedding inside
+                    another surface — e.g. a toolbar's own popover.
+                </p>
+                <div class="w-72 rounded-md border p-3">
+                    <ui-color-picker
+                        [inline]="true"
+                        [ngModel]="color()"
+                        (ngModelChange)="color.set($event)"
+                        [presets]="presets"
+                    />
+                </div>
+                ${SELECTED_BLOCK}
+            </div>
+        `,
+    }),
+};
+
 export const BrandColors: Story = {
     render: () => ({
         props: {
