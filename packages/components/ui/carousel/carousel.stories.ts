@@ -8,6 +8,9 @@ import {
 } from './index';
 import { CardComponent, CardContentComponent } from '../card';
 
+// Every input is exposed as an interactive control (argTypes) with a sensible
+// default (args); the Playground binds all of them so the Controls panel drives
+// the live component. Dedicated stories below capture each distinct mode.
 const meta: Meta<CarouselComponent> = {
     title: 'UI/Carousel',
     component: CarouselComponent,
@@ -27,7 +30,8 @@ const meta: Meta<CarouselComponent> = {
     parameters: {
         docs: {
             description: {
-                component: 'A carousel component for displaying a series of content in a scrollable container with navigation controls.',
+                component:
+                    'A carousel for displaying a series of content in a scrollable, snap-aligned container with keyboard support and prev/next navigation controls.',
             },
         },
     },
@@ -35,72 +39,57 @@ const meta: Meta<CarouselComponent> = {
         orientation: {
             control: 'radio',
             options: ['horizontal', 'vertical'],
-            description: 'The orientation of the carousel.',
+            description: 'Scroll/layout axis of the carousel.',
         },
+        class: { control: 'text', description: 'Extra classes merged onto the carousel host.' },
     },
     args: {
         orientation: 'horizontal',
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<CarouselComponent>;
 
-export const Default: Story = {
-    render: (args) => ({
-        props: { ...args, items: [1, 2, 3, 4, 5] },
-        template: `
-            <div class="w-full max-w-xs mx-auto px-12 pt-20">
-                <ui-carousel [orientation]="orientation">
-                    <ui-carousel-content class="h-[300px]">
-                        @for (item of items; track item) {
-                            <ui-carousel-item>
-                                <div class="p-1">
-                                    <ui-card>
-                                        <ui-card-content class="flex aspect-square items-center justify-center p-6">
-                                            <span class="text-4xl font-semibold">{{ item }}</span>
-                                        </ui-card-content>
-                                    </ui-card>
-                                </div>
-                            </ui-carousel-item>
-                        }
-                    </ui-carousel-content>
-                    <ui-carousel-previous />
-                    <ui-carousel-next />
-                </ui-carousel>
-            </div>
-        `,
-    }),
+const ITEMS = [1, 2, 3, 4, 5];
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: { ...args, items: ITEMS },
+    template: `
+        <div class="w-full max-w-xs mx-auto px-12 pt-20">
+            <ui-carousel [orientation]="orientation" [class]="class">
+                <ui-carousel-previous />
+                <ui-carousel-content [class]="orientation === 'vertical' ? 'h-[300px]' : ''">
+                    @for (item of items; track item) {
+                        <ui-carousel-item>
+                            <div class="p-1">
+                                <ui-card>
+                                    <ui-card-content class="flex aspect-square items-center justify-center p-6">
+                                        <span class="text-4xl font-semibold">{{ item }}</span>
+                                    </ui-card-content>
+                                </ui-card>
+                            </div>
+                        </ui-carousel-item>
+                    }
+                </ui-carousel-content>
+                <ui-carousel-next />
+            </ui-carousel>
+        </div>
+    `,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
+export const Horizontal: Story = {
+    args: { orientation: 'horizontal' },
+    render,
 };
 
 export const Vertical: Story = {
-    args: {
-        orientation: 'vertical',
-    },
-    render: (args) => ({
-        props: { ...args, items: [1, 2, 3, 4, 5] },
-        template: `
-            <div class="mx-auto max-w-xs pt-20">
-              <ui-carousel orientation="vertical" class="w-full">
-                <ui-carousel-previous />
-                <ui-carousel-content class="h-[200px]">
-                  @for (item of [1, 2, 3, 4, 5]; track item) {
-                    <ui-carousel-item>
-                      <div class="p-1">
-                        <ui-card>
-                          <ui-card-content class="flex items-center justify-center p-6">
-                            <span class="text-2xl font-semibold">Slide {{ item }}</span>
-                          </ui-card-content>
-                        </ui-card>
-                      </div>
-                    </ui-carousel-item>
-                  }
-                </ui-carousel-content>
-                <ui-carousel-next />
-              </ui-carousel>
-            </div>
-        `,
-    }),
+    args: { orientation: 'vertical' },
+    render,
 };
 
 export const WithImages: Story = {
@@ -117,7 +106,7 @@ export const WithImages: Story = {
         },
         template: `
             <div class="w-full max-w-md mx-auto px-12">
-                <ui-carousel [orientation]="orientation">
+                <ui-carousel [orientation]="orientation" [class]="class">
                     <ui-carousel-content>
                         @for (image of images; track image; let i = $index) {
                             <ui-carousel-item>
@@ -137,10 +126,10 @@ export const WithImages: Story = {
 
 export const WithoutNavigation: Story = {
     render: (args) => ({
-        props: { ...args, items: [1, 2, 3, 4, 5] },
+        props: { ...args, items: ITEMS },
         template: `
             <div class="w-full max-w-xs mx-auto">
-                <ui-carousel [orientation]="orientation">
+                <ui-carousel [orientation]="orientation" [class]="class">
                     <ui-carousel-content>
                         @for (item of items; track item) {
                             <ui-carousel-item>
@@ -154,6 +143,33 @@ export const WithoutNavigation: Story = {
                             </ui-carousel-item>
                         }
                     </ui-carousel-content>
+                </ui-carousel>
+            </div>
+        `,
+    }),
+};
+
+export const Rtl: Story = {
+    render: (args) => ({
+        props: { ...args, items: ITEMS },
+        template: `
+            <div dir="rtl" class="w-full max-w-xs mx-auto px-12 pt-20">
+                <ui-carousel [orientation]="orientation" [class]="class">
+                    <ui-carousel-previous />
+                    <ui-carousel-content>
+                        @for (item of items; track item) {
+                            <ui-carousel-item>
+                                <div class="p-1">
+                                    <ui-card>
+                                        <ui-card-content class="flex aspect-square items-center justify-center p-6">
+                                            <span class="text-4xl font-semibold">{{ item }}</span>
+                                        </ui-card-content>
+                                    </ui-card>
+                                </div>
+                            </ui-carousel-item>
+                        }
+                    </ui-carousel-content>
+                    <ui-carousel-next />
                 </ui-carousel>
             </div>
         `,

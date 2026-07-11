@@ -74,8 +74,9 @@ const meta: Meta<CodeBlockComponent> = {
         language: {
             control: 'select',
             options: ['typescript', 'javascript', 'python', 'java', 'html', 'xml', 'css', 'json', 'bash', 'csharp', 'yaml'],
+            description: 'Language used to tokenize and syntax-highlight `code`. Falls back to `typescript` for unknown keys.',
         },
-        code: { control: 'text' },
+        code: { control: 'text', description: 'Source code to render.' },
         theme: {
             control: 'select',
             options: ['default', 'dracula', 'github', 'monokai'],
@@ -85,22 +86,44 @@ const meta: Meta<CodeBlockComponent> = {
                 github: CODE_BLOCK_THEMES['github'],
                 monokai: CODE_BLOCK_THEMES['monokai'],
             },
+            description: 'Token-type-to-class theme map. `default` uses the built-in colors.',
         },
-        collapseScope: { control: 'boolean' },
-        defaultCollapsed: { control: { type: 'number', min: 0, max: 5, step: 1 } },
-        lineNumbers: { control: 'boolean' },
+        customLanguages: { control: 'object', description: 'Extra/override language definitions keyed by language id (token patterns + optional scope detector for folding).' },
+        collapseScope: { control: 'boolean', description: 'Enables scope folding (chevrons on foldable lines).' },
+        defaultCollapsed: { control: { type: 'number', min: 0, max: 5, step: 1 }, description: 'Scope depth at or above which folds start collapsed. Unset = nothing pre-collapsed.' },
+        lineNumbers: { control: 'boolean', description: 'Shows the line-number gutter.' },
+        class: { control: 'text', description: 'Extra classes merged onto the host container.' },
     },
     args: {
         language: 'typescript',
         code: typescriptCode,
         theme: null,
+        customLanguages: null,
         collapseScope: false,
+        defaultCollapsed: undefined,
         lineNumbers: true,
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<CodeBlockComponent>;
+
+const PLAYGROUND_TEMPLATE = `
+    <ui-code-block
+        [code]="code" [language]="language" [theme]="theme"
+        [customLanguages]="customLanguages" [collapseScope]="collapseScope"
+        [defaultCollapsed]="defaultCollapsed" [lineNumbers]="lineNumbers"
+        [class]="class">
+    </ui-code-block>`;
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = {
+    render: (args) => ({
+        props: args,
+        template: PLAYGROUND_TEMPLATE,
+    }),
+};
 
 export const Default: Story = {
     args: {

@@ -1,54 +1,124 @@
-import { Meta, StoryObj, moduleMetadata} from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
-  ContextMenuComponent,
-  ContextMenuTriggerComponent,
-  ContextMenuContentComponent,
-  ContextMenuItemComponent,
-  ContextMenuSeparatorComponent,
-  ContextMenuLabelComponent,
-  ContextMenuShortcutComponent,
-  ContextMenuTriggerDirective,
-  ContextMenuSubComponent,
-  ContextMenuSubTriggerComponent,
-  ContextMenuSubContentComponent,
-  ContextMenuItem,
+    ContextMenuComponent,
+    ContextMenuTriggerComponent,
+    ContextMenuContentComponent,
+    ContextMenuItemComponent,
+    ContextMenuSeparatorComponent,
+    ContextMenuLabelComponent,
+    ContextMenuShortcutComponent,
+    ContextMenuTriggerDirective,
+    ContextMenuSubComponent,
+    ContextMenuSubTriggerComponent,
+    ContextMenuSubContentComponent,
+    ContextMenuItem,
 } from './';
 
 const meta: Meta<ContextMenuComponent> = {
-  title: 'UI/ContextMenu',
-  component: ContextMenuComponent,
-  tags: ['autodocs'],
-  decorators: [
-    moduleMetadata({
-      imports: [
-        ContextMenuComponent,
-        ContextMenuTriggerComponent,
-        ContextMenuContentComponent,
-        ContextMenuItemComponent,
-        ContextMenuSeparatorComponent,
-        ContextMenuLabelComponent,
-        ContextMenuShortcutComponent,
-        ContextMenuTriggerDirective,
-        ContextMenuSubComponent,
-        ContextMenuSubTriggerComponent,
-        ContextMenuSubContentComponent,
-      ],
-    }),
-  ],
-  parameters: {
-    layout: 'centered',
-  },
+    title: 'UI/ContextMenu',
+    component: ContextMenuComponent,
+    tags: ['autodocs'],
+    decorators: [
+        moduleMetadata({
+            imports: [
+                ContextMenuComponent,
+                ContextMenuTriggerComponent,
+                ContextMenuContentComponent,
+                ContextMenuItemComponent,
+                ContextMenuSeparatorComponent,
+                ContextMenuLabelComponent,
+                ContextMenuShortcutComponent,
+                ContextMenuTriggerDirective,
+                ContextMenuSubComponent,
+                ContextMenuSubTriggerComponent,
+                ContextMenuSubContentComponent,
+            ],
+        }),
+    ],
+    parameters: {
+        layout: 'centered',
+    },
+    argTypes: {
+        items: {
+            control: 'object',
+            description:
+                'Data-driven array of `ContextMenuItem` entries (`label`, `shortcut`, `icon`, `disabled`, `type: item | separator | label | sub`, `children`, `inset`, `click`). ' +
+                'When non-empty, the menu content auto-renders from this array instead of projected `<ui-context-menu-content>` markup.',
+        },
+    },
+    args: {
+        items: [],
+    },
 };
 
 export default meta;
 type Story = StoryObj<ContextMenuComponent>;
 
-export const Default: Story = {
-  parameters: {
-    layout: 'fullscreen',
-  },
-  render: () => ({
-    template: `
+const itemsDrivenMenuItems: ContextMenuItem[] = [
+    { label: 'Back', shortcut: '⌘[', inset: true },
+    { label: 'Forward', shortcut: '⌘]', disabled: true, inset: true },
+    { label: 'Reload', shortcut: '⌘R', inset: true },
+    { type: 'separator' },
+    { label: 'Save Page As...', shortcut: '⇧⌘S', inset: true },
+    { label: 'Printing', inset: true },
+    { label: 'Cast...', inset: true },
+    { type: 'separator' },
+    {
+        label: 'More Tools',
+        type: 'sub',
+        inset: true,
+        children: [
+            { label: 'Save Page As...', shortcut: '⇧⌘S' },
+            { label: 'Create Shortcut...' },
+            { label: 'Name Window...' },
+            { type: 'separator' },
+            { label: 'Developer Tools' },
+        ],
+    },
+    { type: 'separator' },
+    { type: 'label', label: 'People', inset: true },
+    { type: 'separator' },
+    { label: 'Pedro Duarte', inset: true },
+    { label: 'Colm Tuite', inset: true },
+];
+
+const PLAYGROUND_TEMPLATE = `
+    <div class="flex w-[1000px] items-center justify-center">
+        <ui-context-menu [items]="items">
+            <ui-context-menu-trigger>
+                <div class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
+                    Right click here (items-driven)
+                </div>
+            </ui-context-menu-trigger>
+        </ui-context-menu>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: PLAYGROUND_TEMPLATE,
+});
+
+export const Playground: Story = {
+    args: {
+        items: itemsDrivenMenuItems,
+    },
+    parameters: {
+        layout: 'fullscreen',
+    },
+    render,
+};
+
+export const TemplateComposition: Story = {
+    parameters: {
+        layout: 'fullscreen',
+        docs: {
+            description: {
+                story: 'Project `<ui-context-menu-content>` and its children directly for full control over the menu markup.',
+            },
+        },
+    },
+    render: () => ({
+        template: `
       <div class="flex w-[1000px] items-center justify-center">
         <ui-context-menu>
           <ui-context-menu-trigger>
@@ -88,26 +158,26 @@ export const Default: Story = {
               Pedro Duarte
             </ui-context-menu-item>
             <ui-context-menu-item inset>
-              Colm Tuite  
+              Colm Tuite
             </ui-context-menu-item>
           </ui-context-menu-content>
         </ui-context-menu>
       </div>
     `,
-  }),
+    }),
 };
 
 export const TriggerDirective: Story = {
-  parameters: {
-    layout: 'fullscreen',
-    docs: {
-      description: {
-        story: 'Use the `[uiContextMenuTrigger]` directive to attach a context menu to any element. Right-click anywhere in the trigger area to open the menu at the cursor position.',
-      },
+    parameters: {
+        layout: 'fullscreen',
+        docs: {
+            description: {
+                story: 'Use the `[uiContextMenuTrigger]` directive to attach a context menu to any element. Right-click anywhere in the trigger area to open the menu at the cursor position.',
+            },
+        },
     },
-  },
-  render: () => ({
-    template: `
+    render: () => ({
+        template: `
       <ui-context-menu #contextMenu>
         <ui-context-menu-content class="w-56">
           <ui-context-menu-item>
@@ -140,75 +210,20 @@ export const TriggerDirective: Story = {
         Right-click anywhere in this area to open the context menu
       </div>
     `,
-  }),
-};
-
-const itemsDrivenMenuItems: ContextMenuItem[] = [
-  { label: 'Back', shortcut: '⌘[', inset: true },
-  { label: 'Forward', shortcut: '⌘]', disabled: true, inset: true },
-  { label: 'Reload', shortcut: '⌘R', inset: true },
-  { type: 'separator' },
-  { label: 'Save Page As...', shortcut: '⇧⌘S', inset: true },
-  { label: 'Printing', inset: true },
-  { label: 'Cast...', inset: true },
-  { type: 'separator' },
-  {
-    label: 'More Tools',
-    type: 'sub',
-    inset: true,
-    children: [
-      { label: 'Save Page As...', shortcut: '⇧⌘S' },
-      { label: 'Create Shortcut...' },
-      { label: 'Name Window...' },
-      { type: 'separator' },
-      { label: 'Developer Tools' },
-    ],
-  },
-  { type: 'separator' },
-  { type: 'label', label: 'People', inset: true },
-  { type: 'separator' },
-  { label: 'Pedro Duarte', inset: true },
-  { label: 'Colm Tuite', inset: true },
-];
-
-export const ItemsDriven: Story = {
-  parameters: {
-    layout: 'fullscreen',
-    docs: {
-      description: {
-        story: 'Use the `[items]` input for a simple data-driven mode. Pass an array of `ContextMenuItem` objects to auto-render the menu content, including sub-menus, separators, labels, and shortcuts.',
-      },
-    },
-  },
-  render: () => ({
-    props: {
-      menuItems: itemsDrivenMenuItems,
-    },
-    template: `
-      <div class="flex w-[1000px] items-center justify-center">
-        <ui-context-menu [items]="menuItems">
-          <ui-context-menu-trigger>
-            <div class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
-              Right click here (items-driven)
-            </div>
-          </ui-context-menu-trigger>
-        </ui-context-menu>
-      </div>
-    `,
-  }),
+    }),
 };
 
 export const WithSubMenus: Story = {
-  parameters: {
-    layout: 'fullscreen',
-    docs: {
-      description: {
-        story: 'Template-driven context menu with sub-menus using content projection.',
-      },
+    parameters: {
+        layout: 'fullscreen',
+        docs: {
+            description: {
+                story: 'Template-driven context menu with sub-menus using content projection.',
+            },
+        },
     },
-  },
-  render: () => ({
-    template: `
+    render: () => ({
+        template: `
       <div class="flex w-[1000px] items-center justify-center">
         <ui-context-menu>
           <ui-context-menu-trigger>
@@ -248,5 +263,65 @@ export const WithSubMenus: Story = {
         </ui-context-menu>
       </div>
     `,
-  }),
+    }),
+};
+
+export const Destructive: Story = {
+    parameters: {
+        layout: 'fullscreen',
+        docs: {
+            description: {
+                story: 'The `variant="destructive"` input on `ui-context-menu-item` marks a dangerous action (e.g. Delete) with destructive styling.',
+            },
+        },
+    },
+    render: () => ({
+        template: `
+      <div class="flex w-[1000px] items-center justify-center">
+        <ui-context-menu>
+          <ui-context-menu-trigger>
+            <div class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
+              Right click here (destructive item)
+            </div>
+          </ui-context-menu-trigger>
+          <ui-context-menu-content class="w-56">
+            <ui-context-menu-item>Rename</ui-context-menu-item>
+            <ui-context-menu-item>Duplicate</ui-context-menu-item>
+            <ui-context-menu-separator></ui-context-menu-separator>
+            <ui-context-menu-item variant="destructive">
+              Delete
+              <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
+            </ui-context-menu-item>
+          </ui-context-menu-content>
+        </ui-context-menu>
+      </div>
+    `,
+    }),
+};
+
+export const RTL: Story = {
+    parameters: {
+        layout: 'fullscreen',
+        docs: {
+            description: {
+                story: 'In `dir="rtl"` containers the menu content, sub-menu chevrons, and sub-menu flyout position mirror automatically.',
+            },
+        },
+    },
+    render: () => ({
+        props: {
+            items: itemsDrivenMenuItems,
+        },
+        template: `
+      <div dir="rtl" class="flex w-[1000px] items-center justify-center">
+        <ui-context-menu [items]="items">
+          <ui-context-menu-trigger>
+            <div class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
+              לחץ כאן בלחצן ימני (מצב RTL)
+            </div>
+          </ui-context-menu-trigger>
+        </ui-context-menu>
+      </div>
+    `,
+    }),
 };

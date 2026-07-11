@@ -1,11 +1,9 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { FormsModule } from '@angular/forms';
 import { DatePickerComponent } from './date-picker.component';
 import { CalendarComponent } from '../calendar';
-import { moduleMetadata } from '@storybook/angular';
-import { FormsModule } from '@angular/forms';
 
-// DatePicker Story
-const datePickerMeta: Meta<DatePickerComponent> = {
+const meta: Meta<DatePickerComponent> = {
     title: 'UI/DatePicker',
     component: DatePickerComponent,
     tags: ['autodocs'],
@@ -15,44 +13,56 @@ const datePickerMeta: Meta<DatePickerComponent> = {
         }),
     ],
     argTypes: {
-        placeholder: { control: 'text' },
-        disabled: { control: 'boolean' },
-        showTime: { control: 'boolean' },
+        placeholder: { control: 'text', description: 'Placeholder text shown in the trigger button when no date is selected.' },
+        disabled: { control: 'boolean', description: 'Disables the trigger button and popup interaction.' },
+        showTime: { control: 'boolean', description: 'Adds hour/minute selection to the calendar popup and keeps it open after picking a date.' },
         locale: {
             control: 'select',
             options: ['en', 'he', 'ar', 'de', 'fr', 'es', 'ja', 'zh', 'ru', 'pt'],
+            description: 'Locale used to format the selected date/time label.',
         },
+        date: { control: 'object', description: 'Current selected `Date`, or `null` when empty. Two-way bindable via `dateChange`/`ngModel`.' },
+        class: { control: 'text', description: 'Extra classes merged onto the trigger button.' },
     },
     args: {
         placeholder: 'Pick a date',
         disabled: false,
         showTime: false,
         locale: 'en',
+        date: null,
+        class: '',
     },
 };
 
-export default datePickerMeta;
-type DatePickerStory = StoryObj<DatePickerComponent>;
+export default meta;
+type Story = StoryObj<DatePickerComponent>;
 
-export const Default: DatePickerStory = {
-    render: (args) => ({
-        props: args,
-        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [locale]="locale"></ui-date-picker>`,
-    }),
-};
+const TEMPLATE = `
+    <ui-date-picker
+        [placeholder]="placeholder"
+        [disabled]="disabled"
+        [showTime]="showTime"
+        [locale]="locale"
+        [date]="date"
+        [class]="class">
+    </ui-date-picker>`;
 
-export const WithTime: DatePickerStory = {
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+export const Playground: Story = { render };
+
+export const WithTime: Story = {
     args: {
         showTime: true,
         placeholder: 'Pick date & time',
     },
-    render: (args) => ({
-        props: args,
-        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [locale]="locale"></ui-date-picker>`,
-    }),
+    render,
 };
 
-export const HebrewRTL: DatePickerStory = {
+export const HebrewRTL: Story = {
     args: {
         showTime: true,
         placeholder: 'בחר תאריך ושעה',
@@ -60,6 +70,25 @@ export const HebrewRTL: DatePickerStory = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [locale]="locale" dir="rtl"></ui-date-picker>`,
+        template: `
+    <ui-date-picker
+        [placeholder]="placeholder"
+        [disabled]="disabled"
+        [showTime]="showTime"
+        [locale]="locale"
+        [date]="date"
+        [class]="class"
+        dir="rtl">
+    </ui-date-picker>`,
     }),
+};
+
+export const Disabled: Story = {
+    args: { disabled: true },
+    render,
+};
+
+export const Preselected: Story = {
+    args: { date: new Date() },
+    render,
 };

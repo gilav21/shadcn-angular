@@ -1,6 +1,29 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { Component, input, output } from '@angular/core';
 import { BentoGridComponent, DashboardItem } from './bento-grid.component';
 import { BentoGridItemComponent } from './sub/bento-grid-item.component';
+
+/**
+ * A dynamically-projected demo widget used to show `DashboardItem.content`
+ * accepting an arbitrary `Type<unknown>` (not just plain text).
+ */
+@Component({
+    selector: 'bento-grid-stat-widget-demo',
+    template: `
+        <div class="flex h-full w-full flex-col justify-between">
+            <span class="text-xs font-medium text-muted-foreground">{{ label() }}</span>
+            <span class="text-2xl font-bold">{{ value() }}</span>
+            <button type="button" class="self-start text-xs text-primary underline" (click)="dismiss.emit()">
+                Dismiss
+            </button>
+        </div>
+    `,
+})
+class BentoGridStatWidgetDemoComponent {
+    readonly label = input('Revenue');
+    readonly value = input('$12,4K');
+    readonly dismiss = output<void>();
+}
 
 const meta: Meta<BentoGridComponent> = {
     title: 'UI/BentoGrid',
@@ -8,32 +31,40 @@ const meta: Meta<BentoGridComponent> = {
     tags: ['autodocs'],
     decorators: [
         moduleMetadata({
-            imports: [BentoGridComponent, BentoGridItemComponent],
+            imports: [BentoGridComponent, BentoGridItemComponent, BentoGridStatWidgetDemoComponent],
         }),
     ],
     argTypes: {
-        cols: {
-            control: 'number',
+        items: {
+            control: 'object',
+            description: 'Data-driven grid items. `content` may be a string or an Angular `Type<unknown>` for dynamic component projection.',
         },
-        rowHeight: {
-            control: 'text',
+        cols: { control: 'number', description: 'Number of columns in the grid.' },
+        rowHeight: { control: 'text', description: 'Row height (number treated as px, or any CSS length).' },
+        columnWidth: { control: 'text', description: 'Column width; `1fr` (default) distributes evenly.' },
+        gap: { control: 'text', description: 'Gap between grid cells.' },
+        showBorders: { control: 'boolean', description: 'Shows a border/shadow around each item even when not editable.' },
+        borderRadius: { control: 'text', description: 'Border radius applied to each item.' },
+        itemPadding: { control: 'text', description: 'Inner padding applied to each item.' },
+        editable: { control: 'boolean', description: 'Enables drag, resize, selection, merge and the context menu.' },
+        resizeHandleType: {
+            control: 'select',
+            options: ['corners', 'edges', 'both'],
+            description: 'Which resize handles render on each item while editable (corner grips, edge bars, or both).',
         },
-        gap: {
-            control: 'text',
-        },
-        showBorders: {
-            control: 'boolean',
-        },
-        editable: {
-            control: 'boolean',
-        },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
         cols: 4,
         rowHeight: '120px',
+        columnWidth: '1fr',
         gap: '1rem',
         showBorders: true,
+        borderRadius: '0.75rem',
+        itemPadding: '1rem',
         editable: false,
+        resizeHandleType: 'both',
+        class: '',
     },
 };
 
@@ -49,26 +80,22 @@ const sampleItems: DashboardItem[] = [
     { id: '6', x: 2, y: 3, cols: 3, rows: 1, content: 'Wide Item 6' },
 ];
 
-export const Default: Story = {
-    args: {
-        items: sampleItems,
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div style="height: 500px;">
-                <ui-bento-grid
-                    [items]="items"
-                    [cols]="cols"
-                    [rowHeight]="rowHeight"
-                    [gap]="gap"
-                    [showBorders]="showBorders"
-                    [editable]="editable"
-                />
-            </div>
-        `,
-    }),
-};
+const TEMPLATE = `
+    <div style="height: 500px;">
+        <ui-bento-grid
+            [items]="items" [cols]="cols" [rowHeight]="rowHeight" [columnWidth]="columnWidth"
+            [gap]="gap" [showBorders]="showBorders" [borderRadius]="borderRadius" [itemPadding]="itemPadding"
+            [editable]="editable" [resizeHandleType]="resizeHandleType" [class]="class">
+        </ui-bento-grid>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: { ...args, items: args.items ?? sampleItems },
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const ThreeByThreeGrid: Story = {
     args: {
@@ -89,21 +116,26 @@ export const ThreeByThreeGrid: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `
-            <div style="height: 400px;">
-                <ui-bento-grid
-                    [items]="items"
-                    [cols]="cols"
-                    [rowHeight]="rowHeight"
-                    [gap]="gap"
-                    [showBorders]="showBorders"
-                    [editable]="editable"
-                />
-            </div>
-        `,
+        template: TEMPLATE,
     }),
 };
 
+export const NoBorders: Story = {
+    args: { showBorders: false },
+    render,
+};
+
+/** Data-driven simple mode: items are supplied as a plain array of `DashboardItem`. */
+export const DataDrivenItems: Story = {
+    args: { items: sampleItems },
+    render,
+};
+
+/**
+ * Template-projection mode: `ui-bento-grid-item` is composed directly for
+ * full control over each cell's markup instead of driving the grid from
+ * the `items` input.
+ */
 export const WithContentProjection: Story = {
     render: () => ({
         template: `
@@ -125,46 +157,49 @@ export const WithContentProjection: Story = {
     }),
 };
 
-export const NoBorders: Story = {
+/**
+ * `DashboardItem.content` accepts an Angular `Type<unknown>` alongside its
+ * `inputs`/`outputs` maps, so grid cells can host live, dynamic components
+ * (not just static text) — rendered via `uiComponentOutlet` under the hood.
+ */
+export const DynamicComponentContent: Story = {
     args: {
-        items: sampleItems,
-        showBorders: false,
+        items: [
+            {
+                id: 'w1', x: 1, y: 1, cols: 2, rows: 1,
+                content: BentoGridStatWidgetDemoComponent,
+                inputs: { label: 'Monthly Revenue', value: '$48,912' },
+            },
+            {
+                id: 'w2', x: 3, y: 1, cols: 1, rows: 1,
+                content: BentoGridStatWidgetDemoComponent,
+                inputs: { label: 'Active Users', value: '2,381' },
+            },
+            { id: 'w3', x: 4, y: 1, cols: 1, rows: 1, content: 'Plain text cell' },
+        ] as DashboardItem[],
     },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div style="height: 500px;">
-                <ui-bento-grid
-                    [items]="items"
-                    [cols]="cols"
-                    [rowHeight]="rowHeight"
-                    [gap]="gap"
-                    [showBorders]="showBorders"
-                    [editable]="editable"
-                />
-            </div>
-        `,
-    }),
+    render,
+};
+
+/** Corner-only resize grips, visible while hovering an editable item. */
+export const ResizeHandlesCorners: Story = {
+    args: { items: sampleItems, editable: true, resizeHandleType: 'corners' },
+    render,
+};
+
+/** Edge resize bars along all four sides of an editable item. */
+export const ResizeHandlesEdges: Story = {
+    args: { items: sampleItems, editable: true, resizeHandleType: 'edges' },
+    render,
+};
+
+/** Both corner grips and edge bars — the default when `editable` is true. */
+export const ResizeHandlesBoth: Story = {
+    args: { items: sampleItems, editable: true, resizeHandleType: 'both' },
+    render,
 };
 
 export const Editable: Story = {
-    args: {
-        items: sampleItems,
-        editable: true,
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div style="height: 500px;">
-                <ui-bento-grid
-                    [items]="items"
-                    [cols]="cols"
-                    [rowHeight]="rowHeight"
-                    [gap]="gap"
-                    [showBorders]="showBorders"
-                    [editable]="editable"
-                />
-            </div>
-        `,
-    }),
+    args: { items: sampleItems, editable: true },
+    render,
 };

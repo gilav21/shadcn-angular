@@ -1,231 +1,176 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { ChipListComponent } from './chip-list.component';
 import { FormsModule } from '@angular/forms';
+import { ChipListComponent } from './chip-list.component';
 
+// Every input is exposed as an interactive control (argTypes) with a sensible
+// default (args); the Playground binds all of them so the Controls panel drives
+// the live component. Dedicated stories below capture each distinct mode.
 const meta: Meta<ChipListComponent> = {
-  title: 'UI/Chip List',
-  component: ChipListComponent,
-  tags: ['autodocs'],
-  decorators: [
-    moduleMetadata({
-      imports: [FormsModule, ChipListComponent],
-    }),
-  ],
-  argTypes: {
-    placeholder: {
-      control: 'text',
-      description: 'Placeholder text shown when no chips exist',
+    title: 'UI/Chip List',
+    component: ChipListComponent,
+    tags: ['autodocs'],
+    decorators: [
+        moduleMetadata({
+            imports: [FormsModule, ChipListComponent],
+        }),
+    ],
+    argTypes: {
+        placeholder: { control: 'text', description: 'Placeholder text shown when no chips exist.' },
+        disabled: { control: 'boolean', description: 'Disables the entire chip list.' },
+        variant: {
+            control: 'select',
+            options: ['outline', 'underline', 'ghost'],
+            description: 'Container style variant for the chip list itself.',
+        },
+        badgeVariant: {
+            control: 'select',
+            options: ['default', 'secondary', 'destructive', 'outline'],
+            description: 'Visual style variant applied to each chip (badge), unless overridden by `chipColors`.',
+        },
+        maxRows: { control: 'number', description: 'Maximum visible rows before scrolling (0 = unlimited).' },
+        allowDuplicates: { control: 'boolean', description: 'Allow duplicate chip values to be added.' },
+        chipColors: { control: 'object', description: 'Map of chip value to a custom background color, overriding `badgeVariant` for matching chips.' },
+        separatorKeys: { control: 'object', description: 'Extra keyboard keys (besides Enter) that commit the current input as a chip.' },
+        class: { control: 'text', description: 'Extra classes merged onto the host container.' },
     },
-    disabled: {
-      control: 'boolean',
-      description: 'Disable the entire chip list',
+    args: {
+        placeholder: 'Add item...',
+        disabled: false,
+        variant: 'outline',
+        badgeVariant: 'default',
+        maxRows: 0,
+        allowDuplicates: false,
+        chipColors: {},
+        separatorKeys: [],
+        class: '',
     },
-    variant: {
-      control: 'select',
-      options: ['outline', 'underline', 'ghost'],
-      description: 'Container style variant for chip list',
-    },
-    badgeVariant: {
-      control: 'select',
-      options: ['default', 'secondary', 'destructive', 'outline'],
-      description: 'Visual style variant for chips (badges)',
-    },
-    maxRows: {
-      control: 'number',
-      description: 'Maximum visible rows before scrolling (0 = unlimited)',
-    },
-    allowDuplicates: {
-      control: 'boolean',
-      description: 'Allow duplicate chip values',
-    },
-  },
-  args: {
-    placeholder: 'Add tag...',
-    disabled: false,
-    variant: 'outline',
-    maxRows: 0,
-    allowDuplicates: false,
-  },
 };
 
 export default meta;
 type Story = StoryObj<ChipListComponent>;
 
-export const Default: Story = {
-  render: (args) => ({
-    props: {
-      ...args,
-      tags: ['Angular', 'TypeScript'],
-    },
-    template: `
-      <div class="w-[400px]">
-        <ui-chip-list 
-          [(ngModel)]="tags" 
-          [placeholder]="placeholder"
-          [disabled]="disabled"
-          [variant]="variant"
-          [maxRows]="maxRows"
-          [allowDuplicates]="allowDuplicates"
-        />
-        <p class="mt-4 text-sm text-muted-foreground">
-          Current values: {{ tags | json }}
-        </p>
-      </div>
-    `,
-  }),
+const TEMPLATE = `
+    <div class="w-full max-w-[calc(100vw-2rem)] sm:w-[400px]">
+        <ui-chip-list
+            [(ngModel)]="tags"
+            [placeholder]="placeholder"
+            [disabled]="disabled"
+            [variant]="variant"
+            [badgeVariant]="badgeVariant"
+            [maxRows]="maxRows"
+            [allowDuplicates]="allowDuplicates"
+            [chipColors]="chipColors"
+            [separatorKeys]="separatorKeys"
+            [class]="class">
+        </ui-chip-list>
+        <p class="mt-2 text-sm text-muted-foreground">Current values: {{ tags | json }}</p>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: { ...args, tags: ['Angular', 'TypeScript'] },
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
+export const Variants: Story = {
+    render: () => ({
+        props: {
+            outlineTags: ['Outline', 'Style'],
+            underlineTags: ['Underline', 'Style'],
+            ghostTags: ['Ghost', 'Style'],
+        },
+        template: `
+            <div class="flex flex-col gap-4 w-full max-w-[calc(100vw-2rem)] sm:w-[400px]">
+                <div>
+                    <label class="text-sm font-medium mb-1 block">Outline</label>
+                    <ui-chip-list [(ngModel)]="outlineTags" variant="outline" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium mb-1 block">Underline</label>
+                    <ui-chip-list [(ngModel)]="underlineTags" variant="underline" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium mb-1 block">Ghost</label>
+                    <ui-chip-list [(ngModel)]="ghostTags" variant="ghost" />
+                </div>
+            </div>`,
+    }),
 };
 
-export const WithPrefilledValues: Story = {
-  args: {
-    placeholder: 'Add technology...',
-  },
-  render: (args) => ({
-    props: {
-      ...args,
-      technologies: ['React', 'Vue', 'Angular', 'Svelte', 'SolidJS'],
-    },
-    template: `
-      <div class="w-[400px]">
-        <ui-chip-list 
-          [(ngModel)]="technologies" 
-          [placeholder]="placeholder"
-          [variant]="variant"
-        />
-      </div>
-    `,
-  }),
+export const BadgeVariants: Story = {
+    render: () => ({
+        props: {
+            defaultTags: ['Default', 'Style'],
+            secondaryTags: ['Secondary', 'Style'],
+            destructiveTags: ['Destructive', 'Style'],
+            outlineTags: ['Outline', 'Style'],
+        },
+        template: `
+            <div class="flex flex-col gap-4 w-full max-w-[calc(100vw-2rem)] sm:w-[400px]">
+                <div>
+                    <label class="text-sm font-medium mb-1 block">Default</label>
+                    <ui-chip-list [(ngModel)]="defaultTags" badgeVariant="default" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium mb-1 block">Secondary</label>
+                    <ui-chip-list [(ngModel)]="secondaryTags" badgeVariant="secondary" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium mb-1 block">Destructive</label>
+                    <ui-chip-list [(ngModel)]="destructiveTags" badgeVariant="destructive" />
+                </div>
+                <div>
+                    <label class="text-sm font-medium mb-1 block">Outline</label>
+                    <ui-chip-list [(ngModel)]="outlineTags" badgeVariant="outline" />
+                </div>
+            </div>`,
+    }),
+};
+
+export const CustomChipColors: Story = {
+    render: () => ({
+        props: {
+            tags: ['Urgent', 'Backend', 'Design'],
+            chipColors: { Urgent: '#ef4444', Backend: '#3b82f6', Design: '#8b5cf6' },
+        },
+        template: `
+            <div class="w-full max-w-[calc(100vw-2rem)] sm:w-[400px]">
+                <ui-chip-list [(ngModel)]="tags" [chipColors]="chipColors" />
+            </div>`,
+    }),
 };
 
 export const MaxRows: Story = {
-  args: {
-    maxRows: 2,
-    placeholder: 'Add item (scrolls after 2 rows)...',
-  },
-  render: (args) => ({
-    props: {
-      ...args,
-      items: [
-        'Apple', 'Banana', 'Cherry', 'Date', 'Elderberry',
-        'Fig', 'Grape', 'Honeydew', 'Kiwi', 'Lemon'
-      ],
+    args: {
+        maxRows: 2,
+        placeholder: 'Add item (scrolls after 2 rows)...',
     },
-    template: `
-      <div class="w-[400px]">
-        <ui-chip-list 
-          [(ngModel)]="items" 
-          [placeholder]="placeholder"
-          [maxRows]="maxRows"
-          [variant]="variant"
-        />
-        <p class="mt-2 text-sm text-muted-foreground">
-          This chip list scrolls after 2 rows of content
-        </p>
-      </div>
-    `,
-  }),
-};
-
-export const Variants: Story = {
-  render: () => ({
-    props: {
-      defaultTags: ['Default', 'Style'],
-      secondaryTags: ['Secondary', 'Style'],
-      destructiveTags: ['Destructive', 'Style'],
-      outlineTags: ['Outline', 'Style'],
-    },
-    template: `
-      <div class="flex flex-col gap-4 w-[400px]">
-        <div>
-          <label class="text-sm font-medium mb-1 block">Default</label>
-          <ui-chip-list [(ngModel)]="defaultTags" variant="default" />
-        </div>
-        <div>
-          <label class="text-sm font-medium mb-1 block">Secondary</label>
-          <ui-chip-list [(ngModel)]="secondaryTags" variant="secondary" />
-        </div>
-        <div>
-          <label class="text-sm font-medium mb-1 block">Destructive</label>
-          <ui-chip-list [(ngModel)]="destructiveTags" variant="destructive" />
-        </div>
-        <div>
-          <label class="text-sm font-medium mb-1 block">Outline</label>
-          <ui-chip-list [(ngModel)]="outlineTags" variant="outline" />
-        </div>
-      </div>
-    `,
-  }),
+    render: (args) => ({
+        props: {
+            ...args,
+            tags: ['Apple', 'Banana', 'Cherry', 'Date', 'Elderberry', 'Fig', 'Grape', 'Honeydew', 'Kiwi', 'Lemon'],
+        },
+        template: TEMPLATE,
+    }),
 };
 
 export const Disabled: Story = {
-  args: {
-    disabled: true,
-  },
-  render: (args) => ({
-    props: {
-      ...args,
-      tags: ['Cannot', 'Edit', 'These'],
-    },
-    template: `
-      <div class="w-[400px]">
-        <ui-chip-list 
-          [(ngModel)]="tags" 
-          [disabled]="disabled"
-          [variant]="variant"
-        />
-      </div>
-    `,
-  }),
-};
-
-export const EmailInput: Story = {
-  args: {
-    placeholder: 'Add email address...',
-    variant: 'outline',
-  },
-  render: (args) => ({
-    props: {
-      ...args,
-      emails: ['john@example.com'],
-    },
-    template: `
-      <div class="w-[400px]">
-        <label class="text-sm font-medium mb-1 block">Recipients</label>
-        <ui-chip-list 
-          [(ngModel)]="emails" 
-          [placeholder]="placeholder"
-          [variant]="variant"
-        />
-        <p class="mt-2 text-sm text-muted-foreground">
-          Type an email and press Enter to add
-        </p>
-      </div>
-    `,
-  }),
+    args: { disabled: true },
+    render: (args) => ({
+        props: { ...args, tags: ['Cannot', 'Edit', 'These'] },
+        template: TEMPLATE,
+    }),
 };
 
 export const CommaSeparated: Story = {
-  args: {
-    placeholder: 'Type tags (comma or enter to add)...',
-    separatorKeys: [','],
-  },
-  render: (args) => ({
-    props: {
-      ...args,
-      tags: [],
+    args: {
+        placeholder: 'Type tags (comma or enter to add)...',
+        separatorKeys: [','],
     },
-    template: `
-      <div class="w-[400px]">
-        <ui-chip-list 
-          [(ngModel)]="tags" 
-          [placeholder]="placeholder"
-          [separatorKeys]="separatorKeys"
-          [variant]="variant"
-
-        />
-        <p class="mt-2 text-sm text-muted-foreground">
-          Press Enter or type a comma to add tags
-        </p>
-      </div>
-    `,
-  }),
+    render: (args) => ({
+        props: { ...args, tags: [] },
+        template: TEMPLATE,
+    }),
 };

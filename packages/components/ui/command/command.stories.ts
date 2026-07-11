@@ -11,9 +11,13 @@ import {
   CommandDialogComponent,
 } from '../command';
 import { moduleMetadata } from '@storybook/angular';
+import { ButtonComponent } from '../button';
 import { DialogComponent, DialogContentComponent } from '../dialog';
 
-const meta: Meta<CommandComponent> = {
+// Every input is exposed as an interactive control (argTypes) with a sensible
+// default (args); the Playground binds all of them so the Controls panel drives
+// the live component. Dedicated stories below capture each distinct mode.
+const meta: Meta<CommandComponent & { rtl: boolean }> = {
   title: 'UI/Command',
   component: CommandComponent,
   tags: ['autodocs'],
@@ -29,27 +33,32 @@ const meta: Meta<CommandComponent> = {
         CommandSeparatorComponent,
         CommandShortcutComponent,
         CommandDialogComponent,
+        ButtonComponent,
         DialogComponent,
         DialogContentComponent
       ],
     }),
   ],
+  argTypes: {
+    shouldFilter: { control: 'boolean', description: 'Whether typing in the input filters items/groups. Disable to implement custom (e.g. async) filtering.' },
+    search: { control: 'text', description: 'Externally-controlled search text. When set, drives the filter instead of the input\'s own typed value.' },
+    class: { control: 'text', description: 'Extra classes merged onto the command root.' },
+    rtl: { control: 'boolean', description: 'Story-only toggle: renders the demo with `dir="rtl"`.' },
+  },
+  args: {
+    shouldFilter: true,
+    search: null,
+    class: '',
+    rtl: false,
+  },
 };
 
 export default meta;
 type Story = StoryObj<CommandComponent & { rtl: boolean }>;
 
-export const Default: Story = {
-  argTypes: {
-    rtl: {
-      control: 'boolean',
-    },
-  },
-  render: (args) => ({
-    props: args,
-    template: `
-      <div class="w-[450px] rounded-lg border shadow-md" [attr.dir]="rtl ? 'rtl' : 'ltr'">
-        <ui-command class="rounded-lg border shadow-md">
+const TEMPLATE = `
+      <div class="w-full max-w-[calc(100vw-2rem)] sm:w-[450px] rounded-lg border shadow-md" [attr.dir]="rtl ? 'rtl' : 'ltr'">
+        <ui-command class="rounded-lg border shadow-md" [shouldFilter]="shouldFilter" [search]="search">
           <ui-command-input placeholder="Type a command or search..." ariaLabel="Search command" />
           <ui-command-list ariaLabel="Results">
             <ui-command-empty>No results found.</ui-command-empty>
@@ -88,6 +97,44 @@ export const Default: Story = {
           </ui-command-list>
         </ui-command>
       </div>
+    `;
+
+const render: NonNullable<Story['render']> = (args) => ({
+  props: args,
+  template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
+export const Default: Story = { render };
+
+export const NoFilter: Story = {
+  args: { shouldFilter: false },
+  render,
+};
+
+export const RightToLeft: Story = {
+  args: { rtl: true },
+  render,
+};
+
+export const Dialog: Story = {
+  render: () => ({
+    props: { open: false },
+    template: `
+      <ui-button (click)="open = true">Open Command Dialog (⌘K)</ui-button>
+      <ui-command-dialog [(open)]="open">
+        <ui-command-input placeholder="Type a command or search..." ariaLabel="Search command" />
+        <ui-command-list ariaLabel="Results">
+          <ui-command-empty>No results found.</ui-command-empty>
+          <ui-command-group heading="Suggestions">
+            <ui-command-item value="calendar"><span>Calendar</span></ui-command-item>
+            <ui-command-item value="search-emoji"><span>Search Emoji</span></ui-command-item>
+            <ui-command-item value="calculator"><span>Calculator</span></ui-command-item>
+          </ui-command-group>
+        </ui-command-list>
+      </ui-command-dialog>
     `,
   }),
 };

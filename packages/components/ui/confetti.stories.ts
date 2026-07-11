@@ -1,5 +1,5 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { UiConfettiDirective } from './confetti.directive';
+import { UiConfettiDirective, ConfettiOptions } from './confetti.directive';
 import { ButtonComponent } from './button';
 import { Component } from '@angular/core';
 
@@ -49,7 +49,26 @@ class ConfettiSideCannonsDemoComponent {
     }
 }
 
-const meta: Meta = {
+interface ConfettiArgs {
+    manualTrigger: boolean;
+    particleCount: number;
+    angle: number;
+    spread: number;
+    startVelocity: number;
+    decay: number;
+    gravity: number;
+    drift: number;
+    ticks: number;
+    scalar: number;
+    zIndex: number;
+    disableForReducedMotion: boolean;
+    variant: 'default' | 'side-cannons';
+}
+
+// Every option is exposed as an interactive control (argTypes) with a sensible
+// default (args); the Playground binds all of them so the Controls panel drives
+// the live directive. Dedicated stories below capture each distinct mode.
+const meta: Meta<ConfettiArgs> = {
     title: 'UI/Confetti',
     tags: ['autodocs'],
     decorators: [
@@ -63,37 +82,62 @@ const meta: Meta = {
         }),
     ],
     argTypes: {
-        particleCount: { control: 'number' },
-        spread: { control: 'number' },
+        manualTrigger: { control: 'boolean', description: 'Toggling this from `false` to `true` fires the confetti burst.' },
+        particleCount: { control: 'number', description: 'Number of particles to launch.' },
+        angle: { control: 'number', description: 'Angle of the explosion in degrees (90 = straight up).' },
+        spread: { control: 'number', description: 'Spread of the explosion in degrees.' },
+        startVelocity: { control: 'number', description: 'Initial velocity of the particles.' },
+        decay: { control: { type: 'number', min: 0, max: 1, step: 0.01 }, description: 'How quickly particles lose speed. 1 = no decay.' },
+        gravity: { control: { type: 'number', min: 0, max: 2, step: 0.05 }, description: 'How fast particles fall.' },
+        drift: { control: 'number', description: 'How much particles drift sideways.' },
+        ticks: { control: 'number', description: 'How many frames particles last (controls duration, not speed).' },
+        scalar: { control: { type: 'number', min: 0.1, max: 3, step: 0.1 }, description: 'Scale factor for particle size.' },
+        zIndex: { control: 'number', description: 'z-index of the confetti canvas.' },
+        disableForReducedMotion: { control: 'boolean', description: 'Skips firing entirely when the user prefers reduced motion.' },
+        variant: { control: 'select', options: ['default', 'side-cannons'], description: 'Burst pattern: a single origin burst, or two cannons firing from the bottom corners.' },
     },
     args: {
+        manualTrigger: false,
         particleCount: 50,
+        angle: 90,
         spread: 45,
+        startVelocity: 25,
+        decay: 0.9,
+        gravity: 0.05,
+        drift: 0,
+        ticks: 800,
+        scalar: 1,
+        zIndex: 100,
+        disableForReducedMotion: true,
+        variant: 'default',
     },
 };
 
 export default meta;
-type Story = StoryObj;
+type Story = StoryObj<ConfettiArgs>;
 
-export const Default: Story = {
-    render: () => ({
-        template: `<confetti-demo />`,
-    }),
-};
+const toOptions = (args: ConfettiArgs): ConfettiOptions => ({
+    particleCount: args.particleCount,
+    angle: args.angle,
+    spread: args.spread,
+    startVelocity: args.startVelocity,
+    decay: args.decay,
+    gravity: args.gravity,
+    drift: args.drift,
+    ticks: args.ticks,
+    scalar: args.scalar,
+    zIndex: args.zIndex,
+    disableForReducedMotion: args.disableForReducedMotion,
+    variant: args.variant,
+});
 
-export const SideCannons: Story = {
-    render: () => ({
-        template: `<confetti-side-cannons-demo />`,
-    }),
-};
-
-export const WithControls: Story = {
+/** Interactive playground — every option is wired to the Controls panel; click "Fire" to launch a burst. */
+export const Playground: Story = {
     render: (args) => ({
         props: {
-            ...args,
             trigger: false,
-            get options() {
-                return { particleCount: args['particleCount'], spread: args['spread'] };
+            get options(): ConfettiOptions {
+                return toOptions(args);
             },
             fire() {
                 this['trigger'] = false;
@@ -107,5 +151,17 @@ export const WithControls: Story = {
                 <ui-button (click)="fire()">Fire Confetti</ui-button>
             </div>
         `,
+    }),
+};
+
+export const Default: Story = {
+    render: () => ({
+        template: `<confetti-demo />`,
+    }),
+};
+
+export const SideCannons: Story = {
+    render: () => ({
+        template: `<confetti-side-cannons-demo />`,
     }),
 };

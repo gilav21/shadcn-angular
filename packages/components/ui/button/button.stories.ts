@@ -52,7 +52,7 @@ const TEMPLATE = `
         {{ label || 'Button' }}
     </ui-button>`;
 
-const render = (args: Partial<ButtonComponent>): { props: Partial<ButtonComponent>; template: string } => ({
+const render: NonNullable<Story['render']> = (args) => ({
     props: args,
     template: TEMPLATE,
 });
