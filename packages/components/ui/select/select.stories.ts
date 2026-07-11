@@ -50,19 +50,58 @@ const meta: Meta<SelectComponent<unknown>> = {
     }),
   ],
   argTypes: {
-    disabled: { control: 'boolean' },
-    position: { control: 'radio', options: ['popper', 'item-aligned'] },
-    placeholder: { control: 'text' },
+    disabled: { control: 'boolean', description: 'Disables the trigger and prevents opening.' },
+    placeholder: { control: 'text', description: 'Override for the placeholder shown when no value is selected.' },
+    ariaLabel: { control: 'text', description: 'Accessible name forwarded to the trigger button.' },
+    ariaLabelledby: { control: 'text', description: 'Associates the combobox with an external visible label.' },
+    defaultValue: { control: false, description: 'Uncontrolled initial value; only applied when `value` is unset.' },
+    locale: { control: false, description: 'Locale dictionary or registry key; falls back to `UI_LOCALE_ID`.' },
+    position: { control: 'radio', options: ['popper', 'item-aligned'], description: 'How the dropdown is positioned relative to the trigger.' },
+    options: { control: 'object', description: 'Data-driven mode: array of options to render (empty array = template-driven mode).' },
+    displayWith: { control: false, description: 'Function mapping an option to its display string (data-driven mode).' },
+    value: { control: false, description: 'Controlled selected value.' },
+    valueAttribute: { control: 'text', description: 'Object key used to extract the value from each option (data-driven mode).' },
+    disabledWith: { control: false, description: 'Function marking an option as disabled (data-driven mode).' },
+    valueChange: { control: false, description: 'Emits the newly selected value.' },
   },
   args: {
     disabled: false,
-    position: 'popper',
     placeholder: 'Select an option',
+    ariaLabel: undefined,
+    ariaLabelledby: undefined,
+    position: 'popper',
+    options: [],
+    valueAttribute: undefined,
   },
 };
 
 export default meta;
 type Story = StoryObj<SelectComponent<unknown>>;
+
+/**
+ * Interactive playground — every input is wired to the Controls panel.
+ * Uses the template-driven mode so `options` stays empty (its default) while
+ * you can still drive `disabled`, `placeholder` and `position` live.
+ */
+export const Playground: Story = {
+  render: (args) => ({
+    props: args,
+    template: `
+      <div class="flex justify-center items-center h-[300px]">
+        <ui-select [disabled]="disabled" class="w-[180px] h-fit" [position]="position">
+          <ui-select-trigger [ariaLabel]="ariaLabel">
+            <ui-select-value [placeholder]="placeholder" />
+          </ui-select-trigger>
+          <ui-select-content>
+            <ui-select-item value="apple">Apple</ui-select-item>
+            <ui-select-item value="banana">Banana</ui-select-item>
+            <ui-select-item value="blueberry">Blueberry</ui-select-item>
+          </ui-select-content>
+        </ui-select>
+      </div>
+    `,
+  }),
+};
 
 /**
  * Template-driven mode: Use ng-content to define items declaratively.

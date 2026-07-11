@@ -13,28 +13,71 @@ const meta: Meta<StaggerChildrenComponent> = {
     argTypes: {
         delay: {
             control: 'number',
+            description: 'Initial delay in ms before the first child animates.',
         },
         duration: {
             control: 'number',
+            description: 'Duration in ms of each child animation.',
         },
         staggerDelay: {
             control: 'number',
+            description: 'Delay in ms added between each successive child.',
         },
         direction: {
             control: 'select',
             options: ['up', 'down', 'left', 'right'],
+            description: 'Direction children translate from while animating in.',
         },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
         delay: 0,
         duration: 400,
         staggerDelay: 80,
         direction: 'up',
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<StaggerChildrenComponent>;
+
+const TEMPLATE = `
+    <div class="p-8 max-w-md mx-auto">
+        <ui-stagger-children
+            [delay]="delay" [duration]="duration" [staggerDelay]="staggerDelay"
+            [direction]="direction" [class]="class + ' space-y-3'">
+            <div class="p-4 rounded-xl border bg-card shadow-sm flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-lg">📋</div>
+                <div>
+                    <p class="font-medium text-sm">Design System Setup</p>
+                    <p class="text-xs text-muted-foreground">Completed · 2 days ago</p>
+                </div>
+            </div>
+            <div class="p-4 rounded-xl border bg-card shadow-sm flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-lg">🚀</div>
+                <div>
+                    <p class="font-medium text-sm">Component Library</p>
+                    <p class="text-xs text-muted-foreground">In progress · 50 components</p>
+                </div>
+            </div>
+            <div class="p-4 rounded-xl border bg-card shadow-sm flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-lg">📚</div>
+                <div>
+                    <p class="font-medium text-sm">Documentation</p>
+                    <p class="text-xs text-muted-foreground">In progress · Storybook</p>
+                </div>
+            </div>
+        </ui-stagger-children>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const Default: Story = {
     args: {

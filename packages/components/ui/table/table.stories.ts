@@ -29,18 +29,63 @@ const meta: Meta<TableComponent & { rtl: boolean }> = {
     }),
   ],
   argTypes: {
+    class: { control: 'text', description: 'Extra classes merged onto the table container.' },
     rtl: {
       control: 'boolean',
       description: 'Enable right-to-left layout',
     },
   },
   args: {
+    class: '',
     rtl: false,
   },
 };
 
 export default meta;
-type Story = StoryObj<TableComponent>;
+type Story = StoryObj<TableComponent & { rtl: boolean }>;
+
+const TEMPLATE = `
+      <div [dir]="rtl ? 'rtl' : 'ltr'">
+      <ui-table [class]="class">
+        <ui-table-caption>A list of your recent invoices.</ui-table-caption>
+        <ui-table-header>
+          <ui-table-row>
+            <ui-table-head class="w-[100px]">Invoice</ui-table-head>
+            <ui-table-head>Status</ui-table-head>
+            <ui-table-head>Method</ui-table-head>
+            <ui-table-head class="text-right">Amount</ui-table-head>
+          </ui-table-row>
+        </ui-table-header>
+        <ui-table-body>
+          <ui-table-row>
+            <ui-table-cell class="font-medium">INV-001</ui-table-cell>
+            <ui-table-cell>Paid</ui-table-cell>
+            <ui-table-cell>Credit Card</ui-table-cell>
+            <ui-table-cell class="text-right">$250.00</ui-table-cell>
+          </ui-table-row>
+          <ui-table-row>
+            <ui-table-cell class="font-medium">INV-002</ui-table-cell>
+            <ui-table-cell>Pending</ui-table-cell>
+            <ui-table-cell>PayPal</ui-table-cell>
+            <ui-table-cell class="text-right">$150.00</ui-table-cell>
+          </ui-table-row>
+        </ui-table-body>
+        <ui-table-footer>
+          <ui-table-row>
+            <ui-table-cell colspan="3">Total</ui-table-cell>
+            <ui-table-cell class="text-right">$400.00</ui-table-cell>
+          </ui-table-row>
+        </ui-table-footer>
+      </ui-table>
+      </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const Default: Story = {
   render: (args) => ({

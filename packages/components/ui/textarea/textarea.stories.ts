@@ -13,30 +13,71 @@ const meta: Meta<TextareaComponent> = {
         }),
     ],
     argTypes: {
-        placeholder: { control: 'text' },
-        disabled: { control: 'boolean' },
-        rows: { control: 'number' },
+        placeholder: { control: 'text', description: 'Placeholder text shown when empty.' },
+        disabled: { control: 'boolean', description: 'Disables interaction.' },
+        rows: { control: 'number', description: 'Number of visible text rows.' },
+        skeleton: { control: 'boolean', description: 'Renders a skeleton placeholder instead of the textarea.' },
         variant: {
             control: 'select',
             options: ['outline', 'underline', 'ghost'],
+            description: 'Visual style of the textarea.',
         },
+        class: { control: 'text', description: 'Extra classes merged onto the textarea.' },
     },
     args: {
         placeholder: 'Type your message here.',
         disabled: false,
         rows: 4,
+        skeleton: false,
         variant: 'outline',
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<TextareaComponent>;
 
+const TEMPLATE = `
+    <ui-textarea
+        [placeholder]="placeholder" [disabled]="disabled" [rows]="rows"
+        [skeleton]="skeleton" [variant]="variant" [class]="class">
+    </ui-textarea>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
 export const Default: Story = {
     render: (args) => ({
         props: args,
         template: `<ui-textarea [placeholder]="placeholder" [disabled]="disabled" [rows]="rows" [variant]="variant"></ui-textarea>`,
     }),
+};
+
+export const Variants: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="flex flex-col gap-4 max-w-sm">
+                <ui-textarea variant="outline" placeholder="Outline" [rows]="rows"></ui-textarea>
+                <ui-textarea variant="underline" placeholder="Underline" [rows]="rows"></ui-textarea>
+                <ui-textarea variant="ghost" placeholder="Ghost" [rows]="rows"></ui-textarea>
+            </div>`,
+    }),
+};
+
+export const Disabled: Story = {
+    args: { disabled: true },
+    render,
+};
+
+export const Skeleton: Story = {
+    args: { skeleton: true },
+    render,
 };
 
 export const WithLabel: Story = {

@@ -13,19 +13,33 @@ const meta: Meta<TextRevealComponent> = {
     argTypes: {
         text: {
             control: 'text',
+            description: 'The text to reveal, word by word.',
         },
         delay: {
             control: 'number',
+            description: 'Delay in ms between each word reveal.',
         },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
         text: 'The quick brown fox jumps over the lazy dog.',
         delay: 50,
+        class: 'text-2xl font-semibold',
     },
 };
 
 export default meta;
 type Story = StoryObj<TextRevealComponent>;
+
+const TEMPLATE = `<ui-text-reveal [text]="text" [delay]="delay" [class]="class" />`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const Default: Story = {
     args: {
