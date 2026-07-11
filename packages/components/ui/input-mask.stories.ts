@@ -10,9 +10,12 @@ const meta: Meta = {
         }),
     ],
     argTypes: {
-        mask: { control: 'text' },
-        slotChar: { control: 'text' },
-        showMaskTyped: { control: 'boolean' },
+        mask: {
+            control: 'text',
+            description: "Mask pattern: `0`/`9` = digit, `a` = letter, `*` = alphanumeric, any other character is a literal.",
+        },
+        slotChar: { control: 'text', description: 'Placeholder character shown for unfilled slots when `showMaskTyped` is true.' },
+        showMaskTyped: { control: 'boolean', description: 'Pre-fills unfilled mask slots with `slotChar` instead of leaving them empty.' },
     },
     args: {
         mask: '(000) 000-0000',
@@ -24,28 +27,32 @@ const meta: Meta = {
 export default meta;
 type Story = StoryObj;
 
-export const PhoneNumber: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="space-y-2" style="max-width: 300px;">
-                <label class="text-sm font-medium">Phone Number</label>
-                <input
-                    [uiInputMask]="mask"
-                    [slotChar]="slotChar"
-                    [showMaskTyped]="showMaskTyped"
-                    placeholder="(___) ___-____"
-                    class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                />
-            </div>
-        `,
-    }),
-};
+const TEMPLATE = `
+    <div class="space-y-2 w-full max-w-[calc(100vw-2rem)] sm:max-w-[300px]">
+        <label class="text-sm font-medium">Phone Number</label>
+        <input
+            [uiInputMask]="mask"
+            [slotChar]="slotChar"
+            [showMaskTyped]="showMaskTyped"
+            placeholder="(___) ___-____"
+            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        />
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
+export const PhoneNumber: Story = { render };
 
 export const DateMask: Story = {
     render: () => ({
         template: `
-            <div class="space-y-2" style="max-width: 300px;">
+            <div class="space-y-2 w-full max-w-[calc(100vw-2rem)] sm:max-w-[300px]">
                 <label class="text-sm font-medium">Date</label>
                 <input
                     uiInputMask="00/00/0000"
@@ -60,7 +67,7 @@ export const DateMask: Story = {
 export const CreditCard: Story = {
     render: () => ({
         template: `
-            <div class="space-y-2" style="max-width: 300px;">
+            <div class="space-y-2 w-full max-w-[calc(100vw-2rem)] sm:max-w-[300px]">
                 <label class="text-sm font-medium">Credit Card</label>
                 <input
                     uiInputMask="0000 0000 0000 0000"
@@ -75,7 +82,7 @@ export const CreditCard: Story = {
 export const ZipCode: Story = {
     render: () => ({
         template: `
-            <div class="space-y-2" style="max-width: 300px;">
+            <div class="space-y-2 w-full max-w-[calc(100vw-2rem)] sm:max-w-[300px]">
                 <label class="text-sm font-medium">Zip Code</label>
                 <input
                     uiInputMask="00000-0000"
@@ -85,4 +92,9 @@ export const ZipCode: Story = {
             </div>
         `,
     }),
+};
+
+export const ShowMaskTyped: Story = {
+    args: { showMaskTyped: true },
+    render,
 };
