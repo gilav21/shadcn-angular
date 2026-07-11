@@ -1640,3 +1640,15 @@ is configured).
   picks recolour the same selection; a saturation drag leaves the selection
   unchanged). +2 tests. Gates: `test-visual` **5306 / 5306**, demo builds, lint
   clean, SonarQube **0 issues on changed files**.
+- **Font colour now persists to the output (`<span style="color">` not `<font>`).**
+  Reported: font colour showed in the editor but not the published output, while
+  the highlight did. Cause (verified in-browser): `execCommand('foreColor')` emits
+  a deprecated `<font color="…">` tag by default, and the base sanitizer strips
+  `<font>` — so the colour applied to the live editor DOM but was removed from the
+  serialized output; `hiliteColor` uses a `background-color` inline style, which
+  survives. Wrap the colour commands in `styleWithCSS` so `foreColor`/`hiliteColor`
+  emit inline `color`/`background-color` styles (kept by the sanitizer — the
+  format the consumer wanted), toggling the mode back off so other commands keep
+  tag-based output. Verified: the picked font colour appears in the published pane
+  as `<span style="color:rgb(...)">`. +1 test. Gates: `test-visual` **5307 / 5307**,
+  demo builds, lint clean, SonarQube **0 issues on changed files**.
