@@ -1624,3 +1624,19 @@ is configured).
   feature — init-clobber, echo, snap-back). Verified live; +1 test. Gates:
   `test-visual` **5304 / 5304**, demo builds, lint clean, SonarQube **0 issues on
   changed files**.
+- **Colour popover: no focus-steal, no selection hijack.** Two more issues while
+  picking a colour with text selected: (a) after the first pick, dragging/re-
+  picking stopped changing the colour and the text de-selected — `onColorSelect`
+  restored the selection AND focused the editor (`restoreSelection` +
+  `applyMutation` `focus:true`); while the picker popover is open, stealing focus
+  back collapses the selection so the next pick has no target. `foreColor`/
+  `hiliteColor` apply to the range without needing editor focus and keep it
+  selected, so `onColorSelect` now restores the target range **without focusing**
+  (`restoreColorTargetSelection`) and applies with `focus:false`. (b) Dragging
+  the saturation area extended the editor's text selection and coloured the
+  extended range — `onAreaMouseDown` never called `preventDefault()` (only the
+  touch handler did), so the browser ran a native text-selection drag over the
+  page; added `preventDefault` to the mouse handler. Verified live (successive
+  picks recolour the same selection; a saturation drag leaves the selection
+  unchanged). +2 tests. Gates: `test-visual` **5306 / 5306**, demo builds, lint
+  clean, SonarQube **0 issues on changed files**.
