@@ -1608,3 +1608,19 @@ is configured).
   trigger, full panel inside). +1 color-picker test; toolbar preset-click tests
   updated to the single-popover flow. Gates: `test-visual` **5303 / 5303**, demo
   builds, lint clean, SonarQube **0 issues on changed files**.
+- **Color-picker snap-back fix (seed-once, not continuous control).** Reported:
+  after the first pick, dragging or re-picking kept the original colour. Root
+  cause (reproduced in the browser): the toolbar bound the picker with
+  `[ngModel]="currentFontColor()"` — a value that keeps updating from the
+  selection reflection — making the picker a **controlled** component, so while
+  the user was live-picking the reflected value wrote back through `writeValue`
+  and snapped the picker to the previous colour. Fix: seed the picker from
+  `currentFontColor`/`currentBackgroundColor` **once when the colour popover
+  opens** (`seededFontColor`/`seededBackgroundColor`, set in `openPopoverPanel`
+  — the same seed-on-open pattern already used for fontSize/fontFamily), bind
+  the picker to that frozen seed, and re-seed on the next open. General lesson: a
+  reflected/current value should *seed* an editing control on open, not
+  continuously control it (this was the third bug from the same reflection
+  feature — init-clobber, echo, snap-back). Verified live; +1 test. Gates:
+  `test-visual` **5304 / 5304**, demo builds, lint clean, SonarQube **0 issues on
+  changed files**.
