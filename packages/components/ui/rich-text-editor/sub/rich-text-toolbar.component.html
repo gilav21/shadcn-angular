@@ -140,7 +140,7 @@
             <ui-color-picker
               [inline]="true"
               [presets]="colorPalette"
-              [ngModel]="currentFontColor()"
+              [ngModel]="seededFontColor()"
               [disabled]="interactionDisabled()"
               (colorChange)="onColorSelect('fontColor', $event)"
             />
@@ -220,7 +220,7 @@
               [inline]="true"
               [presets]="highlightPalette"
               [alpha]="true"
-              [ngModel]="currentBackgroundColor()"
+              [ngModel]="seededBackgroundColor()"
               [disabled]="interactionDisabled()"
               (colorChange)="onColorSelect('backgroundColor', $event)"
             />

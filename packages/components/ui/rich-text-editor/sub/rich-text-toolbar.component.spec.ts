@@ -299,6 +299,25 @@ describe('RichTextToolbarComponent', () => {
             expect(emitted).toEqual({ type: 'fontColor', color: '#123456' });
         });
 
+        it('seeds the color picker once on open and does not follow currentFontColor while open', () => {
+            fixture.componentRef.setInput('items', ['fontColor']);
+            fixture.componentRef.setInput('currentFontColor', '#111111');
+            fixture.detectChanges();
+
+            component.openPopoverPanel('fontColor');
+            expect(component.seededFontColor()).toBe('#111111');
+
+            // The reflected selection colour changes while the popover is open — the
+            // seed (and thus the picker) must NOT follow it, or a live pick snaps back.
+            fixture.componentRef.setInput('currentFontColor', '#222222');
+            fixture.detectChanges();
+            expect(component.seededFontColor()).toBe('#111111');
+
+            // Re-opening re-seeds from the now-current value.
+            component.openPopoverPanel('fontColor');
+            expect(component.seededFontColor()).toBe('#222222');
+        });
+
         it('guards insert handlers when disabled', () => {
             fixture.componentRef.setInput('disabled', true);
             fixture.detectChanges();
