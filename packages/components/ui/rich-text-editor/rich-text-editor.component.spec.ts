@@ -1871,7 +1871,7 @@ describe('RichTextEditorComponent', () => {
             component.onColorSelect({ type: 'fontColor', color: '#ff0000' });
             fixture.detectChanges();
 
-            expect(editor.innerHTML.toLowerCase()).toContain('ff0000');
+            expect(editor.innerHTML).toContain('rgb(255, 0, 0)');
         });
 
         it('ignores a color event with no selection so it cannot clobber the model on init', () => {
@@ -1902,15 +1902,32 @@ describe('RichTextEditorComponent', () => {
 
             component.onColorSelect({ type: 'fontColor', color: '#ff0000' });
             fixture.detectChanges();
-            expect(editor.innerHTML.toLowerCase()).toContain('ff0000');
+            expect(editor.innerHTML).toContain('rgb(255, 0, 0)');
             expect(window.getSelection()?.isCollapsed).toBe(false);
 
             // A second pick WITHOUT re-selecting still recolours — the colour command
             // must not focus the editor and collapse the selection.
             component.onColorSelect({ type: 'fontColor', color: '#0000ff' });
             fixture.detectChanges();
-            expect(editor.innerHTML.toLowerCase()).toContain('0000ff');
+            expect(editor.innerHTML).toContain('rgb(0, 0, 255)');
             expect(window.getSelection()?.isCollapsed).toBe(false);
+        });
+
+        it('applies font color as an inline style, not a <font> tag, so it survives sanitization', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            editor.innerHTML = '<p>Colour me</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            selectAllOf(editor.querySelector('p') as HTMLElement);
+
+            component.onColorSelect({ type: 'fontColor', color: '#e67e22' });
+            fixture.detectChanges();
+
+            expect(editor.innerHTML.toLowerCase()).not.toContain('<font');
+            const styled = editor.querySelector('[style*="color"]') as HTMLElement | null;
+            expect(styled).not.toBeNull();
+            expect(styled?.style.color).not.toBe('');
         });
     });
 

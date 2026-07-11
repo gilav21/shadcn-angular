@@ -2901,6 +2901,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const mentionTargets = this.getMentionElementsInSelection();
 
+        // Emit inline `color`/`background-color` styles — which the sanitizer keeps — instead
+        // of the deprecated `<font color>` tag `foreColor` produces by default, which the
+        // sanitizer strips, so the colour would apply in the editor but vanish from the output.
+        this.execEditorCommand('styleWithCSS', 'true');
         if (event.type === 'fontColor') {
             this.execEditorCommand('foreColor', event.color);
             this.setMentionStyle(mentionTargets, 'color', event.color);
@@ -2910,6 +2914,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             }
             this.setMentionStyle(mentionTargets, 'backgroundColor', event.color);
         }
+        this.execEditorCommand('styleWithCSS', 'false');
 
         // `foreColor`/`hiliteColor` apply to the range without needing editor focus and
         // keep it selected. Do NOT focus the editor here: the colour picker lives in an
