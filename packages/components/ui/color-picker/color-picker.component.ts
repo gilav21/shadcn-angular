@@ -13,7 +13,7 @@ import {
     inject,
     PLATFORM_ID,
 } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser, NgTemplateOutlet } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
@@ -83,6 +83,7 @@ const DEFAULT_RGBA: RGBA = { r: 0, g: 0, b: 0, a: 1 };
         IconComponent,
         EyedropperComponent,
         TooltipDirective,
+        NgTemplateOutlet,
     ],
     providers: [
         {
@@ -97,6 +98,8 @@ const DEFAULT_RGBA: RGBA = { r: 0, g: 0, b: 0, a: 1 };
 })
 export class ColorPickerComponent implements ControlValueAccessor {
     readonly presets = input<string[]>([]);
+    /** Render just the picker panel, without the built-in trigger + popover (for embedding inside another popover). */
+    readonly inline = input(false);
     readonly disabled = input(false);
     readonly class = input('');
     readonly alpha = input(false);

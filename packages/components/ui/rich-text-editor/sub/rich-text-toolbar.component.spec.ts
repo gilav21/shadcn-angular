@@ -248,13 +248,9 @@ describe('RichTextToolbarComponent', () => {
         async function openColorPickerPresets(popoverId: 'fontColor' | 'backgroundColor'): Promise<HTMLElement> {
             fixture.componentRef.setInput('items', [popoverId]);
             fixture.detectChanges();
+            // The toolbar's own popover holds the inline color picker (single popover,
+            // no nested color-picker trigger) — opening it renders the preset swatches.
             component.openPopoverPanel(popoverId);
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const trigger: HTMLButtonElement = fixture.nativeElement.querySelector(
-                'ui-color-picker [data-slot="color-picker-trigger"]',
-            );
-            trigger.click();
             fixture.detectChanges();
             await fixture.whenStable();
             return fixture.nativeElement;

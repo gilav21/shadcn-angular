@@ -21,6 +21,7 @@ import { ColorPickerComponent } from './color-picker.component';
                 [enableEyedropper]="enableEyedropper()"
                 [formats]="formats()"
                 [maxRecent]="maxRecent()"
+                [inline]="inline()"
             />
         </div>
     `,
@@ -39,6 +40,7 @@ class ColorPickerTestHostComponent {
     enableEyedropper = signal(true);
     formats = signal<readonly ('hex' | 'rgb' | 'hsl' | 'oklch')[]>(['hex', 'rgb', 'hsl']);
     maxRecent = signal(8);
+    inline = signal(false);
 }
 
 function stubAreaRect(picker: ColorPickerComponent): HTMLDivElement {
@@ -95,6 +97,18 @@ describe('ColorPickerComponent', () => {
             await fixture.whenStable();
             const popoverContent = fixture.debugElement.query(By.css('ui-popover-content'));
             expect(popoverContent).toBeTruthy();
+        });
+    });
+
+    describe('Inline mode', () => {
+        it('renders the panel directly with no trigger or popover', () => {
+            host.inline.set(true);
+            fixture.detectChanges();
+
+            expect(fixture.debugElement.query(By.css('ui-popover'))).toBeNull();
+            expect(fixture.debugElement.query(By.css('[data-slot="color-picker-trigger"]'))).toBeNull();
+            // The panel (preset swatches) renders directly, no second click needed.
+            expect(fixture.debugElement.query(By.css('button[data-color-btn]'))).toBeTruthy();
         });
     });
 

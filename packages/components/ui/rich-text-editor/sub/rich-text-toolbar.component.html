@@ -134,10 +134,11 @@
             <span [innerHTML]="getIcon('fontColor')"></span>
           </button>
         </ui-popover-trigger>
-        <ui-popover-content class="w-48 p-3" align="start" strategy="fixed">
+        <ui-popover-content class="w-72 max-w-[calc(100vw-2rem)] p-3" align="start" strategy="fixed">
           <div class="space-y-2">
             <p class="text-sm font-medium block m-0">{{ locale().color.textColor }}</p>
             <ui-color-picker
+              [inline]="true"
               [presets]="colorPalette"
               [ngModel]="currentFontColor()"
               [disabled]="interactionDisabled()"
@@ -212,10 +213,11 @@
             <span [innerHTML]="getIcon('backgroundColor')"></span>
           </button>
         </ui-popover-trigger>
-        <ui-popover-content class="w-48 p-3" align="start" strategy="fixed">
+        <ui-popover-content class="w-72 max-w-[calc(100vw-2rem)] p-3" align="start" strategy="fixed">
           <div class="space-y-2">
             <p class="text-sm font-medium block m-0">{{ locale().color.highlightColor }}</p>
             <ui-color-picker
+              [inline]="true"
               [presets]="highlightPalette"
               [alpha]="true"
               [ngModel]="currentBackgroundColor()"
