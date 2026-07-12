@@ -14,69 +14,73 @@ const meta: Meta<MarqueeComponent> = {
         direction: {
             control: 'select',
             options: ['left', 'right', 'up', 'down'],
+            description: 'Scroll direction of the marquee track.',
         },
         speed: {
             control: 'number',
+            description: 'Duration (seconds) for one full loop of the track.',
         },
         pauseOnHover: {
             control: 'boolean',
+            description: 'Pauses the animation while hovered/touched.',
         },
         gap: {
             control: 'number',
+            description: 'Gap (px) between projected items and between the looped segments.',
         },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
         direction: 'left',
         speed: 20,
         pauseOnHover: false,
         gap: 16,
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<MarqueeComponent>;
 
-export const Default: Story = {
-    args: {
-        direction: 'left',
-        speed: 20,
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="w-full overflow-hidden py-4">
-                <ui-marquee [direction]="direction" [speed]="speed" [gap]="gap">
-                    <div class="flex items-center gap-4">
-                        <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
-                            <span class="text-lg">⚡</span>
-                            <span class="text-sm font-medium">Angular</span>
-                        </div>
-                        <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
-                            <span class="text-lg">🎨</span>
-                            <span class="text-sm font-medium">Tailwind CSS</span>
-                        </div>
-                        <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
-                            <span class="text-lg">🛠️</span>
-                            <span class="text-sm font-medium">TypeScript</span>
-                        </div>
-                        <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
-                            <span class="text-lg">🔮</span>
-                            <span class="text-sm font-medium">shadcn-angular</span>
-                        </div>
-                        <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
-                            <span class="text-lg">🚀</span>
-                            <span class="text-sm font-medium">Storybook</span>
-                        </div>
-                        <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
-                            <span class="text-lg">🧪</span>
-                            <span class="text-sm font-medium">Jest</span>
-                        </div>
-                    </div>
-                </ui-marquee>
+const TEMPLATE = `
+    <div class="w-full overflow-hidden py-4">
+        <ui-marquee [direction]="direction" [speed]="speed" [pauseOnHover]="pauseOnHover" [gap]="gap" [class]="class">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
+                    <span class="text-lg">⚡</span>
+                    <span class="text-sm font-medium">Angular</span>
+                </div>
+                <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
+                    <span class="text-lg">🎨</span>
+                    <span class="text-sm font-medium">Tailwind CSS</span>
+                </div>
+                <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
+                    <span class="text-lg">🛠️</span>
+                    <span class="text-sm font-medium">TypeScript</span>
+                </div>
+                <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
+                    <span class="text-lg">🔮</span>
+                    <span class="text-sm font-medium">shadcn-angular</span>
+                </div>
+                <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
+                    <span class="text-lg">🚀</span>
+                    <span class="text-sm font-medium">Storybook</span>
+                </div>
+                <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card shadow-sm">
+                    <span class="text-lg">🧪</span>
+                    <span class="text-sm font-medium">Jest</span>
+                </div>
             </div>
-        `,
-    }),
-};
+        </ui-marquee>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const Vertical: Story = {
     args: {

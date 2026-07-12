@@ -13,36 +13,38 @@ const meta: Meta<MorphingTextComponent> = {
     argTypes: {
         interval: {
             control: 'number',
+            description: 'Milliseconds between text transitions.',
         },
         texts: {
             control: 'object',
+            description: 'Words/phrases cycled through, one at a time.',
         },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
         interval: 3000,
         texts: ['Innovation', 'Technology', 'Future'],
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<MorphingTextComponent>;
 
-export const Default: Story = {
-    args: {
-        texts: ['Innovation', 'Technology', 'Future'],
-        interval: 3000,
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="flex items-center justify-center p-16">
-                <h1 class="text-6xl font-black">
-                    <ui-morphing-text [texts]="texts" [interval]="interval" />
-                </h1>
-            </div>
-        `,
-    }),
-};
+const TEMPLATE = `
+    <div class="flex items-center justify-center p-16">
+        <h1 class="text-6xl font-black">
+            <ui-morphing-text [texts]="texts" [interval]="interval" [class]="class" />
+        </h1>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const FastMorph: Story = {
     args: {

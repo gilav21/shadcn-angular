@@ -86,16 +86,47 @@ const meta: Meta<RichTextEditorComponent> = {
         variant: {
             control: 'radio',
             options: ['default', 'ghost'],
+            description: 'Border and focus-ring treatment',
+        },
+        size: {
+            control: 'radio',
+            options: ['default', 'sm', 'lg'],
+            description: 'Editor content text size preset',
         },
         placeholder: {
             control: 'text',
+            description: 'Placeholder text shown when the editor is empty.',
         },
         minHeight: {
             control: 'text',
+            description: 'Minimum height of the editable area (any CSS length, e.g. `150px`).',
         },
         maxHeight: {
             control: 'text',
+            description: 'Maximum height before the editable area scrolls (any CSS length, e.g. `400px`).',
         },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
+        ariaLabel: { control: 'text', description: 'aria-label applied to the editable surface.' },
+        ariaDescribedBy: { control: 'text', description: 'aria-describedby applied to the editable surface.' },
+        toolbarItems: {
+            control: false,
+            description:
+                'Ordered list of toolbar item ids to render (e.g. bold, italic, fontFamily, backgroundColor, separator…). Defaults to the built-in toolbar set.',
+        },
+        customToolbarItems: {
+            control: false,
+            description: 'App-provided custom toolbar buttons/dropdowns rendered alongside the built-ins; emits (customToolbarAction) on click.',
+        },
+        fontFamilies: { control: 'object', description: 'Custom font family list for the fontFamily toolbar dropdown.' },
+        mentionSearch: { control: false, description: 'Async/sync search function returning MentionItem[] for @mention autocomplete.' },
+        mentionRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted mentions.' },
+        tagSearch: { control: false, description: 'Async/sync search function returning TagItem[] for #tag autocomplete.' },
+        tagRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted tags.' },
+        imageUploader: { control: false, description: 'Callback uploading a File and returning an Observable<string> URL, used by autoImageUpload and the image insert dialog.' },
+        aiProvider: { control: false, description: 'Bring-your-own AI provider hook powering AI-assisted editing actions.' },
+        slashCommands: { control: false, description: 'Custom slash-command definitions (id, label, action…) shown when the user types `/`; see the WithCustomSlashCommands story.' },
+        historyPreviewOpen: { control: 'boolean', description: 'Whether the inline history preview strip is open (model, two-way bound).' },
+        historyBrowserOpen: { control: 'boolean', description: 'Whether the full history browser dialog is open (model, two-way bound).' },
         showHistoryPanel: {
             control: 'boolean',
             description: 'Show revision history panel for jumping to a previous snapshot',
@@ -117,11 +148,72 @@ const meta: Meta<RichTextEditorComponent> = {
             control: { type: 'number', min: 0, max: 2000, step: 50 },
             description: 'Debounce duration (ms) before a typing snapshot is persisted',
         },
+        disabled: { control: 'boolean', description: 'Disables the editor' },
+        readonly: { control: 'boolean', description: 'Renders content read-only (no editing)' },
+        mentions: { control: 'boolean', description: 'Enable @mention autocomplete' },
+        tags: { control: 'boolean', description: 'Enable #tag autocomplete' },
+        emojiPicker: { control: 'boolean', description: 'Enable the emoji picker' },
+        images: { control: 'boolean', description: 'Enable image insertion' },
+        autoImageUpload: { control: 'boolean', description: 'Auto-upload pasted/dropped base64 images via imageUploader' },
+        imageResize: { control: 'boolean', description: 'Allow drag-resizing of images' },
+        imageAlignment: { control: 'boolean', description: 'Show the image alignment toolbar' },
+        lockImageAspectRatio: { control: 'boolean', description: 'Constrain image resizing to its aspect ratio' },
+        showCount: { control: 'boolean', description: 'Show the character counter' },
+        showWordCount: { control: 'boolean', description: 'Show the word counter' },
+        imageSources: {
+            control: 'select',
+            options: ['all', 'upload', 'url'],
+            description: 'Which image insertion sources are offered',
+        },
+        defaultImageAlignment: {
+            control: 'select',
+            options: ['inline', 'left', 'center', 'right'],
+            description: 'Alignment applied to images on insert',
+        },
+        fontFamiliesStrategy: {
+            control: 'radio',
+            options: ['append', 'replace'],
+            description: 'Whether custom fontFamilies append to or replace the built-in list',
+        },
+        maxLength: { control: 'number', description: 'Maximum character count (undefined = unlimited)' },
+        historyLimit: { control: 'number', description: 'Maximum number of undo/redo snapshots retained' },
+        minImageWidth: { control: 'number', description: 'Lower bound (px) for drag-resizing images' },
+        maxImageWidth: { control: 'number', description: 'Upper bound (px) for drag-resizing images' },
+        defaultImageWidth: { control: 'number', description: 'Width (px) applied to images on insert' },
+        defaultImageHeight: { control: 'number', description: 'Height (px) applied to images on insert' },
     },
 };
 
 export default meta;
 type Story = StoryObj<RichTextEditorComponent>;
+
+/**
+ * Interactive playground — Storybook binds every arg to its matching editor
+ * input, so the Controls panel drives the live component.
+ */
+export const Playground: Story = {
+    args: {
+        mode: 'markdown',
+        toolbar: 'top',
+        variant: 'default',
+        size: 'default',
+        placeholder: 'Write something amazing...',
+        minHeight: '150px',
+        maxHeight: '400px',
+        disabled: false,
+        readonly: false,
+        mentions: false,
+        tags: false,
+        emojiPicker: true,
+        images: true,
+        showCount: true,
+        showWordCount: true,
+        showHistoryButton: true,
+        enableSlashCommands: true,
+        historyDebounceMs: 450,
+        historyLimit: 100,
+    },
+};
 
 export const Default: Story = {
     args: {
@@ -626,6 +718,23 @@ export const FontFamilyToolbar: Story = {
         docs: {
             description: {
                 story: 'Toolbar with the font family dropdown. Select text and pick a typeface from the built-in web-safe list.',
+            },
+        },
+    },
+};
+
+export const BackgroundColorToolbar: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        toolbarItems: ['bold', 'italic', 'separator', 'fontColor', 'backgroundColor'],
+        placeholder: 'Select text and highlight it with a background color...',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Toolbar with the background (highlight) color picker alongside the text color picker.',
             },
         },
     },

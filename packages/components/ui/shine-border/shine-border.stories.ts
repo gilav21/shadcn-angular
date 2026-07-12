@@ -11,20 +11,14 @@ const meta: Meta<ShineBorderComponent> = {
         }),
     ],
     argTypes: {
-        duration: {
-            control: 'number',
-        },
-        borderWidth: {
-            control: 'number',
-        },
-        borderRadius: {
-            control: 'number',
-        },
-        colors: {
-            control: 'object',
-        },
+        class: { control: 'text', description: 'Extra classes merged onto the wrapper.' },
+        colors: { control: 'object', description: 'Conic-gradient color stops for the animated border.' },
+        duration: { control: 'number', description: 'Full rotation duration in seconds.', min: 0.5, max: 10, step: 0.5 },
+        borderWidth: { control: 'number', description: 'Border thickness in pixels.', min: 1, max: 12 },
+        borderRadius: { control: 'number', description: 'Corner radius in pixels.', min: 0, max: 32 },
     },
     args: {
+        class: '',
         duration: 3,
         borderWidth: 2,
         borderRadius: 8,
@@ -35,23 +29,25 @@ const meta: Meta<ShineBorderComponent> = {
 export default meta;
 type Story = StoryObj<ShineBorderComponent>;
 
-export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="flex items-center justify-center p-12">
-                <ui-shine-border [colors]="colors" [duration]="duration" [borderWidth]="borderWidth" [borderRadius]="borderRadius">
-                    <div class="px-8 py-6 bg-background rounded-[6px]">
-                        <h3 class="text-xl font-semibold">Shine Border Card</h3>
-                        <p class="text-muted-foreground mt-1 text-sm">
-                            A card with an animated conic gradient border.
-                        </p>
-                    </div>
-                </ui-shine-border>
+const TEMPLATE = `
+    <div class="flex items-center justify-center p-12">
+        <ui-shine-border [class]="class" [colors]="colors" [duration]="duration" [borderWidth]="borderWidth" [borderRadius]="borderRadius">
+            <div class="px-8 py-6 bg-background rounded-[6px]">
+                <h3 class="text-xl font-semibold">Shine Border Card</h3>
+                <p class="text-muted-foreground mt-1 text-sm">
+                    A card with an animated conic gradient border.
+                </p>
             </div>
-        `,
-    }),
-};
+        </ui-shine-border>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const CustomColors: Story = {
     render: () => ({
@@ -86,27 +82,7 @@ export const ThickBorder: Story = {
         borderRadius: 16,
         duration: 2,
     },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="flex items-center justify-center p-12">
-                <ui-shine-border
-                    [borderWidth]="borderWidth"
-                    [borderRadius]="borderRadius"
-                    [duration]="duration"
-                    [colors]="['#A07CFE', '#FE8FB5', '#FFBE7B']"
-                >
-                    <div class="px-10 py-8 bg-background rounded-[12px] text-center">
-                        <div class="text-3xl mb-2">✨</div>
-                        <h3 class="text-xl font-bold">Thick Shine</h3>
-                        <p class="text-muted-foreground text-sm mt-1">
-                            Border width: {{ borderWidth }}px — Duration: {{ duration }}s
-                        </p>
-                    </div>
-                </ui-shine-border>
-            </div>
-        `,
-    }),
+    render,
 };
 
 export const ButtonVariant: Story = {

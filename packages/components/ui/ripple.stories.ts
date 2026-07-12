@@ -1,6 +1,8 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { UiRippleDirective } from './ripple.directive';
 
+// UiRippleDirective has no `component` metadata target since it's a directive;
+// every input is still exposed via argTypes so the Controls panel drives it live.
 const meta: Meta = {
     title: 'UI/Ripple',
     tags: ['autodocs'],
@@ -10,9 +12,9 @@ const meta: Meta = {
         }),
     ],
     argTypes: {
-        uiRippleColor: { control: 'text' },
-        uiRippleDuration: { control: 'number' },
-        uiRippleDisabled: { control: 'boolean' },
+        uiRippleColor: { control: 'color', description: 'Ripple color (any CSS color).' },
+        uiRippleDuration: { control: 'number', description: 'Ripple animation duration in milliseconds.' },
+        uiRippleDisabled: { control: 'boolean', description: 'Disables the ripple effect on click.' },
     },
     args: {
         uiRippleColor: 'color-mix(in srgb, currentColor 35%, transparent)',
@@ -24,7 +26,8 @@ const meta: Meta = {
 export default meta;
 type Story = StoryObj;
 
-export const Default: Story = {
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = {
     render: (args) => ({
         props: args,
         template: `
@@ -104,6 +107,24 @@ export const OnCard: Story = {
                     <h3 class="font-semibold">Settings</h3>
                     <p class="text-xs text-muted-foreground mt-1">Click anywhere on the card</p>
                 </div>
+            </div>
+        `,
+    }),
+};
+
+export const Disabled: Story = {
+    args: { uiRippleDisabled: true },
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="flex items-center justify-center p-12">
+                <button
+                    uiRipple
+                    [uiRippleDisabled]="uiRippleDisabled"
+                    class="px-6 py-3 bg-muted text-muted-foreground rounded-lg font-medium text-sm cursor-not-allowed"
+                >
+                    Ripple Disabled
+                </button>
             </div>
         `,
     }),

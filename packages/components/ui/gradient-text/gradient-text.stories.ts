@@ -1,5 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
-import { moduleMetadata } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { GradientTextComponent } from './gradient-text.component';
 
 const meta: Meta<GradientTextComponent> = {
@@ -12,37 +11,44 @@ const meta: Meta<GradientTextComponent> = {
         }),
     ],
     argTypes: {
+        colors: {
+            control: 'object',
+            description: 'Array of CSS colors used to build the animated linear gradient.',
+        },
         speed: {
             control: 'number',
+            description: 'Duration in seconds for one full gradient animation cycle.',
         },
         direction: {
             control: 'select',
             options: ['to right', 'to left', 'to bottom', 'to top'],
+            description: 'CSS gradient direction.',
         },
-        colors: {
-            control: 'object',
-        },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
+        colors: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4'],
         speed: 3,
         direction: 'to right',
-        colors: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4'],
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<GradientTextComponent>;
 
-export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
-            <h1 class="text-5xl font-black">
-                <ui-gradient-text [colors]="colors" [speed]="speed" [direction]="direction">Gradient Text</ui-gradient-text>
-            </h1>
-        `,
-    }),
-};
+const TEMPLATE = `
+    <h1 class="text-5xl font-black">
+        <ui-gradient-text [colors]="colors" [speed]="speed" [direction]="direction" [class]="class">Gradient Text</ui-gradient-text>
+    </h1>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const CustomColors: Story = {
     render: () => ({
@@ -69,15 +75,30 @@ export const CustomColors: Story = {
 };
 
 export const SlowSpeed: Story = {
-    render: () => ({
+    args: { speed: 8, colors: ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e'] },
+    render: (args) => ({
+        props: args,
         template: `
             <div class="space-y-6 text-center">
                 <h2 class="text-4xl font-black">
-                    <ui-gradient-text [speed]="8" [colors]="['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e']">
+                    <ui-gradient-text [speed]="speed" [colors]="colors">
                         Slow Shifting Gradient
                     </ui-gradient-text>
                 </h2>
-                <p class="text-muted-foreground text-sm">Speed set to 8 seconds per cycle</p>
+                <p class="text-muted-foreground text-sm">Speed set to {{ speed }} seconds per cycle</p>
+            </div>
+        `,
+    }),
+};
+
+export const Directions: Story = {
+    render: () => ({
+        template: `
+            <div class="space-y-4">
+                <h2 class="text-3xl font-bold"><ui-gradient-text direction="to right">To Right</ui-gradient-text></h2>
+                <h2 class="text-3xl font-bold"><ui-gradient-text direction="to left">To Left</ui-gradient-text></h2>
+                <h2 class="text-3xl font-bold"><ui-gradient-text direction="to bottom">To Bottom</ui-gradient-text></h2>
+                <h2 class="text-3xl font-bold"><ui-gradient-text direction="to top">To Top</ui-gradient-text></h2>
             </div>
         `,
     }),

@@ -17,6 +17,7 @@ import { Component, inject, input } from '@angular/core';
         <ui-button variant="destructive" (click)="showDestructive()">Destructive</ui-button>
         <ui-button variant="outline" (click)="showSuccess()">Success</ui-button>
         <ui-button variant="secondary" (click)="showWithAction()">With Action</ui-button>
+        <ui-button variant="ghost" (click)="showCountdown()">With Countdown</ui-button>
       </div>
       <p class="text-sm text-muted-foreground">
         Position: {{ vertical() }}-{{ horizontal() }}
@@ -55,6 +56,15 @@ class ToastStoryWrapperComponent {
             },
         });
     }
+
+    showCountdown() {
+        this.toastService.toast({
+            title: 'Auto-dismissing…',
+            description: 'This toast shows a live countdown badge and progress bar.',
+            showCountdown: true,
+            duration: 8000,
+        });
+    }
 }
 
 const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: string }> = {
@@ -88,10 +98,19 @@ const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: st
 export default meta;
 type Story = StoryObj<ToastStoryWrapperComponent>;
 
-export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
+});
+
+/** Interactive playground — trigger buttons drive the ToastService; position is wired to the Controls panel. */
+export const Playground: Story = { render };
+
+export const Default: Story = { render };
+
+export const WithCountdown: Story = {
+    render: () => ({
+        template: `<toast-story-wrapper></toast-story-wrapper>`,
     }),
 };
 

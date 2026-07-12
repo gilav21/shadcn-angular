@@ -5,6 +5,11 @@ import { EmojiPickerContentComponent } from './sub/emoji-picker-content.componen
 import { ButtonComponent } from '../button';
 import { Component, signal } from '@angular/core';
 
+// The content panel's positioning strategy lives on `ui-emoji-picker-content`,
+// not on the main `ui-emoji-picker`; expose it via a story-local props type so
+// the Playground can drive it without breaking the typed `args`.
+type EmojiPickerStoryProps = EmojiPickerComponent & { strategy: 'absolute' | 'fixed' };
+
 @Component({
     selector: 'emoji-picker-demo',
     imports: [
@@ -24,7 +29,7 @@ import { Component, signal } from '@angular/core';
                 </ui-emoji-picker-trigger>
                 <ui-emoji-picker-content />
             </ui-emoji-picker>
-            
+
             @if (selectedEmoji()) {
                 <div class="text-sm text-muted-foreground">
                     Selected: <span class="text-2xl">{{ selectedEmoji() }}</span>
@@ -41,7 +46,6 @@ class EmojiPickerDemoComponent {
     }
 }
 
-// Custom trigger demo
 @Component({
     selector: 'emoji-picker-custom-trigger-demo',
     imports: [
@@ -75,7 +79,7 @@ class EmojiPickerCustomTriggerDemoComponent {
     imports: [
         EmojiPickerComponent,
         EmojiPickerTriggerComponent,
-        EmojiPickerContentComponent
+        EmojiPickerContentComponent,
     ],
     template: `
         <div class="p-4 rounded-lg border bg-card">
@@ -108,7 +112,7 @@ class EmojiReactionBarDemoComponent {
     }
 }
 
-const meta: Meta<EmojiPickerComponent> = {
+const meta: Meta<EmojiPickerStoryProps> = {
     title: 'UI/Emoji Picker',
     component: EmojiPickerComponent,
     tags: ['autodocs'],
@@ -126,17 +130,56 @@ const meta: Meta<EmojiPickerComponent> = {
         }),
     ],
     argTypes: {
-        closeOnSelect: { control: 'boolean' },
-        closeOnScroll: { control: 'boolean' },
+        open: { control: 'boolean', description: 'Two-way bindable open state of the picker popover.' },
+        closeOnSelect: { control: 'boolean', description: 'Closes the picker automatically after an emoji is selected.' },
+        closeOnScroll: { control: 'boolean', description: 'Closes the picker when the page scrolls outside of it.' },
+        strategy: {
+            control: 'select',
+            options: ['absolute', 'fixed'],
+            description: 'Positioning strategy of the content panel, owned by ui-emoji-picker-content.',
+        },
     },
     args: {
+        open: false,
         closeOnSelect: true,
         closeOnScroll: false,
+        strategy: 'absolute',
     },
 };
 
 export default meta;
-type Story = StoryObj<EmojiPickerComponent>;
+type Story = StoryObj<EmojiPickerStoryProps>;
+
+const TEMPLATE = `
+    <div class="flex flex-col items-start gap-4">
+        <ui-emoji-picker
+            [open]="open"
+            [closeOnSelect]="closeOnSelect"
+            [closeOnScroll]="closeOnScroll"
+            (emojiSelect)="selectedEmoji = $event"
+        >
+            <ui-emoji-picker-trigger>
+                <ui-button variant="outline" class="gap-2">
+                    <span class="text-lg">{{ selectedEmoji || '😀' }}</span>
+                    Pick an Emoji
+                </ui-button>
+            </ui-emoji-picker-trigger>
+            <ui-emoji-picker-content [strategy]="strategy" />
+        </ui-emoji-picker>
+        @if (selectedEmoji) {
+            <div class="text-sm text-muted-foreground">
+                Selected: <span class="text-2xl">{{ selectedEmoji }}</span>
+            </div>
+        }
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: { ...args, selectedEmoji: '' },
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const Default: Story = {
     render: () => ({
@@ -156,26 +199,17 @@ export const ReactionBar: Story = {
     }),
 };
 
-export const WithControls: Story = {
-    render: (args) => ({
-        props: { ...args, selectedEmoji: '' },
-        template: `
-            <div class="flex flex-col items-start gap-4">
-                <ui-emoji-picker [closeOnSelect]="closeOnSelect" [closeOnScroll]="closeOnScroll" (emojiSelect)="selectedEmoji = $event">
-                    <ui-emoji-picker-trigger>
-                        <ui-button variant="outline" class="gap-2">
-                            <span class="text-lg">{{ selectedEmoji || '😀' }}</span>
-                            Pick an Emoji
-                        </ui-button>
-                    </ui-emoji-picker-trigger>
-                    <ui-emoji-picker-content />
-                </ui-emoji-picker>
-                @if (selectedEmoji) {
-                    <div class="text-sm text-muted-foreground">
-                        Selected: <span class="text-2xl">{{ selectedEmoji }}</span>
-                    </div>
-                }
-            </div>
-        `,
-    }),
+export const FixedStrategy: Story = {
+    args: { strategy: 'fixed' },
+    render,
+};
+
+export const CloseOnScroll: Story = {
+    args: { closeOnScroll: true },
+    render,
+};
+
+export const KeepOpenOnSelect: Story = {
+    args: { closeOnSelect: false },
+    render,
 };

@@ -11,14 +11,12 @@ const meta: Meta<WobbleCardComponent> = {
         }),
     ],
     argTypes: {
-        intensity: {
-            control: 'number',
-        },
-        perspective: {
-            control: 'number',
-        },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
+        intensity: { control: 'number', description: 'Max tilt rotation in degrees applied on mouse move.', min: 0, max: 45 },
+        perspective: { control: 'number', description: 'CSS perspective distance in px for the 3D tilt effect.', min: 200, max: 2000 },
     },
     args: {
+        class: 'w-72 bg-gradient-to-br from-violet-500 to-purple-700 text-white',
         intensity: 15,
         perspective: 1000,
     },
@@ -27,35 +25,31 @@ const meta: Meta<WobbleCardComponent> = {
 export default meta;
 type Story = StoryObj<WobbleCardComponent>;
 
-export const Default: Story = {
-    args: {
-        intensity: 15,
-        perspective: 1000,
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="flex items-center justify-center p-16">
-                <ui-wobble-card
-                    [intensity]="intensity"
-                    [perspective]="perspective"
-                    class="w-72 bg-gradient-to-br from-violet-500 to-purple-700 text-white"
-                >
-                    <div class="p-8">
-                        <div class="text-4xl mb-3">🚀</div>
-                        <h3 class="text-xl font-bold">Wobble Card</h3>
-                        <p class="text-sm mt-2 text-white/80">
-                            Move your mouse over this card to see the 3D wobble effect.
-                        </p>
-                        <button class="mt-4 px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors">
-                            Learn More
-                        </button>
-                    </div>
-                </ui-wobble-card>
+const TEMPLATE = `
+    <div class="flex items-center justify-center p-16">
+        <ui-wobble-card [intensity]="intensity" [perspective]="perspective" [class]="class">
+            <div class="p-8">
+                <div class="text-4xl mb-3">🚀</div>
+                <h3 class="text-xl font-bold">Wobble Card</h3>
+                <p class="text-sm mt-2 text-white/80">
+                    Move your mouse over this card to see the 3D wobble effect.
+                </p>
+                <button class="mt-4 px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors">
+                    Learn More
+                </button>
             </div>
-        `,
-    }),
-};
+        </ui-wobble-card>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
+export const Default: Story = { render };
 
 export const HighIntensity: Story = {
     args: {

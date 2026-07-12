@@ -13,14 +13,16 @@ const meta: Meta<DataTableColumnHeaderComponent> = {
         }),
     ],
     argTypes: {
-        title: { control: 'text' },
-        column: { control: 'text' },
+        title: { control: 'text', description: 'Header label text shown in the column header.' },
+        column: { control: 'text', description: 'Column id this header sorts/identifies.' },
         direction: {
             control: 'select',
             options: [null, 'asc', 'desc', ''],
+            description: 'Current sort direction: `asc`, `desc`, or `null` for unsorted.',
         },
-        enableSorting: { control: 'boolean' },
-        sortIndex: { control: 'number' },
+        enableSorting: { control: 'boolean', description: 'Whether clicking the header toggles sorting.' },
+        sortIndex: { control: 'number', description: 'Position of this column in a multi-column sort (or `null`).' },
+        class: { control: 'text', description: 'Extra classes merged onto the header container.' },
     },
     args: {
         title: 'Name',
@@ -28,6 +30,7 @@ const meta: Meta<DataTableColumnHeaderComponent> = {
         direction: null as SortDirection,
         enableSorting: true,
         sortIndex: null,
+        class: '',
     },
 };
 
@@ -50,12 +53,16 @@ export const Default: Story = {
                     [direction]="direction"
                     [enableSorting]="enableSorting"
                     [sortIndex]="sortIndex"
+                    [class]="class"
                     (sort)="onSort($event)"
                 />
             </div>
         `,
     }),
 };
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = Default;
 
 export const SortedAscending: Story = {
     args: {

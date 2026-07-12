@@ -18,29 +18,55 @@ const meta: Meta<IconComponent> = {
         name: {
             control: 'select',
             options: iconNames,
+            description: 'Icon name — either a built-in name or one registered via `provideIcons()`.',
         },
         size: {
             control: 'select',
             options: ['xs', 'sm', 'md', 'lg', 'xl'],
+            description: 'Preset icon size.',
         },
         weight: {
             control: 'select',
             options: ['light', 'regular', 'thick', 'solid'],
+            description: 'Stroke weight, or `solid` to fill.',
         },
         strokeWidth: {
             control: { type: 'range', min: 0.5, max: 4, step: 0.1 },
+            description: 'Explicit stroke width; overrides the weight preset when set.',
         },
         color: {
             control: 'color',
+            description: 'Stroke (or solid fill) color.',
         },
         fillColor: {
             control: 'color',
+            description: 'Fill color, used alongside `color` for dual-tone icons.',
         },
+        class: { control: 'text', description: 'Extra classes merged onto the host (e.g. `size-6 text-red-500`).' },
+    },
+    args: {
+        name: 'check',
+        size: 'md',
+        weight: 'regular',
+        strokeWidth: undefined,
+        color: undefined,
+        fillColor: undefined,
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<IconComponent>;
+
+const TEMPLATE = `<ui-icon [name]="name" [size]="size" [weight]="weight" [strokeWidth]="strokeWidth" [color]="color" [fillColor]="fillColor" [class]="class"></ui-icon>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const Default: Story = {
     args: {
@@ -48,10 +74,7 @@ export const Default: Story = {
         size: 'md',
         weight: 'regular',
     },
-    render: (args) => ({
-        props: args,
-        template: `<ui-icon [name]="name" [size]="size" [weight]="weight" [strokeWidth]="strokeWidth" [color]="color" [fillColor]="fillColor"></ui-icon>`,
-    }),
+    render,
 };
 
 export const Sizes: Story = {

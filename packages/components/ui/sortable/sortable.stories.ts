@@ -10,6 +10,14 @@ import {
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
 
+const ITEMS = [
+    { id: 1, name: 'Design system audit' },
+    { id: 2, name: 'Component library update' },
+    { id: 3, name: 'Accessibility review' },
+    { id: 4, name: 'Performance profiling' },
+    { id: 5, name: 'Documentation refresh' },
+];
+
 const meta: Meta<SortableComponent<unknown>> = {
     title: 'UI/Sortable',
     component: SortableComponent,
@@ -26,27 +34,68 @@ const meta: Meta<SortableComponent<unknown>> = {
         }),
     ],
     argTypes: {
+        items: { control: 'object', description: 'Array of rows the list renders and reorders (two-way bound via `[(items)]`).' },
         orientation: {
             control: 'select',
             options: ['vertical', 'horizontal'],
+            description: 'Layout axis the items are laid out and dragged along.',
         },
-        handleOnly: { control: 'boolean' },
-        disabled: { control: 'boolean' },
+        handleOnly: { control: 'boolean', description: 'When true, dragging only starts from an element marked with the `uiSortableHandle` directive.' },
+        disabled: { control: 'boolean', description: 'Disables all drag/reorder interaction (mouse, touch, keyboard).' },
+        class: { control: 'text', description: 'Extra classes merged onto the host list container.' },
+        listId: { control: 'text', description: 'Stable identifier for this list; auto-generated when left blank.' },
+        group: { control: 'text', description: 'Group name shared by peer lists to enable cross-list dragging.' },
+        autoScroll: { control: 'boolean', description: 'Auto-scrolls the viewport while dragging near a screen edge.' },
+        ariaLabel: { control: 'text', description: 'Accessible label announced for the list container.' },
+        accepts: { control: false, description: 'Boolean or predicate function deciding whether a foreign item may drop into this list.' },
+        locale: { control: false, description: 'Locale strings / text direction override for ARIA live announcements.' },
+        ariaItemLabel: { control: false, description: 'Function producing the accessible label announced for a given item.' },
+        positionClass: { control: false, description: 'Function returning a persistent class applied to an item based on its position.' },
+        landEffect: { control: false, description: 'Function returning a transient CSS class/animation played when an item lands after a reorder.' },
+        trackBy: { control: false, description: 'Identity function used for `@for` tracking of items.' },
+    },
+    args: {
+        items: ITEMS,
+        orientation: 'vertical',
+        handleOnly: false,
+        disabled: false,
+        class: '',
+        listId: '',
+        group: '',
+        autoScroll: true,
+        ariaLabel: 'list',
     },
 };
 
 export default meta;
 type Story = StoryObj<SortableComponent<unknown>>;
 
-const ITEMS = [
-    { id: 1, name: 'Design system audit' },
-    { id: 2, name: 'Component library update' },
-    { id: 3, name: 'Accessibility review' },
-    { id: 4, name: 'Performance profiling' },
-    { id: 5, name: 'Documentation refresh' },
-];
+const PLAYGROUND_TEMPLATE = `
+    <div class="max-w-sm space-y-2">
+        <p class="text-sm text-muted-foreground mb-4">Drag the rows to reorder — every input above is live.</p>
+        <ui-sortable
+            [(items)]="items" [orientation]="orientation" [handleOnly]="handleOnly"
+            [disabled]="disabled" [class]="class" [listId]="listId" [group]="group"
+            [autoScroll]="autoScroll" [ariaLabel]="ariaLabel">
+            <ng-template uiSortableItem let-row let-i="index">
+                <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full gap-3 cursor-grab active:cursor-grabbing">
+                    <span class="text-muted-foreground text-xs w-4 shrink-0 select-none">{{ i + 1 }}</span>
+                    <span class="flex-1 text-sm">{{ row.name }}</span>
+                </ui-sortable-item>
+            </ng-template>
+        </ui-sortable>
+    </div>`;
+
+const renderPlayground: NonNullable<Story['render']> = (args) => ({
+    props: { ...args, items: signal(args.items ?? ITEMS) },
+    template: PLAYGROUND_TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render: renderPlayground };
 
 export const Vertical: Story = {
+    args: { orientation: 'vertical' },
     render: (args) => ({
         props: {
             ...args,
@@ -69,6 +118,7 @@ export const Vertical: Story = {
 };
 
 export const Horizontal: Story = {
+    args: { orientation: 'horizontal' },
     render: (args) => ({
         props: {
             ...args,
@@ -95,6 +145,7 @@ export const Horizontal: Story = {
 };
 
 export const HandleOnly: Story = {
+    args: { handleOnly: true },
     render: (args) => ({
         props: {
             ...args,
@@ -117,6 +168,7 @@ export const HandleOnly: Story = {
 };
 
 export const Disabled: Story = {
+    args: { disabled: true },
     render: (args) => ({
         props: {
             ...args,

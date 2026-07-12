@@ -23,19 +23,35 @@ const meta: Meta<NavigationMenuComponent> = {
                 NavigationMenuTriggerComponent,
                 NavigationMenuContentComponent,
                 NavigationMenuLinkComponent,
-                NavigationMenuIndicatorComponent
+                NavigationMenuIndicatorComponent,
             ],
         }),
     ],
+    // The data-driven `items` input is intentionally NOT a meta-level control:
+    // `NavigationMenuComponent` treats projected content as authoritative
+    // (`hasCustomContent = !!customList || items().length === 0`), so whenever a
+    // story projects `<ui-navigation-menu-*>` content — as the Playground does to
+    // demo the richer template mode — `items` is ignored regardless of its value.
+    // Exposing it here would be a dead control. It is instead surfaced as a live
+    // control on the `SimpleMode` story below, which projects nothing and drives
+    // the menu purely from `items`.
+    argTypes: {
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
+    },
+    args: {
+        class: '',
+    },
 };
 
 export default meta;
 type Story = StoryObj<NavigationMenuComponent>;
 
-export const Default: Story = {
-    render: () => ({
+/** Interactive playground — template mode with projected content (default when `items` is empty). */
+export const Playground: Story = {
+    render: (args) => ({
+        props: args,
         template: `
-      <ui-navigation-menu>
+      <ui-navigation-menu [class]="class">
         <ui-navigation-menu-list>
           <ui-navigation-menu-item>
             <ui-navigation-menu-trigger>Item One</ui-navigation-menu-trigger>
@@ -130,9 +146,17 @@ const simpleItems: NavigationMenuItem[] = [
     { label: 'Documentation', href: '/docs' },
 ];
 
+/** Simple mode: `items` input drives the whole menu without any projected content. */
 export const SimpleMode: Story = {
-    render: () => ({
-        props: { items: simpleItems },
-        template: `<ui-navigation-menu [items]="items" />`,
+    argTypes: {
+        items: {
+            control: 'object',
+            description: 'Data-driven items for simple mode. When provided (and no content is projected), renders the menu automatically.',
+        },
+    },
+    args: { items: simpleItems },
+    render: (args) => ({
+        props: args,
+        template: `<ui-navigation-menu [items]="items" [class]="class" />`,
     }),
 };

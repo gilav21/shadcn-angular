@@ -12,59 +12,52 @@ const meta: Meta<TypingAnimationComponent> = {
         }),
     ],
     argTypes: {
-        typeSpeed: {
-            control: 'number',
-        },
-        deleteSpeed: {
-            control: 'number',
-        },
-        pauseDuration: {
-            control: 'number',
-        },
-        loop: {
-            control: 'boolean',
-        },
-        cursor: {
-            control: 'boolean',
-        },
+        strings: { control: 'object', description: 'Sequence of strings to type and delete in a loop.' },
+        typeSpeed: { control: 'number', description: 'Milliseconds between each typed character.' },
+        deleteSpeed: { control: 'number', description: 'Milliseconds between each deleted character.' },
+        pauseDuration: { control: 'number', description: 'Milliseconds to pause after a string is fully typed.' },
+        loop: { control: 'boolean', description: 'Restarts from the first string after the last one finishes.' },
+        cursor: { control: 'boolean', description: 'Shows a blinking cursor.' },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
+        strings: ['Hello World', 'Welcome to Angular'],
         typeSpeed: 50,
         deleteSpeed: 30,
         pauseDuration: 1500,
         loop: true,
         cursor: true,
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<TypingAnimationComponent>;
 
-export const Default: Story = {
-    args: {
-        strings: ['Hello World', 'Welcome to Angular'],
-        typeSpeed: 50,
-        deleteSpeed: 30,
-        cursor: true,
-        loop: true,
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="flex items-center justify-center p-12">
-                <h2 class="text-4xl font-bold">
-                    <ui-typing-animation
-                        [strings]="strings"
-                        [typeSpeed]="typeSpeed"
-                        [deleteSpeed]="deleteSpeed"
-                        [cursor]="cursor"
-                        [loop]="loop"
-                    />
-                </h2>
-            </div>
-        `,
-    }),
-};
+const TEMPLATE = `
+    <div class="flex items-center justify-center p-12">
+        <h2 class="text-4xl font-bold">
+            <ui-typing-animation
+                [strings]="strings"
+                [typeSpeed]="typeSpeed"
+                [deleteSpeed]="deleteSpeed"
+                [pauseDuration]="pauseDuration"
+                [cursor]="cursor"
+                [loop]="loop"
+                [class]="class"
+            />
+        </h2>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
+export const Default: Story = { render };
 
 export const NoCursor: Story = {
     args: {
@@ -74,22 +67,7 @@ export const NoCursor: Story = {
         cursor: false,
         loop: true,
     },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="flex items-center justify-center p-12">
-                <h3 class="text-3xl font-semibold text-primary">
-                    <ui-typing-animation
-                        [strings]="strings"
-                        [typeSpeed]="typeSpeed"
-                        [deleteSpeed]="deleteSpeed"
-                        [cursor]="cursor"
-                        [loop]="loop"
-                    />
-                </h3>
-            </div>
-        `,
-    }),
+    render,
 };
 
 export const FastTyping: Story = {
@@ -113,12 +91,21 @@ export const FastTyping: Story = {
                         [pauseDuration]="pauseDuration"
                         [cursor]="cursor"
                         [loop]="loop"
+                        [class]="class"
                     />
                 </h2>
                 <p class="text-xs text-muted-foreground">typeSpeed={{ typeSpeed }}ms · deleteSpeed={{ deleteSpeed }}ms</p>
             </div>
         `,
     }),
+};
+
+export const NoLoop: Story = {
+    args: {
+        strings: ['Types once and stops.'],
+        loop: false,
+    },
+    render,
 };
 
 export const HeroSection: Story = {

@@ -2,7 +2,18 @@ import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/an
 import { DataTableComponent } from './data-table.component';
 import { DataTableContextMenuDirective } from './addons/context-menu';
 import { DataTableExportDirective } from './addons/export';
-import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext, CellIcon } from './data-table.types';
+import { DataTablePivotDirective, computePivot } from './addons/pivot';
+import type { PivotConfig } from './addons/pivot';
+import {
+    ColumnDef,
+    PaginationState,
+    SortState,
+    DataTableLoadingVisibility,
+    RowActionContext,
+    CellIcon,
+    RowDragPosition,
+    RowReorderEvent,
+} from './data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { InputComponent } from '../input';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from '../context-menu';
@@ -236,6 +247,180 @@ const meta: Meta<DataTableComponent<User>> = {
     parameters: {
         layout: 'padded',
     },
+    argTypes: {
+        data: { control: 'object', description: 'Row data (two-way bound via [(data)]). Required.' },
+        columns: { control: false, description: 'Column definitions (ColumnDef[]) — accessors, cells, editing, formatting. Required.' },
+        showToolbar: { control: 'boolean', description: 'Shows the top toolbar (global filter, columns menu).' },
+        showColumnVisibilityToggle: { control: 'boolean', description: 'Shows the "Columns" visibility toggle in the toolbar.' },
+        showPagination: { control: 'boolean', description: 'Shows the pagination footer.' },
+        showRowBorders: { control: 'boolean', description: 'Draws a border under each row.' },
+        showColumnBorders: { control: 'boolean', description: 'Draws a border between columns.' },
+        localSorting: { control: 'boolean', description: 'Sort the data client-side. Set false for server-driven sort via (sortChange).' },
+        sortState: { control: false, description: 'Single-column sort state (model, two-way bound). Driven by clicking column headers; not a sensible static control.' },
+        multiSortState: { control: false, description: 'Multi-column sort state when enableMultiSort is on (model, two-way bound). Driven by shift-click on headers.' },
+        localPagination: { control: 'boolean', description: 'Paginate the data client-side. Set false for server-driven paging via (pageChange) + [total].' },
+        paginationState: { control: false, description: 'Current page index/size (model, two-way bound). Driven by the pagination footer, not a sensible static control.' },
+        localFiltering: { control: 'boolean', description: 'Filter the data client-side. Set false for server-driven filtering via (filterChange).' },
+        globalFilter: { control: false, description: 'Global (toolbar search box) filter text (model, two-way bound). Driven by typing in the toolbar.' },
+        columnFilters: { control: false, description: 'Per-column filter values keyed by accessorKey (model, two-way bound). Driven by per-column filter UI.' },
+        advancedFilter: { control: false, description: 'Active AND/OR advanced-filter tree (model, two-way bound). Driven by the advanced-filter builder UI.' },
+        loading: { control: 'boolean', description: 'Shows the busy overlay/loader while true.' },
+        skeleton: { control: 'boolean', description: 'Renders a skeleton placeholder (toolbar + N rows) instead of the table.' },
+        skeletonRows: { control: 'number', description: 'Number of skeleton row placeholders when [skeleton]="true".' },
+        loadingVisibility: { control: 'object', description: 'Which loading triggers (initial/pagination/sorting/filtering) show the loader.' },
+        loaderTemplate: { control: false, description: 'Custom TemplateRef rendered inside the loading overlay.' },
+        loaderComponent: { control: false, description: 'Custom component rendered inside the loading overlay.' },
+        loaderComponentInputs: { control: 'object', description: 'Extra inputs merged onto the loader component (plus an auto "trigger" input).' },
+        globalFilterFn: { control: false, description: 'Override the default global (search box) filter predicate.' },
+        enableMultiSort: { control: 'boolean', description: 'Allow shift-click to sort by multiple columns.' },
+        maxMultiSortColumns: { control: 'number', min: 1, max: 10, step: 1, description: 'Max columns tracked in multi-sort.' },
+        total: { control: 'number', min: 0, step: 1, description: 'Total row count for server-side pagination (localPagination=false).' },
+        enableRowSelection: { control: 'boolean', description: 'Shows row checkboxes and enables selection.' },
+        rowSelection: { control: 'object', description: 'Selection state keyed by row id (model, two-way bound).' },
+        getRowId: { control: false, description: 'Row id accessor; defaults to row.id, falling back to JSON.stringify.' },
+        enableCopy: { control: 'boolean', description: 'Enables Ctrl/Cmd+C to copy the focused cell or range.' },
+        isRowDisabled: { control: false, description: 'Predicate marking individual rows as disabled (non-interactive).' },
+        disabledRowIds: { control: 'object', description: 'Explicit set/array of row ids to disable.' },
+        enableRowExpansion: { control: 'boolean', description: 'Shows a per-row expander revealing a detail panel.' },
+        expandedRows: { control: 'object', description: 'Expanded-row state keyed by row id (model, two-way bound).' },
+        rowDetailTemplate: { control: false, description: 'Custom TemplateRef rendered in the expanded row-detail panel.' },
+        rowDetailComponent: { control: false, description: 'Custom component rendered in the expanded row-detail panel.' },
+        rowDetailComponentInputs: { control: false, description: 'Per-row inputs for rowDetailComponent, as a function of the row.' },
+        enableSubRows: { control: 'boolean', description: 'Renders nested child rows (tree mode) using getChildren.' },
+        getChildren: { control: false, description: 'Accessor returning a row\'s children array; defaults to row.children.' },
+        setChildren: { control: false, description: 'Immutable setter writing a new children array back onto a row.' },
+        subRowDefaultExpanded: { control: 'number', min: 0, step: 1, description: 'Tree depth expanded by default (0 = all collapsed).' },
+        subRowSelectionMode: {
+            control: 'select',
+            options: ['self', 'descendants', 'filteredDescendants'],
+            description: 'How selecting a parent row propagates to its children.',
+        },
+        subRowFilterMode: {
+            control: 'select',
+            options: ['includeChildren', 'excludeChildren', 'includeParentOnChildMatch'],
+            description: 'How filters interact with tree rows.',
+        },
+        enableSubRowSorting: { control: 'boolean', description: 'Sort within each level of the tree.' },
+        subRowIndentSize: { control: 'number', min: 0, max: 80, step: 4, description: 'Pixels indented per tree depth level.' },
+        subRowsPaginated: { control: 'boolean', description: 'Paginate flattened visible tree rows instead of root rows.' },
+        subRowExpandedRows: { control: 'object', description: 'Tree expand/collapse state keyed by row id (model, two-way bound).' },
+        groupBy: { control: 'text', description: 'Column accessorKey to group rows by (mutually exclusive with sub-rows/virtual scroll).' },
+        collapsedGroups: { control: 'object', description: 'Per-group collapsed state keyed by group value (model, two-way bound).' },
+        groupAggregates: { control: 'boolean', description: 'Show per-column aggregate values on group header rows.' },
+        enableColumnResize: { control: 'boolean', description: 'Allow dragging column edges to resize.' },
+        columnWidths: { control: false, description: 'Resolved per-column widths keyed by accessorKey (model, two-way bound). Driven by dragging column edges.' },
+        enableColumnReorder: { control: 'boolean', description: 'Allow dragging column headers to reorder.' },
+        columnOrder: { control: false, description: 'Current column order as accessorKeys (model, two-way bound). Driven by dragging column headers.' },
+        columnVisibility: { control: false, description: 'Per-column visibility keyed by accessorKey (model, two-way bound). Driven by the Columns toolbar menu.' },
+        showFooter: {
+            control: 'select',
+            options: [true, false, 'auto'],
+            description: '"auto" shows the footer row only when a column defines footer/footerTemplate/footerComponent.',
+        },
+        enableFloatingFilters: { control: 'boolean', description: 'Shows a per-column filter input row under the header.' },
+        enableRowDrag: { control: 'boolean', description: 'Shows a drag handle and allows reordering rows via drag-and-drop.' },
+        localReorder: { control: 'boolean', description: 'Reorder the local data array on drop; set false to handle purely via (rowReorder).' },
+        rowDragMode: {
+            control: 'select',
+            options: ['flat', 'tree'],
+            description: '"tree" allows dropping a row onto another to re-parent it (with enableSubRows).',
+        },
+        rowDragAllowDrop: { control: false, description: 'Predicate vetoing a specific drag/drop combination.' },
+        enableCellFlash: { control: 'boolean', description: 'Flashes cells green/red/yellow when their value changes between renders.' },
+        cellFlashDuration: { control: 'number', min: 100, max: 5000, step: 50, description: 'Flash animation duration in ms.' },
+        enableCellRangeSelection: { control: 'boolean', description: 'Allow click+shift-click / drag to select a rectangular cell range.' },
+        enableRangeActions: { control: 'boolean', description: 'Shows a Sum/Avg/Count/Chart readout for the selected range (requires enableCellRangeSelection).' },
+        enableFillHandle: { control: 'boolean', description: 'Shows an Excel-style fill handle to drag-fill a pattern (requires enableCellRangeSelection).' },
+        enableClipboardPaste: { control: 'boolean', description: 'Allow pasting a TSV/CSV clipboard grid starting at the focused cell.' },
+        enableEditHistory: { control: 'boolean', description: 'Tracks edits/fills/pastes on an undo/redo stack (Ctrl/Cmd+Z / Ctrl/Cmd+Y).' },
+        emptyStateComponent: { control: false, description: 'Custom component rendered when there are no rows to show.' },
+        emptyStateComponentInputs: { control: 'object', description: 'Extra inputs merged onto the empty-state component.' },
+        fullWidthRow: { control: false, description: 'Predicate marking a row to render as a single full-width cell.' },
+        fullWidthRowTemplate: { control: false, description: 'TemplateRef used to render full-width rows.' },
+        fullWidthRowComponent: { control: false, description: 'Component used to render full-width rows.' },
+        locale: { control: false, description: 'Locale dictionary or registry key for table chrome strings.' },
+        filterDebounce: { control: 'number', min: 0, max: 2000, step: 50, description: 'Debounce (ms) applied to the global filter input.' },
+        enableVirtualScroll: {
+            control: 'select',
+            options: [true, false, 'auto'],
+            description: '"auto" enables virtual scroll once rows/columns exceed virtualAutoThreshold. Mutually exclusive with pagination.',
+        },
+        virtualRowHeight: { control: 'number', min: 10, max: 200, step: 1, description: 'Fixed row height (px) used for virtual scroll math.' },
+        virtualRowBuffer: { control: 'number', min: 0, max: 50, step: 1, description: 'Extra rows rendered above/below the viewport.' },
+        virtualColumnBuffer: { control: 'number', min: 0, max: 20, step: 1, description: 'Extra columns rendered left/right of the viewport.' },
+        virtualVariableRowHeight: { control: 'boolean', description: 'Measure each row\'s real height instead of using a fixed virtualRowHeight.' },
+        virtualRecycleComponents: { control: 'boolean', description: 'Recycle cell component instances between rows for large component-heavy grids.' },
+        virtualAutoThreshold: { control: 'object', description: 'Row/column counts that trigger enableVirtualScroll="auto".' },
+        virtualAutoColumnWidth: { control: 'number', min: 20, max: 1000, step: 10, description: 'Estimated px width for "auto" columns during virtual scroll.' },
+        aiProvider: { control: false, description: 'Bring-your-own AI provider hook powering natural-language filter and AI column-fill.' },
+        enableNlFilter: { control: 'boolean', description: 'Shows the natural-language filter box in the toolbar (requires aiProvider).' },
+        enableAdvancedFilter: { control: 'boolean', description: 'Shows the AND/OR advanced-filter builder button in the toolbar.' },
+        pageSizeOptions: { control: 'object', description: 'Page-size choices offered by the pagination footer.' },
+        showPageSizeSelector: { control: 'boolean', description: 'Shows the rows-per-page selector in the pagination footer.' },
+    },
+    args: {
+        showToolbar: true,
+        showColumnVisibilityToggle: true,
+        showPagination: true,
+        showRowBorders: true,
+        showColumnBorders: true,
+        localSorting: true,
+        localPagination: true,
+        localFiltering: true,
+        loading: false,
+        skeleton: false,
+        skeletonRows: 5,
+        loadingVisibility: { initial: true, pagination: true, sorting: true, filtering: true },
+        loaderComponentInputs: {},
+        enableMultiSort: false,
+        maxMultiSortColumns: 3,
+        total: 0,
+        enableRowSelection: false,
+        rowSelection: {},
+        enableCopy: true,
+        disabledRowIds: [],
+        enableRowExpansion: false,
+        expandedRows: {},
+        enableSubRows: false,
+        subRowDefaultExpanded: 0,
+        subRowSelectionMode: 'self',
+        subRowFilterMode: 'includeParentOnChildMatch',
+        enableSubRowSorting: true,
+        subRowIndentSize: 20,
+        subRowsPaginated: false,
+        subRowExpandedRows: {},
+        groupBy: undefined,
+        collapsedGroups: {},
+        groupAggregates: true,
+        enableColumnResize: false,
+        enableColumnReorder: false,
+        showFooter: 'auto',
+        enableFloatingFilters: false,
+        enableRowDrag: false,
+        localReorder: true,
+        rowDragMode: 'flat',
+        enableCellFlash: false,
+        cellFlashDuration: 500,
+        enableCellRangeSelection: false,
+        enableRangeActions: false,
+        enableFillHandle: false,
+        enableClipboardPaste: false,
+        enableEditHistory: false,
+        emptyStateComponentInputs: {},
+        filterDebounce: 0,
+        enableVirtualScroll: false,
+        virtualRowHeight: 40,
+        virtualRowBuffer: 5,
+        virtualColumnBuffer: 3,
+        virtualVariableRowHeight: false,
+        virtualRecycleComponents: false,
+        virtualAutoThreshold: { rows: 500, columns: 20 },
+        virtualAutoColumnWidth: 150,
+        enableNlFilter: true,
+        enableAdvancedFilter: false,
+        pageSizeOptions: [10, 20, 30, 40, 50],
+        showPageSizeSelector: true,
+    },
 };
 
 export default meta;
@@ -263,19 +448,81 @@ const columns: ColumnDef<User>[] = [
     { accessorKey: 'role', header: 'Role', enableSorting: true },
 ];
 
-export const Default: Story = {
+/**
+ * Playground — every input wired live to the Controls panel. Toggle
+ * selection, sub-rows, virtual scroll, editing gates, etc. to see how the
+ * table reacts. Some inputs (functions/templates/components) have no widget
+ * but still bind their story default through.
+ */
+export const Playground: Story = {
     render: (args) => ({
         props: args,
         template: `
             <div class="h-[600px] w-full p-4">
                 <ui-data-table
-                    [data]="data"
+                    [(data)]="data"
                     [columns]="columns"
                     [showToolbar]="showToolbar"
+                    [showColumnVisibilityToggle]="showColumnVisibilityToggle"
                     [showPagination]="showPagination"
                     [showRowBorders]="showRowBorders"
                     [showColumnBorders]="showColumnBorders"
+                    [localSorting]="localSorting"
+                    [localPagination]="localPagination"
+                    [localFiltering]="localFiltering"
+                    [loading]="loading"
+                    [skeleton]="skeleton"
+                    [skeletonRows]="skeletonRows"
+                    [loadingVisibility]="loadingVisibility"
+                    [loaderComponentInputs]="loaderComponentInputs"
+                    [enableMultiSort]="enableMultiSort"
+                    [maxMultiSortColumns]="maxMultiSortColumns"
+                    [total]="total"
                     [enableRowSelection]="enableRowSelection"
+                    [(rowSelection)]="rowSelection"
+                    [enableCopy]="enableCopy"
+                    [disabledRowIds]="disabledRowIds"
+                    [enableRowExpansion]="enableRowExpansion"
+                    [(expandedRows)]="expandedRows"
+                    [enableSubRows]="enableSubRows"
+                    [subRowDefaultExpanded]="subRowDefaultExpanded"
+                    [subRowSelectionMode]="subRowSelectionMode"
+                    [subRowFilterMode]="subRowFilterMode"
+                    [enableSubRowSorting]="enableSubRowSorting"
+                    [subRowIndentSize]="subRowIndentSize"
+                    [subRowsPaginated]="subRowsPaginated"
+                    [(subRowExpandedRows)]="subRowExpandedRows"
+                    [groupBy]="groupBy"
+                    [(collapsedGroups)]="collapsedGroups"
+                    [groupAggregates]="groupAggregates"
+                    [enableColumnResize]="enableColumnResize"
+                    [enableColumnReorder]="enableColumnReorder"
+                    [showFooter]="showFooter"
+                    [enableFloatingFilters]="enableFloatingFilters"
+                    [enableRowDrag]="enableRowDrag"
+                    [localReorder]="localReorder"
+                    [rowDragMode]="rowDragMode"
+                    [enableCellFlash]="enableCellFlash"
+                    [cellFlashDuration]="cellFlashDuration"
+                    [enableCellRangeSelection]="enableCellRangeSelection"
+                    [enableRangeActions]="enableRangeActions"
+                    [enableFillHandle]="enableFillHandle"
+                    [enableClipboardPaste]="enableClipboardPaste"
+                    [enableEditHistory]="enableEditHistory"
+                    [emptyStateComponentInputs]="emptyStateComponentInputs"
+                    [filterDebounce]="filterDebounce"
+                    [enableVirtualScroll]="enableVirtualScroll"
+                    [virtualRowHeight]="virtualRowHeight"
+                    [virtualRowBuffer]="virtualRowBuffer"
+                    [virtualColumnBuffer]="virtualColumnBuffer"
+                    [virtualVariableRowHeight]="virtualVariableRowHeight"
+                    [virtualRecycleComponents]="virtualRecycleComponents"
+                    [virtualAutoThreshold]="virtualAutoThreshold"
+                    [virtualAutoColumnWidth]="virtualAutoColumnWidth"
+                    [enableNlFilter]="enableNlFilter"
+                    [enableAdvancedFilter]="enableAdvancedFilter"
+                    [pageSizeOptions]="pageSizeOptions"
+                    [showPageSizeSelector]="showPageSizeSelector"
                 />
             </div>
         `,
@@ -283,10 +530,6 @@ export const Default: Story = {
     args: {
         data: sampleData,
         columns: columns,
-        showToolbar: true,
-        showPagination: true,
-        showRowBorders: true,
-        showColumnBorders: true,
         enableRowSelection: true,
     },
 };
@@ -307,8 +550,10 @@ export const WithoutToolbar: Story = {
         `,
     }),
     args: {
-        ...Default.args,
+        data: sampleData,
+        columns: columns,
         showToolbar: false,
+        enableRowSelection: true,
     },
 };
 
@@ -328,8 +573,10 @@ export const WithoutPagination: Story = {
         `,
     }),
     args: {
-        ...Default.args,
+        data: sampleData,
+        columns: columns,
         showPagination: false,
+        enableRowSelection: true,
     },
 };
 
@@ -399,7 +646,6 @@ export const LargeDataset: Story = {
         enableRowSelection: true,
     },
 };
-
 
 export const WithColumnFilters: Story = {
     render: (args) => ({
@@ -507,6 +753,65 @@ export const CustomFilterFunction: Story = {
     },
 };
 
+export const WithFloatingFilters: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Per-column filter inputs appear directly under the header row.
+                </p>
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [enableFloatingFilters]="enableFloatingFilters"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: [
+            { accessorKey: 'id', header: 'ID', width: '60px' },
+            { accessorKey: 'name', header: 'Name', enableSorting: true, enableFiltering: true },
+            { accessorKey: 'email', header: 'Email', enableSorting: true, enableFiltering: true },
+            { accessorKey: 'role', header: 'Role', enableSorting: true, enableFiltering: true },
+        ],
+        showToolbar: true,
+        showPagination: true,
+        enableFloatingFilters: true,
+    },
+};
+
+export const AdvancedFilterBuilder: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Open the funnel icon in the toolbar to build an AND/OR condition tree.
+                </p>
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [enableAdvancedFilter]="enableAdvancedFilter"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: columns,
+        showToolbar: true,
+        showPagination: true,
+        enableAdvancedFilter: true,
+    },
+};
+
 @Component({
     selector: 'app-custom-empty-state',
     standalone: true,
@@ -552,6 +857,36 @@ export const WithCustomEmptyState: Story = {
         columns: columns,
         showToolbar: true,
         showPagination: true,
+    },
+};
+
+export const LoadingSkeleton: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    While the initial fetch is in flight, show a skeleton instead of an empty
+                    table. Toggle "skeleton" off in Controls to reveal the real data.
+                </p>
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [skeleton]="skeleton"
+                    [skeletonRows]="skeletonRows"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: columns,
+        showToolbar: true,
+        showPagination: true,
+        skeleton: true,
+        skeletonRows: 6,
     },
 };
 
@@ -884,209 +1219,288 @@ export const WithDateRangeFilter: OrderStory = {
     },
 };
 
-// --- Virtual Scroll Performance Story ---
+// --- Sub-rows / tree mode ---
 
-@Component({
-    selector: 'app-virtual-status-cell',
-    template: `
-        <div class="flex items-center gap-2">
-            <div class="h-2 w-2 rounded-full"
-                 [class.bg-green-500]="status() === 'active'"
-                 [class.bg-red-500]="status() === 'inactive'"
-                 [class.bg-yellow-500]="status() === 'pending'">
-            </div>
-            <span class="text-xs">{{ status() }}</span>
-        </div>
-    `,
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class VirtualStatusCellComponent {
-    readonly status = input<string>('active');
-}
-
-@Component({
-    selector: 'app-virtual-toggle-cell',
-    template: `
-        <label class="flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" [checked]="enabled()" (change)="onToggle()" class="h-3 w-3" />
-            <span class="text-xs">{{ enabled() ? 'On' : 'Off' }}</span>
-        </label>
-    `,
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class VirtualToggleCellComponent {
-    readonly enabled = input(false);
-    readonly toggled = output<boolean>();
-    private readonly state = signal(false);
-
-    onToggle() {
-        this.state.update(v => !v);
-        this.toggled.emit(this.state());
-    }
-}
-
-interface VirtualRow {
-    id: number;
+interface OrgRow {
+    id: string;
     name: string;
-    [key: string]: unknown;
+    title: string;
+    headcount: number;
+    children?: OrgRow[];
 }
 
-function generateVirtualData(rowCount: number, colCount: number): VirtualRow[] {
-    const statuses = ['active', 'inactive', 'pending'];
-    const data: VirtualRow[] = [];
-    for (let r = 0; r < rowCount; r++) {
-        const row: VirtualRow = {
-            id: r + 1,
-            name: `Row ${r + 1}`,
-        };
-        for (let c = 0; c < colCount; c++) {
-            row[`col${c}`] = `R${r + 1}C${c}`;
-        }
-        row['status'] = statuses[r % 3];
-        row['enabled'] = r % 2 === 0;
-        data.push(row);
-    }
-    return data;
-}
+const orgData: OrgRow[] = [
+    {
+        id: 'exec-1',
+        name: 'Morgan Lee',
+        title: 'CEO',
+        headcount: 240,
+        children: [
+            {
+                id: 'vp-1',
+                name: 'Priya Nair',
+                title: 'VP Engineering',
+                headcount: 120,
+                children: [
+                    { id: 'eng-1', name: 'Sam Torres', title: 'Eng Manager, Platform', headcount: 18 },
+                    { id: 'eng-2', name: 'Jamie Fox', title: 'Eng Manager, Product', headcount: 22 },
+                ],
+            },
+            {
+                id: 'vp-2',
+                name: 'Diego Alvarez',
+                title: 'VP Sales',
+                headcount: 80,
+                children: [
+                    { id: 'sales-1', name: 'Robin Chase', title: 'Sales Director, EMEA', headcount: 30 },
+                    { id: 'sales-2', name: 'Kelly Osei', title: 'Sales Director, AMER', headcount: 35 },
+                ],
+            },
+            { id: 'vp-3', name: 'Harper Quinn', title: 'VP People', headcount: 20 },
+        ],
+    },
+];
 
-function generateVirtualColumns(colCount: number): ColumnDef<VirtualRow>[] {
-    const cols: ColumnDef<VirtualRow>[] = [
-        { accessorKey: 'id', header: 'ID', width: '80px', sticky: true },
-        { accessorKey: 'name', header: 'Name', width: '150px', sticky: true },
-    ];
+const orgColumns: ColumnDef<OrgRow>[] = [
+    { accessorKey: 'name', header: 'Name', enableSorting: true, treeExpander: true },
+    { accessorKey: 'title', header: 'Title', enableSorting: true },
+    { accessorKey: 'headcount', header: 'Headcount', enableSorting: true },
+];
 
-    for (let c = 0; c < colCount; c++) {
-        if (c < 25) {
-            cols.push({
-                accessorKey: `col${c}`,
-                header: `Status ${c}`,
-                width: '120px',
-                component: VirtualStatusCellComponent,
-                componentInputs: (row: VirtualRow) => ({ status: row['status'] }),
-            });
-        } else if (c < 50) {
-            cols.push({
-                accessorKey: `col${c}`,
-                header: `Toggle ${c}`,
-                width: '100px',
-                component: VirtualToggleCellComponent,
-                componentInputs: (row: VirtualRow) => ({ enabled: row['enabled'] }),
-            });
-        } else if (c < 55) {
-            cols.push({
-                accessorKey: `col${c}`,
-                header: `Image ${c}`,
-                width: '80px',
-                cell: (_row: VirtualRow) => '🖼️',
-            });
-        } else {
-            cols.push({
-                accessorKey: `col${c}`,
-                header: `Col ${c}`,
-                width: `${80 + (c % 5) * 20}px`,
-                cell: (row: VirtualRow) => String(row[`col${c}`] ?? ''),
-            });
-        }
-    }
-
-    return cols;
-}
-
-const virtualData = generateVirtualData(10000, 100);
-const virtualColumns = generateVirtualColumns(100);
-
-type VirtualStory = StoryObj<DataTableComponent<VirtualRow>>;
-
-export const VirtualScrollPerformance: VirtualStory = {
+export const SubRowsTreeMode: StoryObj<DataTableComponent<OrgRow>> = {
     render: (args) => ({
         props: args,
         template: `
-            <div class="h-[700px] w-full p-4">
-                <h3 class="mb-2 text-sm text-muted-foreground">10,000 rows × 100+ columns (50 stateful components) — Virtual Scroll</h3>
+            <div class="h-[500px] w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Nested rows via <strong>enableSubRows</strong> + <strong>getChildren</strong>. Click the
+                    chevron on a row to expand/collapse its children.
+                </p>
                 <ui-data-table
                     [data]="data"
                     [columns]="columns"
+                    [enableSubRows]="enableSubRows"
+                    [getChildren]="getChildren"
+                    [subRowDefaultExpanded]="subRowDefaultExpanded"
+                    [subRowIndentSize]="subRowIndentSize"
                     [showToolbar]="showToolbar"
                     [showPagination]="showPagination"
-                    [enableVirtualScroll]="enableVirtualScroll"
-                    [virtualRowHeight]="virtualRowHeight"
-                    [virtualRowBuffer]="virtualRowBuffer"
-                    [virtualColumnBuffer]="virtualColumnBuffer"
-                    [virtualRecycleComponents]="virtualRecycleComponents"
-                    [virtualAutoThreshold]="virtualAutoThreshold"
                 />
             </div>
         `,
     }),
     args: {
-        data: virtualData,
-        columns: virtualColumns as ColumnDef<VirtualRow>[],
-        showToolbar: true,
+        data: orgData,
+        columns: orgColumns,
+        enableSubRows: true,
+        getChildren: (row: OrgRow) => row.children,
+        subRowDefaultExpanded: 1,
+        subRowIndentSize: 20,
+        showToolbar: false,
         showPagination: false,
-        enableVirtualScroll: true,
-        virtualRowHeight: 40,
-        virtualRowBuffer: 5,
-        virtualColumnBuffer: 3,
-        virtualRecycleComponents: false,
-        virtualAutoThreshold: { rows: 500, columns: 20 },
-    } as Record<string, unknown>,
+    },
 };
 
-const editableColumns: ColumnDef<User>[] = [
-    { accessorKey: 'id', header: 'ID', width: '70px' },
-    {
-        accessorKey: 'name',
-        header: 'Name',
-        editable: true,
-        editType: 'text',
-        editValidator: (val) => String(val).trim().length > 0 || 'Name is required',
-        valueSetter: (row, val) => ({ ...row, name: String(val) }),
-    },
-    {
-        accessorKey: 'email',
-        header: 'Email',
-        editable: true,
-        editType: 'text',
-        editValidator: (val) => String(val).includes('@') || 'Email must contain "@"',
-        valueSetter: (row, val) => ({ ...row, email: String(val) }),
-    },
-    {
-        accessorKey: 'role',
-        header: 'Role',
-        editable: true,
-        editType: 'select',
-        editOptions: [
-            { label: 'Admin', value: 'Admin' },
-            { label: 'User', value: 'User' },
-            { label: 'Manager', value: 'Manager' },
-        ],
-        valueSetter: (row, val) => ({ ...row, role: String(val) }),
-    },
+// --- Row-drag reorder ---
+
+interface TaskRow {
+    id: string;
+    title: string;
+    assignee: string;
+    status: 'Todo' | 'Doing' | 'Done';
+}
+
+const taskData: TaskRow[] = [
+    { id: 't1', title: 'Draft Q3 roadmap', assignee: 'Alice', status: 'Doing' },
+    { id: 't2', title: 'Review PR #482', assignee: 'Bob', status: 'Todo' },
+    { id: 't3', title: 'Fix flaky e2e test', assignee: 'Charlie', status: 'Todo' },
+    { id: 't4', title: 'Ship v2.3 release notes', assignee: 'Diana', status: 'Done' },
+    { id: 't5', title: 'Investigate latency spike', assignee: 'Eve', status: 'Doing' },
 ];
 
-export const InlineEditing: Story = {
+const taskColumns: ColumnDef<TaskRow>[] = [
+    { accessorKey: 'title', header: 'Task' },
+    { accessorKey: 'assignee', header: 'Assignee' },
+    { accessorKey: 'status', header: 'Status' },
+];
+
+export const RowDragReorder: StoryObj<DataTableComponent<TaskRow>> = {
     render: (args) => ({
-        props: args,
+        props: {
+            ...args,
+            onRowReorder: (event: RowReorderEvent<TaskRow>) => {
+                // eslint-disable-next-line no-console
+                console.log('rowReorder', event);
+            },
+        },
         template: `
-            <div class="h-[600px] w-full p-4">
+            <div class="h-[420px] w-full p-4">
                 <p class="mb-2 text-sm text-muted-foreground">
-                    Focus a cell and press Enter (or double-click) to edit. Committed edits are written
-                    back through each column's valueSetter. The Name column rejects empty values and
-                    Email requires an "@" — invalid edits show an inline error and emit (editError).
+                    Drag the handle at the left of a row to reorder the flat list
+                    (<strong>enableRowDrag</strong>, <strong>rowDragMode="flat"</strong>).
                 </p>
                 <ui-data-table
                     [(data)]="data"
                     [columns]="columns"
-                    [showToolbar]="false"
-                    [showPagination]="false"
+                    [enableRowDrag]="enableRowDrag"
+                    [rowDragMode]="rowDragMode"
+                    [localReorder]="localReorder"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    (rowReorder)="onRowReorder($event)"
                 />
             </div>
         `,
     }),
     args: {
-        data: sampleData.slice(0, 6),
-        columns: editableColumns,
+        data: taskData,
+        columns: taskColumns,
+        enableRowDrag: true,
+        rowDragMode: 'flat',
+        localReorder: true,
+        showToolbar: false,
+        showPagination: false,
     },
+};
+
+export const RowDragReorderTree: StoryObj<DataTableComponent<OrgRow>> = {
+    render: (args) => ({
+        props: {
+            ...args,
+            allowDrop: (_dragRow: OrgRow, _targetRow: OrgRow, _position: RowDragPosition) => true,
+        },
+        template: `
+            <div class="h-[460px] w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Drag a row onto another to re-parent it (<strong>rowDragMode="tree"</strong>,
+                    combined with <strong>enableSubRows</strong>).
+                </p>
+                <ui-data-table
+                    [(data)]="data"
+                    [columns]="columns"
+                    [enableSubRows]="enableSubRows"
+                    [getChildren]="getChildren"
+                    [enableRowDrag]="enableRowDrag"
+                    [rowDragMode]="rowDragMode"
+                    [rowDragAllowDrop]="allowDrop"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: orgData,
+        columns: orgColumns,
+        enableSubRows: true,
+        getChildren: (row: OrgRow) => row.children,
+        enableRowDrag: true,
+        rowDragMode: 'tree',
+        showToolbar: false,
+        showPagination: false,
+    },
+};
+
+interface SalesRow {
+    id: string;
+    region: string;
+    rep: string;
+    quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+    revenue: number;
+}
+
+const salesData: SalesRow[] = [
+    { id: '1', region: 'West', rep: 'Alice', quarter: 'Q1', revenue: 42000 },
+    { id: '2', region: 'West', rep: 'Alice', quarter: 'Q2', revenue: 51000 },
+    { id: '3', region: 'West', rep: 'Bob', quarter: 'Q1', revenue: 30000 },
+    { id: '4', region: 'West', rep: 'Bob', quarter: 'Q2', revenue: 33000 },
+    { id: '5', region: 'East', rep: 'Charlie', quarter: 'Q1', revenue: 58000 },
+    { id: '6', region: 'East', rep: 'Charlie', quarter: 'Q2', revenue: 62000 },
+    { id: '7', region: 'East', rep: 'Diana', quarter: 'Q1', revenue: 21000 },
+    { id: '8', region: 'East', rep: 'Diana', quarter: 'Q2', revenue: 27000 },
+];
+
+const salesColumns: ColumnDef<SalesRow>[] = [
+    { accessorKey: 'region', header: 'Region', enableSorting: true },
+    { accessorKey: 'rep', header: 'Rep', enableSorting: true },
+    { accessorKey: 'quarter', header: 'Quarter', enableSorting: true },
+    { accessorKey: 'revenue', header: 'Revenue', enableSorting: true, cell: (r) => `$${r.revenue.toLocaleString()}` },
+];
+
+interface PivotRowRecord {
+    [key: string]: unknown;
+}
+
+@Component({
+    selector: 'app-pivot-story',
+    standalone: true,
+    imports: [DataTableComponent, DataTablePivotDirective],
+    template: `
+      <div class="w-full p-4 space-y-4">
+        <div>
+          <h4 class="mb-2 text-sm font-medium">Source data</h4>
+          <ui-data-table
+            uiDtPivot
+            #pv="uiDtPivot"
+            [data]="sourceData"
+            [columns]="sourceColumns"
+            [showToolbar]="false"
+            [showPagination]="false"
+          />
+        </div>
+        <div>
+          <h4 class="mb-2 text-sm font-medium">Pivot: Region × Quarter → Sum(Revenue)</h4>
+          <ui-data-table
+            [data]="pivotRows"
+            [columns]="pivotColumns"
+            [showToolbar]="false"
+            [showPagination]="false"
+          />
+        </div>
+      </div>
+    `,
+})
+class PivotStoryComponent {
+    readonly sourceData = salesData;
+    readonly sourceColumns = salesColumns;
+
+    private static readonly config: PivotConfig = {
+        rows: ['region'],
+        column: 'quarter',
+        value: 'revenue',
+        aggregate: 'sum',
+        showRowTotals: true,
+    };
+
+    private static readonly result = computePivot(salesData, PivotStoryComponent.config);
+
+    readonly pivotRows: PivotRowRecord[] = PivotStoryComponent.result.rows;
+    readonly pivotColumns: ColumnDef<PivotRowRecord>[] = [
+        ...PivotStoryComponent.result.columns.map(
+            (c) => ({ accessorKey: c.key, header: c.header }) as ColumnDef<PivotRowRecord>,
+        ),
+    ];
+}
+
+/**
+ * The `uiDtPivot` addon directive (`packages/components/ui/data-table/addons/pivot`)
+ * attaches via DI to the base table's `DataTableAddonHost` and exposes
+ * `getPivot(config)` for computing a pivot of the table's raw rows on demand
+ * (e.g. from a button click, via a template reference variable). Storybook's
+ * static args/controls can't drive an imperative method call cleanly, so this
+ * story instead renders the equivalent transform directly — the pivot shape
+ * (`columns`/`rows`) bound onto a second `<ui-data-table>` — to demonstrate the
+ * addon's intended "pivot in, table out" usage pattern without requiring a
+ * click handler wired through Storybook args.
+ */
+export const Pivot: StoryObj = {
+    render: () => ({
+        props: {},
+        template: `<app-pivot-story />`,
+        moduleMetadata: {
+            imports: [PivotStoryComponent],
+        },
+    }),
 };
 
 interface PerfRow {
@@ -1242,5 +1656,208 @@ export const FillHandle: StoryObj<DataTableComponent<FillRow>> = {
     args: {
         data: fillRows,
         columns: fillColumns,
+    },
+};
+
+interface VirtualRow {
+    id: number;
+    name: string;
+    [key: string]: unknown;
+}
+
+function generateVirtualData(rowCount: number, colCount: number): VirtualRow[] {
+    const statuses = ['active', 'inactive', 'pending'];
+    const data: VirtualRow[] = [];
+    for (let r = 0; r < rowCount; r++) {
+        const row: VirtualRow = {
+            id: r + 1,
+            name: `Row ${r + 1}`,
+        };
+        for (let c = 0; c < colCount; c++) {
+            row[`col${c}`] = `R${r + 1}C${c}`;
+        }
+        row['status'] = statuses[r % 3];
+        row['enabled'] = r % 2 === 0;
+        data.push(row);
+    }
+    return data;
+}
+
+@Component({
+    selector: 'app-virtual-status-cell',
+    template: `
+        <div class="flex items-center gap-2">
+            <div class="h-2 w-2 rounded-full"
+                 [class.bg-green-500]="status() === 'active'"
+                 [class.bg-red-500]="status() === 'inactive'"
+                 [class.bg-yellow-500]="status() === 'pending'">
+            </div>
+            <span class="text-xs">{{ status() }}</span>
+        </div>
+    `,
+    changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class VirtualStatusCellComponent {
+    readonly status = input<string>('active');
+}
+
+@Component({
+    selector: 'app-virtual-toggle-cell',
+    template: `
+        <label class="flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" [checked]="enabled()" (change)="onToggle()" class="h-3 w-3" />
+            <span class="text-xs">{{ enabled() ? 'On' : 'Off' }}</span>
+        </label>
+    `,
+    changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class VirtualToggleCellComponent {
+    readonly enabled = input(false);
+    readonly toggled = output<boolean>();
+    private readonly state = signal(false);
+
+    onToggle() {
+        this.state.update(v => !v);
+        this.toggled.emit(this.state());
+    }
+}
+
+function generateVirtualColumns(colCount: number): ColumnDef<VirtualRow>[] {
+    const cols: ColumnDef<VirtualRow>[] = [
+        { accessorKey: 'id', header: 'ID', width: '80px', sticky: true },
+        { accessorKey: 'name', header: 'Name', width: '150px', sticky: true },
+    ];
+
+    for (let c = 0; c < colCount; c++) {
+        if (c < 25) {
+            cols.push({
+                accessorKey: `col${c}`,
+                header: `Status ${c}`,
+                width: '120px',
+                component: VirtualStatusCellComponent,
+                componentInputs: (row: VirtualRow) => ({ status: row['status'] }),
+            });
+        } else if (c < 50) {
+            cols.push({
+                accessorKey: `col${c}`,
+                header: `Toggle ${c}`,
+                width: '100px',
+                component: VirtualToggleCellComponent,
+                componentInputs: (row: VirtualRow) => ({ enabled: row['enabled'] }),
+            });
+        } else if (c < 55) {
+            cols.push({
+                accessorKey: `col${c}`,
+                header: `Image ${c}`,
+                width: '80px',
+                cell: (_row: VirtualRow) => '🖼️',
+            });
+        } else {
+            cols.push({
+                accessorKey: `col${c}`,
+                header: `Col ${c}`,
+                width: `${80 + (c % 5) * 20}px`,
+                cell: (row: VirtualRow) => String(row[`col${c}`] ?? ''),
+            });
+        }
+    }
+
+    return cols;
+}
+
+const virtualData = generateVirtualData(10000, 100);
+const virtualColumns = generateVirtualColumns(100);
+
+type VirtualStory = StoryObj<DataTableComponent<VirtualRow>>;
+
+export const VirtualScrollPerformance: VirtualStory = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[700px] w-full p-4">
+                <h3 class="mb-2 text-sm text-muted-foreground">10,000 rows × 100+ columns (50 stateful components) — Virtual Scroll</h3>
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [enableVirtualScroll]="enableVirtualScroll"
+                    [virtualRowHeight]="virtualRowHeight"
+                    [virtualRowBuffer]="virtualRowBuffer"
+                    [virtualColumnBuffer]="virtualColumnBuffer"
+                    [virtualRecycleComponents]="virtualRecycleComponents"
+                    [virtualAutoThreshold]="virtualAutoThreshold"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: virtualData,
+        columns: virtualColumns as ColumnDef<VirtualRow>[],
+        showToolbar: true,
+        showPagination: false,
+        enableVirtualScroll: true,
+        virtualRowHeight: 40,
+        virtualRowBuffer: 5,
+        virtualColumnBuffer: 3,
+        virtualRecycleComponents: false,
+        virtualAutoThreshold: { rows: 500, columns: 20 },
+    } as Record<string, unknown>,
+};
+
+const editableColumns: ColumnDef<User>[] = [
+    { accessorKey: 'id', header: 'ID', width: '70px' },
+    {
+        accessorKey: 'name',
+        header: 'Name',
+        editable: true,
+        editType: 'text',
+        editValidator: (val) => String(val).trim().length > 0 || 'Name is required',
+        valueSetter: (row, val) => ({ ...row, name: String(val) }),
+    },
+    {
+        accessorKey: 'email',
+        header: 'Email',
+        editable: true,
+        editType: 'text',
+        editValidator: (val) => String(val).includes('@') || 'Email must contain "@"',
+        valueSetter: (row, val) => ({ ...row, email: String(val) }),
+    },
+    {
+        accessorKey: 'role',
+        header: 'Role',
+        editable: true,
+        editType: 'select',
+        editOptions: [
+            { label: 'Admin', value: 'Admin' },
+            { label: 'User', value: 'User' },
+            { label: 'Manager', value: 'Manager' },
+        ],
+        valueSetter: (row, val) => ({ ...row, role: String(val) }),
+    },
+];
+
+export const InlineEditing: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Focus a cell and press Enter (or double-click) to edit. Committed edits are written
+                    back through each column's valueSetter. The Name column rejects empty values and
+                    Email requires an "@" — invalid edits show an inline error and emit (editError).
+                </p>
+                <ui-data-table
+                    [(data)]="data"
+                    [columns]="columns"
+                    [showToolbar]="false"
+                    [showPagination]="false"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData.slice(0, 6),
+        columns: editableColumns,
     },
 };

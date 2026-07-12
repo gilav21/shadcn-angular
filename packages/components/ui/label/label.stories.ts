@@ -12,22 +12,27 @@ const meta: Meta<LabelComponent> = {
         })
     ],
     argTypes: {
-        for: { control: 'text' },
+        for: { control: 'text', description: 'The `id` of the form control this label is bound to.' },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
         for: 'terms',
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<LabelComponent>;
 
-export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `<ui-label [for]="for">Accept terms</ui-label>`,
-    }),
-};
+const TEMPLATE = `<ui-label [for]="for" [class]="class">Accept terms</ui-label>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const WithControl: Story = {
     render: (args) => ({

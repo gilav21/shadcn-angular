@@ -1,21 +1,23 @@
-import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { Meta, StoryObj } from '@storybook/angular';
 import { FileUploadComponent } from './file-upload.component';
+import { FILE_UPLOAD_LOCALES } from './file-upload.locales';
 
 const meta: Meta<FileUploadComponent> = {
     title: 'UI/FileUpload',
     component: FileUploadComponent,
-    decorators: [
-        moduleMetadata({
-            imports: [],
-        }),
-    ],
     tags: ['autodocs'],
     argTypes: {
-        accept: { control: 'text' },
-        multiple: { control: 'boolean' },
-        maxFiles: { control: 'number' },
-        maxSize: { control: 'number' },
-        disabled: { control: 'boolean' },
+        accept: { control: 'text', description: 'Comma-separated list of accepted MIME types / extensions (e.g. "image/*,.pdf").' },
+        multiple: { control: 'boolean', description: 'Allows selecting/dropping more than one file.' },
+        maxFiles: { control: 'number', description: 'Maximum number of files accepted. Null for unlimited.' },
+        maxSize: { control: 'number', description: 'Maximum file size in bytes. Null for unlimited.' },
+        disabled: { control: 'boolean', description: 'Disables the dropzone and file picker.' },
+        locale: {
+            control: 'select',
+            options: Object.keys(FILE_UPLOAD_LOCALES),
+            description: 'Locale dictionary key. Falls back to UI_LOCALE_ID when not set.',
+        },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
         accept: '',
@@ -23,52 +25,42 @@ const meta: Meta<FileUploadComponent> = {
         maxFiles: null,
         maxSize: null,
         disabled: false,
+        locale: undefined,
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<FileUploadComponent>;
 
+const TEMPLATE = `
+    <div class="max-w-md">
+        <ui-file-upload
+            [accept]="accept" [multiple]="multiple" [maxFiles]="maxFiles"
+            [maxSize]="maxSize" [disabled]="disabled" [locale]="locale" [class]="class"
+        />
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
 export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="max-w-md">
-                <ui-file-upload
-                    [accept]="accept"
-                    [multiple]="multiple"
-                    [maxFiles]="maxFiles"
-                    [maxSize]="maxSize"
-                    [disabled]="disabled"
-                />
-            </div>
-        `,
-    }),
+    render,
 };
 
 export const ImagesOnly: Story = {
-    render: () => ({
-        template: `
-            <div class="max-w-md">
-                <ui-file-upload
-                    accept="image/*"
-                    [multiple]="true"
-                />
-            </div>
-        `,
-    }),
+    args: { accept: 'image/*' },
+    render,
 };
 
 export const SingleFile: Story = {
-    render: () => ({
-        template: `
-            <div class="max-w-md">
-                <ui-file-upload
-                    [multiple]="false"
-                />
-            </div>
-        `,
-    }),
+    args: { multiple: false },
+    render,
 };
 
 export const WithLimits: Story = {
@@ -87,35 +79,39 @@ export const WithLimits: Story = {
 };
 
 export const DocumentsOnly: Story = {
-    render: () => ({
+    args: { accept: '.pdf,.doc,.docx' },
+    render,
+};
+
+export const Disabled: Story = {
+    args: { disabled: true },
+    render,
+};
+
+export const RTL: Story = {
+    args: { locale: 'he' },
+    render: (args) => ({
+        props: args,
         template: `
-            <div class="max-w-md space-y-2">
-                <p class="text-sm text-muted-foreground">PDF and Word documents only</p>
+            <div dir="rtl" class="max-w-md">
                 <ui-file-upload
-                    accept=".pdf,.doc,.docx"
-                    [multiple]="true"
+                    [accept]="accept" [multiple]="multiple" [maxFiles]="maxFiles"
+                    [maxSize]="maxSize" [disabled]="disabled" [locale]="locale" [class]="class"
                 />
             </div>
         `,
     }),
 };
 
-export const Disabled: Story = {
-    render: () => ({
-        template: `
-            <div class="max-w-md">
-                <ui-file-upload [disabled]="true" />
-            </div>
-        `,
-    }),
-};
-
-export const RTL: Story = {
-    render: () => ({
+export const LocalizedArabic: Story = {
+    args: { locale: 'ar' },
+    render: (args) => ({
+        props: args,
         template: `
             <div dir="rtl" class="max-w-md">
                 <ui-file-upload
-                    [multiple]="true"
+                    [accept]="accept" [multiple]="multiple" [maxFiles]="maxFiles"
+                    [maxSize]="maxSize" [disabled]="disabled" [locale]="locale" [class]="class"
                 />
             </div>
         `,

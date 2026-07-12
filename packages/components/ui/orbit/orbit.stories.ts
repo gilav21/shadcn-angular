@@ -11,64 +11,56 @@ const meta: Meta<OrbitComponent> = {
         }),
     ],
     argTypes: {
-        radius: {
-            control: 'number',
-        },
-        duration: {
-            control: 'number',
-        },
-        delay: {
-            control: 'number',
-        },
-        reverse: {
-            control: 'boolean',
-        },
+        radius: { control: 'number', description: 'Orbit radius in pixels.' },
+        duration: { control: 'number', description: 'Full rotation duration in seconds.' },
+        delay: { control: 'number', description: 'Animation start delay in seconds.' },
+        reverse: { control: 'boolean', description: 'Reverses the rotation direction.' },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
         radius: 100,
         duration: 10,
         delay: 0,
         reverse: false,
+        class: 'w-64 h-64',
     },
 };
 
 export default meta;
 type Story = StoryObj<OrbitComponent>;
 
-export const Default: Story = {
-    args: {
-        radius: 100,
-        duration: 10,
-        reverse: false,
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="flex items-center justify-center p-16 min-h-72">
-                <ui-orbit [radius]="radius" [duration]="duration" [reverse]="reverse" class="w-64 h-64">
-                    <div orbit-center class="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl shadow-lg">
-                        ⚛️
-                    </div>
-                    <div class="w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center text-white text-lg shadow-md">
-                        ★
-                    </div>
-                </ui-orbit>
+const TEMPLATE = `
+    <div class="flex items-center justify-center p-16 min-h-72">
+        <ui-orbit [radius]="radius" [duration]="duration" [delay]="delay" [reverse]="reverse" [class]="class">
+            <div orbit-center class="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-2xl shadow-lg">
+                ⚛️
             </div>
-        `,
-    }),
-};
+            <div class="w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center text-white text-lg shadow-md">
+                ★
+            </div>
+        </ui-orbit>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const Reverse: Story = {
     args: {
         radius: 110,
         duration: 8,
         reverse: true,
+        class: 'w-64 h-64',
     },
     render: (args) => ({
         props: args,
         template: `
             <div class="flex items-center justify-center p-16 min-h-72">
-                <ui-orbit [radius]="radius" [duration]="duration" [reverse]="reverse" class="w-64 h-64">
+                <ui-orbit [radius]="radius" [duration]="duration" [delay]="delay" [reverse]="reverse" [class]="class">
                     <div orbit-center class="w-16 h-16 rounded-full bg-slate-800 dark:bg-slate-200 flex items-center justify-center text-white dark:text-slate-800 text-2xl shadow-lg">
                         🌍
                     </div>

@@ -110,6 +110,9 @@
     "esbuild": "^0.28.1",
     "vite": "^7.3.5",
     "webpack-dev-server": "^5.2.4",
+    "undici@>=7.0.0 <7.28.0": "7.28.0",
+    "http-proxy-middleware@>=3.0.0 <3.0.7": "3.0.7",
+    "piscina@>=5.0.0-alpha.0 <5.2.0": "5.2.0",
     "@angular-devkit/build-angular": {
       "webpack-dev-server": "^5.2.4"
     }

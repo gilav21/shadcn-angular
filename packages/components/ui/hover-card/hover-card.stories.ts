@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
     HoverCardComponent,
     HoverCardTriggerComponent,
@@ -6,11 +6,12 @@ import {
 } from './index';
 import { ButtonComponent } from '../button';
 import { AvatarComponent, AvatarImageComponent, AvatarFallbackComponent } from '../avatar';
-import { moduleMetadata } from '@storybook/angular';
 
-const meta: Meta<HoverCardComponent & { align: string; side: string; title: string; description: string }> = {
+type HoverCardStoryProps = HoverCardContentComponent;
+
+const meta: Meta<HoverCardStoryProps> = {
     title: 'UI/HoverCard',
-    component: HoverCardComponent,
+    component: HoverCardContentComponent,
     tags: ['autodocs'],
     decorators: [
         moduleMetadata({
@@ -21,28 +22,61 @@ const meta: Meta<HoverCardComponent & { align: string; side: string; title: stri
                 ButtonComponent,
                 AvatarComponent,
                 AvatarImageComponent,
-                AvatarFallbackComponent
+                AvatarFallbackComponent,
             ],
         }),
     ],
     argTypes: {
-        align: { control: 'select', options: ['start', 'center', 'end'] },
-        side: { control: 'select', options: ['top', 'bottom'] },
-        title: { control: 'text' },
-        description: { control: 'text' },
+        align: {
+            control: 'select',
+            options: ['start', 'center', 'end'],
+            description: 'Horizontal alignment of the content relative to the trigger.',
+        },
+        side: {
+            control: 'select',
+            options: ['top', 'bottom'],
+            description: 'Which side of the trigger the content opens on.',
+        },
+        title: { control: 'text', description: 'Simple-mode title text.' },
+        description: { control: 'text', description: 'Simple-mode description text.' },
+        class: { control: 'text', description: 'Extra classes merged onto the content panel.' },
     },
     args: {
         align: 'center',
         side: 'bottom',
         title: '@angular',
         description: 'The modern web developer\'s platform.',
+        class: '',
     },
 };
 
 export default meta;
-type Story = StoryObj<HoverCardComponent>;
+type Story = StoryObj<HoverCardStoryProps>;
 
-export const Default: Story = {
+const SIMPLE_TEMPLATE = `
+    <ui-hover-card>
+        <ui-hover-card-trigger>
+            <ui-button variant="link">@angular</ui-button>
+        </ui-hover-card-trigger>
+        <ui-hover-card-content
+            [align]="align" [side]="side"
+            [title]="title" [description]="description" [class]="class"
+        />
+    </ui-hover-card>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: SIMPLE_TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel (simple/data-driven mode). */
+export const Playground: Story = { render };
+
+export const SimpleMode: Story = {
+    render,
+};
+
+export const CustomContent: Story = {
     render: () => ({
         template: `
       <ui-hover-card>
@@ -76,21 +110,17 @@ export const Default: Story = {
     }),
 };
 
-export const SimpleMode: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
-      <ui-hover-card>
-        <ui-hover-card-trigger>
-          <ui-button variant="link">@angular</ui-button>
-        </ui-hover-card-trigger>
-        <ui-hover-card-content
-          [align]="align"
-          [side]="side"
-          [title]="title"
-          [description]="description"
-        />
-      </ui-hover-card>
-    `,
-    }),
+export const SideTop: Story = {
+    args: { side: 'top' },
+    render,
+};
+
+export const AlignStart: Story = {
+    args: { align: 'start' },
+    render,
+};
+
+export const AlignEnd: Story = {
+    args: { align: 'end' },
+    render,
 };

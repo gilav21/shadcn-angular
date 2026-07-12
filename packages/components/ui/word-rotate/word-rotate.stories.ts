@@ -12,43 +12,37 @@ const meta: Meta<WordRotateComponent> = {
         }),
     ],
     argTypes: {
-        duration: {
-            control: 'number',
-        },
-        words: {
-            control: 'object',
-        },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
+        words: { control: 'object', description: 'List of words to cycle through.' },
+        duration: { control: 'number', description: 'Time in ms each word is shown before rotating.', min: 200, step: 100 },
     },
     args: {
-        duration: 2000,
+        class: 'text-primary',
         words: ['Developer', 'Designer', 'Creator'],
+        duration: 2000,
     },
 };
 
 export default meta;
 type Story = StoryObj<WordRotateComponent>;
 
-export const Default: Story = {
-    args: {
-        words: ['Developer', 'Designer', 'Creator'],
-        duration: 2000,
-    },
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="flex items-center justify-center p-16">
-                <h2 class="text-5xl font-bold">
-                    I am a&nbsp;
-                    <ui-word-rotate
-                        [words]="words"
-                        [duration]="duration"
-                        class="text-primary"
-                    />
-                </h2>
-            </div>
-        `,
-    }),
-};
+const TEMPLATE = `
+    <div class="flex items-center justify-center p-16">
+        <h2 class="text-5xl font-bold">
+            I am a&nbsp;
+            <ui-word-rotate [words]="words" [duration]="duration" [class]="class" />
+        </h2>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
+export const Default: Story = { render };
 
 export const FastRotation: Story = {
     args: {

@@ -13,19 +13,80 @@ import {
 } from '../context-menu';
 import { ContextMenuIntegrations } from '../context-menu-integrations';
 
-const meta: Meta = {
+const meta: Meta<TreeComponent> = {
     title: 'UI/Tree',
+    component: TreeComponent,
     decorators: [
         moduleMetadata({
             imports: [TreeComponent, TreeItemComponent, TreeLabelComponent, TreeIconComponent],
         }),
     ],
     tags: ['autodocs'],
+    argTypes: {
+        selectable: {
+            control: 'select',
+            options: ['single', 'multiple', 'none'],
+            description: 'Selection mode for tree items.',
+        },
+        data: { control: 'object', description: 'Data-driven node tree; when provided, renders nodes from data instead of projected ui-tree-item content.' },
+        initialExpandDepth: { control: 'number', description: 'How many levels to auto-expand on load (data-driven mode). -1 expands all, 0 expands none.' },
+        class: { control: 'text', description: 'Extra classes merged onto the host.' },
+    },
+    args: {
+        selectable: 'none',
+        data: [],
+        initialExpandDepth: 0,
+        class: '',
+    },
 };
 
 export default meta;
 
-type Story = StoryObj;
+type Story = StoryObj<TreeComponent>;
+
+const TEMPLATE = `
+    <div class="max-w-full sm:max-w-sm border rounded-md p-4">
+        <ui-tree [selectable]="selectable" [data]="data" [initialExpandDepth]="initialExpandDepth" [class]="class">
+            <ui-tree-item value="documents">
+                <ui-tree-label>
+                    <ui-tree-icon>📁</ui-tree-icon>
+                    Documents
+                </ui-tree-label>
+                <ui-tree-item value="resume">
+                    <ui-tree-label>
+                        <ui-tree-icon>📄</ui-tree-icon>
+                        Resume.pdf
+                    </ui-tree-label>
+                </ui-tree-item>
+                <ui-tree-item value="cover-letter">
+                    <ui-tree-label>
+                        <ui-tree-icon>📄</ui-tree-icon>
+                        Cover Letter.docx
+                    </ui-tree-label>
+                </ui-tree-item>
+            </ui-tree-item>
+            <ui-tree-item value="images">
+                <ui-tree-label>
+                    <ui-tree-icon>📁</ui-tree-icon>
+                    Images
+                </ui-tree-label>
+                <ui-tree-item value="vacation">
+                    <ui-tree-label>
+                        <ui-tree-icon>🖼️</ui-tree-icon>
+                        vacation.jpg
+                    </ui-tree-label>
+                </ui-tree-item>
+            </ui-tree-item>
+        </ui-tree>
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const Default: Story = {
     render: () => ({

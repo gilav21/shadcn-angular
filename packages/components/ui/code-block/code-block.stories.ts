@@ -1,5 +1,6 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { CodeBlockComponent, CODE_BLOCK_THEMES } from './code-block.component';
+import { CODE_BLOCK_LOCALES } from './code-block.locales';
 
 const typescriptCode = `import { Component, input, computed } from '@angular/core';
 
@@ -61,7 +62,16 @@ const xmlCode = `<?xml version="1.0" encoding="UTF-8"?>
   </dependencies>
 </project>`;
 
-const meta: Meta<CodeBlockComponent> = {
+/**
+ * The `theme` argType uses Storybook's `mapping` so the Controls panel can
+ * offer named theme presets (a select) while the component itself only
+ * accepts a resolved `CodeBlockTheme | null`. The story-level arg therefore
+ * stores the mapping *key* (a string); Storybook resolves it to the actual
+ * theme object before `render` receives it.
+ */
+type CodeBlockStoryProps = Omit<CodeBlockComponent, 'theme'> & { theme: string };
+
+const meta: Meta<CodeBlockStoryProps> = {
     title: 'UI/CodeBlock',
     component: CodeBlockComponent,
     tags: ['autodocs'],
@@ -74,33 +84,63 @@ const meta: Meta<CodeBlockComponent> = {
         language: {
             control: 'select',
             options: ['typescript', 'javascript', 'python', 'java', 'html', 'xml', 'css', 'json', 'bash', 'csharp', 'yaml'],
+            description: 'Language used to tokenize and syntax-highlight `code`. Falls back to `typescript` for unknown keys.',
         },
-        code: { control: 'text' },
+        code: { control: 'text', description: 'Source code to render.' },
         theme: {
             control: 'select',
-            options: ['default', 'dracula', 'github', 'monokai'],
+            options: ['default', 'vscode', 'dracula', 'github', 'monokai'],
             mapping: {
                 default: null,
+                vscode: CODE_BLOCK_THEMES['vscode'],
                 dracula: CODE_BLOCK_THEMES['dracula'],
                 github: CODE_BLOCK_THEMES['github'],
                 monokai: CODE_BLOCK_THEMES['monokai'],
             },
+            description: 'Token-type-to-class theme map. `default` uses the built-in colors.',
         },
-        collapseScope: { control: 'boolean' },
-        defaultCollapsed: { control: { type: 'number', min: 0, max: 5, step: 1 } },
-        lineNumbers: { control: 'boolean' },
+        customLanguages: { control: 'object', description: 'Extra/override language definitions keyed by language id (token patterns + optional scope detector for folding).' },
+        collapseScope: { control: 'boolean', description: 'Enables scope folding (chevrons on foldable lines).' },
+        defaultCollapsed: { control: { type: 'number', min: 0, max: 5, step: 1 }, description: 'Scope depth at or above which folds start collapsed. Unset = nothing pre-collapsed.' },
+        lineNumbers: { control: 'boolean', description: 'Shows the line-number gutter.' },
+        locale: {
+            control: 'select',
+            options: Object.keys(CODE_BLOCK_LOCALES),
+            description: 'Locale dictionary registry key (or a full CodeBlockLocale object) for the copy-button labels. Falls back to `UI_LOCALE_ID` when unset.',
+        },
+        class: { control: 'text', description: 'Extra classes merged onto the host container.' },
     },
     args: {
         language: 'typescript',
         code: typescriptCode,
-        theme: null,
+        theme: 'default',
+        customLanguages: null,
         collapseScope: false,
+        defaultCollapsed: undefined,
         lineNumbers: true,
+        locale: 'en',
+        class: '',
     },
 };
 
 export default meta;
-type Story = StoryObj<CodeBlockComponent>;
+type Story = StoryObj<CodeBlockStoryProps>;
+
+const PLAYGROUND_TEMPLATE = `
+    <ui-code-block
+        [code]="code" [language]="language" [theme]="theme"
+        [customLanguages]="customLanguages" [collapseScope]="collapseScope"
+        [defaultCollapsed]="defaultCollapsed" [lineNumbers]="lineNumbers"
+        [locale]="locale" [class]="class">
+    </ui-code-block>`;
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = {
+    render: (args) => ({
+        props: args,
+        template: PLAYGROUND_TEMPLATE,
+    }),
+};
 
 export const Default: Story = {
     args: {

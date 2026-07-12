@@ -50,19 +50,60 @@ const meta: Meta<SelectComponent<unknown>> = {
     }),
   ],
   argTypes: {
-    disabled: { control: 'boolean' },
-    position: { control: 'radio', options: ['popper', 'item-aligned'] },
-    placeholder: { control: 'text' },
+    disabled: { control: 'boolean', description: 'Disables the trigger and prevents opening.' },
+    placeholder: { control: 'text', description: 'Override for the placeholder shown when no value is selected.' },
+    ariaLabel: { control: 'text', description: 'Accessible name forwarded to the trigger button.' },
+    ariaLabelledby: { control: 'text', description: 'Associates the combobox with an external visible label.' },
+    defaultValue: { control: false, description: 'Uncontrolled initial value; only applied when `value` is unset.' },
+    locale: { control: false, description: 'Locale dictionary or registry key; falls back to `UI_LOCALE_ID`.' },
+    position: { control: 'radio', options: ['popper', 'item-aligned'], description: 'How the dropdown is positioned relative to the trigger.' },
+    options: { control: 'object', description: 'Data-driven mode: array of options to render (empty array = template-driven mode).' },
+    displayWith: { control: false, description: 'Function mapping an option to its display string (data-driven mode).' },
+    value: { control: false, description: 'Controlled selected value.' },
+    valueAttribute: { control: 'text', description: 'Object key used to extract the value from each option (data-driven mode).' },
+    disabledWith: { control: false, description: 'Function marking an option as disabled (data-driven mode).' },
   },
   args: {
     disabled: false,
-    position: 'popper',
     placeholder: 'Select an option',
+    ariaLabel: undefined,
+    ariaLabelledby: undefined,
+    position: 'popper',
+    options: fruits,
+    valueAttribute: undefined,
   },
 };
 
 export default meta;
 type Story = StoryObj<SelectComponent<unknown>>;
+
+/**
+ * Interactive playground — every input is wired to the Controls panel.
+ * Uses data-driven mode (`options` defaults to a fruit list) so `ariaLabel`
+ * and `ariaLabelledby` — only applied on the internally-rendered combobox
+ * button in data-driven mode — are genuinely functional here too.
+ */
+export const Playground: Story = {
+  render: (args) => ({
+    props: { ...args, selected: null },
+    template: `
+      <div class="flex flex-col items-center gap-4 h-[300px] pt-8">
+        <ui-select
+          [options]="options"
+          [disabled]="disabled"
+          [placeholder]="placeholder"
+          [ariaLabel]="ariaLabel"
+          [ariaLabelledby]="ariaLabelledby"
+          [position]="position"
+          [valueAttribute]="valueAttribute"
+          [(value)]="selected"
+          class="w-[200px]"
+        />
+        <p class="text-sm text-muted-foreground">Selected: {{ selected || 'none' }}</p>
+      </div>
+    `,
+  }),
+};
 
 /**
  * Template-driven mode: Use ng-content to define items declaratively.

@@ -1,6 +1,7 @@
 import { Meta, StoryObj, applicationConfig, moduleMetadata } from '@storybook/angular';
 import { TreeSelectComponent } from './tree-select.component';
 import { TreeNode, TreeComponent } from '../tree';
+import { COMMON_LOCALES } from '../../lib/i18n/common.locales';
 import { FormsModule } from '@angular/forms';
 // eslint-disable-next-line sonarjs/deprecation -- provideNoopAnimations is deprecated in Angular 20.2; no stable animate.enter/leave replacement yet for Storybook setup
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
@@ -61,34 +62,51 @@ const meta: Meta<TreeSelectComponent> = {
         }),
     ],
     argTypes: {
-        disabled: { control: 'boolean' },
-        placeholder: { control: 'text' },
+        nodes: { control: 'object', description: 'Tree data to render inside the popover.' },
+        placeholder: { control: 'text', description: 'Trigger placeholder. Falls back to the locale default when unset.' },
+        disabled: { control: 'boolean', description: 'Disables the trigger and form control.' },
+        value: { control: 'text', description: 'Selected node key (non-form-bound). Prefer ngModel for two-way binding.' },
+        locale: {
+            control: 'select',
+            options: Object.keys(COMMON_LOCALES),
+            description: 'Locale dictionary registry key (or a full CommonLocale object) for the placeholder/clear/search UI strings. Falls back to `UI_LOCALE_ID` when unset.',
+        },
+        class: { control: 'text', description: 'Extra classes merged onto the trigger.' },
     },
     args: {
         nodes: SAMPLE_NODES,
         placeholder: 'Select an item...',
         disabled: false,
+        value: undefined,
+        locale: 'en',
+        class: 'w-full sm:w-[250px]',
     },
 };
 
 export default meta;
 type Story = StoryObj<TreeSelectComponent>;
 
-export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
-            <div class="h-[300px] w-full flex justify-center pt-10">
-                <ui-tree-select
-                    [nodes]="nodes"
-                    [placeholder]="placeholder"
-                    [disabled]="disabled"
-                    class="w-[250px]"
-                />
-            </div>
-        `,
-    }),
-};
+const TEMPLATE = `
+    <div class="h-[300px] w-full flex justify-center pt-10">
+        <ui-tree-select
+            [nodes]="nodes"
+            [placeholder]="placeholder"
+            [disabled]="disabled"
+            [value]="value"
+            [locale]="locale"
+            [class]="class"
+        />
+    </div>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
+
+export const Default: Story = { render };
 
 export const WithPreselection: Story = {
     name: 'With Preselection',

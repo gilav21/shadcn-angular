@@ -14,38 +14,45 @@ const meta: Meta<NativeSelectComponent> = {
         size: {
             control: 'select',
             options: ['default', 'sm'],
+            description: 'Sizing preset.',
         },
         disabled: {
             control: 'boolean',
+            description: 'Disables interaction.',
         },
         invalid: {
             control: 'boolean',
+            description: 'Marks the select as invalid (error styling + `aria-invalid`).',
         },
+        class: { control: 'text', description: 'Extra classes merged onto the host `<select>`.' },
     },
     args: {
         size: 'default',
         disabled: false,
         invalid: false,
+        class: '',
     },
 };
 
 export default meta;
 type Story = StoryObj<NativeSelectComponent>;
 
-export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
-            <ui-native-select [size]="size" [disabled]="disabled" [invalid]="invalid">
-                <option value="">Select a fruit</option>
-                <option value="apple">Apple</option>
-                <option value="banana">Banana</option>
-                <option value="cherry">Cherry</option>
-                <option value="grape">Grape</option>
-            </ui-native-select>
-        `,
-    }),
-};
+const TEMPLATE = `
+    <ui-native-select [size]="size" [disabled]="disabled" [invalid]="invalid" [class]="class">
+        <option value="">Select a fruit</option>
+        <option value="apple">Apple</option>
+        <option value="banana">Banana</option>
+        <option value="cherry">Cherry</option>
+        <option value="grape">Grape</option>
+    </ui-native-select>`;
+
+const render: NonNullable<Story['render']> = (args) => ({
+    props: args,
+    template: TEMPLATE,
+});
+
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = { render };
 
 export const SmallSize: Story = {
     args: {

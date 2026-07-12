@@ -32,9 +32,13 @@ const PRESETS_CONTENT =
     'or click <span data-action-click="preset.open-dialog" ' +
     'data-action-click-params=\'{"title":"Pricing","body":"Our plans start at $9."}\'>here</span>.</p>';
 
+// The action span carries the inline style a fresh attach seeds from STARTER_STYLE
+// (uiRteActionsStyle only applies on a new attach), so the starter look is visible on load.
+const STYLED_SEED = 'color:#2563eb;text-decoration:underline dotted;text-underline-offset:3px';
 const STYLED_CONTENT =
     '<p>The starter style paints newly-attached actions blue with a dotted underline — see our ' +
-    '<span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"pricing"}\'>pricing</span> ' +
+    `<span style="${STYLED_SEED}" data-action-click="open-dialog" ` +
+    'data-action-click-params=\'{"dialogId":"pricing"}\'>pricing</span> ' +
     'page.</p>';
 
 const COMBINED_PARAMS = '{"title":"Idempotent","body":"Calling it once or many times has the same effect."}';
@@ -138,11 +142,34 @@ const meta: Meta<RteActionsStory> = {
     title: 'Editor/Rich Text Actions',
     component: RteActionsStory,
     decorators: [moduleMetadata({ imports: [RteActionsStory] })],
+    argTypes: {
+        variant: {
+            control: 'select',
+            options: ['tier1', 'presets', 'styled', 'combined'],
+            description: 'Which action configuration the playground seeds: Tier-1 declarative fields, batteries-included presets, starter-styled, or a combined hover+click action.',
+        },
+        readonly: {
+            control: 'boolean',
+            description: 'Renders the editor read-only, hiding the authoring entry points for actions.',
+        },
+        rtl: {
+            control: 'boolean',
+            description: 'Switches the layout and addon locale to RTL (Hebrew).',
+        },
+    },
+    args: {
+        variant: 'tier1',
+        readonly: false,
+        rtl: false,
+    },
 };
 export default meta;
 type Story = StoryObj<RteActionsStory>;
 
 /** Tier-1 declarative fields: attach an "Open dialog" action, click it on the right. */
+/** Interactive playground — the variant / readonly / rtl controls drive the live editor + published pane. */
+export const Playground: Story = { args: { variant: 'tier1' } };
+
 export const Default: Story = { args: { variant: 'tier1' } };
 
 /** Batteries-included presets: hover card + dialog wired in a few lines. */
