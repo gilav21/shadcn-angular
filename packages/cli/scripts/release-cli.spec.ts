@@ -10,6 +10,7 @@ import {
     readPackageVersion,
     renderReleaseNotes,
     setPackageVersion,
+    registryShape,
     releaseCommitArgv,
     RELEASE_PATHS,
     stripRegistryData,
@@ -121,6 +122,7 @@ describe('classifyPath', () => {
 });
 
 const NL = String.fromCodePoint(10);
+const CRLF = String.fromCodePoint(13, 10);
 
 describe('stripRegistryData', () => {
     const source = [
@@ -194,6 +196,37 @@ describe('stripRegistryData', () => {
     it('returns the whole source when the literal is never closed (fail safe)', () => {
         const truncated = `export const registry = defineRegistry({${NL}    button: { name: "button" },`;
         expect(stripRegistryData(truncated)).toBe(truncated);
+    });
+});
+
+// The two revisions the verdict compares come from DIFFERENT readers — `git show`
+// (trimmed) vs `readFileSync` (not) — and a Windows checkout is CRLF on disk, LF in
+// the object store. Unnormalised, they always compared unequal on trailing
+// whitespace alone, so the registry-DATA-only branch of publishVerdict was dead
+// code and every regenerated snapshot was reported as a manifest-SHAPE change.
+describe('registryShape', () => {
+    const source = [
+        'export interface ComponentDefinition { name: string; }',
+        'export const registry = defineRegistry({',
+        "    button: { name: 'button' },",
+        '});',
+        'export function isComponentName(n: string) { return n in registry; }',
+        '',
+    ].join(NL);
+
+    it('is stable across CRLF-vs-LF and a trailing newline', () => {
+        const fromDisk = source.replaceAll(NL, CRLF);
+        const fromGit = source.trim();
+        expect(registryShape(fromDisk)).toBe(registryShape(fromGit));
+    });
+
+    it('reports a registry-data-only change as needing no publish', () => {
+        const regenerated = source.replace("button: { name: 'button' },", "card: { name: 'card' },");
+        expect(publishVerdict({
+            changedFiles: ['packages/cli/src/registry/index.ts'],
+            registryShapeBefore: registryShape(source.trim()),
+            registryShapeAfter: registryShape(regenerated.replaceAll(NL, CRLF)),
+        }).required).toBe(false);
     });
 });
 

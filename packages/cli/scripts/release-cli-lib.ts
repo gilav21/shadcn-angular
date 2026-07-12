@@ -181,6 +181,20 @@ export function stripRegistryData(source: string): string {
     return [...lines.slice(0, start), ...lines.slice(end + 1)].join('\n');
 }
 
+/**
+ * The comparable shape of a `registry/index.ts` revision.
+ *
+ * Normalisation is load-bearing, not cosmetic: the two sides come from different
+ * readers — `git show` (trimmed) vs `readFileSync` (not) — and a git checkout on
+ * Windows has CRLF on disk and LF in the object store. Without this, the two
+ * revisions ALWAYS compared unequal on trailing whitespace alone, so the
+ * data-only branch of {@link publishVerdict} could never fire and every registry
+ * snapshot regeneration was reported as a shape change.
+ */
+export function registryShape(source: string): string {
+    return stripRegistryData(source).replaceAll('\r\n', '\n').trim();
+}
+
 export interface PublishVerdict {
     readonly required: boolean;
     /** Files that force a publish. */

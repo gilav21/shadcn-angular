@@ -32,9 +32,9 @@ import {
     publishVerdict,
     readPackageVersion,
     releaseCommitArgv,
+    registryShape,
     renderReleaseNotes,
     setPackageVersion,
-    stripRegistryData,
     tagName,
     type Commit,
     type PublishVerdict,
@@ -108,12 +108,12 @@ function cliCommits(baseRef: string): Commit[] {
 
 function registryShapeAt(ref: string): string | null {
     const source = gitOrNull('show', `${ref}:${REGISTRY_MODULE}`);
-    return source === null ? null : stripRegistryData(source);
+    return source === null ? null : registryShape(source);
 }
 
 function registryShapeNow(): string | null {
     const file = path.join(REPO_ROOT, REGISTRY_MODULE);
-    return existsSync(file) ? stripRegistryData(readFileSync(file, 'utf-8')) : null;
+    return existsSync(file) ? registryShape(readFileSync(file, 'utf-8')) : null;
 }
 
 // ── guards ──────────────────────────────────────────────────────────────
