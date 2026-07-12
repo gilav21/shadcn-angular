@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi, afterEach, type MockInstance } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from './server.js';
@@ -17,7 +17,7 @@ function manifestFor(url: string): string {
 }
 
 /** Serve manifests per branch and a stub source for anything else. */
-function stubRegistryFetch(): ReturnType<typeof vi.spyOn<typeof globalThis, 'fetch'>> {
+function stubRegistryFetch(): MockInstance<typeof fetch> {
     return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
         const url = String(input);
         const body = url.endsWith('registry.json') ? manifestFor(url) : 'export class RippleDirective {}';

@@ -173,8 +173,8 @@ function readReasonMap(value: unknown): Record<string, string> {
 export function parseAllowlist(source: string): Allowlist {
     const raw = JSON.parse(source) as Record<string, unknown>;
     return {
-        story: readReasonMap(raw.story),
-        demo: readReasonMap(raw.demo),
-        e2e: readReasonMap(raw.e2e),
+        story: readReasonMap(raw['story']),
+        demo: readReasonMap(raw['demo']),
+        e2e: readReasonMap(raw['e2e']),
     };
 }

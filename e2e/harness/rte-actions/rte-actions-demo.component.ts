@@ -131,8 +131,8 @@ export class RteActionsDemoComponent {
     // The editor sanitizes its own output; render that trusted HTML on the
     // published pane so the seeded `style` and inert `data-action-*` hooks
     // round-trip through Angular's binding sanitizer unchanged.
-    // eslint-disable-next-line sonarjs/no-angular-bypass-sanitization
     protected readonly publishedCombinedHtml = computed<SafeHtml>(
+        // eslint-disable-next-line sonarjs/no-angular-bypass-sanitization
         () => this.sanitizer.bypassSecurityTrustHtml(this.combinedContent()),
     );
 

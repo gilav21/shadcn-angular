@@ -256,12 +256,16 @@ describe('RichTextToolbarComponent', () => {
             return fixture.nativeElement;
         }
 
+        function requireSwatch(root: HTMLElement, selector: string): HTMLButtonElement {
+            const swatch = root.querySelector<HTMLButtonElement>(selector);
+            if (!swatch) throw new Error(`No preset swatch matched "${selector}"`);
+            return swatch;
+        }
+
         it('clicking a real text-palette preset swatch emits colorSelect via the color-picker', async () => {
             const root = await openColorPickerPresets('fontColor');
             const targetColor = component.colorPalette[1];
-            const swatch: HTMLButtonElement = root.querySelector(
-                `button[data-color-btn][aria-label="Select ${targetColor}"]`,
-            );
+            const swatch = requireSwatch(root, `button[data-color-btn][aria-label="Select ${targetColor}"]`);
             expect(swatch).not.toBeNull();
 
             let emitted: { type: string; color: string } | undefined;
@@ -275,9 +279,7 @@ describe('RichTextToolbarComponent', () => {
 
         it('clicking the "transparent" background preset emits colorSelect with a fully-transparent color', async () => {
             const root = await openColorPickerPresets('backgroundColor');
-            const swatch: HTMLButtonElement = root.querySelector(
-                'button[data-color-btn][aria-label="Select transparent"]',
-            );
+            const swatch = requireSwatch(root, 'button[data-color-btn][aria-label="Select transparent"]');
             expect(swatch).not.toBeNull();
 
             let emitted: { type: string; color: string } | undefined;

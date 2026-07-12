@@ -130,7 +130,7 @@ describe('seedAllowlist / allowlistSize / parseAllowlist', () => {
         ]);
         const seeded = seedAllowlist(today, 'grandfathered');
         expect(allowlistSize(seeded)).toBe(3);
-        expect(seeded.e2e.kanban).toBe('grandfathered');
+        expect(seeded.e2e['kanban']).toBe('grandfathered');
         const { errors, exempt } = partitionIssues(today, seeded);
         expect(errors).toEqual([]);
         expect(exempt).toHaveLength(3);
@@ -140,7 +140,7 @@ describe('seedAllowlist / allowlistSize / parseAllowlist', () => {
     it('round-trips through JSON and tolerates missing sections', () => {
         const parsed = parseAllowlist(JSON.stringify({ e2e: { kanban: 'backlog' } }));
         expect(parsed.story).toEqual({});
-        expect(parsed.e2e.kanban).toBe('backlog');
+        expect(parsed.e2e['kanban']).toBe('backlog');
         expect(allowlistSize(parsed)).toBe(1);
     });
 });

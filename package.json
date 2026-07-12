@@ -8,8 +8,14 @@
     "demo"
   ],
   "scripts": {
+    "prepare": "simple-git-hooks",
     "build:cli": "cd packages/cli && npm run build",
-    "publish:cli": "cd packages/cli && npm version patch && npm publish",
+    "release:cli": "tsx packages/cli/scripts/release-cli.ts",
+    "preflight": "node scripts/preflight.mjs",
+    "check:completeness": "tsx packages/cli/scripts/check-completeness.ts",
+    "check:registry": "tsx packages/cli/scripts/sync-registry.ts",
+    "hook:pre-commit": "lint-staged",
+    "hook:pre-push": "npm run preflight && npm run test-storybook",
     "build:demo": "cd demo && npm run build",
     "dev": "cd demo && npm run start",
     "lint": "eslint .",
@@ -40,6 +46,13 @@
     "e2e:impact": "tsx e2e/orchestrator/impact.ts",
     "e2e:scaffold": "tsx e2e/orchestrator/scaffold.ts",
     "new:component": "tsx packages/cli/scripts/new-component.ts"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npm run hook:pre-commit",
+    "pre-push": "npm run hook:pre-push"
+  },
+  "lint-staged": {
+    "*.{ts,mjs,js,html}": "eslint --fix --no-warn-ignored"
   },
   "keywords": [
     "angular",
@@ -74,10 +87,12 @@
     "eslint": "^9.39.4",
     "eslint-plugin-sonarjs": "^4.1.0",
     "jsdom": "^27.4.0",
+    "lint-staged": "^17.0.8",
     "lmdb": "^3.5.4",
     "playwright": "^1.57.0",
     "postcss": "^8.5.10",
     "rollup": "^4.60.1",
+    "simple-git-hooks": "^2.13.1",
     "storybook": "^10.3.5",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.19.0",
