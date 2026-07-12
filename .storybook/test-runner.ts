@@ -2,12 +2,17 @@ import type { TestRunnerConfig } from '@storybook/test-runner';
 import { injectAxe, checkA11y, configureAxe } from 'axe-playwright';
 import { getStoryContext } from '@storybook/test-runner';
 
+/**
+ * Set STORYBOOK_A11Y=0 to run the play functions only and skip the axe
+ * assertions (useful while triaging a large a11y backlog). Axe runs by default.
+ */
+const a11yEnabled = process.env['STORYBOOK_A11Y'] !== '0';
+
 const config: TestRunnerConfig = {
     async preVisit(page, context) {
-        // Inject axe before story renders
+        if (!a11yEnabled) return;
         await injectAxe(page);
 
-        // Apply @storybook/addon-a11y parameters if you use them
         const storyContext = await getStoryContext(page, context);
         await configureAxe(page, {
             rules: storyContext.parameters?.a11y?.config?.rules,
@@ -15,13 +20,12 @@ const config: TestRunnerConfig = {
     },
 
     async postVisit(page, context) {
-        // Run axe on the Storybook root and generate detailed HTML report
+        if (!a11yEnabled) return;
         await checkA11y(page, '#storybook-root', {
             detailedReport: true,
             detailedReportOptions: {
                 html: true,
             },
-            // Pass addon a11y options if defined
             axeOptions: (await getStoryContext(page, context)).parameters?.a11y?.options,
         });
     },

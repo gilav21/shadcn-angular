@@ -27,6 +27,8 @@
     "storybook": "npm run docs:json && ng run demo:storybook",
     "build-storybook": "npm run docs:json && ng run demo:build-storybook",
     "test-visual": "vitest --browser=chromium",
+    "test-storybook": "node scripts/test-storybook.mjs",
+    "test-storybook:stories": "cross-env STORYBOOK_A11Y=0 node scripts/test-storybook.mjs",
     "test:cli": "vitest --config vitest.config.cli.ts",
     "docs:json": "compodoc -p tsconfig.json -e json -d .",
     "e2e:build-cli": "cd packages/cli && npm run build",
