@@ -38,7 +38,8 @@
     "e2e:debug": "tsx e2e/orchestrator/run.ts --debug",
     "e2e:reset": "tsx e2e/orchestrator/reset.ts",
     "e2e:impact": "tsx e2e/orchestrator/impact.ts",
-    "e2e:scaffold": "tsx e2e/orchestrator/scaffold.ts"
+    "e2e:scaffold": "tsx e2e/orchestrator/scaffold.ts",
+    "new:component": "tsx packages/cli/scripts/new-component.ts"
   },
   "keywords": [
     "angular",
