@@ -27,15 +27,18 @@ const meta: Meta<NavigationMenuComponent> = {
             ],
         }),
     ],
+    // The data-driven `items` input is intentionally NOT a meta-level control:
+    // `NavigationMenuComponent` treats projected content as authoritative
+    // (`hasCustomContent = !!customList || items().length === 0`), so whenever a
+    // story projects `<ui-navigation-menu-*>` content — as the Playground does to
+    // demo the richer template mode — `items` is ignored regardless of its value.
+    // Exposing it here would be a dead control. It is instead surfaced as a live
+    // control on the `SimpleMode` story below, which projects nothing and drives
+    // the menu purely from `items`.
     argTypes: {
-        items: {
-            control: 'object',
-            description: 'Data-driven items for simple mode. When provided (and no content is projected), renders the menu automatically.',
-        },
         class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
-        items: [],
         class: '',
     },
 };
@@ -145,6 +148,12 @@ const simpleItems: NavigationMenuItem[] = [
 
 /** Simple mode: `items` input drives the whole menu without any projected content. */
 export const SimpleMode: Story = {
+    argTypes: {
+        items: {
+            control: 'object',
+            description: 'Data-driven items for simple mode. When provided (and no content is projected), renders the menu automatically.',
+        },
+    },
     args: { items: simpleItems },
     render: (args) => ({
         props: args,

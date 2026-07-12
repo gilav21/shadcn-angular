@@ -7,13 +7,16 @@ import { ButtonComponent } from '../button';
 import { InputComponent } from '../input';
 import { LabelComponent } from '../label';
 
-// The interactive inputs (align, side, sideOffset, avoidCollisions, restoreFocus,
-// strategy) live on `ui-popover-content`, not `ui-popover` — `meta.component`
-// points there so they surface in the Controls panel / auto props table.
-// Every input is exposed as an interactive control (argTypes) with a sensible
-// default (args); the Playground binds all of them so the Controls panel drives
-// the live component. Dedicated stories below capture each distinct visual mode.
-const meta: Meta<PopoverContentComponent> = {
+// The positioning inputs (align, side, sideOffset, avoidCollisions, restoreFocus,
+// strategy, class) live on `ui-popover-content`, while the open state
+// (`open` model) and `closeOnScroll` live on the `ui-popover` root — the story
+// args type intersects both so every input surfaces in the Controls panel.
+// `meta.component` points at the content component for the auto props table.
+// The Playground binds all of them so the Controls panel drives the live
+// component. Dedicated stories below capture each distinct visual mode.
+type PopoverStoryArgs = PopoverContentComponent & Pick<PopoverComponent, 'open' | 'closeOnScroll'>;
+
+const meta: Meta<PopoverStoryArgs> = {
     title: 'UI/Popover',
     component: PopoverContentComponent,
     tags: ['autodocs'],
@@ -42,6 +45,8 @@ const meta: Meta<PopoverContentComponent> = {
             description: "Positioning strategy. `'fixed'` promotes the content to the native Popover API top layer (via `showPopover()`), so it renders above ANY modal/dialog/overflow ancestor — falls back to a `document.body` portal on engines without the API.",
         },
         class: { control: 'text', description: 'Extra classes merged onto the content element.' },
+        open: { control: 'boolean', description: 'Open state of the popover (two-way bindable via the `ui-popover` model).' },
+        closeOnScroll: { control: 'boolean', description: 'Closes the popover when the page or a scroll ancestor scrolls.' },
     },
     args: {
         align: 'center',
@@ -51,14 +56,16 @@ const meta: Meta<PopoverContentComponent> = {
         restoreFocus: true,
         strategy: 'absolute',
         class: 'w-80',
+        open: false,
+        closeOnScroll: false,
     },
 };
 
 export default meta;
-type Story = StoryObj<PopoverContentComponent>;
+type Story = StoryObj<PopoverStoryArgs>;
 
 const TEMPLATE = `
-    <ui-popover>
+    <ui-popover [open]="open" [closeOnScroll]="closeOnScroll">
         <ui-popover-trigger>
             <ui-button variant="outline">Open Popover</ui-button>
         </ui-popover-trigger>

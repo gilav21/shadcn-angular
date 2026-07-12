@@ -38,7 +38,7 @@ const meta: Meta<BarRaceChartComponent> = {
             description: 'Text/layout direction. `auto` detects from the DOM.',
         },
         title: { control: 'text', description: 'Accessible chart title used to build the SVG `aria-label`.' },
-        locale: { control: 'object', description: 'Locale dictionary or registry key for UI strings (play/pause/reset/timeline).' },
+        locale: { control: false, description: 'Locale dictionary or registry key for UI strings (play/pause/reset/timeline).' },
         class: { control: 'text', description: 'Extra classes merged onto the host container.' },
     },
     args: {

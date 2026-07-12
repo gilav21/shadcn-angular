@@ -68,7 +68,7 @@ type Story = StoryObj<StepperComponent>;
 const render: NonNullable<Story['render']> = (args) => ({
     props: { ...args, activeStep: signal(args.activeStep ?? 0) },
     template: `
-        <ui-stepper [(activeStep)]="activeStep" [orientation]="orientation" [linear]="linear" [class]="class">
+        <ui-stepper [steps]="steps" [(activeStep)]="activeStep" [orientation]="orientation" [linear]="linear" [class]="class">
             <ui-stepper-item value="step-1">
                 <ui-stepper-trigger>
                     <ui-stepper-title>Account</ui-stepper-title>

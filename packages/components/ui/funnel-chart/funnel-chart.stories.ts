@@ -56,12 +56,12 @@ const TEMPLATE = `
     />`;
 
 const render: NonNullable<Story['render']> = (args) => ({
-    props: { ...args, data },
+    props: { ...args, data: args.data ?? data },
     template: TEMPLATE,
 });
 
 /** Interactive playground — every input is wired to the Controls panel. */
-export const Playground: Story = { render };
+export const Playground: Story = { args: { data }, render };
 
 export const Default: Story = {
     args: { data, width: 440, height: 320 },

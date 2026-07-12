@@ -95,12 +95,15 @@ const meta: Meta<RichTextEditorComponent> = {
         },
         placeholder: {
             control: 'text',
+            description: 'Placeholder text shown when the editor is empty.',
         },
         minHeight: {
             control: 'text',
+            description: 'Minimum height of the editable area (any CSS length, e.g. `150px`).',
         },
         maxHeight: {
             control: 'text',
+            description: 'Maximum height before the editable area scrolls (any CSS length, e.g. `400px`).',
         },
         class: { control: 'text', description: 'Extra classes merged onto the host.' },
         ariaLabel: { control: 'text', description: 'aria-label applied to the editable surface.' },
@@ -121,6 +124,7 @@ const meta: Meta<RichTextEditorComponent> = {
         tagRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted tags.' },
         imageUploader: { control: false, description: 'Callback uploading a File and returning an Observable<string> URL, used by autoImageUpload and the image insert dialog.' },
         aiProvider: { control: false, description: 'Bring-your-own AI provider hook powering AI-assisted editing actions.' },
+        slashCommands: { control: false, description: 'Custom slash-command definitions (id, label, action…) shown when the user types `/`; see the WithCustomSlashCommands story.' },
         historyPreviewOpen: { control: 'boolean', description: 'Whether the inline history preview strip is open (model, two-way bound).' },
         historyBrowserOpen: { control: 'boolean', description: 'Whether the full history browser dialog is open (model, two-way bound).' },
         showHistoryPanel: {

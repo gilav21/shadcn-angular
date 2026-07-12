@@ -25,6 +25,12 @@ const meta: Meta<ButtonComponent> = {
         ripple: { control: 'boolean', description: 'Enables the click ripple effect.' },
         rippleColor: { control: 'color', description: 'Ripple color (any CSS color).' },
         label: { control: 'text', description: 'Aria-label / text when no content is projected.' },
+        ariaLabel: { control: 'text', description: 'Explicit `aria-label` override. Leave empty to fall back to projected content / `label`.' },
+        type: {
+            control: 'select',
+            options: ['button', 'submit', 'reset'],
+            description: 'Native button `type`. Use `submit`/`reset` inside a form.',
+        },
         class: { control: 'text', description: 'Extra classes merged onto the host.' },
     },
     args: {
@@ -36,6 +42,8 @@ const meta: Meta<ButtonComponent> = {
         ripple: false,
         rippleColor: 'color-mix(in srgb, currentColor 35%, transparent)',
         label: '',
+        ariaLabel: undefined,
+        type: 'button',
         class: '',
     },
 };
@@ -48,7 +56,7 @@ const TEMPLATE = `
         [variant]="variant" [size]="size" [disabled]="disabled"
         [loading]="loading" [skeleton]="skeleton"
         [ripple]="ripple" [rippleColor]="rippleColor"
-        [label]="label" [class]="class">
+        [label]="label" [ariaLabel]="ariaLabel" [type]="type" [class]="class">
         {{ label || 'Button' }}
     </ui-button>`;
 

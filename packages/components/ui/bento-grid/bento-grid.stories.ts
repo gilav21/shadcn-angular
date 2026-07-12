@@ -95,7 +95,7 @@ const render: NonNullable<Story['render']> = (args) => ({
 });
 
 /** Interactive playground — every input is wired to the Controls panel. */
-export const Playground: Story = { render };
+export const Playground: Story = { args: { items: sampleItems }, render };
 
 export const ThreeByThreeGrid: Story = {
     args: {

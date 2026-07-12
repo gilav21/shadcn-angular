@@ -64,8 +64,27 @@ const render: NonNullable<Story['render']> = (args) => ({
     template: TEMPLATE,
 });
 
-/** Interactive playground — every ChatMessage input is wired to the Controls panel. */
-export const Playground: Story = { render };
+// Full compound layout so every control — including the `ui-chat-list` and
+// `ui-chat-input` inputs — is live on the Playground, not just ChatMessage's.
+const PLAYGROUND_TEMPLATE = `
+    <div class="w-[500px] h-[400px] border rounded-lg flex flex-col">
+        <ui-chat-list [autoScroll]="listAutoScroll" class="flex-1">
+            <ui-chat-message
+                [role]="role" [content]="content" [avatarSrc]="avatarSrc"
+                [avatarFallback]="avatarFallback" [class]="class" />
+        </ui-chat-list>
+        <div class="p-4 border-t">
+            <ui-chat-input [placeholder]="inputPlaceholder" [disabled]="inputDisabled" />
+        </div>
+    </div>`;
+
+/** Interactive playground — every control (message, list and input) is wired to the Controls panel. */
+export const Playground: Story = {
+    render: (args) => ({
+        props: args,
+        template: PLAYGROUND_TEMPLATE,
+    }),
+};
 
 export const UserMessage: Story = {
     args: { role: 'user', content: 'Hello, this is a user message.', avatarFallback: 'U' },

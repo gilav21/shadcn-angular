@@ -82,7 +82,7 @@ const meta: Meta<EyedropperComponent> = {
     args: {
         variant: 'icon',
         disabled: false,
-        label: '',
+        label: undefined,
         locale: undefined,
         fallbackTarget: null,
         class: '',

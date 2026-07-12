@@ -46,7 +46,7 @@ type Story = StoryObj<TreeComponent>;
 
 const TEMPLATE = `
     <div class="max-w-full sm:max-w-sm border rounded-md p-4">
-        <ui-tree [selectable]="selectable" [class]="class">
+        <ui-tree [selectable]="selectable" [data]="data" [initialExpandDepth]="initialExpandDepth" [class]="class">
             <ui-tree-item value="documents">
                 <ui-tree-label>
                     <ui-tree-icon>📁</ui-tree-icon>

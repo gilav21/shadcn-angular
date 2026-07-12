@@ -135,7 +135,7 @@ const toOptions = (args: ConfettiArgs): ConfettiOptions => ({
 export const Playground: Story = {
     render: (args) => ({
         props: {
-            trigger: false,
+            trigger: args.manualTrigger,
             get options(): ConfettiOptions {
                 return toOptions(args);
             },

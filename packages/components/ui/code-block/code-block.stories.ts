@@ -1,5 +1,6 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { CodeBlockComponent, CODE_BLOCK_THEMES } from './code-block.component';
+import { CODE_BLOCK_LOCALES } from './code-block.locales';
 
 const typescriptCode = `import { Component, input, computed } from '@angular/core';
 
@@ -88,9 +89,10 @@ const meta: Meta<CodeBlockStoryProps> = {
         code: { control: 'text', description: 'Source code to render.' },
         theme: {
             control: 'select',
-            options: ['default', 'dracula', 'github', 'monokai'],
+            options: ['default', 'vscode', 'dracula', 'github', 'monokai'],
             mapping: {
                 default: null,
+                vscode: CODE_BLOCK_THEMES['vscode'],
                 dracula: CODE_BLOCK_THEMES['dracula'],
                 github: CODE_BLOCK_THEMES['github'],
                 monokai: CODE_BLOCK_THEMES['monokai'],
@@ -101,6 +103,11 @@ const meta: Meta<CodeBlockStoryProps> = {
         collapseScope: { control: 'boolean', description: 'Enables scope folding (chevrons on foldable lines).' },
         defaultCollapsed: { control: { type: 'number', min: 0, max: 5, step: 1 }, description: 'Scope depth at or above which folds start collapsed. Unset = nothing pre-collapsed.' },
         lineNumbers: { control: 'boolean', description: 'Shows the line-number gutter.' },
+        locale: {
+            control: 'select',
+            options: Object.keys(CODE_BLOCK_LOCALES),
+            description: 'Locale dictionary registry key (or a full CodeBlockLocale object) for the copy-button labels. Falls back to `UI_LOCALE_ID` when unset.',
+        },
         class: { control: 'text', description: 'Extra classes merged onto the host container.' },
     },
     args: {
@@ -111,6 +118,7 @@ const meta: Meta<CodeBlockStoryProps> = {
         collapseScope: false,
         defaultCollapsed: undefined,
         lineNumbers: true,
+        locale: 'en',
         class: '',
     },
 };
@@ -123,7 +131,7 @@ const PLAYGROUND_TEMPLATE = `
         [code]="code" [language]="language" [theme]="theme"
         [customLanguages]="customLanguages" [collapseScope]="collapseScope"
         [defaultCollapsed]="defaultCollapsed" [lineNumbers]="lineNumbers"
-        [class]="class">
+        [locale]="locale" [class]="class">
     </ui-code-block>`;
 
 /** Interactive playground — every input is wired to the Controls panel. */

@@ -3,6 +3,7 @@ import { Component, input, signal } from '@angular/core';
 import { TourComponent, TourStep } from './tour.component';
 import { ButtonComponent } from '../button';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent } from '../card';
+import { COMMON_LOCALES } from '../../lib/i18n/common.locales';
 
 @Component({
     selector: 'tour-playground-demo',
@@ -28,6 +29,7 @@ import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescription
                 [prevLabel]="prevLabel()"
                 [finishLabel]="finishLabel()"
                 [skipLabel]="skipLabel()"
+                [locale]="locale()"
                 [class]="class()"
             />
         </div>
@@ -39,6 +41,7 @@ class TourPlaygroundDemoComponent {
     readonly prevLabel = input<string>();
     readonly finishLabel = input<string>();
     readonly skipLabel = input<string>();
+    readonly locale = input<string>();
     readonly class = input('');
 
     readonly showTour = signal(false);
@@ -153,6 +156,7 @@ interface TourStoryProps {
     prevLabel?: string;
     finishLabel?: string;
     skipLabel?: string;
+    locale?: string;
     class: string;
 }
 
@@ -175,14 +179,20 @@ const meta: Meta<TourStoryProps> = {
         prevLabel: { control: 'text', description: 'Override for the back button label on non-first steps.' },
         finishLabel: { control: 'text', description: 'Override for the forward button label on the final step.' },
         skipLabel: { control: 'text', description: 'Override for the skip button label.' },
+        locale: {
+            control: 'select',
+            options: Object.keys(COMMON_LOCALES),
+            description: 'Locale dictionary registry key (or a full CommonLocale object) seeding the default next/prev/finish/skip labels. Falls back to `UI_LOCALE_ID` when unset.',
+        },
         class: { control: 'text', description: 'Extra CSS classes applied to the floating step card.' },
     },
     args: {
         showSkip: true,
-        nextLabel: '',
-        prevLabel: '',
-        finishLabel: '',
-        skipLabel: '',
+        nextLabel: undefined,
+        prevLabel: undefined,
+        finishLabel: undefined,
+        skipLabel: undefined,
+        locale: 'en',
         class: '',
     },
 };
@@ -201,6 +211,7 @@ export const Playground: Story = {
                 [prevLabel]="prevLabel"
                 [finishLabel]="finishLabel"
                 [skipLabel]="skipLabel"
+                [locale]="locale"
                 [class]="class"
             />
         `,

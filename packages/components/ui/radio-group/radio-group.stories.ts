@@ -50,7 +50,7 @@ export const Playground: Story = {
     render: (args) => ({
         props: args,
         template: `
-            <ui-radio-group [orientation]="orientation" [disabled]="disabled" [class]="class">
+            <ui-radio-group [orientation]="orientation" [disabled]="disabled" [options]="options" [valueAttribute]="valueAttribute" [value]="value" [class]="class">
                 <div class="flex items-center gap-2">
                     <ui-radio-group-item value="default" id="r1" ariaLabel="Default"></ui-radio-group-item>
                     <ui-label for="r1">Default</ui-label>
