@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DEFAULT_BRANCH } from '../../utils/paths.js';
 import { type FetchOptions } from '../../core/fetch.js';
+import { loadRegistry } from '../../registry/load.js';
 import { type Config } from '../../utils/config.js';
 
 /**
@@ -38,4 +39,20 @@ export function toFetchOptions(args: SourceArgs, config?: Config): FetchOptions 
         registry: args.registry ?? config?.registry,
         remote: args.remote,
     };
+}
+
+/**
+ * Resolve a tool call's source options AND point the in-memory registry at that
+ * same source, so component names, `files[]` and dependencies are resolved
+ * against the manifest of the branch/fork the files are fetched from — never a
+ * mix of the two. Manifests are cached per source in `registry/load.ts`, so the
+ * common (default-branch) case costs nothing after the first call.
+ *
+ * Every MCP tool that touches the registry must go through this instead of
+ * `toFetchOptions` directly.
+ */
+export async function resolveSource(args: SourceArgs, config?: Config): Promise<FetchOptions> {
+    const options = toFetchOptions(args, config);
+    await loadRegistry(options);
+    return options;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
-import { loadRegistry, isValidRegistryShape } from './load.js';
+import { loadRegistry, isValidRegistryShape, __resetRegistryManifestCache } from './load.js';
 import { registry, __resetRegistryCaches, getReverseDependents, type ComponentDefinition } from './index.js';
 
 const mutable = registry as unknown as Record<string, ComponentDefinition>;
@@ -18,9 +18,49 @@ describe('loadRegistry', () => {
     afterEach(() => {
         vi.unstubAllGlobals();
         vi.restoreAllMocks();
+        __resetRegistryManifestCache();
         for (const key of Object.keys(mutable)) delete mutable[key];
         Object.assign(mutable, structuredClone(snapshot));
         __resetRegistryCaches();
+    });
+
+    it('caches one manifest per source: a second branch refetches, a repeat does not', async () => {
+        const manifest = (extra: string): string => JSON.stringify({
+            button: { name: 'button', files: ['button/button.component.ts'] },
+            [extra]: { name: extra, files: [`${extra}/${extra}.component.ts`] },
+        });
+        const fetchMock = vi.fn(async (url: string) => ({
+            ok: true,
+            text: async () => manifest(url.includes('/feat/x/') ? 'branch-only' : 'master-only'),
+        } as unknown as Response));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await loadRegistry({ remote: true, branch: 'master' });
+        expect(registry['master-only' as never]).toBeDefined();
+
+        // A different branch is a different registry — its manifest is fetched.
+        await loadRegistry({ remote: true, branch: 'feat/x' });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(registry['branch-only' as never]).toBeDefined();
+        expect(registry['master-only' as never]).toBeUndefined();
+
+        // Repeat calls on either key are served from the cache — no refetch.
+        await loadRegistry({ remote: true, branch: 'master' });
+        await loadRegistry({ remote: true, branch: 'feat/x' });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(registry['branch-only' as never]).toBeDefined();
+    });
+
+    it('keys the cache by registry base URL too', async () => {
+        const fetchMock = vi.fn(async () => ({
+            ok: true,
+            text: async () => JSON.stringify({ button: { name: 'button', files: ['button/button.component.ts'] } }),
+        } as unknown as Response));
+        vi.stubGlobal('fetch', fetchMock);
+
+        await loadRegistry({ remote: true, branch: 'master' });
+        await loadRegistry({ remote: true, branch: 'master', registry: 'https://fork.test/components' });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
     it('repopulates the registry from the live manifest and resets the reverse-dep memo', async () => {

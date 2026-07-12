@@ -14,7 +14,7 @@ import { getConfig, getDefaultConfig, getPrefix, type Config } from '../../utils
 import { aliasToProjectPath, resolveProjectPath } from '../../utils/paths.js';
 import { isValidPrefix, DEFAULT_PREFIX } from '../../utils/prefix.js';
 import { json, err } from './result.js';
-import { sourceInputSchema, toFetchOptions } from './options.js';
+import { sourceInputSchema, resolveSource } from './options.js';
 import { migrateCore } from '../../core/migrate-core.js';
 import { setDensityCore, COMPONENT_DENSITY_VARS } from '../../commands/set-density.js';
 import { setRadiusCore, RADIUS_NAMED } from '../../commands/set-radius.js';
@@ -82,7 +82,7 @@ async function handleInit(cwd: string, args: InitArgs): Promise<ReturnType<typeo
 
     const config = buildInitConfig(args);
     // No components.json exists yet, so the only registry source is the args.
-    const fetchOptions = toFetchOptions(args);
+    const fetchOptions = await resolveSource(args);
     const result = await initProject({
         cwd, config,
         createShortcutRegistry: args.createShortcutRegistry ?? true,
@@ -126,15 +126,16 @@ function registerAddTool(server: McpServer, cwd: string): void {
         },
         annotations: { destructiveHint: true },
     }, async (args) => {
-        const invalid = validateNames(args.names);
-        if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
+        const options = await resolveSource(args, config);
+        const invalid = validateNames(args.names);
+        if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const result = await performInstall({
             components: args.names as ComponentName[],
             optionalDeps: (args.optionalDeps ?? []) as ComponentName[],
             overwrite: (args.overwrite ?? []) as ComponentName[],
-            cwd, config, options: toFetchOptions(args, config), path: args.path,
+            cwd, config, options, path: args.path,
         });
         return json(result);
     });
@@ -151,11 +152,11 @@ function registerUpdateTool(server: McpServer, cwd: string): void {
         },
         annotations: { destructiveHint: true },
     }, async ({ names, overwrite, ...source }) => {
-        const invalid = validateNames(names);
-        if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
-        const options = { ...toFetchOptions(source, config), overwrite };
+        const options = { ...await resolveSource(source, config), overwrite };
+        const invalid = validateNames(names);
+        if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const result = await performInstall({
             components: names as ComponentName[],
             overwrite: names as ComponentName[],
@@ -219,13 +220,13 @@ function registerDiffTool(server: McpServer, cwd: string): void {
         },
         annotations: { readOnlyHint: true },
     }, async ({ names, mode, ...source }) => {
-        const invalid = validateNames(names);
-        if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
+        const options = await resolveSource(source, config);
+        const invalid = validateNames(names);
+        if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
         const resolvedMode = mode ?? 'summary';
-        const options = toFetchOptions(source, config);
         const out: ComponentDiff[] = [];
         for (const name of names as ComponentName[]) {
             out.push(await diffComponentFiles(name, targetDir, options, config.aliases.utils, getPrefix(config), resolvedMode));
@@ -292,7 +293,7 @@ function registerRadiusMotionLocaleTool(server: McpServer, cwd: string): void {
     }, async ({ code, ...source }) => {
         try {
             const config = await getConfig(cwd);
-            const options = toFetchOptions(source, config ?? undefined);
+            const options = await resolveSource(source, config ?? undefined);
             return json({ success: true, message: await setLocaleCore(code, cwd, options) });
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));
@@ -332,7 +333,7 @@ function registerDoctorTool(server: McpServer, cwd: string): void {
         try {
             const config = await getConfig(cwd);
             if (!config) return err('Project not initialized — run init_project first.');
-            const options = toFetchOptions(source, config);
+            const options = await resolveSource(source, config);
             const report = await collectDoctorReport(cwd, config, options);
             const plan = buildFixPlan(report);
             // Announce breaking API changes for the components doctor will reinstall —
@@ -367,17 +368,19 @@ function registerApplyAddonTool(server: McpServer, cwd: string): void {
         },
         annotations: { destructiveHint: true },
     }, async (args) => {
+        const config = await getConfig(cwd);
+        // Resolve the addon against the manifest of the branch/fork it comes from.
+        const source = await resolveSource(args, config ?? undefined);
         try {
             resolveAddonInfo(args.addon, 'src/components/ui');
         } catch (e) {
             if (e instanceof ApplyError) return err(e.message);
             throw e;
         }
-        const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
         try {
             const options = {
-                ...toFetchOptions(args, config), yes: true,
+                ...source, yes: true,
                 all: args.all, class: args.class, id: args.id, dryRun: args.dryRun,
             };
             const result = await applyCore(args.addon, args.components ?? [], options, cwd, config);
@@ -404,7 +407,7 @@ function registerRefreshLibTool(server: McpServer, cwd: string): void {
         try {
             const config = await getConfig(cwd);
             if (!config) return err('Project not initialized — run init_project first.');
-            const options = toFetchOptions(source, config);
+            const options = await resolveSource(source, config);
             const result = await refreshLibCore(cwd, config, options, { files, force, dryRun });
             return json(result);
         } catch (error) {
@@ -427,7 +430,7 @@ function registerMigrateTool(server: McpServer, cwd: string): void {
         try {
             const config = await getConfig(cwd);
             if (!config) return err('Project not initialized — run init_project first.');
-            const options = { ...toFetchOptions(source, config), dryRun, force };
+            const options = { ...await resolveSource(source, config), dryRun, force };
             const outcome = await migrateCore(cwd, config, options);
             return json(outcome);
         } catch (error) {

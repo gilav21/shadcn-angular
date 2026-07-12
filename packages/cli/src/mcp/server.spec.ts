@@ -2,8 +2,28 @@ import { describe, it, expect, beforeAll, afterAll, vi, afterEach } from 'vitest
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from './server.js';
+import { loadRegistry, __resetRegistryManifestCache } from '../registry/load.js';
 
 type TextContent = { type: string; text: string };
+
+/** A registry manifest whose contents depend on the branch being fetched. */
+function manifestFor(url: string): string {
+    const extra = url.includes('/feat/some-branch/') ? 'branch-only' : 'master-only';
+    return JSON.stringify({
+        ripple: { name: 'ripple', files: ['ripple.directive.ts'] },
+        button: { name: 'button', files: ['button/button.component.ts'], dependencies: ['ripple'] },
+        [extra]: { name: extra, files: [`${extra}/${extra}.component.ts`] },
+    });
+}
+
+/** Serve manifests per branch and a stub source for anything else. */
+function stubRegistryFetch(): ReturnType<typeof vi.spyOn<typeof globalThis, 'fetch'>> {
+    return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+        const url = String(input);
+        const body = url.endsWith('registry.json') ? manifestFor(url) : 'export class RippleDirective {}';
+        return new Response(body, { status: 200 });
+    });
+}
 type ToolCallResult = { content: TextContent[]; isError?: boolean };
 const firstText = (res: ToolCallResult): string => res.content[0].text;
 
@@ -28,8 +48,11 @@ describe('MCP server (in-memory)', () => {
     await client.close();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.restoreAllMocks();
+    // Drop any branch manifest a test loaded and re-apply the real (local) one.
+    __resetRegistryManifestCache();
+    await loadRegistry({});
   });
 
   it('exposes the full tool set with correct annotations', async () => {
@@ -56,6 +79,7 @@ describe('MCP server (in-memory)', () => {
   it('every registry-backed tool accepts branch / registry / remote', async () => {
     const { tools } = await client.listTools();
     const sourceAware = [
+      'list_components', 'search_components', 'get_component', 'why',
       'get_component_source', 'get_component_examples', 'get_install_plan', 'get_project_status',
       'init_project', 'add_component', 'update_component', 'diff_component', 'set_locale',
       'doctor_fix', 'refresh_lib', 'migrate', 'apply_addon',
@@ -66,36 +90,64 @@ describe('MCP server (in-memory)', () => {
     }
   });
 
-  it('get_component_source fetches from the requested branch (reaches the fetch layer)', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('export class RippleDirective {}', { status: 200 }),
-    );
+  it('get_component_source fetches sources from the requested branch (reaches the fetch layer)', async () => {
+    const fetchSpy = stubRegistryFetch();
     const res = await callTool('get_component_source', {
       name: 'ripple', branch: 'feat/some-branch', remote: true,
     });
     expect(res.isError).toBeFalsy();
-    expect(fetchSpy).toHaveBeenCalled();
-    const url = String(fetchSpy.mock.calls[0][0]);
-    expect(url).toContain('/feat/some-branch/packages/components/');
-    expect(url).not.toContain('/master/');
+    const sourceUrls = fetchSpy.mock.calls
+      .map(c => String(c[0]))
+      .filter(u => !u.endsWith('registry.json'));
+    expect(sourceUrls.length).toBeGreaterThan(0);
+    for (const url of sourceUrls) {
+      expect(url).toContain('/feat/some-branch/packages/components/');
+      expect(url).not.toContain('/master/');
+    }
   });
 
   it('get_component_source honors a custom registry base URL', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('export class RippleDirective {}', { status: 200 }),
-    );
+    const fetchSpy = stubRegistryFetch();
     await callTool('get_component_source', {
       name: 'ripple', registry: 'https://fork.test/components', remote: true,
     });
-    expect(String(fetchSpy.mock.calls[0][0])).toContain('https://fork.test/components/ui/');
+    const urls = fetchSpy.mock.calls.map(c => String(c[0]));
+    expect(urls.every(u => u.startsWith('https://fork.test/components'))).toBe(true);
+    expect(urls.some(u => u.includes('/ui/'))).toBe(true);
   });
 
   it('get_component_source still defaults to master when no branch is passed', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('export class RippleDirective {}', { status: 200 }),
-    );
+    const fetchSpy = stubRegistryFetch();
     await callTool('get_component_source', { name: 'ripple', remote: true });
-    expect(String(fetchSpy.mock.calls[0][0])).toContain('/master/packages/components/');
+    for (const call of fetchSpy.mock.calls) {
+      expect(String(call[0])).toContain('/master/packages/components/');
+    }
+  });
+
+  it('resolves component NAMES against the requested branch\'s manifest, not the default one', async () => {
+    stubRegistryFetch();
+    // `branch-only` exists solely in the feat/some-branch manifest.
+    const onBranch = await callTool('get_component', {
+      name: 'branch-only', branch: 'feat/some-branch', remote: true,
+    });
+    expect(onBranch.isError).toBeFalsy();
+    const record = JSON.parse(firstText(onBranch)) as { name: string; files: string[] };
+    expect(record.name).toBe('branch-only');
+    expect(record.files).toEqual(['branch-only/branch-only.component.ts']);
+
+    // The very same name is unknown on the default branch.
+    const onMaster = await callTool('get_component', { name: 'branch-only', remote: true });
+    expect(onMaster.isError).toBe(true);
+    expect(firstText(onMaster)).toContain('Unknown component');
+  });
+
+  it('caches each branch manifest — a repeat call on the same source does not refetch it', async () => {
+    const fetchSpy = stubRegistryFetch();
+    await callTool('list_components', { branch: 'feat/some-branch', remote: true });
+    await callTool('list_components', { branch: 'feat/some-branch', remote: true });
+    await callTool('why', { names: ['ripple'], branch: 'feat/some-branch', remote: true });
+    const manifestFetches = fetchSpy.mock.calls.filter(c => String(c[0]).endsWith('registry.json'));
+    expect(manifestFetches).toHaveLength(1);
   });
 
   it('why returns files, direct deps and transitive reverse-dependents', async () => {

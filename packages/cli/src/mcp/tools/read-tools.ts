@@ -11,46 +11,58 @@ import { statusCore } from '../../commands/status.js';
 import { getConfig, getDefaultConfig, getPrefix } from '../../utils/config.js';
 import { getLocalComponentsDir } from '../../utils/paths.js';
 import { json, err } from './result.js';
-import { sourceInputSchema, toFetchOptions } from './options.js';
+import { sourceInputSchema, resolveSource } from './options.js';
 
 function registerSearchTools(server: McpServer): void {
     server.registerTool('list_components', {
         title: 'List components',
         description: 'List every available shadcn-angular component with its category, description and tags.',
-        inputSchema: {},
+        inputSchema: { ...sourceInputSchema },
         annotations: { readOnlyHint: true },
-    }, async () => json(
-        getComponentNames().map(name => {
-            const d = registry[name];
-            return { name, type: d.type ?? 'component', category: d.category, description: d.description, tags: d.tags };
-        }),
-    ));
+    }, async (source) => {
+        await resolveSource(source);
+        return json(
+            getComponentNames().map(name => {
+                const d = registry[name];
+                return { name, type: d.type ?? 'component', category: d.category, description: d.description, tags: d.tags };
+            }),
+        );
+    });
 
     server.registerTool('search_components', {
         title: 'Search components',
         description: 'Fuzzy-search components by name, tags, or description. Returns ranked matches.',
-        inputSchema: { query: z.string().describe('Search term, e.g. "date" or "dropdown".') },
+        inputSchema: { query: z.string().describe('Search term, e.g. "date" or "dropdown".'), ...sourceInputSchema },
         annotations: { readOnlyHint: true },
-    }, async ({ query }) => json(searchComponents(query)));
+    }, async ({ query, ...source }) => {
+        await resolveSource(source);
+        return json(searchComponents(query));
+    });
 
     server.registerTool('get_component', {
         title: 'Get component',
         description: "Get a component's registry record: files, direct + resolved transitive dependencies, npm deps, addons, and the components that depend on it (reverseDependents).",
-        inputSchema: { name: z.string().describe('Component name, e.g. "data-table".') },
+        inputSchema: { name: z.string().describe('Component name, e.g. "data-table".'), ...sourceInputSchema },
         annotations: { readOnlyHint: true },
-    }, async ({ name }) => {
+    }, async ({ name, ...source }) => {
+        await resolveSource(source);
         if (!isComponentName(name)) return err(`Unknown component: ${name}`);
         return json(buildComponentRecord(name));
     });
 
+}
+
+function registerWhyTool(server: McpServer): void {
     server.registerTool('why', {
         title: 'Why (registry introspection)',
         description: "Explain what component(s) are made of and what depends on them: files, libFiles, peerFiles, direct dependencies, and the transitive reverse-dependents — the blast radius of changing or removing it. Mirrors the `why` CLI command.",
         inputSchema: {
             names: z.array(z.string()).min(1).describe('One or more component names, e.g. ["button"].'),
+            ...sourceInputSchema,
         },
         annotations: { readOnlyHint: true },
-    }, async ({ names }) => {
+    }, async ({ names, ...source }) => {
+        await resolveSource(source);
         const invalid = names.filter(n => !isComponentName(n));
         if (invalid.length) {
             const hints = invalid.map(n => {
@@ -70,10 +82,10 @@ function registerDetailTools(server: McpServer, cwd: string): void {
         inputSchema: { name: z.string(), ...sourceInputSchema },
         annotations: { readOnlyHint: true },
     }, async ({ name, ...source }) => {
-        if (!isComponentName(name)) return err(`Unknown component: ${name}`);
         const config = (await getConfig(cwd)) ?? getDefaultConfig();
+        const options = await resolveSource(source, config);
+        if (!isComponentName(name)) return err(`Unknown component: ${name}`);
         const prefix = getPrefix(config);
-        const options = toFetchOptions(source, config);
         const files: Record<string, string> = {};
         for (const file of registry[name].files) {
             files[file] = await fetchAndTransform(file, options, config.aliases.utils, prefix);
@@ -87,6 +99,8 @@ function registerDetailTools(server: McpServer, cwd: string): void {
         inputSchema: { name: z.string(), ...sourceInputSchema },
         annotations: { readOnlyHint: true },
     }, async ({ name, ...source }) => {
+        const config = (await getConfig(cwd)) ?? getDefaultConfig();
+        const options = await resolveSource(source, config);
         if (!isComponentName(name)) return err(`Unknown component: ${name}`);
         const storyFile = findStoryFile(name);
         const localDir = getLocalComponentsDir();
@@ -96,10 +110,9 @@ function registerDetailTools(server: McpServer, cwd: string): void {
                 return json({ name, file: storyFile, source: await fs.readFile(p, 'utf-8') });
             }
         }
-        const config = (await getConfig(cwd)) ?? getDefaultConfig();
         try {
             const src = await fetchAndTransform(
-                storyFile, toFetchOptions(source, config), config.aliases.utils, getPrefix(config),
+                storyFile, options, config.aliases.utils, getPrefix(config),
             );
             return json({ name, file: storyFile, source: src });
         } catch {
@@ -117,7 +130,7 @@ function registerStatusTools(server: McpServer, cwd: string): void {
     }, async (source) => {
         try {
             const config = await getConfig(cwd);
-            return json(await statusCore(cwd, toFetchOptions(source, config ?? undefined)));
+            return json(await statusCore(cwd, await resolveSource(source, config ?? undefined)));
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));
         }
@@ -132,12 +145,13 @@ function registerStatusTools(server: McpServer, cwd: string): void {
         },
         annotations: { readOnlyHint: true },
     }, async ({ names, ...source }) => {
-        const invalid = names.filter(n => !isComponentName(n));
-        if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
+        const options = await resolveSource(source, config);
+        const invalid = names.filter(n => !isComponentName(n));
+        if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const plan = await planInstall({
-            components: names as ComponentName[], cwd, config, options: toFetchOptions(source, config),
+            components: names as ComponentName[], cwd, config, options,
         });
         return json(plan);
     });
@@ -145,6 +159,7 @@ function registerStatusTools(server: McpServer, cwd: string): void {
 
 export function registerReadTools(server: McpServer, cwd: string): void {
     registerSearchTools(server);
+    registerWhyTool(server);
     registerDetailTools(server, cwd);
     registerStatusTools(server, cwd);
 }
