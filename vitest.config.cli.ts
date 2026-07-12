@@ -25,6 +25,16 @@ export default defineConfig({
                 '**/*.test.ts',
                 '**/dist/**',
             ],
+            // Ratchet, not aspiration: set just below the levels measured on
+            // 2026-07-12 (statements 58.97 / branches 54.87 / functions 64.48 /
+            // lines 59.98). The CLI suite is far less covered than the component
+            // suite — raise these as it improves; never lower them to pass.
+            thresholds: {
+                statements: 57,
+                branches: 53,
+                functions: 62,
+                lines: 58,
+            },
         },
     },
 });
