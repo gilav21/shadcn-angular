@@ -23,8 +23,11 @@ const meta: Meta<RatingComponent> = {
         class: { control: 'text', description: 'Extra classes merged onto the host.' },
         ariaLabel: { control: 'text', description: "Override for the group aria-label. Falls back to the locale's `rating` string." },
         size: { control: 'select', options: ['sm', 'md', 'lg'], description: 'Star size.' },
-        locale: { control: false, description: 'Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set.' },
-        ratingChange: { control: false, description: 'Emits the new rating value when the user selects a star.' },
+        locale: {
+            control: 'select',
+            options: ['en', 'he', 'ar', 'de', 'fr', 'es', 'ja', 'zh', 'ru', 'pt'],
+            description: 'Locale registry key. Falls back to `UI_LOCALE_ID` when not set.',
+        },
     },
     args: {
         max: 5,
@@ -34,6 +37,7 @@ const meta: Meta<RatingComponent> = {
         class: '',
         ariaLabel: undefined,
         size: 'md',
+        locale: 'en',
     },
 };
 
@@ -55,6 +59,7 @@ export const Playground: Story = {
                 [class]="class"
                 [ariaLabel]="ariaLabel"
                 [size]="size"
+                [locale]="locale"
             />
         `,
     }),

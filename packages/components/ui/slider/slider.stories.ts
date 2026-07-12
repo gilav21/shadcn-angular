@@ -22,7 +22,6 @@ const meta: Meta<SliderComponent> = {
             description: 'BCP-47 locale used to format the aria-valuetext announcement via Intl.NumberFormat. Falls back to the app-wide UI_LOCALE_ID token.',
         },
         class: { control: 'text', description: 'Extra classes merged onto the host, e.g. to control width.' },
-        valueChange: { control: false, description: 'Emits the new numeric value whenever the thumb moves.' },
     },
     args: {
         min: 0,

@@ -30,7 +30,7 @@ const TEMPLATE = `
                 An open-source UI component library.
             </p>
         </div>
-        <ui-separator class="my-4" [orientation]="orientation"></ui-separator>
+        <ui-separator [class]="'my-4 ' + class" [orientation]="orientation"></ui-separator>
         <div class="flex h-5 items-center space-x-4 text-sm">
             <div>Blog</div>
             <ui-separator orientation="vertical"></ui-separator>

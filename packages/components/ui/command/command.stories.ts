@@ -48,7 +48,7 @@ const meta: Meta<CommandComponent & { rtl: boolean }> = {
   args: {
     shouldFilter: true,
     search: null,
-    class: '',
+    class: 'rounded-lg border shadow-md',
     rtl: false,
   },
 };
@@ -58,7 +58,7 @@ type Story = StoryObj<CommandComponent & { rtl: boolean }>;
 
 const TEMPLATE = `
       <div class="w-full max-w-[calc(100vw-2rem)] sm:w-[450px] rounded-lg border shadow-md" [attr.dir]="rtl ? 'rtl' : 'ltr'">
-        <ui-command class="rounded-lg border shadow-md" [shouldFilter]="shouldFilter" [search]="search">
+        <ui-command [class]="class" [shouldFilter]="shouldFilter" [search]="search">
           <ui-command-input placeholder="Type a command or search..." ariaLabel="Search command" />
           <ui-command-list ariaLabel="Results">
             <ui-command-empty>No results found.</ui-command-empty>

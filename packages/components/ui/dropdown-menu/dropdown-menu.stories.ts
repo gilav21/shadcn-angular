@@ -13,17 +13,15 @@ import {
 } from './index';
 import { ButtonComponent } from '../button';
 
-interface DropdownMenuStoryArgs {
-    items: DropdownItem[];
-    open: boolean;
+type DropdownMenuStoryProps = DropdownMenuComponent & {
     align: 'start' | 'center' | 'end';
     contentClass: string;
     itemDisabled: boolean;
     itemInset: boolean;
     itemShortcut: string;
-}
+};
 
-const meta: Meta<DropdownMenuStoryArgs> = {
+const meta: Meta<DropdownMenuStoryProps> = {
     title: 'UI/DropdownMenu',
     component: DropdownMenuComponent,
     tags: ['autodocs'],
@@ -86,7 +84,7 @@ const meta: Meta<DropdownMenuStoryArgs> = {
 };
 
 export default meta;
-type Story = StoryObj<DropdownMenuStoryArgs>;
+type Story = StoryObj<DropdownMenuStoryProps>;
 
 const TEMPLATE = `
     <ui-dropdown-menu [items]="items" [(open)]="open">
@@ -113,7 +111,7 @@ const TEMPLATE = `
         </ui-dropdown-menu-content>
     </ui-dropdown-menu>`;
 
-const render = (args: Partial<DropdownMenuStoryArgs>): { props: Partial<DropdownMenuStoryArgs>; template: string } => ({
+const render: NonNullable<Story['render']> = (args) => ({
     props: args,
     template: TEMPLATE,
 });

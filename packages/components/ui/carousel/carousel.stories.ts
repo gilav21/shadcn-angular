@@ -8,10 +8,16 @@ import {
 } from './index';
 import { CardComponent, CardContentComponent } from '../card';
 
-// Every input is exposed as an interactive control (argTypes) with a sensible
-// default (args); the Playground binds all of them so the Controls panel drives
-// the live component. Dedicated stories below capture each distinct mode.
-const meta: Meta<CarouselComponent> = {
+// `<ui-carousel>` itself only owns `orientation`/`class`; the `locale` input
+// (drives the previous/next button aria-labels) lives on the projected
+// `<ui-carousel-previous>`/`<ui-carousel-next>` sub-components. It is
+// surfaced here as an explicit argType, and `CarouselStoryProps` merges both
+// so the Controls panel can drive the whole compound component live.
+type CarouselStoryProps = CarouselComponent & {
+    locale: string;
+};
+
+const meta: Meta<CarouselStoryProps> = {
     title: 'UI/Carousel',
     component: CarouselComponent,
     tags: ['autodocs'],
@@ -42,15 +48,21 @@ const meta: Meta<CarouselComponent> = {
             description: 'Scroll/layout axis of the carousel.',
         },
         class: { control: 'text', description: 'Extra classes merged onto the carousel host.' },
+        locale: {
+            control: 'select',
+            options: ['en', 'he', 'ar', 'de', 'fr', 'es', 'ja', 'zh', 'ru', 'pt'],
+            description: '`ui-carousel-previous`/`ui-carousel-next` locale key controlling the button aria-labels.',
+        },
     },
     args: {
         orientation: 'horizontal',
         class: '',
+        locale: 'en',
     },
 };
 
 export default meta;
-type Story = StoryObj<CarouselComponent>;
+type Story = StoryObj<CarouselStoryProps>;
 
 const ITEMS = [1, 2, 3, 4, 5];
 
@@ -59,7 +71,7 @@ const render: NonNullable<Story['render']> = (args) => ({
     template: `
         <div class="w-full max-w-xs mx-auto px-12 pt-20">
             <ui-carousel [orientation]="orientation" [class]="class">
-                <ui-carousel-previous />
+                <ui-carousel-previous [locale]="locale" />
                 <ui-carousel-content [class]="orientation === 'vertical' ? 'h-[300px]' : ''">
                     @for (item of items; track item) {
                         <ui-carousel-item>
@@ -73,7 +85,7 @@ const render: NonNullable<Story['render']> = (args) => ({
                         </ui-carousel-item>
                     }
                 </ui-carousel-content>
-                <ui-carousel-next />
+                <ui-carousel-next [locale]="locale" />
             </ui-carousel>
         </div>
     `,

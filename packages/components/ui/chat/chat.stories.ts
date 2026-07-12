@@ -4,8 +4,17 @@ import { ChatMessageComponent, ChatListComponent, ChatInputComponent } from './i
 // `meta.component` is the ChatMessageComponent so its inputs surface in the
 // Controls panel; the Playground binds all of them. The list + input
 // sub-components are made available via moduleMetadata so the compound-mode
-// stories can compose a full chat window.
-const meta: Meta<ChatMessageComponent> = {
+// stories can compose a full chat window. `ui-chat-input`'s
+// `placeholder`/`disabled` and `ui-chat-list`'s `autoScroll` are real inputs
+// too, surfaced here as extra argTypes and wired into the stories that
+// actually render those sub-components (Conversation, DisabledInput).
+type ChatStoryProps = ChatMessageComponent & {
+    inputPlaceholder: string;
+    inputDisabled: boolean;
+    listAutoScroll: boolean;
+};
+
+const meta: Meta<ChatStoryProps> = {
     title: 'UI/Chat',
     component: ChatMessageComponent,
     tags: ['autodocs'],
@@ -24,6 +33,9 @@ const meta: Meta<ChatMessageComponent> = {
         avatarSrc: { control: 'text', description: 'Avatar image URL; falls back to the initials when unset.' },
         avatarFallback: { control: 'text', description: 'Avatar fallback text (usually initials).' },
         class: { control: 'text', description: 'Extra classes merged onto the message root.' },
+        inputPlaceholder: { control: 'text', description: '`ui-chat-input` placeholder text.' },
+        inputDisabled: { control: 'boolean', description: '`ui-chat-input` disabled state; blocks sending.' },
+        listAutoScroll: { control: 'boolean', description: '`ui-chat-list` auto-scrolls to the bottom when new messages are appended.' },
     },
     args: {
         role: 'assistant',
@@ -31,11 +43,14 @@ const meta: Meta<ChatMessageComponent> = {
         avatarSrc: undefined,
         avatarFallback: 'A',
         class: '',
+        inputPlaceholder: 'Type a message...',
+        inputDisabled: false,
+        listAutoScroll: true,
     },
 };
 
 export default meta;
-type Story = StoryObj<ChatMessageComponent>;
+type Story = StoryObj<ChatStoryProps>;
 
 const TEMPLATE = `
     <div class="w-[500px] p-4">
@@ -84,8 +99,9 @@ export const WithCustomContent: Story = {
 
 /** Full compound mode: scrollable list of messages plus an input bar. */
 export const Conversation: Story = {
-    render: () => ({
+    render: (args) => ({
         props: {
+            ...args,
             messages: [
                 { role: 'user', content: 'Hey, can you help me with a coding question?', avatarFallback: 'U' },
                 { role: 'assistant', content: 'Of course! I\'d be happy to help. What\'s your question?', avatarFallback: 'A' },
@@ -97,7 +113,7 @@ export const Conversation: Story = {
         },
         template: `
             <div class="w-[600px] h-[500px] border rounded-lg flex flex-col">
-                <ui-chat-list [autoScroll]="true" class="flex-1">
+                <ui-chat-list [autoScroll]="listAutoScroll" class="flex-1">
                     @for (msg of messages; track $index) {
                         <ui-chat-message
                             [role]="msg.role"
@@ -106,7 +122,7 @@ export const Conversation: Story = {
                     }
                 </ui-chat-list>
                 <div class="p-4 border-t">
-                    <ui-chat-input placeholder="Type a message..." (send)="onSend($event)" />
+                    <ui-chat-input [placeholder]="inputPlaceholder" [disabled]="inputDisabled" (send)="onSend($event)" />
                 </div>
             </div>`,
     }),
@@ -114,10 +130,12 @@ export const Conversation: Story = {
 
 /** Input bar with sending disabled. */
 export const DisabledInput: Story = {
-    render: () => ({
+    args: { inputPlaceholder: 'Input is disabled...', inputDisabled: true },
+    render: (args) => ({
+        props: args,
         template: `
             <div class="w-[500px] p-4">
-                <ui-chat-input placeholder="Input is disabled..." [disabled]="true" />
+                <ui-chat-input [placeholder]="inputPlaceholder" [disabled]="inputDisabled" />
             </div>`,
     }),
 };

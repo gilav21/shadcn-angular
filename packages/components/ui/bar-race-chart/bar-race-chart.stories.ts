@@ -40,8 +40,6 @@ const meta: Meta<BarRaceChartComponent> = {
         title: { control: 'text', description: 'Accessible chart title used to build the SVG `aria-label`.' },
         locale: { control: 'object', description: 'Locale dictionary or registry key for UI strings (play/pause/reset/timeline).' },
         class: { control: 'text', description: 'Extra classes merged onto the host container.' },
-        frameChange: { control: false, description: 'Emits the new frame index whenever the current frame changes.' },
-        animationComplete: { control: false, description: 'Emits once playback reaches the last frame without looping.' },
     },
     args: {
         frames: [],

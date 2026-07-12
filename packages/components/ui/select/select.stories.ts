@@ -62,7 +62,6 @@ const meta: Meta<SelectComponent<unknown>> = {
     value: { control: false, description: 'Controlled selected value.' },
     valueAttribute: { control: 'text', description: 'Object key used to extract the value from each option (data-driven mode).' },
     disabledWith: { control: false, description: 'Function marking an option as disabled (data-driven mode).' },
-    valueChange: { control: false, description: 'Emits the newly selected value.' },
   },
   args: {
     disabled: false,
@@ -70,7 +69,7 @@ const meta: Meta<SelectComponent<unknown>> = {
     ariaLabel: undefined,
     ariaLabelledby: undefined,
     position: 'popper',
-    options: [],
+    options: fruits,
     valueAttribute: undefined,
   },
 };
@@ -80,24 +79,27 @@ type Story = StoryObj<SelectComponent<unknown>>;
 
 /**
  * Interactive playground — every input is wired to the Controls panel.
- * Uses the template-driven mode so `options` stays empty (its default) while
- * you can still drive `disabled`, `placeholder` and `position` live.
+ * Uses data-driven mode (`options` defaults to a fruit list) so `ariaLabel`
+ * and `ariaLabelledby` — only applied on the internally-rendered combobox
+ * button in data-driven mode — are genuinely functional here too.
  */
 export const Playground: Story = {
   render: (args) => ({
-    props: args,
+    props: { ...args, selected: null },
     template: `
-      <div class="flex justify-center items-center h-[300px]">
-        <ui-select [disabled]="disabled" class="w-[180px] h-fit" [position]="position">
-          <ui-select-trigger [ariaLabel]="ariaLabel">
-            <ui-select-value [placeholder]="placeholder" />
-          </ui-select-trigger>
-          <ui-select-content>
-            <ui-select-item value="apple">Apple</ui-select-item>
-            <ui-select-item value="banana">Banana</ui-select-item>
-            <ui-select-item value="blueberry">Blueberry</ui-select-item>
-          </ui-select-content>
-        </ui-select>
+      <div class="flex flex-col items-center gap-4 h-[300px] pt-8">
+        <ui-select
+          [options]="options"
+          [disabled]="disabled"
+          [placeholder]="placeholder"
+          [ariaLabel]="ariaLabel"
+          [ariaLabelledby]="ariaLabelledby"
+          [position]="position"
+          [valueAttribute]="valueAttribute"
+          [(value)]="selected"
+          class="w-[200px]"
+        />
+        <p class="text-sm text-muted-foreground">Selected: {{ selected || 'none' }}</p>
       </div>
     `,
   }),

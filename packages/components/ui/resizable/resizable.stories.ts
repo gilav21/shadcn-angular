@@ -11,6 +11,7 @@ import {
 type ResizableStoryProps = ResizablePanelGroupComponent & {
     withHandle: boolean;
     handleDisabled: boolean;
+    handleSize: number;
 };
 
 // Every input is exposed as an interactive control (argTypes) with a sensible
@@ -38,12 +39,14 @@ const meta: Meta<ResizableStoryProps> = {
         class: { control: 'text', description: 'Extra classes merged onto the panel group host.' },
         withHandle: { control: 'boolean', description: '(ui-resizable-handle) Shows the visible grip icon on the handle.' },
         handleDisabled: { control: 'boolean', description: '(ui-resizable-handle) Hides and disables the handle, locking the panel sizes.' },
+        handleSize: { control: 'number', description: '(ui-resizable-handle) Thickness of the drag handle, in pixels.' },
     },
     args: {
         direction: 'horizontal',
         class: '',
         withHandle: false,
         handleDisabled: false,
+        handleSize: 4,
     },
 };
 
@@ -60,7 +63,7 @@ const TEMPLATE = `
                 <span class="font-semibold">One</span>
             </div>
         </ui-resizable-panel>
-        <ui-resizable-handle ariaLabel="Resize horizontal panel" [withHandle]="withHandle" [disabled]="handleDisabled" />
+        <ui-resizable-handle ariaLabel="Resize horizontal panel" [withHandle]="withHandle" [disabled]="handleDisabled" [handleSize]="handleSize" />
         <ui-resizable-panel [defaultSize]="50">
             <div class="flex h-full items-center justify-center p-6">
                 <span class="font-semibold">Two</span>

@@ -26,10 +26,6 @@ const meta: Meta<PieChartDrilldownComponent> = {
         backButtonText: { control: 'text', description: 'Label for the breadcrumb back button.' },
         class: { control: 'text', description: 'Extra classes merged onto the host container.' },
         title: { control: 'text', description: 'Series name shown at the top level (before any drilldown).' },
-        drilldown: { control: false, description: 'Emits `{ seriesId, parentPoint }` when a slice with a matching drilldown series is clicked.' },
-        drillup: { control: false, description: 'Emits when the back button is pressed.' },
-        sliceClick: { control: false, description: 'Emits `{ point, index, event }` when a slice is clicked.' },
-        sliceHover: { control: false, description: 'Emits `{ point, index }` on hover, or `null` on leave.' },
     },
     args: {
         size: 300,

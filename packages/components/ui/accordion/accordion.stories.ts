@@ -84,7 +84,7 @@ const PLAYGROUND_TEMPLATE = `
         <ui-accordion-item value="item-3" title="Is it animated?" content="Yes. It's animated by default, but you can disable it if you prefer." />
     </ui-accordion>`;
 
-const render = (args: Partial<AccordionStoryArgs>): { props: Partial<AccordionStoryArgs>; template: string } => ({
+const render: NonNullable<Story['render']> = (args) => ({
     props: args,
     template: PLAYGROUND_TEMPLATE,
 });

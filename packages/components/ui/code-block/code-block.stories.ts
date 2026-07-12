@@ -61,7 +61,16 @@ const xmlCode = `<?xml version="1.0" encoding="UTF-8"?>
   </dependencies>
 </project>`;
 
-const meta: Meta<CodeBlockComponent> = {
+/**
+ * The `theme` argType uses Storybook's `mapping` so the Controls panel can
+ * offer named theme presets (a select) while the component itself only
+ * accepts a resolved `CodeBlockTheme | null`. The story-level arg therefore
+ * stores the mapping *key* (a string); Storybook resolves it to the actual
+ * theme object before `render` receives it.
+ */
+type CodeBlockStoryProps = Omit<CodeBlockComponent, 'theme'> & { theme: string };
+
+const meta: Meta<CodeBlockStoryProps> = {
     title: 'UI/CodeBlock',
     component: CodeBlockComponent,
     tags: ['autodocs'],
@@ -97,7 +106,7 @@ const meta: Meta<CodeBlockComponent> = {
     args: {
         language: 'typescript',
         code: typescriptCode,
-        theme: null,
+        theme: 'default',
         customLanguages: null,
         collapseScope: false,
         defaultCollapsed: undefined,
@@ -107,7 +116,7 @@ const meta: Meta<CodeBlockComponent> = {
 };
 
 export default meta;
-type Story = StoryObj<CodeBlockComponent>;
+type Story = StoryObj<CodeBlockStoryProps>;
 
 const PLAYGROUND_TEMPLATE = `
     <ui-code-block

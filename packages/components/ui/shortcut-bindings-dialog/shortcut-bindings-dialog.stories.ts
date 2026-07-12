@@ -20,14 +20,18 @@ const meta: Meta<ShortcutBindingsDialogComponent> = {
         allowSaveMapping: { control: 'boolean', description: 'Shows a "Save Changes" button that emits the current overrides via `mappingSave`.' },
         mappingSchema: { control: false, description: 'A shortcut-override schema to import into the binding service when it changes.' },
         replaceOnSchemaLoad: { control: 'boolean', description: 'Whether importing `mappingSchema` replaces existing overrides (true) or merges (false).' },
-        locale: { control: false, description: 'Locale dictionary or registry key; falls back to `UI_LOCALE_ID`.' },
-        mappingSave: { control: false, description: 'Emits the exported shortcut-override schema when "Save Changes" is clicked.' },
+        locale: {
+            control: 'select',
+            options: ['en', 'he', 'ar', 'de', 'fr', 'es', 'ja', 'zh', 'ru', 'pt'],
+            description: 'Locale registry key; falls back to `UI_LOCALE_ID`.',
+        },
     },
     args: {
         open: false,
         allowSaveMapping: false,
         mappingSchema: null,
         replaceOnSchemaLoad: true,
+        locale: 'en',
     },
 };
 
@@ -39,7 +43,8 @@ const TEMPLATE = `
         [open]="open"
         [allowSaveMapping]="allowSaveMapping"
         [mappingSchema]="mappingSchema"
-        [replaceOnSchemaLoad]="replaceOnSchemaLoad">
+        [replaceOnSchemaLoad]="replaceOnSchemaLoad"
+        [locale]="locale">
     </ui-shortcut-bindings-dialog>`;
 
 const render: NonNullable<Story['render']> = (args) => ({

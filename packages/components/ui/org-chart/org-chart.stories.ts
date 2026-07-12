@@ -34,6 +34,14 @@ const meta: Meta<OrgChartComponent> = {
         nodeHover: { control: false, description: 'Emits the hovered node, or `null` on leave.' },
     },
     args: {
+        data: [
+            { id: '1', name: 'Ava Stone', title: 'CEO', parentId: null },
+            { id: '2', name: 'Liam Chen', title: 'CTO', parentId: '1' },
+            { id: '3', name: 'Maya Patel', title: 'CFO', parentId: '1' },
+            { id: '4', name: 'Noah Kim', title: 'VP Engineering', parentId: '2' },
+            { id: '5', name: 'Zoe Ward', title: 'VP Design', parentId: '2' },
+            { id: '6', name: 'Ethan Cruz', title: 'Controller', parentId: '3' },
+        ] as OrgNode[],
         layout: 'vertical',
         nodeWidth: 180,
         nodeHeight: 80,
@@ -49,15 +57,6 @@ const meta: Meta<OrgChartComponent> = {
 export default meta;
 type Story = StoryObj<OrgChartComponent>;
 
-const orgData: OrgNode[] = [
-    { id: '1', name: 'Ava Stone', title: 'CEO', parentId: null },
-    { id: '2', name: 'Liam Chen', title: 'CTO', parentId: '1' },
-    { id: '3', name: 'Maya Patel', title: 'CFO', parentId: '1' },
-    { id: '4', name: 'Noah Kim', title: 'VP Engineering', parentId: '2' },
-    { id: '5', name: 'Zoe Ward', title: 'VP Design', parentId: '2' },
-    { id: '6', name: 'Ethan Cruz', title: 'Controller', parentId: '3' },
-];
-
 const TEMPLATE = `
     <div class="overflow-auto border rounded-lg p-4" style="max-height: 500px;">
         <ui-org-chart
@@ -67,7 +66,7 @@ const TEMPLATE = `
     </div>`;
 
 const render: NonNullable<Story['render']> = (args) => ({
-    props: { ...args, data: orgData },
+    props: args,
     template: TEMPLATE,
 });
 

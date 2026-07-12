@@ -45,6 +45,7 @@ const meta: Meta<AutocompleteComponent<Country>> = {
         disabled: { control: 'boolean', description: 'Disables the input and prevents opening the dropdown.' },
         debounceTime: { control: 'number', min: 0, max: 2000, step: 50, description: 'Milliseconds to debounce `searchChange` emissions. `0` emits immediately.' },
         value: { control: 'object', description: 'Current value: a single option, an array of options (multiple mode), or undefined.' },
+        searchTerm: { control: 'text', description: 'Search text model. Reflected in the input while the dropdown is open (focus the field to see it).' },
         locale: {
             control: 'select',
             options: ['en', 'he', 'ar', 'de', 'fr', 'es', 'ja', 'zh', 'ru', 'pt'],
@@ -62,6 +63,7 @@ const meta: Meta<AutocompleteComponent<Country>> = {
         disabled: false,
         debounceTime: 0,
         value: undefined,
+        searchTerm: '',
         locale: 'en',
         class: '',
     },
@@ -76,7 +78,7 @@ const TEMPLATE = `
             [options]="options" [displayWith]="displayWith" [valueAttribute]="valueAttribute"
             [filter]="filter" [multiple]="multiple" [placeholder]="placeholder"
             [disabled]="disabled" [debounceTime]="debounceTime" [value]="value"
-            [locale]="locale" [class]="class">
+            [searchTerm]="searchTerm" [locale]="locale" [class]="class">
         </ui-autocomplete>
     </div>`;
 

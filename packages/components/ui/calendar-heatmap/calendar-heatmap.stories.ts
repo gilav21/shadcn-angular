@@ -36,7 +36,6 @@ const meta: Meta<CalendarHeatmapComponent> = {
             description: 'Text/layout direction.',
         },
         class: { control: 'text', description: 'Extra classes merged onto the host.' },
-        dayHover: { control: false, description: 'Emits the hovered CalendarDay (or null on leave).' },
     },
     args: {
         data: yearOfData(),

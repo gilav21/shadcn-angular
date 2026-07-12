@@ -19,7 +19,6 @@ const meta: Meta<ScatterChartComponent> = {
         class: { control: 'text', description: 'Extra classes merged onto the host.' },
         title: { control: 'text', description: 'Accessible chart title used in the aria-label summary.' },
         dir: { control: 'select', options: ['auto', 'ltr', 'rtl'], description: 'Layout direction; `auto` detects from the DOM.' },
-        pointClick: { control: false, description: 'Emits when a scatter point is clicked or activated via keyboard.' },
     },
     args: {
         series: [],

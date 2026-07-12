@@ -2,6 +2,20 @@ import { Meta, StoryObj } from '@storybook/angular';
 import { BubbleChartComponent } from './bubble-chart.component';
 import { XYZSeries } from '../../lib/chart.types';
 
+const series: XYZSeries[] = [
+    {
+        name: 'Products', points: [
+            { x: 10, y: 20, z: 30 }, { x: 22, y: 35, z: 80 }, { x: 30, y: 15, z: 50 },
+            { x: 38, y: 42, z: 120 }, { x: 46, y: 28, z: 65 },
+        ],
+    },
+    {
+        name: 'Services', points: [
+            { x: 14, y: 50, z: 40 }, { x: 26, y: 60, z: 95 }, { x: 34, y: 48, z: 70 },
+        ],
+    },
+];
+
 // Every input is exposed as an interactive control (argTypes) with a sensible
 // default (args); the Playground binds all of them so the Controls panel drives
 // the live component. Dedicated stories below capture each distinct visual mode.
@@ -21,9 +35,9 @@ const meta: Meta<BubbleChartComponent> = {
         title: { control: 'text', description: 'Accessible title announced with the chart summary; not rendered visually.' },
         dir: { control: 'select', options: ['auto', 'ltr', 'rtl'], description: 'Reading direction; `auto` detects from the DOM.' },
         class: { control: 'text', description: 'Extra classes merged onto the host.' },
-        pointClick: { control: false, description: 'Emits the clicked data point and its index.' },
     },
     args: {
+        series,
         width: 560,
         height: 360,
         minRadius: 6,
@@ -39,20 +53,6 @@ const meta: Meta<BubbleChartComponent> = {
 
 export default meta;
 type Story = StoryObj<BubbleChartComponent>;
-
-const series: XYZSeries[] = [
-    {
-        name: 'Products', points: [
-            { x: 10, y: 20, z: 30 }, { x: 22, y: 35, z: 80 }, { x: 30, y: 15, z: 50 },
-            { x: 38, y: 42, z: 120 }, { x: 46, y: 28, z: 65 },
-        ],
-    },
-    {
-        name: 'Services', points: [
-            { x: 14, y: 50, z: 40 }, { x: 26, y: 60, z: 95 }, { x: 34, y: 48, z: 70 },
-        ],
-    },
-];
 
 const singleSeries: XYZSeries[] = [
     {

@@ -32,7 +32,6 @@ const meta: Meta<RadioGroupComponent> = {
         valueAttribute: { control: 'text', description: 'Data-driven mode: key read off each option object to derive its radio value. Omit when options are plain strings.' },
         disabledWith: { control: false, description: 'Data-driven mode: maps an option to whether it is disabled.' },
         value: { control: 'text', description: 'External value for one-way binding without forms.' },
-        valueChange: { control: false, description: 'Emits the selected value string.' },
     },
     args: {
         orientation: 'vertical',

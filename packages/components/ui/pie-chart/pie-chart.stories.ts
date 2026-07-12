@@ -24,8 +24,6 @@ const meta: Meta<PieChartComponent> = {
         animated: { control: 'boolean', description: 'Animates slice transitions.' },
         class: { control: 'text', description: 'Extra classes merged onto the host container.' },
         title: { control: 'text', description: 'Accessible chart title used to build the SVG aria-label.' },
-        sliceClick: { control: false, description: 'Emits `{ point, index, event }` when a slice is clicked.' },
-        sliceHover: { control: false, description: 'Emits `{ point, index }` on hover, or `null` on leave.' },
     },
     args: {
         data: [

@@ -32,8 +32,6 @@ const meta: Meta<SplitButtonComponent> = {
         },
         disabled: { control: 'boolean', description: 'Disables both the primary and dropdown-toggle buttons.' },
         class: { control: 'text', description: 'Extra classes merged onto the host container.' },
-        primaryClick: { control: false, description: 'Emits the `MouseEvent` when the primary action button is clicked.' },
-        itemClick: { control: false, description: 'Emits the `SplitButtonItem` when a dropdown item is clicked.' },
     },
     args: {
         label: 'Save',

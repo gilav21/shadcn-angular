@@ -66,7 +66,6 @@ const meta: Meta<StackedBarChartComponent> = {
             options: ['auto', 'ltr', 'rtl'],
             description: 'Reading direction. `auto` detects the DOM direction at render time.',
         },
-        segmentClick: { control: false, description: 'Emits `{ series, category, value }` when a segment is clicked.' },
     },
     args: {
         series: DEMO_SERIES,

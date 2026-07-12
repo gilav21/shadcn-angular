@@ -29,7 +29,6 @@ const meta: Meta<HeatmapComponent> = {
             options: ['auto', 'ltr', 'rtl'],
             description: 'Reading direction for the chart.',
         },
-        cellHover: { control: false, description: 'Emits the hovered/focused cell, or null on leave.' },
     },
     args: {
         data,

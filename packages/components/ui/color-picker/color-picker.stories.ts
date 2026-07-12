@@ -2,6 +2,7 @@ import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { FormsModule } from '@angular/forms';
 import { signal } from '@angular/core';
 import { ColorPickerComponent } from './color-picker.component';
+import { COLOR_PICKER_LOCALES } from './color-picker.locales';
 
 const meta: Meta<ColorPickerComponent> = {
     title: 'UI/ColorPicker',
@@ -29,6 +30,11 @@ const meta: Meta<ColorPickerComponent> = {
         showContrast: { control: 'boolean', description: 'Shows the WCAG contrast checker against `contrastBackground`.' },
         contrastBackground: { control: 'color', description: 'Background color the contrast checker compares against.' },
         formats: { control: 'object', description: 'Which format tabs to show (`hex`, `rgb`, `hsl`, `oklch`).' },
+        locale: {
+            control: 'select',
+            options: Object.keys(COLOR_PICKER_LOCALES),
+            description: 'Locale dictionary registry key (or a full ColorPickerLocale object). Falls back to `UI_LOCALE_ID` when not set.',
+        },
         class: { control: 'text', description: 'Extra classes merged onto the trigger.' },
     },
     args: {
@@ -47,6 +53,7 @@ const meta: Meta<ColorPickerComponent> = {
         showContrast: false,
         contrastBackground: '#ffffff',
         formats: ['hex', 'rgb', 'hsl'],
+        locale: 'en',
         class: '',
     },
 };
@@ -72,7 +79,7 @@ const PLAYGROUND_TEMPLATE = `
             [imageExtractAlgorithm]="imageExtractAlgorithm" [imageExtractCount]="imageExtractCount"
             [showHarmonies]="showHarmonies" [showContrast]="showContrast"
             [contrastBackground]="contrastBackground" [formats]="formats"
-            [class]="class">
+            [locale]="locale" [class]="class">
         </ui-color-picker>
         ${SELECTED_BLOCK}
     </div>`;

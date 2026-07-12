@@ -98,11 +98,12 @@ const TEMPLATE = `
         </ui-drawer-content>
     </ui-drawer>`;
 
-const render = (args: Partial<DrawerStoryArgs>): { props: Partial<DrawerStoryArgs>; template: string } => ({
+const render: NonNullable<Story['render']> = (args) => ({
     props: args,
     template: TEMPLATE,
 });
 
+/** Interactive playground — every input is wired to the Controls panel. */
 export const Playground: Story = { render };
 
 export const Top: Story = {

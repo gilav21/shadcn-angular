@@ -20,7 +20,6 @@ const meta: Meta<WaterfallChartComponent> = {
         class: { control: 'text', description: 'Extra classes merged onto the host.' },
         title: { control: 'text', description: 'Accessible chart title, also used in the ARIA summary.' },
         dir: { control: 'select', options: ['ltr', 'rtl', 'auto'], description: 'Layout direction; `auto` detects from the DOM.' },
-        barClick: { control: false, description: 'Emits `{ point, index }` when a bar is clicked.' },
     },
     args: {
         data: [
