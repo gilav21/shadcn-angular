@@ -7,10 +7,17 @@ import {
     parseAllowlist,
     partitionIssues,
     seedAllowlist,
+    serializeAllowlist,
     staleExemptions,
     type Allowlist,
     type ComponentFacts,
+    type Exemption,
+    type IssueKind,
 } from './check-completeness-lib';
+
+function exempt(reason: string, kind: IssueKind = 'missing'): Exemption {
+    return { reason, kind };
+}
 
 function facts(overrides: Partial<ComponentFacts> & { name: string }): ComponentFacts {
     return {
@@ -83,7 +90,7 @@ describe('findIssues', () => {
 });
 
 describe('partitionIssues', () => {
-    const allowlist: Allowlist = { story: {}, demo: {}, e2e: { kanban: 'legacy backlog' } };
+    const allowlist: Allowlist = { story: {}, demo: {}, e2e: { kanban: exempt('legacy backlog') } };
 
     it('silences an allowlisted issue and fails an un-allowlisted one', () => {
         const issues = findIssues([
@@ -110,13 +117,14 @@ describe('partitionIssues', () => {
 
 describe('staleExemptions', () => {
     it('flags an exemption whose artifact now exists', () => {
-        const allowlist: Allowlist = { story: {}, demo: {}, e2e: { kanban: 'backlog' } };
+        const allowlist: Allowlist = { story: {}, demo: {}, e2e: { kanban: exempt('backlog') } };
         const issues = findIssues([facts({ name: 'kanban' })]); // now fully covered
-        expect(staleExemptions(issues, allowlist)).toEqual([{ component: 'kanban', artifact: 'e2e' }]);
+        expect(staleExemptions(issues, allowlist))
+            .toEqual([{ component: 'kanban', artifact: 'e2e', kind: 'missing' }]);
     });
 
     it('keeps an exemption that is still needed', () => {
-        const allowlist: Allowlist = { story: {}, demo: {}, e2e: { kanban: 'backlog' } };
+        const allowlist: Allowlist = { story: {}, demo: {}, e2e: { kanban: exempt('backlog') } };
         const issues = findIssues([facts({ name: 'kanban', e2eCovered: false })]);
         expect(staleExemptions(issues, allowlist)).toEqual([]);
     });
@@ -130,7 +138,7 @@ describe('seedAllowlist / allowlistSize / parseAllowlist', () => {
         ]);
         const seeded = seedAllowlist(today, 'grandfathered');
         expect(allowlistSize(seeded)).toBe(3);
-        expect(seeded.e2e['kanban']).toBe('grandfathered');
+        expect(seeded.e2e['kanban']).toEqual({ reason: 'grandfathered', kind: 'missing' });
         const { errors, exempt } = partitionIssues(today, seeded);
         expect(errors).toEqual([]);
         expect(exempt).toHaveLength(3);
@@ -140,7 +148,55 @@ describe('seedAllowlist / allowlistSize / parseAllowlist', () => {
     it('round-trips through JSON and tolerates missing sections', () => {
         const parsed = parseAllowlist(JSON.stringify({ e2e: { kanban: 'backlog' } }));
         expect(parsed.story).toEqual({});
-        expect(parsed.e2e['kanban']).toBe('backlog');
+        // The legacy bare-string form means the `missing` kind.
+        expect(parsed.e2e['kanban']).toEqual({ reason: 'backlog', kind: 'missing' });
         expect(allowlistSize(parsed)).toBe(1);
+    });
+
+    it('round-trips an orphan-kind exemption through the committed JSON form', () => {
+        const seeded = seedAllowlist(findIssues([facts({ name: 'tour', demoRouted: false })]), 'debt');
+        expect(seeded.demo['tour']).toEqual({ reason: 'debt', kind: 'orphan' });
+
+        const json = serializeAllowlist(seeded);
+        // `missing` stays a bare string; `orphan` must carry its kind or it would
+        // parse back as `missing` and silence the wrong failure mode.
+        expect(JSON.parse(json).demo.tour).toEqual({ reason: 'debt', kind: 'orphan' });
+        expect(parseAllowlist(json)).toEqual(seeded);
+    });
+});
+
+// Regression (review finding #6): an exemption is keyed by the FAILURE MODE, not
+// just the artifact — otherwise a component grandfathered for "no demo page" that
+// later gains an UNROUTED demo page keeps its exemption and the orphan-route
+// regression ships silenced.
+describe('exemptions are kind-scoped', () => {
+    const grandfathered: Allowlist = {
+        story: {},
+        demo: { tour: exempt('grandfathered: no demo page', 'missing') },
+        e2e: {},
+    };
+
+    it('does NOT silence an orphan demo page for a component exempted for a MISSING one', () => {
+        const issues = findIssues([facts({ name: 'tour', demoRouted: false })]); // demo now exists, unrouted
+        const { errors, exempt: silenced } = partitionIssues(issues, grandfathered);
+
+        expect(silenced).toEqual([]);
+        expect(errors).toHaveLength(1);
+        expect(errors[0].kind).toBe('orphan');
+        expect(errors[0].detail).toContain('not routed');
+    });
+
+    it('reports the now-mismatched exemption as stale', () => {
+        const issues = findIssues([facts({ name: 'tour', demoRouted: false })]);
+        expect(staleExemptions(issues, grandfathered))
+            .toEqual([{ component: 'tour', artifact: 'demo', kind: 'missing' }]);
+    });
+
+    it('still silences the exact failure mode it was granted for', () => {
+        const issues = findIssues([facts({ name: 'tour', demoFile: null, demoRouted: false })]);
+        const { errors, exempt: silenced } = partitionIssues(issues, grandfathered);
+        expect(errors).toEqual([]);
+        expect(silenced).toHaveLength(1);
+        expect(staleExemptions(issues, grandfathered)).toEqual([]);
     });
 });

@@ -10,6 +10,8 @@ import {
     readPackageVersion,
     renderReleaseNotes,
     setPackageVersion,
+    releaseCommitArgv,
+    RELEASE_PATHS,
     stripRegistryData,
     tagName,
 } from './release-cli-lib';
@@ -118,6 +120,8 @@ describe('classifyPath', () => {
     });
 });
 
+const NL = String.fromCodePoint(10);
+
 describe('stripRegistryData', () => {
     const source = [
         'export interface ComponentDefinition { name: string; }',
@@ -146,6 +150,70 @@ describe('stripRegistryData', () => {
 
     it('passes through a source with no registry literal', () => {
         expect(stripRegistryData('export const x = 1;')).toBe('export const x = 1;');
+    });
+
+    // Regression (review finding #2): descriptions are free text — `new:component
+    // --description "a smiley :("` is enough to unbalance a character-wise paren
+    // scan. The old stripper then silently dropped EVERYTHING after the literal
+    // (getComponentNames, isComponentName, levenshtein, …), so a revision that
+    // rewrote that real CLI logic stripped to the same prefix on both sides and
+    // the verdict said "publish NOT required". It must fail SAFE instead.
+    it('keeps the helpers below an unbalanced paren inside a description string', () => {
+        const smiley = [
+            'export interface ComponentDefinition { name: string; }',
+            'export const registry = defineRegistry({',
+            "    button: { name: 'button', description: 'a smiley :(' },",
+            '});',
+            'export function isComponentName(n: string) { return n in registry; }',
+        ].join(NL);
+
+        const stripped = stripRegistryData(smiley);
+        expect(stripped).toContain('isComponentName');
+        expect(stripped).not.toContain('smiley');
+    });
+
+    it('a CLI-logic rewrite below an unbalanced description still forces a publish', () => {
+        const before = [
+            'export const registry = defineRegistry({',
+            "    button: { name: 'button', description: 'a smiley :(' },",
+            '});',
+            'export function levenshtein(a: string, b: string) { return 0; }',
+        ].join(NL);
+        const after = before.replace('return 0;', 'return realDistance(a, b);');
+
+        // The two revisions must NOT strip to the same source — that is the exact
+        // path by which a real CLI fix would have been declared unnecessary.
+        expect(stripRegistryData(after)).not.toBe(stripRegistryData(before));
+        expect(publishVerdict({
+            changedFiles: ['packages/cli/src/registry/index.ts'],
+            registryShapeBefore: stripRegistryData(before),
+            registryShapeAfter: stripRegistryData(after),
+        }).required).toBe(true);
+    });
+
+    it('returns the whole source when the literal is never closed (fail safe)', () => {
+        const truncated = `export const registry = defineRegistry({${NL}    button: { name: "button" },`;
+        expect(stripRegistryData(truncated)).toBe(truncated);
+    });
+});
+
+// Regression (review finding #7): the real run used `git commit -m …` with NO
+// pathspec, so anything else already staged (reachable under --allow-dirty) was
+// swept into the release commit and pushed — while the dry-run PRINTED the
+// pathspec form, so the rehearsal lied about what the real run did.
+describe('releaseCommitArgv', () => {
+    it('scopes both the add and the commit to the two release files', () => {
+        const { add, commit } = releaseCommitArgv('cli-v1.2.3');
+        expect(add).toEqual(['add', '--', ...RELEASE_PATHS]);
+        expect(commit).toEqual([
+            'commit', '-m', 'chore(cli): release cli-v1.2.3', '--', ...RELEASE_PATHS,
+        ]);
+    });
+
+    it('never commits the whole index', () => {
+        const { commit } = releaseCommitArgv('cli-v1.2.3');
+        expect(commit).toContain('--');
+        expect(commit.slice(commit.indexOf('--') + 1)).toEqual([...RELEASE_PATHS]);
     });
 });
 

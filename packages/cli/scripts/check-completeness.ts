@@ -38,6 +38,7 @@ import {
     parseAllowlist,
     partitionIssues,
     seedAllowlist,
+    serializeAllowlist,
     staleExemptions,
     type Allowlist,
     type Artifact,
@@ -118,7 +119,7 @@ function loadAllowlist(): Allowlist {
 }
 
 function writeAllowlist(allowlist: Allowlist): void {
-    writeFileSync(ALLOWLIST_PATH, JSON.stringify(allowlist, null, 2) + '\n');
+    writeFileSync(ALLOWLIST_PATH, serializeAllowlist(allowlist));
     console.log(
         `Seeded ${allowlistSize(allowlist)} exemption(s) into ` +
         `${path.relative(REPO_ROOT, ALLOWLIST_PATH).replaceAll('\\', '/')}.`,
@@ -230,8 +231,11 @@ function reportExemptions(exempt: readonly Issue[]): void {
 
 function reportStale(stale: readonly StaleExemption[]): void {
     if (stale.length === 0) return;
-    console.error('\nStale allowlist entries — the artifact now exists, REMOVE the exemption:');
-    for (const s of stale) console.error(`  ${s.component} [${s.artifact}]`);
+    console.error(
+        '\nStale allowlist entries — no live issue matches them any more (the artifact now ' +
+        'exists, or its failure mode changed). REMOVE or re-seed the exemption:',
+    );
+    for (const s of stale) console.error(`  ${s.component} [${s.artifact}: ${s.kind}]`);
 }
 
 function reportBaselines(baselines: readonly string[], strict: boolean): void {

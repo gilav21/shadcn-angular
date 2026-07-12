@@ -3,6 +3,10 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from './server.js';
 import { loadRegistry, __resetRegistryManifestCache } from '../registry/load.js';
+import { getDefaultConfig } from '../utils/config.js';
+import fs from 'fs-extra';
+import os from 'node:os';
+import path from 'node:path';
 
 type TextContent = { type: string; text: string };
 
@@ -255,4 +259,113 @@ describe('MCP server (in-memory)', () => {
     const desc = tools.find(t => t.name === 'update_component')?.description ?? '';
     expect(desc).toContain('mergeReport.fellBack');
   });
+});
+
+// Regression (review finding #3): every MCP tool now resolves its own
+// branch/fork, and `registry/load.ts` applies that manifest by MUTATING the
+// single module-level `registry` object. MCP request handlers are NOT
+// serialised by the SDK, so a plan awaiting disk/network on branch A could have
+// the manifest swapped to branch B underneath it and finish its dependency walk
+// against the wrong one — a wrong file list installed under an A fetch base, or
+// a spurious "unknown component". Tool handlers are therefore serialised
+// (src/mcp/serialize.ts); this proves two interleaved calls on different
+// branches cannot contaminate each other.
+describe('MCP concurrency — two tool calls on different branches', () => {
+  let client: Client;
+  let projectDir: string;
+
+  /** Branch manifests that share no component name, so any bleed-through is fatal. */
+  function raceManifest(url: string): string {
+    return url.includes('/feat/some-branch/')
+      ? JSON.stringify({
+          'branch-dep': { name: 'branch-dep', files: ['branch-dep/branch-dep.component.ts'] },
+          'branch-only': {
+            name: 'branch-only',
+            files: ['branch-only/branch-only.component.ts'],
+            dependencies: ['branch-dep'],
+          },
+        })
+      : JSON.stringify({
+          'master-dep': { name: 'master-dep', files: ['master-dep/master-dep.component.ts'] },
+          'master-only': {
+            name: 'master-only',
+            files: ['master-only/master-only.component.ts'],
+            dependencies: ['master-dep'],
+          },
+        });
+  }
+
+  beforeAll(async () => {
+    projectDir = await fs.mkdtemp(path.join(os.tmpdir(), 'shadcn-mcp-race-'));
+    await fs.writeJson(path.join(projectDir, 'components.json'), getDefaultConfig());
+
+    const server = createMcpServer(projectDir);
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: 'race', version: '0' });
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);
+  });
+
+  afterAll(async () => {
+    await client.close();
+    await fs.remove(projectDir);
+  });
+
+  afterEach(async () => {
+    vi.restoreAllMocks();
+    __resetRegistryManifestCache();
+    await loadRegistry({});
+  });
+
+  it('resolves each plan against its own branch manifest under a forced interleave', async () => {
+    // Force the interleave that corrupts: the feat/ call applies its manifest and
+    // then yields inside its dependency walk (fs.pathExists on a branch file) —
+    // and the default-branch call applies MASTER's manifest in exactly that
+    // window, before the feat/ call has finished reading registry[…] back out.
+    // Unserialised, the feat/ plan then dies on the master manifest with
+    // "Cannot read properties of undefined (reading 'npmDependencies')".
+    let releaseMaster = (): void => undefined;
+    const branchMidWalk = new Promise<void>(resolve => { releaseMaster = resolve; });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (!url.endsWith('registry.json')) return new Response('export const x = 1;', { status: 200 });
+      if (!url.includes('/feat/some-branch/')) await branchMidWalk;
+      return new Response(raceManifest(url), { status: 200 });
+    });
+
+    const realPathExists = fs.pathExists.bind(fs) as (target: string) => Promise<boolean>;
+    let opened = false;
+    vi.spyOn(fs, 'pathExists').mockImplementation((async (target: string) => {
+      if (!opened && String(target).includes('branch-')) {
+        opened = true;
+        releaseMaster();
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      return realPathExists(target);
+    }) as typeof fs.pathExists);
+
+    const plan = async (name: string, branch?: string): Promise<ToolCallResult> =>
+      (await client.callTool({
+        name: 'get_install_plan',
+        arguments: { names: [name], remote: true, ...(branch ? { branch } : {}) },
+      })) as unknown as ToolCallResult;
+
+    const [onBranch, onMaster] = await Promise.all([
+      plan('branch-only', 'feat/some-branch'),
+      plan('master-only'),
+    ]);
+
+    expect(onBranch.isError, firstText(onBranch)).toBeFalsy();
+    expect(onMaster.isError, firstText(onMaster)).toBeFalsy();
+
+    const branchPlan = JSON.parse(firstText(onBranch)) as { toInstall: string[] };
+    const masterPlan = JSON.parse(firstText(onMaster)) as { toInstall: string[] };
+
+    // Each plan walked its OWN manifest's dependency closure.
+    const sorted = (names: string[]): string[] => [...names].sort((a, b) => a.localeCompare(b));
+    expect(sorted(branchPlan.toInstall)).toEqual(['branch-dep', 'branch-only']);
+    expect(sorted(masterPlan.toInstall)).toEqual(['master-dep', 'master-only']);
+    expect(firstText(onBranch)).not.toContain('master-');
+    expect(firstText(onMaster)).not.toContain('branch-');
+  }, 20_000);
 });

@@ -35,6 +35,7 @@ import {
     CATEGORY_NAMES,
     InsertError,
     demoLocation,
+    existingDestinations,
     insertDemoExport,
     insertRegistryEntry,
     insertRoute,
@@ -211,11 +212,23 @@ function chain(label: string, args: readonly string[]): boolean {
     return false;
 }
 
+/** Refuses to clobber ANY destination, not just the component folder (orphan demo pages exist). */
+function assertNoOverwrite(files: readonly FileWrite[]): void {
+    const clashes = existingDestinations(files.map(f => f.file), existsSync);
+    if (clashes.length === 0) return;
+    fail(
+        `refusing to overwrite ${clashes.length} existing file(s):\n` +
+        clashes.map(f => `  ${rel(f)}`).join('\n') +
+        '\n\nDelete them (or pick another name) and re-run.',
+    );
+}
+
 async function main(): Promise<void> {
     const args = parseArgs(process.argv.slice(2));
     const meta = await resolveMeta(args);
 
     const files = plannedFiles(meta);
+    assertNoOverwrite(files);
     const edits = plannedEdits(meta);
     const kind = meta.compound ? `${meta.category}, compound` : meta.category;
 

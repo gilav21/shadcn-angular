@@ -14,8 +14,8 @@ costs ~1 minute, not a full test run:
 | 1 | `lint`         | `check:all` — eslint + tsc + Angular template typecheck |
 | 2 | `registry`     | `sync-registry.ts` in report mode — exits 1 on drift |
 | 3 | `completeness` | `check-completeness.ts` — story / demo route / e2e   |
-| 4 | `test-cli`     | CLI unit tests (node)                               |
-| 5 | `test`         | component unit tests (headless browser)             |
+| 4 | `test-cli`     | CLI unit tests (node) **with coverage** — trips the ratchet in `vitest.config.cli.ts` |
+| 5 | `test`         | component unit tests (headless browser) **with coverage** — trips the ratchet in `vitest.config.ts` |
 
 ```bash
 npm run preflight                 # all stages
@@ -24,6 +24,38 @@ npm run preflight -- --skip test  # skip a stage by id (repeatable)
 ```
 
 It prints a per-stage wall-clock summary and names the stage that failed.
+
+### Why the test stages run with coverage
+
+The coverage thresholds in `vitest.config.ts` / `vitest.config.cli.ts` only
+evaluate under `--coverage`. Nothing but `npm run coverage` used to pass that
+flag, and nothing invoked it — so the "ratchet" gated **nothing**: half the
+tests could be deleted and every gate still went green. Both test stages now run
+with coverage, so a coverage regression fails the push. Measured cost of the
+instrumentation (2026-07-13, warm): CLI 5s → 6s, component suite 50s → 69s.
+
+`npm run release:cli` runs `preflight`, so a release is covered by the same
+ratchet; there is no separate coverage stage to forget.
+
+### What the pre-push gate does NOT guarantee
+
+Be honest about the blast radius. A green `preflight` means: it lints, it
+type-checks (incl. Angular templates), the registry is not drifted, every
+component has a story + routed demo + e2e *entry*, both unit suites pass, and
+line/branch/function coverage is **at or above the recorded floor**. It does
+**not** mean:
+
+- **the e2e suite passes** — `preflight` never runs it (~7 min). Run
+  `npm run e2e:impact -- --base origin/master` (or the full `npm run e2e`)
+  before anything that touches the registry, the CLI, or shared `lib/`.
+- **coverage is *good*** — the thresholds are a floor measured on the current
+  tree, not a quality bar. New code can be entirely untested and still clear
+  them as long as the aggregate does not drop below the floor.
+- **SonarQube is clean** — needs Docker + a token; still a separate, manual
+  done-gate (`.claude/CLAUDE.md` §4).
+- **it renders correctly** — no visual/a11y assertion runs in the gate;
+  `test-storybook` (pre-push) is a smoke run, and its axe pass is RED by design
+  and excluded.
 
 Deliberately **not** in preflight:
 
@@ -44,7 +76,7 @@ manually with `npx simple-git-hooks`.
 | hook       | runs                                    | measured wall-clock (2026-07-13, warm) |
 |------------|-----------------------------------------|--------------------|
 | pre-commit | `lint-staged` → `eslint --fix` on staged files | **10 s** for a 10-file commit (scales with staged file count) |
-| pre-push   | `preflight` (2m 30s) + `test-storybook` (60 s) | **3 m 30 s** |
+| pre-push   | `preflight` (2m 47s — incl. coverage) + `test-storybook` (60 s) | **3 m 47 s** |
 
 **pre-commit is intentionally lint-only.** Scoping unit tests to the staged
 files is not cheap here: the component suite runs in a real browser, and

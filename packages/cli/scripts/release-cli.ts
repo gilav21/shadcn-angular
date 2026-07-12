@@ -31,6 +31,7 @@ import {
     prependRelease,
     publishVerdict,
     readPackageVersion,
+    releaseCommitArgv,
     renderReleaseNotes,
     setPackageVersion,
     stripRegistryData,
@@ -182,8 +183,10 @@ function writeArtifacts(nextVersion: string, base: string, args: ReleaseArgs): s
 
 function publishAndTag(nextVersion: string, branch: string, args: ReleaseArgs): void {
     const tag = tagName(nextVersion);
+    const { add, commit } = releaseCommitArgv(tag);
     const steps = [
-        `git commit -m "chore(cli): release ${tag}" -- packages/cli/package.json packages/cli/CHANGELOG.md`,
+        `git ${add.join(' ')}`,
+        `git ${commit.join(' ')}`,
         'npm publish  (packages/cli — prepublishOnly rebuilds dist/)',
         `git tag ${tag}`,
         `git push origin ${branch} --follow-tags`,
@@ -196,8 +199,11 @@ function publishAndTag(nextVersion: string, branch: string, args: ReleaseArgs): 
         return;
     }
 
-    git('add', '--', 'packages/cli/package.json', 'packages/cli/CHANGELOG.md');
-    git('commit', '-m', `chore(cli): release ${tag}`);
+    // Pathspec form, exactly as the dry-run prints it: a bare `git commit` would
+    // sweep anything else already staged (very reachable under --allow-dirty)
+    // into the release commit and push it.
+    git(...add);
+    git(...commit);
     npm('publish', CLI_DIR);
     git('tag', tag);
     git('push', 'origin', branch, '--follow-tags');

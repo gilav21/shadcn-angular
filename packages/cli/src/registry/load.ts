@@ -49,9 +49,23 @@ export function isValidRegistryShape(data: unknown): data is Record<string, Comp
     return Object.values(data).every(isValidRegistryEntry);
 }
 
+/**
+ * A local monorepo checkout only stands in for the DEFAULT source. The moment a
+ * caller names another source — `--remote`, a non-default `--branch`, or a
+ * `--registry` fork — the local `registry.json` is the wrong manifest: names and
+ * `files[]` would be resolved against the checkout while `fetchComponentContent`
+ * pulls the SOURCES from the named branch/fork (it falls through to remote for
+ * any file the checkout lacks). Honour the explicit source for the manifest too.
+ */
+function wantsRemoteManifest(options: LoadRegistryOptions): boolean {
+    if (options.remote) return true;
+    if (options.registry !== undefined) return true;
+    return options.branch !== undefined && options.branch !== DEFAULT_BRANCH;
+}
+
 async function fetchManifest(options: LoadRegistryOptions): Promise<string> {
     const local = getLocalRegistryJson();
-    if (local && !options.remote) {
+    if (local && !wantsRemoteManifest(options)) {
         return fs.readFile(local, 'utf-8');
     }
     const url = getRegistryManifestUrl(options.branch ?? DEFAULT_BRANCH, options.registry);

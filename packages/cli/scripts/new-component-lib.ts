@@ -96,6 +96,20 @@ function escapeHtml(s: string): string {
     return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
+/**
+ * The description is free text (`--description "…"`) and every slot it lands in
+ * is INSIDE a TS template literal in the emitted file (the demo's and stories'
+ * `template: \`…\``, the component's JSDoc). A backtick or a `${` there closes
+ * the literal / opens an interpolation and the generated file does not compile,
+ * so both are backslash-escaped for that context on top of the HTML escaping.
+ */
+export function escapeDescription(s: string): string {
+    return escapeHtml(s)
+        .replaceAll('\\', '\\\\')
+        .replaceAll('`', '\\`')
+        .replaceAll('${', '\\${');
+}
+
 /** Substitutes every `__SLOT__` in a template. */
 function fill(template: string, meta: ComponentMeta): string {
     return template
@@ -103,7 +117,7 @@ function fill(template: string, meta: ComponentMeta): string {
         .replaceAll('__PASCAL__', pascalCase(meta.name))
         .replaceAll('__CAMEL__', camelCase(meta.name))
         .replaceAll('__TITLE__', titleCase(meta.name))
-        .replaceAll('__DESCRIPTION__', escapeHtml(meta.description));
+        .replaceAll('__DESCRIPTION__', escapeDescription(meta.description));
 }
 
 // ── Templates: component ────────────────────────────────────────────────
@@ -622,6 +636,25 @@ export function renderDemo(meta: ComponentMeta): string {
     return fill(meta.compound ? DEMO_COMPOUND : DEMO_SIMPLE, meta);
 }
 
+// ── Overwrite guard ─────────────────────────────────────────────────────
+
+/**
+ * Every planned destination that already exists on disk. Guarding only
+ * `ui/<name>/` is not enough: the demo page lives in a different tree
+ * (`demo/src/app/demos/**`) and 51 ORPHAN demo pages exist today, so a name
+ * whose demo page exists but whose ui/ folder does not would be silently
+ * overwritten.
+ *
+ * @param destinations every file the generator would write
+ * @param exists       filesystem probe (injected so this stays unit-testable)
+ */
+export function existingDestinations(
+    destinations: readonly string[],
+    exists: (file: string) => boolean,
+): string[] {
+    return destinations.filter(exists);
+}
+
 // ── Source rewrites ─────────────────────────────────────────────────────
 
 export class InsertError extends Error {}
@@ -688,7 +721,7 @@ export function insertRegistryEntry(source: string, meta: ComponentMeta): string
     const key = meta.name.includes('-') ? `'${meta.name}'` : meta.name;
     const tags = meta.tags.map(quote).join(', ');
     const files = seedFiles(meta).map(quote).join(', ');
-    const description = meta.description.replaceAll("'", "\\'");
+    const description = meta.description.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
     const entry = [
         `  ${key}: {`,
         `    name: '${meta.name}',`,

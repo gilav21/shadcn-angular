@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ToolHost } from '../serialize.js';
 import fs from 'fs-extra';
 import path from 'node:path';
 import { isComponentName, type ComponentName } from '../../registry/index.js';
@@ -104,7 +104,7 @@ async function handleInit(cwd: string, args: InitArgs): Promise<ReturnType<typeo
     }
 }
 
-function registerInitTool(server: McpServer, cwd: string): void {
+function registerInitTool(server: ToolHost, cwd: string): void {
     server.registerTool('init_project', {
         title: 'Initialize project',
         description: 'Set up shadcn-angular in this Angular project (components.json, Tailwind, PostCSS). Uses sensible defaults; all overridable.',
@@ -113,7 +113,7 @@ function registerInitTool(server: McpServer, cwd: string): void {
     }, (args) => handleInit(cwd, args));
 }
 
-function registerAddTool(server: McpServer, cwd: string): void {
+function registerAddTool(server: ToolHost, cwd: string): void {
     server.registerTool('add_component', {
         title: 'Add components',
         description: 'Install one or more components (writes files, resolves deps, installs npm packages). Conflicts are NOT overwritten unless listed in `overwrite`. Run get_install_plan first.',
@@ -141,7 +141,7 @@ function registerAddTool(server: McpServer, cwd: string): void {
     });
 }
 
-function registerUpdateTool(server: McpServer, cwd: string): void {
+function registerUpdateTool(server: ToolHost, cwd: string): void {
     server.registerTool('update_component', {
         title: 'Update components',
         description: 'Update components from the registry. By default 3-way MERGES upstream changes into your local edits (conflicts are written as <<<<<<< markers and reported in mergeReport.mergedConflicted); pass overwrite:true to replace your edits whole-file instead. Files with local edits but no recorded merge baseline are KEPT unchanged and listed in mergeReport.fellBack — re-run with overwrite:true to take upstream for those. Mirrors the `update` CLI command.',
@@ -209,7 +209,7 @@ function capFullDiffs(out: ComponentDiff[], maxBytes: number): void {
     }
 }
 
-function registerDiffTool(server: McpServer, cwd: string): void {
+function registerDiffTool(server: ToolHost, cwd: string): void {
     server.registerTool('diff_component', {
         title: 'Diff components',
         description: 'Show how locally installed components differ from the registry version. Defaults to a compact summary of changed public symbols (added/removed inputs, outputs, models, methods); pass mode "full" for unified-diff hunks.',
@@ -236,7 +236,7 @@ function registerDiffTool(server: McpServer, cwd: string): void {
     });
 }
 
-function registerDensityTool(server: McpServer, cwd: string): void {
+function registerDensityTool(server: ToolHost, cwd: string): void {
     server.registerTool('set_density', {
         title: 'Set density',
         description: 'Set the global density level (1=ultra-compact to 5=spacious). Optionally override specific components.',
@@ -255,7 +255,7 @@ function registerDensityTool(server: McpServer, cwd: string): void {
     });
 }
 
-function registerRadiusMotionLocaleTool(server: McpServer, cwd: string): void {
+function registerRadiusMotionLocaleTool(server: ToolHost, cwd: string): void {
     server.registerTool('set_radius', {
         title: 'Set border radius',
         description: `Set the global border radius (--radius). Named values: ${Object.keys(RADIUS_NAMED).join(', ')}. Also accepts raw values like "0.5rem" or "8px".`,
@@ -301,7 +301,7 @@ function registerRadiusMotionLocaleTool(server: McpServer, cwd: string): void {
     });
 }
 
-function registerThemeTool(server: McpServer, cwd: string): void {
+function registerThemeTool(server: ToolHost, cwd: string): void {
     server.registerTool('change_theme', {
         title: 'Change color theme',
         description: `Change the color theme (replaces color CSS vars in :root and .dark). Available themes: ${VALID_THEMES.join(', ')}. Alternatively pass "from" with a brand hex color to generate a custom theme.`,
@@ -320,7 +320,7 @@ function registerThemeTool(server: McpServer, cwd: string): void {
     });
 }
 
-function registerDoctorTool(server: McpServer, cwd: string): void {
+function registerDoctorTool(server: ToolHost, cwd: string): void {
     server.registerTool('doctor_fix', {
         title: 'Doctor fix',
         description: 'Diagnose component health and repair what is safe to repair: re-install components with missing files or stale registry versions, and install missing npm dependencies. User-edited components are never touched; legacy layouts require the migrate command.',
@@ -353,7 +353,7 @@ function registerDoctorTool(server: McpServer, cwd: string): void {
     });
 }
 
-function registerApplyAddonTool(server: McpServer, cwd: string): void {
+function registerApplyAddonTool(server: ToolHost, cwd: string): void {
     server.registerTool('apply_addon', {
         title: 'Apply an addon',
         description: 'Install an addon (and its base if missing) and wire it into your app non-interactively: adds the directive import + the attribute on the base component\'s usage. Target by component class name(s), or omit to wire every app-code usage. Returns per-target wiring counts and a paste snippet for anything it could not auto-wire. If the base had local edits it is 3-way merged; check hadConflicts / mergeReport.mergedConflicted for files written with <<<<<<< conflict markers before reporting success.',
@@ -392,7 +392,7 @@ function registerApplyAddonTool(server: McpServer, cwd: string): void {
     });
 }
 
-function registerRefreshLibTool(server: McpServer, cwd: string): void {
+function registerRefreshLibTool(server: ToolHost, cwd: string): void {
     server.registerTool('refresh_lib', {
         title: 'Refresh shared lib files',
         description: 'Reconcile shared lib/ files (utils.ts, i18n, parsers, tokens, etc.) with the registry. By default refreshes only files that are pristine-but-stale or missing (e.g. a utils.ts behind a new export an upgraded component imports); lib files you customized are protected unless force is set. Pass dryRun to preview.',
@@ -416,7 +416,7 @@ function registerRefreshLibTool(server: McpServer, cwd: string): void {
     });
 }
 
-function registerMigrateTool(server: McpServer, cwd: string): void {
+function registerMigrateTool(server: ToolHost, cwd: string): void {
     server.registerTool('migrate', {
         title: 'Migrate legacy components',
         description: 'Migrate legacy single-file components to the folder/trio layout: converts each pristine legacy component, refreshes the dependency closure, deletes the old flat files and re-points project imports. Components you customized are NEVER touched (returned in plan.customized), and pristine ones depending on them are deferred (plan.blocked). Refuses on a dirty/absent git working tree (status "unclean-tree") unless force is set — the git diff is the only rollback. Pass dryRun to preview the plan. Mirrors the `migrate` CLI command.',
@@ -439,7 +439,7 @@ function registerMigrateTool(server: McpServer, cwd: string): void {
     });
 }
 
-export function registerWriteTools(server: McpServer, cwd: string): void {
+export function registerWriteTools(server: ToolHost, cwd: string): void {
     registerInitTool(server, cwd);
     registerAddTool(server, cwd);
     registerUpdateTool(server, cwd);

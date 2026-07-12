@@ -27,8 +27,13 @@ const STAGES = [
   { id: 'lint', label: 'ESLint + tsc + Angular template typecheck', command: 'npm run check:all' },
   { id: 'registry', label: 'Registry drift (sync-registry, report mode)', command: 'npm run check:registry' },
   { id: 'completeness', label: 'Story / demo-route / e2e completeness gate', command: 'npm run check:completeness' },
-  { id: 'test-cli', label: 'CLI unit tests', command: 'npm run test:cli -- --run' },
-  { id: 'test', label: 'Component unit tests (headless browser)', command: 'npm run test:ci' },
+  // Both test stages run WITH coverage on purpose: the ratchets in vitest.config.ts /
+  // vitest.config.cli.ts only evaluate under `--coverage`, and nothing else invokes
+  // them (there is no CI). Without this, a contributor could delete half the tests
+  // and every local gate would still pass. Measured cost of the coverage instrument-
+  // ation: CLI 5s → 6s, component suite 50s → 69s (2026-07-13, warm).
+  { id: 'test-cli', label: 'CLI unit tests + coverage ratchet', command: 'npm run coverage:cli' },
+  { id: 'test', label: 'Component unit tests (headless browser) + coverage ratchet', command: 'npm run test:ci:coverage' },
 ];
 
 function parseSkips(argv) {

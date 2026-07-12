@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import {
     InsertError,
     demoLocation,
+    escapeDescription,
+    existingDestinations,
     insertDemoExport,
     insertRegistryEntry,
     insertRoute,
@@ -256,4 +258,91 @@ describe('new-component CLI', () => {
         expect(status).toBe(1);
         expect(out).toContain('kebab-case');
     }, 60_000);
+
+    // Regression (review finding #9): `confetti` has a demo page but NO
+    // packages/components/ui/confetti/ folder, so the old ui/-only guard let the
+    // generator silently overwrite the existing demo page.
+    it('refuses to overwrite an existing demo page whose ui/ folder does not exist', () => {
+        expect(existsSync(path.join(REPO_ROOT, 'packages/components/ui/confetti'))).toBe(false);
+        const demoPage = path.join(REPO_ROOT, 'demo/src/app/demos/animations/confetti-demo.component.ts');
+        const before = readFileSync(demoPage, 'utf-8');
+
+        const { status, out } = run([
+            'confetti', '--category', 'animation', '--description', 'x', '--tags', 'x',
+        ]);
+
+        expect(status).toBe(1);
+        expect(out).toContain('refusing to overwrite');
+        expect(out).toContain('demo/src/app/demos/animations/confetti-demo.component.ts');
+        expect(readFileSync(demoPage, 'utf-8')).toBe(before);
+    }, 60_000);
+});
+
+// Regression (review finding #5): the description is free text and every slot it
+// lands in is INSIDE a TS template literal in the emitted file. An unescaped
+// backtick or `${` there closed the literal / opened an interpolation, and the
+// generated demo + stories did not compile.
+describe('description escaping (template-literal context)', () => {
+    const tricky: ComponentMeta = {
+        ...meta,
+        description: 'Renders `code` inline, ${interpolated} & <tagged>.',
+    };
+
+    it('escapes backticks and ${ on top of the HTML escaping', () => {
+        expect(escapeDescription('Renders `code` inline')).toBe('Renders \\`code\\` inline');
+        expect(escapeDescription('a ${x} b')).toBe('a \\${x} b');
+        expect(escapeDescription('<b> & </b>')).toBe('&lt;b&gt; &amp; &lt;/b&gt;');
+    });
+
+    // The stories template does not interpolate the description; the demo and the
+    // component's JSDoc do.
+    it.each([
+        ['demo', renderDemo],
+        ['component', renderComponentTs],
+    ] as const)('emits an escaped description into the %s file', (_label, render) => {
+        const source = render(tricky);
+        expect(source).toContain('\\`code\\`');
+        expect(source).toContain('\\${interpolated}');
+        // No raw backtick from the description survives: every one of them is
+        // preceded by a backslash (the file's own template-literal delimiters are
+        // in the templates, not in the description slot).
+        expect(source).not.toMatch(/[^\\]`code/);
+    });
+
+    it('keeps the emitted demo a single, unterminated-free template literal', () => {
+        const source = renderDemo(tricky);
+        const body = source.slice(source.indexOf('template: `') + 'template: `'.length);
+        const unescaped = [...body].filter((ch, i) => ch === '`' && body[i - 1] !== '\\');
+        // Exactly one unescaped backtick left: the one closing `template:`.
+        expect(unescaped).toHaveLength(1);
+    });
+
+    it('escapes the description for the single-quoted registry entry too', () => {
+        const entry = insertRegistryEntry(
+            'export const registry = defineRegistry({\nzzz: {},\n});\n',
+            { ...meta, description: "it's a trap \\" },
+        );
+        expect(entry).toContain("description: 'it\\'s a trap \\\\',");
+    });
+});
+
+// Regression (review finding #9): the generator only refused when
+// packages/components/ui/<name>/ existed — the demo page lives in another tree,
+// so an existing (possibly orphan) demo page for the same name was silently
+// overwritten.
+describe('existingDestinations', () => {
+    const planned = [
+        'packages/components/ui/tour/tour.component.ts',
+        'demo/src/app/demos/layout/tour-demo.component.ts',
+    ];
+
+    it('reports an existing demo page even when the ui/ folder is absent', () => {
+        const exists = (f: string): boolean => f.startsWith('demo/');
+        expect(existingDestinations(planned, exists))
+            .toEqual(['demo/src/app/demos/layout/tour-demo.component.ts']);
+    });
+
+    it('reports nothing when every destination is free', () => {
+        expect(existingDestinations(planned, () => false)).toEqual([]);
+    });
 });

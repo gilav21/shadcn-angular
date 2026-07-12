@@ -25,22 +25,39 @@ export interface ComponentFacts {
     readonly e2eCovered: boolean;
 }
 
+/**
+ * The FAILURE MODE, not just the artifact. One artifact can fail two ways — a
+ * demo page can be absent (`missing`) or present-but-unrouted (`orphan`) — and
+ * an exemption for one must not silence the other, or a component grandfathered
+ * for "no demo page" that later gains an UNROUTED demo page keeps its exemption
+ * and the orphan-route regression ships silently.
+ */
+export type IssueKind = 'missing' | 'orphan';
+
 export interface Issue {
     readonly component: string;
     readonly artifact: Artifact;
+    readonly kind: IssueKind;
     readonly detail: string;
 }
 
-/** Committed grandfathering file: artifact → component → reason. */
+/** One grandfathered exemption: silences exactly one (artifact, component, kind). */
+export interface Exemption {
+    readonly reason: string;
+    readonly kind: IssueKind;
+}
+
+/** Committed grandfathering file: artifact → component → exemption. */
 export interface Allowlist {
-    readonly story: Record<string, string>;
-    readonly demo: Record<string, string>;
-    readonly e2e: Record<string, string>;
+    readonly story: Record<string, Exemption>;
+    readonly demo: Record<string, Exemption>;
+    readonly e2e: Record<string, Exemption>;
 }
 
 export interface StaleExemption {
     readonly component: string;
     readonly artifact: Artifact;
+    readonly kind: IssueKind;
 }
 
 /** Minimal shape of an e2e orchestrator spec — only `names[]` matters here. */
@@ -76,6 +93,7 @@ function demoIssue(facts: ComponentFacts): Issue | null {
         return {
             component: facts.name,
             artifact: 'demo',
+            kind: 'missing',
             detail: 'no demo page (expected demo/src/app/demos/**/<name>-demo.component.ts)',
         };
     }
@@ -83,6 +101,7 @@ function demoIssue(facts: ComponentFacts): Issue | null {
     return {
         component: facts.name,
         artifact: 'demo',
+        kind: 'orphan',
         detail: `orphan demo page '${facts.demoFile}' — not routed in demo/src/app/demo.routes.ts`,
     };
 }
@@ -94,6 +113,7 @@ export function issuesFor(facts: ComponentFacts): Issue[] {
         issues.push({
             component: facts.name,
             artifact: 'story',
+            kind: 'missing',
             detail: 'no *.stories.ts in packages/components/ui/<name>/',
         });
     }
@@ -103,6 +123,7 @@ export function issuesFor(facts: ComponentFacts): Issue[] {
         issues.push({
             component: facts.name,
             artifact: 'e2e',
+            kind: 'missing',
             detail: 'no e2e coverage — run `npm run e2e:scaffold -- <name>`',
         });
     }
@@ -120,28 +141,44 @@ export interface Partitioned {
     readonly exempt: Issue[];
 }
 
-/** Splits issues into gate failures and grandfathered exemptions. */
+/**
+ * Splits issues into gate failures and grandfathered exemptions.
+ *
+ * An exemption silences only the exact failure mode it was granted for: a
+ * component grandfathered for a MISSING demo page that later grows an ORPHAN
+ * (unrouted) demo page is a different issue kind, so the exemption no longer
+ * applies and the gate fails — which is the whole point of the allowlist being
+ * a ratchet.
+ */
 export function partitionIssues(issues: readonly Issue[], allowlist: Allowlist): Partitioned {
     const errors: Issue[] = [];
     const exempt: Issue[] = [];
     for (const issue of issues) {
-        if (Object.hasOwn(allowlist[issue.artifact], issue.component)) exempt.push(issue);
+        const entry = allowlist[issue.artifact][issue.component];
+        if (entry?.kind === issue.kind) exempt.push(issue);
         else errors.push(issue);
     }
     return { errors, exempt };
 }
 
+function issueKey(artifact: Artifact, component: string, kind: IssueKind): string {
+    return `${artifact}\0${component}\0${kind}`;
+}
+
 /**
- * Allowlist entries whose artifact now exists — the exemption is dead weight
- * and must be deleted, otherwise the allowlist never shrinks and the ratchet
- * never tightens.
+ * Allowlist entries that no longer match a live issue — the artifact now exists,
+ * or its failure mode changed. Either way the exemption is dead weight and must
+ * be deleted, otherwise the allowlist never shrinks and the ratchet never
+ * tightens.
  */
 export function staleExemptions(issues: readonly Issue[], allowlist: Allowlist): StaleExemption[] {
-    const live = new Set(issues.map(i => `${i.artifact}\0${i.component}`));
+    const live = new Set(issues.map(i => issueKey(i.artifact, i.component, i.kind)));
     const stale: StaleExemption[] = [];
     for (const artifact of ARTIFACTS) {
-        for (const component of Object.keys(allowlist[artifact])) {
-            if (!live.has(`${artifact}\0${component}`)) stale.push({ component, artifact });
+        for (const [component, entry] of Object.entries(allowlist[artifact])) {
+            if (!live.has(issueKey(artifact, component, entry.kind))) {
+                stale.push({ component, artifact, kind: entry.kind });
+            }
         }
     }
     return stale;
@@ -155,26 +192,52 @@ export function allowlistSize(allowlist: Allowlist): number {
 export function seedAllowlist(issues: readonly Issue[], reason: string): Allowlist {
     const allowlist = emptyAllowlist();
     for (const issue of issues) {
-        allowlist[issue.artifact][issue.component] = reason;
+        allowlist[issue.artifact][issue.component] = { reason, kind: issue.kind };
     }
     return allowlist;
 }
 
-function readReasonMap(value: unknown): Record<string, string> {
+function readExemption(value: unknown): Exemption {
+    if (typeof value === 'string') return { reason: value, kind: 'missing' };
+    if (typeof value !== 'object' || value === null) return { reason: '', kind: 'missing' };
+    const entry = value as Record<string, unknown>;
+    return {
+        reason: typeof entry['reason'] === 'string' ? entry['reason'] : '',
+        kind: entry['kind'] === 'orphan' ? 'orphan' : 'missing',
+    };
+}
+
+function readExemptionMap(value: unknown): Record<string, Exemption> {
     if (typeof value !== 'object' || value === null) return {};
-    const out: Record<string, string> = {};
-    for (const [key, reason] of Object.entries(value as Record<string, unknown>)) {
-        out[key] = typeof reason === 'string' ? reason : '';
+    const out: Record<string, Exemption> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+        out[key] = readExemption(entry);
     }
     return out;
 }
 
-/** Tolerant parse of the committed allowlist JSON — unknown shapes degrade to empty. */
+/**
+ * Tolerant parse of the committed allowlist JSON — unknown shapes degrade to
+ * empty. A bare string value is the legacy form and means the `missing` kind.
+ */
 export function parseAllowlist(source: string): Allowlist {
     const raw = JSON.parse(source) as Record<string, unknown>;
     return {
-        story: readReasonMap(raw['story']),
-        demo: readReasonMap(raw['demo']),
-        e2e: readReasonMap(raw['e2e']),
+        story: readExemptionMap(raw['story']),
+        demo: readExemptionMap(raw['demo']),
+        e2e: readExemptionMap(raw['e2e']),
     };
+}
+
+/** The committed JSON form: `missing` stays a bare string, `orphan` carries its kind. */
+export function serializeAllowlist(allowlist: Allowlist): string {
+    const out: Record<string, Record<string, string | Exemption>> = {};
+    for (const artifact of ARTIFACTS) {
+        const entries: Record<string, string | Exemption> = {};
+        for (const [component, entry] of Object.entries(allowlist[artifact])) {
+            entries[component] = entry.kind === 'missing' ? entry.reason : entry;
+        }
+        out[artifact] = entries;
+    }
+    return JSON.stringify(out, null, 2) + '\n';
 }

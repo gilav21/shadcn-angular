@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { ToolHost } from '../serialize.js';
 import fs from 'fs-extra';
 import path from 'node:path';
 import { registry, getComponentNames, isComponentName, suggestComponentName, type ComponentName } from '../../registry/index.js';
@@ -13,7 +13,7 @@ import { getLocalComponentsDir } from '../../utils/paths.js';
 import { json, err } from './result.js';
 import { sourceInputSchema, resolveSource } from './options.js';
 
-function registerSearchTools(server: McpServer): void {
+function registerSearchTools(server: ToolHost): void {
     server.registerTool('list_components', {
         title: 'List components',
         description: 'List every available shadcn-angular component with its category, description and tags.',
@@ -52,7 +52,7 @@ function registerSearchTools(server: McpServer): void {
 
 }
 
-function registerWhyTool(server: McpServer): void {
+function registerWhyTool(server: ToolHost): void {
     server.registerTool('why', {
         title: 'Why (registry introspection)',
         description: "Explain what component(s) are made of and what depends on them: files, libFiles, peerFiles, direct dependencies, and the transitive reverse-dependents — the blast radius of changing or removing it. Mirrors the `why` CLI command.",
@@ -75,7 +75,7 @@ function registerWhyTool(server: McpServer): void {
     });
 }
 
-function registerDetailTools(server: McpServer, cwd: string): void {
+function registerDetailTools(server: ToolHost, cwd: string): void {
     server.registerTool('get_component_source', {
         title: 'Get component source',
         description: 'Fetch the source of every file in a component, with import/prefix transforms applied to the local project config.',
@@ -121,7 +121,7 @@ function registerDetailTools(server: McpServer, cwd: string): void {
     });
 }
 
-function registerStatusTools(server: McpServer, cwd: string): void {
+function registerStatusTools(server: ToolHost, cwd: string): void {
     server.registerTool('get_project_status', {
         title: 'Get project status',
         description: 'Read-only project dashboard: design tokens (density/radius/motion/theme), per-component health, and config.',
@@ -157,7 +157,7 @@ function registerStatusTools(server: McpServer, cwd: string): void {
     });
 }
 
-export function registerReadTools(server: McpServer, cwd: string): void {
+export function registerReadTools(server: ToolHost, cwd: string): void {
     registerSearchTools(server);
     registerWhyTool(server);
     registerDetailTools(server, cwd);
