@@ -142,6 +142,26 @@ const meta: Meta<RteActionsStory> = {
     title: 'Editor/Rich Text Actions',
     component: RteActionsStory,
     decorators: [moduleMetadata({ imports: [RteActionsStory] })],
+    argTypes: {
+        variant: {
+            control: 'select',
+            options: ['tier1', 'presets', 'styled', 'combined'],
+            description: 'Which action configuration the playground seeds: Tier-1 declarative fields, batteries-included presets, starter-styled, or a combined hover+click action.',
+        },
+        readonly: {
+            control: 'boolean',
+            description: 'Renders the editor read-only, hiding the authoring entry points for actions.',
+        },
+        rtl: {
+            control: 'boolean',
+            description: 'Switches the layout and addon locale to RTL (Hebrew).',
+        },
+    },
+    args: {
+        variant: 'tier1',
+        readonly: false,
+        rtl: false,
+    },
 };
 export default meta;
 type Story = StoryObj<RteActionsStory>;

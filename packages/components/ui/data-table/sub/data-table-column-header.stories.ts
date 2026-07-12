@@ -21,6 +21,7 @@ const meta: Meta<DataTableColumnHeaderComponent> = {
         },
         enableSorting: { control: 'boolean' },
         sortIndex: { control: 'number' },
+        class: { control: 'text', description: 'Extra classes merged onto the header container.' },
     },
     args: {
         title: 'Name',
@@ -28,6 +29,7 @@ const meta: Meta<DataTableColumnHeaderComponent> = {
         direction: null as SortDirection,
         enableSorting: true,
         sortIndex: null,
+        class: '',
     },
 };
 
@@ -50,6 +52,7 @@ export const Default: Story = {
                     [direction]="direction"
                     [enableSorting]="enableSorting"
                     [sortIndex]="sortIndex"
+                    [class]="class"
                     (sort)="onSort($event)"
                 />
             </div>
