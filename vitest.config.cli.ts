@@ -25,10 +25,14 @@ export default defineConfig({
                 '**/*.test.ts',
                 '**/dist/**',
             ],
-            // Ratchet, not aspiration: set just below the levels measured on
-            // 2026-07-12 (statements 58.97 / branches 54.87 / functions 64.48 /
-            // lines 59.98). The CLI suite is far less covered than the component
-            // suite — raise these as it improves; never lower them to pass.
+            // Ratchet, not aspiration: measured 2026-07-13 on a clean tree with all
+            // 643 CLI tests passing. `npm run coverage` reports slightly lower than a
+            // standalone `coverage:cli` run (it sweeps a few more files into the
+            // denominator), so the ratchet is set below the LOWER of the two — the
+            // one that actually gates: statements 58.25 / branches 54.44 /
+            // functions 63.28 / lines 59.27.
+            // The CLI suite is far less covered than the component suite — raise
+            // these as it improves; never lower them to make a run pass.
             thresholds: {
                 statements: 57,
                 branches: 53,

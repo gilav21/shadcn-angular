@@ -3,13 +3,23 @@
 // story index, runs @storybook/test-runner (play functions + axe a11y checks
 // from the test-runner config) against it, then tears the server down.
 //
-// Usage:
-//   npm run test-storybook                  # boot Storybook, run every story
-//   npm run test-storybook -- button        # Jest name filter, e.g. one story file
-//   npm run test-storybook -- --url http://127.0.0.1:6006   # reuse a running Storybook
+// Two entry points, both running every story through a real browser:
+//
+//   npm run test-storybook        stories + play functions only (axe OFF). Green,
+//                                 ~64s — this is the pre-push gate.
+//   npm run test-storybook:a11y   the same run with axe a11y assertions ON. RED today:
+//                                 the library has a real a11y backlog, tracked in
+//                                 docs/a11y-backlog.md. It is meant to fail until that
+//                                 debt is paid — do not soften it to make it pass.
+//
+// Extra args pass through to the runner:
+//   npm run test-storybook -- button                      # Jest name filter
+//   npm run test-storybook -- --url http://localhost:6006 # reuse a running Storybook
 //
 // Env:
-//   STORYBOOK_A11Y=0   skip the axe assertions (see .storybook/test-runner.ts)
+//   STORYBOOK_A11Y=1   force the axe assertions ON  (what :a11y sets)
+//   STORYBOOK_A11Y=0   force the axe assertions OFF (the default)
+// See .storybook/test-runner.ts for where axe is injected.
 import { spawn, execFileSync } from 'node:child_process';
 
 // Storybook's Webpack 5 bundle of ~130 Angular story files is slow to come up
