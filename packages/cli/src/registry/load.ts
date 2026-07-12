@@ -13,7 +13,7 @@
 
 import fs from 'fs-extra';
 import { registry, __resetRegistryCaches, type ComponentDefinition } from './index.js';
-import { getRegistryManifestUrl, getLocalRegistryJson } from '../utils/paths.js';
+import { getRegistryManifestUrl, getLocalRegistryJson, DEFAULT_BRANCH } from '../utils/paths.js';
 
 export interface LoadRegistryOptions {
     branch?: string;
@@ -54,7 +54,7 @@ async function fetchManifest(options: LoadRegistryOptions): Promise<string> {
     if (local && !options.remote) {
         return fs.readFile(local, 'utf-8');
     }
-    const url = getRegistryManifestUrl(options.branch ?? 'master', options.registry);
+    const url = getRegistryManifestUrl(options.branch ?? DEFAULT_BRANCH, options.registry);
     const response = await fetch(url);
     if (!response.ok) {
         throw new Error(`${response.status} ${response.statusText} from ${url}`);

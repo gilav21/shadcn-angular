@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi, afterEach } from 'vitest';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from './server.js';
@@ -28,16 +28,20 @@ describe('MCP server (in-memory)', () => {
     await client.close();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('exposes the full tool set with correct annotations', async () => {
     const { tools } = await client.listTools();
     const names = tools.map(t => t.name);
-    expect(tools).toHaveLength(19);
+    expect(tools).toHaveLength(21);
     for (const expected of [
-      'list_components', 'search_components', 'get_component',
+      'list_components', 'search_components', 'get_component', 'why',
       'get_component_source', 'get_component_examples', 'get_install_plan',
       'init_project', 'add_component', 'update_component', 'diff_component',
       'set_density', 'set_radius', 'set_motion', 'set_locale', 'change_theme',
-      'get_project_status', 'doctor_fix', 'refresh_lib', 'apply_addon',
+      'get_project_status', 'doctor_fix', 'refresh_lib', 'migrate', 'apply_addon',
     ]) {
       expect(names, expected).toContain(expected);
     }
@@ -45,6 +49,81 @@ describe('MCP server (in-memory)', () => {
     expect(addTool?.annotations?.destructiveHint).toBe(true);
     const listTool = tools.find(t => t.name === 'list_components');
     expect(listTool?.annotations?.readOnlyHint).toBe(true);
+    expect(tools.find(t => t.name === 'migrate')?.annotations?.destructiveHint).toBe(true);
+    expect(tools.find(t => t.name === 'why')?.annotations?.readOnlyHint).toBe(true);
+  });
+
+  it('every registry-backed tool accepts branch / registry / remote', async () => {
+    const { tools } = await client.listTools();
+    const sourceAware = [
+      'get_component_source', 'get_component_examples', 'get_install_plan', 'get_project_status',
+      'init_project', 'add_component', 'update_component', 'diff_component', 'set_locale',
+      'doctor_fix', 'refresh_lib', 'migrate', 'apply_addon',
+    ];
+    for (const name of sourceAware) {
+      const props = tools.find(t => t.name === name)?.inputSchema.properties ?? {};
+      expect(Object.keys(props), name).toEqual(expect.arrayContaining(['branch', 'registry', 'remote']));
+    }
+  });
+
+  it('get_component_source fetches from the requested branch (reaches the fetch layer)', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('export class RippleDirective {}', { status: 200 }),
+    );
+    const res = await callTool('get_component_source', {
+      name: 'ripple', branch: 'feat/some-branch', remote: true,
+    });
+    expect(res.isError).toBeFalsy();
+    expect(fetchSpy).toHaveBeenCalled();
+    const url = String(fetchSpy.mock.calls[0][0]);
+    expect(url).toContain('/feat/some-branch/packages/components/');
+    expect(url).not.toContain('/master/');
+  });
+
+  it('get_component_source honors a custom registry base URL', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('export class RippleDirective {}', { status: 200 }),
+    );
+    await callTool('get_component_source', {
+      name: 'ripple', registry: 'https://fork.test/components', remote: true,
+    });
+    expect(String(fetchSpy.mock.calls[0][0])).toContain('https://fork.test/components/ui/');
+  });
+
+  it('get_component_source still defaults to master when no branch is passed', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('export class RippleDirective {}', { status: 200 }),
+    );
+    await callTool('get_component_source', { name: 'ripple', remote: true });
+    expect(String(fetchSpy.mock.calls[0][0])).toContain('/master/packages/components/');
+  });
+
+  it('why returns files, direct deps and transitive reverse-dependents', async () => {
+    const res = await callTool('why', { names: ['ripple'] });
+    const [record] = JSON.parse(firstText(res)) as Array<{
+      name: string; files: string[]; reverseDependents: string[];
+    }>;
+    expect(record.name).toBe('ripple');
+    expect(record.files.length).toBeGreaterThan(0);
+    expect(record.reverseDependents).toContain('button');
+  });
+
+  it('why suggests the nearest name for a typo', async () => {
+    const res = await callTool('why', { names: ['buton'] });
+    expect(res.isError).toBe(true);
+    expect(firstText(res)).toContain('did you mean button');
+  });
+
+  it('get_component now includes reverse-dependents', async () => {
+    const res = await callTool('get_component', { name: 'ripple' });
+    const def = JSON.parse(firstText(res)) as { reverseDependents: string[] };
+    expect(def.reverseDependents).toContain('button');
+  });
+
+  it('migrate errors cleanly when the project is uninitialized', async () => {
+    const res = await callTool('migrate', { dryRun: true });
+    expect(res.isError).toBe(true);
+    expect(firstText(res)).toContain('init_project');
   });
 
   it('list_components returns enriched entries', async () => {

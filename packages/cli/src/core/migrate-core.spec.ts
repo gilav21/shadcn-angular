@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs-extra';
 import path from 'node:path';
 import os from 'node:os';
-import { planMigration, rewriteProjectImports, deleteLegacyFiles } from './migrate-core.js';
+import { planMigration, rewriteProjectImports, deleteLegacyFiles, migrateCore, migrationUiDir } from './migrate-core.js';
+import { getDefaultConfig } from '../utils/config.js';
 
 describe('planMigration', () => {
   it('writes the legacy set closure and leaves unrelated folder components alone', () => {
@@ -164,6 +165,56 @@ describe('deleteLegacyFiles', () => {
       expect(deleted).toContain('button.component.html');
       expect(await fs.pathExists(path.join(dir, 'button.component.ts'))).toBe(false);
       expect(await fs.pathExists(path.join(dir, 'input.component.ts'))).toBe(true);
+    } finally {
+      await fs.remove(dir);
+    }
+  });
+});
+
+describe('migrateCore', () => {
+  const config = getDefaultConfig();
+
+  it('reports nothing-to-migrate when no legacy flat component exists', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'migrate-core-'));
+    try {
+      await fs.ensureDir(migrationUiDir(dir, config));
+      const outcome = await migrateCore(dir, config, { branch: 'master' });
+      expect(outcome.status).toBe('nothing-to-migrate');
+      expect(outcome.execution).toBeUndefined();
+    } finally {
+      await fs.remove(dir);
+    }
+  });
+
+  it('returns the plan without writing on a dry run', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'migrate-core-'));
+    try {
+      const ui = migrationUiDir(dir, config);
+      await fs.outputFile(path.join(ui, 'button.component.ts'),
+        "@Component({ selector: 'ui-button' }) export class ButtonComponent {}");
+      const outcome = await migrateCore(dir, config, { branch: 'master', dryRun: true });
+      expect(outcome.status).toBe('dry-run');
+      expect(outcome.execution).toBeUndefined();
+      // Flat file untouched — a dry run writes nothing.
+      expect(await fs.pathExists(path.join(ui, 'button.component.ts'))).toBe(true);
+      expect(await fs.pathExists(path.join(ui, 'button'))).toBe(false);
+    } finally {
+      await fs.remove(dir);
+    }
+  });
+
+  it('never touches a customized legacy component (nothing-migratable)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'migrate-core-'));
+    try {
+      const ui = migrationUiDir(dir, config);
+      // Content matches no published release fingerprint -> treated as customized.
+      await fs.outputFile(path.join(ui, 'button.component.ts'),
+        "@Component({ selector: 'ui-button' }) export class MyEditedButton {}");
+      const outcome = await migrateCore(dir, config, { branch: 'master' });
+      expect(outcome.status).toBe('nothing-migratable');
+      expect(outcome.plan.customized).toContain('button');
+      expect(outcome.plan.structural).toEqual([]);
+      expect(await fs.readFile(path.join(ui, 'button.component.ts'), 'utf-8')).toContain('MyEditedButton');
     } finally {
       await fs.remove(dir);
     }

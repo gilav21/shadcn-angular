@@ -14,6 +14,8 @@ import { getConfig, getDefaultConfig, getPrefix, type Config } from '../../utils
 import { aliasToProjectPath, resolveProjectPath } from '../../utils/paths.js';
 import { isValidPrefix, DEFAULT_PREFIX } from '../../utils/prefix.js';
 import { json, err } from './result.js';
+import { sourceInputSchema, toFetchOptions } from './options.js';
+import { migrateCore } from '../../core/migrate-core.js';
 import { setDensityCore, COMPONENT_DENSITY_VARS } from '../../commands/set-density.js';
 import { setRadiusCore, RADIUS_NAMED } from '../../commands/set-radius.js';
 import { setMotionCore } from '../../commands/set-motion.js';
@@ -41,39 +43,57 @@ const initInputSchema = {
     motion: z.number().int().min(0).max(2).optional().describe('Initial motion level (default 1).'),
     themeFrom: z.string().optional().describe('Generate the initial theme from a brand hex color (e.g. "#3b82f6") — mutually exclusive with theme.'),
     locale: z.string().optional().describe('Default UI locale baked into the installed i18n files (e.g. "he").'),
+    ...sourceInputSchema,
 };
 
 type InitArgs = z.infer<z.ZodObject<typeof initInputSchema>>;
 
-async function handleInit(cwd: string, args: InitArgs): Promise<ReturnType<typeof json>> {
-    if (await fs.pathExists(path.join(cwd, 'components.json'))) {
-        return err('Already initialized — components.json exists. Use add_component to add components.');
-    }
+/** The invalid-argument message for `init_project`, or null when the args are usable. */
+function validateInitArgs(args: InitArgs): string | null {
     if (args.prefix !== undefined && !isValidPrefix(args.prefix)) {
-        return err(`Invalid prefix "${args.prefix}" — must be lowercase kebab-case starting with a letter.`);
+        return `Invalid prefix "${args.prefix}" — must be lowercase kebab-case starting with a letter.`;
     }
     if (args.theme && args.themeFrom) {
-        return err('Pass either theme or themeFrom, not both.');
+        return 'Pass either theme or themeFrom, not both.';
     }
     if (args.themeFrom !== undefined && !isValidHex(args.themeFrom)) {
-        return err(`Invalid themeFrom "${args.themeFrom}" — use a hex color like "#3b82f6".`);
+        return `Invalid themeFrom "${args.themeFrom}" — use a hex color like "#3b82f6".`;
     }
+    return null;
+}
+
+/** The components.json the project is initialized with (mirrors the CLI `init` flags). */
+function buildInitConfig(args: InitArgs): Config {
     const config: Config = getDefaultConfig();
     config.prefix = args.prefix ?? DEFAULT_PREFIX;
     if (args.baseColor) config.tailwind.baseColor = args.baseColor;
     if (args.theme) config.tailwind.theme = args.theme;
     if (args.cssPath) config.tailwind.css = args.cssPath;
+    if (args.registry) config.registry = args.registry;
+    return config;
+}
+
+async function handleInit(cwd: string, args: InitArgs): Promise<ReturnType<typeof json>> {
+    if (await fs.pathExists(path.join(cwd, 'components.json'))) {
+        return err('Already initialized — components.json exists. Use add_component to add components.');
+    }
+    const invalid = validateInitArgs(args);
+    if (invalid) return err(invalid);
+
+    const config = buildInitConfig(args);
+    // No components.json exists yet, so the only registry source is the args.
+    const fetchOptions = toFetchOptions(args);
     const result = await initProject({
         cwd, config,
         createShortcutRegistry: args.createShortcutRegistry ?? true,
-        fetchOptions: { branch: 'master' },
+        fetchOptions,
     });
     const defaults: InitDefaults = {
         density: args.density, radius: args.radius, motion: args.motion,
         themeFrom: args.themeFrom, locale: args.locale,
     };
     try {
-        const applied = await applyInitDefaults(cwd, defaults, { branch: 'master' });
+        const applied = await applyInitDefaults(cwd, defaults, fetchOptions);
         return json({ ...result, defaultsApplied: applied });
     } catch (error) {
         return json({
@@ -102,6 +122,7 @@ function registerAddTool(server: McpServer, cwd: string): void {
             overwrite: z.array(z.string()).optional().describe('Component names whose conflicting local files may be overwritten.'),
             optionalDeps: z.array(z.string()).optional(),
             path: z.string().optional(),
+            ...sourceInputSchema,
         },
         annotations: { destructiveHint: true },
     }, async (args) => {
@@ -113,7 +134,7 @@ function registerAddTool(server: McpServer, cwd: string): void {
             components: args.names as ComponentName[],
             optionalDeps: (args.optionalDeps ?? []) as ComponentName[],
             overwrite: (args.overwrite ?? []) as ComponentName[],
-            cwd, config, options: { branch: 'master' }, path: args.path,
+            cwd, config, options: toFetchOptions(args, config), path: args.path,
         });
         return json(result);
     });
@@ -126,14 +147,15 @@ function registerUpdateTool(server: McpServer, cwd: string): void {
         inputSchema: {
             names: z.array(z.string()).min(1),
             overwrite: z.boolean().optional().describe('Replace local edits whole-file instead of 3-way merging.'),
+            ...sourceInputSchema,
         },
         annotations: { destructiveHint: true },
-    }, async ({ names, overwrite }) => {
+    }, async ({ names, overwrite, ...source }) => {
         const invalid = validateNames(names);
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
-        const options = { branch: 'master', overwrite, registry: config.registry };
+        const options = { ...toFetchOptions(source, config), overwrite };
         const result = await performInstall({
             components: names as ComponentName[],
             overwrite: names as ComponentName[],
@@ -193,18 +215,20 @@ function registerDiffTool(server: McpServer, cwd: string): void {
         inputSchema: {
             names: z.array(z.string()).min(1),
             mode: z.enum(['summary', 'full']).optional().describe('summary (default): changed symbol names only; full: unified-diff hunks.'),
+            ...sourceInputSchema,
         },
         annotations: { readOnlyHint: true },
-    }, async ({ names, mode }) => {
+    }, async ({ names, mode, ...source }) => {
         const invalid = validateNames(names);
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
         const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
         const resolvedMode = mode ?? 'summary';
+        const options = toFetchOptions(source, config);
         const out: ComponentDiff[] = [];
         for (const name of names as ComponentName[]) {
-            out.push(await diffComponentFiles(name, targetDir, { branch: 'master' }, config.aliases.utils, getPrefix(config), resolvedMode));
+            out.push(await diffComponentFiles(name, targetDir, options, config.aliases.utils, getPrefix(config), resolvedMode));
         }
         if (resolvedMode === 'full') capFullDiffs(out, DIFF_FULL_MAX_BYTES);
         return json(out);
@@ -260,11 +284,16 @@ function registerRadiusMotionLocaleTool(server: McpServer, cwd: string): void {
     server.registerTool('set_locale', {
         title: 'Set default UI locale',
         description: 'Set the default UI locale baked into the project\'s installed i18n files (rewrites the UI_LOCALE_ID default in i18n/i18n.token.ts). Installs the i18n lib files first if missing.',
-        inputSchema: { code: z.string().describe('BCP-47 locale code (e.g. "en", "he", "pt-BR")') },
+        inputSchema: {
+            code: z.string().describe('BCP-47 locale code (e.g. "en", "he", "pt-BR")'),
+            ...sourceInputSchema,
+        },
         annotations: { destructiveHint: true },
-    }, async (args) => {
+    }, async ({ code, ...source }) => {
         try {
-            return json({ success: true, message: await setLocaleCore(args.code, cwd, { branch: 'master' }) });
+            const config = await getConfig(cwd);
+            const options = toFetchOptions(source, config ?? undefined);
+            return json({ success: true, message: await setLocaleCore(code, cwd, options) });
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));
         }
@@ -294,20 +323,23 @@ function registerDoctorTool(server: McpServer, cwd: string): void {
     server.registerTool('doctor_fix', {
         title: 'Doctor fix',
         description: 'Diagnose component health and repair what is safe to repair: re-install components with missing files or stale registry versions, and install missing npm dependencies. User-edited components are never touched; legacy layouts require the migrate command.',
-        inputSchema: { dryRun: z.boolean().optional().describe('Return the repair plan without making changes') },
+        inputSchema: {
+            dryRun: z.boolean().optional().describe('Return the repair plan without making changes'),
+            ...sourceInputSchema,
+        },
         annotations: { destructiveHint: true },
-    }, async (args) => {
+    }, async ({ dryRun, ...source }) => {
         try {
             const config = await getConfig(cwd);
             if (!config) return err('Project not initialized — run init_project first.');
-            const options = { branch: 'master', registry: config.registry };
+            const options = toFetchOptions(source, config);
             const report = await collectDoctorReport(cwd, config, options);
             const plan = buildFixPlan(report);
             // Announce breaking API changes for the components doctor will reinstall —
             // doctor_fix is the primary upgrade path, so these must surface here, not
             // only via update_component (report B4). Stale-selector usages too.
             const breakingChanges = collectBreakingChanges(plan.reinstall);
-            if (args.dryRun || report.ok) {
+            if (dryRun || report.ok) {
                 return json({ ok: report.ok, plan, actions: [], breakingChanges });
             }
             const actions = await doctorFixCore(cwd, config, options, plan);
@@ -331,6 +363,7 @@ function registerApplyAddonTool(server: McpServer, cwd: string): void {
             class: z.string().optional().describe('Only wire instances carrying this CSS class token.'),
             id: z.string().optional().describe('Only wire the instance with this template ref / id / data-testid.'),
             dryRun: z.boolean().optional().describe('Report what would be wired without writing or installing.'),
+            ...sourceInputSchema,
         },
         annotations: { destructiveHint: true },
     }, async (args) => {
@@ -344,7 +377,7 @@ function registerApplyAddonTool(server: McpServer, cwd: string): void {
         if (!config) return err('Project not initialized — run init_project first.');
         try {
             const options = {
-                branch: 'master', registry: config.registry, yes: true,
+                ...toFetchOptions(args, config), yes: true,
                 all: args.all, class: args.class, id: args.id, dryRun: args.dryRun,
             };
             const result = await applyCore(args.addon, args.components ?? [], options, cwd, config);
@@ -364,15 +397,39 @@ function registerRefreshLibTool(server: McpServer, cwd: string): void {
             files: z.array(z.string()).optional().describe('Specific lib file paths to refresh (e.g. ["utils.ts"]). Default: all required by installed components plus the core set.'),
             force: z.boolean().optional().describe('Also overwrite lib files you customized (normally protected).'),
             dryRun: z.boolean().optional().describe('Return the target set without writing.'),
+            ...sourceInputSchema,
         },
         annotations: { destructiveHint: true },
-    }, async (args) => {
+    }, async ({ files, force, dryRun, ...source }) => {
         try {
             const config = await getConfig(cwd);
             if (!config) return err('Project not initialized — run init_project first.');
-            const options = { branch: 'master', registry: config.registry };
-            const result = await refreshLibCore(cwd, config, options, args);
+            const options = toFetchOptions(source, config);
+            const result = await refreshLibCore(cwd, config, options, { files, force, dryRun });
             return json(result);
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+}
+
+function registerMigrateTool(server: McpServer, cwd: string): void {
+    server.registerTool('migrate', {
+        title: 'Migrate legacy components',
+        description: 'Migrate legacy single-file components to the folder/trio layout: converts each pristine legacy component, refreshes the dependency closure, deletes the old flat files and re-points project imports. Components you customized are NEVER touched (returned in plan.customized), and pristine ones depending on them are deferred (plan.blocked). Refuses on a dirty/absent git working tree (status "unclean-tree") unless force is set — the git diff is the only rollback. Pass dryRun to preview the plan. Mirrors the `migrate` CLI command.',
+        inputSchema: {
+            dryRun: z.boolean().optional().describe('Return the migration plan without writing.'),
+            force: z.boolean().optional().describe('Proceed even when the git working tree is dirty / not a repo (no rollback safety net).'),
+            ...sourceInputSchema,
+        },
+        annotations: { destructiveHint: true },
+    }, async ({ dryRun, force, ...source }) => {
+        try {
+            const config = await getConfig(cwd);
+            if (!config) return err('Project not initialized — run init_project first.');
+            const options = { ...toFetchOptions(source, config), dryRun, force };
+            const outcome = await migrateCore(cwd, config, options);
+            return json(outcome);
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));
         }
@@ -389,5 +446,6 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
     registerThemeTool(server, cwd);
     registerDoctorTool(server, cwd);
     registerRefreshLibTool(server, cwd);
+    registerMigrateTool(server, cwd);
     registerApplyAddonTool(server, cwd);
 }

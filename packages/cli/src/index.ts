@@ -13,6 +13,7 @@ import { doctor } from './commands/doctor.js';
 import { status } from './commands/status.js';
 import { update } from './commands/update.js';
 import { migrate } from './commands/migrate.js';
+import { refreshLib } from './commands/refresh-lib.js';
 import { setDensity } from './commands/set-density.js';
 import { setRadius } from './commands/set-radius.js';
 import { setMotion } from './commands/set-motion.js';
@@ -156,6 +157,18 @@ program
     .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
     .option('-r, --registry <url>', 'Custom registry base URL')
     .action(migrate);
+
+program
+    .command('refresh-lib')
+    .description('Reconcile the shared lib/ files (utils.ts, i18n, parsers, …) with the registry')
+    .option('-y, --yes', 'Skip the --force confirmation prompt')
+    .option('--files <files>', 'Comma-separated lib file paths to refresh (default: stale + missing)')
+    .option('--force', 'Also overwrite lib files you customized (normally protected)')
+    .option('--dry-run', 'Show what would be refreshed without writing')
+    .option('--remote', 'Force remote fetch from GitHub registry')
+    .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
+    .option('-r, --registry <url>', 'Custom registry base URL')
+    .action(refreshLib);
 
 program
     .command('search')

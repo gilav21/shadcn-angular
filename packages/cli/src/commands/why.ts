@@ -3,11 +3,11 @@ import {
     registry,
     isComponentName,
     suggestComponentName,
-    getReverseDependents,
     type ComponentName,
     type ComponentDefinition,
 } from '../registry/index.js';
 import { parseAttachSymbol } from '../core/apply-wire.js';
+import { buildComponentRecord } from '../core/why-core.js';
 
 /**
  * `why <component> [<component> …]` — registry introspection.
@@ -70,15 +70,18 @@ export function formatAddonMeta(def: ComponentDefinition): AddonMetaLine[] {
 
 function printComponent(name: ComponentName): void {
     const def = registry[name];
+    // Same record the MCP `why` / `get_component` tools return — one source of
+    // truth for the reverse-dependent traversal and the file/dep listings.
+    const record = buildComponentRecord(name);
 
     console.log('\n' + chalk.bold.cyan(name));
 
-    console.log('\n  ' + chalk.bold(`Files (${def.files.length}):`));
-    for (const f of def.files) {
+    console.log('\n  ' + chalk.bold(`Files (${record.files.length}):`));
+    for (const f of record.files) {
         console.log('    ' + chalk.dim(f));
     }
 
-    const direct = def.dependencies ?? [];
+    const direct = record.directDependencies;
     if (direct.length > 0) {
         console.log('\n  ' + chalk.bold('Direct dependencies:') + ' ' +
             direct.map(d => chalk.cyan(d)).join(chalk.dim(', ')));
@@ -90,7 +93,7 @@ function printComponent(name: ComponentName): void {
         console.log('\n  ' + chalk.bold(`${label}:`) + ' ' + chalk.cyan(value));
     }
 
-    const reverse = [...getReverseDependents(name)].sort((a, b) => a.localeCompare(b));
+    const reverse = record.reverseDependents;
     if (reverse.length > 0) {
         console.log('  ' + chalk.bold(`Reverse dependents (${reverse.length}):`));
         printWrappedList(reverse, 4);
@@ -98,13 +101,13 @@ function printComponent(name: ComponentName): void {
         console.log('  ' + chalk.bold('Reverse dependents:') + chalk.dim(' none'));
     }
 
-    const libs = def.libFiles ?? [];
+    const libs = record.libFiles;
     if (libs.length > 0) {
         console.log('\n  ' + chalk.bold(`Lib files (${libs.length}):`));
         for (const f of libs) console.log('    ' + chalk.dim(f));
     }
 
-    const peers = def.peerFiles ?? [];
+    const peers = record.peerFiles;
     if (peers.length > 0) {
         console.log('\n  ' + chalk.bold(`Peer files (${peers.length}):`));
         for (const f of peers) console.log('    ' + chalk.dim(f));
