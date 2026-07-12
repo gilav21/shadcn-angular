@@ -41,10 +41,10 @@ zero-dependency, no postinstall binary download, and the hook body is a single
 `npm run …` line, so nothing bash-specific runs on Windows). Re-install
 manually with `npx simple-git-hooks`.
 
-| hook       | runs                                    | typical wall-clock |
+| hook       | runs                                    | measured wall-clock (2026-07-13, warm) |
 |------------|-----------------------------------------|--------------------|
-| pre-commit | `lint-staged` → `eslint --fix` on staged files | ~5–25 s (scales with staged file count) |
-| pre-push   | `preflight` + `test-storybook`          | ~10 min             |
+| pre-commit | `lint-staged` → `eslint --fix` on staged files | **10 s** for a 10-file commit (scales with staged file count) |
+| pre-push   | `preflight` (2m 30s) + `test-storybook` (60 s) | **3 m 30 s** |
 
 **pre-commit is intentionally lint-only.** Scoping unit tests to the staged
 files is not cheap here: the component suite runs in a real browser, and

@@ -196,9 +196,8 @@ export function publishVerdict(input: VerdictInput): PublishVerdict {
     }
 
     if (triggers.length > 0) {
-        const logicTriggers = triggers.filter((f) => f !== REGISTRY_MODULE);
-        if (logicTriggers.length > 0) {
-            reasons.unshift(`${logicTriggers.length} bundled CLI file(s) changed — the published tarball is stale`);
+        if (triggers.some((f) => f !== REGISTRY_MODULE)) {
+            reasons.unshift(`${triggers.length} bundled CLI file(s) changed — the published tarball is stale`);
         }
         return { required: true, triggers, reasons };
     }

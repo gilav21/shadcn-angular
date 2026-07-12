@@ -54,9 +54,13 @@ function git(...args: string[]): string {
     return execFileSync('git', ['-C', REPO_ROOT, ...args], { encoding: 'utf-8' }).trim();
 }
 
+/** Probing form: a non-zero exit is an expected answer ("no such tag"), not an error. */
 function gitOrNull(...args: string[]): string | null {
     try {
-        return git(...args);
+        return execFileSync('git', ['-C', REPO_ROOT, ...args], {
+            encoding: 'utf-8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
     } catch {
         return null;
     }
