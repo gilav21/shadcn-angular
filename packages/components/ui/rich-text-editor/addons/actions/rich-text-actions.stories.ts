@@ -167,6 +167,9 @@ export default meta;
 type Story = StoryObj<RteActionsStory>;
 
 /** Tier-1 declarative fields: attach an "Open dialog" action, click it on the right. */
+/** Interactive playground — the variant / readonly / rtl controls drive the live editor + published pane. */
+export const Playground: Story = { args: { variant: 'tier1' } };
+
 export const Default: Story = { args: { variant: 'tier1' } };
 
 /** Batteries-included presets: hover card + dialog wired in a few lines. */

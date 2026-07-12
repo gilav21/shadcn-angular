@@ -60,6 +60,9 @@ export const Default: Story = {
     }),
 };
 
+/** Interactive playground — every input is wired to the Controls panel. */
+export const Playground: Story = Default;
+
 export const SortedAscending: Story = {
     args: {
         title: 'Email',
