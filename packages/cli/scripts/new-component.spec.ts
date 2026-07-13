@@ -1,8 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+    copyScripts,
+    createRepo,
+    fixtureScript,
+    removeRepo,
+    runScript,
+    write,
+    type Run,
+} from './repo-fixtures';
 import {
     InsertError,
     demoLocation,
@@ -345,4 +354,175 @@ describe('existingDestinations', () => {
     it('reports nothing when every destination is free', () => {
         expect(existingDestinations(planned, () => false)).toEqual([]);
     });
+});
+
+// ── The entry script, end to end (subprocess, fixture repo) ──────────────
+//
+// The CLI tests above drive the REAL repo, so they can only exercise the paths
+// that refuse to write (bad name, existing destination, --dry-run). The happy
+// path writes six files, edits three sources and chains two scripts — against
+// whatever repo the script itself lives in. Driving it for real therefore means
+// copying it into a throwaway repo (see repo-fixtures.ts) whose registry, demo
+// routes and demo barrel are miniature versions of the real ones.
+//
+// `sync-registry.ts` is chained for real (keeping the registry in step with the
+// files it just wrote IS this script's contract); `e2e/orchestrator/scaffold.ts`
+// — tested elsewhere, and far heavier — is stubbed with a script that records
+// the argv it was handed, which is exactly what this test needs to assert.
+
+const FIXTURE_REGISTRY = `import { defineRegistry } from './define';
+
+export const registry = defineRegistry({
+  alpha: {
+    name: 'alpha',
+    category: 'utility',
+    description: 'Alpha.',
+    tags: ['alpha'],
+    files: ['alpha/alpha.component.ts', 'alpha/index.ts'],
+  },
+});
+`;
+
+const FIXTURE_ROUTES = `export const routes = [
+  // Data Display
+  { path: 'alpha', loadComponent: () => import('./demos/data-display/alpha-demo.component').then(m => m.AlphaDemoComponent) },
+
+  // Layout
+  { path: 'box', loadComponent: () => import('./demos/layout/box-demo.component').then(m => m.BoxDemoComponent) },
+
+  // Wildcard
+  { path: '**', redirectTo: '' },
+];
+`;
+
+const FIXTURE_DEMO_INDEX = `// Data Display
+export { AlphaDemoComponent } from './data-display/alpha-demo.component';
+
+// Layout
+export { BoxDemoComponent } from './layout/box-demo.component';
+`;
+
+/** Records the argv it was chained with, so the test can assert the hand-off. */
+const SCAFFOLD_STUB = `import { writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const dir = path.dirname(fileURLToPath(import.meta.url));
+writeFileSync(path.join(dir, 'scaffolded.txt'), process.argv.slice(2).join(' '));
+`;
+
+function seedFixture(): string {
+    const root = createRepo('new-component');
+    copyScripts(root, [
+        'new-component.ts',
+        'new-component-lib.ts',
+        'sync-registry.ts',
+        'sync-registry-lib.ts',
+    ]);
+    write(root, 'packages/cli/src/registry/define.ts',
+        'export function defineRegistry<T>(r: T): T { return r; }\n');
+    write(root, 'packages/cli/src/registry/index.ts', FIXTURE_REGISTRY);
+    write(root, 'packages/components/ui/alpha/index.ts', "export * from './alpha.component';\n");
+    write(root, 'packages/components/ui/alpha/alpha.component.ts', 'export const Alpha = 1;\n');
+    // The generated component imports `cn` from ../../lib/utils, and the chained
+    // sync-registry validates every derived libFile against disk before writing.
+    write(root, 'packages/components/lib/utils.ts', 'export const cn = (s: string) => s;\n');
+    write(root, 'demo/src/app/demo.routes.ts', FIXTURE_ROUTES);
+    write(root, 'demo/src/app/demos/index.ts', FIXTURE_DEMO_INDEX);
+    write(root, 'demo/src/app/demos/data-display/alpha-demo.component.ts',
+        'export class AlphaDemoComponent {}\n');
+    write(root, 'demo/src/app/demos/layout/box-demo.component.ts', 'export class BoxDemoComponent {}\n');
+    write(root, 'e2e/orchestrator/scaffold.ts', SCAFFOLD_STUB);
+    return root;
+}
+
+describe('new-component entry (fixture repo)', () => {
+    let root = '';
+
+    afterEach(() => {
+        if (root) removeRepo(root);
+        root = '';
+    });
+
+    function fixtureRun(args: readonly string[]): Run {
+        root = seedFixture();
+        return runScript(fixtureScript(root, 'new-component.ts'), args);
+    }
+
+    function read(rel: string): string {
+        return readFileSync(path.join(root, rel), 'utf-8');
+    }
+
+    function exists(rel: string): boolean {
+        return existsSync(path.join(root, rel));
+    }
+
+    it('scaffolds the component, wires the demo, and chains sync-registry + e2e:scaffold', () => {
+        const { status, stdout } = fixtureRun([
+            'widget', '--category', 'utility', '--description', 'A widget.', '--tags', 'widget,demo',
+        ]);
+
+        expect(status).toBe(0);
+        expect(stdout).toContain('Done.');
+
+        const component = read('packages/components/ui/widget/widget.component.ts');
+        expect(component).toContain("selector: 'ui-widget'");
+        expect(component).toContain('ChangeDetectionStrategy.OnPush');
+        expect(read('packages/components/ui/widget/widget.component.html')).toContain('data-slot');
+        expect(read('packages/components/ui/widget/index.ts')).toContain('./widget.component');
+        expect(exists('packages/components/ui/widget/widget.component.spec.ts')).toBe(true);
+        expect(exists('packages/components/ui/widget/widget.stories.ts')).toBe(true);
+
+        // The demo page exists AND is reachable — an unrouted page is exactly what
+        // check-completeness calls an orphan.
+        expect(read('demo/src/app/demos/data-display/widget-demo.component.ts'))
+            .toContain('export class WidgetDemoComponent');
+        expect(read('demo/src/app/demo.routes.ts')).toContain("{ path: 'widget'");
+        expect(read('demo/src/app/demos/index.ts'))
+            .toContain("export { WidgetDemoComponent } from './data-display/widget-demo.component';");
+
+        // The chained sync-registry --fix re-derived `files` from disk.
+        const registry = read('packages/cli/src/registry/index.ts');
+        expect(registry).toContain("name: 'widget'");
+        expect(registry).toContain('widget/widget.component.html');
+        expect(exists('packages/components/registry.json')).toBe(true);
+
+        // The chained e2e scaffolder, with the component name.
+        expect(read('e2e/orchestrator/scaffolded.txt')).toBe('widget');
+    }, 120_000);
+
+    it('emits the dual-mode sub-components under --compound', () => {
+        const { status } = fixtureRun([
+            'stack', '--compound', '--category', 'layout', '--description', 'A stack.', '--tags', 'stack',
+        ]);
+
+        expect(status).toBe(0);
+        expect(read('packages/components/ui/stack/sub/stack-item.component.ts'))
+            .toContain("selector: 'ui-stack-item'");
+        expect(read('packages/components/ui/stack/sub/stack-content.component.ts'))
+            .toContain("selector: 'ui-stack-content'");
+        expect(read('packages/components/ui/stack/index.ts')).toContain('./sub/stack-item.component');
+        expect(read('demo/src/app/demo.routes.ts')).toContain("{ path: 'stack'");
+    }, 120_000);
+
+    it('exits 1 with a usage line when no name is given, and writes nothing', () => {
+        const { status, output } = fixtureRun([]);
+
+        expect(status).toBe(1);
+        expect(output).toContain('a component name is required');
+        expect(output).toContain('Usage: npm run new:component -- <name>');
+        expect(read('packages/cli/src/registry/index.ts')).toBe(FIXTURE_REGISTRY);
+    }, 60_000);
+
+    it('exits 1 on an unknown category, listing the valid ones, and writes nothing', () => {
+        const { status, output } = fixtureRun([
+            'widget', '--category', 'nonsense', '--description', 'x', '--tags', 'x',
+        ]);
+
+        expect(status).toBe(1);
+        expect(output).toContain('unknown category "nonsense"');
+        expect(output).toContain('data-display');
+        expect(exists('packages/components/ui/widget')).toBe(false);
+        expect(read('packages/cli/src/registry/index.ts')).toBe(FIXTURE_REGISTRY);
+    }, 60_000);
 });

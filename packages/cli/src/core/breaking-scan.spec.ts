@@ -1,6 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { extractBreakingTokens, scanFilesForTokens } from './breaking-scan.js';
-import { registry } from '../registry/index.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import os from 'node:os';
+import path from 'node:path';
+import fs from 'fs-extra';
+import { extractBreakingTokens, scanFilesForTokens, printBreakingUsages } from './breaking-scan.js';
+import { registry, type ComponentName } from '../registry/index.js';
 import type { BreakingChange } from '../registry/index.js';
 
 /** The two real data-table input breaking entries the M4/L8 fix targets. */
@@ -92,5 +95,118 @@ describe('scanFilesForTokens', () => {
 
     it('returns nothing when no token is bound', () => {
         expect(scanFilesForTokens([{ path: 'a.html', content: '<ui-data-table [data]="x" />' }], tokens)).toEqual([]);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// printBreakingUsages — end-to-end against real consumer files on disk
+// ---------------------------------------------------------------------------
+
+describe('printBreakingUsages', () => {
+    let root = '';
+    let logged: string[] = [];
+
+    /** Write an app component with an external `.html` template. */
+    async function writeExternalTemplateComponent(dir: string, name: string, template: string): Promise<void> {
+        await fs.ensureDir(dir);
+        await fs.writeFile(path.join(dir, `${name}.component.ts`), [
+            `import { Component } from '@angular/core';`,
+            `@Component({ selector: 'app-${name}', templateUrl: './${name}.component.html' })`,
+            `export class ${name}Component {}`,
+        ].join('\n'));
+        await fs.writeFile(path.join(dir, `${name}.component.html`), template);
+    }
+
+    beforeEach(async () => {
+        root = await fs.mkdtemp(path.join(os.tmpdir(), 'breaking-scan-'));
+        logged = [];
+        vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+            logged.push(args.map(String).join(' '));
+        });
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.remove(root);
+    });
+
+    it('reports the consumer file and 1-based line that binds a removed input', async () => {
+        await writeExternalTemplateComponent(root, 'page', [
+            '<h1>Report</h1>',
+            '<ui-data-table',
+            '  [rowActions]="actions" />',
+        ].join('\n'));
+
+        await printBreakingUsages(['data-table'] as ComponentName[], root, []);
+
+        const output = logged.join('\n');
+        expect(output).toContain('data-table');
+        expect(output).toContain(`page.component.html:3 ([rowActions])`);
+    });
+
+    it('resolves an inline template to the .ts file itself', async () => {
+        await fs.writeFile(path.join(root, 'inline.component.ts'), [
+            `import { Component } from '@angular/core';`,
+            '@Component({',
+            '  selector: "app-inline",',
+            '  template: `<ui-data-table [enableColumnMenu]="true" />`,',
+            '})',
+            'export class InlineComponent {}',
+        ].join('\n'));
+
+        await printBreakingUsages(['data-table'] as ComponentName[], root, []);
+
+        expect(logged.join('\n')).toContain('inline.component.ts:4 ([enableColumnMenu])');
+    });
+
+    it('reassures a consumer whose code binds none of the removed inputs', async () => {
+        await writeExternalTemplateComponent(root, 'clean', '<ui-data-table [data]="rows" />');
+
+        await printBreakingUsages(['data-table'] as ComponentName[], root, []);
+
+        const output = logged.join('\n');
+        expect(output).toContain('no usages found in your app code');
+        expect(output).not.toContain('.component.html:');
+    });
+
+    it('prints nothing when no touched component carries scannable breaking tokens', async () => {
+        await writeExternalTemplateComponent(root, 'page', '<ui-data-table [rowActions]="a" />');
+
+        await printBreakingUsages(['button', 'badge'] as ComponentName[], root, []);
+
+        expect(logged).toEqual([]);
+    });
+
+    it('caps the listing at 10 usages and reports the remainder as "+N more"', async () => {
+        const lines = Array.from({ length: 13 }, (_, i) => `<ui-data-table [rowActions]="a${i}" />`);
+        await writeExternalTemplateComponent(root, 'many', lines.join('\n'));
+
+        await printBreakingUsages(['data-table'] as ComponentName[], root, []);
+
+        const output = logged.join('\n');
+        expect(output).toContain('many.component.html:10 ([rowActions])');
+        expect(output).not.toContain('many.component.html:11 ([rowActions])');
+        expect(output).toContain('+3 more');
+    });
+
+    it('ignores a component class that declares no template at all', async () => {
+        await fs.writeFile(path.join(root, 'no-template.component.ts'), [
+            `import { Component } from '@angular/core';`,
+            `@Component({ selector: 'app-none' })`,
+            'export class NoneComponent { readonly rowActions = []; }',
+        ].join('\n'));
+
+        await printBreakingUsages(['data-table'] as ComponentName[], root, []);
+
+        expect(logged.join('\n')).toContain('no usages found in your app code');
+    });
+
+    it('does not scan the managed UI directory (only the consumer\'s own code)', async () => {
+        const managedDir = path.join(root, 'src', 'components', 'ui');
+        await writeExternalTemplateComponent(managedDir, 'data-table', '<x [rowActions]="a" />');
+
+        await printBreakingUsages(['data-table'] as ComponentName[], root, [managedDir]);
+
+        expect(logged.join('\n')).toContain('no usages found in your app code');
     });
 });

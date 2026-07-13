@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
-import { performInstall, planInstall } from './install.js';
+import { performInstall, planInstall, previewComponentMerges } from './install.js';
 import { getDefaultConfig } from '../utils/config.js';
 import { isPristineLib } from './lib-reconcile.js';
+import { installPackages } from '../utils/package-manager.js';
+import { writeShortcutRegistryIndex } from '../utils/shortcut-registry.js';
+import { fetchAndTransform, fetchLibContent } from './fetch.js';
+import type { ComponentName } from '../registry/index.js';
+import type { ConflictCheckResult } from './plan.js';
 
 vi.mock('fs-extra', () => ({
   default: {
@@ -26,7 +31,71 @@ vi.mock('../utils/shortcut-registry.js', () => ({ writeShortcutRegistryIndex: vi
 // Control baseline recognition for the L5 pre-manifest pristine-lib path.
 vi.mock('./lib-reconcile.js', () => ({ isPristineLib: vi.fn(() => false) }));
 
+// Partial registry mock: every real component plus two fixtures carrying
+// `peerFiles` / `npmDependencies`. No shipped component declares either today,
+// so the peer-file write, the peer-file prune and the npm-dependency install
+// are otherwise unreachable from the real registry.
+vi.mock('../registry/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../registry/index.js')>();
+  return {
+    ...actual,
+    registry: {
+      ...actual.registry,
+      'peer-fixture': {
+        name: 'peer-fixture',
+        files: ['peer-fixture/peer-fixture.component.ts'],
+        peerFiles: ['peer-fixture/shared-peer.ts'],
+        npmDependencies: ['@fixture/dep'],
+      },
+      'peer-fixture-two': {
+        name: 'peer-fixture-two',
+        files: ['peer-fixture-two/peer-fixture-two.component.ts'],
+        peerFiles: ['peer-fixture/shared-peer.ts'],
+      },
+    },
+  };
+});
+
 const base = { cwd: '/proj', config: getDefaultConfig(), options: { branch: 'master' } };
+
+type Mock = ReturnType<typeof vi.fn>;
+const asMock = (fn: unknown): Mock => fn as Mock;
+
+const PEER = 'peer-fixture' as ComponentName;
+const PEER_TWO = 'peer-fixture-two' as ComponentName;
+const PEER_FILE = 'peer-fixture/shared-peer.ts';
+
+const norm = (p: unknown): string => String(p).replaceAll('\\', '/');
+const writtenPaths = (): string[] => asMock(fs.writeFile).mock.calls.map(c => norm(c[0]));
+
+/**
+ * Re-establish the module-mock implementations a previous test may have
+ * overridden (`vi.clearAllMocks()` clears calls, not implementations).
+ */
+function resetMocks(): void {
+  vi.clearAllMocks();
+  asMock(fs.pathExists).mockResolvedValue(false);
+  asMock(fs.readFile).mockResolvedValue('');
+  asMock(fs.writeFile).mockResolvedValue(undefined);
+  asMock(fs.ensureDir).mockResolvedValue(undefined);
+  asMock(fs.existsSync).mockReturnValue(false);
+  asMock(fs.readJson).mockResolvedValue({ version: 1, files: {} });
+  asMock(fs.writeJson).mockResolvedValue(undefined);
+  asMock(fs.remove).mockResolvedValue(undefined);
+  asMock(fetchAndTransform).mockImplementation(async (f: string) => `// ${f}`);
+  asMock(fetchLibContent).mockImplementation(async (f: string) => `// lib ${f}`);
+  asMock(installPackages).mockResolvedValue(undefined);
+  asMock(writeShortcutRegistryIndex).mockResolvedValue(undefined);
+}
+
+/** A caller-supplied conflict plan, so no detection (or fetching) happens. */
+function conflicts(partial: Partial<ConflictCheckResult> = {}): ConflictCheckResult {
+  return {
+    toInstall: [], toSkip: [], conflicting: [],
+    peerFilesToUpdate: new Set<string>(), contentCache: new Map<string, string>(),
+    ...partial,
+  };
+}
 
 describe('performInstall blocks', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -228,5 +297,272 @@ describe('installSingleLibFile pre-manifest pristine refresh (L5)', () => {
       .map(c => String(c[0]).replaceAll('\\', '/'));
     expect(writes.some(p => p.endsWith(LIB))).toBe(false);
     expect(result.warnings.some(w => w.includes(LIB))).toBe(true);
+  });
+
+  it('warns (and installs the component anyway) when a lib file cannot be fetched', async () => {
+    resetMocks();
+    asMock(fetchLibContent).mockRejectedValue(new Error('network down'));
+
+    const result = await performInstall({ ...base, components: ['input-group'] });
+
+    expect(result.installed).toContain('input-group');
+    expect(result.warnings.some(w => w.includes(`Could not install lib file ${LIB}`) && w.includes('network down'))).toBe(true);
+    expect(writtenPaths().some(p => p.endsWith(LIB))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Peer files
+// ---------------------------------------------------------------------------
+
+describe('performInstall peer files', () => {
+  beforeEach(() => resetMocks());
+
+  it('writes a peer file listed in peerFilesToUpdate', async () => {
+    const result = await performInstall({
+      ...base, components: [PEER],
+      precomputedConflicts: conflicts({ toInstall: [PEER], peerFilesToUpdate: new Set([PEER_FILE]) }),
+    });
+
+    expect(result.installed).toContain(PEER);
+    expect(writtenPaths().some(p => p.endsWith(PEER_FILE))).toBe(true);
+  });
+
+  it('leaves a peer file alone when it is not in peerFilesToUpdate', async () => {
+    await performInstall({
+      ...base, components: [PEER],
+      precomputedConflicts: conflicts({ toInstall: [PEER] }),
+    });
+
+    expect(writtenPaths().some(p => p.endsWith(PEER_FILE))).toBe(false);
+  });
+
+  it('drops the peer file of a declined component that nothing else needs', async () => {
+    const peerFilesToUpdate = new Set([PEER_FILE]);
+
+    const result = await performInstall({
+      ...base, components: [PEER, 'badge'],
+      precomputedConflicts: conflicts({
+        toInstall: ['badge'], conflicting: [PEER], peerFilesToUpdate,
+      }),
+    });
+
+    expect(result.declined).toContain(PEER);
+    expect(peerFilesToUpdate.has(PEER_FILE)).toBe(false);
+    expect(writtenPaths().some(p => p.endsWith(PEER_FILE))).toBe(false);
+  });
+
+  it('keeps a declined component\'s peer file when an installed component still ships it', async () => {
+    const peerFilesToUpdate = new Set([PEER_FILE]);
+
+    await performInstall({
+      ...base, components: [PEER, PEER_TWO],
+      precomputedConflicts: conflicts({
+        toInstall: [PEER_TWO], conflicting: [PEER], peerFilesToUpdate,
+      }),
+    });
+
+    expect(peerFilesToUpdate.has(PEER_FILE)).toBe(true);
+    expect(writtenPaths().some(p => p.endsWith(PEER_FILE))).toBe(true);
+  });
+
+  it('warns when a peer file cannot be fetched, without failing the component', async () => {
+    // The component's own file resolves from the cache; only the peer file is fetched.
+    const contentCache = new Map([['peer-fixture/peer-fixture.component.ts', '// cached']]);
+    asMock(fetchAndTransform).mockRejectedValue(new Error('404'));
+
+    const result = await performInstall({
+      ...base, components: [PEER],
+      precomputedConflicts: conflicts({
+        toInstall: [PEER], peerFilesToUpdate: new Set([PEER_FILE]), contentCache,
+      }),
+    });
+
+    expect(result.installed).toContain(PEER);
+    expect(result.warnings.some(w => w.includes(`Could not update peer file ${PEER_FILE}`) && w.includes('404'))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// npm dependencies
+// ---------------------------------------------------------------------------
+
+describe('performInstall npm dependencies', () => {
+  beforeEach(() => resetMocks());
+
+  it('installs the npm dependencies declared by the written components', async () => {
+    await performInstall({
+      ...base, components: [PEER],
+      precomputedConflicts: conflicts({ toInstall: [PEER] }),
+    });
+
+    expect(installPackages).toHaveBeenCalledWith(['@fixture/dep'], { cwd: '/proj' });
+  });
+
+  it('warns instead of throwing when the package manager fails', async () => {
+    asMock(installPackages).mockRejectedValue(new Error('EACCES'));
+
+    const result = await performInstall({
+      ...base, components: [PEER],
+      precomputedConflicts: conflicts({ toInstall: [PEER] }),
+    });
+
+    expect(result.installed).toContain(PEER);
+    expect(result.warnings.some(w => w.includes('Failed to install npm dependencies') && w.includes('EACCES'))).toBe(true);
+  });
+
+  it('does not call the package manager when nothing declares npm dependencies', async () => {
+    await performInstall({ ...base, components: ['badge'] });
+    expect(installPackages).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Failure paths — fetch, manifest write, unmergeable local edits
+// ---------------------------------------------------------------------------
+
+describe('performInstall failure paths', () => {
+  beforeEach(() => resetMocks());
+
+  it('warns and omits the component when its files cannot be fetched', async () => {
+    asMock(fetchAndTransform).mockRejectedValue(new Error('boom'));
+
+    const result = await performInstall({
+      ...base, components: ['separator'],
+      precomputedConflicts: conflicts({ toInstall: ['separator'] }),
+    });
+
+    expect(result.installed).toEqual([]);
+    expect(result.warnings.some(w => w.startsWith('Could not add separator/') && w.includes('boom'))).toBe(true);
+  });
+
+  it('keeps a locally-edited file with no baseline and tells the user how to take upstream', async () => {
+    // Present + edited + no recorded baseline + no force → merge falls back to
+    // keeping OURS (never a silent clobber) and the file is left untouched.
+    asMock(fs.pathExists).mockResolvedValue(true);
+    asMock(fs.readFile).mockResolvedValue('LOCAL EDIT');
+
+    const result = await performInstall({
+      ...base, components: ['separator'], overwrite: ['separator'],
+    });
+
+    expect(result.mergeReport.fellBack.length).toBeGreaterThan(0);
+    expect(result.warnings.some(w => w.includes('locally edited and no recorded baseline') && w.includes('--overwrite'))).toBe(true);
+    expect(writtenPaths().some(p => p.includes('separator/'))).toBe(false);
+  });
+
+  it('warns when components.lock.json cannot be written', async () => {
+    asMock(fs.writeJson).mockRejectedValue(new Error('EROFS'));
+
+    const result = await performInstall({ ...base, components: ['badge'] });
+
+    expect(result.installed).toContain('badge');
+    expect(result.warnings.some(w => w.includes('Could not write components.lock.json') && w.includes('EROFS'))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Shortcut service
+// ---------------------------------------------------------------------------
+
+describe('ensureShortcutService', () => {
+  const COMMAND_SOURCE = 'command/command.component.ts';
+  const SERVICE = 'shortcut-binding.service.ts';
+
+  beforeEach(() => resetMocks());
+
+  it('installs the shortcut service and indexes the entry when a shortcut component is on disk', async () => {
+    asMock(fs.existsSync).mockImplementation((p: string) => norm(p).endsWith(COMMAND_SOURCE));
+
+    await performInstall({
+      ...base, components: ['badge'],
+      precomputedConflicts: conflicts({ toInstall: ['badge'] }),
+    });
+
+    expect(writtenPaths().some(p => p.endsWith(SERVICE))).toBe(true);
+    const entries = asMock(writeShortcutRegistryIndex).mock.calls[0][2] as { componentName: string }[];
+    expect(entries.map(e => e.componentName)).toContain('command-dialog');
+  });
+
+  it('does not re-fetch the service when it already exists', async () => {
+    asMock(fs.existsSync).mockImplementation((p: string) => norm(p).endsWith(COMMAND_SOURCE));
+    asMock(fs.pathExists).mockImplementation(async (p: string) => norm(p).endsWith(SERVICE));
+
+    await performInstall({
+      ...base, components: ['badge'],
+      precomputedConflicts: conflicts({ toInstall: ['badge'] }),
+    });
+
+    expect(writtenPaths().some(p => p.endsWith(SERVICE))).toBe(false);
+    expect(asMock(fetchLibContent).mock.calls.some(c => c[0] === SERVICE)).toBe(false);
+  });
+
+  it('writes an empty index when no shortcut component is installed', async () => {
+    await performInstall({
+      ...base, components: ['badge'],
+      precomputedConflicts: conflicts({ toInstall: ['badge'] }),
+    });
+
+    expect(writtenPaths().some(p => p.endsWith(SERVICE))).toBe(false);
+    expect(asMock(writeShortcutRegistryIndex).mock.calls[0][2]).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// previewComponentMerges — `update --dry-run` predictions (no writes)
+// ---------------------------------------------------------------------------
+
+describe('previewComponentMerges', () => {
+  beforeEach(() => resetMocks());
+
+  it('predicts "created" for an absent file and writes nothing', async () => {
+    const previews = await previewComponentMerges(['separator'], conflicts(), { ...base, components: ['separator'] });
+
+    expect(previews.length).toBeGreaterThan(0);
+    expect(previews.every(p => p.outcome === 'created')).toBe(true);
+    expect(previews.map(p => p.file)).toContain('separator/separator.component.ts');
+    expect(asMock(fs.writeFile)).not.toHaveBeenCalled();
+    expect(asMock(fs.writeJson)).not.toHaveBeenCalled();
+  });
+
+  it('predicts "fellback-kept" for a locally-edited file with no baseline', async () => {
+    asMock(fs.pathExists).mockResolvedValue(true);
+    asMock(fs.readFile).mockResolvedValue('LOCAL EDIT');
+
+    const previews = await previewComponentMerges(['separator'], conflicts(), { ...base, components: ['separator'] });
+
+    expect(previews.every(p => p.outcome === 'fellback-kept')).toBe(true);
+    expect(asMock(fs.writeFile)).not.toHaveBeenCalled();
+  });
+
+  it('predicts "overwritten" for the same edited file under --overwrite', async () => {
+    asMock(fs.pathExists).mockResolvedValue(true);
+    asMock(fs.readFile).mockResolvedValue('LOCAL EDIT');
+
+    const previews = await previewComponentMerges(['separator'], conflicts(), {
+      ...base, components: ['separator'], options: { branch: 'master', overwrite: true },
+    });
+
+    expect(previews.every(p => p.outcome === 'overwritten')).toBe(true);
+    expect(asMock(fs.writeFile)).not.toHaveBeenCalled();
+  });
+
+  it('serves THEIRS from the conflict scan\'s content cache instead of re-fetching', async () => {
+    const cached = conflicts({ contentCache: new Map([['separator/separator.component.ts', '// cached']]) });
+
+    await previewComponentMerges(['separator'], cached, { ...base, components: ['separator'] });
+
+    expect(asMock(fetchAndTransform).mock.calls.some(c => c[0] === 'separator/separator.component.ts')).toBe(false);
+  });
+
+  it('omits a file whose fetch fails rather than aborting the preview', async () => {
+    asMock(fetchAndTransform).mockImplementation(async (f: string) => {
+      if (f.endsWith('.component.ts')) throw new Error('404');
+      return `// ${f}`;
+    });
+
+    const previews = await previewComponentMerges(['separator'], conflicts(), { ...base, components: ['separator'] });
+
+    expect(previews.map(p => p.file)).toEqual(['separator/index.ts']);
   });
 });

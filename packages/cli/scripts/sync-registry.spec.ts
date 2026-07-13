@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseRegistrySource } from './sync-registry-lib';
+import { copyScripts, createRepo, fixtureScript, removeRepo, runScript, write } from './repo-fixtures';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(SCRIPT_DIR, 'sync-registry.ts');
@@ -47,6 +48,87 @@ describe('sync-registry entry (report mode)', () => {
 
         expect(readFileSync(REGISTRY_TS, 'utf-8')).toBe(tsBefore);
         expect(readFileSync(REGISTRY_JSON, 'utf-8')).toBe(jsonBefore);
+    }, 60_000);
+});
+
+// The `--fix` half of the entry can only be driven against a throwaway repo:
+// run in place it REWRITES the real registry. `repo-fixtures.ts` explains why the
+// script has to be copied rather than merely pointed at a temp cwd.
+const FIXTURE_REGISTRY = `import { defineRegistry } from './define';
+
+export const registry = defineRegistry({
+  alpha: {
+    name: 'alpha',
+    category: 'utility',
+    description: 'Alpha.',
+    tags: ['alpha'],
+    files: ['alpha/alpha.component.ts', 'alpha/index.ts'],
+  },
+});
+`;
+
+/**
+ * A one-component repo whose registry is STALE by exactly one file: the entry
+ * file imports `./alpha.utils`, which the registry's `files` does not declare.
+ */
+function seedFixture(): string {
+    const root = createRepo('sync');
+    copyScripts(root, ['sync-registry.ts', 'sync-registry-lib.ts']);
+    write(root, 'packages/cli/src/registry/define.ts',
+        'export function defineRegistry<T>(r: T): T { return r; }\n');
+    write(root, 'packages/cli/src/registry/index.ts', FIXTURE_REGISTRY);
+    write(root, 'packages/components/ui/alpha/index.ts', "export * from './alpha.component';\n");
+    write(root, 'packages/components/ui/alpha/alpha.component.ts',
+        "import { alphaLabel } from './alpha.utils';\n\nexport const Alpha = alphaLabel;\n");
+    write(root, 'packages/components/ui/alpha/alpha.utils.ts', "export const alphaLabel = 'alpha';\n");
+    return root;
+}
+
+describe('sync-registry entry (fixture repo)', () => {
+    let root = '';
+    afterEach(() => {
+        if (root) removeRepo(root);
+        root = '';
+    });
+
+    it('reports the drift and exits 1 without --fix, leaving the registry untouched', () => {
+        root = seedFixture();
+        const registry = path.join(root, 'packages/cli/src/registry/index.ts');
+        const before = readFileSync(registry, 'utf-8');
+
+        const { status, stdout } = runScript(fixtureScript(root, 'sync-registry.ts'));
+
+        expect(status).toBe(1);
+        expect(stdout).toContain('+ files: alpha/alpha.utils.ts');
+        expect(stdout).toContain('Run with --fix to update the registry.');
+        expect(readFileSync(registry, 'utf-8')).toBe(before);
+    }, 60_000);
+
+    it('--fix writes the missing file into the registry and emits registry.json', () => {
+        root = seedFixture();
+        const registry = path.join(root, 'packages/cli/src/registry/index.ts');
+        const manifest = path.join(root, 'packages/components/registry.json');
+        expect(existsSync(manifest)).toBe(false);
+
+        const { status, stdout } = runScript(fixtureScript(root, 'sync-registry.ts'), ['--fix']);
+
+        expect(status).toBe(0);
+        expect(stdout).toContain('Registry updated.');
+        expect(readFileSync(registry, 'utf-8')).toContain('alpha/alpha.utils.ts');
+
+        const json = JSON.parse(readFileSync(manifest, 'utf-8')) as Record<string, { files: string[] }>;
+        expect(json['alpha'].files).toContain('alpha/alpha.utils.ts');
+    }, 60_000);
+
+    it('is idempotent — a second --fix reports the registry as already in sync', () => {
+        root = seedFixture();
+        const script = fixtureScript(root, 'sync-registry.ts');
+        expect(runScript(script, ['--fix']).status).toBe(0);
+
+        const { status, stdout } = runScript(script);
+
+        expect(status).toBe(0);
+        expect(stdout).toContain('All components and blocks are in sync.');
     }, 60_000);
 });
 

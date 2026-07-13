@@ -1,4 +1,18 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import {
+    commitAll,
+    copyScripts,
+    createRepo,
+    fixtureScript,
+    git,
+    gitInitCommit,
+    removeRepo,
+    runScript,
+    write,
+    type Run,
+} from './repo-fixtures';
 import {
     ArgError,
     bumpVersion,
@@ -368,4 +382,146 @@ describe('prependRelease', () => {
         expect(out).toContain('- old');
         expect(out.startsWith('# Changelog')).toBe(true);
     });
+});
+
+// ── The entry script (subprocess, fixture repo) ──────────────────────────
+//
+// release-cli resolves its repo from its OWN file location, and step 6 of its
+// flow is `npm publish` + `git tag` + `git push`. It is therefore never run
+// against the real repo here, and NEVER without --dry-run: the fixture is a
+// throwaway git repo (see repo-fixtures.ts) with its own packages/cli, and every
+// run below rehearses. What the tests assert is that the rehearsal stays a
+// rehearsal — no version bump, no CHANGELOG, no commit, no tag — and that the
+// guards (dirty tree, wrong branch, bad argv) exit non-zero before any of it.
+
+const FIXTURE_PKG = '{\n  "name": "@fixture/cli",\n  "version": "1.2.3"\n}\n';
+
+const FIXTURE_REGISTRY = `export interface ComponentDefinition {
+    readonly name: string;
+    readonly files: readonly string[];
+}
+
+export const registry = {
+  alpha: { name: 'alpha', files: ['alpha/alpha.component.ts'] },
+};
+`;
+
+/** Where the second commit lands decides the publish verdict. */
+type Change = 'cli-logic' | 'component';
+
+function seedReleaseFixture(change: Change): string {
+    const root = createRepo('release');
+    copyScripts(root, ['release-cli.ts', 'release-cli-lib.ts']);
+    write(root, 'packages/cli/package.json', FIXTURE_PKG);
+    write(root, 'packages/cli/src/registry/index.ts', FIXTURE_REGISTRY);
+    write(root, 'packages/components/ui/alpha/alpha.component.ts', 'export const Alpha = 1;\n');
+
+    // The base ref is the last commit touching packages/cli/package.json — this one.
+    gitInitCommit(root, 'chore(cli): seed');
+
+    if (change === 'cli-logic') {
+        write(root, 'packages/cli/src/commands/add.ts', 'export const add = () => 1;\n');
+        commitAll(root, 'feat(cli): add a thing');
+    } else {
+        write(root, 'packages/components/ui/alpha/alpha.component.ts', 'export const Alpha = 2;\n');
+        commitAll(root, 'fix(alpha): tweak the component');
+    }
+    return root;
+}
+
+describe('release-cli entry (fixture repo)', () => {
+    let root = '';
+
+    afterEach(() => {
+        if (root) removeRepo(root);
+        root = '';
+    });
+
+    function release(change: Change, args: readonly string[]): Run {
+        root = seedReleaseFixture(change);
+        return runScript(fixtureScript(root, 'release-cli.ts'), args);
+    }
+
+    it('--dry-run rehearses a required publish without writing, publishing, tagging or pushing', () => {
+        const head = () => git(root, 'rev-parse', 'HEAD');
+        const before = release('cli-logic', ['patch', '--dry-run', '--skip-preflight']);
+        const headAfter = head();
+
+        expect(before.status).toBe(0);
+        expect(before.stdout).toContain('VERDICT: publish REQUIRED');
+        expect(before.stdout).toContain('1.2.3 → 1.2.4 (patch)');
+        // The publish is only ever PRINTED, prefixed as a rehearsal.
+        expect(before.stdout).toContain('[dry-run] npm publish');
+        expect(before.stdout).toContain('Dry run complete — nothing was written, published, tagged or pushed.');
+        expect(before.stdout).not.toContain('Published and tagged');
+
+        // …and the rehearsal left no trace: no bump, no changelog, no commit, no tag.
+        expect(readFileSync(path.join(root, 'packages/cli/package.json'), 'utf-8')).toContain('"version": "1.2.3"');
+        expect(existsSync(path.join(root, 'packages/cli/CHANGELOG.md'))).toBe(false);
+        expect(git(root, 'status', '--porcelain')).toBe('');
+        expect(git(root, 'tag', '--list')).toBe('');
+        expect(headAfter).toBe(head());
+    }, 60_000);
+
+    it('renders the CHANGELOG entry it would prepend, from the CLI commits since the base', () => {
+        const { stdout } = release('cli-logic', ['minor', '--dry-run', '--skip-preflight']);
+
+        expect(stdout).toContain('1.2.3 → 1.3.0 (minor)');
+        expect(stdout).toContain('## 1.3.0');
+        expect(stdout).toContain('### Features');
+        expect(stdout).toContain('**cli:** add a thing');
+        // The script prints a platform-native relative path (backslashes on Windows).
+        expect(stdout).toMatch(/\[dry-run] would write packages[\\/]cli[\\/]package\.json version 1\.3\.0/);
+        expect(stdout).toMatch(/\[dry-run] would prepend the block above to packages[\\/]cli[\\/]CHANGELOG\.md/);
+    }, 60_000);
+
+    it('reports publish NOT required when only component source changed', () => {
+        const { status, stdout } = release('component', ['patch', '--dry-run', '--skip-preflight']);
+
+        expect(status).toBe(0);
+        expect(stdout).toContain('VERDICT: publish NOT required');
+        expect(stdout).toContain('Re-run with --force if you still want to cut a release.');
+        expect(stdout).toContain('(dry run — continuing the rehearsal anyway)');
+    }, 60_000);
+
+    it('refuses a dirty tree', () => {
+        root = seedReleaseFixture('cli-logic');
+        write(root, 'packages/cli/src/commands/add.ts', 'export const add = () => 2;\n');
+
+        const { status, output } = runScript(fixtureScript(root, 'release-cli.ts'),
+            ['patch', '--dry-run', '--skip-preflight']);
+
+        expect(status).toBe(1);
+        expect(output).toContain('Working tree is dirty');
+        expect(output).toContain('(override with --allow-dirty)');
+        expect(output).not.toContain('VERDICT');
+    }, 60_000);
+
+    it('refuses a branch other than master', () => {
+        root = seedReleaseFixture('cli-logic');
+        git(root, 'checkout', '-q', '-b', 'feat/whatever');
+
+        const { status, output } = runScript(fixtureScript(root, 'release-cli.ts'),
+            ['patch', '--dry-run', '--skip-preflight']);
+
+        expect(status).toBe(1);
+        expect(output).toContain('On branch "feat/whatever" — releases are cut from "master"');
+        expect(output).not.toContain('VERDICT');
+    }, 60_000);
+
+    it.each([
+        { args: [] as string[], message: 'Missing bump level' },
+        { args: ['pre-release'], message: 'Invalid bump level "pre-release"' },
+        { args: ['patch', '--bogus'], message: 'Unknown flag: --bogus' },
+        { args: ['patch', 'minor'], message: 'Too many arguments: patch minor' },
+    ])('exits 1 with usage on bad argv ($message)', ({ args, message }) => {
+        const { status, output } = release('cli-logic', args);
+
+        expect(status).toBe(1);
+        expect(output).toContain(message);
+        expect(output).toContain('Usage: npm run release:cli -- <patch|minor|major>');
+        // Argv is rejected before any git, npm or filesystem work happens.
+        expect(output).not.toContain('VERDICT');
+        expect(readFileSync(path.join(root, 'packages/cli/package.json'), 'utf-8')).toContain('"version": "1.2.3"');
+    }, 60_000);
 });

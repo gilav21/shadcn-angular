@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
+  add,
   resolveDependencies,
   promptOptionalDependencies,
   promptAddons,
@@ -12,6 +13,11 @@ import {
 } from './add.js';
 import { registry, type ComponentName } from '../registry/index.js';
 import fs from 'fs-extra';
+import prompts from 'prompts';
+import { getConfig, getDefaultConfig, type Config } from '../utils/config.js';
+import { performInstall } from '../core/install.js';
+import type { InstallResult } from '../core/install.js';
+import { emptyMergeReport } from '../core/merge.js';
 
 // ---------------------------------------------------------------------------
 // Module-level mocks
@@ -22,6 +28,7 @@ vi.mock('fs-extra', () => ({
     existsSync: vi.fn(() => false),
     pathExists: vi.fn(() => Promise.resolve(false)),
     readFile: vi.fn(() => Promise.resolve('')),
+    readFileSync: vi.fn(() => ''),
     writeFile: vi.fn(() => Promise.resolve()),
     ensureDir: vi.fn(() => Promise.resolve()),
   },
@@ -30,6 +37,27 @@ vi.mock('fs-extra', () => ({
 vi.mock('prompts', () => ({
   default: vi.fn(),
 }));
+
+// `add` is the command shell: it plans, prompts and reports. The install itself
+// (covered in install.spec.ts) is stubbed so the shell's decisions are testable.
+vi.mock('../core/install.js', () => ({ performInstall: vi.fn() }));
+
+vi.mock('../utils/config.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/config.js')>();
+  return { ...actual, getConfig: vi.fn() };
+});
+
+// A single shared spinner stub — `add` reports its headline results through it
+// (succeed / info / fail), not through console.log.
+const spinner = vi.hoisted(() => {
+  const stub = {
+    start: vi.fn(), stop: vi.fn(), succeed: vi.fn(), fail: vi.fn(), info: vi.fn(),
+  };
+  for (const fn of Object.values(stub)) fn.mockImplementation(() => stub);
+  return stub;
+});
+
+vi.mock('ora', () => ({ default: vi.fn(() => spinner) }));
 
 // Partial registry mock: keep every real component and add one folderized
 // "trio + sub/" fixture so the install pipeline can be exercised against
@@ -581,6 +609,25 @@ describe('promptOptionalDependencies', () => {
     const contextMenuCount = result.filter((n: string) => n === 'context-menu').length;
     expect(contextMenuCount).toBe(1);
   });
+
+  it('offers the optional companions interactively and returns the picks', async () => {
+    vi.mocked(prompts).mockResolvedValueOnce({ selected: ['context-menu'] });
+
+    const result = await promptOptionalDependencies(new Set<ComponentName>(['tree']), { branch: 'master' });
+
+    const question = vi.mocked(prompts).mock.calls.at(-1)![0] as {
+      type: string; choices: { value: string }[];
+    };
+    expect(question.type).toBe('multiselect');
+    expect(question.choices.map(c => c.value)).toContain('context-menu');
+    expect(result).toEqual(['context-menu']);
+  });
+
+  it('treats an empty interactive answer as "no optional companions"', async () => {
+    vi.mocked(prompts).mockResolvedValueOnce({});
+
+    expect(await promptOptionalDependencies(new Set<ComponentName>(['tree']), { branch: 'master' })).toEqual([]);
+  });
 });
 
 describe('promptAddons', () => {
@@ -634,6 +681,26 @@ describe('promptAddons', () => {
     // context-menu is already resolved (skipped); the others are offered.
     const resolved = new Set<ComponentName>(['data-table', 'data-table/context-menu']);
     expect(await promptAddons(resolved, { all: true, branch: 'master' })).toEqual(['data-table/export', 'data-table/pivot']);
+  });
+
+  it('offers the addons of the resolved bases interactively and returns the picks', async () => {
+    vi.mocked(prompts).mockResolvedValueOnce({ selected: ['data-table/export'] });
+
+    const result = await promptAddons(new Set<ComponentName>(['data-table']), { branch: 'master' });
+
+    const question = vi.mocked(prompts).mock.calls.at(-1)![0] as {
+      type: string; message: string; choices: { value: string }[];
+    };
+    expect(question.type).toBe('multiselect');
+    expect(question.message).toContain('addons');
+    expect(question.choices.map(c => c.value)).toContain('data-table/context-menu');
+    expect(result).toEqual(['data-table/export']);
+  });
+
+  it('treats an empty interactive answer as "no addons"', async () => {
+    vi.mocked(prompts).mockResolvedValueOnce({});
+
+    expect(await promptAddons(new Set<ComponentName>(['data-table']), { branch: 'master' })).toEqual([]);
   });
 });
 
@@ -770,6 +837,328 @@ describe('install pipeline for a trio + sub/ component', () => {
     );
     expect(result.toInstall).toContain(TRIO);
     expect(result.conflicting).not.toContain(TRIO);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// add() — the command shell: selection, conflict prompts, dry-run, reporting
+// ---------------------------------------------------------------------------
+
+class ExitError extends Error {
+  constructor(readonly code: number) {
+    super(`process.exit(${code})`);
+  }
+}
+
+type Mock = ReturnType<typeof vi.fn>;
+const asMock = (fn: unknown): Mock => fn as Mock;
+
+interface InstallCall {
+  readonly components: ComponentName[];
+  readonly overwrite?: ComponentName[];
+  readonly forceOverwrite?: boolean;
+  readonly path?: string;
+  readonly blocksPath?: string;
+  readonly options: { registry?: string };
+}
+
+describe('add()', () => {
+  let logged: string[] = [];
+
+  const installResult = (partial: Partial<InstallResult> = {}): InstallResult => ({
+    installed: [], skipped: [], declined: [], pruned: [], warnings: [],
+    mergeReport: emptyMergeReport(), ...partial,
+  });
+
+  const lastInstallCall = (): InstallCall =>
+    asMock(performInstall).mock.calls.at(-1)![0] as InstallCall;
+
+  const output = (): string => logged.join('\n');
+
+  /** The headline `add` prints through the spinner (succeed / info / fail). */
+  const spinnerText = (fn: Mock): string => fn.mock.calls.map(c => String(c[0])).join('\n');
+
+  /** Every remote file differs from the (mocked) local content → conflict. */
+  const filesPresentAndChanged = (): void => {
+    asMock(fs.pathExists).mockResolvedValue(true);
+    asMock(fs.readFile).mockResolvedValue('// LOCAL EDIT');
+    asMock(fs.existsSync).mockReturnValue(true);
+    asMock(fs.readFileSync).mockReturnValue('// LOCAL EDIT');
+  };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    logged = [];
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logged.push(args.map(String).join(' '));
+    });
+    vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
+      throw new ExitError(code ?? 0);
+    }) as never);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response('// REMOTE', { status: 200 })),
+    );
+
+    asMock(fs.pathExists).mockResolvedValue(false);
+    asMock(fs.readFile).mockResolvedValue('');
+    asMock(fs.existsSync).mockReturnValue(false);
+    asMock(fs.readFileSync).mockReturnValue('');
+    asMock(prompts).mockResolvedValue({});
+    asMock(getConfig).mockResolvedValue(getDefaultConfig());
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge'] }));
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('exits 1 and points at `init` when components.json is missing', async () => {
+    asMock(getConfig).mockResolvedValue(null);
+
+    await expect(add(['badge'], { branch: 'master', remote: true })).rejects.toThrow(ExitError);
+    expect(output()).toContain('components.json not found');
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('exits 1 on an unknown component name and lists the valid ones', async () => {
+    await expect(add(['definitely-not-a-component'], { branch: 'master', remote: true })).rejects.toMatchObject({ code: 1 });
+    expect(output()).toContain('Invalid component(s): definitely-not-a-component');
+    expect(output()).toContain('Available components:');
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('prompts for a selection when no component is named, and installs what was picked', async () => {
+    asMock(prompts).mockResolvedValueOnce({ selected: ['badge'] });
+
+    await add([], { branch: 'master', remote: true, yes: true });
+
+    const question = asMock(prompts).mock.calls[0][0] as { type: string; choices: { value: string }[] };
+    expect(question.type).toBe('multiselect');
+    expect(question.choices.some(c => c.value === 'badge')).toBe(true);
+    expect(lastInstallCall().components).toEqual(['badge']);
+  });
+
+  it('installs nothing when the selection prompt comes back empty', async () => {
+    asMock(prompts).mockResolvedValueOnce({ selected: [] });
+
+    await add([], { branch: 'master', remote: true });
+
+    expect(output()).toContain('No components selected.');
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('adopts the registry configured in components.json when --registry is absent', async () => {
+    const config: Config = { ...getDefaultConfig(), registry: 'https://example.test/r' };
+    asMock(getConfig).mockResolvedValue(config);
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    expect(lastInstallCall().options.registry).toBe('https://example.test/r');
+  });
+
+  it('--dry-run reports the plan and writes nothing', async () => {
+    await add(['badge'], { branch: 'master', remote: true, dryRun: true, yes: true });
+
+    expect(output()).toContain('[Dry Run] No changes will be made.');
+    expect(output()).toContain('Would install');
+    expect(output()).toContain('badge');
+    expect(performInstall).not.toHaveBeenCalled();
+    expect(fs.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('--dry-run never blocks on the overwrite prompt; conflicts are reported as kept', async () => {
+    filesPresentAndChanged();
+
+    await add(['badge'], { branch: 'master', remote: true, dryRun: true });
+
+    expect(prompts).not.toHaveBeenCalled();
+    expect(output()).toContain('kept local changes');
+    expect(output()).not.toContain('Would overwrite');
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('--dry-run --overwrite lists what WOULD be overwritten and still writes nothing', async () => {
+    filesPresentAndChanged();
+
+    await add(['badge'], { branch: 'master', remote: true, dryRun: true, overwrite: true });
+
+    expect(output()).toContain('Would overwrite');
+    expect(output()).toContain('badge');
+    expect(performInstall).not.toHaveBeenCalled();
+    expect(fs.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('--all plans every non-addon component', async () => {
+    const selectable = Object.values(registry).filter(d => d.type !== 'addon');
+
+    await add([], { branch: 'master', remote: true, all: true, dryRun: true });
+
+    const listed = /Would install (\d+) component/.exec(output());
+    expect(listed).not.toBeNull();
+    expect(Number(listed![1])).toBeGreaterThanOrEqual(selectable.length);
+  });
+
+  it('--overwrite takes every conflicting component without prompting', async () => {
+    filesPresentAndChanged();
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['badge', 'skeleton'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, overwrite: true });
+
+    expect(prompts).not.toHaveBeenCalled();
+    const call = lastInstallCall();
+    expect(call.overwrite).toContain('badge');
+    expect(call.forceOverwrite).toBe(true);
+    expect(spinnerText(spinner.succeed)).toContain('Success! Added 2 component(s)');
+  });
+
+  it('overwrites only the components picked in the conflict prompt and declines the rest', async () => {
+    filesPresentAndChanged();
+    asMock(prompts).mockResolvedValueOnce({ selected: ['badge'] });
+    asMock(performInstall).mockResolvedValue(
+      installResult({ installed: ['badge'], declined: ['skeleton'] }),
+    );
+
+    await add(['badge'], { branch: 'master', remote: true });
+
+    const question = asMock(prompts).mock.calls[0][0] as { message: string; choices: { value: string }[] };
+    expect(question.message).toContain('OVERWRITE');
+    expect(question.choices.map(c => c.value).sort((a, b) => a.localeCompare(b))).toEqual(['badge', 'skeleton']);
+    // The diff preview names the changed files of each conflicting component.
+    expect(output()).toContain('badge/badge.component.ts');
+
+    const call = lastInstallCall();
+    expect(call.overwrite).toEqual(['badge']);
+    expect(call.forceOverwrite).toBe(true);
+    expect(output()).toContain('kept local changes');
+  });
+
+  it('installs nothing when every component is already up to date', async () => {
+    asMock(fs.pathExists).mockResolvedValue(true);
+    asMock(fs.readFile).mockResolvedValue('// REMOTE');
+
+    await add(['badge'], { branch: 'master', remote: true });
+
+    expect(output()).toContain('skipped (up to date)');
+    expect(performInstall).not.toHaveBeenCalled();
+  });
+
+  it('reports installed components, pruned files and warnings from the install', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({
+      installed: ['badge'],
+      pruned: ['badge/old-badge.ts'],
+      warnings: ['Lib file utils.ts differs from remote'],
+      skipped: ['skeleton'],
+    }));
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true });
+
+    expect(spinnerText(spinner.succeed)).toContain('Success! Added 1 component(s)');
+    expect(output()).toContain('Pruned obsolete files:');
+    expect(output()).toContain('badge/old-badge.ts');
+    expect(output()).toContain('Lib file utils.ts differs from remote');
+    expect(output()).toContain('skipped (up to date)');
+  });
+
+  it('exits 1 when the install throws', async () => {
+    const error = new Error('disk full');
+    asMock(performInstall).mockRejectedValue(error);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await expect(add(['badge'], { branch: 'master', remote: true, yes: true })).rejects.toMatchObject({ code: 1 });
+    expect(spinnerText(spinner.fail)).toContain('Failed to add components');
+    expect(consoleError).toHaveBeenCalledWith(error);
+  });
+
+  it('reports "no new components" through the spinner when the install writes nothing', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ declined: ['badge'] }));
+
+    await add(['badge'], { branch: 'master', remote: true, overwrite: true });
+
+    expect(spinnerText(spinner.info)).toContain('No new components installed.');
+    expect(spinner.succeed).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the addons of an installed base that were not installed', async () => {
+    asMock(performInstall).mockResolvedValue(installResult({ installed: ['data-table'] }));
+
+    await add(['data-table'], { branch: 'master', remote: true, yes: true });
+
+    expect(output()).toContain('Optional addons available (not installed):');
+    expect(output()).toContain('data-table/context-menu');
+    expect(output()).toContain('apply data-table/context-menu');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// add() — block destination resolution
+// ---------------------------------------------------------------------------
+
+describe('add() block destination', () => {
+  const lastInstallCall = (): InstallCall =>
+    asMock(performInstall).mock.calls.at(-1)![0] as InstallCall;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response('// REMOTE', { status: 200 })),
+    );
+    asMock(fs.pathExists).mockResolvedValue(false);
+    asMock(fs.existsSync).mockReturnValue(false);
+    asMock(prompts).mockResolvedValue({});
+    asMock(getConfig).mockResolvedValue(getDefaultConfig());
+    asMock(performInstall).mockResolvedValue({
+      installed: ['login'], skipped: [], declined: [], pruned: [], warnings: [],
+      mergeReport: emptyMergeReport(),
+    });
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('asks where blocks go when a block is in the set, defaulting to the blocks alias', async () => {
+    asMock(prompts).mockResolvedValueOnce({ dest: 'src/app/blocks' });
+
+    await add(['login'], { branch: 'master', remote: true });
+
+    const question = asMock(prompts).mock.calls[0][0] as { type: string; message: string; initial: string };
+    expect(question.type).toBe('text');
+    expect(question.message).toContain('blocks');
+    expect(question.initial.replaceAll('\\', '/')).toBe('src/blocks');
+
+    const call = lastInstallCall();
+    expect(call.blocksPath).toBe('src/app/blocks');
+    expect(call.path).toBeUndefined();
+  });
+
+  it('routes --path to the BLOCK destination when a block is in the set', async () => {
+    await add(['login'], { branch: 'master', remote: true, path: 'src/app/features' });
+
+    expect(prompts).not.toHaveBeenCalled();
+    const call = lastInstallCall();
+    expect(call.blocksPath).toBe('src/app/features');
+    expect(call.path).toBeUndefined();
+  });
+
+  it('--yes falls back to the configured blocks alias without prompting', async () => {
+    await add(['login'], { branch: 'master', remote: true, yes: true });
+
+    expect(prompts).not.toHaveBeenCalled();
+    const call = lastInstallCall();
+    expect(call.blocksPath).toBeUndefined();
+    expect(call.path).toBeUndefined();
+  });
+
+  it('keeps --path as the COMPONENT destination when no block is in the set', async () => {
+    asMock(performInstall).mockResolvedValue({
+      installed: ['badge'], skipped: [], declined: [], pruned: [], warnings: [],
+      mergeReport: emptyMergeReport(),
+    });
+
+    await add(['badge'], { branch: 'master', remote: true, yes: true, path: 'src/ui' });
+
+    const call = lastInstallCall();
+    expect(call.path).toBe('src/ui');
+    expect(call.blocksPath).toBeUndefined();
   });
 });
 
