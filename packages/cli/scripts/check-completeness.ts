@@ -12,6 +12,13 @@
  *    rides on multi-component EXPLICIT_SPECS entries.
  *  Both are exempt from all three checks.
  *
+ * Demo pages are matched by name (`<name>-demo.component.ts`) EXCEPT for the
+ * components listed in `DEMO_PAGE_ALIASES` (check-completeness-lib.ts), which are
+ * documented by a shared gallery page — the 24 charts on `/charts`, the 19
+ * animation primitives on `/animations`. An alias is verified, not trusted: the
+ * shared page must actually render the component (`unbackedAliases`), or the gate
+ * fails just as it would for a missing page.
+ *
  * e2e coverage is resolved from the orchestrator's spec catalogue
  * (`e2e/orchestrator/specs.ts`), never from harness folder names — so scenario
  * harnesses (`rtl`, `dark-mode`, …) are not mistaken for components, and a
@@ -31,8 +38,10 @@ import { parseRegistrySource, type RegistryEntry } from './sync-registry-lib';
 import { ALL_COMPONENTS } from '../../../e2e/orchestrator/specs';
 import {
     ARTIFACTS,
+    DEMO_PAGE_ALIASES,
     allowlistSize,
     componentsCoveredByE2e,
+    demoModuleFor,
     emptyAllowlist,
     findIssues,
     parseAllowlist,
@@ -40,11 +49,13 @@ import {
     seedAllowlist,
     serializeAllowlist,
     staleExemptions,
+    unbackedAliases,
     type Allowlist,
     type Artifact,
     type ComponentFacts,
     type Issue,
     type StaleExemption,
+    type UnbackedAlias,
 } from './check-completeness-lib';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -99,7 +110,7 @@ function collectFacts(entries: readonly RegistryEntry[]): ComponentFacts[] {
     const e2eCovered = componentsCoveredByE2e(ALL_COMPONENTS);
 
     return entries.map(entry => {
-        const moduleName = `${entry.name}-demo.component`;
+        const moduleName = demoModuleFor(entry.name);
         const demoFile = demoFiles.get(moduleName) ?? null;
         return {
             name: entry.name,
@@ -109,6 +120,26 @@ function collectFacts(entries: readonly RegistryEntry[]): ComponentFacts[] {
             e2eCovered: e2eCovered.has(entry.name),
         };
     });
+}
+
+/**
+ * A demo page's full source: the component file plus its external template when
+ * it has one, so a shared page that renders its examples from `<page>.html`
+ * still counts as backing its aliases.
+ */
+function readDemoPageSource(page: string, demoFiles: ReadonlyMap<string, string>): string | null {
+    const file = demoFiles.get(`${page}-demo.component`);
+    if (!file) return null;
+    const ts = path.resolve(REPO_ROOT, file);
+    const html = ts.replace(/\.ts$/, '.html');
+    const template = existsSync(html) ? readFileSync(html, 'utf-8') : '';
+    return readFileSync(ts, 'utf-8') + template;
+}
+
+/** Aliases whose target page never mentions the component it claims to document. */
+function checkAliases(): UnbackedAlias[] {
+    const demoFiles = indexDemoFiles(DEMOS_ROOT, new Map());
+    return unbackedAliases(DEMO_PAGE_ALIASES, page => readDemoPageSource(page, demoFiles));
 }
 
 // ── Allowlist ───────────────────────────────────────────────────────────
@@ -238,6 +269,21 @@ function reportStale(stale: readonly StaleExemption[]): void {
     for (const s of stale) console.error(`  ${s.component} [${s.artifact}: ${s.kind}]`);
 }
 
+function reportUnbackedAliases(unbacked: readonly UnbackedAlias[]): void {
+    if (unbacked.length === 0) return;
+    console.error(
+        '\nUnbacked demo aliases — DEMO_PAGE_ALIASES (packages/cli/scripts/check-completeness-lib.ts) ' +
+        'claims a shared page documents these components, but the page never renders them. ' +
+        'Add the example to the shared page, or drop the alias and give the component its own page:',
+    );
+    for (const alias of unbacked) {
+        const why = alias.pageMissing
+            ? `the '${alias.page}' demo page does not exist`
+            : `'${alias.page}-demo.component' never mentions it`;
+        console.error(`  ${alias.component} [demo]: ${why}`);
+    }
+}
+
 function reportBaselines(baselines: readonly string[], strict: boolean): void {
     if (baselines.length === 0) return;
     const log = strict ? console.error : console.warn;
@@ -265,14 +311,16 @@ function main(): void {
     const allowlist = strict ? emptyAllowlist() : loadAllowlist();
     const { errors, exempt } = partitionIssues(issues, allowlist);
     const stale = strict ? [] : staleExemptions(issues, allowlist);
+    const unbacked = checkAliases();
     const baselines = checkBaselines();
 
     reportExemptions(exempt);
     reportStale(stale);
     reportIssues('Missing artifacts (not allowlisted):', errors);
+    reportUnbackedAliases(unbacked);
     reportBaselines(baselines, strict);
 
-    if (errors.length > 0 || stale.length > 0 || (strict && baselines.length > 0)) {
+    if (errors.length > 0 || stale.length > 0 || unbacked.length > 0 || (strict && baselines.length > 0)) {
         console.error('\nCompleteness gate FAILED.');
         process.exitCode = 1;
         return;

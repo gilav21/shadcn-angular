@@ -1,7 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+    DEMO_PAGE_ALIASES,
     allowlistSize,
     componentsCoveredByE2e,
+    demoModuleFor,
+    demoPageFor,
     emptyAllowlist,
     findIssues,
     parseAllowlist,
@@ -9,6 +12,7 @@ import {
     seedAllowlist,
     serializeAllowlist,
     staleExemptions,
+    unbackedAliases,
     type Allowlist,
     type ComponentFacts,
     type Exemption,
@@ -198,5 +202,108 @@ describe('exemptions are kind-scoped', () => {
         expect(errors).toEqual([]);
         expect(silenced).toHaveLength(1);
         expect(staleExemptions(issues, grandfathered)).toEqual([]);
+    });
+});
+
+describe('demo page aliases', () => {
+    it('resolves an unaliased component to its own demo page', () => {
+        expect(demoPageFor('button')).toBe('button');
+        expect(demoModuleFor('button')).toBe('button-demo.component');
+    });
+
+    it('resolves an aliased component to the shared gallery page', () => {
+        expect(demoPageFor('funnel-chart')).toBe('charts');
+        expect(demoModuleFor('funnel-chart')).toBe('charts-demo.component');
+        expect(demoModuleFor('marquee')).toBe('animations-demo.component');
+    });
+
+    it('resolves a component whose page was named before it was', () => {
+        expect(demoModuleFor('tree')).toBe('tree-view-demo.component');
+    });
+
+    it('counts an aliased component as covered when the shared page is routed', () => {
+        const shared = facts({
+            name: 'funnel-chart',
+            demoFile: 'demo/src/app/demos/charts/charts-demo.component.ts',
+            demoRouted: true,
+        });
+        expect(findIssues([shared])).toEqual([]);
+    });
+
+    it('still reports an aliased component whose shared page is unrouted', () => {
+        const orphaned = facts({
+            name: 'funnel-chart',
+            demoFile: 'demo/src/app/demos/charts/charts-demo.component.ts',
+            demoRouted: false,
+        });
+        const [issue] = findIssues([orphaned]);
+        expect(issue.artifact).toBe('demo');
+        expect(issue.kind).toBe('orphan');
+    });
+
+    it('names the shared page when an aliased component has no page at all', () => {
+        const [issue] = findIssues([facts({ name: 'funnel-chart', demoFile: null })]);
+        expect(issue.kind).toBe('missing');
+        expect(issue.detail).toContain("shared 'charts' page");
+    });
+});
+
+describe('unbackedAliases', () => {
+    const aliases = { 'funnel-chart': 'charts', marquee: 'animations' };
+
+    it('accepts an alias whose shared page renders the component', () => {
+        const pages: Record<string, string> = {
+            charts: '<ui-funnel-chart [data]="d" />',
+            animations: '<ui-marquee>scrolling</ui-marquee>',
+        };
+        expect(unbackedAliases(aliases, page => pages[page] ?? null)).toEqual([]);
+    });
+
+    it('matches a directive spelling that drops the hyphens', () => {
+        const pages: Record<string, string> = {
+            charts: '<ui-funnel-chart />',
+            animations: '<button uiMarquee></button>',
+        };
+        expect(unbackedAliases(aliases, page => pages[page] ?? null)).toEqual([]);
+    });
+
+    it('rejects an alias whose shared page never mentions the component', () => {
+        const pages: Record<string, string> = {
+            charts: '<ui-line-chart />',
+            animations: '<ui-marquee />',
+        };
+        expect(unbackedAliases(aliases, page => pages[page] ?? null)).toEqual([
+            { component: 'funnel-chart', page: 'charts', pageMissing: false },
+        ]);
+    });
+
+    it('rejects an alias pointing at a page that does not exist', () => {
+        expect(unbackedAliases(aliases, () => null)).toEqual([
+            { component: 'funnel-chart', page: 'charts', pageMissing: true },
+            { component: 'marquee', page: 'animations', pageMissing: true },
+        ]);
+    });
+
+    it('reads each shared page once, however many components alias to it', () => {
+        const reads: string[] = [];
+        unbackedAliases({ a: 'charts', b: 'charts', c: 'charts' }, page => {
+            reads.push(page);
+            return 'a b c';
+        });
+        expect(reads).toEqual(['charts']);
+    });
+});
+
+describe('DEMO_PAGE_ALIASES', () => {
+    it('points every alias at one of the known shared pages', () => {
+        const pages = new Set(Object.values(DEMO_PAGE_ALIASES));
+        expect([...pages].sort((a, b) => a.localeCompare(b)))
+            .toEqual(['animations', 'charts', 'tree-view']);
+    });
+
+    it('never aliases a component to itself', () => {
+        for (const [component, page] of Object.entries(DEMO_PAGE_ALIASES)) {
+            expect(page).not.toBe(component);
+        }
     });
 });

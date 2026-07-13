@@ -12,6 +12,142 @@ export type Artifact = 'story' | 'demo' | 'e2e';
 
 export const ARTIFACTS: readonly Artifact[] = ['story', 'demo', 'e2e'];
 
+// ── Demo page aliases ───────────────────────────────────────────────────
+
+/**
+ * Components documented by a demo page that is NOT named `<name>-demo`.
+ *
+ * The default rule — one component, one `<name>-demo.component.ts` — is right
+ * for most of the library, but two situations make it wrong, and both are
+ * deliberate design, not drift:
+ *
+ *  1. **Shared gallery pages.** The 24 chart components are only meaningful
+ *     side by side (you pick a chart by comparing it against the others), so
+ *     they share one `/charts` page; the 19 animation primitives share
+ *     `/animations` for the same reason. Splitting either into one page per
+ *     component would make the demo app *worse* — 43 near-empty pages a user
+ *     has to click through one at a time.
+ *  2. **A page whose name predates the component's.** `tree` is documented by
+ *     `tree-view-demo` (routed at `/tree-view`); the page is real and complete,
+ *     only its filename disagrees with the registry key.
+ *
+ * This map is the exhaustive, reviewable statement of those exceptions: the
+ * KEY is the registry component name, the VALUE is the demo page's base name
+ * (so the page file is `<value>-demo.component.ts`). Anything not listed here
+ * still owes its own page.
+ *
+ * An entry is NOT a licence to skip the documentation — `unbackedAliases()`
+ * re-checks that the aliased page actually renders the component it claims to
+ * cover, so an alias for a component the shared page never mentions fails the
+ * gate exactly like a missing page would.
+ */
+export const DEMO_PAGE_ALIASES: Readonly<Record<string, string>> = {
+    // ── The /charts gallery ──
+    'area-chart': 'charts',
+    'bar-chart': 'charts',
+    'bar-chart-drilldown': 'charts',
+    'bar-race-chart': 'charts',
+    'bubble-chart': 'charts',
+    'bullet-chart': 'charts',
+    'calendar-heatmap': 'charts',
+    'chart-brush': 'charts',
+    'chart-legend': 'charts',
+    'chart-tooltip': 'charts',
+    'column-range-chart': 'charts',
+    'combo-chart': 'charts',
+    'data-table-range-chart': 'charts',
+    'funnel-chart': 'charts',
+    'gauge-chart': 'charts',
+    heatmap: 'charts',
+    'line-chart': 'charts',
+    'org-chart': 'charts',
+    'pie-chart': 'charts',
+    'pie-chart-drilldown': 'charts',
+    'radar-chart': 'charts',
+    'scatter-chart': 'charts',
+    'stacked-bar-chart': 'charts',
+    'waterfall-chart': 'charts',
+
+    // ── The /animations gallery ──
+    'blur-fade': 'animations',
+    'flip-text': 'animations',
+    'gradient-text': 'animations',
+    magnetic: 'animations',
+    marquee: 'animations',
+    meteors: 'animations',
+    'morphing-text': 'animations',
+    orbit: 'animations',
+    particles: 'animations',
+    ripple: 'animations',
+    'scroll-progress': 'animations',
+    'shine-border': 'animations',
+    sparkles: 'animations',
+    'stagger-children': 'animations',
+    'streaming-text': 'animations',
+    'text-reveal': 'animations',
+    'typing-animation': 'animations',
+    'wobble-card': 'animations',
+    'word-rotate': 'animations',
+
+    // ── Page named before the component was ──
+    tree: 'tree-view',
+};
+
+/** The demo page base name that documents `component` — itself, unless aliased. */
+export function demoPageFor(component: string): string {
+    return DEMO_PAGE_ALIASES[component] ?? component;
+}
+
+/** The demo MODULE basename (`<page>-demo.component`) that documents `component`. */
+export function demoModuleFor(component: string): string {
+    return `${demoPageFor(component)}-demo.component`;
+}
+
+/** An alias pointing at a page that does not, in fact, render the component. */
+export interface UnbackedAlias {
+    readonly component: string;
+    readonly page: string;
+    /** True when the page file itself is missing, as opposed to merely silent. */
+    readonly pageMissing: boolean;
+}
+
+/**
+ * Collapses hyphens and case so a component name can be looked for in demo
+ * source regardless of how it is spelled there: `line-chart` is written
+ * `<ui-line-chart>` in a template but `uiLineChart`-ish in a directive binding,
+ * and both normalize to a string containing `linechart`.
+ */
+function normalizeForSearch(value: string): string {
+    return value.toLowerCase().replaceAll('-', '');
+}
+
+/**
+ * Aliases the shared page does not honour. Keeps `DEMO_PAGE_ALIASES` from
+ * degrading into a rubber stamp: listing `funnel-chart: 'charts'` only silences
+ * the gate while the charts page genuinely renders a funnel chart. If someone
+ * deletes the section, the alias goes unbacked and the gate fails.
+ *
+ * @param readPage returns the demo page's source, or null when it is absent
+ */
+export function unbackedAliases(
+    aliases: Readonly<Record<string, string>>,
+    readPage: (page: string) => string | null,
+): UnbackedAlias[] {
+    const sources = new Map<string, string | null>();
+    const unbacked: UnbackedAlias[] = [];
+
+    for (const [component, page] of Object.entries(aliases)) {
+        if (!sources.has(page)) sources.set(page, readPage(page));
+        const source = sources.get(page) ?? null;
+        if (source === null) {
+            unbacked.push({ component, page, pageMissing: true });
+        } else if (!normalizeForSearch(source).includes(normalizeForSearch(component))) {
+            unbacked.push({ component, page, pageMissing: false });
+        }
+    }
+    return unbacked;
+}
+
 /** What the script discovered on disk for one registry component. */
 export interface ComponentFacts {
     readonly name: string;
@@ -89,13 +225,13 @@ export function componentsCoveredByE2e(specs: readonly SpecLike[]): Set<string> 
 }
 
 function demoIssue(facts: ComponentFacts): Issue | null {
+    const page = demoPageFor(facts.name);
+    const aliased = page !== facts.name;
     if (!facts.demoFile) {
-        return {
-            component: facts.name,
-            artifact: 'demo',
-            kind: 'missing',
-            detail: 'no demo page (expected demo/src/app/demos/**/<name>-demo.component.ts)',
-        };
+        const expected = aliased
+            ? `no demo page — DEMO_PAGE_ALIASES sends it to the shared '${page}' page, which does not exist`
+            : 'no demo page (expected demo/src/app/demos/**/<name>-demo.component.ts)';
+        return { component: facts.name, artifact: 'demo', kind: 'missing', detail: expected };
     }
     if (facts.demoRouted) return null;
     return {
