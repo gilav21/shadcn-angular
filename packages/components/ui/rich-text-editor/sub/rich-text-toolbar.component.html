@@ -102,26 +102,6 @@
           </div>
         </ui-popover-content>
       </ui-popover>
-    } @else if (item === 'emoji') {
-      <ui-emoji-picker
-        [open]="openPopover() === 'emoji'"
-        [closeOnSelect]="false"
-        [closeOnScroll]="true"
-        (openChange)="$event ? openPopoverPanel('emoji') : closePopoverPanel('emoji')"
-        (emojiSelect)="onEmojiSelect($event)"
-      >
-        <ui-emoji-picker-trigger>
-          <button
-            type="button"
-            [class]="buttonClasses(item)"
-            [title]="getTooltip(item)"
-            [disabled]="interactionDisabled()"
-          >
-            <span [innerHTML]="getIcon('emoji')"></span>
-          </button>
-        </ui-emoji-picker-trigger>
-        <ui-emoji-picker-content strategy="fixed" />
-      </ui-emoji-picker>
     } @else if (item === 'fontColor') {
       <ui-popover [open]="openPopover() === 'fontColor'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('fontColor') : closePopoverPanel('fontColor')">
         <ui-popover-trigger>
@@ -317,15 +297,21 @@
     </button>
   }
   @for (slot of orderedAddonSlots(); track slot.id) {
-    <button
-      type="button"
-      [attr.data-addon-slot]="slot.id"
-      [class]="addonButtonClasses(slot)"
-      [title]="slot.tooltip"
-      [disabled]="interactionDisabled() || !addonSlotEnabled(slot)"
-      (click)="addonSlotClick.emit({ slot, event: $event })"
-    >
-      <span [innerHTML]="getSafeIcon(slot.icon)"></span>
-    </button>
+    @if (slot.component; as slotComponent) {
+      <span [attr.data-addon-slot]="slot.id" class="contents">
+        <ng-container *ngComponentOutlet="slotComponent; injector: slotInjector(slot)" />
+      </span>
+    } @else if (slot.icon) {
+      <button
+        type="button"
+        [attr.data-addon-slot]="slot.id"
+        [class]="addonButtonClasses(slot)"
+        [title]="slot.tooltip"
+        [disabled]="interactionDisabled() || !addonSlotEnabled(slot)"
+        (click)="addonSlotClick.emit({ slot, event: $event })"
+      >
+        <span [innerHTML]="getSafeIcon(slot.icon)"></span>
+      </button>
+    }
   }
-</div>
+</div>

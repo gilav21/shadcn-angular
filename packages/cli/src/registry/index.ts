@@ -838,10 +838,13 @@ export const registry = defineRegistry({
     category: 'editor',
     description: 'WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.',
     tags: ['rich-text-editor', 'wysiwyg', 'editor', 'text', 'formatting'],
-    addons: ['rich-text-editor/actions'],
+    addons: ['rich-text-editor/actions', 'rich-text-editor/emoji'],
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-image.utils.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-image-resizer.component.html', 'rich-text-editor/sub/rich-text-image-resizer.component.ts', 'rich-text-editor/sub/rich-text-mention.component.html', 'rich-text-editor/sub/rich-text-mention.component.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
-    dependencies: ['autocomplete', 'button', 'color-picker', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
+    dependencies: ['autocomplete', 'button', 'color-picker', 'dialog', 'popover', 'scroll-area', 'separator'],
     libFiles: ['addon-slots.ts', 'ai.ts', 'color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
+    breaking: [
+      { kind: 'removal', from: "the 'emoji' toolbar item + [emojiPicker] input on <ui-rich-text-editor>", to: 'the uiRteEmoji directive', note: "The emoji picker moved to the opt-in emoji addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/emoji`, add `uiRteEmoji` to the editor element, and remove 'emoji' from any custom [toolbarItems] arrays (the button now renders after the built-in items).", codemod: 'none', suggestedAddon: 'rich-text-editor/emoji' },
+    ],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
@@ -1419,6 +1422,22 @@ export const registry = defineRegistry({
     attach: {
       import: "RichTextActionsDirective from './ui/rich-text-editor/addons/actions'",
       selector: 'uiRteActions',
+    },
+  },
+  'rich-text-editor/emoji': {
+    name: 'rich-text-editor/emoji',
+    type: 'addon',
+    parent: 'rich-text-editor',
+    category: 'editor',
+    description: 'Emoji picker toolbar button for the rich text editor; inserts the picked emoji at the caret.',
+    tags: ['rich-text', 'emoji', 'picker', 'toolbar', 'addon'],
+    files: ['rich-text-editor/addons/emoji/index.ts', 'rich-text-editor/addons/emoji/rich-text-emoji-button.component.html', 'rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts', 'rich-text-editor/addons/emoji/rich-text-emoji.context.ts', 'rich-text-editor/addons/emoji/rich-text-emoji.directive.ts', 'rich-text-editor/addons/emoji/rich-text-emoji.locales.ts'],
+    libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['emoji-picker', 'rich-text-editor'],
+    requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    attach: {
+      import: "RichTextEmojiDirective from './ui/rich-text-editor/addons/emoji'",
+      selector: 'uiRteEmoji',
     },
   },
 });

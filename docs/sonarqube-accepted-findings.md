@@ -120,6 +120,7 @@ re-scans.
 | `icon/icon.component.ts` | `rawHtml` comes exclusively from `DEFAULT_ICONS` (hardcoded SVG paths) or consumer-registered icons via `provideIcons()`. Never user input. |
 | `rich-text-editor/sub/rich-text-image-resizer.component.ts` | Trusted static SVG icon constants defined in the file. |
 | `rich-text-editor/sub/rich-text-toolbar.component.ts` | Trusted static toolbar SVG icons (and developer-supplied custom icons via the public API). Never untrusted end-user input. |
+| `rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts` | The trusted static `EMOJI_ICON` SVG constant defined in the file. Never user input. |
 
 > To suppress these in a client's SonarQube: mark each issue **Won't Fix** /
 > **Accepted** with a link to this file, or mirror the file/rule exclusion in

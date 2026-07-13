@@ -1,6 +1,7 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  Injector,
   input,
   output,
   computed,
@@ -8,6 +9,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { NgComponentOutlet } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../lib/utils';
 import { ButtonComponent } from '../../button';
@@ -17,16 +19,11 @@ import {
   PopoverTriggerComponent,
   PopoverContentComponent,
 } from '../../popover';
-import {
-  EmojiPickerComponent,
-  EmojiPickerTriggerComponent,
-  EmojiPickerContentComponent,
-} from '../../emoji-picker';
 import { AutocompleteComponent } from '../../autocomplete';
 import { ColorPickerComponent } from '../../color-picker';
 import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
 import { RichTextCustomToolbarItem } from '../rich-text-editor.component';
-import type { RichTextToolbarSlot } from '../rich-text-editor.host';
+import { RichTextToolbarViewContext, type RichTextToolbarSlot } from '../rich-text-editor.host';
 
 /**
  * Identifier for a toolbar button or visual separator. Pass an array of these
@@ -48,7 +45,6 @@ import type { RichTextToolbarSlot } from '../rich-text-editor.host';
  * **Insert:**
  * - `'link'` — Opens a link insertion dialog.
  * - `'image'` — Opens an image insertion dialog.
- * - `'emoji'` — Opens the emoji picker.
  *
  * **Styling:**
  * - `'fontColor'` — Text color picker.
@@ -88,7 +84,6 @@ export type ToolbarItem =
   | 'codeBlock'
   | 'link'
   | 'image'
-  | 'emoji'
   | 'separator'
   | 'undo'
   | 'redo'
@@ -131,7 +126,6 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'codeBlock', label: 'Code Block', localeKey: 'codeBlock' },
   { id: 'link', label: 'Insert Link', localeKey: 'insertLink', shortcut: 'Ctrl+K' },
   { id: 'image', label: 'Insert Image', localeKey: 'insertImage' },
-  { id: 'emoji', label: 'Insert Emoji', localeKey: 'insertEmoji' },
   { id: 'undo', label: 'Undo', localeKey: 'undo', shortcut: 'Ctrl+Z' },
   { id: 'redo', label: 'Redo', localeKey: 'redo', shortcut: 'Ctrl+Shift+Z' },
   { id: 'clear', label: 'Clear Formatting', localeKey: 'clearFormatting' },
@@ -166,7 +160,6 @@ const ICONS: Record<string, string> = {
   codeBlock: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 9.5 8 12l2 2.5"/><path d="m14 9.5 2 2.5-2 2.5"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`,
   link: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
   image: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`,
-  emoji: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>`,
   undo: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
   redo: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`,
   clear: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>`,
@@ -224,12 +217,10 @@ export type FontFamilyStrategy = 'append' | 'replace';
     PopoverComponent,
     PopoverTriggerComponent,
     PopoverContentComponent,
-    EmojiPickerComponent,
-    EmojiPickerTriggerComponent,
-    EmojiPickerContentComponent,
     AutocompleteComponent,
     ColorPickerComponent,
     FormsModule,
+    NgComponentOutlet,
   ],
   templateUrl: './rich-text-toolbar.component.html',
   styleUrl: './rich-text-toolbar.component.css',
@@ -247,7 +238,7 @@ export class RichTextToolbarComponent {
     'separator',
     'bulletList', 'orderedList',
     'separator',
-    'link', 'image', 'emoji',
+    'link', 'image',
   ]);
 
   activeFormats = input<Set<string>>(new Set());
@@ -270,7 +261,6 @@ export class RichTextToolbarComponent {
   formatCommand = output<string>();
   linkInsert = output<{ text: string; url: string }>();
   imageInsert = output<{ alt: string; src: string }>();
-  emojiInsert = output<string>();
   colorSelect = output<{ type: 'fontColor' | 'backgroundColor'; color: string }>();
   tableInsert = output<{ rows: number; cols: number }>();
   fileImport = output<File>();
@@ -281,6 +271,29 @@ export class RichTextToolbarComponent {
 
   readonly orderedAddonSlots = computed(() =>
     [...this.addonSlots()].sort((a, b) => (a.order ?? 1000) - (b.order ?? 1000)));
+
+  private readonly injector = inject(Injector);
+  private readonly viewContext: RichTextToolbarViewContext = {
+    compact: this.compact,
+  };
+  /**
+   * Per-slot injectors exposing the toolbar view context to component slots.
+   * Cached by slot object identity (a registration never mutates), so other
+   * addons registering/unregistering can't recreate this slot's component.
+   */
+  private readonly slotInjectorCache = new WeakMap<RichTextToolbarSlot, Injector>();
+
+  slotInjector(slot: RichTextToolbarSlot): Injector {
+    let slotInjector = this.slotInjectorCache.get(slot);
+    if (!slotInjector) {
+      slotInjector = Injector.create({
+        providers: [{ provide: RichTextToolbarViewContext, useValue: this.viewContext }],
+        parent: slot.injector ?? this.injector,
+      });
+      this.slotInjectorCache.set(slot, slotInjector);
+    }
+    return slotInjector;
+  }
 
   tableGridHoverRows = signal(0);
   tableGridHoverCols = signal(0);
@@ -409,11 +422,6 @@ export class RichTextToolbarComponent {
     if (src) {
       this.imageInsert.emit({ alt: alt || 'Image', src });
     }
-  }
-
-  onEmojiSelect(emoji: string): void {
-    if (this.interactionDisabled()) return;
-    this.emojiInsert.emit(emoji);
   }
 
   onColorSelect(type: 'fontColor' | 'backgroundColor', color: string): void {

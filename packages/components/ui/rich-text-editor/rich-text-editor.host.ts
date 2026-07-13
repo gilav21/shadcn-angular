@@ -1,23 +1,48 @@
-import type { Signal } from '@angular/core';
+import type { Injector, Signal, Type } from '@angular/core';
 import { AddonSlotRegistry } from '../../lib/addon-slots';
 import type { RichTextCommandRegistry } from './rich-text-command-registry.service';
 
 export { AddonSlotRegistry } from '../../lib/addon-slots';
 
-/** An addon-contributed toolbar button, rendered by the base after built-ins. */
+/**
+ * An addon-contributed toolbar item, rendered by the base after built-ins.
+ *
+ * Two shapes:
+ * - **Button slot** — provide `icon` + `tooltip` + `onClick` and the base
+ *   renders a standard toolbar button.
+ * - **Component slot** — provide `component` and the base renders it in place
+ *   of a button via component outlet; the component owns its own trigger UI
+ *   and can `inject(RichTextEditorAddonHost)` for editor access. When
+ *   `component` is set the button fields are ignored.
+ */
 export interface RichTextToolbarSlot {
     /** Stable id (also the `data-addon-slot` value). */
     readonly id: string;
-    /** Inline SVG markup for the button glyph. */
-    readonly icon: string;
-    readonly tooltip: string;
+    /** Inline SVG markup for the button glyph (button slots). */
+    readonly icon?: string;
+    readonly tooltip?: string;
     /** Sort order among slots; lower first. Default appends. */
     readonly order?: number;
     /** Return false to disable the button. Polled through signal reads. */
     readonly isEnabled?: () => boolean;
     /** Return true to render the button in its active state. */
     readonly isActive?: () => boolean;
-    readonly onClick: (event: Event) => void;
+    readonly onClick?: (event: Event) => void;
+    /** Component rendered instead of a button; wins over the button fields. */
+    readonly component?: Type<unknown>;
+    /** Optional injector for `component` (defaults to the toolbar's view injector). */
+    readonly injector?: Injector;
+}
+
+/**
+ * View context the toolbar provides to component slots. Injectable from a
+ * slot component (`inject(RichTextToolbarViewContext, { optional: true })`)
+ * so the slot can match the hosting toolbar's rendering mode — e.g. use the
+ * compact button sizing inside the floating/bubble toolbar.
+ */
+export abstract class RichTextToolbarViewContext {
+    /** Whether the hosting toolbar renders in compact (floating) mode. */
+    abstract readonly compact: Signal<boolean>;
 }
 
 /** A read-only snapshot of the editor's current selection / caret target. */
@@ -57,6 +82,13 @@ export abstract class RichTextEditorAddonHost {
     abstract mutateContent(mutate: (root: HTMLElement) => void): void;
     /** Wrap the saved text selection in the built element; returns created elements. */
     abstract wrapSelection(build: () => HTMLElement): HTMLElement[];
+    /**
+     * Insert plain text at the (saved) caret position from an overlay UI
+     * (picker, menu): restores the in-editor selection, inserts as one
+     * history entry, re-saves the caret, and guards against the mobile
+     * keyboard flashing while focus returns from the overlay.
+     */
+    abstract insertTextFromOverlay(text: string): void;
     /** Whether the editor is disabled. */
     abstract readonly disabled: Signal<boolean>;
     /** Whether the editor is read-only. */

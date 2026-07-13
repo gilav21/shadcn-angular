@@ -1,8 +1,24 @@
+import { Component, inject } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RichTextToolbarComponent } from './rich-text-toolbar.component';
+import { RichTextToolbarViewContext } from '../rich-text-editor.host';
 import { RICH_TEXT_LOCALES } from '../rich-text-locales';
 import type { RichTextCustomToolbarItem } from '../rich-text-editor.component';
+
+@Component({
+    standalone: true,
+    template: `<span data-testid="slot-probe">probe</span>`,
+})
+class SlotProbeComponent {}
+
+@Component({
+    standalone: true,
+    template: `<span data-testid="compact-probe">compact:{{ view?.compact() }}</span>`,
+})
+class CompactProbeComponent {
+    protected readonly view = inject(RichTextToolbarViewContext, { optional: true });
+}
 
 function makeFileEvent(file: File | null): Event {
     const input = document.createElement('input');
@@ -204,13 +220,6 @@ describe('RichTextToolbarComponent', () => {
             expect(emitted).toBe(false);
         });
 
-        it('emits emojiInsert', () => {
-            let emoji: string | undefined;
-            component.emojiInsert.subscribe((e) => (emoji = e));
-            component.onEmojiSelect('😀');
-            expect(emoji).toBe('😀');
-        });
-
         it('emits colorSelect with type and color', () => {
             let payload: { type: string; color: string } | undefined;
             component.colorSelect.subscribe((p) => (payload = p));
@@ -326,11 +335,9 @@ describe('RichTextToolbarComponent', () => {
             let count = 0;
             component.linkInsert.subscribe(() => count++);
             component.imageInsert.subscribe(() => count++);
-            component.emojiInsert.subscribe(() => count++);
             component.colorSelect.subscribe(() => count++);
             component.onInsertLink('a', 'https://x.com');
             component.onInsertImage('https://x.com/a.png', 'a');
-            component.onEmojiSelect('x');
             component.onColorSelect('fontColor', '#000');
             expect(count).toBe(0);
         });
@@ -513,6 +520,62 @@ describe('RichTextToolbarComponent', () => {
 
         it('returns a SafeHtml for a custom icon', () => {
             expect(component.getSafeIcon('<svg></svg>')).toBeTruthy();
+        });
+    });
+
+    describe('addon slots', () => {
+        it('renders a button slot with its icon, tooltip, and data-addon-slot id', () => {
+            fixture.componentRef.setInput('items', []);
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'a.button', icon: '<svg></svg>', tooltip: 'Addon', onClick: () => void 0 },
+            ]);
+            fixture.detectChanges();
+            const btn = fixture.nativeElement.querySelector('[data-addon-slot="a.button"]') as HTMLButtonElement;
+            expect(btn.tagName).toBe('BUTTON');
+            expect(btn.title).toBe('Addon');
+        });
+
+        it('renders a component slot through the outlet instead of a button', () => {
+            fixture.componentRef.setInput('items', []);
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'a.component', component: SlotProbeComponent },
+            ]);
+            fixture.detectChanges();
+            const slot = fixture.nativeElement.querySelector('[data-addon-slot="a.component"]') as HTMLElement;
+            expect(slot.tagName).toBe('SPAN');
+            expect(slot.querySelector('[data-testid="slot-probe"]')).not.toBeNull();
+            expect(slot.querySelector('button')).toBeNull();
+        });
+
+        it('renders nothing for a malformed slot with neither component nor icon', () => {
+            fixture.componentRef.setInput('items', []);
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'a.broken', tooltip: 'broken', onClick: () => void 0 },
+            ]);
+            fixture.detectChanges();
+            expect(fixture.nativeElement.querySelector('[data-addon-slot="a.broken"]')).toBeNull();
+        });
+
+        it('provides the toolbar view context (compact) to component slots', () => {
+            fixture.componentRef.setInput('items', []);
+            fixture.componentRef.setInput('compact', true);
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'a.ctx', component: CompactProbeComponent },
+            ]);
+            fixture.detectChanges();
+            const probe = fixture.nativeElement.querySelector('[data-testid="compact-probe"]') as HTMLElement;
+            expect(probe.textContent).toBe('compact:true');
+        });
+
+        it('orders slots by their order value, lowest first', () => {
+            fixture.componentRef.setInput('items', []);
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'late', icon: '<svg></svg>', tooltip: 'late', order: 900, onClick: () => void 0 },
+                { id: 'early', component: SlotProbeComponent, order: 10 },
+            ]);
+            fixture.detectChanges();
+            const slots = [...fixture.nativeElement.querySelectorAll('[data-addon-slot]')] as HTMLElement[];
+            expect(slots.map((s) => s.getAttribute('data-addon-slot'))).toEqual(['early', 'late']);
         });
     });
 

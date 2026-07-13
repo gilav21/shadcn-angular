@@ -109,6 +109,14 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/actions', 'dialog', 'color-picker'],
         label: 'rte-actions',
     },
+    // addon system (rich-text): install the editor + its `emoji` addon; prove
+    // the addon contributes the emoji picker toolbar button as a component
+    // slot and a pick lands in the content (the emoji-picker dependency ships
+    // with the addon, not the base).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/emoji'],
+        label: 'rte-emoji',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

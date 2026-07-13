@@ -2218,7 +2218,8 @@
       "formatting"
     ],
     "addons": [
-      "rich-text-editor/actions"
+      "rich-text-editor/actions",
+      "rich-text-editor/emoji"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2244,7 +2245,6 @@
       "button",
       "color-picker",
       "dialog",
-      "emoji-picker",
       "popover",
       "scroll-area",
       "separator"
@@ -2268,6 +2268,16 @@
       "parsers/zip-reader.ts",
       "shortcut-binding.service.ts",
       "touch.ts"
+    ],
+    "breaking": [
+      {
+        "kind": "removal",
+        "from": "the 'emoji' toolbar item + [emojiPicker] input on <ui-rich-text-editor>",
+        "to": "the uiRteEmoji directive",
+        "note": "The emoji picker moved to the opt-in emoji addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/emoji`, add `uiRteEmoji` to the editor element, and remove 'emoji' from any custom [toolbarItems] arrays (the button now renders after the built-in items).",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/emoji"
+      }
     ],
     "shortcutDefinitions": [
       {
@@ -3882,6 +3892,48 @@
     "attach": {
       "import": "RichTextActionsDirective from './ui/rich-text-editor/addons/actions'",
       "selector": "uiRteActions"
+    }
+  },
+  "rich-text-editor/emoji": {
+    "name": "rich-text-editor/emoji",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "Emoji picker toolbar button for the rich text editor; inserts the picked emoji at the caret.",
+    "tags": [
+      "rich-text",
+      "emoji",
+      "picker",
+      "toolbar",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/emoji/index.ts",
+      "rich-text-editor/addons/emoji/rich-text-emoji-button.component.html",
+      "rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts",
+      "rich-text-editor/addons/emoji/rich-text-emoji.context.ts",
+      "rich-text-editor/addons/emoji/rich-text-emoji.directive.ts",
+      "rich-text-editor/addons/emoji/rich-text-emoji.locales.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "emoji-picker",
+      "rich-text-editor"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts"
+    ],
+    "attach": {
+      "import": "RichTextEmojiDirective from './ui/rich-text-editor/addons/emoji'",
+      "selector": "uiRteEmoji"
     }
   }
 }

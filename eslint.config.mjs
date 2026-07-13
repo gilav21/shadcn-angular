@@ -164,6 +164,7 @@ export default tseslint.config(
     files: [
       'packages/components/ui/file-viewer/file-viewer.component.ts',
       'packages/components/ui/icon/icon.component.ts',
+      'packages/components/ui/rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts',
       'packages/components/ui/rich-text-editor/sub/rich-text-image-resizer.component.ts',
       'packages/components/ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
     ],

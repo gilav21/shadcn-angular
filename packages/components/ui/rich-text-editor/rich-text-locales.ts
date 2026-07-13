@@ -17,7 +17,6 @@ export interface RichTextLocale extends LocaleMeta {
         codeBlock: string;
         insertLink: string;
         insertImage: string;
-        insertEmoji: string;
         undo: string;
         redo: string;
         clearFormatting: string;
@@ -242,7 +241,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             codeBlock: 'Code Block',
             insertLink: 'Insert Link',
             insertImage: 'Insert Image',
-            insertEmoji: 'Insert Emoji',
             undo: 'Undo',
             redo: 'Redo',
             clearFormatting: 'Clear Formatting',
@@ -451,7 +449,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             codeBlock: 'בלוק קוד',
             insertLink: 'הוספת קישור',
             insertImage: 'הוספת תמונה',
-            insertEmoji: 'הוספת אמוג\'י',
             undo: 'ביטול',
             redo: 'ביצוע חוזר',
             clearFormatting: 'ניקוי עיצוב',
@@ -660,7 +657,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             codeBlock: 'كتلة كود',
             insertLink: 'إدراج رابط',
             insertImage: 'إدراج صورة',
-            insertEmoji: 'إدراج رمز تعبيري',
             undo: 'تراجع',
             redo: 'إعادة',
             clearFormatting: 'مسح التنسيق',
@@ -850,7 +846,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             codeBlock: 'Codeblock',
             insertLink: 'Link einfügen',
             insertImage: 'Bild einfügen',
-            insertEmoji: 'Emoji einfügen',
             undo: 'Rückgängig',
             redo: 'Wiederherstellen',
             clearFormatting: 'Formatierung löschen',
@@ -1040,7 +1035,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             codeBlock: 'Bloc de code',
             insertLink: 'Insérer un lien',
             insertImage: 'Insérer une image',
-            insertEmoji: 'Insérer un emoji',
             undo: 'Annuler',
             redo: 'Rétablir',
             clearFormatting: 'Effacer la mise en forme',
@@ -1230,7 +1224,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             codeBlock: 'Bloque de código',
             insertLink: 'Insertar enlace',
             insertImage: 'Insertar imagen',
-            insertEmoji: 'Insertar emoji',
             undo: 'Deshacer',
             redo: 'Rehacer',
             clearFormatting: 'Borrar formato',
@@ -1420,7 +1413,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             codeBlock: 'コードブロック',
             insertLink: 'リンクを挿入',
             insertImage: '画像を挿入',
-            insertEmoji: '絵文字を挿入',
             undo: '元に戻す',
             redo: 'やり直し',
             clearFormatting: '書式をクリア',
@@ -1610,7 +1602,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             codeBlock: '代码块',
             insertLink: '插入链接',
             insertImage: '插入图片',
-            insertEmoji: '插入表情',
             undo: '撤销',
             redo: '重做',
             clearFormatting: '清除格式',
@@ -1800,7 +1791,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             codeBlock: 'Блок кода',
             insertLink: 'Вставить ссылку',
             insertImage: 'Вставить изображение',
-            insertEmoji: 'Вставить эмодзи',
             undo: 'Отменить',
             redo: 'Повторить',
             clearFormatting: 'Очистить форматирование',
@@ -1990,7 +1980,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             codeBlock: 'Bloco de código',
             insertLink: 'Inserir link',
             insertImage: 'Inserir imagem',
-            insertEmoji: 'Inserir emoji',
             undo: 'Desfazer',
             redo: 'Refazer',
             clearFormatting: 'Limpar formatação',

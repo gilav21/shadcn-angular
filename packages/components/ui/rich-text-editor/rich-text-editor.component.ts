@@ -484,7 +484,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'fontColor', 'backgroundColor', 'fontSize', 'fontFamily',
     'separator',
-    'link', 'image', 'importFile', 'emoji',
+    'link', 'image', 'importFile',
     'separator',
     'table',
     'separator',
@@ -836,10 +836,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     tagRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
 
-    // ג”€ג”€ Media & emoji ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-
-    /** Show the emoji picker button in the toolbar. */
-    emojiPicker = input<boolean>(true);
+    // ג”€ג”€ Media ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Enable image insertion (toolbar button, paste, drag-and-drop). */
     images = input<boolean>(true);
@@ -2874,7 +2871,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return false;
     }
 
-    onEmojiInsert(emoji: string): void {
+    insertTextFromOverlay(text: string): void {
         this.flushPendingHistoryPush();
         const editor = this.editorDiv?.nativeElement;
         const prevInputMode = editor?.inputMode;
@@ -2882,7 +2879,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             editor.inputMode = 'none';
         }
         this.restoreSelection();
-        this.insertText(emoji);
+        this.insertText(text);
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
@@ -5571,7 +5568,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Handle a click on an addon-contributed toolbar slot. */
     onAddonSlotClick(payload: { slot: RichTextToolbarSlot; event: Event }): void {
-        payload.slot.onClick(payload.event);
+        payload.slot.onClick?.(payload.event);
     }
 
     restoreSelection(): void {
@@ -5591,7 +5588,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
         // 3. Otherwise (editor never focused, or the caret is in the toolbar /
-        //    emoji search field) drop the caret at the end of the editor content
+        //    overlay UI, e.g. an addon picker's search field) drop the caret at the end of the editor content
         //    so insertions always land in the text.
         this.focusEditor();
         const range = this.document.createRange();

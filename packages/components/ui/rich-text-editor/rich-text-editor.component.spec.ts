@@ -2234,7 +2234,7 @@ describe('RichTextEditorComponent — formatting, blocks & lists', () => {
     });
 });
 
-describe('RichTextEditorComponent — toolbar actions (link, image, emoji, color, font)', () => {
+describe('RichTextEditorComponent — toolbar actions (link, image, color, font)', () => {
     let fixture: ComponentFixture<RichTextEditorComponent>;
     let component: RichTextEditorComponent;
     let editor: HTMLDivElement;
@@ -2365,7 +2365,7 @@ describe('RichTextEditorComponent — toolbar actions (link, image, emoji, color
         expect(errSpy).toHaveBeenCalledWith('Invalid image URL.');
     });
 
-    it('inserts an emoji at the caret position', () => {
+    it('inserts overlay text at the caret position', () => {
         component.writeValue('<p>hi</p>');
         fixture.detectChanges();
         const text = editor.querySelector('p')!.firstChild as Text;
@@ -2375,7 +2375,7 @@ describe('RichTextEditorComponent — toolbar actions (link, image, emoji, color
             (component as unknown as { savedRange: Range }).savedRange = selection.getRangeAt(0).cloneRange();
         }
 
-        component.onEmojiInsert('🎉');
+        component.insertTextFromOverlay('🎉');
 
         expect(editor.textContent).toContain('🎉');
     });
@@ -4677,7 +4677,7 @@ describe('RichTextEditorComponent — image source guards & paste max length', (
         expect(editor.textContent).toBe('abcdefgh');
     });
 
-    it('emoji insertion temporarily disables the editor inputMode then restores it', () => {
+    it('overlay text insertion temporarily disables the editor inputMode then restores it', () => {
         vi.useFakeTimers();
         component.writeValue('<p>e</p>');
         fixture.detectChanges();
@@ -4690,7 +4690,7 @@ describe('RichTextEditorComponent — image source guards & paste max length', (
         sel?.removeAllRanges();
         sel?.addRange(r);
 
-        component.onEmojiInsert('😀');
+        component.insertTextFromOverlay('😀');
         expect(editor.inputMode).toBe('none');
 
         vi.advanceTimersByTime(150);
