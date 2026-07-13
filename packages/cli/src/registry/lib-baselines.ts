@@ -3,6 +3,12 @@
 // used to tell a pristine-but-stale lib file (safe to refresh) from one the
 // consumer customized (left untouched).
 export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
+  "a11y.ts": [
+    "fd4d554950c5944be1adfe0257cdf65dad1957488064ecc17f5f68907b8842b3"
+  ],
+  "addon-slots.ts": [
+    "df16a8300a02175f8998256d9149647af67c15119d10c8c685b6d6510b263545"
+  ],
   "ai.ts": [
     "1f57d4a9111287905b0b8df4788d1ea08e79a2eb6edc5f5c3fde3d3f9e5ba54c"
   ],
@@ -12,11 +18,31 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   "calendar-locales.ts": [
     "430395c6eeaaee0e6897bb66438df418f73ea9e35fd5d75b744d16dcb5f8fa40"
   ],
+  "chart-interaction.ts": [
+    "3f9881a4e6801e2df2ad6d4dd3c2275a9f13f2c0990564cc6671675a339fd788",
+    "a8938d174250649f84867a6ef2af2134d52e1c9643d5e4d13fafe26a15b24550"
+  ],
+  "chart-path.ts": [
+    "54e9c3ae88022f4f4948b5b384d29e3e4faed29631ce34d3c566ca930359322c",
+    "703d1029cedc3c5132fb52b43d70cbcd041695b9d5bfc09987ed2aa5f9a75d22",
+    "b6ef1c4e7a199a781c18a6a95856f85af25457a824f31e9d3e0fafc8f04213bf"
+  ],
+  "chart-polar.ts": [
+    "a19c26869a212e1bba0b80f4aa527f8c9a249c5334d2cd38183c85784b6389fa"
+  ],
   "chart-responsive.ts": [
     "4c6afdb729f3be86a850b10de383893e6732b964c00fc53b8dcae924088e0a3c"
   ],
+  "chart-scale.ts": [
+    "272741ebeaa60fbb6819da77c125d02ef499006b94fa6991c10e77e83b81e0c5",
+    "5ed543f849c2ddc79e7d1f77945fa3890521f15401969f48e86a4b4f19c68937"
+  ],
   "chart.types.ts": [
-    "956370521d44fdbb17384fa5289fce74fa4f72d0c18ae41e25de676b7fa66746"
+    "2004506ba8815e978b974aa96a713e781334b37f105cdcf518887773d901751e",
+    "956370521d44fdbb17384fa5289fce74fa4f72d0c18ae41e25de676b7fa66746",
+    "a1968a8d53e490e5194999eb58b0456cc09f8cc903440a0978a7de4f955229c0",
+    "ae4a8dcf8d8c248504012b8c44bd1cafd0e18ae2a552d73dc3d1db8096474a45",
+    "fed1c764ce8ff58c7e2e5dc7468f60af77f69ed3ba9050bc4fd74fea385ea05d"
   ],
   "chart.utils.ts": [
     "11b0acd7b6fd4d4a32ef9afcb6a553930e58427302815e41c3cb405586ef9b16",
@@ -34,7 +60,8 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   ],
   "color.ts": [
     "3aebfe1899df706d3a68d0d1fb809afd93caf79c8143d467899c6751b132b3df",
-    "f1134d13390ed803a42fe3e9bd93a80c04bd48c05e48a282a4e0c0fb6880427d"
+    "f1134d13390ed803a42fe3e9bd93a80c04bd48c05e48a282a4e0c0fb6880427d",
+    "fe1775079eb8b76d91b396a2e5f62d87cf98ceec7015c68100d6458c9ee9ff9d"
   ],
   "component-pool.service.ts": [
     "b8dd9ef9769471bb4cbbb369b0d849cda896864a2dc201d67716844d956d51e8"
@@ -101,6 +128,7 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   ],
   "input-group.token.ts": [
     "4f7b299dbf16916c6bf1ff18628dcf39872a055a7275fc5b8b48f88e4efc63f0",
+    "99724fdee81cc0878f7a8d4dbcb6502f073d00e1df4b8ffa2174d7ec00c21367",
     "d28fbb391c1864919f357b23cea8508d8ea3266460a421f5c262412b737ca9f0"
   ],
   "ole2-reader.ts": [
