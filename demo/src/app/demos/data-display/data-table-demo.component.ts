@@ -591,6 +591,9 @@ class OpsTicketDetailComponent {
 @Component({
   selector: 'app-data-table-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  // 24 sibling <section>s: each spaces its own children, but nothing separated
+  // the sections from each other, so the demos ran together.
+  host: { class: 'block space-y-10 sm:space-y-16' },
   imports: [
     CommonModule,
     BadgeComponent,

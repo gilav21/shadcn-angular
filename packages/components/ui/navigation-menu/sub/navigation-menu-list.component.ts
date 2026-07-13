@@ -19,8 +19,12 @@ import { cn } from '../../../lib/utils';
 export class NavigationMenuListComponent {
   class = input('');
 
+  // No `overflow-x-auto` here: setting one overflow axis to a non-visible value
+  // forces the other to `auto`, which turns this <ul> into a scroll container
+  // and clips the dropdown content that hangs below it — the menu would render
+  // nothing but its triggers. Narrow viewports wrap instead of scrolling.
   classes = computed(() => cn(
-    'group flex flex-1 list-none items-center justify-center gap-1 overflow-x-auto scrollbar-hide',
+    'group flex flex-1 flex-wrap list-none items-center justify-center gap-1',
     this.class()
   ));
 }
