@@ -1,8 +1,0 @@
-:host {
-    --_d: var(--density-dialog, var(--density, 1));
-}
-@layer components {
-    :host([data-slot="dialog-footer"]) {
-        gap: calc(0.5rem * var(--_d));
-    }
-}
