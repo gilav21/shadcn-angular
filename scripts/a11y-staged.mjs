@@ -85,19 +85,28 @@ function classify(files) {
 }
 
 /**
- * Jest `testPathPattern` regex selecting exactly the stories of `components`.
- * Both path separators are accepted so the same pattern works on Windows.
- * @returns {string | null} null when a component has no story file (→ caller falls back to the full run).
+ * Jest `testPathPattern` regexes selecting exactly the stories of `components` —
+ * ONE pattern per story file, because jest ORs its positional patterns together.
+ *
+ * Deliberately not a single `(a|b|c)` alternation: `@storybook/test-runner`
+ * re-invokes jest through a shell, so on Windows cmd.exe reads the `|` as a PIPE
+ * and the run dies with "The system cannot find the path specified" / "'b.stories.ts)$'
+ * is not recognized as an internal or external command". Quoting cannot save it
+ * (the arg is re-expanded a second time), so the patterns are kept free of cmd
+ * metacharacters instead. Both path separators are accepted so one pattern works
+ * on every platform.
+ *
+ * @returns {string[] | null} null when a component has no story file (→ caller falls back to the full run).
  */
-function storyPattern(components) {
-  const names = [];
+function storyPatterns(components) {
+  const patterns = [];
   for (const component of components) {
     const dir = join('packages', 'components', 'ui', component);
     const stories = existsSync(dir) ? storyFilesIn(dir) : [];
     if (stories.length === 0) return null;
-    names.push(...stories.map((story) => escapeRegex(story)));
+    patterns.push(...stories.map((story) => `[/\\\\]${escapeRegex(story)}$`));
   }
-  return names.length === 0 ? null : `[/\\\\](${names.join('|')})$`;
+  return patterns.length === 0 ? null : patterns;
 }
 
 function runAxe(runnerArgs, label) {
@@ -118,16 +127,16 @@ if (!global && components.length === 0) {
   process.exit(0);
 }
 
-const pattern = global ? null : storyPattern(components);
+const patterns = global ? null : storyPatterns(components);
 
 if (global) {
   process.exit(runAxe([], 'shared/global file staged — running the FULL axe pass.'));
 }
 
-if (pattern === null) {
+if (patterns === null) {
   process.exit(
     runAxe([], `no story file found for ${components.join(', ')} — running the FULL axe pass.`),
   );
 }
 
-process.exit(runAxe([pattern], `axe for: ${components.join(', ')}`));
+process.exit(runAxe(patterns, `axe for: ${components.join(', ')}`));
