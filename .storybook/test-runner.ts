@@ -1,7 +1,17 @@
+import { appendFileSync } from 'node:fs';
 import type { TestRunnerConfig } from '@storybook/test-runner';
 import type { Page } from 'playwright';
-import { injectAxe, checkA11y, configureAxe } from 'axe-playwright';
+import { injectAxe, checkA11y, configureAxe, getViolations } from 'axe-playwright';
 import { getStoryContext } from '@storybook/test-runner';
+
+/**
+ * Diagnostics only: when `STORYBOOK_A11Y_DUMP` names a file, every violation axe
+ * finds is appended to it as JSON (rule, impact, and the offending node's HTML).
+ * The terminal reporter prints a table that is hard to recover from interleaved
+ * parallel output, and a flake you cannot see is a flake you cannot fix. Unset by
+ * default; it never changes what axe asserts.
+ */
+const dumpFile = process.env['STORYBOOK_A11Y_DUMP'];
 
 /** Upper bound on the entrance-animation wait, so a perpetual story can't stall the suite. */
 const ANIMATION_SETTLE_TIMEOUT_MS = 3000;
@@ -89,6 +99,43 @@ const config: TestRunnerConfig = {
         if (!a11yEnabled) return;
 
         await settleAnimations(page);
+
+        if (dumpFile) {
+            const violations = await getViolations(page, '#storybook-root', {
+                ...(await storyContext(page, context)).parameters?.a11y?.options,
+            });
+            if (violations.length > 0) {
+                const openOverlays = await page.evaluate(() =>
+                    [...document.querySelectorAll('[data-slot]')]
+                        .filter((el) => {
+                            const slot = el.getAttribute('data-slot') ?? '';
+                            return /popover|menu|dropdown|dialog|tooltip|mention|slash/i.test(slot);
+                        })
+                        .map((el) => el.getAttribute('data-slot')),
+                );
+                appendFileSync(
+                    dumpFile,
+                    JSON.stringify(
+                        {
+                            story: context.id,
+                            openOverlays,
+                            violations: violations.map((violation) => ({
+                                id: violation.id,
+                                impact: violation.impact,
+                                help: violation.help,
+                                nodes: violation.nodes.map((node) => ({
+                                    html: node.html,
+                                    target: node.target,
+                                    failureSummary: node.failureSummary,
+                                })),
+                            })),
+                        },
+                        null,
+                        2,
+                    ) + '\n---\n',
+                );
+            }
+        }
 
         await checkA11y(page, '#storybook-root', {
             detailedReport: true,
