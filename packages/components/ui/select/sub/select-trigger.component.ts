@@ -26,7 +26,7 @@ import { SkeletonComponent } from '../../skeleton';
         [disabled]="(select?.isDisabled() ?? false) || loading()"
         [attr.aria-expanded]="select?.open()"
         [attr.data-state]="select?.open() ? 'open' : 'closed'"
-        [attr.aria-label]="ariaLabel()"
+        [attr.aria-label]="resolvedAriaLabel()"
         aria-controls="select-content"
         [attr.data-slot]="'select-trigger'"
         (click)="onClick($event)"
@@ -57,6 +57,17 @@ export class SelectTriggerComponent {
     ariaLabel = input<string | undefined>(undefined);
     readonly loading = input(false);
     readonly skeleton = input(false);
+
+    /**
+     * Accessible name for the trigger. `role="combobox"` takes its name from the
+     * author, *not* from its contents — so the visible `<ui-select-value>` text
+     * does not name it and the control was reaching screen readers anonymous
+     * (axe `button-name`). Fall back to the select's resolved placeholder, which
+     * is the same string the user sees, unless the consumer supplies a name.
+     */
+    readonly resolvedAriaLabel = computed(
+        () => this.ariaLabel() ?? this.select?.resolvedPlaceholder() ?? 'Select',
+    );
 
     readonly classes = computed(() =>
         cn(

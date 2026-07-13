@@ -161,6 +161,23 @@ Resolve the markers, then rebuild. Other flags:
   `update --yes` exits non-zero whenever it writes conflict markers, so a merge
   that needs human attention fails the build instead of passing silently.
 
+### Refreshing the shared `lib/` files
+
+Components share a small `lib/` layer (`utils.ts`, i18n, parsers, tokens, …) that
+belongs to no single component, so an updated component can arrive expecting a
+newer `lib/` export. `refresh-lib` reconciles it with the registry:
+
+```bash
+npx @gilav21/shadcn-angular refresh-lib             # stale + missing lib files
+npx @gilav21/shadcn-angular refresh-lib --dry-run   # preview
+npx @gilav21/shadcn-angular refresh-lib --files utils.ts
+npx @gilav21/shadcn-angular refresh-lib --force -y  # also overwrite YOUR edits
+```
+
+Lib files you customized are protected and listed, never overwritten, unless you
+pass `--force` (which confirms first — `-y` skips the prompt). This is the same
+routine the MCP `refresh_lib` tool runs.
+
 ### `components.lock.json`
 
 `init` and `add` maintain a `components.lock.json` at your project root — commit

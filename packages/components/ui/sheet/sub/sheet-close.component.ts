@@ -1,15 +1,26 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    ElementRef,
+    afterNextRender,
     inject,
+    signal,
 } from '@angular/core';
 import { SHEET } from '../sheet.component';
+import { hasInteractiveContent } from '../../../lib/a11y';
 
 @Component({
     selector: 'ui-sheet-close',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span (click)="onClick()" (keydown.enter)="onClick()" (keydown.space)="onClick()" tabindex="0" role="button" [attr.data-slot]="'sheet-close'">
+    <span
+      (click)="onClick()"
+      (keydown.enter)="onKeydown($event)"
+      (keydown.space)="onKeydown($event)"
+      [attr.tabindex]="wrapsInteractive() ? null : 0"
+      [attr.role]="wrapsInteractive() ? null : 'button'"
+      [attr.data-slot]="'sheet-close'"
+    >
       <ng-content />
     </span>
   `,
@@ -17,8 +28,24 @@ import { SHEET } from '../sheet.component';
 })
 export class SheetCloseComponent {
     private readonly sheet = inject(SHEET, { optional: true });
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+    /** See `lib/a11y.ts` — stays transparent when the projected content is already a control. */
+    readonly wrapsInteractive = signal(false);
+
+    constructor() {
+        afterNextRender(() => {
+            this.wrapsInteractive.set(hasInteractiveContent(this.host.nativeElement));
+        });
+    }
 
     onClick(): void {
         this.sheet?.hide();
+    }
+
+    onKeydown(event: Event): void {
+        if (event.target !== event.currentTarget) return;
+        event.preventDefault();
+        this.onClick();
     }
 }

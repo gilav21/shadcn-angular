@@ -38,7 +38,7 @@ export default meta;
 type Story = StoryObj<NativeSelectComponent>;
 
 const TEMPLATE = `
-    <ui-native-select [size]="size" [disabled]="disabled" [invalid]="invalid" [class]="class">
+    <ui-native-select aria-label="Favorite fruit" [size]="size" [disabled]="disabled" [invalid]="invalid" [class]="class">
         <option value="">Select a fruit</option>
         <option value="apple">Apple</option>
         <option value="banana">Banana</option>
@@ -61,7 +61,7 @@ export const SmallSize: Story = {
     render: (args) => ({
         props: args,
         template: `
-            <ui-native-select [size]="size">
+            <ui-native-select aria-label="Favorite fruit" [size]="size">
                 <option value="">Select a size</option>
                 <option value="xs">Extra Small</option>
                 <option value="sm">Small</option>
@@ -79,7 +79,7 @@ export const Disabled: Story = {
     render: (args) => ({
         props: args,
         template: `
-            <ui-native-select [disabled]="disabled">
+            <ui-native-select aria-label="Favorite fruit" [disabled]="disabled">
                 <option value="">Disabled select</option>
                 <option value="1">Option 1</option>
                 <option value="2">Option 2</option>
@@ -95,7 +95,7 @@ export const Invalid: Story = {
     render: (args) => ({
         props: args,
         template: `
-            <ui-native-select [invalid]="invalid">
+            <ui-native-select aria-label="Favorite fruit" [invalid]="invalid">
                 <option value="">Select a required field</option>
                 <option value="1">Option 1</option>
                 <option value="2">Option 2</option>
@@ -110,7 +110,7 @@ export const AllVariants: Story = {
             <div class="flex flex-col gap-4 max-w-xs">
                 <div>
                     <label class="text-sm font-medium mb-1 block">Default</label>
-                    <ui-native-select>
+                    <ui-native-select aria-label="Default size">
                         <option value="">Choose...</option>
                         <option value="1">Option 1</option>
                         <option value="2">Option 2</option>
@@ -118,7 +118,7 @@ export const AllVariants: Story = {
                 </div>
                 <div>
                     <label class="text-sm font-medium mb-1 block">Small</label>
-                    <ui-native-select size="sm">
+                    <ui-native-select aria-label="Small size" size="sm">
                         <option value="">Choose...</option>
                         <option value="1">Option 1</option>
                         <option value="2">Option 2</option>
@@ -126,13 +126,13 @@ export const AllVariants: Story = {
                 </div>
                 <div>
                     <label class="text-sm font-medium mb-1 block">Disabled</label>
-                    <ui-native-select [disabled]="true">
+                    <ui-native-select aria-label="Disabled" [disabled]="true">
                         <option value="">Disabled</option>
                     </ui-native-select>
                 </div>
                 <div>
                     <label class="text-sm font-medium mb-1 block">Invalid</label>
-                    <ui-native-select [invalid]="true">
+                    <ui-native-select aria-label="Invalid" [invalid]="true">
                         <option value="">Select required</option>
                         <option value="1">Option 1</option>
                     </ui-native-select>

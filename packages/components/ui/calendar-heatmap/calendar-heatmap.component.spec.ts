@@ -25,7 +25,7 @@ describe('CalendarHeatmapComponent', () => {
     });
 
     it('renders with an accessible Calendar heatmap label', () => {
-        const c = fixture.nativeElement.querySelector('[role="img"]');
+        const c = fixture.nativeElement.querySelector('[role="group"]');
         expect(c.getAttribute('aria-label')).toContain('Calendar');
     });
 

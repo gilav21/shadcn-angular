@@ -1,0 +1,18 @@
+{
+  "_comment": [
+    "Exemptions for the completeness gate (packages/cli/scripts/check-completeness.ts).",
+    "Shape: { \"<artifact>\": { \"<component>\": \"<reason>\" } }, artifact = story | demo | e2e.",
+    "",
+    "THIS FILE IS DELIBERATELY EMPTY. It was seeded in July 2026 with 137 grandfathered",
+    "entries (6 missing stories, 51 missing/orphan demo routes, 80 components with no e2e",
+    "coverage) so the gate could be adopted without failing on day one. That backlog has",
+    "since been paid off in full, so every exemption went stale and was removed.",
+    "",
+    "Empty is the target state. An entry here is debt: it silences a real gap. Add one only",
+    "with a specific, honest reason (never a blanket 'grandfathered'), and remove it as soon",
+    "as the artifact exists — the gate reports stale entries and fails until they are gone."
+  ],
+  "story": {},
+  "demo": {},
+  "e2e": {}
+}

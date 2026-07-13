@@ -8,6 +8,7 @@
         [attr.data-slot]="'tree-select-trigger'"
         [disabled]="isDisabled()"
         [attr.aria-expanded]="isOpen()"
+        [attr.aria-label]="placeholder() ?? t().selectPlaceholder"
         aria-controls="tree-select-popup"
         aria-haspopup="tree"
       >

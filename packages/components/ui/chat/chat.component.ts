@@ -16,7 +16,13 @@ import { AvatarComponent, AvatarFallbackComponent, AvatarImageComponent } from '
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AvatarComponent, AvatarFallbackComponent, AvatarImageComponent],
   templateUrl: './chat.component.html',
-  host: { class: 'contents' },
+  host: {
+    class: 'contents',
+    // `role` below is a domain input (who sent the message), not an ARIA role.
+    // Written as `role="assistant"` it also lands on the DOM element, where it
+    // is an invalid ARIA role (axe `aria-roles`). Keep the input, strip the attr.
+    '[attr.role]': 'null',
+  },
 })
 export class ChatMessageComponent implements AfterContentInit {
   role = input<'user' | 'assistant' | 'system'>('user');

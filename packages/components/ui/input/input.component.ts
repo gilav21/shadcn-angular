@@ -36,6 +36,8 @@ export type InputVariant = VariantProps<typeof inputVariants>['variant'];
 
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
+let nextInputId = 0;
+
 @Component({
     selector: 'ui-input',
     imports: [FormsModule, SpinnerComponent, SkeletonComponent, IconComponent],
@@ -51,6 +53,7 @@ import { UI_INPUT_GROUP } from '../../lib/input-group.token';
     templateUrl: './input.component.html',
     host: {
         '[class]': '"contents"',
+        '[attr.id]': 'null',
     },
 })
 export class InputComponent implements ControlValueAccessor {
@@ -68,6 +71,26 @@ export class InputComponent implements ControlValueAccessor {
     readonly elementId = input<string | undefined>(undefined);
     /** Forwarded to the inner <input>'s name (for form submission). */
     readonly name = input<string | undefined>(undefined);
+
+    private readonly autoId = `ui-input-${++nextInputId}`;
+
+    /**
+     * An `id` written the native way — `<ui-input id="email">`. The host is a
+     * `display: contents` wrapper, so an `id` left on it is not a labelable control
+     * and `<label for="email">` associates with nothing: the input reached screen
+     * readers unlabeled (axe `label`), which a non-empty `placeholder` was quietly
+     * masking. Read off the host here and moved to the real control instead (the
+     * host binding below strips it, so the id is never duplicated).
+     */
+    private readonly hostId =
+        inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.getAttribute('id') ?? undefined;
+
+    /**
+     * The id actually applied to the inner `<input>`, from either spelling. Falls
+     * back to a generated id so the floating variant's own `<label for>` always
+     * has something to bind to.
+     */
+    readonly resolvedId = computed(() => this.elementId() ?? this.hostId ?? this.autoId);
     /** Forwarded to the inner <input>'s aria-label. */
     readonly ariaLabel = input<string | undefined>(undefined);
     /** Forwarded to the inner <input>'s aria-labelledby. */
@@ -104,7 +127,9 @@ export class InputComponent implements ControlValueAccessor {
     private readonly formDisabled = signal(false);
     private readonly isFocused = signal(false);
 
-    readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
+    readonly isDisabled = computed(() =>
+        this.disabled() || this.formDisabled() || (this.group?.disabled() ?? false)
+    );
 
     readonly needsContainer = computed(() =>
         !!this.prefix() ||

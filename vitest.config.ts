@@ -32,6 +32,16 @@ export default defineConfig(({ mode: _mode }) => ({
                 '**/*.types.ts',
                 '**/*-locales.ts',
             ],
+            // Ratchet, not aspiration: set just below the levels measured on
+            // 2026-07-12 (statements 88.98 / branches 74.33 / functions 91.51 /
+            // lines 91.39). Raise them when coverage rises; never lower them to
+            // make a run pass.
+            thresholds: {
+                statements: 87,
+                branches: 73,
+                functions: 90,
+                lines: 90,
+            },
         },
         // Vitest browser config
         browser: {

@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/** The branch every fetch defaults to (CLI `-b` default, MCP tool default). */
+export const DEFAULT_BRANCH = 'master';
+
 export function validateBranch(branch: string): void {
     if (!/^[\w.\-/]+$/.test(branch)) {
         throw new Error(`Invalid branch name: ${branch}`);

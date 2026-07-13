@@ -1,6 +1,8 @@
 import {
     Component,
     ChangeDetectionStrategy,
+    ElementRef,
+    inject,
     input,
     output,
     computed,
@@ -19,7 +21,7 @@ const buttonVariants = cva(
                 default: 'bg-primary text-primary-foreground hover:bg-primary/90',
                 destructive: 'bg-destructive/10 hover:bg-destructive/20 text-destructive focus-visible:ring-destructive/20',
                 outline: 'border-input bg-background hover:bg-muted hover:text-foreground',
-                secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+                secondary: 'border-border bg-secondary text-secondary-foreground hover:bg-secondary/80',
                 ghost: 'hover:bg-muted hover:text-foreground',
                 link: 'text-primary underline-offset-4 hover:underline',
             },
@@ -51,6 +53,11 @@ export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
     host: {
         '[class]': '"contents"',
         '[attr.data-size]': 'size()',
+        // The host is a `display: contents` generic element: an aria-label left on
+        // it names nothing (axe `aria-prohibited-attr`) and, worse, never reaches
+        // the inner <button>, leaving it nameless (axe `button-name`). Consume it
+        // via the `aria-label` aliased input below and strip it from the host.
+        '[attr.aria-label]': 'null',
     },
 })
 /**
@@ -67,7 +74,18 @@ export class ButtonComponent {
     disabled = input(false);
     type = input<'button' | 'submit' | 'reset'>('button');
     class = input('');
+    /** Accessible name, camelCase form: `[ariaLabel]="'Copy'"`. */
     ariaLabel = input<string | undefined>(undefined);
+    /**
+     * An accessible name written the native way — `aria-label="Copy"` on
+     * `<ui-button>`. Read off the host here and moved to the inner `<button>`,
+     * instead of being stranded on the `display: contents` host where it named
+     * nothing (the host binding above strips it).
+     */
+    private readonly hostAriaLabel =
+        inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.getAttribute('aria-label') ?? undefined;
+    /** The name actually applied to the inner `<button>`, from either spelling. */
+    readonly resolvedAriaLabel = computed(() => this.ariaLabel() ?? this.hostAriaLabel);
     label = input<string>('');
     ripple = input(false);
     rippleColor = input('color-mix(in srgb, currentColor 35%, transparent)');

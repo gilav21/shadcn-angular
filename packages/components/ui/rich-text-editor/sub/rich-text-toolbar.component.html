@@ -274,11 +274,21 @@
       >
         <span [innerHTML]="getIcon('importFile')"></span>
       </button>
+      <!--
+        Hidden by the HTML hidden attribute, not by a CSS class: the UA stylesheet
+        hides it with no stylesheet of ours involved. Hiding it with a Tailwind
+        class meant that, for as long as Tailwind had not been applied, the input
+        was a visible, nameless file input — a critical label violation that
+        surfaced at random whenever an axe scan won the race against the
+        stylesheet. It is also named, so it stays correct even if a consumer
+        unhides it.
+      -->
       <input
         #fileInput
         type="file"
         accept=".pdf,.docx"
-        class="hidden"
+        hidden
+        [attr.aria-label]="getTooltip('importFile')"
         (change)="onFileSelect($event)"
       />
     } @else {

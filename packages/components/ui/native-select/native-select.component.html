@@ -10,6 +10,7 @@
         [attr.data-slot]="'native-select'"
         [attr.data-size]="size()"
         [disabled]="isDisabled()"
+        [attr.aria-label]="resolvedAriaLabel()"
         [attr.aria-invalid]="invalid() || null"
         (change)="onSelectChange($event)"
         (blur)="onTouched()"

@@ -1,9 +1,13 @@
 import {
     Component,
     ChangeDetectionStrategy,
+    ElementRef,
+    afterNextRender,
     inject,
+    signal,
 } from '@angular/core';
 import { DRAWER } from '../drawer.component';
+import { hasInteractiveContent } from '../../../lib/a11y';
 
 @Component({
     selector: 'ui-drawer-trigger',
@@ -11,11 +15,11 @@ import { DRAWER } from '../drawer.component';
     template: `
     <span
       (click)="onClick()"
-      (keydown.enter)="onClick()"
-      (keydown.space)="onClick()"
+      (keydown.enter)="onKeydown($event)"
+      (keydown.space)="onKeydown($event)"
       [attr.data-slot]="'drawer-trigger'"
-      tabindex="0"
-      role="button"
+      [attr.tabindex]="wrapsInteractive() ? null : 0"
+      [attr.role]="wrapsInteractive() ? null : 'button'"
     >
       <ng-content />
     </span>
@@ -24,8 +28,24 @@ import { DRAWER } from '../drawer.component';
 })
 export class DrawerTriggerComponent {
     private readonly drawer = inject(DRAWER, { optional: true });
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+    /** See `lib/a11y.ts` — stays transparent when the projected content is already a control. */
+    readonly wrapsInteractive = signal(false);
+
+    constructor() {
+        afterNextRender(() => {
+            this.wrapsInteractive.set(hasInteractiveContent(this.host.nativeElement));
+        });
+    }
 
     onClick(): void {
         this.drawer?.toggle();
+    }
+
+    onKeydown(event: Event): void {
+        if (event.target !== event.currentTarget) return;
+        event.preventDefault();
+        this.onClick();
     }
 }

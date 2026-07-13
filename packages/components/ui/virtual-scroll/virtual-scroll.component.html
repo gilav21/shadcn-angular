@@ -2,6 +2,7 @@
   #container
   [class]="containerClasses()"
   [attr.data-slot]="'virtual-scroll'"
+  tabindex="0"
   (scroll)="onScroll($event)"
 >
   <div

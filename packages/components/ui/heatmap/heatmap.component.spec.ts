@@ -25,7 +25,7 @@ describe('HeatmapComponent', () => {
     });
 
     it('renders with an accessible Heatmap label', () => {
-        const c = fixture.nativeElement.querySelector('[role="img"]');
+        const c = fixture.nativeElement.querySelector('[role="group"]');
         expect(c.getAttribute('aria-label')).toContain('Heatmap');
     });
 

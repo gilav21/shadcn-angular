@@ -8,8 +8,15 @@
     "demo"
   ],
   "scripts": {
+    "prepare": "simple-git-hooks",
     "build:cli": "cd packages/cli && npm run build",
-    "publish:cli": "cd packages/cli && npm version patch && npm publish",
+    "release:cli": "tsx packages/cli/scripts/release-cli.ts",
+    "preflight": "node scripts/preflight.mjs",
+    "check:completeness": "tsx packages/cli/scripts/check-completeness.ts",
+    "check:registry": "tsx packages/cli/scripts/sync-registry.ts",
+    "hook:pre-commit": "lint-staged && npm run a11y:staged",
+    "hook:pre-push": "npm run preflight && npm run test-storybook:a11y",
+    "a11y:staged": "node scripts/a11y-staged.mjs",
     "build:demo": "cd demo && npm run build",
     "dev": "cd demo && npm run start",
     "lint": "eslint .",
@@ -24,9 +31,12 @@
     "test": "vitest",
     "test:headless": "vitest --config vitest.config.headless.ts",
     "test:ci": "cross-env HEADLESS=1 vitest --run",
+    "test:ci:coverage": "cross-env HEADLESS=1 vitest --run --coverage",
     "storybook": "npm run docs:json && ng run demo:storybook",
     "build-storybook": "npm run docs:json && ng run demo:build-storybook",
     "test-visual": "vitest --browser=chromium",
+    "test-storybook": "node scripts/test-storybook.mjs",
+    "test-storybook:a11y": "cross-env STORYBOOK_A11Y=1 node scripts/test-storybook.mjs",
     "test:cli": "vitest --config vitest.config.cli.ts",
     "docs:json": "compodoc -p tsconfig.json -e json -d .",
     "e2e:build-cli": "cd packages/cli && npm run build",
@@ -36,7 +46,15 @@
     "e2e:debug": "tsx e2e/orchestrator/run.ts --debug",
     "e2e:reset": "tsx e2e/orchestrator/reset.ts",
     "e2e:impact": "tsx e2e/orchestrator/impact.ts",
-    "e2e:scaffold": "tsx e2e/orchestrator/scaffold.ts"
+    "e2e:scaffold": "tsx e2e/orchestrator/scaffold.ts",
+    "new:component": "tsx packages/cli/scripts/new-component.ts"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npm run hook:pre-commit",
+    "pre-push": "npm run hook:pre-push"
+  },
+  "lint-staged": {
+    "*.{ts,mjs,js,html}": "eslint --fix --no-warn-ignored"
   },
   "keywords": [
     "angular",
@@ -71,10 +89,12 @@
     "eslint": "^9.39.4",
     "eslint-plugin-sonarjs": "^4.1.0",
     "jsdom": "^27.4.0",
+    "lint-staged": "^17.0.8",
     "lmdb": "^3.5.4",
     "playwright": "^1.57.0",
     "postcss": "^8.5.10",
     "rollup": "^4.60.1",
+    "simple-git-hooks": "^2.13.1",
     "storybook": "^10.3.5",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.19.0",

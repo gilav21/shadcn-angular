@@ -42,9 +42,8 @@
         </svg>
       </button>
     </h3>
-    <section
+    <div
       [attr.id]="panelId()"
-      [attr.aria-labelledby]="triggerId()"
       [attr.data-state]="isOpen() ? 'open' : 'closed'"
       [attr.data-slot]="'card-accordion-content'"
       [class]="contentClasses()"
@@ -60,7 +59,7 @@
           {{ content() }}
         </div>
       </div>
-    </section>
+    </div>
   } @else {
     <ng-content />
   }

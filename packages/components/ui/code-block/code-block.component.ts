@@ -61,7 +61,7 @@ export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
     github: {
         keyword: 'text-red-400 font-bold',
         string: 'text-blue-200',
-        comment: 'text-gray-500 italic',
+        comment: 'text-gray-400 italic',
         function: 'text-purple-400',
         number: 'text-blue-400',
         decorator: 'text-orange-400',
@@ -72,7 +72,7 @@ export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
     monokai: {
         keyword: 'text-pink-500 font-bold',
         string: 'text-yellow-300',
-        comment: 'text-gray-500 italic',
+        comment: 'text-gray-400 italic',
         function: 'text-green-400',
         number: 'text-purple-400',
         decorator: 'text-orange-400',
@@ -226,7 +226,7 @@ export class CodeBlockComponent {
         switch (token.type) {
             case 'keyword': return 'text-pink-400 font-bold';
             case 'string': return 'text-green-400';
-            case 'comment': return 'text-gray-500 italic';
+            case 'comment': return 'text-gray-400 italic';
             case 'number': return 'text-orange-400';
             case 'function': return 'text-blue-400';
             case 'decorator': return 'text-yellow-400';

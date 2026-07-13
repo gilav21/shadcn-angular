@@ -19,12 +19,14 @@ export const SPEED_DIAL_MENU = new InjectionToken<SpeedDialMenuComponent>('SPEED
     providers: [{ provide: SPEED_DIAL_MENU, useExisting: forwardRef(() => SpeedDialMenuComponent) }],
     template: `
       <div
+        role="group"
         [class]="classes()"
         [style]="positionStyle()"
         [attr.data-slot]="'speed-dial-menu'"
         [attr.data-state]="speedDial?.open() ? 'open' : 'closed'"
         [attr.aria-label]="ariaLabel()"
         [attr.aria-hidden]="!speedDial?.open()"
+        [attr.inert]="speedDial?.open() ? null : ''"
       >
         <ng-content />
       </div>

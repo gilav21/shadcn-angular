@@ -9,7 +9,7 @@
     [disabled]="disabled() || loading()"
     [type]="type()"
     [attr.data-slot]="'button'"
-    [attr.aria-label]="ariaLabel()"
+    [attr.aria-label]="resolvedAriaLabel()"
     (click)="clicked.emit($event)"
   >
     @if (loading()) {

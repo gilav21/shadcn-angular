@@ -25,7 +25,7 @@ describe('FunnelChartComponent', () => {
     });
 
     it('renders with an accessible Funnel chart label', () => {
-        const c = fixture.nativeElement.querySelector('[role="img"]');
+        const c = fixture.nativeElement.querySelector('[role="group"]');
         expect(c.getAttribute('aria-label')).toContain('Funnel chart');
     });
 

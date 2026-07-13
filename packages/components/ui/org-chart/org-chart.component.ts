@@ -9,6 +9,7 @@ import {
 import { cn } from '../../lib/utils';
 import { OrgNode, OrgNodePosition, OrgLayoutDirection, OrgLineType } from '../../lib/chart.types';
 import { getChartColor } from '../../lib/chart.utils';
+import { readableForeground } from '../../lib/color';
 
 @Component({
   selector: 'ui-org-chart',
@@ -231,6 +232,15 @@ export class OrgChartComponent {
   getNodeColor(pos: OrgNodePosition): string {
     if (pos.node.color) return pos.node.color;
     return getChartColor(pos.level);
+  }
+
+  /**
+   * Legible initials colour for the avatar painted in the node's colour. The
+   * hardcoded white this replaces failed WCAG AA on light node colours
+   * (axe `color-contrast`).
+   */
+  getNodeForeground(pos: OrgNodePosition): string {
+    return readableForeground(this.getNodeColor(pos));
   }
 
   getInitials(name: string): string {

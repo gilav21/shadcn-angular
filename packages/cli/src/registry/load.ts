@@ -13,7 +13,7 @@
 
 import fs from 'fs-extra';
 import { registry, __resetRegistryCaches, type ComponentDefinition } from './index.js';
-import { getRegistryManifestUrl, getLocalRegistryJson } from '../utils/paths.js';
+import { getRegistryManifestUrl, getLocalRegistryJson, DEFAULT_BRANCH } from '../utils/paths.js';
 
 export interface LoadRegistryOptions {
     branch?: string;
@@ -49,12 +49,26 @@ export function isValidRegistryShape(data: unknown): data is Record<string, Comp
     return Object.values(data).every(isValidRegistryEntry);
 }
 
+/**
+ * A local monorepo checkout only stands in for the DEFAULT source. The moment a
+ * caller names another source — `--remote`, a non-default `--branch`, or a
+ * `--registry` fork — the local `registry.json` is the wrong manifest: names and
+ * `files[]` would be resolved against the checkout while `fetchComponentContent`
+ * pulls the SOURCES from the named branch/fork (it falls through to remote for
+ * any file the checkout lacks). Honour the explicit source for the manifest too.
+ */
+function wantsRemoteManifest(options: LoadRegistryOptions): boolean {
+    if (options.remote) return true;
+    if (options.registry !== undefined) return true;
+    return options.branch !== undefined && options.branch !== DEFAULT_BRANCH;
+}
+
 async function fetchManifest(options: LoadRegistryOptions): Promise<string> {
     const local = getLocalRegistryJson();
-    if (local && !options.remote) {
+    if (local && !wantsRemoteManifest(options)) {
         return fs.readFile(local, 'utf-8');
     }
-    const url = getRegistryManifestUrl(options.branch ?? 'master', options.registry);
+    const url = getRegistryManifestUrl(options.branch ?? DEFAULT_BRANCH, options.registry);
     const response = await fetch(url);
     if (!response.ok) {
         throw new Error(`${response.status} ${response.statusText} from ${url}`);
@@ -62,25 +76,66 @@ async function fetchManifest(options: LoadRegistryOptions): Promise<string> {
     return response.text();
 }
 
+type Manifest = Record<string, ComponentDefinition>;
+
+/** The bundled offline snapshot — the fallback whenever a manifest can't be fetched. */
+const BUNDLED: Manifest = structuredClone(registry as unknown as Manifest);
+
 /**
- * Fetches the live registry manifest and populates the in-memory `registry`
- * object in place. On any failure (offline, 404, malformed JSON) it warns and
- * leaves the bundled snapshot intact so the CLI keeps working offline.
+ * One manifest per registry source. A branch (or a fork's base URL) is its own
+ * registry: `add`ing from branch X must resolve names and `files[]` against X's
+ * manifest, not the default branch's. Keyed by base+branch+remote so the CLI's
+ * single startup load and an MCP tool call targeting another branch coexist
+ * without refetching each other's manifest.
+ */
+const manifestCache = new Map<string, Manifest>();
+
+/** The source currently applied to the in-memory `registry` object. */
+let appliedKey: string | null = null;
+
+function sourceKey(options: LoadRegistryOptions): string {
+    return [
+        options.registry ?? 'default',
+        options.branch ?? DEFAULT_BRANCH,
+        options.remote ? 'remote' : 'local',
+    ].join('#');
+}
+
+/** Repopulate the module-level `registry` object in place (see the file header). */
+function applyManifest(data: Manifest, key: string | null): void {
+    if (appliedKey === key) return;
+    const mutable = registry as unknown as Manifest;
+    for (const name of Object.keys(mutable)) delete mutable[name];
+    Object.assign(mutable, data);
+    __resetRegistryCaches();
+    appliedKey = key;
+}
+
+/**
+ * Fetches the registry manifest for a source (branch / custom base URL) and
+ * populates the in-memory `registry` object in place. Manifests are cached per
+ * source, so repeat calls for the same branch don't refetch. On any failure
+ * (offline, 404, malformed JSON) it warns and applies the bundled snapshot, so
+ * the CLI keeps working offline.
  *
- * @returns `true` if the live manifest was applied, `false` if the bundled
- *          snapshot was kept.
+ * @returns `true` if a live manifest was applied, `false` if the bundled
+ *          snapshot was used.
  */
 export async function loadRegistry(options: LoadRegistryOptions = {}): Promise<boolean> {
+    const key = sourceKey(options);
+    const cached = manifestCache.get(key);
+    if (cached) {
+        applyManifest(cached, key);
+        return true;
+    }
     try {
         const raw = await fetchManifest(options);
         const data: unknown = JSON.parse(raw);
         if (!isValidRegistryShape(data)) {
             throw new Error('registry manifest has an unexpected shape');
         }
-        const mutable = registry as unknown as Record<string, ComponentDefinition>;
-        for (const key of Object.keys(mutable)) delete mutable[key];
-        Object.assign(mutable, data);
-        __resetRegistryCaches();
+        manifestCache.set(key, data);
+        applyManifest(data, key);
         return true;
     } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
@@ -88,6 +143,13 @@ export async function loadRegistry(options: LoadRegistryOptions = {}): Promise<b
             `⚠ Could not fetch the live component registry (${reason}); ` +
             `using the bundled copy, which may be stale.`,
         );
+        applyManifest(BUNDLED, null);
         return false;
     }
+}
+
+/** Drop every cached manifest (tests; also resets what is applied). */
+export function __resetRegistryManifestCache(): void {
+    manifestCache.clear();
+    appliedKey = null;
 }

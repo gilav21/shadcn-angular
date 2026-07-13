@@ -71,7 +71,7 @@ export const Basic: Story = {
                 width: 32px;
                 height: 32px;
                 border-radius: 50%;
-                background: #3b82f6;
+                background: #1d4ed8;
                 color: white;
                 display: flex;
                 align-items: center;

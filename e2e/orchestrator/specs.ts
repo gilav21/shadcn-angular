@@ -109,6 +109,21 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/actions', 'dialog', 'color-picker'],
         label: 'rte-actions',
     },
+    // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
+    // but its registry entry lists only `context-menu` as a dependency — so the
+    // harness has to install `tree` alongside it explicitly.
+    {
+        names: ['tree', 'tree-context-menu'],
+        label: 'tree-context-menu',
+    },
+    // The `data-table-context-menu` DIRECTIVE (`ui-data-table[uiDataTableContextMenu]`)
+    // is a different component from the `data-table/context-menu` ADDON above,
+    // which already owns the `data-table-context-menu` harness folder. Hence the
+    // distinct label.
+    {
+        names: ['data-table', 'data-table-context-menu'],
+        label: 'data-table-ctx-directive',
+    },
     // cross-cutting: dark-mode CSS variable propagation.
     {
         names: ['button'],

@@ -384,6 +384,27 @@ export function contrastRatio(a: RGB, b: RGB): number {
     return (lighter + 0.05) / (darker + 0.05);
 }
 
+const BLACK: RGB = { r: 0, g: 0, b: 0 };
+const WHITE: RGB = { r: 255, g: 255, b: 255 };
+
+/**
+ * Pick whichever of black / white reads better on `background`.
+ *
+ * Components that paint text on a caller-supplied colour (kanban label badges,
+ * org-chart avatars, …) used to hardcode `text-white`, which drops below WCAG AA
+ * on any light background — e.g. white on emerald `#10b981` is 2.5:1, an axe
+ * `color-contrast` failure. Deriving the foreground from the background's
+ * luminance keeps the caller's colour and makes the text legible on all of them.
+ *
+ * Falls back to white when `background` cannot be parsed.
+ */
+export function readableForeground(background: string): '#000000' | '#ffffff' {
+    const bg = parseColor(background);
+    if (!bg) return '#ffffff';
+    const rgb: RGB = { r: bg.r, g: bg.g, b: bg.b };
+    return contrastRatio(rgb, BLACK) >= contrastRatio(rgb, WHITE) ? '#000000' : '#ffffff';
+}
+
 function rotateHue(c: RGBA, deltaDeg: number): RGBA {
     const hsl = rgbToHsl(c);
     const rotated: HSL = { h: (hsl.h + deltaDeg + 360) % 360, s: hsl.s, l: hsl.l };

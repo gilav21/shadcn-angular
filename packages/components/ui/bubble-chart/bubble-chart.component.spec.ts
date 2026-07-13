@@ -26,7 +26,7 @@ describe('BubbleChartComponent', () => {
     });
 
     it('renders with an accessible Bubble chart label', () => {
-        const c = fixture.nativeElement.querySelector('[role="img"]');
+        const c = fixture.nativeElement.querySelector('[role="group"]');
         expect(c.getAttribute('aria-label')).toContain('Bubble chart');
     });
 

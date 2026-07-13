@@ -232,6 +232,7 @@ export class AppComponent {
     { id: 'popover', name: 'Popover', category: 'Overlay', icon: '🗨️' },
     { id: 'sheet', name: 'Sheet', category: 'Overlay', icon: '📃' },
     { id: 'speed-dial', name: 'Speed Dial', category: 'Overlay', icon: '📞' },
+    { id: 'shortcut-bindings-dialog', name: 'Shortcut Bindings Dialog', category: 'Overlay', icon: '⌨️' },
     { id: 'tooltip', name: 'Tooltip', category: 'Overlay', icon: '💡' },
 
     // Data Display
@@ -252,6 +253,12 @@ export class AppComponent {
     { id: 'table', name: 'Table', category: 'Data Display', icon: '📊' },
     { id: 'timeline', name: 'Timeline', category: 'Data Display', icon: '📅' },
     { id: 'tree-view', name: 'Tree View', category: 'Data Display', icon: '🌳' },
+    { id: 'component-outlet', name: 'Component Outlet', category: 'Data Display', icon: '🧩' },
+    { id: 'copy-to', name: 'Copy To', category: 'Data Display', icon: '📋' },
+    { id: 'context-menu-attach', name: 'Context Menu Attach', category: 'Data Display', icon: '🖱️' },
+    { id: 'tree-context-menu', name: 'Tree Context Menu', category: 'Data Display', icon: '🌲' },
+    { id: 'table-context-menu', name: 'Table Context Menu', category: 'Data Display', icon: '📑' },
+    { id: 'data-table-context-menu', name: 'Data Table Context Menu', category: 'Data Display', icon: '🗂️' },
 
     // Feedback
     { id: 'alert', name: 'Alert', category: 'Feedback', icon: '⚠️' },

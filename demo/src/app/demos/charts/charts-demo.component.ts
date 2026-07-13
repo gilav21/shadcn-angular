@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import {
   PieChartComponent,
@@ -20,6 +20,12 @@ import {
   CalendarHeatmapComponent,
   FunnelChartComponent,
   WaterfallChartComponent,
+  OrgChartComponent,
+  ChartTooltipComponent,
+  ChartLegendComponent,
+  ChartBrushComponent,
+  DataTableRangeChartComponent,
+  ButtonComponent,
   ChartSeries,
   XYSeries,
   XYZSeries,
@@ -27,8 +33,13 @@ import {
   CalendarDay,
   ChartDataPoint,
   WaterfallBar,
+  ChartLegendItem,
+  BrushSelection,
 } from '../../../../../packages/components/ui';
 import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
+
+const LEGEND_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
+const BRUSH_WIDTH = 560;
 
 @Component({
   selector: 'app-charts-demo',
@@ -53,6 +64,12 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
     CalendarHeatmapComponent,
     FunnelChartComponent,
     WaterfallChartComponent,
+    OrgChartComponent,
+    ChartTooltipComponent,
+    ChartLegendComponent,
+    ChartBrushComponent,
+    DataTableRangeChartComponent,
+    ButtonComponent,
   ],
   template: `
     <section class="space-y-6">
@@ -208,6 +225,66 @@ import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
           <ui-bar-race-chart [dir]="dir()" [frames]="t().barRaceFrames" [frameLabels]="t().barRaceLabels"
             [width]="600" [height]="320" [maxBars]="6" [animationDuration]="600" [title]="t().barRaceTitle" />
         </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().orgChartHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().orgChartDescription }}</p>
+          <div class="w-full overflow-x-auto">
+            <ui-org-chart [data]="t().orgChartData" layout="vertical" lineType="curved"
+              [nodeWidth]="170" [nodeHeight]="76" [title]="t().orgChartTitle" />
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().chartTooltipHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().chartTooltipDescription }}</p>
+          <div class="relative h-[220px] sm:h-[260px] w-full rounded-md border bg-muted/30">
+            <ui-chart-tooltip [visible]="true" [x]="24" [y]="24" [title]="t().chartTooltipTitle"
+              [rows]="t().chartTooltipRows" />
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().chartLegendHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().chartLegendDescription }}</p>
+          <ui-chart-legend [items]="legendItems()" [hidden]="hiddenSeries()" position="bottom"
+            (itemToggle)="toggleSeries($event)" />
+          <div class="block w-full">
+            @if (legendSeries().length) {
+              <ui-line-chart [dir]="dir()" [series]="legendSeries()" [width]="560" [height]="280"
+                curve="monotone" [showLegend]="false" [title]="t().chartLegendHeading" />
+            } @else {
+              <p class="text-sm text-muted-foreground">{{ t().chartLegendEmpty }}</p>
+            }
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().chartBrushHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().chartBrushDescription }}</p>
+          <div class="block w-full max-w-[calc(100vw-2rem)] sm:max-w-[560px] space-y-2">
+            <ui-line-chart [dir]="dir()" [series]="brushedSeries()" [width]="brushWidth" [height]="260"
+              curve="monotone" [title]="t().chartBrushHeading" />
+            <ui-chart-brush [width]="brushWidth" [height]="40" [selection]="brushSelection()"
+              (selectionChange)="brushSelection.set($event)" />
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="text-sm text-muted-foreground">
+                {{ t().chartBrushShowing }}: {{ brushRangeLabel() }}
+              </p>
+              <ui-button variant="outline" size="sm" (click)="brushSelection.set(null)">
+                {{ t().chartBrushReset }}
+              </ui-button>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().rangeDialogHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().rangeDialogDescription }}</p>
+          <ui-button (click)="rangeChartOpen.set(true)">{{ t().rangeDialogButton }}</ui-button>
+          <ui-data-table-range-chart [payload]="t().rangeDialogPayload" [(open)]="rangeChartOpen"
+            [title]="t().rangeDialogTitle" />
+        </div>
       </div>
     </section>
   `,
@@ -274,6 +351,53 @@ export class ChartsDemoComponent {
     { name: 'Visits', value: 1000 }, { name: 'Signups', value: 600 },
     { name: 'Trials', value: 300 }, { name: 'Paid', value: 120 },
   ];
+  protected readonly legendItems = computed<ChartLegendItem[]>(() =>
+    this.t().stackedSeries.map((series, i) => ({
+      key: series.name,
+      label: series.name,
+      color: LEGEND_COLORS[i % LEGEND_COLORS.length],
+    })),
+  );
+  protected readonly hiddenSeries = signal<string[]>([]);
+  protected readonly legendSeries = computed<ChartSeries[]>(() => {
+    const hidden = this.hiddenSeries();
+    return this.t().stackedSeries.filter((series) => !hidden.includes(series.name));
+  });
+
+  protected readonly brushWidth = BRUSH_WIDTH;
+  protected readonly brushSelection = signal<BrushSelection | null>({ start: 140, end: 430 });
+  private readonly brushRange = computed(() => {
+    const categories = this.t().stackedCategories;
+    const last = Math.max(0, categories.length - 1);
+    const selection = this.brushSelection();
+    if (!selection || last === 0) return { start: 0, end: last };
+    const toIndex = (px: number): number =>
+      Math.min(last, Math.max(0, Math.round((px / BRUSH_WIDTH) * last)));
+    const start = Math.min(toIndex(selection.start), last - 1);
+    const end = Math.min(last, Math.max(toIndex(selection.end), start + 1));
+    return { start, end };
+  });
+  protected readonly brushedSeries = computed<ChartSeries[]>(() => {
+    const { start, end } = this.brushRange();
+    return this.t().stackedSeries.map((series) => ({
+      name: series.name,
+      data: series.data.slice(start, end + 1),
+    }));
+  });
+  protected readonly brushRangeLabel = computed(() => {
+    const categories = this.t().stackedCategories;
+    const { start, end } = this.brushRange();
+    return `${categories[start] ?? ''} – ${categories[end] ?? ''}`;
+  });
+
+  protected readonly rangeChartOpen = signal(false);
+
+  protected toggleSeries(key: string): void {
+    this.hiddenSeries.update((hidden) =>
+      hidden.includes(key) ? hidden.filter((k) => k !== key) : [...hidden, key],
+    );
+  }
+
   protected readonly waterfallData: WaterfallBar[] = [
     { name: 'Start', value: 1200, type: 'total' },
     { name: 'Sales', value: 450 }, { name: 'Returns', value: -180 },

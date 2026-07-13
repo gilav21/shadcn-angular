@@ -1901,6 +1901,25 @@ export class DataTableComponent<T>
     );
   });
 
+  /**
+   * Whether the floating-filter row actually renders a control for this column.
+   * A cell that renders nothing is not a column header — announcing it as an
+   * empty one is noise for screen-reader users (axe `empty-table-header`).
+   */
+  hasFloatingFilter(col: ColumnDef<T>): boolean {
+    if (col.floatingFilter === false) return false;
+    if (
+      col.accessorKey === '_selection' ||
+      col.accessorKey === '_expander' ||
+      col.accessorKey === '_actions'
+    ) {
+      return false;
+    }
+    if (col.floatingFilterComponent) return true;
+    if (col.floatingFilterTemplate) return true;
+    return !!col.enableFiltering;
+  }
+
   getFloatingFilterChange(col: ColumnDef<T>): (value: unknown) => void {
     return (value: unknown) =>
       this.onColumnFilterChange(col.accessorKey, value);

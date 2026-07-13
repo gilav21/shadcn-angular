@@ -91,7 +91,9 @@ describe('TypingAnimationComponent', () => {
         vi.advanceTimersByTime(50 * 4);
         fixture.detectChanges();
 
-        const textSpan = fixture.debugElement.query(By.css('[data-slot="typing-animation"] span'));
+        const textSpan = fixture.debugElement.query(
+            By.css('[data-slot="typing-animation"] span[aria-hidden="true"]'),
+        );
         expect(textSpan.nativeElement.textContent).toBe('Hello');
     });
 

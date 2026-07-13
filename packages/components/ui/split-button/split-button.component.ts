@@ -79,6 +79,7 @@ export interface SplitButtonItem {
         (keydown)="onDropdownKeydown($event)"
         type="button"
         aria-haspopup="menu"
+        [ariaLabel]="dropdownAriaLabel()"
         [attr.aria-expanded]="isOpen()"
       >
         <svg 
@@ -140,6 +141,12 @@ export class SplitButtonComponent implements OnDestroy {
     size = input<ButtonSize>('default');
     disabled = input(false, { transform: booleanAttribute });
     class = input('');
+    /**
+     * Accessible name for the icon-only dropdown half of the split button. It has
+     * no text of its own, so without this it reached screen readers unnamed
+     * (axe `button-name`).
+     */
+    readonly dropdownAriaLabel = input('More options');
 
     primaryClick = output<MouseEvent>();
     itemClick = output<SplitButtonItem>();
@@ -170,8 +177,12 @@ export class SplitButtonComponent implements OnDestroy {
         this.class()
     ));
 
+    // The divider is the dropdown's start border. Deriving it from `current`
+    // (the variant's own foreground) keeps it visible on every variant in both
+    // themes — the button base sets `border-transparent`, so a solid-fill
+    // variant like `default` otherwise renders no divider at all.
     dropdownClasses = computed(() => cn(
-        'rounded-s-none px-2'
+        'rounded-s-none px-2 border-s-current/25'
     ));
 
     private readonly menuPosition = signal<'below' | 'above'>('below');

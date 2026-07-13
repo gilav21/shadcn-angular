@@ -106,6 +106,7 @@
       "alert-dialog/sub/alert-dialog-trigger.component.ts"
     ],
     "libFiles": [
+      "a11y.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
@@ -893,6 +894,7 @@
       "dialog/sub/dialog-trigger.component.ts"
     ],
     "libFiles": [
+      "a11y.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
@@ -1030,6 +1032,9 @@
       "drawer/sub/drawer-header.component.ts",
       "drawer/sub/drawer-title.component.ts",
       "drawer/sub/drawer-trigger.component.ts"
+    ],
+    "libFiles": [
+      "a11y.ts"
     ]
   },
   "dropdown-menu": {
@@ -1057,6 +1062,7 @@
       "dropdown-menu/sub/dropdown-menu-trigger.component.ts"
     ],
     "libFiles": [
+      "a11y.ts",
       "touch.ts"
     ]
   },
@@ -1562,6 +1568,9 @@
       "popover/sub/popover-content.component.css",
       "popover/sub/popover-content.component.ts",
       "popover/sub/popover-trigger.component.ts"
+    ],
+    "libFiles": [
+      "a11y.ts"
     ]
   },
   "progress": {
@@ -1751,6 +1760,7 @@
       "sheet/sub/sheet-trigger.component.ts"
     ],
     "libFiles": [
+      "a11y.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
@@ -2138,6 +2148,9 @@
       "speed-dial/sub/speed-dial-mask.component.ts",
       "speed-dial/sub/speed-dial-menu.component.ts",
       "speed-dial/sub/speed-dial-trigger.component.ts"
+    ],
+    "libFiles": [
+      "a11y.ts"
     ]
   },
   "chip-list": {
@@ -2157,6 +2170,7 @@
       "chip-list/index.ts"
     ],
     "libFiles": [
+      "color.ts",
       "input-group.token.ts"
     ],
     "dependencies": [
@@ -2181,6 +2195,9 @@
       "emoji-picker/index.ts",
       "emoji-picker/sub/emoji-picker-content.component.ts",
       "emoji-picker/sub/emoji-picker-trigger.component.ts"
+    ],
+    "libFiles": [
+      "a11y.ts"
     ],
     "dependencies": [
       "input",
@@ -2437,7 +2454,8 @@
     ],
     "libFiles": [
       "chart.types.ts",
-      "chart.utils.ts"
+      "chart.utils.ts",
+      "color.ts"
     ]
   },
   "bento-grid": {
@@ -2865,6 +2883,7 @@
       "kanban/sub/kanban-delete-column-dialog.component.ts"
     ],
     "libFiles": [
+      "color.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",

@@ -24,6 +24,11 @@ export default tseslint.config(
       'coverage-cli/**',
       '.storybook/**',
       'e2e/fixture-app/**',
+      // Nested git worktrees (`.claude/worktrees/<branch>/`) are separate
+      // checkouts of this repo — they are linted by their own runs, and their
+      // files aren't in this checkout's tsconfig, so parserOptions.project
+      // rejects every one of them.
+      '**/.claude/worktrees/**',
       '**/*.config.js',
       '**/*.config.mjs',
     ],

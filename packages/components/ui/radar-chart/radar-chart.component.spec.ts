@@ -29,7 +29,7 @@ describe('RadarChartComponent', () => {
     });
 
     it('renders with an accessible Radar chart label', () => {
-        const c = fixture.nativeElement.querySelector('[role="img"]');
+        const c = fixture.nativeElement.querySelector('[role="group"]');
         expect(c.getAttribute('aria-label')).toContain('Radar chart');
     });
 

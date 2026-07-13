@@ -1,5 +1,14 @@
 import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
-import type { ChartDataPoint, DrilldownDataPoint, DrilldownSeries, ChartSeries, RangeDataPoint } from '../../../../../packages/components/ui';
+import type {
+  ChartDataPoint,
+  ChartSeries,
+  ChartTooltipRow,
+  DrilldownDataPoint,
+  DrilldownSeries,
+  OrgNode,
+  RangeChartData,
+  RangeDataPoint,
+} from '../../../../../packages/components/ui';
 
 export interface ChartsDemoLocale extends LocaleMeta {
   title: string;
@@ -76,6 +85,28 @@ export interface ChartsDemoLocale extends LocaleMeta {
   barRaceHeading: string;
   barRaceDescription: string;
   barRaceTitle: string;
+  // Org Chart
+  orgChartHeading: string;
+  orgChartDescription: string;
+  orgChartTitle: string;
+  // Chart Tooltip
+  chartTooltipHeading: string;
+  chartTooltipDescription: string;
+  chartTooltipTitle: string;
+  // Chart Legend
+  chartLegendHeading: string;
+  chartLegendDescription: string;
+  chartLegendEmpty: string;
+  // Chart Brush
+  chartBrushHeading: string;
+  chartBrushDescription: string;
+  chartBrushShowing: string;
+  chartBrushReset: string;
+  // Data Table Range Chart
+  rangeDialogHeading: string;
+  rangeDialogDescription: string;
+  rangeDialogButton: string;
+  rangeDialogTitle: string;
   // Data
   pieChartData: ChartDataPoint[];
   drilldownData: DrilldownDataPoint[];
@@ -86,6 +117,9 @@ export interface ChartsDemoLocale extends LocaleMeta {
   rangeChartData: RangeDataPoint[];
   barRaceFrames: ChartDataPoint[][];
   barRaceLabels: string[];
+  orgChartData: OrgNode[];
+  chartTooltipRows: ChartTooltipRow[];
+  rangeDialogPayload: RangeChartData;
 }
 
 export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
@@ -185,6 +219,44 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       [{ name: 'Alice', value: 265 }, { name: 'Bob', value: 290 }, { name: 'Charlie', value: 255 }, { name: 'Diana', value: 278 }, { name: 'Eve', value: 262 }, { name: 'Frank', value: 35 }],
     ],
     barRaceLabels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'],
+    orgChartHeading: 'Org Chart',
+    orgChartDescription: 'Hierarchy tree with curved connectors, avatar initials, and hover highlighting.',
+    orgChartTitle: 'Engineering Organization',
+    chartTooltipHeading: 'Chart Tooltip',
+    chartTooltipDescription: 'The shared tooltip primitive charts use. Position it in the plot area and feed it rows.',
+    chartTooltipTitle: 'March 2026',
+    chartLegendHeading: 'Chart Legend',
+    chartLegendDescription: 'The shared, presentational legend. Tap or press Enter on an item to toggle its series in the chart below.',
+    chartLegendEmpty: 'All series are hidden — pick one from the legend.',
+    chartBrushHeading: 'Chart Brush',
+    chartBrushDescription: 'Drag on the track to brush a range, drag the middle to move it, or drag an edge to resize. The chart above zooms to the selection.',
+    chartBrushShowing: 'Showing',
+    chartBrushReset: 'Reset selection',
+    rangeDialogHeading: 'Data Table Range Chart',
+    rangeDialogDescription: 'The opt-in dialog that charts a data-table range selection — bar, pie, or stacked.',
+    rangeDialogButton: 'Chart the selection',
+    rangeDialogTitle: 'Selected range',
+    orgChartData: [
+      { id: '1', name: 'Ada Lovelace', title: 'CTO' },
+      { id: '2', name: 'Grace Hopper', title: 'VP Engineering', parentId: '1' },
+      { id: '3', name: 'Alan Turing', title: 'VP Research', parentId: '1' },
+      { id: '4', name: 'Linus Chen', title: 'Platform Lead', parentId: '2' },
+      { id: '5', name: 'Maya Patel', title: 'Frontend Lead', parentId: '2' },
+      { id: '6', name: 'Omar Haddad', title: 'Data Scientist', parentId: '3' },
+    ],
+    chartTooltipRows: [
+      { label: 'Desktop', value: '1,204', color: 'var(--chart-1)' },
+      { label: 'Mobile', value: '842', color: 'var(--chart-2)' },
+      { label: 'Tablet', value: '318', color: 'var(--chart-3)' },
+    ],
+    rangeDialogPayload: {
+      categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+      series: [
+        { name: 'Desktop', values: [50, 55, 60, 65] },
+        { name: 'Mobile', values: [40, 50, 55, 68] },
+        { name: 'Tablet', values: [10, 12, 8, 10] },
+      ],
+    },
   },
   he: {
     code: 'he', rtl: true,
@@ -276,6 +348,44 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       [{ name: 'יעל', value: 265 }, { name: 'דוד', value: 290 }, { name: 'נועם', value: 255 }, { name: 'מיכל', value: 278 }, { name: 'רון', value: 262 }, { name: 'טל', value: 35 }],
     ],
     barRaceLabels: ['שבוע 1', 'שבוע 2', 'שבוע 3', 'שבוע 4', 'שבוע 5', 'שבוע 6'],
+    orgChartHeading: 'תרשים ארגוני',
+    orgChartDescription: 'עץ היררכיה עם מחברים מעוגלים, ראשי תיבות באווטאר והדגשה בריחוף.',
+    orgChartTitle: 'ארגון ההנדסה',
+    chartTooltipHeading: 'תיאור גרף',
+    chartTooltipDescription: 'רכיב התיאור המשותף שהגרפים משתמשים בו. מקמו אותו באזור השרטוט והזינו לו שורות.',
+    chartTooltipTitle: 'מרץ 2026',
+    chartLegendHeading: 'מקרא גרף',
+    chartLegendDescription: 'המקרא המשותף והתצוגתי. הקישו או לחצו Enter על פריט כדי להסתיר או להציג את הסדרה בגרף שלמטה.',
+    chartLegendEmpty: 'כל הסדרות מוסתרות — בחרו אחת מהמקרא.',
+    chartBrushHeading: 'מברשת בחירה בגרף',
+    chartBrushDescription: 'גררו על הפס כדי לבחור טווח, גררו באמצע כדי להזיז אותו, או גררו קצה כדי לשנות גודל. הגרף שלמעלה מתמקד בבחירה.',
+    chartBrushShowing: 'מוצג',
+    chartBrushReset: 'איפוס הבחירה',
+    rangeDialogHeading: 'גרף טווח לטבלת נתונים',
+    rangeDialogDescription: 'דיאלוג אופציונלי המשרטט בחירת טווח מטבלת נתונים — עמודות, עוגה או מוערם.',
+    rangeDialogButton: 'שרטט את הבחירה',
+    rangeDialogTitle: 'הטווח שנבחר',
+    orgChartData: [
+      { id: '1', name: 'אורית לוי', title: 'סמנכ"לית טכנולוגיות' },
+      { id: '2', name: 'דנה כהן', title: 'סגנית נשיא הנדסה', parentId: '1' },
+      { id: '3', name: 'איתי בר', title: 'סגן נשיא מחקר', parentId: '1' },
+      { id: '4', name: 'יואב שגיא', title: 'ראש צוות פלטפורמה', parentId: '2' },
+      { id: '5', name: 'מאיה גל', title: 'ראש צוות פרונטאנד', parentId: '2' },
+      { id: '6', name: 'עומר חדד', title: 'מדען נתונים', parentId: '3' },
+    ],
+    chartTooltipRows: [
+      { label: 'שולחן עבודה', value: '1,204', color: 'var(--chart-1)' },
+      { label: 'נייד', value: '842', color: 'var(--chart-2)' },
+      { label: 'טאבלט', value: '318', color: 'var(--chart-3)' },
+    ],
+    rangeDialogPayload: {
+      categories: ['ר1', 'ר2', 'ר3', 'ר4'],
+      series: [
+        { name: 'שולחן עבודה', values: [50, 55, 60, 65] },
+        { name: 'נייד', values: [40, 50, 55, 68] },
+        { name: 'טאבלט', values: [10, 12, 8, 10] },
+      ],
+    },
   },
   ar: {
     code: 'ar', rtl: true,
@@ -367,6 +477,44 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       [{ name: 'فاطمة', value: 265 }, { name: 'محمد', value: 290 }, { name: 'علي', value: 255 }, { name: 'سارة', value: 278 }, { name: 'أحمد', value: 262 }, { name: 'ليلى', value: 35 }],
     ],
     barRaceLabels: ['أسبوع 1', 'أسبوع 2', 'أسبوع 3', 'أسبوع 4', 'أسبوع 5', 'أسبوع 6'],
+    orgChartHeading: 'الهيكل التنظيمي',
+    orgChartDescription: 'شجرة هرمية بوصلات منحنية وأحرف أولى في الصورة الرمزية وإبراز عند التمرير.',
+    orgChartTitle: 'قسم الهندسة',
+    chartTooltipHeading: 'تلميح المخطط',
+    chartTooltipDescription: 'عنصر التلميح المشترك الذي تستخدمه المخططات. ضعه داخل منطقة الرسم وزوّده بالصفوف.',
+    chartTooltipTitle: 'مارس 2026',
+    chartLegendHeading: 'وسيلة إيضاح المخطط',
+    chartLegendDescription: 'وسيلة الإيضاح المشتركة والعرضية. انقر أو اضغط Enter على عنصر لإظهار سلسلته أو إخفائها في المخطط أدناه.',
+    chartLegendEmpty: 'جميع السلاسل مخفية — اختر واحدة من وسيلة الإيضاح.',
+    chartBrushHeading: 'فرشاة المخطط',
+    chartBrushDescription: 'اسحب على الشريط لتحديد نطاق، واسحب الوسط لتحريكه، أو اسحب إحدى الحواف لتغيير حجمه. يتكبّر المخطط أعلاه على التحديد.',
+    chartBrushShowing: 'المعروض',
+    chartBrushReset: 'إعادة تعيين التحديد',
+    rangeDialogHeading: 'مخطط نطاق جدول البيانات',
+    rangeDialogDescription: 'مربع حوار اختياري يرسم نطاقًا محددًا من جدول البيانات — أعمدة أو دائري أو مكدّس.',
+    rangeDialogButton: 'ارسم التحديد',
+    rangeDialogTitle: 'النطاق المحدد',
+    orgChartData: [
+      { id: '1', name: 'ليلى منصور', title: 'المديرة التقنية' },
+      { id: '2', name: 'سارة خالد', title: 'نائبة رئيس الهندسة', parentId: '1' },
+      { id: '3', name: 'أحمد سليم', title: 'نائب رئيس البحث', parentId: '1' },
+      { id: '4', name: 'يوسف كريم', title: 'قائد فريق المنصة', parentId: '2' },
+      { id: '5', name: 'مايا حسن', title: 'قائدة فريق الواجهة', parentId: '2' },
+      { id: '6', name: 'عمر حداد', title: 'عالم بيانات', parentId: '3' },
+    ],
+    chartTooltipRows: [
+      { label: 'سطح المكتب', value: '1,204', color: 'var(--chart-1)' },
+      { label: 'الجوال', value: '842', color: 'var(--chart-2)' },
+      { label: 'اللوحي', value: '318', color: 'var(--chart-3)' },
+    ],
+    rangeDialogPayload: {
+      categories: ['ر1', 'ر2', 'ر3', 'ر4'],
+      series: [
+        { name: 'سطح المكتب', values: [50, 55, 60, 65] },
+        { name: 'الجوال', values: [40, 50, 55, 68] },
+        { name: 'اللوحي', values: [10, 12, 8, 10] },
+      ],
+    },
   },
   de: {
     code: 'de',
@@ -458,6 +606,44 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       [{ name: 'Anna', value: 265 }, { name: 'Klaus', value: 290 }, { name: 'Markus', value: 255 }, { name: 'Sabine', value: 278 }, { name: 'Hans', value: 262 }, { name: 'Lisa', value: 35 }],
     ],
     barRaceLabels: ['Woche 1', 'Woche 2', 'Woche 3', 'Woche 4', 'Woche 5', 'Woche 6'],
+    orgChartHeading: 'Organigramm',
+    orgChartDescription: 'Hierarchiebaum mit geschwungenen Verbindungen, Avatar-Initialen und Hover-Hervorhebung.',
+    orgChartTitle: 'Engineering-Organisation',
+    chartTooltipHeading: 'Diagramm-Tooltip',
+    chartTooltipDescription: 'Der gemeinsame Tooltip-Baustein der Diagramme. Im Plotbereich positionieren und mit Zeilen füttern.',
+    chartTooltipTitle: 'März 2026',
+    chartLegendHeading: 'Diagramm-Legende',
+    chartLegendDescription: 'Die gemeinsame, rein darstellende Legende. Tippen oder Enter drücken, um die Reihe im Diagramm unten ein- oder auszublenden.',
+    chartLegendEmpty: 'Alle Reihen sind ausgeblendet — wählen Sie eine in der Legende.',
+    chartBrushHeading: 'Diagramm-Brush',
+    chartBrushDescription: 'Auf der Leiste ziehen, um einen Bereich zu markieren, in der Mitte ziehen zum Verschieben, an einer Kante ziehen zum Skalieren. Das Diagramm oben zoomt auf die Auswahl.',
+    chartBrushShowing: 'Angezeigt',
+    chartBrushReset: 'Auswahl zurücksetzen',
+    rangeDialogHeading: 'Datentabellen-Bereichsdiagramm',
+    rangeDialogDescription: 'Der optionale Dialog, der eine Bereichsauswahl der Datentabelle als Balken-, Kreis- oder gestapeltes Diagramm zeigt.',
+    rangeDialogButton: 'Auswahl darstellen',
+    rangeDialogTitle: 'Ausgewählter Bereich',
+    orgChartData: [
+      { id: '1', name: 'Anna Weber', title: 'CTO' },
+      { id: '2', name: 'Klaus Berger', title: 'VP Engineering', parentId: '1' },
+      { id: '3', name: 'Markus Vogel', title: 'VP Forschung', parentId: '1' },
+      { id: '4', name: 'Lisa Krüger', title: 'Plattform-Leitung', parentId: '2' },
+      { id: '5', name: 'Sabine Roth', title: 'Frontend-Leitung', parentId: '2' },
+      { id: '6', name: 'Omar Haddad', title: 'Data Scientist', parentId: '3' },
+    ],
+    chartTooltipRows: [
+      { label: 'Desktop', value: '1.204', color: 'var(--chart-1)' },
+      { label: 'Mobil', value: '842', color: 'var(--chart-2)' },
+      { label: 'Tablet', value: '318', color: 'var(--chart-3)' },
+    ],
+    rangeDialogPayload: {
+      categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+      series: [
+        { name: 'Desktop', values: [50, 55, 60, 65] },
+        { name: 'Mobil', values: [40, 50, 55, 68] },
+        { name: 'Tablet', values: [10, 12, 8, 10] },
+      ],
+    },
   },
   fr: {
     code: 'fr',
@@ -549,6 +735,44 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       [{ name: 'Alice', value: 265 }, { name: 'Pierre', value: 290 }, { name: 'Marie', value: 255 }, { name: 'Isabelle', value: 278 }, { name: 'Paul', value: 262 }, { name: 'Sophie', value: 35 }],
     ],
     barRaceLabels: ['Semaine 1', 'Semaine 2', 'Semaine 3', 'Semaine 4', 'Semaine 5', 'Semaine 6'],
+    orgChartHeading: 'Organigramme',
+    orgChartDescription: 'Arbre hiérarchique avec connecteurs courbes, initiales d’avatar et surbrillance au survol.',
+    orgChartTitle: 'Organisation Ingénierie',
+    chartTooltipHeading: 'Info-bulle de graphique',
+    chartTooltipDescription: 'La brique d’info-bulle partagée par les graphiques. Positionnez-la dans la zone de tracé et fournissez-lui des lignes.',
+    chartTooltipTitle: 'Mars 2026',
+    chartLegendHeading: 'Légende de graphique',
+    chartLegendDescription: 'La légende partagée et purement présentationnelle. Touchez ou appuyez sur Entrée pour afficher ou masquer la série dans le graphique ci-dessous.',
+    chartLegendEmpty: 'Toutes les séries sont masquées — choisissez-en une dans la légende.',
+    chartBrushHeading: 'Brosse de graphique',
+    chartBrushDescription: 'Faites glisser sur la piste pour sélectionner une plage, au centre pour la déplacer, ou sur un bord pour la redimensionner. Le graphique ci-dessus zoome sur la sélection.',
+    chartBrushShowing: 'Affiché',
+    chartBrushReset: 'Réinitialiser la sélection',
+    rangeDialogHeading: 'Graphique de plage du tableau de données',
+    rangeDialogDescription: 'La boîte de dialogue optionnelle qui trace une sélection de plage du tableau — barres, secteurs ou empilé.',
+    rangeDialogButton: 'Tracer la sélection',
+    rangeDialogTitle: 'Plage sélectionnée',
+    orgChartData: [
+      { id: '1', name: 'Alice Moreau', title: 'Directrice technique' },
+      { id: '2', name: 'Pierre Dubois', title: 'VP Ingénierie', parentId: '1' },
+      { id: '3', name: 'Marie Laurent', title: 'VP Recherche', parentId: '1' },
+      { id: '4', name: 'Paul Girard', title: 'Responsable plateforme', parentId: '2' },
+      { id: '5', name: 'Sophie Petit', title: 'Responsable frontend', parentId: '2' },
+      { id: '6', name: 'Omar Haddad', title: 'Data scientist', parentId: '3' },
+    ],
+    chartTooltipRows: [
+      { label: 'Bureau', value: '1 204', color: 'var(--chart-1)' },
+      { label: 'Mobile', value: '842', color: 'var(--chart-2)' },
+      { label: 'Tablette', value: '318', color: 'var(--chart-3)' },
+    ],
+    rangeDialogPayload: {
+      categories: ['T1', 'T2', 'T3', 'T4'],
+      series: [
+        { name: 'Bureau', values: [50, 55, 60, 65] },
+        { name: 'Mobile', values: [40, 50, 55, 68] },
+        { name: 'Tablette', values: [10, 12, 8, 10] },
+      ],
+    },
   },
   es: {
     code: 'es',
@@ -640,6 +864,44 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       [{ name: 'Ana', value: 265 }, { name: 'Carlos', value: 290 }, { name: 'Miguel', value: 255 }, { name: 'Sofía', value: 278 }, { name: 'Pedro', value: 262 }, { name: 'Laura', value: 35 }],
     ],
     barRaceLabels: ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5', 'Semana 6'],
+    orgChartHeading: 'Organigrama',
+    orgChartDescription: 'Árbol jerárquico con conectores curvos, iniciales en el avatar y resaltado al pasar el ratón.',
+    orgChartTitle: 'Organización de Ingeniería',
+    chartTooltipHeading: 'Información sobre herramientas del gráfico',
+    chartTooltipDescription: 'La pieza compartida que usan los gráficos. Colóquela en el área de trazado y aliméntela con filas.',
+    chartTooltipTitle: 'Marzo de 2026',
+    chartLegendHeading: 'Leyenda del gráfico',
+    chartLegendDescription: 'La leyenda compartida y puramente presentacional. Toque o pulse Intro en un elemento para mostrar u ocultar su serie en el gráfico de abajo.',
+    chartLegendEmpty: 'Todas las series están ocultas: elija una en la leyenda.',
+    chartBrushHeading: 'Pincel del gráfico',
+    chartBrushDescription: 'Arrastre sobre la pista para seleccionar un rango, arrastre el centro para moverlo o un borde para redimensionarlo. El gráfico de arriba se acerca a la selección.',
+    chartBrushShowing: 'Mostrando',
+    chartBrushReset: 'Restablecer selección',
+    rangeDialogHeading: 'Gráfico de rango de la tabla de datos',
+    rangeDialogDescription: 'El diálogo opcional que grafica una selección de rango de la tabla: barras, circular o apilado.',
+    rangeDialogButton: 'Graficar la selección',
+    rangeDialogTitle: 'Rango seleccionado',
+    orgChartData: [
+      { id: '1', name: 'Ana Ruiz', title: 'Directora de Tecnología' },
+      { id: '2', name: 'Carlos Vega', title: 'VP de Ingeniería', parentId: '1' },
+      { id: '3', name: 'Miguel Soto', title: 'VP de Investigación', parentId: '1' },
+      { id: '4', name: 'Laura Gil', title: 'Líder de Plataforma', parentId: '2' },
+      { id: '5', name: 'Sofía Nieto', title: 'Líder de Frontend', parentId: '2' },
+      { id: '6', name: 'Omar Haddad', title: 'Científico de datos', parentId: '3' },
+    ],
+    chartTooltipRows: [
+      { label: 'Escritorio', value: '1.204', color: 'var(--chart-1)' },
+      { label: 'Móvil', value: '842', color: 'var(--chart-2)' },
+      { label: 'Tableta', value: '318', color: 'var(--chart-3)' },
+    ],
+    rangeDialogPayload: {
+      categories: ['T1', 'T2', 'T3', 'T4'],
+      series: [
+        { name: 'Escritorio', values: [50, 55, 60, 65] },
+        { name: 'Móvil', values: [40, 50, 55, 68] },
+        { name: 'Tableta', values: [10, 12, 8, 10] },
+      ],
+    },
   },
   ja: {
     code: 'ja',
@@ -731,6 +993,44 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       [{ name: '山田', value: 265 }, { name: '田中', value: 290 }, { name: '鈴木', value: 255 }, { name: '高橋', value: 278 }, { name: '佐藤', value: 262 }, { name: '伊藤', value: 35 }],
     ],
     barRaceLabels: ['第1週', '第2週', '第3週', '第4週', '第5週', '第6週'],
+    orgChartHeading: '組織図',
+    orgChartDescription: '曲線コネクタ、アバターのイニシャル、ホバー時のハイライトを備えた階層ツリー。',
+    orgChartTitle: 'エンジニアリング組織',
+    chartTooltipHeading: 'チャートツールチップ',
+    chartTooltipDescription: '各チャートが使う共通のツールチップ部品。プロット領域に配置して行データを渡します。',
+    chartTooltipTitle: '2026年3月',
+    chartLegendHeading: 'チャート凡例',
+    chartLegendDescription: '共通の表示専用凡例。項目をタップするかEnterキーを押すと、下のチャートの系列を表示・非表示できます。',
+    chartLegendEmpty: 'すべての系列が非表示です。凡例から選択してください。',
+    chartBrushHeading: 'チャートブラシ',
+    chartBrushDescription: 'トラックをドラッグして範囲を選択、中央をドラッグして移動、端をドラッグしてサイズ変更します。上のチャートが選択範囲にズームします。',
+    chartBrushShowing: '表示中',
+    chartBrushReset: '選択をリセット',
+    rangeDialogHeading: 'データテーブル範囲チャート',
+    rangeDialogDescription: 'データテーブルの範囲選択を棒・円・積み上げでグラフ化する任意のダイアログ。',
+    rangeDialogButton: '選択範囲をグラフ化',
+    rangeDialogTitle: '選択した範囲',
+    orgChartData: [
+      { id: '1', name: '山田 花子', title: 'CTO' },
+      { id: '2', name: '田中 一郎', title: 'エンジニアリング担当VP', parentId: '1' },
+      { id: '3', name: '鈴木 健', title: '研究担当VP', parentId: '1' },
+      { id: '4', name: '高橋 美咲', title: 'プラットフォームリード', parentId: '2' },
+      { id: '5', name: '佐藤 涼', title: 'フロントエンドリード', parentId: '2' },
+      { id: '6', name: '伊藤 大輔', title: 'データサイエンティスト', parentId: '3' },
+    ],
+    chartTooltipRows: [
+      { label: 'デスクトップ', value: '1,204', color: 'var(--chart-1)' },
+      { label: 'モバイル', value: '842', color: 'var(--chart-2)' },
+      { label: 'タブレット', value: '318', color: 'var(--chart-3)' },
+    ],
+    rangeDialogPayload: {
+      categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+      series: [
+        { name: 'デスクトップ', values: [50, 55, 60, 65] },
+        { name: 'モバイル', values: [40, 50, 55, 68] },
+        { name: 'タブレット', values: [10, 12, 8, 10] },
+      ],
+    },
   },
   zh: {
     code: 'zh',
@@ -822,6 +1122,44 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       [{ name: '王芳', value: 265 }, { name: '李明', value: 290 }, { name: '张伟', value: 255 }, { name: '刘洋', value: 278 }, { name: '陈静', value: 262 }, { name: '杨光', value: 35 }],
     ],
     barRaceLabels: ['第1周', '第2周', '第3周', '第4周', '第5周', '第6周'],
+    orgChartHeading: '组织结构图',
+    orgChartDescription: '层级树，带曲线连接线、头像首字母和悬停高亮。',
+    orgChartTitle: '工程组织',
+    chartTooltipHeading: '图表提示框',
+    chartTooltipDescription: '各图表共用的提示框基础组件。将其定位在绘图区并传入行数据。',
+    chartTooltipTitle: '2026年3月',
+    chartLegendHeading: '图表图例',
+    chartLegendDescription: '共用的纯展示型图例。点按或按 Enter 可切换下方图表中对应系列的显示。',
+    chartLegendEmpty: '所有系列均已隐藏——请从图例中选择一个。',
+    chartBrushHeading: '图表刷选',
+    chartBrushDescription: '在轨道上拖动以刷选范围，拖动中部可移动，拖动边缘可调整大小。上方图表会缩放到所选范围。',
+    chartBrushShowing: '显示',
+    chartBrushReset: '重置选择',
+    rangeDialogHeading: '数据表范围图表',
+    rangeDialogDescription: '可选对话框，将数据表的范围选择绘制为柱状图、饼图或堆叠图。',
+    rangeDialogButton: '绘制所选范围',
+    rangeDialogTitle: '所选范围',
+    orgChartData: [
+      { id: '1', name: '王芳', title: '首席技术官' },
+      { id: '2', name: '李明', title: '工程副总裁', parentId: '1' },
+      { id: '3', name: '张伟', title: '研究副总裁', parentId: '1' },
+      { id: '4', name: '刘洋', title: '平台负责人', parentId: '2' },
+      { id: '5', name: '陈静', title: '前端负责人', parentId: '2' },
+      { id: '6', name: '杨光', title: '数据科学家', parentId: '3' },
+    ],
+    chartTooltipRows: [
+      { label: '桌面', value: '1,204', color: 'var(--chart-1)' },
+      { label: '移动', value: '842', color: 'var(--chart-2)' },
+      { label: '平板', value: '318', color: 'var(--chart-3)' },
+    ],
+    rangeDialogPayload: {
+      categories: ['Q1', 'Q2', 'Q3', 'Q4'],
+      series: [
+        { name: '桌面', values: [50, 55, 60, 65] },
+        { name: '移动', values: [40, 50, 55, 68] },
+        { name: '平板', values: [10, 12, 8, 10] },
+      ],
+    },
   },
   ru: {
     code: 'ru',
@@ -913,6 +1251,44 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       [{ name: 'Анна', value: 265 }, { name: 'Иван', value: 290 }, { name: 'Алексей', value: 255 }, { name: 'Мария', value: 278 }, { name: 'Дмитрий', value: 262 }, { name: 'Ольга', value: 35 }],
     ],
     barRaceLabels: ['Нед. 1', 'Нед. 2', 'Нед. 3', 'Нед. 4', 'Нед. 5', 'Нед. 6'],
+    orgChartHeading: 'Организационная диаграмма',
+    orgChartDescription: 'Дерево иерархии с изогнутыми соединителями, инициалами в аватаре и подсветкой при наведении.',
+    orgChartTitle: 'Инженерная организация',
+    chartTooltipHeading: 'Подсказка диаграммы',
+    chartTooltipDescription: 'Общий элемент подсказки, который используют диаграммы. Разместите его в области построения и передайте строки.',
+    chartTooltipTitle: 'Март 2026',
+    chartLegendHeading: 'Легенда диаграммы',
+    chartLegendDescription: 'Общая презентационная легенда. Нажмите на элемент или клавишу Enter, чтобы скрыть или показать серию на диаграмме ниже.',
+    chartLegendEmpty: 'Все серии скрыты — выберите одну в легенде.',
+    chartBrushHeading: 'Кисть выбора диапазона',
+    chartBrushDescription: 'Проведите по дорожке, чтобы выделить диапазон, тяните середину, чтобы сдвинуть его, или край — чтобы изменить размер. Диаграмма выше приближается к выделению.',
+    chartBrushShowing: 'Показано',
+    chartBrushReset: 'Сбросить выделение',
+    rangeDialogHeading: 'Диаграмма диапазона таблицы данных',
+    rangeDialogDescription: 'Необязательный диалог, строящий диаграмму по выделенному диапазону таблицы — столбцы, круговая или составная.',
+    rangeDialogButton: 'Построить диаграмму',
+    rangeDialogTitle: 'Выбранный диапазон',
+    orgChartData: [
+      { id: '1', name: 'Анна Смирнова', title: 'Технический директор' },
+      { id: '2', name: 'Иван Петров', title: 'Вице-президент по разработке', parentId: '1' },
+      { id: '3', name: 'Алексей Орлов', title: 'Вице-президент по исследованиям', parentId: '1' },
+      { id: '4', name: 'Мария Волкова', title: 'Руководитель платформы', parentId: '2' },
+      { id: '5', name: 'Дмитрий Козлов', title: 'Руководитель фронтенда', parentId: '2' },
+      { id: '6', name: 'Ольга Титова', title: 'Специалист по данным', parentId: '3' },
+    ],
+    chartTooltipRows: [
+      { label: 'Рабочий стол', value: '1 204', color: 'var(--chart-1)' },
+      { label: 'Мобильный', value: '842', color: 'var(--chart-2)' },
+      { label: 'Планшет', value: '318', color: 'var(--chart-3)' },
+    ],
+    rangeDialogPayload: {
+      categories: ['К1', 'К2', 'К3', 'К4'],
+      series: [
+        { name: 'Рабочий стол', values: [50, 55, 60, 65] },
+        { name: 'Мобильный', values: [40, 50, 55, 68] },
+        { name: 'Планшет', values: [10, 12, 8, 10] },
+      ],
+    },
   },
   pt: {
     code: 'pt',
@@ -1004,5 +1380,43 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       [{ name: 'Ana', value: 265 }, { name: 'João', value: 290 }, { name: 'Pedro', value: 255 }, { name: 'Maria', value: 278 }, { name: 'Carlos', value: 262 }, { name: 'Sofia', value: 35 }],
     ],
     barRaceLabels: ['Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5', 'Semana 6'],
+    orgChartHeading: 'Organograma',
+    orgChartDescription: 'Árvore hierárquica com conectores curvos, iniciais no avatar e destaque ao passar o mouse.',
+    orgChartTitle: 'Organização de Engenharia',
+    chartTooltipHeading: 'Dica de ferramenta do gráfico',
+    chartTooltipDescription: 'A peça de dica compartilhada usada pelos gráficos. Posicione-a na área de plotagem e forneça as linhas.',
+    chartTooltipTitle: 'Março de 2026',
+    chartLegendHeading: 'Legenda do gráfico',
+    chartLegendDescription: 'A legenda compartilhada e puramente apresentacional. Toque ou pressione Enter num item para mostrar ou ocultar a série no gráfico abaixo.',
+    chartLegendEmpty: 'Todas as séries estão ocultas — escolha uma na legenda.',
+    chartBrushHeading: 'Pincel do gráfico',
+    chartBrushDescription: 'Arraste na trilha para selecionar um intervalo, arraste o meio para movê-lo ou uma borda para redimensioná-lo. O gráfico acima amplia a seleção.',
+    chartBrushShowing: 'Exibindo',
+    chartBrushReset: 'Redefinir seleção',
+    rangeDialogHeading: 'Gráfico de intervalo da tabela de dados',
+    rangeDialogDescription: 'O diálogo opcional que representa uma seleção de intervalo da tabela — barras, pizza ou empilhado.',
+    rangeDialogButton: 'Representar a seleção',
+    rangeDialogTitle: 'Intervalo selecionado',
+    orgChartData: [
+      { id: '1', name: 'Ana Ribeiro', title: 'Diretora de Tecnologia' },
+      { id: '2', name: 'João Costa', title: 'VP de Engenharia', parentId: '1' },
+      { id: '3', name: 'Pedro Alves', title: 'VP de Pesquisa', parentId: '1' },
+      { id: '4', name: 'Maria Lima', title: 'Líder de Plataforma', parentId: '2' },
+      { id: '5', name: 'Sofia Rocha', title: 'Líder de Frontend', parentId: '2' },
+      { id: '6', name: 'Carlos Menezes', title: 'Cientista de dados', parentId: '3' },
+    ],
+    chartTooltipRows: [
+      { label: 'Desktop', value: '1.204', color: 'var(--chart-1)' },
+      { label: 'Móvel', value: '842', color: 'var(--chart-2)' },
+      { label: 'Tablet', value: '318', color: 'var(--chart-3)' },
+    ],
+    rangeDialogPayload: {
+      categories: ['T1', 'T2', 'T3', 'T4'],
+      series: [
+        { name: 'Desktop', values: [50, 55, 60, 65] },
+        { name: 'Móvel', values: [40, 50, 55, 68] },
+        { name: 'Tablet', values: [10, 12, 8, 10] },
+      ],
+    },
   },
 };

@@ -8,6 +8,8 @@ import {
     AfterViewInit,
     ElementRef,
     effect,
+    afterRenderEffect,
+    signal,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
@@ -46,6 +48,7 @@ import { AlertDialogCancelComponent } from './alert-dialog-cancel.component';
           [class]="classes()"
           role="alertdialog"
           [attr.data-slot]="'alert-dialog-content'"
+          [attr.aria-labelledby]="titleId()"
           tabindex="-1"
         >
           @if (title()) {
@@ -75,6 +78,15 @@ export class AlertDialogContentComponent implements AfterViewInit {
     readonly class = input('');
     readonly title = input<string>();
     readonly description = input<string>();
+
+    /**
+     * `id` of the element naming the dialog. `role="alertdialog"` requires an
+     * accessible name (axe `aria-dialog-name`) and it must come from the author.
+     * The title is rendered either from the `title` input or projected as a
+     * `<ui-alert-dialog-title>`, so it is located in the DOM after render and
+     * given an id to point `aria-labelledby` at — which covers both modes.
+     */
+    readonly titleId = signal<string | null>(null);
 
     /** Override for the action button text. When unset, falls back to the locale's `continue` string. */
     readonly actionText = input<string>();
@@ -110,7 +122,18 @@ export class AlertDialogContentComponent implements AfterViewInit {
                 this.previousActiveElement.focus();
             }
         });
+
+        afterRenderEffect(() => {
+            if (!this.alertDialog?.open()) return;
+            const host = this.el.nativeElement as HTMLElement;
+            const titleEl = host.querySelector<HTMLElement>('[data-slot="alert-dialog-title"]');
+            if (!titleEl) return;
+            titleEl.id ||= `alert-dialog-title-${++AlertDialogContentComponent.titleSeq}`;
+            this.titleId.set(titleEl.id);
+        });
     }
+
+    private static titleSeq = 0;
 
     ngAfterViewInit(): void {
         if (this.alertDialog?.open()) {
