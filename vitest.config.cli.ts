@@ -25,19 +25,24 @@ export default defineConfig({
                 '**/*.test.ts',
                 '**/dist/**',
             ],
-            // Ratchet, not aspiration: measured 2026-07-13 on a clean tree with all
-            // 643 CLI tests passing. `npm run coverage` reports slightly lower than a
-            // standalone `coverage:cli` run (it sweeps a few more files into the
-            // denominator), so the ratchet is set below the LOWER of the two — the
-            // one that actually gates: statements 58.25 / branches 54.44 /
-            // functions 63.28 / lines 59.27.
-            // The CLI suite is far less covered than the component suite — raise
-            // these as it improves; never lower them to make a run pass.
+            // Ratchet, not aspiration: re-measured 2026-07-13 after covering the
+            // previously-untested shipped commands (apply, doctor, update, add,
+            // migrate, install, breaking-scan, MCP write-tools) — 1078 CLI tests:
+            // statements 76.5 / branches 70.93 / functions 79.65 / lines 77.16.
+            // Set a couple of points below the measured values so an unrelated PR
+            // isn't gated by noise, but a real regression still trips.
+            // Raise these as coverage improves; never lower them to make a run pass.
+            //
+            // NOTE: the maintainer entry scripts (check-completeness, new-component,
+            // release-cli, sync-registry) are driven by SUBPROCESS tests, and v8 does
+            // not instrument child processes — they read as ~0% here despite having a
+            // pinned argv/exit-code contract. That drags these numbers down; it is a
+            // measurement artifact, not an untested surface.
             thresholds: {
-                statements: 57,
-                branches: 53,
-                functions: 62,
-                lines: 58,
+                statements: 74,
+                branches: 68,
+                functions: 77,
+                lines: 74,
             },
         },
     },
