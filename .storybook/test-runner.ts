@@ -17,6 +17,33 @@ const ANIMATION_SETTLE_TIMEOUT_MS = 3000;
  */
 const a11yEnabled = process.env['STORYBOOK_A11Y'] === '1';
 
+/** Attempts (and the backoff step) for the story-store readiness race below. */
+const STORY_CONTEXT_ATTEMPTS = 6;
+const STORY_CONTEXT_BACKOFF_MS = 400;
+
+/**
+ * `getStoryContext` reads Storybook's story store, which is populated
+ * asynchronously after the preview boots. Only the a11y path needs it (to read
+ * each story's `parameters.a11y`), and on a cold Storybook — or simply a loaded
+ * machine — the first workers reach it before the index is ready and get
+ * `SB_PREVIEW_API_0011 (StoryStoreAccessedBeforeInitializationError)`. That is a
+ * boot race, not an accessibility result, and a gate that fails at random gets
+ * bypassed, so wait the store out instead of failing the story.
+ *
+ * This only changes *when* the context is read, never what axe asserts.
+ */
+async function storyContext(page: Page, context: Parameters<typeof getStoryContext>[1]) {
+    for (let attempt = 1; attempt <= STORY_CONTEXT_ATTEMPTS; attempt++) {
+        try {
+            return await getStoryContext(page, context);
+        } catch (error) {
+            if (attempt === STORY_CONTEXT_ATTEMPTS) throw error;
+            await page.waitForTimeout(STORY_CONTEXT_BACKOFF_MS * attempt);
+        }
+    }
+    throw new Error('unreachable');
+}
+
 /**
  * Let entrance animations finish before axe looks at the page.
  *
@@ -52,9 +79,9 @@ const config: TestRunnerConfig = {
         if (!a11yEnabled) return;
         await injectAxe(page);
 
-        const storyContext = await getStoryContext(page, context);
+        const story = await storyContext(page, context);
         await configureAxe(page, {
-            rules: storyContext.parameters?.a11y?.config?.rules,
+            rules: story.parameters?.a11y?.config?.rules,
         });
     },
 
@@ -68,7 +95,7 @@ const config: TestRunnerConfig = {
             detailedReportOptions: {
                 html: true,
             },
-            axeOptions: (await getStoryContext(page, context)).parameters?.a11y?.options,
+            axeOptions: (await storyContext(page, context)).parameters?.a11y?.options,
         });
     },
 };

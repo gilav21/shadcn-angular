@@ -5,15 +5,18 @@
 //
 // Two entry points, both running every story through a real browser:
 //
-//   npm run test-storybook        stories + play functions only (axe OFF). Green,
-//                                 ~64s — this is the pre-push gate.
-//   npm run test-storybook:a11y   the same run with axe a11y assertions ON. Also green,
-//                                 and it must stay that way: the a11y backlog it once
-//                                 tracked has been paid off (see docs/a11y-backlog.md).
-//                                 Fix the component — never soften the assertion.
+//   npm run test-storybook        stories + play functions only (axe OFF), ~64s.
+//   npm run test-storybook:a11y   the same run with axe a11y assertions ON — a strict
+//                                 superset, and what the pre-push hook runs. Green
+//                                 (926/926) and it must stay that way: fix the
+//                                 component, never soften the assertion.
+//   npm run a11y:staged           the axe run scoped to the staged components — the
+//                                 pre-commit hook (see scripts/a11y-staged.mjs).
 //
-// Extra args pass through to the runner:
-//   npm run test-storybook -- button                      # Jest name filter
+// Extra args pass through to the runner. Against a local Storybook the runner is not
+// in index-json mode, so jest's test files ARE the story files and a positional arg is
+// a testPathPattern regex over their paths:
+//   npm run test-storybook -- button                      # only stories whose path matches /button/
 //   npm run test-storybook -- --url http://localhost:6006 # reuse a running Storybook
 //
 // Env:

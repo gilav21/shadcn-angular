@@ -53,14 +53,14 @@ line/branch/function coverage is **at or above the recorded floor**. It does
   them as long as the aggregate does not drop below the floor.
 - **SonarQube is clean** — needs Docker + a token; still a separate, manual
   done-gate (`.claude/CLAUDE.md` §4).
-- **it renders correctly** — no visual/a11y assertion runs in the gate;
-  `test-storybook` (pre-push) is a smoke run, and its axe pass is RED by design
-  and excluded.
+- **it renders correctly** — nothing in `preflight` looks at a rendered
+  component. The Storybook axe pass that does is run by the **hooks**, not by
+  `preflight` (see below).
 
 Deliberately **not** in preflight:
 
-- `test-storybook:a11y` — RED by design (see `docs/a11y-backlog.md`). It is a
-  manual triage command, never a gate.
+- `test-storybook:a11y` — it is a *hook* stage, not a preflight stage, so that
+  `preflight` stays a pure static/unit gate and the browser work happens once.
 - `e2e` — ~7 min, and CI already runs the impacted subset per PR.
 - `sonar` — needs Docker + a token; run it before declaring a task done
   (`.claude/CLAUDE.md` §4).
@@ -73,16 +73,42 @@ zero-dependency, no postinstall binary download, and the hook body is a single
 `npm run …` line, so nothing bash-specific runs on Windows). Re-install
 manually with `npx simple-git-hooks`.
 
-| hook       | runs                                    | measured wall-clock (2026-07-13, warm) |
+| hook       | runs                                    | measured wall-clock (2026-07-13) |
 |------------|-----------------------------------------|--------------------|
-| pre-commit | `lint-staged` → `eslint --fix` on staged files | **10 s** for a 10-file commit (scales with staged file count) |
-| pre-push   | `preflight` (2m 47s — incl. coverage) + `test-storybook` (60 s) | **3 m 47 s** |
+| pre-commit | `lint-staged` → `eslint --fix` on staged files, then **`a11y:staged`** — axe over the staged components' stories | **~4 s** (docs/CLI-only commit — axe skipped) · **~40 s** (one component, cold Storybook) · **~11 s** (one component, Storybook already running) |
+| pre-push   | `preflight` (2m 47s — incl. coverage) + **`test-storybook:a11y`** (1m 19s: 25 s boot + 51 s for 926 stories **with axe on**) | **~4 m 06 s** |
 
-**pre-commit is intentionally lint-only.** Scoping unit tests to the staged
-files is not cheap here: the component suite runs in a real browser, and
-booting it costs more than the lint pass even for one file. A pre-commit hook
-that takes minutes gets `--no-verify`'d into uselessness, which is worse than
-not having one. Tests run at push time instead.
+### The a11y (axe) gate
+
+`.storybook/test-runner.ts` runs every story through axe when `STORYBOOK_A11Y=1`.
+The full pass is green (926/926) and **must stay green — fix the component,
+never the assertion**. It is wired into both hooks, at different scopes:
+
+- **pre-commit → scoped** (`scripts/a11y-staged.mjs`). It reads
+  `git diff --cached` and audits only what you touched:
+
+  | staged                                                        | what runs |
+  |---------------------------------------------------------------|-----------|
+  | nothing UI-ish (docs, CLI, e2e, scripts)                       | nothing — skipped, ~0 s |
+  | `packages/components/ui/<name>/**`                              | axe over *that component's* `*.stories.ts` only |
+  | a **global** file — `.storybook/**`, `packages/components/lib/**`, any `*.css`, or a flat shared directive/pipe directly under `ui/` | the **full** axe pass |
+
+  The global fallback is the point: a change to `lib/a11y.ts` or to the global
+  stylesheet can break the a11y of any component, so scoping it to the (empty)
+  set of touched components would be a false green.
+
+- **pre-push → full.** `test-storybook:a11y` replaces the old plain
+  `test-storybook` in the push hook. It is a strict superset — same stories,
+  same play functions, plus the axe assertions — so nothing was dropped, and the
+  hook got *cheaper* than running both (net **+11 s** over the old pre-push).
+
+**Honest cost.** Booting Storybook (~25 s) dominates the scoped run: auditing one
+component's stories is ~5–10 s, everything else is boot. If you keep
+`npm run storybook` running while you work, the hook reuses it and a scoped
+commit costs ~11 s; from cold it is ~40 s. That is the deliberate trade: a
+commit that touches a component pays ~40 s to learn *immediately* that it broke
+`button-name` or `color-contrast`, instead of finding out minutes later at push
+time — and a commit that touches no component pays nothing.
 
 ### The escape hatch
 
