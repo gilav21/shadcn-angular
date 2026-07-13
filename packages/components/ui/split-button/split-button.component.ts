@@ -177,8 +177,12 @@ export class SplitButtonComponent implements OnDestroy {
         this.class()
     ));
 
+    // The divider is the dropdown's start border. Deriving it from `current`
+    // (the variant's own foreground) keeps it visible on every variant in both
+    // themes — the button base sets `border-transparent`, so a solid-fill
+    // variant like `default` otherwise renders no divider at all.
     dropdownClasses = computed(() => cn(
-        'rounded-s-none px-2'
+        'rounded-s-none px-2 border-s-current/25'
     ));
 
     private readonly menuPosition = signal<'below' | 'above'>('below');
