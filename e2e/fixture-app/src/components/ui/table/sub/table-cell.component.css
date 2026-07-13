@@ -1,0 +1,8 @@
+:host {
+    --_d: var(--density-table, var(--density, 1));
+}
+@layer components {
+    :host([data-slot="table-cell"]) {
+        padding: calc(0.5rem * var(--_d));
+    }
+}

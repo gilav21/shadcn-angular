@@ -16,17 +16,18 @@ import {
     imports: [DataTableRangeChartComponent],
     template: `
         <main class="p-8">
-            <button type="button" data-testid="open" (click)="payload.set(data)">Chart the range</button>
+            <button type="button" data-testid="open" (click)="open.set(true)">Chart the range</button>
             <ui-data-table-range-chart
                 data-testid="root"
-                [payload]="payload()"
+                [payload]="data"
+                [(open)]="open"
                 title="Selection"
             />
         </main>
     `,
 })
 export class DataTableRangeChartDemoComponent {
-    readonly payload = signal<RangeChartData | null>(null);
+    readonly open = signal(false);
 
     readonly data: RangeChartData = {
         categories: ['Q1', 'Q2', 'Q3'],

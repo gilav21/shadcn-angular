@@ -1,0 +1,26 @@
+<div [class]="classes()" [attr.data-slot]="'date-range-filter'" [attr.dir]="dir()">
+  @if (title()) {
+    <div class="flex items-center justify-between px-3 pb-2">
+      <span class="text-sm font-medium">{{ title() }}</span>
+    </div>
+  }
+  <div class="flex flex-wrap items-center gap-1 px-3 pb-2">
+    @for (preset of effectivePresets(); track preset.label) {
+      <ui-button variant="outline" size="sm" class="h-7 text-xs" (clicked)="applyPreset(preset)">
+        {{ preset.label }}
+      </ui-button>
+    }
+    <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="clear()">
+      {{ clearLabel() }}
+    </ui-button>
+  </div>
+  <ui-calendar
+    mode="range"
+    [selected]="selectedValue()"
+    [showMonthSelect]="true"
+    [showYearSelect]="true"
+    [locale]="locale()"
+    class="border-0 rounded-none"
+    (selectedChange)="onRangeSelect($event)"
+  />
+</div>

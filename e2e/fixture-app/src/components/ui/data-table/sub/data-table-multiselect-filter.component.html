@@ -1,0 +1,38 @@
+<div [class]="classes()" [attr.data-slot]="'multiselect-filter'">
+  @if (title()) {
+    <div class="flex items-center justify-between px-2 pb-2">
+      <span class="text-sm font-medium">{{ title() }}</span>
+      @if (selectedCount() > 0) {
+        <ui-badge variant="secondary" [label]="String(selectedCount())" class="text-xs" />
+      }
+    </div>
+  }
+  <ui-command [shouldFilter]="true" [attr.dir]="dir()">
+    <ui-command-input [placeholder]="resolvedPlaceholder()" />
+    <div class="flex items-center gap-1 px-2 py-1.5">
+      <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="selectAll()">
+        {{ selectAllLabel() }}
+      </ui-button>
+      <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="clearAll()">
+        {{ clearAllLabel() }}
+      </ui-button>
+    </div>
+    <ui-command-separator />
+    <ui-command-list class="max-h-64">
+      <ui-command-empty>{{ noResultsLabel() }}</ui-command-empty>
+      @for (option of options(); track trackOption(option)) {
+        <ui-command-item
+          [value]="getDisplayLabel(option)"
+          (selectItem)="toggleOption(option)"
+          class="gap-2"
+        >
+          <ui-checkbox
+            [checked]="isSelected(option)"
+            [ariaLabel]="getDisplayLabel(option)"
+          />
+          <span>{{ getDisplayLabel(option) }}</span>
+        </ui-command-item>
+      }
+    </ui-command-list>
+  </ui-command>
+</div>
