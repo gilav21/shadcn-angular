@@ -14,6 +14,8 @@ interface LocaleSample {
     readonly text: string;
 }
 
+// Deliberately not shaped like any real provider's key: a demo string that
+// matches a live-credential pattern trips secret scanners on every clone.
 const API_KEY = 'demo_key_0000_not_a_real_credential';
 const CODE_SNIPPET = `npx shadcn-angular@latest init
 npx shadcn-angular@latest add button card dialog`;
