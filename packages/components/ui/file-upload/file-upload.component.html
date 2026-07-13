@@ -1,10 +1,10 @@
 <div [class]="classes()" [attr.data-slot]="'file-upload'" [attr.dir]="dir()">
   <!--
-    Decorative chrome, not the control: the real control is the focusable
-    <input type="file"> below, which is already keyboard-operable. Giving this
-    wrapper role="button" + tabindex made it a second interactive element around
-    that input — a nested-interactive failure — so it stays presentational and
-    click/drag act purely as a pointer convenience.
+    Decorative chrome, not the control: the real control is the focusable file
+    input below, which is already keyboard-operable. Giving this wrapper a button
+    role plus a tabindex made it a second interactive element wrapping that input
+    — a nested-interactive failure — so it stays presentational, and click and
+    drag act purely as a pointer convenience.
   -->
   <div
     role="presentation"

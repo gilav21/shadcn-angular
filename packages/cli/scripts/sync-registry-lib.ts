@@ -739,8 +739,10 @@ export function formatDeepImportReport(deepImports: readonly DeepImport[]): stri
     if (deepImports.length === 0) return [];
     const lines = ['\nWarning: deep cross-component imports detected (bypass a barrel):'];
     for (const di of dedupeBy(deepImports, d => `${d.fromFile}\0${d.importedFile}`)) {
-        lines.push(`  ${di.fromFile}`);
-        lines.push(`    reaches into the '${di.owner}' component folder: ${di.importedFile}`);
+        lines.push(
+            `  ${di.fromFile}`,
+            `    reaches into the '${di.owner}' component folder: ${di.importedFile}`,
+        );
     }
     lines.push("Import the owning component through its barrel ('../<name>') instead.");
     return lines;
@@ -756,8 +758,10 @@ export function formatAddonViolationReport(violations: readonly AddonBoundary[])
     if (violations.length === 0) return [];
     const lines = ['\nError: base component reaches into its own addons/ folder (boundary violation):'];
     for (const v of dedupeBy(violations, x => `${x.fromFile}\0${x.importedFile}`)) {
-        lines.push(`  ${v.fromFile}`);
-        lines.push(`    reaches into the '${v.addon}' addon: ${v.importedFile}`);
+        lines.push(
+            `  ${v.fromFile}`,
+            `    reaches into the '${v.addon}' addon: ${v.importedFile}`,
+        );
     }
     lines.push('A base must never import or re-export an addon. Remove the import/barrel re-export.');
     return lines;

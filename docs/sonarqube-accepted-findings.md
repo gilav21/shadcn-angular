@@ -23,9 +23,7 @@ Kept only where a native element is impossible:
 
 | Component | Role | Why a native element can't be used |
 | --- | --- | --- |
-| `file-upload` dropzone | `button` | The dropzone **contains** an `<input type="file">` and, when files are present, nested remove `<button>`s. A native `<button>` may not contain interactive content (invalid HTML), so the activatable container stays `role="button"` with explicit keyboard handlers. |
 | `rich-text-editor` history rows (×2) | `button` | Each row **contains** a nested `<ui-button>` (the "preview" action). Interactive content can't nest inside a native `<button>`. |
-| `tree-item` header | `button` | The clickable header **contains** the expand-toggle `<button>`. Interactive nesting again. |
 | `tree-item` children container | `group` | Required by the WAI-ARIA **tree** pattern: a `treeitem`'s child items must live in a `role="group"`. A `<fieldset>` is not a valid child grouping of a `treeitem`. |
 | `data-table` column resize handle | `separator` | This is an **interactive splitter** (mouse + touch drag) and it **contains** a child resize-line element. `<hr>` is a void element (no children) and isn't interactive — `role="separator"` is the correct splitter widget role. |
 | `rich-text-editor` editable surface | `textbox` | A `contenteditable` rich-text region. `<input>`/`<textarea>` are plain-text only and can't host rich formatting. `role="textbox"` + `aria-multiline` is the WAI-ARIA-endorsed pattern. |
@@ -61,6 +59,10 @@ interactive role (it contains its own nested controls):
 | `bento-grid` item | A selectable, drag-and-resizable dashboard card. It has `(click)` + `(keydown.enter/space)` selection handlers, but **contains** its own option button and resize handles, so it can't be a native `<button>`. The `tabindex="0"` is the intended keyboard entry point. |
 | `data-table` scroll/keyboard-nav container | The focusable viewport that drives arrow-key cell navigation (`(keydown)="onTableKeydown"`). It hosts the entire interactive table, so it can't be a single native control. |
 | `scroll-area` viewport | The `tabindex="0"` makes the scroll viewport keyboard-focusable. This is **required** by axe-core's `scrollable-region-focusable` / WCAG 2.1.1 (keyboard) — removing it fails the project's mandatory axe checks. Sonar's S6845 directly contradicts that rule here, and a `role` can't be added without tripping S6819, so the `tabindex` stays. |
+| `virtual-scroll` container | Same `scrollable-region-focusable` case as `scroll-area`: an `overflow-auto` viewport with a `(scroll)` handler that drives the windowing. Without `tabindex="0"` a keyboard-only user cannot scroll the list at all (WCAG 2.1.1) — axe fails the story. It is a scroll container, not a control, so no interactive role applies. |
+| `file-viewer` content pane | Same: the `flex-1 overflow-auto` pane that scrolls the rendered document (PDF/DOCX/PPTX/image). Keyboard users reach it only via `tabindex="0"`; axe's `scrollable-region-focusable` requires it. |
+| `dock` container | Same: the dock strip is `overflow-x-auto` (it scrolls horizontally when the items exceed `max-w-[calc(100vw-2rem)]`), so axe requires the container to be focusable. The dock items themselves are separately focusable controls; the container is only a scrollport. |
+| `tree-item` header | An interactive composite: it carries `(click)` + `(keydown.enter)` + `(keydown.space)` activation and is the tree's per-item focus target, but it **contains** the expand-toggle `<button>`. It therefore can't be a native `<button>` (interactive nesting is invalid HTML) and can't take `role="button"` (a `button` role supports no focusable descendants — axe reports `nested-interactive`, a real WCAG 4.1.2 failure). The `tabindex="0"` is what makes its keyboard handlers reachable; removing it would strip keyboard activation from every tree item. |
 
 ## `Web:S6819` dialog — drawer
 
@@ -84,9 +86,21 @@ not suppressed — this exemption is scoped to the `ui-button` primitive only.
 | File | Instances |
 | --- | --- |
 | `data-table-range-chart/data-table-range-chart.component.html` | 1 |
+| `file-upload/file-upload.component.html` (dropzone `<div>`, see below) | 1 |
 | `data-table/data-table.component.html` | 1 |
 | `rich-text-editor/rich-text-editor.component.html` | 4 |
 | `rich-text-editor/addons/actions/rich-text-actions-dialog.component.html` | 2 |
+
+**The one raw-`<div>` exception — the `file-upload` dropzone.** It is
+`role="presentation"` and its `(click)`/drag handlers are a *pointer convenience*,
+not the control: the real, natively keyboard-operable control is the
+`<input type="file">` **inside** it (visually `sr-only`, fully focusable —
+Enter/Space open the picker). So the keyboard path already exists and is the
+native one. Adding a `(keydown)` to the wrapper would (a) re-open the picker a
+second time when the focused inner input is activated and the event bubbles, and
+(b) re-create the focusable-wrapper-around-a-focusable-input `nested-interactive`
+axe failure that making it presentational was what fixed. Sonar's static HTML
+scan can't see that the keyboard affordance lives on the child input.
 
 ## `typescript:S6268` — "make sure disabling Angular built-in sanitization is safe"
 
