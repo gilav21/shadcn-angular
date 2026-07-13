@@ -1,16 +1,20 @@
 <div [class]="classes()" [attr.data-slot]="'file-upload'" [attr.dir]="dir()">
+  <!--
+    Decorative chrome, not the control: the real control is the focusable
+    <input type="file"> below, which is already keyboard-operable. Giving this
+    wrapper role="button" + tabindex made it a second interactive element around
+    that input — a nested-interactive failure — so it stays presentational and
+    click/drag act purely as a pointer convenience.
+  -->
   <div
+    role="presentation"
     [class]="dropzoneClasses()"
+    [attr.aria-disabled]="isDisabled() || null"
     [attr.data-dragging]="isDragging() || null"
     (dragover)="onDragOver($event)"
     (dragleave)="onDragLeave($event)"
     (drop)="onDrop($event)"
     (click)="openFilePicker()"
-    (keydown.enter)="openFilePicker()"
-    (keydown.space)="openFilePicker()"
-    tabindex="0"
-    role="button"
-    [attr.aria-label]="t().uploadFiles"
   >
     <input
       #fileInput
@@ -90,7 +94,7 @@
               (click)="removeFile(file.id, $event)"
               (keydown.enter)="removeFile(file.id, $event)"
               (keydown.space)="removeFile(file.id, $event)"
-              [attr.aria-label]="t().removeFile"
+              [ariaLabel]="t().removeFile"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

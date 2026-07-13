@@ -496,7 +496,7 @@
             </div>
           </div>
         }
-        <ui-table>
+        <ui-table [role]="enableSubRows() ? 'treegrid' : 'table'">
           <ui-table-header class="bg-background">
             <ui-table-row>
               @for (col of enhancedColumns(); track col.accessorKey) {
@@ -729,6 +729,7 @@
               }
               @if (!hasFlexibleColumns()) {
                 <ui-table-head
+                  role="presentation"
                   class="flex-1 pointer-events-none"
                   [class]="getHeaderClass({ _width: 'auto' })"
                 ></ui-table-head>
@@ -738,6 +739,7 @@
               <ui-table-row class="border-0">
                 @for (col of enhancedColumns(); track col.accessorKey) {
                   <ui-table-head
+                    [role]="hasFloatingFilter(col) ? 'columnheader' : 'presentation'"
                     [style]="getHeaderCellStyle(col)"
                     class="sticky top-[var(--header-height,41px)] z-20 bg-muted/50 py-1 px-1 overflow-hidden"
                   >
@@ -781,6 +783,7 @@
                 }
                 @if (!hasFlexibleColumns()) {
                   <ui-table-head
+                    role="presentation"
                     class="flex-1 pointer-events-none sticky top-[var(--header-height,41px)] z-20 bg-muted/50"
                   ></ui-table-head>
                 }
@@ -1477,7 +1480,7 @@
                   size="sm"
                   variant="outline"
                   class="ms-auto h-6 px-2"
-                  [attr.aria-label]="rangeLabels().chart"
+                  [ariaLabel]="rangeLabels().chart"
                   (click)="openRangeChart()"
                 >
                   <ui-icon name="bar-chart-3" size="xs" class="me-1" />{{ rangeLabels().chart }}

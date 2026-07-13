@@ -10,7 +10,7 @@ import { cn } from '../../lib/utils';
     selector: 'ui-table',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <div [class]="classes()" [attr.data-slot]="'table'" role="table">
+    <div [class]="classes()" [attr.data-slot]="'table'" [attr.role]="role()">
       <ng-content />
     </div>
   `,
@@ -18,6 +18,14 @@ import { cn } from '../../lib/utils';
 })
 export class TableComponent {
     class = input('');
+
+    /**
+     * ARIA role of the grid. Rows that expose `aria-expanded` / `aria-level` —
+     * a hierarchical table, as produced by the data table's sub-rows mode — are
+     * only valid inside a `treegrid`; on a plain `table` those attributes are
+     * ignored by assistive tech, so the hierarchy is lost.
+     */
+    readonly role = input<'table' | 'treegrid'>('table');
 
     classes = computed(() => cn('flex flex-col w-full min-h-0 overflow-x-auto', this.class()));
 }

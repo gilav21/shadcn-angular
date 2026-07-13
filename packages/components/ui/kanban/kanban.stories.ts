@@ -254,11 +254,11 @@ export const CustomMode: Story = {
 
                         <ui-kanban-card cardId="c4">
                             <ui-kanban-card-content>
-                                <div class="space-y-2 opacity-75">
+                                <div class="space-y-2">
                                     <p class="text-sm font-semibold line-through text-muted-foreground">Onboarding flow redesign</p>
                                     <p class="text-xs text-muted-foreground">Shipped to 100% of new users. +18% activation rate.</p>
                                     <div class="flex items-center gap-1 pt-1">
-                                        <span class="text-xs text-green-600 dark:text-green-400 font-medium">✓ Completed Mar 5</span>
+                                        <span class="text-xs text-green-700 dark:text-green-400 font-medium">✓ Completed Mar 5</span>
                                     </div>
                                 </div>
                             </ui-kanban-card-content>

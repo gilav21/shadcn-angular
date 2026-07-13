@@ -33,8 +33,8 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
                     [class]="triggerClasses()"
                     [disabled]="isDisabled()"
                     [attr.aria-expanded]="open()"
-                    [attr.aria-label]="ariaLabel()"
-                    [attr.aria-labelledby]="ariaLabelledby()"
+                    [attr.aria-label]="resolvedAriaLabel()"
+                    [attr.aria-labelledby]="resolvedAriaLabelledby()"
                     [attr.data-state]="open() ? 'open' : 'closed'"
                     [attr.aria-controls]="listId"
                     [attr.data-slot]="'select-trigger'"
@@ -129,6 +129,25 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     protected readonly dir = this.i18n.dir;
     /** Effective placeholder — explicit input wins; otherwise falls back to the locale. */
     readonly resolvedPlaceholder = computed(() => this.placeholder() ?? this.t().selectPlaceholder);
+
+    /**
+     * `aria-labelledby` for the trigger, treating an empty string as absent — an
+     * `aria-labelledby=""` references nothing and leaves the combobox unnamed.
+     */
+    protected readonly resolvedAriaLabelledby = computed(() => this.ariaLabelledby() || undefined);
+
+    /**
+     * Accessible name for the data-driven trigger. `role="combobox"` takes its
+     * name from the author, not from its contents, so the visible placeholder
+     * text inside the button does not name it (axe `button-name`). Fall back to
+     * that same placeholder string unless the consumer names the control itself.
+     */
+    protected readonly resolvedAriaLabel = computed(() => {
+        const explicit = this.ariaLabel();
+        if (explicit) return explicit;
+        if (this.resolvedAriaLabelledby()) return undefined;
+        return this.resolvedPlaceholder();
+    });
     readonly position = input<'popper' | 'item-aligned'>('item-aligned');
     readonly options = input<T[]>([]);
     readonly displayWith = input<(option: T) => string>(String);

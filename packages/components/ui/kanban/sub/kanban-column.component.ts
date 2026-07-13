@@ -77,6 +77,8 @@ export const KANBAN_COLUMN = new InjectionToken<KanbanColumnComponent>('KANBAN_C
                                 type="button"
                                 class="h-6 w-6 flex items-center justify-center rounded hover:bg-accent"
                                 (click)="toggleCollapse()"
+                                [attr.aria-label]="collapsed() ? 'Expand column' : 'Collapse column'"
+                                [attr.aria-expanded]="!collapsed()"
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg" width="14" height="14"

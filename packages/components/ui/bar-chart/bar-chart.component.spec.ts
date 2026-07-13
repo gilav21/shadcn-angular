@@ -42,7 +42,7 @@ describe('BarChartComponent', () => {
     });
 
     it('should set aria-label on container', () => {
-        const container = fixture.nativeElement.querySelector('[role="img"]');
+        const container = fixture.nativeElement.querySelector('[role="group"]');
         expect(container).toBeTruthy();
         expect(container.getAttribute('aria-label')).toContain('chart');
     });

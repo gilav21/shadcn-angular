@@ -53,21 +53,21 @@ export const CustomColor: Story = {
                 <button
                     uiRipple
                     uiRippleColor="rgba(0, 0, 255, 0.3)"
-                    class="px-6 py-3 bg-blue-500 text-white rounded-lg font-medium text-sm hover:bg-blue-600 transition-colors"
+                    class="px-6 py-3 bg-blue-700 text-white rounded-lg font-medium text-sm hover:bg-blue-800 transition-colors"
                 >
                     Blue Ripple
                 </button>
                 <button
                     uiRipple
                     uiRippleColor="rgba(236, 72, 153, 0.4)"
-                    class="px-6 py-3 bg-pink-500 text-white rounded-lg font-medium text-sm hover:bg-pink-600 transition-colors"
+                    class="px-6 py-3 bg-pink-700 text-white rounded-lg font-medium text-sm hover:bg-pink-800 transition-colors"
                 >
                     Pink Ripple
                 </button>
                 <button
                     uiRipple
                     uiRippleColor="rgba(234, 179, 8, 0.5)"
-                    class="px-6 py-3 bg-yellow-500 text-white rounded-lg font-medium text-sm hover:bg-yellow-600 transition-colors"
+                    class="px-6 py-3 bg-yellow-500 text-yellow-950 rounded-lg font-medium text-sm hover:bg-yellow-600 transition-colors"
                 >
                     Yellow Ripple
                 </button>
@@ -143,7 +143,7 @@ export const ButtonVariants: Story = {
                 <button uiRipple uiRippleColor="rgba(0,0,0,0.15)" class="px-5 py-2.5 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 transition-colors">
                     Secondary
                 </button>
-                <button uiRipple uiRippleColor="rgba(239,68,68,0.35)" class="px-5 py-2.5 bg-red-500 text-white rounded-lg text-sm font-medium hover:bg-red-600 transition-colors">
+                <button uiRipple uiRippleColor="rgba(239,68,68,0.35)" class="px-5 py-2.5 bg-red-700 text-white rounded-lg text-sm font-medium hover:bg-red-800 transition-colors">
                     Destructive
                 </button>
                 <button uiRipple class="h-10 w-10 flex items-center justify-center rounded-full bg-primary text-primary-foreground">

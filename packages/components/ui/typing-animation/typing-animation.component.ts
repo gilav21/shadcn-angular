@@ -37,6 +37,16 @@ export class TypingAnimationComponent implements OnInit, OnDestroy {
 
     classes = computed(() => cn('inline', this.class()));
 
+    /**
+     * The complete text, exposed to assistive tech in an `sr-only` span while the
+     * character-by-character output is `aria-hidden`. The animated text is empty
+     * until the first character lands — so a heading built from this component
+     * reached screen readers with no content at all (axe `empty-heading`) — and
+     * announcing each keystroke as it arrives would be unusable regardless. The
+     * typing is decoration; the phrases are the content.
+     */
+    readonly accessibleText = computed(() => this.strings().join(', '));
+
     blinkClass(): string {
         const s = this.state();
         return s === 'pausing' || s === 'waiting' ? 'cursor-blink' : '';

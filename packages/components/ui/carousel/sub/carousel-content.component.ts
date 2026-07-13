@@ -12,7 +12,7 @@ import { CAROUSEL } from '../carousel.component';
     selector: 'ui-carousel-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <div [class]="classes()" [attr.data-slot]="'carousel-content'">
+    <div [class]="classes()" tabindex="0" [attr.data-slot]="'carousel-content'">
       <ng-content />
     </div>
   `,

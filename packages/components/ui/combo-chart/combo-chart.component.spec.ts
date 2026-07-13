@@ -27,7 +27,7 @@ describe('ComboChartComponent', () => {
     });
 
     it('renders with an accessible Combo chart label', () => {
-        const container = fixture.nativeElement.querySelector('[role="img"]');
+        const container = fixture.nativeElement.querySelector('[role="group"]');
         expect(container.getAttribute('aria-label')).toContain('Combo chart');
     });
 

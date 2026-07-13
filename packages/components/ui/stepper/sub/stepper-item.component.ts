@@ -22,7 +22,6 @@ export const STEPPER_ITEM = new InjectionToken<StepperItemComponent>('STEPPER_IT
       [attr.data-slot]="'stepper-item'"
       [attr.data-status]="status()"
       [attr.data-orientation]="stepper?.orientation()"
-      role="listitem"
     >
       <ng-content />
     </div>
@@ -30,7 +29,10 @@ export const STEPPER_ITEM = new InjectionToken<StepperItemComponent>('STEPPER_IT
       <div class="flex-1 h-0.5 bg-border mt-4" [class.bg-primary]="status() === 'complete'"></div>
     }
   `,
-  host: { class: 'contents' },
+  // The parent `<ol data-slot="stepper">` may only contain list items. This host is
+  // its direct child, so it must carry the listitem role or the list is malformed
+  // (axe `list`).
+  host: { class: 'contents', role: 'listitem' },
 })
 export class StepperItemComponent {
   class = input('');

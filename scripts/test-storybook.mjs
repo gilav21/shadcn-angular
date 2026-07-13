@@ -7,10 +7,10 @@
 //
 //   npm run test-storybook        stories + play functions only (axe OFF). Green,
 //                                 ~64s — this is the pre-push gate.
-//   npm run test-storybook:a11y   the same run with axe a11y assertions ON. RED today:
-//                                 the library has a real a11y backlog, tracked in
-//                                 docs/a11y-backlog.md. It is meant to fail until that
-//                                 debt is paid — do not soften it to make it pass.
+//   npm run test-storybook:a11y   the same run with axe a11y assertions ON. Also green,
+//                                 and it must stay that way: the a11y backlog it once
+//                                 tracked has been paid off (see docs/a11y-backlog.md).
+//                                 Fix the component — never soften the assertion.
 //
 // Extra args pass through to the runner:
 //   npm run test-storybook -- button                      # Jest name filter
@@ -86,11 +86,23 @@ function stopStorybook(child) {
   }
 }
 
+// Auditing a story with axe costs far more than just rendering it — the biggest
+// ones (a 10k-row virtualised data table) blow past the runner's default 15s
+// per-test budget on the axe pass alone. Raise the ceiling for that pass only, so
+// a slow audit is reported as an a11y result rather than a timeout. This is a time
+// budget, not a relaxation of what axe checks.
+const A11Y_TEST_TIMEOUT_MS = 90_000;
+
 function runTestRunner() {
+  const timeoutArgs =
+    process.env.STORYBOOK_A11Y === '1' && !runnerArgs.some((a) => a.startsWith('--testTimeout'))
+      ? [`--testTimeout=${A11Y_TEST_TIMEOUT_MS}`]
+      : [];
+
   return new Promise((resolve) => {
     const runner = spawn(
       'npx',
-      ['test-storybook', '--url', url, ...runnerArgs],
+      ['test-storybook', '--url', url, ...timeoutArgs, ...runnerArgs],
       { stdio: 'inherit', shell: isWindows },
     );
     runner.on('exit', (code) => resolve(code ?? 1));

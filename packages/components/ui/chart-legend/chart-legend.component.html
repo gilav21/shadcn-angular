@@ -2,7 +2,7 @@
   @for (item of items(); track item.key) {
     <span
       [attr.data-slot]="'chart-legend-item'"
-      [class]="'inline-flex items-center gap-1.5 ' + (interactive() ? 'cursor-pointer select-none ' : '') + (isHidden(item.key) ? 'opacity-40' : '')"
+      [class]="'inline-flex items-center gap-1.5 ' + (interactive() ? 'cursor-pointer select-none ' : '') + (isHidden(item.key) ? 'opacity-70' : '')"
       [attr.role]="interactive() ? 'button' : null"
       [attr.tabindex]="interactive() ? 0 : null"
       [attr.aria-pressed]="interactive() ? !isHidden(item.key) : null"

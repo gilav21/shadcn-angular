@@ -23,7 +23,7 @@ describe('ScatterChartComponent', () => {
     });
 
     it('renders with an accessible Scatter chart label', () => {
-        const c = fixture.nativeElement.querySelector('[role="img"]');
+        const c = fixture.nativeElement.querySelector('[role="group"]');
         expect(c.getAttribute('aria-label')).toContain('Scatter chart');
     });
 

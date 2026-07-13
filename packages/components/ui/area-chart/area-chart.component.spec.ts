@@ -23,7 +23,7 @@ describe('AreaChartComponent', () => {
     });
 
     it('renders with an accessible Area chart label', () => {
-        const container = fixture.nativeElement.querySelector('[role="img"]');
+        const container = fixture.nativeElement.querySelector('[role="group"]');
         expect(container.getAttribute('aria-label')).toContain('Area chart');
     });
 

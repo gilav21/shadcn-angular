@@ -7,7 +7,7 @@
       [type]="type()"
       [disabled]="isDisabled()"
       [placeholder]="labelIsActive() ? placeholder() : ''"
-      [attr.id]="elementId()"
+      [attr.id]="resolvedId()"
       [attr.name]="name()"
       [attr.aria-label]="ariaLabel()"
       [attr.aria-labelledby]="ariaLabelledby()"
@@ -19,7 +19,7 @@
       (focus)="onFocus()"
       (blur)="onBlur()"
     />
-    <label [for]="elementId()" [class]="floatingLabelClasses()" [attr.data-active]="labelIsActive() ? '' : null">{{ label() }}</label>
+    <label [for]="resolvedId()" [class]="floatingLabelClasses()" [attr.data-active]="labelIsActive() ? '' : null">{{ label() }}</label>
   </div>
 } @else if (needsContainer()) {
   <div [class]="containerClasses()" [attr.data-slot]="'input-container'">
@@ -31,7 +31,7 @@
       [type]="type()"
       [disabled]="isDisabled()"
       [placeholder]="placeholder()"
-      [attr.id]="elementId()"
+      [attr.id]="resolvedId()"
       [attr.name]="name()"
       [attr.aria-label]="ariaLabel()"
       [attr.aria-labelledby]="ariaLabelledby()"
@@ -69,7 +69,7 @@
     [type]="type()"
     [disabled]="isDisabled()"
     [placeholder]="placeholder()"
-    [attr.id]="elementId()"
+    [attr.id]="resolvedId()"
     [attr.name]="name()"
     [attr.aria-label]="ariaLabel()"
     [attr.aria-labelledby]="ariaLabelledby()"

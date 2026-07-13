@@ -2,6 +2,7 @@
   [class]="containerClasses() + ' min-w-0'"
   [style.max-height]="maxHeightStyle()"
   [attr.data-slot]="'chip-list'"
+  [disabled]="disabled()"
   [attr.data-disabled]="disabled() || null"
   (click)="focusInput()"
   (keydown.enter)="focusInput()"
@@ -13,7 +14,7 @@
       [variant]="chipColors()[chip] ? 'default' : badgeVariant()"
       [class]="'shrink-0 gap-1' + (disabled() ? '' : ' ltr:pr-1 rtl:pl-1')"
       [style.backgroundColor]="chipColors()[chip] || null"
-      [style.color]="chipColors()[chip] ? 'white' : null"
+      [style.color]="chipForeground(chip)"
       [style.borderColor]="chipColors()[chip] || null"
       [attr.data-slot]="'chip'"
     >
@@ -46,6 +47,7 @@
 
   <ui-input
     #inputRef
+    [ariaLabel]="placeholder()"
     [placeholder]="chips().length === 0 ? placeholder() : ''"
     [disabled]="disabled()"
     [ngModel]="inputValue()"

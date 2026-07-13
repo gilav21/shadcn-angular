@@ -6,15 +6,23 @@ import {
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 
+/**
+ * The item is the host element itself, carrying `role="listitem"`, rather than an
+ * inner `<li>`. Angular always renders the `<ui-sidebar-menu-item>` tag, so an
+ * inner `<li>` would sit inside it and no longer be a direct child of the
+ * `<ul>` in `ui-sidebar-menu` — breaking both the `list` and `listitem` axe
+ * rules (a real WCAG structure failure: the list/item relationship is lost).
+ * Naming the host as the list item restores it while keeping the native `<ul>`.
+ */
 @Component({
   selector: 'ui-sidebar-menu-item',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <li [class]="classes()" [attr.data-slot]="'sidebar-menu-item'" role="menuitem">
-      <ng-content />
-    </li>
-  `,
-  host: { class: 'contents' },
+  template: `<ng-content />`,
+  host: {
+    role: 'listitem',
+    '[class]': 'classes()',
+    '[attr.data-slot]': "'sidebar-menu-item'",
+  },
 })
 export class SidebarMenuItemComponent {
   class = input('');

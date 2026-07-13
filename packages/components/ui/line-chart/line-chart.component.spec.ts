@@ -37,7 +37,7 @@ describe('LineChartComponent', () => {
     });
 
     it('renders an svg with an accessible role and label', () => {
-        const container = fixture.nativeElement.querySelector('[role="img"]');
+        const container = fixture.nativeElement.querySelector('[role="group"]');
         expect(container).toBeTruthy();
         expect(container.getAttribute('aria-label')).toContain('Line chart');
         expect(fixture.nativeElement.querySelector('svg')).toBeTruthy();

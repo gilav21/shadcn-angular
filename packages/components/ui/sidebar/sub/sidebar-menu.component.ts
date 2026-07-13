@@ -10,7 +10,7 @@ import { cn } from '../../../lib/utils';
   selector: 'ui-sidebar-menu',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <ul [class]="classes()" [attr.data-slot]="'sidebar-menu'" role="menu">
+    <ul [class]="classes()" [attr.data-slot]="'sidebar-menu'">
       <ng-content />
     </ul>
   `,

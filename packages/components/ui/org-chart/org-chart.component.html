@@ -6,7 +6,7 @@
     [style.max-width.px]="svgWidth()"
     [style.aspect-ratio]="svgWidth() + ' / ' + svgHeight()"
     class="overflow-visible"
-    role="img"
+    role="group"
     [attr.aria-label]="chartAriaLabel()"
   >
     <g class="org-chart-lines">
@@ -52,8 +52,9 @@
                 />
               } @else if (showImages()) {
                 <div
-                  class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
+                  class="w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm shrink-0"
                   [style.backgroundColor]="getNodeColor(pos)"
+                  [style.color]="getNodeForeground(pos)"
                 >
                   {{ getInitials(pos.node.name) }}
                 </div>

@@ -79,6 +79,7 @@ export interface SplitButtonItem {
         (keydown)="onDropdownKeydown($event)"
         type="button"
         aria-haspopup="menu"
+        [ariaLabel]="dropdownAriaLabel()"
         [attr.aria-expanded]="isOpen()"
       >
         <svg 
@@ -140,6 +141,12 @@ export class SplitButtonComponent implements OnDestroy {
     size = input<ButtonSize>('default');
     disabled = input(false, { transform: booleanAttribute });
     class = input('');
+    /**
+     * Accessible name for the icon-only dropdown half of the split button. It has
+     * no text of its own, so without this it reached screen readers unnamed
+     * (axe `button-name`).
+     */
+    readonly dropdownAriaLabel = input('More options');
 
     primaryClick = output<MouseEvent>();
     itemClick = output<SplitButtonItem>();

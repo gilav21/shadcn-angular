@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../../lib/utils';
+import { readableForeground } from '../../lib/color';
 import { BadgeComponent, type BadgeVariant } from '../badge';
 import { InputComponent } from '../input';
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
@@ -67,6 +68,16 @@ export class ChipListComponent implements ControlValueAccessor {
 
   chips = signal<string[]>([]);
   inputValue = signal('');
+
+  /**
+   * Text colour for a chip painted with a caller-supplied background. Hardcoding
+   * white failed WCAG AA on any light chip colour; deriving it from the
+   * background's luminance keeps the caller's colour and stays legible.
+   */
+  chipForeground(chip: string): string | null {
+    const background = this.chipColors()[chip];
+    return background ? readableForeground(background) : null;
+  }
 
   inputComponent = viewChild.required(InputComponent);
 

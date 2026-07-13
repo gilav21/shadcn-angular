@@ -21,6 +21,7 @@ import { SidebarService } from '../sidebar.service';
       [attr.data-slot]="'sidebar-menu-button'"
       [attr.data-active]="isActive()"
       [attr.data-collapsed]="isCollapsedState()"
+      [attr.aria-label]="tooltip() || null"
       (click)="clicked.emit($event)"
       [uiTooltip]="tooltip()"
       tooltipSide="right"
@@ -50,7 +51,7 @@ export class SidebarMenuButtonComponent {
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       'transition-colors',
       this.isActive() && 'bg-sidebar-accent text-sidebar-accent-foreground',
-      isCollapsed && 'justify-center px-2 overflow-hidden [&>span:not(:first-child)]:hidden [&>svg]:shrink-0',
+      isCollapsed && 'justify-center px-2 overflow-hidden [&>span:not(:first-child)]:sr-only [&>svg]:shrink-0',
       this.class()
     );
   });

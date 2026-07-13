@@ -10,6 +10,7 @@ import {
     inject,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { readableForeground } from '../../../lib/color';
 import { BadgeComponent } from '../../badge';
 import { AvatarComponent } from '../../avatar';
 import { KANBAN } from '../kanban.component';
@@ -42,7 +43,7 @@ import { type KanbanCard } from '../kanban.component';
                                     class="text-[10px] px-1.5 py-0"
                                     [label]="label.text"
                                     [style.backgroundColor]="label.color"
-                                    [style.color]="'white'"
+                                    [style.color]="labelForeground(label.color)"
                                 />
                             }
                         </div>
@@ -96,6 +97,14 @@ export class KanbanCardComponent implements AfterContentInit {
         if (p === 'urgent') return 'border-s-red-500';
         return '';
     });
+
+    /**
+     * Legible text colour for a label badge painted in the caller's `label.color`.
+     * A hardcoded white failed WCAG AA on light label colours (axe `color-contrast`).
+     */
+    labelForeground(color: string): string {
+        return readableForeground(color);
+    }
 
     classes = computed(() => cn(
         'bg-card text-card-foreground rounded-lg border shadow-sm cursor-grab active:cursor-grabbing',

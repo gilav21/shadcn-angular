@@ -149,14 +149,19 @@ Result: Security Hotspots reviewed = 100%, 0 to-review.
 
 ## `Web:S6819` (`role="img"`/`role="group"`) + `MouseEventWithoutKeyboardEquivalentCheck` — data-viz charts
 
-Chart/heatmap components render an inline `<svg>` inside a wrapper carrying
-`role="img"` + `[attr.aria-label]` — the WAI-ARIA "complex graphic as a single
-labeled image" pattern. S6819 wants a native `<img>`, which is impossible for
-inline SVG, so the role is required, not redundant. Interactive SVG data points
-(`<rect>`/`<circle>`) are keyboard-focusable (`tabindex="0"`) and the `(click)`
-is a visual enhancement, not the only path — the static HTML scanner can't see
-the `tabindex`. Scoped in `sonar-project.properties` to `*chart*`, `heatmap`,
-and `calendar-heatmap` component HTMLs only (raw non-chart elements stay checked).
+Chart/heatmap components render an inline `<svg>` carrying an ARIA role +
+`[attr.aria-label]` — the WAI-ARIA "complex graphic" pattern. S6819 wants a native
+`<img>`, which is impossible for inline SVG, so the role is required, not redundant.
+Scoped in `sonar-project.properties` to `*chart*`, `heatmap`, and `calendar-heatmap`
+component HTMLs only (raw non-chart elements stay checked).
+
+Which role: charts whose data points are keyboard-focusable (`tabindex="0"` on
+`<rect>`/`<circle>`) use **`role="group"`**, not `role="img"`. `role="img"` makes the
+whole subtree presentational, which contradicts — and hides from assistive tech — the
+focusable points inside it; axe reports that as `nested-interactive`, and it is a real
+WCAG 4.1.2 failure, not a false positive. Static charts with no focusable data points
+(`bullet-chart`, `gauge-chart`) keep `role="img"`, which is correct for them. See
+`docs/a11y-backlog.md`.
 
 ## CPD exclusions — inherently repetitive files
 

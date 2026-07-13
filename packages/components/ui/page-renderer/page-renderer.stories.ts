@@ -6,7 +6,7 @@ import { ComponentMeta, PageData } from '../../lib/page-builder.types';
 @Component({
     template: `
     <div class="h-full w-full bg-green-100 dark:bg-green-950 p-4 rounded-lg border-2 border-green-200 dark:border-green-900 flex items-center justify-center flex-col gap-2">
-      <span class="text-green-600 dark:text-green-400 font-bold">Stats Widget</span>
+      <span class="text-green-700 dark:text-green-400 font-bold">Stats Widget</span>
       <span class="text-2xl font-mono">{{ value() }}</span>
     </div>
   `,
@@ -19,7 +19,7 @@ class MockStatsComponent {
 @Component({
     template: `
     <div class="h-full w-full bg-blue-100 dark:bg-blue-950 p-4 rounded-lg border-2 border-blue-200 dark:border-blue-900 flex items-center justify-center">
-      <span class="text-blue-600 dark:text-blue-400 font-bold">Chart Widget</span>
+      <span class="text-blue-700 dark:text-blue-400 font-bold">Chart Widget</span>
     </div>
   `,
     standalone: true,

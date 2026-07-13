@@ -30,7 +30,7 @@ export default meta;
 type Story = StoryObj<ScrollProgressComponent>;
 
 const TEMPLATE = `
-    <div class="relative h-[400px] overflow-y-auto border rounded-lg">
+    <div class="relative h-[400px] overflow-y-auto border rounded-lg" tabindex="0">
         <ui-scroll-progress [position]="position" [color]="color" [height]="height" [class]="class" />
         <div class="p-4 sm:p-6 space-y-4" style="height: 1200px;">
             <h2 class="text-xl font-bold sticky top-0 bg-background py-2 border-b">

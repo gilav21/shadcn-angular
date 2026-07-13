@@ -25,7 +25,7 @@ describe('WaterfallChartComponent', () => {
     });
 
     it('renders with an accessible Waterfall chart label', () => {
-        const c = fixture.nativeElement.querySelector('[role="img"]');
+        const c = fixture.nativeElement.querySelector('[role="group"]');
         expect(c.getAttribute('aria-label')).toContain('Waterfall chart');
     });
 

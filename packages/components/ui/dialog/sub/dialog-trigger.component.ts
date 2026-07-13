@@ -1,17 +1,21 @@
 import {
     Component,
     ChangeDetectionStrategy,
+    ElementRef,
+    afterNextRender,
     inject,
+    signal,
 } from '@angular/core';
 import { DIALOG } from '../dialog.component';
+import { hasInteractiveContent } from '../../../lib/a11y';
 
 @Component({
     selector: 'ui-dialog-trigger',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <span
-      tabindex="0"
-      role="button"
+      [attr.tabindex]="wrapsInteractive() ? null : 0"
+      [attr.role]="wrapsInteractive() ? null : 'button'"
       [attr.data-slot]="'dialog-trigger'"
       (click)="onClick()"
       (keydown.enter)="onKeydown($event)"
@@ -24,6 +28,16 @@ import { DIALOG } from '../dialog.component';
 })
 export class DialogTriggerComponent {
     private readonly dialog = inject(DIALOG, { optional: true });
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+    /** See `lib/a11y.ts` — stays transparent when the projected content is already a control. */
+    readonly wrapsInteractive = signal(false);
+
+    constructor() {
+        afterNextRender(() => {
+            this.wrapsInteractive.set(hasInteractiveContent(this.host.nativeElement));
+        });
+    }
 
     onClick(): void {
         this.dialog?.toggle();
@@ -36,9 +50,8 @@ export class DialogTriggerComponent {
      * toggle twice (open then immediately close).
      */
     onKeydown(event: Event): void {
-        if (event.target === event.currentTarget) {
-            event.preventDefault();
-            this.onClick();
-        }
+        if (event.target !== event.currentTarget) return;
+        event.preventDefault();
+        this.onClick();
     }
 }

@@ -54,7 +54,7 @@ describe('PieChartDrilldownComponent', () => {
     });
 
     it('should set aria-label on SVG', () => {
-        const svg = fixture.nativeElement.querySelector('svg[role="img"]');
+        const svg = fixture.nativeElement.querySelector('svg[role="group"]');
         expect(svg).toBeTruthy();
         expect(svg.getAttribute('aria-label')).toContain('Pie chart with drilldown');
     });

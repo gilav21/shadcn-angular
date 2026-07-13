@@ -5,6 +5,7 @@ import {
   computed,
   signal,
   forwardRef,
+  inject,
   ElementRef,
   ViewChild,
 } from '@angular/core';
@@ -33,12 +34,27 @@ import { cn } from '../../lib/utils';
   ],
   templateUrl: './native-select.component.html',
   styleUrl: './native-select.component.css',
-  host: { class: 'contents' },
+  host: {
+    class: 'contents',
+    '[attr.aria-label]': 'null',
+  },
 })
 export class NativeSelectComponent implements ControlValueAccessor {
   @ViewChild('select') selectEl!: ElementRef<HTMLSelectElement>;
 
   class = input('');
+  /** Accessible name, camelCase form: `[ariaLabel]="'Country'"`. */
+  readonly ariaLabel = input<string | undefined>(undefined);
+  /**
+   * An accessible name written the native way — `aria-label="Country"`. The host is
+   * a `display: contents` wrapper, so an aria-label left on it never reaches the
+   * inner `<select>`, which stayed nameless (axe `select-name`). Read off the host
+   * here and moved to the real control (the host binding above strips it).
+   */
+  private readonly hostAriaLabel =
+    inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.getAttribute('aria-label') ?? undefined;
+  /** The name actually applied to the inner `<select>`, from either spelling. */
+  readonly resolvedAriaLabel = computed(() => this.ariaLabel() ?? this.hostAriaLabel);
   size = input<'sm' | 'default'>('default');
   disabled = input(false);
   invalid = input(false);

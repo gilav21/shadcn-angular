@@ -171,7 +171,7 @@ export const registry = defineRegistry({
     description: 'Modal dialog that interrupts the user to confirm or cancel a destructive action.',
     tags: ['alert-dialog', 'confirm', 'modal', 'confirmation', 'prompt'],
     files: ['alert-dialog/alert-dialog.component.ts', 'alert-dialog/index.ts', 'alert-dialog/sub/alert-dialog-action.component.css', 'alert-dialog/sub/alert-dialog-action.component.ts', 'alert-dialog/sub/alert-dialog-cancel.component.css', 'alert-dialog/sub/alert-dialog-cancel.component.ts', 'alert-dialog/sub/alert-dialog-content.component.ts', 'alert-dialog/sub/alert-dialog-description.component.ts', 'alert-dialog/sub/alert-dialog-footer.component.ts', 'alert-dialog/sub/alert-dialog-header.component.ts', 'alert-dialog/sub/alert-dialog-title.component.ts', 'alert-dialog/sub/alert-dialog-trigger.component.ts'],
-    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['a11y.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   'aspect-ratio': {
     name: 'aspect-ratio',
@@ -420,7 +420,7 @@ export const registry = defineRegistry({
     description: 'Modal dialog overlay with header, content, and footer for focused tasks.',
     tags: ['dialog', 'modal', 'popup', 'overlay', 'window'],
     files: ['dialog/dialog.component.ts', 'dialog/index.ts', 'dialog/sub/dialog-content.component.css', 'dialog/sub/dialog-content.component.html', 'dialog/sub/dialog-content.component.ts', 'dialog/sub/dialog-description.component.ts', 'dialog/sub/dialog-footer.component.css', 'dialog/sub/dialog-footer.component.ts', 'dialog/sub/dialog-header.component.css', 'dialog/sub/dialog-header.component.ts', 'dialog/sub/dialog-title.component.ts', 'dialog/sub/dialog-trigger.component.ts'],
-    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['a11y.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   dock: {
     name: 'dock',
@@ -463,6 +463,7 @@ export const registry = defineRegistry({
     description: 'Bottom-anchored sliding panel with drag-to-dismiss, ideal for mobile.',
     tags: ['drawer', 'sheet', 'bottom-sheet', 'panel', 'slide'],
     files: ['drawer/drawer.component.ts', 'drawer/index.ts', 'drawer/sub/drawer-close.component.ts', 'drawer/sub/drawer-content.component.html', 'drawer/sub/drawer-content.component.ts', 'drawer/sub/drawer-description.component.ts', 'drawer/sub/drawer-footer.component.ts', 'drawer/sub/drawer-header.component.ts', 'drawer/sub/drawer-title.component.ts', 'drawer/sub/drawer-trigger.component.ts'],
+    libFiles: ['a11y.ts'],
   },
   'dropdown-menu': {
     name: 'dropdown-menu',
@@ -470,7 +471,7 @@ export const registry = defineRegistry({
     description: 'Button-triggered menu of actions with labels, separators, and submenus.',
     tags: ['dropdown-menu', 'dropdown', 'menu', 'actions', 'overflow'],
     files: ['dropdown-menu/dropdown-menu.component.ts', 'dropdown-menu/index.ts', 'dropdown-menu/sub/dropdown-menu-content.component.ts', 'dropdown-menu/sub/dropdown-menu-item.component.css', 'dropdown-menu/sub/dropdown-menu-item.component.ts', 'dropdown-menu/sub/dropdown-menu-label.component.ts', 'dropdown-menu/sub/dropdown-menu-separator.component.ts', 'dropdown-menu/sub/dropdown-menu-sub-content.component.ts', 'dropdown-menu/sub/dropdown-menu-sub-trigger.component.ts', 'dropdown-menu/sub/dropdown-menu-sub.component.ts', 'dropdown-menu/sub/dropdown-menu-trigger.component.ts'],
-    libFiles: ['touch.ts'],
+    libFiles: ['a11y.ts', 'touch.ts'],
   },
   empty: {
     name: 'empty',
@@ -625,6 +626,7 @@ export const registry = defineRegistry({
     description: 'Floating panel anchored to a trigger for showing rich, non-modal content.',
     tags: ['popover', 'popup', 'floating', 'overlay', 'flyout'],
     files: ['popover/index.ts', 'popover/popover.component.ts', 'popover/sub/popover-close.component.ts', 'popover/sub/popover-content.component.css', 'popover/sub/popover-content.component.ts', 'popover/sub/popover-trigger.component.ts'],
+    libFiles: ['a11y.ts'],
   },
   progress: {
     name: 'progress',
@@ -686,7 +688,7 @@ export const registry = defineRegistry({
     description: 'Panel that slides in from a screen edge for secondary content or forms.',
     tags: ['sheet', 'panel', 'slide-over', 'drawer', 'side-panel'],
     files: ['sheet/index.ts', 'sheet/sheet.component.ts', 'sheet/sub/sheet-close.component.ts', 'sheet/sub/sheet-content.component.ts', 'sheet/sub/sheet-description.component.ts', 'sheet/sub/sheet-footer.component.ts', 'sheet/sub/sheet-header.component.ts', 'sheet/sub/sheet-title.component.ts', 'sheet/sub/sheet-trigger.component.ts'],
-    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['a11y.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   sidebar: {
     name: 'sidebar',
@@ -810,7 +812,8 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Floating action button that fans out into a menu of quick actions.',
     tags: ['speed-dial', 'fab', 'floating-action', 'menu', 'actions'],
-    files: ['speed-dial/index.ts', 'speed-dial/speed-dial.component.ts', 'speed-dial/sub/speed-dial-context-trigger.component.ts', 'speed-dial/sub/speed-dial-context-trigger.directive.ts', 'speed-dial/sub/speed-dial-item.component.ts', 'speed-dial/sub/speed-dial-mask.component.ts', 'speed-dial/sub/speed-dial-menu.component.ts', 'speed-dial/sub/speed-dial-trigger.component.ts']
+    files: ['speed-dial/index.ts', 'speed-dial/speed-dial.component.ts', 'speed-dial/sub/speed-dial-context-trigger.component.ts', 'speed-dial/sub/speed-dial-context-trigger.directive.ts', 'speed-dial/sub/speed-dial-item.component.ts', 'speed-dial/sub/speed-dial-mask.component.ts', 'speed-dial/sub/speed-dial-menu.component.ts', 'speed-dial/sub/speed-dial-trigger.component.ts'],
+    libFiles: ['a11y.ts']
   },
   'chip-list': {
     name: 'chip-list',
@@ -818,7 +821,7 @@ export const registry = defineRegistry({
     description: 'Input that collects multiple values as removable chips or tags.',
     tags: ['chip-list', 'chips', 'tags', 'tokens', 'multi-input'],
     files: ['chip-list/chip-list.component.html', 'chip-list/chip-list.component.ts', 'chip-list/index.ts'],
-    libFiles: ['input-group.token.ts'],
+    libFiles: ['color.ts', 'input-group.token.ts'],
     dependencies: ['badge', 'input'],
   },
   'emoji-picker': {
@@ -827,6 +830,7 @@ export const registry = defineRegistry({
     description: 'Searchable emoji selector with categories and a popover trigger.',
     tags: ['emoji-picker', 'emoji', 'picker', 'reactions', 'smileys'],
     files: ['emoji-picker/emoji-data.ts', 'emoji-picker/emoji-picker.component.ts', 'emoji-picker/index.ts', 'emoji-picker/sub/emoji-picker-content.component.ts', 'emoji-picker/sub/emoji-picker-trigger.component.ts'],
+    libFiles: ['a11y.ts'],
     dependencies: ['input', 'input-group', 'scroll-area', 'tooltip'],
   },
   'rich-text-editor': {
@@ -909,7 +913,7 @@ export const registry = defineRegistry({
     description: 'Organizational chart rendering hierarchical node relationships as a tree.',
     tags: ['org-chart', 'organization', 'hierarchy', 'chart', 'tree'],
     files: ['org-chart/index.ts', 'org-chart/org-chart.component.html', 'org-chart/org-chart.component.ts'],
-    libFiles: ['chart.types.ts', 'chart.utils.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts', 'color.ts'],
   },
   'bento-grid': {
     name: 'bento-grid',
@@ -1077,7 +1081,7 @@ export const registry = defineRegistry({
     description: 'Drag-and-drop kanban board with columns, cards, and edit dialogs.',
     tags: ['kanban', 'board', 'tasks', 'drag-drop', 'trello'],
     files: ['kanban/index.ts', 'kanban/kanban-locales.ts', 'kanban/kanban.component.ts', 'kanban/sub/kanban-card-content.component.ts', 'kanban/sub/kanban-card-dialog.component.ts', 'kanban/sub/kanban-card.component.ts', 'kanban/sub/kanban-column-dialog.component.ts', 'kanban/sub/kanban-column-header.component.ts', 'kanban/sub/kanban-column.component.ts', 'kanban/sub/kanban-delete-column-dialog.component.ts'],
-    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts', 'touch.ts'],
+    libFiles: ['color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     dependencies: ['alert-dialog', 'autocomplete', 'avatar', 'badge', 'button', 'chip-list', 'context-menu', 'dialog', 'input', 'label', 'scroll-area', 'separator', 'textarea'],
   },
   'shortcut-bindings-dialog': {

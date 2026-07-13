@@ -304,7 +304,7 @@ class ContextMenuAttachDemoComponent {
       ">
         <p>Tree component with context menu integration</p>
         <p style="font-size: 13px; margin-top: 8px;">
-          Use <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 3px;">[uiTreeContextMenu]</code> directive
+          Use <code style="background: #e2e8f0; color: #0f172a; padding: 2px 6px; border-radius: 3px;">[uiTreeContextMenu]</code> directive
         </p>
       </div>
 
@@ -353,7 +353,7 @@ class TreeContextMenuDemoComponent { }
       ">
         <p>Table component with context menu integration</p>
         <p style="font-size: 13px; margin-top: 8px;">
-          Use <code style="background: #e2e8f0; padding: 2px 6px; border-radius: 3px;">[uiTableContextMenu]</code> directive
+          Use <code style="background: #e2e8f0; color: #0f172a; padding: 2px 6px; border-radius: 3px;">[uiTableContextMenu]</code> directive
         </p>
       </div>
 
