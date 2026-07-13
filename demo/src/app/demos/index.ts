@@ -51,6 +51,7 @@ export { DrawerDemoComponent } from './overlay/drawer-demo.component';
 export { HoverCardDemoComponent } from './overlay/hover-card-demo.component';
 export { CommandDemoComponent } from './overlay/command-demo.component';
 export { SpeedDialDemoComponent } from './overlay/speed-dial-demo.component';
+export { ShortcutBindingsDialogDemoComponent } from './overlay/shortcut-bindings-dialog-demo.component';
 
 // Navigation
 export { TabsDemoComponent } from './navigation/tabs-demo.component';
@@ -90,6 +91,12 @@ export { NumberTickerDemoComponent } from './data-display/number-ticker-demo.com
 export { DataTableDemoComponent } from './data-display/data-table-demo.component';
 export { IconDemoComponent } from './data-display/icon-demo.component';
 export { FileViewerDemoComponent } from './data-display/file-viewer-demo.component';
+export { ComponentOutletDemoComponent } from './data-display/component-outlet-demo.component';
+export { CopyToDemoComponent } from './data-display/copy-to-demo.component';
+export { ContextMenuAttachDemoComponent } from './data-display/context-menu-attach-demo.component';
+export { TreeContextMenuDemoComponent } from './data-display/tree-context-menu-demo.component';
+export { TableContextMenuDemoComponent } from './data-display/table-context-menu-demo.component';
+export { DataTableContextMenuDemoComponent } from './data-display/data-table-context-menu-demo.component';
 
 // Animations
 export { AnimationsDemoComponent } from './animations/animations-demo.component';

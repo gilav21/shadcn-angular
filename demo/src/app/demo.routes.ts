@@ -61,6 +61,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'hover-card', loadComponent: () => import('./demos/overlay/hover-card-demo.component').then(m => m.HoverCardDemoComponent) },
   { path: 'command', loadComponent: () => import('./demos/overlay/command-demo.component').then(m => m.CommandDemoComponent) },
   { path: 'speed-dial', loadComponent: () => import('./demos/overlay/speed-dial-demo.component').then(m => m.SpeedDialDemoComponent) },
+  { path: 'shortcut-bindings-dialog', loadComponent: () => import('./demos/overlay/shortcut-bindings-dialog-demo.component').then(m => m.ShortcutBindingsDialogDemoComponent) },
 
   // Navigation
   { path: 'tabs', loadComponent: () => import('./demos/navigation/tabs-demo.component').then(m => m.TabsDemoComponent) },
@@ -101,6 +102,12 @@ export const DEMO_ROUTES: Routes = [
   { path: 'data-table', loadComponent: () => import('./demos/data-display/data-table-demo.component').then(m => m.DataTableDemoComponent) },
   { path: 'icon', loadComponent: () => import('./demos/data-display/icon-demo.component').then(m => m.IconDemoComponent) },
   { path: 'file-viewer', loadComponent: () => import('./demos/data-display/file-viewer-demo.component').then(m => m.FileViewerDemoComponent) },
+  { path: 'component-outlet', loadComponent: () => import('./demos/data-display/component-outlet-demo.component').then(m => m.ComponentOutletDemoComponent) },
+  { path: 'copy-to', loadComponent: () => import('./demos/data-display/copy-to-demo.component').then(m => m.CopyToDemoComponent) },
+  { path: 'context-menu-attach', loadComponent: () => import('./demos/data-display/context-menu-attach-demo.component').then(m => m.ContextMenuAttachDemoComponent) },
+  { path: 'tree-context-menu', loadComponent: () => import('./demos/data-display/tree-context-menu-demo.component').then(m => m.TreeContextMenuDemoComponent) },
+  { path: 'table-context-menu', loadComponent: () => import('./demos/data-display/table-context-menu-demo.component').then(m => m.TableContextMenuDemoComponent) },
+  { path: 'data-table-context-menu', loadComponent: () => import('./demos/data-display/data-table-context-menu-demo.component').then(m => m.DataTableContextMenuDemoComponent) },
 
   // Animations
   { path: 'animations', loadComponent: () => import('./demos/animations/animations-demo.component').then(m => m.AnimationsDemoComponent) },
