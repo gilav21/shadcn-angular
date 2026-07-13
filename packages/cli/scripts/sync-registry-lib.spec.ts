@@ -11,7 +11,32 @@ import {
     getEntryFile,
     walkTree,
     walkBlockTree,
+    analyzeAllEntries,
+    analyzeBlock,
+    analyzeComponent,
+    applyUpdatesToSource,
+    BASELINE_LIB_FILES,
+    buildBoundaryMap,
+    detectOrphanBlockFolders,
+    diffEntry,
+    formatAddonViolationReport,
+    formatDeepImportReport,
+    formatDriftLines,
+    hasDrift,
+    mergeLibFiles,
+    parseRegistrySource,
+    removeDependencies,
+    replaceFilesArray,
+    serializeRegistryJson,
+    splitFiles,
+    updateDependencies,
+    updateLibFiles,
+    validateBlockFiles,
+    validateRegistryFiles,
     type BoundaryContext,
+    type ComponentUpdate,
+    type RegistryEntry,
+    type SyncRoots,
 } from './sync-registry-lib';
 
 // ---------------------------------------------------------------------------
@@ -570,5 +595,714 @@ describe('walkBlockTree', () => {
         expect(result.dependencies.has('card')).toBe(true);
         expect(result.deepImports).toHaveLength(1);
         expect(result.deepImports[0].owner).toBe('card');
+    });
+});
+
+// ===========================================================================
+// Registry sync core — the logic that used to live (untested, and invisible to
+// coverage) inside sync-registry.ts. A component/block fixture pair is built on
+// disk so analyze/validate run against real files, exactly as the gate does.
+// ===========================================================================
+
+let syncBase: string;
+let syncRoots: SyncRoots;
+
+function syncWrite(rel: string, content = ''): void {
+    const full = path.join(syncBase, rel);
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, content);
+}
+
+function entry(overrides: Partial<RegistryEntry> & { name: string }): RegistryEntry {
+    return {
+        files: [],
+        libFiles: [],
+        dependencies: [],
+        isBlock: false,
+        ...overrides,
+    };
+}
+
+/** Registry entry for `button` as the fixture's disk state actually derives it. */
+function buttonEntry(overrides: Partial<RegistryEntry> = {}): RegistryEntry {
+    return entry({
+        name: 'button',
+        files: ['button/button.component.ts', 'button/index.ts'],
+        libFiles: ['format.ts'],
+        ...overrides,
+    });
+}
+
+/** Registry entry for `card` as the fixture's disk state actually derives it. */
+function cardEntry(overrides: Partial<RegistryEntry> = {}): RegistryEntry {
+    return entry({
+        name: 'card',
+        files: ['card/card.component.html', 'card/card.component.ts', 'card/index.ts'],
+        dependencies: ['button'],
+        ...overrides,
+    });
+}
+
+/** Registry entry for the `login` block as the fixture's disk state derives it. */
+function loginBlockEntry(overrides: Partial<RegistryEntry> = {}): RegistryEntry {
+    return entry({
+        name: 'login',
+        isBlock: true,
+        files: ['login/index.ts', 'login/login.component.ts'],
+        libFiles: ['format.ts'],
+        dependencies: ['button'],
+        ...overrides,
+    });
+}
+
+function syncCtx(entries: readonly RegistryEntry[]): BoundaryContext {
+    const entryFileToComponent = buildBoundaryMap(entries);
+    return { entryFileToComponent, dirOwners: buildDirOwners(entryFileToComponent) };
+}
+
+beforeAll(() => {
+    syncBase = mkdtempSync(path.join(tmpdir(), 'sync-core-'));
+    syncRoots = {
+        componentsRoot: path.join(syncBase, 'components'),
+        blocksRoot: path.join(syncBase, 'blocks'),
+    };
+
+    syncWrite('components/lib/utils.ts', 'export function cn() {}');
+    syncWrite('components/lib/format.ts', 'export function fmt() {}');
+
+    // button — pulls in one baseline lib file (utils, dropped) and one real one.
+    syncWrite('components/ui/button/index.ts', "export * from './button.component';");
+    syncWrite(
+        'components/ui/button/button.component.ts',
+        [
+            "import { cn } from '../../lib/utils';",
+            "import { fmt } from '../../lib/format';",
+            'export class ButtonComponent {}',
+        ].join('\n'),
+    );
+
+    // card — depends on button through its barrel, and has a templateUrl asset.
+    syncWrite('components/ui/card/index.ts', "export * from './card.component';");
+    syncWrite(
+        'components/ui/card/card.component.ts',
+        [
+            "import { ButtonComponent } from '../button';",
+            '@Component({',
+            "  templateUrl: './card.component.html',",
+            '})',
+            'export class CardComponent {}',
+        ].join('\n'),
+    );
+    syncWrite('components/ui/card/card.component.html', '<div></div>');
+
+    // base — reaches into its own addons/ subtree: a hard boundary violation.
+    syncWrite('components/ui/base/index.ts', "export * from './base.component';");
+    syncWrite(
+        'components/ui/base/base.component.ts',
+        "import { BaseExtra } from './addons/extra';\nexport class BaseComponent {}",
+    );
+    syncWrite('components/ui/base/addons/extra/index.ts', 'export class BaseExtra {}');
+
+    // login block — imports a ui component and a lib file across the roots.
+    syncWrite('blocks/login/index.ts', "export * from './login.component';");
+    syncWrite(
+        'blocks/login/login.component.ts',
+        [
+            "import { ButtonComponent } from '../../components/ui/button';",
+            "import { fmt } from '../../components/lib/format';",
+            "import { cn } from '../../components/lib/utils';",
+            'export class LoginComponent {}',
+        ].join('\n'),
+    );
+
+    // A block folder on disk that no registry entry claims.
+    mkdirSync(path.join(syncBase, 'blocks/orphan'), { recursive: true });
+});
+
+afterAll(() => {
+    rmSync(syncBase, { recursive: true, force: true });
+});
+
+// ---------------------------------------------------------------------------
+// splitFiles
+// ---------------------------------------------------------------------------
+
+describe('splitFiles', () => {
+    it('splits ui/ and lib/ files, stripping the prefixes', () => {
+        expect(splitFiles(['ui/button/index.ts', 'lib/format.ts'])).toEqual({
+            uiFiles: ['button/index.ts'],
+            libFiles: ['format.ts'],
+        });
+    });
+
+    it('drops the baseline lib files that init always installs', () => {
+        expect(BASELINE_LIB_FILES.has('utils.ts')).toBe(true);
+        expect(splitFiles(['lib/utils.ts', 'lib/format.ts']).libFiles).toEqual(['format.ts']);
+    });
+
+    it('sorts each half', () => {
+        const { uiFiles, libFiles } = splitFiles([
+            'ui/z/index.ts',
+            'ui/a/index.ts',
+            'lib/z.ts',
+            'lib/a.ts',
+        ]);
+        expect(uiFiles).toEqual(['a/index.ts', 'z/index.ts']);
+        expect(libFiles).toEqual(['a.ts', 'z.ts']);
+    });
+
+    it('discards files under neither prefix — the registry does not own them', () => {
+        expect(splitFiles(['blocks/login/index.ts', 'ui/a.ts'])).toEqual({
+            uiFiles: ['a.ts'],
+            libFiles: [],
+        });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// buildBoundaryMap
+// ---------------------------------------------------------------------------
+
+describe('buildBoundaryMap', () => {
+    it('maps each entry ui/-relative entry file to its component name', () => {
+        const map = buildBoundaryMap([buttonEntry(), cardEntry()]);
+        expect(map.get('ui/button/index.ts')).toBe('button');
+        expect(map.get('ui/card/index.ts')).toBe('card');
+    });
+
+    it('keys an addon entry by its addons/<addon>/index.ts barrel', () => {
+        const map = buildBoundaryMap([
+            entry({
+                name: 'data-table/export',
+                files: ['data-table/addons/export/index.ts', 'data-table/addons/export/x.ts'],
+            }),
+        ]);
+        expect(map.get('ui/data-table/addons/export/index.ts')).toBe('data-table/export');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// mergeLibFiles / diffEntry / hasDrift — the drift semantics
+// ---------------------------------------------------------------------------
+
+describe('mergeLibFiles', () => {
+    it('unions declared and discovered, deduped and sorted', () => {
+        expect(mergeLibFiles(['b.ts'], ['a.ts', 'b.ts'])).toEqual(['a.ts', 'b.ts']);
+    });
+
+    it('KEEPS a declared libFile the walk no longer discovers (merge, never replace)', () => {
+        // This is the known subtlety: the sync merges libFiles rather than
+        // replacing them, so a libFile that has fallen out of the import tree
+        // is never auto-pruned. It survives --fix untouched.
+        expect(mergeLibFiles(['stale.ts'], ['format.ts'])).toEqual(['format.ts', 'stale.ts']);
+    });
+});
+
+describe('diffEntry', () => {
+    const declared = entry({
+        name: 'x',
+        files: ['x/old.ts', 'x/index.ts'],
+        libFiles: ['keep.ts'],
+        dependencies: ['gone'],
+    });
+
+    it('reports added and removed files', () => {
+        const diff = diffEntry(declared, ['x/index.ts', 'x/new.ts'], ['keep.ts'], ['gone']);
+        expect(diff.addedFiles).toEqual(['x/new.ts']);
+        expect(diff.removedFiles).toEqual(['x/old.ts']);
+    });
+
+    it('reports added and removed dependencies', () => {
+        const diff = diffEntry(declared, declared.files, ['keep.ts'], ['fresh']);
+        expect(diff.addedDeps).toEqual(['fresh']);
+        expect(diff.removedDeps).toEqual(['gone']);
+    });
+
+    it('reports a newly discovered libFile as added', () => {
+        const diff = diffEntry(declared, declared.files, ['keep.ts', 'extra.ts'], ['gone']);
+        expect(diff.addedLibs).toEqual(['extra.ts']);
+    });
+
+    it('does NOT report a declared-but-undiscovered libFile — there is no removedLibs', () => {
+        // The counterpart of the merge semantics above: a stale libFile is
+        // invisible to drift detection, so `sync-registry` reports the tree as
+        // "in sync" while the registry still ships the dead entry. Only
+        // validateRegistryFiles catches it, and only once the file leaves disk.
+        const diff = diffEntry(declared, declared.files, [], ['gone']);
+        expect(diff.addedLibs).toEqual([]);
+        expect(hasDrift(diff)).toBe(false);
+    });
+});
+
+describe('hasDrift', () => {
+    const clean = { addedFiles: [], removedFiles: [], addedLibs: [], addedDeps: [], removedDeps: [] };
+
+    it('is false for an empty diff', () => {
+        expect(hasDrift(clean)).toBe(false);
+    });
+
+    it.each([
+        ['addedFiles'],
+        ['removedFiles'],
+        ['addedLibs'],
+        ['addedDeps'],
+        ['removedDeps'],
+    ] as const)('is true when %s is non-empty', key => {
+        expect(hasDrift({ ...clean, [key]: ['x'] })).toBe(true);
+    });
+});
+
+describe('formatDriftLines', () => {
+    it('renders every drift kind under the component name', () => {
+        expect(
+            formatDriftLines('button', {
+                addedFiles: ['a.ts'],
+                removedFiles: ['b.ts'],
+                addedLibs: ['c.ts'],
+                addedDeps: ['d'],
+                removedDeps: ['e'],
+            }),
+        ).toEqual([
+            '  button:',
+            '    + files: a.ts',
+            '    - files: b.ts',
+            '    + libFiles: c.ts',
+            '    + dependencies: d',
+            '    - dependencies: e',
+        ]);
+    });
+
+    it('tags a block with the (block) suffix', () => {
+        const lines = formatDriftLines(
+            'login',
+            { addedFiles: ['x.ts'], removedFiles: [], addedLibs: [], addedDeps: [], removedDeps: [] },
+            true,
+        );
+        expect(lines[0]).toBe('  login (block):');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// analyzeComponent — derivation against the real fixture tree
+// ---------------------------------------------------------------------------
+
+describe('analyzeComponent', () => {
+    it('reports no drift for an entry that matches disk', () => {
+        const entries = [buttonEntry(), cardEntry()];
+        const result = analyzeComponent(cardEntry(), syncCtx(entries), syncRoots);
+        expect(hasDrift(result.diff)).toBe(false);
+        expect(result.update.files).toEqual([
+            'card/card.component.html',
+            'card/card.component.ts',
+            'card/index.ts',
+        ]);
+    });
+
+    it('derives the templateUrl asset and the cross-component dependency', () => {
+        const result = analyzeComponent(cardEntry(), syncCtx([buttonEntry(), cardEntry()]), syncRoots);
+        expect(result.update.files).toContain('card/card.component.html');
+        expect(result.update.dependencies).toEqual(['button']);
+    });
+
+    it('drops the baseline lib file and keeps the real one', () => {
+        const result = analyzeComponent(buttonEntry(), syncCtx([buttonEntry(), cardEntry()]), syncRoots);
+        expect(result.update.libFiles).toEqual(['format.ts']);
+    });
+
+    it('detects a file the registry declares but the import tree no longer reaches', () => {
+        const stale = buttonEntry({ files: ['button/index.ts', 'button/button.component.ts', 'button/dead.ts'] });
+        const result = analyzeComponent(stale, syncCtx([stale, cardEntry()]), syncRoots);
+        expect(result.diff.removedFiles).toEqual(['button/dead.ts']);
+        expect(hasDrift(result.diff)).toBe(true);
+        expect(result.update.files).not.toContain('button/dead.ts');
+    });
+
+    it('detects a file on disk that the registry does not declare', () => {
+        const thin = buttonEntry({ files: ['button/index.ts'] });
+        const result = analyzeComponent(thin, syncCtx([thin, cardEntry()]), syncRoots);
+        expect(result.diff.addedFiles).toEqual(['button/button.component.ts']);
+    });
+
+    it('detects a dependency the registry is missing', () => {
+        const noDeps = cardEntry({ dependencies: [] });
+        const result = analyzeComponent(noDeps, syncCtx([buttonEntry(), noDeps]), syncRoots);
+        expect(result.diff.addedDeps).toEqual(['button']);
+    });
+
+    it('detects a dependency the registry declares but the tree does not import', () => {
+        const extraDep = cardEntry({ dependencies: ['button', 'ghost'] });
+        const result = analyzeComponent(extraDep, syncCtx([buttonEntry(), extraDep]), syncRoots);
+        expect(result.diff.removedDeps).toEqual(['ghost']);
+        expect(result.update.dependencies).toEqual(['button']);
+    });
+
+    it('detects a newly discovered libFile', () => {
+        const noLibs = buttonEntry({ libFiles: [] });
+        const result = analyzeComponent(noLibs, syncCtx([noLibs, cardEntry()]), syncRoots);
+        expect(result.diff.addedLibs).toEqual(['format.ts']);
+    });
+
+    it('MERGES libFiles: a stale one survives and is not reported as drift', () => {
+        // The load-bearing subtlety, end to end on a real tree: `dead.ts` is not
+        // reachable from button's imports, yet --fix would write it straight
+        // back out, and the gate would still call the tree "in sync".
+        const withStale = buttonEntry({ libFiles: ['format.ts', 'dead.ts'] });
+        const result = analyzeComponent(withStale, syncCtx([withStale, cardEntry()]), syncRoots);
+        expect(result.update.libFiles).toEqual(['dead.ts', 'format.ts']);
+        expect(hasDrift(result.diff)).toBe(false);
+    });
+
+    it('surfaces an addon-boundary violation from a base that reaches into addons/', () => {
+        const base = entry({ name: 'base', files: ['base/index.ts', 'base/base.component.ts'] });
+        const addon = entry({ name: 'base/extra', files: ['base/addons/extra/index.ts'] });
+        const result = analyzeComponent(base, syncCtx([base, addon]), syncRoots);
+        expect(result.addonViolations).toHaveLength(1);
+        expect(result.addonViolations[0].addon).toBe('base/extra');
+        // The base must not absorb the addon's opt-in file.
+        expect(result.update.files).not.toContain('base/addons/extra/index.ts');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// analyzeBlock
+// ---------------------------------------------------------------------------
+
+describe('analyzeBlock', () => {
+    it('derives a block files, dependencies and libFiles across the roots', () => {
+        const ctx = syncCtx([buttonEntry(), cardEntry()]);
+        const result = analyzeBlock(loginBlockEntry(), ctx, syncRoots);
+        expect(result.update.files).toEqual(['login/index.ts', 'login/login.component.ts']);
+        expect(result.update.dependencies).toEqual(['button']);
+        expect(result.update.libFiles).toEqual(['format.ts']);
+        expect(hasDrift(result.diff)).toBe(false);
+    });
+
+    it('drops the baseline lib file from a block too', () => {
+        const ctx = syncCtx([buttonEntry(), cardEntry()]);
+        const result = analyzeBlock(loginBlockEntry({ libFiles: [] }), ctx, syncRoots);
+        expect(result.update.libFiles).toEqual(['format.ts']);
+        expect(result.diff.addedLibs).toEqual(['format.ts']);
+    });
+
+    it('detects block drift in files and dependencies', () => {
+        const ctx = syncCtx([buttonEntry(), cardEntry()]);
+        const drifted = loginBlockEntry({ files: ['login/index.ts', 'login/gone.ts'], dependencies: [] });
+        const result = analyzeBlock(drifted, ctx, syncRoots);
+        expect(result.diff.removedFiles).toEqual(['login/gone.ts']);
+        expect(result.diff.addedFiles).toEqual(['login/login.component.ts']);
+        expect(result.diff.addedDeps).toEqual(['button']);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// analyzeAllEntries
+// ---------------------------------------------------------------------------
+
+describe('analyzeAllEntries', () => {
+    it('reports no changes and no drift lines for a registry that matches disk', () => {
+        const entries = [buttonEntry(), cardEntry()];
+        const result = analyzeAllEntries(entries, [loginBlockEntry()], syncCtx(entries), syncRoots);
+        expect(result.hasChanges).toBe(false);
+        expect(result.driftLines).toEqual([]);
+        expect(result.updates).toHaveLength(2);
+        expect(result.blockUpdates).toHaveLength(1);
+    });
+
+    it('accumulates drift lines from components and blocks alike', () => {
+        const entries = [buttonEntry({ libFiles: [] }), cardEntry()];
+        const blocks = [loginBlockEntry({ dependencies: [] })];
+        const result = analyzeAllEntries(entries, blocks, syncCtx(entries), syncRoots);
+        expect(result.hasChanges).toBe(true);
+        expect(result.driftLines).toContain('  button:');
+        expect(result.driftLines).toContain('    + libFiles: format.ts');
+        expect(result.driftLines).toContain('  login (block):');
+        expect(result.driftLines).toContain('    + dependencies: button');
+    });
+
+    it('bubbles addon-boundary violations up from a component walk', () => {
+        const base = entry({ name: 'base', files: ['base/index.ts', 'base/base.component.ts'] });
+        const addon = entry({ name: 'base/extra', files: ['base/addons/extra/index.ts'] });
+        const result = analyzeAllEntries([base, addon], [], syncCtx([base, addon]), syncRoots);
+        expect(result.addonViolations).toHaveLength(1);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Boundary-violation reports
+// ---------------------------------------------------------------------------
+
+describe('formatDeepImportReport', () => {
+    it('is empty when there is nothing to warn about', () => {
+        expect(formatDeepImportReport([])).toEqual([]);
+    });
+
+    it('dedupes the same offender rediscovered by several walks', () => {
+        const di = { fromFile: 'ui/a.ts', importedFile: 'ui/b/b.component.ts', owner: 'b' };
+        const lines = formatDeepImportReport([di, { ...di }]);
+        expect(lines.filter(l => l === '  ui/a.ts')).toHaveLength(1);
+        expect(lines.some(l => l.includes("reaches into the 'b' component folder"))).toBe(true);
+    });
+
+    it('keeps two distinct offenders', () => {
+        const lines = formatDeepImportReport([
+            { fromFile: 'ui/a.ts', importedFile: 'ui/b/b.component.ts', owner: 'b' },
+            { fromFile: 'ui/c.ts', importedFile: 'ui/b/b.component.ts', owner: 'b' },
+        ]);
+        expect(lines.filter(l => l.startsWith('  ui/'))).toEqual(['  ui/a.ts', '  ui/c.ts']);
+    });
+});
+
+describe('formatAddonViolationReport', () => {
+    it('is empty when there are no violations', () => {
+        expect(formatAddonViolationReport([])).toEqual([]);
+    });
+
+    it('dedupes and names the addon that was reached into', () => {
+        const v = {
+            fromFile: 'ui/base/base.component.ts',
+            importedFile: 'ui/base/addons/extra/index.ts',
+            addon: 'base/extra',
+        };
+        const lines = formatAddonViolationReport([v, { ...v }]);
+        expect(lines.filter(l => l === '  ui/base/base.component.ts')).toHaveLength(1);
+        expect(lines.some(l => l.includes("reaches into the 'base/extra' addon"))).toBe(true);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Registry source rewriting
+// ---------------------------------------------------------------------------
+
+const SOURCE_FILES_ONLY = `export const registry = {
+  button: {
+    name: 'button',
+    files: ['button/index.ts'],
+  },
+};`;
+
+const SOURCE_FULL = `export const registry = {
+  card: {
+    name: 'card',
+    files: ['card/index.ts'],
+    libFiles: ['old.ts'],
+    dependencies: ['button'],
+  },
+};`;
+
+describe('replaceFilesArray', () => {
+    it('rewrites the files array of the named entry', () => {
+        const out = replaceFilesArray(SOURCE_FILES_ONLY, 'button', "'a.ts', 'b.ts'");
+        expect(out).toContain("files: ['a.ts', 'b.ts']");
+    });
+
+    it('matches a double-quoted name too', () => {
+        const source = `{ x: { name: "x", files: ['old.ts'] } };`;
+        expect(replaceFilesArray(source, 'x', "'new.ts'")).toContain("files: ['new.ts']");
+    });
+
+    it('is a no-op for an unknown entry name', () => {
+        expect(replaceFilesArray(SOURCE_FILES_ONLY, 'nope', "'a.ts'")).toBe(SOURCE_FILES_ONLY);
+    });
+});
+
+describe('updateLibFiles', () => {
+    it('rewrites an existing libFiles array', () => {
+        expect(updateLibFiles(SOURCE_FULL, 'card', "'new.ts'")).toContain("libFiles: ['new.ts']");
+    });
+
+    it('inserts a libFiles key after files when the entry has none', () => {
+        const out = updateLibFiles(SOURCE_FILES_ONLY, 'button', "'fmt.ts'");
+        expect(out).toContain("files: ['button/index.ts'],\n    libFiles: ['fmt.ts']");
+    });
+
+    it('is a no-op for an unknown entry name', () => {
+        expect(updateLibFiles(SOURCE_FULL, 'nope', "'x.ts'")).toBe(SOURCE_FULL);
+    });
+});
+
+describe('updateDependencies', () => {
+    it('rewrites an existing dependencies array', () => {
+        expect(updateDependencies(SOURCE_FULL, 'card', "'input'")).toContain("dependencies: ['input']");
+    });
+
+    it('inserts dependencies after libFiles when the entry has libFiles but no deps', () => {
+        const source = `{ card: { name: 'card', files: ['c.ts'], libFiles: ['l.ts'] } };`;
+        const out = updateDependencies(source, 'card', "'button'");
+        expect(out).toContain("libFiles: ['l.ts'],\n    dependencies: ['button']");
+    });
+
+    it('inserts dependencies after files when the entry has neither', () => {
+        const out = updateDependencies(SOURCE_FILES_ONLY, 'button', "'ripple'");
+        expect(out).toContain("files: ['button/index.ts'],\n    dependencies: ['ripple']");
+    });
+
+    it('is a no-op for an unknown entry name', () => {
+        expect(updateDependencies(SOURCE_FULL, 'nope', "'x'")).toBe(SOURCE_FULL);
+    });
+});
+
+describe('removeDependencies', () => {
+    it('drops the dependencies key entirely', () => {
+        const out = removeDependencies(SOURCE_FULL, 'card');
+        expect(out).not.toContain('dependencies');
+        expect(out).toContain("libFiles: ['old.ts']");
+    });
+
+    it('is a no-op when the entry has no dependencies', () => {
+        expect(removeDependencies(SOURCE_FILES_ONLY, 'button')).toBe(SOURCE_FILES_ONLY);
+    });
+
+    it('is a no-op for an unknown entry name', () => {
+        expect(removeDependencies(SOURCE_FULL, 'nope')).toBe(SOURCE_FULL);
+    });
+});
+
+describe('applyUpdatesToSource', () => {
+    it('round-trips through parseRegistrySource — what is written is what is parsed back', () => {
+        const updates: ComponentUpdate[] = [
+            {
+                name: 'card',
+                files: ['card/card.component.ts', 'card/index.ts'],
+                libFiles: ['fmt.ts'],
+                dependencies: ['button', 'input'],
+            },
+        ];
+        const parsed = parseRegistrySource(applyUpdatesToSource(SOURCE_FULL, updates));
+        const card = parsed.find(e => e.name === 'card');
+        expect(card?.files).toEqual(['card/card.component.ts', 'card/index.ts']);
+        expect(card?.libFiles).toEqual(['fmt.ts']);
+        expect(card?.dependencies).toEqual(['button', 'input']);
+    });
+
+    it('removes the dependencies key when an update derives to none', () => {
+        const out = applyUpdatesToSource(SOURCE_FULL, [
+            { name: 'card', files: ['card/index.ts'], libFiles: ['old.ts'], dependencies: [] },
+        ]);
+        expect(out).not.toContain('dependencies');
+        expect(parseRegistrySource(out).find(e => e.name === 'card')?.dependencies).toEqual([]);
+    });
+
+    it('leaves libFiles untouched when an update carries none', () => {
+        const out = applyUpdatesToSource(SOURCE_FILES_ONLY, [
+            { name: 'button', files: ['button/index.ts'], libFiles: [], dependencies: [] },
+        ]);
+        expect(out).not.toContain('libFiles');
+    });
+
+    it('applies several updates in one pass', () => {
+        const source = `export const registry = {
+  button: {
+    name: 'button',
+    files: ['button/index.ts'],
+  },
+  card: {
+    name: 'card',
+    files: ['card/index.ts'],
+    dependencies: ['button'],
+  },
+};`;
+        const out = applyUpdatesToSource(source, [
+            { name: 'button', files: ['button/b.ts', 'button/index.ts'], libFiles: [], dependencies: [] },
+            { name: 'card', files: ['card/index.ts'], libFiles: [], dependencies: ['button', 'badge'] },
+        ]);
+        const parsed = parseRegistrySource(out);
+        expect(parsed.find(e => e.name === 'button')?.files).toEqual(['button/b.ts', 'button/index.ts']);
+        expect(parsed.find(e => e.name === 'card')?.dependencies).toEqual(['button', 'badge']);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Validation against disk
+// ---------------------------------------------------------------------------
+
+describe('validateRegistryFiles', () => {
+    it('reports nothing when every path resolves', () => {
+        const update: ComponentUpdate = {
+            name: 'button',
+            files: ['button/index.ts', 'button/button.component.ts'],
+            libFiles: ['format.ts'],
+            dependencies: [],
+        };
+        expect(validateRegistryFiles([update], syncRoots)).toEqual([]);
+    });
+
+    it('reports a files entry that is not on disk', () => {
+        const update: ComponentUpdate = {
+            name: 'button',
+            files: ['button/ghost.ts'],
+            libFiles: [],
+            dependencies: [],
+        };
+        const problems = validateRegistryFiles([update], syncRoots);
+        expect(problems).toHaveLength(1);
+        expect(problems[0]).toContain("button: files entry 'button/ghost.ts'");
+        expect(problems[0]).toContain('does not exist');
+    });
+
+    it('catches the stale libFile that the merge semantics let through', () => {
+        // The only backstop for a merged-but-dead libFile: once the file is
+        // gone from disk, validation refuses the write.
+        const update: ComponentUpdate = {
+            name: 'button',
+            files: [],
+            libFiles: ['format.ts', 'dead.ts'],
+            dependencies: [],
+        };
+        const problems = validateRegistryFiles([update], syncRoots);
+        expect(problems).toHaveLength(1);
+        expect(problems[0]).toContain("button: libFiles entry 'dead.ts'");
+    });
+});
+
+describe('validateBlockFiles', () => {
+    it('resolves block files against the blocks root, not the components root', () => {
+        const update: ComponentUpdate = {
+            name: 'login',
+            files: ['login/index.ts', 'login/login.component.ts'],
+            libFiles: ['format.ts'],
+            dependencies: [],
+        };
+        expect(validateBlockFiles([update], syncRoots)).toEqual([]);
+    });
+
+    it('reports a missing block file and a missing block libFile', () => {
+        const update: ComponentUpdate = {
+            name: 'login',
+            files: ['login/ghost.ts'],
+            libFiles: ['dead.ts'],
+            dependencies: [],
+        };
+        const problems = validateBlockFiles([update], syncRoots);
+        expect(problems).toHaveLength(2);
+        expect(problems[0]).toContain("login: block file entry 'login/ghost.ts'");
+        expect(problems[1]).toContain("login: libFiles entry 'dead.ts'");
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Orphan blocks / manifest serialization
+// ---------------------------------------------------------------------------
+
+describe('detectOrphanBlockFolders', () => {
+    it('finds a block folder on disk that no registry entry claims', () => {
+        expect(detectOrphanBlockFolders([loginBlockEntry()], syncRoots.blocksRoot)).toEqual(['orphan']);
+    });
+
+    it('claims a folder from the first path segment of the entry files', () => {
+        const claimed = detectOrphanBlockFolders(
+            [loginBlockEntry(), entry({ name: 'orphan', isBlock: true, files: ['orphan/index.ts'] })],
+            syncRoots.blocksRoot,
+        );
+        expect(claimed).toEqual([]);
+    });
+
+    it('returns nothing when the blocks root does not exist', () => {
+        expect(detectOrphanBlockFolders([], path.join(syncBase, 'no-such-root'))).toEqual([]);
+    });
+});
+
+describe('serializeRegistryJson', () => {
+    it('writes 2-space JSON with a trailing newline', () => {
+        expect(serializeRegistryJson({ a: 1 })).toBe('{\n  "a": 1\n}\n');
     });
 });

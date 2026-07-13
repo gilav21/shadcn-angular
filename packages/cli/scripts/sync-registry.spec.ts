@@ -1,5 +1,54 @@
 import { describe, it, expect } from 'vitest';
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { parseRegistrySource } from './sync-registry-lib';
+
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const SCRIPT = path.join(SCRIPT_DIR, 'sync-registry.ts');
+const REGISTRY_TS = path.resolve(SCRIPT_DIR, '../src/registry/index.ts');
+const REGISTRY_JSON = path.resolve(SCRIPT_DIR, '../../components/registry.json');
+
+interface Run {
+    readonly status: number;
+    readonly stdout: string;
+}
+
+/** Run the real gate in report mode against the real repo. Never passes --fix. */
+function runReportMode(): Run {
+    try {
+        const stdout = execFileSync('npx', ['tsx', SCRIPT], { encoding: 'utf-8', shell: true });
+        return { status: 0, stdout };
+    } catch (error) {
+        const e = error as { status?: number; stdout?: string };
+        return { status: e.status ?? -1, stdout: e.stdout ?? '' };
+    }
+}
+
+// The thin entry itself: argv → lib → print → exit code. These drive the script
+// as a subprocess (exactly as `npm run check:registry` and the pre-push hook
+// do), so a broken wire-up in the entry is caught even though the logic it
+// delegates to is unit-tested in sync-registry-lib.spec.ts.
+describe('sync-registry entry (report mode)', () => {
+    it('runs the real registry to completion and prints the scan banner', () => {
+        const { status, stdout } = runReportMode();
+        // 0 = in sync, 1 = drift reported. Anything else is a crash.
+        expect([0, 1]).toContain(status);
+        expect(stdout).toMatch(/Scanning \d+ components and \d+ blocks/);
+        expect(stdout).not.toContain('Aborting before write');
+    }, 60_000);
+
+    it('is strictly read-only — it must never write the registry without --fix', () => {
+        const tsBefore = readFileSync(REGISTRY_TS, 'utf-8');
+        const jsonBefore = readFileSync(REGISTRY_JSON, 'utf-8');
+
+        runReportMode();
+
+        expect(readFileSync(REGISTRY_TS, 'utf-8')).toBe(tsBefore);
+        expect(readFileSync(REGISTRY_JSON, 'utf-8')).toBe(jsonBefore);
+    }, 60_000);
+});
 
 describe('parseRegistrySource', () => {
   it('parses a plain component entry', () => {
