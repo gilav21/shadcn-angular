@@ -337,7 +337,12 @@
         <ui-skeleton class="h-9 w-full rounded-md" />
       </div>
     } @else {
-    <div class="flex flex-col w-full h-full space-y-4">
+    <!-- `relative`: the sr-only announcer and the sr-only cell labels below are
+         position:absolute. Without a positioned ancestor their containing block
+         is <html>, so they escape this table's scroll container entirely and
+         stretch the document to their static position — which on a page with a
+         virtual-scroll table adds a second, page-length scrollbar. -->
+    <div class="relative flex flex-col w-full h-full space-y-4">
       <output
         class="sr-only"
         aria-live="polite"

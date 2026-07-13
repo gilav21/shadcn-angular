@@ -592,8 +592,16 @@ class OpsTicketDetailComponent {
   selector: 'app-data-table-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
   // 24 sibling <section>s: each spaces its own children, but nothing separated
-  // the sections from each other, so the demos ran together.
-  host: { class: 'block space-y-10 sm:space-y-16' },
+  // the sections from each other, so the demos ran together. Plain CSS rather
+  // than `space-y-*` — that utility is not generated anywhere in this app, so
+  // the class would sit on the host doing nothing.
+  styles: [`
+    :host { display: block; }
+    :host > section + section { margin-top: 2.5rem; }
+    @media (min-width: 640px) {
+      :host > section + section { margin-top: 4rem; }
+    }
+  `],
   imports: [
     CommonModule,
     BadgeComponent,
