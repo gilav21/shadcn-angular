@@ -721,7 +721,7 @@ export function insertRegistryEntry(source: string, meta: ComponentMeta): string
     const key = meta.name.includes('-') ? `'${meta.name}'` : meta.name;
     const tags = meta.tags.map(quote).join(', ');
     const files = seedFiles(meta).map(quote).join(', ');
-    const description = meta.description.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+    const description = meta.description.replaceAll('\\', String.raw`\\`).replaceAll("'", String.raw`\'`);
     const entry = [
         `  ${key}: {`,
         `    name: '${meta.name}',`,

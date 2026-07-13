@@ -136,7 +136,7 @@ are marked **Reviewed / Safe** (via `scripts/sonar-hotspots-safe.mjs`):
 | Rule | Count | Why safe |
 | --- | --- | --- |
 | `S2245` (insecure randomness) | 29 | `Math.random()` drives **visual animations** only (confetti, particles, meteors, …) — never a security/cryptographic context. |
-| `S4036` (OS command from PATH) | 3 | The **dev CLI** intentionally invokes `git`/`npm` from `PATH`; the command and arguments are not attacker-controlled. |
+| `S4036` (OS command from PATH) | 5 | The **dev CLI** and the maintainer tooling (`check-completeness`, `new-component`, `release-cli`, `migrate-core`) intentionally invoke `git`/`npm`/`npx` from `PATH`; every command is a fixed literal and no argument is attacker-controlled. Resolving these to absolute paths is not possible across the platforms the CLI supports. |
 
 Result: Security Hotspots reviewed = 100%, 0 to-review.
 
