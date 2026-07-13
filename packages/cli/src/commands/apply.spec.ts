@@ -95,9 +95,9 @@ describe('apply', () => {
         spinner.start.mockImplementation(() => spinner);
         installMock.mockResolvedValue(installResult());
         vi.spyOn(process, 'cwd').mockReturnValue(dir);
-        exitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
-            throw new ProcessExit(code ?? 0);
-        }) as (code?: number) => never);
+        exitSpy = vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null): never => {
+            throw new ProcessExit(typeof code === 'number' ? code : 0);
+        });
         writeSpy = vi.spyOn(fs, 'writeFile');
         vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
             logs.push(args.map(a => String(a)).join(' '));

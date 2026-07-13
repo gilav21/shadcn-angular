@@ -105,7 +105,7 @@ describe('migrate (command)', () => {
     vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
       logs.push(args.map(String).join(' '));
     });
-    vi.spyOn(process, 'exit').mockImplementation((code?: number): never => {
+    vi.spyOn(process, 'exit').mockImplementation((code?: string | number | null): never => {
       throw new Error(`process.exit(${code})`);
     });
   });

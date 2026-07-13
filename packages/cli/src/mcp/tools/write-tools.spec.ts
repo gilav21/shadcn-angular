@@ -333,7 +333,7 @@ describe('update_component', () => {
 
   it('reports hadConflicts false on a clean merge and includes the stale-selector scan', async () => {
     vi.mocked(scanStaleSelectors).mockResolvedValue([
-      { file: 'src/app/app.component.html', from: 'ui-old', to: 'ui-new', count: 1 },
+      { file: 'src/app/app.component.html', line: 12, component: 'button', from: 'ui-old', to: 'ui-new' },
     ]);
     const res = await call('update_component', { names: ['button'] });
     const out = parsed<{
