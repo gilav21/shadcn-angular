@@ -66,12 +66,6 @@ export interface RichTextLocale extends LocaleMeta {
         failed: string;
     };
 
-    mentions: {
-        noUsersFound: string;
-        noTagsFound: string;
-        selectUser: string;
-        selectTag: string;
-    };
 
     outline: {
         title: string;
@@ -180,12 +174,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             retry: 'Try again',
             failed: 'AI request failed',
         },
-        mentions: {
-            noUsersFound: 'No users found',
-            noTagsFound: 'No tags found',
-            selectUser: 'Select a user',
-            selectTag: 'Select a tag',
-        },
         outline: {
             title: 'Document Outline',
             empty: 'No headings yet',
@@ -289,12 +277,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             retry: 'נסה שוב',
             failed: 'בקשת ה-AI נכשלה',
         },
-        mentions: {
-            noUsersFound: 'לא נמצאו משתמשים',
-            noTagsFound: 'לא נמצאו תגיות',
-            selectUser: 'בחירת משתמש',
-            selectTag: 'בחירת תגית',
-        },
         outline: {
             title: 'מתאר מסמך',
             empty: 'אין כותרות עדיין',
@@ -380,12 +362,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outline: 'المخطط التفصيلي',
             outlineDescription: 'فتح المخطط التفصيلي للمستند',
         },
-        mentions: {
-            noUsersFound: 'لم يتم العثور على مستخدمين',
-            noTagsFound: 'لم يتم العثور على وسوم',
-            selectUser: 'اختيار مستخدم',
-            selectTag: 'اختيار وسم',
-        },
         outline: {
             title: 'مخطط المستند',
             empty: 'لا توجد عناوين بعد',
@@ -469,12 +445,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         slashCommands: {
             outline: 'Gliederung',
             outlineDescription: 'Dokumentgliederung öffnen',
-        },
-        mentions: {
-            noUsersFound: 'Keine Benutzer gefunden',
-            noTagsFound: 'Keine Tags gefunden',
-            selectUser: 'Benutzer auswählen',
-            selectTag: 'Tag auswählen',
         },
         outline: {
             title: 'Dokumentgliederung',
@@ -560,12 +530,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outline: 'Plan',
             outlineDescription: 'Ouvrir le plan du document',
         },
-        mentions: {
-            noUsersFound: 'Aucun utilisateur trouvé',
-            noTagsFound: 'Aucun tag trouvé',
-            selectUser: 'Sélectionner un utilisateur',
-            selectTag: 'Sélectionner un tag',
-        },
         outline: {
             title: 'Plan du document',
             empty: 'Aucun titre pour le moment',
@@ -649,12 +613,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         slashCommands: {
             outline: 'Esquema',
             outlineDescription: 'Abrir el esquema del documento',
-        },
-        mentions: {
-            noUsersFound: 'No se encontraron usuarios',
-            noTagsFound: 'No se encontraron etiquetas',
-            selectUser: 'Seleccionar un usuario',
-            selectTag: 'Seleccionar una etiqueta',
         },
         outline: {
             title: 'Esquema del documento',
@@ -740,12 +698,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outline: 'アウトライン',
             outlineDescription: 'ドキュメントのアウトラインを開く',
         },
-        mentions: {
-            noUsersFound: 'ユーザーが見つかりません',
-            noTagsFound: 'タグが見つかりません',
-            selectUser: 'ユーザーを選択',
-            selectTag: 'タグを選択',
-        },
         outline: {
             title: 'ドキュメントアウトライン',
             empty: '見出しがまだありません',
@@ -829,12 +781,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         slashCommands: {
             outline: '大纲',
             outlineDescription: '打开文档大纲',
-        },
-        mentions: {
-            noUsersFound: '未找到用户',
-            noTagsFound: '未找到标签',
-            selectUser: '选择用户',
-            selectTag: '选择标签',
         },
         outline: {
             title: '文档大纲',
@@ -920,12 +866,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outline: 'Структура',
             outlineDescription: 'Открыть структуру документа',
         },
-        mentions: {
-            noUsersFound: 'Пользователи не найдены',
-            noTagsFound: 'Теги не найдены',
-            selectUser: 'Выбрать пользователя',
-            selectTag: 'Выбрать тег',
-        },
         outline: {
             title: 'Структура документа',
             empty: 'Заголовков пока нет',
@@ -1009,12 +949,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         slashCommands: {
             outline: 'Estrutura de tópicos',
             outlineDescription: 'Abrir a estrutura de tópicos do documento',
-        },
-        mentions: {
-            noUsersFound: 'Nenhum usuário encontrado',
-            noTagsFound: 'Nenhuma tag encontrada',
-            selectUser: 'Selecionar um usuário',
-            selectTag: 'Selecionar uma tag',
         },
         outline: {
             title: 'Estrutura do documento',

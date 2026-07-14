@@ -7,10 +7,13 @@ import {
   SwitchComponent,
   InputComponent,
   SelectComponent,
-  MentionItem,
-  TagItem,
   ToolbarItem,
 } from '../../../../../packages/components/ui';
+import {
+  RichTextMentionsDirective,
+  type MentionItem,
+  type TagItem,
+} from '../../../../../packages/components/ui/rich-text-editor/addons/mentions';
 import { RichTextEmojiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/emoji';
 import { RichTextSlashCommandsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/slash-commands';
 import { RichTextHistoryDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/history';
@@ -27,7 +30,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -100,8 +103,8 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().mentionsHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().mentionsDescription }}</p>
-        <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSearch]="searchMentions"
-          [mentionRender]="mentionLinkRender" [tags]="true" [tagSearch]="searchTags" [tagRender]="tagLinkRender"
+        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteMentions [uiRteMentionsSearch]="searchMentions"
+          [uiRteMentionsRender]="mentionLinkRender" [uiRteTags]="true" [uiRteTagsSearch]="searchTags" [uiRteTagsRender]="tagLinkRender"
           [placeholder]="t().mentionsPlaceholder" minHeight="120px" />
       </div>
 
@@ -123,8 +126,8 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         @if (!richTextShowHistoryButton()) {
         <p class="text-xs text-muted-foreground">{{ t().historyHiddenNote }}</p>
         }
-        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteHistory [mentions]="true" [mentionSearch]="searchMentions"
-          [mentionRender]="mentionLinkRender" [tags]="true" [tagSearch]="searchTags" [tagRender]="tagLinkRender"
+        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteHistory uiRteMentions [uiRteMentionsSearch]="searchMentions"
+          [uiRteMentionsRender]="mentionLinkRender" [uiRteTags]="true" [uiRteTagsSearch]="searchTags" [uiRteTagsRender]="tagLinkRender"
           [showCount]="true" [showWordCount]="true" [maxLength]="220" [historyLimit]="180"
           [uiRteHistoryButton]="richTextShowHistoryButton()" [historyDebounceMs]="500"
           [placeholder]="t().advancedPlaceholder" minHeight="160px" />

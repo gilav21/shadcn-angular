@@ -175,6 +175,15 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/images'],
         label: 'rte-images',
     },
+    // addon system (rich-text): install the editor + its `mentions` addon; prove
+    // typing `@` opens the candidate popover only on the addon editor and that
+    // picking a candidate inserts a [data-mention] chip — the base ships no @/#
+    // authoring UI (content-level data-mention/data-tag rendering stays in the
+    // base). Installs `scroll-area` transitively via the addon's dependencies.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/mentions'],
+        label: 'rte-mentions',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

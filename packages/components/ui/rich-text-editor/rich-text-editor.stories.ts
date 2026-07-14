@@ -2,7 +2,7 @@ import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { RichTextEditorComponent } from './rich-text-editor.component';
 import { RichTextHistoryDirective } from './addons/history';
 import { RichTextToolbarComponent } from './sub/rich-text-toolbar.component';
-import { RichTextMentionPopoverComponent, MentionItem, TagItem } from './sub/rich-text-mention.component';
+import { RichTextMentionsDirective, type MentionItem, type TagItem } from './addons/mentions';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RICH_TEXT_LOCALES } from './rich-text-locales';
@@ -44,7 +44,7 @@ const meta: Meta<RichTextEditorComponent> = {
             imports: [
                 RichTextEditorComponent,
                 RichTextToolbarComponent,
-                RichTextMentionPopoverComponent,
+                RichTextMentionsDirective,
                 FormsModule,
                 ReactiveFormsModule,
             ],
@@ -97,10 +97,6 @@ const meta: Meta<RichTextEditorComponent> = {
             control: false,
             description: 'App-provided custom toolbar buttons/dropdowns rendered alongside the built-ins; emits (customToolbarAction) on click.',
         },
-        mentionSearch: { control: false, description: 'Async/sync search function returning MentionItem[] for @mention autocomplete.' },
-        mentionRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted mentions.' },
-        tagSearch: { control: false, description: 'Async/sync search function returning TagItem[] for #tag autocomplete.' },
-        tagRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted tags.' },
         aiProvider: { control: false, description: 'Bring-your-own AI provider hook powering AI-assisted editing actions.' },
         locale: {
             control: 'select',
@@ -113,8 +109,6 @@ const meta: Meta<RichTextEditorComponent> = {
         },
         disabled: { control: 'boolean', description: 'Disables the editor' },
         readonly: { control: 'boolean', description: 'Renders content read-only (no editing)' },
-        mentions: { control: 'boolean', description: 'Enable @mention autocomplete' },
-        tags: { control: 'boolean', description: 'Enable #tag autocomplete' },
         showCount: { control: 'boolean', description: 'Show the character counter' },
         showWordCount: { control: 'boolean', description: 'Show the word counter' },
         maxLength: { control: 'number', description: 'Maximum character count (undefined = unlimited)' },
@@ -140,8 +134,6 @@ export const Playground: Story = {
         maxHeight: '400px',
         disabled: false,
         readonly: false,
-        mentions: false,
-        tags: false,
         showCount: true,
         showWordCount: true,
         historyDebounceMs: 450,
@@ -224,26 +216,6 @@ export const FullToolbar: Story = {
     },
 };
 
-export const WithMentionsAndTags: Story = {
-    args: {
-        mode: 'markdown',
-        toolbar: 'top',
-        mentions: true,
-        mentionSearch,
-        tags: true,
-        tagSearch,
-        placeholder: 'Type @john-doe or #angular.ui to trigger suggestions...',
-        minHeight: '150px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Supports @mentions and #tags. Type @ or # to trigger the picker.',
-            },
-        },
-    },
-};
-
 export const WithCharacterCount: Story = {
     args: {
         mode: 'markdown',
@@ -259,10 +231,6 @@ export const AdvancedEditorConfig: Story = {
     args: {
         mode: 'markdown',
         toolbar: 'top',
-        mentions: true,
-        mentionSearch,
-        tags: true,
-        tagSearch,
         showCount: true,
         showWordCount: true,
         maxLength: 240,
@@ -399,7 +367,7 @@ export const GhostVariant: Story = {
 @Component({
     selector: 'rich-text-demo',
     standalone: true,
-    imports: [RichTextEditorComponent, FormsModule],
+    imports: [RichTextEditorComponent, RichTextMentionsDirective, FormsModule],
     template: `
     <div class="space-y-4">
       <div>
@@ -407,8 +375,8 @@ export const GhostVariant: Story = {
         <ui-rich-text-editor
           mode="markdown"
           toolbar="top"
-          [mentions]="true"
-          [mentionSearch]="mentionSearch"
+          uiRteMentions
+          [uiRteMentionsSearch]="mentionSearch"
           [(ngModel)]="content"
           (htmlChange)="html = $event"
           (markdownChange)="markdown = $event"
@@ -448,7 +416,7 @@ class RichTextDemoComponent {
 @Component({
     selector: 'rich-text-advanced-demo',
     standalone: true,
-    imports: [RichTextEditorComponent, RichTextHistoryDirective, FormsModule],
+    imports: [RichTextEditorComponent, RichTextHistoryDirective, RichTextMentionsDirective, FormsModule],
     template: `
     <div class="space-y-4">
       <p class="text-sm text-muted-foreground">
@@ -458,10 +426,10 @@ class RichTextDemoComponent {
         mode="markdown"
         toolbar="top"
         uiRteHistory
-        [mentions]="true"
-        [mentionSearch]="mentionSearch"
-        [tags]="true"
-        [tagSearch]="tagSearch"
+        uiRteMentions
+        [uiRteMentionsSearch]="mentionSearch"
+        [uiRteTags]="true"
+        [uiRteTagsSearch]="tagSearch"
         [showCount]="true"
         [showWordCount]="true"
         [maxLength]="220"

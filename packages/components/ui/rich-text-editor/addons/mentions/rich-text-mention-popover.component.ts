@@ -14,95 +14,16 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn } from '../../../lib/utils';
-import { ScrollAreaComponent } from '../../scroll-area';
-import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
-
-/**
- * A user/entity candidate for the `@mention` popover.
- *
- * Return an array of these from your `[mentionSearch]` function.
- * The popover displays `label` as the primary text and `description`
- * as secondary text beneath it. If `avatar` is provided, it renders
- * as a circular thumbnail; otherwise the first letter of `label` is shown.
- *
- * @example
- * ```ts
- * const users: MentionItem[] = [
- *   { id: 'u-1', value: 'jane', label: 'Jane Doe', avatar: '/avatars/jane.png', description: 'Engineering' },
- *   { id: 'u-2', value: 'bob',  label: 'Bob Smith' },
- * ];
- * ```
- */
-export interface MentionItem {
-  /**
-   * Unique identifier for this user/entity. Used as the entity `id` in
-   * {@link RichTextEntityRenderContext} and emitted in {@link RichTextEntityInsertEvent}.
-   * If omitted, `value` is used as the identifier.
-   */
-  id?: string;
-
-  /**
-   * Machine-friendly value (e.g. username, slug). Used as a fallback `id`
-   * and stored in the `data-mention` attribute on the rendered DOM element.
-   */
-  value: string;
-
-  /**
-   * Human-readable display name shown in the popover list and as the
-   * default inserted text (e.g. `"@Jane Doe"`).
-   */
-  label: string;
-
-  /** URL of an avatar image. Rendered as a 24×24 circular thumbnail in the popover. */
-  avatar?: string;
-
-  /** Secondary text shown below the label in the popover (e.g. job title, team name). */
-  description?: string;
-}
-
-/**
- * A tag candidate for the `#tag` popover.
- *
- * Return an array of these from your `[tagSearch]` function.
- * The popover displays a small colored dot (from `color`) next to the `label`.
- *
- * @example
- * ```ts
- * const tags: TagItem[] = [
- *   { id: 't-1', value: 'bug',     label: 'Bug',     color: '#ef4444' },
- *   { id: 't-2', value: 'feature', label: 'Feature',  color: '#3b82f6' },
- * ];
- * ```
- */
-export interface TagItem {
-  /**
-   * Unique identifier for this tag. Used as the entity `id` in
-   * {@link RichTextEntityRenderContext}. If omitted, `value` is used.
-   */
-  id?: string;
-
-  /**
-   * Machine-friendly value (e.g. slug). Used as a fallback `id`
-   * and stored in the `data-tag` attribute on the rendered DOM element.
-   */
-  value: string;
-
-  /** Human-readable tag name shown in the popover and as the default inserted text. */
-  label: string;
-
-  /**
-   * CSS color for the dot indicator in the popover. Accepts any valid CSS
-   * color value (hex, rgb, hsl, named colors). Defaults to the theme's accent color.
-   */
-  color?: string;
-}
+import { cn } from '../../../../lib/utils';
+import { ScrollAreaComponent } from '../../../scroll-area';
+import { RICH_TEXT_MENTIONS_LOCALES, type RichTextMentionsLocale } from './rich-text-mentions.locales';
+import type { MentionItem, TagItem } from './rich-text-mentions.types';
 
 @Component({
   selector: 'ui-rich-text-mention-popover',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ScrollAreaComponent],
-  templateUrl: './rich-text-mention.component.html',
+  templateUrl: './rich-text-mention-popover.component.html',
   host: {
     class: 'contents',
   },
@@ -112,19 +33,19 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
 
   @ViewChildren('itemButton') itemButtons!: QueryList<ElementRef<HTMLButtonElement>>;
 
-  type = input<'mention' | 'tag'>('mention');
-  locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
+  readonly type = input<'mention' | 'tag'>('mention');
+  readonly locale = input<RichTextMentionsLocale>(RICH_TEXT_MENTIONS_LOCALES['en']);
 
-  query = input<string>('');
+  readonly query = input<string>('');
 
-  items = input<(MentionItem | TagItem)[]>([]);
-  position = input<{ x: number; y: number }>({ x: 0, y: 0 });
+  readonly items = input<(MentionItem | TagItem)[]>([]);
+  readonly position = input<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  itemSelect = output<MentionItem | TagItem>();
+  readonly itemSelect = output<MentionItem | TagItem>();
 
-  closed = output<void>();
+  readonly closed = output<void>();
 
-  selectedIndex = signal<number>(0);
+  readonly selectedIndex = signal<number>(0);
 
   private readonly clickListener = (event: MouseEvent): void => {
     const target = event.target as HTMLElement;
@@ -133,9 +54,9 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
     }
   };
 
-  containerClasses = computed(() =>
+  readonly containerClasses = computed(() =>
     cn(
-      'absolute z-50 w-64 rounded-md border bg-popover text-popover-foreground shadow-md',
+      'absolute z-50 w-64 max-w-[calc(100vw-2rem)] rounded-md border bg-popover text-popover-foreground shadow-md',
       'animate-in fade-in-0 zoom-in-95'
     )
   );

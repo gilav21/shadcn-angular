@@ -244,17 +244,6 @@
     </div>
   }
 
-  @if (mentionPopoverOpen()) {
-    <ui-rich-text-mention-popover
-      [type]="mentionType()"
-      [query]="mentionQuery()"
-      [items]="filteredMentionItems()"
-      [position]="mentionPopoverPosition()"
-      [locale]="resolvedLocale()"
-      (itemSelect)="onMentionSelect($event)"
-      (closed)="closeMentionPopover()"
-    />
-  }
 
   @if (tableContextMenuOpen()) {
     <div

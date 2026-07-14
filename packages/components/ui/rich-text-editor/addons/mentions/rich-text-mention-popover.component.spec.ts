@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { RichTextMentionPopoverComponent } from './rich-text-mention.component';
+import { RichTextMentionPopoverComponent } from './rich-text-mention-popover.component';
 
 describe('RichTextMentionPopoverComponent', () => {
     let fixture: ComponentFixture<RichTextMentionPopoverComponent>;

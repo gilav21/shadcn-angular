@@ -2226,7 +2226,8 @@
       "rich-text-editor/typography",
       "rich-text-editor/links",
       "rich-text-editor/tables",
-      "rich-text-editor/images"
+      "rich-text-editor/images",
+      "rich-text-editor/mentions"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2238,8 +2239,6 @@
       "rich-text-editor/rich-text-markdown.service.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
-      "rich-text-editor/sub/rich-text-mention.component.html",
-      "rich-text-editor/sub/rich-text-mention.component.ts",
       "rich-text-editor/sub/rich-text-toolbar.component.css",
       "rich-text-editor/sub/rich-text-toolbar.component.html",
       "rich-text-editor/sub/rich-text-toolbar.component.ts"
@@ -2332,6 +2331,14 @@
         "note": "The whole image feature moved to the opt-in images addon, dropping the image UI (toolbar button, insert popover, paste/drop insertion, upload + auto-upload pipeline, and the resize/align overlay) from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/images`, add `uiRteImages` to the editor element, and remap the inputs/outputs to the uiRteImages* prefix: [images]->[uiRteImages], [imageUploader]->[uiRteImagesUploader], [autoImageUpload]->[uiRteImagesAutoUpload], [imageSources]->[uiRteImagesSources], [imageResize]->[uiRteImagesResize], [imageAlignment]->[uiRteImagesAlignment], [defaultImageWidth]->[uiRteImagesDefaultWidth], [defaultImageHeight]->[uiRteImagesDefaultHeight], [defaultImageAlignment]->[uiRteImagesDefaultAlignment], [minImageWidth]->[uiRteImagesMinWidth], [maxImageWidth]->[uiRteImagesMaxWidth], [lockImageAspectRatio]->[uiRteImagesLockAspectRatio]. The upload outputs (imageUploadStart/Complete/Error, autoImageUploadComplete/Error) move onto the directive with the same names. Remove 'image' from any custom [toolbarItems] arrays (the button now renders after the built-in items). Content-level image support stays in the base — the sanitizer keeps allowing <img> and markdown still serializes images — so existing image content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries the `image` or `imageResizer` sections, `toolbar.insertImage`, or the `editor.uploadingImage`/`autoUpload*` keys; image strings resolve from [uiRteImagesLocale] (or the global UI_LOCALE_ID), not the editor's [locale]. This extraction also removes `popover` from the base's dependencies (the image button was its last consumer).",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/images"
+      },
+      {
+        "kind": "removal",
+        "from": "the [mentions]/[mentionSearch]/[mentionRender]/[tags]/[tagSearch]/[tagRender] inputs, the (mentionInsert)/(tagInsert) outputs, the @/# trigger popover, and the MentionItem/TagItem/RichTextEntity* type exports on <ui-rich-text-editor>",
+        "to": "the uiRteMentions directive",
+        "note": "The whole @mention / #tag authoring feature (trigger detection, async search popover, keyboard nav, and entity insertion) moved to the opt-in mentions addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/mentions`, add `uiRteMentions` to the editor element, and remap the inputs/outputs to the uiRteMentions*/uiRteTags* prefix: [mentions] is replaced by adding the directive; [mentionSearch]->[uiRteMentionsSearch], [mentionRender]->[uiRteMentionsRender], [tags]->[uiRteTags], [tagSearch]->[uiRteTagsSearch], [tagRender]->[uiRteTagsRender]. The (mentionInsert)/(tagInsert) outputs move onto the directive with the same names. Import MentionItem, TagItem, RichTextEntityRenderOptions, RichTextEntityInsertEvent (and the other RichTextEntity* types) from the addon barrel (`.../addons/mentions`) instead of the base package. Content-level rendering stays in the base — the sanitizer keeps allowing `data-mention`/`data-tag` chips and the colour/typography addons still style them — so existing mention/tag content keeps rendering with the base alone; only the authoring UI is opt-in. The base RichTextLocale no longer carries the `mentions` section; popover strings resolve from [uiRteMentionsLocale] (or the global UI_LOCALE_ID), not the editor's [locale].",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/mentions"
       }
     ],
     "shortcutDefinitions": [
@@ -4302,6 +4309,50 @@
     "attach": {
       "import": "RichTextImagesDirective from './ui/rich-text-editor/addons/images'",
       "selector": "uiRteImages"
+    }
+  },
+  "rich-text-editor/mentions": {
+    "name": "rich-text-editor/mentions",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "Mentions/tags for the rich text editor: @/# trigger, async search popover, keyboard nav, and inserting styled entity chips or links.",
+    "tags": [
+      "rich-text",
+      "mention",
+      "tag",
+      "autocomplete",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/mentions/index.ts",
+      "rich-text-editor/addons/mentions/rich-text-mention-popover.component.html",
+      "rich-text-editor/addons/mentions/rich-text-mention-popover.component.ts",
+      "rich-text-editor/addons/mentions/rich-text-mentions.directive.ts",
+      "rich-text-editor/addons/mentions/rich-text-mentions.locales.ts",
+      "rich-text-editor/addons/mentions/rich-text-mentions.types.ts",
+      "rich-text-editor/addons/mentions/rich-text-mentions.utils.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "scroll-area",
+      "rich-text-editor"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts",
+      "rich-text-editor/rich-text-sanitizer.service.ts"
+    ],
+    "attach": {
+      "import": "RichTextMentionsDirective from './ui/rich-text-editor/addons/mentions'",
+      "selector": "uiRteMentions"
     }
   }
 }
