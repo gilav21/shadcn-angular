@@ -13,6 +13,7 @@ import {
 } from '../../../../../packages/components/ui';
 import { RichTextEmojiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/emoji';
 import { RichTextSlashCommandsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/slash-commands';
+import { RichTextHistoryDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/history';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
@@ -21,7 +22,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -117,10 +118,10 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         @if (!richTextShowHistoryButton()) {
         <p class="text-xs text-muted-foreground">{{ t().historyHiddenNote }}</p>
         }
-        <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSearch]="searchMentions"
+        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteHistory [mentions]="true" [mentionSearch]="searchMentions"
           [mentionRender]="mentionLinkRender" [tags]="true" [tagSearch]="searchTags" [tagRender]="tagLinkRender"
-          [showCount]="true" [showWordCount]="true" [maxLength]="220" [historyLimit]="180" [showHistoryPanel]="true"
-          [showHistoryButton]="richTextShowHistoryButton()" [historyDebounceMs]="500"
+          [showCount]="true" [showWordCount]="true" [maxLength]="220" [historyLimit]="180"
+          [uiRteHistoryButton]="richTextShowHistoryButton()" [historyDebounceMs]="500"
           [placeholder]="t().advancedPlaceholder" minHeight="160px" />
       </div>
 

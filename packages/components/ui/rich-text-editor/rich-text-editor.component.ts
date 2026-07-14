@@ -13,10 +13,9 @@
     effect,
     AfterViewInit,
     OnDestroy,
-    model,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { DOCUMENT, DatePipe, NgTemplateOutlet } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { cn } from '../../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
@@ -33,15 +32,6 @@ import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './sub/ric
 import { RichTextImageResizerComponent } from './sub/rich-text-image-resizer.component';
 import { ImageAlignment, applyImageAlignment, parseImageSize } from './rich-text-image.utils';
 import { ButtonComponent } from '../button';
-import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover';
-import {
-    DialogComponent,
-    DialogContentComponent,
-    DialogHeaderComponent,
-    DialogTitleComponent,
-    DialogDescriptionComponent,
-    DialogFooterComponent,
-} from '../dialog';
 import { ScrollAreaComponent } from '../scroll-area';
 import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
 import {
@@ -53,6 +43,7 @@ import {
     RichTextEditorAddonHost,
     type RichTextToolbarSlot,
     type RichTextSelectionSnapshot,
+    type RichTextHistoryEntrySnapshot,
 } from './rich-text-editor.host';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
@@ -510,21 +501,11 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        DatePipe,
         NgTemplateOutlet,
         RichTextToolbarComponent,
         RichTextMentionPopoverComponent,
         RichTextImageResizerComponent,
         ButtonComponent,
-        PopoverComponent,
-        PopoverTriggerComponent,
-        PopoverContentComponent,
-        DialogComponent,
-        DialogContentComponent,
-        DialogHeaderComponent,
-        DialogTitleComponent,
-        DialogDescriptionComponent,
-        DialogFooterComponent,
         ScrollAreaComponent,
     ],
     providers: [
@@ -553,6 +534,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly commandRegistry = inject(RichTextCommandRegistry);
 
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
+    @ViewChild('editorContainer') editorContainer?: ElementRef<HTMLElement>;
     @ViewChild('tableContextMenuRef') tableContextMenuRef?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
 
@@ -766,12 +748,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     historyDebounceMs = input<number>(450);
 
-    /** Enable the revision history feature (popover + preview dialog). */
-    showHistoryPanel = input<boolean>(false);
-
-    /** Show the "Revisions" button in the top-right corner. Only visible when `showHistoryPanel` is `true`. */
-    showHistoryButton = input<boolean>(true);
-
     // ג”€ג”€ Localisation ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /**
@@ -956,14 +932,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private autoUploadMutating = false;
     autoUploadErrors = signal<Map<string, { dataUrl: string; imgElement: HTMLImageElement }>>(new Map());
 
-    historyPanelOpen = signal<boolean>(false);
     /** Whether the docked document-outline panel is open. */
     outlinePanelOpen = signal<boolean>(false);
-    historyPreviewOpen = model<boolean>(false);
-    historyBrowserOpen = model<boolean>(false);
-    selectedHistoryIndex = signal<number | null>(null);
-    lastAppliedHistoryIndex = signal<number | null>(null);
-    private readonly historyVersion = signal<number>(0);
+    private readonly _historyVersion = signal<number>(0);
+    /** Bumps on every history-stack change; read by the history addon (addon host surface). */
+    readonly historyVersion = this._historyVersion.asReadonly();
 
     findReplaceVisible = signal(false);
     findQuery = signal('');
@@ -981,6 +954,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private shortcutHandle: ShortcutComponentHandle | null = null;
     private readonly keydownInterceptors = new Set<(event: KeyboardEvent) => boolean>();
     private readonly inputObservers = new Set<(text: string, caretOffset: number) => void>();
+    private readonly shortcutActions = new Map<string, { run: () => void; when?: () => boolean }>();
     private savedRange: Range | null = null;
     private _pendingLinkPositionHint: { x: number; y: number } | null = null;
     private onChange: (value: string) => void = () => { };
@@ -1105,47 +1079,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     filteredMentionItems = computed(() => {
         return this.loadedMentionItems().slice(0, 10);
     });
-
-    historyTimelineEntries = computed(() => {
-        this.historyVersion();
-        return this.history.map((entry, index) => ({
-            index,
-            timestamp: entry.timestamp,
-            preview: entry.preview,
-            previewLines: entry.previewLines,
-            lineCount: entry.lineCount,
-            active: index === this.historyIndex,
-        })).reverse();
-    });
-
-    historyCount = computed(() => {
-        this.historyVersion();
-        return this.history.length;
-    });
-
-    selectedHistoryEntry = computed(() => {
-        this.historyVersion();
-        const index = this.selectedHistoryIndex();
-        if (index === null || index < 0 || index >= this.history.length) {
-            return null;
-        }
-        const entry = this.history[index];
-        return {
-            index,
-            html: this.reconstructHtmlCached(index),
-            timestamp: entry.timestamp,
-            preview: entry.preview,
-        };
-    });
-
-    selectedHistoryEntryMarkdown = computed(() => {
-        const selected = this.selectedHistoryEntry();
-        if (!selected) {
-            return '';
-        }
-        return this.markdownService.toMarkdown(selected.html);
-    });
-
 
     onEditorClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
@@ -1361,8 +1294,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 description: 'Open revision history',
                 defaultShortcut: 'Mod+Shift+H',
                 category: 'History',
-                when: () => canEdit() && this.showHistoryPanel(),
-                handler: () => this.openHistoryFromShortcut(),
+                when: () => canEdit() && this.canRunShortcutAction('rich-text.history'),
+                handler: () => this.runShortcutAction('rich-text.history'),
             },
             {
                 actionId: 'rich-text.find',
@@ -2108,128 +2041,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.aiPhase.set('menu');
     }
 
-    onHistoryPanelOpenChange(nextOpen: boolean): void {
-        if (!nextOpen && this.historyPreviewOpen()) {
-            this.historyPanelOpen.set(true);
-            return;
-        }
-        if (nextOpen && (this.disabled() || this.readonly() || !this.showHistoryPanel())) {
-            this.historyPanelOpen.set(false);
-            return;
-        }
-        if (nextOpen) {
-            this.flushPendingHistoryPush();
-            this.focusFirstHistoryActionSoon('popover');
-        }
-        this.historyPanelOpen.set(nextOpen);
-    }
-
-    private openHistoryFromShortcut(): void {
-        if (!this.showHistoryPanel() || this.disabled() || this.readonly()) {
-            return;
-        }
-        this.flushPendingHistoryPush();
-        if (this.showHistoryButton()) {
-            this.onHistoryPanelOpenChange(true);
-            return;
-        }
-        this.historyBrowserOpen.set(true);
-        this.focusFirstHistoryActionSoon('dialog');
-    }
-
-    openHistoryPreview(entryIndex: number, event?: Event): void {
-        event?.stopPropagation();
-        if (entryIndex < 0 || entryIndex >= this.history.length) {
-            return;
-        }
-        this.selectedHistoryIndex.set(entryIndex);
-        this.historyBrowserOpen.set(false);
-        this.historyPreviewOpen.set(true);
-    }
-
-    onQuickApplyFromHistory(entryIndex: number, event: Event): void {
-        const target = event.currentTarget as HTMLElement | null;
-        const listType = target ? this.getHistoryListType(target) : null;
-        this.selectHistoryEntry(entryIndex);
-        if (listType) {
-            this.focusHistoryEntrySoon(listType, entryIndex);
-        }
-    }
-
-    onHistoryEntryKeydown(event: KeyboardEvent, entryIndex: number): void {
-        const current = event.currentTarget as HTMLElement | null;
-        if (!current) {
-            return;
-        }
-        const listType = this.getHistoryListType(current);
-
-        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
-            event.preventDefault();
-            this.selectHistoryEntry(entryIndex);
-            if (listType) {
-                this.focusHistoryEntrySoon(listType, entryIndex);
-            }
-            return;
-        }
-
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            this.handleHistoryEscape(listType);
-            return;
-        }
-
-        this.handleHistoryArrowKey(event, current);
-    }
-
-    private handleHistoryEscape(listType: 'popover' | 'dialog' | null): void {
-        if (listType === 'popover') {
-            this.historyPanelOpen.set(false);
-        } else if (listType === 'dialog') {
-            this.historyBrowserOpen.set(false);
-        }
-    }
-
-    private handleHistoryArrowKey(event: KeyboardEvent, current: HTMLElement): void {
-        const entries = this.getHistoryEntryElements(current);
-        const currentIndex = entries.indexOf(current);
-        if (currentIndex < 0) {
-            return;
-        }
-
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            entries[Math.min(entries.length - 1, currentIndex + 1)]?.focus();
-            return;
-        }
-
-        if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            entries[Math.max(0, currentIndex - 1)]?.focus();
-            return;
-        }
-
-        if (event.key === 'Home') {
-            event.preventDefault();
-            entries[0]?.focus();
-            return;
-        }
-
-        if (event.key === 'End') {
-            event.preventDefault();
-            entries.at(-1)?.focus();
-        }
-    }
-
-    restoreFromHistoryPreview(): void {
-        const index = this.selectedHistoryIndex();
-        if (index === null) {
-            return;
-        }
-        this.selectHistoryEntry(index);
-        this.historyPreviewOpen.set(false);
-    }
-
-    selectHistoryEntry(entryIndex: number): void {
+    /**
+     * Jump to a history entry without pushing a new one (addon host surface):
+     * forward entries stay available for redo. Reconstructs and applies the
+     * entry's content, restores its selection, and emits a change.
+     */
+    restoreHistoryEntry(entryIndex: number): void {
         if (entryIndex < 0 || entryIndex >= this.history.length) {
             return;
         }
@@ -2249,7 +2066,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             ? this.markdownService.toMarkdown(html)
             : html;
         this.onChange(outputValue);
-        this.lastAppliedHistoryIndex.set(entryIndex);
         this.bumpHistoryVersion();
     }
 
@@ -5113,6 +4929,35 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return this.editorDiv?.nativeElement as HTMLElement;
     }
 
+    /** The editor's positioned (relative) container element (addon host surface). */
+    get overlayAnchor(): HTMLElement {
+        return this.editorContainer?.nativeElement ?? this.contentRoot;
+    }
+
+    /**
+     * Bind an action to a known shortcut definition (addon host surface). The
+     * base ships no handler for these; the shortcut stays inert until an addon
+     * registers the action here.
+     */
+    registerShortcutAction(actionId: string, run: () => void, when?: () => boolean): () => void {
+        const entry = { run, when };
+        this.shortcutActions.set(actionId, entry);
+        return () => {
+            if (this.shortcutActions.get(actionId) === entry) {
+                this.shortcutActions.delete(actionId);
+            }
+        };
+    }
+
+    private canRunShortcutAction(actionId: string): boolean {
+        const entry = this.shortcutActions.get(actionId);
+        return !!entry && (!entry.when || entry.when());
+    }
+
+    private runShortcutAction(actionId: string): void {
+        this.shortcutActions.get(actionId)?.run();
+    }
+
     /** Snapshot the current selection / caret target for an addon. */
     selection(): RichTextSelectionSnapshot {
         const editor = this.editorDiv?.nativeElement;
@@ -5801,7 +5646,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }, delay);
     }
 
-    private flushPendingHistoryPush(): void {
+    /** Flush any pending debounced history push as one entry (addon host surface). */
+    flushPendingHistoryPush(): void {
         if (!this.historyDebounceTimer) {
             return;
         }
@@ -5810,8 +5656,35 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
     }
 
+    /** Read-only projection of the history stack, oldest first (addon host surface). */
+    historyEntries(): readonly RichTextHistoryEntrySnapshot[] {
+        this.historyVersion();
+        return this.history.map((entry, index) => ({
+            index,
+            timestamp: entry.timestamp,
+            preview: entry.preview,
+            previewLines: entry.previewLines,
+            lineCount: entry.lineCount,
+        }));
+    }
+
+    /** Index of the entry the editor currently reflects (addon host surface). */
+    currentHistoryIndex(): number {
+        this.historyVersion();
+        return this.historyIndex;
+    }
+
+    /** Reconstruct a history entry's HTML + Markdown (addon host surface). */
+    reconstructHistoryEntry(index: number): { html: string; markdown: string } | null {
+        if (index < 0 || index >= this.history.length) {
+            return null;
+        }
+        const html = this.reconstructHtmlCached(index);
+        return { html, markdown: this.markdownService.toMarkdown(html) };
+    }
+
     private bumpHistoryVersion(): void {
-        this.historyVersion.update(v => v + 1);
+        this._historyVersion.update(v => v + 1);
     }
 
     private buildHistoryPreview(html: string): { preview: string; previewLines: string[]; lineCount: number } {
@@ -5830,51 +5703,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             previewLines: safeLines.slice(0, 3),
             lineCount: safeLines.length,
         };
-    }
-
-    private focusFirstHistoryActionSoon(preferredList: 'popover' | 'dialog'): void {
-        const tryFocus = (attempt: number): void => {
-            const root = this.el.nativeElement as HTMLElement;
-            const selector = `[data-history-list="${preferredList}"] [data-history-entry-action="true"]`;
-            const firstAction = root.querySelector<HTMLElement>(selector);
-            if (firstAction) {
-                firstAction.focus();
-                return;
-            }
-            if (attempt < 4) {
-                setTimeout(() => tryFocus(attempt + 1), 16);
-            }
-        };
-
-        setTimeout(() => tryFocus(0), 24);
-    }
-
-    private getHistoryEntryElements(from: HTMLElement): HTMLElement[] {
-        const listContainer = from.closest('[data-history-list]');
-        if (!listContainer) {
-            return [];
-        }
-        return Array.from(
-            listContainer.querySelectorAll<HTMLElement>('[data-history-entry-action="true"]')
-        );
-    }
-
-    private getHistoryListType(from: HTMLElement): 'popover' | 'dialog' | null {
-        const listContainer = from.closest<HTMLElement>('[data-history-list]');
-        const type = listContainer?.dataset['historyList'];
-        if (type === 'popover' || type === 'dialog') {
-            return type;
-        }
-        return null;
-    }
-
-    private focusHistoryEntrySoon(listType: 'popover' | 'dialog', entryIndex: number): void {
-        setTimeout(() => {
-            const root = this.el.nativeElement as HTMLElement;
-            const selector = `[data-history-list="${listType}"] [data-history-entry-index="${entryIndex}"]`;
-            const target = root.querySelector<HTMLElement>(selector);
-            target?.focus();
-        }, 0);
     }
 
     private captureSelection(): SerializedSelection | null {

@@ -1,5 +1,6 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { RichTextEditorComponent } from './rich-text-editor.component';
+import { RichTextHistoryDirective } from './addons/history';
 import { RichTextToolbarComponent } from './sub/rich-text-toolbar.component';
 import { RichTextMentionPopoverComponent, MentionItem, TagItem } from './sub/rich-text-mention.component';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
@@ -104,16 +105,6 @@ const meta: Meta<RichTextEditorComponent> = {
         tagRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted tags.' },
         imageUploader: { control: false, description: 'Callback uploading a File and returning an Observable<string> URL, used by autoImageUpload and the image insert dialog.' },
         aiProvider: { control: false, description: 'Bring-your-own AI provider hook powering AI-assisted editing actions.' },
-        historyPreviewOpen: { control: 'boolean', description: 'Whether the inline history preview strip is open (model, two-way bound).' },
-        historyBrowserOpen: { control: 'boolean', description: 'Whether the full history browser dialog is open (model, two-way bound).' },
-        showHistoryPanel: {
-            control: 'boolean',
-            description: 'Show revision history panel for jumping to a previous snapshot',
-        },
-        showHistoryButton: {
-            control: 'boolean',
-            description: 'Show/hide the History button (Ctrl/Cmd+Shift+H shortcut still works)',
-        },
         locale: {
             control: 'select',
             options: Object.keys(RICH_TEXT_LOCALES),
@@ -181,7 +172,6 @@ export const Playground: Story = {
         images: true,
         showCount: true,
         showWordCount: true,
-        showHistoryButton: true,
         historyDebounceMs: 450,
         historyLimit: 100,
     },
@@ -305,8 +295,6 @@ export const AdvancedEditorConfig: Story = {
         tagSearch,
         showCount: true,
         showWordCount: true,
-        showHistoryPanel: true,
-        showHistoryButton: true,
         maxLength: 240,
         historyLimit: 150,
         historyDebounceMs: 500,
@@ -329,7 +317,6 @@ export const HebrewRTL: Story = {
         locale: 'he',
         showCount: true,
         showWordCount: true,
-        showHistoryPanel: true,
         minHeight: '180px',
     },
     parameters: {
@@ -491,7 +478,7 @@ class RichTextDemoComponent {
 @Component({
     selector: 'rich-text-advanced-demo',
     standalone: true,
-    imports: [RichTextEditorComponent, FormsModule],
+    imports: [RichTextEditorComponent, RichTextHistoryDirective, FormsModule],
     template: `
     <div class="space-y-4">
       <p class="text-sm text-muted-foreground">
@@ -500,13 +487,13 @@ class RichTextDemoComponent {
       <ui-rich-text-editor
         mode="markdown"
         toolbar="top"
+        uiRteHistory
         [mentions]="true"
         [mentionSearch]="mentionSearch"
         [tags]="true"
         [tagSearch]="tagSearch"
         [showCount]="true"
         [showWordCount]="true"
-        [showHistoryPanel]="true"
         [maxLength]="220"
         [historyLimit]="200"
         [historyDebounceMs]="500"

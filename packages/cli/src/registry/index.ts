@@ -838,13 +838,14 @@ export const registry = defineRegistry({
     category: 'editor',
     description: 'WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.',
     tags: ['rich-text-editor', 'wysiwyg', 'editor', 'text', 'formatting'],
-    addons: ['rich-text-editor/actions', 'rich-text-editor/emoji', 'rich-text-editor/slash-commands'],
+    addons: ['rich-text-editor/actions', 'rich-text-editor/emoji', 'rich-text-editor/slash-commands', 'rich-text-editor/history'],
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-image.utils.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-image-resizer.component.html', 'rich-text-editor/sub/rich-text-image-resizer.component.ts', 'rich-text-editor/sub/rich-text-mention.component.html', 'rich-text-editor/sub/rich-text-mention.component.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
-    dependencies: ['autocomplete', 'button', 'color-picker', 'dialog', 'popover', 'scroll-area', 'separator'],
+    dependencies: ['autocomplete', 'button', 'color-picker', 'popover', 'scroll-area', 'separator'],
     libFiles: ['addon-slots.ts', 'ai.ts', 'color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     breaking: [
       { kind: 'removal', from: "the 'emoji' toolbar item + [emojiPicker] input on <ui-rich-text-editor>", to: 'the uiRteEmoji directive', note: "The emoji picker moved to the opt-in emoji addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/emoji`, add `uiRteEmoji` to the editor element, and remove 'emoji' from any custom [toolbarItems] arrays (the button now renders after the built-in items).", codemod: 'none', suggestedAddon: 'rich-text-editor/emoji' },
       { kind: 'removal', from: "[enableSlashCommands] + [slashCommands] inputs and the buildDefaultSlashCommands export on <ui-rich-text-editor>", to: 'the uiRteSlashCommands directive', note: "The slash-command ('/') menu moved to the opt-in slash-commands addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/slash-commands`, add `uiRteSlashCommands` to the editor element, and move any custom commands from [slashCommands]=\"cmds\" to [uiRteSlashCommands]=\"cmds\". The base still owns the /outline (and, with an aiProvider, /ai) commands.", codemod: 'none', suggestedAddon: 'rich-text-editor/slash-commands' },
+      { kind: 'removal', from: "[showHistoryPanel] + [showHistoryButton] inputs and the revision history UI on <ui-rich-text-editor>", to: 'the uiRteHistory directive', note: "The revision-history UI (Revisions button + panel, preview dialog, browser dialog) moved to the opt-in history addon, dropping the 'dialog' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/history`, add `uiRteHistory` to the editor element, and map [showHistoryButton]=\"x\" to [uiRteHistoryButton]=\"x\" ([showHistoryPanel] is replaced by simply adding the directive). The base keeps the undo/redo stack and the Ctrl/Cmd+Shift+H shortcut definition; the addon supplies its action. History strings now resolve from [uiRteHistoryLocale] (or the global UI_LOCALE_ID), not the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/history' },
     ],
     shortcutDefinitions: [
       {
@@ -1455,6 +1456,22 @@ export const registry = defineRegistry({
     attach: {
       import: "RichTextSlashCommandsDirective from './ui/rich-text-editor/addons/slash-commands'",
       selector: 'uiRteSlashCommands',
+    },
+  },
+  'rich-text-editor/history': {
+    name: 'rich-text-editor/history',
+    type: 'addon',
+    parent: 'rich-text-editor',
+    category: 'editor',
+    description: 'Revision-history UI for the rich text editor: a Revisions button, panel, preview dialog, and browser dialog to jump between snapshots.',
+    tags: ['rich-text', 'history', 'revisions', 'undo', 'addon'],
+    files: ['rich-text-editor/addons/history/index.ts', 'rich-text-editor/addons/history/rich-text-history-panel.component.html', 'rich-text-editor/addons/history/rich-text-history-panel.component.ts', 'rich-text-editor/addons/history/rich-text-history.directive.ts', 'rich-text-editor/addons/history/rich-text-history.locales.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['button', 'dialog', 'popover', 'rich-text-editor', 'scroll-area'],
+    requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    attach: {
+      import: "RichTextHistoryDirective from './ui/rich-text-editor/addons/history'",
+      selector: 'uiRteHistory',
     },
   },
 });

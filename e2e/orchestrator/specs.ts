@@ -125,6 +125,14 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/slash-commands'],
         label: 'rte-slash-commands',
     },
+    // addon system (rich-text): install the editor + its `history` addon; prove
+    // the "Revisions" corner button + panel appear only on the addon editor,
+    // restoring an earlier revision reverts the content, and the preview dialog
+    // renders a snapshot (the base sheds the `dialog` dependency entirely).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/history'],
+        label: 'rte-history',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

@@ -106,25 +106,6 @@ export interface RichTextLocale extends LocaleMeta {
         failed: string;
     };
 
-    history: {
-        button: string;
-        title: string;
-        browserDescription: string;
-        revision: string;
-        applied: string;
-        preview: string;
-        renderedPreview: string;
-        markdownSnapshot: string;
-        capturedAt: string;
-        cancel: string;
-        restore: string;
-        close: string;
-        moreLines: string;
-        ariaOpen: string;
-        ariaClose: string;
-        ariaApply: string;
-    };
-
     mentions: {
         noUsersFound: string;
         noTagsFound: string;
@@ -288,24 +269,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             retry: 'Try again',
             failed: 'AI request failed',
         },
-        history: {
-            button: 'History ({count})',
-            title: 'Revision History',
-            browserDescription: 'Use this browser when the history button is hidden.',
-            revision: 'Revision {index}',
-            applied: 'Applied',
-            preview: 'Preview',
-            renderedPreview: 'Rendered Preview',
-            markdownSnapshot: 'Markdown Snapshot',
-            capturedAt: 'Captured at {time}',
-            cancel: 'Cancel',
-            restore: 'Restore This Revision',
-            close: 'Close',
-            moreLines: '+{count} more lines',
-            ariaOpen: 'Open revision history (Ctrl or Command + Shift + H)',
-            ariaClose: 'Close revision history',
-            ariaApply: 'Apply revision {index}',
-        },
         mentions: {
             noUsersFound: 'No users found',
             noTagsFound: 'No tags found',
@@ -464,24 +427,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             retry: 'נסה שוב',
             failed: 'בקשת ה-AI נכשלה',
         },
-        history: {
-            button: 'היסטוריה ({count})',
-            title: 'היסטוריית גרסאות',
-            browserDescription: 'ניתן להשתמש בחלון זה כשכפתור ההיסטוריה מוסתר.',
-            revision: 'גרסה {index}',
-            applied: 'הוחל',
-            preview: 'תצוגה מקדימה',
-            renderedPreview: 'תצוגה מעובדת',
-            markdownSnapshot: 'תמונת מצב Markdown',
-            capturedAt: 'תיעוד מ-{time}',
-            cancel: 'ביטול',
-            restore: 'שחזור גרסה זו',
-            close: 'סגירה',
-            moreLines: '+{count} שורות נוספות',
-            ariaOpen: 'פתיחת היסטוריית גרסאות (Ctrl או Command + Shift + H)',
-            ariaClose: 'סגירת היסטוריית גרסאות',
-            ariaApply: 'החלת גרסה {index}',
-        },
         mentions: {
             noUsersFound: 'לא נמצאו משתמשים',
             noTagsFound: 'לא נמצאו תגיות',
@@ -622,24 +567,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outline: 'المخطط التفصيلي',
             outlineDescription: 'فتح المخطط التفصيلي للمستند',
         },
-        history: {
-            button: 'السجل ({count})',
-            title: 'سجل المراجعات',
-            browserDescription: 'يمكن استخدام هذا المتصفح عندما يكون زر السجل مخفيًا.',
-            revision: 'المراجعة {index}',
-            applied: 'مُطبَّق',
-            preview: 'معاينة',
-            renderedPreview: 'معاينة مُصيَّرة',
-            markdownSnapshot: 'لقطة Markdown',
-            capturedAt: 'تم الالتقاط في {time}',
-            cancel: 'إلغاء',
-            restore: 'استعادة هذه المراجعة',
-            close: 'إغلاق',
-            moreLines: '+{count} أسطر إضافية',
-            ariaOpen: 'فتح سجل المراجعات (Ctrl أو Command + Shift + H)',
-            ariaClose: 'إغلاق سجل المراجعات',
-            ariaApply: 'تطبيق المراجعة {index}',
-        },
         mentions: {
             noUsersFound: 'لم يتم العثور على مستخدمين',
             noTagsFound: 'لم يتم العثور على وسوم',
@@ -778,24 +705,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         slashCommands: {
             outline: 'Gliederung',
             outlineDescription: 'Dokumentgliederung öffnen',
-        },
-        history: {
-            button: 'Verlauf ({count})',
-            title: 'Revisionsverlauf',
-            browserDescription: 'Verwenden Sie diesen Browser, wenn die Verlaufsschaltfläche ausgeblendet ist.',
-            revision: 'Revision {index}',
-            applied: 'Angewendet',
-            preview: 'Vorschau',
-            renderedPreview: 'Gerenderte Vorschau',
-            markdownSnapshot: 'Markdown-Snapshot',
-            capturedAt: 'Erfasst am {time}',
-            cancel: 'Abbrechen',
-            restore: 'Diese Revision wiederherstellen',
-            close: 'Schließen',
-            moreLines: '+{count} weitere Zeilen',
-            ariaOpen: 'Revisionsverlauf öffnen (Strg oder Befehlstaste + Umschalt + H)',
-            ariaClose: 'Revisionsverlauf schließen',
-            ariaApply: 'Revision {index} anwenden',
         },
         mentions: {
             noUsersFound: 'Keine Benutzer gefunden',
@@ -936,24 +845,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outline: 'Plan',
             outlineDescription: 'Ouvrir le plan du document',
         },
-        history: {
-            button: 'Historique ({count})',
-            title: 'Historique des révisions',
-            browserDescription: 'Utilisez ce navigateur lorsque le bouton d\'historique est masqué.',
-            revision: 'Révision {index}',
-            applied: 'Appliquée',
-            preview: 'Aperçu',
-            renderedPreview: 'Aperçu rendu',
-            markdownSnapshot: 'Instantané Markdown',
-            capturedAt: 'Capturé à {time}',
-            cancel: 'Annuler',
-            restore: 'Restaurer cette révision',
-            close: 'Fermer',
-            moreLines: '+{count} lignes supplémentaires',
-            ariaOpen: 'Ouvrir l\'historique des révisions (Ctrl ou Commande + Maj + H)',
-            ariaClose: 'Fermer l\'historique des révisions',
-            ariaApply: 'Appliquer la révision {index}',
-        },
         mentions: {
             noUsersFound: 'Aucun utilisateur trouvé',
             noTagsFound: 'Aucun tag trouvé',
@@ -1092,24 +983,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         slashCommands: {
             outline: 'Esquema',
             outlineDescription: 'Abrir el esquema del documento',
-        },
-        history: {
-            button: 'Historial ({count})',
-            title: 'Historial de revisiones',
-            browserDescription: 'Use este navegador cuando el botón de historial esté oculto.',
-            revision: 'Revisión {index}',
-            applied: 'Aplicada',
-            preview: 'Vista previa',
-            renderedPreview: 'Vista previa renderizada',
-            markdownSnapshot: 'Instantánea de Markdown',
-            capturedAt: 'Capturado a las {time}',
-            cancel: 'Cancelar',
-            restore: 'Restaurar esta revisión',
-            close: 'Cerrar',
-            moreLines: '+{count} líneas más',
-            ariaOpen: 'Abrir historial de revisiones (Ctrl o Comando + Mayús + H)',
-            ariaClose: 'Cerrar historial de revisiones',
-            ariaApply: 'Aplicar revisión {index}',
         },
         mentions: {
             noUsersFound: 'No se encontraron usuarios',
@@ -1250,24 +1123,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outline: 'アウトライン',
             outlineDescription: 'ドキュメントのアウトラインを開く',
         },
-        history: {
-            button: '履歴 ({count})',
-            title: 'リビジョン履歴',
-            browserDescription: '履歴ボタンが非表示の場合はこのブラウザを使用してください。',
-            revision: 'リビジョン {index}',
-            applied: '適用済み',
-            preview: 'プレビュー',
-            renderedPreview: 'レンダリングプレビュー',
-            markdownSnapshot: 'Markdownスナップショット',
-            capturedAt: '{time} にキャプチャ',
-            cancel: 'キャンセル',
-            restore: 'このリビジョンを復元',
-            close: '閉じる',
-            moreLines: '+{count} 行',
-            ariaOpen: 'リビジョン履歴を開く（Ctrl または Command + Shift + H）',
-            ariaClose: 'リビジョン履歴を閉じる',
-            ariaApply: 'リビジョン {index} を適用',
-        },
         mentions: {
             noUsersFound: 'ユーザーが見つかりません',
             noTagsFound: 'タグが見つかりません',
@@ -1406,24 +1261,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         slashCommands: {
             outline: '大纲',
             outlineDescription: '打开文档大纲',
-        },
-        history: {
-            button: '历史 ({count})',
-            title: '修订历史',
-            browserDescription: '当历史按钮被隐藏时使用此浏览器。',
-            revision: '修订 {index}',
-            applied: '已应用',
-            preview: '预览',
-            renderedPreview: '渲染预览',
-            markdownSnapshot: 'Markdown 快照',
-            capturedAt: '捕获于 {time}',
-            cancel: '取消',
-            restore: '恢复此修订',
-            close: '关闭',
-            moreLines: '+{count} 更多行',
-            ariaOpen: '打开修订历史（Ctrl 或 Command + Shift + H）',
-            ariaClose: '关闭修订历史',
-            ariaApply: '应用修订 {index}',
         },
         mentions: {
             noUsersFound: '未找到用户',
@@ -1564,24 +1401,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outline: 'Структура',
             outlineDescription: 'Открыть структуру документа',
         },
-        history: {
-            button: 'История ({count})',
-            title: 'История ревизий',
-            browserDescription: 'Используйте этот браузер, когда кнопка истории скрыта.',
-            revision: 'Ревизия {index}',
-            applied: 'Применено',
-            preview: 'Просмотр',
-            renderedPreview: 'Отрисованный просмотр',
-            markdownSnapshot: 'Снимок Markdown',
-            capturedAt: 'Захвачено в {time}',
-            cancel: 'Отмена',
-            restore: 'Восстановить эту ревизию',
-            close: 'Закрыть',
-            moreLines: '+{count} строк',
-            ariaOpen: 'Открыть историю ревизий (Ctrl или Command + Shift + H)',
-            ariaClose: 'Закрыть историю ревизий',
-            ariaApply: 'Применить ревизию {index}',
-        },
         mentions: {
             noUsersFound: 'Пользователи не найдены',
             noTagsFound: 'Теги не найдены',
@@ -1720,24 +1539,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         slashCommands: {
             outline: 'Estrutura de tópicos',
             outlineDescription: 'Abrir a estrutura de tópicos do documento',
-        },
-        history: {
-            button: 'Histórico ({count})',
-            title: 'Histórico de revisões',
-            browserDescription: 'Use este navegador quando o botão de histórico estiver oculto.',
-            revision: 'Revisão {index}',
-            applied: 'Aplicada',
-            preview: 'Visualizar',
-            renderedPreview: 'Visualização renderizada',
-            markdownSnapshot: 'Snapshot de Markdown',
-            capturedAt: 'Capturado às {time}',
-            cancel: 'Cancelar',
-            restore: 'Restaurar esta revisão',
-            close: 'Fechar',
-            moreLines: '+{count} linhas adicionais',
-            ariaOpen: 'Abrir histórico de revisões (Ctrl ou Command + Shift + H)',
-            ariaClose: 'Fechar histórico de revisões',
-            ariaApply: 'Aplicar revisão {index}',
         },
         mentions: {
             noUsersFound: 'Nenhum usuário encontrado',

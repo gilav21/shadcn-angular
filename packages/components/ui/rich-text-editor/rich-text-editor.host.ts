@@ -45,6 +45,24 @@ export abstract class RichTextToolbarViewContext {
     abstract readonly compact: Signal<boolean>;
 }
 
+/**
+ * A read-only projection of one revision-history entry, exposed to the history
+ * addon. Deliberately narrower than the editor's internal entry: the delta,
+ * keyframe and serialized-selection fields stay private to the base.
+ */
+export interface RichTextHistoryEntrySnapshot {
+    /** Zero-based position of the entry in the history stack. */
+    readonly index: number;
+    /** Capture time, epoch milliseconds. */
+    readonly timestamp: number;
+    /** Single-line plain-text preview (truncated). */
+    readonly preview: string;
+    /** First few lines of the entry's plain text. */
+    readonly previewLines: readonly string[];
+    /** Total plain-text line count for this entry. */
+    readonly lineCount: number;
+}
+
 /** A read-only snapshot of the editor's current selection / caret target. */
 export interface RichTextSelectionSnapshot {
     readonly kind: 'text' | 'image' | 'none';
@@ -137,4 +155,43 @@ export abstract class RichTextEditorAddonHost {
      * document-outline command, plus the AI command when an `aiProvider` is set.
      */
     abstract readonly builtinCommands: Signal<readonly RichTextSlashCommand[]>;
+
+    // ── Revision-history seam ─────────────────────────────────────────
+
+    /**
+     * Bumps on every change to the history stack (push, undo, redo, restore).
+     * The history addon reads it to recompute its timeline projections.
+     */
+    abstract readonly historyVersion: Signal<number>;
+    /** Read-only projection of the current history stack, oldest first. */
+    abstract historyEntries(): readonly RichTextHistoryEntrySnapshot[];
+    /** Index of the entry the editor currently reflects. */
+    abstract currentHistoryIndex(): number;
+    /**
+     * Reconstruct the HTML + Markdown of the history entry at `index`, using the
+     * base's cached reconstruction. Returns `null` for an out-of-range index.
+     */
+    abstract reconstructHistoryEntry(index: number): { html: string; markdown: string } | null;
+    /** Flush any pending debounced history push so the timeline is up to date. */
+    abstract flushPendingHistoryPush(): void;
+    /**
+     * Jump the editor to the history entry at `index`: reconstruct and apply its
+     * content, restore its selection, and emit a change — WITHOUT pushing a new
+     * entry, so the forward entries stay available for redo.
+     */
+    abstract restoreHistoryEntry(index: number): void;
+    /**
+     * The editor's positioned (relative) container element. An overlay addon
+     * appends its own host element here so it can be `absolute`-positioned
+     * against the editor frame (e.g. the history corner button).
+     */
+    abstract readonly overlayAnchor: HTMLElement;
+    /**
+     * Bind an action to one of the editor's known keyboard-shortcut definitions
+     * (see `RICH_TEXT_SHORTCUT_DEFINITIONS`). The base keeps the definition but
+     * ships no handler; an addon supplies the `run` callback (guarded by the
+     * optional `when`, and always by the editor's editable state). Returns a
+     * teardown; the shortcut is inert while no action is registered.
+     */
+    abstract registerShortcutAction(actionId: string, run: () => void, when?: () => boolean): () => void;
 }

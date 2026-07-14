@@ -23,7 +23,7 @@ Kept only where a native element is impossible:
 
 | Component | Role | Why a native element can't be used |
 | --- | --- | --- |
-| `rich-text-editor` history rows (×2) | `button` | Each row **contains** a nested `<ui-button>` (the "preview" action). Interactive content can't nest inside a native `<button>`. |
+| `rich-text-editor/history` panel revision rows (×2) | `button` | Each row (popover panel + browser dialog) **contains** a nested `<ui-button>` (the "preview" action) and applies on click/Enter/Space. Interactive content can't nest inside a native `<button>`. Moved verbatim from the base editor into the opt-in history addon. |
 | `tree-item` children container | `group` | Required by the WAI-ARIA **tree** pattern: a `treeitem`'s child items must live in a `role="group"`. A `<fieldset>` is not a valid child grouping of a `treeitem`. |
 | `data-table` column resize handle | `separator` | This is an **interactive splitter** (mouse + touch drag) and it **contains** a child resize-line element. `<hr>` is a void element (no children) and isn't interactive — `role="separator"` is the correct splitter widget role. |
 | `rich-text-editor` editable surface | `textbox` | A `contenteditable` rich-text region. `<input>`/`<textarea>` are plain-text only and can't host rich formatting. `role="textbox"` + `aria-multiline` is the WAI-ARIA-endorsed pattern. |
