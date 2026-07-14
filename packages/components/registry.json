@@ -2224,7 +2224,8 @@
       "rich-text-editor/history",
       "rich-text-editor/colors",
       "rich-text-editor/typography",
-      "rich-text-editor/links"
+      "rich-text-editor/links",
+      "rich-text-editor/tables"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2318,6 +2319,14 @@
         "note": "The link insert/edit UI moved to the opt-in links addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/links`, add `uiRteLinks` to the editor element, and remove 'link' from any custom [toolbarItems] arrays (the button now renders after the built-in items). The base keeps the showLinkDialog host method and the Ctrl/Cmd+K shortcut definition as a delegation seam; both are inert without the addon. Existing link content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries a `link` section or `toolbar.insertLink`; link strings resolve from [uiRteLinksLocale] (or the global UI_LOCALE_ID). The /link slash command now appears only when both the slash-commands and links addons are present.",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/links"
+      },
+      {
+        "kind": "removal",
+        "from": "the 'table' toolbar item + its 8x8 grid-picker popover on <ui-rich-text-editor>",
+        "to": "the uiRteTables directive",
+        "note": "The table-insert UI (toolbar button + grid picker) moved to the opt-in tables addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/tables`, add `uiRteTables` to the editor element, and remove 'table' from any custom [toolbarItems] arrays (the button now renders after the built-in items). Only the INSERT UI is opt-in — editing an existing table (add/delete rows and columns, merge cells, borders, cell colour) stays in the base, so table content keeps rendering and editing with the base alone. Table-insert strings resolve from [uiRteTablesLocale] (or the global UI_LOCALE_ID), not the editor's [locale].",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/tables"
       }
     ],
     "shortcutDefinitions": [
@@ -4194,6 +4203,48 @@
     "attach": {
       "import": "RichTextLinksDirective from './ui/rich-text-editor/addons/links'",
       "selector": "uiRteLinks"
+    }
+  },
+  "rich-text-editor/tables": {
+    "name": "rich-text-editor/tables",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "Table insert for the rich text editor: a toolbar button and 8x8 grid picker that inserts an empty table at the caret.",
+    "tags": [
+      "rich-text",
+      "table",
+      "grid",
+      "toolbar",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/tables/index.ts",
+      "rich-text-editor/addons/tables/rich-text-tables-button.component.html",
+      "rich-text-editor/addons/tables/rich-text-tables-button.component.ts",
+      "rich-text-editor/addons/tables/rich-text-tables.context.ts",
+      "rich-text-editor/addons/tables/rich-text-tables.directive.ts",
+      "rich-text-editor/addons/tables/rich-text-tables.locales.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "popover",
+      "rich-text-editor"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts"
+    ],
+    "attach": {
+      "import": "RichTextTablesDirective from './ui/rich-text-editor/addons/tables'",
+      "selector": "uiRteTables"
     }
   }
 }

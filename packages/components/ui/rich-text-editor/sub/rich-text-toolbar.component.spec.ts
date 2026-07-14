@@ -209,31 +209,6 @@ describe('RichTextToolbarComponent', () => {
         });
     });
 
-    describe('table grid', () => {
-        it('emits tableInsert and resets hover state on select', () => {
-            let payload: { rows: number; cols: number } | undefined;
-            component.tableInsert.subscribe((p) => (payload = p));
-            component.tableGridHoverRows.set(3);
-            component.tableGridHoverCols.set(4);
-
-            component.onTableGridSelect(3, 4);
-
-            expect(payload).toEqual({ rows: 3, cols: 4 });
-            expect(component.tableGridHoverRows()).toBe(0);
-            expect(component.tableGridHoverCols()).toBe(0);
-            expect(component.openPopover()).toBeNull();
-        });
-
-        it('does not emit tableInsert when disabled', () => {
-            fixture.componentRef.setInput('disabled', true);
-            fixture.detectChanges();
-            let emitted = false;
-            component.tableInsert.subscribe(() => (emitted = true));
-            component.onTableGridSelect(2, 2);
-            expect(emitted).toBe(false);
-        });
-    });
-
     describe('popover panels', () => {
         it('opens a popover panel by id', () => {
             component.openPopoverPanel('link');

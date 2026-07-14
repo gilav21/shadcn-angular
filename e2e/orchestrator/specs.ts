@@ -157,6 +157,14 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/links'],
         label: 'rte-links',
     },
+    // addon system (rich-text): install the editor + its `tables` addon; prove the
+    // table button + 8×8 grid picker appear only on the addon editor and that
+    // picking a size inserts a table into the content — the base ships no
+    // table-insert UI (editing an existing table stays in the base).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/tables'],
+        label: 'rte-tables',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

@@ -22,7 +22,6 @@ export interface RichTextLocale extends LocaleMeta {
         alignLeft: string;
         alignCenter: string;
         alignRight: string;
-        insertTable: string;
         importFile: string;
         indent: string;
         outdent: string;
@@ -89,7 +88,6 @@ export interface RichTextLocale extends LocaleMeta {
     };
 
     table: {
-        insertTable: string;
         rows: string;
         columns: string;
         insert: string;
@@ -164,7 +162,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Align Left',
             alignCenter: 'Align Center',
             alignRight: 'Align Right',
-            insertTable: 'Insert Table',
             importFile: 'Import File',
             indent: 'Increase Indent',
             outdent: 'Decrease Indent',
@@ -223,7 +220,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             ariaClose: 'Close document outline',
         },
         table: {
-            insertTable: 'Insert Table',
             rows: 'Rows',
             columns: 'Columns',
             insert: 'Insert Table',
@@ -295,7 +291,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'יישור לשמאל',
             alignCenter: 'יישור למרכז',
             alignRight: 'יישור לימין',
-            insertTable: 'הוספת טבלה',
             importFile: 'ייבוא קובץ',
             indent: 'הגדלת הזחה',
             outdent: 'הקטנת הזחה',
@@ -354,7 +349,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             ariaClose: 'סגירת מתאר המסמך',
         },
         table: {
-            insertTable: 'הוספת טבלה',
             rows: 'שורות',
             columns: 'עמודות',
             insert: 'הוספת טבלה',
@@ -426,7 +420,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'محاذاة لليسار',
             alignCenter: 'محاذاة للوسط',
             alignRight: 'محاذاة لليمين',
-            insertTable: 'إدراج جدول',
             importFile: 'استيراد ملف',
             indent: 'زيادة المسافة البادئة',
             outdent: 'تقليل المسافة البادئة',
@@ -467,7 +460,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             ariaClose: 'إغلاق مخطط المستند',
         },
         table: {
-            insertTable: 'إدراج جدول',
             rows: 'صفوف',
             columns: 'أعمدة',
             insert: 'إدراج جدول',
@@ -538,7 +530,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Linksbündig',
             alignCenter: 'Zentriert',
             alignRight: 'Rechtsbündig',
-            insertTable: 'Tabelle einfügen',
             importFile: 'Datei importieren',
             indent: 'Einzug vergrößern',
             outdent: 'Einzug verkleinern',
@@ -579,7 +570,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             ariaClose: 'Dokumentgliederung schließen',
         },
         table: {
-            insertTable: 'Tabelle einfügen',
             rows: 'Zeilen',
             columns: 'Spalten',
             insert: 'Tabelle einfügen',
@@ -650,7 +640,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Aligner à gauche',
             alignCenter: 'Centrer',
             alignRight: 'Aligner à droite',
-            insertTable: 'Insérer un tableau',
             importFile: 'Importer un fichier',
             indent: 'Augmenter le retrait',
             outdent: 'Diminuer le retrait',
@@ -691,7 +680,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             ariaClose: 'Fermer le plan du document',
         },
         table: {
-            insertTable: 'Insérer un tableau',
             rows: 'Lignes',
             columns: 'Colonnes',
             insert: 'Insérer le tableau',
@@ -762,7 +750,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Alinear a la izquierda',
             alignCenter: 'Centrar',
             alignRight: 'Alinear a la derecha',
-            insertTable: 'Insertar tabla',
             importFile: 'Importar archivo',
             indent: 'Aumentar sangría',
             outdent: 'Disminuir sangría',
@@ -803,7 +790,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             ariaClose: 'Cerrar el esquema del documento',
         },
         table: {
-            insertTable: 'Insertar tabla',
             rows: 'Filas',
             columns: 'Columnas',
             insert: 'Insertar tabla',
@@ -874,7 +860,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: '左揃え',
             alignCenter: '中央揃え',
             alignRight: '右揃え',
-            insertTable: 'テーブルを挿入',
             importFile: 'ファイルをインポート',
             indent: 'インデントを増やす',
             outdent: 'インデントを減らす',
@@ -915,7 +900,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             ariaClose: 'ドキュメントアウトラインを閉じる',
         },
         table: {
-            insertTable: 'テーブルを挿入',
             rows: '行',
             columns: '列',
             insert: 'テーブルを挿入',
@@ -986,7 +970,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: '左对齐',
             alignCenter: '居中对齐',
             alignRight: '右对齐',
-            insertTable: '插入表格',
             importFile: '导入文件',
             indent: '增加缩进',
             outdent: '减少缩进',
@@ -1027,7 +1010,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             ariaClose: '关闭文档大纲',
         },
         table: {
-            insertTable: '插入表格',
             rows: '行',
             columns: '列',
             insert: '插入表格',
@@ -1098,7 +1080,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'По левому краю',
             alignCenter: 'По центру',
             alignRight: 'По правому краю',
-            insertTable: 'Вставить таблицу',
             importFile: 'Импорт файла',
             indent: 'Увеличить отступ',
             outdent: 'Уменьшить отступ',
@@ -1139,7 +1120,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             ariaClose: 'Закрыть структуру документа',
         },
         table: {
-            insertTable: 'Вставить таблицу',
             rows: 'Строки',
             columns: 'Столбцы',
             insert: 'Вставить таблицу',
@@ -1210,7 +1190,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Alinhar à esquerda',
             alignCenter: 'Centralizar',
             alignRight: 'Alinhar à direita',
-            insertTable: 'Inserir tabela',
             importFile: 'Importar arquivo',
             indent: 'Aumentar recuo',
             outdent: 'Diminuir recuo',
@@ -1251,7 +1230,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             ariaClose: 'Fechar estrutura do documento',
         },
         table: {
-            insertTable: 'Inserir tabela',
             rows: 'Linhas',
             columns: 'Colunas',
             insert: 'Inserir tabela',

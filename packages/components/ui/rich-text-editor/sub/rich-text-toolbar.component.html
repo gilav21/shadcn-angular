@@ -54,43 +54,6 @@
           </div>
         </ui-popover-content>
       </ui-popover>
-    } @else if (item === 'table') {
-      <ui-popover [open]="openPopover() === 'table'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('table') : closePopoverPanel('table')">
-        <ui-popover-trigger>
-          <button type="button" [class]="buttonClasses(item)" [title]="getTooltip(item)" [disabled]="interactionDisabled()">
-            <span [innerHTML]="getIcon('table')"></span>
-          </button>
-        </ui-popover-trigger>
-        <ui-popover-content class="p-3 max-sm:max-w-[calc(100vw-1rem)]" align="start" strategy="fixed">
-          <div class="space-y-2">
-            <div class="grid gap-0.5" style="grid-template-columns: repeat(8, 1fr)">
-              @for (row of [1,2,3,4,5,6,7,8]; track row) {
-                @for (col of [1,2,3,4,5,6,7,8]; track col) {
-                  <button
-                    type="button"
-                    data-grid-cell
-                    class="aspect-square w-5 border rounded-sm transition-colors"
-                    [class.bg-primary]="row <= tableGridHoverRows() && col <= tableGridHoverCols()"
-                    [class.border-primary]="row <= tableGridHoverRows() && col <= tableGridHoverCols()"
-                    [class.border-border]="row > tableGridHoverRows() || col > tableGridHoverCols()"
-                    [class.bg-background]="row > tableGridHoverRows() || col > tableGridHoverCols()"
-                    [attr.aria-label]="row + 'x' + col"
-                    (mouseenter)="tableGridHoverRows.set(row); tableGridHoverCols.set(col)"
-                    (click)="onTableGridSelect(row, col)"
-                  ></button>
-                }
-              }
-            </div>
-            <div class="text-xs text-center text-muted-foreground">
-              @if (tableGridHoverRows() > 0 && tableGridHoverCols() > 0) {
-                {{ tableGridHoverRows() }} x {{ tableGridHoverCols() }}
-              } @else {
-                {{ locale().table.insertTable }}
-              }
-            </div>
-          </div>
-        </ui-popover-content>
-      </ui-popover>
     } @else if (item === 'importFile') {
       <button
         type="button"

@@ -1945,24 +1945,6 @@ describe('RichTextEditorComponent — tables', () => {
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('inserts an N×M table via onTableInsert', () => {
-        editor.innerHTML = '<p>x</p>';
-        const text = editor.querySelector('p')!.firstChild as Text;
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.setStart(text, 1);
-        r.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-
-        component.onTableInsert({ rows: 3, cols: 2 });
-
-        const table = editor.querySelector('table')!;
-        expect(table.querySelectorAll('thead th')).toHaveLength(2);
-        expect(table.querySelectorAll('tbody tr')).toHaveLength(2);
-        expect(table.querySelectorAll('tbody tr')[0].children).toHaveLength(2);
-    });
-
     it('adds a row above the targeted cell', () => {
         const table = seedTable();
         const a1 = table.querySelector<HTMLTableCellElement>('tbody td')!;

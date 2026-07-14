@@ -474,8 +474,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'image', 'importFile',
     'separator',
-    'table',
-    'separator',
     'code', 'codeBlock',
     'separator',
     'horizontalRule',
@@ -3183,11 +3181,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return entries;
     });
 
-    onTableInsert(event: { rows: number; cols: number }): void {
-        this.restoreSelection();
-        this.insertTable(event.rows, event.cols);
-    }
-
     private closeTableContextMenu(): void {
         this.tableContextMenuOpen.set(false);
         if (this.tableContextMenuCloseHandler) {
@@ -3780,15 +3773,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             }
         }
         return null;
-    }
-
-    private insertTable(rows: number, cols: number): void {
-        const headerCells = Array.from({ length: cols }, () => '<th><br></th>').join('');
-        const bodyRow = '<tr>' + Array.from({ length: cols }, () => '<td><br></td>').join('') + '</tr>';
-        const bodyRows = Array.from({ length: rows - 1 }, () => bodyRow).join('');
-        const html = `<table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table><p><br></p>`;
-        this.insertHtml(html);
-        this.pushHistory();
     }
 
     private getTableCellInfo(target: HTMLTableCellElement | null): { cell: HTMLTableCellElement; row: HTMLTableRowElement; table: HTMLTableElement; colIndex: number; rowIndex: number } | null {

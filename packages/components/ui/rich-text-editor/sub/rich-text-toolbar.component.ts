@@ -84,7 +84,6 @@ export type ToolbarItem =
   | 'alignLeft'
   | 'alignCenter'
   | 'alignRight'
-  | 'table'
   | 'importFile'
   | 'indent'
   | 'outdent'
@@ -120,7 +119,6 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'alignLeft', label: 'Align Left', localeKey: 'alignLeft' },
   { id: 'alignCenter', label: 'Align Center', localeKey: 'alignCenter' },
   { id: 'alignRight', label: 'Align Right', localeKey: 'alignRight' },
-  { id: 'table', label: 'Insert Table', localeKey: 'insertTable' },
   { id: 'importFile', label: 'Import File', localeKey: 'importFile' },
   { id: 'indent', label: 'Increase Indent', localeKey: 'indent' },
   { id: 'outdent', label: 'Decrease Indent', localeKey: 'outdent' },
@@ -150,7 +148,6 @@ const ICONS: Record<string, string> = {
   alignLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>`,
   alignCenter: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>`,
   alignRight: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg>`,
-  table: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><rect width="18" height="18" x="3" y="3" rx="2"/></svg>`,
   importFile: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>`,
   indent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8 7 12 3 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/></svg>`,
   outdent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 8 3 12 7 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/></svg>`,
@@ -199,7 +196,6 @@ export class RichTextToolbarComponent {
 
   formatCommand = output<string>();
   imageInsert = output<{ alt: string; src: string }>();
-  tableInsert = output<{ rows: number; cols: number }>();
   fileImport = output<File>();
   customItems = input<RichTextCustomToolbarItem[]>([]);
   customItemClick = output<string>();
@@ -231,9 +227,6 @@ export class RichTextToolbarComponent {
     }
     return slotInjector;
   }
-
-  tableGridHoverRows = signal(0);
-  tableGridHoverCols = signal(0);
 
   openPopover = signal<string | null>(null);
 
@@ -337,14 +330,6 @@ export class RichTextToolbarComponent {
     if (this.openPopover() === popoverId) {
       this.openPopover.set(null);
     }
-  }
-
-  onTableGridSelect(rows: number, cols: number): void {
-    if (this.interactionDisabled()) return;
-    this.tableInsert.emit({ rows, cols });
-    this.openPopover.set(null);
-    this.tableGridHoverRows.set(0);
-    this.tableGridHoverCols.set(0);
   }
 
   onFileSelect(event: Event): void {

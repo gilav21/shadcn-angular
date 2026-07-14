@@ -1,0 +1,41 @@
+<ui-popover [open]="open()" [closeOnScroll]="true" (openChange)="onOpenChange($event)">
+  <ui-popover-trigger>
+    <button
+      type="button"
+      [class]="buttonClasses()"
+      [title]="context.locale().tooltip"
+      [disabled]="interactionDisabled()"
+    >
+      <span [innerHTML]="icon"></span>
+    </button>
+  </ui-popover-trigger>
+  <ui-popover-content class="p-3 max-sm:max-w-[calc(100vw-1rem)]" align="start" strategy="fixed">
+    <div class="space-y-2">
+      <div class="grid gap-0.5" style="grid-template-columns: repeat(8, 1fr)">
+        @for (row of gridRange; track row) {
+          @for (col of gridRange; track col) {
+            <button
+              type="button"
+              data-grid-cell
+              class="aspect-square w-5 border rounded-sm transition-colors"
+              [class.bg-primary]="row <= hoverRows() && col <= hoverCols()"
+              [class.border-primary]="row <= hoverRows() && col <= hoverCols()"
+              [class.border-border]="row > hoverRows() || col > hoverCols()"
+              [class.bg-background]="row > hoverRows() || col > hoverCols()"
+              [attr.aria-label]="row + 'x' + col"
+              (mouseenter)="onHover(row, col)"
+              (click)="onSelect(row, col)"
+            ></button>
+          }
+        }
+      </div>
+      <div class="text-xs text-center text-muted-foreground">
+        @if (hoverRows() > 0 && hoverCols() > 0) {
+          {{ hoverRows() }} x {{ hoverCols() }}
+        } @else {
+          {{ context.locale().insertTable }}
+        }
+      </div>
+    </div>
+  </ui-popover-content>
+</ui-popover>

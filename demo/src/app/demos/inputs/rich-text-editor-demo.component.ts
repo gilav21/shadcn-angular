@@ -17,6 +17,7 @@ import { RichTextHistoryDirective } from '../../../../../packages/components/ui/
 import { RichTextColorsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/colors';
 import { RichTextTypographyDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/typography';
 import { RichTextLinksDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/links';
+import { RichTextTablesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/tables';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
@@ -25,7 +26,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -33,7 +34,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().basicHeading }}</h3>
-        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji uiRteSlashCommands uiRteColors uiRteTypography uiRteLinks
+        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji uiRteSlashCommands uiRteColors uiRteTypography uiRteLinks uiRteTables
           [placeholder]="t().basicPlaceholder" minHeight="150px"
           [(ngModel)]="richTextContent" (htmlChange)="richTextHtml = $event" />
         @if (richTextHtml) {
