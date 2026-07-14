@@ -26,7 +26,7 @@ import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { isValidImageDataUrl } from '../../lib/parsers/image-validator';
 import { AiProvider, AiTask, runAiTask } from '../../lib/ai';
-import { RichTextToolbarComponent, ToolbarItem, DEFAULT_FONT_FAMILIES, FontFamilyStrategy } from './sub/rich-text-toolbar.component';
+import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './sub/rich-text-mention.component';
 import { RichTextImageResizerComponent } from './sub/rich-text-image-resizer.component';
 import { ImageAlignment, applyImageAlignment, parseImageSize } from './rich-text-image.utils';
@@ -472,8 +472,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'alignLeft', 'alignCenter', 'alignRight',
     'separator',
-    'fontSize', 'fontFamily',
-    'separator',
     'link', 'image', 'importFile',
     'separator',
     'table',
@@ -567,22 +565,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     customToolbarItems = input<RichTextCustomToolbarItem[]>([]);
     customToolbarAction = output<{ id: string; ref: RichTextEditorRef }>();
-
-    /**
-     * Custom font families for the font family dropdown.
-     * Behaviour depends on {@link fontFamiliesStrategy}:
-     * - `'append'` (default) ג€” these fonts are added **after** the built-in defaults.
-     * - `'replace'` ג€” **only** these fonts are shown; defaults are discarded.
-     *
-     * @see {@link DEFAULT_FONT_FAMILIES} for the built-in list.
-     */
-    fontFamilies = input<string[]>([]);
-
-    /**
-     * Whether custom {@link fontFamilies} replace or extend the defaults.
-     * @see {@link FontFamilyStrategy}
-     */
-    fontFamiliesStrategy = input<FontFamilyStrategy>('append');
 
     // ג”€ג”€ Editor content area ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
@@ -812,17 +794,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             run: () => this.openOutlineDocked(),
         };
     }
-
-    resolvedFontFamilies = computed<string[]>(() => {
-        const custom = this.fontFamilies();
-        if (custom.length === 0) {
-            return DEFAULT_FONT_FAMILIES;
-        }
-        if (this.fontFamiliesStrategy() === 'replace') {
-            return custom;
-        }
-        return [...DEFAULT_FONT_FAMILIES, ...custom];
-    });
 
     // ג”€ג”€ Outputs ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 

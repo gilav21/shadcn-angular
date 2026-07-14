@@ -102,60 +102,6 @@
           </div>
         </ui-popover-content>
       </ui-popover>
-    } @else if (item === 'fontSize') {
-      <ui-popover [open]="openPopover() === 'fontSize'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('fontSize') : closePopoverPanel('fontSize')">
-        <ui-popover-trigger>
-          <button
-            type="button"
-            [class]="buttonClasses(item)"
-            [title]="getTooltip(item)"
-            [disabled]="interactionDisabled()"
-          >
-            <span [innerHTML]="getIcon('fontSize')"></span>
-          </button>
-        </ui-popover-trigger>
-        <ui-popover-content class="w-48 p-3" align="start" strategy="fixed">
-          <div class="space-y-2">
-            <p class="text-sm font-medium block m-0">{{ locale().fontSize.selectSize }}</p>
-            <ui-autocomplete
-              [(ngModel)]="selectedFontSize"
-              [options]="fontSizeOptionsWithPx()"
-              [placeholder]="locale().fontSize.selectSizePlaceholder"
-              [disabled]="interactionDisabled()"
-              [filter]="false"
-              (ngModelChange)="onFontSizeAutocompleteChange($event)"
-              class="w-full"
-            />
-          </div>
-        </ui-popover-content>
-      </ui-popover>
-    } @else if (item === 'fontFamily') {
-      <ui-popover [open]="openPopover() === 'fontFamily'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('fontFamily') : closePopoverPanel('fontFamily')">
-        <ui-popover-trigger>
-          <button
-            type="button"
-            [class]="buttonClasses(item)"
-            [title]="getTooltip(item)"
-            [disabled]="interactionDisabled()"
-          >
-            <span [innerHTML]="getIcon('fontFamily')"></span>
-          </button>
-        </ui-popover-trigger>
-        <ui-popover-content class="w-56 p-3" align="start" strategy="fixed">
-          <div class="space-y-2">
-            <p class="text-sm font-medium block m-0">{{ locale().fontFamily.selectFamily }}</p>
-            <ui-autocomplete
-              [(ngModel)]="selectedFontFamily"
-              [options]="fontFamilyOptions()"
-              [placeholder]="locale().fontFamily.selectFamilyPlaceholder"
-              [disabled]="interactionDisabled()"
-              [filter]="true"
-              (ngModelChange)="onFontFamilyAutocompleteChange($event)"
-              class="w-full"
-            />
-          </div>
-        </ui-popover-content>
-      </ui-popover>
     } @else if (item === 'table') {
       <ui-popover [open]="openPopover() === 'table'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('table') : closePopoverPanel('table')">
         <ui-popover-trigger>

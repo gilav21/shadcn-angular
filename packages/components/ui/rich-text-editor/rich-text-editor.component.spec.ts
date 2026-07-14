@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of, Subject, throwError } from 'rxjs';
 import { RichTextEditorComponent } from './rich-text-editor.component';
 import { RichTextEditorAddonHost } from './rich-text-editor.host';
-import { DEFAULT_FONT_FAMILIES } from './sub/rich-text-toolbar.component';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 import { RichTextCommandRegistry } from './rich-text-command-registry.service';
 import { RICH_TEXT_LOCALES, RichTextLocale } from './rich-text-locales';
@@ -1147,42 +1146,7 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
-    describe('font family', () => {
-        it('includes fontFamily in DEFAULT_TOOLBAR_ITEMS', () => {
-            const items = component.toolbarItems();
-            expect(items).toContain('fontFamily');
-        });
-
-        it('uses DEFAULT_FONT_FAMILIES when no custom fonts provided', () => {
-            expect(component.resolvedFontFamilies()).toEqual(DEFAULT_FONT_FAMILIES);
-        });
-
-        it('appends custom fonts to defaults with append strategy', () => {
-            fixture.componentRef.setInput('fontFamilies', ['Roboto', 'Open Sans']);
-            fixture.componentRef.setInput('fontFamiliesStrategy', 'append');
-            fixture.detectChanges();
-
-            const resolved = component.resolvedFontFamilies();
-            expect(resolved).toEqual([...DEFAULT_FONT_FAMILIES, 'Roboto', 'Open Sans']);
-        });
-
-        it('replaces defaults with custom fonts using replace strategy', () => {
-            fixture.componentRef.setInput('fontFamilies', ['Roboto', 'Open Sans']);
-            fixture.componentRef.setInput('fontFamiliesStrategy', 'replace');
-            fixture.detectChanges();
-
-            const resolved = component.resolvedFontFamilies();
-            expect(resolved).toEqual(['Roboto', 'Open Sans']);
-        });
-
-        it('keeps defaults when empty fontFamilies array is provided', () => {
-            fixture.componentRef.setInput('fontFamilies', []);
-            fixture.componentRef.setInput('fontFamiliesStrategy', 'replace');
-            fixture.detectChanges();
-
-            expect(component.resolvedFontFamilies()).toEqual(DEFAULT_FONT_FAMILIES);
-        });
-
+    describe('font apply paths (backing applyInlineStyle for the typography addon)', () => {
         it('applies font-family style via font[face] to span conversion', () => {
             fixture.componentRef.setInput('mode', 'html');
             fixture.detectChanges();
@@ -1197,7 +1161,7 @@ describe('RichTextEditorComponent', () => {
             selection?.removeAllRanges();
             selection?.addRange(range);
 
-            component.onFontFamilySelect('Georgia');
+            component.applyInlineStyle({ fontFamily: 'Georgia' });
             fixture.detectChanges();
 
             const fontElements = editor.querySelectorAll('font[face]');
@@ -1232,10 +1196,6 @@ describe('RichTextEditorComponent', () => {
 
                 expect(component.currentFontFamily()).toBeTruthy();
             }
-        });
-
-        it('defaults to append strategy', () => {
-            expect(component.fontFamiliesStrategy()).toBe('append');
         });
     });
 
@@ -1358,6 +1318,54 @@ describe('RichTextEditorComponent', () => {
             const styled = editor.querySelector('[style*="color"]') as HTMLElement | null;
             expect(styled).not.toBeNull();
             expect(styled?.style.color).not.toBe('');
+        });
+
+        it('applies a font size to the selection via applyInlineStyle', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            editor.innerHTML = '<p>Resize me</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            selectAllOf(editor.querySelector('p') as HTMLElement);
+
+            component.applyInlineStyle({ fontSize: '24' });
+            fixture.detectChanges();
+
+            expect(editor.querySelectorAll('font[size="7"]')).toHaveLength(0);
+            const span = Array.from(editor.querySelectorAll('span')).find(s => s.style.fontSize === '24px');
+            expect(span).toBeTruthy();
+        });
+
+        it('applies a font family to the selection via applyInlineStyle', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            editor.innerHTML = '<p>Restyle me</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            selectAllOf(editor.querySelector('p') as HTMLElement);
+
+            component.applyInlineStyle({ fontFamily: 'Georgia' });
+            fixture.detectChanges();
+
+            expect(editor.querySelectorAll('font[face]')).toHaveLength(0);
+            const span = Array.from(editor.querySelectorAll('span')).find(s => s.style.fontFamily.includes('Georgia'));
+            expect(span).toBeTruthy();
+        });
+
+        it('reflects the selection font size and family into selectionInlineStyle', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span style="font-size:20px;font-family:Georgia">SLA</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const span = editor.querySelector('span') as HTMLElement;
+            selectAllOf(span);
+            component['updateActiveFormats']();
+
+            expect(component.selectionInlineStyle().fontSize).toBe('20');
+            expect(component.selectionInlineStyle().fontFamily).toBe('Georgia');
         });
     });
 
@@ -1835,7 +1843,7 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         fixture.detectChanges();
         selectContents(editor.querySelector('p')!);
 
-        component.onFontSizeSelect('24');
+        component.applyInlineStyle({ fontSize: '24' });
 
         expect(editor.querySelectorAll('font[size="7"]')).toHaveLength(0);
         const span = Array.from(editor.querySelectorAll('span')).find(s => s.style.fontSize === '24px');
@@ -1847,7 +1855,7 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         fixture.detectChanges();
         selectContents(editor.querySelector('p')!);
 
-        component.onFontFamilySelect('Georgia');
+        component.applyInlineStyle({ fontFamily: 'Georgia' });
 
         expect(editor.querySelectorAll('font[face]')).toHaveLength(0);
         const span = Array.from(editor.querySelectorAll('span')).find(s => s.style.fontFamily.includes('Georgia'));

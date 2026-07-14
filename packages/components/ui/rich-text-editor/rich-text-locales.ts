@@ -20,8 +20,6 @@ export interface RichTextLocale extends LocaleMeta {
         undo: string;
         redo: string;
         clearFormatting: string;
-        fontSize: string;
-        fontFamily: string;
         alignLeft: string;
         alignCenter: string;
         alignRight: string;
@@ -60,18 +58,6 @@ export interface RichTextLocale extends LocaleMeta {
         altText: string;
         altTextPlaceholder: string;
         insert: string;
-    };
-
-    fontSize: {
-        selectSize: string;
-        selectSizePlaceholder: string;
-        customSize: string;
-        apply: string;
-    };
-
-    fontFamily: {
-        selectFamily: string;
-        selectFamilyPlaceholder: string;
     };
 
     slashCommands: {
@@ -186,8 +172,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Undo',
             redo: 'Redo',
             clearFormatting: 'Clear Formatting',
-            fontSize: 'Font Size',
-            fontFamily: 'Font Family',
             alignLeft: 'Align Left',
             alignCenter: 'Align Center',
             alignRight: 'Align Right',
@@ -223,16 +207,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             altText: 'Alt Text',
             altTextPlaceholder: 'Description of image',
             insert: 'Insert Image',
-        },
-        fontSize: {
-            selectSize: 'Select Size',
-            selectSizePlaceholder: 'Select size',
-            customSize: 'Custom Size',
-            apply: 'Apply',
-        },
-        fontFamily: {
-            selectFamily: 'Select Font',
-            selectFamilyPlaceholder: 'Search fonts...',
         },
         slashCommands: {
             outline: 'Outline',
@@ -338,8 +312,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'ביטול',
             redo: 'ביצוע חוזר',
             clearFormatting: 'ניקוי עיצוב',
-            fontSize: 'גודל גופן',
-            fontFamily: 'משפחת גופנים',
             alignLeft: 'יישור לשמאל',
             alignCenter: 'יישור למרכז',
             alignRight: 'יישור לימין',
@@ -375,16 +347,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             altText: 'טקסט חלופי',
             altTextPlaceholder: 'תיאור התמונה',
             insert: 'הוספת תמונה',
-        },
-        fontSize: {
-            selectSize: 'בחירת גודל',
-            selectSizePlaceholder: 'בחירת גודל',
-            customSize: 'גודל מותאם',
-            apply: 'החלה',
-        },
-        fontFamily: {
-            selectFamily: 'בחירת גופן',
-            selectFamilyPlaceholder: 'חיפוש גופנים...',
         },
         slashCommands: {
             outline: 'תוכן עניינים',
@@ -490,8 +452,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'تراجع',
             redo: 'إعادة',
             clearFormatting: 'مسح التنسيق',
-            fontSize: 'حجم الخط',
-            fontFamily: 'نوع الخط',
             alignLeft: 'محاذاة لليسار',
             alignCenter: 'محاذاة للوسط',
             alignRight: 'محاذاة لليمين',
@@ -527,16 +487,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             altText: 'نص بديل',
             altTextPlaceholder: 'وصف الصورة',
             insert: 'إدراج صورة',
-        },
-        fontSize: {
-            selectSize: 'اختيار الحجم',
-            selectSizePlaceholder: 'اختيار الحجم',
-            customSize: 'حجم مخصص',
-            apply: 'تطبيق',
-        },
-        fontFamily: {
-            selectFamily: 'اختيار الخط',
-            selectFamilyPlaceholder: 'البحث عن خطوط...',
         },
         slashCommands: {
             outline: 'المخطط التفصيلي',
@@ -623,8 +573,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Rückgängig',
             redo: 'Wiederherstellen',
             clearFormatting: 'Formatierung löschen',
-            fontSize: 'Schriftgröße',
-            fontFamily: 'Schriftart',
             alignLeft: 'Linksbündig',
             alignCenter: 'Zentriert',
             alignRight: 'Rechtsbündig',
@@ -660,16 +608,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             altText: 'Alternativtext',
             altTextPlaceholder: 'Bildbeschreibung',
             insert: 'Bild einfügen',
-        },
-        fontSize: {
-            selectSize: 'Größe wählen',
-            selectSizePlaceholder: 'Größe wählen',
-            customSize: 'Benutzerdefinierte Größe',
-            apply: 'Anwenden',
-        },
-        fontFamily: {
-            selectFamily: 'Schriftart wählen',
-            selectFamilyPlaceholder: 'Schriftarten suchen...',
         },
         slashCommands: {
             outline: 'Gliederung',
@@ -756,8 +694,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Annuler',
             redo: 'Rétablir',
             clearFormatting: 'Effacer la mise en forme',
-            fontSize: 'Taille de police',
-            fontFamily: 'Police de caractères',
             alignLeft: 'Aligner à gauche',
             alignCenter: 'Centrer',
             alignRight: 'Aligner à droite',
@@ -793,16 +729,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             altText: 'Texte alternatif',
             altTextPlaceholder: 'Description de l\'image',
             insert: 'Insérer l\'image',
-        },
-        fontSize: {
-            selectSize: 'Choisir la taille',
-            selectSizePlaceholder: 'Choisir la taille',
-            customSize: 'Taille personnalisée',
-            apply: 'Appliquer',
-        },
-        fontFamily: {
-            selectFamily: 'Choisir la police',
-            selectFamilyPlaceholder: 'Rechercher des polices...',
         },
         slashCommands: {
             outline: 'Plan',
@@ -889,8 +815,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Deshacer',
             redo: 'Rehacer',
             clearFormatting: 'Borrar formato',
-            fontSize: 'Tamaño de fuente',
-            fontFamily: 'Familia tipográfica',
             alignLeft: 'Alinear a la izquierda',
             alignCenter: 'Centrar',
             alignRight: 'Alinear a la derecha',
@@ -926,16 +850,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             altText: 'Texto alternativo',
             altTextPlaceholder: 'Descripción de la imagen',
             insert: 'Insertar imagen',
-        },
-        fontSize: {
-            selectSize: 'Seleccionar tamaño',
-            selectSizePlaceholder: 'Seleccionar tamaño',
-            customSize: 'Tamaño personalizado',
-            apply: 'Aplicar',
-        },
-        fontFamily: {
-            selectFamily: 'Seleccionar fuente',
-            selectFamilyPlaceholder: 'Buscar fuentes...',
         },
         slashCommands: {
             outline: 'Esquema',
@@ -1022,8 +936,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: '元に戻す',
             redo: 'やり直し',
             clearFormatting: '書式をクリア',
-            fontSize: 'フォントサイズ',
-            fontFamily: 'フォント',
             alignLeft: '左揃え',
             alignCenter: '中央揃え',
             alignRight: '右揃え',
@@ -1059,16 +971,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             altText: '代替テキスト',
             altTextPlaceholder: '画像の説明',
             insert: '画像を挿入',
-        },
-        fontSize: {
-            selectSize: 'サイズを選択',
-            selectSizePlaceholder: 'サイズを選択',
-            customSize: 'カスタムサイズ',
-            apply: '適用',
-        },
-        fontFamily: {
-            selectFamily: 'フォントを選択',
-            selectFamilyPlaceholder: 'フォントを検索...',
         },
         slashCommands: {
             outline: 'アウトライン',
@@ -1155,8 +1057,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: '撤销',
             redo: '重做',
             clearFormatting: '清除格式',
-            fontSize: '字号',
-            fontFamily: '字体',
             alignLeft: '左对齐',
             alignCenter: '居中对齐',
             alignRight: '右对齐',
@@ -1192,16 +1092,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             altText: '替代文字',
             altTextPlaceholder: '图片描述',
             insert: '插入图片',
-        },
-        fontSize: {
-            selectSize: '选择大小',
-            selectSizePlaceholder: '选择大小',
-            customSize: '自定义大小',
-            apply: '应用',
-        },
-        fontFamily: {
-            selectFamily: '选择字体',
-            selectFamilyPlaceholder: '搜索字体...',
         },
         slashCommands: {
             outline: '大纲',
@@ -1288,8 +1178,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Отменить',
             redo: 'Повторить',
             clearFormatting: 'Очистить форматирование',
-            fontSize: 'Размер шрифта',
-            fontFamily: 'Шрифт',
             alignLeft: 'По левому краю',
             alignCenter: 'По центру',
             alignRight: 'По правому краю',
@@ -1325,16 +1213,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             altText: 'Альтернативный текст',
             altTextPlaceholder: 'Описание изображения',
             insert: 'Вставить изображение',
-        },
-        fontSize: {
-            selectSize: 'Выбрать размер',
-            selectSizePlaceholder: 'Выберите размер',
-            customSize: 'Свой размер',
-            apply: 'Применить',
-        },
-        fontFamily: {
-            selectFamily: 'Выбрать шрифт',
-            selectFamilyPlaceholder: 'Поиск шрифтов...',
         },
         slashCommands: {
             outline: 'Структура',
@@ -1421,8 +1299,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Desfazer',
             redo: 'Refazer',
             clearFormatting: 'Limpar formatação',
-            fontSize: 'Tamanho da fonte',
-            fontFamily: 'Família tipográfica',
             alignLeft: 'Alinhar à esquerda',
             alignCenter: 'Centralizar',
             alignRight: 'Alinhar à direita',
@@ -1458,16 +1334,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             altText: 'Texto alternativo',
             altTextPlaceholder: 'Descrição da imagem',
             insert: 'Inserir imagem',
-        },
-        fontSize: {
-            selectSize: 'Selecionar tamanho',
-            selectSizePlaceholder: 'Selecionar tamanho',
-            customSize: 'Tamanho personalizado',
-            apply: 'Aplicar',
-        },
-        fontFamily: {
-            selectFamily: 'Selecionar fonte',
-            selectFamilyPlaceholder: 'Pesquisar fontes...',
         },
         slashCommands: {
             outline: 'Estrutura de tópicos',

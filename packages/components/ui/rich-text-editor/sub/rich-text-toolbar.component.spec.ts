@@ -220,13 +220,6 @@ describe('RichTextToolbarComponent', () => {
             expect(emitted).toBe(false);
         });
 
-        it('emits fontSizeSelect', () => {
-            let size: string | undefined;
-            component.fontSizeSelect.subscribe((s) => (size = s));
-            component.onFontSizeSelect('18');
-            expect(size).toBe('18');
-        });
-
         it('guards insert handlers when disabled', () => {
             fixture.componentRef.setInput('disabled', true);
             fixture.detectChanges();
@@ -270,71 +263,12 @@ describe('RichTextToolbarComponent', () => {
             expect(component.openPopover()).toBe('link');
         });
 
-        it('seeds selected font size from current font size', () => {
-            fixture.componentRef.setInput('currentFontSize', '20');
-            fixture.detectChanges();
-            component.openPopoverPanel('fontSize');
-            expect(component.selectedFontSize()).toBe('20px');
-        });
-
-        it('seeds selected font family from current font family', () => {
-            fixture.componentRef.setInput('currentFontFamily', 'Georgia');
-            fixture.detectChanges();
-            component.openPopoverPanel('fontFamily');
-            expect(component.selectedFontFamily()).toBe('Georgia');
-        });
-
         it('closes only the matching popover panel', () => {
             component.openPopoverPanel('table');
             component.closePopoverPanel('link');
             expect(component.openPopover()).toBe('table');
             component.closePopoverPanel('table');
             expect(component.openPopover()).toBeNull();
-        });
-    });
-
-    describe('autocomplete change handlers', () => {
-        it('strips non-digits and emits font size, closing the popover', () => {
-            component.openPopover.set('fontSize');
-            let size: string | undefined;
-            component.fontSizeSelect.subscribe((s) => (size = s));
-            component.onFontSizeAutocompleteChange('24px');
-            expect(size).toBe('24');
-            expect(component.openPopover()).toBeNull();
-        });
-
-        it('ignores font size change with no digits', () => {
-            let emitted = false;
-            component.fontSizeSelect.subscribe(() => (emitted = true));
-            component.onFontSizeAutocompleteChange('abc');
-            expect(emitted).toBe(false);
-        });
-
-        it('emits font family and closes the popover', () => {
-            component.openPopover.set('fontFamily');
-            let family: string | undefined;
-            component.fontFamilySelect.subscribe((f) => (family = f));
-            component.onFontFamilyAutocompleteChange('Verdana');
-            expect(family).toBe('Verdana');
-            expect(component.openPopover()).toBeNull();
-        });
-
-        it('ignores empty font family change', () => {
-            let emitted = false;
-            component.fontFamilySelect.subscribe(() => (emitted = true));
-            component.onFontFamilyAutocompleteChange('');
-            expect(emitted).toBe(false);
-        });
-
-        it('guards autocomplete handlers when disabled', () => {
-            fixture.componentRef.setInput('disabled', true);
-            fixture.detectChanges();
-            let count = 0;
-            component.fontSizeSelect.subscribe(() => count++);
-            component.fontFamilySelect.subscribe(() => count++);
-            component.onFontSizeAutocompleteChange('12');
-            component.onFontFamilyAutocompleteChange('Arial');
-            expect(count).toBe(0);
         });
     });
 
@@ -476,12 +410,6 @@ describe('RichTextToolbarComponent', () => {
     });
 
     describe('computed config', () => {
-        it('exposes font size options suffixed with px', () => {
-            const opts = component.fontSizeOptionsWithPx();
-            expect(opts[0]).toBe('8px');
-            expect(opts.at(-1)).toBe('72px');
-        });
-
         it('adds compact classes when compact is set', () => {
             fixture.componentRef.setInput('compact', true);
             fixture.detectChanges();

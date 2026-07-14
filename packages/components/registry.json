@@ -2222,7 +2222,8 @@
       "rich-text-editor/emoji",
       "rich-text-editor/slash-commands",
       "rich-text-editor/history",
-      "rich-text-editor/colors"
+      "rich-text-editor/colors",
+      "rich-text-editor/typography"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2244,7 +2245,6 @@
       "rich-text-editor/sub/rich-text-toolbar.component.ts"
     ],
     "dependencies": [
-      "autocomplete",
       "button",
       "popover",
       "scroll-area",
@@ -2301,6 +2301,14 @@
         "note": "The revision-history UI (Revisions button + panel, preview dialog, browser dialog) moved to the opt-in history addon, dropping the 'dialog' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/history`, add `uiRteHistory` to the editor element, and map [showHistoryButton]=\"x\" to [uiRteHistoryButton]=\"x\" ([showHistoryPanel] is replaced by simply adding the directive). The base keeps the undo/redo stack and the Ctrl/Cmd+Shift+H shortcut definition; the addon supplies its action. History strings now resolve from [uiRteHistoryLocale] (or the global UI_LOCALE_ID), not the editor's [locale].",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/history"
+      },
+      {
+        "kind": "removal",
+        "from": "the 'fontSize' + 'fontFamily' toolbar items, the [fontFamilies]/[fontFamiliesStrategy] inputs, and the DEFAULT_FONT_FAMILIES/FontFamilyStrategy exports on <ui-rich-text-editor>",
+        "to": "the uiRteTypography directive",
+        "note": "The font-size and font-family dropdowns moved to the opt-in typography addon, dropping the 'autocomplete' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/typography`, add `uiRteTypography` to the editor element, and remove 'fontSize'/'fontFamily' from any custom [toolbarItems] arrays (the buttons now render after the built-in items). Map [fontFamilies]=\"fonts\" to [uiRteTypographyFamilies]=\"fonts\" and [fontFamiliesStrategy]=\"x\" to [uiRteTypographyFamiliesStrategy]=\"x\"; DEFAULT_FONT_FAMILIES and FontFamilyStrategy now export from the typography addon barrel. Font strings resolve from [uiRteTypographyLocale] (or the global UI_LOCALE_ID), not the editor's [locale].",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/typography"
       }
     ],
     "shortcutDefinitions": [
@@ -4088,6 +4096,49 @@
     "attach": {
       "import": "RichTextColorsDirective from './ui/rich-text-editor/addons/colors'",
       "selector": "uiRteColors"
+    }
+  },
+  "rich-text-editor/typography": {
+    "name": "rich-text-editor/typography",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "Font-size and font-family toolbar dropdowns for the rich text editor; applies inline font styles to the selection.",
+    "tags": [
+      "rich-text",
+      "font",
+      "typography",
+      "toolbar",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/typography/index.ts",
+      "rich-text-editor/addons/typography/rich-text-typography-button.component.html",
+      "rich-text-editor/addons/typography/rich-text-typography-button.component.ts",
+      "rich-text-editor/addons/typography/rich-text-typography.context.ts",
+      "rich-text-editor/addons/typography/rich-text-typography.directive.ts",
+      "rich-text-editor/addons/typography/rich-text-typography.locales.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "autocomplete",
+      "popover",
+      "rich-text-editor"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts"
+    ],
+    "attach": {
+      "import": "RichTextTypographyDirective from './ui/rich-text-editor/addons/typography'",
+      "selector": "uiRteTypography"
     }
   }
 }

@@ -141,6 +141,14 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/colors'],
         label: 'rte-colors',
     },
+    // addon system (rich-text): install the editor + its `typography` addon; prove
+    // the font-size and font-family buttons appear only on the addon editor and a
+    // pick applies an inline font style to the selection (the base sheds the
+    // `autocomplete` dependency entirely).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/typography'],
+        label: 'rte-typography',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

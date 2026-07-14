@@ -15,6 +15,7 @@ import { RichTextEmojiDirective } from '../../../../../packages/components/ui/ri
 import { RichTextSlashCommandsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/slash-commands';
 import { RichTextHistoryDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/history';
 import { RichTextColorsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/colors';
+import { RichTextTypographyDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/typography';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
@@ -23,7 +24,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -31,7 +32,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().basicHeading }}</h3>
-        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji uiRteSlashCommands uiRteColors
+        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji uiRteSlashCommands uiRteColors uiRteTypography
           [placeholder]="t().basicPlaceholder" minHeight="150px"
           [(ngModel)]="richTextContent" (htmlChange)="richTextHtml = $event" />
         @if (richTextHtml) {
@@ -165,18 +166,18 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().fontFamilyHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().fontFamilyDescription }}</p>
-        <ui-rich-text-editor mode="html" toolbar="top" uiRteColors
-          [toolbarItems]="['bold', 'italic', 'separator', 'fontFamily', 'fontSize']"
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteColors uiRteTypography
+          [toolbarItems]="['bold', 'italic', 'separator']"
           [placeholder]="t().fontFamilyPlaceholder" minHeight="120px" />
       </div>
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().customFontHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().customFontDescription }}</p>
-        <ui-rich-text-editor mode="html" toolbar="top"
-          [toolbarItems]="['bold', 'italic', 'separator', 'fontFamily', 'fontSize']"
-          [fontFamilies]="['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins']"
-          fontFamiliesStrategy="replace"
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteTypography
+          [toolbarItems]="['bold', 'italic', 'separator']"
+          [uiRteTypographyFamilies]="['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins']"
+          uiRteTypographyFamiliesStrategy="replace"
           [placeholder]="t().customFontPlaceholder" minHeight="120px" />
       </div>
 

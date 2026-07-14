@@ -122,6 +122,7 @@ re-scans.
 | `rich-text-editor/sub/rich-text-toolbar.component.ts` | Trusted static toolbar SVG icons (and developer-supplied custom icons via the public API). Never untrusted end-user input. |
 | `rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts` | The trusted static `EMOJI_ICON` SVG constant defined in the file. Never user input. |
 | `rich-text-editor/addons/colors/rich-text-colors-button.component.ts` | The trusted static `FOREGROUND_ICON`/`BACKGROUND_ICON` SVG constants defined in the file. Never user input. |
+| `rich-text-editor/addons/typography/rich-text-typography-button.component.ts` | The trusted static `SIZE_ICON`/`FAMILY_ICON` SVG constants defined in the file. Never user input. |
 
 > To suppress these in a client's SonarQube: mark each issue **Won't Fix** /
 > **Accepted** with a link to this file, or mirror the file/rule exclusion in

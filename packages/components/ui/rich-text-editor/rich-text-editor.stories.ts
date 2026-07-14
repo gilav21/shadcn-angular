@@ -92,13 +92,12 @@ const meta: Meta<RichTextEditorComponent> = {
         toolbarItems: {
             control: false,
             description:
-                'Ordered list of toolbar item ids to render (e.g. bold, italic, fontFamily, fontSize, separator…). Defaults to the built-in toolbar set.',
+                'Ordered list of toolbar item ids to render (e.g. bold, italic, heading1, separator…). Defaults to the built-in toolbar set.',
         },
         customToolbarItems: {
             control: false,
             description: 'App-provided custom toolbar buttons/dropdowns rendered alongside the built-ins; emits (customToolbarAction) on click.',
         },
-        fontFamilies: { control: 'object', description: 'Custom font family list for the fontFamily toolbar dropdown.' },
         mentionSearch: { control: false, description: 'Async/sync search function returning MentionItem[] for @mention autocomplete.' },
         mentionRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted mentions.' },
         tagSearch: { control: false, description: 'Async/sync search function returning TagItem[] for #tag autocomplete.' },
@@ -134,11 +133,6 @@ const meta: Meta<RichTextEditorComponent> = {
             control: 'select',
             options: ['inline', 'left', 'center', 'right'],
             description: 'Alignment applied to images on insert',
-        },
-        fontFamiliesStrategy: {
-            control: 'radio',
-            options: ['append', 'replace'],
-            description: 'Whether custom fontFamilies append to or replace the built-in list',
         },
         maxLength: { control: 'number', description: 'Maximum character count (undefined = unlimited)' },
         historyLimit: { control: 'number', description: 'Maximum number of undo/redo snapshots retained' },
@@ -643,56 +637,18 @@ export const ImageControls: Story = {
     },
 };
 
-export const FontFamilyToolbar: Story = {
+export const CustomToolbar: Story = {
     args: {
         mode: 'html',
         toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize'],
-        placeholder: 'Select text and change its font family...',
+        toolbarItems: ['bold', 'italic', 'underline', 'separator', 'heading1', 'heading2', 'separator', 'bulletList', 'orderedList'],
+        placeholder: 'A trimmed-down toolbar…',
         minHeight: '200px',
     },
     parameters: {
         docs: {
             description: {
-                story: 'Toolbar with the font family dropdown. Select text and pick a typeface from the built-in web-safe list.',
-            },
-        },
-    },
-};
-
-export const CustomFontFamilies: Story = {
-    args: {
-        mode: 'html',
-        toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize'],
-        fontFamilies: ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins'],
-        fontFamiliesStrategy: 'replace',
-        placeholder: 'Using custom Google Fonts only...',
-        minHeight: '200px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Custom font families with `fontFamiliesStrategy="replace"` — only the provided fonts appear in the dropdown.',
-            },
-        },
-    },
-};
-
-export const AppendedFontFamilies: Story = {
-    args: {
-        mode: 'html',
-        toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize'],
-        fontFamilies: ['Roboto', 'Open Sans', 'Lato'],
-        fontFamiliesStrategy: 'append',
-        placeholder: 'Default fonts + custom fonts appended...',
-        minHeight: '200px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Custom font families with `fontFamiliesStrategy="append"` (default) — custom fonts are added after the built-in web-safe defaults.',
+                story: 'A custom `[toolbarItems]` set. Font size/family live in the opt-in `rich-text-editor/typography` addon (`uiRteTypography`); see the Addons/Typography stories.',
             },
         },
     },
