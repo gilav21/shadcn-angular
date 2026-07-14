@@ -2,12 +2,10 @@
   <ui-rich-text-toolbar
     [items]="toolbarItems()"
     [activeFormats]="activeFormats()"
-    [selectedText]="selectedText()"
     [disabled]="disabled()"
     [readonly]="readonly()"
     [locale]="resolvedLocale()"
     (formatCommand)="onFormatCommand($event)"
-    (linkInsert)="onLinkInsert($event)"
     (imageInsert)="onImageInsert($event)"
     (tableInsert)="onTableInsert($event)"
     (fileImport)="onFileImport($event)"
@@ -224,15 +222,13 @@
       [style.top.px]="floatingToolbarPosition().y"
     >
       <ui-rich-text-toolbar
-        [items]="['bold', 'italic', 'underline', 'separator', 'link', 'separator', 'clear']"
+        [items]="['bold', 'italic', 'underline', 'separator', 'clear']"
         [activeFormats]="emptyFormats"
-        [selectedText]="selectedText()"
         [compact]="true"
         [disabled]="disabled()"
         [readonly]="readonly()"
         [locale]="resolvedLocale()"
         (formatCommand)="onFloatingFormatCommand($event)"
-        (linkInsert)="onLinkInsert($event)"
         [addonSlots]="toolbarSlots.slots()"
         (addonSlotClick)="onAddonSlotClick($event)"
       />
@@ -313,58 +309,6 @@
       (itemSelect)="onMentionSelect($event)"
       (closed)="closeMentionPopover()"
     />
-  }
-
-  @if (showLinkPopover()) {
-    <div 
-      class="fixed z-50 bg-popover border rounded-lg shadow-lg p-4 w-80 max-sm:w-[calc(100vw-2rem)] max-sm:max-w-80"
-      [style.left.px]="linkPopoverPosition().x"
-      [style.top.px]="linkPopoverPosition().y"
-    >
-      <div class="space-y-3">
-        <div>
-          <label for="rte-link-text" class="text-sm font-medium mb-1 block">{{ resolvedLocale().link.text }}</label>
-          <input
-            #linkText
-            id="rte-link-text"
-            type="text"
-            [value]="selectedText()"
-            [placeholder]="resolvedLocale().link.textPlaceholder"
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-        </div>
-        <div>
-          <label for="rte-link-url" class="text-sm font-medium mb-1 block">{{ resolvedLocale().link.url }}</label>
-          <input
-            #linkUrl
-            id="rte-link-url"
-            type="url"
-            [placeholder]="resolvedLocale().link.urlPlaceholder"
-            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          />
-        </div>
-        <div class="flex gap-2">
-          <ui-button
-            size="sm"
-            class="flex-1"
-            (click)="insertLinkFromPopover(linkText.value, linkUrl.value)"
-            (keydown.enter)="insertLinkFromPopover(linkText.value, linkUrl.value)"
-            (keydown.space)="insertLinkFromPopover(linkText.value, linkUrl.value)"
-          >
-            {{ resolvedLocale().link.insert }}
-          </ui-button>
-          <ui-button
-            variant="outline"
-            size="sm"
-            (click)="closeLinkPopover()"
-            (keydown.enter)="closeLinkPopover()"
-            (keydown.space)="closeLinkPopover()"
-          >
-            {{ resolvedLocale().link.cancel }}
-          </ui-button>
-        </div>
-      </div>
-    </div>
   }
 
   @if (tableContextMenuOpen()) {

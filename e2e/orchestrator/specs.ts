@@ -149,6 +149,14 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/typography'],
         label: 'rte-typography',
     },
+    // addon system (rich-text): install the editor + its `links` addon; prove the
+    // link button appears only on the addon editor, that inserting through the
+    // toolbar popover wraps the selection in an anchor, and that an existing link
+    // can be edited/removed — the base ships no link UI (showLinkDialog is inert).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/links'],
+        label: 'rte-links',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

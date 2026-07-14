@@ -3,7 +3,7 @@ import type { RichTextSlashCommandsLocale } from './rich-text-slash-commands.loc
 
 /**
  * Builds the addon's built-in slash commands (paragraph, headings, lists,
- * quote, inline/code block, link, task list, toggle, horizontal rule, undo,
+ * quote, inline/code block, task list, toggle, horizontal rule, undo,
  * redo) from the addon locale. These feed the menu alongside the host's
  * base-owned `builtinCommands` (outline / AI), the shared command registry,
  * and any custom commands passed to `[uiRteSlashCommands]`.
@@ -106,14 +106,6 @@ function buildFormatSlashCommands(l: RichTextSlashCommandsLocale): RichTextSlash
 
 function buildInsertSlashCommands(l: RichTextSlashCommandsLocale): RichTextSlashCommand[] {
     return [
-        {
-            id: 'insert.link',
-            label: l.link,
-            description: l.linkDescription,
-            keywords: ['url', 'anchor'],
-            order: 100,
-            run: context => context.showLinkDialog(),
-        },
         {
             id: 'insert.task-list',
             label: l.taskList,

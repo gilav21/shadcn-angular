@@ -193,10 +193,22 @@ export abstract class RichTextEditorAddonHost {
     /** Insert sanitized HTML at the live caret as one history entry. */
     abstract insertHtmlAtCaret(html: string): void;
     /**
-     * Open the editor's link popover. `caretHint` positions the popover when the
-     * live caret rect is degenerate (e.g. an empty block).
+     * Open the link editor. A delegation seam: the base keeps this method (so the
+     * `Ctrl/Cmd+K` shortcut and the `/link` slash command have a stable entry
+     * point) but ships no link UI — it forwards to the editor registered via
+     * {@link registerLinkEditor}, and is a no-op when no links addon is present.
+     * `caretHint` positions the editor when the live caret rect is degenerate
+     * (e.g. an empty block).
      */
     abstract showLinkDialog(caretHint?: { x: number; y: number }): void;
+    /**
+     * Register the link editor the base's {@link showLinkDialog} delegates to.
+     * The links addon supplies the `open` callback; the base keeps the
+     * `rich-text.link` shortcut definition and the `/link` command entry point
+     * but stays link-UI-free. Returns a teardown; `showLinkDialog` is inert while
+     * no editor is registered.
+     */
+    abstract registerLinkEditor(open: (caretHint?: { x: number; y: number }) => void): () => void;
     /**
      * Base-owned slash commands wired to features that stay in the base: the
      * document-outline command, plus the AI command when an `aiProvider` is set.

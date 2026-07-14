@@ -220,7 +220,7 @@ export const MinimalToolbar: Story = {
     args: {
         mode: 'markdown',
         toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'link'],
+        toolbarItems: ['bold', 'italic', 'separator', 'image'],
         placeholder: 'Minimal toolbar...',
         minHeight: '150px',
     },
@@ -239,7 +239,7 @@ export const FullToolbar: Story = {
             'separator',
             'code', 'codeBlock',
             'separator',
-            'link', 'image',
+            'image',
             'separator',
             'undo', 'redo', 'clear',
         ],

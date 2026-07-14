@@ -185,27 +185,6 @@ describe('RichTextToolbarComponent', () => {
     });
 
     describe('insert handlers', () => {
-        it('emits linkInsert with text and url', () => {
-            let payload: { text: string; url: string } | undefined;
-            component.linkInsert.subscribe((p) => (payload = p));
-            component.onInsertLink('hello', 'https://x.com');
-            expect(payload).toEqual({ text: 'hello', url: 'https://x.com' });
-        });
-
-        it('defaults link text to "Link" when blank', () => {
-            let payload: { text: string; url: string } | undefined;
-            component.linkInsert.subscribe((p) => (payload = p));
-            component.onInsertLink('', 'https://x.com');
-            expect(payload).toEqual({ text: 'Link', url: 'https://x.com' });
-        });
-
-        it('does not emit linkInsert when url is empty', () => {
-            let emitted = false;
-            component.linkInsert.subscribe(() => (emitted = true));
-            component.onInsertLink('text', '');
-            expect(emitted).toBe(false);
-        });
-
         it('emits imageInsert with alt and src, defaulting alt to "Image"', () => {
             let payload: { alt: string; src: string } | undefined;
             component.imageInsert.subscribe((p) => (payload = p));
@@ -224,9 +203,7 @@ describe('RichTextToolbarComponent', () => {
             fixture.componentRef.setInput('disabled', true);
             fixture.detectChanges();
             let count = 0;
-            component.linkInsert.subscribe(() => count++);
             component.imageInsert.subscribe(() => count++);
-            component.onInsertLink('a', 'https://x.com');
             component.onInsertImage('https://x.com/a.png', 'a');
             expect(count).toBe(0);
         });

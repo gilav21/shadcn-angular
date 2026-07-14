@@ -1691,69 +1691,6 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('inserts an anchor element with sanitized href on link insert', () => {
-        component.writeValue('<p>see here</p>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild as Text, 8);
-
-        component.onLinkInsert({ text: 'docs', url: 'https://example.com/docs' });
-
-        const link = editor.querySelector('a');
-        expect(link).toBeTruthy();
-        expect(link?.getAttribute('href')).toBe('https://example.com/docs');
-        expect(link?.textContent).toBe('docs');
-        expect(link?.getAttribute('rel')).toContain('noopener');
-    });
-
-    it('falls back to url as link text when text is empty', () => {
-        component.writeValue('<p>x</p>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild as Text, 1);
-
-        component.onLinkInsert({ text: '', url: 'https://only-url.com' });
-
-        expect(editor.querySelector('a')?.textContent).toBe('https://only-url.com');
-    });
-
-    it('does not insert a link for a javascript: url (sanitizer rejects it)', () => {
-        component.writeValue('<p>safe</p>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild as Text, 4);
-
-        component.onLinkInsert({ text: 'evil', url: 'javascript:alert(1)' });
-
-        expect(editor.querySelector('a')).toBeNull();
-    });
-
-    it('insertLinkFromPopover inserts a link and closes the popover', () => {
-        component.writeValue('<p>anchor</p>');
-        fixture.detectChanges();
-        const text = editor.querySelector('p')!.firstChild as Text;
-        const selection = document.getSelection();
-        const range = document.createRange();
-        range.setStart(text, 0);
-        range.setEnd(text, 6);
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-        component.onBlur();
-
-        component.showLinkPopover.set(true);
-        component.insertLinkFromPopover('My Link', 'https://link.test');
-
-        expect(editor.querySelector('a')?.getAttribute('href')).toBe('https://link.test');
-        expect(component.showLinkPopover()).toBe(false);
-    });
-
-    it('closeLinkPopover hides the popover and clears selected text', () => {
-        component.selectedText.set('something');
-        component.showLinkPopover.set(true);
-
-        component.closeLinkPopover();
-
-        expect(component.showLinkPopover()).toBe(false);
-        expect(component.selectedText()).toBe('');
-    });
-
     it('inserts an image at the selection with sanitized src and alt', () => {
         component.writeValue('<p>img here</p>');
         fixture.detectChanges();
@@ -2977,12 +2914,21 @@ describe('RichTextEditorComponent — keyboard shortcuts execute formatting', ()
         expect(editor.querySelector('u')).toBeTruthy();
     });
 
-    it('Ctrl+K opens the link dialog', () => {
+    it('Ctrl+K delegates to the registered link editor', () => {
         component.writeValue('<p>link me</p>');
         fixture.detectChanges();
         selectAll();
+        let opened = false;
+        component.registerLinkEditor(() => { opened = true; });
         component.onKeydown(key('k'));
-        expect(component.showLinkPopover()).toBe(true);
+        expect(opened).toBe(true);
+    });
+
+    it('Ctrl+K is inert when no link editor is registered', () => {
+        component.writeValue('<p>link me</p>');
+        fixture.detectChanges();
+        selectAll();
+        expect(() => component.onKeydown(key('k'))).not.toThrow();
     });
 
     it('Ctrl+F opens find without replace', () => {

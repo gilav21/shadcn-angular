@@ -1,0 +1,41 @@
+<div
+  class="w-72 max-w-[calc(100vw-2rem)] space-y-3"
+  [attr.dir]="dir()"
+  [attr.data-slot]="'rich-text-links-form'"
+>
+  <p class="text-sm font-medium m-0">{{ locale().tooltip }}</p>
+
+  <label class="block space-y-1">
+    <span class="text-xs text-muted-foreground">{{ locale().text }}</span>
+    <input
+      #linkText
+      type="text"
+      [value]="text()"
+      [placeholder]="locale().textPlaceholder"
+      class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      (keydown.enter)="onSubmit(linkText.value, linkUrl.value)"
+    />
+  </label>
+
+  <label class="block space-y-1">
+    <span class="text-xs text-muted-foreground">{{ locale().url }}</span>
+    <input
+      #linkUrl
+      type="url"
+      [value]="url()"
+      [placeholder]="locale().urlPlaceholder"
+      class="border-input bg-background flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      (keydown.enter)="onSubmit(linkText.value, linkUrl.value)"
+    />
+  </label>
+
+  <div class="flex flex-wrap justify-end gap-2 pt-1">
+    @if (showRemove()) {
+      <ui-button variant="ghost" size="sm" (click)="removeLink.emit()">{{ locale().remove }}</ui-button>
+    }
+    <ui-button variant="outline" size="sm" (click)="cancelLink.emit()">{{ locale().cancel }}</ui-button>
+    <ui-button size="sm" (click)="onSubmit(linkText.value, linkUrl.value)">
+      {{ showRemove() ? locale().update : locale().insert }}
+    </ui-button>
+  </div>
+</div>

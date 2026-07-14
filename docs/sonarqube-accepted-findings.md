@@ -90,6 +90,7 @@ not suppressed — this exemption is scoped to the `ui-button` primitive only.
 | `data-table/data-table.component.html` | 1 |
 | `rich-text-editor/rich-text-editor.component.html` | 4 |
 | `rich-text-editor/addons/actions/rich-text-actions-dialog.component.html` | 2 |
+| `rich-text-editor/addons/links/rich-text-links-form.component.html` | Remove/Cancel/Insert are `<ui-button (click)>` — native `<button>` underneath, Enter/Space already fire click. |
 
 **The one raw-`<div>` exception — the `file-upload` dropzone.** It is
 `role="presentation"` and its `(click)`/drag handlers are a *pointer convenience*,
@@ -123,6 +124,7 @@ re-scans.
 | `rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts` | The trusted static `EMOJI_ICON` SVG constant defined in the file. Never user input. |
 | `rich-text-editor/addons/colors/rich-text-colors-button.component.ts` | The trusted static `FOREGROUND_ICON`/`BACKGROUND_ICON` SVG constants defined in the file. Never user input. |
 | `rich-text-editor/addons/typography/rich-text-typography-button.component.ts` | The trusted static `SIZE_ICON`/`FAMILY_ICON` SVG constants defined in the file. Never user input. |
+| `rich-text-editor/addons/links/rich-text-links-button.component.ts` | The trusted static `LINK_ICON` SVG constant defined in the file. Never user input. |
 
 > To suppress these in a client's SonarQube: mark each issue **Won't Fix** /
 > **Accepted** with a link to this file, or mirror the file/rule exclusion in

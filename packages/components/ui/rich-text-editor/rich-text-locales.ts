@@ -15,7 +15,6 @@ export interface RichTextLocale extends LocaleMeta {
         blockquote: string;
         inlineCode: string;
         codeBlock: string;
-        insertLink: string;
         insertImage: string;
         undo: string;
         redo: string;
@@ -41,15 +40,6 @@ export interface RichTextLocale extends LocaleMeta {
         caseSensitive: string;
         noResults: string;
         close: string;
-    };
-
-    link: {
-        text: string;
-        textPlaceholder: string;
-        url: string;
-        urlPlaceholder: string;
-        insert: string;
-        cancel: string;
     };
 
     image: {
@@ -167,7 +157,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Blockquote',
             inlineCode: 'Inline Code',
             codeBlock: 'Code Block',
-            insertLink: 'Insert Link',
             insertImage: 'Insert Image',
             undo: 'Undo',
             redo: 'Redo',
@@ -192,14 +181,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Match Case',
             noResults: 'No results',
             close: 'Close',
-        },
-        link: {
-            text: 'Link Text',
-            textPlaceholder: 'Display text',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Insert Link',
-            cancel: 'Cancel',
         },
         image: {
             url: 'Image URL',
@@ -307,7 +288,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'ציטוט',
             inlineCode: 'קוד בתוך שורה',
             codeBlock: 'בלוק קוד',
-            insertLink: 'הוספת קישור',
             insertImage: 'הוספת תמונה',
             undo: 'ביטול',
             redo: 'ביצוע חוזר',
@@ -332,14 +312,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'התאמת רישיות',
             noResults: 'אין תוצאות',
             close: 'סגירה',
-        },
-        link: {
-            text: 'טקסט הקישור',
-            textPlaceholder: 'טקסט לתצוגה',
-            url: 'כתובת URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'הוספת קישור',
-            cancel: 'ביטול',
         },
         image: {
             url: 'כתובת תמונה',
@@ -447,7 +419,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'اقتباس',
             inlineCode: 'كود سطري',
             codeBlock: 'كتلة كود',
-            insertLink: 'إدراج رابط',
             insertImage: 'إدراج صورة',
             undo: 'تراجع',
             redo: 'إعادة',
@@ -472,14 +443,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'مطابقة الحالة',
             noResults: 'لا توجد نتائج',
             close: 'إغلاق',
-        },
-        link: {
-            text: 'نص الرابط',
-            textPlaceholder: 'نص العرض',
-            url: 'عنوان URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'إدراج رابط',
-            cancel: 'إلغاء',
         },
         image: {
             url: 'عنوان الصورة',
@@ -568,7 +531,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Zitat',
             inlineCode: 'Inline-Code',
             codeBlock: 'Codeblock',
-            insertLink: 'Link einfügen',
             insertImage: 'Bild einfügen',
             undo: 'Rückgängig',
             redo: 'Wiederherstellen',
@@ -593,14 +555,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Groß-/Kleinschreibung',
             noResults: 'Keine Ergebnisse',
             close: 'Schließen',
-        },
-        link: {
-            text: 'Linktext',
-            textPlaceholder: 'Anzeigetext',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Link einfügen',
-            cancel: 'Abbrechen',
         },
         image: {
             url: 'Bild-URL',
@@ -689,7 +643,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Citation',
             inlineCode: 'Code en ligne',
             codeBlock: 'Bloc de code',
-            insertLink: 'Insérer un lien',
             insertImage: 'Insérer une image',
             undo: 'Annuler',
             redo: 'Rétablir',
@@ -714,14 +667,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Respecter la casse',
             noResults: 'Aucun résultat',
             close: 'Fermer',
-        },
-        link: {
-            text: 'Texte du lien',
-            textPlaceholder: 'Texte affiché',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Insérer le lien',
-            cancel: 'Annuler',
         },
         image: {
             url: 'URL de l\'image',
@@ -810,7 +755,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Cita',
             inlineCode: 'Código en línea',
             codeBlock: 'Bloque de código',
-            insertLink: 'Insertar enlace',
             insertImage: 'Insertar imagen',
             undo: 'Deshacer',
             redo: 'Rehacer',
@@ -835,14 +779,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Coincidir mayúsculas',
             noResults: 'Sin resultados',
             close: 'Cerrar',
-        },
-        link: {
-            text: 'Texto del enlace',
-            textPlaceholder: 'Texto mostrado',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Insertar enlace',
-            cancel: 'Cancelar',
         },
         image: {
             url: 'URL de imagen',
@@ -931,7 +867,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: '引用',
             inlineCode: 'インラインコード',
             codeBlock: 'コードブロック',
-            insertLink: 'リンクを挿入',
             insertImage: '画像を挿入',
             undo: '元に戻す',
             redo: 'やり直し',
@@ -956,14 +891,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: '大文字小文字を区別',
             noResults: '結果なし',
             close: '閉じる',
-        },
-        link: {
-            text: 'リンクテキスト',
-            textPlaceholder: '表示テキスト',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'リンクを挿入',
-            cancel: 'キャンセル',
         },
         image: {
             url: '画像URL',
@@ -1052,7 +979,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: '引用',
             inlineCode: '行内代码',
             codeBlock: '代码块',
-            insertLink: '插入链接',
             insertImage: '插入图片',
             undo: '撤销',
             redo: '重做',
@@ -1077,14 +1003,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: '区分大小写',
             noResults: '无结果',
             close: '关闭',
-        },
-        link: {
-            text: '链接文字',
-            textPlaceholder: '显示文字',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: '插入链接',
-            cancel: '取消',
         },
         image: {
             url: '图片 URL',
@@ -1173,7 +1091,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Цитата',
             inlineCode: 'Строчный код',
             codeBlock: 'Блок кода',
-            insertLink: 'Вставить ссылку',
             insertImage: 'Вставить изображение',
             undo: 'Отменить',
             redo: 'Повторить',
@@ -1198,14 +1115,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'С учётом регистра',
             noResults: 'Нет результатов',
             close: 'Закрыть',
-        },
-        link: {
-            text: 'Текст ссылки',
-            textPlaceholder: 'Отображаемый текст',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Вставить ссылку',
-            cancel: 'Отмена',
         },
         image: {
             url: 'URL изображения',
@@ -1294,7 +1203,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Citação',
             inlineCode: 'Código em linha',
             codeBlock: 'Bloco de código',
-            insertLink: 'Inserir link',
             insertImage: 'Inserir imagem',
             undo: 'Desfazer',
             redo: 'Refazer',
@@ -1319,14 +1227,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Diferenciar maiúsculas',
             noResults: 'Sem resultados',
             close: 'Fechar',
-        },
-        link: {
-            text: 'Texto do link',
-            textPlaceholder: 'Texto exibido',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Inserir link',
-            cancel: 'Cancelar',
         },
         image: {
             url: 'URL da imagem',

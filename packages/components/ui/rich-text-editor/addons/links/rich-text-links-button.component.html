@@ -1,0 +1,20 @@
+<ui-popover [open]="open()" [closeOnScroll]="true" (openChange)="onOpenChange($event)">
+  <ui-popover-trigger>
+    <button
+      type="button"
+      [class]="buttonClasses()"
+      [title]="context.locale().tooltip"
+      [disabled]="interactionDisabled()"
+    >
+      <span [innerHTML]="icon"></span>
+    </button>
+  </ui-popover-trigger>
+  <ui-popover-content class="w-auto max-w-[calc(100vw-2rem)] p-3" align="start" strategy="fixed">
+    <ui-rich-text-links-form
+      [locale]="context.locale()"
+      [text]="context.seededText()"
+      (submitLink)="onSubmit($event)"
+      (cancelLink)="open.set(false)"
+    />
+  </ui-popover-content>
+</ui-popover>

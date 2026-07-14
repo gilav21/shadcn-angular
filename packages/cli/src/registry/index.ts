@@ -838,7 +838,7 @@ export const registry = defineRegistry({
     category: 'editor',
     description: 'WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.',
     tags: ['rich-text-editor', 'wysiwyg', 'editor', 'text', 'formatting'],
-    addons: ['rich-text-editor/actions', 'rich-text-editor/emoji', 'rich-text-editor/slash-commands', 'rich-text-editor/history', 'rich-text-editor/colors', 'rich-text-editor/typography'],
+    addons: ['rich-text-editor/actions', 'rich-text-editor/emoji', 'rich-text-editor/slash-commands', 'rich-text-editor/history', 'rich-text-editor/colors', 'rich-text-editor/typography', 'rich-text-editor/links'],
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-image.utils.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-image-resizer.component.html', 'rich-text-editor/sub/rich-text-image-resizer.component.ts', 'rich-text-editor/sub/rich-text-mention.component.html', 'rich-text-editor/sub/rich-text-mention.component.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
     dependencies: ['button', 'popover', 'scroll-area', 'separator'],
     libFiles: ['addon-slots.ts', 'ai.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
@@ -848,6 +848,7 @@ export const registry = defineRegistry({
       { kind: 'removal', from: "[enableSlashCommands] + [slashCommands] inputs and the buildDefaultSlashCommands export on <ui-rich-text-editor>", to: 'the uiRteSlashCommands directive', note: "The slash-command ('/') menu moved to the opt-in slash-commands addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/slash-commands`, add `uiRteSlashCommands` to the editor element, and move any custom commands from [slashCommands]=\"cmds\" to [uiRteSlashCommands]=\"cmds\". The base still owns the /outline (and, with an aiProvider, /ai) commands.", codemod: 'none', suggestedAddon: 'rich-text-editor/slash-commands' },
       { kind: 'removal', from: "[showHistoryPanel] + [showHistoryButton] inputs and the revision history UI on <ui-rich-text-editor>", to: 'the uiRteHistory directive', note: "The revision-history UI (Revisions button + panel, preview dialog, browser dialog) moved to the opt-in history addon, dropping the 'dialog' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/history`, add `uiRteHistory` to the editor element, and map [showHistoryButton]=\"x\" to [uiRteHistoryButton]=\"x\" ([showHistoryPanel] is replaced by simply adding the directive). The base keeps the undo/redo stack and the Ctrl/Cmd+Shift+H shortcut definition; the addon supplies its action. History strings now resolve from [uiRteHistoryLocale] (or the global UI_LOCALE_ID), not the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/history' },
       { kind: 'removal', from: "the 'fontSize' + 'fontFamily' toolbar items, the [fontFamilies]/[fontFamiliesStrategy] inputs, and the DEFAULT_FONT_FAMILIES/FontFamilyStrategy exports on <ui-rich-text-editor>", to: 'the uiRteTypography directive', note: "The font-size and font-family dropdowns moved to the opt-in typography addon, dropping the 'autocomplete' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/typography`, add `uiRteTypography` to the editor element, and remove 'fontSize'/'fontFamily' from any custom [toolbarItems] arrays (the buttons now render after the built-in items). Map [fontFamilies]=\"fonts\" to [uiRteTypographyFamilies]=\"fonts\" and [fontFamiliesStrategy]=\"x\" to [uiRteTypographyFamiliesStrategy]=\"x\"; DEFAULT_FONT_FAMILIES and FontFamilyStrategy now export from the typography addon barrel. Font strings resolve from [uiRteTypographyLocale] (or the global UI_LOCALE_ID), not the editor's [locale].", codemod: 'none', suggestedAddon: 'rich-text-editor/typography' },
+      { kind: 'removal', from: "the 'link' toolbar item, its insert popover, the click-to-edit link popover, the Ctrl/Cmd+K shortcut action, and the /link slash command on <ui-rich-text-editor>", to: 'the uiRteLinks directive', note: "The link insert/edit UI moved to the opt-in links addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/links`, add `uiRteLinks` to the editor element, and remove 'link' from any custom [toolbarItems] arrays (the button now renders after the built-in items). The base keeps the showLinkDialog host method and the Ctrl/Cmd+K shortcut definition as a delegation seam; both are inert without the addon. Existing link content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries a `link` section or `toolbar.insertLink`; link strings resolve from [uiRteLinksLocale] (or the global UI_LOCALE_ID). The /link slash command now appears only when both the slash-commands and links addons are present.", codemod: 'none', suggestedAddon: 'rich-text-editor/links' },
     ],
     shortcutDefinitions: [
       {
@@ -1506,6 +1507,22 @@ export const registry = defineRegistry({
     attach: {
       import: "RichTextTypographyDirective from './ui/rich-text-editor/addons/typography'",
       selector: 'uiRteTypography',
+    },
+  },
+  'rich-text-editor/links': {
+    name: 'rich-text-editor/links',
+    type: 'addon',
+    parent: 'rich-text-editor',
+    category: 'editor',
+    description: 'Link insert/edit for the rich text editor: toolbar popover, Ctrl+K, /link command, and click-to-edit with remove on existing links.',
+    tags: ['rich-text', 'link', 'anchor', 'toolbar', 'addon'],
+    files: ['rich-text-editor/addons/links/index.ts', 'rich-text-editor/addons/links/rich-text-links-button.component.html', 'rich-text-editor/addons/links/rich-text-links-button.component.ts', 'rich-text-editor/addons/links/rich-text-links-form.component.html', 'rich-text-editor/addons/links/rich-text-links-form.component.ts', 'rich-text-editor/addons/links/rich-text-links.context.ts', 'rich-text-editor/addons/links/rich-text-links.directive.ts', 'rich-text-editor/addons/links/rich-text-links.locales.ts'],
+    libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['button', 'popover', 'rich-text-editor'],
+    requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
+    attach: {
+      import: "RichTextLinksDirective from './ui/rich-text-editor/addons/links'",
+      selector: 'uiRteLinks',
     },
   },
 });

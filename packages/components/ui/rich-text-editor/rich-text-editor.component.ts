@@ -472,7 +472,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'alignLeft', 'alignCenter', 'alignRight',
     'separator',
-    'link', 'image', 'importFile',
+    'image', 'importFile',
     'separator',
     'table',
     'separator',
@@ -871,8 +871,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     loadedMentionItems = signal<(MentionItem | TagItem)[]>([]);
     mentionLoading = signal<boolean>(false);
     selectedImage = signal<HTMLImageElement | null>(null);
-    showLinkPopover = signal<boolean>(false);
-    linkPopoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     selectedText = signal<string>('');
     dragOver = signal<boolean>(false);
     imageUploading = signal<boolean>(false);
@@ -935,7 +933,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly inputObservers = new Set<(text: string, caretOffset: number) => void>();
     private readonly shortcutActions = new Map<string, { run: () => void; when?: () => boolean }>();
     private savedRange: Range | null = null;
-    private _pendingLinkPositionHint: { x: number; y: number } | null = null;
+    private linkEditorOpen: ((caretHint?: { x: number; y: number }) => void) | null = null;
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
 
@@ -1742,22 +1740,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.onTouched();
         this.blurred.emit();
 
-        if (this.showLinkPopover()) {
-            return;
-        }
-
         const relatedTarget = event?.relatedTarget as Node | null;
         if (relatedTarget && this.el.nativeElement.contains(relatedTarget)) {
             return;
         }
 
         setTimeout(() => {
-            if (!this.showLinkPopover()) {
-                const activeElement = this.document.activeElement;
-                const isInsideComponent = this.el.nativeElement.contains(activeElement);
-                if (!isInsideComponent) {
-                    this.showFloatingToolbar.set(false);
-                }
+            const activeElement = this.document.activeElement;
+            const isInsideComponent = this.el.nativeElement.contains(activeElement);
+            if (!isInsideComponent) {
+                this.showFloatingToolbar.set(false);
             }
         }, 200);
     }
@@ -2249,32 +2241,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (command === 'orderedList') {
             this.execEditorCommand('insertOrderedList');
             selection.collapseToEnd();
-        }
-    }
-
-    onLinkInsert(data: { text: string; url: string }): void {
-        this.flushPendingHistoryPush();
-        this.restoreSelection();
-        const safeUrl = this.sanitizer.sanitizeUrl(data.url);
-        if (safeUrl) {
-            const selection = this.document.getSelection();
-            if (selection && selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                range.deleteContents();
-
-                const link = this.document.createElement('a');
-                link.href = safeUrl;
-                link.rel = 'noopener noreferrer';
-                link.textContent = data.text || safeUrl;
-                range.insertNode(link);
-
-                range.setStartAfter(link);
-                range.setEndAfter(link);
-                selection.removeAllRanges();
-                selection.addRange(range);
-            }
-            this.syncContentFromEditor();
-            this.pushHistory();
         }
     }
 
@@ -2928,52 +2894,24 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * Open the link popover (addon host surface). `caretHint` positions it when
-     * the live caret rect is degenerate — e.g. an addon consumed the trigger and
-     * collapsed the caret into an empty block before calling this.
+     * Open the link editor (addon host surface). Delegates to the editor
+     * registered via {@link registerLinkEditor}; a no-op when no links addon is
+     * present. `caretHint` positions it when the live caret rect is degenerate —
+     * e.g. an addon consumed the trigger and collapsed the caret into an empty
+     * block before calling this.
      */
     showLinkDialog(caretHint?: { x: number; y: number }): void {
-        if (caretHint) {
-            this._pendingLinkPositionHint = caretHint;
-        }
-        const selection = this.document.getSelection();
-        this.selectedText.set(selection?.toString() ?? '');
-
-        if (selection && selection.rangeCount > 0) {
-            this.savedRange = selection.getRangeAt(0).cloneRange();
-            this.updateLinkPopoverPosition(selection);
-        }
-        this._pendingLinkPositionHint = null;
-
-        this.showLinkPopover.set(true);
+        this.linkEditorOpen?.(caretHint);
     }
 
-    private updateLinkPopoverPosition(selection: Selection): void {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        const viewportWidth = this.document.defaultView?.innerWidth ?? 1024;
-        const viewportHeight = this.document.defaultView?.innerHeight ?? 768;
-        const width = 320;
-        const height = 180;
-        const rectIsEmpty = rect.width === 0 && rect.height === 0 && rect.top === 0 && rect.left === 0;
-        const sourceX = rectIsEmpty && this._pendingLinkPositionHint ? this._pendingLinkPositionHint.x : rect.left;
-        const sourceY = rectIsEmpty && this._pendingLinkPositionHint ? this._pendingLinkPositionHint.y : rect.bottom;
-        const x = Math.max(8, Math.min(sourceX, viewportWidth - width - 8));
-        const y = Math.max(8, Math.min(sourceY + 8, viewportHeight - height - 8));
-        this.linkPopoverPosition.set({ x, y });
-    }
-
-    insertLinkFromPopover(text: string, url: string): void {
-        if (url) {
-            this.onLinkInsert({ text: text || this.selectedText(), url });
-        }
-        this.closeLinkPopover();
-    }
-
-    closeLinkPopover(): void {
-        this.showLinkPopover.set(false);
-        this.selectedText.set('');
-        this.focusEditor();
+    /** Register the link editor {@link showLinkDialog} delegates to (addon host surface). */
+    registerLinkEditor(open: (caretHint?: { x: number; y: number }) => void): () => void {
+        this.linkEditorOpen = open;
+        return () => {
+            if (this.linkEditorOpen === open) {
+                this.linkEditorOpen = null;
+            }
+        };
     }
 
     private getSelectedTextLength(): number {

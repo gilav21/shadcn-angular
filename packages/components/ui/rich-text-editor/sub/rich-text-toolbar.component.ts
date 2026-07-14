@@ -76,7 +76,6 @@ export type ToolbarItem =
   | 'blockquote'
   | 'code'
   | 'codeBlock'
-  | 'link'
   | 'image'
   | 'separator'
   | 'undo'
@@ -114,7 +113,6 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'blockquote', label: 'Blockquote', localeKey: 'blockquote' },
   { id: 'code', label: 'Inline Code', localeKey: 'inlineCode' },
   { id: 'codeBlock', label: 'Code Block', localeKey: 'codeBlock' },
-  { id: 'link', label: 'Insert Link', localeKey: 'insertLink', shortcut: 'Ctrl+K' },
   { id: 'image', label: 'Insert Image', localeKey: 'insertImage' },
   { id: 'undo', label: 'Undo', localeKey: 'undo', shortcut: 'Ctrl+Z' },
   { id: 'redo', label: 'Redo', localeKey: 'redo', shortcut: 'Ctrl+Shift+Z' },
@@ -144,7 +142,6 @@ const ICONS: Record<string, string> = {
   blockquote: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v4z"/></svg>`,
   code: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
   codeBlock: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 9.5 8 12l2 2.5"/><path d="m14 9.5 2 2.5-2 2.5"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`,
-  link: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
   image: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`,
   undo: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
   redo: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`,
@@ -190,11 +187,10 @@ export class RichTextToolbarComponent {
     'separator',
     'bulletList', 'orderedList',
     'separator',
-    'link', 'image',
+    'image',
   ]);
 
   activeFormats = input<Set<string>>(new Set());
-  selectedText = input<string>('');
   compact = input<boolean>(false);
   class = input<string>('');
   disabled = input<boolean>(false);
@@ -202,7 +198,6 @@ export class RichTextToolbarComponent {
   locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
 
   formatCommand = output<string>();
-  linkInsert = output<{ text: string; url: string }>();
   imageInsert = output<{ alt: string; src: string }>();
   tableInsert = output<{ rows: number; cols: number }>();
   fileImport = output<File>();
@@ -325,13 +320,6 @@ export class RichTextToolbarComponent {
   onFormatClick(item: ToolbarItem): void {
     if (this.interactionDisabled()) return;
     this.formatCommand.emit(item);
-  }
-
-  onInsertLink(text: string, url: string): void {
-    if (this.interactionDisabled()) return;
-    if (url) {
-      this.linkInsert.emit({ text: text || 'Link', url });
-    }
   }
 
   onInsertImage(src: string, alt: string): void {

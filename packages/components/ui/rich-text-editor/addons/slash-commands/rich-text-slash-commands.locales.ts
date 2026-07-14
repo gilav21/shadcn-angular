@@ -33,8 +33,6 @@ export interface RichTextSlashCommandsLocale extends LocaleMeta {
     inlineCodeDescription: string;
     codeBlock: string;
     codeBlockDescription: string;
-    link: string;
-    linkDescription: string;
     undo: string;
     undoDescription: string;
     redo: string;
@@ -71,8 +69,6 @@ export const RICH_TEXT_SLASH_COMMANDS_LOCALES: Record<string, RichTextSlashComma
         inlineCodeDescription: 'Wrap selection in inline code',
         codeBlock: 'Code Block',
         codeBlockDescription: 'Insert a code block',
-        link: 'Link',
-        linkDescription: 'Insert or edit a link',
         undo: 'Undo',
         undoDescription: 'Undo last change',
         redo: 'Redo',
@@ -107,8 +103,6 @@ export const RICH_TEXT_SLASH_COMMANDS_LOCALES: Record<string, RichTextSlashComma
         inlineCodeDescription: 'עטיפת בחירה בקוד',
         codeBlock: 'בלוק קוד',
         codeBlockDescription: 'הוספת בלוק קוד',
-        link: 'קישור',
-        linkDescription: 'הוספה או עריכה של קישור',
         undo: 'ביטול',
         undoDescription: 'ביטול שינוי אחרון',
         redo: 'ביצוע חוזר',
@@ -143,8 +137,6 @@ export const RICH_TEXT_SLASH_COMMANDS_LOCALES: Record<string, RichTextSlashComma
         inlineCodeDescription: 'التفاف التحديد في كود',
         codeBlock: 'كتلة كود',
         codeBlockDescription: 'إدراج كتلة كود',
-        link: 'رابط',
-        linkDescription: 'إدراج أو تعديل رابط',
         undo: 'تراجع',
         undoDescription: 'التراجع عن آخر تغيير',
         redo: 'إعادة',
@@ -178,8 +170,6 @@ export const RICH_TEXT_SLASH_COMMANDS_LOCALES: Record<string, RichTextSlashComma
         inlineCodeDescription: 'Auswahl in Code einschließen',
         codeBlock: 'Codeblock',
         codeBlockDescription: 'Codeblock einfügen',
-        link: 'Link',
-        linkDescription: 'Link einfügen oder bearbeiten',
         undo: 'Rückgängig',
         undoDescription: 'Letzte Änderung rückgängig machen',
         redo: 'Wiederherstellen',
@@ -213,8 +203,6 @@ export const RICH_TEXT_SLASH_COMMANDS_LOCALES: Record<string, RichTextSlashComma
         inlineCodeDescription: 'Encadrer la sélection en code',
         codeBlock: 'Bloc de code',
         codeBlockDescription: 'Insérer un bloc de code',
-        link: 'Lien',
-        linkDescription: 'Insérer ou modifier un lien',
         undo: 'Annuler',
         undoDescription: 'Annuler la dernière modification',
         redo: 'Rétablir',
@@ -248,8 +236,6 @@ export const RICH_TEXT_SLASH_COMMANDS_LOCALES: Record<string, RichTextSlashComma
         inlineCodeDescription: 'Envolver selección en código',
         codeBlock: 'Bloque de código',
         codeBlockDescription: 'Insertar un bloque de código',
-        link: 'Enlace',
-        linkDescription: 'Insertar o editar un enlace',
         undo: 'Deshacer',
         undoDescription: 'Deshacer último cambio',
         redo: 'Rehacer',
@@ -283,8 +269,6 @@ export const RICH_TEXT_SLASH_COMMANDS_LOCALES: Record<string, RichTextSlashComma
         inlineCodeDescription: '選択範囲をコードで囲む',
         codeBlock: 'コードブロック',
         codeBlockDescription: 'コードブロックを挿入',
-        link: 'リンク',
-        linkDescription: 'リンクを挿入または編集',
         undo: '元に戻す',
         undoDescription: '最後の変更を元に戻す',
         redo: 'やり直し',
@@ -318,8 +302,6 @@ export const RICH_TEXT_SLASH_COMMANDS_LOCALES: Record<string, RichTextSlashComma
         inlineCodeDescription: '用代码包裹选中内容',
         codeBlock: '代码块',
         codeBlockDescription: '插入代码块',
-        link: '链接',
-        linkDescription: '插入或编辑链接',
         undo: '撤销',
         undoDescription: '撤销上一次更改',
         redo: '重做',
@@ -353,8 +335,6 @@ export const RICH_TEXT_SLASH_COMMANDS_LOCALES: Record<string, RichTextSlashComma
         inlineCodeDescription: 'Обернуть выделение в код',
         codeBlock: 'Блок кода',
         codeBlockDescription: 'Вставить блок кода',
-        link: 'Ссылка',
-        linkDescription: 'Вставить или изменить ссылку',
         undo: 'Отменить',
         undoDescription: 'Отменить последнее изменение',
         redo: 'Повторить',
@@ -388,8 +368,6 @@ export const RICH_TEXT_SLASH_COMMANDS_LOCALES: Record<string, RichTextSlashComma
         inlineCodeDescription: 'Envolver seleção em código',
         codeBlock: 'Bloco de código',
         codeBlockDescription: 'Inserir um bloco de código',
-        link: 'Link',
-        linkDescription: 'Inserir ou editar um link',
         undo: 'Desfazer',
         undoDescription: 'Desfazer última alteração',
         redo: 'Refazer',

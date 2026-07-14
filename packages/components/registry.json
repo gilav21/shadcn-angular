@@ -2223,7 +2223,8 @@
       "rich-text-editor/slash-commands",
       "rich-text-editor/history",
       "rich-text-editor/colors",
-      "rich-text-editor/typography"
+      "rich-text-editor/typography",
+      "rich-text-editor/links"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2309,6 +2310,14 @@
         "note": "The font-size and font-family dropdowns moved to the opt-in typography addon, dropping the 'autocomplete' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/typography`, add `uiRteTypography` to the editor element, and remove 'fontSize'/'fontFamily' from any custom [toolbarItems] arrays (the buttons now render after the built-in items). Map [fontFamilies]=\"fonts\" to [uiRteTypographyFamilies]=\"fonts\" and [fontFamiliesStrategy]=\"x\" to [uiRteTypographyFamiliesStrategy]=\"x\"; DEFAULT_FONT_FAMILIES and FontFamilyStrategy now export from the typography addon barrel. Font strings resolve from [uiRteTypographyLocale] (or the global UI_LOCALE_ID), not the editor's [locale].",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/typography"
+      },
+      {
+        "kind": "removal",
+        "from": "the 'link' toolbar item, its insert popover, the click-to-edit link popover, the Ctrl/Cmd+K shortcut action, and the /link slash command on <ui-rich-text-editor>",
+        "to": "the uiRteLinks directive",
+        "note": "The link insert/edit UI moved to the opt-in links addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/links`, add `uiRteLinks` to the editor element, and remove 'link' from any custom [toolbarItems] arrays (the button now renders after the built-in items). The base keeps the showLinkDialog host method and the Ctrl/Cmd+K shortcut definition as a delegation seam; both are inert without the addon. Existing link content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries a `link` section or `toolbar.insertLink`; link strings resolve from [uiRteLinksLocale] (or the global UI_LOCALE_ID). The /link slash command now appears only when both the slash-commands and links addons are present.",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/links"
       }
     ],
     "shortcutDefinitions": [
@@ -4139,6 +4148,52 @@
     "attach": {
       "import": "RichTextTypographyDirective from './ui/rich-text-editor/addons/typography'",
       "selector": "uiRteTypography"
+    }
+  },
+  "rich-text-editor/links": {
+    "name": "rich-text-editor/links",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "Link insert/edit for the rich text editor: toolbar popover, Ctrl+K, /link command, and click-to-edit with remove on existing links.",
+    "tags": [
+      "rich-text",
+      "link",
+      "anchor",
+      "toolbar",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/links/index.ts",
+      "rich-text-editor/addons/links/rich-text-links-button.component.html",
+      "rich-text-editor/addons/links/rich-text-links-button.component.ts",
+      "rich-text-editor/addons/links/rich-text-links-form.component.html",
+      "rich-text-editor/addons/links/rich-text-links-form.component.ts",
+      "rich-text-editor/addons/links/rich-text-links.context.ts",
+      "rich-text-editor/addons/links/rich-text-links.directive.ts",
+      "rich-text-editor/addons/links/rich-text-links.locales.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "button",
+      "popover",
+      "rich-text-editor"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts",
+      "rich-text-editor/rich-text-sanitizer.service.ts"
+    ],
+    "attach": {
+      "import": "RichTextLinksDirective from './ui/rich-text-editor/addons/links'",
+      "selector": "uiRteLinks"
     }
   }
 }

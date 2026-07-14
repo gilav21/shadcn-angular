@@ -7,54 +7,6 @@
   @for (item of items(); track $index) {
     @if (item === 'separator') {
       <ui-separator orientation="vertical" class="mx-1 h-6" />
-    } @else if (item === 'link') {
-      <ui-popover [open]="openPopover() === 'link'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('link') : closePopoverPanel('link')">
-        <ui-popover-trigger>
-          <button
-            type="button"
-            [class]="buttonClasses(item)"
-            [title]="getTooltip(item)"
-            [disabled]="interactionDisabled()"
-          >
-            <span [innerHTML]="getIcon('link')"></span>
-          </button>
-        </ui-popover-trigger>
-        <ui-popover-content class="w-80 max-sm:w-[calc(100vw-2rem)] p-4" align="start" strategy="fixed">
-          <div class="space-y-3">
-            <div>
-              <label for="tb-link-text" class="text-sm font-medium mb-1 block">{{ locale().link.text }}</label>
-              <input
-                #linkText
-                id="tb-link-text"
-                type="text"
-                [value]="selectedText()"
-                [placeholder]="locale().link.textPlaceholder"
-                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-            <div>
-              <label for="tb-link-url" class="text-sm font-medium mb-1 block">{{ locale().link.url }}</label>
-              <input
-                #linkUrl
-                id="tb-link-url"
-                type="url"
-                [placeholder]="locale().link.urlPlaceholder"
-                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              />
-            </div>
-            <ui-button
-              size="sm"
-              class="w-full"
-              [disabled]="interactionDisabled()"
-              (click)="onInsertLink(linkText.value, linkUrl.value)"
-              (keydown.enter)="onInsertLink(linkText.value, linkUrl.value)"
-              (keydown.space)="onInsertLink(linkText.value, linkUrl.value)"
-            >
-              {{ locale().link.insert }}
-            </ui-button>
-          </div>
-        </ui-popover-content>
-      </ui-popover>
     } @else if (item === 'image') {
       <ui-popover [open]="openPopover() === 'image'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('image') : closePopoverPanel('image')">
         <ui-popover-trigger>
