@@ -92,7 +92,7 @@ const meta: Meta<RichTextEditorComponent> = {
         toolbarItems: {
             control: false,
             description:
-                'Ordered list of toolbar item ids to render (e.g. bold, italic, fontFamily, backgroundColor, separator…). Defaults to the built-in toolbar set.',
+                'Ordered list of toolbar item ids to render (e.g. bold, italic, fontFamily, fontSize, separator…). Defaults to the built-in toolbar set.',
         },
         customToolbarItems: {
             control: false,
@@ -647,7 +647,7 @@ export const FontFamilyToolbar: Story = {
     args: {
         mode: 'html',
         toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize', 'separator', 'fontColor'],
+        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize'],
         placeholder: 'Select text and change its font family...',
         minHeight: '200px',
     },
@@ -655,23 +655,6 @@ export const FontFamilyToolbar: Story = {
         docs: {
             description: {
                 story: 'Toolbar with the font family dropdown. Select text and pick a typeface from the built-in web-safe list.',
-            },
-        },
-    },
-};
-
-export const BackgroundColorToolbar: Story = {
-    args: {
-        mode: 'html',
-        toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'fontColor', 'backgroundColor'],
-        placeholder: 'Select text and highlight it with a background color...',
-        minHeight: '200px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Toolbar with the background (highlight) color picker alongside the text color picker.',
             },
         },
     },

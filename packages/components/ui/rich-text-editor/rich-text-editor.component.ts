@@ -25,7 +25,6 @@ import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, fr
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { isValidImageDataUrl } from '../../lib/parsers/image-validator';
-import { parseColor, formatHex } from '../../lib/color';
 import { AiProvider, AiTask, runAiTask } from '../../lib/ai';
 import { RichTextToolbarComponent, ToolbarItem, DEFAULT_FONT_FAMILIES, FontFamilyStrategy } from './sub/rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './sub/rich-text-mention.component';
@@ -43,6 +42,8 @@ import {
     RichTextEditorAddonHost,
     type RichTextToolbarSlot,
     type RichTextSelectionSnapshot,
+    type RichTextSelectionInlineStyle,
+    type RichTextInlineStyle,
     type RichTextHistoryEntrySnapshot,
 } from './rich-text-editor.host';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
@@ -471,7 +472,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'alignLeft', 'alignCenter', 'alignRight',
     'separator',
-    'fontColor', 'backgroundColor', 'fontSize', 'fontFamily',
+    'fontSize', 'fontFamily',
     'separator',
     'link', 'image', 'importFile',
     'separator',
@@ -881,6 +882,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     currentFontFamily = signal<string>('');
     readonly currentFontColor = signal<string>('');
     readonly currentBackgroundColor = signal<string>('');
+    /** Inline style at the caret, exposed to the colors/typography addons as raw browser values. */
+    readonly selectionInlineStyle = computed<RichTextSelectionInlineStyle>(() => ({
+        color: this.currentFontColor(),
+        backgroundColor: this.currentBackgroundColor(),
+        fontSize: this.currentFontSize(),
+        fontFamily: this.currentFontFamily(),
+    }));
     showFloatingToolbar = signal<boolean>(false);
     floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly emptyFormats = new Set<string>();
@@ -2483,8 +2491,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    onColorSelect(event: { type: 'fontColor' | 'backgroundColor'; color: string }): void {
-        if (this.isReflectedColorEcho(event.type, event.color) || !this.hasColorTarget()) {
+    applyInlineStyle(style: RichTextInlineStyle): void {
+        if (style.color !== undefined || style.backgroundColor !== undefined) {
+            this.applySelectionColor(style.color, style.backgroundColor);
+        }
+        if (style.fontSize !== undefined) {
+            this.onFontSizeSelect(style.fontSize);
+        }
+        if (style.fontFamily !== undefined) {
+            this.onFontFamilySelect(style.fontFamily);
+        }
+    }
+
+    private applySelectionColor(color: string | undefined, backgroundColor: string | undefined): void {
+        if (!this.hasColorTarget()) {
             return;
         }
         this.flushPendingHistoryPush();
@@ -2496,14 +2516,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // of the deprecated `<font color>` tag `foreColor` produces by default, which the
         // sanitizer strips, so the colour would apply in the editor but vanish from the output.
         this.execEditorCommand('styleWithCSS', 'true');
-        if (event.type === 'fontColor') {
-            this.execEditorCommand('foreColor', event.color);
-            this.setMentionStyle(mentionTargets, 'color', event.color);
-        } else {
-            if (!this.execEditorCommand('hiliteColor', event.color)) {
-                this.execEditorCommand('backColor', event.color);
+        if (color !== undefined) {
+            this.execEditorCommand('foreColor', color);
+            this.setMentionStyle(mentionTargets, 'color', color);
+        }
+        if (backgroundColor !== undefined) {
+            if (!this.execEditorCommand('hiliteColor', backgroundColor)) {
+                this.execEditorCommand('backColor', backgroundColor);
             }
-            this.setMentionStyle(mentionTargets, 'backgroundColor', event.color);
+            this.setMentionStyle(mentionTargets, 'backgroundColor', backgroundColor);
         }
         this.execEditorCommand('styleWithCSS', 'false');
 
@@ -2537,23 +2558,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * True when an incoming color merely echoes the value the toolbar picker was
-     * just given to reflect the current selection (the color picker re-emits its
-     * programmatically-set value through `colorChange`). Applying it would run a
-     * `foreColor`/`hiliteColor` command on the selection and mutate content on a
-     * mere caret move, so the echo is ignored. A genuine user pick of a different
-     * color still differs from the reflected value and applies normally.
-     */
-    private isReflectedColorEcho(type: 'fontColor' | 'backgroundColor', color: string): boolean {
-        const current = type === 'fontColor' ? this.currentFontColor() : this.currentBackgroundColor();
-        return current !== '' && this.toHexColor(color) === this.toHexColor(current);
-    }
-
-    /**
      * True when there is a real selection/caret in the editor to apply a colour to.
-     * A colour command with no target is a no-op — and the toolbar's `ui-color-picker`
-     * emits a `colorChange` on init (its `currentColor()` effect fires on construction),
-     * which must NOT force-focus the editor and push an empty model value.
+     * A colour command with no target is a no-op, so `applyInlineStyle` skips it: a
+     * colour picker (e.g. the colours addon) can emit an initial value with no
+     * selection ever placed, which must NOT force-focus the editor and push an
+     * empty model value.
      */
     private hasColorTarget(): boolean {
         const editor = this.editorDiv?.nativeElement;
@@ -5142,21 +5151,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
         const computedStyle = view.getComputedStyle(element);
-        this.currentFontColor.set(this.toHexColor(computedStyle.color));
-        const backgroundColor = computedStyle.backgroundColor;
-        this.currentBackgroundColor.set(
-            this.isTransparentColor(backgroundColor) ? '' : this.toHexColor(backgroundColor)
-        );
-    }
-
-    private toHexColor(value: string): string {
-        const rgba = parseColor(value);
-        return rgba ? formatHex(rgba) : value;
-    }
-
-    private isTransparentColor(value: string): boolean {
-        const rgba = parseColor(value);
-        return !rgba || rgba.a === 0;
+        this.currentFontColor.set(computedStyle.color);
+        this.currentBackgroundColor.set(computedStyle.backgroundColor);
     }
 
     private updateFloatingToolbarPosition(): void {

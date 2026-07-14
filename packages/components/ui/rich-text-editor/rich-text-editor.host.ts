@@ -63,6 +63,35 @@ export interface RichTextHistoryEntrySnapshot {
     readonly lineCount: number;
 }
 
+/**
+ * An inline text style an addon applies to the current/saved selection. Each
+ * field is optional so a caller can set just the property it owns (the colors
+ * addon sends `color` or `backgroundColor`; typography sends `fontSize` or
+ * `fontFamily`).
+ */
+export interface RichTextInlineStyle {
+    /** CSS color, e.g. `#ff0000` — applied via `foreColor`. */
+    readonly color?: string;
+    /** CSS background color — applied via `hiliteColor`/`backColor`. */
+    readonly backgroundColor?: string;
+    /** CSS font size, e.g. `18px`. */
+    readonly fontSize?: string;
+    /** CSS font family, e.g. `Georgia`. */
+    readonly fontFamily?: string;
+}
+
+/**
+ * The inline style computed from the caret/current selection, as raw browser
+ * values (`rgb(...)`, `18px`, the first family). Addons normalize these as
+ * needed — e.g. the colors addon hex-normalizes `color`/`backgroundColor`.
+ */
+export interface RichTextSelectionInlineStyle {
+    readonly color: string;
+    readonly backgroundColor: string;
+    readonly fontSize: string;
+    readonly fontFamily: string;
+}
+
 /** A read-only snapshot of the editor's current selection / caret target. */
 export interface RichTextSelectionSnapshot {
     readonly kind: 'text' | 'image' | 'none';
@@ -113,6 +142,24 @@ export abstract class RichTextEditorAddonHost {
     abstract readonly readonly: Signal<boolean>;
     /** The contenteditable content root (for popover anchoring + scoped styles). */
     abstract readonly contentRoot: HTMLElement;
+
+    // ── Inline text-styling seam (colors, typography) ─────────────────
+
+    /**
+     * Apply an inline text style to the current (or last-saved) selection: for
+     * each property present, restore the right selection, run the matching
+     * `execCommand` path (foreColor / hiliteColor for colours, fontSize /
+     * fontName for typography), style any mention chips the command skips, and
+     * emit change events — recording one history entry per applied property.
+     * Callers set a single property per call, so this is normally one entry.
+     * The colour paths are a no-op when there is no selection/caret to target.
+     */
+    abstract applyInlineStyle(style: RichTextInlineStyle): void;
+    /**
+     * The inline style at the caret/current selection, as raw browser values.
+     * Recomputes as the selection moves; addons normalize the values they use.
+     */
+    abstract readonly selectionInlineStyle: Signal<RichTextSelectionInlineStyle>;
 
     // ── Slash-command / block seam ────────────────────────────────────
 

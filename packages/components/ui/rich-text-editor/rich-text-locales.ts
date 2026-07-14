@@ -20,8 +20,6 @@ export interface RichTextLocale extends LocaleMeta {
         undo: string;
         redo: string;
         clearFormatting: string;
-        textColor: string;
-        backgroundColor: string;
         fontSize: string;
         fontFamily: string;
         alignLeft: string;
@@ -74,11 +72,6 @@ export interface RichTextLocale extends LocaleMeta {
     fontFamily: {
         selectFamily: string;
         selectFamilyPlaceholder: string;
-    };
-
-    color: {
-        textColor: string;
-        highlightColor: string;
     };
 
     slashCommands: {
@@ -193,8 +186,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Undo',
             redo: 'Redo',
             clearFormatting: 'Clear Formatting',
-            textColor: 'Text Color',
-            backgroundColor: 'Background Color',
             fontSize: 'Font Size',
             fontFamily: 'Font Family',
             alignLeft: 'Align Left',
@@ -242,10 +233,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         fontFamily: {
             selectFamily: 'Select Font',
             selectFamilyPlaceholder: 'Search fonts...',
-        },
-        color: {
-            textColor: 'Text Color',
-            highlightColor: 'Highlight Color',
         },
         slashCommands: {
             outline: 'Outline',
@@ -351,8 +338,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'ביטול',
             redo: 'ביצוע חוזר',
             clearFormatting: 'ניקוי עיצוב',
-            textColor: 'צבע טקסט',
-            backgroundColor: 'צבע רקע',
             fontSize: 'גודל גופן',
             fontFamily: 'משפחת גופנים',
             alignLeft: 'יישור לשמאל',
@@ -400,10 +385,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         fontFamily: {
             selectFamily: 'בחירת גופן',
             selectFamilyPlaceholder: 'חיפוש גופנים...',
-        },
-        color: {
-            textColor: 'צבע טקסט',
-            highlightColor: 'צבע הדגשה',
         },
         slashCommands: {
             outline: 'תוכן עניינים',
@@ -509,8 +490,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'تراجع',
             redo: 'إعادة',
             clearFormatting: 'مسح التنسيق',
-            textColor: 'لون النص',
-            backgroundColor: 'لون الخلفية',
             fontSize: 'حجم الخط',
             fontFamily: 'نوع الخط',
             alignLeft: 'محاذاة لليسار',
@@ -558,10 +537,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         fontFamily: {
             selectFamily: 'اختيار الخط',
             selectFamilyPlaceholder: 'البحث عن خطوط...',
-        },
-        color: {
-            textColor: 'لون النص',
-            highlightColor: 'لون التمييز',
         },
         slashCommands: {
             outline: 'المخطط التفصيلي',
@@ -648,8 +623,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Rückgängig',
             redo: 'Wiederherstellen',
             clearFormatting: 'Formatierung löschen',
-            textColor: 'Textfarbe',
-            backgroundColor: 'Hintergrundfarbe',
             fontSize: 'Schriftgröße',
             fontFamily: 'Schriftart',
             alignLeft: 'Linksbündig',
@@ -697,10 +670,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         fontFamily: {
             selectFamily: 'Schriftart wählen',
             selectFamilyPlaceholder: 'Schriftarten suchen...',
-        },
-        color: {
-            textColor: 'Textfarbe',
-            highlightColor: 'Hervorhebungsfarbe',
         },
         slashCommands: {
             outline: 'Gliederung',
@@ -787,8 +756,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Annuler',
             redo: 'Rétablir',
             clearFormatting: 'Effacer la mise en forme',
-            textColor: 'Couleur du texte',
-            backgroundColor: 'Couleur de fond',
             fontSize: 'Taille de police',
             fontFamily: 'Police de caractères',
             alignLeft: 'Aligner à gauche',
@@ -836,10 +803,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         fontFamily: {
             selectFamily: 'Choisir la police',
             selectFamilyPlaceholder: 'Rechercher des polices...',
-        },
-        color: {
-            textColor: 'Couleur du texte',
-            highlightColor: 'Couleur de surlignage',
         },
         slashCommands: {
             outline: 'Plan',
@@ -926,8 +889,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Deshacer',
             redo: 'Rehacer',
             clearFormatting: 'Borrar formato',
-            textColor: 'Color de texto',
-            backgroundColor: 'Color de fondo',
             fontSize: 'Tamaño de fuente',
             fontFamily: 'Familia tipográfica',
             alignLeft: 'Alinear a la izquierda',
@@ -975,10 +936,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         fontFamily: {
             selectFamily: 'Seleccionar fuente',
             selectFamilyPlaceholder: 'Buscar fuentes...',
-        },
-        color: {
-            textColor: 'Color de texto',
-            highlightColor: 'Color de resaltado',
         },
         slashCommands: {
             outline: 'Esquema',
@@ -1065,8 +1022,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: '元に戻す',
             redo: 'やり直し',
             clearFormatting: '書式をクリア',
-            textColor: '文字色',
-            backgroundColor: '背景色',
             fontSize: 'フォントサイズ',
             fontFamily: 'フォント',
             alignLeft: '左揃え',
@@ -1114,10 +1069,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         fontFamily: {
             selectFamily: 'フォントを選択',
             selectFamilyPlaceholder: 'フォントを検索...',
-        },
-        color: {
-            textColor: '文字色',
-            highlightColor: 'ハイライト色',
         },
         slashCommands: {
             outline: 'アウトライン',
@@ -1204,8 +1155,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: '撤销',
             redo: '重做',
             clearFormatting: '清除格式',
-            textColor: '文字颜色',
-            backgroundColor: '背景颜色',
             fontSize: '字号',
             fontFamily: '字体',
             alignLeft: '左对齐',
@@ -1253,10 +1202,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         fontFamily: {
             selectFamily: '选择字体',
             selectFamilyPlaceholder: '搜索字体...',
-        },
-        color: {
-            textColor: '文字颜色',
-            highlightColor: '高亮颜色',
         },
         slashCommands: {
             outline: '大纲',
@@ -1343,8 +1288,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Отменить',
             redo: 'Повторить',
             clearFormatting: 'Очистить форматирование',
-            textColor: 'Цвет текста',
-            backgroundColor: 'Цвет фона',
             fontSize: 'Размер шрифта',
             fontFamily: 'Шрифт',
             alignLeft: 'По левому краю',
@@ -1392,10 +1335,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         fontFamily: {
             selectFamily: 'Выбрать шрифт',
             selectFamilyPlaceholder: 'Поиск шрифтов...',
-        },
-        color: {
-            textColor: 'Цвет текста',
-            highlightColor: 'Цвет выделения',
         },
         slashCommands: {
             outline: 'Структура',
@@ -1482,8 +1421,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undo: 'Desfazer',
             redo: 'Refazer',
             clearFormatting: 'Limpar formatação',
-            textColor: 'Cor do texto',
-            backgroundColor: 'Cor de fundo',
             fontSize: 'Tamanho da fonte',
             fontFamily: 'Família tipográfica',
             alignLeft: 'Alinhar à esquerda',
@@ -1531,10 +1468,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         fontFamily: {
             selectFamily: 'Selecionar fonte',
             selectFamilyPlaceholder: 'Pesquisar fontes...',
-        },
-        color: {
-            textColor: 'Cor do texto',
-            highlightColor: 'Cor de destaque',
         },
         slashCommands: {
             outline: 'Estrutura de tópicos',

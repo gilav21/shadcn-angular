@@ -2221,7 +2221,8 @@
       "rich-text-editor/actions",
       "rich-text-editor/emoji",
       "rich-text-editor/slash-commands",
-      "rich-text-editor/history"
+      "rich-text-editor/history",
+      "rich-text-editor/colors"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2245,7 +2246,6 @@
     "dependencies": [
       "autocomplete",
       "button",
-      "color-picker",
       "popover",
       "scroll-area",
       "separator"
@@ -2253,7 +2253,6 @@
     "libFiles": [
       "addon-slots.ts",
       "ai.ts",
-      "color.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
@@ -2278,6 +2277,14 @@
         "note": "The emoji picker moved to the opt-in emoji addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/emoji`, add `uiRteEmoji` to the editor element, and remove 'emoji' from any custom [toolbarItems] arrays (the button now renders after the built-in items).",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/emoji"
+      },
+      {
+        "kind": "removal",
+        "from": "the 'fontColor' + 'backgroundColor' toolbar items on <ui-rich-text-editor>",
+        "to": "the uiRteColors directive",
+        "note": "The text-colour and highlight-colour pickers moved to the opt-in colours addon, dropping the 'color-picker' dependency from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/colors`, add `uiRteColors` to the editor element, and remove 'fontColor'/'backgroundColor' from any custom [toolbarItems] arrays (the buttons now render after the built-in items). Existing coloured content keeps rendering with the base alone; only the picker UI is opt-in. Colour strings resolve from [uiRteColorsLocale] (or the global UI_LOCALE_ID), not the editor's [locale].",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/colors"
       },
       {
         "kind": "removal",
@@ -4037,6 +4044,50 @@
     "attach": {
       "import": "RichTextHistoryDirective from './ui/rich-text-editor/addons/history'",
       "selector": "uiRteHistory"
+    }
+  },
+  "rich-text-editor/colors": {
+    "name": "rich-text-editor/colors",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "Text-colour and highlight-colour toolbar buttons for the rich text editor; applies inline colour styles to the selection.",
+    "tags": [
+      "rich-text",
+      "color",
+      "highlight",
+      "toolbar",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/colors/index.ts",
+      "rich-text-editor/addons/colors/rich-text-colors-button.component.html",
+      "rich-text-editor/addons/colors/rich-text-colors-button.component.ts",
+      "rich-text-editor/addons/colors/rich-text-colors.context.ts",
+      "rich-text-editor/addons/colors/rich-text-colors.directive.ts",
+      "rich-text-editor/addons/colors/rich-text-colors.locales.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "color.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "color-picker",
+      "popover",
+      "rich-text-editor"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts"
+    ],
+    "attach": {
+      "import": "RichTextColorsDirective from './ui/rich-text-editor/addons/colors'",
+      "selector": "uiRteColors"
     }
   }
 }

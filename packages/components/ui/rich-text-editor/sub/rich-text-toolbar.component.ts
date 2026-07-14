@@ -20,7 +20,6 @@ import {
   PopoverContentComponent,
 } from '../../popover';
 import { AutocompleteComponent } from '../../autocomplete';
-import { ColorPickerComponent } from '../../color-picker';
 import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
 import { RichTextCustomToolbarItem } from '../rich-text-editor.component';
 import { RichTextToolbarViewContext, type RichTextToolbarSlot } from '../rich-text-editor.host';
@@ -47,8 +46,6 @@ import { RichTextToolbarViewContext, type RichTextToolbarSlot } from '../rich-te
  * - `'image'` — Opens an image insertion dialog.
  *
  * **Styling:**
- * - `'fontColor'` — Text color picker.
- * - `'backgroundColor'` — Background highlight color picker.
  * - `'fontSize'` — Font size selector dropdown.
  * - `'fontFamily'` — Font family selector dropdown.
  * - `'alignLeft'` / `'alignCenter'` / `'alignRight'` — Text alignment.
@@ -88,8 +85,6 @@ export type ToolbarItem =
   | 'undo'
   | 'redo'
   | 'clear'
-  | 'fontColor'
-  | 'backgroundColor'
   | 'fontSize'
   | 'alignLeft'
   | 'alignCenter'
@@ -129,8 +124,6 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'undo', label: 'Undo', localeKey: 'undo', shortcut: 'Ctrl+Z' },
   { id: 'redo', label: 'Redo', localeKey: 'redo', shortcut: 'Ctrl+Shift+Z' },
   { id: 'clear', label: 'Clear Formatting', localeKey: 'clearFormatting' },
-  { id: 'fontColor', label: 'Text Color', localeKey: 'textColor' },
-  { id: 'backgroundColor', label: 'Background Color', localeKey: 'backgroundColor' },
   { id: 'fontSize', label: 'Font Size', localeKey: 'fontSize' },
   { id: 'fontFamily', label: 'Font Family', localeKey: 'fontFamily' },
   { id: 'alignLeft', label: 'Align Left', localeKey: 'alignLeft' },
@@ -164,8 +157,6 @@ const ICONS: Record<string, string> = {
   redo: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`,
   clear: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>`,
   paragraph: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4v16"/><path d="M17 4v16"/><path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13"/></svg>`,
-  fontColor: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/></svg>`,
-  backgroundColor: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/></svg>`,
   fontSize: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>`,
   fontFamily: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14h-5"/><path d="M21 18h-5"/><path d="M17 14v8"/><path d="m3 16 4-8 4 8"/><path d="M4.5 14h5"/></svg>`,
   alignLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>`,
@@ -218,7 +209,6 @@ export type FontFamilyStrategy = 'append' | 'replace';
     PopoverTriggerComponent,
     PopoverContentComponent,
     AutocompleteComponent,
-    ColorPickerComponent,
     FormsModule,
     NgComponentOutlet,
   ],
@@ -245,12 +235,6 @@ export class RichTextToolbarComponent {
   selectedText = input<string>('');
   currentFontSize = input<string>('');
   currentFontFamily = input<string>('');
-  currentFontColor = input<string>('');
-  currentBackgroundColor = input<string>('');
-  /** Seeded from `currentFontColor`/`currentBackgroundColor` when the colour popover opens, then left
-   *  untouched while it is open so the reflected value never writes back over the user's live pick. */
-  readonly seededFontColor = signal('');
-  readonly seededBackgroundColor = signal('');
   fontFamilyOptions = input<string[]>(DEFAULT_FONT_FAMILIES);
   compact = input<boolean>(false);
   class = input<string>('');
@@ -261,7 +245,6 @@ export class RichTextToolbarComponent {
   formatCommand = output<string>();
   linkInsert = output<{ text: string; url: string }>();
   imageInsert = output<{ alt: string; src: string }>();
-  colorSelect = output<{ type: 'fontColor' | 'backgroundColor'; color: string }>();
   tableInsert = output<{ rows: number; cols: number }>();
   fileImport = output<File>();
   customItems = input<RichTextCustomToolbarItem[]>([]);
@@ -297,20 +280,6 @@ export class RichTextToolbarComponent {
 
   tableGridHoverRows = signal(0);
   tableGridHoverCols = signal(0);
-
-  colorPalette = [
-    '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#ffffff',
-    '#980000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff', '#4a86e8', '#0000ff',
-    '#9900ff', '#ff00ff', '#e6b8af', '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3',
-    '#c9daf8', '#cfe2f3', '#d9d2e9', '#ead1dc', '#dd7e6b', '#ea9999', '#f9cb9c', '#ffe599',
-  ];
-
-  highlightPalette = [
-    'transparent', '#ffffff', '#fef3c7', '#fef9c3', '#d9f99d', '#bbf7d0', '#a7f3d0', '#99f6e4',
-    '#a5f3fc', '#bae6fd', '#c7d2fe', '#ddd6fe', '#f5d0fe', '#fce7f3', '#fed7aa', '#fecaca',
-    '#fde68a', '#fef08a', '#d9f99d', '#bbf7d0', '#6ee7b7', '#5eead4', '#67e8f9', '#7dd3fc',
-    '#a5b4fc', '#c4b5fd', '#e879f9', '#f472b6', '#fb923c', '#f87171', '#facc15', '#a3e635',
-  ];
 
   fontSizeOptions = Array.from({ length: 33 }, (_, i) => 8 + i * 2);
 
@@ -424,11 +393,6 @@ export class RichTextToolbarComponent {
     }
   }
 
-  onColorSelect(type: 'fontColor' | 'backgroundColor', color: string): void {
-    if (this.interactionDisabled()) return;
-    this.colorSelect.emit({ type, color });
-  }
-
   onFontSizeSelect(size: string): void {
     if (this.interactionDisabled()) return;
     this.fontSizeSelect.emit(size);
@@ -447,12 +411,6 @@ export class RichTextToolbarComponent {
       if (currentFamily) {
         this.selectedFontFamily.set(currentFamily);
       }
-    }
-    if (popoverId === 'fontColor') {
-      this.seededFontColor.set(this.currentFontColor());
-    }
-    if (popoverId === 'backgroundColor') {
-      this.seededBackgroundColor.set(this.currentBackgroundColor());
     }
   }
 

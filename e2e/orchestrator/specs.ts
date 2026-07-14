@@ -133,6 +133,14 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/history'],
         label: 'rte-history',
     },
+    // addon system (rich-text): install the editor + its `colors` addon; prove
+    // the text- and highlight-colour buttons appear only on the addon editor and
+    // a pick applies an inline colour style to the selection (the base sheds the
+    // `color-picker` dependency entirely).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/colors'],
+        label: 'rte-colors',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

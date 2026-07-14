@@ -1239,8 +1239,8 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
-    describe('current colors', () => {
-        it('reflects the selection computed color into currentFontColor', () => {
+    describe('selection inline style + applyInlineStyle seam', () => {
+        it('reflects the selection computed color into selectionInlineStyle (raw)', () => {
             fixture.componentRef.setInput('mode', 'html');
             fixture.detectChanges();
 
@@ -1253,10 +1253,10 @@ describe('RichTextEditorComponent', () => {
 
             component['updateActiveFormats']();
 
-            expect(component['currentFontColor']().toLowerCase()).toContain('#2563eb');
+            expect(component.selectionInlineStyle().color).toContain('rgb(37, 99, 235)');
         });
 
-        it('reflects the selection computed background color into currentBackgroundColor', () => {
+        it('reflects the selection computed background color into selectionInlineStyle (raw)', () => {
             fixture.componentRef.setInput('mode', 'html');
             fixture.detectChanges();
 
@@ -1269,10 +1269,10 @@ describe('RichTextEditorComponent', () => {
 
             component['updateActiveFormats']();
 
-            expect(component['currentBackgroundColor']().toLowerCase()).toContain('#f97316');
+            expect(component.selectionInlineStyle().backgroundColor).toContain('rgb(249, 115, 22)');
         });
 
-        it('treats a transparent background as no active background color', () => {
+        it('exposes a transparent background as a raw transparent value (addon normalizes)', () => {
             fixture.componentRef.setInput('mode', 'html');
             fixture.detectChanges();
 
@@ -1285,29 +1285,10 @@ describe('RichTextEditorComponent', () => {
 
             component['updateActiveFormats']();
 
-            expect(component['currentBackgroundColor']()).toBe('');
+            expect(component.selectionInlineStyle().backgroundColor).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
         });
 
-        it('does not mutate content when the picker echoes the already-reflected color', () => {
-            fixture.componentRef.setInput('mode', 'html');
-            fixture.detectChanges();
-
-            editor.innerHTML = '<span style="color:#2563eb">SLA</span>';
-            editor.dispatchEvent(new Event('input', { bubbles: true }));
-            fixture.detectChanges();
-            const span = editor.querySelector('span') as HTMLElement;
-            selectAllOf(span);
-            component['updateActiveFormats']();
-            const before = editor.innerHTML;
-
-            // The color picker re-emits its programmatically-set value; this echo must be ignored.
-            component.onColorSelect({ type: 'fontColor', color: component['currentFontColor']() });
-
-            expect(editor.innerHTML).toBe(before);
-            expect(editor.innerHTML).not.toContain('<font');
-        });
-
-        it('still applies a genuinely different picked color', () => {
+        it('applies a font color to the selection via applyInlineStyle', () => {
             fixture.componentRef.setInput('mode', 'html');
             fixture.detectChanges();
 
@@ -1318,25 +1299,24 @@ describe('RichTextEditorComponent', () => {
             selectAllOf(span);
             component['updateActiveFormats']();
 
-            component.onColorSelect({ type: 'fontColor', color: '#ff0000' });
+            component.applyInlineStyle({ color: '#ff0000' });
             fixture.detectChanges();
 
             expect(editor.innerHTML).toContain('rgb(255, 0, 0)');
         });
 
-        it('ignores a color event with no selection so it cannot clobber the model on init', () => {
+        it('ignores a color with no selection so it cannot clobber the model on init', () => {
             fixture.componentRef.setInput('mode', 'html');
             fixture.detectChanges();
             component.writeValue('<p>Seeded content</p>');
             fixture.detectChanges();
 
-            // Simulate the color picker's construction-time colorChange echo: no
-            // selection/caret has ever been placed in the editor.
+            // No selection/caret has ever been placed in the editor.
             window.getSelection()?.removeAllRanges();
             let emitted: string | undefined;
             component.registerOnChange((v) => { emitted = v; });
 
-            component.onColorSelect({ type: 'fontColor', color: '#000000' });
+            component.applyInlineStyle({ color: '#000000' });
 
             expect(emitted).toBeUndefined();
             expect(editor.innerHTML).toContain('Seeded content');
@@ -1350,14 +1330,14 @@ describe('RichTextEditorComponent', () => {
             fixture.detectChanges();
             selectAllOf(editor.querySelector('p') as HTMLElement);
 
-            component.onColorSelect({ type: 'fontColor', color: '#ff0000' });
+            component.applyInlineStyle({ color: '#ff0000' });
             fixture.detectChanges();
             expect(editor.innerHTML).toContain('rgb(255, 0, 0)');
             expect(window.getSelection()?.isCollapsed).toBe(false);
 
-            // A second pick WITHOUT re-selecting still recolours — the colour command
+            // A second apply WITHOUT re-selecting still recolours — the colour command
             // must not focus the editor and collapse the selection.
-            component.onColorSelect({ type: 'fontColor', color: '#0000ff' });
+            component.applyInlineStyle({ color: '#0000ff' });
             fixture.detectChanges();
             expect(editor.innerHTML).toContain('rgb(0, 0, 255)');
             expect(window.getSelection()?.isCollapsed).toBe(false);
@@ -1371,7 +1351,7 @@ describe('RichTextEditorComponent', () => {
             fixture.detectChanges();
             selectAllOf(editor.querySelector('p') as HTMLElement);
 
-            component.onColorSelect({ type: 'fontColor', color: '#e67e22' });
+            component.applyInlineStyle({ color: '#e67e22' });
             fixture.detectChanges();
 
             expect(editor.innerHTML.toLowerCase()).not.toContain('<font');
@@ -1835,7 +1815,7 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         fixture.detectChanges();
         selectContents(editor.querySelector('p')!);
 
-        component.onColorSelect({ type: 'fontColor', color: '#ff0000' });
+        component.applyInlineStyle({ color: '#ff0000' });
 
         expect(editor.innerHTML.toLowerCase()).toMatch(/color|ff0000|rgb\(255/);
     });
@@ -1845,7 +1825,7 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         fixture.detectChanges();
         selectContents(editor.querySelector('p')!);
 
-        component.onColorSelect({ type: 'backgroundColor', color: '#00ff00' });
+        component.applyInlineStyle({ backgroundColor: '#00ff00' });
 
         expect(editor.innerHTML.toLowerCase()).toMatch(/background|00ff00|rgb\(0,\s*255/);
     });
@@ -2614,7 +2594,7 @@ describe('RichTextEditorComponent — mention styling during formatting', () => 
 
     it('font color sets the color style on mention chips', () => {
         selectAll();
-        component.onColorSelect({ type: 'fontColor', color: '#123456' });
+        component.applyInlineStyle({ color: '#123456' });
         const chip = editor.querySelector<HTMLElement>('[data-mention]')!;
         expect(chip.style.color).toMatch(/rgb\(18,\s*52,\s*86\)|#123456/);
     });

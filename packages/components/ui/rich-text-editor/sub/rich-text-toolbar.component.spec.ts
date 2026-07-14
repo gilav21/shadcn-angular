@@ -220,113 +220,11 @@ describe('RichTextToolbarComponent', () => {
             expect(emitted).toBe(false);
         });
 
-        it('emits colorSelect with type and color', () => {
-            let payload: { type: string; color: string } | undefined;
-            component.colorSelect.subscribe((p) => (payload = p));
-            component.onColorSelect('fontColor', '#ff0000');
-            expect(payload).toEqual({ type: 'fontColor', color: '#ff0000' });
-        });
-
         it('emits fontSizeSelect', () => {
             let size: string | undefined;
             component.fontSizeSelect.subscribe((s) => (size = s));
             component.onFontSizeSelect('18');
             expect(size).toBe('18');
-        });
-
-        it('renders a ui-color-picker with the text palette as presets in the fontColor popover', async () => {
-            fixture.componentRef.setInput('items', ['fontColor']);
-            fixture.detectChanges();
-            component.openPopoverPanel('fontColor');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const picker = fixture.nativeElement.querySelector('ui-color-picker');
-            expect(picker).not.toBeNull();
-        });
-
-        it('renders a ui-color-picker with alpha enabled in the backgroundColor popover', async () => {
-            fixture.componentRef.setInput('items', ['backgroundColor']);
-            fixture.detectChanges();
-            component.openPopoverPanel('backgroundColor');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const picker = fixture.nativeElement.querySelector('ui-color-picker');
-            expect(picker).not.toBeNull();
-        });
-
-        async function openColorPickerPresets(popoverId: 'fontColor' | 'backgroundColor'): Promise<HTMLElement> {
-            fixture.componentRef.setInput('items', [popoverId]);
-            fixture.detectChanges();
-            // The toolbar's own popover holds the inline color picker (single popover,
-            // no nested color-picker trigger) — opening it renders the preset swatches.
-            component.openPopoverPanel(popoverId);
-            fixture.detectChanges();
-            await fixture.whenStable();
-            return fixture.nativeElement;
-        }
-
-        function requireSwatch(root: HTMLElement, selector: string): HTMLButtonElement {
-            const swatch = root.querySelector<HTMLButtonElement>(selector);
-            if (!swatch) throw new Error(`No preset swatch matched "${selector}"`);
-            return swatch;
-        }
-
-        it('clicking a real text-palette preset swatch emits colorSelect via the color-picker', async () => {
-            const root = await openColorPickerPresets('fontColor');
-            const targetColor = component.colorPalette[1];
-            const swatch = requireSwatch(root, `button[data-color-btn][aria-label="Select ${targetColor}"]`);
-            expect(swatch).not.toBeNull();
-
-            let emitted: { type: string; color: string } | undefined;
-            component.colorSelect.subscribe((e) => (emitted = e));
-            swatch.click();
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            expect(emitted).toEqual({ type: 'fontColor', color: targetColor });
-        });
-
-        it('clicking the "transparent" background preset emits colorSelect with a fully-transparent color', async () => {
-            const root = await openColorPickerPresets('backgroundColor');
-            const swatch = requireSwatch(root, 'button[data-color-btn][aria-label="Select transparent"]');
-            expect(swatch).not.toBeNull();
-
-            let emitted: { type: string; color: string } | undefined;
-            component.colorSelect.subscribe((e) => (emitted = e));
-            swatch.click();
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            expect(emitted?.type).toBe('backgroundColor');
-            expect(emitted?.color).toBe('#00000000');
-        });
-
-        it('emits colorSelect when the color-picker changes color', () => {
-            fixture.componentRef.setInput('items', ['fontColor']);
-            fixture.detectChanges();
-            let emitted: { type: string; color: string } | undefined;
-            component.colorSelect.subscribe((e) => (emitted = e));
-            component.onColorSelect('fontColor', '#123456');
-            expect(emitted).toEqual({ type: 'fontColor', color: '#123456' });
-        });
-
-        it('seeds the color picker once on open and does not follow currentFontColor while open', () => {
-            fixture.componentRef.setInput('items', ['fontColor']);
-            fixture.componentRef.setInput('currentFontColor', '#111111');
-            fixture.detectChanges();
-
-            component.openPopoverPanel('fontColor');
-            expect(component.seededFontColor()).toBe('#111111');
-
-            // The reflected selection colour changes while the popover is open — the
-            // seed (and thus the picker) must NOT follow it, or a live pick snaps back.
-            fixture.componentRef.setInput('currentFontColor', '#222222');
-            fixture.detectChanges();
-            expect(component.seededFontColor()).toBe('#111111');
-
-            // Re-opening re-seeds from the now-current value.
-            component.openPopoverPanel('fontColor');
-            expect(component.seededFontColor()).toBe('#222222');
         });
 
         it('guards insert handlers when disabled', () => {
@@ -335,10 +233,8 @@ describe('RichTextToolbarComponent', () => {
             let count = 0;
             component.linkInsert.subscribe(() => count++);
             component.imageInsert.subscribe(() => count++);
-            component.colorSelect.subscribe(() => count++);
             component.onInsertLink('a', 'https://x.com');
             component.onInsertImage('https://x.com/a.png', 'a');
-            component.onColorSelect('fontColor', '#000');
             expect(count).toBe(0);
         });
     });
