@@ -6,7 +6,6 @@
     [readonly]="readonly()"
     [locale]="resolvedLocale()"
     (formatCommand)="onFormatCommand($event)"
-    (fileImport)="onFileImport($event)"
     [customItems]="customToolbarItems()"
     (customItemClick)="onCustomToolbarAction($event)"
     [addonSlots]="toolbarSlots.slots()"
@@ -146,18 +145,6 @@
 
   @if (dragOver()) {
     <div class="absolute inset-0 pointer-events-none border-2 border-dashed border-primary/60 rounded-md bg-primary/5"></div>
-  }
-
-  @if (fileImporting()) {
-    <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
-      <div class="text-sm text-muted-foreground">{{ resolvedLocale().editor.importingFile }}</div>
-    </div>
-  }
-
-  @if (fileImportErrorMessage()) {
-    <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
-      <div class="text-sm text-destructive font-medium">{{ fileImportErrorMessage() }}</div>
-    </div>
   }
 
   @if (toolbar() === 'floating' && !readonly() && showFloatingToolbar()) {

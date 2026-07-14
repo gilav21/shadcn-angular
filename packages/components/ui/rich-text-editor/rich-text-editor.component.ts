@@ -178,8 +178,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'alignLeft', 'alignCenter', 'alignRight',
     'separator',
-    'importFile',
-    'separator',
     'code', 'codeBlock',
     'separator',
     'horizontalRule',
@@ -409,10 +407,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Emits when the editor loses focus. */
     blurred = output<void>();
 
-    fileImportStart = output<File>();
-    fileImportComplete = output<string>();
-    fileImportError = output<string>();
-
     private readonly htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
     currentFontSize = signal<string>('');
@@ -432,8 +426,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     selectedImage = signal<HTMLImageElement | null>(null);
     selectedText = signal<string>('');
     dragOver = signal<boolean>(false);
-    fileImporting = signal<boolean>(false);
-    fileImportErrorMessage = signal('');
     tableContextMenuOpen = signal(false);
     tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
@@ -1118,8 +1110,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!hasFiles) return;
 
         const canAcceptAddon = this.dispatchDropZonePredicates(event);
-        const canAcceptDocument = this.canDropDocumentFile() && this.hasSupportedDocumentFile(event.dataTransfer);
-        if (!canAcceptAddon && !canAcceptDocument) return;
+        if (!canAcceptAddon) return;
 
         event.preventDefault();
         this.dragOver.set(true);
@@ -1152,16 +1143,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         if (this.dispatchDropInterceptors(event)) {
             return;
-        }
-
-        const files = Array.from(event.dataTransfer?.files ?? []);
-
-        const documentFile = this.canDropDocumentFile()
-            ? files.find(file => file.type === 'application/pdf' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.pdf') || file.name.endsWith('.docx'))
-            : undefined;
-        if (documentFile) {
-            event.preventDefault();
-            await this.onFileImport(documentFile);
         }
     }
 
@@ -1681,110 +1662,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             this.execEditorCommand('insertOrderedList');
             selection.collapseToEnd();
         }
-    }
-
-    async onFileImport(file: File): Promise<void> {
-        if (this.readonly() || this.disabled()) return;
-        this.flushPendingHistoryPush();
-
-        const header = new Uint8Array(await file.slice(0, 5).arrayBuffer());
-        const isZip = this.isZipHeader(header);
-        const isPdf = this.isPdfHeader(header);
-
-        if (!isZip && !isPdf) {
-            const msg = this.resolvedLocale().editor.importInvalidFile;
-            this.fileImportError.emit(msg);
-            this.showImportError(msg);
-            return;
-        }
-
-        await this.runFileImport(file, isZip);
-    }
-
-    private isZipHeader(header: Uint8Array): boolean {
-        return header.length >= 4 &&
-            header[0] === 0x50 && header[1] === 0x4B &&
-            header[2] === 0x03 && header[3] === 0x04;
-    }
-
-    private isPdfHeader(header: Uint8Array): boolean {
-        return header.length >= 5 &&
-            header[0] === 0x25 && header[1] === 0x50 &&
-            header[2] === 0x44 && header[3] === 0x46 &&
-            header[4] === 0x2D;
-    }
-
-    private async runFileImport(file: File, isZip: boolean): Promise<void> {
-        this.fileImporting.set(true);
-        this.fileImportStart.emit(file);
-
-        try {
-            if (isZip) {
-                await this.importDocx(file);
-            } else {
-                await this.importPdf(file);
-            }
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : this.resolvedLocale().editor.importFailed;
-            this.fileImportError.emit(message);
-            this.showImportError(message);
-        } finally {
-            this.fileImporting.set(false);
-        }
-    }
-
-    private async importDocx(file: File): Promise<void> {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        const { parseDocx } = await import('../../lib/parsers/docx-parser');
-        const { renderDocxForEditor } = await import('../../lib/parsers/docx-to-editor-html');
-        const result = parseDocx(bytes);
-        const html = renderDocxForEditor(result);
-        if (!html.trim()) {
-            const msg = this.resolvedLocale().editor.importFailed;
-            this.fileImportError.emit(msg);
-            this.showImportError(msg);
-            return;
-        }
-        this.restoreSelection();
-        this.insertHtml(html);
-        this.pushHistory();
-        this.fileImportComplete.emit(html);
-    }
-
-    private async importPdf(file: File): Promise<void> {
-        const buffer = await file.arrayBuffer();
-        const { parsePdf } = await import('../../lib/parsers/pdf-parser');
-        const result = await parsePdf(buffer);
-        if (!result.html.trim()) {
-            const msg = this.resolvedLocale().editor.importFailed;
-            this.fileImportError.emit(msg);
-            this.showImportError(msg);
-            return;
-        }
-        this.restoreSelection();
-        this.insertHtml(result.html);
-        this.pushHistory();
-        this.fileImportComplete.emit(result.html);
-    }
-
-    private showImportError(message: string): void {
-        this.fileImportErrorMessage.set(message);
-        setTimeout(() => this.fileImportErrorMessage.set(''), 4000);
-    }
-
-    private canDropDocumentFile(): boolean {
-        return this.toolbarItems().includes('importFile');
-    }
-
-    private hasSupportedDocumentFile(dataTransfer: DataTransfer | null): boolean {
-        if (!dataTransfer?.items) return true;
-        for (const item of Array.from(dataTransfer.items)) {
-            if (item.kind !== 'file') continue;
-            if (item.type === 'application/pdf' || item.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                return true;
-            }
-        }
-        return false;
     }
 
     insertTextFromOverlay(text: string): void {

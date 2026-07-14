@@ -184,6 +184,15 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/mentions'],
         label: 'rte-mentions',
     },
+    // addon system (rich-text): install the editor + its `file-import` addon;
+    // prove the import toolbar button + hidden .pdf/.docx picker exist only on the
+    // addon editor — the base ships no import UI or parser code (the docx/pdf
+    // parser lib files leave the base install with this addon). No extra component
+    // dependency; the addon rides the editor's own `button`/`separator`.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/file-import'],
+        label: 'rte-file-import',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

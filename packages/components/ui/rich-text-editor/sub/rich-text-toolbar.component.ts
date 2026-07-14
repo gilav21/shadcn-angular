@@ -75,7 +75,6 @@ export type ToolbarItem =
   | 'alignLeft'
   | 'alignCenter'
   | 'alignRight'
-  | 'importFile'
   | 'indent'
   | 'outdent'
   | 'taskList'
@@ -109,7 +108,6 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'alignLeft', label: 'Align Left', localeKey: 'alignLeft' },
   { id: 'alignCenter', label: 'Align Center', localeKey: 'alignCenter' },
   { id: 'alignRight', label: 'Align Right', localeKey: 'alignRight' },
-  { id: 'importFile', label: 'Import File', localeKey: 'importFile' },
   { id: 'indent', label: 'Increase Indent', localeKey: 'indent' },
   { id: 'outdent', label: 'Decrease Indent', localeKey: 'outdent' },
   { id: 'taskList', label: 'Task List', localeKey: 'taskList' },
@@ -137,7 +135,6 @@ const ICONS: Record<string, string> = {
   alignLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>`,
   alignCenter: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>`,
   alignRight: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg>`,
-  importFile: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>`,
   indent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8 7 12 3 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/></svg>`,
   outdent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 8 3 12 7 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/></svg>`,
   taskList: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>`,
@@ -178,7 +175,6 @@ export class RichTextToolbarComponent {
   locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
 
   formatCommand = output<string>();
-  fileImport = output<File>();
   customItems = input<RichTextCustomToolbarItem[]>([]);
   customItemClick = output<string>();
   addonSlots = input<readonly RichTextToolbarSlot[]>([]);
@@ -293,16 +289,6 @@ export class RichTextToolbarComponent {
   onFormatClick(item: ToolbarItem): void {
     if (this.interactionDisabled()) return;
     this.formatCommand.emit(item);
-  }
-
-  onFileSelect(event: Event): void {
-    if (this.interactionDisabled()) return;
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) {
-      this.fileImport.emit(file);
-      input.value = '';
-    }
   }
 
   onCustomItemClick(id: string): void {

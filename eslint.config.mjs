@@ -171,6 +171,7 @@ export default tseslint.config(
       'packages/components/ui/rich-text-editor/addons/tables/rich-text-tables-button.component.ts',
       'packages/components/ui/rich-text-editor/addons/images/rich-text-images-button.component.ts',
       'packages/components/ui/rich-text-editor/addons/images/rich-text-images-resizer.component.ts',
+      'packages/components/ui/rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts',
       'packages/components/ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
     ],
     rules: {

@@ -20,15 +20,6 @@ class CompactProbeComponent {
     protected readonly view = inject(RichTextToolbarViewContext, { optional: true });
 }
 
-function makeFileEvent(file: File | null): Event {
-    const input = document.createElement('input');
-    Object.defineProperty(input, 'files', {
-        value: file ? [file] : [],
-        configurable: true,
-    });
-    return { target: input } as unknown as Event;
-}
-
 describe('RichTextToolbarComponent', () => {
     let component: RichTextToolbarComponent;
     let fixture: ComponentFixture<RichTextToolbarComponent>;
@@ -181,37 +172,6 @@ describe('RichTextToolbarComponent', () => {
                 return component.getIcon('outdent');
             })();
             expect(String(indentRtl)).toBe(String(outdentLtr));
-        });
-    });
-
-    describe('file import', () => {
-        it('emits fileImport with the selected file and resets the input', () => {
-            const file = new File(['x'], 'doc.pdf', { type: 'application/pdf' });
-            let emitted: File | undefined;
-            component.fileImport.subscribe((f) => (emitted = f));
-
-            const event = makeFileEvent(file);
-            component.onFileSelect(event);
-
-            expect(emitted).toBe(file);
-            expect((event.target as HTMLInputElement).value).toBe('');
-        });
-
-        it('does not emit when no file is selected', () => {
-            let emitted = false;
-            component.fileImport.subscribe(() => (emitted = true));
-            component.onFileSelect(makeFileEvent(null));
-            expect(emitted).toBe(false);
-        });
-
-        it('does not emit fileImport when disabled', () => {
-            fixture.componentRef.setInput('disabled', true);
-            fixture.detectChanges();
-            let emitted = false;
-            component.fileImport.subscribe(() => (emitted = true));
-            const file = new File(['x'], 'doc.pdf');
-            component.onFileSelect(makeFileEvent(file));
-            expect(emitted).toBe(false);
         });
     });
 

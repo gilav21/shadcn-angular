@@ -127,6 +127,7 @@ re-scans.
 | `rich-text-editor/addons/typography/rich-text-typography-button.component.ts` | The trusted static `SIZE_ICON`/`FAMILY_ICON` SVG constants defined in the file. Never user input. |
 | `rich-text-editor/addons/links/rich-text-links-button.component.ts` | The trusted static `LINK_ICON` SVG constant defined in the file. Never user input. |
 | `rich-text-editor/addons/tables/rich-text-tables-button.component.ts` | The trusted static `TABLE_ICON` SVG constant defined in the file. Never user input. |
+| `rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts` | The trusted static `IMPORT_ICON` SVG constant defined in the file. Never user input. |
 
 > To suppress these in a client's SonarQube: mark each issue **Won't Fix** /
 > **Accepted** with a link to this file, or mirror the file/rule exclusion in

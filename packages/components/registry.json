@@ -2227,7 +2227,8 @@
       "rich-text-editor/links",
       "rich-text-editor/tables",
       "rich-text-editor/images",
-      "rich-text-editor/mentions"
+      "rich-text-editor/mentions",
+      "rich-text-editor/file-import"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2257,15 +2258,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
-      "parsers/docx-parser.ts",
-      "parsers/docx-to-editor-html.ts",
       "parsers/image-validator.ts",
-      "parsers/inflate.ts",
-      "parsers/pdf-parser.ts",
       "parsers/svg-sanitizer.ts",
-      "parsers/zip-reader.ts",
-      "shortcut-binding.service.ts",
-      "touch.ts"
+      "shortcut-binding.service.ts"
     ],
     "breaking": [
       {
@@ -2339,6 +2334,14 @@
         "note": "The whole @mention / #tag authoring feature (trigger detection, async search popover, keyboard nav, and entity insertion) moved to the opt-in mentions addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/mentions`, add `uiRteMentions` to the editor element, and remap the inputs/outputs to the uiRteMentions*/uiRteTags* prefix: [mentions] is replaced by adding the directive; [mentionSearch]->[uiRteMentionsSearch], [mentionRender]->[uiRteMentionsRender], [tags]->[uiRteTags], [tagSearch]->[uiRteTagsSearch], [tagRender]->[uiRteTagsRender]. The (mentionInsert)/(tagInsert) outputs move onto the directive with the same names. Import MentionItem, TagItem, RichTextEntityRenderOptions, RichTextEntityInsertEvent (and the other RichTextEntity* types) from the addon barrel (`.../addons/mentions`) instead of the base package. Content-level rendering stays in the base — the sanitizer keeps allowing `data-mention`/`data-tag` chips and the colour/typography addons still style them — so existing mention/tag content keeps rendering with the base alone; only the authoring UI is opt-in. The base RichTextLocale no longer carries the `mentions` section; popover strings resolve from [uiRteMentionsLocale] (or the global UI_LOCALE_ID), not the editor's [locale].",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/mentions"
+      },
+      {
+        "kind": "removal",
+        "from": "the 'importFile' toolbar item, its hidden .pdf/.docx picker, document drag-and-drop import, and the (fileImportStart)/(fileImportComplete)/(fileImportError) outputs on <ui-rich-text-editor>",
+        "to": "the uiRteFileImport directive",
+        "note": "The DOCX/PDF import feature (toolbar import button, document drag-and-drop, the lazy-loaded docx/pdf parsers, and the busy/error overlay) moved to the opt-in file-import addon, removing the `docx-parser`, `docx-to-editor-html`, `zip-reader`, `inflate`, and `pdf-parser` lib files from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/file-import`, add `uiRteFileImport` to the editor element, and remove 'importFile' from any custom [toolbarItems] arrays (the button now renders after the built-in items). The (fileImportStart)/(fileImportComplete)/(fileImportError) outputs move onto the directive with the same names. No component dependency changes. Import strings resolve from [uiRteFileImportLocale] (or the global UI_LOCALE_ID), not the editor's [locale]; the base RichTextLocale no longer carries `toolbar.importFile` or the `editor.importingFile`/`importFailed`/`importInvalidFile` keys.",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/file-import"
       }
     ],
     "shortcutDefinitions": [
@@ -4343,8 +4346,8 @@
       "i18n/index.ts"
     ],
     "dependencies": [
-      "scroll-area",
-      "rich-text-editor"
+      "rich-text-editor",
+      "scroll-area"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
@@ -4353,6 +4356,58 @@
     "attach": {
       "import": "RichTextMentionsDirective from './ui/rich-text-editor/addons/mentions'",
       "selector": "uiRteMentions"
+    }
+  },
+  "rich-text-editor/file-import": {
+    "name": "rich-text-editor/file-import",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "DOCX/PDF import for the rich text editor: toolbar import button, document drag-and-drop, lazy-loaded parsers, and a busy/error overlay.",
+    "tags": [
+      "rich-text",
+      "import",
+      "docx",
+      "pdf",
+      "toolbar",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/file-import/index.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import-button.component.html",
+      "rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.html",
+      "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import.context.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import.directive.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import.locales.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import.utils.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
+      "parsers/docx-parser.ts",
+      "parsers/docx-to-editor-html.ts",
+      "parsers/image-validator.ts",
+      "parsers/inflate.ts",
+      "parsers/pdf-parser.ts",
+      "parsers/zip-reader.ts"
+    ],
+    "dependencies": [
+      "rich-text-editor"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts",
+      "rich-text-editor/rich-text-sanitizer.service.ts"
+    ],
+    "attach": {
+      "import": "RichTextFileImportDirective from './ui/rich-text-editor/addons/file-import'",
+      "selector": "uiRteFileImport"
     }
   }
 }

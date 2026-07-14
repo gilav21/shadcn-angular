@@ -21,7 +21,6 @@ export interface RichTextLocale extends LocaleMeta {
         alignLeft: string;
         alignCenter: string;
         alignRight: string;
-        importFile: string;
         indent: string;
         outdent: string;
         taskList: string;
@@ -103,9 +102,6 @@ export interface RichTextLocale extends LocaleMeta {
     editor: {
         placeholder: string;
         ariaLabel: string;
-        importingFile: string;
-        importFailed: string;
-        importInvalidFile: string;
         characters: string;
         words: string;
         formattingOptions: string;
@@ -135,7 +131,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Align Left',
             alignCenter: 'Align Center',
             alignRight: 'Align Right',
-            importFile: 'Import File',
             indent: 'Increase Indent',
             outdent: 'Decrease Indent',
             taskList: 'Task List',
@@ -207,9 +202,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         editor: {
             placeholder: 'Write something...',
             ariaLabel: 'Rich text editor',
-            importingFile: 'Importing file...',
-            importFailed: 'Failed to import file. The file may be unsupported or corrupted.',
-            importInvalidFile: 'The selected file is not a valid PDF or DOCX.',
             characters: '{count} characters',
             words: '{count} words',
             formattingOptions: 'Formatting options',
@@ -238,7 +230,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'יישור לשמאל',
             alignCenter: 'יישור למרכז',
             alignRight: 'יישור לימין',
-            importFile: 'ייבוא קובץ',
             indent: 'הגדלת הזחה',
             outdent: 'הקטנת הזחה',
             taskList: 'רשימת משימות',
@@ -310,9 +301,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         editor: {
             placeholder: 'ניתן לכתוב כאן...',
             ariaLabel: 'עורך טקסט עשיר',
-            importingFile: '...מייבא קובץ',
-            importFailed: 'ייבוא הקובץ נכשל. הקובץ עשוי להיות לא נתמך או פגום.',
-            importInvalidFile: 'הקובץ שנבחר אינו קובץ PDF או DOCX תקין.',
             characters: '{count} תווים',
             words: '{count} מילים',
             formattingOptions: 'אפשרויות עיצוב',
@@ -341,7 +329,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'محاذاة لليسار',
             alignCenter: 'محاذاة للوسط',
             alignRight: 'محاذاة لليمين',
-            importFile: 'استيراد ملف',
             indent: 'زيادة المسافة البادئة',
             outdent: 'تقليل المسافة البادئة',
             taskList: 'قائمة المهام',
@@ -395,9 +382,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         editor: {
             placeholder: 'الكتابة هنا...',
             ariaLabel: 'محرر نص منسق',
-            importingFile: '...جارٍ استيراد الملف',
-            importFailed: 'فشل استيراد الملف. قد يكون الملف غير مدعوم أو تالفاً.',
-            importInvalidFile: 'الملف المحدد ليس ملف PDF أو DOCX صالحاً.',
             characters: '{count} حرف',
             words: '{count} كلمة',
             formattingOptions: 'خيارات التنسيق',
@@ -425,7 +409,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Linksbündig',
             alignCenter: 'Zentriert',
             alignRight: 'Rechtsbündig',
-            importFile: 'Datei importieren',
             indent: 'Einzug vergrößern',
             outdent: 'Einzug verkleinern',
             taskList: 'Aufgabenliste',
@@ -479,9 +462,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         editor: {
             placeholder: 'Schreiben Sie etwas...',
             ariaLabel: 'Rich-Text-Editor',
-            importingFile: 'Datei wird importiert...',
-            importFailed: 'Datei-Import fehlgeschlagen. Die Datei wird möglicherweise nicht unterstützt oder ist beschädigt.',
-            importInvalidFile: 'Die ausgewählte Datei ist keine gültige PDF- oder DOCX-Datei.',
             characters: '{count} Zeichen',
             words: '{count} Wörter',
             formattingOptions: 'Formatierungsoptionen',
@@ -509,7 +489,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Aligner à gauche',
             alignCenter: 'Centrer',
             alignRight: 'Aligner à droite',
-            importFile: 'Importer un fichier',
             indent: 'Augmenter le retrait',
             outdent: 'Diminuer le retrait',
             taskList: 'Liste de tâches',
@@ -563,9 +542,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         editor: {
             placeholder: 'Écrivez quelque chose...',
             ariaLabel: 'Éditeur de texte enrichi',
-            importingFile: 'Importation du fichier...',
-            importFailed: 'Échec de l\'importation du fichier. Le fichier est peut-être non pris en charge ou corrompu.',
-            importInvalidFile: 'Le fichier sélectionné n\'est pas un PDF ou DOCX valide.',
             characters: '{count} caractères',
             words: '{count} mots',
             formattingOptions: 'Options de mise en forme',
@@ -593,7 +569,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Alinear a la izquierda',
             alignCenter: 'Centrar',
             alignRight: 'Alinear a la derecha',
-            importFile: 'Importar archivo',
             indent: 'Aumentar sangría',
             outdent: 'Disminuir sangría',
             taskList: 'Lista de tareas',
@@ -647,9 +622,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         editor: {
             placeholder: 'Escribe algo...',
             ariaLabel: 'Editor de texto enriquecido',
-            importingFile: 'Importando archivo...',
-            importFailed: 'Error al importar archivo. El archivo puede no ser compatible o estar dañado.',
-            importInvalidFile: 'El archivo seleccionado no es un PDF o DOCX válido.',
             characters: '{count} caracteres',
             words: '{count} palabras',
             formattingOptions: 'Opciones de formato',
@@ -677,7 +649,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: '左揃え',
             alignCenter: '中央揃え',
             alignRight: '右揃え',
-            importFile: 'ファイルをインポート',
             indent: 'インデントを増やす',
             outdent: 'インデントを減らす',
             taskList: 'タスクリスト',
@@ -731,9 +702,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         editor: {
             placeholder: '何か書いてください...',
             ariaLabel: 'リッチテキストエディター',
-            importingFile: 'ファイルをインポート中...',
-            importFailed: 'ファイルのインポートに失敗しました。ファイルがサポートされていないか破損している可能性があります。',
-            importInvalidFile: '選択されたファイルは有効なPDFまたはDOCXではありません。',
             characters: '{count} 文字',
             words: '{count} 語',
             formattingOptions: '書式設定オプション',
@@ -761,7 +729,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: '左对齐',
             alignCenter: '居中对齐',
             alignRight: '右对齐',
-            importFile: '导入文件',
             indent: '增加缩进',
             outdent: '减少缩进',
             taskList: '任务列表',
@@ -815,9 +782,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         editor: {
             placeholder: '写点什么...',
             ariaLabel: '富文本编辑器',
-            importingFile: '正在导入文件...',
-            importFailed: '文件导入失败。文件可能不受支持或已损坏。',
-            importInvalidFile: '所选文件不是有效的PDF或DOCX文件。',
             characters: '{count} 个字符',
             words: '{count} 个词',
             formattingOptions: '格式选项',
@@ -845,7 +809,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'По левому краю',
             alignCenter: 'По центру',
             alignRight: 'По правому краю',
-            importFile: 'Импорт файла',
             indent: 'Увеличить отступ',
             outdent: 'Уменьшить отступ',
             taskList: 'Список задач',
@@ -899,9 +862,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         editor: {
             placeholder: 'Напишите что-нибудь...',
             ariaLabel: 'Редактор форматированного текста',
-            importingFile: 'Импорт файла...',
-            importFailed: 'Не удалось импортировать файл. Файл может быть неподдерживаемым или повреждённым.',
-            importInvalidFile: 'Выбранный файл не является допустимым PDF или DOCX.',
             characters: '{count} символов',
             words: '{count} слов',
             formattingOptions: 'Параметры форматирования',
@@ -929,7 +889,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Alinhar à esquerda',
             alignCenter: 'Centralizar',
             alignRight: 'Alinhar à direita',
-            importFile: 'Importar arquivo',
             indent: 'Aumentar recuo',
             outdent: 'Diminuir recuo',
             taskList: 'Lista de tarefas',
@@ -983,9 +942,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         editor: {
             placeholder: 'Escreva algo...',
             ariaLabel: 'Editor de texto rico',
-            importingFile: 'Importando arquivo...',
-            importFailed: 'Falha ao importar arquivo. O arquivo pode não ser suportado ou estar corrompido.',
-            importInvalidFile: 'O arquivo selecionado não é um PDF ou DOCX válido.',
             characters: '{count} caracteres',
             words: '{count} palavras',
             formattingOptions: 'Opções de formatação',

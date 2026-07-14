@@ -1,0 +1,264 @@
+import { Component, signal } from '@angular/core';
+import { By } from '@angular/platform-browser';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { RichTextEditorComponent } from '../../rich-text-editor.component';
+import { RichTextFileImportDirective } from './rich-text-file-import.directive';
+import { RichTextFileImportButtonComponent } from './rich-text-file-import-button.component';
+import type { RichTextFileImportButtonContext } from './rich-text-file-import.context';
+
+// Minimal ZIP writer so a real .docx (a ZIP of `word/document.xml`) can be built
+// in-code and driven through the actual docx parser — the same fixture the base
+// editor spec used before the feature moved into this addon.
+const CRC_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+        let c = i;
+        for (let j = 0; j < 8; j++) {
+            c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+        }
+        table[i] = c;
+    }
+    return table;
+})();
+const crc32 = (data: Uint8Array): number => {
+    let crc = 0xffffffff;
+    for (const byte of data) {
+        crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+};
+const u16 = (n: number): number[] => [n & 0xff, (n >>> 8) & 0xff];
+const u32 = (n: number): number[] => [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff];
+
+const makeZip = (files: ReadonlyArray<{ name: string; content: string }>): Uint8Array => {
+    const enc = new TextEncoder();
+    const entries = files.map(f => ({ name: f.name, data: enc.encode(f.content) }));
+    const localChunks: number[] = [];
+    const central: number[] = [];
+    const offsets: number[] = [];
+    let offset = 0;
+    for (const entry of entries) {
+        const nameBytes = enc.encode(entry.name);
+        const crc = crc32(entry.data);
+        offsets.push(offset);
+        const local = [
+            ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+            ...u32(crc), ...u32(entry.data.length), ...u32(entry.data.length),
+            ...u16(nameBytes.length), ...u16(0), ...nameBytes, ...entry.data,
+        ];
+        localChunks.push(...local);
+        offset += local.length;
+    }
+    const centralStart = offset;
+    for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const nameBytes = enc.encode(entry.name);
+        const crc = crc32(entry.data);
+        central.push(
+            ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+            ...u32(crc), ...u32(entry.data.length), ...u32(entry.data.length),
+            ...u16(nameBytes.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0),
+            ...u32(offsets[i]), ...nameBytes,
+        );
+    }
+    const eocd = [
+        ...u32(0x06054b50), ...u16(0), ...u16(0),
+        ...u16(entries.length), ...u16(entries.length),
+        ...u32(central.length), ...u32(centralStart), ...u16(0),
+    ];
+    return new Uint8Array([...localChunks, ...central, ...eocd]);
+};
+
+const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+function docxFile(text = 'Imported DOCX text'): File {
+    const documentXml =
+        `<?xml version="1.0"?><w:document ${W}><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:body></w:document>`;
+    const bytes = makeZip([{ name: 'word/document.xml', content: documentXml }]);
+    return new File([bytes], 'in.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextFileImportDirective],
+    template: `<ui-rich-text-editor mode="html" [disabled]="disabled()" [readonly]="readonly()"
+        uiRteFileImport [uiRteFileImportLocale]="locale()"
+        (fileImportStart)="starts.push($event)"
+        (fileImportComplete)="completes.push($event)"
+        (fileImportError)="errors.push($event)"></ui-rich-text-editor>`,
+})
+class HostCmp {
+    readonly disabled = signal(false);
+    readonly readonly = signal(false);
+    readonly locale = signal<string | undefined>(undefined);
+    starts: File[] = [];
+    completes: string[] = [];
+    errors: string[] = [];
+}
+
+type ButtonProbe = { context: RichTextFileImportButtonContext };
+
+describe('RichTextFileImportDirective', () => {
+    const fixtures: ComponentFixture<HostCmp>[] = [];
+
+    function createFixture(): ComponentFixture<HostCmp> {
+        const fixture = TestBed.createComponent(HostCmp);
+        fixtures.push(fixture);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    function editorOf(fixture: ComponentFixture<HostCmp>): { el: HTMLElement; cmp: RichTextEditorComponent } {
+        const cmp = fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .componentInstance as RichTextEditorComponent;
+        const el = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        return { el, cmp };
+    }
+
+    function buttonContext(fixture: ComponentFixture<HostCmp>): RichTextFileImportButtonContext {
+        const probe = fixture.debugElement.query(By.directive(RichTextFileImportButtonComponent))
+            .componentInstance as unknown as ButtonProbe;
+        return probe.context;
+    }
+
+    function setContent(fixture: ComponentFixture<HostCmp>, html: string): { el: HTMLElement } {
+        const ctx = editorOf(fixture);
+        ctx.el.innerHTML = html;
+        ctx.el.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+        return { el: ctx.el };
+    }
+
+    function caretAtEnd(el: HTMLElement): void {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = document.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+    }
+
+    function dropEvent(files: File[]): DragEvent {
+        return {
+            preventDefault: vi.fn(),
+            dataTransfer: {
+                types: ['Files'],
+                files: files as unknown as FileList,
+                items: files.map((f) => ({ kind: 'file', type: f.type })) as unknown as DataTransferItemList,
+            } as unknown as DataTransfer,
+        } as unknown as DragEvent;
+    }
+
+    const wait = (ms = 50): Promise<void> => new Promise((r) => setTimeout(r, ms));
+
+    // Parsing lazily `import()`s the docx/pdf chunks, which can take well over a
+    // fixed 50ms under parallel test load — poll until the condition holds.
+    async function waitUntil(predicate: () => boolean, timeout = 3000): Promise<void> {
+        const start = Date.now();
+        while (!predicate() && Date.now() - start < timeout) {
+            await wait(20);
+        }
+    }
+
+    afterEach(() => {
+        for (const f of fixtures) {
+            f.nativeElement.remove();
+            f.destroy();
+        }
+        fixtures.length = 0;
+    });
+
+    it('registers the import toolbar slot and renders the button', () => {
+        const fixture = createFixture();
+        const { cmp } = editorOf(fixture);
+        expect(cmp.toolbarSlots.slots().some((s) => s.id === 'file-import.import')).toBe(true);
+        expect(fixture.debugElement.query(By.directive(RichTextFileImportButtonComponent))).toBeTruthy();
+    });
+
+    it('imports a DOCX file and inserts its text, emitting fileImportComplete', async () => {
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>x</p>');
+        caretAtEnd(el);
+        buttonContext(fixture).onImport(docxFile());
+        await waitUntil(() => fixture.componentInstance.completes.length > 0);
+        fixture.detectChanges();
+
+        expect(el.textContent).toContain('Imported DOCX text');
+        expect(fixture.componentInstance.completes).toHaveLength(1);
+        expect(fixture.componentInstance.starts).toHaveLength(1);
+    });
+
+    it('emits fileImportError and shows the overlay for a non-zip/non-pdf file', async () => {
+        const fixture = createFixture();
+        buttonContext(fixture).onImport(new File([new Uint8Array([1, 2, 3, 4, 5])], 'note.txt', { type: 'text/plain' }));
+        await waitUntil(() => fixture.componentInstance.errors.length > 0);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.errors).toContain('The selected file is not a valid PDF or DOCX.');
+        expect(fixture.nativeElement.querySelector('[data-slot="rte-file-import-error"]')).toBeTruthy();
+    });
+
+    it('recognises a PDF header and fires fileImportStart', async () => {
+        const fixture = createFixture();
+        const host = fixture.componentInstance;
+        // %PDF- magic bytes; the parser will fail on this stub, but start must fire.
+        const file = new File([new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31])], 'doc.pdf', { type: 'application/pdf' });
+        buttonContext(fixture).onImport(file);
+        await waitUntil(() => host.starts.length > 0);
+        expect(host.starts).toContain(file);
+        // Let the parse settle (it errors on the stub) so the async emit doesn't
+        // fire after the fixture is torn down.
+        await waitUntil(() => host.errors.length > 0 || host.completes.length > 0);
+    });
+
+    it('imports a DOCX dropped onto the editor', async () => {
+        const fixture = createFixture();
+        const { el, cmp } = editorOf(fixture);
+        el.innerHTML = '<p>x</p>';
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        caretAtEnd(el);
+        await cmp.onEditorDrop(dropEvent([docxFile('Dropped DOCX')]));
+        await waitUntil(() => fixture.componentInstance.completes.length > 0);
+        fixture.detectChanges();
+
+        expect(el.textContent).toContain('Dropped DOCX');
+        expect(fixture.componentInstance.completes).toHaveLength(1);
+    });
+
+    it('highlights the drop zone when a document drag enters', () => {
+        const fixture = createFixture();
+        const { cmp } = editorOf(fixture);
+        cmp.onEditorDragOver(dropEvent([docxFile()]));
+        expect(cmp.dragOver()).toBe(true);
+    });
+
+    it('does not import a dropped document when readonly', async () => {
+        const fixture = createFixture();
+        fixture.componentInstance.readonly.set(true);
+        fixture.detectChanges();
+        const { cmp } = editorOf(fixture);
+        await cmp.onEditorDrop(dropEvent([docxFile()]));
+        await wait();
+        expect(fixture.componentInstance.starts).toHaveLength(0);
+    });
+
+    it('does not import when disabled', async () => {
+        const fixture = createFixture();
+        fixture.componentInstance.disabled.set(true);
+        fixture.detectChanges();
+        buttonContext(fixture).onImport(docxFile());
+        await wait();
+        expect(fixture.componentInstance.starts).toHaveLength(0);
+    });
+
+    it('resolves Hebrew locale strings for the button and RTL flag', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.locale.set('he');
+        fixture.detectChanges();
+        const ctx = buttonContext(fixture);
+        expect(ctx.locale().tooltip).toBe('ייבוא קובץ');
+        expect(ctx.locale().rtl).toBe(true);
+        expect(ctx.accept()).toBe('.pdf,.docx');
+    });
+});
