@@ -421,38 +421,179 @@ export interface RegistryEntry {
     isBlock: boolean;
 }
 
+/** Skip a string literal starting at `start` (a quote); returns the index after the closing quote. */
+function skipStringLiteral(source: string, start: number): number {
+    const quote = source[start];
+    let i = start + 1;
+    while (i < source.length) {
+        if (source[i] === '\\') i += 2;
+        else if (source[i] === quote) return i + 1;
+        else i += 1;
+    }
+    return i;
+}
+
+/** Skip a line or block comment starting at `start`; returns the index after it (or `start` if not a comment). */
+function skipComment(source: string, start: number): number {
+    if (source[start] !== '/') return start;
+    if (source[start + 1] === '/') {
+        const nl = source.indexOf('\n', start);
+        return nl === -1 ? source.length : nl + 1;
+    }
+    if (source[start + 1] === '*') {
+        const close = source.indexOf('*/', start + 2);
+        return close === -1 ? source.length : close + 2;
+    }
+    return start;
+}
+
+/**
+ * Extract the balanced `{…}` object literal starting at `open` (the index of
+ * the `{`), skipping string literals and comments so braces inside them never
+ * unbalance the scan. Returns the literal including both braces, or null if
+ * the source ends before it balances.
+ */
+function extractObjectLiteral(source: string, open: number): string | null {
+    let depth = 0;
+    let i = open;
+    while (i < source.length) {
+        const ch = source[i];
+        if (ch === "'" || ch === '"' || ch === '`') {
+            i = skipStringLiteral(source, i);
+            continue;
+        }
+        if (ch === '/') {
+            const next = skipComment(source, i);
+            if (next !== i) {
+                i = next;
+                continue;
+            }
+        }
+        if (ch === '{') depth += 1;
+        if (ch === '}') {
+            depth -= 1;
+            if (depth === 0) return source.slice(open, i + 1);
+        }
+        i += 1;
+    }
+    return null;
+}
+
+/**
+ * Split an object literal (including its braces) into its top-level
+ * `key: value` properties. Nested objects/arrays and string/comment content
+ * are treated as opaque value text.
+ */
+function topLevelProperties(objectLiteral: string): Map<string, string> {
+    const props = new Map<string, string>();
+    const body = objectLiteral.slice(1, -1);
+    let depth = 0;
+    let segmentStart = 0;
+    let i = 0;
+
+    const commit = (end: number): void => {
+        const segment = stripLeadingComments(body.slice(segmentStart, end));
+        const colon = segment.indexOf(':');
+        if (colon !== -1) {
+            const key = segment.slice(0, colon).trim().replaceAll(/^['"]|['"]$/g, '');
+            if (key) props.set(key, segment.slice(colon + 1).trim());
+        }
+        segmentStart = end + 1;
+    };
+
+    while (i < body.length) {
+        const ch = body[i];
+        if (ch === "'" || ch === '"' || ch === '`') {
+            i = skipStringLiteral(body, i);
+            continue;
+        }
+        if (ch === '/') {
+            const next = skipComment(body, i);
+            if (next !== i) {
+                i = next;
+                continue;
+            }
+        }
+        if (ch === '{' || ch === '[' || ch === '(') depth += 1;
+        if (ch === '}' || ch === ']' || ch === ')') depth = Math.max(0, depth - 1);
+        if (ch === ',' && depth === 0) commit(i);
+        i += 1;
+    }
+    commit(body.length);
+    return props;
+}
+
+/** Strip leading whitespace and line/block comments from a property segment. */
+function stripLeadingComments(segment: string): string {
+    let rest = segment;
+    for (;;) {
+        const trimmed = rest.trimStart();
+        if (trimmed.startsWith('//')) {
+            const nl = trimmed.indexOf('\n');
+            if (nl === -1) return '';
+            rest = trimmed.slice(nl + 1);
+        } else if (trimmed.startsWith('/*')) {
+            const close = trimmed.indexOf('*/');
+            if (close === -1) return '';
+            rest = trimmed.slice(close + 2);
+        } else {
+            return trimmed;
+        }
+    }
+}
+
+/**
+ * All quoted strings in a raw value snippet (e.g. the contents of a flat
+ * array). Comments inside the snippet are not stripped — a quoted word in a
+ * comment would be extracted — matching the previous parser's behavior; the
+ * generated registry never contains comments inside arrays.
+ */
+function quotedStrings(raw: string | undefined): string[] {
+    if (!raw) return [];
+    return [...raw.matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]);
+}
+
 /**
  * Parse registry entries from the `index.ts` source. Entries are identified by
  * their `name:` value (not the object key), so addon entries keyed
  * `parent/addon` — whose `name` contains a `/` — are recognised.
+ *
+ * Object literals are extracted with a brace-balanced, string-aware scan and
+ * split into top-level properties, so nested object fields (`breaking`,
+ * `attach`, `shortcutDefinitions`, `optionalDependencies`) never corrupt the
+ * parse regardless of where they sit relative to `files:`. A candidate block
+ * without both a top-level `name` and `files` is not an entry and is skipped
+ * (its interior is still scanned, so nothing is missed).
+ *
+ * Known limitations, fine for the machine-generated registry source: the
+ * candidate-key scan itself is not string-aware (a string literal containing
+ * `key: {` starts a balanced scan mid-string — the name/files gate filters
+ * any ghost), and template-literal interpolation / regex literals are not
+ * tokenized.
  */
 export function parseRegistrySource(source: string): RegistryEntry[] {
     const entries: RegistryEntry[] = [];
-
-    const blockRegex = /['"]?([\w/-]{1,256})['"]?\s{0,4096}:\s{0,4096}\{[^}]{0,100000}name:\s{0,4096}['"]([^'"]{1,256})['"][^}]{0,100000}files:\s{0,4096}\[([^\]]{0,100000})\]/g;
+    const keyRegex = /['"]?[\w/-]{1,256}['"]?\s{0,64}:\s{0,64}\{/g;
     let match: RegExpExecArray | null;
 
-    while ((match = blockRegex.exec(source)) !== null) {
-        const name = match[2];
-        const filesRaw = match[3];
-        const files = [...filesRaw.matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]);
+    while ((match = keyRegex.exec(source)) !== null) {
+        const open = match.index + match[0].length - 1;
+        const block = extractObjectLiteral(source, open);
+        if (!block) continue;
 
-        const matchStart = match.index ?? 0;
-        const blockEnd = source.indexOf('},', matchStart + match[0].length);
-        const fullBlock = blockEnd === -1 ? source.slice(matchStart) : source.slice(matchStart, blockEnd);
-        const libFilesMatch = /libFiles:\s*\[([\s\S]*?)\]/.exec(fullBlock);
-        const libFiles = libFilesMatch
-            ? [...libFilesMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
-            : [];
+        const props = topLevelProperties(block);
+        const name = quotedStrings(props.get('name'))[0];
+        const filesRaw = props.get('files');
+        if (!name || !filesRaw) continue;
 
-        const depsMatch = /dependencies:\s*\[([\s\S]*?)\]/.exec(fullBlock);
-        const dependencies = depsMatch
-            ? [...depsMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
-            : [];
-
-        const isBlock = /type:\s*['"]block['"]/.test(fullBlock);
-
-        entries.push({ name, files, libFiles, dependencies, isBlock });
+        entries.push({
+            name,
+            files: quotedStrings(filesRaw),
+            libFiles: quotedStrings(props.get('libFiles')),
+            dependencies: quotedStrings(props.get('dependencies')),
+            isBlock: quotedStrings(props.get('type'))[0] === 'block',
+        });
+        keyRegex.lastIndex = open + block.length;
     }
 
     return entries;

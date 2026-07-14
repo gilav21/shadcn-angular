@@ -1089,6 +1089,126 @@ const SOURCE_FULL = `export const registry = {
   },
 };`;
 
+describe('parseRegistrySource', () => {
+    it('parses an entry whose breaking[] objects come BEFORE files[]', () => {
+        // Regression: the old regex parser required no `}` between the entry
+        // key and `files:`, so a `breaking: [{...}]` placed before `files:`
+        // silently dropped the entry from the boundary map — and the sync then
+        // folded the base's whole import tree into every addon entry.
+        const source = `export const registry = {
+  editor: {
+    name: 'editor',
+    breaking: [
+      { kind: 'removal', from: "the 'emoji' item", to: 'the directive', note: 'Use apply {addon}.', codemod: 'none' },
+    ],
+    files: ['editor/index.ts', 'editor/editor.component.ts'],
+    dependencies: ['button'],
+    libFiles: ['utils2.ts'],
+  },
+};`;
+        const editor = parseRegistrySource(source).find(e => e.name === 'editor');
+        expect(editor?.files).toEqual(['editor/index.ts', 'editor/editor.component.ts']);
+        expect(editor?.dependencies).toEqual(['button']);
+        expect(editor?.libFiles).toEqual(['utils2.ts']);
+    });
+
+    it('reads libFiles and dependencies that come AFTER a nested-object field', () => {
+        // Regression: the old parser truncated the entry at the first \`},\`,
+        // so arrays after shortcutDefinitions/attach/breaking were missed.
+        const source = `export const registry = {
+  editor: {
+    name: 'editor',
+    files: ['editor/index.ts'],
+    shortcutDefinitions: [
+      { exportName: 'X', componentName: 'editor', sourceFile: 'editor/editor.component.ts' },
+    ],
+    dependencies: ['button'],
+    libFiles: ['shortcut.ts'],
+  },
+};`;
+        const editor = parseRegistrySource(source).find(e => e.name === 'editor');
+        expect(editor?.dependencies).toEqual(['button']);
+        expect(editor?.libFiles).toEqual(['shortcut.ts']);
+    });
+
+    it('does not treat nested objects (attach) or array items as entries', () => {
+        const source = `export const registry = {
+  'editor/emoji': {
+    name: 'editor/emoji',
+    type: 'addon',
+    files: ['editor/addons/emoji/index.ts'],
+    attach: {
+      import: "EmojiDirective from './ui/editor/addons/emoji'",
+      selector: 'uiEmoji',
+    },
+  },
+};`;
+        const parsed = parseRegistrySource(source);
+        expect(parsed.map(e => e.name)).toEqual(['editor/emoji']);
+        expect(parsed[0].isBlock).toBe(false);
+    });
+
+    it('parses an entry whose name/files properties are preceded by comment lines', () => {
+        // Regression (round 2): a leading comment fused into the key segment
+        // corrupted the key (or its colon hijacked the split), silently
+        // dropping the entry — the same failure class as the original bug.
+        const source = `export const registry = {
+  card: {
+    // note: keep first
+    name: 'card',
+    /* pinned files below */
+    files: ['card/index.ts'],
+    // deps: intentionally minimal
+    dependencies: ['button'],
+  },
+};`;
+        const card = parseRegistrySource(source).find(e => e.name === 'card');
+        expect(card?.files).toEqual(['card/index.ts']);
+        expect(card?.dependencies).toEqual(['button']);
+    });
+
+    it('survives braces and brackets inside strings and comments', () => {
+        const source = `export const registry = {
+  card: {
+    name: 'card',
+    // a comment with a stray } and ] inside
+    description: 'uses {tokens} and [brackets] } freely',
+    files: ['card/index.ts'],
+  },
+  badge: { name: 'badge', files: ['badge/badge.component.ts'] },
+};`;
+        expect(parseRegistrySource(source).map(e => e.name)).toEqual(['card', 'badge']);
+    });
+
+    it('handles backslash-escaped quotes inside string values', () => {
+        const source = `export const registry = {
+  card: {
+    name: 'card',
+    description: 'it\\'s a card with a } brace',
+    files: ['card/index.ts'],
+  },
+};`;
+        const card = parseRegistrySource(source).find(e => e.name === 'card');
+        expect(card?.files).toEqual(['card/index.ts']);
+    });
+
+    it('degrades gracefully on truncated source: keeps the entries that balance', () => {
+        const source = `export const registry = {
+  card: { name: 'card', files: ['card/index.ts'] },
+  torn: { name: 'torn', files: ['torn/index.ts'`;
+        expect(parseRegistrySource(source).map(e => e.name)).toEqual(['card']);
+    });
+
+    it('marks type block entries and parses multiple entries in order', () => {
+        const source = `export const registry = {
+  card: { name: 'card', files: ['card/index.ts'] },
+  hero: { name: 'hero', type: 'block', files: ['hero/hero.ts'], dependencies: ['card'] },
+};`;
+        const parsed = parseRegistrySource(source);
+        expect(parsed.map(e => [e.name, e.isBlock])).toEqual([['card', false], ['hero', true]]);
+    });
+});
+
 describe('replaceFilesArray', () => {
     it('rewrites the files array of the named entry', () => {
         const out = replaceFilesArray(SOURCE_FILES_ONLY, 'button', "'a.ts', 'b.ts'");
