@@ -6,19 +6,12 @@ import {
   output,
   computed,
   inject,
-  signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgComponentOutlet } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../lib/utils';
-import { ButtonComponent } from '../../button';
 import { SeparatorComponent } from '../../separator';
-import {
-  PopoverComponent,
-  PopoverTriggerComponent,
-  PopoverContentComponent,
-} from '../../popover';
 import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
 import { RichTextCustomToolbarItem } from '../rich-text-editor.component';
 import { RichTextToolbarViewContext, type RichTextToolbarSlot } from '../rich-text-editor.host';
@@ -42,7 +35,6 @@ import { RichTextToolbarViewContext, type RichTextToolbarSlot } from '../rich-te
  *
  * **Insert:**
  * - `'link'` — Opens a link insertion dialog.
- * - `'image'` — Opens an image insertion dialog.
  *
  * **Styling:**
  * - `'alignLeft'` / `'alignCenter'` / `'alignRight'` — Text alignment.
@@ -76,7 +68,6 @@ export type ToolbarItem =
   | 'blockquote'
   | 'code'
   | 'codeBlock'
-  | 'image'
   | 'separator'
   | 'undo'
   | 'redo'
@@ -112,7 +103,6 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'blockquote', label: 'Blockquote', localeKey: 'blockquote' },
   { id: 'code', label: 'Inline Code', localeKey: 'inlineCode' },
   { id: 'codeBlock', label: 'Code Block', localeKey: 'codeBlock' },
-  { id: 'image', label: 'Insert Image', localeKey: 'insertImage' },
   { id: 'undo', label: 'Undo', localeKey: 'undo', shortcut: 'Ctrl+Z' },
   { id: 'redo', label: 'Redo', localeKey: 'redo', shortcut: 'Ctrl+Shift+Z' },
   { id: 'clear', label: 'Clear Formatting', localeKey: 'clearFormatting' },
@@ -140,7 +130,6 @@ const ICONS: Record<string, string> = {
   blockquote: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v4z"/></svg>`,
   code: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
   codeBlock: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 9.5 8 12l2 2.5"/><path d="m14 9.5 2 2.5-2 2.5"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`,
-  image: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`,
   undo: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
   redo: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`,
   clear: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>`,
@@ -160,11 +149,7 @@ const ICONS: Record<string, string> = {
   selector: 'ui-rich-text-toolbar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ButtonComponent,
     SeparatorComponent,
-    PopoverComponent,
-    PopoverTriggerComponent,
-    PopoverContentComponent,
     FormsModule,
     NgComponentOutlet,
   ],
@@ -183,8 +168,6 @@ export class RichTextToolbarComponent {
     'heading1', 'heading2',
     'separator',
     'bulletList', 'orderedList',
-    'separator',
-    'image',
   ]);
 
   activeFormats = input<Set<string>>(new Set());
@@ -195,7 +178,6 @@ export class RichTextToolbarComponent {
   locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
 
   formatCommand = output<string>();
-  imageInsert = output<{ alt: string; src: string }>();
   fileImport = output<File>();
   customItems = input<RichTextCustomToolbarItem[]>([]);
   customItemClick = output<string>();
@@ -227,8 +209,6 @@ export class RichTextToolbarComponent {
     }
     return slotInjector;
   }
-
-  openPopover = signal<string | null>(null);
 
   interactionDisabled = computed(() => this.disabled() || this.readonly());
 
@@ -313,23 +293,6 @@ export class RichTextToolbarComponent {
   onFormatClick(item: ToolbarItem): void {
     if (this.interactionDisabled()) return;
     this.formatCommand.emit(item);
-  }
-
-  onInsertImage(src: string, alt: string): void {
-    if (this.interactionDisabled()) return;
-    if (src) {
-      this.imageInsert.emit({ alt: alt || 'Image', src });
-    }
-  }
-
-  openPopoverPanel(popoverId: string): void {
-    this.openPopover.set(popoverId);
-  }
-
-  closePopoverPanel(popoverId: string): void {
-    if (this.openPopover() === popoverId) {
-      this.openPopover.set(null);
-    }
   }
 
   onFileSelect(event: Event): void {

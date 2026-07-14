@@ -170,6 +170,28 @@ export abstract class RichTextEditorAddonHost {
      */
     abstract registerKeydownInterceptor(interceptor: (event: KeyboardEvent) => boolean): () => void;
     /**
+     * Register a paste interceptor, invoked after the base's own
+     * `preventDefault` but before the base normalizes/inserts the clipboard.
+     * Return `true` to consume the paste (the interceptor handles insertion)
+     * and stop base handling. Used by the images addon to divert pasted image
+     * files into the upload/insert pipeline. Returns a teardown.
+     */
+    abstract registerPasteInterceptor(interceptor: (event: ClipboardEvent) => boolean): () => void;
+    /**
+     * Register a drop interceptor, invoked before the base handles a file drop.
+     * Return `true` to consume the drop (the interceptor does its own
+     * `preventDefault` and insertion) and stop base handling. Used by the images
+     * addon to accept dropped image files. Returns a teardown.
+     */
+    abstract registerDropInterceptor(interceptor: (event: DragEvent) => boolean): () => void;
+    /**
+     * Register a predicate that decides whether a dragged payload is acceptable,
+     * so the base shows its drop-zone highlight and calls `preventDefault` for
+     * an otherwise-ignored drag. Return `true` to claim the drag. The base ORs
+     * these with its own (document-import) acceptance. Returns a teardown.
+     */
+    abstract registerDropZonePredicate(predicate: (event: DragEvent) => boolean): () => void;
+    /**
      * Register an observer of the editor's trigger-aware text and caret offset,
      * invoked on every input with the same values the base computes for its own
      * trigger detection. Returns a teardown.

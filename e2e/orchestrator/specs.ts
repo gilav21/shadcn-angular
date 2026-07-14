@@ -165,6 +165,16 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/tables'],
         label: 'rte-tables',
     },
+    // addon system (rich-text): install the editor + its `images` addon; prove the
+    // image button + insert popover appear only on the addon editor, that inserting
+    // a URL adds an <img> to the content, and that selecting an image reveals the
+    // resize/align overlay — the base ships no image UI (content-level <img>
+    // rendering + markdown serialization stay in the base). Installs `button` +
+    // `popover` transitively via the addon's dependencies.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/images'],
+        label: 'rte-images',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

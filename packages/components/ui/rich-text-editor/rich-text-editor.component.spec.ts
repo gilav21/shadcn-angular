@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { of, Subject, throwError } from 'rxjs';
+import { Subject } from 'rxjs';
 import { RichTextEditorComponent } from './rich-text-editor.component';
 import { RichTextEditorAddonHost } from './rich-text-editor.host';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
@@ -155,63 +155,6 @@ describe('RichTextEditorComponent', () => {
         selection?.addRange(range);
 
         expect(() => component.onFormatCommand('code')).not.toThrow();
-    });
-
-    it('pastes clipboard image as data URL when uploader is not configured', async () => {
-        const imageFile = new File(['paste-image'], 'clip.png', { type: 'image/png' });
-        const uploadCompleteSpy = vi.spyOn(component.imageUploadComplete, 'emit');
-        const uploadErrorSpy = vi.spyOn(component.imageUploadError, 'emit');
-
-        await component.onPaste({
-            preventDefault: vi.fn(),
-            clipboardData: {
-                files: [imageFile],
-                getData: () => '',
-            } as unknown as DataTransfer,
-        } as unknown as ClipboardEvent);
-
-        expect(editor.innerHTML).toContain('<img');
-        expect(editor.innerHTML).toContain('data:image/png;base64');
-        expect(uploadCompleteSpy).toHaveBeenCalled();
-        expect(uploadErrorSpy).not.toHaveBeenCalled();
-    });
-
-    it('pastes clipboard image via uploader when configured', async () => {
-        fixture.componentRef.setInput('imageSources', 'upload');
-        fixture.componentRef.setInput('imageUploader', () => of('https://cdn.example.com/clip.png'));
-        fixture.detectChanges();
-
-        const imageFile = new File(['paste-image'], 'clip.png', { type: 'image/png' });
-        const uploadCompleteSpy = vi.spyOn(component.imageUploadComplete, 'emit');
-        const uploadErrorSpy = vi.spyOn(component.imageUploadError, 'emit');
-
-        await component.onPaste({
-            preventDefault: vi.fn(),
-            clipboardData: {
-                files: [imageFile],
-                getData: () => '',
-            } as unknown as DataTransfer,
-        } as unknown as ClipboardEvent);
-
-        expect(editor.innerHTML).toContain('https://cdn.example.com/clip.png');
-        expect(uploadCompleteSpy).toHaveBeenCalledWith('https://cdn.example.com/clip.png');
-        expect(uploadErrorSpy).not.toHaveBeenCalled();
-    });
-
-    it('does not allow attribute injection through image alt text', () => {
-        component.onImageInsert({
-            src: 'https://example.com/safe.png',
-            alt: 'x" onerror="alert(1)" data-x="1',
-        });
-
-        const img = editor.querySelector<HTMLImageElement>('img');
-        expect(img).toBeTruthy();
-        expect(img?.getAttribute('src')).toBe('https://example.com/safe.png');
-        expect(img?.getAttribute('onerror')).toBeNull();
-        expect(img?.attributes.getNamedItem('onerror')).toBeNull();
-        expect(img?.getAttribute('alt')).toBe('x" onerror="alert(1)" data-x="1');
-        const attrNames = Array.from(img?.attributes ?? []).map((a) => a.name).sort((a, b) => a.localeCompare(b));
-        expect(attrNames).toStrictEqual(['alt', 'data-align', 'src', 'style']);
     });
 
     it('opens mention popover for mention handles with dots, underscores, and hyphens', () => {
@@ -562,172 +505,6 @@ describe('RichTextEditorComponent', () => {
                 expect(component.resolvedLocale().toolbar.bold).toBeTruthy();
                 expect(component.resolvedLocale().editor.placeholder).toBeTruthy();
             }
-        });
-    });
-
-    describe('autoImageUpload', () => {
-        const TINY_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
-        const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-
-        it('auto-uploads base64 image when autoImageUpload and imageUploader are set', async () => {
-            const upload$ = new Subject<string>();
-            fixture.componentRef.setInput('autoImageUpload', true);
-            fixture.componentRef.setInput('imageUploader', () => upload$);
-            fixture.detectChanges();
-
-            const completeSpy = vi.spyOn(component.autoImageUploadComplete, 'emit');
-
-            const img = document.createElement('img');
-            img.setAttribute('src', TINY_BASE64);
-            img.setAttribute('alt', 'test');
-            editor.appendChild(img);
-
-            await new Promise(r => setTimeout(r, 50));
-
-            expect(img.dataset['autoUploadStatus']).toBe('uploading');
-            expect(img.getAttribute('src')).toBe(TRANSPARENT_PIXEL);
-
-            upload$.next('https://cdn.example.com/uploaded.png');
-            upload$.complete();
-
-            await new Promise(r => setTimeout(r, 50));
-
-            expect(img.getAttribute('src')).toBe('https://cdn.example.com/uploaded.png');
-            expect('autoUploadId' in img.dataset).toBe(false);
-            expect('autoUploadStatus' in img.dataset).toBe(false);
-            expect(completeSpy).toHaveBeenCalledWith('https://cdn.example.com/uploaded.png');
-        });
-
-        it('does not auto-upload when autoImageUpload is false', async () => {
-            fixture.componentRef.setInput('autoImageUpload', false);
-            fixture.componentRef.setInput('imageUploader', () => of('https://cdn.example.com/uploaded.png'));
-            fixture.detectChanges();
-
-            const img = document.createElement('img');
-            img.setAttribute('src', TINY_BASE64);
-            editor.appendChild(img);
-
-            await new Promise(r => setTimeout(r, 50));
-
-            expect(img.getAttribute('src')).toBe(TINY_BASE64);
-            expect('autoUploadId' in img.dataset).toBe(false);
-        });
-
-        it('does not auto-upload when imageUploader is not provided', async () => {
-            fixture.componentRef.setInput('autoImageUpload', true);
-            fixture.detectChanges();
-
-            const img = document.createElement('img');
-            img.setAttribute('src', TINY_BASE64);
-            editor.appendChild(img);
-
-            await new Promise(r => setTimeout(r, 50));
-
-            expect(img.getAttribute('src')).toBe(TINY_BASE64);
-            expect('autoUploadId' in img.dataset).toBe(false);
-        });
-
-        it('shows error overlay on upload failure', async () => {
-            fixture.componentRef.setInput('autoImageUpload', true);
-            fixture.componentRef.setInput('imageUploader', () => throwError(() => new Error('Network error')));
-            fixture.detectChanges();
-
-            const errorSpy = vi.spyOn(component.autoImageUploadError, 'emit');
-
-            const img = document.createElement('img');
-            img.setAttribute('src', TINY_BASE64);
-            editor.appendChild(img);
-
-            await new Promise(r => setTimeout(r, 50));
-
-            expect(img.dataset['autoUploadStatus']).toBe('error');
-            expect(errorSpy).toHaveBeenCalledWith('Network error');
-            expect(component.autoUploadErrors().size).toBe(1);
-        });
-
-        it('retries upload on retry call', async () => {
-            const attempt = { count: 0 };
-            fixture.componentRef.setInput('autoImageUpload', true);
-            fixture.componentRef.setInput('imageUploader', () => {
-                attempt.count++;
-                if (attempt.count === 1) {
-                    return throwError(() => new Error('First attempt failed'));
-                }
-                return of('https://cdn.example.com/retry-success.png');
-            });
-            fixture.detectChanges();
-
-            const img = document.createElement('img');
-            img.setAttribute('src', TINY_BASE64);
-            editor.appendChild(img);
-
-            await new Promise(r => setTimeout(r, 50));
-
-            expect(img.dataset['autoUploadStatus']).toBe('error');
-            expect(component.autoUploadErrors().size).toBe(1);
-
-            const errorId = Array.from(component.autoUploadErrors().keys())[0];
-            component.retryAutoUpload(errorId);
-
-            await new Promise(r => setTimeout(r, 50));
-
-            expect(img.getAttribute('src')).toBe('https://cdn.example.com/retry-success.png');
-            expect(component.autoUploadErrors().size).toBe(0);
-        });
-
-        it('removes image on removeAutoUploadImage call', async () => {
-            fixture.componentRef.setInput('autoImageUpload', true);
-            fixture.componentRef.setInput('imageUploader', () => throwError(() => new Error('fail')));
-            fixture.detectChanges();
-
-            const img = document.createElement('img');
-            img.setAttribute('src', TINY_BASE64);
-            editor.appendChild(img);
-
-            await new Promise(r => setTimeout(r, 50));
-
-            expect(component.autoUploadErrors().size).toBe(1);
-            const errorId = Array.from(component.autoUploadErrors().keys())[0];
-
-            component.removeAutoUploadImage(errorId);
-
-            expect(editor.querySelector('img')).toBeNull();
-            expect(component.autoUploadErrors().size).toBe(0);
-        });
-
-        it('output does not contain base64 during upload', async () => {
-            const upload$ = new Subject<string>();
-            fixture.componentRef.setInput('autoImageUpload', true);
-            fixture.componentRef.setInput('imageUploader', () => upload$);
-            fixture.detectChanges();
-
-            const img = document.createElement('img');
-            img.setAttribute('src', TINY_BASE64);
-            editor.appendChild(img);
-
-            await new Promise(r => setTimeout(r, 50));
-
-            const output = editor.innerHTML;
-            expect(output).not.toContain(TINY_BASE64);
-            expect(output).toContain(TRANSPARENT_PIXEL);
-
-            upload$.next('https://cdn.example.com/final.png');
-            upload$.complete();
-        });
-
-        it('does not re-process images that already have data-auto-upload-id', async () => {
-            fixture.componentRef.setInput('autoImageUpload', true);
-            fixture.componentRef.setInput('imageUploader', () => of('https://cdn.example.com/img.png'));
-            fixture.detectChanges();
-
-            const img = document.createElement('img');
-            img.setAttribute('src', TINY_BASE64);
-            img.dataset['autoUploadId'] = 'existing-id';
-            editor.appendChild(img);
-
-            await new Promise(r => setTimeout(r, 50));
-
-            expect(img.getAttribute('src')).toBe(TINY_BASE64);
         });
     });
 
@@ -1691,55 +1468,6 @@ describe('RichTextEditorComponent — toolbar actions (link, image, color, font)
         editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
     });
 
-    it('inserts an image at the selection with sanitized src and alt', () => {
-        component.writeValue('<p>img here</p>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild as Text, 4);
-
-        component.onImageInsert({ src: 'https://cdn.test/pic.png', alt: 'A picture' });
-
-        const img = editor.querySelector('img');
-        expect(img?.getAttribute('src')).toBe('https://cdn.test/pic.png');
-        expect(img?.getAttribute('alt')).toBe('A picture');
-    });
-
-    it('applies default size and alignment to an inserted image', () => {
-        fixture.componentRef.setInput('defaultImageWidth', 320);
-        fixture.componentRef.setInput('defaultImageHeight', '50%');
-        fixture.componentRef.setInput('defaultImageAlignment', 'center');
-        component.writeValue('<p>img here</p>');
-        fixture.detectChanges();
-        caretIn(editor.querySelector('p')!.firstChild as Text, 4);
-
-        component.onImageInsert({ src: 'https://cdn.test/pic.png', alt: 'A picture' });
-
-        const img = editor.querySelector('img')!;
-        expect(img.style.width).toBe('320px');
-        expect(img.style.height).toBe('50%');
-        expect(img.dataset['align']).toBe('center');
-        expect(img.style.display).toBe('block');
-        expect(img.style.marginLeft).toBe('auto');
-    });
-
-    it('emits imageUploadError when image URL insertion is disabled (upload-only source)', () => {
-        fixture.componentRef.setInput('imageSources', 'upload');
-        fixture.detectChanges();
-        const errSpy = vi.spyOn(component.imageUploadError, 'emit');
-
-        component.onImageInsert({ src: 'https://cdn.test/pic.png', alt: 'x' });
-
-        expect(errSpy).toHaveBeenCalledWith('Image URL insertion is disabled. Use upload source.');
-        expect(editor.querySelector('img')).toBeNull();
-    });
-
-    it('emits imageUploadError for an invalid image URL', () => {
-        const errSpy = vi.spyOn(component.imageUploadError, 'emit');
-
-        component.onImageInsert({ src: 'javascript:evil()', alt: 'x' });
-
-        expect(errSpy).toHaveBeenCalledWith('Invalid image URL.');
-    });
-
     it('inserts overlay text at the caret position', () => {
         component.writeValue('<p>hi</p>');
         fixture.detectChanges();
@@ -2418,18 +2146,6 @@ describe('RichTextEditorComponent — drag and drop', () => {
         fixture.detectChanges();
     });
 
-    it('sets dragOver when dragging files with an image source available', () => {
-        const ev = {
-            dataTransfer: makeDataTransfer([], ['Files']),
-            preventDefault: vi.fn(),
-        } as unknown as DragEvent;
-
-        component.onEditorDragOver(ev);
-
-        expect(component.dragOver()).toBe(true);
-        expect((ev.preventDefault as unknown as ReturnType<typeof vi.fn>)).toHaveBeenCalled();
-    });
-
     it('ignores drag events without files', () => {
         const ev = {
             dataTransfer: makeDataTransfer([], ['text/plain']),
@@ -2454,35 +2170,6 @@ describe('RichTextEditorComponent — drag and drop', () => {
         expect(component.dragOver()).toBe(false);
     });
 
-    it('inserts a dropped image file as a data URL', async () => {
-        const file = new File(['img'], 'drop.png', { type: 'image/png' });
-        const completeSpy = vi.spyOn(component.imageUploadComplete, 'emit');
-        const ev = {
-            dataTransfer: makeDataTransfer([file]),
-            preventDefault: vi.fn(),
-        } as unknown as DragEvent;
-
-        await component.onEditorDrop(ev);
-
-        const editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]')!;
-        expect(editor.querySelector('img')).toBeTruthy();
-        expect(completeSpy).toHaveBeenCalled();
-        expect(component.dragOver()).toBe(false);
-    });
-
-    it('does not drop when disabled', async () => {
-        fixture.componentRef.setInput('disabled', true);
-        fixture.detectChanges();
-        const file = new File(['img'], 'drop.png', { type: 'image/png' });
-        const completeSpy = vi.spyOn(component.imageUploadComplete, 'emit');
-
-        await component.onEditorDrop({
-            dataTransfer: makeDataTransfer([file]),
-            preventDefault: vi.fn(),
-        } as unknown as DragEvent);
-
-        expect(completeSpy).not.toHaveBeenCalled();
-    });
 });
 
 describe('RichTextEditorComponent — mention styling during formatting', () => {
@@ -2765,29 +2452,6 @@ describe('RichTextEditorComponent — task checkbox & image element handlers', (
         expect(component.selectedImage()).toBeNull();
     });
 
-    it('removing the selected image deletes it and clears the selection', () => {
-        component.writeValue('<p><img src="https://cdn.test/a.png" alt="a"></p>');
-        fixture.detectChanges();
-        const img = editor.querySelector('img')!;
-        component.selectedImage.set(img);
-
-        component.onImageRemove(img);
-
-        expect(editor.querySelector('img')).toBeNull();
-        expect(component.selectedImage()).toBeNull();
-    });
-
-    it('image resize/alignment end syncs content and pushes history', () => {
-        component.writeValue('<p><img src="https://cdn.test/a.png" alt="a"></p>');
-        fixture.detectChanges();
-        const before = (component as unknown as { history: unknown[] }).history.length;
-
-        component.onImageAlignmentChange();
-        component.onImageResizeEnd();
-
-        expect((component as unknown as { history: unknown[] }).history.length).toBeGreaterThanOrEqual(before);
-        expect(component.htmlOutput()).toContain('img');
-    });
 });
 
 describe('RichTextEditorComponent — history delta algorithm', () => {
@@ -3134,27 +2798,6 @@ describe('RichTextEditorComponent — content insertion fallbacks', () => {
         expect(editor.querySelector('strong')?.textContent).toBe('appended-html');
     });
 
-    it('appends an image to the editor end when there is no selection', () => {
-        document.getSelection()?.removeAllRanges();
-        (component as unknown as Internal).insertImageAtSelection('https://cdn.test/x.png', 'alt');
-        expect(editor.querySelector('img')?.getAttribute('src')).toBe('https://cdn.test/x.png');
-    });
-
-    it('appends an image when the selection is outside the editor', () => {
-        const outside = document.createElement('div');
-        outside.textContent = 'outside';
-        document.body.appendChild(outside);
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.selectNodeContents(outside);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-
-        (component as unknown as Internal).insertImageAtSelection('https://cdn.test/y.png', 'alt');
-
-        expect(editor.querySelector('img')).toBeTruthy();
-        outside.remove();
-    });
 });
 
 describe('RichTextEditorComponent — readonly & disabled guards', () => {
@@ -3603,7 +3246,7 @@ describe('RichTextEditorComponent — find with no editor & openFindReplace focu
     });
 });
 
-describe('RichTextEditorComponent — image source guards & paste max length', () => {
+describe('RichTextEditorComponent — paste max length & overlay handlers', () => {
     let fixture: ComponentFixture<RichTextEditorComponent>;
     let component: RichTextEditorComponent;
     let editor: HTMLDivElement;
@@ -3620,19 +3263,6 @@ describe('RichTextEditorComponent — image source guards & paste max length', (
         document.body.appendChild(fixture.nativeElement);
     });
 
-    it('emits imageUploadError when upload-only source has no uploader configured', async () => {
-        fixture.componentRef.setInput('imageSources', 'upload');
-        fixture.detectChanges();
-        const errSpy = vi.spyOn(component.imageUploadError, 'emit');
-        const file = new File(['x'], 'p.png', { type: 'image/png' });
-
-        await component.onPaste({
-            preventDefault: vi.fn(),
-            clipboardData: { files: [file], getData: () => '' } as unknown as DataTransfer,
-        } as unknown as ClipboardEvent);
-
-        expect(errSpy).toHaveBeenCalledWith('No imageUploader configured.');
-    });
 
     it('truncates a paste that would exceed maxLength', () => {
         fixture.componentRef.setInput('maxLength', 8);

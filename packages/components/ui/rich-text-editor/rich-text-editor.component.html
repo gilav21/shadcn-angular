@@ -6,7 +6,6 @@
     [readonly]="readonly()"
     [locale]="resolvedLocale()"
     (formatCommand)="onFormatCommand($event)"
-    (imageInsert)="onImageInsert($event)"
     (fileImport)="onFileImport($event)"
     [customItems]="customToolbarItems()"
     (customItemClick)="onCustomToolbarAction($event)"
@@ -149,12 +148,6 @@
     <div class="absolute inset-0 pointer-events-none border-2 border-dashed border-primary/60 rounded-md bg-primary/5"></div>
   }
 
-  @if (imageUploading()) {
-    <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
-      <div class="text-sm text-muted-foreground">{{ resolvedLocale().editor.uploadingImage }}</div>
-    </div>
-  }
-
   @if (fileImporting()) {
     <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
       <div class="text-sm text-muted-foreground">{{ resolvedLocale().editor.importingFile }}</div>
@@ -166,53 +159,6 @@
       <div class="text-sm text-destructive font-medium">{{ fileImportErrorMessage() }}</div>
     </div>
   }
-
-  @for (entry of autoUploadErrorList(); track entry.id) {
-    <div
-      class="absolute z-20 flex flex-col items-center justify-center gap-1.5 rounded bg-destructive/10 border border-destructive/30 backdrop-blur-[1px]"
-      [style.top.px]="entry.top"
-      [style.left.px]="entry.left"
-      [style.width.px]="entry.width"
-      [style.height.px]="entry.height"
-      contenteditable="false"
-    >
-      <svg class="h-5 w-5 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-      </svg>
-      <span class="text-xs text-destructive font-medium">{{ resolvedLocale().editor.autoUploadFailed }}</span>
-      <div class="flex gap-1">
-        <button
-          type="button"
-          class="text-xs px-2 py-0.5 rounded bg-background border border-border text-foreground hover:bg-accent transition-colors"
-          (click)="retryAutoUpload(entry.id)"
-        >
-          {{ resolvedLocale().editor.autoUploadRetry }}
-        </button>
-        <button
-          type="button"
-          class="text-xs px-2 py-0.5 rounded bg-background border border-border text-foreground hover:bg-accent transition-colors"
-          (click)="removeAutoUploadImage(entry.id)"
-        >
-          {{ resolvedLocale().editor.autoUploadRemove }}
-        </button>
-      </div>
-    </div>
-  }
-
-  <ui-rich-text-image-resizer
-      [target]="selectedImage()"
-      [container]="editorDiv"
-      [locale]="resolvedLocale()"
-      [resizable]="imageResize()"
-      [showAlignment]="imageAlignment()"
-      [minWidth]="minImageWidth()"
-      [maxWidth]="maxImageWidth()"
-      [lockAspectRatio]="lockImageAspectRatio()"
-      (resizeEnd)="onImageResizeEnd()"
-      (alignmentChange)="onImageAlignmentChange()"
-      (imageRemove)="onImageRemove($event)"
-  />
-
 
   @if (toolbar() === 'floating' && !readonly() && showFloatingToolbar()) {
     <div 

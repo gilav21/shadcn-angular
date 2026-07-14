@@ -18,6 +18,7 @@ import { RichTextColorsDirective } from '../../../../../packages/components/ui/r
 import { RichTextTypographyDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/typography';
 import { RichTextLinksDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/links';
 import { RichTextTablesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/tables';
+import { RichTextImagesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/images';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
@@ -26,7 +27,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -186,7 +187,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().imageUploadHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().imageUploadDescription }}</p>
-        <ui-rich-text-editor mode="html" toolbar="top" [autoImageUpload]="true" [imageUploader]="fakeImageUploader"
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteImages [uiRteImagesAutoUpload]="true" [uiRteImagesUploader]="fakeImageUploader"
           (autoImageUploadComplete)="lastAutoUploadUrl = $event"
           (autoImageUploadError)="lastAutoUploadError = $event"
           [placeholder]="t().imageUploadPlaceholder" minHeight="160px" />
@@ -249,15 +250,15 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           </div>
         </div>
 
-        <ui-rich-text-editor mode="html" toolbar="top"
-          [imageResize]="imgResize()"
-          [imageAlignment]="imgAlignmentButtons()"
-          [defaultImageWidth]="imgDefaultWidth()"
-          [defaultImageHeight]="imgDefaultHeight()"
-          [defaultImageAlignment]="imgDefaultAlignment()"
-          [minImageWidth]="imgMinWidth()"
-          [maxImageWidth]="imgMaxWidth()"
-          [lockImageAspectRatio]="imgLockAspect()"
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteImages
+          [uiRteImagesResize]="imgResize()"
+          [uiRteImagesAlignment]="imgAlignmentButtons()"
+          [uiRteImagesDefaultWidth]="imgDefaultWidth()"
+          [uiRteImagesDefaultHeight]="imgDefaultHeight()"
+          [uiRteImagesDefaultAlignment]="imgDefaultAlignment()"
+          [uiRteImagesMinWidth]="imgMinWidth()"
+          [uiRteImagesMaxWidth]="imgMaxWidth()"
+          [uiRteImagesLockAspectRatio]="imgLockAspect()"
           [placeholder]="t().imageControlsPlaceholder" minHeight="200px" />
       </div>
     </section>

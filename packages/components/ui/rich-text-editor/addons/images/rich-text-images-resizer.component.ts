@@ -1,10 +1,26 @@
 import { Component, signal, input, effect, OnDestroy, ChangeDetectionStrategy, output, inject, computed } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
-import { ImageAlignment, applyImageAlignment } from '../rich-text-image.utils';
+import { ImageAlignment, applyImageAlignment } from './rich-text-images.utils';
 
-export type { ImageAlignment } from '../rich-text-image.utils';
+export type { ImageAlignment } from './rich-text-images.utils';
+
+/** The five resize/align overlay labels, resolved from the addon locale. */
+export interface RichTextImageResizerLabels {
+    readonly inline: string;
+    readonly floatLeft: string;
+    readonly center: string;
+    readonly floatRight: string;
+    readonly deleteImage: string;
+}
+
+const DEFAULT_RESIZER_LABELS: RichTextImageResizerLabels = {
+    inline: 'Inline',
+    floatLeft: 'Float left',
+    center: 'Center',
+    floatRight: 'Float right',
+    deleteImage: 'Delete image',
+};
 
 /** Resize handle position — four corners plus four edges (single-axis). */
 type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
@@ -52,32 +68,32 @@ const DELETE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="
 @Component({
     selector: 'ui-rich-text-image-resizer',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    templateUrl: './rich-text-image-resizer.component.html',
+    templateUrl: './rich-text-images-resizer.component.html',
 })
 export class RichTextImageResizerComponent implements OnDestroy {
     private readonly document = inject(DOCUMENT);
     private readonly sanitizer = inject(DomSanitizer);
-    target = input<HTMLImageElement | null>(null);
-    container = input<HTMLElement | null>(null);
-    locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
+    readonly target = input<HTMLImageElement | null>(null);
+    readonly container = input<HTMLElement | null>(null);
+    readonly labels = input<RichTextImageResizerLabels>(DEFAULT_RESIZER_LABELS);
     /** Show the corner resize handles. */
-    resizable = input<boolean>(true);
+    readonly resizable = input<boolean>(true);
     /** Show the alignment buttons in the overlay toolbar. */
-    showAlignment = input<boolean>(true);
+    readonly showAlignment = input<boolean>(true);
     /** Lower clamp (px) for the dragged image width/height. */
-    minWidth = input<number>(20);
+    readonly minWidth = input<number>(20);
     /** Upper clamp (px) for the dragged image width. No ceiling when unset. */
-    maxWidth = input<number>();
+    readonly maxWidth = input<number>();
     /** When false, corners resize axes independently and edge handles appear. */
-    lockAspectRatio = input<boolean>(true);
-    resizeEnd = output<void>();
-    alignmentChange = output<ImageAlignment>();
-    imageRemove = output<HTMLImageElement>();
+    readonly lockAspectRatio = input<boolean>(true);
+    readonly resizeEnd = output<void>();
+    readonly alignmentChange = output<ImageAlignment>();
+    readonly imageRemove = output<HTMLImageElement>();
 
     readonly alignments: ImageAlignment[] = ['inline', 'left', 'center', 'right'];
 
-    resolvedAlignmentLabels = computed<Record<ImageAlignment, string>>(() => {
-        const l = this.locale().imageResizer;
+    readonly resolvedAlignmentLabels = computed<Record<ImageAlignment, string>>(() => {
+        const l = this.labels();
         return {
             inline: l.inline,
             left: l.floatLeft,
@@ -86,16 +102,16 @@ export class RichTextImageResizerComponent implements OnDestroy {
         };
     });
 
-    rect = signal({ top: 0, left: 0, width: 0, height: 0 });
-    visible = signal(false);
+    readonly rect = signal({ top: 0, left: 0, width: 0, height: 0 });
+    readonly visible = signal(false);
 
-    currentAlignment = computed<ImageAlignment>(() => {
+    readonly currentAlignment = computed<ImageAlignment>(() => {
         const t = this.target();
         if (!t) return 'inline';
         return (t.dataset['align'] as ImageAlignment) || 'inline';
     });
 
-    deleteIconHtml: SafeHtml;
+    readonly deleteIconHtml: SafeHtml;
 
     private rafId: number | null = null;
     private resizeObserver: ResizeObserver | null = null;

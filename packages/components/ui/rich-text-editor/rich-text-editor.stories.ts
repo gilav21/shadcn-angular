@@ -9,7 +9,6 @@ import { RICH_TEXT_LOCALES } from './rich-text-locales';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
 import { Component } from '@angular/core';
 import { JsonPipe } from '@angular/common';
-import { delay, of } from 'rxjs';
 
 const sampleMentions: MentionItem[] = [
     { id: '1', value: 'john-doe', label: 'John Doe', description: 'john.doe@example.com' },
@@ -102,7 +101,6 @@ const meta: Meta<RichTextEditorComponent> = {
         mentionRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted mentions.' },
         tagSearch: { control: false, description: 'Async/sync search function returning TagItem[] for #tag autocomplete.' },
         tagRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted tags.' },
-        imageUploader: { control: false, description: 'Callback uploading a File and returning an Observable<string> URL, used by autoImageUpload and the image insert dialog.' },
         aiProvider: { control: false, description: 'Bring-your-own AI provider hook powering AI-assisted editing actions.' },
         locale: {
             control: 'select',
@@ -117,29 +115,10 @@ const meta: Meta<RichTextEditorComponent> = {
         readonly: { control: 'boolean', description: 'Renders content read-only (no editing)' },
         mentions: { control: 'boolean', description: 'Enable @mention autocomplete' },
         tags: { control: 'boolean', description: 'Enable #tag autocomplete' },
-        images: { control: 'boolean', description: 'Enable image insertion' },
-        autoImageUpload: { control: 'boolean', description: 'Auto-upload pasted/dropped base64 images via imageUploader' },
-        imageResize: { control: 'boolean', description: 'Allow drag-resizing of images' },
-        imageAlignment: { control: 'boolean', description: 'Show the image alignment toolbar' },
-        lockImageAspectRatio: { control: 'boolean', description: 'Constrain image resizing to its aspect ratio' },
         showCount: { control: 'boolean', description: 'Show the character counter' },
         showWordCount: { control: 'boolean', description: 'Show the word counter' },
-        imageSources: {
-            control: 'select',
-            options: ['all', 'upload', 'url'],
-            description: 'Which image insertion sources are offered',
-        },
-        defaultImageAlignment: {
-            control: 'select',
-            options: ['inline', 'left', 'center', 'right'],
-            description: 'Alignment applied to images on insert',
-        },
         maxLength: { control: 'number', description: 'Maximum character count (undefined = unlimited)' },
         historyLimit: { control: 'number', description: 'Maximum number of undo/redo snapshots retained' },
-        minImageWidth: { control: 'number', description: 'Lower bound (px) for drag-resizing images' },
-        maxImageWidth: { control: 'number', description: 'Upper bound (px) for drag-resizing images' },
-        defaultImageWidth: { control: 'number', description: 'Width (px) applied to images on insert' },
-        defaultImageHeight: { control: 'number', description: 'Height (px) applied to images on insert' },
     },
 };
 
@@ -163,7 +142,6 @@ export const Playground: Story = {
         readonly: false,
         mentions: false,
         tags: false,
-        images: true,
         showCount: true,
         showWordCount: true,
         historyDebounceMs: 450,
@@ -220,7 +198,7 @@ export const MinimalToolbar: Story = {
     args: {
         mode: 'markdown',
         toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'image'],
+        toolbarItems: ['bold', 'italic', 'separator', 'underline'],
         placeholder: 'Minimal toolbar...',
         minHeight: '150px',
     },
@@ -238,8 +216,6 @@ export const FullToolbar: Story = {
             'bulletList', 'orderedList', 'blockquote',
             'separator',
             'code', 'codeBlock',
-            'separator',
-            'image',
             'separator',
             'undo', 'redo', 'clear',
         ],
@@ -591,47 +567,6 @@ export const ReactiveForm: Story = {
         docs: {
             description: {
                 story: 'Using the rich text editor with Angular reactive forms.',
-            },
-        },
-    },
-};
-
-export const AutoImageUpload: Story = {
-    args: {
-        mode: 'html',
-        toolbar: 'top',
-        autoImageUpload: true,
-        imageUploader: (_file: File) =>
-            of('https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/1200px-Cat_November_2010-1a.jpg')
-                .pipe(delay(2000)),
-        placeholder: 'Paste or drag an image to see auto upload...',
-        minHeight: '200px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Automatically uploads base64 images using the `imageUploader` callback. Shows a shimmer skeleton while uploading, then replaces with the returned URL. Try pasting or dragging any image into the editor.',
-            },
-        },
-    },
-};
-
-export const ImageControls: Story = {
-    args: {
-        mode: 'html',
-        toolbar: 'top',
-        defaultImageWidth: 240,
-        defaultImageAlignment: 'center',
-        minImageWidth: 80,
-        maxImageWidth: 480,
-        lockImageAspectRatio: false,
-        placeholder: 'Insert an image via the toolbar, then select it and drag the corner or edge handles...',
-        minHeight: '240px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Developer-facing image controls: `defaultImageWidth` / `defaultImageHeight` set the size on insert, `defaultImageAlignment` sets the initial alignment, `minImageWidth` / `maxImageWidth` clamp the drag-resize range, and `lockImageAspectRatio={false}` enables single-axis edge handles. Set `imageResize={false}` to disable resizing entirely, or `imageAlignment={false}` to hide the alignment toolbar.',
             },
         },
     },

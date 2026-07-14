@@ -2225,7 +2225,8 @@
       "rich-text-editor/colors",
       "rich-text-editor/typography",
       "rich-text-editor/links",
-      "rich-text-editor/tables"
+      "rich-text-editor/tables",
+      "rich-text-editor/images"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2233,13 +2234,10 @@
       "rich-text-editor/rich-text-editor.component.html",
       "rich-text-editor/rich-text-editor.component.ts",
       "rich-text-editor/rich-text-editor.host.ts",
-      "rich-text-editor/rich-text-image.utils.ts",
       "rich-text-editor/rich-text-locales.ts",
       "rich-text-editor/rich-text-markdown.service.ts",
       "rich-text-editor/rich-text-paste-normalizer.service.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
-      "rich-text-editor/sub/rich-text-image-resizer.component.html",
-      "rich-text-editor/sub/rich-text-image-resizer.component.ts",
       "rich-text-editor/sub/rich-text-mention.component.html",
       "rich-text-editor/sub/rich-text-mention.component.ts",
       "rich-text-editor/sub/rich-text-toolbar.component.css",
@@ -2248,7 +2246,6 @@
     ],
     "dependencies": [
       "button",
-      "popover",
       "scroll-area",
       "separator"
     ],
@@ -2327,6 +2324,14 @@
         "note": "The table-insert UI (toolbar button + grid picker) moved to the opt-in tables addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/tables`, add `uiRteTables` to the editor element, and remove 'table' from any custom [toolbarItems] arrays (the button now renders after the built-in items). Only the INSERT UI is opt-in — editing an existing table (add/delete rows and columns, merge cells, borders, cell colour) stays in the base, so table content keeps rendering and editing with the base alone. Table-insert strings resolve from [uiRteTablesLocale] (or the global UI_LOCALE_ID), not the editor's [locale].",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/tables"
+      },
+      {
+        "kind": "removal",
+        "from": "the 'image' toolbar item + its insert popover, image paste/drag-drop, the [images]/[imageUploader]/[autoImageUpload]/[imageSources]/[imageResize]/[imageAlignment]/[defaultImageWidth]/[defaultImageHeight]/[defaultImageAlignment]/[minImageWidth]/[maxImageWidth]/[lockImageAspectRatio] inputs, the (imageUploadStart)/(imageUploadComplete)/(imageUploadError)/(autoImageUploadComplete)/(autoImageUploadError) outputs, and the resize/align overlay on <ui-rich-text-editor>",
+        "to": "the uiRteImages directive",
+        "note": "The whole image feature moved to the opt-in images addon, dropping the image UI (toolbar button, insert popover, paste/drop insertion, upload + auto-upload pipeline, and the resize/align overlay) from the base. Run `npx @gilav21/shadcn-angular apply rich-text-editor/images`, add `uiRteImages` to the editor element, and remap the inputs/outputs to the uiRteImages* prefix: [images]->[uiRteImages], [imageUploader]->[uiRteImagesUploader], [autoImageUpload]->[uiRteImagesAutoUpload], [imageSources]->[uiRteImagesSources], [imageResize]->[uiRteImagesResize], [imageAlignment]->[uiRteImagesAlignment], [defaultImageWidth]->[uiRteImagesDefaultWidth], [defaultImageHeight]->[uiRteImagesDefaultHeight], [defaultImageAlignment]->[uiRteImagesDefaultAlignment], [minImageWidth]->[uiRteImagesMinWidth], [maxImageWidth]->[uiRteImagesMaxWidth], [lockImageAspectRatio]->[uiRteImagesLockAspectRatio]. The upload outputs (imageUploadStart/Complete/Error, autoImageUploadComplete/Error) move onto the directive with the same names. Remove 'image' from any custom [toolbarItems] arrays (the button now renders after the built-in items). Content-level image support stays in the base — the sanitizer keeps allowing <img> and markdown still serializes images — so existing image content keeps rendering with the base alone; only the editing UI is opt-in. The base RichTextLocale no longer carries the `image` or `imageResizer` sections, `toolbar.insertImage`, or the `editor.uploadingImage`/`autoUpload*` keys; image strings resolve from [uiRteImagesLocale] (or the global UI_LOCALE_ID), not the editor's [locale]. This extraction also removes `popover` from the base's dependencies (the image button was its last consumer).",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/images"
       }
     ],
     "shortcutDefinitions": [
@@ -4245,6 +4250,58 @@
     "attach": {
       "import": "RichTextTablesDirective from './ui/rich-text-editor/addons/tables'",
       "selector": "uiRteTables"
+    }
+  },
+  "rich-text-editor/images": {
+    "name": "rich-text-editor/images",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "Image support for the rich text editor: toolbar insert popover, paste/drag-drop, upload + auto-upload pipeline, and a resize/align overlay.",
+    "tags": [
+      "rich-text",
+      "image",
+      "upload",
+      "resize",
+      "toolbar",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/images/index.ts",
+      "rich-text-editor/addons/images/rich-text-images-button.component.html",
+      "rich-text-editor/addons/images/rich-text-images-button.component.ts",
+      "rich-text-editor/addons/images/rich-text-images-overlay.component.html",
+      "rich-text-editor/addons/images/rich-text-images-overlay.component.ts",
+      "rich-text-editor/addons/images/rich-text-images-resizer.component.html",
+      "rich-text-editor/addons/images/rich-text-images-resizer.component.ts",
+      "rich-text-editor/addons/images/rich-text-images.context.ts",
+      "rich-text-editor/addons/images/rich-text-images.directive.ts",
+      "rich-text-editor/addons/images/rich-text-images.locales.ts",
+      "rich-text-editor/addons/images/rich-text-images.utils.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
+      "parsers/image-validator.ts"
+    ],
+    "dependencies": [
+      "button",
+      "popover",
+      "rich-text-editor"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts",
+      "rich-text-editor/rich-text-sanitizer.service.ts",
+      "rich-text-editor/rich-text-paste-normalizer.service.ts"
+    ],
+    "attach": {
+      "import": "RichTextImagesDirective from './ui/rich-text-editor/addons/images'",
+      "selector": "uiRteImages"
     }
   }
 }

@@ -21,15 +21,12 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
-import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, from, catchError } from 'rxjs';
+import { Observable, isObservable, of, Subject, Subscription, from, catchError } from 'rxjs';
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { isValidImageDataUrl } from '../../lib/parsers/image-validator';
 import { AiProvider, AiTask, runAiTask } from '../../lib/ai';
 import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './sub/rich-text-mention.component';
-import { RichTextImageResizerComponent } from './sub/rich-text-image-resizer.component';
-import { ImageAlignment, applyImageAlignment, parseImageSize } from './rich-text-image.utils';
 import { ButtonComponent } from '../button';
 import { ScrollAreaComponent } from '../scroll-area';
 import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
@@ -472,7 +469,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'alignLeft', 'alignCenter', 'alignRight',
     'separator',
-    'image', 'importFile',
+    'importFile',
     'separator',
     'code', 'codeBlock',
     'separator',
@@ -501,7 +498,6 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         NgTemplateOutlet,
         RichTextToolbarComponent,
         RichTextMentionPopoverComponent,
-        RichTextImageResizerComponent,
         ButtonComponent,
         ScrollAreaComponent,
     ],
@@ -631,78 +627,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     tagRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
 
-    // ג”€ג”€ Media ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-
-    /** Enable image insertion (toolbar button, paste, drag-and-drop). */
-    images = input<boolean>(true);
-
-    /**
-     * Custom upload handler for images. Receives the `File` and must return an
-     * `Observable<string>` that emits the final image URL. If `undefined`, images
-     * are inserted as base64 data URIs.
-     *
-     * @example
-     * ```ts
-     * imageUploader = (file: File) =>
-     *   this.http.post<{ url: string }>('/api/upload', formData)
-     *     .pipe(map(res => res.url));
-     * ```
-     */
-    imageUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
-
-    /**
-     * Automatically detect and upload base64 images inserted into the editor.
-     * When enabled and `imageUploader` is provided, any base64 `data:image/*`
-     * source is converted to a `File`, uploaded via the `imageUploader` callback,
-     * and replaced with the returned URL. A skeleton shimmer is shown on the
-     * image while the upload is in progress.
-     */
-    autoImageUpload = input<boolean>(false);
-
-    /**
-     * Which image source options to show in the image insertion dialog.
-     * - `'all'` ג€” Both file upload and URL input.
-     * - `'upload'` ג€” File upload only.
-     * - `'url'` ג€” URL input only.
-     */
-    imageSources = input<'all' | 'upload' | 'url'>('all');
-
-    /** Allow users to resize inserted images by dragging the corner handles. */
-    imageResize = input<boolean>(true);
-
-    /** Show the alignment buttons (inline / left / center / right) on a selected image. */
-    imageAlignment = input<boolean>(true);
-
-    /**
-     * Default width applied to every inserted image. A `number` is treated as
-     * pixels; a `string` is passed through (e.g. `'50%'`, `'20rem'`). When unset,
-     * images keep their natural size.
-     */
-    defaultImageWidth = input<number | string>();
-
-    /**
-     * Default height applied to every inserted image. A `number` is treated as
-     * pixels; a `string` is passed through. Leave unset to preserve the aspect
-     * ratio from {@link defaultImageWidth}.
-     */
-    defaultImageHeight = input<number | string>();
-
-    /** Alignment applied to every inserted image. */
-    defaultImageAlignment = input<ImageAlignment>('inline');
-
-    /** Lower clamp (px) for drag-resizing an image. */
-    minImageWidth = input<number>(20);
-
-    /** Upper clamp (px) for drag-resizing an image. No ceiling when unset. */
-    maxImageWidth = input<number>();
-
-    /**
-     * Keep the aspect ratio locked while resizing. When `false`, corner handles
-     * resize width and height independently and single-axis edge handles appear,
-     * so an image can be stretched in just one dimension.
-     */
-    lockImageAspectRatio = input<boolean>(true);
-
     // ג”€ג”€ Character & word count ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Show a character count below the editor. */
@@ -814,21 +738,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Emits when the editor loses focus. */
     blurred = output<void>();
 
-    /** Emits the `File` object when an image upload begins. */
-    imageUploadStart = output<File>();
-
-    /** Emits the final image URL string when an image upload completes successfully. */
-    imageUploadComplete = output<string>();
-
-    /** Emits an error message string when an image upload fails. */
-    imageUploadError = output<string>();
-
-    /** Emits the final URL when a base64 auto-upload completes successfully. */
-    autoImageUploadComplete = output<string>();
-
-    /** Emits an error message when a base64 auto-upload fails. */
-    autoImageUploadError = output<string>();
-
     /**
      * Emits when a mention is inserted into the editor.
      * @see {@link RichTextEntityInsertEvent} for the payload shape.
@@ -871,7 +780,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     selectedImage = signal<HTMLImageElement | null>(null);
     selectedText = signal<string>('');
     dragOver = signal<boolean>(false);
-    imageUploading = signal<boolean>(false);
     fileImporting = signal<boolean>(false);
     fileImportErrorMessage = signal('');
     tableContextMenuOpen = signal(false);
@@ -901,11 +809,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly onTableCellTouchMoveBound = this.onTableCellTouchMove.bind(this);
     private readonly onTableCellTouchEndBound = this.onTableCellTouchEnd.bind(this);
 
-    private readonly autoUploadMap = new Map<string, { subscription: Subscription; dataUrl: string }>();
-    private autoUploadObserver: MutationObserver | null = null;
-    private autoUploadCounter = 0;
-    private autoUploadMutating = false;
-    autoUploadErrors = signal<Map<string, { dataUrl: string; imgElement: HTMLImageElement }>>(new Map());
 
     /** Whether the docked document-outline panel is open. */
     outlinePanelOpen = signal<boolean>(false);
@@ -929,6 +832,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private shortcutHandle: ShortcutComponentHandle | null = null;
     private readonly keydownInterceptors = new Set<(event: KeyboardEvent) => boolean>();
     private readonly inputObservers = new Set<(text: string, caretOffset: number) => void>();
+    private readonly pasteInterceptors = new Set<(event: ClipboardEvent) => boolean>();
+    private readonly dropInterceptors = new Set<(event: DragEvent) => boolean>();
+    private readonly dropZonePredicates = new Set<(event: DragEvent) => boolean>();
     private readonly shortcutActions = new Map<string, { run: () => void; when?: () => boolean }>();
     private savedRange: Range | null = null;
     private linkEditorOpen: ((caretHint?: { x: number; y: number }) => void) | null = null;
@@ -1092,24 +998,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         r.collapse(false);
         sel.removeAllRanges();
         sel.addRange(r);
-    }
-
-    onImageResizeEnd(): void {
-        this.flushPendingHistoryPush();
-        this.syncContentFromEditor();
-        this.pushHistory();
-    }
-
-    onImageAlignmentChange(): void {
-        this.syncContentFromEditor();
-        this.pushHistory();
-    }
-
-    onImageRemove(img: HTMLImageElement): void {
-        img.remove();
-        this.selectedImage.set(null);
-        this.syncContentFromEditor();
-        this.pushHistory();
     }
 
     constructor() {
@@ -1302,55 +1190,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.editorDiv?.nativeElement) {
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
             this.enableTaskCheckboxes(this.editorDiv.nativeElement);
-            this.setupAutoUploadObserver();
         }
-    }
-
-    private setupAutoUploadObserver(): void {
-        const editor = this.editorDiv?.nativeElement;
-        if (!editor) return;
-
-        this.injectAutoUploadStyles();
-
-        this.autoUploadObserver = new MutationObserver(() => {
-            if (this.autoUploadMutating) return;
-            this.scanForBase64Images();
-        });
-
-        this.autoUploadObserver.observe(editor, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['src'],
-        });
-
-        this.scanForBase64Images();
-    }
-
-    private injectAutoUploadStyles(): void {
-        const styleId = 'ui-rte-auto-upload-styles';
-        if (this.document.getElementById(styleId)) return;
-
-        const style = this.document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-            @keyframes ui-auto-upload-shimmer {
-                0% { background-position: 200% 0; }
-                100% { background-position: -200% 0; }
-            }
-            img[data-auto-upload-status="uploading"] {
-                background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted-foreground) / 0.1) 50%, hsl(var(--muted)) 75%);
-                background-size: 200% 100%;
-                animation: ui-auto-upload-shimmer 1.5s ease-in-out infinite;
-                border-radius: 0.375rem;
-            }
-            img[data-auto-upload-status="error"] {
-                opacity: 0.4;
-                border: 2px dashed hsl(var(--destructive));
-                border-radius: 0.375rem;
-            }
-        `;
-        this.document.head.appendChild(style);
     }
 
     writeValue(value: string): void {
@@ -1617,7 +1457,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    async onPaste(event: ClipboardEvent): Promise<void> {
+    onPaste(event: ClipboardEvent): void {
         event.preventDefault();
         this.flushPendingHistoryPush();
 
@@ -1625,13 +1465,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
+        for (const interceptor of this.pasteInterceptors) {
+            if (interceptor(event)) {
+                return;
+            }
+        }
+
         const html = event.clipboardData?.getData('text/html');
         const text = event.clipboardData?.getData('text/plain') ?? '';
-
-        const imageFile = Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith('image/'));
-        if (imageFile && this.images() && await this.handlePasteImage(imageFile, html, text)) {
-            return;
-        }
 
         if (this.handlePasteMaxLength(text)) {
             return;
@@ -1640,15 +1481,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const normalized = this.pasteNormalizer.normalize(html ?? null, text);
         this.insertHtml(normalized);
         this.pushHistory();
-    }
-
-    private async handlePasteImage(imageFile: File, html: string | undefined, text: string): Promise<boolean> {
-        const source = this.pasteNormalizer.detectSource(html ?? null, text);
-        if (source !== 'excel') {
-            await this.insertImageFile(imageFile);
-            return true;
-        }
-        return false;
     }
 
     private handlePasteMaxLength(text: string): boolean {
@@ -1680,12 +1512,21 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const hasFiles = event.dataTransfer?.types?.includes('Files') ?? false;
         if (!hasFiles) return;
 
-        const canAcceptImage = this.images() && (this.canUseUploadSource() || this.canUseUrlSource());
+        const canAcceptAddon = this.dispatchDropZonePredicates(event);
         const canAcceptDocument = this.canDropDocumentFile() && this.hasSupportedDocumentFile(event.dataTransfer);
-        if (!canAcceptImage && !canAcceptDocument) return;
+        if (!canAcceptAddon && !canAcceptDocument) return;
 
         event.preventDefault();
         this.dragOver.set(true);
+    }
+
+    private dispatchDropZonePredicates(event: DragEvent): boolean {
+        for (const predicate of this.dropZonePredicates) {
+            if (predicate(event)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     onEditorDragLeave(event: DragEvent): void {
@@ -1704,16 +1545,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.dragOver.set(false);
         if (this.disabled() || this.readonly()) return;
 
-        const files = Array.from(event.dataTransfer?.files ?? []);
-
-        const imageFile = this.images() && (this.canUseUploadSource() || this.canUseUrlSource())
-            ? files.find(file => file.type.startsWith('image/'))
-            : undefined;
-        if (imageFile) {
-            event.preventDefault();
-            await this.insertImageFile(imageFile);
+        if (this.dispatchDropInterceptors(event)) {
             return;
         }
+
+        const files = Array.from(event.dataTransfer?.files ?? []);
 
         const documentFile = this.canDropDocumentFile()
             ? files.find(file => file.type === 'application/pdf' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.pdf') || file.name.endsWith('.docx'))
@@ -2242,23 +2078,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    onImageInsert(data: { alt: string; src: string }): void {
-        this.flushPendingHistoryPush();
-        if (this.imageSources() === 'upload') {
-            this.imageUploadError.emit('Image URL insertion is disabled. Use upload source.');
-            return;
-        }
-        this.restoreSelection();
-        const safeSrc = this.sanitizer.sanitizeImageSrc(data.src);
-        if (safeSrc) {
-            this.insertImageAtSelection(safeSrc, data.alt);
-            this.pushHistory();
-            this.syncContentFromEditor();
-        } else {
-            this.imageUploadError.emit('Invalid image URL.');
-        }
-    }
-
     async onFileImport(file: File): Promise<void> {
         if (this.readonly() || this.disabled()) return;
         this.flushPendingHistoryPush();
@@ -2411,8 +2230,35 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return () => this.inputObservers.delete(observer);
     }
 
+    /** Register an addon paste interceptor (addon host surface). */
+    registerPasteInterceptor(interceptor: (event: ClipboardEvent) => boolean): () => void {
+        this.pasteInterceptors.add(interceptor);
+        return () => this.pasteInterceptors.delete(interceptor);
+    }
+
+    /** Register an addon drop interceptor (addon host surface). */
+    registerDropInterceptor(interceptor: (event: DragEvent) => boolean): () => void {
+        this.dropInterceptors.add(interceptor);
+        return () => this.dropInterceptors.delete(interceptor);
+    }
+
+    /** Register an addon drop-zone predicate (addon host surface). */
+    registerDropZonePredicate(predicate: (event: DragEvent) => boolean): () => void {
+        this.dropZonePredicates.add(predicate);
+        return () => this.dropZonePredicates.delete(predicate);
+    }
+
     private dispatchKeydownInterceptors(event: KeyboardEvent): boolean {
         for (const interceptor of this.keydownInterceptors) {
+            if (interceptor(event)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private dispatchDropInterceptors(event: DragEvent): boolean {
+        for (const interceptor of this.dropInterceptors) {
             if (interceptor(event)) {
                 return true;
             }
@@ -2919,267 +2765,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         return 0;
     }
-
-    private canUseUploadSource(): boolean {
-        return this.imageSources() === 'all' || this.imageSources() === 'upload';
-    }
-
-    private canUseUrlSource(): boolean {
-        return this.imageSources() === 'all' || this.imageSources() === 'url';
-    }
-
-    private async insertImageFile(file: File): Promise<void> {
-        const uploader = this.imageUploader();
-        if (this.canUseUploadSource() && uploader) {
-            await this.uploadImageFile(file);
-            return;
-        }
-
-        if (this.canUseUrlSource()) {
-            try {
-                const fileDataUrl = await this.readFileAsDataUrl(file);
-                if (!fileDataUrl.toLowerCase().startsWith('data:image/')) {
-                    this.imageUploadError.emit('Pasted image is not allowed by sanitizer policy.');
-                    return;
-                }
-                this.insertImageAtSelection(fileDataUrl, file.name);
-                this.pushHistory();
-                this.imageUploadComplete.emit(fileDataUrl);
-                return;
-            } catch {
-                this.imageUploadError.emit('Could not read image file.');
-            }
-        }
-
-        if (this.canUseUploadSource() && !uploader) {
-            this.imageUploadError.emit('No imageUploader configured.');
-        }
-    }
-
-    private async uploadImageFile(file: File): Promise<void> {
-        const uploader = this.imageUploader();
-        if (!uploader) {
-            this.imageUploadError.emit('No imageUploader configured.');
-            return;
-        }
-
-        this.imageUploading.set(true);
-        this.imageUploadStart.emit(file);
-
-        try {
-            const uploadedUrl = await firstValueFrom(uploader(file));
-            const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
-            if (!safeSrc) {
-                this.imageUploadError.emit('Uploaded image URL is not allowed by sanitizer policy.');
-                return;
-            }
-            this.insertImageAtSelection(safeSrc, file.name);
-            this.pushHistory();
-            this.imageUploadComplete.emit(safeSrc);
-        } catch (error: unknown) {
-            const uploadErrorMessage = error instanceof Error ? error.message : undefined;
-            this.imageUploadError.emit(uploadErrorMessage ?? 'Image upload failed.');
-        } finally {
-            this.imageUploading.set(false);
-        }
-    }
-
-    private readFileAsDataUrl(file: File): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-            reader.onerror = () => reject(new Error('Could not read image file.'));
-            reader.readAsDataURL(file);
-        });
-    }
-
-    private readonly TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-
-    private dataUrlToFile(dataUrl: string, filename: string): File {
-        const parts = dataUrl.split(',');
-        const meta = parts[0];
-        const base64 = parts[1];
-        const mime = /:([^;]{0,4096});/.exec(meta)?.[1] ?? 'image/png';
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.codePointAt(i) ?? 0;
-        }
-        return new File([bytes], filename, { type: mime });
-    }
-
-    private scanForBase64Images(): void {
-        if (!this.autoImageUpload() || !this.imageUploader() || this.disabled() || this.readonly()) {
-            return;
-        }
-        const editor = this.getEditorElement();
-        if (!editor) return;
-
-        const images = editor.querySelectorAll('img');
-        images.forEach(img => {
-            const src = img.getAttribute('src') ?? '';
-            if (src.startsWith('data:image/') && img.dataset['autoUploadId'] === undefined) {
-                this.processAutoUploadImage(img);
-            }
-        });
-    }
-
-    private processAutoUploadImage(img: HTMLImageElement): void {
-        const uploader = this.imageUploader();
-        if (!uploader) return;
-
-        const uploadId = `auto-upload-${++this.autoUploadCounter}`;
-        const dataUrl = img.getAttribute('src') ?? '';
-
-        this.markImageAsUploading(img, uploadId);
-        this.syncContentFromEditor();
-
-        if (!isValidImageDataUrl(dataUrl)) {
-            this.revertInvalidUploadImage(img);
-            return;
-        }
-
-        this.startAutoUploadSubscription(img, uploadId, dataUrl, uploader);
-    }
-
-    private markImageAsUploading(img: HTMLImageElement, uploadId: string): void {
-        const width = img.naturalWidth || img.width || Number.parseInt(img.getAttribute('width') ?? '0', 10) || 200;
-        const height = img.naturalHeight || img.height || Number.parseInt(img.getAttribute('height') ?? '0', 10) || 150;
-
-        this.autoUploadMutating = true;
-        img.dataset['autoUploadId'] = uploadId;
-        img.dataset['autoUploadStatus'] = 'uploading';
-        if (!img.getAttribute('width')) img.setAttribute('width', String(width));
-        if (!img.getAttribute('height')) img.setAttribute('height', String(height));
-        img.setAttribute('src', this.TRANSPARENT_PIXEL);
-        this.autoUploadMutating = false;
-    }
-
-    private revertInvalidUploadImage(img: HTMLImageElement): void {
-        this.autoUploadMutating = true;
-        delete img.dataset['autoUploadId'];
-        delete img.dataset['autoUploadStatus'];
-        img.setAttribute('src', this.TRANSPARENT_PIXEL);
-        this.autoUploadMutating = false;
-        this.syncContentFromEditor();
-        this.autoImageUploadError.emit(this.resolvedLocale().editor.autoUploadNotImage);
-    }
-
-    private startAutoUploadSubscription(
-        img: HTMLImageElement,
-        uploadId: string,
-        dataUrl: string,
-        uploader: (file: File) => import('rxjs').Observable<string>
-    ): void {
-        const ext = (/data:image\/([\w+]+)/.exec(dataUrl)?.[1] ?? 'png').replace('+xml', '');
-        const filename = `pasted-image-${uploadId}.${ext}`;
-        const file = this.dataUrlToFile(dataUrl, filename);
-
-        const subscription = from(firstValueFrom(uploader(file))).subscribe({
-            next: (uploadedUrl) => {
-                const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
-                if (!safeSrc) {
-                    this.handleAutoUploadError(uploadId, img, dataUrl, 'Uploaded image URL is not allowed by sanitizer policy.');
-                    return;
-                }
-                this.autoUploadMutating = true;
-                img.setAttribute('src', safeSrc);
-                delete img.dataset['autoUploadId'];
-                delete img.dataset['autoUploadStatus'];
-                this.autoUploadMutating = false;
-
-                this.autoUploadMap.delete(uploadId);
-                this.syncContentFromEditor();
-                this.pushHistory();
-                this.autoImageUploadComplete.emit(safeSrc);
-            },
-            error: (err: unknown) => {
-                const message = err instanceof Error ? err.message : 'Auto image upload failed.';
-                this.handleAutoUploadError(uploadId, img, dataUrl, message);
-            },
-        });
-
-        this.autoUploadMap.set(uploadId, { subscription, dataUrl });
-    }
-
-    private handleAutoUploadError(uploadId: string, img: HTMLImageElement, dataUrl: string, message: string): void {
-        this.autoUploadMutating = true;
-        img.dataset['autoUploadStatus'] = 'error';
-        this.autoUploadMutating = false;
-
-        this.autoUploadMap.delete(uploadId);
-        const errors = new Map(this.autoUploadErrors());
-        errors.set(uploadId, { dataUrl, imgElement: img });
-        this.autoUploadErrors.set(errors);
-        this.syncContentFromEditor();
-        this.autoImageUploadError.emit(message);
-    }
-
-    retryAutoUpload(uploadId: string): void {
-        const errors = new Map(this.autoUploadErrors());
-        const entry = errors.get(uploadId);
-        if (!entry) return;
-
-        const img = entry.imgElement;
-        if (!img.isConnected) {
-            errors.delete(uploadId);
-            this.autoUploadErrors.set(errors);
-            return;
-        }
-
-        errors.delete(uploadId);
-        this.autoUploadErrors.set(errors);
-
-        this.autoUploadMutating = true;
-        delete img.dataset['autoUploadId'];
-        delete img.dataset['autoUploadStatus'];
-        img.setAttribute('src', entry.dataUrl);
-        this.autoUploadMutating = false;
-
-        this.processAutoUploadImage(img);
-    }
-
-    removeAutoUploadImage(uploadId: string): void {
-        const errors = new Map(this.autoUploadErrors());
-        const entry = errors.get(uploadId);
-        if (entry?.imgElement?.isConnected) {
-            entry.imgElement.remove();
-        }
-        errors.delete(uploadId);
-        this.autoUploadErrors.set(errors);
-
-        const pending = this.autoUploadMap.get(uploadId);
-        if (pending) {
-            pending.subscription.unsubscribe();
-            this.autoUploadMap.delete(uploadId);
-        }
-
-        this.syncContentFromEditor();
-        this.pushHistory();
-    }
-
-    autoUploadErrorList = computed(() => {
-        const errors = this.autoUploadErrors();
-        const container = this.editorDiv?.nativeElement;
-        if (!container || errors.size === 0) return [];
-
-        const containerRect = container.getBoundingClientRect();
-        const entries: Array<{ id: string; top: number; left: number; width: number; height: number }> = [];
-
-        errors.forEach((entry, id) => {
-            if (!entry.imgElement.isConnected) return;
-            const imgRect = entry.imgElement.getBoundingClientRect();
-            entries.push({
-                id,
-                top: imgRect.top - containerRect.top,
-                left: imgRect.left - containerRect.left,
-                width: Math.max(imgRect.width, 120),
-                height: Math.max(imgRect.height, 80),
-            });
-        });
-
-        return entries;
-    });
 
     private closeTableContextMenu(): void {
         this.tableContextMenuOpen.set(false);
@@ -4661,58 +4246,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.syncContentFromEditor();
     }
 
-    private insertImageAtSelection(src: string, alt: string): void {
-        const img = this.document.createElement('img');
-        img.setAttribute('src', src);
-        img.setAttribute('alt', alt || 'Image');
-        this.applyImageDefaults(img);
-
-        const selection = this.document.getSelection();
-        const editorElement = this.getEditorElement();
-        if (!selection || selection.rangeCount === 0 || !editorElement) {
-            editorElement?.appendChild(img);
-            this.syncContentFromEditor();
-            return;
-        }
-
-        const range = selection.getRangeAt(0);
-        const anchorNode = range.commonAncestorContainer;
-        if (!editorElement.contains(anchorNode)) {
-            editorElement.appendChild(img);
-            const newRange = this.document.createRange();
-            newRange.setStartAfter(img);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-            this.syncContentFromEditor();
-            return;
-        }
-
-        range.deleteContents();
-        range.insertNode(img);
-
-        const newRange = this.document.createRange();
-        newRange.setStartAfter(img);
-        newRange.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-        this.syncContentFromEditor();
-    }
-
-    private applyImageDefaults(img: HTMLImageElement): void {
-        const width = this.defaultImageWidth();
-        if (width !== undefined) {
-            img.style.width = parseImageSize(width);
-        }
-        const height = this.defaultImageHeight();
-        if (height !== undefined) {
-            img.style.height = parseImageSize(height);
-        }
-        const align = this.defaultImageAlignment();
-        img.dataset['align'] = align;
-        applyImageAlignment(img, align);
-    }
-
     private getEditorElement(): HTMLDivElement | null {
         if (this.editorDiv?.nativeElement) {
             return this.editorDiv.nativeElement;
@@ -5680,13 +5213,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             clearTimeout(this.historyDebounceTimer);
             this.historyDebounceTimer = null;
         }
-        if (this.autoUploadObserver) {
-            this.autoUploadObserver.disconnect();
-            this.autoUploadObserver = null;
-        }
-        this.autoUploadMap.forEach(entry => entry.subscription.unsubscribe());
-        this.autoUploadMap.clear();
-        this.autoUploadErrors.set(new Map());
         this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
         this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
         this.document.removeEventListener('touchmove', this.onTableCellTouchMoveBound);

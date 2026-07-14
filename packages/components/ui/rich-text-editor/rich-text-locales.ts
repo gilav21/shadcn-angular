@@ -15,7 +15,6 @@ export interface RichTextLocale extends LocaleMeta {
         blockquote: string;
         inlineCode: string;
         codeBlock: string;
-        insertImage: string;
         undo: string;
         redo: string;
         clearFormatting: string;
@@ -41,13 +40,6 @@ export interface RichTextLocale extends LocaleMeta {
         close: string;
     };
 
-    image: {
-        url: string;
-        urlPlaceholder: string;
-        altText: string;
-        altTextPlaceholder: string;
-        insert: string;
-    };
 
     slashCommands: {
         outline: string;
@@ -113,28 +105,16 @@ export interface RichTextLocale extends LocaleMeta {
         cellAlignRight: string;
     };
 
-    imageResizer: {
-        inline: string;
-        floatLeft: string;
-        center: string;
-        floatRight: string;
-        deleteImage: string;
-    };
 
     editor: {
         placeholder: string;
         ariaLabel: string;
-        uploadingImage: string;
         importingFile: string;
         importFailed: string;
         importInvalidFile: string;
         characters: string;
         words: string;
         formattingOptions: string;
-        autoUploadFailed: string;
-        autoUploadRetry: string;
-        autoUploadRemove: string;
-        autoUploadNotImage: string;
     };
 }
 
@@ -155,7 +135,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Blockquote',
             inlineCode: 'Inline Code',
             codeBlock: 'Code Block',
-            insertImage: 'Insert Image',
             undo: 'Undo',
             redo: 'Redo',
             clearFormatting: 'Clear Formatting',
@@ -178,13 +157,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Match Case',
             noResults: 'No results',
             close: 'Close',
-        },
-        image: {
-            url: 'Image URL',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Alt Text',
-            altTextPlaceholder: 'Description of image',
-            insert: 'Insert Image',
         },
         slashCommands: {
             outline: 'Outline',
@@ -244,27 +216,15 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'Align Center',
             cellAlignRight: 'Align Right',
         },
-        imageResizer: {
-            inline: 'Inline with text',
-            floatLeft: 'Float left',
-            center: 'Center',
-            floatRight: 'Float right',
-            deleteImage: 'Delete image',
-        },
         editor: {
             placeholder: 'Write something...',
             ariaLabel: 'Rich text editor',
-            uploadingImage: 'Uploading image...',
             importingFile: 'Importing file...',
             importFailed: 'Failed to import file. The file may be unsupported or corrupted.',
             importInvalidFile: 'The selected file is not a valid PDF or DOCX.',
             characters: '{count} characters',
             words: '{count} words',
             formattingOptions: 'Formatting options',
-            autoUploadFailed: 'Upload failed',
-            autoUploadRetry: 'Retry',
-            autoUploadRemove: 'Remove',
-            autoUploadNotImage: 'The image could not be uploaded because its content is not a valid image.',
         },
     },
     he: {
@@ -284,7 +244,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'ציטוט',
             inlineCode: 'קוד בתוך שורה',
             codeBlock: 'בלוק קוד',
-            insertImage: 'הוספת תמונה',
             undo: 'ביטול',
             redo: 'ביצוע חוזר',
             clearFormatting: 'ניקוי עיצוב',
@@ -307,13 +266,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'התאמת רישיות',
             noResults: 'אין תוצאות',
             close: 'סגירה',
-        },
-        image: {
-            url: 'כתובת תמונה',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'טקסט חלופי',
-            altTextPlaceholder: 'תיאור התמונה',
-            insert: 'הוספת תמונה',
         },
         slashCommands: {
             outline: 'תוכן עניינים',
@@ -373,27 +325,15 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'יישור למרכז',
             cellAlignRight: 'יישור לימין',
         },
-        imageResizer: {
-            inline: 'בתוך הטקסט',
-            floatLeft: 'הצמדה לשמאל',
-            center: 'מירכוז',
-            floatRight: 'הצמדה לימין',
-            deleteImage: 'מחיקת תמונה',
-        },
         editor: {
             placeholder: 'ניתן לכתוב כאן...',
             ariaLabel: 'עורך טקסט עשיר',
-            uploadingImage: 'העלאת תמונה...',
             importingFile: '...מייבא קובץ',
             importFailed: 'ייבוא הקובץ נכשל. הקובץ עשוי להיות לא נתמך או פגום.',
             importInvalidFile: 'הקובץ שנבחר אינו קובץ PDF או DOCX תקין.',
             characters: '{count} תווים',
             words: '{count} מילים',
             formattingOptions: 'אפשרויות עיצוב',
-            autoUploadFailed: 'ההעלאה נכשלה',
-            autoUploadRetry: 'נסה שוב',
-            autoUploadRemove: 'הסר',
-            autoUploadNotImage: 'לא ניתן להעלות את התמונה מכיוון שהתוכן אינו תמונה תקינה.',
         },
     },
     ar: {
@@ -413,7 +353,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'اقتباس',
             inlineCode: 'كود سطري',
             codeBlock: 'كتلة كود',
-            insertImage: 'إدراج صورة',
             undo: 'تراجع',
             redo: 'إعادة',
             clearFormatting: 'مسح التنسيق',
@@ -436,13 +375,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'مطابقة الحالة',
             noResults: 'لا توجد نتائج',
             close: 'إغلاق',
-        },
-        image: {
-            url: 'عنوان الصورة',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'نص بديل',
-            altTextPlaceholder: 'وصف الصورة',
-            insert: 'إدراج صورة',
         },
         slashCommands: {
             outline: 'المخطط التفصيلي',
@@ -484,27 +416,15 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'محاذاة للوسط',
             cellAlignRight: 'محاذاة لليمين',
         },
-        imageResizer: {
-            inline: 'داخل النص',
-            floatLeft: 'تعويم لليسار',
-            center: 'توسيط',
-            floatRight: 'تعويم لليمين',
-            deleteImage: 'حذف الصورة',
-        },
         editor: {
             placeholder: 'الكتابة هنا...',
             ariaLabel: 'محرر نص منسق',
-            uploadingImage: 'جارٍ رفع الصورة...',
             importingFile: '...جارٍ استيراد الملف',
             importFailed: 'فشل استيراد الملف. قد يكون الملف غير مدعوم أو تالفاً.',
             importInvalidFile: 'الملف المحدد ليس ملف PDF أو DOCX صالحاً.',
             characters: '{count} حرف',
             words: '{count} كلمة',
             formattingOptions: 'خيارات التنسيق',
-            autoUploadFailed: 'فشل الرفع',
-            autoUploadRetry: 'إعادة المحاولة',
-            autoUploadRemove: 'إزالة',
-            autoUploadNotImage: 'تعذر رفع الصورة لأن محتواها ليس صورة صالحة.',
         },
     },
     de: {
@@ -523,7 +443,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Zitat',
             inlineCode: 'Inline-Code',
             codeBlock: 'Codeblock',
-            insertImage: 'Bild einfügen',
             undo: 'Rückgängig',
             redo: 'Wiederherstellen',
             clearFormatting: 'Formatierung löschen',
@@ -546,13 +465,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Groß-/Kleinschreibung',
             noResults: 'Keine Ergebnisse',
             close: 'Schließen',
-        },
-        image: {
-            url: 'Bild-URL',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Alternativtext',
-            altTextPlaceholder: 'Bildbeschreibung',
-            insert: 'Bild einfügen',
         },
         slashCommands: {
             outline: 'Gliederung',
@@ -594,27 +506,15 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'Zentriert',
             cellAlignRight: 'Rechtsbündig',
         },
-        imageResizer: {
-            inline: 'Im Text',
-            floatLeft: 'Links umfließen',
-            center: 'Zentriert',
-            floatRight: 'Rechts umfließen',
-            deleteImage: 'Bild löschen',
-        },
         editor: {
             placeholder: 'Schreiben Sie etwas...',
             ariaLabel: 'Rich-Text-Editor',
-            uploadingImage: 'Bild wird hochgeladen...',
             importingFile: 'Datei wird importiert...',
             importFailed: 'Datei-Import fehlgeschlagen. Die Datei wird möglicherweise nicht unterstützt oder ist beschädigt.',
             importInvalidFile: 'Die ausgewählte Datei ist keine gültige PDF- oder DOCX-Datei.',
             characters: '{count} Zeichen',
             words: '{count} Wörter',
             formattingOptions: 'Formatierungsoptionen',
-            autoUploadFailed: 'Upload fehlgeschlagen',
-            autoUploadRetry: 'Erneut versuchen',
-            autoUploadRemove: 'Entfernen',
-            autoUploadNotImage: 'Das Bild konnte nicht hochgeladen werden, da der Inhalt kein gültiges Bild ist.',
         },
     },
     fr: {
@@ -633,7 +533,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Citation',
             inlineCode: 'Code en ligne',
             codeBlock: 'Bloc de code',
-            insertImage: 'Insérer une image',
             undo: 'Annuler',
             redo: 'Rétablir',
             clearFormatting: 'Effacer la mise en forme',
@@ -656,13 +555,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Respecter la casse',
             noResults: 'Aucun résultat',
             close: 'Fermer',
-        },
-        image: {
-            url: 'URL de l\'image',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Texte alternatif',
-            altTextPlaceholder: 'Description de l\'image',
-            insert: 'Insérer l\'image',
         },
         slashCommands: {
             outline: 'Plan',
@@ -704,27 +596,15 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'Centrer',
             cellAlignRight: 'Aligner à droite',
         },
-        imageResizer: {
-            inline: 'Dans le texte',
-            floatLeft: 'Flottant à gauche',
-            center: 'Centrée',
-            floatRight: 'Flottant à droite',
-            deleteImage: 'Supprimer l\'image',
-        },
         editor: {
             placeholder: 'Écrivez quelque chose...',
             ariaLabel: 'Éditeur de texte enrichi',
-            uploadingImage: 'Téléchargement de l\'image...',
             importingFile: 'Importation du fichier...',
             importFailed: 'Échec de l\'importation du fichier. Le fichier est peut-être non pris en charge ou corrompu.',
             importInvalidFile: 'Le fichier sélectionné n\'est pas un PDF ou DOCX valide.',
             characters: '{count} caractères',
             words: '{count} mots',
             formattingOptions: 'Options de mise en forme',
-            autoUploadFailed: 'Échec du téléversement',
-            autoUploadRetry: 'Réessayer',
-            autoUploadRemove: 'Supprimer',
-            autoUploadNotImage: 'L\'image n\'a pas pu être téléchargée car son contenu n\'est pas une image valide.',
         },
     },
     es: {
@@ -743,7 +623,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Cita',
             inlineCode: 'Código en línea',
             codeBlock: 'Bloque de código',
-            insertImage: 'Insertar imagen',
             undo: 'Deshacer',
             redo: 'Rehacer',
             clearFormatting: 'Borrar formato',
@@ -766,13 +645,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Coincidir mayúsculas',
             noResults: 'Sin resultados',
             close: 'Cerrar',
-        },
-        image: {
-            url: 'URL de imagen',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Texto alternativo',
-            altTextPlaceholder: 'Descripción de la imagen',
-            insert: 'Insertar imagen',
         },
         slashCommands: {
             outline: 'Esquema',
@@ -814,27 +686,15 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'Centrar',
             cellAlignRight: 'Alinear a la derecha',
         },
-        imageResizer: {
-            inline: 'En línea con el texto',
-            floatLeft: 'Flotar a la izquierda',
-            center: 'Centrar',
-            floatRight: 'Flotar a la derecha',
-            deleteImage: 'Eliminar imagen',
-        },
         editor: {
             placeholder: 'Escribe algo...',
             ariaLabel: 'Editor de texto enriquecido',
-            uploadingImage: 'Subiendo imagen...',
             importingFile: 'Importando archivo...',
             importFailed: 'Error al importar archivo. El archivo puede no ser compatible o estar dañado.',
             importInvalidFile: 'El archivo seleccionado no es un PDF o DOCX válido.',
             characters: '{count} caracteres',
             words: '{count} palabras',
             formattingOptions: 'Opciones de formato',
-            autoUploadFailed: 'Error al subir',
-            autoUploadRetry: 'Reintentar',
-            autoUploadRemove: 'Eliminar',
-            autoUploadNotImage: 'No se pudo subir la imagen porque su contenido no es una imagen válida.',
         },
     },
     ja: {
@@ -853,7 +713,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: '引用',
             inlineCode: 'インラインコード',
             codeBlock: 'コードブロック',
-            insertImage: '画像を挿入',
             undo: '元に戻す',
             redo: 'やり直し',
             clearFormatting: '書式をクリア',
@@ -876,13 +735,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: '大文字小文字を区別',
             noResults: '結果なし',
             close: '閉じる',
-        },
-        image: {
-            url: '画像URL',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: '代替テキスト',
-            altTextPlaceholder: '画像の説明',
-            insert: '画像を挿入',
         },
         slashCommands: {
             outline: 'アウトライン',
@@ -924,27 +776,15 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: '中央揃え',
             cellAlignRight: '右揃え',
         },
-        imageResizer: {
-            inline: 'テキストと同列',
-            floatLeft: '左に回り込み',
-            center: '中央',
-            floatRight: '右に回り込み',
-            deleteImage: '画像を削除',
-        },
         editor: {
             placeholder: '何か書いてください...',
             ariaLabel: 'リッチテキストエディター',
-            uploadingImage: '画像をアップロード中...',
             importingFile: 'ファイルをインポート中...',
             importFailed: 'ファイルのインポートに失敗しました。ファイルがサポートされていないか破損している可能性があります。',
             importInvalidFile: '選択されたファイルは有効なPDFまたはDOCXではありません。',
             characters: '{count} 文字',
             words: '{count} 語',
             formattingOptions: '書式設定オプション',
-            autoUploadFailed: 'アップロード失敗',
-            autoUploadRetry: '再試行',
-            autoUploadRemove: '削除',
-            autoUploadNotImage: 'コンテンツが有効な画像ではないため、画像をアップロードできませんでした。',
         },
     },
     zh: {
@@ -963,7 +803,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: '引用',
             inlineCode: '行内代码',
             codeBlock: '代码块',
-            insertImage: '插入图片',
             undo: '撤销',
             redo: '重做',
             clearFormatting: '清除格式',
@@ -986,13 +825,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: '区分大小写',
             noResults: '无结果',
             close: '关闭',
-        },
-        image: {
-            url: '图片 URL',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: '替代文字',
-            altTextPlaceholder: '图片描述',
-            insert: '插入图片',
         },
         slashCommands: {
             outline: '大纲',
@@ -1034,27 +866,15 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: '居中对齐',
             cellAlignRight: '右对齐',
         },
-        imageResizer: {
-            inline: '与文字内联',
-            floatLeft: '左浮动',
-            center: '居中',
-            floatRight: '右浮动',
-            deleteImage: '删除图片',
-        },
         editor: {
             placeholder: '写点什么...',
             ariaLabel: '富文本编辑器',
-            uploadingImage: '正在上传图片...',
             importingFile: '正在导入文件...',
             importFailed: '文件导入失败。文件可能不受支持或已损坏。',
             importInvalidFile: '所选文件不是有效的PDF或DOCX文件。',
             characters: '{count} 个字符',
             words: '{count} 个词',
             formattingOptions: '格式选项',
-            autoUploadFailed: '上传失败',
-            autoUploadRetry: '重试',
-            autoUploadRemove: '移除',
-            autoUploadNotImage: '由于内容不是有效图片，无法上传该图片。',
         },
     },
     ru: {
@@ -1073,7 +893,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Цитата',
             inlineCode: 'Строчный код',
             codeBlock: 'Блок кода',
-            insertImage: 'Вставить изображение',
             undo: 'Отменить',
             redo: 'Повторить',
             clearFormatting: 'Очистить форматирование',
@@ -1096,13 +915,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'С учётом регистра',
             noResults: 'Нет результатов',
             close: 'Закрыть',
-        },
-        image: {
-            url: 'URL изображения',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Альтернативный текст',
-            altTextPlaceholder: 'Описание изображения',
-            insert: 'Вставить изображение',
         },
         slashCommands: {
             outline: 'Структура',
@@ -1144,27 +956,15 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'По центру',
             cellAlignRight: 'По правому краю',
         },
-        imageResizer: {
-            inline: 'В тексте',
-            floatLeft: 'Обтекание слева',
-            center: 'По центру',
-            floatRight: 'Обтекание справа',
-            deleteImage: 'Удалить изображение',
-        },
         editor: {
             placeholder: 'Напишите что-нибудь...',
             ariaLabel: 'Редактор форматированного текста',
-            uploadingImage: 'Загрузка изображения...',
             importingFile: 'Импорт файла...',
             importFailed: 'Не удалось импортировать файл. Файл может быть неподдерживаемым или повреждённым.',
             importInvalidFile: 'Выбранный файл не является допустимым PDF или DOCX.',
             characters: '{count} символов',
             words: '{count} слов',
             formattingOptions: 'Параметры форматирования',
-            autoUploadFailed: 'Ошибка загрузки',
-            autoUploadRetry: 'Повторить',
-            autoUploadRemove: 'Удалить',
-            autoUploadNotImage: 'Изображение не удалось загрузить, так как его содержимое не является допустимым изображением.',
         },
     },
     pt: {
@@ -1183,7 +983,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Citação',
             inlineCode: 'Código em linha',
             codeBlock: 'Bloco de código',
-            insertImage: 'Inserir imagem',
             undo: 'Desfazer',
             redo: 'Refazer',
             clearFormatting: 'Limpar formatação',
@@ -1206,13 +1005,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Diferenciar maiúsculas',
             noResults: 'Sem resultados',
             close: 'Fechar',
-        },
-        image: {
-            url: 'URL da imagem',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Texto alternativo',
-            altTextPlaceholder: 'Descrição da imagem',
-            insert: 'Inserir imagem',
         },
         slashCommands: {
             outline: 'Estrutura de tópicos',
@@ -1254,27 +1046,15 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'Centralizar',
             cellAlignRight: 'Alinhar à direita',
         },
-        imageResizer: {
-            inline: 'Em linha com o texto',
-            floatLeft: 'Flutuar à esquerda',
-            center: 'Centralizar',
-            floatRight: 'Flutuar à direita',
-            deleteImage: 'Excluir imagem',
-        },
         editor: {
             placeholder: 'Escreva algo...',
             ariaLabel: 'Editor de texto rico',
-            uploadingImage: 'Enviando imagem...',
             importingFile: 'Importando arquivo...',
             importFailed: 'Falha ao importar arquivo. O arquivo pode não ser suportado ou estar corrompido.',
             importInvalidFile: 'O arquivo selecionado não é um PDF ou DOCX válido.',
             characters: '{count} caracteres',
             words: '{count} palavras',
             formattingOptions: 'Opções de formatação',
-            autoUploadFailed: 'Falha no envio',
-            autoUploadRetry: 'Tentar novamente',
-            autoUploadRemove: 'Remover',
-            autoUploadNotImage: 'A imagem não pôde ser enviada porque seu conteúdo não é uma imagem válida.',
         },
     },
 };

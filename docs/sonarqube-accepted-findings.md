@@ -119,7 +119,8 @@ re-scans.
 | --- | --- |
 | `file-viewer/file-viewer.component.ts` | `blob:` URLs from `URL.createObjectURL`, and HTML produced by our own DOCX/PDF/PPTX parsers. Never user-supplied strings. |
 | `icon/icon.component.ts` | `rawHtml` comes exclusively from `DEFAULT_ICONS` (hardcoded SVG paths) or consumer-registered icons via `provideIcons()`. Never user input. |
-| `rich-text-editor/sub/rich-text-image-resizer.component.ts` | Trusted static SVG icon constants defined in the file. |
+| `rich-text-editor/addons/images/rich-text-images-resizer.component.ts` | Trusted static SVG icon constants (alignment + delete) defined in the file. Never user input. |
+| `rich-text-editor/addons/images/rich-text-images-button.component.ts` | The trusted static `IMAGE_ICON` SVG constant defined in the file. Never user input. |
 | `rich-text-editor/sub/rich-text-toolbar.component.ts` | Trusted static toolbar SVG icons (and developer-supplied custom icons via the public API). Never untrusted end-user input. |
 | `rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts` | The trusted static `EMOJI_ICON` SVG constant defined in the file. Never user input. |
 | `rich-text-editor/addons/colors/rich-text-colors-button.component.ts` | The trusted static `FOREGROUND_ICON`/`BACKGROUND_ICON` SVG constants defined in the file. Never user input. |

@@ -1,7 +1,21 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
-import { RICH_TEXT_LOCALES } from '../rich-text-locales';
-import { applyImageAlignment } from '../rich-text-image.utils';
+import { RichTextImageResizerComponent, type RichTextImageResizerLabels } from './rich-text-images-resizer.component';
+import { applyImageAlignment } from './rich-text-images.utils';
+
+const LABELS_EN: RichTextImageResizerLabels = {
+    inline: 'Inline with text',
+    floatLeft: 'Float left',
+    center: 'Center',
+    floatRight: 'Float right',
+    deleteImage: 'Delete image',
+};
+const LABELS_HE: RichTextImageResizerLabels = {
+    inline: 'בתוך הטקסט',
+    floatLeft: 'הצמדה לשמאל',
+    center: 'מירכוז',
+    floatRight: 'הצמדה לימין',
+    deleteImage: 'מחיקת תמונה',
+};
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 describe('RichTextImageResizerComponent', () => {
@@ -249,20 +263,21 @@ describe('RichTextImageResizerComponent', () => {
     });
 
     describe('resolvedAlignmentLabels', () => {
-        it('maps alignments to the locale labels', () => {
-            const labels = component.resolvedAlignmentLabels();
-            const l = RICH_TEXT_LOCALES['en'].imageResizer;
-            expect(labels.inline).toBe(l.inline);
-            expect(labels.left).toBe(l.floatLeft);
-            expect(labels.center).toBe(l.center);
-            expect(labels.right).toBe(l.floatRight);
-        });
-
-        it('reflects a different locale', () => {
-            fixture.componentRef.setInput('locale', RICH_TEXT_LOCALES['he']);
+        it('maps alignments to the provided labels', () => {
+            fixture.componentRef.setInput('labels', LABELS_EN);
             fixture.detectChanges();
             const labels = component.resolvedAlignmentLabels();
-            expect(labels.inline).toBe(RICH_TEXT_LOCALES['he'].imageResizer.inline);
+            expect(labels.inline).toBe(LABELS_EN.inline);
+            expect(labels.left).toBe(LABELS_EN.floatLeft);
+            expect(labels.center).toBe(LABELS_EN.center);
+            expect(labels.right).toBe(LABELS_EN.floatRight);
+        });
+
+        it('reflects a different label set', () => {
+            fixture.componentRef.setInput('labels', LABELS_HE);
+            fixture.detectChanges();
+            const labels = component.resolvedAlignmentLabels();
+            expect(labels.inline).toBe(LABELS_HE.inline);
         });
     });
 
@@ -513,9 +528,7 @@ describe('RichTextImageResizerComponent', () => {
             setTarget();
             const buttons = query('button');
             expect(buttons).toHaveLength(1);
-            expect(buttons[0].getAttribute('title')).toBe(
-                RICH_TEXT_LOCALES['en'].imageResizer.deleteImage,
-            );
+            expect(buttons[0].getAttribute('title')).toBe(LABELS_EN.deleteImage);
         });
     });
 

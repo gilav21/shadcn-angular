@@ -184,46 +184,6 @@ describe('RichTextToolbarComponent', () => {
         });
     });
 
-    describe('insert handlers', () => {
-        it('emits imageInsert with alt and src, defaulting alt to "Image"', () => {
-            let payload: { alt: string; src: string } | undefined;
-            component.imageInsert.subscribe((p) => (payload = p));
-            component.onInsertImage('https://x.com/a.png', '');
-            expect(payload).toEqual({ alt: 'Image', src: 'https://x.com/a.png' });
-        });
-
-        it('does not emit imageInsert when src is empty', () => {
-            let emitted = false;
-            component.imageInsert.subscribe(() => (emitted = true));
-            component.onInsertImage('', 'alt');
-            expect(emitted).toBe(false);
-        });
-
-        it('guards insert handlers when disabled', () => {
-            fixture.componentRef.setInput('disabled', true);
-            fixture.detectChanges();
-            let count = 0;
-            component.imageInsert.subscribe(() => count++);
-            component.onInsertImage('https://x.com/a.png', 'a');
-            expect(count).toBe(0);
-        });
-    });
-
-    describe('popover panels', () => {
-        it('opens a popover panel by id', () => {
-            component.openPopoverPanel('link');
-            expect(component.openPopover()).toBe('link');
-        });
-
-        it('closes only the matching popover panel', () => {
-            component.openPopoverPanel('table');
-            component.closePopoverPanel('link');
-            expect(component.openPopover()).toBe('table');
-            component.closePopoverPanel('table');
-            expect(component.openPopover()).toBeNull();
-        });
-    });
-
     describe('file import', () => {
         it('emits fileImport with the selected file and resets the input', () => {
             const file = new File(['x'], 'doc.pdf', { type: 'application/pdf' });
