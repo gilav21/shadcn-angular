@@ -27,7 +27,7 @@ Kept only where a native element is impossible:
 | `tree-item` children container | `group` | Required by the WAI-ARIA **tree** pattern: a `treeitem`'s child items must live in a `role="group"`. A `<fieldset>` is not a valid child grouping of a `treeitem`. |
 | `data-table` column resize handle | `separator` | This is an **interactive splitter** (mouse + touch drag) and it **contains** a child resize-line element. `<hr>` is a void element (no children) and isn't interactive — `role="separator"` is the correct splitter widget role. |
 | `rich-text-editor` editable surface | `textbox` | A `contenteditable` rich-text region. `<input>`/`<textarea>` are plain-text only and can't host rich formatting. `role="textbox"` + `aria-multiline` is the WAI-ARIA-endorsed pattern. |
-| `rich-text-editor` / `rich-text-mention` autocomplete (listbox + option) | `listbox`, `option` | Custom, fully-templated mention/autocomplete popups. `<select>`/`<datalist>` can't render templated option content. |
+| `rich-text-editor` / `rich-text-mention` / `rich-text-editor/slash-commands` menu (listbox + option) | `listbox`, `option` | Custom, fully-templated mention / slash-command popups. `<select>`/`<datalist>` can't render templated option content (each option is a two-line label + description block). |
 | `tree-select` trigger | `combobox` | A custom templated tree-dropdown. `<select>` can't render a tree of templated options. |
 | `color-picker` saturation/value area | `slider` | A **two-dimensional** picker (x = saturation, y = value). `<input type="range">` is one-dimensional and cannot represent a 2-D control, so `role="slider"` with `aria-valuetext` is the correct ARIA. (The 1-D hue/alpha sliders use native range inputs.) |
 

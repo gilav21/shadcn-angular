@@ -2219,7 +2219,8 @@
     ],
     "addons": [
       "rich-text-editor/actions",
-      "rich-text-editor/emoji"
+      "rich-text-editor/emoji",
+      "rich-text-editor/slash-commands"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2277,6 +2278,14 @@
         "note": "The emoji picker moved to the opt-in emoji addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/emoji`, add `uiRteEmoji` to the editor element, and remove 'emoji' from any custom [toolbarItems] arrays (the button now renders after the built-in items).",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/emoji"
+      },
+      {
+        "kind": "removal",
+        "from": "[enableSlashCommands] + [slashCommands] inputs and the buildDefaultSlashCommands export on <ui-rich-text-editor>",
+        "to": "the uiRteSlashCommands directive",
+        "note": "The slash-command ('/') menu moved to the opt-in slash-commands addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/slash-commands`, add `uiRteSlashCommands` to the editor element, and move any custom commands from [slashCommands]=\"cmds\" to [uiRteSlashCommands]=\"cmds\". The base still owns the /outline (and, with an aiProvider, /ai) commands.",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/slash-commands"
       }
     ],
     "shortcutDefinitions": [
@@ -3934,6 +3943,49 @@
     "attach": {
       "import": "RichTextEmojiDirective from './ui/rich-text-editor/addons/emoji'",
       "selector": "uiRteEmoji"
+    }
+  },
+  "rich-text-editor/slash-commands": {
+    "name": "rich-text-editor/slash-commands",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "Slash-command (\"/\") menu for the rich text editor; type / to open a filterable command palette at the caret.",
+    "tags": [
+      "rich-text",
+      "slash",
+      "commands",
+      "menu",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/slash-commands/index.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.html",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.locales.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "rich-text-editor"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts",
+      "rich-text-editor/rich-text-command-registry.service.ts"
+    ],
+    "attach": {
+      "import": "RichTextSlashCommandsDirective from './ui/rich-text-editor/addons/slash-commands'",
+      "selector": "uiRteSlashCommands"
     }
   }
 }

@@ -1,6 +1,6 @@
 import type { Injector, Signal, Type } from '@angular/core';
 import { AddonSlotRegistry } from '../../lib/addon-slots';
-import type { RichTextCommandRegistry } from './rich-text-command-registry.service';
+import type { RichTextCommandRegistry, RichTextSlashCommand } from './rich-text-command-registry.service';
 
 export { AddonSlotRegistry } from '../../lib/addon-slots';
 
@@ -95,4 +95,46 @@ export abstract class RichTextEditorAddonHost {
     abstract readonly readonly: Signal<boolean>;
     /** The contenteditable content root (for popover anchoring + scoped styles). */
     abstract readonly contentRoot: HTMLElement;
+
+    // ── Slash-command / block seam ────────────────────────────────────
+
+    /**
+     * Register a keydown interceptor, invoked before the base handles the
+     * event. Return `true` to consume the event (the interceptor does its own
+     * `preventDefault`) and stop base handling. Returns a teardown.
+     */
+    abstract registerKeydownInterceptor(interceptor: (event: KeyboardEvent) => boolean): () => void;
+    /**
+     * Register an observer of the editor's trigger-aware text and caret offset,
+     * invoked on every input with the same values the base computes for its own
+     * trigger detection. Returns a teardown.
+     */
+    abstract registerInputObserver(observer: (text: string, caretOffset: number) => void): () => void;
+    /**
+     * Apply a built-in toolbar command to a specific block (its block-transform
+     * engine): re-tag/list-wrap the block or run the formatting command, place
+     * the caret, and record one history entry.
+     */
+    abstract executeToolbarCommandOnBlock(command: string, anchorBlock: HTMLElement | null): void;
+    /**
+     * Commit direct DOM edits an addon made to the content root: re-read the
+     * model from the DOM (emit change events) and flush any pending debounced
+     * history push as one entry. Call after mutating the DOM outside the other
+     * host methods (e.g. consuming a trigger) so the model can't drift.
+     */
+    abstract commitContent(): void;
+    /** Insert plain text at the live caret as one history entry. */
+    abstract insertTextAtCaret(text: string): void;
+    /** Insert sanitized HTML at the live caret as one history entry. */
+    abstract insertHtmlAtCaret(html: string): void;
+    /**
+     * Open the editor's link popover. `caretHint` positions the popover when the
+     * live caret rect is degenerate (e.g. an empty block).
+     */
+    abstract showLinkDialog(caretHint?: { x: number; y: number }): void;
+    /**
+     * Base-owned slash commands wired to features that stay in the base: the
+     * document-outline command, plus the AI command when an `aiProvider` is set.
+     */
+    abstract readonly builtinCommands: Signal<readonly RichTextSlashCommand[]>;
 }

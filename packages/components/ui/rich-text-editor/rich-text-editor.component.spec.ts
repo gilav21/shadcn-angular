@@ -5,7 +5,7 @@ import { RichTextEditorComponent } from './rich-text-editor.component';
 import { RichTextEditorAddonHost } from './rich-text-editor.host';
 import { DEFAULT_FONT_FAMILIES } from './sub/rich-text-toolbar.component';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
-import { RichTextCommandRegistry, RichTextSlashCommandContext } from './rich-text-command-registry.service';
+import { RichTextCommandRegistry } from './rich-text-command-registry.service';
 import { RICH_TEXT_LOCALES, RichTextLocale } from './rich-text-locales';
 
 /** Collapse the selection to a caret at the given node/offset. */
@@ -745,235 +745,6 @@ describe('RichTextEditorComponent', () => {
         vi.useRealTimers();
     });
 
-    it('opens slash command menu when typing "/" trigger', () => {
-        editor.textContent = '/hea';
-        setCaret(editor.firstChild as Text, (editor.textContent ?? '').length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        expect(component.slashCommandOpen()).toBe(true);
-        expect(component.slashQuery()).toBe('hea');
-        expect(component.filteredSlashCommands().some(command => command.label === 'Heading 1')).toBe(true);
-    });
-
-    it('opens slash command menu even when input event has no active selection range', () => {
-        editor.textContent = '/hea';
-        document.getSelection()?.removeAllRanges();
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        expect(component.slashCommandOpen()).toBe(true);
-        expect(component.slashQuery()).toBe('hea');
-    });
-
-    it('does not open slash command menu when trigger is typed immediately after a letter', () => {
-        editor.textContent = 'abcd/hea';
-        setCaret(editor.firstChild as Text, (editor.textContent ?? '').length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        expect(component.slashCommandOpen()).toBe(false);
-        expect(component.slashQuery()).toBe('');
-    });
-
-    it('executes selected slash command on Enter and removes trigger text', () => {
-        fixture.componentRef.setInput('slashCommands', [{
-            id: 'test.insert-token',
-            label: 'Insert Token',
-            description: 'Insert a marker token',
-            keywords: ['token'],
-            order: 1,
-            run: (context: RichTextSlashCommandContext) => context.insertText('[token]'),
-        }]);
-        fixture.detectChanges();
-
-        editor.textContent = '/token';
-        setCaret(editor.firstChild as Text, (editor.textContent ?? '').length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        component.onKeydown(new KeyboardEvent('keydown', {
-            key: 'Enter',
-            bubbles: true,
-            cancelable: true,
-        }));
-
-        expect(component.slashCommandOpen()).toBe(false);
-        expect(editor.textContent).toBe('[token]');
-    });
-
-    it('supports global slash commands from RichTextCommandRegistry', async () => {
-        commandRegistry.registerCommand({
-            id: 'registry.insert-stamp',
-            label: 'Insert Stamp',
-            description: 'Insert registry stamp',
-            keywords: ['stamp'],
-            order: 1,
-            run: (context: RichTextSlashCommandContext) => context.insertText('[registry]'),
-        });
-
-        editor.textContent = '/stamp';
-        setCaret(editor.firstChild as Text, (editor.textContent ?? '').length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const selected = component.filteredSlashCommands()[0];
-        await component.onSlashCommandSelect(selected);
-
-        expect(editor.textContent).toBe('[registry]');
-    });
-
-    it('keeps slash command insertion anchored to the paragraph where trigger was typed', async () => {
-        fixture.componentRef.setInput('slashCommands', [{
-            id: 'test.anchor-insert',
-            label: 'Anchor Insert',
-            order: 1,
-            run: (context: RichTextSlashCommandContext) => context.insertText('ANCHOR'),
-        }]);
-        fixture.detectChanges();
-
-        component.writeValue('<p>First line</p><p>/anchor</p>');
-        fixture.detectChanges();
-
-        const secondParagraphText = editor.querySelectorAll('p')[1].firstChild as Text;
-        setCaret(secondParagraphText, secondParagraphText.length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const selected = component.filteredSlashCommands()[0];
-        await component.onSlashCommandSelect(selected);
-
-        const paragraphs = editor.querySelectorAll('p');
-        expect(paragraphs[0].textContent).toContain('First line');
-        expect(paragraphs[1].textContent).toContain('ANCHOR');
-    });
-
-    it('applies slash heading command to the current paragraph, not the previous one', async () => {
-        component.writeValue('<p>Previous line</p><p>/h2</p>');
-        fixture.detectChanges();
-
-        const secondParagraphText = editor.querySelectorAll('p')[1].firstChild as Text;
-        setCaret(secondParagraphText, secondParagraphText.length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const headingCommand = component.filteredSlashCommands().find(command => command.id === 'format.heading-2');
-        expect(headingCommand).toBeTruthy();
-        await component.onSlashCommandSelect(headingCommand!);
-
-        const blocks = Array.from(editor.children) as HTMLElement[];
-        expect(blocks[0]?.tagName).toBe('P');
-        expect(blocks[0]?.textContent).toContain('Previous line');
-        expect(blocks[1]?.tagName).toBe('H2');
-
-        const selection = document.getSelection();
-        const anchorNode = selection?.anchorNode ?? null;
-        expect(anchorNode).toBeTruthy();
-        expect(blocks[1].contains(anchorNode)).toBe(true);
-    });
-
-    it('prefers current caret block over stale slash trigger range when applying command', async () => {
-        component.writeValue('<p>Previous line</p><p>/h2</p>');
-        fixture.detectChanges();
-
-        const paragraphs = editor.querySelectorAll('p');
-        const previousTextNode = paragraphs[0].firstChild as Text;
-        const staleRange = document.createRange();
-        staleRange.setStart(previousTextNode, previousTextNode.length);
-        staleRange.collapse(true);
-        (component as any).slashTriggerRange = staleRange;
-
-        const secondTextNode = paragraphs[1].firstChild as Text;
-        setCaret(secondTextNode, secondTextNode.length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const headingCommand = component.filteredSlashCommands().find(command => command.id === 'format.heading-2');
-        expect(headingCommand).toBeTruthy();
-        await component.onSlashCommandSelect(headingCommand!);
-
-        const blocks = Array.from(editor.children) as HTMLElement[];
-        expect(blocks[0]?.tagName).toBe('P');
-        expect(blocks[1]?.tagName).toBe('H2');
-    });
-
-    it('applies slash heading command on empty new row and keeps caret in that row', async () => {
-        component.writeValue('<p>Previous line</p><p>/h2</p>');
-        fixture.detectChanges();
-
-        const secondTextNode = editor.querySelectorAll('p')[1].firstChild as Text;
-        setCaret(secondTextNode, secondTextNode.length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const headingCommand = component.filteredSlashCommands().find(command => command.id === 'format.heading-2');
-        expect(headingCommand).toBeTruthy();
-        await component.onSlashCommandSelect(headingCommand!);
-
-        const blocks = Array.from(editor.children) as HTMLElement[];
-        expect(blocks[0]?.tagName).toBe('P');
-        expect(blocks[1]?.tagName).toBe('H2');
-        const selection = document.getSelection();
-        const anchorNode = selection?.anchorNode ?? null;
-        expect(anchorNode).toBeTruthy();
-        expect(blocks[1].contains(anchorNode)).toBe(true);
-    });
-
-    it('applies slash bullet list to current row without moving previous row content', async () => {
-        component.writeValue('<p>Previous line</p><p>/bul</p>');
-        fixture.detectChanges();
-
-        const secondTextNode = editor.querySelectorAll('p')[1].firstChild as Text;
-        setCaret(secondTextNode, secondTextNode.length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const bulletCommand = component.filteredSlashCommands().find(command => command.id === 'format.bullet-list');
-        expect(bulletCommand).toBeTruthy();
-        await component.onSlashCommandSelect(bulletCommand!);
-
-        const first = editor.children[0] as HTMLElement;
-        const second = editor.children[1] as HTMLElement;
-        expect(first.tagName).toBe('P');
-        expect(first.textContent).toContain('Previous line');
-        expect(second.tagName).toBe('UL');
-        const li = second.querySelector('li');
-        expect(li).toBeTruthy();
-        const selection = document.getSelection();
-        const anchorNode = selection?.anchorNode ?? null;
-        expect(anchorNode).toBeTruthy();
-        expect(li?.contains(anchorNode as Node)).toBe(true);
-    });
-
-    it('does not replace the editor container when applying slash command on first row', async () => {
-        component.writeValue('/h2');
-        fixture.detectChanges();
-
-        const textNode = editor.firstChild as Text;
-        setCaret(textNode, textNode.length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const headingCommand = component.filteredSlashCommands().find(command => command.id === 'format.heading-2');
-        expect(headingCommand).toBeTruthy();
-        await component.onSlashCommandSelect(headingCommand!);
-
-        const editorAfter = (fixture.nativeElement as HTMLElement).querySelector<HTMLDivElement>('[data-slot="rich-text-editor"]');
-        expect(editorAfter).toBeTruthy();
-        expect(editorAfter?.tagName).toBe('DIV');
-        expect(editorAfter?.isContentEditable).toBe(true);
-    });
-
-    it('places caret inside inline code after slash inline-code command', async () => {
-        component.writeValue('<p>/code</p>');
-        fixture.detectChanges();
-
-        const textNode = editor.querySelector('p')?.firstChild as Text;
-        setCaret(textNode, textNode.length);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const inlineCodeCommand = component.filteredSlashCommands().find(command => command.id === 'format.inline-code');
-        expect(inlineCodeCommand).toBeTruthy();
-        await component.onSlashCommandSelect(inlineCodeCommand!);
-
-        const code = editor.querySelector('code');
-        expect(code).toBeTruthy();
-        const selection = document.getSelection();
-        const anchorNode = selection?.anchorNode ?? null;
-        expect(anchorNode).toBeTruthy();
-        expect(code?.contains(anchorNode as Node)).toBe(true);
-        expect(selection?.anchorOffset).toBe(1);
-    });
-
     describe('Locale and RTL', () => {
         it('resolves English locale by default', () => {
             expect(component.resolvedLocale()).toBe(RICH_TEXT_LOCALES['en']);
@@ -1065,14 +836,13 @@ describe('RichTextEditorComponent', () => {
             expect(editorEl.getAttribute('placeholder')).toBe('Custom placeholder');
         });
 
-        it('builds localized slash commands for Hebrew locale', () => {
+        it('localizes the base-owned outline builtin command for Hebrew', () => {
             fixture.componentRef.setInput('locale', 'he');
             fixture.detectChanges();
-            const commands = component.localizedSlashCommands();
-            const heading1 = commands.find(c => c.id === 'format.heading-1');
-            expect(heading1).toBeTruthy();
-            expect(heading1!.label).toBe(RICH_TEXT_LOCALES['he'].slashCommands.heading1);
-            expect(heading1!.description).toBe(RICH_TEXT_LOCALES['he'].slashCommands.heading1Description);
+            const outline = component.builtinCommands().find(c => c.id === 'view.outline');
+            expect(outline).toBeTruthy();
+            expect(outline!.label).toBe(RICH_TEXT_LOCALES['he'].slashCommands.outline);
+            expect(outline!.description).toBe(RICH_TEXT_LOCALES['he'].slashCommands.outlineDescription);
         });
 
         it('switches RTL when locale changes from LTR to RTL', () => {
@@ -2011,7 +1781,7 @@ describe('RichTextEditorComponent', () => {
         });
 
         it('exposes a /outline slash command that opens the docked panel', () => {
-            const command = component.localizedSlashCommands().find(c => c.id === 'view.outline');
+            const command = component.builtinCommands().find(c => c.id === 'view.outline');
             expect(command).toBeTruthy();
 
             command!.run({
@@ -3128,77 +2898,6 @@ describe('RichTextEditorComponent — drag and drop', () => {
     });
 });
 
-describe('RichTextEditorComponent — slash command keyboard navigation', () => {
-    let fixture: ComponentFixture<RichTextEditorComponent>;
-    let component: RichTextEditorComponent;
-    let editor: HTMLDivElement;
-
-    const openSlash = () => {
-        editor.textContent = '/';
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.setStart(editor.firstChild as Text, 1);
-        r.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RichTextEditorComponent],
-        }).compileComponents();
-        fixture = TestBed.createComponent(RichTextEditorComponent);
-        component = fixture.componentInstance;
-        fixture.componentRef.setInput('mode', 'html');
-        fixture.detectChanges();
-        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
-    });
-
-    it('ArrowDown/ArrowUp move the slash command selection index', () => {
-        openSlash();
-        expect(component.slashCommandOpen()).toBe(true);
-        expect(component.slashCommandSelectedIndex()).toBe(0);
-
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-        expect(component.slashCommandSelectedIndex()).toBe(1);
-
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
-        expect(component.slashCommandSelectedIndex()).toBe(0);
-    });
-
-    it('does not move below the last command on repeated ArrowUp at index 0', () => {
-        openSlash();
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
-        expect(component.slashCommandSelectedIndex()).toBe(0);
-    });
-
-    it('Escape closes the slash command popover', () => {
-        openSlash();
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-        expect(component.slashCommandOpen()).toBe(false);
-    });
-
-    it('Space selects the highlighted command', () => {
-        component.writeValue('<p>/h2</p>');
-        fixture.detectChanges();
-        const text = editor.querySelector('p')!.firstChild as Text;
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.setStart(text, text.length);
-        r.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        const idx = component.filteredSlashCommands().findIndex(c => c.id === 'format.heading-2');
-        component.slashCommandSelectedIndex.set(idx);
-
-        component.onKeydown(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }));
-
-        expect(component.slashCommandOpen()).toBe(false);
-    });
-});
-
 describe('RichTextEditorComponent — mention styling during formatting', () => {
     let fixture: ComponentFixture<RichTextEditorComponent>;
     let component: RichTextEditorComponent;
@@ -3436,85 +3135,6 @@ describe('RichTextEditorComponent — table mouse, resize & cell selection', () 
     });
 });
 
-describe('RichTextEditorComponent — slash command block transforms', () => {
-    let fixture: ComponentFixture<RichTextEditorComponent>;
-    let component: RichTextEditorComponent;
-    let editor: HTMLDivElement;
-
-    const typeSlash = (paragraphHtml: string) => {
-        component.writeValue(paragraphHtml);
-        fixture.detectChanges();
-        const lastP = editor.querySelector('p:last-of-type')!;
-        const text = lastP.firstChild as Text;
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.setStart(text, text.length);
-        r.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-
-    const runCommand = async (id: string) => {
-        const cmd = component.filteredSlashCommands().find(c => c.id === id)!;
-        await component.onSlashCommandSelect(cmd);
-    };
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RichTextEditorComponent],
-        }).compileComponents();
-        fixture = TestBed.createComponent(RichTextEditorComponent);
-        component = fixture.componentInstance;
-        fixture.componentRef.setInput('mode', 'html');
-        fixture.detectChanges();
-        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
-    });
-
-    it('transforms a paragraph into a blockquote in place', async () => {
-        typeSlash('<p>quote /quote</p>');
-        await runCommand('format.quote');
-        expect(editor.querySelector('blockquote')).toBeTruthy();
-        expect(editor.querySelector('blockquote')?.textContent).toContain('quote');
-    });
-
-    it('transforms a paragraph into a bullet list item', async () => {
-        typeSlash('<p>bullet /bul</p>');
-        await runCommand('format.bullet-list');
-        expect(editor.querySelector('ul > li')).toBeTruthy();
-    });
-
-    it('transforms a paragraph into a numbered list item', async () => {
-        typeSlash('<p>num /nl</p>');
-        await runCommand('format.numbered-list');
-        expect(editor.querySelector('ol > li')).toBeTruthy();
-    });
-
-    it('transforms a paragraph into a heading and keeps the caret inside', async () => {
-        typeSlash('<p>head /h1</p>');
-        await runCommand('format.heading-1');
-        expect(editor.querySelector('h1')).toBeTruthy();
-    });
-
-    it('transforms back to a paragraph', async () => {
-        typeSlash('<p>txt /paragraph</p>');
-        await runCommand('format.paragraph');
-        expect(editor.querySelectorAll('p').length).toBeGreaterThan(0);
-    });
-
-    it('inserts a horizontal rule via the slash command', async () => {
-        typeSlash('<p>rule /hr</p>');
-        await runCommand('insert.horizontal-rule');
-        expect(editor.querySelector('hr')).toBeTruthy();
-    });
-
-    it('inserts a task list via the slash command', async () => {
-        typeSlash('<p>todo /task</p>');
-        await runCommand('insert.task-list');
-        expect(editor.querySelector('ul[data-task-list]')).toBeTruthy();
-    });
-});
-
 describe('RichTextEditorComponent — task checkbox & image element handlers', () => {
     let fixture: ComponentFixture<RichTextEditorComponent>;
     let component: RichTextEditorComponent;
@@ -3710,64 +3330,6 @@ describe('RichTextEditorComponent — keyboard shortcuts execute formatting', ()
     });
 });
 
-describe('RichTextEditorComponent — slash command run callbacks', () => {
-    let fixture: ComponentFixture<RichTextEditorComponent>;
-    let component: RichTextEditorComponent;
-    let editor: HTMLDivElement;
-
-    const runById = async (id: string) => {
-        component.writeValue(`<p>seed /x</p>`);
-        fixture.detectChanges();
-        const text = editor.querySelector('p')!.firstChild as Text;
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.setStart(text, text.length);
-        r.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        const cmd = component.localizedSlashCommands().find(c => c.id === id)
-            ?? component.filteredSlashCommands().find(c => c.id === id);
-        await component.onSlashCommandSelect(cmd!);
-    };
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RichTextEditorComponent],
-        }).compileComponents();
-        fixture = TestBed.createComponent(RichTextEditorComponent);
-        component = fixture.componentInstance;
-        fixture.componentRef.setInput('mode', 'html');
-        fixture.detectChanges();
-        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
-    });
-
-    it('format.code-block slash command inserts a pre/code block', async () => {
-        await runById('format.code-block');
-        expect(editor.querySelector('pre code')).toBeTruthy();
-    });
-
-    it('insert.toggle slash command inserts a details block', async () => {
-        await runById('insert.toggle');
-        expect(editor.querySelector('details')).toBeTruthy();
-    });
-
-    it('insert.link slash command opens the link dialog', async () => {
-        await runById('insert.link');
-        expect(component.showLinkPopover()).toBe(true);
-    });
-
-    it('history.undo slash command runs without error', async () => {
-        component.writeValue('<p>one</p>'); fixture.detectChanges();
-        (component as unknown as { pushHistory(): void }).pushHistory();
-        component.writeValue('<p>two</p>'); fixture.detectChanges();
-        (component as unknown as { pushHistory(): void }).pushHistory();
-
-        await runById('history.undo');
-        expect(editor.textContent).toMatch(/one|two|seed/);
-    });
-});
-
 describe('RichTextEditorComponent — focus, blur & selection edge cases', () => {
     let fixture: ComponentFixture<RichTextEditorComponent>;
     let component: RichTextEditorComponent;
@@ -3868,57 +3430,6 @@ describe('RichTextEditorComponent — mention insertion via saved range', () => 
         const chip = editor.querySelector('[data-mention="john"]');
         expect(chip).toBeTruthy();
         expect(editor.textContent).not.toContain('@jo ');
-    });
-});
-
-describe('RichTextEditorComponent — slash trigger removal & list re-typing', () => {
-    let fixture: ComponentFixture<RichTextEditorComponent>;
-    let component: RichTextEditorComponent;
-    let editor: HTMLDivElement;
-
-    type Internal = {
-        removeSlashTriggerText(query: string): HTMLElement | null;
-        slashTriggerRange: Range | null;
-        slashAnchorBlock: HTMLElement | null;
-        wrapBlockInList(block: HTMLElement, tag: 'ul' | 'ol'): HTMLElement;
-    };
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RichTextEditorComponent],
-        }).compileComponents();
-        fixture = TestBed.createComponent(RichTextEditorComponent);
-        component = fixture.componentInstance;
-        fixture.componentRef.setInput('mode', 'html');
-        fixture.detectChanges();
-        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
-    });
-
-    it('removes the slash trigger text via the editor tree walk fallback', () => {
-        component.writeValue('<p>alpha /code beta</p>');
-        fixture.detectChanges();
-        const internal = component as unknown as Internal;
-        internal.slashTriggerRange = null;
-        internal.slashAnchorBlock = null;
-        document.getSelection()?.removeAllRanges();
-
-        const block = internal.removeSlashTriggerText('code');
-
-        expect(block?.tagName).toBe('P');
-        expect(editor.textContent).not.toContain('/code');
-        expect(editor.textContent).toContain('alpha');
-    });
-
-    it('wrapBlockInList converts a UL list item into an OL list item', () => {
-        component.writeValue('<ul><li>item</li></ul>');
-        fixture.detectChanges();
-        const li = editor.querySelector('li')!;
-
-        const result = (component as unknown as Internal).wrapBlockInList(li, 'ol');
-
-        expect(result).toBe(li);
-        expect(editor.querySelector('ol > li')).toBeTruthy();
-        expect(editor.querySelector('ul')).toBeNull();
     });
 });
 
@@ -4077,17 +3588,7 @@ describe('RichTextEditorComponent — readonly & disabled guards', () => {
         expect(editor.textContent).not.toContain('should not appear');
     });
 
-    it('does not open the slash command popover when readonly', () => {
-        editor.textContent = '/hea';
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.setStart(editor.firstChild as Text, 4);
-        r.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        expect(component.slashCommandOpen()).toBe(false);
-    });
+
 
     it('floating format command is a no-op when readonly', () => {
         component.writeValue('<p>nope</p>');
@@ -4254,68 +3755,6 @@ describe('RichTextEditorComponent — DOCX import', () => {
         expect(editor.textContent).toContain('Imported DOCX text');
         expect(completeSpy).toHaveBeenCalled();
         expect(component.fileImporting()).toBe(false);
-    });
-});
-
-describe('RichTextEditorComponent — slash keydown with no matches & misc', () => {
-    let fixture: ComponentFixture<RichTextEditorComponent>;
-    let component: RichTextEditorComponent;
-    let editor: HTMLDivElement;
-
-    type Internal = { onSlashCommandKeydown(e: KeyboardEvent): void };
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RichTextEditorComponent],
-        }).compileComponents();
-        fixture = TestBed.createComponent(RichTextEditorComponent);
-        component = fixture.componentInstance;
-        fixture.componentRef.setInput('mode', 'html');
-        fixture.detectChanges();
-        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
-    });
-
-    it('Escape with no matching slash commands closes the popover', () => {
-        component.slashCommandOpen.set(true);
-        component.slashQuery.set('zzzznomatch');
-        fixture.detectChanges();
-        expect(component.filteredSlashCommands()).toHaveLength(0);
-
-        (component as unknown as Internal).onSlashCommandKeydown(
-            new KeyboardEvent('keydown', { key: 'Escape' })
-        );
-
-        expect(component.slashCommandOpen()).toBe(false);
-    });
-
-    it('onBeforeInput blocks typing beyond maxLength', () => {
-        fixture.componentRef.setInput('maxLength', 3);
-        fixture.detectChanges();
-        component.writeValue('abc');
-        fixture.detectChanges();
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.setStart(editor.firstChild as Text, 3);
-        r.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-
-        const ev = new InputEvent('beforeinput', { bubbles: true, cancelable: true, data: 'x', inputType: 'insertText' });
-        editor.dispatchEvent(ev);
-
-        expect(ev.defaultPrevented).toBe(true);
-    });
-
-    it('onBeforeInput allows deletions regardless of maxLength', () => {
-        fixture.componentRef.setInput('maxLength', 3);
-        fixture.detectChanges();
-        component.writeValue('abc');
-        fixture.detectChanges();
-
-        const ev = new InputEvent('beforeinput', { bubbles: true, cancelable: true, inputType: 'deleteContentBackward' });
-        editor.dispatchEvent(ev);
-
-        expect(ev.defaultPrevented).toBe(false);
     });
 });
 
@@ -4541,62 +3980,6 @@ describe('RichTextEditorComponent — tail span table edits', () => {
 
         const merged = table.querySelector('td[colspan]') as HTMLTableCellElement | null;
         expect(merged?.colSpan ?? 1).toBe(1);
-    });
-});
-
-describe('RichTextEditorComponent — slash list scroll & empty-block fallbacks', () => {
-    let fixture: ComponentFixture<RichTextEditorComponent>;
-    let component: RichTextEditorComponent;
-    let editor: HTMLDivElement;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RichTextEditorComponent],
-        }).compileComponents();
-        fixture = TestBed.createComponent(RichTextEditorComponent);
-        component = fixture.componentInstance;
-        fixture.componentRef.setInput('mode', 'html');
-        fixture.detectChanges();
-        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
-        document.body.appendChild(fixture.nativeElement);
-    });
-
-    it('opening the slash menu renders the command list and tracks the selected entry', () => {
-        editor.textContent = '/';
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.setStart(editor.firstChild as Text, 1);
-        r.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        fixture.detectChanges();
-
-        const list = (fixture.nativeElement as HTMLElement).querySelector('[data-slash-index="0"]');
-        expect(list).toBeTruthy();
-
-        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
-        fixture.detectChanges();
-        expect(component.slashCommandSelectedIndex()).toBe(1);
-    });
-
-    it('placeCaretAtEndOfBlock handles a block with no children by inserting a zero-width node', async () => {
-        component.writeValue('<p>line /paragraph</p>');
-        fixture.detectChanges();
-        const text = editor.querySelector('p')!.firstChild as Text;
-        const sel = document.getSelection();
-        const r = document.createRange();
-        r.setStart(text, text.length);
-        r.collapse(true);
-        sel?.removeAllRanges();
-        sel?.addRange(r);
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-
-        const cmd = component.filteredSlashCommands().find(c => c.id === 'format.paragraph')!;
-        await component.onSlashCommandSelect(cmd);
-
-        expect(editor.querySelector('p')).toBeTruthy();
-        expect(editor.textContent).toContain('line');
     });
 });
 
@@ -4895,9 +4278,9 @@ describe('RichTextEditorComponent AI assist', () => {
     });
 
     it('registers the /ai slash command only when a provider is set', () => {
-        expect(component.localizedSlashCommands().some((c) => c.id === 'insert.ai')).toBe(false);
+        expect(component.builtinCommands().some((c) => c.id === 'insert.ai')).toBe(false);
         fixture.componentRef.setInput('aiProvider', () => 'x');
-        expect(component.localizedSlashCommands().some((c) => c.id === 'insert.ai')).toBe(true);
+        expect(component.builtinCommands().some((c) => c.id === 'insert.ai')).toBe(true);
     });
 
     it('exposes the six built-in AI tasks with localized labels', () => {
@@ -5002,5 +4385,87 @@ describe('RichTextEditorComponent - addon host', () => {
         sel.removeAllRanges();
         host.restoreSelection();
         expect(window.getSelection()!.toString()).toBe('world');
+    });
+
+    function caretIn(node: Node, offset: number): void {
+        const range = document.createRange();
+        range.setStart(node, offset);
+        range.collapse(true);
+        const sel = window.getSelection()!;
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    it('executeToolbarCommandOnBlock re-tags a block to a heading', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        editor.innerHTML = '<p>hello</p>';
+        const block = editor.querySelector('p')!;
+        caretIn(block.firstChild!, 5);
+        host.executeToolbarCommandOnBlock('heading1', block);
+        expect(editor.querySelector('h1')?.textContent).toBe('hello');
+    });
+
+    it('executeToolbarCommandOnBlock wraps a block in a bullet list', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        editor.innerHTML = '<p>item</p>';
+        const block = editor.querySelector('p')!;
+        caretIn(block.firstChild!, 4);
+        host.executeToolbarCommandOnBlock('bulletList', block);
+        expect(editor.querySelector('ul > li')?.textContent).toBe('item');
+    });
+
+    it('executeToolbarCommandOnBlock inserts inline code at the caret', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        editor.innerHTML = '<p>x</p>';
+        const block = editor.querySelector('p')!;
+        caretIn(block.firstChild!, 1);
+        host.executeToolbarCommandOnBlock('code', block);
+        expect(editor.querySelector('code')).toBeTruthy();
+    });
+
+    it('insertTextAtCaret / insertHtmlAtCaret insert one undoable entry each', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        editor.innerHTML = '<p>a</p>';
+        caretIn(editor.querySelector('p')!.firstChild!, 1);
+        host.insertTextAtCaret('B');
+        expect(editor.textContent).toContain('aB');
+        host.insertHtmlAtCaret('<strong>C</strong>');
+        expect(editor.querySelector('strong')?.textContent).toBe('C');
+    });
+
+    it('commitContent syncs direct DOM edits into the emitted model value', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        const emitted: string[] = [];
+        component.registerOnChange((v: string) => emitted.push(v));
+        editor.innerHTML = '<p>direct edit</p>';
+        host.commitContent();
+        expect(emitted.at(-1)).toContain('direct edit');
+    });
+
+    it('registerKeydownInterceptor consumes the event and blocks base handling', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        const seen: string[] = [];
+        const off = host.registerKeydownInterceptor((e) => {
+            seen.push(e.key);
+            return e.key === 'ArrowDown';
+        });
+        const down = new KeyboardEvent('keydown', { key: 'ArrowDown', cancelable: true });
+        component.onKeydown(down);
+        expect(seen).toEqual(['ArrowDown']);
+        off();
+        seen.length = 0;
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        expect(seen).toEqual([]);
+    });
+
+    it('registerInputObserver receives the trigger-aware text on input', () => {
+        const host = fixture.debugElement.injector.get(RichTextEditorAddonHost);
+        const seen: string[] = [];
+        const off = host.registerInputObserver((text) => seen.push(text));
+        editor.innerHTML = '<p>/hi</p>';
+        caretIn(editor.querySelector('p')!.firstChild!, 3);
+        component.onInput({ target: editor } as unknown as Event);
+        expect(seen.some((t) => t.includes('/hi'))).toBe(true);
+        off();
     });
 });

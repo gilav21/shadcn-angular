@@ -508,42 +508,6 @@
     />
   }
 
-  @if (slashCommandOpen()) {
-    <div
-      class="absolute z-50 w-72 max-sm:w-[calc(100%-1rem)] rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
-      [style.left.px]="slashCommandPosition().x"
-      [style.top.px]="slashCommandPosition().y"
-      role="listbox"
-      [attr.aria-label]="resolvedLocale().editor.slashCommandMenu"
-    >
-      @if (filteredSlashCommands().length === 0) {
-        <div class="px-3 py-2 text-sm text-muted-foreground">{{ resolvedLocale().slashCommands.noResults }}</div>
-      } @else {
-        <div #slashCommandList class="max-h-56 overflow-y-auto p-1">
-          @for (command of filteredSlashCommands(); track command.id; let i = $index) {
-            <button
-              type="button"
-              class="w-full rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
-              [class.bg-accent]="i === slashCommandSelectedIndex()"
-              [class.text-accent-foreground]="i === slashCommandSelectedIndex()"
-              [attr.aria-selected]="i === slashCommandSelectedIndex()"
-              [attr.data-slash-index]="i"
-              role="option"
-              (mousedown)="$event.preventDefault()"
-              (mouseenter)="slashCommandSelectedIndex.set(i)"
-              (click)="onSlashCommandSelect(command)"
-            >
-              <div class="text-sm font-medium">{{ command.label }}</div>
-              @if (command.description) {
-                <div class="text-xs text-muted-foreground">{{ command.description }}</div>
-              }
-            </button>
-          }
-        </div>
-      }
-    </div>
-  }
-
   @if (showLinkPopover()) {
     <div 
       class="fixed z-50 bg-popover border rounded-lg shadow-lg p-4 w-80 max-sm:w-[calc(100vw-2rem)] max-sm:max-w-80"

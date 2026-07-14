@@ -1,0 +1,25 @@
+@if (commands().length === 0) {
+  <div class="px-3 py-2 text-sm text-muted-foreground">{{ noResultsLabel() }}</div>
+} @else {
+  <div #list class="max-h-56 overflow-y-auto p-1">
+    @for (command of commands(); track command.id; let i = $index) {
+      <button
+        type="button"
+        class="w-full rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
+        [class.bg-accent]="i === selectedIndex()"
+        [class.text-accent-foreground]="i === selectedIndex()"
+        [attr.aria-selected]="i === selectedIndex()"
+        [attr.data-slash-index]="i"
+        role="option"
+        (mousedown)="onPointerDown($event)"
+        (mouseenter)="hoverIndex.emit(i)"
+        (click)="commandSelect.emit(command)"
+      >
+        <div class="text-sm font-medium">{{ command.label }}</div>
+        @if (command.description) {
+          <div class="text-xs text-muted-foreground">{{ command.description }}</div>
+        }
+      </button>
+    }
+  </div>
+}

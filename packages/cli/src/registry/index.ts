@@ -838,12 +838,13 @@ export const registry = defineRegistry({
     category: 'editor',
     description: 'WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.',
     tags: ['rich-text-editor', 'wysiwyg', 'editor', 'text', 'formatting'],
-    addons: ['rich-text-editor/actions', 'rich-text-editor/emoji'],
+    addons: ['rich-text-editor/actions', 'rich-text-editor/emoji', 'rich-text-editor/slash-commands'],
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-image.utils.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-image-resizer.component.html', 'rich-text-editor/sub/rich-text-image-resizer.component.ts', 'rich-text-editor/sub/rich-text-mention.component.html', 'rich-text-editor/sub/rich-text-mention.component.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
     dependencies: ['autocomplete', 'button', 'color-picker', 'dialog', 'popover', 'scroll-area', 'separator'],
     libFiles: ['addon-slots.ts', 'ai.ts', 'color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     breaking: [
       { kind: 'removal', from: "the 'emoji' toolbar item + [emojiPicker] input on <ui-rich-text-editor>", to: 'the uiRteEmoji directive', note: "The emoji picker moved to the opt-in emoji addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/emoji`, add `uiRteEmoji` to the editor element, and remove 'emoji' from any custom [toolbarItems] arrays (the button now renders after the built-in items).", codemod: 'none', suggestedAddon: 'rich-text-editor/emoji' },
+      { kind: 'removal', from: "[enableSlashCommands] + [slashCommands] inputs and the buildDefaultSlashCommands export on <ui-rich-text-editor>", to: 'the uiRteSlashCommands directive', note: "The slash-command ('/') menu moved to the opt-in slash-commands addon. Run `npx @gilav21/shadcn-angular apply rich-text-editor/slash-commands`, add `uiRteSlashCommands` to the editor element, and move any custom commands from [slashCommands]=\"cmds\" to [uiRteSlashCommands]=\"cmds\". The base still owns the /outline (and, with an aiProvider, /ai) commands.", codemod: 'none', suggestedAddon: 'rich-text-editor/slash-commands' },
     ],
     shortcutDefinitions: [
       {
@@ -1438,6 +1439,22 @@ export const registry = defineRegistry({
     attach: {
       import: "RichTextEmojiDirective from './ui/rich-text-editor/addons/emoji'",
       selector: 'uiRteEmoji',
+    },
+  },
+  'rich-text-editor/slash-commands': {
+    name: 'rich-text-editor/slash-commands',
+    type: 'addon',
+    parent: 'rich-text-editor',
+    category: 'editor',
+    description: 'Slash-command ("/") menu for the rich text editor; type / to open a filterable command palette at the caret.',
+    tags: ['rich-text', 'slash', 'commands', 'menu', 'addon'],
+    files: ['rich-text-editor/addons/slash-commands/index.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.html', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.locales.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts'],
+    libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['rich-text-editor'],
+    requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-command-registry.service.ts'],
+    attach: {
+      import: "RichTextSlashCommandsDirective from './ui/rich-text-editor/addons/slash-commands'",
+      selector: 'uiRteSlashCommands',
     },
   },
 });

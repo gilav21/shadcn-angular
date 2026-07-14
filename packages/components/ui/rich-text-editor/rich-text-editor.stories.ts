@@ -2,7 +2,6 @@ import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { RichTextEditorComponent } from './rich-text-editor.component';
 import { RichTextToolbarComponent } from './sub/rich-text-toolbar.component';
 import { RichTextMentionPopoverComponent, MentionItem, TagItem } from './sub/rich-text-mention.component';
-import { RichTextSlashCommand } from './rich-text-command-registry.service';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RICH_TEXT_LOCALES } from './rich-text-locales';
@@ -36,25 +35,6 @@ const filterByQuery = <T extends { label: string; value: string }>(items: T[], q
 
 const mentionSearch = (query: string): MentionItem[] => filterByQuery(sampleMentions, query);
 const tagSearch = (query: string): TagItem[] => filterByQuery(sampleTags, query);
-
-const customSlashCommands: RichTextSlashCommand[] = [
-    {
-        id: 'custom.insert-callout',
-        label: 'Insert Callout',
-        description: 'Adds a callout block template',
-        keywords: ['callout', 'tip'],
-        order: 1,
-        run: (context) => context.insertHtml('<blockquote><strong>Callout:</strong> Add details here.</blockquote>'),
-    },
-    {
-        id: 'custom.insert-divider',
-        label: 'Insert Divider',
-        description: 'Adds a horizontal divider',
-        keywords: ['divider', 'hr'],
-        order: 2,
-        run: (context) => context.insertHtml('<hr />'),
-    },
-];
 
 const meta: Meta<RichTextEditorComponent> = {
     title: 'Components/RichTextEditor',
@@ -124,7 +104,6 @@ const meta: Meta<RichTextEditorComponent> = {
         tagRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted tags.' },
         imageUploader: { control: false, description: 'Callback uploading a File and returning an Observable<string> URL, used by autoImageUpload and the image insert dialog.' },
         aiProvider: { control: false, description: 'Bring-your-own AI provider hook powering AI-assisted editing actions.' },
-        slashCommands: { control: false, description: 'Custom slash-command definitions (id, label, action…) shown when the user types `/`; see the WithCustomSlashCommands story.' },
         historyPreviewOpen: { control: 'boolean', description: 'Whether the inline history preview strip is open (model, two-way bound).' },
         historyBrowserOpen: { control: 'boolean', description: 'Whether the full history browser dialog is open (model, two-way bound).' },
         showHistoryPanel: {
@@ -134,10 +113,6 @@ const meta: Meta<RichTextEditorComponent> = {
         showHistoryButton: {
             control: 'boolean',
             description: 'Show/hide the History button (Ctrl/Cmd+Shift+H shortcut still works)',
-        },
-        enableSlashCommands: {
-            control: 'boolean',
-            description: 'Enable slash command palette (type / in editor)',
         },
         locale: {
             control: 'select',
@@ -207,7 +182,6 @@ export const Playground: Story = {
         showCount: true,
         showWordCount: true,
         showHistoryButton: true,
-        enableSlashCommands: true,
         historyDebounceMs: 450,
         historyLimit: 100,
     },
@@ -321,24 +295,6 @@ export const WithCharacterCount: Story = {
     },
 };
 
-export const WithCustomSlashCommands: Story = {
-    args: {
-        mode: 'markdown',
-        toolbar: 'top',
-        enableSlashCommands: true,
-        slashCommands: customSlashCommands,
-        placeholder: 'Type / to open commands. Try /callout or /divider.',
-        minHeight: '160px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Slash commands include built-ins and app-provided commands via `slashCommands` input.',
-            },
-        },
-    },
-};
-
 export const AdvancedEditorConfig: Story = {
     args: {
         mode: 'markdown',
@@ -374,7 +330,6 @@ export const HebrewRTL: Story = {
         showCount: true,
         showWordCount: true,
         showHistoryPanel: true,
-        enableSlashCommands: true,
         minHeight: '180px',
     },
     parameters: {
@@ -393,7 +348,6 @@ export const ArabicRTL: Story = {
         locale: 'ar',
         showCount: true,
         showWordCount: true,
-        enableSlashCommands: true,
         minHeight: '180px',
     },
     parameters: {
@@ -412,7 +366,6 @@ export const FrenchLocale: Story = {
         locale: 'fr',
         showCount: true,
         showWordCount: true,
-        enableSlashCommands: true,
         minHeight: '180px',
     },
     parameters: {
@@ -431,7 +384,6 @@ export const JapaneseLocale: Story = {
         locale: 'ja',
         showCount: true,
         showWordCount: true,
-        enableSlashCommands: true,
         minHeight: '180px',
     },
     parameters: {

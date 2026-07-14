@@ -47,8 +47,6 @@ import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration }
 import {
     RichTextCommandRegistry,
     RichTextSlashCommand,
-    RichTextSlashCommandAvailabilityContext,
-    RichTextSlashCommandContext,
 } from './rich-text-command-registry.service';
 import { AddonSlotRegistry } from '../../lib/addon-slots';
 import {
@@ -495,171 +493,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'clear',
 ];
 
-/**
- * Creates the built-in slash commands (paragraph, headings, lists, quote, code, link, undo, redo)
- * using the provided locale strings. Called internally ג€” you normally don't need this directly.
- */
-export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        ...buildFormatSlashCommands(l),
-        ...buildInsertAndHistorySlashCommands(l),
-    ];
-}
-
-function buildHeadingSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        {
-            id: 'format.paragraph',
-            label: l.paragraph,
-            description: l.paragraphDescription,
-            keywords: ['text', 'normal'],
-            order: 10,
-            run: context => context.executeToolbarCommand('paragraph'),
-        },
-        {
-            id: 'format.heading-1',
-            label: l.heading1,
-            description: l.heading1Description,
-            keywords: ['h1', 'title'],
-            order: 20,
-            run: context => context.executeToolbarCommand('heading1'),
-        },
-        {
-            id: 'format.heading-2',
-            label: l.heading2,
-            description: l.heading2Description,
-            keywords: ['h2', 'subtitle'],
-            order: 30,
-            run: context => context.executeToolbarCommand('heading2'),
-        },
-        {
-            id: 'format.heading-3',
-            label: l.heading3,
-            description: l.heading3Description,
-            keywords: ['h3'],
-            order: 40,
-            run: context => context.executeToolbarCommand('heading3'),
-        },
-    ];
-}
-
-function buildListSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        {
-            id: 'format.bullet-list',
-            label: l.bulletList,
-            description: l.bulletListDescription,
-            keywords: ['list', 'ul', 'bl'],
-            order: 50,
-            run: context => context.executeToolbarCommand('bulletList'),
-        },
-        {
-            id: 'format.numbered-list',
-            label: l.numberedList,
-            description: l.numberedListDescription,
-            keywords: ['list', 'ol', 'nl'],
-            order: 60,
-            run: context => context.executeToolbarCommand('orderedList'),
-        },
-        {
-            id: 'format.quote',
-            label: l.blockQuote,
-            description: l.blockQuoteDescription,
-            keywords: ['blockquote', 'quote'],
-            order: 70,
-            run: context => context.executeToolbarCommand('blockquote'),
-        },
-        {
-            id: 'format.inline-code',
-            label: l.inlineCode,
-            description: l.inlineCodeDescription,
-            keywords: ['code'],
-            order: 80,
-            run: context => context.executeToolbarCommand('code'),
-        },
-        {
-            id: 'format.code-block',
-            label: l.codeBlock,
-            description: l.codeBlockDescription,
-            keywords: ['pre', 'snippet'],
-            order: 90,
-            run: context => context.executeToolbarCommand('codeBlock'),
-        },
-    ];
-}
-
-function buildFormatSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        ...buildHeadingSlashCommands(l),
-        ...buildListSlashCommands(l),
-    ];
-}
-
-function buildInsertSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        {
-            id: 'insert.link',
-            label: l.link,
-            description: l.linkDescription,
-            keywords: ['url', 'anchor'],
-            order: 100,
-            run: context => context.showLinkDialog(),
-        },
-        {
-            id: 'insert.task-list',
-            label: l.taskList,
-            description: l.taskListDescription,
-            keywords: ['checkbox', 'todo', 'task', 'checklist'],
-            order: 65,
-            run: context => context.executeToolbarCommand('taskList'),
-        },
-        {
-            id: 'insert.toggle',
-            label: l.toggle,
-            description: l.toggleDescription,
-            keywords: ['details', 'summary', 'collapse', 'expand', 'accordion'],
-            order: 75,
-            run: context => context.executeToolbarCommand('toggle'),
-        },
-        {
-            id: 'insert.horizontal-rule',
-            label: l.horizontalRule,
-            description: l.horizontalRuleDescription,
-            keywords: ['hr', 'divider', 'line', 'separator'],
-            order: 95,
-            run: context => context.executeToolbarCommand('horizontalRule'),
-        },
-    ];
-}
-
-function buildHistorySlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        {
-            id: 'history.undo',
-            label: l.undo,
-            description: l.undoDescription,
-            keywords: ['ctrl+z', 'revert'],
-            order: 110,
-            run: context => context.executeToolbarCommand('undo'),
-        },
-        {
-            id: 'history.redo',
-            label: l.redo,
-            description: l.redoDescription,
-            keywords: ['ctrl+y', 'ctrl+shift+z'],
-            order: 120,
-            run: context => context.executeToolbarCommand('redo'),
-        },
-    ];
-}
-
-function buildInsertAndHistorySlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        ...buildInsertSlashCommands(l),
-        ...buildHistorySlashCommands(l),
-    ];
-}
-
 export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     { actionId: 'rich-text.bold', description: 'Toggle bold', defaultShortcut: 'Mod+B', category: 'Formatting' },
     { actionId: 'rich-text.italic', description: 'Toggle italic', defaultShortcut: 'Mod+I', category: 'Formatting' },
@@ -720,7 +553,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly commandRegistry = inject(RichTextCommandRegistry);
 
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
-    @ViewChild('slashCommandList') slashCommandList?: ElementRef<HTMLDivElement>;
     @ViewChild('tableContextMenuRef') tableContextMenuRef?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
 
@@ -940,17 +772,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Show the "Revisions" button in the top-right corner. Only visible when `showHistoryPanel` is `true`. */
     showHistoryButton = input<boolean>(true);
 
-    // ג”€ג”€ Slash commands ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-
-    /** Enable the `/slash` command feature. When `true`, typing `/` opens a command menu. */
-    enableSlashCommands = input<boolean>(true);
-
-    /**
-     * Additional custom slash commands to register alongside the built-in ones.
-     * @see {@link RichTextSlashCommand} for the full interface and examples.
-     */
-    slashCommands = input<RichTextSlashCommand[]>([]);
-
     // ג”€ג”€ Localisation ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /**
@@ -976,11 +797,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     readonly isRtl = this.i18n.isRtl;
     readonly dir = this.i18n.dir;
 
-    localizedSlashCommands = computed(() => {
-        const commands = [
-            ...buildDefaultSlashCommands(this.resolvedLocale().slashCommands),
-            this.buildOutlineSlashCommand(),
-        ];
+    /**
+     * Base-owned slash commands surfaced to the slash-commands addon through the
+     * host: the document-outline command, plus the AI command when an
+     * `aiProvider` is set. The rest of the built-in commands live in the addon.
+     */
+    readonly builtinCommands = computed<readonly RichTextSlashCommand[]>(() => {
+        const commands = [this.buildOutlineSlashCommand()];
         if (this.hasAi()) {
             commands.push(this.buildAiSlashCommand());
         }
@@ -1089,10 +912,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     mentionType = signal<'mention' | 'tag'>('mention');
     mentionQuery = signal<string>('');
     mentionPopoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-    slashCommandOpen = signal<boolean>(false);
-    slashQuery = signal<string>('');
-    slashCommandPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-    slashCommandSelectedIndex = signal<number>(0);
     private readonly mentionSearchQuery$ = new Subject<{ type: 'mention' | 'tag'; query: string }>();
     loadedMentionItems = signal<(MentionItem | TagItem)[]>([]);
     mentionLoading = signal<boolean>(false);
@@ -1160,8 +979,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private isUndoRedo = false;
     private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private shortcutHandle: ShortcutComponentHandle | null = null;
-    private slashAnchorBlock: HTMLElement | null = null;
-    private slashTriggerRange: Range | null = null;
+    private readonly keydownInterceptors = new Set<(event: KeyboardEvent) => boolean>();
+    private readonly inputObservers = new Set<(text: string, caretOffset: number) => void>();
     private savedRange: Range | null = null;
     private _pendingLinkPositionHint: { x: number; y: number } | null = null;
     private onChange: (value: string) => void = () => { };
@@ -1287,51 +1106,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return this.loadedMentionItems().slice(0, 10);
     });
 
-    filteredSlashCommands = computed(() => {
-        const query = this.slashQuery().trim().toLowerCase();
-        const availability: RichTextSlashCommandAvailabilityContext = {
-            query: this.slashQuery(),
-            disabled: this.disabled(),
-            readonly: this.readonly(),
-            hasSelection: !!this.selectedText(),
-        };
-        const merged = new Map<string, RichTextSlashCommand>();
-        for (const command of this.localizedSlashCommands()) {
-            merged.set(command.id, command);
-        }
-        for (const command of this.commandRegistry.listCommands()) {
-            merged.set(command.id, command);
-        }
-        for (const command of this.slashCommands()) {
-            merged.set(command.id, command);
-        }
-
-        const matchesQuery = (command: RichTextSlashCommand): boolean => {
-            if (!query) {
-                return true;
-            }
-            const haystack = [
-                command.label,
-                command.description ?? '',
-                ...(command.keywords ?? []),
-                ...(command.aliases ?? []),
-            ].join(' ').toLowerCase();
-            return haystack.includes(query);
-        };
-
-        return Array.from(merged.values())
-            .filter(command => !command.when || command.when(availability))
-            .filter(matchesQuery)
-            .sort((a, b) => {
-                const byOrder = (a.order ?? 9999) - (b.order ?? 9999);
-                if (byOrder !== 0) {
-                    return byOrder;
-                }
-                return a.label.localeCompare(b.label);
-            })
-            .slice(0, 10);
-    });
-
     historyTimelineEntries = computed(() => {
         this.historyVersion();
         return this.history.map((entry, index) => ({
@@ -1434,7 +1208,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         super();
         this.setupOutputEffects();
         this.setupMentionSearch();
-        this.setupSlashCommandEffects();
         this.setupFloatingToolbarEffect();
     }
 
@@ -1477,34 +1250,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         ).subscribe(items => {
             this.loadedMentionItems.set(items);
             this.mentionLoading.set(false);
-        });
-    }
-
-    private setupSlashCommandEffects(): void {
-        effect(() => {
-            const commands = this.filteredSlashCommands();
-            const currentIndex = this.slashCommandSelectedIndex();
-            if (commands.length === 0) {
-                if (currentIndex !== 0) {
-                    this.slashCommandSelectedIndex.set(0);
-                }
-                return;
-            }
-            if (currentIndex >= commands.length) {
-                this.slashCommandSelectedIndex.set(commands.length - 1);
-            }
-        });
-
-        effect(() => {
-            if (!this.slashCommandOpen()) {
-                return;
-            }
-            const commands = this.filteredSlashCommands();
-            const currentIndex = this.slashCommandSelectedIndex();
-            if (commands.length === 0 || currentIndex < 0 || currentIndex >= commands.length) {
-                return;
-            }
-            queueMicrotask(() => this.scrollSelectedSlashCommandIntoView());
         });
     }
 
@@ -1735,12 +1480,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             ? this.getCaretOffset(div)
             : triggerTextContent.length;
 
-        const textForSlash = triggerTextContent;
-        if (this.checkSlashCommandTrigger(textForSlash, caretOffset)) {
-            this.closeMentionPopover();
-        } else {
-            this.checkMentionTrigger(textContent, caretOffset);
-        }
+        // Addons (e.g. slash-commands) observe the trigger-aware text; mentions
+        // are handled by the base. The two triggers are mutually exclusive, so
+        // both run every input.
+        this.notifyInputObservers(triggerTextContent, caretOffset);
+        this.checkMentionTrigger(textContent, caretOffset);
 
         this.htmlContent.set(html);
 
@@ -1756,32 +1500,22 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     onKeydown(event: KeyboardEvent): void {
-        if (this.handleSlashCommandKey(event)) return;
+        if (this.dispatchKeydownInterceptors(event)) return;
         if (this.handleMentionPopoverKey(event)) return;
         if (this.shortcutHandle?.dispatch(event)) return;
 
         if (event.key === 'Escape') {
             this.closeMentionPopover();
-            this.closeSlashCommandPopover();
             this.showFloatingToolbar.set(false);
         }
 
-        if (event.key === 'Tab' && !this.mentionPopoverOpen() && !this.slashCommandOpen()) {
+        if (event.key === 'Tab' && !this.mentionPopoverOpen()) {
             this.handleTabKey(event);
         }
 
         if (event.key === 'Enter' && !event.shiftKey) {
             this.handleEnterKey(event);
         }
-    }
-
-    private handleSlashCommandKey(event: KeyboardEvent): boolean {
-        if (!this.slashCommandOpen()) return false;
-        const slashKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab', ' ', 'Spacebar'];
-        if (!slashKeys.includes(event.key)) return false;
-        event.preventDefault();
-        this.onSlashCommandKeydown(event);
-        return true;
     }
 
     private handleMentionPopoverKey(event: KeyboardEvent): boolean {
@@ -2095,7 +1829,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         this.onTouched();
         this.blurred.emit();
-        this.closeSlashCommandPopover();
 
         if (this.showLinkPopover()) {
             return;
@@ -2889,6 +2622,51 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /** Commit addon DOM edits to the model + flush pending history (addon host surface). */
+    commitContent(): void {
+        this.syncContentFromEditor();
+        this.flushPendingHistoryPush();
+    }
+
+    /** Insert plain text at the live caret as one history entry (addon host surface). */
+    insertTextAtCaret(text: string): void {
+        this.insertText(text);
+        this.pushHistory();
+    }
+
+    /** Insert sanitized HTML at the live caret as one history entry (addon host surface). */
+    insertHtmlAtCaret(html: string): void {
+        this.insertHtml(html);
+        this.pushHistory();
+    }
+
+    /** Register an addon keydown interceptor (addon host surface). */
+    registerKeydownInterceptor(interceptor: (event: KeyboardEvent) => boolean): () => void {
+        this.keydownInterceptors.add(interceptor);
+        return () => this.keydownInterceptors.delete(interceptor);
+    }
+
+    /** Register an addon observer of the trigger-aware input text (addon host surface). */
+    registerInputObserver(observer: (text: string, caretOffset: number) => void): () => void {
+        this.inputObservers.add(observer);
+        return () => this.inputObservers.delete(observer);
+    }
+
+    private dispatchKeydownInterceptors(event: KeyboardEvent): boolean {
+        for (const interceptor of this.keydownInterceptors) {
+            if (interceptor(event)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private notifyInputObservers(text: string, caretOffset: number): void {
+        for (const observer of this.inputObservers) {
+            observer(text, caretOffset);
+        }
+    }
+
     onColorSelect(event: { type: 'fontColor' | 'backgroundColor'; color: string }): void {
         if (this.isReflectedColorEcho(event.type, event.color) || !this.hasColorTarget()) {
             return;
@@ -3070,100 +2848,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.closeMentionPopover();
     }
 
-    private checkSlashCommandTrigger(text: string, cursorPosition: number): boolean {
-        if (!this.enableSlashCommands() || this.disabled() || this.readonly()) {
-            this.closeSlashCommandPopover();
-            return false;
-        }
-
-        const beforeCursor = text.substring(0, cursorPosition);
-        const slashTriggerPattern = /(?:^|[\s([{\u200B])\/([-\p{L}\p{N}_.]*)$/u;
-        const slashMatch = slashTriggerPattern.exec(beforeCursor)
-            ?? this.matchSlashTriggerAtCaret()
-            ?? this.matchSlashTriggerWithinCurrentBlock();
-        if (!slashMatch) {
-            this.closeSlashCommandPopover();
-            return false;
-        }
-
-        this.captureSlashTriggerRange();
-        this.slashAnchorBlock = this.getClosestEditableBlockFromSelection();
-        this.slashQuery.set(slashMatch[1]);
-        this.slashCommandSelectedIndex.set(0);
-        this.updateSlashCommandPopoverPosition();
-        this.slashCommandOpen.set(true);
-        return true;
-    }
-
-    private matchSlashTriggerAtCaret(): RegExpExecArray | null {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return null;
-        }
-        const range = selection.getRangeAt(0);
-        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
-            return null;
-        }
-
-        const nodeText = (range.startContainer as Text).data.slice(0, range.startOffset);
-        const nodePattern = /(?:^|[\s([{\u200B])\/([-\p{L}\p{N}_.]*)$/u;
-        return nodePattern.exec(nodeText);
-    }
-
-    private matchSlashTriggerWithinCurrentBlock(): RegExpExecArray | null {
-        const selection = this.document.getSelection();
-        const editor = this.getEditorElement();
-        if (!selection || selection.rangeCount === 0 || !editor) {
-            return null;
-        }
-
-        const range = selection.getRangeAt(0);
-        if (!editor.contains(range.startContainer)) {
-            return null;
-        }
-
-        const block = this.findClosestEditableBlockFromRange(range);
-        if (!block) {
-            return null;
-        }
-
-        const blockPattern = /(?:^|[\s([{\u200B])\/([-\p{L}\p{N}_.]*)$/u;
-
-        // Chromium may report the caret container as the contenteditable root.
-        // In that case, try nearby child blocks because startOffset can be unstable.
-        if (range.startContainer === editor) {
-            const candidateBlocks: HTMLElement[] = [];
-            const pushCandidate = (node: Node | null | undefined): void => {
-                if (!node) {
-                    return;
-                }
-                const candidate = this.findClosestEditableBlock(node);
-                if (candidate && !candidateBlocks.includes(candidate)) {
-                    candidateBlocks.push(candidate);
-                }
-            };
-
-            pushCandidate(block);
-            pushCandidate(editor.childNodes[range.startOffset] ?? null);
-            pushCandidate(editor.childNodes[range.startOffset - 1] ?? null);
-            pushCandidate(editor.lastChild);
-
-            for (const candidate of candidateBlocks) {
-                const match = blockPattern.exec(candidate.textContent ?? '');
-                if (match) {
-                    return match;
-                }
-            }
-            return null;
-        }
-
-        const blockRange = this.document.createRange();
-        blockRange.setStart(block, 0);
-        blockRange.setEnd(range.startContainer, range.startOffset);
-        const blockText = blockRange.toString();
-        return blockPattern.exec(blockText);
-    }
-
     onMentionSelect(item: MentionItem | TagItem): void {
         this.flushPendingHistoryPush();
         const type = this.mentionType();
@@ -3213,7 +2897,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             this.tagInsert.emit(payload);
         }
         this.closeMentionPopover();
-        this.closeSlashCommandPopover();
         this.pushHistory();
         this.focusEditor();
     }
@@ -3407,81 +3090,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.mentionQuery.set('');
     }
 
-    async onSlashCommandSelect(command: RichTextSlashCommand): Promise<void> {
-        if (this.disabled() || this.readonly()) {
-            return;
-        }
-        this.flushPendingHistoryPush();
-        const selectionBeforeMutations = this.document.getSelection();
-        if (selectionBeforeMutations && selectionBeforeMutations.rangeCount > 0) {
-            const r = selectionBeforeMutations.getRangeAt(0);
-            const rc = r.getBoundingClientRect();
-            if (rc.width > 0 || rc.height > 0 || rc.top > 0 || rc.left > 0) {
-                this._pendingLinkPositionHint = { x: rc.left, y: rc.bottom };
-            }
-        }
-        const query = this.slashQuery();
-        const resolvedSlashBlock = this.removeSlashTriggerText(query);
-        const slashBlock = resolvedSlashBlock ?? this.getClosestEditableBlockForSlashCommand();
-        if (resolvedSlashBlock) {
-            this.slashAnchorBlock = resolvedSlashBlock;
-        }
-        if (slashBlock) {
-            this.placeCaretAtEndOfBlock(slashBlock);
-            this.removeCaretSentinelAtSelection();
-        }
-        this.closeSlashCommandPopover();
-
-        const context: RichTextSlashCommandContext = {
-            query,
-            selectedText: this.selectedText(),
-            executeToolbarCommand: (toolbarCommand: string) => this.executeToolbarCommandFromSlash(toolbarCommand, slashBlock),
-            insertText: (text: string) => {
-                this.insertText(text);
-                this.pushHistory();
-            },
-            insertHtml: (html: string) => {
-                this.insertHtml(html);
-                this.pushHistory();
-            },
-            showLinkDialog: () => this.showLinkDialog(),
-            focusEditor: () => this.focusEditor(),
-        };
-
-        await Promise.resolve(command.run(context));
-        if (!this.isSelectionInsideEditor()) {
-            this.focusEditor();
-        }
-    }
-
-    private removeCaretSentinelAtSelection(): void {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return;
-        }
-
-        const range = selection.getRangeAt(0);
-        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
-            return;
-        }
-
-        const textNode = range.startContainer as Text;
-        if (!textNode.data.includes('\u200B')) {
-            return;
-        }
-
-        const originalOffset = range.startOffset;
-        const before = textNode.data.slice(0, originalOffset).replaceAll('\u200B', '').length;
-        textNode.data = textNode.data.replaceAll('\u200B', '');
-
-        const newOffset = Math.min(before, textNode.data.length);
-        const newRange = this.document.createRange();
-        newRange.setStart(textNode, newOffset);
-        newRange.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-    }
-
     private wrapSelectionWithTag(tagName: string): void {
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
@@ -3523,7 +3131,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
     }
 
-    private showLinkDialog(): void {
+    /**
+     * Open the link popover (addon host surface). `caretHint` positions it when
+     * the live caret rect is degenerate — e.g. an addon consumed the trigger and
+     * collapsed the caret into an empty block before calling this.
+     */
+    showLinkDialog(caretHint?: { x: number; y: number }): void {
+        if (caretHint) {
+            this._pendingLinkPositionHint = caretHint;
+        }
         const selection = this.document.getSelection();
         this.selectedText.set(selection?.toString() ?? '');
 
@@ -5733,340 +5349,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    private updateSlashCommandPopoverPosition(): void {
-        const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
-            const editorRect = this.el.nativeElement.getBoundingClientRect();
-            const maxX = Math.max(0, editorRect.width - 320);
-            const maxY = Math.max(0, editorRect.height - 260);
-            const x = Math.max(0, Math.min(rect.left - editorRect.left, maxX));
-            const y = Math.max(0, Math.min(rect.bottom - editorRect.top + 8, maxY));
-
-            this.slashCommandPosition.set({
-                x,
-                y,
-            });
-        }
-    }
-
-    private onSlashCommandKeydown(event: KeyboardEvent): void {
-        const commands = this.filteredSlashCommands();
-        if (commands.length === 0) {
-            if (event.key === 'Escape' || event.key === 'Tab') {
-                this.closeSlashCommandPopover();
-            }
-            return;
-        }
-
-        const currentIndex = this.slashCommandSelectedIndex();
-        if (event.key === 'ArrowDown') {
-            this.slashCommandSelectedIndex.set(Math.min(currentIndex + 1, commands.length - 1));
-            return;
-        }
-        if (event.key === 'ArrowUp') {
-            this.slashCommandSelectedIndex.set(Math.max(currentIndex - 1, 0));
-            return;
-        }
-        if (event.key === 'Escape' || event.key === 'Tab') {
-            this.closeSlashCommandPopover();
-            return;
-        }
-        if (event.key === ' ' || event.key === 'Spacebar') {
-            const selected = commands[currentIndex];
-            if (selected) {
-                void this.onSlashCommandSelect(selected);
-            }
-            return;
-        }
-        if (event.key === 'Enter') {
-            const selected = commands[currentIndex];
-            if (selected) {
-                void this.onSlashCommandSelect(selected);
-            }
-        }
-    }
-
-    private scrollSelectedSlashCommandIntoView(): void {
-        const list = this.slashCommandList?.nativeElement;
-        if (!list) {
-            return;
-        }
-
-        const selectedIndex = this.slashCommandSelectedIndex();
-        const selected = list.querySelector<HTMLElement>(`[data-slash-index="${selectedIndex}"]`);
-        if (!selected) {
-            return;
-        }
-
-        const listTop = list.scrollTop;
-        const listBottom = listTop + list.clientHeight;
-        const itemTop = selected.offsetTop;
-        const itemBottom = itemTop + selected.offsetHeight;
-
-        if (itemTop < listTop || itemBottom > listBottom) {
-            selected.scrollIntoView({ block: 'nearest' });
-        }
-    }
-
-    private closeSlashCommandPopover(): void {
-        this.slashCommandOpen.set(false);
-        this.slashQuery.set('');
-        this.slashCommandSelectedIndex.set(0);
-        this.slashAnchorBlock = null;
-        this.slashTriggerRange = null;
-    }
-
-    private removeSlashTriggerText(query: string): HTMLElement | null {
-        const removedFromRange = this.removeSlashTriggerTextFromRange(query, this.slashTriggerRange);
-        if (removedFromRange) {
-            this.slashTriggerRange = null;
-            return removedFromRange;
-        }
-
-        const removedFromCurrentAnchor = this.removeSlashTriggerTextFromAnchorBlock(query, this.getClosestEditableBlockForSlashCommand());
-        if (removedFromCurrentAnchor) {
-            return removedFromCurrentAnchor;
-        }
-
-        const removedFromStoredAnchor = this.removeSlashTriggerTextFromAnchorBlock(query, this.slashAnchorBlock);
-        if (removedFromStoredAnchor) {
-            return removedFromStoredAnchor;
-        }
-
-        const removedFromEditor = this.removeSlashTriggerTextFromEditor(query);
-        if (removedFromEditor) {
-            return removedFromEditor;
-        }
-
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return null;
-        }
-
-        const range = selection.getRangeAt(0);
-        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
-            return null;
-        }
-
-        const triggerLength = query.length + 1;
-        const textNode = range.startContainer as Text;
-        const deleteStart = Math.max(0, range.startOffset - triggerLength);
-        const triggerText = textNode.data.slice(deleteStart, range.startOffset);
-        if (triggerText !== `/${query}`) {
-            return null;
-        }
-
-        range.setStart(textNode, deleteStart);
-        range.deleteContents();
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        this.syncContentFromEditor();
-        return this.findClosestEditableBlock(textNode);
-    }
-
-
-    private removeSlashTriggerTextFromRange(query: string, range: Range | null): HTMLElement | null {
-        if (range?.startContainer.nodeType !== Node.TEXT_NODE) {
-            return null;
-        }
-        const selection = this.document.getSelection();
-        if (!selection) {
-            return null;
-        }
-
-        const workRange = range.cloneRange();
-        const triggerLength = query.length + 1;
-        const textNode = workRange.startContainer as Text;
-        const deleteStart = Math.max(0, workRange.startOffset - triggerLength);
-        const triggerText = textNode.data.slice(deleteStart, workRange.startOffset);
-        if (triggerText !== `/${query}`) {
-            return null;
-        }
-
-        workRange.setStart(textNode, deleteStart);
-        workRange.deleteContents();
-        workRange.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(workRange);
-        this.syncContentFromEditor();
-        return this.findClosestEditableBlock(textNode);
-    }
-
-    private removeSlashTriggerTextFromAnchorBlock(query: string, anchorBlock: HTMLElement | null): HTMLElement | null {
-        if (!anchorBlock) {
-            return null;
-        }
-        const editor = this.getEditorElement();
-        if (!editor?.contains(anchorBlock)) {
-            return null;
-        }
-
-        const walker = this.document.createTreeWalker(anchorBlock, NodeFilter.SHOW_TEXT);
-        let candidateNode: Text | null = null;
-        let candidateIndex = -1;
-        const needle = `/${query}`;
-
-        while (walker.nextNode()) {
-            const textNode = walker.currentNode as Text;
-            const index = textNode.data.lastIndexOf(needle);
-            if (index >= 0) {
-                candidateNode = textNode;
-                candidateIndex = index;
-            }
-        }
-
-        if (!candidateNode || candidateIndex < 0) {
-            return null;
-        }
-
-        candidateNode.deleteData(candidateIndex, needle.length);
-        const selection = this.document.getSelection();
-        if (selection) {
-            const range = this.document.createRange();
-            range.setStart(candidateNode, candidateIndex);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        }
-        this.syncContentFromEditor();
-        return anchorBlock;
-    }
-
-    private removeSlashTriggerTextFromEditor(query: string): HTMLElement | null {
-        const editor = this.getEditorElement();
-        if (!editor) {
-            return null;
-        }
-
-        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-        let candidateNode: Text | null = null;
-        let candidateIndex = -1;
-        const needle = `/${query}`;
-
-        while (walker.nextNode()) {
-            const textNode = walker.currentNode as Text;
-            const index = textNode.data.lastIndexOf(needle);
-            if (index >= 0) {
-                candidateNode = textNode;
-                candidateIndex = index;
-            }
-        }
-
-        if (!candidateNode || candidateIndex < 0) {
-            return null;
-        }
-
-        candidateNode.deleteData(candidateIndex, needle.length);
-        const selection = this.document.getSelection();
-        if (selection) {
-            const range = this.document.createRange();
-            range.setStart(candidateNode, candidateIndex);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        }
-        this.syncContentFromEditor();
-        return this.findClosestEditableBlock(candidateNode);
-    }
-
-    private getClosestEditableBlockForSlashCommand(): HTMLElement | null {
-        const editor = this.getEditorElement();
-        if (editor && this.slashAnchorBlock && editor.contains(this.slashAnchorBlock)) {
-            return this.slashAnchorBlock;
-        }
-        const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0 && editor) {
-            const range = selection.getRangeAt(0);
-            if (editor.contains(range.startContainer)) {
-                return this.findClosestEditableBlockFromRange(range);
-            }
-        }
-        if (this.slashTriggerRange) {
-            return this.findClosestEditableBlockFromRange(this.slashTriggerRange);
-        }
-        return null;
-    }
-
-    private getClosestEditableBlockFromSelection(): HTMLElement | null {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return null;
-        }
-        return this.findClosestEditableBlockFromRange(selection.getRangeAt(0));
-    }
-
-    private findClosestEditableBlockFromRange(range: Range): HTMLElement | null {
-        const editor = this.getEditorElement();
-        if (!editor) {
-            return null;
-        }
-
-        let node: Node = range.startContainer;
-        if (node === editor) {
-            const childCount = editor.childNodes.length;
-            if (childCount > 0) {
-                const index = Math.min(Math.max(range.startOffset - 1, 0), childCount - 1);
-                node = editor.childNodes[index] ?? editor;
-            }
-        }
-
-        return this.findClosestEditableBlock(node);
-    }
-
-    private findClosestEditableBlock(node: Node): HTMLElement | null {
-        const editor = this.getEditorElement();
-        if (!editor) {
-            return null;
-        }
-
-        let current: Node | null = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-        while (current && current !== editor) {
-            if (current.nodeType === Node.ELEMENT_NODE) {
-                const element = current as HTMLElement;
-                const tagName = element.tagName;
-                if (['P', 'DIV', 'H1', 'H2', 'H3', 'LI', 'BLOCKQUOTE', 'PRE'].includes(tagName)) {
-                    return element;
-                }
-            }
-            current = current.parentNode;
-        }
-        return this.resolveTopLevelEditorBlock(node, editor);
-    }
-
-    private resolveTopLevelEditorBlock(node: Node, editor: HTMLElement): HTMLElement | null {
-        if (node.nodeType === Node.TEXT_NODE && node.parentNode === editor) {
-            const wrapper = this.document.createElement('p');
-            (node as ChildNode).before(wrapper);
-            wrapper.appendChild(node);
-            return wrapper;
-        }
-
-        let current: Node | null = node;
-        while (current?.parentNode && current.parentNode !== editor) {
-            current = current.parentNode;
-        }
-
-        if (current && current !== editor && current.nodeType === Node.ELEMENT_NODE) {
-            return current as HTMLElement;
-        }
-
-        if (editor.childNodes.length === 0) {
-            const paragraph = this.document.createElement('p');
-            paragraph.appendChild(this.document.createElement('br'));
-            editor.appendChild(paragraph);
-            return paragraph;
-        }
-
-        const firstElementChild = Array.from(editor.childNodes).find(child => child.nodeType === Node.ELEMENT_NODE);
-        if (firstElementChild) {
-            return firstElementChild as HTMLElement;
-        }
-        return null;
-    }
-
     private placeCaretAtEndOfBlock(block: HTMLElement): void {
         const selection = this.document.getSelection();
         if (!selection) {
@@ -6133,7 +5415,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         selection.addRange(range);
     }
 
-    private executeToolbarCommandFromSlash(command: string, anchorBlock: HTMLElement | null): void {
+    /**
+     * Apply a built-in toolbar command to a specific block (addon host surface):
+     * the block-transform engine used by the slash-commands addon.
+     */
+    executeToolbarCommandOnBlock(command: string, anchorBlock: HTMLElement | null): void {
         if (command === 'code') {
             this.insertInlineCodeFromSlash(anchorBlock);
             return;
@@ -6254,22 +5540,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         const nonEmptyElement = Array.from(block.children).find(child => child.tagName !== 'BR');
         return !nonEmptyElement;
-    }
-
-    private captureSlashTriggerRange(): void {
-        const selection = this.document.getSelection();
-        const editor = this.getEditorElement();
-        if (!selection || selection.rangeCount === 0 || !editor) {
-            this.slashTriggerRange = null;
-            return;
-        }
-
-        const range = selection.getRangeAt(0);
-        if (!editor.contains(range.startContainer)) {
-            this.slashTriggerRange = null;
-            return;
-        }
-        this.slashTriggerRange = range.cloneRange();
     }
 
     private buildTriggerAwareText(html: string): string {

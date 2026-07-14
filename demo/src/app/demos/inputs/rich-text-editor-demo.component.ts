@@ -12,6 +12,7 @@ import {
   ToolbarItem,
 } from '../../../../../packages/components/ui';
 import { RichTextEmojiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/emoji';
+import { RichTextSlashCommandsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/slash-commands';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
@@ -20,7 +21,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -28,7 +29,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().basicHeading }}</h3>
-        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji
+        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji uiRteSlashCommands
           [placeholder]="t().basicPlaceholder" minHeight="150px"
           [(ngModel)]="richTextContent" (htmlChange)="richTextHtml = $event" />
         @if (richTextHtml) {
@@ -156,7 +157,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         <h3 class="text-lg font-medium">{{ t().hebrewHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().hebrewDescription }}</p>
         <ui-rich-text-editor mode="markdown" toolbar="top" locale="he" [showCount]="true" [showWordCount]="true"
-          [enableSlashCommands]="true" minHeight="150px" />
+          uiRteSlashCommands uiRteSlashCommandsLocale="he" minHeight="150px" />
       </div>
 
       <div class="space-y-2">

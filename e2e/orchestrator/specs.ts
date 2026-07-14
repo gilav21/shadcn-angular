@@ -117,6 +117,14 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/emoji'],
         label: 'rte-emoji',
     },
+    // addon system (rich-text): install the editor + its `slash-commands` addon;
+    // prove typing `/` opens the command menu, a block transform runs through the
+    // base engine seam, and a custom command from the input runs (the base ships
+    // no slash-command code).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/slash-commands'],
+        label: 'rte-slash-commands',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.
