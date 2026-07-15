@@ -91,6 +91,7 @@ not suppressed — this exemption is scoped to the `ui-button` primitive only.
 | `rich-text-editor/rich-text-editor.component.html` | 4 |
 | `rich-text-editor/addons/actions/rich-text-actions-dialog.component.html` | 2 |
 | `rich-text-editor/addons/links/rich-text-links-form.component.html` | Remove/Cancel/Insert are `<ui-button (click)>` — native `<button>` underneath, Enter/Space already fire click. |
+| `rich-text-editor/addons/ai/rich-text-ai-panel.component.html` | Go/Accept/Discard/Retry are `<ui-button (click)>` — native `<button>` underneath, Enter/Space already fire click. |
 
 **The one raw-`<div>` exception — the `file-upload` dropzone.** It is
 `role="presentation"` and its `(click)`/drag handlers are a *pointer convenience*,

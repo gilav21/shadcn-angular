@@ -31,7 +31,7 @@ const crc32 = (data: Uint8Array): number => {
 const u16 = (n: number): number[] => [n & 0xff, (n >>> 8) & 0xff];
 const u32 = (n: number): number[] => [n & 0xff, (n >>> 8) & 0xff, (n >>> 16) & 0xff, (n >>> 24) & 0xff];
 
-const makeZip = (files: ReadonlyArray<{ name: string; content: string }>): Uint8Array => {
+const makeZip = (files: ReadonlyArray<{ name: string; content: string }>): Uint8Array<ArrayBuffer> => {
     const enc = new TextEncoder();
     const entries = files.map(f => ({ name: f.name, data: enc.encode(f.content) }));
     const localChunks: number[] = [];

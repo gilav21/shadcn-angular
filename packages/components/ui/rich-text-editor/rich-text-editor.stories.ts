@@ -97,7 +97,6 @@ const meta: Meta<RichTextEditorComponent> = {
             control: false,
             description: 'App-provided custom toolbar buttons/dropdowns rendered alongside the built-ins; emits (customToolbarAction) on click.',
         },
-        aiProvider: { control: false, description: 'Bring-your-own AI provider hook powering AI-assisted editing actions.' },
         locale: {
             control: 'select',
             options: Object.keys(RICH_TEXT_LOCALES),

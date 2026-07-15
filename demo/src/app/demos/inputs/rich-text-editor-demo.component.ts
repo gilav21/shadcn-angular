@@ -22,6 +22,7 @@ import { RichTextTypographyDirective } from '../../../../../packages/components/
 import { RichTextLinksDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/links';
 import { RichTextTablesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/tables';
 import { RichTextImagesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/images';
+import { RichTextAiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/ai';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
@@ -30,7 +31,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -60,18 +61,20 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       <div class="space-y-2">
         <h3 class="text-lg font-medium">AI assist</h3>
         <p class="text-sm text-muted-foreground">
-          Select some text, then click the <strong>✨ Ask AI</strong> chip to rewrite, shorten, expand, fix grammar,
+          Add the <code class="bg-muted px-1 rounded">uiRteAi</code> addon and bind
+          <code class="bg-muted px-1 rounded">[uiRteAi]</code> to a provider. Select some text, then click the
+          <strong>✨ Ask AI</strong> chip to rewrite, shorten, expand, fix grammar,
           summarize, continue, or run a custom prompt. The output streams in; Accept / Discard / Try again.
           This demo wires a <strong>mock</strong> provider (no network) to show the flow.
         </p>
-        <ui-rich-text-editor mode="markdown" toolbar="top" [aiProvider]="mockAiProvider"
+        <ui-rich-text-editor mode="markdown" toolbar="top" [uiRteAi]="mockAiProvider"
           [placeholder]="'Type a sentence, select it, then click ✨ Ask AI…'" minHeight="140px" />
 
         <details class="mt-2 rounded-md border bg-muted/30 p-3">
           <summary class="cursor-pointer text-sm font-medium">Wire up a real AI backend</summary>
           <div class="mt-3 space-y-3 text-sm">
             <p class="text-muted-foreground">
-              <code class="bg-muted px-1 rounded">aiProvider</code> is just a callback that returns
+              <code class="bg-muted px-1 rounded">[uiRteAi]</code> takes a callback that returns
               <code class="bg-muted px-1 rounded">string</code> · <code class="bg-muted px-1 rounded">Promise&lt;string&gt;</code> ·
               <code class="bg-muted px-1 rounded">Observable&lt;string&gt;</code>. Point it at <strong>your</strong> backend —
               <strong>never call the model directly from the browser</strong>, or your API key leaks. For the editor's live
@@ -448,7 +451,11 @@ export class RichTextEditorDemoComponent {
     "// In your component — point the provider at YOUR backend.",
     "// The API key lives on the server and never touches the browser.",
     "import { AiRequest } from '@gilav21/shadcn-angular';",
+    "import { RichTextAiDirective } from '@gilav21/shadcn-angular';",
     "import { Observable } from 'rxjs';",
+    "",
+    "// Add RichTextAiDirective to the component imports, then in the template:",
+    "//   <ui-rich-text-editor [uiRteAi]='aiProvider' />",
     "",
     "// Streaming provider → drives the editor's live typewriter effect.",
     "readonly aiProvider = (req: AiRequest): Observable<string> =>",

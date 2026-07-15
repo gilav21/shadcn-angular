@@ -21,8 +21,6 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
-import { Subscription } from 'rxjs';
-import { AiProvider, AiTask, runAiTask } from '../../lib/ai';
 import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
 import { ButtonComponent } from '../button';
 import { ScrollAreaComponent } from '../scroll-area';
@@ -282,20 +280,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Makes the editor non-editable but still selectable/copyable. Hides the toolbar. */
     readonly = input<boolean>(false);
 
-    /**
-     * Bring-your-own AI hook. When provided, an "✨ Ask AI" affordance appears on
-     * text selection and via the `/ai` slash command; when omitted, no AI UI is
-     * shown (graceful degradation). The provider receives
-     * an {@link AiRequest} and returns text, a Promise, or an Observable (the
-     * latter may stream progressive output).
-     */
-    aiProvider = input<AiProvider | undefined>(undefined);
-    readonly hasAi = computed(() => this.aiProvider() !== undefined);
-    /** Emitted when an AI task starts / completes / errors. */
-    readonly aiRequest = output<{ task: AiTask; prompt?: string }>();
-    readonly aiResult = output<string>();
-    readonly aiError = output<string>();
-
     // ג”€ג”€ Character & word count ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Show a character count below the editor. */
@@ -349,29 +333,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /**
      * Base-owned slash commands surfaced to the slash-commands addon through the
-     * host: the document-outline command, plus the AI command when an
-     * `aiProvider` is set. The rest of the built-in commands live in the addon.
+     * host: the document-outline command. Feature commands (`/ai`, `/link`, …)
+     * are registered by their own opt-in addons into the command registry.
      */
-    readonly builtinCommands = computed<readonly RichTextSlashCommand[]>(() => {
-        const commands = [this.buildOutlineSlashCommand()];
-        if (this.hasAi()) {
-            commands.push(this.buildAiSlashCommand());
-        }
-        return commands;
-    });
-
-    /** Builds the `/ai` slash command (only registered when an `aiProvider` is set). */
-    private buildAiSlashCommand(): RichTextSlashCommand {
-        const a = this.aiLabels();
-        return {
-            id: 'insert.ai',
-            label: a.slash,
-            description: a.slashDescription,
-            keywords: ['ai', 'assist', 'rewrite', 'summarize', 'generate'],
-            order: 5,
-            run: () => this.openAiPanel(),
-        };
-    }
+    readonly builtinCommands = computed<readonly RichTextSlashCommand[]>(() => [
+        this.buildOutlineSlashCommand(),
+    ]);
 
     /** Builds the `/outline` slash command, which opens the document outline docked. */
     private buildOutlineSlashCommand(): RichTextSlashCommand {
@@ -1178,7 +1145,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.updateActiveFormats();
         const selection = this.document.getSelection();
         this.selectedText.set(selection?.toString() ?? '');
-        this.updateAiTrigger(selection);
         if (selection && !selection.isCollapsed && this.toolbar() === 'floating') {
             this.updateFloatingToolbarPosition();
             this.showFloatingToolbar.set(true);
@@ -1190,246 +1156,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 }
             }, 100);
         }
-    }
-
-    // ── AI assist ──
-    readonly showAiTrigger = signal(false);
-    readonly aiTriggerPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-    readonly aiPanelOpen = signal(false);
-    readonly aiPhase = signal<'menu' | 'loading' | 'review'>('menu');
-    readonly aiPanelPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-    readonly aiErrorMessage = signal<string | null>(null);
-    readonly aiCustomPrompt = signal('');
-    private static readonly DEFAULT_AI_LABELS = {
-        trigger: '✨ Ask AI',
-        slash: 'Ask AI',
-        slashDescription: 'Rewrite, summarize, or generate with AI',
-        rewrite: 'Improve writing',
-        fixGrammar: 'Fix spelling & grammar',
-        shorten: 'Make shorter',
-        expand: 'Make longer',
-        summarize: 'Summarize',
-        continueWriting: 'Continue writing',
-        promptPlaceholder: 'Ask AI to…',
-        go: 'Go',
-        generating: 'Generating…',
-        accept: 'Accept',
-        discard: 'Discard',
-        retry: 'Try again',
-        failed: 'AI request failed',
-    };
-    readonly aiLabels = computed(() => ({
-        ...RichTextEditorComponent.DEFAULT_AI_LABELS,
-        ...this.resolvedLocale().ai,
-    }));
-    readonly aiTasks = computed<{ task: AiTask; label: string }[]>(() => {
-        const a = this.aiLabels();
-        return [
-            { task: 'rewrite', label: a.rewrite },
-            { task: 'fix-grammar', label: a.fixGrammar },
-            { task: 'shorten', label: a.shorten },
-            { task: 'expand', label: a.expand },
-            { task: 'summarize', label: a.summarize },
-            { task: 'continue', label: a.continueWriting },
-        ];
-    });
-    private aiSubscription: Subscription | null = null;
-    private aiController: AbortController | null = null;
-    private aiDraftEl: HTMLElement | null = null;
-    private aiRange: Range | null = null;
-    private aiSavedHtml = '';
-    private aiSavedText = '';
-    private aiContinueMode = false;
-
-    private updateAiTrigger(selection: Selection | null): void {
-        if (this.aiPanelOpen()) return;
-        const active = !!selection && !selection.isCollapsed && this.hasAi() && !this.readonly() && !this.disabled();
-        if (active && selection) {
-            const rect = selection.getRangeAt(0).getBoundingClientRect();
-            this.aiTriggerPosition.set({ x: rect.left, y: rect.top - 40 });
-            this.showAiTrigger.set(true);
-        } else {
-            this.showAiTrigger.set(false);
-        }
-    }
-
-    /** Open the AI menu, capturing the current selection (or caret for continue). */
-    openAiPanel(): void {
-        if (!this.hasAi()) return;
-        this.captureAiSelection();
-        this.aiErrorMessage.set(null);
-        this.aiCustomPrompt.set('');
-        this.aiPhase.set('menu');
-        this.showAiTrigger.set(false);
-        if (this.aiRange) {
-            const rect = this.aiRange.getBoundingClientRect();
-            this.aiPanelPosition.set({ x: Math.max(8, rect.left), y: rect.bottom + 8 });
-        }
-        this.aiPanelOpen.set(true);
-    }
-
-    private captureAiSelection(): void {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            this.aiRange = null;
-            this.aiSavedText = '';
-            this.aiSavedHtml = '';
-            return;
-        }
-        const range = selection.getRangeAt(0);
-        this.aiRange = range.cloneRange();
-        if (range.collapsed) {
-            this.aiSavedText = this.editorDiv?.nativeElement?.textContent ?? '';
-            this.aiSavedHtml = '';
-        } else {
-            this.aiSavedText = selection.toString();
-            const wrapper = this.document.createElement('div');
-            wrapper.appendChild(range.cloneContents());
-            this.aiSavedHtml = wrapper.innerHTML;
-        }
-    }
-
-    /** Run a built-in AI task on the captured selection. */
-    runAi(task: AiTask, prompt?: string): void {
-        const provider = this.aiProvider();
-        if (!provider || !this.aiRange) return;
-        this.cancelAi();
-        this.aiContinueMode = task === 'continue';
-        this.beginAiDraft();
-        if (this.aiDraftEl) this.streamAi(task, prompt);
-    }
-
-    /** Run the user's free-form prompt. */
-    runCustomAi(): void {
-        const prompt = this.aiCustomPrompt().trim();
-        if (prompt) this.runAi('custom', prompt);
-    }
-
-    /** Re-run the last task into the existing draft. */
-    retryAi(task: AiTask, prompt?: string): void {
-        if (!this.aiDraftEl) {
-            this.runAi(task, prompt);
-            return;
-        }
-        this.cancelAi();
-        this.aiDraftEl.textContent = '';
-        this.streamAi(task, prompt);
-    }
-
-    private aiLastTask: AiTask = 'rewrite';
-    private aiLastPrompt: string | undefined;
-
-    /** Re-run whichever task produced the current draft. */
-    retryLastAi(): void {
-        this.retryAi(this.aiLastTask, this.aiLastPrompt);
-    }
-
-    private streamAi(task: AiTask, prompt?: string): void {
-        const provider = this.aiProvider();
-        if (!provider) return;
-        this.aiLastTask = task;
-        this.aiLastPrompt = prompt;
-        this.aiRequest.emit({ task, prompt });
-        this.aiErrorMessage.set(null);
-        this.aiPhase.set('loading');
-        this.aiController = new AbortController();
-        this.aiSubscription = runAiTask(provider, {
-            task,
-            input: this.aiSavedText,
-            prompt,
-            signal: this.aiController.signal,
-        }).subscribe({
-            next: (text) => this.updateAiDraft(text),
-            error: (err) => {
-                const message = err instanceof Error ? err.message : this.aiLabels().failed;
-                this.aiErrorMessage.set(message);
-                this.aiError.emit(message);
-                this.aiPhase.set('review');
-            },
-            complete: () => {
-                this.aiResult.emit(this.aiDraftEl?.textContent ?? '');
-                this.aiPhase.set('review');
-            },
-        });
-    }
-
-    private beginAiDraft(): void {
-        const editor = this.editorDiv?.nativeElement;
-        const selection = this.document.getSelection();
-        if (!editor || !selection || !this.aiRange) return;
-        editor.focus();
-        selection.removeAllRanges();
-        selection.addRange(this.aiRange);
-        const range = selection.getRangeAt(0);
-        if (this.aiContinueMode) {
-            range.collapse(false);
-        } else {
-            range.deleteContents();
-        }
-        const span = this.document.createElement('span');
-        span.dataset['aiDraft'] = '';
-        span.className = 'rte-ai-draft bg-primary/10 rounded-sm';
-        range.insertNode(span);
-        this.aiDraftEl = span;
-    }
-
-    private updateAiDraft(text: string): void {
-        if (this.aiDraftEl) this.aiDraftEl.textContent = text;
-    }
-
-    /** Keep the generated text, unwrapping the draft marker. */
-    acceptAi(): void {
-        const span = this.aiDraftEl;
-        if (span?.parentNode) {
-            const parent = span.parentNode;
-            while (span.firstChild) parent.insertBefore(span.firstChild, span);
-            span.remove();
-        }
-        this.finishAi();
-        this.syncContentFromEditor();
-    }
-
-    /** Drop the draft and restore the original selection. */
-    discardAi(): void {
-        this.cancelAi();
-        const span = this.aiDraftEl;
-        if (span?.parentNode) {
-            if (this.aiSavedHtml) {
-                const template = this.document.createElement('template');
-                template.innerHTML = this.sanitizer.sanitize(this.aiSavedHtml);
-                span.parentNode.replaceChild(template.content.cloneNode(true), span);
-            } else {
-                span.remove();
-            }
-        }
-        this.finishAi();
-        this.syncContentFromEditor();
-    }
-
-    /** Close the AI menu without running anything (or discard an in-progress draft). */
-    closeAiPanel(): void {
-        if (this.aiDraftEl) {
-            this.discardAi();
-            return;
-        }
-        this.finishAi();
-    }
-
-    private cancelAi(): void {
-        this.aiSubscription?.unsubscribe();
-        this.aiSubscription = null;
-        this.aiController?.abort();
-        this.aiController = null;
-    }
-
-    private finishAi(): void {
-        this.cancelAi();
-        this.aiDraftEl = null;
-        this.aiRange = null;
-        this.aiSavedHtml = '';
-        this.aiSavedText = '';
-        this.aiPanelOpen.set(false);
-        this.aiPhase.set('menu');
     }
 
     /**
@@ -4396,7 +4122,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     ngOnDestroy(): void {
-        this.cancelAi();
         this.shortcutHandle?.unregister();
         this.shortcutHandle = null;
         if (this.historyDebounceTimer) {

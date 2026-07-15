@@ -6,9 +6,10 @@ import type { LocaleMeta } from '../../../../lib/i18n';
  * built-in command the addon contributes. Pass a registry key
  * (`'en'`, `'he'`, …) or a full dictionary to `[uiRteSlashCommandsLocale]`.
  *
- * Note: the base editor keeps the `outline` (and, with an `aiProvider`, `ai`)
- * command strings in its own locale — those commands stay in the base and reach
- * the menu through the host's `builtinCommands`.
+ * Note: the base editor keeps the `outline` command strings in its own locale —
+ * that command stays in the base and reaches the menu through the host's
+ * `builtinCommands`. Feature commands like `/ai` and `/link` carry their own
+ * strings from their addons.
  */
 export interface RichTextSlashCommandsLocale extends LocaleMeta {
     /** aria-label for the slash-command menu listbox. */

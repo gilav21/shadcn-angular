@@ -2228,7 +2228,8 @@
       "rich-text-editor/tables",
       "rich-text-editor/images",
       "rich-text-editor/mentions",
-      "rich-text-editor/file-import"
+      "rich-text-editor/file-import",
+      "rich-text-editor/ai"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2251,7 +2252,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "ai.ts",
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
@@ -2342,6 +2342,14 @@
         "note": "The DOCX/PDF import feature (toolbar import button, document drag-and-drop, the lazy-loaded docx/pdf parsers, and the busy/error overlay) moved to the opt-in file-import addon, removing the `docx-parser`, `docx-to-editor-html`, `zip-reader`, `inflate`, and `pdf-parser` lib files from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/file-import`, add `uiRteFileImport` to the editor element, and remove 'importFile' from any custom [toolbarItems] arrays (the button now renders after the built-in items). The (fileImportStart)/(fileImportComplete)/(fileImportError) outputs move onto the directive with the same names. No component dependency changes. Import strings resolve from [uiRteFileImportLocale] (or the global UI_LOCALE_ID), not the editor's [locale]; the base RichTextLocale no longer carries `toolbar.importFile` or the `editor.importingFile`/`importFailed`/`importInvalidFile` keys.",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/file-import"
+      },
+      {
+        "kind": "removal",
+        "from": "the [aiProvider] input, the (aiRequest)/(aiResult)/(aiError) outputs, the ✨ Ask-AI selection chip + task panel, and the /ai slash command on <ui-rich-text-editor>",
+        "to": "the uiRteAi directive",
+        "note": "The AI-assist feature (selection chip, task menu + custom-prompt panel, streaming draft with Accept/Discard/Try-again, and the /ai slash command) moved to the opt-in ai addon, removing the `ai.ts` lib file from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/ai`, then bind the provider with `[uiRteAi]=\"provider\"` in place of `[aiProvider]=\"provider\"` — the presence of a provider is what turns the feature on. The (aiRequest)/(aiResult)/(aiError) outputs move onto the directive with the same names. No component dependency changes. The provider contract is unchanged (a callback returning string/Promise/Observable that emits the full text so far). AI strings resolve from [uiRteAiLocale] (or the global UI_LOCALE_ID), not the editor's [locale]; the base RichTextLocale no longer carries the `ai` section. The /ai slash command now appears only when both the slash-commands and ai addons are present.",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/ai"
       }
     ],
     "shortcutDefinitions": [
@@ -4408,6 +4416,52 @@
     "attach": {
       "import": "RichTextFileImportDirective from './ui/rich-text-editor/addons/file-import'",
       "selector": "uiRteFileImport"
+    }
+  },
+  "rich-text-editor/ai": {
+    "name": "rich-text-editor/ai",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "AI assist for the rich text editor: an Ask-AI selection chip, a streaming task/custom-prompt panel, and the /ai slash command.",
+    "tags": [
+      "rich-text",
+      "ai",
+      "assistant",
+      "streaming",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/ai/index.ts",
+      "rich-text-editor/addons/ai/rich-text-ai-chip.component.html",
+      "rich-text-editor/addons/ai/rich-text-ai-chip.component.ts",
+      "rich-text-editor/addons/ai/rich-text-ai-panel.component.html",
+      "rich-text-editor/addons/ai/rich-text-ai-panel.component.ts",
+      "rich-text-editor/addons/ai/rich-text-ai.context.ts",
+      "rich-text-editor/addons/ai/rich-text-ai.directive.ts",
+      "rich-text-editor/addons/ai/rich-text-ai.locales.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "ai.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "button",
+      "rich-text-editor"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts",
+      "rich-text-editor/rich-text-sanitizer.service.ts"
+    ],
+    "attach": {
+      "import": "RichTextAiDirective from './ui/rich-text-editor/addons/ai'",
+      "selector": "uiRteAi"
     }
   }
 }

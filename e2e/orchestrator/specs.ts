@@ -193,6 +193,15 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/file-import'],
         label: 'rte-file-import',
     },
+    // addon system (rich-text): install the editor + its `ai` addon; prove the
+    // Ask-AI selection chip + task panel exist only on the addon editor — the
+    // base ships no AI UI (the `ai.ts` lib file leaves the base install with this
+    // addon). No extra component dependency; the addon rides the editor's own
+    // `button`/`separator`.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/ai'],
+        label: 'rte-ai',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

@@ -233,7 +233,8 @@ export abstract class RichTextEditorAddonHost {
     abstract registerLinkEditor(open: (caretHint?: { x: number; y: number }) => void): () => void;
     /**
      * Base-owned slash commands wired to features that stay in the base: the
-     * document-outline command, plus the AI command when an `aiProvider` is set.
+     * document-outline command. Feature commands (`/ai`, `/link`, …) are
+     * registered by their own opt-in addons into {@link commands}.
      */
     abstract readonly builtinCommands: Signal<readonly RichTextSlashCommand[]>;
 
