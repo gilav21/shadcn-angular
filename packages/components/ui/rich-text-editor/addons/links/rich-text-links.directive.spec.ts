@@ -24,13 +24,22 @@ class HostCmp {
     removed: { url: string }[] = [];
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextLinksDirective],
+    template: `<ui-rich-text-editor mode="html" [uiRteLinks]="enabled()"></ui-rich-text-editor>`,
+})
+class ToggleHostCmp {
+    readonly enabled = signal(true);
+}
+
 type ButtonProbe = {
     context: RichTextLinksButtonContext;
     onOpenChange(next: boolean): void;
 };
 
 describe('RichTextLinksDirective', () => {
-    const openFixtures: ComponentFixture<HostCmp>[] = [];
+    const openFixtures: ComponentFixture<unknown>[] = [];
 
     function createFixture(): ComponentFixture<HostCmp> {
         const fixture = TestBed.createComponent(HostCmp);
@@ -90,6 +99,21 @@ describe('RichTextLinksDirective', () => {
                 fixture.destroy();
             }
         }
+    });
+
+    it('removes the toolbar slot live when uiRteLinks flips to false and restores on re-enable', () => {
+        const fixture = TestBed.createComponent(ToggleHostCmp);
+        openFixtures.push(fixture);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="links.insert"]')).toBeTruthy();
+
+        fixture.componentInstance.enabled.set(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="links.insert"]')).toBeFalsy();
+
+        fixture.componentInstance.enabled.set(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="links.insert"]')).toBeTruthy();
     });
 
     it('contributes a link toolbar slot', () => {

@@ -86,6 +86,8 @@ export class RichTextTypographyDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteTypographyLocale = input<LocaleInput<RichTextTypographyLocale>>();
+    /** Enable the typography addon (the bare `uiRteTypography` attribute). Flip to `false` to remove both buttons live. */
+    readonly uiRteTypography = input(true, { transform: coerceEnabled });
     /** Base sort order of the typography buttons among addon toolbar slots; the family button follows the size button. */
     readonly uiRteTypographyOrder = input(310);
     /** Custom font families for the font-family dropdown (see {@link FontFamilyStrategy}). */
@@ -171,6 +173,7 @@ export class RichTextTypographyDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
+            if (!this.uiRteTypography()) return;
             onCleanup(this.host.toolbarSlots.register({
                 id,
                 order: order(),
@@ -205,4 +208,9 @@ export class RichTextTypographyDirective {
             this.fontFamilySelect.emit(value);
         }
     }
+}
+
+/** Coerce the bare `uiRteTypography` attribute (empty string) to `true`. */
+function coerceEnabled(value: boolean | string | undefined): boolean {
+    return value === '' || value === true || value === undefined;
 }

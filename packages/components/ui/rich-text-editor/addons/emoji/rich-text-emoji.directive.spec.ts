@@ -24,8 +24,17 @@ function slotEl(fixture: ComponentFixture<HostCmp>): HTMLElement | null {
     return fixture.nativeElement.querySelector('[data-addon-slot="emoji.insert"]');
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextEmojiDirective],
+    template: `<ui-rich-text-editor mode="html" [uiRteEmoji]="enabled()"></ui-rich-text-editor>`,
+})
+class ToggleHostCmp {
+    readonly enabled = signal(true);
+}
+
 describe('RichTextEmojiDirective', () => {
-    const openFixtures: ComponentFixture<HostCmp>[] = [];
+    const openFixtures: ComponentFixture<unknown>[] = [];
 
     function createFixture(): ComponentFixture<HostCmp> {
         const fixture = TestBed.createComponent(HostCmp);
@@ -88,6 +97,21 @@ describe('RichTextEmojiDirective', () => {
 
         const button = slotEl(fixture)!.querySelector('button') as HTMLButtonElement;
         expect(button.title).toBe('הוספת אמוג\'י');
+    });
+
+    it('removes the slot live when uiRteEmoji flips to false and restores on re-enable', () => {
+        const fixture = TestBed.createComponent(ToggleHostCmp);
+        openFixtures.push(fixture);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="emoji.insert"]')).toBeTruthy();
+
+        fixture.componentInstance.enabled.set(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="emoji.insert"]')).toBeFalsy();
+
+        fixture.componentInstance.enabled.set(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="emoji.insert"]')).toBeTruthy();
     });
 
     it('re-registers without duplicating the slot when the order input changes', () => {

@@ -30,6 +30,15 @@ class HostCmp {
     familiesSelected: string[] = [];
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextTypographyDirective],
+    template: `<ui-rich-text-editor mode="html" [uiRteTypography]="enabled()"></ui-rich-text-editor>`,
+})
+class ToggleHostCmp {
+    readonly enabled = signal(true);
+}
+
 type ButtonProbe = {
     context: RichTextTypographyButtonContext;
     onValueChange(value: string): void;
@@ -37,7 +46,7 @@ type ButtonProbe = {
 };
 
 describe('RichTextTypographyDirective', () => {
-    const openFixtures: ComponentFixture<HostCmp>[] = [];
+    const openFixtures: ComponentFixture<unknown>[] = [];
 
     function createFixture(): ComponentFixture<HostCmp> {
         const fixture = TestBed.createComponent(HostCmp);
@@ -95,6 +104,23 @@ describe('RichTextTypographyDirective', () => {
                 fixture.destroy();
             }
         }
+    });
+
+    it('removes both slots live when uiRteTypography flips to false and restores on re-enable', () => {
+        const fixture = TestBed.createComponent(ToggleHostCmp);
+        openFixtures.push(fixture);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.size"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.family"]')).toBeTruthy();
+
+        fixture.componentInstance.enabled.set(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.size"]')).toBeFalsy();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.family"]')).toBeFalsy();
+
+        fixture.componentInstance.enabled.set(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="typography.size"]')).toBeTruthy();
     });
 
     it('contributes font-size and font-family toolbar slots', () => {

@@ -66,6 +66,8 @@ export class RichTextLinksDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteLinksLocale = input<LocaleInput<RichTextLinksLocale>>();
+    /** Enable the links addon (the bare `uiRteLinks` attribute). Flip to `false` to remove the whole feature live. */
+    readonly uiRteLinks = input(true, { transform: coerceEnabled });
     /** Sort order of the link button among addon toolbar slots. */
     readonly uiRteLinksOrder = input(320);
     /** Contribute the toolbar button (default true). */
@@ -98,6 +100,7 @@ export class RichTextLinksDirective {
 
     private registerLinkEditorSeam(): void {
         effect((onCleanup) => {
+            if (!this.uiRteLinks()) return;
             onCleanup(this.host.registerLinkEditor((caretHint) => this.openInsertOverlay(caretHint)));
         });
     }
@@ -114,7 +117,7 @@ export class RichTextLinksDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
-            if (!this.uiRteLinksToolbar()) return;
+            if (!this.uiRteLinks() || !this.uiRteLinksToolbar()) return;
             onCleanup(this.host.toolbarSlots.register({
                 id: LINK_SLOT_ID,
                 order: this.uiRteLinksOrder(),
@@ -126,7 +129,7 @@ export class RichTextLinksDirective {
 
     private registerSlashCommand(): void {
         effect((onCleanup) => {
-            if (!this.uiRteLinksSlashCommand()) return;
+            if (!this.uiRteLinks() || !this.uiRteLinksSlashCommand()) return;
             const l = this.i18n.t();
             onCleanup(this.host.commands.registerCommand({
                 id: 'insert.link',
@@ -141,7 +144,7 @@ export class RichTextLinksDirective {
 
     private registerEditProbe(): void {
         effect((onCleanup) => {
-            if (!this.viewReady()) return;
+            if (!this.viewReady() || !this.uiRteLinks()) return;
             const root = this.host.contentRoot;
             const doc = root.ownerDocument;
             root.addEventListener('mouseup', this.editProbeBound);
@@ -309,6 +312,11 @@ export class RichTextLinksDirective {
         const rect = el.getBoundingClientRect();
         return { left: rect.left, bottom: rect.bottom };
     }
+}
+
+/** Coerce the bare `uiRteLinks` attribute (empty string) to `true`. */
+function coerceEnabled(value: boolean | string | undefined): boolean {
+    return value === '' || value === true || value === undefined;
 }
 
 /** Escape text for safe inclusion in element content. */

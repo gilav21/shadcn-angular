@@ -42,8 +42,22 @@ class HostCmp {
     tags: unknown[] = [];
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextMentionsDirective],
+    template: `<ui-rich-text-editor mode="html"
+        [uiRteMentions]="mentionsOn()"
+        [uiRteMentionsSearch]="search"
+        [uiRteTags]="tagsOn()"></ui-rich-text-editor>`,
+})
+class ToggleHostCmp {
+    readonly mentionsOn = signal(true);
+    readonly tagsOn = signal(false);
+    readonly search = (): MentionItem[] => USERS;
+}
+
 describe('RichTextMentionsDirective', () => {
-    const fixtures: ComponentFixture<HostCmp>[] = [];
+    const fixtures: ComponentFixture<unknown>[] = [];
 
     function createFixture(): ComponentFixture<HostCmp> {
         const fixture = TestBed.createComponent(HostCmp);
@@ -91,6 +105,24 @@ describe('RichTextMentionsDirective', () => {
             f.destroy();
         }
         fixtures.length = 0;
+    });
+
+    it('closes the popover live when both mention and tag triggers are disabled', () => {
+        const fixture = TestBed.createComponent(ToggleHostCmp);
+        fixtures.push(fixture);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+
+        const el = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        el.textContent = 'Hi @jo';
+        setCaret(el.firstChild as Text, 6);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+        expect(fixture.debugElement.query(By.directive(RichTextMentionPopoverComponent))).toBeTruthy();
+
+        fixture.componentInstance.mentionsOn.set(false);
+        fixture.detectChanges();
+        expect(fixture.debugElement.query(By.directive(RichTextMentionPopoverComponent))).toBeNull();
     });
 
     it('opens the mention popover for a handle with dots, underscores, and hyphens', () => {

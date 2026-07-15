@@ -67,6 +67,8 @@ export class RichTextColorsDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteColorsLocale = input<LocaleInput<RichTextColorsLocale>>();
+    /** Enable the colours addon (the bare `uiRteColors` attribute). Flip to `false` to remove both buttons live. */
+    readonly uiRteColors = input(true, { transform: coerceEnabled });
     /** Base sort order of the colour buttons among addon toolbar slots; the highlight button follows the text button. */
     readonly uiRteColorsOrder = input(300);
     /** Preset swatches for the text-colour picker. */
@@ -140,6 +142,7 @@ export class RichTextColorsDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
+            if (!this.uiRteColors()) return;
             onCleanup(this.host.toolbarSlots.register({
                 id,
                 order: order(),
@@ -200,4 +203,9 @@ export class RichTextColorsDirective {
         const rgba = parseColor(value);
         return !rgba || rgba.a === 0;
     }
+}
+
+/** Coerce the bare `uiRteColors` attribute (empty string) to `true`. */
+function coerceEnabled(value: boolean | string | undefined): boolean {
+    return value === '' || value === true || value === undefined;
 }

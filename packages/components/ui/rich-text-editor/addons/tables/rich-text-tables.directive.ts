@@ -49,6 +49,8 @@ export class RichTextTablesDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteTablesLocale = input<LocaleInput<RichTextTablesLocale>>();
+    /** Enable the tables addon (the bare `uiRteTables` attribute). Flip to `false` to remove the button live. */
+    readonly uiRteTables = input(true, { transform: coerceEnabled });
     /** Sort order of the table button among addon toolbar slots; lower first. */
     readonly uiRteTablesOrder = input(330);
 
@@ -68,6 +70,7 @@ export class RichTextTablesDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
+            if (!this.uiRteTables()) return;
             onCleanup(this.host.toolbarSlots.register({
                 id: TABLE_SLOT_ID,
                 order: this.uiRteTablesOrder(),
@@ -83,6 +86,11 @@ export class RichTextTablesDirective {
         this.host.insertHtmlAtCaret(tableHtml(rows, cols));
         this.tableInsert.emit({ rows, cols });
     }
+}
+
+/** Coerce the bare `uiRteTables` attribute (empty string) to `true`. */
+function coerceEnabled(value: boolean | string | undefined): boolean {
+    return value === '' || value === true || value === undefined;
 }
 
 /** Build the empty-table markup the former built-in inserted, verbatim. */

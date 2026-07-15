@@ -25,10 +25,19 @@ class HostCmp {
     readonly locale = signal<string | undefined>(undefined);
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextOutlineDirective],
+    template: `<ui-rich-text-editor mode="html" [uiRteOutline]="enabled()"></ui-rich-text-editor>`,
+})
+class ToggleHostCmp {
+    readonly enabled = signal(true);
+}
+
 const flushObserver = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('RichTextOutlineDirective', () => {
-    const fixtures: ComponentFixture<HostCmp>[] = [];
+    const fixtures: ComponentFixture<unknown>[] = [];
 
     function editorRegistry(fixture: ComponentFixture<HostCmp>): RichTextCommandRegistry {
         return (fixture.debugElement.query(By.directive(RichTextEditorComponent))
@@ -75,6 +84,22 @@ describe('RichTextOutlineDirective', () => {
             if (!fixture.componentRef.hostView.destroyed) fixture.destroy();
             fixture.nativeElement.remove();
         }
+    });
+
+    it('removes the toolbar button live when uiRteOutline flips to false and restores on re-enable', () => {
+        const fixture = TestBed.createComponent(ToggleHostCmp);
+        fixtures.push(fixture);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="view.outline"]')).toBeTruthy();
+
+        fixture.componentInstance.enabled.set(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="view.outline"]')).toBeFalsy();
+
+        fixture.componentInstance.enabled.set(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="view.outline"]')).toBeTruthy();
     });
 
     it('renders the outline toolbar button after the built-in items', () => {

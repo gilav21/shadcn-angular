@@ -51,6 +51,8 @@ export class RichTextEmojiDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteEmojiLocale = input<LocaleInput<RichTextEmojiLocale>>();
+    /** Enable the emoji addon (the bare `uiRteEmoji` attribute). Flip to `false` to remove the button live. */
+    readonly uiRteEmoji = input(true, { transform: coerceEnabled });
     /** Sort order of the emoji button among addon toolbar slots; lower first. */
     readonly uiRteEmojiOrder = input(400);
 
@@ -72,6 +74,7 @@ export class RichTextEmojiDirective {
             parent: this.injector,
         });
         effect((onCleanup) => {
+            if (!this.uiRteEmoji()) return;
             onCleanup(this.host.toolbarSlots.register({
                 id: EMOJI_SLOT_ID,
                 order: this.uiRteEmojiOrder(),
@@ -80,4 +83,9 @@ export class RichTextEmojiDirective {
             }));
         });
     }
+}
+
+/** Coerce the bare `uiRteEmoji` attribute (empty string) to `true`. */
+function coerceEnabled(value: boolean | string | undefined): boolean {
+    return value === '' || value === true || value === undefined;
 }

@@ -41,6 +41,11 @@ const OUTLINE_INSET_CLASSES = [
 const OUTLINE_ICON =
     '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 6H3"/><path d="M15 12H3"/><path d="M17 18H3"/><path d="M21 12h.01"/><path d="M21 18h.01"/></svg>';
 
+/** Coerce the bare `uiRteOutline` attribute (empty string) to `true`. */
+function coerceEnabled(value: boolean | string | undefined): boolean {
+    return value === '' || value === true || value === undefined;
+}
+
 /** Maps a heading element to an {@link OutlineHeading} entry. */
 function toOutlineHeading(element: Element, index: number): OutlineHeading {
     const level = Number.parseInt(element.tagName.charAt(1), 10);
@@ -84,6 +89,8 @@ export class RichTextOutlineDirective {
 
     /** Locale for the addon UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteOutlineLocale = input<LocaleInput<RichTextOutlineLocale>>();
+    /** Enable the outline addon (the bare `uiRteOutline` attribute). Flip to `false` to remove the button, command, and panel live. */
+    readonly uiRteOutline = input(true, { transform: coerceEnabled });
     /** Show the outline toolbar button (default true). Toggles the docked panel. */
     readonly uiRteOutlineButton = input(true);
     /** Sort order of the outline button among addon toolbar slots; lower first. */
@@ -123,7 +130,7 @@ export class RichTextOutlineDirective {
 
     private registerToolbarButton(): void {
         effect((onCleanup) => {
-            if (!this.uiRteOutlineButton()) return;
+            if (!this.uiRteOutline() || !this.uiRteOutlineButton()) return;
             const tooltip = this.i18n.t().toolbar;
             onCleanup(this.host.toolbarSlots.register({
                 id: OUTLINE_SLOT_ID,
@@ -140,7 +147,7 @@ export class RichTextOutlineDirective {
 
     private registerSlashCommand(): void {
         effect((onCleanup) => {
-            if (!this.uiRteOutlineSlashCommand()) return;
+            if (!this.uiRteOutline() || !this.uiRteOutlineSlashCommand()) return;
             const l = this.i18n.t();
             onCleanup(this.host.commands.registerCommand({
                 id: OUTLINE_COMMAND_ID,
@@ -188,7 +195,7 @@ export class RichTextOutlineDirective {
 
     private trackContentWhileOpen(): void {
         effect((onCleanup) => {
-            if (!this.viewReady() || !this.panelOpen()) return;
+            if (!this.viewReady() || !this.uiRteOutline() || !this.panelOpen()) return;
             const root = this.host.contentRoot;
             if (!root) return;
             this.refreshTick.update((tick) => tick + 1);
@@ -209,7 +216,7 @@ export class RichTextOutlineDirective {
             if (!this.viewReady()) return;
             const root = this.host.contentRoot;
             if (!root) return;
-            const open = this.panelOpen();
+            const open = this.uiRteOutline() && this.panelOpen();
             for (const cls of OUTLINE_INSET_CLASSES) {
                 root.classList.toggle(cls, open);
             }
@@ -219,14 +226,18 @@ export class RichTextOutlineDirective {
     // ── Panel mounting ────────────────────────────────────────────────
 
     private mountPanel(): void {
-        effect(() => {
-            if (!this.viewReady() || this.panelRef) return;
+        effect((onCleanup) => {
+            if (!this.viewReady() || !this.uiRteOutline() || this.panelRef) return;
             const contextInjector = Injector.create({
                 providers: [{ provide: RICH_TEXT_OUTLINE_CONTEXT, useValue: this.buildContext() }],
                 parent: this.injector,
             });
             this.panelRef = this.vcr.createComponent(RichTextOutlinePanelComponent, { injector: contextInjector });
             this.host.overlayAnchor.appendChild(this.panelRef.location.nativeElement);
+            onCleanup(() => {
+                this.panelRef?.destroy();
+                this.panelRef = undefined;
+            });
         });
     }
 

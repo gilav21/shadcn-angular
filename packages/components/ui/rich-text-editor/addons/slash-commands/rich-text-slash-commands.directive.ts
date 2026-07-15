@@ -74,18 +74,30 @@ export class RichTextSlashCommandsDirective {
     private readonly vcr = inject(ViewContainerRef);
 
     /**
-     * Custom slash commands merged in after the built-ins. The bare attribute
-     * (`uiRteSlashCommands`) just enables the addon; a binding
-     * (`[uiRteSlashCommands]="cmds"`) also registers custom commands.
+     * Custom slash commands merged in after the built-ins, OR a boolean enable
+     * flag. Four accepted shapes, matching the uniform addon enable-flag pattern:
+     *
+     * - bare attribute (`uiRteSlashCommands`, transforms `''`) — enabled, no custom commands.
+     * - `[uiRteSlashCommands]="cmds"` — enabled, plus the custom commands.
+     * - `[uiRteSlashCommands]="true"` — enabled, no custom commands (explicit form).
+     * - `[uiRteSlashCommands]="false"` — disabled (the whole menu is removed live).
+     *
+     * The value is normalized to `{ enabled, commands }`; read {@link slashEnabled}
+     * and {@link customCommands} rather than the raw input.
      */
-    readonly uiRteSlashCommands = input<RichTextSlashCommand[], RichTextSlashCommand[] | ''>([], {
-        transform: (value) => (value === '' ? [] : value),
-    });
+    readonly uiRteSlashCommands = input<NormalizedSlashCommands, RichTextSlashCommand[] | '' | boolean>(
+        { enabled: true, commands: [] },
+        { transform: normalizeSlashCommands },
+    );
     /** Locale for the menu UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly uiRteSlashCommandsLocale = input<LocaleInput<RichTextSlashCommandsLocale>>();
 
     private readonly i18n = createLocaleBindings(this.uiRteSlashCommandsLocale, RICH_TEXT_SLASH_COMMANDS_LOCALES);
     private readonly defaultCommands = computed(() => buildDefaultSlashCommands(this.i18n.t()));
+    /** Whether the addon is enabled (`false` only when explicitly bound to `false`). */
+    private readonly slashEnabled = computed(() => this.uiRteSlashCommands().enabled);
+    /** The custom commands to merge in (empty when disabled or none provided). */
+    private readonly customCommands = computed<RichTextSlashCommand[]>(() => this.uiRteSlashCommands().commands);
 
     private open = false;
     private query = '';
@@ -105,6 +117,10 @@ export class RichTextSlashCommandsDirective {
         // input changes while it is open. Typing / keyboard nav refresh the menu
         // imperatively; this only covers reactive (signal-driven) changes.
         effect(() => {
+            if (!this.slashEnabled()) {
+                this.close();
+                return;
+            }
             const commands = this.computeFilteredCommands();
             if (this.open) {
                 this.applyMenuInputs(commands);
@@ -124,7 +140,7 @@ export class RichTextSlashCommandsDirective {
     // ── Trigger detection ─────────────────────────────────────────────
 
     private onInputObserved(text: string, caret: number): void {
-        if (this.host.disabled() || this.host.readonly()) {
+        if (!this.slashEnabled() || this.host.disabled() || this.host.readonly()) {
             this.close();
             return;
         }
@@ -167,7 +183,7 @@ export class RichTextSlashCommandsDirective {
         for (const command of this.host.commands.listCommands()) {
             merged.set(command.id, command);
         }
-        for (const command of this.uiRteSlashCommands()) {
+        for (const command of this.customCommands()) {
             merged.set(command.id, command);
         }
         const needle = this.query.trim().toLowerCase();
@@ -351,6 +367,23 @@ export class RichTextSlashCommandsDirective {
     private focusEditor(): void {
         (this.host.contentRoot as HTMLElement | null)?.focus();
     }
+}
+
+/** The normalized `[uiRteSlashCommands]` value: an enable flag plus any custom commands. */
+interface NormalizedSlashCommands {
+    readonly enabled: boolean;
+    readonly commands: RichTextSlashCommand[];
+}
+
+/** Normalize the marker input's four accepted shapes to `{ enabled, commands }`. */
+function normalizeSlashCommands(value: RichTextSlashCommand[] | '' | boolean): NormalizedSlashCommands {
+    if (value === false) {
+        return { enabled: false, commands: [] };
+    }
+    if (value === '' || value === true) {
+        return { enabled: true, commands: [] };
+    }
+    return { enabled: true, commands: value };
 }
 
 function matchesSlashQuery(command: RichTextSlashCommand, needle: string): boolean {

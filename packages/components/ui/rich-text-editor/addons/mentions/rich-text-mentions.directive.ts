@@ -107,6 +107,10 @@ export class RichTextMentionsDirective {
         const offInput = this.host.registerInputObserver(() => this.onInput());
         const offKeydown = this.host.registerKeydownInterceptor((event) => this.onKeydown(event));
         effect(() => {
+            if (!this.uiRteMentions() && !this.uiRteTags()) {
+                this.close();
+                return;
+            }
             const items = this.items();
             if (this.open) this.applyPopoverInputs(items);
         });

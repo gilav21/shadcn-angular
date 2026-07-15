@@ -28,8 +28,17 @@ class HostCmp {
 })
 class DualHostCmp {}
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextSlashCommandsDirective],
+    template: `<ui-rich-text-editor mode="html" [uiRteSlashCommands]="mode()"></ui-rich-text-editor>`,
+})
+class ToggleHostCmp {
+    readonly mode = signal<boolean | RichTextSlashCommand[]>(true);
+}
+
 describe('RichTextSlashCommandsDirective', () => {
-    const openFixtures: ComponentFixture<HostCmp>[] = [];
+    const openFixtures: ComponentFixture<unknown>[] = [];
     const openDualFixtures: ComponentFixture<DualHostCmp>[] = [];
 
     function create(): { fixture: ComponentFixture<HostCmp>; editor: HTMLElement; editorCmp: RichTextEditorComponent } {
@@ -76,6 +85,33 @@ describe('RichTextSlashCommandsDirective', () => {
                 fixture.destroy();
             }
         }
+    });
+
+    it('closes and stops opening the menu when uiRteSlashCommands is false, reopening when re-enabled', () => {
+        const fixture = TestBed.createComponent(ToggleHostCmp);
+        openFixtures.push(fixture);
+        fixture.detectChanges();
+        const editor = fixture.nativeElement.querySelector('[contenteditable]') as HTMLElement;
+        const editorCmp = fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .componentInstance as RichTextEditorComponent;
+
+        typeSlash(editor, editorCmp, '/h');
+        fixture.detectChanges();
+        expect(menu()).toBeTruthy();
+
+        fixture.componentInstance.mode.set(false);
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+
+        typeSlash(editor, editorCmp, '/h');
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+
+        fixture.componentInstance.mode.set(true);
+        fixture.detectChanges();
+        typeSlash(editor, editorCmp, '/h');
+        fixture.detectChanges();
+        expect(menu()).toBeTruthy();
     });
 
     it('opens the menu when typing "/"', () => {

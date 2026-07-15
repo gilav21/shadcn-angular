@@ -21,6 +21,15 @@ class HostCmp {
     changes: RichTextColorChange[] = [];
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextColorsDirective],
+    template: `<ui-rich-text-editor mode="html" [uiRteColors]="enabled()"></ui-rich-text-editor>`,
+})
+class ToggleHostCmp {
+    readonly enabled = signal(true);
+}
+
 type ButtonProbe = {
     context: RichTextColorButtonContext;
     onColorChange(color: string): void;
@@ -28,7 +37,7 @@ type ButtonProbe = {
 };
 
 describe('RichTextColorsDirective', () => {
-    const openFixtures: ComponentFixture<HostCmp>[] = [];
+    const openFixtures: ComponentFixture<unknown>[] = [];
 
     function createFixture(): ComponentFixture<HostCmp> {
         const fixture = TestBed.createComponent(HostCmp);
@@ -86,6 +95,23 @@ describe('RichTextColorsDirective', () => {
                 fixture.destroy();
             }
         }
+    });
+
+    it('removes both slots live when uiRteColors flips to false and restores on re-enable', () => {
+        const fixture = TestBed.createComponent(ToggleHostCmp);
+        openFixtures.push(fixture);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="colors.foreground"]')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="colors.background"]')).toBeTruthy();
+
+        fixture.componentInstance.enabled.set(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="colors.foreground"]')).toBeFalsy();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="colors.background"]')).toBeFalsy();
+
+        fixture.componentInstance.enabled.set(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="colors.foreground"]')).toBeTruthy();
     });
 
     it('contributes text-colour and highlight-colour toolbar slots', () => {

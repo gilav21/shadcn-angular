@@ -9,6 +9,7 @@ import {
     inject,
     input,
     output,
+    signal,
 } from '@angular/core';
 import { RichTextEditorAddonHost } from '../..';
 import { createLocaleBindings, type LocaleInput } from '../../../../lib/i18n';
@@ -46,6 +47,8 @@ export class RichTextHistoryDirective {
     private readonly vcr = inject(ViewContainerRef);
     private readonly injector = inject(Injector);
 
+    /** Enable the revision-history addon (the bare `uiRteHistory` attribute). Flip to `false` to remove the button + panel live. */
+    readonly uiRteHistory = input(true, { transform: coerceEnabled });
     /** Show the corner "Revisions" button. When `false`, the panel opens only via the keyboard shortcut. */
     readonly uiRteHistoryButton = input(true);
     /** Locale for the panel UI: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
@@ -55,6 +58,8 @@ export class RichTextHistoryDirective {
     readonly historyRestore = output<number>();
 
     private readonly i18n = createLocaleBindings(this.uiRteHistoryLocale, RICH_TEXT_HISTORY_LOCALES);
+    private readonly viewReady = signal(false);
+    private readonly panelReady = signal(false);
     private panelRef?: ComponentRef<RichTextHistoryPanelComponent>;
 
     constructor() {
@@ -63,15 +68,23 @@ export class RichTextHistoryDirective {
             () => this.panelRef?.instance.openFromShortcut(),
         );
 
-        afterNextRender(() => this.mountPanel());
+        afterNextRender(() => this.viewReady.set(true));
 
-        inject(DestroyRef).onDestroy(() => {
-            offShortcut();
-            const element = this.panelRef?.location.nativeElement as HTMLElement | undefined;
-            this.panelRef?.destroy();
-            element?.remove();
-            this.panelRef = undefined;
+        effect((onCleanup) => {
+            if (!this.uiRteHistory() || !this.viewReady()) return;
+            this.mountPanel();
+            onCleanup(() => this.destroyPanel());
         });
+
+        effect(() => {
+            const locale = this.i18n.t();
+            const showButton = this.uiRteHistoryButton();
+            if (!this.panelReady()) return;
+            this.panelRef?.setInput('locale', locale);
+            this.panelRef?.setInput('showButton', showButton);
+        });
+
+        inject(DestroyRef).onDestroy(() => offShortcut());
     }
 
     private mountPanel(): void {
@@ -79,9 +92,19 @@ export class RichTextHistoryDirective {
         this.host.overlayAnchor.appendChild(ref.location.nativeElement as HTMLElement);
         ref.instance.restore.subscribe((index) => this.historyRestore.emit(index));
         this.panelRef = ref;
-        effect(() => {
-            ref.setInput('locale', this.i18n.t());
-            ref.setInput('showButton', this.uiRteHistoryButton());
-        }, { injector: this.injector });
+        this.panelReady.set(true);
     }
+
+    private destroyPanel(): void {
+        this.panelReady.set(false);
+        const element = this.panelRef?.location.nativeElement as HTMLElement | undefined;
+        this.panelRef?.destroy();
+        element?.remove();
+        this.panelRef = undefined;
+    }
+}
+
+/** Coerce the bare `uiRteHistory` attribute (empty string) to `true`. */
+function coerceEnabled(value: boolean | string | undefined): boolean {
+    return value === '' || value === true || value === undefined;
 }

@@ -21,6 +21,15 @@ class HostCmp {
     inserted: { rows: number; cols: number }[] = [];
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextTablesDirective],
+    template: `<ui-rich-text-editor mode="html" [uiRteTables]="enabled()"></ui-rich-text-editor>`,
+})
+class ToggleHostCmp {
+    readonly enabled = signal(true);
+}
+
 type ButtonProbe = {
     context: RichTextTablesButtonContext;
     onSelect(rows: number, cols: number): void;
@@ -30,7 +39,7 @@ type ButtonProbe = {
 };
 
 describe('RichTextTablesDirective', () => {
-    const openFixtures: ComponentFixture<HostCmp>[] = [];
+    const openFixtures: ComponentFixture<unknown>[] = [];
 
     function createFixture(): ComponentFixture<HostCmp> {
         const fixture = TestBed.createComponent(HostCmp);
@@ -83,6 +92,21 @@ describe('RichTextTablesDirective', () => {
                 fixture.destroy();
             }
         }
+    });
+
+    it('removes the slot live when uiRteTables flips to false and restores on re-enable', () => {
+        const fixture = TestBed.createComponent(ToggleHostCmp);
+        openFixtures.push(fixture);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="tables.insert"]')).toBeTruthy();
+
+        fixture.componentInstance.enabled.set(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="tables.insert"]')).toBeFalsy();
+
+        fixture.componentInstance.enabled.set(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-addon-slot="tables.insert"]')).toBeTruthy();
     });
 
     it('contributes a table toolbar slot with the localized tooltip', () => {

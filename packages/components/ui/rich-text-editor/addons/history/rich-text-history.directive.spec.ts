@@ -24,6 +24,15 @@ class HostCmp {
     readonly restored = signal<number | null>(null);
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextHistoryDirective],
+    template: `<ui-rich-text-editor mode="html" [uiRteHistory]="enabled()"></ui-rich-text-editor>`,
+})
+class ToggleHostCmp {
+    readonly enabled = signal(true);
+}
+
 interface Harness {
     fixture: ComponentFixture<HostCmp>;
     editor: HTMLElement;
@@ -45,7 +54,7 @@ function makeRow(listType: 'popover' | 'dialog', index: number): { list: HTMLEle
 }
 
 describe('RichTextHistoryDirective', () => {
-    const openFixtures: ComponentFixture<HostCmp>[] = [];
+    const openFixtures: ComponentFixture<unknown>[] = [];
 
     async function create(): Promise<Harness> {
         const fixture = TestBed.createComponent(HostCmp);
@@ -92,6 +101,23 @@ describe('RichTextHistoryDirective', () => {
                 fixture.destroy();
             }
         }
+    });
+
+    it('removes the panel live when uiRteHistory flips to false and restores on re-enable', async () => {
+        const fixture = TestBed.createComponent(ToggleHostCmp);
+        openFixtures.push(fixture);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('ui-rich-text-history-panel')).toBeTruthy();
+
+        fixture.componentInstance.enabled.set(false);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('ui-rich-text-history-panel')).toBeFalsy();
+
+        fixture.componentInstance.enabled.set(true);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('ui-rich-text-history-panel')).toBeTruthy();
     });
 
     it('mounts the panel with a corner button into the editor container', async () => {
