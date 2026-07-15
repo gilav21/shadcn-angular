@@ -56,7 +56,7 @@ const PANEL_MIN_X = 8;
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteAi]',
+    selector: 'ui-rich-text-editor[uiRteAi], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextAiDirective {

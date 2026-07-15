@@ -55,7 +55,7 @@ const ERROR_DISMISS_MS = 4000;
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteFileImport]',
+    selector: 'ui-rich-text-editor[uiRteFileImport], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextFileImportDirective {

@@ -42,7 +42,7 @@ const EMOJI_SLOT_ID = 'emoji.insert';
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteEmoji]',
+    selector: 'ui-rich-text-editor[uiRteEmoji], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextEmojiDirective {

@@ -38,7 +38,7 @@ const HISTORY_SHORTCUT_ACTION = 'rich-text.history';
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteHistory]',
+    selector: 'ui-rich-text-editor[uiRteHistory], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextHistoryDirective {

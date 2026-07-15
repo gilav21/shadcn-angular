@@ -55,7 +55,7 @@ interface OverlayAnchorRect {
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteLinks]',
+    selector: 'ui-rich-text-editor[uiRteLinks], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextLinksDirective {

@@ -2230,7 +2230,8 @@
       "rich-text-editor/mentions",
       "rich-text-editor/file-import",
       "rich-text-editor/ai",
-      "rich-text-editor/outline"
+      "rich-text-editor/outline",
+      "rich-text-editor/full"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -4512,6 +4513,45 @@
     "attach": {
       "import": "RichTextOutlineDirective from './ui/rich-text-editor/addons/outline'",
       "selector": "uiRteOutline"
+    }
+  },
+  "rich-text-editor/full": {
+    "name": "rich-text-editor/full",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "One uiRteFull marker composes all thirteen rich-text-editor addons; import RTE_FULL, and every addon input/output stays bindable.",
+    "tags": [
+      "rich-text",
+      "bundle",
+      "composition",
+      "everything",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/full/index.ts"
+    ],
+    "dependencies": [
+      "rich-text-editor/actions",
+      "rich-text-editor/ai",
+      "rich-text-editor/colors",
+      "rich-text-editor/emoji",
+      "rich-text-editor/file-import",
+      "rich-text-editor/history",
+      "rich-text-editor/images",
+      "rich-text-editor/links",
+      "rich-text-editor/mentions",
+      "rich-text-editor/outline",
+      "rich-text-editor/slash-commands",
+      "rich-text-editor/tables",
+      "rich-text-editor/typography"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts"
+    ],
+    "attach": {
+      "import": "RTE_FULL from './ui/rich-text-editor/addons/full'",
+      "selector": "uiRteFull"
     }
   }
 }

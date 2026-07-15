@@ -58,7 +58,7 @@ export interface RichTextColorChange {
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteColors]',
+    selector: 'ui-rich-text-editor[uiRteColors], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextColorsDirective {

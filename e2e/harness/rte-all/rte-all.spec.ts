@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
 
-// Composition proof: the slim base + ALL THIRTEEN addons applied to one editor
-// in a real consumer install. The valuable assertions here are the CROSSING
-// points — slots from many addons rendering together and the slash menu
-// aggregating commands registered by different addons — not any single
-// feature (each has its own harness).
+// Composition proof: the slim base + the `rich-text-editor/full` bundle applied
+// to one editor via the single `uiRteFull` attribute, in a real consumer
+// install. Exercising the bundle also proves it composes ALL THIRTEEN addons and
+// pulls each as a registry dependency. The valuable assertions here are the
+// CROSSING points — slots from many addons rendering together and the slash menu
+// aggregating commands registered by different addons — not any single feature
+// (each has its own harness).
 
 const ALL_SLOTS = [
     'actions.attach', 'colors.background', 'colors.foreground', 'emoji.insert',

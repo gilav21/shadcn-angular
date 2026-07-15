@@ -60,7 +60,7 @@ const SEARCH_DEBOUNCE_MS = 200;
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteMentions]',
+    selector: 'ui-rich-text-editor[uiRteMentions], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextMentionsDirective {

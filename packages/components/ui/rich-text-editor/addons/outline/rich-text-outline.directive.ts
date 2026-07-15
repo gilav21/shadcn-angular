@@ -74,7 +74,7 @@ function toOutlineHeading(element: Element, index: number): OutlineHeading {
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteOutline]',
+    selector: 'ui-rich-text-editor[uiRteOutline], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextOutlineDirective {

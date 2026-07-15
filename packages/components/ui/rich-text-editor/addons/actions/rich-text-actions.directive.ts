@@ -37,7 +37,7 @@ const ATTACH_ICON =
  * spans. The base editor ships no action code.
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteActions]',
+    selector: 'ui-rich-text-editor[uiRteActions], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextActionsDirective {

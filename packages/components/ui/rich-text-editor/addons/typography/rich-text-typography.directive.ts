@@ -77,7 +77,7 @@ const FONT_SIZE_STEPS = Array.from({ length: 33 }, (_, i) => 8 + i * 2);
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteTypography]',
+    selector: 'ui-rich-text-editor[uiRteTypography], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextTypographyDirective {

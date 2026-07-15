@@ -40,7 +40,7 @@ const TABLE_SLOT_ID = 'tables.insert';
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteTables]',
+    selector: 'ui-rich-text-editor[uiRteTables], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextTablesDirective {

@@ -93,7 +93,7 @@ interface AutoUploadPending {
  * ```
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteImages]',
+    selector: 'ui-rich-text-editor[uiRteImages], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextImagesDirective {

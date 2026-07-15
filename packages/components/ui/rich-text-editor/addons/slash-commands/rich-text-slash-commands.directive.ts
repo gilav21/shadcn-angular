@@ -66,7 +66,7 @@ const MENU_MAX_HEIGHT = 240;
  * that no longer matches a trigger, on outside pointer-down, and on scroll.
  */
 @Directive({
-    selector: 'ui-rich-text-editor[uiRteSlashCommands]',
+    selector: 'ui-rich-text-editor[uiRteSlashCommands], ui-rich-text-editor[uiRteFull]',
     standalone: true,
 })
 export class RichTextSlashCommandsDirective {

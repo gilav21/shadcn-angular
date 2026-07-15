@@ -838,7 +838,7 @@ export const registry = defineRegistry({
     category: 'editor',
     description: 'WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.',
     tags: ['rich-text-editor', 'wysiwyg', 'editor', 'text', 'formatting'],
-    addons: ['rich-text-editor/actions', 'rich-text-editor/emoji', 'rich-text-editor/slash-commands', 'rich-text-editor/history', 'rich-text-editor/colors', 'rich-text-editor/typography', 'rich-text-editor/links', 'rich-text-editor/tables', 'rich-text-editor/images', 'rich-text-editor/mentions', 'rich-text-editor/file-import', 'rich-text-editor/ai', 'rich-text-editor/outline'],
+    addons: ['rich-text-editor/actions', 'rich-text-editor/emoji', 'rich-text-editor/slash-commands', 'rich-text-editor/history', 'rich-text-editor/colors', 'rich-text-editor/typography', 'rich-text-editor/links', 'rich-text-editor/tables', 'rich-text-editor/images', 'rich-text-editor/mentions', 'rich-text-editor/file-import', 'rich-text-editor/ai', 'rich-text-editor/outline', 'rich-text-editor/full'],
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
     dependencies: ['separator'],
     libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts', 'shortcut-binding.service.ts'],
@@ -1625,6 +1625,21 @@ export const registry = defineRegistry({
     attach: {
       import: "RichTextOutlineDirective from './ui/rich-text-editor/addons/outline'",
       selector: 'uiRteOutline',
+    },
+  },
+  'rich-text-editor/full': {
+    name: 'rich-text-editor/full',
+    type: 'addon',
+    parent: 'rich-text-editor',
+    category: 'editor',
+    description: 'One uiRteFull marker composes all thirteen rich-text-editor addons; import RTE_FULL, and every addon input/output stays bindable.',
+    tags: ['rich-text', 'bundle', 'composition', 'everything', 'addon'],
+    files: ['rich-text-editor/addons/full/index.ts'],
+    dependencies: ['rich-text-editor/actions', 'rich-text-editor/ai', 'rich-text-editor/colors', 'rich-text-editor/emoji', 'rich-text-editor/file-import', 'rich-text-editor/history', 'rich-text-editor/images', 'rich-text-editor/links', 'rich-text-editor/mentions', 'rich-text-editor/outline', 'rich-text-editor/slash-commands', 'rich-text-editor/tables', 'rich-text-editor/typography'],
+    requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
+    attach: {
+      import: "RTE_FULL from './ui/rich-text-editor/addons/full'",
+      selector: 'uiRteFull',
     },
   },
 });

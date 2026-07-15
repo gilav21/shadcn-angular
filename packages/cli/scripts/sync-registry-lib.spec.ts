@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
@@ -14,6 +14,9 @@ import {
     analyzeAllEntries,
     analyzeBlock,
     analyzeComponent,
+    analyzeComposites,
+    renderCompositeBarrel,
+    formatCompositeReport,
     applyUpdatesToSource,
     BASELINE_LIB_FILES,
     buildBoundaryMap,
@@ -1112,6 +1115,27 @@ describe('parseRegistrySource', () => {
         expect(editor?.libFiles).toEqual(['utils2.ts']);
     });
 
+    it('captures type, parent, and the attach import/selector of an addon entry', () => {
+        const source = `export const registry = {
+  'editor/emoji': {
+    name: 'editor/emoji',
+    type: 'addon',
+    parent: 'editor',
+    files: ['editor/addons/emoji/index.ts'],
+    dependencies: ['editor'],
+    attach: {
+      import: "EmojiDirective from './ui/editor/addons/emoji'",
+      selector: 'uiEmoji',
+    },
+  },
+};`;
+        const emoji = parseRegistrySource(source).find(e => e.name === 'editor/emoji');
+        expect(emoji?.type).toBe('addon');
+        expect(emoji?.parent).toBe('editor');
+        expect(emoji?.attachImport).toBe("EmojiDirective from './ui/editor/addons/emoji'");
+        expect(emoji?.attachSelector).toBe('uiEmoji');
+    });
+
     it('reads libFiles and dependencies that come AFTER a nested-object field', () => {
         // Regression: the old parser truncated the entry at the first \`},\`,
         // so arrays after shortcutDefinitions/attach/breaking were missed.
@@ -1424,5 +1448,116 @@ describe('detectOrphanBlockFolders', () => {
 describe('serializeRegistryJson', () => {
     it('writes 2-space JSON with a trailing newline', () => {
         expect(serializeRegistryJson({ a: 1 })).toBe('{\n  "a": 1\n}\n');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Composite ("<base>/full") generation. A base with two addons and a /full
+// entry drives the full check → fix → re-check contract: the sync appends the
+// marker selector clause to each sibling directive and generates the barrel
+// array, then a second run is clean (idempotent).
+// ---------------------------------------------------------------------------
+describe('analyzeComposites', () => {
+    let compBase: string;
+    let compRoot: string;
+    let compRoots: SyncRoots;
+
+    const directiveSource = (cls: string, marker: string): string =>
+        `import { Directive } from '@angular/core';\n` +
+        `@Directive({ selector: 'ui-ed[${marker}]', standalone: true })\n` +
+        `export class ${cls} {}\n`;
+
+    function compTouch(relPath: string, content = ''): void {
+        const full = path.join(compRoot, relPath);
+        mkdirSync(path.dirname(full), { recursive: true });
+        writeFileSync(full, content);
+    }
+
+    function compositeEntries(): RegistryEntry[] {
+        return [
+            entry({ name: 'ed', files: ['ed/index.ts'] }),
+            entry({
+                name: 'ed/aaa', type: 'addon', parent: 'ed',
+                files: ['ed/addons/aaa/index.ts', 'ed/addons/aaa/aaa.directive.ts'],
+                attachImport: "EdAaaDirective from './ui/ed/addons/aaa'", attachSelector: 'edFull',
+            }),
+            entry({
+                name: 'ed/bbb', type: 'addon', parent: 'ed',
+                files: ['ed/addons/bbb/index.ts', 'ed/addons/bbb/bbb.directive.ts'],
+                attachImport: "EdBbbDirective from './ui/ed/addons/bbb'", attachSelector: 'edFull',
+            }),
+            entry({
+                name: 'ed/full', type: 'addon', parent: 'ed',
+                files: ['ed/addons/full/index.ts'],
+                attachImport: "ED_FULL from './ui/ed/addons/full'", attachSelector: 'edFull',
+            }),
+        ];
+    }
+
+    beforeAll(() => {
+        compBase = mkdtempSync(path.join(tmpdir(), 'sync-composite-'));
+        compRoot = path.join(compBase, 'components');
+        compRoots = { componentsRoot: compRoot, blocksRoot: path.join(compBase, 'blocks') };
+        compTouch('ui/ed/index.ts', 'export class Ed {}');
+        compTouch('ui/ed/addons/aaa/aaa.directive.ts', directiveSource('EdAaaDirective', 'edAaa'));
+        compTouch('ui/ed/addons/bbb/bbb.directive.ts', directiveSource('EdBbbDirective', 'edBbb'));
+    });
+
+    afterAll(() => {
+        rmSync(compBase, { recursive: true, force: true });
+    });
+
+    it('reports the missing marker clauses and barrel, then --fix produces both and a re-check is clean', () => {
+        // 1. check: two selector clauses + one barrel are missing.
+        const first = analyzeComposites(compositeEntries(), compRoots);
+        expect(first.hasDrift).toBe(true);
+        expect(first.edits.filter(e => e.kind === 'selector')).toHaveLength(2);
+        expect(first.edits.filter(e => e.kind === 'barrel')).toHaveLength(1);
+        expect(formatCompositeReport(first).join('\n')).toContain("[edFull]");
+
+        // 2. fix: write every edit exactly as the script would (mkdir + write).
+        for (const edit of first.edits) {
+            mkdirSync(path.dirname(edit.path), { recursive: true });
+            writeFileSync(edit.path, edit.content);
+        }
+
+        // The barrel imports both siblings, sorted, into the derived ED_FULL array.
+        const barrel = readFileSync(path.join(compRoot, 'ui/ed/addons/full/index.ts'), 'utf-8');
+        expect(barrel).toContain("import { EdAaaDirective } from '../aaa';");
+        expect(barrel).toContain("import { EdBbbDirective } from '../bbb';");
+        expect(barrel.indexOf('EdAaaDirective,')).toBeLessThan(barrel.indexOf('EdBbbDirective,'));
+        expect(barrel).toContain('export const ED_FULL = [');
+
+        // Each sibling directive now also matches under the marker.
+        const aaa = readFileSync(path.join(compRoot, 'ui/ed/addons/aaa/aaa.directive.ts'), 'utf-8');
+        expect(aaa).toContain("'ui-ed[edAaa], ui-ed[edFull]'");
+
+        // 3. re-check: clean and idempotent.
+        const second = analyzeComposites(compositeEntries(), compRoots);
+        expect(second.hasDrift).toBe(false);
+        expect(second.edits).toHaveLength(0);
+        expect(formatCompositeReport(second)).toEqual([]);
+    });
+
+    it('derives the array name from attach.import, overriding a stale barrel const name', () => {
+        // The registry's attach.import is the contract `apply` imports, so it wins
+        // over whatever const the (possibly hand-renamed / stale) barrel declares.
+        mkdirSync(path.join(compRoot, 'ui/ed/addons/full'), { recursive: true });
+        writeFileSync(
+            path.join(compRoot, 'ui/ed/addons/full/index.ts'),
+            'export const STALE_NAME = [] as const;\n',
+        );
+        const analysis = analyzeComposites(compositeEntries(), compRoots);
+        const barrelEdit = analysis.edits.find(e => e.kind === 'barrel');
+        expect(barrelEdit?.content).toContain('export const ED_FULL = [');
+        expect(barrelEdit?.content).not.toContain('STALE_NAME');
+    });
+
+    it('renderCompositeBarrel emits the AUTO-GENERATED header', () => {
+        const out = renderCompositeBarrel('X_FULL', [
+            { short: 'aaa', className: 'AaaDir', sourceFile: 'ed/addons/aaa/aaa.directive.ts' },
+        ]);
+        expect(out.startsWith('// AUTO-GENERATED by sync-registry')).toBe(true);
+        expect(out).toContain("import { AaaDir } from '../aaa';");
     });
 });
