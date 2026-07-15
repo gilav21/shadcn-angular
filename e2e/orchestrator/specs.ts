@@ -202,6 +202,15 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/ai'],
         label: 'rte-ai',
     },
+    // addon system (rich-text): install the editor + its `outline` addon; prove
+    // the outline toolbar button + docked panel exist only on the addon editor —
+    // the base ships no outline UI (the `scroll-area` dependency, and the base's
+    // last `button` usage, leave the base install with this addon). The addon
+    // pulls `scroll-area` + `button` as its own dependencies.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/outline'],
+        label: 'rte-outline',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

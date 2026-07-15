@@ -23,6 +23,7 @@ import { RichTextLinksDirective } from '../../../../../packages/components/ui/ri
 import { RichTextTablesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/tables';
 import { RichTextImagesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/images';
 import { RichTextAiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/ai';
+import { RichTextOutlineDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/outline';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
@@ -31,7 +32,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, RichTextOutlineDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -147,7 +148,8 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           </label>
         </div>
         <ui-rich-text-editor mode="html" toolbar="top"
-          [toolbarItems]="outlineToolbarItems()"
+          uiRteOutline [uiRteOutlineButton]="richTextOutlineShowToolbarItem()"
+          [toolbarItems]="outlineToolbarBase"
           [(ngModel)]="richTextOutlineContent"
           minHeight="320px" />
       </div>
@@ -321,19 +323,13 @@ export class RichTextEditorDemoComponent {
     return Number.isNaN(parsed) ? undefined : parsed;
   }
 
-  private readonly outlineToolbarBase: ToolbarItem[] = [
+  readonly outlineToolbarBase: ToolbarItem[] = [
     'bold', 'italic', 'underline',
     'separator',
     'paragraph', 'heading1', 'heading2', 'heading3',
     'separator',
     'bulletList', 'orderedList',
   ];
-
-  readonly outlineToolbarItems = computed<ToolbarItem[]>(() =>
-    this.richTextOutlineShowToolbarItem()
-      ? [...this.outlineToolbarBase, 'separator', 'outline']
-      : this.outlineToolbarBase
-  );
 
   richTextOutlineContent = '';
 

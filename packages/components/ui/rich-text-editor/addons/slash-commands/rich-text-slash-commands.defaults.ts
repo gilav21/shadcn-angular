@@ -5,8 +5,9 @@ import type { RichTextSlashCommandsLocale } from './rich-text-slash-commands.loc
  * Builds the addon's built-in slash commands (paragraph, headings, lists,
  * quote, inline/code block, task list, toggle, horizontal rule, undo,
  * redo) from the addon locale. These feed the menu alongside the host's
- * base-owned `builtinCommands` (outline / AI), the shared command registry,
- * and any custom commands passed to `[uiRteSlashCommands]`.
+ * base-owned `builtinCommands` (currently empty), the feature commands other
+ * addons register (`/outline`, `/ai`, …), the shared command registry, and any
+ * custom commands passed to `[uiRteSlashCommands]`.
  */
 export function buildDefaultSlashCommands(l: RichTextSlashCommandsLocale): RichTextSlashCommand[] {
     return [

@@ -2229,7 +2229,8 @@
       "rich-text-editor/images",
       "rich-text-editor/mentions",
       "rich-text-editor/file-import",
-      "rich-text-editor/ai"
+      "rich-text-editor/ai",
+      "rich-text-editor/outline"
     ],
     "files": [
       "rich-text-editor/index.ts",
@@ -2246,8 +2247,6 @@
       "rich-text-editor/sub/rich-text-toolbar.component.ts"
     ],
     "dependencies": [
-      "button",
-      "scroll-area",
       "separator"
     ],
     "libFiles": [
@@ -2350,6 +2349,14 @@
         "note": "The AI-assist feature (selection chip, task menu + custom-prompt panel, streaming draft with Accept/Discard/Try-again, and the /ai slash command) moved to the opt-in ai addon, removing the `ai.ts` lib file from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/ai`, then bind the provider with `[uiRteAi]=\"provider\"` in place of `[aiProvider]=\"provider\"` — the presence of a provider is what turns the feature on. The (aiRequest)/(aiResult)/(aiError) outputs move onto the directive with the same names. No component dependency changes. The provider contract is unchanged (a callback returning string/Promise/Observable that emits the full text so far). AI strings resolve from [uiRteAiLocale] (or the global UI_LOCALE_ID), not the editor's [locale]; the base RichTextLocale no longer carries the `ai` section. The /ai slash command now appears only when both the slash-commands and ai addons are present.",
         "codemod": "none",
         "suggestedAddon": "rich-text-editor/ai"
+      },
+      {
+        "kind": "removal",
+        "from": "the 'outline' toolbar item and the /outline slash command on <ui-rich-text-editor> (the docked document-outline panel)",
+        "to": "the uiRteOutline directive",
+        "note": "The document-outline feature (toolbar button, /outline slash command, and the docked live table-of-contents panel with click/keyboard scroll-to-heading) moved to the opt-in outline addon, removing the `scroll-area` dependency — and the last `button` usage — from the base install. Run `npx @gilav21/shadcn-angular apply rich-text-editor/outline`, add `uiRteOutline` to the editor element, and remove 'outline' from any custom [toolbarItems] arrays (the button now renders after the built-in items; pass `[uiRteOutlineButton]=\"false\"` to hide it). The panel is read-only and refreshes from a MutationObserver while open. Outline strings resolve from [uiRteOutlineLocale] (or the global UI_LOCALE_ID), not the editor's [locale]; the base RichTextLocale no longer carries the `outline` or `slashCommands` sections or `toolbar.outline`. The /outline command appears only when both the slash-commands and outline addons are present.",
+        "codemod": "none",
+        "suggestedAddon": "rich-text-editor/outline"
       }
     ],
     "shortcutDefinitions": [
@@ -4462,6 +4469,49 @@
     "attach": {
       "import": "RichTextAiDirective from './ui/rich-text-editor/addons/ai'",
       "selector": "uiRteAi"
+    }
+  },
+  "rich-text-editor/outline": {
+    "name": "rich-text-editor/outline",
+    "type": "addon",
+    "parent": "rich-text-editor",
+    "category": "editor",
+    "description": "Document outline for the rich text editor: a toolbar button + /outline command that open a docked, live table-of-contents panel.",
+    "tags": [
+      "rich-text",
+      "outline",
+      "toc",
+      "navigation",
+      "addon"
+    ],
+    "files": [
+      "rich-text-editor/addons/outline/index.ts",
+      "rich-text-editor/addons/outline/rich-text-outline-panel.component.html",
+      "rich-text-editor/addons/outline/rich-text-outline-panel.component.ts",
+      "rich-text-editor/addons/outline/rich-text-outline.context.ts",
+      "rich-text-editor/addons/outline/rich-text-outline.directive.ts",
+      "rich-text-editor/addons/outline/rich-text-outline.locales.ts"
+    ],
+    "libFiles": [
+      "addon-slots.ts",
+      "i18n/calendar.locales.ts",
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "button",
+      "rich-text-editor",
+      "scroll-area"
+    ],
+    "requiresBaseFiles": [
+      "rich-text-editor/rich-text-editor.host.ts"
+    ],
+    "attach": {
+      "import": "RichTextOutlineDirective from './ui/rich-text-editor/addons/outline'",
+      "selector": "uiRteOutline"
     }
   }
 }

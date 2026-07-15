@@ -341,13 +341,8 @@ describe('RichTextEditorComponent', () => {
             expect(editorEl.getAttribute('placeholder')).toBe('Custom placeholder');
         });
 
-        it('localizes the base-owned outline builtin command for Hebrew', () => {
-            fixture.componentRef.setInput('locale', 'he');
-            fixture.detectChanges();
-            const outline = component.builtinCommands().find(c => c.id === 'view.outline');
-            expect(outline).toBeTruthy();
-            expect(outline!.label).toBe(RICH_TEXT_LOCALES['he'].slashCommands.outline);
-            expect(outline!.description).toBe(RICH_TEXT_LOCALES['he'].slashCommands.outlineDescription);
+        it('exposes no base-owned builtin slash commands (all moved to addons)', () => {
+            expect(component.builtinCommands()).toEqual([]);
         });
 
         it('switches RTL when locale changes from LTR to RTL', () => {
@@ -1029,110 +1024,16 @@ describe('RichTextEditorComponent', () => {
         });
     });
 
-    describe('document outline', () => {
-        const seedHeadings = () => {
+    describe('document outline (extracted to the outline addon)', () => {
+        it('renders no docked outline panel and owns no outline API in the base', () => {
             editor.innerHTML =
                 '<h1>Intro</h1><p>text</p><h2>Setup</h2><h3>Details</h3><h2>Done</h2>';
             editor.dispatchEvent(new Event('input', { bubbles: true }));
             fixture.detectChanges();
-        };
 
-        it('outlineHeadings returns an entry per heading in document order', () => {
-            seedHeadings();
-
-            const headings = component.outlineHeadings();
-            expect(headings.map(h => h.text)).toEqual(['Intro', 'Setup', 'Details', 'Done']);
-            expect(headings.map(h => h.level)).toEqual([1, 2, 3, 2]);
-            expect(headings.map(h => h.index)).toEqual([0, 1, 2, 3]);
-        });
-
-        it('outlineHeadings is empty for content without headings', () => {
-            editor.innerHTML = '<p>just a paragraph</p>';
-            editor.dispatchEvent(new Event('input', { bubbles: true }));
-            fixture.detectChanges();
-
-            expect(component.outlineHeadings()).toEqual([]);
-        });
-
-        it('outline format command toggles outlinePanelOpen without mutating content', () => {
-            seedHeadings();
-            const before = editor.innerHTML;
-
-            expect(component.outlinePanelOpen()).toBe(false);
-
-            component.onFormatCommand('outline');
-            expect(component.outlinePanelOpen()).toBe(true);
-
-            component.onFormatCommand('outline');
-            expect(component.outlinePanelOpen()).toBe(false);
-
-            expect(editor.innerHTML).toBe(before);
-        });
-
-        it('scrollHeadingIntoView scrolls the editor container, not any heading or the page', () => {
-            seedHeadings();
-            const scrollBySpy = vi.fn();
-            editor.scrollBy = scrollBySpy as unknown as typeof editor.scrollBy;
-            const intoViewSpy = vi.fn();
-            editor.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
-                (h as HTMLElement).scrollIntoView = intoViewSpy;
-            });
-
-            expect(() => component.scrollHeadingIntoView(2)).not.toThrow();
-            expect(scrollBySpy).toHaveBeenCalled();
-            expect(intoViewSpy).not.toHaveBeenCalled();
-        });
-
-        it('scrollHeadingIntoView does not throw for an out-of-range index', () => {
-            seedHeadings();
-            expect(() => component.scrollHeadingIntoView(99)).not.toThrow();
-        });
-
-        it('openOutlineDocked opens the docked panel', () => {
-            expect(component.outlinePanelOpen()).toBe(false);
-
-            component.openOutlineDocked();
-
-            expect(component.outlinePanelOpen()).toBe(true);
-        });
-
-        it('editableClasses insets the content past the docked panel (md+ only) while it is open', () => {
-            expect(component.editableClasses()).not.toContain('md:ps-[calc(16rem+8px)]');
-
-            component.outlinePanelOpen.set(true);
-            const open = component.editableClasses();
-            expect(open).toContain('md:ps-[calc(16rem+8px)]');
-            expect(open).toContain('lg:ps-[calc(20rem+8px)]');
-
-            component.outlinePanelOpen.set(false);
-            expect(component.editableClasses()).not.toContain('md:ps-[calc(16rem+8px)]');
-        });
-
-        it('exposes a /outline slash command that opens the docked panel', () => {
-            const command = component.builtinCommands().find(c => c.id === 'view.outline');
-            expect(command).toBeTruthy();
-
-            command!.run({
-                query: '',
-                selectedText: '',
-                executeToolbarCommand: () => undefined,
-                insertText: () => undefined,
-                insertHtml: () => undefined,
-                showLinkDialog: () => undefined,
-                focusEditor: () => undefined,
-            });
-
-            expect(component.outlinePanelOpen()).toBe(true);
-        });
-
-        it('renders the docked outline panel whenever it is open', () => {
             expect(fixture.nativeElement.querySelector('[data-slot="rich-text-outline-panel"]')).toBeNull();
-
-            component.openOutlineDocked();
-            fixture.detectChanges();
-
-            const panel = fixture.nativeElement.querySelector('[data-slot="rich-text-outline-panel"]');
-            expect(panel).toBeTruthy();
+            expect((component as unknown as Record<string, unknown>)['outlinePanelOpen']).toBeUndefined();
+            expect((component as unknown as Record<string, unknown>)['outlineHeadings']).toBeUndefined();
         });
     });
 });

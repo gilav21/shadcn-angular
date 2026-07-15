@@ -49,10 +49,10 @@ const MENU_MAX_HEIGHT = 240;
  *
  * The menu merges, in precedence order: this addon's built-in commands (built
  * from `[uiRteSlashCommandsLocale]`), the host's base-owned `builtinCommands`
- * (the outline command), any feature commands other addons register (e.g. the
- * `/ai` and `/link` commands), any commands registered programmatically
- * through the shared command registry,
- * and the custom commands passed to `[uiRteSlashCommands]`.
+ * (currently empty — kept as a seam for future base commands), any feature
+ * commands other addons register (e.g. the `/outline`, `/ai`, and `/link`
+ * commands), any commands registered programmatically through the shared
+ * command registry, and the custom commands passed to `[uiRteSlashCommands]`.
  *
  * ```html
  * <ui-rich-text-editor uiRteSlashCommands />

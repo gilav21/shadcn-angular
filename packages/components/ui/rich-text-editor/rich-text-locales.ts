@@ -25,7 +25,6 @@ export interface RichTextLocale extends LocaleMeta {
         outdent: string;
         taskList: string;
         horizontalRule: string;
-        outline: string;
     };
 
     findReplace: {
@@ -39,17 +38,6 @@ export interface RichTextLocale extends LocaleMeta {
         close: string;
     };
 
-
-    slashCommands: {
-        outline: string;
-        outlineDescription: string;
-    };
-
-    outline: {
-        title: string;
-        empty: string;
-        ariaClose: string;
-    };
 
     table: {
         rows: string;
@@ -114,7 +102,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Decrease Indent',
             taskList: 'Task List',
             horizontalRule: 'Horizontal Rule',
-            outline: 'Document Outline',
         },
         findReplace: {
             find: 'Find',
@@ -125,15 +112,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Match Case',
             noResults: 'No results',
             close: 'Close',
-        },
-        slashCommands: {
-            outline: 'Outline',
-            outlineDescription: 'Open the document outline',
-        },
-        outline: {
-            title: 'Document Outline',
-            empty: 'No headings yet',
-            ariaClose: 'Close document outline',
         },
         table: {
             rows: 'Rows',
@@ -195,7 +173,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'הקטנת הזחה',
             taskList: 'רשימת משימות',
             horizontalRule: 'קו אופקי',
-            outline: 'מתאר מסמך',
         },
         findReplace: {
             find: 'חיפוש',
@@ -206,15 +183,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'התאמת רישיות',
             noResults: 'אין תוצאות',
             close: 'סגירה',
-        },
-        slashCommands: {
-            outline: 'תוכן עניינים',
-            outlineDescription: 'פתיחת תוכן העניינים של המסמך',
-        },
-        outline: {
-            title: 'מתאר מסמך',
-            empty: 'אין כותרות עדיין',
-            ariaClose: 'סגירת מתאר המסמך',
         },
         table: {
             rows: 'שורות',
@@ -276,7 +244,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'تقليل المسافة البادئة',
             taskList: 'قائمة المهام',
             horizontalRule: 'خط أفقي',
-            outline: 'مخطط المستند',
         },
         findReplace: {
             find: 'بحث',
@@ -287,15 +254,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'مطابقة الحالة',
             noResults: 'لا توجد نتائج',
             close: 'إغلاق',
-        },
-        slashCommands: {
-            outline: 'المخطط التفصيلي',
-            outlineDescription: 'فتح المخطط التفصيلي للمستند',
-        },
-        outline: {
-            title: 'مخطط المستند',
-            empty: 'لا توجد عناوين بعد',
-            ariaClose: 'إغلاق مخطط المستند',
         },
         table: {
             rows: 'صفوف',
@@ -356,7 +314,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Einzug verkleinern',
             taskList: 'Aufgabenliste',
             horizontalRule: 'Horizontale Linie',
-            outline: 'Dokumentgliederung',
         },
         findReplace: {
             find: 'Suchen',
@@ -367,15 +324,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Groß-/Kleinschreibung',
             noResults: 'Keine Ergebnisse',
             close: 'Schließen',
-        },
-        slashCommands: {
-            outline: 'Gliederung',
-            outlineDescription: 'Dokumentgliederung öffnen',
-        },
-        outline: {
-            title: 'Dokumentgliederung',
-            empty: 'Noch keine Überschriften',
-            ariaClose: 'Dokumentgliederung schließen',
         },
         table: {
             rows: 'Zeilen',
@@ -436,7 +384,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Diminuer le retrait',
             taskList: 'Liste de tâches',
             horizontalRule: 'Ligne horizontale',
-            outline: 'Plan du document',
         },
         findReplace: {
             find: 'Rechercher',
@@ -447,15 +394,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Respecter la casse',
             noResults: 'Aucun résultat',
             close: 'Fermer',
-        },
-        slashCommands: {
-            outline: 'Plan',
-            outlineDescription: 'Ouvrir le plan du document',
-        },
-        outline: {
-            title: 'Plan du document',
-            empty: 'Aucun titre pour le moment',
-            ariaClose: 'Fermer le plan du document',
         },
         table: {
             rows: 'Lignes',
@@ -516,7 +454,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Disminuir sangría',
             taskList: 'Lista de tareas',
             horizontalRule: 'Línea horizontal',
-            outline: 'Esquema del documento',
         },
         findReplace: {
             find: 'Buscar',
@@ -527,15 +464,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Coincidir mayúsculas',
             noResults: 'Sin resultados',
             close: 'Cerrar',
-        },
-        slashCommands: {
-            outline: 'Esquema',
-            outlineDescription: 'Abrir el esquema del documento',
-        },
-        outline: {
-            title: 'Esquema del documento',
-            empty: 'Aún no hay encabezados',
-            ariaClose: 'Cerrar el esquema del documento',
         },
         table: {
             rows: 'Filas',
@@ -596,7 +524,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'インデントを減らす',
             taskList: 'タスクリスト',
             horizontalRule: '水平線',
-            outline: 'ドキュメントアウトライン',
         },
         findReplace: {
             find: '検索',
@@ -607,15 +534,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: '大文字小文字を区別',
             noResults: '結果なし',
             close: '閉じる',
-        },
-        slashCommands: {
-            outline: 'アウトライン',
-            outlineDescription: 'ドキュメントのアウトラインを開く',
-        },
-        outline: {
-            title: 'ドキュメントアウトライン',
-            empty: '見出しがまだありません',
-            ariaClose: 'ドキュメントアウトラインを閉じる',
         },
         table: {
             rows: '行',
@@ -676,7 +594,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: '减少缩进',
             taskList: '任务列表',
             horizontalRule: '水平线',
-            outline: '文档大纲',
         },
         findReplace: {
             find: '查找',
@@ -687,15 +604,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: '区分大小写',
             noResults: '无结果',
             close: '关闭',
-        },
-        slashCommands: {
-            outline: '大纲',
-            outlineDescription: '打开文档大纲',
-        },
-        outline: {
-            title: '文档大纲',
-            empty: '暂无标题',
-            ariaClose: '关闭文档大纲',
         },
         table: {
             rows: '行',
@@ -756,7 +664,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Уменьшить отступ',
             taskList: 'Список задач',
             horizontalRule: 'Горизонтальная линия',
-            outline: 'Структура документа',
         },
         findReplace: {
             find: 'Найти',
@@ -767,15 +674,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'С учётом регистра',
             noResults: 'Нет результатов',
             close: 'Закрыть',
-        },
-        slashCommands: {
-            outline: 'Структура',
-            outlineDescription: 'Открыть структуру документа',
-        },
-        outline: {
-            title: 'Структура документа',
-            empty: 'Заголовков пока нет',
-            ariaClose: 'Закрыть структуру документа',
         },
         table: {
             rows: 'Строки',
@@ -836,7 +734,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Diminuir recuo',
             taskList: 'Lista de tarefas',
             horizontalRule: 'Linha horizontal',
-            outline: 'Estrutura do documento',
         },
         findReplace: {
             find: 'Localizar',
@@ -847,15 +744,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             caseSensitive: 'Diferenciar maiúsculas',
             noResults: 'Sem resultados',
             close: 'Fechar',
-        },
-        slashCommands: {
-            outline: 'Estrutura de tópicos',
-            outlineDescription: 'Abrir a estrutura de tópicos do documento',
-        },
-        outline: {
-            title: 'Estrutura do documento',
-            empty: 'Nenhum título ainda',
-            ariaClose: 'Fechar estrutura do documento',
         },
         table: {
             rows: 'Linhas',

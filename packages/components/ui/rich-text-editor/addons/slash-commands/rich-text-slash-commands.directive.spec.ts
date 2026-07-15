@@ -180,13 +180,6 @@ describe('RichTextSlashCommandsDirective', () => {
         expect(editor.textContent).toContain('STAMPED');
     });
 
-    it('exposes the base-owned outline builtin command in the menu', () => {
-        const { fixture, editor, editorCmp } = create();
-        typeSlash(editor, editorCmp, '/outline');
-        fixture.detectChanges();
-        expect(menuOptions().some(o => o.textContent?.includes('Outline'))).toBe(true);
-    });
-
     it('localizes the menu strings for Hebrew', () => {
         const { fixture, editor, editorCmp } = create();
         fixture.componentInstance.locale.set('he');

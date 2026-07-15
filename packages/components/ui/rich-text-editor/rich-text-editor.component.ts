@@ -15,15 +15,13 @@
     OnDestroy,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
+import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
-import { ButtonComponent } from '../button';
-import { ScrollAreaComponent } from '../scroll-area';
 import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
 import {
     RichTextCommandRegistry,
@@ -135,32 +133,6 @@ interface SerializedSelection {
     endOffset: number;
 }
 
-/** A single entry in the document outline (table of contents). */
-export interface OutlineHeading {
-    /** Heading level, 1-6, derived from the tag name (h1-h6). */
-    level: number;
-    /** Trimmed text content of the heading. */
-    text: string;
-    /** Zero-based position of the heading within the document's heading list. */
-    index: number;
-}
-
-/** CSS selector matching every heading element used by the outline. */
-const OUTLINE_HEADING_SELECTOR = 'h1,h2,h3,h4,h5,h6';
-
-/** Gap (px) left above a heading when the outline scrolls it into view. */
-const OUTLINE_SCROLL_MARGIN = 12;
-
-/** Maps a heading element to an {@link OutlineHeading} entry. */
-function toOutlineHeading(element: Element, index: number): OutlineHeading {
-    const level = Number.parseInt(element.tagName.charAt(1), 10);
-    return {
-        level,
-        text: (element.textContent ?? '').trim(),
-        index,
-    };
-}
-
 /**
  * The default toolbar layout used when `[toolbarItems]` is not provided.
  * Groups: formatting | block type | lists | alignment | colors/size | insert | code | clear.
@@ -200,10 +172,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        NgTemplateOutlet,
         RichTextToolbarComponent,
-        ButtonComponent,
-        ScrollAreaComponent,
     ],
     providers: [
         {
@@ -333,25 +302,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /**
      * Base-owned slash commands surfaced to the slash-commands addon through the
-     * host: the document-outline command. Feature commands (`/ai`, `/link`, …)
-     * are registered by their own opt-in addons into the command registry.
+     * host. Now empty: every feature command (`/outline`, `/ai`, `/link`, …) is
+     * registered by its own opt-in addon into {@link commands}. The seam is kept
+     * (the slash-commands addon merges it) so the base can reclaim a built-in
+     * command in future without a contract change.
      */
-    readonly builtinCommands = computed<readonly RichTextSlashCommand[]>(() => [
-        this.buildOutlineSlashCommand(),
-    ]);
-
-    /** Builds the `/outline` slash command, which opens the document outline docked. */
-    private buildOutlineSlashCommand(): RichTextSlashCommand {
-        const l = this.resolvedLocale().slashCommands;
-        return {
-            id: 'view.outline',
-            label: l.outline,
-            description: l.outlineDescription,
-            keywords: ['outline', 'toc', 'headings', 'contents'],
-            order: 125,
-            run: () => this.openOutlineDocked(),
-        };
-    }
+    readonly builtinCommands = computed<readonly RichTextSlashCommand[]>(() => []);
 
     // ג”€ג”€ Outputs ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
@@ -421,8 +377,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly onTableCellTouchEndBound = this.onTableCellTouchEnd.bind(this);
 
 
-    /** Whether the docked document-outline panel is open. */
-    outlinePanelOpen = signal<boolean>(false);
     private readonly _historyVersion = signal<number>(0);
     /** Bumps on every history-stack change; read by the history addon (addon host surface). */
     readonly historyVersion = this._historyVersion.asReadonly();
@@ -498,8 +452,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             '[&_details>:not(summary)]:px-3 [&_details>:not(summary)]:py-2',
             '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
             'disabled:cursor-not-allowed',
-            'transition-[padding] duration-150',
-            this.outlinePanelOpen() ? 'md:ps-[calc(16rem+8px)] lg:ps-[calc(20rem+8px)]' : ''
         )
     );
 
@@ -525,48 +477,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return interpolate(template, values);
     }
 
-    /** Opens the docked document-outline panel. Used by the `/outline` slash command. */
-    openOutlineDocked(): void {
-        this.outlinePanelOpen.set(true);
-    }
-
-    /** Live table of contents derived from the editor's heading elements, in document order. */
-    outlineHeadings = computed<OutlineHeading[]>(() => {
-        this.htmlContent();
-        const editor = this.editorDiv?.nativeElement;
-        if (!editor) {
-            return [];
-        }
-        return Array.from(editor.querySelectorAll(OUTLINE_HEADING_SELECTOR)).map((element, index) => toOutlineHeading(element, index));
-    });
-
-    /**
-     * Smoothly scrolls the heading at the given outline index to the top of the
-     * editor's own scroll container. Never calls `Element.scrollIntoView()`, so
-     * it cannot scroll the page or any ancestor ג€” only the editor moves.
-     * Read-only: never mutates editor content.
-     */
-    scrollHeadingIntoView(index: number): void {
-        const editor = this.editorDiv?.nativeElement;
-        if (!editor) {
-            return;
-        }
-        const headings = editor.querySelectorAll<HTMLElement>(OUTLINE_HEADING_SELECTOR);
-        const target = headings[index];
-        if (!target) {
-            return;
-        }
-        const delta = target.getBoundingClientRect().top - editor.getBoundingClientRect().top;
-        editor.scrollBy({ top: delta - OUTLINE_SCROLL_MARGIN, behavior: 'smooth' });
-    }
-
-    /** Handles keyboard activation (Enter/Space) on an outline entry row. */
-    onOutlineEntryKeydown(event: KeyboardEvent, index: number): void {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            this.scrollHeadingIntoView(index);
-        }
-    }
 
     onEditorClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
@@ -1188,11 +1098,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     onFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
-
-        if (command === 'outline') {
-            this.outlinePanelOpen.set(!this.outlinePanelOpen());
-            return;
-        }
 
         this.restoreSelection();
         this.flushPendingHistoryPush();

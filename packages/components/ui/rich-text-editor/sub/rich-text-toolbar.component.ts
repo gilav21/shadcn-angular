@@ -78,8 +78,7 @@ export type ToolbarItem =
   | 'indent'
   | 'outdent'
   | 'taskList'
-  | 'horizontalRule'
-  | 'outline';
+  | 'horizontalRule';
 
 interface ToolbarButton {
   id: ToolbarItem;
@@ -112,7 +111,6 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'outdent', label: 'Decrease Indent', localeKey: 'outdent' },
   { id: 'taskList', label: 'Task List', localeKey: 'taskList' },
   { id: 'horizontalRule', label: 'Horizontal Rule', localeKey: 'horizontalRule' },
-  { id: 'outline', label: 'Document Outline', localeKey: 'outline' },
 ];
 
 const ICONS: Record<string, string> = {
@@ -139,7 +137,6 @@ const ICONS: Record<string, string> = {
   outdent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 8 3 12 7 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/></svg>`,
   taskList: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>`,
   horizontalRule: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>`,
-  outline: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 6H3"/><path d="M15 12H3"/><path d="M17 18H3"/><path d="M21 12h.01"/><path d="M21 18h.01"/></svg>`,
 };
 
 @Component({
