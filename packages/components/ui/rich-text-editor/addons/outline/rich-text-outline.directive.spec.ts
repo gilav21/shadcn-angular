@@ -1,5 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { RichTextEditorComponent, RichTextCommandRegistry } from '../..';
 import { RICH_TEXT_OUTLINE_LOCALES } from './rich-text-outline.locales';
@@ -28,6 +29,11 @@ const flushObserver = (): Promise<void> => new Promise((resolve) => setTimeout(r
 
 describe('RichTextOutlineDirective', () => {
     const fixtures: ComponentFixture<HostCmp>[] = [];
+
+    function editorRegistry(fixture: ComponentFixture<HostCmp>): RichTextCommandRegistry {
+        return (fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .componentInstance as RichTextEditorComponent).commands;
+    }
 
     function createFixture(): ComponentFixture<HostCmp> {
         const fixture = TestBed.createComponent(HostCmp);
@@ -168,9 +174,9 @@ describe('RichTextOutlineDirective', () => {
         expect(panel(fixture)).toBeNull();
     });
 
-    it('registers a /outline command that opens the panel', () => {
+    it('registers a /outline command (on the editor-instance registry) that opens the panel', () => {
         const fixture = createFixture();
-        const registry = TestBed.inject(RichTextCommandRegistry);
+        const registry = editorRegistry(fixture);
         const command = registry.listCommands().find((c) => c.id === 'view.outline');
         expect(command).toBeTruthy();
         expect(command!.label).toBe(RICH_TEXT_OUTLINE_LOCALES['en'].slash);
@@ -194,7 +200,7 @@ describe('RichTextOutlineDirective', () => {
         fixture.detectChanges();
         expect(outlineButton(fixture)).toBeNull();
 
-        const registry = TestBed.inject(RichTextCommandRegistry);
+        const registry = editorRegistry(fixture);
         expect(registry.listCommands().some((c) => c.id === 'view.outline')).toBe(true);
     });
 

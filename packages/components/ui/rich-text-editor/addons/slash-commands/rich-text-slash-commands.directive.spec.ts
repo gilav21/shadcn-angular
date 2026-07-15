@@ -19,8 +19,18 @@ class HostCmp {
     readonly locale = signal<string | undefined>(undefined);
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextSlashCommandsDirective],
+    template: `
+        <ui-rich-text-editor mode="html" uiRteSlashCommands></ui-rich-text-editor>
+        <ui-rich-text-editor mode="html" uiRteSlashCommands></ui-rich-text-editor>`,
+})
+class DualHostCmp {}
+
 describe('RichTextSlashCommandsDirective', () => {
     const openFixtures: ComponentFixture<HostCmp>[] = [];
+    const openDualFixtures: ComponentFixture<DualHostCmp>[] = [];
 
     function create(): { fixture: ComponentFixture<HostCmp>; editor: HTMLElement; editorCmp: RichTextEditorComponent } {
         const fixture = TestBed.createComponent(HostCmp);
@@ -56,6 +66,12 @@ describe('RichTextSlashCommandsDirective', () => {
         window.getSelection()?.removeAllRanges();
         while (openFixtures.length > 0) {
             const fixture = openFixtures.pop()!;
+            if (!fixture.componentRef.hostView.destroyed) {
+                fixture.destroy();
+            }
+        }
+        while (openDualFixtures.length > 0) {
+            const fixture = openDualFixtures.pop()!;
             if (!fixture.componentRef.hostView.destroyed) {
                 fixture.destroy();
             }
@@ -196,5 +212,87 @@ describe('RichTextSlashCommandsDirective', () => {
         fixture.detectChanges();
         expect(menuOptions()).toHaveLength(0);
         expect(menu()!.textContent).toContain('No commands found');
+    });
+
+    it('scopes instance-registered commands to their own editor, while global commands appear everywhere', () => {
+        // A single fixture hosting BOTH editors: TestBed replaces the previous
+        // fixture's host element, so two createComponent fixtures cannot be
+        // live in the DOM at the same time.
+        const fixture = TestBed.createComponent(DualHostCmp);
+        openDualFixtures.push(fixture);
+        fixture.detectChanges();
+        const editorCmps = fixture.debugElement.queryAll(By.directive(RichTextEditorComponent))
+            .map(de => de.componentInstance as RichTextEditorComponent);
+        const editors = Array.from(
+            fixture.nativeElement.querySelectorAll('[contenteditable]'),
+        ) as HTMLElement[];
+        const [aCmp, bCmp] = editorCmps;
+        const [aEditor, bEditor] = editors;
+
+        const teardownInstance = aCmp.commands.registerCommand({
+            id: 'test.only-in-a', label: 'Only in A', keywords: ['test'], order: 1, run: () => void 0,
+        });
+        const teardownGlobal = TestBed.inject(RichTextCommandRegistry).registerCommand({
+            id: 'test.everywhere', label: 'Everywhere', keywords: ['test'], order: 2, run: () => void 0,
+        });
+
+        typeSlash(aEditor, aCmp, '/test');
+        fixture.detectChanges();
+        let labels = menuOptions().map(o => o.textContent?.trim() ?? '');
+        expect(labels.some(l => l.includes('Only in A'))).toBe(true);
+        expect(labels.some(l => l.includes('Everywhere'))).toBe(true);
+
+        aCmp.onKeydown(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+        window.getSelection()?.removeAllRanges();
+
+        typeSlash(bEditor, bCmp, '/test');
+        fixture.detectChanges();
+        labels = menuOptions().map(o => o.textContent?.trim() ?? '');
+        expect(labels.some(l => l.includes('Everywhere'))).toBe(true);
+        expect(labels.some(l => l.includes('Only in A'))).toBe(false);
+
+        teardownInstance();
+        teardownGlobal();
+    });
+
+    it('a torn-down instance registration disappears from that editor\'s own menu', () => {
+        const { fixture, editor, editorCmp } = create();
+        const teardown = editorCmp.commands.registerCommand({
+            id: 'test.transient', label: 'Transient Command', keywords: ['transient'], order: 1, run: () => void 0,
+        });
+
+        typeSlash(editor, editorCmp, '/transient');
+        fixture.detectChanges();
+        expect(menuOptions().some(o => o.textContent?.includes('Transient Command'))).toBe(true);
+
+        editorCmp.onKeydown(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+
+        teardown();
+        typeSlash(editor, editorCmp, '/transient');
+        fixture.detectChanges();
+        expect(menuOptions().some(o => o.textContent?.includes('Transient Command'))).toBe(false);
+    });
+
+    it('an instance command wins an id collision with a global command', () => {
+        const { fixture, editor, editorCmp } = create();
+        const offGlobal = TestBed.inject(RichTextCommandRegistry).registerCommand({
+            id: 'test.collide', label: 'Global Loser', keywords: ['collide'], order: 1, run: () => void 0,
+        });
+        const offInstance = editorCmp.commands.registerCommand({
+            id: 'test.collide', label: 'Instance Winner', keywords: ['collide'], order: 1, run: () => void 0,
+        });
+
+        typeSlash(editor, editorCmp, '/collide');
+        fixture.detectChanges();
+        const labels = menuOptions().map(o => o.textContent?.trim() ?? '');
+        expect(labels.some(l => l.includes('Instance Winner'))).toBe(true);
+        expect(labels.some(l => l.includes('Global Loser'))).toBe(false);
+
+        offInstance();
+        offGlobal();
     });
 });

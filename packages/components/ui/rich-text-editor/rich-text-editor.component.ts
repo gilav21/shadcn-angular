@@ -184,6 +184,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             provide: RichTextEditorAddonHost,
             useExisting: forwardRef(() => RichTextEditorComponent),
         },
+        RichTextCommandRegistry,
     ],
     templateUrl: './rich-text-editor.component.html',
     host: {
@@ -198,6 +199,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly el = inject(ElementRef);
     private readonly shortcutBindings = inject(ShortcutBindingService);
     private readonly commandRegistry = inject(RichTextCommandRegistry);
+    private readonly rootCommandRegistry = inject(RichTextCommandRegistry, { skipSelf: true });
 
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
     @ViewChild('editorContainer') editorContainer?: ElementRef<HTMLElement>;
@@ -3193,9 +3195,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Registry of addon-contributed toolbar buttons (addon host surface). */
     readonly toolbarSlots = new AddonSlotRegistry<RichTextToolbarSlot>();
 
-    /** The editor's slash-command registry (addon host surface). */
+    /** This editor instance's slash-command registry (addon host surface). */
     get commands(): RichTextCommandRegistry {
         return this.commandRegistry;
+    }
+
+    /** The app-wide slash-command registry shared by every editor (addon host surface). */
+    get globalCommands(): RichTextCommandRegistry {
+        return this.rootCommandRegistry;
     }
 
     /** The contenteditable content root (addon host surface). */

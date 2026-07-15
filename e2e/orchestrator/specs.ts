@@ -211,6 +211,16 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/outline'],
         label: 'rte-outline',
     },
+    // composition: the slim base + ALL thirteen addons applied to ONE editor —
+    // proves toolbar slots, the aggregated slash menu, and the shared
+    // overlay anchor compose in a real consumer install.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/actions', 'rich-text-editor/ai', 'rich-text-editor/colors', 'rich-text-editor/emoji', 'rich-text-editor/file-import', 'rich-text-editor/history', 'rich-text-editor/images', 'rich-text-editor/links', 'rich-text-editor/mentions', 'rich-text-editor/outline', 'rich-text-editor/slash-commands', 'rich-text-editor/tables', 'rich-text-editor/typography'],
+        // No explicit transitive deps (dialog, color-picker, ...): they must
+        // arrive via the addons' registry dependencies, so this spec doubles
+        // as a missing-dep regression check for every addon entry.
+        label: 'rte-all',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

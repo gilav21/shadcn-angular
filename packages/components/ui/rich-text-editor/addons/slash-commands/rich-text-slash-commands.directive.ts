@@ -161,6 +161,9 @@ export class RichTextSlashCommandsDirective {
         for (const command of this.host.builtinCommands()) {
             merged.set(command.id, command);
         }
+        for (const command of this.host.globalCommands.listCommands()) {
+            merged.set(command.id, command);
+        }
         for (const command of this.host.commands.listCommands()) {
             merged.set(command.id, command);
         }

@@ -114,8 +114,21 @@ export interface RichTextSelectionSnapshot {
 export abstract class RichTextEditorAddonHost {
     /** Toolbar slot registry the base renders after built-in items. */
     abstract readonly toolbarSlots: AddonSlotRegistry<RichTextToolbarSlot>;
-    /** The editor's slash-command registry. */
+    /**
+     * THIS editor instance's slash-command registry. Addons register here, so
+     * a command appears only in the editor whose element carries the addon
+     * directive.
+     */
     abstract readonly commands: RichTextCommandRegistry;
+    /**
+     * The app-wide (root) slash-command registry. Consumers can inject the
+     * root `RichTextCommandRegistry` once and register commands that appear
+     * in EVERY editor's menu; instance commands win on id collisions.
+     * Edge case: an editor nested inside another editor's projected content
+     * resolves the OUTER editor's instance as its "global" registry
+     * (skipSelf finds the nearest ancestor provider, not necessarily root).
+     */
+    abstract readonly globalCommands: RichTextCommandRegistry;
     /** Reactive-friendly snapshot of the current selection / caret target. */
     abstract selection(): RichTextSelectionSnapshot;
     /** Persist the current DOM selection so it survives a dialog interaction. */
