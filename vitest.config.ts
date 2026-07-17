@@ -31,6 +31,9 @@ export default defineConfig(({ mode: _mode }) => ({
                 '**/index.ts',
                 '**/*.types.ts',
                 '**/*-locales.ts',
+                // Consumer-only: the vitest→jest shim runs under the installed
+                // jest consumer (e2e/jest-fixture), never under this browser suite.
+                '**/testing/vitest-compat.ts',
             ],
             // Ratchet, not aspiration: set just below the levels measured on
             // 2026-07-12 (statements 88.98 / branches 74.33 / functions 91.51 /

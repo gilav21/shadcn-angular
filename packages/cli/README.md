@@ -91,6 +91,8 @@ npx @gilav21/shadcn-angular add
 | `-p, --path <path>` | Custom install directory (overrides `components.json`) |
 | `--remote` | Force fetch from GitHub (skip local registry) |
 | `--dry-run` | Show what would be installed without making changes |
+| `--include-tests` | Also install each component's unit tests (persists `tests.include`) |
+| `--no-tests` | Skip test files for this invocation (overrides `tests.include`) |
 | `-b, --branch <branch>` | GitHub branch to fetch from (default: `master`) |
 
 ## Addons
@@ -127,6 +129,65 @@ Related `add` flags:
   (comma-separated keys, or `all`) **without** wiring them in.
 - **`add --no-addons`** — skip the addon prompt entirely (useful in CI).
 
+## Installing component tests
+
+By default components ship as source only — which can *drop* your project's test
+coverage the moment you add them, failing a CI coverage gate on files that have
+no tests. `add --include-tests` fixes that: it installs each component's unit
+tests alongside its source, so the new files arrive already covered.
+
+```bash
+npx @gilav21/shadcn-angular add button --include-tests
+```
+
+The first time you pass `--include-tests`, the choice is saved to
+`components.json` so every later `add` / `update` includes tests automatically:
+
+```jsonc
+{
+  "tests": {
+    "include": true,      // ship specs on add/update
+    "runner": "vitest"    // detected from your project; "vitest" | "jest"
+  }
+}
+```
+
+Pass `--no-tests` to skip specs for a single invocation (it never un-persists the
+default).
+
+### vitest and jest
+
+The shipped specs are written for **vitest**. If your project uses **jest**, the
+CLI detects it (from your `devDependencies` / config files) and installs a tiny
+`vitest-compat` shim into your `lib/` folder, rewriting each spec's
+`import … from 'vitest'` to point at it — so the same specs run unchanged on
+jest. The shim bridges the portable `vi.*` surface (`vi.fn`, `vi.spyOn`,
+`vi.useFakeTimers`, `vi.stubGlobal`, timers, …) to their jest equivalents.
+
+Jest projects need **`@jest/globals`** in their `devDependencies` (the shim
+imports it) and their jest config must map the components alias
+(`moduleNameMapper`), the same mapping the component source already relies on
+for `cn` and other `lib/` imports.
+
+### Switching runners
+
+Migrating a project between runners? One command flips every installed spec and
+the shim, in place (your local spec edits are preserved):
+
+```bash
+npx @gilav21/shadcn-angular set-test-runner jest     # or: vitest
+npx @gilav21/shadcn-angular set-test-runner vitest --dry-run
+```
+
+### Which components ship tests
+
+Only components whose specs are **verified portable** — they pass on a plain
+vitest (jsdom) setup *and* a jest setup, at full coverage — ship tests today. If
+you `add --include-tests` a component that isn't verified yet, its source
+installs normally and it simply ships no specs (the verified set grows over
+time). Run `npx @gilav21/shadcn-angular why <component>` to see whether a
+component carries `testFiles`.
+
 ## Updating components
 
 `update` pulls the latest registry version of your installed components:
@@ -160,6 +221,9 @@ Resolve the markers, then rebuild. Other flags:
 - **`--yes`** — install any newly-required dependencies without prompting. In CI,
   `update --yes` exits non-zero whenever it writes conflict markers, so a merge
   that needs human attention fails the build instead of passing silently.
+- **`--include-tests` / `--no-tests`** — refresh (or skip) each updated
+  component's tests. With `tests.include` persisted in `components.json`, updates
+  refresh specs automatically; `--no-tests` skips them for one run.
 
 ### Refreshing the shared `lib/` files
 
