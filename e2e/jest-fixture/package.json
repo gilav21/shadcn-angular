@@ -1,0 +1,9 @@
+{
+  "name": "jest-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Real jest + jest-preset-angular consumer that validates the vitest-compat shim end-to-end: a component installed with `add --include-tests --testRunner jest` must have its shipped spec pass under jest.",
+  "scripts": {
+    "test": "jest"
+  }
+}

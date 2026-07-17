@@ -49,7 +49,8 @@
     "e2e:scaffold": "tsx e2e/orchestrator/scaffold.ts",
     "new:component": "tsx packages/cli/scripts/new-component.ts",
     "test:portable": "vitest run --config vitest.portable.config.ts",
-    "verify:portable": "tsx packages/cli/scripts/verify-portable.ts"
+    "verify:portable": "tsx packages/cli/scripts/verify-portable.ts",
+    "verify:jest": "node e2e/jest-fixture/run.mjs"
   },
   "simple-git-hooks": {
     "pre-commit": "npm run hook:pre-commit",
@@ -91,6 +92,8 @@
     "esbuild": "^0.28.1",
     "eslint": "^9.39.4",
     "eslint-plugin-sonarjs": "^4.1.0",
+    "jest-environment-jsdom": "^30.4.1",
+    "jest-preset-angular": "^17.0.0",
     "jsdom": "^27.4.0",
     "lint-staged": "^17.0.8",
     "lmdb": "^3.5.4",
@@ -104,7 +107,8 @@
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.61.0",
     "vite": "^7.3.5",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "zone.js": "^0.15.1"
   },
   "dependencies": {
     "lightningcss": "^1.30.2"

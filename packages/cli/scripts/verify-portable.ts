@@ -38,6 +38,7 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '../../..');
 const COMPONENTS_ROOT = path.resolve(SCRIPT_DIR, '../../components');
 const COVERAGE_SUMMARY = path.join(REPO_ROOT, 'coverage-portable', 'coverage-summary.json');
+const JEST_FIXTURE_RUN = path.join(REPO_ROOT, 'e2e/jest-fixture/run.mjs');
 const DEFAULT_LINE_TARGET = 100;
 
 interface ComponentTarget {
@@ -84,6 +85,17 @@ function runSpecs(target: ComponentTarget): boolean {
     return result.status === 0;
 }
 
+/**
+ * Run the component's shipped specs under a REAL jest consumer (the
+ * e2e/jest-fixture, jest-preset-angular + zone). This catches zone-behavioral
+ * failures the zoneless vitest jsdom leg cannot — so a component is only fully
+ * portable when both legs pass. Requires the CLI to be built.
+ */
+function runJestLeg(name: string): boolean {
+    const result = spawnSync(process.execPath, [JEST_FIXTURE_RUN, name], { cwd: REPO_ROOT, stdio: 'inherit' });
+    return result.status === 0;
+}
+
 /** Read the total line-coverage percentage from the last portable run. */
 function readLineCoverage(): number {
     if (!existsSync(COVERAGE_SUMMARY)) {
@@ -99,8 +111,8 @@ interface VerifyOutcome {
     readonly detail: string;
 }
 
-function verifyOne(target: ComponentTarget, floor: number): VerifyOutcome {
-    console.log(`\n▶ Verifying ${target.name} (${target.testFiles.length} spec file(s), floor ${floor}% lines)…`);
+function verifyOne(target: ComponentTarget, floor: number, withJest: boolean): VerifyOutcome {
+    console.log(`\n▶ Verifying ${target.name} (${target.testFiles.length} spec file(s), floor ${floor}% lines${withJest ? ', +jest leg' : ''})…`);
     if (!runSpecs(target)) {
         return { name: target.name, passed: false, detail: 'specs failed under the portable (jsdom) config' };
     }
@@ -108,13 +120,18 @@ function verifyOne(target: ComponentTarget, floor: number): VerifyOutcome {
     if (lines < floor) {
         return { name: target.name, passed: false, detail: `line coverage ${lines}% < ${floor}% floor` };
     }
-    return { name: target.name, passed: true, detail: `specs green, ${lines}% lines` };
+    if (withJest && !runJestLeg(target.name)) {
+        return { name: target.name, passed: false, detail: `vitest jsdom green (${lines}% lines) but the jest leg failed` };
+    }
+    return { name: target.name, passed: true, detail: `specs green, ${lines}% lines${withJest ? ', jest leg green' : ''}` };
 }
 
 function main(): void {
-    const targets = resolveTargets(process.argv.slice(2));
+    const argv = process.argv.slice(2);
+    const withJest = argv.includes('--jest');
+    const targets = resolveTargets(argv);
     const exceptions = loadPortableTestsConfig(COMPONENTS_ROOT).coverageExceptions;
-    const outcomes = targets.map(t => verifyOne(t, coverageFloor(t.name, exceptions)));
+    const outcomes = targets.map(t => verifyOne(t, coverageFloor(t.name, exceptions), withJest));
 
     console.log('\n── Portable verification ──');
     for (const o of outcomes) {
