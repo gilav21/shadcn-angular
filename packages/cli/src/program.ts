@@ -54,10 +54,17 @@ function registerInstallCommands(program: Command): void {
         .option('-p, --path <path>', 'The path to add the component to')
         .option('--remote', 'Force remote fetch from GitHub registry')
         .option('--dry-run', 'Show what would be installed without making changes')
+        .option('--include-tests', 'Also install each component\'s unit tests (persists tests.include in components.json)')
+        .option('--no-tests', 'Skip test files for this invocation (overrides tests.include)')
         .option('-b, --branch <branch>', 'GitHub branch to fetch components from', 'master')
         .option('-r, --registry <url>', 'Custom registry base URL (overrides components.json)')
         .action(add);
 
+    registerApplyCommand(program);
+}
+
+/** The `apply` command — install an addon and wire it into consumer usage. */
+function registerApplyCommand(program: Command): void {
     program
         .command('apply')
         .description('Install an addon (if missing) and wire it into your component(s)')
@@ -94,6 +101,8 @@ function registerSyncCommands(program: Command): void {
         .option('-y, --yes', 'Install newly-required dependencies without prompting')
         .option('-o, --overwrite', 'Overwrite local changes whole-file instead of 3-way merging')
         .option('--dry-run', 'Show what would update without writing')
+        .option('--include-tests', 'Also refresh each component\'s unit tests (persists tests.include in components.json)')
+        .option('--no-tests', 'Skip test files for this invocation (overrides tests.include)')
         .option('--remote', 'Force remote fetch from GitHub registry')
         .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
         .option('-r, --registry <url>', 'Custom registry base URL')

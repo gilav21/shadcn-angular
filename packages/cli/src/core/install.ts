@@ -3,8 +3,10 @@ import path from 'node:path';
 import { fetchAndTransform, fetchLibContent, normalizeContent, type SourceKind } from './fetch.js';
 import { resolveDependencies } from './resolve.js';
 import { detectConflicts, summarizePlan, type AddOptions, type ConflictCheckResult, type InstallPlan } from './plan.js';
-import { type Config, getPrefix, getBlocksAlias } from '../utils/config.js';
+import { type Config, type TestRunner, getPrefix, getBlocksAlias } from '../utils/config.js';
 import { installPackages } from '../utils/package-manager.js';
+import { transformSpecForRunner, VITEST_COMPAT_LIB_FILE } from '../utils/test-transform.js';
+import { hasJestGlobals } from '../utils/test-runner.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
 import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
@@ -39,13 +41,32 @@ interface WriteFilesContext {
     /** `--overwrite`: bypass the 3-way merge and write the upstream version whole-file. */
     forceWholeFile: boolean;
     report: MergeReport;
+    /** Ship each component's portable specs alongside its source. */
+    includeTests: boolean;
+    /** Runner the shipped specs are transformed for (`jest` → vitest-compat shim). */
+    testRunner: TestRunner;
+    /** Components whose OWN specs ship (excludes source pulled only as a testDependency). */
+    testsFor: Set<ComponentName>;
+}
+
+/**
+ * Fetch THEIRS for a file: the conflict-scan cache when present, else a fresh
+ * fetch+transform. Spec files additionally get the runner transform (jest →
+ * vitest-compat import rewrite) and are never in the cache, since the conflict
+ * scan only covers component source.
+ */
+async function fetchTheirs(file: string, ctx: WriteFilesContext, kind: SourceKind, isTest: boolean): Promise<string> {
+    const cached = ctx.contentCache.get(file);
+    if (cached !== undefined) return cached;
+    const transformed = await fetchAndTransform(file, ctx.options, ctx.utilsAlias, ctx.prefix, kind);
+    return isTest ? transformSpecForRunner(transformed, ctx.testRunner, ctx.utilsAlias) : transformed;
 }
 
 /** Build the per-file merge context, fetching THEIRS (from cache or remote). */
 async function mergeContextFor(
-    file: string, component: ComponentDefinition, ctx: WriteFilesContext, kind: SourceKind,
+    file: string, component: ComponentDefinition, ctx: WriteFilesContext, kind: SourceKind, isTest = false,
 ): Promise<MergeWriteContext> {
-    const theirs = ctx.contentCache.get(file) ?? await fetchAndTransform(file, ctx.options, ctx.utilsAlias, ctx.prefix, kind);
+    const theirs = await fetchTheirs(file, ctx, kind, isTest);
     return {
         targetDir: ctx.targetDir,
         component: component.name,
@@ -104,6 +125,30 @@ async function writePeerFiles(
             if (outcome === 'fellback-kept') warnFellBack(file, ctx.warnings);
         } catch (err: unknown) {
             ctx.warnings.push(`Could not update peer file ${file}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+    }
+}
+
+/**
+ * Write a component's portable spec files (`add --include-tests`). Specs are
+ * manifest-tracked, 3-way merged, and pruned exactly like source — the same
+ * `mergeWriteFile` path — so a consumer's local spec edits survive a re-add.
+ * No-op unless this component's own specs are being shipped.
+ */
+async function writeTestFiles(
+    component: ComponentDefinition,
+    ctx: WriteFilesContext,
+    outcomes: MergeOutcome[],
+): Promise<void> {
+    if (!ctx.includeTests || !ctx.testsFor.has(component.name as ComponentName)) return;
+    const kind = ctx.kind ?? 'component';
+    for (const file of component.testFiles ?? []) {
+        try {
+            const outcome = await mergeWriteFile(file, await mergeContextFor(file, component, ctx, kind, true));
+            outcomes.push(outcome);
+            if (outcome === 'fellback-kept') warnFellBack(file, ctx.warnings);
+        } catch (err: unknown) {
+            ctx.warnings.push(`Could not add test file ${file}: ${err instanceof Error ? err.message : String(err)}`);
         }
     }
 }
@@ -224,6 +269,26 @@ export interface InstallInput {
      * a second time. When omitted (e.g. MCP callers), it is computed here.
      */
     precomputedConflicts?: ConflictCheckResult;
+    /** Ship each installed component's portable specs (resolved `--include-tests`). */
+    includeTests?: boolean;
+    /** Runner the shipped specs target; required when `includeTests`. Defaults to vitest. */
+    testRunner?: TestRunner;
+}
+
+/**
+ * Expand an install closure with the spec-only sibling source (`testDependencies`)
+ * the shipped specs import, and report which components' OWN specs ship. Source
+ * pulled purely as a testDependency installs without its own specs.
+ */
+export function expandForTests(
+    closure: Set<ComponentName>, includeTests: boolean,
+): { all: Set<ComponentName>; testsFor: Set<ComponentName> } {
+    if (!includeTests) return { all: closure, testsFor: new Set() };
+    const testDeps: ComponentName[] = [];
+    for (const name of closure) {
+        for (const dep of registry[name].testDependencies ?? []) testDeps.push(dep as ComponentName);
+    }
+    return { all: resolveDependencies([...closure, ...testDeps]), testsFor: new Set(closure) };
 }
 
 function resolveTargetDir(input: InstallInput): string {
@@ -273,6 +338,7 @@ async function writeAllComponents(
         const outcomes: MergeOutcome[] = [];
         const ok = await writeComponentFiles(component, writeCtx, outcomes);
         await writePeerFiles(component, writeCtx, peerFilesToUpdate, outcomes);
+        await writeTestFiles(component, writeCtx, outcomes);
         // Per-component ref advances only when no file fell back (see shouldAdvanceRef).
         if (writeCtx.currentRef && shouldAdvanceRef(outcomes)) {
             recordComponentRef(writeCtx.manifest, name, writeCtx.currentRef);
@@ -296,16 +362,45 @@ function resolveForcedSet(
     return new Set();
 }
 
+/**
+ * Install the vitest→jest compat shim when jest specs shipped, and warn if the
+ * consumer lacks `@jest/globals` (the shim imports it). No-op for vitest or
+ * when no component's own specs were written.
+ */
+interface TestShimContext {
+    readonly finalComponents: ComponentName[];
+    readonly testsFor: Set<ComponentName>;
+    readonly includeTests: boolean;
+    readonly testRunner: TestRunner;
+    readonly libDir: string;
+}
+
+async function installTestShim(
+    shim: TestShimContext, input: InstallInput, warnings: string[], manifest: Manifest,
+): Promise<void> {
+    if (!shim.includeTests || shim.testRunner !== 'jest') return;
+    const shipsSpecs = shim.finalComponents.some(n => shim.testsFor.has(n) && (registry[n].testFiles?.length ?? 0) > 0);
+    if (!shipsSpecs) return;
+    await installSingleLibFile(VITEST_COMPAT_LIB_FILE, path.join(shim.libDir, VITEST_COMPAT_LIB_FILE), input.options, warnings, manifest);
+    if (!hasJestGlobals(input.cwd)) {
+        warnings.push('Installed tests import @jest/globals via the vitest-compat shim — add it with `npm i -D @jest/globals`.');
+    }
+}
+
 export async function performInstall(input: InstallInput): Promise<InstallResult> {
     const warnings: string[] = [];
     const targetDir = resolveTargetDir(input);
     const utilsAlias = input.config.aliases.utils;
     const prefix = getPrefix(input.config);
     const overwriteSet = new Set(input.overwrite ?? []);
+    const includeTests = input.includeTests ?? false;
+    const testRunner = input.testRunner ?? 'vitest';
+    const { all, testsFor } = expandForTests(
+        resolveDependencies([...input.components, ...(input.optionalDeps ?? [])]), includeTests,
+    );
 
     const result = input.precomputedConflicts ?? await detectConflicts(
-        resolveDependencies([...input.components, ...(input.optionalDeps ?? [])]),
-        targetDir, input.options, utilsAlias, prefix,
+        all, targetDir, input.options, utilsAlias, prefix,
     );
     const toOverwrite = result.conflicting.filter(c => overwriteSet.has(c) || input.options.overwrite);
     const declined = result.conflicting.filter(c => !toOverwrite.includes(c));
@@ -322,11 +417,15 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     const report = emptyMergeReport();
     const forcedSet = resolveForcedSet(finalComponents, toOverwrite, input);
     const blocksBase = resolveProjectPath(input.cwd, input.blocksPath ?? aliasToProjectPath(getBlocksAlias(input.config)));
-    const baseCtx = { options: input.options, utilsAlias, contentCache: result.contentCache, prefix, warnings, manifest, currentRef, report };
+    const baseCtx = {
+        options: input.options, utilsAlias, contentCache: result.contentCache, prefix, warnings,
+        manifest, currentRef, report, includeTests, testRunner, testsFor,
+    };
     const installed = await writeAllComponents(finalComponents, targetDir, blocksBase, baseCtx, result.peerFilesToUpdate, forcedSet);
 
     const libDir = resolveProjectPath(input.cwd, aliasToProjectPath(utilsAlias));
     await installLibFiles(new Set(finalComponents), libDir, input.options, warnings, manifest);
+    await installTestShim({ finalComponents, testsFor, includeTests, testRunner, libDir }, input, warnings, manifest);
     await installNpmDependencies(finalComponents, input.cwd, warnings);
     const pruned = await pruneObsoleteFiles(finalComponents, targetDir, manifest, warnings);
     await ensureShortcutService(targetDir, input.cwd, input.config, input.options);
@@ -398,6 +497,10 @@ export async function previewComponentMerges(
         // otherwise edited files are 3-way merged (never force-overwritten here).
         forceWholeFile: !!input.options.overwrite,
         report: emptyMergeReport(),
+        // The merge preview only walks component.files; test-shipping is inert here.
+        includeTests: false,
+        testRunner: 'vitest' as TestRunner,
+        testsFor: new Set<ComponentName>(),
     };
     const previews: MergePreview[] = [];
     for (const name of names) {

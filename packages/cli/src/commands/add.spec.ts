@@ -40,7 +40,10 @@ vi.mock('prompts', () => ({
 
 // `add` is the command shell: it plans, prompts and reports. The install itself
 // (covered in install.spec.ts) is stubbed so the shell's decisions are testable.
-vi.mock('../core/install.js', () => ({ performInstall: vi.fn() }));
+vi.mock('../core/install.js', async (importOriginal) => ({
+    ...await importOriginal<typeof import('../core/install.js')>(),
+    performInstall: vi.fn(),
+}));
 
 vi.mock('../utils/config.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../utils/config.js')>();

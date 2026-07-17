@@ -12,6 +12,8 @@ import {
     type AddOptions, type ConflictCheckResult,
 } from '../core/plan.js';
 import { performInstall, previewComponentMerges, type InstallResult, type MergePreview } from '../core/install.js';
+import { resolveTestInstall } from '../utils/test-runner.js';
+import type { TestRunner } from '../utils/config.js';
 import { printBreakingUsages } from '../core/breaking-scan.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, getComponentRef, type Manifest } from '../core/manifest.js';
@@ -270,6 +272,7 @@ function printMergePreview(previews: MergePreview[]): void {
 async function applyUpdates(
     universe: Set<ComponentName>, conflicts: ConflictCheckResult,
     cwd: string, config: Config, options: AddOptions,
+    tests: { includeTests: boolean; runner: TestRunner },
 ): Promise<InstallResult> {
     // The write set is the `universe` (precomputedConflicts is computed over
     // exactly that set — no re-resolution). Edited files 3-way merge against
@@ -281,6 +284,8 @@ async function applyUpdates(
         cwd, config,
         options,
         precomputedConflicts: conflicts,
+        includeTests: tests.includeTests,
+        testRunner: tests.runner,
     });
     console.log(chalk.green(`\nUpdated ${result.installed.length} component(s).`));
     for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
@@ -293,6 +298,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
     if (!config) abortConfig();
     if (!options.registry && config.registry) options.registry = config.registry;
     options.overwrite ??= config.update?.overwrite;
+    const tests = await resolveTestInstall(config, options, cwd);
 
     const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
     const scan = await scanLayouts(targetDir, getPrefix(config));
@@ -335,7 +341,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
         return;
     }
 
-    const result = await applyUpdates(universe, conflicts, cwd, config, options);
+    const result = await applyUpdates(universe, conflicts, cwd, config, options, tests);
     const hadConflicts = reportMergeSummary(result.mergeReport);
 
     const suggestedAddons = collectSuggestedAddons(collectBreakingChanges(touched));

@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import path from 'node:path';
 import prompts from 'prompts';
-import { isTestRunner, type Config, type TestRunner } from './config.js';
+import { isTestRunner, writeConfig, type Config, type TestRunner } from './config.js';
 
 /** What a consumer project's dependency/config surface says about its runner. */
 export type RunnerDetection = TestRunner | 'both' | 'none';
@@ -25,6 +25,11 @@ function readDependencyNames(cwd: string): Set<string> {
 
 function hasAny(haystack: ReadonlySet<string>, needles: readonly string[]): boolean {
     return needles.some(n => haystack.has(n));
+}
+
+/** True when the consumer already declares `@jest/globals` (the shim imports it). */
+export function hasJestGlobals(cwd: string): boolean {
+    return readDependencyNames(cwd).has('@jest/globals');
 }
 
 function hasConfigFile(cwd: string, names: readonly string[]): boolean {
@@ -91,4 +96,59 @@ export async function resolveRunner(
             : '⚠ No test runner detected — defaulting installed tests to vitest. Set tests.runner in components.json to choose.',
     );
     return 'vitest';
+}
+
+/** The commander flags/context that drive test-shipping resolution. */
+export interface TestInstallInputs {
+    /** `--include-tests` was passed. */
+    readonly includeTests?: boolean;
+    /** `false` when `--no-tests` was passed. */
+    readonly tests?: boolean;
+    /** Non-interactive run (`--yes`). */
+    readonly yes?: boolean;
+    /** Preview run — never prompt, never persist. */
+    readonly dryRun?: boolean;
+}
+
+export interface ResolvedTests {
+    /** Whether this invocation ships specs. */
+    readonly includeTests: boolean;
+    /** Runner the specs are transformed for. */
+    readonly runner: TestRunner;
+}
+
+/** Whether the effective test-shipping decision is on for this invocation. */
+function effectiveIncludeTests(config: Config, options: TestInstallInputs): boolean {
+    if (options.tests === false) return false;
+    return options.includeTests ?? config.tests?.include ?? false;
+}
+
+/** Persist `tests: { include, runner }` the first time `--include-tests` is used (never on dry-run). */
+async function persistTestsChoice(
+    config: Config, options: TestInstallInputs, cwd: string, runner: TestRunner,
+): Promise<void> {
+    const alreadyPersisted = config.tests?.include === true && config.tests?.runner === runner;
+    if (options.includeTests !== true || options.dryRun || alreadyPersisted) return;
+    config.tests = { include: true, runner };
+    await writeConfig(cwd, config);
+    console.log(`Saved tests.include = true (runner: ${runner}) to components.json.`);
+}
+
+/**
+ * Resolve whether this `add`/`update` ships specs and for which runner, and
+ * persist `tests: { include, runner }` in components.json the first time
+ * `--include-tests` is used. `--no-tests` wins for the invocation but never
+ * unpersists; a cancelled runner prompt disables tests for the run.
+ */
+export async function resolveTestInstall(
+    config: Config, options: TestInstallInputs, cwd: string,
+): Promise<ResolvedTests> {
+    const persistedRunner = config.tests?.runner ?? 'vitest';
+    if (!effectiveIncludeTests(config, options)) return { includeTests: false, runner: persistedRunner };
+
+    const runner = await resolveRunner(config, cwd, { interactive: !options.yes && !options.dryRun });
+    if (runner === null) return { includeTests: false, runner: persistedRunner };
+
+    await persistTestsChoice(config, options, cwd, runner);
+    return { includeTests: true, runner };
 }

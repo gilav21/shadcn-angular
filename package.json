@@ -71,6 +71,7 @@
     "@analogjs/vitest-angular": "^2.5.0",
     "@compodoc/compodoc": "^1.1.32",
     "@eslint/js": "^9.39.4",
+    "@jest/globals": "^30.4.1",
     "@playwright/test": "^1.57.0",
     "@storybook/addon-a11y": "^10.1.11",
     "@storybook/addon-docs": "^10.1.11",

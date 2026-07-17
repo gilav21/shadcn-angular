@@ -622,6 +622,8 @@ function entry(overrides: Partial<RegistryEntry> & { name: string }): RegistryEn
         libFiles: [],
         dependencies: [],
         isBlock: false,
+        testFiles: [],
+        testDependencies: [],
         ...overrides,
     };
 }
