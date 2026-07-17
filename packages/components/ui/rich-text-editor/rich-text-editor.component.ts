@@ -13,48 +13,28 @@
     effect,
     AfterViewInit,
     OnDestroy,
-    model,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { DOCUMENT, DatePipe, NgTemplateOutlet } from '@angular/common';
+import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
-import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, from, catchError } from 'rxjs';
-import { debounceTime, switchMap, tap } from 'rxjs/operators';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { isValidImageDataUrl } from '../../lib/parsers/image-validator';
-import { parseColor, formatHex } from '../../lib/color';
-import { AiProvider, AiTask, runAiTask } from '../../lib/ai';
-import { RichTextToolbarComponent, ToolbarItem, DEFAULT_FONT_FAMILIES, FontFamilyStrategy } from './sub/rich-text-toolbar.component';
-import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './sub/rich-text-mention.component';
-import { RichTextImageResizerComponent } from './sub/rich-text-image-resizer.component';
-import { ImageAlignment, applyImageAlignment, parseImageSize } from './rich-text-image.utils';
-import { ButtonComponent } from '../button';
-import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover';
-import {
-    DialogComponent,
-    DialogContentComponent,
-    DialogHeaderComponent,
-    DialogTitleComponent,
-    DialogDescriptionComponent,
-    DialogFooterComponent,
-} from '../dialog';
-import { ScrollAreaComponent } from '../scroll-area';
+import { RichTextToolbarComponent, ToolbarItem } from './sub/rich-text-toolbar.component';
 import { ShortcutBindingService, ShortcutComponentHandle, ShortcutRegistration } from '../../lib/shortcut-binding.service';
 import {
     RichTextCommandRegistry,
     RichTextSlashCommand,
-    RichTextSlashCommandAvailabilityContext,
-    RichTextSlashCommandContext,
 } from './rich-text-command-registry.service';
 import { AddonSlotRegistry } from '../../lib/addon-slots';
 import {
     RichTextEditorAddonHost,
     type RichTextToolbarSlot,
     type RichTextSelectionSnapshot,
+    type RichTextSelectionInlineStyle,
+    type RichTextInlineStyle,
+    type RichTextHistoryEntrySnapshot,
 } from './rich-text-editor.host';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
@@ -119,294 +99,6 @@ export type EditorMode = 'markdown' | 'html';
  */
 export type ToolbarPosition = 'top' | 'floating' | 'none';
 
-/** Discriminator for entity types the editor can insert inline. */
-export type RichTextEntityType = 'mention' | 'tag';
-
-/**
- * How an inserted entity (mention or tag) is rendered in the editor.
- *
- * - `'chip'` ג€” Styled inline `<span>` with a background color (default).
- *   Looks like a pill/badge. Not clickable.
- * - `'link'` ג€” Rendered as an `<a>` element. Requires a URL via
- *   `urlTemplate` or `buildUrl` in {@link RichTextEntityRenderOptions}.
- *   Falls back to `'chip'` if no URL can be resolved.
- * - `'text'` ג€” Plain inline `<span>` with no default styling.
- *   Use `className` in render options to add custom styles.
- */
-export type RichTextEntityRenderMode = 'chip' | 'link' | 'text';
-
-/**
- * Return type for entity search functions. The editor accepts any of:
- * - A synchronous array of results.
- * - A `Promise` that resolves to results.
- * - An RxJS `Observable` that emits results.
- *
- * @typeParam T - The item type ({@link MentionItem} or {@link TagItem}).
- */
-export type RichTextEntitySearchResult<T> = Observable<T[]> | Promise<T[]> | T[];
-
-/**
- * A function that searches for entity candidates based on the user's query text.
- * Called every time the user types after the trigger character (`@` or `#`).
- *
- * @typeParam T - The item type ({@link MentionItem} or {@link TagItem}).
- * @param query - The text the user has typed after the trigger character.
- *   For example, if the user types `@jane`, query will be `"jane"`.
- * @returns A synchronous array, Promise, or Observable of matching items.
- *
- * @example
- * ```ts
- * // Synchronous (for small static lists)
- * const search: RichTextEntitySearchFn<MentionItem> = (query) =>
- *   allUsers.filter(u => u.label.toLowerCase().includes(query.toLowerCase()));
- *
- * // Async with Observable (for API calls)
- * const search: RichTextEntitySearchFn<MentionItem> = (query) =>
- *   this.http.get<MentionItem[]>(`/api/users?q=${query}`);
- * ```
- */
-export type RichTextEntitySearchFn<T> = (query: string) => RichTextEntitySearchResult<T>;
-
-/**
- * Context object passed to `buildUrl` and `buildText` callbacks in
- * {@link RichTextEntityRenderOptions}, and used internally when resolving
- * URL/text templates. Contains everything known about the entity at the
- * moment it is inserted into the editor.
- *
- * All properties are also available as template tokens (see
- * {@link RichTextEntityRenderOptions.urlTemplate}).
- */
-export interface RichTextEntityRenderContext {
-    /** Whether this is a `'mention'` (`@`) or `'tag'` (`#`). */
-    type: RichTextEntityType;
-
-    /** The trigger character that opened the popover: `'@'` or `'#'`. */
-    trigger: '@' | '#';
-
-    /**
-     * Unique identifier for the entity. Resolved as `item.id` if provided,
-     * otherwise falls back to `item.value`.
-     */
-    id: string;
-
-    /** The raw `value` field from the selected {@link MentionItem} or {@link TagItem}. */
-    value: string;
-
-    /** The human-readable `label` from the selected item (e.g. `"Jane Doe"`). */
-    label: string;
-
-    /** The text the user had typed after the trigger when they selected the item. */
-    query: string;
-
-    /** The full selected item object. Useful in `buildUrl`/`buildText` for accessing custom fields. */
-    item: MentionItem | TagItem;
-
-    /**
-     * Alias for `id` ג€” always populated regardless of entity type.
-     * Convenient in URL templates for mentions: `/users/@@userId@@`.
-     */
-    userId: string;
-
-    /**
-     * Alias for `id` ג€” always populated regardless of entity type.
-     * Convenient in URL templates for tags: `/tags/@@tagId@@`.
-     */
-    tagId: string;
-}
-
-/**
- * Controls how an inserted mention or tag is rendered inside the editor.
- *
- * Supply this via the `[mentionRender]` or `[tagRender]` inputs on
- * `<ui-rich-text-editor>`.
- *
- * @example
- * ```html
- * <!-- Render mentions as clickable profile links -->
- * <ui-rich-text-editor
- *   [mentions]="true"
- *   [mentionSearch]="searchUsers"
- *   [mentionRender]="{
- *     mode: 'link',
- *     urlTemplate: '/users/:id',
- *     textTemplate: '@@label@@',
- *     target: '_blank'
- *   }"
- * />
- *
- * <!-- Render tags as plain colored text -->
- * <ui-rich-text-editor
- *   [tags]="true"
- *   [tagSearch]="searchTags"
- *   [tagRender]="{
- *     mode: 'text',
- *     className: 'text-blue-500 font-semibold'
- *   }"
- * />
- * ```
- */
-export interface RichTextEntityRenderOptions {
-    /**
-     * The rendering strategy for inserted entities.
-     *
-     * - `'chip'` ג€” Inline `<span>` styled as a pill/badge (default).
-     * - `'link'` ג€” Clickable `<a>` element. Requires `urlTemplate` or `buildUrl`.
-     * - `'text'` ג€” Plain `<span>` with no default styling.
-     *
-     * @default 'chip'
-     */
-    mode?: RichTextEntityRenderMode;
-
-    /**
-     * A URL pattern with placeholder tokens that are replaced at insert time.
-     * Only used when `mode` is `'link'`.
-     *
-     * **Two token syntaxes are supported:**
-     *
-     * | Syntax | Example | Notes |
-     * |--------|---------|-------|
-     * | `@@token@@` | `@@id@@`, `@@label@@` | Double-at delimiters. Recommended for URLs to avoid confusion with path segments. |
-     * | `:token` | `:id`, `:value` | Colon prefix (like Express routes). Unrecognised tokens are left as-is. |
-     *
-     * **Available tokens:** `id`, `value`, `label`, `query`, `type`, `userId`, `tagId`
-     * (matching the fields on {@link RichTextEntityRenderContext}).
-     *
-     * @example
-     * ```ts
-     * // Mention profile link
-     * urlTemplate: '/users/@@userId@@'
-     *
-     * // Tag page using colon syntax
-     * urlTemplate: '/tags/:value'
-     *
-     * // External URL with label
-     * urlTemplate: 'https://example.com/profiles/@@id@@'
-     * ```
-     */
-    urlTemplate?: string;
-
-    /**
-     * A text pattern with placeholder tokens for the display text of the entity.
-     * Uses the same token syntax as {@link urlTemplate} (`@@token@@` or `:token`).
-     *
-     * If omitted, the default display text is `trigger + label` (e.g. `"@Jane Doe"`).
-     *
-     * @example
-     * ```ts
-     * // Show just the label without the trigger
-     * textTemplate: '@@label@@'
-     *
-     * // Custom format
-     * textTemplate: '[@@label@@]'
-     * ```
-     */
-    textTemplate?: string;
-
-    /**
-     * CSS class(es) applied to the rendered element.
-     *
-     * - For `'chip'` mode, overrides the default `bg-accent text-accent-foreground rounded px-1`.
-     * - For `'link'` mode, overrides the default `bg-accent/20 text-primary rounded px-1 underline underline-offset-2`.
-     * - For `'text'` mode, no default classes ג€” only your custom classes are applied.
-     */
-    className?: string;
-
-    /**
-     * The `target` attribute for the `<a>` element. Only applies when `mode` is `'link'`.
-     *
-     * @default '_blank'
-     */
-    target?: string;
-
-    /**
-     * The `rel` attribute for the `<a>` element. Only applies when `mode` is `'link'`.
-     *
-     * @default 'noopener noreferrer'
-     */
-    rel?: string;
-
-    /**
-     * A callback that builds the URL dynamically. Takes priority over `urlTemplate`.
-     * Only used when `mode` is `'link'`. If this returns an empty string, the entity
-     * falls back to `'chip'` rendering.
-     *
-     * @param context - Full entity context with id, value, label, and the original item.
-     * @returns The URL string. Will be sanitised before being set as `href`.
-     *
-     * @example
-     * ```ts
-     * buildUrl: (ctx) => ctx.item.id
-     *   ? `/api/users/${ctx.item.id}`
-     *   : `/search?q=${encodeURIComponent(ctx.value)}`
-     * ```
-     */
-    buildUrl?: (context: RichTextEntityRenderContext) => string;
-
-    /**
-     * A callback that builds the display text dynamically. Takes priority over `textTemplate`.
-     *
-     * @param context - Full entity context.
-     * @returns The text to display inside the rendered element.
-     *
-     * @example
-     * ```ts
-     * buildText: (ctx) => `${ctx.trigger}${ctx.label} (${ctx.item.description ?? ''})`
-     * ```
-     */
-    buildText?: (context: RichTextEntityRenderContext) => string;
-}
-
-/**
- * Event payload emitted via `(mentionInsert)` or `(tagInsert)` when the user
- * selects an entity from the popover and it is inserted into the editor.
- *
- * Use this to react to insertions ג€” for example, to notify a backend that a
- * user was mentioned, or to track which tags are referenced.
- *
- * @example
- * ```html
- * <ui-rich-text-editor
- *   [mentions]="true"
- *   [mentionSearch]="searchUsers"
- *   (mentionInsert)="onMention($event)"
- * />
- * ```
- * ```ts
- * onMention(event: RichTextEntityInsertEvent) {
- *   console.log(`Mentioned ${event.label} (id: ${event.id})`);
- *   this.notificationService.notifyUser(event.id);
- * }
- * ```
- */
-export interface RichTextEntityInsertEvent {
-    /** Whether this is a `'mention'` or `'tag'`. */
-    type: RichTextEntityType;
-
-    /** The trigger character: `'@'` for mentions, `'#'` for tags. */
-    trigger: '@' | '#';
-
-    /** Unique identifier (from `item.id ?? item.value`). */
-    id: string;
-
-    /** The raw `value` field from the selected item. */
-    value: string;
-
-    /** The human-readable display name from the selected item. */
-    label: string;
-
-    /** The search text the user had typed when they made the selection. */
-    query: string;
-
-    /** The resolved URL if `mode` was `'link'` and a URL could be built, otherwise `undefined`. */
-    url?: string;
-
-    /** The raw HTML that was inserted into the editor's content. */
-    html: string;
-
-    /** The full selected item, giving access to all original fields (avatar, color, etc.). */
-    item: MentionItem | TagItem;
-}
-
 export interface RichTextCustomToolbarItem {
     id: string;
     icon: string;
@@ -441,32 +133,6 @@ interface SerializedSelection {
     endOffset: number;
 }
 
-/** A single entry in the document outline (table of contents). */
-export interface OutlineHeading {
-    /** Heading level, 1-6, derived from the tag name (h1-h6). */
-    level: number;
-    /** Trimmed text content of the heading. */
-    text: string;
-    /** Zero-based position of the heading within the document's heading list. */
-    index: number;
-}
-
-/** CSS selector matching every heading element used by the outline. */
-const OUTLINE_HEADING_SELECTOR = 'h1,h2,h3,h4,h5,h6';
-
-/** Gap (px) left above a heading when the outline scrolls it into view. */
-const OUTLINE_SCROLL_MARGIN = 12;
-
-/** Maps a heading element to an {@link OutlineHeading} entry. */
-function toOutlineHeading(element: Element, index: number): OutlineHeading {
-    const level = Number.parseInt(element.tagName.charAt(1), 10);
-    return {
-        level,
-        text: (element.textContent ?? '').trim(),
-        index,
-    };
-}
-
 /**
  * The default toolbar layout used when `[toolbarItems]` is not provided.
  * Groups: formatting | block type | lists | alignment | colors/size | insert | code | clear.
@@ -482,183 +148,12 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'alignLeft', 'alignCenter', 'alignRight',
     'separator',
-    'fontColor', 'backgroundColor', 'fontSize', 'fontFamily',
-    'separator',
-    'link', 'image', 'importFile', 'emoji',
-    'separator',
-    'table',
-    'separator',
     'code', 'codeBlock',
     'separator',
     'horizontalRule',
     'separator',
     'clear',
 ];
-
-/**
- * Creates the built-in slash commands (paragraph, headings, lists, quote, code, link, undo, redo)
- * using the provided locale strings. Called internally ג€” you normally don't need this directly.
- */
-export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        ...buildFormatSlashCommands(l),
-        ...buildInsertAndHistorySlashCommands(l),
-    ];
-}
-
-function buildHeadingSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        {
-            id: 'format.paragraph',
-            label: l.paragraph,
-            description: l.paragraphDescription,
-            keywords: ['text', 'normal'],
-            order: 10,
-            run: context => context.executeToolbarCommand('paragraph'),
-        },
-        {
-            id: 'format.heading-1',
-            label: l.heading1,
-            description: l.heading1Description,
-            keywords: ['h1', 'title'],
-            order: 20,
-            run: context => context.executeToolbarCommand('heading1'),
-        },
-        {
-            id: 'format.heading-2',
-            label: l.heading2,
-            description: l.heading2Description,
-            keywords: ['h2', 'subtitle'],
-            order: 30,
-            run: context => context.executeToolbarCommand('heading2'),
-        },
-        {
-            id: 'format.heading-3',
-            label: l.heading3,
-            description: l.heading3Description,
-            keywords: ['h3'],
-            order: 40,
-            run: context => context.executeToolbarCommand('heading3'),
-        },
-    ];
-}
-
-function buildListSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        {
-            id: 'format.bullet-list',
-            label: l.bulletList,
-            description: l.bulletListDescription,
-            keywords: ['list', 'ul', 'bl'],
-            order: 50,
-            run: context => context.executeToolbarCommand('bulletList'),
-        },
-        {
-            id: 'format.numbered-list',
-            label: l.numberedList,
-            description: l.numberedListDescription,
-            keywords: ['list', 'ol', 'nl'],
-            order: 60,
-            run: context => context.executeToolbarCommand('orderedList'),
-        },
-        {
-            id: 'format.quote',
-            label: l.blockQuote,
-            description: l.blockQuoteDescription,
-            keywords: ['blockquote', 'quote'],
-            order: 70,
-            run: context => context.executeToolbarCommand('blockquote'),
-        },
-        {
-            id: 'format.inline-code',
-            label: l.inlineCode,
-            description: l.inlineCodeDescription,
-            keywords: ['code'],
-            order: 80,
-            run: context => context.executeToolbarCommand('code'),
-        },
-        {
-            id: 'format.code-block',
-            label: l.codeBlock,
-            description: l.codeBlockDescription,
-            keywords: ['pre', 'snippet'],
-            order: 90,
-            run: context => context.executeToolbarCommand('codeBlock'),
-        },
-    ];
-}
-
-function buildFormatSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        ...buildHeadingSlashCommands(l),
-        ...buildListSlashCommands(l),
-    ];
-}
-
-function buildInsertSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        {
-            id: 'insert.link',
-            label: l.link,
-            description: l.linkDescription,
-            keywords: ['url', 'anchor'],
-            order: 100,
-            run: context => context.showLinkDialog(),
-        },
-        {
-            id: 'insert.task-list',
-            label: l.taskList,
-            description: l.taskListDescription,
-            keywords: ['checkbox', 'todo', 'task', 'checklist'],
-            order: 65,
-            run: context => context.executeToolbarCommand('taskList'),
-        },
-        {
-            id: 'insert.toggle',
-            label: l.toggle,
-            description: l.toggleDescription,
-            keywords: ['details', 'summary', 'collapse', 'expand', 'accordion'],
-            order: 75,
-            run: context => context.executeToolbarCommand('toggle'),
-        },
-        {
-            id: 'insert.horizontal-rule',
-            label: l.horizontalRule,
-            description: l.horizontalRuleDescription,
-            keywords: ['hr', 'divider', 'line', 'separator'],
-            order: 95,
-            run: context => context.executeToolbarCommand('horizontalRule'),
-        },
-    ];
-}
-
-function buildHistorySlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        {
-            id: 'history.undo',
-            label: l.undo,
-            description: l.undoDescription,
-            keywords: ['ctrl+z', 'revert'],
-            order: 110,
-            run: context => context.executeToolbarCommand('undo'),
-        },
-        {
-            id: 'history.redo',
-            label: l.redo,
-            description: l.redoDescription,
-            keywords: ['ctrl+y', 'ctrl+shift+z'],
-            order: 120,
-            run: context => context.executeToolbarCommand('redo'),
-        },
-    ];
-}
-
-function buildInsertAndHistorySlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
-    return [
-        ...buildInsertSlashCommands(l),
-        ...buildHistorySlashCommands(l),
-    ];
-}
 
 export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     { actionId: 'rich-text.bold', description: 'Toggle bold', defaultShortcut: 'Mod+B', category: 'Formatting' },
@@ -677,22 +172,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        DatePipe,
-        NgTemplateOutlet,
         RichTextToolbarComponent,
-        RichTextMentionPopoverComponent,
-        RichTextImageResizerComponent,
-        ButtonComponent,
-        PopoverComponent,
-        PopoverTriggerComponent,
-        PopoverContentComponent,
-        DialogComponent,
-        DialogContentComponent,
-        DialogHeaderComponent,
-        DialogTitleComponent,
-        DialogDescriptionComponent,
-        DialogFooterComponent,
-        ScrollAreaComponent,
     ],
     providers: [
         {
@@ -704,6 +184,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             provide: RichTextEditorAddonHost,
             useExisting: forwardRef(() => RichTextEditorComponent),
         },
+        RichTextCommandRegistry,
     ],
     templateUrl: './rich-text-editor.component.html',
     host: {
@@ -718,11 +199,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly el = inject(ElementRef);
     private readonly shortcutBindings = inject(ShortcutBindingService);
     private readonly commandRegistry = inject(RichTextCommandRegistry);
+    private readonly rootCommandRegistry = inject(RichTextCommandRegistry, { skipSelf: true });
 
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
-    @ViewChild('slashCommandList') slashCommandList?: ElementRef<HTMLDivElement>;
+    @ViewChild('editorContainer') editorContainer?: ElementRef<HTMLElement>;
     @ViewChild('tableContextMenuRef') tableContextMenuRef?: ElementRef<HTMLDivElement>;
-    @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
 
     // ג”€ג”€ Content & mode ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
@@ -753,22 +234,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     customToolbarItems = input<RichTextCustomToolbarItem[]>([]);
     customToolbarAction = output<{ id: string; ref: RichTextEditorRef }>();
 
-    /**
-     * Custom font families for the font family dropdown.
-     * Behaviour depends on {@link fontFamiliesStrategy}:
-     * - `'append'` (default) ג€” these fonts are added **after** the built-in defaults.
-     * - `'replace'` ג€” **only** these fonts are shown; defaults are discarded.
-     *
-     * @see {@link DEFAULT_FONT_FAMILIES} for the built-in list.
-     */
-    fontFamilies = input<string[]>([]);
-
-    /**
-     * Whether custom {@link fontFamilies} replace or extend the defaults.
-     * @see {@link FontFamilyStrategy}
-     */
-    fontFamiliesStrategy = input<FontFamilyStrategy>('append');
-
     // ג”€ג”€ Editor content area ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Placeholder text shown when the editor is empty. Falls back to the locale default. */
@@ -785,131 +250,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Makes the editor non-editable but still selectable/copyable. Hides the toolbar. */
     readonly = input<boolean>(false);
-
-    // ג”€ג”€ Mentions (@) ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-
-    /** Enable the `@mention` feature. When `true`, typing `@` opens a search popover. */
-    mentions = input<boolean>(false);
-
-    /**
-     * Search function called when the user types after `@`. Must return matching
-     * {@link MentionItem}s as an array, Promise, or Observable.
-     * @see {@link RichTextEntitySearchFn} for the full type and examples.
-     */
-    mentionSearch = input<RichTextEntitySearchFn<MentionItem>>(() => []);
-
-    /**
-     * Bring-your-own AI hook. When provided, an "✨ Ask AI" affordance appears on
-     * text selection and via the `/ai` slash command; when omitted, no AI UI is
-     * shown (graceful degradation, like `mentionSearch`). The provider receives
-     * an {@link AiRequest} and returns text, a Promise, or an Observable (the
-     * latter may stream progressive output).
-     */
-    aiProvider = input<AiProvider | undefined>(undefined);
-    readonly hasAi = computed(() => this.aiProvider() !== undefined);
-    /** Emitted when an AI task starts / completes / errors. */
-    readonly aiRequest = output<{ task: AiTask; prompt?: string }>();
-    readonly aiResult = output<string>();
-    readonly aiError = output<string>();
-
-    /**
-     * Controls how selected mentions are rendered in the editor content.
-     * @see {@link RichTextEntityRenderOptions} for all options, token syntax, and examples.
-     */
-    mentionRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
-
-    // ג”€ג”€ Tags (#) ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-
-    /** Enable the `#tag` feature. When `true`, typing `#` opens a search popover. */
-    tags = input<boolean>(false);
-
-    /**
-     * Search function called when the user types after `#`. Must return matching
-     * {@link TagItem}s as an array, Promise, or Observable.
-     * @see {@link RichTextEntitySearchFn} for the full type and examples.
-     */
-    tagSearch = input<RichTextEntitySearchFn<TagItem>>(() => []);
-
-    /**
-     * Controls how selected tags are rendered in the editor content.
-     * @see {@link RichTextEntityRenderOptions} for all options, token syntax, and examples.
-     */
-    tagRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
-
-    // ג”€ג”€ Media & emoji ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-
-    /** Show the emoji picker button in the toolbar. */
-    emojiPicker = input<boolean>(true);
-
-    /** Enable image insertion (toolbar button, paste, drag-and-drop). */
-    images = input<boolean>(true);
-
-    /**
-     * Custom upload handler for images. Receives the `File` and must return an
-     * `Observable<string>` that emits the final image URL. If `undefined`, images
-     * are inserted as base64 data URIs.
-     *
-     * @example
-     * ```ts
-     * imageUploader = (file: File) =>
-     *   this.http.post<{ url: string }>('/api/upload', formData)
-     *     .pipe(map(res => res.url));
-     * ```
-     */
-    imageUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
-
-    /**
-     * Automatically detect and upload base64 images inserted into the editor.
-     * When enabled and `imageUploader` is provided, any base64 `data:image/*`
-     * source is converted to a `File`, uploaded via the `imageUploader` callback,
-     * and replaced with the returned URL. A skeleton shimmer is shown on the
-     * image while the upload is in progress.
-     */
-    autoImageUpload = input<boolean>(false);
-
-    /**
-     * Which image source options to show in the image insertion dialog.
-     * - `'all'` ג€” Both file upload and URL input.
-     * - `'upload'` ג€” File upload only.
-     * - `'url'` ג€” URL input only.
-     */
-    imageSources = input<'all' | 'upload' | 'url'>('all');
-
-    /** Allow users to resize inserted images by dragging the corner handles. */
-    imageResize = input<boolean>(true);
-
-    /** Show the alignment buttons (inline / left / center / right) on a selected image. */
-    imageAlignment = input<boolean>(true);
-
-    /**
-     * Default width applied to every inserted image. A `number` is treated as
-     * pixels; a `string` is passed through (e.g. `'50%'`, `'20rem'`). When unset,
-     * images keep their natural size.
-     */
-    defaultImageWidth = input<number | string>();
-
-    /**
-     * Default height applied to every inserted image. A `number` is treated as
-     * pixels; a `string` is passed through. Leave unset to preserve the aspect
-     * ratio from {@link defaultImageWidth}.
-     */
-    defaultImageHeight = input<number | string>();
-
-    /** Alignment applied to every inserted image. */
-    defaultImageAlignment = input<ImageAlignment>('inline');
-
-    /** Lower clamp (px) for drag-resizing an image. */
-    minImageWidth = input<number>(20);
-
-    /** Upper clamp (px) for drag-resizing an image. No ceiling when unset. */
-    maxImageWidth = input<number>();
-
-    /**
-     * Keep the aspect ratio locked while resizing. When `false`, corner handles
-     * resize width and height independently and single-axis edge handles appear,
-     * so an image can be stretched in just one dimension.
-     */
-    lockImageAspectRatio = input<boolean>(true);
 
     // ג”€ג”€ Character & word count ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
@@ -937,23 +277,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     historyDebounceMs = input<number>(450);
 
-    /** Enable the revision history feature (popover + preview dialog). */
-    showHistoryPanel = input<boolean>(false);
-
-    /** Show the "Revisions" button in the top-right corner. Only visible when `showHistoryPanel` is `true`. */
-    showHistoryButton = input<boolean>(true);
-
-    // ג”€ג”€ Slash commands ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
-
-    /** Enable the `/slash` command feature. When `true`, typing `/` opens a command menu. */
-    enableSlashCommands = input<boolean>(true);
-
-    /**
-     * Additional custom slash commands to register alongside the built-in ones.
-     * @see {@link RichTextSlashCommand} for the full interface and examples.
-     */
-    slashCommands = input<RichTextSlashCommand[]>([]);
-
     // ג”€ג”€ Localisation ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /**
@@ -979,53 +302,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     readonly isRtl = this.i18n.isRtl;
     readonly dir = this.i18n.dir;
 
-    localizedSlashCommands = computed(() => {
-        const commands = [
-            ...buildDefaultSlashCommands(this.resolvedLocale().slashCommands),
-            this.buildOutlineSlashCommand(),
-        ];
-        if (this.hasAi()) {
-            commands.push(this.buildAiSlashCommand());
-        }
-        return commands;
-    });
-
-    /** Builds the `/ai` slash command (only registered when an `aiProvider` is set). */
-    private buildAiSlashCommand(): RichTextSlashCommand {
-        const a = this.aiLabels();
-        return {
-            id: 'insert.ai',
-            label: a.slash,
-            description: a.slashDescription,
-            keywords: ['ai', 'assist', 'rewrite', 'summarize', 'generate'],
-            order: 5,
-            run: () => this.openAiPanel(),
-        };
-    }
-
-    /** Builds the `/outline` slash command, which opens the document outline docked. */
-    private buildOutlineSlashCommand(): RichTextSlashCommand {
-        const l = this.resolvedLocale().slashCommands;
-        return {
-            id: 'view.outline',
-            label: l.outline,
-            description: l.outlineDescription,
-            keywords: ['outline', 'toc', 'headings', 'contents'],
-            order: 125,
-            run: () => this.openOutlineDocked(),
-        };
-    }
-
-    resolvedFontFamilies = computed<string[]>(() => {
-        const custom = this.fontFamilies();
-        if (custom.length === 0) {
-            return DEFAULT_FONT_FAMILIES;
-        }
-        if (this.fontFamiliesStrategy() === 'replace') {
-            return custom;
-        }
-        return [...DEFAULT_FONT_FAMILIES, ...custom];
-    });
+    /**
+     * Base-owned slash commands surfaced to the slash-commands addon through the
+     * host. Now empty: every feature command (`/outline`, `/ai`, `/link`, …) is
+     * registered by its own opt-in addon into {@link commands}. The seam is kept
+     * (the slash-commands addon merges it) so the base can reclaim a built-in
+     * command in future without a contract change.
+     */
+    readonly builtinCommands = computed<readonly RichTextSlashCommand[]>(() => []);
 
     // ג”€ג”€ Outputs ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
@@ -1048,65 +332,25 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Emits when the editor loses focus. */
     blurred = output<void>();
 
-    /** Emits the `File` object when an image upload begins. */
-    imageUploadStart = output<File>();
-
-    /** Emits the final image URL string when an image upload completes successfully. */
-    imageUploadComplete = output<string>();
-
-    /** Emits an error message string when an image upload fails. */
-    imageUploadError = output<string>();
-
-    /** Emits the final URL when a base64 auto-upload completes successfully. */
-    autoImageUploadComplete = output<string>();
-
-    /** Emits an error message when a base64 auto-upload fails. */
-    autoImageUploadError = output<string>();
-
-    /**
-     * Emits when a mention is inserted into the editor.
-     * @see {@link RichTextEntityInsertEvent} for the payload shape.
-     */
-    mentionInsert = output<RichTextEntityInsertEvent>();
-
-    /**
-     * Emits when a tag is inserted into the editor.
-     * @see {@link RichTextEntityInsertEvent} for the payload shape.
-     */
-    tagInsert = output<RichTextEntityInsertEvent>();
-
-    fileImportStart = output<File>();
-    fileImportComplete = output<string>();
-    fileImportError = output<string>();
-
     private readonly htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
     currentFontSize = signal<string>('');
     currentFontFamily = signal<string>('');
     readonly currentFontColor = signal<string>('');
     readonly currentBackgroundColor = signal<string>('');
+    /** Inline style at the caret, exposed to the colors/typography addons as raw browser values. */
+    readonly selectionInlineStyle = computed<RichTextSelectionInlineStyle>(() => ({
+        color: this.currentFontColor(),
+        backgroundColor: this.currentBackgroundColor(),
+        fontSize: this.currentFontSize(),
+        fontFamily: this.currentFontFamily(),
+    }));
     showFloatingToolbar = signal<boolean>(false);
     floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly emptyFormats = new Set<string>();
-    mentionPopoverOpen = signal<boolean>(false);
-    mentionType = signal<'mention' | 'tag'>('mention');
-    mentionQuery = signal<string>('');
-    mentionPopoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-    slashCommandOpen = signal<boolean>(false);
-    slashQuery = signal<string>('');
-    slashCommandPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-    slashCommandSelectedIndex = signal<number>(0);
-    private readonly mentionSearchQuery$ = new Subject<{ type: 'mention' | 'tag'; query: string }>();
-    loadedMentionItems = signal<(MentionItem | TagItem)[]>([]);
-    mentionLoading = signal<boolean>(false);
     selectedImage = signal<HTMLImageElement | null>(null);
-    showLinkPopover = signal<boolean>(false);
-    linkPopoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     selectedText = signal<string>('');
     dragOver = signal<boolean>(false);
-    imageUploading = signal<boolean>(false);
-    fileImporting = signal<boolean>(false);
-    fileImportErrorMessage = signal('');
     tableContextMenuOpen = signal(false);
     tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
@@ -1134,20 +378,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly onTableCellTouchMoveBound = this.onTableCellTouchMove.bind(this);
     private readonly onTableCellTouchEndBound = this.onTableCellTouchEnd.bind(this);
 
-    private readonly autoUploadMap = new Map<string, { subscription: Subscription; dataUrl: string }>();
-    private autoUploadObserver: MutationObserver | null = null;
-    private autoUploadCounter = 0;
-    private autoUploadMutating = false;
-    autoUploadErrors = signal<Map<string, { dataUrl: string; imgElement: HTMLImageElement }>>(new Map());
 
-    historyPanelOpen = signal<boolean>(false);
-    /** Whether the docked document-outline panel is open. */
-    outlinePanelOpen = signal<boolean>(false);
-    historyPreviewOpen = model<boolean>(false);
-    historyBrowserOpen = model<boolean>(false);
-    selectedHistoryIndex = signal<number | null>(null);
-    lastAppliedHistoryIndex = signal<number | null>(null);
-    private readonly historyVersion = signal<number>(0);
+    private readonly _historyVersion = signal<number>(0);
+    /** Bumps on every history-stack change; read by the history addon (addon host surface). */
+    readonly historyVersion = this._historyVersion.asReadonly();
 
     findReplaceVisible = signal(false);
     findQuery = signal('');
@@ -1163,10 +397,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private isUndoRedo = false;
     private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private shortcutHandle: ShortcutComponentHandle | null = null;
-    private slashAnchorBlock: HTMLElement | null = null;
-    private slashTriggerRange: Range | null = null;
+    private readonly keydownInterceptors = new Set<(event: KeyboardEvent) => boolean>();
+    private readonly inputObservers = new Set<(text: string, caretOffset: number) => void>();
+    private readonly pasteInterceptors = new Set<(event: ClipboardEvent) => boolean>();
+    private readonly dropInterceptors = new Set<(event: DragEvent) => boolean>();
+    private readonly dropZonePredicates = new Set<(event: DragEvent) => boolean>();
+    private readonly shortcutActions = new Map<string, { run: () => void; when?: () => boolean }>();
     private savedRange: Range | null = null;
-    private _pendingLinkPositionHint: { x: number; y: number } | null = null;
+    private linkEditorOpen: ((caretHint?: { x: number; y: number }) => void) | null = null;
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
 
@@ -1216,8 +454,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             '[&_details>:not(summary)]:px-3 [&_details>:not(summary)]:py-2',
             '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
             'disabled:cursor-not-allowed',
-            'transition-[padding] duration-150',
-            this.outlinePanelOpen() ? 'md:ps-[calc(16rem+8px)] lg:ps-[calc(20rem+8px)]' : ''
         )
     );
 
@@ -1242,138 +478,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     interpolateLocale(template: string, values: Record<string, string | number>): string {
         return interpolate(template, values);
     }
-
-    /** Opens the docked document-outline panel. Used by the `/outline` slash command. */
-    openOutlineDocked(): void {
-        this.outlinePanelOpen.set(true);
-    }
-
-    /** Live table of contents derived from the editor's heading elements, in document order. */
-    outlineHeadings = computed<OutlineHeading[]>(() => {
-        this.htmlContent();
-        const editor = this.editorDiv?.nativeElement;
-        if (!editor) {
-            return [];
-        }
-        return Array.from(editor.querySelectorAll(OUTLINE_HEADING_SELECTOR)).map((element, index) => toOutlineHeading(element, index));
-    });
-
-    /**
-     * Smoothly scrolls the heading at the given outline index to the top of the
-     * editor's own scroll container. Never calls `Element.scrollIntoView()`, so
-     * it cannot scroll the page or any ancestor ג€” only the editor moves.
-     * Read-only: never mutates editor content.
-     */
-    scrollHeadingIntoView(index: number): void {
-        const editor = this.editorDiv?.nativeElement;
-        if (!editor) {
-            return;
-        }
-        const headings = editor.querySelectorAll<HTMLElement>(OUTLINE_HEADING_SELECTOR);
-        const target = headings[index];
-        if (!target) {
-            return;
-        }
-        const delta = target.getBoundingClientRect().top - editor.getBoundingClientRect().top;
-        editor.scrollBy({ top: delta - OUTLINE_SCROLL_MARGIN, behavior: 'smooth' });
-    }
-
-    /** Handles keyboard activation (Enter/Space) on an outline entry row. */
-    onOutlineEntryKeydown(event: KeyboardEvent, index: number): void {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            this.scrollHeadingIntoView(index);
-        }
-    }
-
-    filteredMentionItems = computed(() => {
-        return this.loadedMentionItems().slice(0, 10);
-    });
-
-    filteredSlashCommands = computed(() => {
-        const query = this.slashQuery().trim().toLowerCase();
-        const availability: RichTextSlashCommandAvailabilityContext = {
-            query: this.slashQuery(),
-            disabled: this.disabled(),
-            readonly: this.readonly(),
-            hasSelection: !!this.selectedText(),
-        };
-        const merged = new Map<string, RichTextSlashCommand>();
-        for (const command of this.localizedSlashCommands()) {
-            merged.set(command.id, command);
-        }
-        for (const command of this.commandRegistry.listCommands()) {
-            merged.set(command.id, command);
-        }
-        for (const command of this.slashCommands()) {
-            merged.set(command.id, command);
-        }
-
-        const matchesQuery = (command: RichTextSlashCommand): boolean => {
-            if (!query) {
-                return true;
-            }
-            const haystack = [
-                command.label,
-                command.description ?? '',
-                ...(command.keywords ?? []),
-                ...(command.aliases ?? []),
-            ].join(' ').toLowerCase();
-            return haystack.includes(query);
-        };
-
-        return Array.from(merged.values())
-            .filter(command => !command.when || command.when(availability))
-            .filter(matchesQuery)
-            .sort((a, b) => {
-                const byOrder = (a.order ?? 9999) - (b.order ?? 9999);
-                if (byOrder !== 0) {
-                    return byOrder;
-                }
-                return a.label.localeCompare(b.label);
-            })
-            .slice(0, 10);
-    });
-
-    historyTimelineEntries = computed(() => {
-        this.historyVersion();
-        return this.history.map((entry, index) => ({
-            index,
-            timestamp: entry.timestamp,
-            preview: entry.preview,
-            previewLines: entry.previewLines,
-            lineCount: entry.lineCount,
-            active: index === this.historyIndex,
-        })).reverse();
-    });
-
-    historyCount = computed(() => {
-        this.historyVersion();
-        return this.history.length;
-    });
-
-    selectedHistoryEntry = computed(() => {
-        this.historyVersion();
-        const index = this.selectedHistoryIndex();
-        if (index === null || index < 0 || index >= this.history.length) {
-            return null;
-        }
-        const entry = this.history[index];
-        return {
-            index,
-            html: this.reconstructHtmlCached(index),
-            timestamp: entry.timestamp,
-            preview: entry.preview,
-        };
-    });
-
-    selectedHistoryEntryMarkdown = computed(() => {
-        const selected = this.selectedHistoryEntry();
-        if (!selected) {
-            return '';
-        }
-        return this.markdownService.toMarkdown(selected.html);
-    });
 
 
     onEditorClick(event: MouseEvent): void {
@@ -1415,29 +519,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         sel.addRange(r);
     }
 
-    onImageResizeEnd(): void {
-        this.flushPendingHistoryPush();
-        this.syncContentFromEditor();
-        this.pushHistory();
-    }
-
-    onImageAlignmentChange(): void {
-        this.syncContentFromEditor();
-        this.pushHistory();
-    }
-
-    onImageRemove(img: HTMLImageElement): void {
-        img.remove();
-        this.selectedImage.set(null);
-        this.syncContentFromEditor();
-        this.pushHistory();
-    }
-
     constructor() {
         super();
         this.setupOutputEffects();
-        this.setupMentionSearch();
-        this.setupSlashCommandEffects();
         this.setupFloatingToolbarEffect();
     }
 
@@ -1452,62 +536,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         });
         effect(() => {
             this.wordCountChange.emit(this.wordCount());
-        });
-    }
-
-    private setupMentionSearch(): void {
-        this.mentionSearchQuery$.pipe(
-            debounceTime(200),
-            tap(() => this.mentionLoading.set(true)),
-            switchMap(({ type, query }) => {
-                const searchFn = type === 'mention'
-                    ? this.mentionSearch()
-                    : this.tagSearch();
-                const result = searchFn(query);
-
-                if (isObservable(result)) {
-                    return result;
-                }
-
-                if (result instanceof Promise) {
-                    return from(result);
-                }
-
-                return of((result ?? []) as (MentionItem | TagItem)[]);
-            }),
-            catchError(() => of([] as (MentionItem | TagItem)[])),
-            takeUntilDestroyed(),
-        ).subscribe(items => {
-            this.loadedMentionItems.set(items);
-            this.mentionLoading.set(false);
-        });
-    }
-
-    private setupSlashCommandEffects(): void {
-        effect(() => {
-            const commands = this.filteredSlashCommands();
-            const currentIndex = this.slashCommandSelectedIndex();
-            if (commands.length === 0) {
-                if (currentIndex !== 0) {
-                    this.slashCommandSelectedIndex.set(0);
-                }
-                return;
-            }
-            if (currentIndex >= commands.length) {
-                this.slashCommandSelectedIndex.set(commands.length - 1);
-            }
-        });
-
-        effect(() => {
-            if (!this.slashCommandOpen()) {
-                return;
-            }
-            const commands = this.filteredSlashCommands();
-            const currentIndex = this.slashCommandSelectedIndex();
-            if (commands.length === 0 || currentIndex < 0 || currentIndex >= commands.length) {
-                return;
-            }
-            queueMicrotask(() => this.scrollSelectedSlashCommandIntoView());
         });
     }
 
@@ -1619,8 +647,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 description: 'Open revision history',
                 defaultShortcut: 'Mod+Shift+H',
                 category: 'History',
-                when: () => canEdit() && this.showHistoryPanel(),
-                handler: () => this.openHistoryFromShortcut(),
+                when: () => canEdit() && this.canRunShortcutAction('rich-text.history'),
+                handler: () => this.runShortcutAction('rich-text.history'),
             },
             {
                 actionId: 'rich-text.find',
@@ -1652,55 +680,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (this.editorDiv?.nativeElement) {
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
             this.enableTaskCheckboxes(this.editorDiv.nativeElement);
-            this.setupAutoUploadObserver();
         }
-    }
-
-    private setupAutoUploadObserver(): void {
-        const editor = this.editorDiv?.nativeElement;
-        if (!editor) return;
-
-        this.injectAutoUploadStyles();
-
-        this.autoUploadObserver = new MutationObserver(() => {
-            if (this.autoUploadMutating) return;
-            this.scanForBase64Images();
-        });
-
-        this.autoUploadObserver.observe(editor, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['src'],
-        });
-
-        this.scanForBase64Images();
-    }
-
-    private injectAutoUploadStyles(): void {
-        const styleId = 'ui-rte-auto-upload-styles';
-        if (this.document.getElementById(styleId)) return;
-
-        const style = this.document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-            @keyframes ui-auto-upload-shimmer {
-                0% { background-position: 200% 0; }
-                100% { background-position: -200% 0; }
-            }
-            img[data-auto-upload-status="uploading"] {
-                background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted-foreground) / 0.1) 50%, hsl(var(--muted)) 75%);
-                background-size: 200% 100%;
-                animation: ui-auto-upload-shimmer 1.5s ease-in-out infinite;
-                border-radius: 0.375rem;
-            }
-            img[data-auto-upload-status="error"] {
-                opacity: 0.4;
-                border: 2px dashed hsl(var(--destructive));
-                border-radius: 0.375rem;
-            }
-        `;
-        this.document.head.appendChild(style);
     }
 
     writeValue(value: string): void {
@@ -1730,7 +710,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const div = event.target as HTMLDivElement;
         const html = this.sanitizer.sanitize(div.innerHTML).replaceAll('\u200B', '');
 
-        const textContent = div.textContent ?? '';
         const triggerTextContent = this.buildTriggerAwareText(div.innerHTML);
         const selection = this.document.getSelection();
         const hasSelection = !!selection && selection.rangeCount > 0;
@@ -1738,12 +717,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             ? this.getCaretOffset(div)
             : triggerTextContent.length;
 
-        const textForSlash = triggerTextContent;
-        if (this.checkSlashCommandTrigger(textForSlash, caretOffset)) {
-            this.closeMentionPopover();
-        } else {
-            this.checkMentionTrigger(textContent, caretOffset);
-        }
+        // Addons (e.g. slash-commands, mentions) observe the trigger-aware text
+        // and run their own trigger detection.
+        this.notifyInputObservers(triggerTextContent, caretOffset);
 
         this.htmlContent.set(html);
 
@@ -1759,41 +735,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     onKeydown(event: KeyboardEvent): void {
-        if (this.handleSlashCommandKey(event)) return;
-        if (this.handleMentionPopoverKey(event)) return;
+        if (this.dispatchKeydownInterceptors(event)) return;
         if (this.shortcutHandle?.dispatch(event)) return;
 
         if (event.key === 'Escape') {
-            this.closeMentionPopover();
-            this.closeSlashCommandPopover();
             this.showFloatingToolbar.set(false);
         }
 
-        if (event.key === 'Tab' && !this.mentionPopoverOpen() && !this.slashCommandOpen()) {
+        if (event.key === 'Tab') {
             this.handleTabKey(event);
         }
 
         if (event.key === 'Enter' && !event.shiftKey) {
             this.handleEnterKey(event);
         }
-    }
-
-    private handleSlashCommandKey(event: KeyboardEvent): boolean {
-        if (!this.slashCommandOpen()) return false;
-        const slashKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab', ' ', 'Spacebar'];
-        if (!slashKeys.includes(event.key)) return false;
-        event.preventDefault();
-        this.onSlashCommandKeydown(event);
-        return true;
-    }
-
-    private handleMentionPopoverKey(event: KeyboardEvent): boolean {
-        if (!this.mentionPopoverOpen() || !this.mentionPopover) return false;
-        const popoverKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab'];
-        if (!popoverKeys.includes(event.key)) return false;
-        event.preventDefault();
-        this.mentionPopover.onKeydown(event);
-        return true;
     }
 
     private handleTabKey(event: KeyboardEvent): void {
@@ -1978,7 +933,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    async onPaste(event: ClipboardEvent): Promise<void> {
+    onPaste(event: ClipboardEvent): void {
         event.preventDefault();
         this.flushPendingHistoryPush();
 
@@ -1986,13 +941,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
 
+        for (const interceptor of this.pasteInterceptors) {
+            if (interceptor(event)) {
+                return;
+            }
+        }
+
         const html = event.clipboardData?.getData('text/html');
         const text = event.clipboardData?.getData('text/plain') ?? '';
-
-        const imageFile = Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith('image/'));
-        if (imageFile && this.images() && await this.handlePasteImage(imageFile, html, text)) {
-            return;
-        }
 
         if (this.handlePasteMaxLength(text)) {
             return;
@@ -2001,15 +957,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const normalized = this.pasteNormalizer.normalize(html ?? null, text);
         this.insertHtml(normalized);
         this.pushHistory();
-    }
-
-    private async handlePasteImage(imageFile: File, html: string | undefined, text: string): Promise<boolean> {
-        const source = this.pasteNormalizer.detectSource(html ?? null, text);
-        if (source !== 'excel') {
-            await this.insertImageFile(imageFile);
-            return true;
-        }
-        return false;
     }
 
     private handlePasteMaxLength(text: string): boolean {
@@ -2041,12 +988,20 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const hasFiles = event.dataTransfer?.types?.includes('Files') ?? false;
         if (!hasFiles) return;
 
-        const canAcceptImage = this.images() && (this.canUseUploadSource() || this.canUseUrlSource());
-        const canAcceptDocument = this.canDropDocumentFile() && this.hasSupportedDocumentFile(event.dataTransfer);
-        if (!canAcceptImage && !canAcceptDocument) return;
+        const canAcceptAddon = this.dispatchDropZonePredicates(event);
+        if (!canAcceptAddon) return;
 
         event.preventDefault();
         this.dragOver.set(true);
+    }
+
+    private dispatchDropZonePredicates(event: DragEvent): boolean {
+        for (const predicate of this.dropZonePredicates) {
+            if (predicate(event)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     onEditorDragLeave(event: DragEvent): void {
@@ -2065,23 +1020,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.dragOver.set(false);
         if (this.disabled() || this.readonly()) return;
 
-        const files = Array.from(event.dataTransfer?.files ?? []);
-
-        const imageFile = this.images() && (this.canUseUploadSource() || this.canUseUrlSource())
-            ? files.find(file => file.type.startsWith('image/'))
-            : undefined;
-        if (imageFile) {
-            event.preventDefault();
-            await this.insertImageFile(imageFile);
+        if (this.dispatchDropInterceptors(event)) {
             return;
-        }
-
-        const documentFile = this.canDropDocumentFile()
-            ? files.find(file => file.type === 'application/pdf' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.pdf') || file.name.endsWith('.docx'))
-            : undefined;
-        if (documentFile) {
-            event.preventDefault();
-            await this.onFileImport(documentFile);
         }
     }
 
@@ -2098,11 +1038,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         this.onTouched();
         this.blurred.emit();
-        this.closeSlashCommandPopover();
-
-        if (this.showLinkPopover()) {
-            return;
-        }
 
         const relatedTarget = event?.relatedTarget as Node | null;
         if (relatedTarget && this.el.nativeElement.contains(relatedTarget)) {
@@ -2110,12 +1045,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
 
         setTimeout(() => {
-            if (!this.showLinkPopover()) {
-                const activeElement = this.document.activeElement;
-                const isInsideComponent = this.el.nativeElement.contains(activeElement);
-                if (!isInsideComponent) {
-                    this.showFloatingToolbar.set(false);
-                }
+            const activeElement = this.document.activeElement;
+            const isInsideComponent = this.el.nativeElement.contains(activeElement);
+            if (!isInsideComponent) {
+                this.showFloatingToolbar.set(false);
             }
         }, 200);
     }
@@ -2124,7 +1057,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.updateActiveFormats();
         const selection = this.document.getSelection();
         this.selectedText.set(selection?.toString() ?? '');
-        this.updateAiTrigger(selection);
         if (selection && !selection.isCollapsed && this.toolbar() === 'floating') {
             this.updateFloatingToolbarPosition();
             this.showFloatingToolbar.set(true);
@@ -2138,368 +1070,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    // ── AI assist ──
-    readonly showAiTrigger = signal(false);
-    readonly aiTriggerPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-    readonly aiPanelOpen = signal(false);
-    readonly aiPhase = signal<'menu' | 'loading' | 'review'>('menu');
-    readonly aiPanelPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-    readonly aiErrorMessage = signal<string | null>(null);
-    readonly aiCustomPrompt = signal('');
-    private static readonly DEFAULT_AI_LABELS = {
-        trigger: '✨ Ask AI',
-        slash: 'Ask AI',
-        slashDescription: 'Rewrite, summarize, or generate with AI',
-        rewrite: 'Improve writing',
-        fixGrammar: 'Fix spelling & grammar',
-        shorten: 'Make shorter',
-        expand: 'Make longer',
-        summarize: 'Summarize',
-        continueWriting: 'Continue writing',
-        promptPlaceholder: 'Ask AI to…',
-        go: 'Go',
-        generating: 'Generating…',
-        accept: 'Accept',
-        discard: 'Discard',
-        retry: 'Try again',
-        failed: 'AI request failed',
-    };
-    readonly aiLabels = computed(() => ({
-        ...RichTextEditorComponent.DEFAULT_AI_LABELS,
-        ...this.resolvedLocale().ai,
-    }));
-    readonly aiTasks = computed<{ task: AiTask; label: string }[]>(() => {
-        const a = this.aiLabels();
-        return [
-            { task: 'rewrite', label: a.rewrite },
-            { task: 'fix-grammar', label: a.fixGrammar },
-            { task: 'shorten', label: a.shorten },
-            { task: 'expand', label: a.expand },
-            { task: 'summarize', label: a.summarize },
-            { task: 'continue', label: a.continueWriting },
-        ];
-    });
-    private aiSubscription: Subscription | null = null;
-    private aiController: AbortController | null = null;
-    private aiDraftEl: HTMLElement | null = null;
-    private aiRange: Range | null = null;
-    private aiSavedHtml = '';
-    private aiSavedText = '';
-    private aiContinueMode = false;
-
-    private updateAiTrigger(selection: Selection | null): void {
-        if (this.aiPanelOpen()) return;
-        const active = !!selection && !selection.isCollapsed && this.hasAi() && !this.readonly() && !this.disabled();
-        if (active && selection) {
-            const rect = selection.getRangeAt(0).getBoundingClientRect();
-            this.aiTriggerPosition.set({ x: rect.left, y: rect.top - 40 });
-            this.showAiTrigger.set(true);
-        } else {
-            this.showAiTrigger.set(false);
-        }
-    }
-
-    /** Open the AI menu, capturing the current selection (or caret for continue). */
-    openAiPanel(): void {
-        if (!this.hasAi()) return;
-        this.captureAiSelection();
-        this.aiErrorMessage.set(null);
-        this.aiCustomPrompt.set('');
-        this.aiPhase.set('menu');
-        this.showAiTrigger.set(false);
-        if (this.aiRange) {
-            const rect = this.aiRange.getBoundingClientRect();
-            this.aiPanelPosition.set({ x: Math.max(8, rect.left), y: rect.bottom + 8 });
-        }
-        this.aiPanelOpen.set(true);
-    }
-
-    private captureAiSelection(): void {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            this.aiRange = null;
-            this.aiSavedText = '';
-            this.aiSavedHtml = '';
-            return;
-        }
-        const range = selection.getRangeAt(0);
-        this.aiRange = range.cloneRange();
-        if (range.collapsed) {
-            this.aiSavedText = this.editorDiv?.nativeElement?.textContent ?? '';
-            this.aiSavedHtml = '';
-        } else {
-            this.aiSavedText = selection.toString();
-            const wrapper = this.document.createElement('div');
-            wrapper.appendChild(range.cloneContents());
-            this.aiSavedHtml = wrapper.innerHTML;
-        }
-    }
-
-    /** Run a built-in AI task on the captured selection. */
-    runAi(task: AiTask, prompt?: string): void {
-        const provider = this.aiProvider();
-        if (!provider || !this.aiRange) return;
-        this.cancelAi();
-        this.aiContinueMode = task === 'continue';
-        this.beginAiDraft();
-        if (this.aiDraftEl) this.streamAi(task, prompt);
-    }
-
-    /** Run the user's free-form prompt. */
-    runCustomAi(): void {
-        const prompt = this.aiCustomPrompt().trim();
-        if (prompt) this.runAi('custom', prompt);
-    }
-
-    /** Re-run the last task into the existing draft. */
-    retryAi(task: AiTask, prompt?: string): void {
-        if (!this.aiDraftEl) {
-            this.runAi(task, prompt);
-            return;
-        }
-        this.cancelAi();
-        this.aiDraftEl.textContent = '';
-        this.streamAi(task, prompt);
-    }
-
-    private aiLastTask: AiTask = 'rewrite';
-    private aiLastPrompt: string | undefined;
-
-    /** Re-run whichever task produced the current draft. */
-    retryLastAi(): void {
-        this.retryAi(this.aiLastTask, this.aiLastPrompt);
-    }
-
-    private streamAi(task: AiTask, prompt?: string): void {
-        const provider = this.aiProvider();
-        if (!provider) return;
-        this.aiLastTask = task;
-        this.aiLastPrompt = prompt;
-        this.aiRequest.emit({ task, prompt });
-        this.aiErrorMessage.set(null);
-        this.aiPhase.set('loading');
-        this.aiController = new AbortController();
-        this.aiSubscription = runAiTask(provider, {
-            task,
-            input: this.aiSavedText,
-            prompt,
-            signal: this.aiController.signal,
-        }).subscribe({
-            next: (text) => this.updateAiDraft(text),
-            error: (err) => {
-                const message = err instanceof Error ? err.message : this.aiLabels().failed;
-                this.aiErrorMessage.set(message);
-                this.aiError.emit(message);
-                this.aiPhase.set('review');
-            },
-            complete: () => {
-                this.aiResult.emit(this.aiDraftEl?.textContent ?? '');
-                this.aiPhase.set('review');
-            },
-        });
-    }
-
-    private beginAiDraft(): void {
-        const editor = this.editorDiv?.nativeElement;
-        const selection = this.document.getSelection();
-        if (!editor || !selection || !this.aiRange) return;
-        editor.focus();
-        selection.removeAllRanges();
-        selection.addRange(this.aiRange);
-        const range = selection.getRangeAt(0);
-        if (this.aiContinueMode) {
-            range.collapse(false);
-        } else {
-            range.deleteContents();
-        }
-        const span = this.document.createElement('span');
-        span.dataset['aiDraft'] = '';
-        span.className = 'rte-ai-draft bg-primary/10 rounded-sm';
-        range.insertNode(span);
-        this.aiDraftEl = span;
-    }
-
-    private updateAiDraft(text: string): void {
-        if (this.aiDraftEl) this.aiDraftEl.textContent = text;
-    }
-
-    /** Keep the generated text, unwrapping the draft marker. */
-    acceptAi(): void {
-        const span = this.aiDraftEl;
-        if (span?.parentNode) {
-            const parent = span.parentNode;
-            while (span.firstChild) parent.insertBefore(span.firstChild, span);
-            span.remove();
-        }
-        this.finishAi();
-        this.syncContentFromEditor();
-    }
-
-    /** Drop the draft and restore the original selection. */
-    discardAi(): void {
-        this.cancelAi();
-        const span = this.aiDraftEl;
-        if (span?.parentNode) {
-            if (this.aiSavedHtml) {
-                const template = this.document.createElement('template');
-                template.innerHTML = this.sanitizer.sanitize(this.aiSavedHtml);
-                span.parentNode.replaceChild(template.content.cloneNode(true), span);
-            } else {
-                span.remove();
-            }
-        }
-        this.finishAi();
-        this.syncContentFromEditor();
-    }
-
-    /** Close the AI menu without running anything (or discard an in-progress draft). */
-    closeAiPanel(): void {
-        if (this.aiDraftEl) {
-            this.discardAi();
-            return;
-        }
-        this.finishAi();
-    }
-
-    private cancelAi(): void {
-        this.aiSubscription?.unsubscribe();
-        this.aiSubscription = null;
-        this.aiController?.abort();
-        this.aiController = null;
-    }
-
-    private finishAi(): void {
-        this.cancelAi();
-        this.aiDraftEl = null;
-        this.aiRange = null;
-        this.aiSavedHtml = '';
-        this.aiSavedText = '';
-        this.aiPanelOpen.set(false);
-        this.aiPhase.set('menu');
-    }
-
-    onHistoryPanelOpenChange(nextOpen: boolean): void {
-        if (!nextOpen && this.historyPreviewOpen()) {
-            this.historyPanelOpen.set(true);
-            return;
-        }
-        if (nextOpen && (this.disabled() || this.readonly() || !this.showHistoryPanel())) {
-            this.historyPanelOpen.set(false);
-            return;
-        }
-        if (nextOpen) {
-            this.flushPendingHistoryPush();
-            this.focusFirstHistoryActionSoon('popover');
-        }
-        this.historyPanelOpen.set(nextOpen);
-    }
-
-    private openHistoryFromShortcut(): void {
-        if (!this.showHistoryPanel() || this.disabled() || this.readonly()) {
-            return;
-        }
-        this.flushPendingHistoryPush();
-        if (this.showHistoryButton()) {
-            this.onHistoryPanelOpenChange(true);
-            return;
-        }
-        this.historyBrowserOpen.set(true);
-        this.focusFirstHistoryActionSoon('dialog');
-    }
-
-    openHistoryPreview(entryIndex: number, event?: Event): void {
-        event?.stopPropagation();
-        if (entryIndex < 0 || entryIndex >= this.history.length) {
-            return;
-        }
-        this.selectedHistoryIndex.set(entryIndex);
-        this.historyBrowserOpen.set(false);
-        this.historyPreviewOpen.set(true);
-    }
-
-    onQuickApplyFromHistory(entryIndex: number, event: Event): void {
-        const target = event.currentTarget as HTMLElement | null;
-        const listType = target ? this.getHistoryListType(target) : null;
-        this.selectHistoryEntry(entryIndex);
-        if (listType) {
-            this.focusHistoryEntrySoon(listType, entryIndex);
-        }
-    }
-
-    onHistoryEntryKeydown(event: KeyboardEvent, entryIndex: number): void {
-        const current = event.currentTarget as HTMLElement | null;
-        if (!current) {
-            return;
-        }
-        const listType = this.getHistoryListType(current);
-
-        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
-            event.preventDefault();
-            this.selectHistoryEntry(entryIndex);
-            if (listType) {
-                this.focusHistoryEntrySoon(listType, entryIndex);
-            }
-            return;
-        }
-
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            this.handleHistoryEscape(listType);
-            return;
-        }
-
-        this.handleHistoryArrowKey(event, current);
-    }
-
-    private handleHistoryEscape(listType: 'popover' | 'dialog' | null): void {
-        if (listType === 'popover') {
-            this.historyPanelOpen.set(false);
-        } else if (listType === 'dialog') {
-            this.historyBrowserOpen.set(false);
-        }
-    }
-
-    private handleHistoryArrowKey(event: KeyboardEvent, current: HTMLElement): void {
-        const entries = this.getHistoryEntryElements(current);
-        const currentIndex = entries.indexOf(current);
-        if (currentIndex < 0) {
-            return;
-        }
-
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            entries[Math.min(entries.length - 1, currentIndex + 1)]?.focus();
-            return;
-        }
-
-        if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            entries[Math.max(0, currentIndex - 1)]?.focus();
-            return;
-        }
-
-        if (event.key === 'Home') {
-            event.preventDefault();
-            entries[0]?.focus();
-            return;
-        }
-
-        if (event.key === 'End') {
-            event.preventDefault();
-            entries.at(-1)?.focus();
-        }
-    }
-
-    restoreFromHistoryPreview(): void {
-        const index = this.selectedHistoryIndex();
-        if (index === null) {
-            return;
-        }
-        this.selectHistoryEntry(index);
-        this.historyPreviewOpen.set(false);
-    }
-
-    selectHistoryEntry(entryIndex: number): void {
+    /**
+     * Jump to a history entry without pushing a new one (addon host surface):
+     * forward entries stay available for redo. Reconstructs and applies the
+     * entry's content, restores its selection, and emits a change.
+     */
+    restoreHistoryEntry(entryIndex: number): void {
         if (entryIndex < 0 || entryIndex >= this.history.length) {
             return;
         }
@@ -2519,17 +1095,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             ? this.markdownService.toMarkdown(html)
             : html;
         this.onChange(outputValue);
-        this.lastAppliedHistoryIndex.set(entryIndex);
         this.bumpHistoryVersion();
     }
 
     onFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
-
-        if (command === 'outline') {
-            this.outlinePanelOpen.set(!this.outlinePanelOpen());
-            return;
-        }
 
         this.restoreSelection();
         this.flushPendingHistoryPush();
@@ -2727,154 +1297,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    onLinkInsert(data: { text: string; url: string }): void {
-        this.flushPendingHistoryPush();
-        this.restoreSelection();
-        const safeUrl = this.sanitizer.sanitizeUrl(data.url);
-        if (safeUrl) {
-            const selection = this.document.getSelection();
-            if (selection && selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                range.deleteContents();
-
-                const link = this.document.createElement('a');
-                link.href = safeUrl;
-                link.rel = 'noopener noreferrer';
-                link.textContent = data.text || safeUrl;
-                range.insertNode(link);
-
-                range.setStartAfter(link);
-                range.setEndAfter(link);
-                selection.removeAllRanges();
-                selection.addRange(range);
-            }
-            this.syncContentFromEditor();
-            this.pushHistory();
-        }
-    }
-
-    onImageInsert(data: { alt: string; src: string }): void {
-        this.flushPendingHistoryPush();
-        if (this.imageSources() === 'upload') {
-            this.imageUploadError.emit('Image URL insertion is disabled. Use upload source.');
-            return;
-        }
-        this.restoreSelection();
-        const safeSrc = this.sanitizer.sanitizeImageSrc(data.src);
-        if (safeSrc) {
-            this.insertImageAtSelection(safeSrc, data.alt);
-            this.pushHistory();
-            this.syncContentFromEditor();
-        } else {
-            this.imageUploadError.emit('Invalid image URL.');
-        }
-    }
-
-    async onFileImport(file: File): Promise<void> {
-        if (this.readonly() || this.disabled()) return;
-        this.flushPendingHistoryPush();
-
-        const header = new Uint8Array(await file.slice(0, 5).arrayBuffer());
-        const isZip = this.isZipHeader(header);
-        const isPdf = this.isPdfHeader(header);
-
-        if (!isZip && !isPdf) {
-            const msg = this.resolvedLocale().editor.importInvalidFile;
-            this.fileImportError.emit(msg);
-            this.showImportError(msg);
-            return;
-        }
-
-        await this.runFileImport(file, isZip);
-    }
-
-    private isZipHeader(header: Uint8Array): boolean {
-        return header.length >= 4 &&
-            header[0] === 0x50 && header[1] === 0x4B &&
-            header[2] === 0x03 && header[3] === 0x04;
-    }
-
-    private isPdfHeader(header: Uint8Array): boolean {
-        return header.length >= 5 &&
-            header[0] === 0x25 && header[1] === 0x50 &&
-            header[2] === 0x44 && header[3] === 0x46 &&
-            header[4] === 0x2D;
-    }
-
-    private async runFileImport(file: File, isZip: boolean): Promise<void> {
-        this.fileImporting.set(true);
-        this.fileImportStart.emit(file);
-
-        try {
-            if (isZip) {
-                await this.importDocx(file);
-            } else {
-                await this.importPdf(file);
-            }
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : this.resolvedLocale().editor.importFailed;
-            this.fileImportError.emit(message);
-            this.showImportError(message);
-        } finally {
-            this.fileImporting.set(false);
-        }
-    }
-
-    private async importDocx(file: File): Promise<void> {
-        const bytes = new Uint8Array(await file.arrayBuffer());
-        const { parseDocx } = await import('../../lib/parsers/docx-parser');
-        const { renderDocxForEditor } = await import('../../lib/parsers/docx-to-editor-html');
-        const result = parseDocx(bytes);
-        const html = renderDocxForEditor(result);
-        if (!html.trim()) {
-            const msg = this.resolvedLocale().editor.importFailed;
-            this.fileImportError.emit(msg);
-            this.showImportError(msg);
-            return;
-        }
-        this.restoreSelection();
-        this.insertHtml(html);
-        this.pushHistory();
-        this.fileImportComplete.emit(html);
-    }
-
-    private async importPdf(file: File): Promise<void> {
-        const buffer = await file.arrayBuffer();
-        const { parsePdf } = await import('../../lib/parsers/pdf-parser');
-        const result = await parsePdf(buffer);
-        if (!result.html.trim()) {
-            const msg = this.resolvedLocale().editor.importFailed;
-            this.fileImportError.emit(msg);
-            this.showImportError(msg);
-            return;
-        }
-        this.restoreSelection();
-        this.insertHtml(result.html);
-        this.pushHistory();
-        this.fileImportComplete.emit(result.html);
-    }
-
-    private showImportError(message: string): void {
-        this.fileImportErrorMessage.set(message);
-        setTimeout(() => this.fileImportErrorMessage.set(''), 4000);
-    }
-
-    private canDropDocumentFile(): boolean {
-        return this.toolbarItems().includes('importFile');
-    }
-
-    private hasSupportedDocumentFile(dataTransfer: DataTransfer | null): boolean {
-        if (!dataTransfer?.items) return true;
-        for (const item of Array.from(dataTransfer.items)) {
-            if (item.kind !== 'file') continue;
-            if (item.type === 'application/pdf' || item.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    onEmojiInsert(emoji: string): void {
+    insertTextFromOverlay(text: string): void {
         this.flushPendingHistoryPush();
         const editor = this.editorDiv?.nativeElement;
         const prevInputMode = editor?.inputMode;
@@ -2882,7 +1305,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             editor.inputMode = 'none';
         }
         this.restoreSelection();
-        this.insertText(emoji);
+        this.insertText(text);
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
@@ -2892,8 +1315,92 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
-    onColorSelect(event: { type: 'fontColor' | 'backgroundColor'; color: string }): void {
-        if (this.isReflectedColorEcho(event.type, event.color) || !this.hasColorTarget()) {
+    /** Commit addon DOM edits to the model + flush pending history (addon host surface). */
+    commitContent(): void {
+        this.syncContentFromEditor();
+        this.flushPendingHistoryPush();
+    }
+
+    /** Insert plain text at the live caret as one history entry (addon host surface). */
+    insertTextAtCaret(text: string): void {
+        this.insertText(text);
+        this.pushHistory();
+    }
+
+    /** Insert sanitized HTML at the live caret as one history entry (addon host surface). */
+    insertHtmlAtCaret(html: string): void {
+        this.insertHtml(html);
+        this.pushHistory();
+    }
+
+    /** Register an addon keydown interceptor (addon host surface). */
+    registerKeydownInterceptor(interceptor: (event: KeyboardEvent) => boolean): () => void {
+        this.keydownInterceptors.add(interceptor);
+        return () => this.keydownInterceptors.delete(interceptor);
+    }
+
+    /** Register an addon observer of the trigger-aware input text (addon host surface). */
+    registerInputObserver(observer: (text: string, caretOffset: number) => void): () => void {
+        this.inputObservers.add(observer);
+        return () => this.inputObservers.delete(observer);
+    }
+
+    /** Register an addon paste interceptor (addon host surface). */
+    registerPasteInterceptor(interceptor: (event: ClipboardEvent) => boolean): () => void {
+        this.pasteInterceptors.add(interceptor);
+        return () => this.pasteInterceptors.delete(interceptor);
+    }
+
+    /** Register an addon drop interceptor (addon host surface). */
+    registerDropInterceptor(interceptor: (event: DragEvent) => boolean): () => void {
+        this.dropInterceptors.add(interceptor);
+        return () => this.dropInterceptors.delete(interceptor);
+    }
+
+    /** Register an addon drop-zone predicate (addon host surface). */
+    registerDropZonePredicate(predicate: (event: DragEvent) => boolean): () => void {
+        this.dropZonePredicates.add(predicate);
+        return () => this.dropZonePredicates.delete(predicate);
+    }
+
+    private dispatchKeydownInterceptors(event: KeyboardEvent): boolean {
+        for (const interceptor of this.keydownInterceptors) {
+            if (interceptor(event)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private dispatchDropInterceptors(event: DragEvent): boolean {
+        for (const interceptor of this.dropInterceptors) {
+            if (interceptor(event)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private notifyInputObservers(text: string, caretOffset: number): void {
+        for (const observer of this.inputObservers) {
+            observer(text, caretOffset);
+        }
+    }
+
+    applyInlineStyle(style: RichTextInlineStyle): void {
+        if (style.color !== undefined || style.backgroundColor !== undefined) {
+            this.applySelectionColor(style.color, style.backgroundColor);
+        }
+        if (style.fontSize !== undefined) {
+            this.onFontSizeSelect(style.fontSize);
+        }
+        if (style.fontFamily !== undefined) {
+            this.onFontFamilySelect(style.fontFamily);
+        }
+    }
+
+    private applySelectionColor(color: string | undefined, backgroundColor: string | undefined): void {
+        if (!this.hasColorTarget()) {
             return;
         }
         this.flushPendingHistoryPush();
@@ -2905,14 +1412,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // of the deprecated `<font color>` tag `foreColor` produces by default, which the
         // sanitizer strips, so the colour would apply in the editor but vanish from the output.
         this.execEditorCommand('styleWithCSS', 'true');
-        if (event.type === 'fontColor') {
-            this.execEditorCommand('foreColor', event.color);
-            this.setMentionStyle(mentionTargets, 'color', event.color);
-        } else {
-            if (!this.execEditorCommand('hiliteColor', event.color)) {
-                this.execEditorCommand('backColor', event.color);
+        if (color !== undefined) {
+            this.execEditorCommand('foreColor', color);
+            this.setMentionStyle(mentionTargets, 'color', color);
+        }
+        if (backgroundColor !== undefined) {
+            if (!this.execEditorCommand('hiliteColor', backgroundColor)) {
+                this.execEditorCommand('backColor', backgroundColor);
             }
-            this.setMentionStyle(mentionTargets, 'backgroundColor', event.color);
+            this.setMentionStyle(mentionTargets, 'backgroundColor', backgroundColor);
         }
         this.execEditorCommand('styleWithCSS', 'false');
 
@@ -2946,23 +1454,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     /**
-     * True when an incoming color merely echoes the value the toolbar picker was
-     * just given to reflect the current selection (the color picker re-emits its
-     * programmatically-set value through `colorChange`). Applying it would run a
-     * `foreColor`/`hiliteColor` command on the selection and mutate content on a
-     * mere caret move, so the echo is ignored. A genuine user pick of a different
-     * color still differs from the reflected value and applies normally.
-     */
-    private isReflectedColorEcho(type: 'fontColor' | 'backgroundColor', color: string): boolean {
-        const current = type === 'fontColor' ? this.currentFontColor() : this.currentBackgroundColor();
-        return current !== '' && this.toHexColor(color) === this.toHexColor(current);
-    }
-
-    /**
      * True when there is a real selection/caret in the editor to apply a colour to.
-     * A colour command with no target is a no-op — and the toolbar's `ui-color-picker`
-     * emits a `colorChange` on init (its `currentColor()` effect fires on construction),
-     * which must NOT force-focus the editor and push an empty model value.
+     * A colour command with no target is a no-op, so `applyInlineStyle` skips it: a
+     * colour picker (e.g. the colours addon) can emit an initial value with no
+     * selection ever placed, which must NOT force-focus the editor and push an
+     * empty model value.
      */
     private hasColorTarget(): boolean {
         const editor = this.editorDiv?.nativeElement;
@@ -3041,450 +1537,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return range.toString().length;
     }
 
-    private checkMentionTrigger(text: string, cursorPosition: number): void {
-        const beforeCursor = text.substring(0, cursorPosition);
-        const mentionTriggerPattern = /(?:^|[\s([{])@([-\p{L}\p{N}_.]*)$/u;
-        const tagTriggerPattern = /(?:^|[\s([{])#([-\p{L}\p{N}_.]*)$/u;
-
-        if (this.mentions()) {
-            const mentionMatch = mentionTriggerPattern.exec(beforeCursor);
-            if (mentionMatch) {
-                this.mentionType.set('mention');
-                this.mentionQuery.set(mentionMatch[1]);
-                this.updateMentionPopoverPosition();
-                this.mentionPopoverOpen.set(true);
-                this.mentionSearchQuery$.next({ type: 'mention', query: mentionMatch[1] });
-                return;
-            }
-        }
-
-        if (this.tags()) {
-            const tagMatch = tagTriggerPattern.exec(beforeCursor);
-            if (tagMatch) {
-                this.mentionType.set('tag');
-                this.mentionQuery.set(tagMatch[1]);
-                this.updateMentionPopoverPosition();
-                this.mentionPopoverOpen.set(true);
-                this.mentionSearchQuery$.next({ type: 'tag', query: tagMatch[1] });
-                return;
-            }
-        }
-
-        this.closeMentionPopover();
-    }
-
-    private checkSlashCommandTrigger(text: string, cursorPosition: number): boolean {
-        if (!this.enableSlashCommands() || this.disabled() || this.readonly()) {
-            this.closeSlashCommandPopover();
-            return false;
-        }
-
-        const beforeCursor = text.substring(0, cursorPosition);
-        const slashTriggerPattern = /(?:^|[\s([{\u200B])\/([-\p{L}\p{N}_.]*)$/u;
-        const slashMatch = slashTriggerPattern.exec(beforeCursor)
-            ?? this.matchSlashTriggerAtCaret()
-            ?? this.matchSlashTriggerWithinCurrentBlock();
-        if (!slashMatch) {
-            this.closeSlashCommandPopover();
-            return false;
-        }
-
-        this.captureSlashTriggerRange();
-        this.slashAnchorBlock = this.getClosestEditableBlockFromSelection();
-        this.slashQuery.set(slashMatch[1]);
-        this.slashCommandSelectedIndex.set(0);
-        this.updateSlashCommandPopoverPosition();
-        this.slashCommandOpen.set(true);
-        return true;
-    }
-
-    private matchSlashTriggerAtCaret(): RegExpExecArray | null {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return null;
-        }
-        const range = selection.getRangeAt(0);
-        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
-            return null;
-        }
-
-        const nodeText = (range.startContainer as Text).data.slice(0, range.startOffset);
-        const nodePattern = /(?:^|[\s([{\u200B])\/([-\p{L}\p{N}_.]*)$/u;
-        return nodePattern.exec(nodeText);
-    }
-
-    private matchSlashTriggerWithinCurrentBlock(): RegExpExecArray | null {
-        const selection = this.document.getSelection();
-        const editor = this.getEditorElement();
-        if (!selection || selection.rangeCount === 0 || !editor) {
-            return null;
-        }
-
-        const range = selection.getRangeAt(0);
-        if (!editor.contains(range.startContainer)) {
-            return null;
-        }
-
-        const block = this.findClosestEditableBlockFromRange(range);
-        if (!block) {
-            return null;
-        }
-
-        const blockPattern = /(?:^|[\s([{\u200B])\/([-\p{L}\p{N}_.]*)$/u;
-
-        // Chromium may report the caret container as the contenteditable root.
-        // In that case, try nearby child blocks because startOffset can be unstable.
-        if (range.startContainer === editor) {
-            const candidateBlocks: HTMLElement[] = [];
-            const pushCandidate = (node: Node | null | undefined): void => {
-                if (!node) {
-                    return;
-                }
-                const candidate = this.findClosestEditableBlock(node);
-                if (candidate && !candidateBlocks.includes(candidate)) {
-                    candidateBlocks.push(candidate);
-                }
-            };
-
-            pushCandidate(block);
-            pushCandidate(editor.childNodes[range.startOffset] ?? null);
-            pushCandidate(editor.childNodes[range.startOffset - 1] ?? null);
-            pushCandidate(editor.lastChild);
-
-            for (const candidate of candidateBlocks) {
-                const match = blockPattern.exec(candidate.textContent ?? '');
-                if (match) {
-                    return match;
-                }
-            }
-            return null;
-        }
-
-        const blockRange = this.document.createRange();
-        blockRange.setStart(block, 0);
-        blockRange.setEnd(range.startContainer, range.startOffset);
-        const blockText = blockRange.toString();
-        return blockPattern.exec(blockText);
-    }
-
-    onMentionSelect(item: MentionItem | TagItem): void {
-        this.flushPendingHistoryPush();
-        const type = this.mentionType();
-        const trigger = type === 'mention' ? '@' : '#';
-        const query = this.mentionQuery();
-        const renderContext = this.buildEntityRenderContext(item, type, trigger, query);
-        const renderResult = this.buildEntityInsertNode(renderContext);
-
-        const editor = this.getEditorElement();
-        if (!editor) return;
-
-        const selection = this.resolveMentionSelection(editor);
-
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const triggerLength = query.length + 1;
-            const triggerStr = trigger + query;
-            this.resolveMentionDeleteRange(range, triggerStr, triggerLength, editor);
-            range.deleteContents();
-
-            const trailingSpace = this.document.createTextNode('\u00A0');
-            range.insertNode(trailingSpace);
-            range.insertNode(renderResult.element);
-
-            const newRange = this.document.createRange();
-            newRange.setStart(trailingSpace, trailingSpace.length);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-        }
-
-        this.syncContentFromEditor();
-        const payload: RichTextEntityInsertEvent = {
-            type,
-            trigger,
-            id: renderContext.id,
-            value: renderContext.value,
-            label: renderContext.label,
-            query,
-            url: renderResult.url,
-            html: renderResult.element.outerHTML,
-            item,
-        };
-        if (type === 'mention') {
-            this.mentionInsert.emit(payload);
-        } else {
-            this.tagInsert.emit(payload);
-        }
-        this.closeMentionPopover();
-        this.closeSlashCommandPopover();
-        this.pushHistory();
-        this.focusEditor();
-    }
-
-    private resolveMentionSelection(editor: HTMLElement): Selection | null {
-        this.focusEditor();
-        let selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0 && editor.contains(selection.getRangeAt(0).startContainer)) {
-            return selection;
-        }
-        if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
-            selection = this.document.getSelection();
-            if (selection) {
-                selection.removeAllRanges();
-                selection.addRange(this.savedRange);
-            }
-        }
-        return selection && selection.rangeCount > 0 ? selection : null;
-    }
-
-    private resolveMentionDeleteRange(range: Range, triggerStr: string, triggerLength: number, editor: HTMLElement): void {
-        if (range.startContainer.nodeType === Node.TEXT_NODE) {
-            const textNode = range.startContainer as Text;
-            const deleteStart = Math.max(0, range.startOffset - triggerLength);
-            range.setStart(textNode, deleteStart);
-            return;
-        }
-
-        if (this.resolveMentionRangeFromContainer(range, triggerStr, triggerLength)) {
-            return;
-        }
-        this.resolveMentionRangeFromEditor(range, triggerStr, editor);
-    }
-
-    private resolveMentionRangeFromContainer(range: Range, triggerStr: string, triggerLength: number): boolean {
-        const container = range.startContainer;
-        const offset = range.startOffset;
-        if (offset <= 0 || container.childNodes.length < offset) {
-            return false;
-        }
-
-        let node: Node | null = container.childNodes[offset - 1];
-        while (node) {
-            if (node.nodeType === Node.TEXT_NODE) {
-                const text = node as Text;
-                if (!text.data.endsWith(triggerStr)) {
-                    return false;
-                }
-                range.setStart(text, text.length - triggerLength);
-                range.setEnd(text, text.length);
-                return true;
-            }
-            node = node.lastChild;
-        }
-        return false;
-    }
-
-    private resolveMentionRangeFromEditor(range: Range, triggerStr: string, editor: HTMLElement): void {
-        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-        while (walker.nextNode()) {
-            const text = walker.currentNode as Text;
-            const idx = text.data.lastIndexOf(triggerStr);
-            if (idx !== -1) {
-                range.setStart(text, idx);
-                range.setEnd(text, idx + triggerStr.length);
-                return;
-            }
-        }
-    }
-
-    private buildEntityRenderContext(
-        item: MentionItem | TagItem,
-        type: RichTextEntityType,
-        trigger: '@' | '#',
-        query: string
-    ): RichTextEntityRenderContext {
-        const id = item.id ?? item.value;
-        return {
-            type,
-            trigger,
-            id,
-            value: item.value,
-            label: item.label,
-            query,
-            item,
-            userId: id,
-            tagId: id,
-        };
-    }
-
-    private buildEntityInsertNode(context: RichTextEntityRenderContext): { element: HTMLElement; url?: string } {
-        const options = context.type === 'mention' ? this.mentionRender() : this.tagRender();
-        const mode = options.mode ?? 'chip';
-        const text = this.resolveEntityText(context, options);
-        const element = mode === 'link'
-            ? this.createEntityLinkElement(context, text, options)
-            : this.createEntitySpanElement(context, text, mode, options.className);
-        const url = element.tagName === 'A' ? (element.getAttribute('href') ?? undefined) : undefined;
-        return { element, url };
-    }
-
-    private resolveEntityText(context: RichTextEntityRenderContext, options: RichTextEntityRenderOptions): string {
-        if (options.buildText) {
-            return options.buildText(context);
-        }
-        if (options.textTemplate) {
-            return this.resolveEntityTemplate(options.textTemplate, context);
-        }
-        return `${context.trigger}${context.label}`;
-    }
-
-    private resolveEntityUrl(context: RichTextEntityRenderContext, options: RichTextEntityRenderOptions): string | null {
-        let raw = '';
-        if (options.buildUrl) {
-            raw = options.buildUrl(context);
-        } else if (options.urlTemplate) {
-            raw = this.resolveEntityTemplate(options.urlTemplate, context);
-        }
-        if (!raw) {
-            return null;
-        }
-        const safeUrl = this.sanitizer.sanitizeUrl(raw);
-        return safeUrl ?? null;
-    }
-
-    private createEntityLinkElement(
-        context: RichTextEntityRenderContext,
-        text: string,
-        options: RichTextEntityRenderOptions
-    ): HTMLElement {
-        const safeUrl = this.resolveEntityUrl(context, options);
-        if (!safeUrl) {
-            return this.createEntitySpanElement(context, text, 'chip', options.className);
-        }
-        const link = this.document.createElement('a');
-        this.applyEntityBaseAttributes(link, context);
-        link.href = safeUrl;
-        link.target = options.target ?? '_blank';
-        link.rel = options.rel ?? 'noopener noreferrer';
-        link.className = options.className ?? 'bg-accent/20 text-primary rounded px-1 underline underline-offset-2';
-        link.textContent = text;
-        return link;
-    }
-
-    private createEntitySpanElement(
-        context: RichTextEntityRenderContext,
-        text: string,
-        mode: RichTextEntityRenderMode,
-        customClassName?: string
-    ): HTMLElement {
-        const span = this.document.createElement('span');
-        this.applyEntityBaseAttributes(span, context);
-        if (mode === 'text') {
-            span.className = customClassName ?? '';
-        } else {
-            span.className = customClassName ?? 'bg-accent text-accent-foreground rounded px-1';
-        }
-        span.textContent = text;
-        return span;
-    }
-
-    private applyEntityBaseAttributes(element: HTMLElement, context: RichTextEntityRenderContext): void {
-        element.setAttribute('contenteditable', 'false');
-        if (context.type === 'mention') {
-            element.dataset['mention'] = context.value;
-            element.dataset['mentionId'] = context.id;
-        } else {
-            element.dataset['tag'] = context.value;
-            element.dataset['tagId'] = context.id;
-        }
-    }
-
-    private resolveEntityTemplate(template: string, context: RichTextEntityRenderContext): string {
-        const values: Record<string, string> = {
-            id: context.id,
-            value: context.value,
-            label: context.label,
-            query: context.query,
-            type: context.type,
-            userId: context.userId,
-            tagId: context.tagId,
-        };
-
-        return template
-            .replaceAll(/@@([a-zA-Z0-9_-]+)@@/g, (_match, token: string) => values[token] ?? '')
-            .replaceAll(/:([a-zA-Z][a-zA-Z0-9_-]*)/g, (_match, token: string) => values[token] ?? _match);
-    }
-
-    closeMentionPopover(): void {
-        this.mentionPopoverOpen.set(false);
-        this.mentionQuery.set('');
-    }
-
-    async onSlashCommandSelect(command: RichTextSlashCommand): Promise<void> {
-        if (this.disabled() || this.readonly()) {
-            return;
-        }
-        this.flushPendingHistoryPush();
-        const selectionBeforeMutations = this.document.getSelection();
-        if (selectionBeforeMutations && selectionBeforeMutations.rangeCount > 0) {
-            const r = selectionBeforeMutations.getRangeAt(0);
-            const rc = r.getBoundingClientRect();
-            if (rc.width > 0 || rc.height > 0 || rc.top > 0 || rc.left > 0) {
-                this._pendingLinkPositionHint = { x: rc.left, y: rc.bottom };
-            }
-        }
-        const query = this.slashQuery();
-        const resolvedSlashBlock = this.removeSlashTriggerText(query);
-        const slashBlock = resolvedSlashBlock ?? this.getClosestEditableBlockForSlashCommand();
-        if (resolvedSlashBlock) {
-            this.slashAnchorBlock = resolvedSlashBlock;
-        }
-        if (slashBlock) {
-            this.placeCaretAtEndOfBlock(slashBlock);
-            this.removeCaretSentinelAtSelection();
-        }
-        this.closeSlashCommandPopover();
-
-        const context: RichTextSlashCommandContext = {
-            query,
-            selectedText: this.selectedText(),
-            executeToolbarCommand: (toolbarCommand: string) => this.executeToolbarCommandFromSlash(toolbarCommand, slashBlock),
-            insertText: (text: string) => {
-                this.insertText(text);
-                this.pushHistory();
-            },
-            insertHtml: (html: string) => {
-                this.insertHtml(html);
-                this.pushHistory();
-            },
-            showLinkDialog: () => this.showLinkDialog(),
-            focusEditor: () => this.focusEditor(),
-        };
-
-        await Promise.resolve(command.run(context));
-        if (!this.isSelectionInsideEditor()) {
-            this.focusEditor();
-        }
-    }
-
-    private removeCaretSentinelAtSelection(): void {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return;
-        }
-
-        const range = selection.getRangeAt(0);
-        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
-            return;
-        }
-
-        const textNode = range.startContainer as Text;
-        if (!textNode.data.includes('\u200B')) {
-            return;
-        }
-
-        const originalOffset = range.startOffset;
-        const before = textNode.data.slice(0, originalOffset).replaceAll('\u200B', '').length;
-        textNode.data = textNode.data.replaceAll('\u200B', '');
-
-        const newOffset = Math.min(before, textNode.data.length);
-        const newRange = this.document.createRange();
-        newRange.setStart(textNode, newOffset);
-        newRange.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-    }
-
     private wrapSelectionWithTag(tagName: string): void {
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
@@ -3526,45 +1578,25 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
     }
 
-    private showLinkDialog(): void {
-        const selection = this.document.getSelection();
-        this.selectedText.set(selection?.toString() ?? '');
-
-        if (selection && selection.rangeCount > 0) {
-            this.savedRange = selection.getRangeAt(0).cloneRange();
-            this.updateLinkPopoverPosition(selection);
-        }
-        this._pendingLinkPositionHint = null;
-
-        this.showLinkPopover.set(true);
+    /**
+     * Open the link editor (addon host surface). Delegates to the editor
+     * registered via {@link registerLinkEditor}; a no-op when no links addon is
+     * present. `caretHint` positions it when the live caret rect is degenerate —
+     * e.g. an addon consumed the trigger and collapsed the caret into an empty
+     * block before calling this.
+     */
+    showLinkDialog(caretHint?: { x: number; y: number }): void {
+        this.linkEditorOpen?.(caretHint);
     }
 
-    private updateLinkPopoverPosition(selection: Selection): void {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
-        const viewportWidth = this.document.defaultView?.innerWidth ?? 1024;
-        const viewportHeight = this.document.defaultView?.innerHeight ?? 768;
-        const width = 320;
-        const height = 180;
-        const rectIsEmpty = rect.width === 0 && rect.height === 0 && rect.top === 0 && rect.left === 0;
-        const sourceX = rectIsEmpty && this._pendingLinkPositionHint ? this._pendingLinkPositionHint.x : rect.left;
-        const sourceY = rectIsEmpty && this._pendingLinkPositionHint ? this._pendingLinkPositionHint.y : rect.bottom;
-        const x = Math.max(8, Math.min(sourceX, viewportWidth - width - 8));
-        const y = Math.max(8, Math.min(sourceY + 8, viewportHeight - height - 8));
-        this.linkPopoverPosition.set({ x, y });
-    }
-
-    insertLinkFromPopover(text: string, url: string): void {
-        if (url) {
-            this.onLinkInsert({ text: text || this.selectedText(), url });
-        }
-        this.closeLinkPopover();
-    }
-
-    closeLinkPopover(): void {
-        this.showLinkPopover.set(false);
-        this.selectedText.set('');
-        this.focusEditor();
+    /** Register the link editor {@link showLinkDialog} delegates to (addon host surface). */
+    registerLinkEditor(open: (caretHint?: { x: number; y: number }) => void): () => void {
+        this.linkEditorOpen = open;
+        return () => {
+            if (this.linkEditorOpen === open) {
+                this.linkEditorOpen = null;
+            }
+        };
     }
 
     private getSelectedTextLength(): number {
@@ -3573,272 +1605,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return selection.toString().length;
         }
         return 0;
-    }
-
-    private canUseUploadSource(): boolean {
-        return this.imageSources() === 'all' || this.imageSources() === 'upload';
-    }
-
-    private canUseUrlSource(): boolean {
-        return this.imageSources() === 'all' || this.imageSources() === 'url';
-    }
-
-    private async insertImageFile(file: File): Promise<void> {
-        const uploader = this.imageUploader();
-        if (this.canUseUploadSource() && uploader) {
-            await this.uploadImageFile(file);
-            return;
-        }
-
-        if (this.canUseUrlSource()) {
-            try {
-                const fileDataUrl = await this.readFileAsDataUrl(file);
-                if (!fileDataUrl.toLowerCase().startsWith('data:image/')) {
-                    this.imageUploadError.emit('Pasted image is not allowed by sanitizer policy.');
-                    return;
-                }
-                this.insertImageAtSelection(fileDataUrl, file.name);
-                this.pushHistory();
-                this.imageUploadComplete.emit(fileDataUrl);
-                return;
-            } catch {
-                this.imageUploadError.emit('Could not read image file.');
-            }
-        }
-
-        if (this.canUseUploadSource() && !uploader) {
-            this.imageUploadError.emit('No imageUploader configured.');
-        }
-    }
-
-    private async uploadImageFile(file: File): Promise<void> {
-        const uploader = this.imageUploader();
-        if (!uploader) {
-            this.imageUploadError.emit('No imageUploader configured.');
-            return;
-        }
-
-        this.imageUploading.set(true);
-        this.imageUploadStart.emit(file);
-
-        try {
-            const uploadedUrl = await firstValueFrom(uploader(file));
-            const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
-            if (!safeSrc) {
-                this.imageUploadError.emit('Uploaded image URL is not allowed by sanitizer policy.');
-                return;
-            }
-            this.insertImageAtSelection(safeSrc, file.name);
-            this.pushHistory();
-            this.imageUploadComplete.emit(safeSrc);
-        } catch (error: unknown) {
-            const uploadErrorMessage = error instanceof Error ? error.message : undefined;
-            this.imageUploadError.emit(uploadErrorMessage ?? 'Image upload failed.');
-        } finally {
-            this.imageUploading.set(false);
-        }
-    }
-
-    private readFileAsDataUrl(file: File): Promise<string> {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-            reader.onerror = () => reject(new Error('Could not read image file.'));
-            reader.readAsDataURL(file);
-        });
-    }
-
-    private readonly TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-
-    private dataUrlToFile(dataUrl: string, filename: string): File {
-        const parts = dataUrl.split(',');
-        const meta = parts[0];
-        const base64 = parts[1];
-        const mime = /:([^;]{0,4096});/.exec(meta)?.[1] ?? 'image/png';
-        const binary = atob(base64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.codePointAt(i) ?? 0;
-        }
-        return new File([bytes], filename, { type: mime });
-    }
-
-    private scanForBase64Images(): void {
-        if (!this.autoImageUpload() || !this.imageUploader() || this.disabled() || this.readonly()) {
-            return;
-        }
-        const editor = this.getEditorElement();
-        if (!editor) return;
-
-        const images = editor.querySelectorAll('img');
-        images.forEach(img => {
-            const src = img.getAttribute('src') ?? '';
-            if (src.startsWith('data:image/') && img.dataset['autoUploadId'] === undefined) {
-                this.processAutoUploadImage(img);
-            }
-        });
-    }
-
-    private processAutoUploadImage(img: HTMLImageElement): void {
-        const uploader = this.imageUploader();
-        if (!uploader) return;
-
-        const uploadId = `auto-upload-${++this.autoUploadCounter}`;
-        const dataUrl = img.getAttribute('src') ?? '';
-
-        this.markImageAsUploading(img, uploadId);
-        this.syncContentFromEditor();
-
-        if (!isValidImageDataUrl(dataUrl)) {
-            this.revertInvalidUploadImage(img);
-            return;
-        }
-
-        this.startAutoUploadSubscription(img, uploadId, dataUrl, uploader);
-    }
-
-    private markImageAsUploading(img: HTMLImageElement, uploadId: string): void {
-        const width = img.naturalWidth || img.width || Number.parseInt(img.getAttribute('width') ?? '0', 10) || 200;
-        const height = img.naturalHeight || img.height || Number.parseInt(img.getAttribute('height') ?? '0', 10) || 150;
-
-        this.autoUploadMutating = true;
-        img.dataset['autoUploadId'] = uploadId;
-        img.dataset['autoUploadStatus'] = 'uploading';
-        if (!img.getAttribute('width')) img.setAttribute('width', String(width));
-        if (!img.getAttribute('height')) img.setAttribute('height', String(height));
-        img.setAttribute('src', this.TRANSPARENT_PIXEL);
-        this.autoUploadMutating = false;
-    }
-
-    private revertInvalidUploadImage(img: HTMLImageElement): void {
-        this.autoUploadMutating = true;
-        delete img.dataset['autoUploadId'];
-        delete img.dataset['autoUploadStatus'];
-        img.setAttribute('src', this.TRANSPARENT_PIXEL);
-        this.autoUploadMutating = false;
-        this.syncContentFromEditor();
-        this.autoImageUploadError.emit(this.resolvedLocale().editor.autoUploadNotImage);
-    }
-
-    private startAutoUploadSubscription(
-        img: HTMLImageElement,
-        uploadId: string,
-        dataUrl: string,
-        uploader: (file: File) => import('rxjs').Observable<string>
-    ): void {
-        const ext = (/data:image\/([\w+]+)/.exec(dataUrl)?.[1] ?? 'png').replace('+xml', '');
-        const filename = `pasted-image-${uploadId}.${ext}`;
-        const file = this.dataUrlToFile(dataUrl, filename);
-
-        const subscription = from(firstValueFrom(uploader(file))).subscribe({
-            next: (uploadedUrl) => {
-                const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
-                if (!safeSrc) {
-                    this.handleAutoUploadError(uploadId, img, dataUrl, 'Uploaded image URL is not allowed by sanitizer policy.');
-                    return;
-                }
-                this.autoUploadMutating = true;
-                img.setAttribute('src', safeSrc);
-                delete img.dataset['autoUploadId'];
-                delete img.dataset['autoUploadStatus'];
-                this.autoUploadMutating = false;
-
-                this.autoUploadMap.delete(uploadId);
-                this.syncContentFromEditor();
-                this.pushHistory();
-                this.autoImageUploadComplete.emit(safeSrc);
-            },
-            error: (err: unknown) => {
-                const message = err instanceof Error ? err.message : 'Auto image upload failed.';
-                this.handleAutoUploadError(uploadId, img, dataUrl, message);
-            },
-        });
-
-        this.autoUploadMap.set(uploadId, { subscription, dataUrl });
-    }
-
-    private handleAutoUploadError(uploadId: string, img: HTMLImageElement, dataUrl: string, message: string): void {
-        this.autoUploadMutating = true;
-        img.dataset['autoUploadStatus'] = 'error';
-        this.autoUploadMutating = false;
-
-        this.autoUploadMap.delete(uploadId);
-        const errors = new Map(this.autoUploadErrors());
-        errors.set(uploadId, { dataUrl, imgElement: img });
-        this.autoUploadErrors.set(errors);
-        this.syncContentFromEditor();
-        this.autoImageUploadError.emit(message);
-    }
-
-    retryAutoUpload(uploadId: string): void {
-        const errors = new Map(this.autoUploadErrors());
-        const entry = errors.get(uploadId);
-        if (!entry) return;
-
-        const img = entry.imgElement;
-        if (!img.isConnected) {
-            errors.delete(uploadId);
-            this.autoUploadErrors.set(errors);
-            return;
-        }
-
-        errors.delete(uploadId);
-        this.autoUploadErrors.set(errors);
-
-        this.autoUploadMutating = true;
-        delete img.dataset['autoUploadId'];
-        delete img.dataset['autoUploadStatus'];
-        img.setAttribute('src', entry.dataUrl);
-        this.autoUploadMutating = false;
-
-        this.processAutoUploadImage(img);
-    }
-
-    removeAutoUploadImage(uploadId: string): void {
-        const errors = new Map(this.autoUploadErrors());
-        const entry = errors.get(uploadId);
-        if (entry?.imgElement?.isConnected) {
-            entry.imgElement.remove();
-        }
-        errors.delete(uploadId);
-        this.autoUploadErrors.set(errors);
-
-        const pending = this.autoUploadMap.get(uploadId);
-        if (pending) {
-            pending.subscription.unsubscribe();
-            this.autoUploadMap.delete(uploadId);
-        }
-
-        this.syncContentFromEditor();
-        this.pushHistory();
-    }
-
-    autoUploadErrorList = computed(() => {
-        const errors = this.autoUploadErrors();
-        const container = this.editorDiv?.nativeElement;
-        if (!container || errors.size === 0) return [];
-
-        const containerRect = container.getBoundingClientRect();
-        const entries: Array<{ id: string; top: number; left: number; width: number; height: number }> = [];
-
-        errors.forEach((entry, id) => {
-            if (!entry.imgElement.isConnected) return;
-            const imgRect = entry.imgElement.getBoundingClientRect();
-            entries.push({
-                id,
-                top: imgRect.top - containerRect.top,
-                left: imgRect.left - containerRect.left,
-                width: Math.max(imgRect.width, 120),
-                height: Math.max(imgRect.height, 80),
-            });
-        });
-
-        return entries;
-    });
-
-    onTableInsert(event: { rows: number; cols: number }): void {
-        this.restoreSelection();
-        this.insertTable(event.rows, event.cols);
     }
 
     private closeTableContextMenu(): void {
@@ -4433,15 +2199,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             }
         }
         return null;
-    }
-
-    private insertTable(rows: number, cols: number): void {
-        const headerCells = Array.from({ length: cols }, () => '<th><br></th>').join('');
-        const bodyRow = '<tr>' + Array.from({ length: cols }, () => '<td><br></td>').join('') + '</tr>';
-        const bodyRows = Array.from({ length: rows - 1 }, () => bodyRow).join('');
-        const html = `<table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table><p><br></p>`;
-        this.insertHtml(html);
-        this.pushHistory();
     }
 
     private getTableCellInfo(target: HTMLTableCellElement | null): { cell: HTMLTableCellElement; row: HTMLTableRowElement; table: HTMLTableElement; colIndex: number; rowIndex: number } | null {
@@ -5330,58 +3087,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.syncContentFromEditor();
     }
 
-    private insertImageAtSelection(src: string, alt: string): void {
-        const img = this.document.createElement('img');
-        img.setAttribute('src', src);
-        img.setAttribute('alt', alt || 'Image');
-        this.applyImageDefaults(img);
-
-        const selection = this.document.getSelection();
-        const editorElement = this.getEditorElement();
-        if (!selection || selection.rangeCount === 0 || !editorElement) {
-            editorElement?.appendChild(img);
-            this.syncContentFromEditor();
-            return;
-        }
-
-        const range = selection.getRangeAt(0);
-        const anchorNode = range.commonAncestorContainer;
-        if (!editorElement.contains(anchorNode)) {
-            editorElement.appendChild(img);
-            const newRange = this.document.createRange();
-            newRange.setStartAfter(img);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-            this.syncContentFromEditor();
-            return;
-        }
-
-        range.deleteContents();
-        range.insertNode(img);
-
-        const newRange = this.document.createRange();
-        newRange.setStartAfter(img);
-        newRange.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(newRange);
-        this.syncContentFromEditor();
-    }
-
-    private applyImageDefaults(img: HTMLImageElement): void {
-        const width = this.defaultImageWidth();
-        if (width !== undefined) {
-            img.style.width = parseImageSize(width);
-        }
-        const height = this.defaultImageHeight();
-        if (height !== undefined) {
-            img.style.height = parseImageSize(height);
-        }
-        const align = this.defaultImageAlignment();
-        img.dataset['align'] = align;
-        applyImageAlignment(img, align);
-    }
-
     private getEditorElement(): HTMLDivElement | null {
         if (this.editorDiv?.nativeElement) {
             return this.editorDiv.nativeElement;
@@ -5490,14 +3195,48 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Registry of addon-contributed toolbar buttons (addon host surface). */
     readonly toolbarSlots = new AddonSlotRegistry<RichTextToolbarSlot>();
 
-    /** The editor's slash-command registry (addon host surface). */
+    /** This editor instance's slash-command registry (addon host surface). */
     get commands(): RichTextCommandRegistry {
         return this.commandRegistry;
+    }
+
+    /** The app-wide slash-command registry shared by every editor (addon host surface). */
+    get globalCommands(): RichTextCommandRegistry {
+        return this.rootCommandRegistry;
     }
 
     /** The contenteditable content root (addon host surface). */
     get contentRoot(): HTMLElement {
         return this.editorDiv?.nativeElement as HTMLElement;
+    }
+
+    /** The editor's positioned (relative) container element (addon host surface). */
+    get overlayAnchor(): HTMLElement {
+        return this.editorContainer?.nativeElement ?? this.contentRoot;
+    }
+
+    /**
+     * Bind an action to a known shortcut definition (addon host surface). The
+     * base ships no handler for these; the shortcut stays inert until an addon
+     * registers the action here.
+     */
+    registerShortcutAction(actionId: string, run: () => void, when?: () => boolean): () => void {
+        const entry = { run, when };
+        this.shortcutActions.set(actionId, entry);
+        return () => {
+            if (this.shortcutActions.get(actionId) === entry) {
+                this.shortcutActions.delete(actionId);
+            }
+        };
+    }
+
+    private canRunShortcutAction(actionId: string): boolean {
+        const entry = this.shortcutActions.get(actionId);
+        return !!entry && (!entry.when || entry.when());
+    }
+
+    private runShortcutAction(actionId: string): void {
+        this.shortcutActions.get(actionId)?.run();
     }
 
     /** Snapshot the current selection / caret target for an addon. */
@@ -5571,7 +3310,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     /** Handle a click on an addon-contributed toolbar slot. */
     onAddonSlotClick(payload: { slot: RichTextToolbarSlot; event: Event }): void {
-        payload.slot.onClick(payload.event);
+        payload.slot.onClick?.(payload.event);
     }
 
     restoreSelection(): void {
@@ -5591,7 +3330,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
         // 3. Otherwise (editor never focused, or the caret is in the toolbar /
-        //    emoji search field) drop the caret at the end of the editor content
+        //    overlay UI, e.g. an addon picker's search field) drop the caret at the end of the editor content
         //    so insertions always land in the text.
         this.focusEditor();
         const range = this.document.createRange();
@@ -5684,21 +3423,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
         const computedStyle = view.getComputedStyle(element);
-        this.currentFontColor.set(this.toHexColor(computedStyle.color));
-        const backgroundColor = computedStyle.backgroundColor;
-        this.currentBackgroundColor.set(
-            this.isTransparentColor(backgroundColor) ? '' : this.toHexColor(backgroundColor)
-        );
-    }
-
-    private toHexColor(value: string): string {
-        const rgba = parseColor(value);
-        return rgba ? formatHex(rgba) : value;
-    }
-
-    private isTransparentColor(value: string): boolean {
-        const rgba = parseColor(value);
-        return !rgba || rgba.a === 0;
+        this.currentFontColor.set(computedStyle.color);
+        this.currentBackgroundColor.set(computedStyle.backgroundColor);
     }
 
     private updateFloatingToolbarPosition(): void {
@@ -5716,358 +3442,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
                 y,
             });
         }
-    }
-
-    private updateMentionPopoverPosition(): void {
-        const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
-            const editorRect = this.el.nativeElement.getBoundingClientRect();
-            const maxX = Math.max(0, editorRect.width - 280);
-            const maxY = Math.max(0, editorRect.height - 200);
-            const x = Math.max(0, Math.min(rect.left - editorRect.left, maxX));
-            const y = Math.max(0, Math.min(rect.bottom - editorRect.top + 5, maxY));
-
-            this.mentionPopoverPosition.set({
-                x,
-                y,
-            });
-        }
-    }
-
-    private updateSlashCommandPopoverPosition(): void {
-        const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
-            const editorRect = this.el.nativeElement.getBoundingClientRect();
-            const maxX = Math.max(0, editorRect.width - 320);
-            const maxY = Math.max(0, editorRect.height - 260);
-            const x = Math.max(0, Math.min(rect.left - editorRect.left, maxX));
-            const y = Math.max(0, Math.min(rect.bottom - editorRect.top + 8, maxY));
-
-            this.slashCommandPosition.set({
-                x,
-                y,
-            });
-        }
-    }
-
-    private onSlashCommandKeydown(event: KeyboardEvent): void {
-        const commands = this.filteredSlashCommands();
-        if (commands.length === 0) {
-            if (event.key === 'Escape' || event.key === 'Tab') {
-                this.closeSlashCommandPopover();
-            }
-            return;
-        }
-
-        const currentIndex = this.slashCommandSelectedIndex();
-        if (event.key === 'ArrowDown') {
-            this.slashCommandSelectedIndex.set(Math.min(currentIndex + 1, commands.length - 1));
-            return;
-        }
-        if (event.key === 'ArrowUp') {
-            this.slashCommandSelectedIndex.set(Math.max(currentIndex - 1, 0));
-            return;
-        }
-        if (event.key === 'Escape' || event.key === 'Tab') {
-            this.closeSlashCommandPopover();
-            return;
-        }
-        if (event.key === ' ' || event.key === 'Spacebar') {
-            const selected = commands[currentIndex];
-            if (selected) {
-                void this.onSlashCommandSelect(selected);
-            }
-            return;
-        }
-        if (event.key === 'Enter') {
-            const selected = commands[currentIndex];
-            if (selected) {
-                void this.onSlashCommandSelect(selected);
-            }
-        }
-    }
-
-    private scrollSelectedSlashCommandIntoView(): void {
-        const list = this.slashCommandList?.nativeElement;
-        if (!list) {
-            return;
-        }
-
-        const selectedIndex = this.slashCommandSelectedIndex();
-        const selected = list.querySelector<HTMLElement>(`[data-slash-index="${selectedIndex}"]`);
-        if (!selected) {
-            return;
-        }
-
-        const listTop = list.scrollTop;
-        const listBottom = listTop + list.clientHeight;
-        const itemTop = selected.offsetTop;
-        const itemBottom = itemTop + selected.offsetHeight;
-
-        if (itemTop < listTop || itemBottom > listBottom) {
-            selected.scrollIntoView({ block: 'nearest' });
-        }
-    }
-
-    private closeSlashCommandPopover(): void {
-        this.slashCommandOpen.set(false);
-        this.slashQuery.set('');
-        this.slashCommandSelectedIndex.set(0);
-        this.slashAnchorBlock = null;
-        this.slashTriggerRange = null;
-    }
-
-    private removeSlashTriggerText(query: string): HTMLElement | null {
-        const removedFromRange = this.removeSlashTriggerTextFromRange(query, this.slashTriggerRange);
-        if (removedFromRange) {
-            this.slashTriggerRange = null;
-            return removedFromRange;
-        }
-
-        const removedFromCurrentAnchor = this.removeSlashTriggerTextFromAnchorBlock(query, this.getClosestEditableBlockForSlashCommand());
-        if (removedFromCurrentAnchor) {
-            return removedFromCurrentAnchor;
-        }
-
-        const removedFromStoredAnchor = this.removeSlashTriggerTextFromAnchorBlock(query, this.slashAnchorBlock);
-        if (removedFromStoredAnchor) {
-            return removedFromStoredAnchor;
-        }
-
-        const removedFromEditor = this.removeSlashTriggerTextFromEditor(query);
-        if (removedFromEditor) {
-            return removedFromEditor;
-        }
-
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return null;
-        }
-
-        const range = selection.getRangeAt(0);
-        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
-            return null;
-        }
-
-        const triggerLength = query.length + 1;
-        const textNode = range.startContainer as Text;
-        const deleteStart = Math.max(0, range.startOffset - triggerLength);
-        const triggerText = textNode.data.slice(deleteStart, range.startOffset);
-        if (triggerText !== `/${query}`) {
-            return null;
-        }
-
-        range.setStart(textNode, deleteStart);
-        range.deleteContents();
-        range.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        this.syncContentFromEditor();
-        return this.findClosestEditableBlock(textNode);
-    }
-
-
-    private removeSlashTriggerTextFromRange(query: string, range: Range | null): HTMLElement | null {
-        if (range?.startContainer.nodeType !== Node.TEXT_NODE) {
-            return null;
-        }
-        const selection = this.document.getSelection();
-        if (!selection) {
-            return null;
-        }
-
-        const workRange = range.cloneRange();
-        const triggerLength = query.length + 1;
-        const textNode = workRange.startContainer as Text;
-        const deleteStart = Math.max(0, workRange.startOffset - triggerLength);
-        const triggerText = textNode.data.slice(deleteStart, workRange.startOffset);
-        if (triggerText !== `/${query}`) {
-            return null;
-        }
-
-        workRange.setStart(textNode, deleteStart);
-        workRange.deleteContents();
-        workRange.collapse(true);
-        selection.removeAllRanges();
-        selection.addRange(workRange);
-        this.syncContentFromEditor();
-        return this.findClosestEditableBlock(textNode);
-    }
-
-    private removeSlashTriggerTextFromAnchorBlock(query: string, anchorBlock: HTMLElement | null): HTMLElement | null {
-        if (!anchorBlock) {
-            return null;
-        }
-        const editor = this.getEditorElement();
-        if (!editor?.contains(anchorBlock)) {
-            return null;
-        }
-
-        const walker = this.document.createTreeWalker(anchorBlock, NodeFilter.SHOW_TEXT);
-        let candidateNode: Text | null = null;
-        let candidateIndex = -1;
-        const needle = `/${query}`;
-
-        while (walker.nextNode()) {
-            const textNode = walker.currentNode as Text;
-            const index = textNode.data.lastIndexOf(needle);
-            if (index >= 0) {
-                candidateNode = textNode;
-                candidateIndex = index;
-            }
-        }
-
-        if (!candidateNode || candidateIndex < 0) {
-            return null;
-        }
-
-        candidateNode.deleteData(candidateIndex, needle.length);
-        const selection = this.document.getSelection();
-        if (selection) {
-            const range = this.document.createRange();
-            range.setStart(candidateNode, candidateIndex);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        }
-        this.syncContentFromEditor();
-        return anchorBlock;
-    }
-
-    private removeSlashTriggerTextFromEditor(query: string): HTMLElement | null {
-        const editor = this.getEditorElement();
-        if (!editor) {
-            return null;
-        }
-
-        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-        let candidateNode: Text | null = null;
-        let candidateIndex = -1;
-        const needle = `/${query}`;
-
-        while (walker.nextNode()) {
-            const textNode = walker.currentNode as Text;
-            const index = textNode.data.lastIndexOf(needle);
-            if (index >= 0) {
-                candidateNode = textNode;
-                candidateIndex = index;
-            }
-        }
-
-        if (!candidateNode || candidateIndex < 0) {
-            return null;
-        }
-
-        candidateNode.deleteData(candidateIndex, needle.length);
-        const selection = this.document.getSelection();
-        if (selection) {
-            const range = this.document.createRange();
-            range.setStart(candidateNode, candidateIndex);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
-        }
-        this.syncContentFromEditor();
-        return this.findClosestEditableBlock(candidateNode);
-    }
-
-    private getClosestEditableBlockForSlashCommand(): HTMLElement | null {
-        const editor = this.getEditorElement();
-        if (editor && this.slashAnchorBlock && editor.contains(this.slashAnchorBlock)) {
-            return this.slashAnchorBlock;
-        }
-        const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0 && editor) {
-            const range = selection.getRangeAt(0);
-            if (editor.contains(range.startContainer)) {
-                return this.findClosestEditableBlockFromRange(range);
-            }
-        }
-        if (this.slashTriggerRange) {
-            return this.findClosestEditableBlockFromRange(this.slashTriggerRange);
-        }
-        return null;
-    }
-
-    private getClosestEditableBlockFromSelection(): HTMLElement | null {
-        const selection = this.document.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return null;
-        }
-        return this.findClosestEditableBlockFromRange(selection.getRangeAt(0));
-    }
-
-    private findClosestEditableBlockFromRange(range: Range): HTMLElement | null {
-        const editor = this.getEditorElement();
-        if (!editor) {
-            return null;
-        }
-
-        let node: Node = range.startContainer;
-        if (node === editor) {
-            const childCount = editor.childNodes.length;
-            if (childCount > 0) {
-                const index = Math.min(Math.max(range.startOffset - 1, 0), childCount - 1);
-                node = editor.childNodes[index] ?? editor;
-            }
-        }
-
-        return this.findClosestEditableBlock(node);
-    }
-
-    private findClosestEditableBlock(node: Node): HTMLElement | null {
-        const editor = this.getEditorElement();
-        if (!editor) {
-            return null;
-        }
-
-        let current: Node | null = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-        while (current && current !== editor) {
-            if (current.nodeType === Node.ELEMENT_NODE) {
-                const element = current as HTMLElement;
-                const tagName = element.tagName;
-                if (['P', 'DIV', 'H1', 'H2', 'H3', 'LI', 'BLOCKQUOTE', 'PRE'].includes(tagName)) {
-                    return element;
-                }
-            }
-            current = current.parentNode;
-        }
-        return this.resolveTopLevelEditorBlock(node, editor);
-    }
-
-    private resolveTopLevelEditorBlock(node: Node, editor: HTMLElement): HTMLElement | null {
-        if (node.nodeType === Node.TEXT_NODE && node.parentNode === editor) {
-            const wrapper = this.document.createElement('p');
-            (node as ChildNode).before(wrapper);
-            wrapper.appendChild(node);
-            return wrapper;
-        }
-
-        let current: Node | null = node;
-        while (current?.parentNode && current.parentNode !== editor) {
-            current = current.parentNode;
-        }
-
-        if (current && current !== editor && current.nodeType === Node.ELEMENT_NODE) {
-            return current as HTMLElement;
-        }
-
-        if (editor.childNodes.length === 0) {
-            const paragraph = this.document.createElement('p');
-            paragraph.appendChild(this.document.createElement('br'));
-            editor.appendChild(paragraph);
-            return paragraph;
-        }
-
-        const firstElementChild = Array.from(editor.childNodes).find(child => child.nodeType === Node.ELEMENT_NODE);
-        if (firstElementChild) {
-            return firstElementChild as HTMLElement;
-        }
-        return null;
     }
 
     private placeCaretAtEndOfBlock(block: HTMLElement): void {
@@ -6136,7 +3510,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         selection.addRange(range);
     }
 
-    private executeToolbarCommandFromSlash(command: string, anchorBlock: HTMLElement | null): void {
+    /**
+     * Apply a built-in toolbar command to a specific block (addon host surface):
+     * the block-transform engine used by the slash-commands addon.
+     */
+    executeToolbarCommandOnBlock(command: string, anchorBlock: HTMLElement | null): void {
         if (command === 'code') {
             this.insertInlineCodeFromSlash(anchorBlock);
             return;
@@ -6257,22 +3635,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         const nonEmptyElement = Array.from(block.children).find(child => child.tagName !== 'BR');
         return !nonEmptyElement;
-    }
-
-    private captureSlashTriggerRange(): void {
-        const selection = this.document.getSelection();
-        const editor = this.getEditorElement();
-        if (!selection || selection.rangeCount === 0 || !editor) {
-            this.slashTriggerRange = null;
-            return;
-        }
-
-        const range = selection.getRangeAt(0);
-        if (!editor.contains(range.startContainer)) {
-            this.slashTriggerRange = null;
-            return;
-        }
-        this.slashTriggerRange = range.cloneRange();
     }
 
     private buildTriggerAwareText(html: string): string {
@@ -6534,7 +3896,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }, delay);
     }
 
-    private flushPendingHistoryPush(): void {
+    /** Flush any pending debounced history push as one entry (addon host surface). */
+    flushPendingHistoryPush(): void {
         if (!this.historyDebounceTimer) {
             return;
         }
@@ -6543,8 +3906,35 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
     }
 
+    /** Read-only projection of the history stack, oldest first (addon host surface). */
+    historyEntries(): readonly RichTextHistoryEntrySnapshot[] {
+        this.historyVersion();
+        return this.history.map((entry, index) => ({
+            index,
+            timestamp: entry.timestamp,
+            preview: entry.preview,
+            previewLines: entry.previewLines,
+            lineCount: entry.lineCount,
+        }));
+    }
+
+    /** Index of the entry the editor currently reflects (addon host surface). */
+    currentHistoryIndex(): number {
+        this.historyVersion();
+        return this.historyIndex;
+    }
+
+    /** Reconstruct a history entry's HTML + Markdown (addon host surface). */
+    reconstructHistoryEntry(index: number): { html: string; markdown: string } | null {
+        if (index < 0 || index >= this.history.length) {
+            return null;
+        }
+        const html = this.reconstructHtmlCached(index);
+        return { html, markdown: this.markdownService.toMarkdown(html) };
+    }
+
     private bumpHistoryVersion(): void {
-        this.historyVersion.update(v => v + 1);
+        this._historyVersion.update(v => v + 1);
     }
 
     private buildHistoryPreview(html: string): { preview: string; previewLines: string[]; lineCount: number } {
@@ -6563,51 +3953,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             previewLines: safeLines.slice(0, 3),
             lineCount: safeLines.length,
         };
-    }
-
-    private focusFirstHistoryActionSoon(preferredList: 'popover' | 'dialog'): void {
-        const tryFocus = (attempt: number): void => {
-            const root = this.el.nativeElement as HTMLElement;
-            const selector = `[data-history-list="${preferredList}"] [data-history-entry-action="true"]`;
-            const firstAction = root.querySelector<HTMLElement>(selector);
-            if (firstAction) {
-                firstAction.focus();
-                return;
-            }
-            if (attempt < 4) {
-                setTimeout(() => tryFocus(attempt + 1), 16);
-            }
-        };
-
-        setTimeout(() => tryFocus(0), 24);
-    }
-
-    private getHistoryEntryElements(from: HTMLElement): HTMLElement[] {
-        const listContainer = from.closest('[data-history-list]');
-        if (!listContainer) {
-            return [];
-        }
-        return Array.from(
-            listContainer.querySelectorAll<HTMLElement>('[data-history-entry-action="true"]')
-        );
-    }
-
-    private getHistoryListType(from: HTMLElement): 'popover' | 'dialog' | null {
-        const listContainer = from.closest<HTMLElement>('[data-history-list]');
-        const type = listContainer?.dataset['historyList'];
-        if (type === 'popover' || type === 'dialog') {
-            return type;
-        }
-        return null;
-    }
-
-    private focusHistoryEntrySoon(listType: 'popover' | 'dialog', entryIndex: number): void {
-        setTimeout(() => {
-            const root = this.el.nativeElement as HTMLElement;
-            const selector = `[data-history-list="${listType}"] [data-history-entry-index="${entryIndex}"]`;
-            const target = root.querySelector<HTMLElement>(selector);
-            target?.focus();
-        }, 0);
     }
 
     private captureSelection(): SerializedSelection | null {
@@ -6689,20 +4034,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     }
 
     ngOnDestroy(): void {
-        this.cancelAi();
         this.shortcutHandle?.unregister();
         this.shortcutHandle = null;
         if (this.historyDebounceTimer) {
             clearTimeout(this.historyDebounceTimer);
             this.historyDebounceTimer = null;
         }
-        if (this.autoUploadObserver) {
-            this.autoUploadObserver.disconnect();
-            this.autoUploadObserver = null;
-        }
-        this.autoUploadMap.forEach(entry => entry.subscription.unsubscribe());
-        this.autoUploadMap.clear();
-        this.autoUploadErrors.set(new Map());
         this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
         this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
         this.document.removeEventListener('touchmove', this.onTableCellTouchMoveBound);

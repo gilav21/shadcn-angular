@@ -1,0 +1,226 @@
+import type { LocaleMeta } from '../../../../lib/i18n';
+
+/**
+ * Localized strings for the rich-text revision-history addon: the corner
+ * "Revisions" button + panel, the preview dialog, and the browser dialog.
+ * Pass a registry key (`'en'`, `'he'`, …) or a full dictionary to
+ * `[uiRteHistoryLocale]`.
+ *
+ * Unlike the former built-in feature, these strings resolve from the addon's
+ * own `[uiRteHistoryLocale]` input (or the global `UI_LOCALE_ID`), not the
+ * editor's `[locale]` input.
+ */
+export interface RichTextHistoryLocale extends LocaleMeta {
+    button: string;
+    title: string;
+    browserDescription: string;
+    revision: string;
+    applied: string;
+    preview: string;
+    renderedPreview: string;
+    markdownSnapshot: string;
+    capturedAt: string;
+    cancel: string;
+    restore: string;
+    close: string;
+    moreLines: string;
+    ariaOpen: string;
+    ariaClose: string;
+    ariaApply: string;
+}
+
+/** Built-in locales for the revision-history addon. */
+export const RICH_TEXT_HISTORY_LOCALES: Record<string, RichTextHistoryLocale> = {
+    en: {
+        code: 'en',
+        button: 'History ({count})',
+        title: 'Revision History',
+        browserDescription: 'Use this browser when the history button is hidden.',
+        revision: 'Revision {index}',
+        applied: 'Applied',
+        preview: 'Preview',
+        renderedPreview: 'Rendered Preview',
+        markdownSnapshot: 'Markdown Snapshot',
+        capturedAt: 'Captured at {time}',
+        cancel: 'Cancel',
+        restore: 'Restore This Revision',
+        close: 'Close',
+        moreLines: '+{count} more lines',
+        ariaOpen: 'Open revision history (Ctrl or Command + Shift + H)',
+        ariaClose: 'Close revision history',
+        ariaApply: 'Apply revision {index}',
+    },
+    he: {
+        code: 'he',
+        rtl: true,
+        button: 'היסטוריה ({count})',
+        title: 'היסטוריית גרסאות',
+        browserDescription: 'ניתן להשתמש בחלון זה כשכפתור ההיסטוריה מוסתר.',
+        revision: 'גרסה {index}',
+        applied: 'הוחל',
+        preview: 'תצוגה מקדימה',
+        renderedPreview: 'תצוגה מעובדת',
+        markdownSnapshot: 'תמונת מצב Markdown',
+        capturedAt: 'תיעוד מ-{time}',
+        cancel: 'ביטול',
+        restore: 'שחזור גרסה זו',
+        close: 'סגירה',
+        moreLines: '+{count} שורות נוספות',
+        ariaOpen: 'פתיחת היסטוריית גרסאות (Ctrl או Command + Shift + H)',
+        ariaClose: 'סגירת היסטוריית גרסאות',
+        ariaApply: 'החלת גרסה {index}',
+    },
+    ar: {
+        code: 'ar',
+        rtl: true,
+        button: 'السجل ({count})',
+        title: 'سجل المراجعات',
+        browserDescription: 'يمكن استخدام هذا المتصفح عندما يكون زر السجل مخفيًا.',
+        revision: 'المراجعة {index}',
+        applied: 'مُطبَّق',
+        preview: 'معاينة',
+        renderedPreview: 'معاينة مُصيَّرة',
+        markdownSnapshot: 'لقطة Markdown',
+        capturedAt: 'تم الالتقاط في {time}',
+        cancel: 'إلغاء',
+        restore: 'استعادة هذه المراجعة',
+        close: 'إغلاق',
+        moreLines: '+{count} أسطر إضافية',
+        ariaOpen: 'فتح سجل المراجعات (Ctrl أو Command + Shift + H)',
+        ariaClose: 'إغلاق سجل المراجعات',
+        ariaApply: 'تطبيق المراجعة {index}',
+    },
+    de: {
+        code: 'de',
+        button: 'Verlauf ({count})',
+        title: 'Revisionsverlauf',
+        browserDescription: 'Verwenden Sie diesen Browser, wenn die Verlaufsschaltfläche ausgeblendet ist.',
+        revision: 'Revision {index}',
+        applied: 'Angewendet',
+        preview: 'Vorschau',
+        renderedPreview: 'Gerenderte Vorschau',
+        markdownSnapshot: 'Markdown-Snapshot',
+        capturedAt: 'Erfasst am {time}',
+        cancel: 'Abbrechen',
+        restore: 'Diese Revision wiederherstellen',
+        close: 'Schließen',
+        moreLines: '+{count} weitere Zeilen',
+        ariaOpen: 'Revisionsverlauf öffnen (Strg oder Befehlstaste + Umschalt + H)',
+        ariaClose: 'Revisionsverlauf schließen',
+        ariaApply: 'Revision {index} anwenden',
+    },
+    fr: {
+        code: 'fr',
+        button: 'Historique ({count})',
+        title: 'Historique des révisions',
+        browserDescription: 'Utilisez ce navigateur lorsque le bouton d\'historique est masqué.',
+        revision: 'Révision {index}',
+        applied: 'Appliquée',
+        preview: 'Aperçu',
+        renderedPreview: 'Aperçu rendu',
+        markdownSnapshot: 'Instantané Markdown',
+        capturedAt: 'Capturé à {time}',
+        cancel: 'Annuler',
+        restore: 'Restaurer cette révision',
+        close: 'Fermer',
+        moreLines: '+{count} lignes supplémentaires',
+        ariaOpen: 'Ouvrir l\'historique des révisions (Ctrl ou Commande + Maj + H)',
+        ariaClose: 'Fermer l\'historique des révisions',
+        ariaApply: 'Appliquer la révision {index}',
+    },
+    es: {
+        code: 'es',
+        button: 'Historial ({count})',
+        title: 'Historial de revisiones',
+        browserDescription: 'Use este navegador cuando el botón de historial esté oculto.',
+        revision: 'Revisión {index}',
+        applied: 'Aplicada',
+        preview: 'Vista previa',
+        renderedPreview: 'Vista previa renderizada',
+        markdownSnapshot: 'Instantánea de Markdown',
+        capturedAt: 'Capturado a las {time}',
+        cancel: 'Cancelar',
+        restore: 'Restaurar esta revisión',
+        close: 'Cerrar',
+        moreLines: '+{count} líneas más',
+        ariaOpen: 'Abrir historial de revisiones (Ctrl o Comando + Mayús + H)',
+        ariaClose: 'Cerrar historial de revisiones',
+        ariaApply: 'Aplicar revisión {index}',
+    },
+    ja: {
+        code: 'ja',
+        button: '履歴 ({count})',
+        title: 'リビジョン履歴',
+        browserDescription: '履歴ボタンが非表示の場合はこのブラウザを使用してください。',
+        revision: 'リビジョン {index}',
+        applied: '適用済み',
+        preview: 'プレビュー',
+        renderedPreview: 'レンダリングプレビュー',
+        markdownSnapshot: 'Markdownスナップショット',
+        capturedAt: '{time} にキャプチャ',
+        cancel: 'キャンセル',
+        restore: 'このリビジョンを復元',
+        close: '閉じる',
+        moreLines: '+{count} 行',
+        ariaOpen: 'リビジョン履歴を開く（Ctrl または Command + Shift + H）',
+        ariaClose: 'リビジョン履歴を閉じる',
+        ariaApply: 'リビジョン {index} を適用',
+    },
+    zh: {
+        code: 'zh',
+        button: '历史 ({count})',
+        title: '修订历史',
+        browserDescription: '当历史按钮被隐藏时使用此浏览器。',
+        revision: '修订 {index}',
+        applied: '已应用',
+        preview: '预览',
+        renderedPreview: '渲染预览',
+        markdownSnapshot: 'Markdown 快照',
+        capturedAt: '捕获于 {time}',
+        cancel: '取消',
+        restore: '恢复此修订',
+        close: '关闭',
+        moreLines: '+{count} 更多行',
+        ariaOpen: '打开修订历史（Ctrl 或 Command + Shift + H）',
+        ariaClose: '关闭修订历史',
+        ariaApply: '应用修订 {index}',
+    },
+    ru: {
+        code: 'ru',
+        button: 'История ({count})',
+        title: 'История ревизий',
+        browserDescription: 'Используйте этот браузер, когда кнопка истории скрыта.',
+        revision: 'Ревизия {index}',
+        applied: 'Применено',
+        preview: 'Просмотр',
+        renderedPreview: 'Отрисованный просмотр',
+        markdownSnapshot: 'Снимок Markdown',
+        capturedAt: 'Захвачено в {time}',
+        cancel: 'Отмена',
+        restore: 'Восстановить эту ревизию',
+        close: 'Закрыть',
+        moreLines: '+{count} строк',
+        ariaOpen: 'Открыть историю ревизий (Ctrl или Command + Shift + H)',
+        ariaClose: 'Закрыть историю ревизий',
+        ariaApply: 'Применить ревизию {index}',
+    },
+    pt: {
+        code: 'pt',
+        button: 'Histórico ({count})',
+        title: 'Histórico de revisões',
+        browserDescription: 'Use este navegador quando o botão de histórico estiver oculto.',
+        revision: 'Revisão {index}',
+        applied: 'Aplicada',
+        preview: 'Visualizar',
+        renderedPreview: 'Visualização renderizada',
+        markdownSnapshot: 'Snapshot de Markdown',
+        capturedAt: 'Capturado às {time}',
+        cancel: 'Cancelar',
+        restore: 'Restaurar esta revisão',
+        close: 'Fechar',
+        moreLines: '+{count} linhas adicionais',
+        ariaOpen: 'Abrir histórico de revisões (Ctrl ou Command + Shift + H)',
+        ariaClose: 'Fechar histórico de revisões',
+        ariaApply: 'Aplicar revisão {index}',
+    },
+};

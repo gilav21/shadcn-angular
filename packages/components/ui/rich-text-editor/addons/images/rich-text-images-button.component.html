@@ -1,0 +1,70 @@
+<ui-popover [open]="open()" [closeOnScroll]="true" (openChange)="onOpenChange($event)">
+  <ui-popover-trigger>
+    <button
+      type="button"
+      data-slot="rte-images-button"
+      [class]="buttonClasses()"
+      [title]="locale().tooltip"
+      [attr.aria-label]="locale().tooltip"
+      [disabled]="interactionDisabled()"
+    >
+      <span [innerHTML]="icon"></span>
+    </button>
+  </ui-popover-trigger>
+  <ui-popover-content class="w-80 max-w-[calc(100vw-2rem)] p-4" align="start" strategy="fixed">
+    <div class="space-y-3">
+      @if (showUrl()) {
+        <div>
+          <label for="rte-image-src" class="text-sm font-medium mb-1 block">{{ locale().url }}</label>
+          <input
+            #imageSrc
+            id="rte-image-src"
+            type="url"
+            data-slot="rte-images-url"
+            [placeholder]="locale().urlPlaceholder"
+            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
+        <div>
+          <label for="rte-image-alt" class="text-sm font-medium mb-1 block">{{ locale().altText }}</label>
+          <input
+            #imageAlt
+            id="rte-image-alt"
+            type="text"
+            data-slot="rte-images-alt"
+            [placeholder]="locale().altTextPlaceholder"
+            class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+        </div>
+        <ui-button
+          size="sm"
+          class="w-full"
+          data-slot="rte-images-insert"
+          [disabled]="interactionDisabled()"
+          (click)="onInsertUrl(imageSrc.value, imageAlt.value)"
+          (keydown.enter)="onInsertUrl(imageSrc.value, imageAlt.value)"
+          (keydown.space)="onInsertUrl(imageSrc.value, imageAlt.value)"
+        >
+          {{ locale().insert }}
+        </ui-button>
+      }
+      @if (showUpload()) {
+        <label
+          class="flex h-9 w-full cursor-pointer items-center justify-center rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors hover:bg-accent"
+          [class.pointer-events-none]="interactionDisabled()"
+          [class.opacity-50]="interactionDisabled()"
+        >
+          <span>{{ locale().tooltip }}</span>
+          <input
+            type="file"
+            accept="image/*"
+            class="sr-only"
+            data-slot="rte-images-file"
+            [disabled]="interactionDisabled()"
+            (change)="onFileSelected($event)"
+          />
+        </label>
+      }
+    </div>
+  </ui-popover-content>
+</ui-popover>

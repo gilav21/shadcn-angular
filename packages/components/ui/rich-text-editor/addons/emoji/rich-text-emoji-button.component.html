@@ -1,0 +1,17 @@
+<ui-emoji-picker
+  [closeOnSelect]="false"
+  [closeOnScroll]="true"
+  (emojiSelect)="onEmoji($event)"
+>
+  <ui-emoji-picker-trigger>
+    <button
+      type="button"
+      [class]="buttonClasses()"
+      [title]="context.tooltip()"
+      [disabled]="interactionDisabled()"
+    >
+      <span [innerHTML]="icon"></span>
+    </button>
+  </ui-emoji-picker-trigger>
+  <ui-emoji-picker-content strategy="fixed" />
+</ui-emoji-picker>

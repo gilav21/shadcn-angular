@@ -53,8 +53,8 @@ export interface RichTextSlashCommandContext {
 
 /**
  * Definition of a custom slash command. Register commands via the
- * `[slashCommands]` input on `<ui-rich-text-editor>` or programmatically
- * through {@link RichTextCommandRegistry}.
+ * `[uiRteSlashCommands]` input on the `rich-text-editor/slash-commands` addon
+ * directive, or programmatically through {@link RichTextCommandRegistry}.
  *
  * When the user types `/` in the editor, matching commands appear in a
  * dropdown. The user can filter by typing, and select a command to execute.

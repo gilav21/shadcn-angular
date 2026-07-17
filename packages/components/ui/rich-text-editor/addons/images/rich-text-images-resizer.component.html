@@ -1,0 +1,55 @@
+@if (target()) {
+    <div class="absolute border-2 border-primary pointer-events-none transition-none"
+         [style.top.px]="rect().top"
+         [style.left.px]="rect().left"
+         [style.width.px]="rect().width"
+         [style.height.px]="rect().height"
+         [style.display]="visible() ? 'block' : 'none'">
+
+        @if (resizable()) {
+            <div class="absolute -top-1.5 -left-1.5 w-3 h-3 bg-primary border border-white rounded-sm cursor-nw-resize pointer-events-auto shadow-sm touch-none"
+                 (mousedown)="startResize($event, 'nw')" (touchstart)="startResize($event, 'nw')"></div>
+            <div class="absolute -top-1.5 -right-1.5 w-3 h-3 bg-primary border border-white rounded-sm cursor-ne-resize pointer-events-auto shadow-sm touch-none"
+                 (mousedown)="startResize($event, 'ne')" (touchstart)="startResize($event, 'ne')"></div>
+            <div class="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-primary border border-white rounded-sm cursor-sw-resize pointer-events-auto shadow-sm touch-none"
+                 (mousedown)="startResize($event, 'sw')" (touchstart)="startResize($event, 'sw')"></div>
+            <div class="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-primary border border-white rounded-sm cursor-se-resize pointer-events-auto shadow-sm touch-none"
+                 (mousedown)="startResize($event, 'se')" (touchstart)="startResize($event, 'se')"></div>
+        }
+
+        @if (resizable() && !lockAspectRatio()) {
+            <div class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary border border-white rounded-sm cursor-ns-resize pointer-events-auto shadow-sm touch-none"
+                 (mousedown)="startResize($event, 'n')" (touchstart)="startResize($event, 'n')"></div>
+            <div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary border border-white rounded-sm cursor-ns-resize pointer-events-auto shadow-sm touch-none"
+                 (mousedown)="startResize($event, 's')" (touchstart)="startResize($event, 's')"></div>
+            <div class="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary border border-white rounded-sm cursor-ew-resize pointer-events-auto shadow-sm touch-none"
+                 (mousedown)="startResize($event, 'w')" (touchstart)="startResize($event, 'w')"></div>
+            <div class="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-primary border border-white rounded-sm cursor-ew-resize pointer-events-auto shadow-sm touch-none"
+                 (mousedown)="startResize($event, 'e')" (touchstart)="startResize($event, 'e')"></div>
+        }
+
+        <div class="absolute -top-10 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-0.5 bg-popover border rounded-md shadow-md p-0.5">
+            @if (showAlignment()) {
+                @for (align of alignments; track align) {
+                    <button
+                        type="button"
+                        class="p-1.5 rounded-sm hover:bg-accent transition-colors"
+                        [class.bg-accent]="currentAlignment() === align"
+                        [class.text-accent-foreground]="currentAlignment() === align"
+                        [title]="resolvedAlignmentLabels()[align]"
+                        (mousedown)="onAlignClick($event, align)">
+                        <span [innerHTML]="getAlignIcon(align)"></span>
+                    </button>
+                }
+                <div class="w-px h-5 bg-border mx-0.5"></div>
+            }
+            <button
+                type="button"
+                class="p-1.5 rounded-sm hover:bg-destructive/10 hover:text-destructive transition-colors"
+                [title]="labels().deleteImage"
+                (mousedown)="onDeleteClick($event)">
+                <span [innerHTML]="deleteIconHtml"></span>
+            </button>
+        </div>
+    </div>
+}

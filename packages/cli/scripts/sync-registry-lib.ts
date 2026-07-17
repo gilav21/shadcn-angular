@@ -419,40 +419,225 @@ export interface RegistryEntry {
     libFiles: string[];
     dependencies: string[];
     isBlock: boolean;
+    /** `type:` value (e.g. `'addon'`), when declared. */
+    type?: string;
+    /** `parent:` value — the base a `type:'addon'` entry attaches to. */
+    parent?: string;
+    /** `attach.import` value (`"Symbol from './ui/…'"`), when declared. */
+    attachImport?: string;
+    /** `attach.selector` value (the marker attribute), when declared. */
+    attachSelector?: string;
+}
+
+/** Skip a string literal starting at `start` (a quote); returns the index after the closing quote. */
+function skipStringLiteral(source: string, start: number): number {
+    const quote = source[start];
+    let i = start + 1;
+    while (i < source.length) {
+        if (source[i] === '\\') i += 2;
+        else if (source[i] === quote) return i + 1;
+        else i += 1;
+    }
+    return i;
+}
+
+/** Skip a line or block comment starting at `start`; returns the index after it (or `start` if not a comment). */
+function skipComment(source: string, start: number): number {
+    if (source[start] !== '/') return start;
+    if (source[start + 1] === '/') {
+        const nl = source.indexOf('\n', start);
+        return nl === -1 ? source.length : nl + 1;
+    }
+    if (source[start + 1] === '*') {
+        const close = source.indexOf('*/', start + 2);
+        return close === -1 ? source.length : close + 2;
+    }
+    return start;
+}
+
+/**
+ * Extract the balanced `{…}` object literal starting at `open` (the index of
+ * the `{`), skipping string literals and comments so braces inside them never
+ * unbalance the scan. Returns the literal including both braces, or null if
+ * the source ends before it balances.
+ */
+function extractObjectLiteral(source: string, open: number): string | null {
+    let depth = 0;
+    let i = open;
+    while (i < source.length) {
+        const ch = source[i];
+        if (ch === "'" || ch === '"' || ch === '`') {
+            i = skipStringLiteral(source, i);
+            continue;
+        }
+        if (ch === '/') {
+            const next = skipComment(source, i);
+            if (next !== i) {
+                i = next;
+                continue;
+            }
+        }
+        if (ch === '{') depth += 1;
+        if (ch === '}') {
+            depth -= 1;
+            if (depth === 0) return source.slice(open, i + 1);
+        }
+        i += 1;
+    }
+    return null;
+}
+
+/**
+ * Split an object literal (including its braces) into its top-level
+ * `key: value` properties. Nested objects/arrays and string/comment content
+ * are treated as opaque value text.
+ */
+function topLevelProperties(objectLiteral: string): Map<string, string> {
+    const props = new Map<string, string>();
+    const body = objectLiteral.slice(1, -1);
+    let depth = 0;
+    let segmentStart = 0;
+    let i = 0;
+
+    const commit = (end: number): void => {
+        const segment = stripLeadingComments(body.slice(segmentStart, end));
+        const colon = segment.indexOf(':');
+        if (colon !== -1) {
+            const key = segment.slice(0, colon).trim().replaceAll(/^['"]|['"]$/g, '');
+            if (key) props.set(key, segment.slice(colon + 1).trim());
+        }
+        segmentStart = end + 1;
+    };
+
+    while (i < body.length) {
+        const ch = body[i];
+        if (ch === "'" || ch === '"' || ch === '`') {
+            i = skipStringLiteral(body, i);
+            continue;
+        }
+        if (ch === '/') {
+            const next = skipComment(body, i);
+            if (next !== i) {
+                i = next;
+                continue;
+            }
+        }
+        if (ch === '{' || ch === '[' || ch === '(') depth += 1;
+        if (ch === '}' || ch === ']' || ch === ')') depth = Math.max(0, depth - 1);
+        if (ch === ',' && depth === 0) commit(i);
+        i += 1;
+    }
+    commit(body.length);
+    return props;
+}
+
+/** Strip leading whitespace and line/block comments from a property segment. */
+function stripLeadingComments(segment: string): string {
+    let rest = segment;
+    for (;;) {
+        const trimmed = rest.trimStart();
+        if (trimmed.startsWith('//')) {
+            const nl = trimmed.indexOf('\n');
+            if (nl === -1) return '';
+            rest = trimmed.slice(nl + 1);
+        } else if (trimmed.startsWith('/*')) {
+            const close = trimmed.indexOf('*/');
+            if (close === -1) return '';
+            rest = trimmed.slice(close + 2);
+        } else {
+            return trimmed;
+        }
+    }
+}
+
+/**
+ * All quoted strings in a raw value snippet (e.g. the contents of a flat
+ * array). Comments inside the snippet are not stripped — a quoted word in a
+ * comment would be extracted — matching the previous parser's behavior; the
+ * generated registry never contains comments inside arrays.
+ */
+function quotedStrings(raw: string | undefined): string[] {
+    if (!raw) return [];
+    return [...raw.matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]);
 }
 
 /**
  * Parse registry entries from the `index.ts` source. Entries are identified by
  * their `name:` value (not the object key), so addon entries keyed
  * `parent/addon` — whose `name` contains a `/` — are recognised.
+ *
+ * Object literals are extracted with a brace-balanced, string-aware scan and
+ * split into top-level properties, so nested object fields (`breaking`,
+ * `attach`, `shortcutDefinitions`, `optionalDependencies`) never corrupt the
+ * parse regardless of where they sit relative to `files:`. A candidate block
+ * without both a top-level `name` and `files` is not an entry and is skipped
+ * (its interior is still scanned, so nothing is missed).
+ *
+ * Known limitations, fine for the machine-generated registry source: the
+ * candidate-key scan itself is not string-aware (a string literal containing
+ * `key: {` starts a balanced scan mid-string — the name/files gate filters
+ * any ghost), and template-literal interpolation / regex literals are not
+ * tokenized.
  */
+/**
+ * The content of the first complete string literal in `raw`, matching the
+ * opening quote to its OWN closing quote so an embedded quote of the other kind
+ * survives (the attach import is `"Symbol from '…'"`, single quotes inside).
+ */
+function firstStringLiteral(raw: string | undefined): string | undefined {
+    if (!raw) return undefined;
+    const trimmed = raw.trimStart();
+    const quote = trimmed[0];
+    if (quote !== '"' && quote !== "'") return undefined;
+    let out = '';
+    for (let i = 1; i < trimmed.length; i++) {
+        const ch = trimmed[i];
+        if (ch === '\\') { out += trimmed[i + 1] ?? ''; i += 1; continue; }
+        if (ch === quote) return out;
+        out += ch;
+    }
+    return undefined;
+}
+
+/** Pull `import` / `selector` out of an `attach: { … }` nested object literal. */
+function parseAttachProps(attachRaw: string | undefined): { import?: string; selector?: string } {
+    if (!attachRaw?.trimStart().startsWith('{')) return {};
+    const inner = topLevelProperties(attachRaw.trimStart());
+    return {
+        import: firstStringLiteral(inner.get('import')),
+        selector: firstStringLiteral(inner.get('selector')),
+    };
+}
+
 export function parseRegistrySource(source: string): RegistryEntry[] {
     const entries: RegistryEntry[] = [];
-
-    const blockRegex = /['"]?([\w/-]{1,256})['"]?\s{0,4096}:\s{0,4096}\{[^}]{0,100000}name:\s{0,4096}['"]([^'"]{1,256})['"][^}]{0,100000}files:\s{0,4096}\[([^\]]{0,100000})\]/g;
+    const keyRegex = /['"]?[\w/-]{1,256}['"]?\s{0,64}:\s{0,64}\{/g;
     let match: RegExpExecArray | null;
 
-    while ((match = blockRegex.exec(source)) !== null) {
-        const name = match[2];
-        const filesRaw = match[3];
-        const files = [...filesRaw.matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]);
+    while ((match = keyRegex.exec(source)) !== null) {
+        const open = match.index + match[0].length - 1;
+        const block = extractObjectLiteral(source, open);
+        if (!block) continue;
 
-        const matchStart = match.index ?? 0;
-        const blockEnd = source.indexOf('},', matchStart + match[0].length);
-        const fullBlock = blockEnd === -1 ? source.slice(matchStart) : source.slice(matchStart, blockEnd);
-        const libFilesMatch = /libFiles:\s*\[([\s\S]*?)\]/.exec(fullBlock);
-        const libFiles = libFilesMatch
-            ? [...libFilesMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
-            : [];
+        const props = topLevelProperties(block);
+        const name = quotedStrings(props.get('name'))[0];
+        const filesRaw = props.get('files');
+        if (!name || !filesRaw) continue;
 
-        const depsMatch = /dependencies:\s*\[([\s\S]*?)\]/.exec(fullBlock);
-        const dependencies = depsMatch
-            ? [...depsMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
-            : [];
-
-        const isBlock = /type:\s*['"]block['"]/.test(fullBlock);
-
-        entries.push({ name, files, libFiles, dependencies, isBlock });
+        const type = quotedStrings(props.get('type'))[0];
+        const attach = parseAttachProps(props.get('attach'));
+        entries.push({
+            name,
+            files: quotedStrings(filesRaw),
+            libFiles: quotedStrings(props.get('libFiles')),
+            dependencies: quotedStrings(props.get('dependencies')),
+            isBlock: type === 'block',
+            type,
+            parent: quotedStrings(props.get('parent'))[0],
+            attachImport: attach.import,
+            attachSelector: attach.selector,
+        });
+        keyRegex.lastIndex = open + block.length;
     }
 
     return entries;
@@ -765,6 +950,247 @@ export function formatAddonViolationReport(violations: readonly AddonBoundary[])
     }
     lines.push('A base must never import or re-export an addon. Remove the import/barrel re-export.');
     return lines;
+}
+
+// ── Composite ("<base>/full") generation ────────────────────────────────
+//
+// A `<base>/full` addon is a *composition* addon: it owns no directive of its
+// own. Instead every sibling addon directive gains an extra selector clause so
+// it ALSO matches under the composite's marker attribute, and the composite's
+// barrel exports a flat array of all those directive classes. Both the selector
+// clauses and the barrel are MACHINE-MAINTAINED here, so adding a fourteenth
+// addon automatically joins the bundle — no hand edits, no drift guard.
+
+/** One generated/edited source file backing a composite addon. */
+export interface CompositeFileEdit {
+    /** Absolute path of the file to write. */
+    readonly path: string;
+    /** The full new content. */
+    readonly content: string;
+    /** Whether this edits a sibling's selector or (re)writes the barrel. */
+    readonly kind: 'selector' | 'barrel';
+    /** `ui/`-relative label for drift reporting. */
+    readonly label: string;
+}
+
+export interface CompositeAnalysis {
+    readonly edits: CompositeFileEdit[];
+    /** Drift report lines, in scan order — empty when every composite is in sync. */
+    readonly driftLines: string[];
+    readonly hasDrift: boolean;
+    /** Non-fatal warnings (e.g. a sibling whose class file could not be located). */
+    readonly warnings: string[];
+}
+
+const COMPOSITE_HEADER =
+    '// AUTO-GENERATED by sync-registry — do not edit; new addons join automatically.';
+
+interface CompositeSibling {
+    /** Short addon name (`emoji`) — the sort key and the `'../<short>'` specifier. */
+    readonly short: string;
+    /** The directive class the addon's `attach.import` names. */
+    readonly className: string;
+    /** `ui/`-relative source file that declares the class (the selector to edit). */
+    readonly sourceFile: string;
+}
+
+/** The imported symbol in an `attach.import` value (`"Symbol from './ui/…'"`). */
+function attachSymbol(attachImport: string): string {
+    const idx = attachImport.indexOf(' from ');
+    return (idx === -1 ? attachImport : attachImport.slice(0, idx)).trim();
+}
+
+/** Locate the `ui/`-relative file in `entry.files` that declares `class`. */
+function findClassFile(entry: RegistryEntry, className: string, componentsRoot: string): string | null {
+    const needle = `export class ${className}`;
+    for (const file of entry.files) {
+        if (!file.endsWith('.ts')) continue;
+        const abs = path.join(componentsRoot, 'ui', file);
+        if (existsSync(abs) && readFileSync(abs, 'utf-8').includes(needle)) return file;
+    }
+    return null;
+}
+
+/**
+ * The `selector: '…'` string-literal span for the directive whose class is
+ * `className`, found as the last `selector:` before `export class <className>`.
+ * Returns the literal's quote char and inner text (without the quotes), plus the
+ * absolute offsets of the inner text, or null when not found.
+ */
+function findSelectorLiteral(
+    content: string, className: string,
+): { quote: string; inner: string; innerStart: number; innerEnd: number } | null {
+    const classAt = content.indexOf(`export class ${className}`);
+    if (classAt === -1) return null;
+    const before = content.slice(0, classAt);
+    const selRegex = /selector\s*:\s*(['"])/g;
+    let last: { quote: string; open: number } | null = null;
+    let m: RegExpExecArray | null;
+    while ((m = selRegex.exec(before)) !== null) {
+        last = { quote: m[1], open: m.index + m[0].length };
+    }
+    if (!last) return null;
+    const close = content.indexOf(last.quote, last.open);
+    if (close === -1) return null;
+    return { quote: last.quote, inner: content.slice(last.open, close), innerStart: last.open, innerEnd: close };
+}
+
+/**
+ * Ensure the directive's selector literal contains a `<tag>[<marker>]` clause
+ * (the tag reused from its existing first clause). Returns the rewritten file
+ * content, or null when the clause is already present (no edit needed).
+ */
+function ensureMarkerClause(content: string, className: string, marker: string): string | null {
+    const literal = findSelectorLiteral(content, className);
+    if (!literal) return null;
+    if (literal.inner.includes(`[${marker}]`)) return null;
+    const tag = literal.inner.slice(0, literal.inner.indexOf('['));
+    const newInner = `${literal.inner}, ${tag}[${marker}]`;
+    return content.slice(0, literal.innerStart) + newInner + content.slice(literal.innerEnd);
+}
+
+/** SCREAMING_SNAKE fallback array name for a base with no existing barrel. */
+function deriveArrayName(base: string): string {
+    return `${base.replaceAll(/[^a-zA-Z0-9]+/g, '_').toUpperCase()}_FULL`;
+}
+
+/**
+ * The exported array name, resolved from the strongest source of truth first so
+ * a from-scratch regeneration is reproducible:
+ *  1. the composite's `attach.import` symbol — the exact name the `apply` command
+ *     imports into consumer code, so the barrel MUST export it;
+ *  2. an existing barrel's `export const <NAME>` (covers a `/full` entry with no
+ *     attach yet);
+ *  3. a SCREAMING_SNAKE default derived from the base name.
+ */
+function resolveArrayName(composite: RegistryEntry, indexAbs: string): string {
+    if (composite.attachImport) {
+        const symbol = attachSymbol(composite.attachImport);
+        if (symbol) return symbol;
+    }
+    if (existsSync(indexAbs)) {
+        const found = /export const (\w+)\s*=/.exec(readFileSync(indexAbs, 'utf-8'));
+        if (found) return found[1];
+    }
+    return deriveArrayName(composite.parent ?? '');
+}
+
+/**
+ * Render the fully-generated barrel content for a composite addon: the sibling
+ * directive classes are imported (for the array) AND re-exported — Angular's AOT
+ * reference emitter resolves a directive used in a standalone `imports: [ARRAY]`
+ * through the array's own module, so each class must be exported from here or a
+ * consumer build fails with NG3004 ("not exported from …/full").
+ */
+export function renderCompositeBarrel(arrayName: string, siblings: readonly CompositeSibling[]): string {
+    const imports = siblings.map(s => `import { ${s.className} } from '../${s.short}';`);
+    const reexports = siblings.map(s => `    ${s.className},`);
+    const members = siblings.map(s => `    ${s.className},`);
+    return [
+        COMPOSITE_HEADER,
+        '',
+        ...imports,
+        '',
+        'export {',
+        ...reexports,
+        '};',
+        '',
+        `export const ${arrayName} = [`,
+        ...members,
+        '] as const;',
+        '',
+    ].join('\n');
+}
+
+/** Resolve a composite's sibling addons (same parent, sorted by short name). */
+function resolveCompositeSiblings(
+    composite: RegistryEntry,
+    entries: readonly RegistryEntry[],
+    componentsRoot: string,
+    warnings: string[],
+): CompositeSibling[] {
+    const siblings: CompositeSibling[] = [];
+    for (const entry of entries) {
+        if (entry.type !== 'addon' || entry.parent !== composite.parent || entry.name === composite.name) continue;
+        if (!entry.attachImport) continue;
+        const className = attachSymbol(entry.attachImport);
+        const sourceFile = findClassFile(entry, className, componentsRoot);
+        if (!sourceFile) {
+            warnings.push(`  composite '${composite.name}': could not locate a file declaring '${className}' for '${entry.name}'`);
+            continue;
+        }
+        siblings.push({ short: entry.name.split('/').at(-1) ?? entry.name, className, sourceFile });
+    }
+    return siblings.sort((a, b) => byLocale(a.short, b.short));
+}
+
+/** Analyze one composite entry into the selector + barrel edits it needs. */
+function analyzeComposite(
+    composite: RegistryEntry,
+    entries: readonly RegistryEntry[],
+    componentsRoot: string,
+    warnings: string[],
+): { edits: CompositeFileEdit[]; driftLines: string[] } {
+    const marker = composite.attachSelector;
+    if (!marker || !composite.parent) return { edits: [], driftLines: [] };
+
+    const siblings = resolveCompositeSiblings(composite, entries, componentsRoot, warnings);
+    const edits: CompositeFileEdit[] = [];
+    const driftLines: string[] = [];
+
+    for (const sibling of siblings) {
+        const abs = path.join(componentsRoot, 'ui', sibling.sourceFile);
+        const rewritten = ensureMarkerClause(readFileSync(abs, 'utf-8'), sibling.className, marker);
+        if (rewritten !== null) {
+            edits.push({ path: abs, content: rewritten, kind: 'selector', label: sibling.sourceFile });
+            driftLines.push(`  ${composite.name}: ${sibling.sourceFile} selector missing '[${marker}]' clause`);
+        }
+    }
+
+    const indexRel = `${composite.parent}/addons/full/index.ts`;
+    const indexAbs = path.join(componentsRoot, 'ui', indexRel);
+    const content = renderCompositeBarrel(resolveArrayName(composite, indexAbs), siblings);
+    const current = existsSync(indexAbs) ? readFileSync(indexAbs, 'utf-8') : null;
+    if (current !== content) {
+        edits.push({ path: indexAbs, content, kind: 'barrel', label: indexRel });
+        driftLines.push(`  ${composite.name}: ${indexRel} is ${current === null ? 'missing' : 'out of date'}`);
+    }
+
+    return { edits, driftLines };
+}
+
+/**
+ * Find every `<base>/full` composite addon and derive the source edits that keep
+ * it in lock-step with its sibling addons: the marker selector clause on each
+ * sibling directive, and the generated barrel array. Pure except for reading the
+ * component tree; the caller writes the returned edits in `--fix` mode.
+ */
+export function analyzeComposites(
+    entries: readonly RegistryEntry[],
+    roots: SyncRoots,
+): CompositeAnalysis {
+    const edits: CompositeFileEdit[] = [];
+    const driftLines: string[] = [];
+    const warnings: string[] = [];
+
+    for (const entry of entries) {
+        if (entry.type !== 'addon' || !entry.parent || entry.name !== `${entry.parent}/full`) continue;
+        const result = analyzeComposite(entry, entries, roots.componentsRoot, warnings);
+        edits.push(...result.edits);
+        driftLines.push(...result.driftLines);
+    }
+
+    return { edits, driftLines, hasDrift: driftLines.length > 0, warnings };
+}
+
+/** Report lines for composite drift found in check mode. */
+export function formatCompositeReport(analysis: CompositeAnalysis): string[] {
+    if (!analysis.hasDrift) return [];
+    return [
+        '\nComposite addon(s) out of sync (marker selector clause or generated barrel):',
+        ...analysis.driftLines,
+        'Run with --fix to regenerate.',
+    ];
 }
 
 // ── Registry source rewriting ───────────────────────────────────────────

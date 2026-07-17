@@ -1,0 +1,25 @@
+<ui-popover [open]="open()" [closeOnScroll]="true" (openChange)="onOpenChange($event)">
+  <ui-popover-trigger>
+    <button
+      type="button"
+      [class]="buttonClasses()"
+      [title]="context.tooltip()"
+      [disabled]="interactionDisabled()"
+    >
+      <span [innerHTML]="icon"></span>
+    </button>
+  </ui-popover-trigger>
+  <ui-popover-content class="w-72 max-w-[calc(100vw-2rem)] p-3" align="start" strategy="fixed">
+    <div class="space-y-2">
+      <p class="text-sm font-medium block m-0">{{ context.heading() }}</p>
+      <ui-color-picker
+        [inline]="true"
+        [presets]="context.presets()"
+        [alpha]="context.alpha"
+        [ngModel]="context.seededColor()"
+        [disabled]="interactionDisabled()"
+        (colorChange)="onColorChange($event)"
+      />
+    </div>
+  </ui-popover-content>
+</ui-popover>

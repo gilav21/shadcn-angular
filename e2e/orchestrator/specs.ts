@@ -109,6 +109,120 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['rich-text-editor', 'rich-text-editor/actions', 'dialog', 'color-picker'],
         label: 'rte-actions',
     },
+    // addon system (rich-text): install the editor + its `emoji` addon; prove
+    // the addon contributes the emoji picker toolbar button as a component
+    // slot and a pick lands in the content (the emoji-picker dependency ships
+    // with the addon, not the base).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/emoji'],
+        label: 'rte-emoji',
+    },
+    // addon system (rich-text): install the editor + its `slash-commands` addon;
+    // prove typing `/` opens the command menu, a block transform runs through the
+    // base engine seam, and a custom command from the input runs (the base ships
+    // no slash-command code).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/slash-commands'],
+        label: 'rte-slash-commands',
+    },
+    // addon system (rich-text): install the editor + its `history` addon; prove
+    // the "Revisions" corner button + panel appear only on the addon editor,
+    // restoring an earlier revision reverts the content, and the preview dialog
+    // renders a snapshot (the base sheds the `dialog` dependency entirely).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/history'],
+        label: 'rte-history',
+    },
+    // addon system (rich-text): install the editor + its `colors` addon; prove
+    // the text- and highlight-colour buttons appear only on the addon editor and
+    // a pick applies an inline colour style to the selection (the base sheds the
+    // `color-picker` dependency entirely).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/colors'],
+        label: 'rte-colors',
+    },
+    // addon system (rich-text): install the editor + its `typography` addon; prove
+    // the font-size and font-family buttons appear only on the addon editor and a
+    // pick applies an inline font style to the selection (the base sheds the
+    // `autocomplete` dependency entirely).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/typography'],
+        label: 'rte-typography',
+    },
+    // addon system (rich-text): install the editor + its `links` addon; prove the
+    // link button appears only on the addon editor, that inserting through the
+    // toolbar popover wraps the selection in an anchor, and that an existing link
+    // can be edited/removed — the base ships no link UI (showLinkDialog is inert).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/links'],
+        label: 'rte-links',
+    },
+    // addon system (rich-text): install the editor + its `tables` addon; prove the
+    // table button + 8×8 grid picker appear only on the addon editor and that
+    // picking a size inserts a table into the content — the base ships no
+    // table-insert UI (editing an existing table stays in the base).
+    {
+        names: ['rich-text-editor', 'rich-text-editor/tables'],
+        label: 'rte-tables',
+    },
+    // addon system (rich-text): install the editor + its `images` addon; prove the
+    // image button + insert popover appear only on the addon editor, that inserting
+    // a URL adds an <img> to the content, and that selecting an image reveals the
+    // resize/align overlay — the base ships no image UI (content-level <img>
+    // rendering + markdown serialization stay in the base). Installs `button` +
+    // `popover` transitively via the addon's dependencies.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/images'],
+        label: 'rte-images',
+    },
+    // addon system (rich-text): install the editor + its `mentions` addon; prove
+    // typing `@` opens the candidate popover only on the addon editor and that
+    // picking a candidate inserts a [data-mention] chip — the base ships no @/#
+    // authoring UI (content-level data-mention/data-tag rendering stays in the
+    // base). Installs `scroll-area` transitively via the addon's dependencies.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/mentions'],
+        label: 'rte-mentions',
+    },
+    // addon system (rich-text): install the editor + its `file-import` addon;
+    // prove the import toolbar button + hidden .pdf/.docx picker exist only on the
+    // addon editor — the base ships no import UI or parser code (the docx/pdf
+    // parser lib files leave the base install with this addon). No extra component
+    // dependency; the addon rides the editor's own `button`/`separator`.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/file-import'],
+        label: 'rte-file-import',
+    },
+    // addon system (rich-text): install the editor + its `ai` addon; prove the
+    // Ask-AI selection chip + task panel exist only on the addon editor — the
+    // base ships no AI UI (the `ai.ts` lib file leaves the base install with this
+    // addon). No extra component dependency; the addon rides the editor's own
+    // `button`/`separator`.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/ai'],
+        label: 'rte-ai',
+    },
+    // addon system (rich-text): install the editor + its `outline` addon; prove
+    // the outline toolbar button + docked panel exist only on the addon editor —
+    // the base ships no outline UI (the `scroll-area` dependency, and the base's
+    // last `button` usage, leave the base install with this addon). The addon
+    // pulls `scroll-area` + `button` as its own dependencies.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/outline'],
+        label: 'rte-outline',
+    },
+    // composition: the slim base + the `full` bundle applied to ONE editor via
+    // the single `uiRteFull` attribute — proves toolbar slots, the aggregated
+    // slash menu, and the shared overlay anchor compose in a real consumer
+    // install, AND that the bundle itself pulls every addon.
+    {
+        names: ['rich-text-editor', 'rich-text-editor/full'],
+        // No explicit transitive deps (the thirteen addons, dialog,
+        // color-picker, ...): they must ALL arrive via `rich-text-editor/full`'s
+        // registry dependencies, so this spec doubles as a missing-dep
+        // regression check for the bundle and every addon entry it composes.
+        label: 'rte-all',
+    },
     // The `tree-context-menu` DIRECTIVE only matches `ui-tree[uiTreeContextMenu]`,
     // but its registry entry lists only `context-menu` as a dependency — so the
     // harness has to install `tree` alongside it explicitly.

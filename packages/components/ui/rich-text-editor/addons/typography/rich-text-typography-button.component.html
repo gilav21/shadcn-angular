@@ -1,0 +1,26 @@
+<ui-popover [open]="open()" [closeOnScroll]="true" (openChange)="onOpenChange($event)">
+  <ui-popover-trigger>
+    <button
+      type="button"
+      [class]="buttonClasses()"
+      [title]="context.tooltip()"
+      [disabled]="interactionDisabled()"
+    >
+      <span [innerHTML]="icon"></span>
+    </button>
+  </ui-popover-trigger>
+  <ui-popover-content [class]="panelClasses + ' max-w-[calc(100vw-2rem)] p-3'" align="start" strategy="fixed">
+    <div class="space-y-2">
+      <p class="text-sm font-medium block m-0">{{ context.heading() }}</p>
+      <ui-autocomplete
+        [ngModel]="context.seededValue()"
+        [options]="context.options()"
+        [placeholder]="context.placeholder()"
+        [disabled]="interactionDisabled()"
+        [filter]="context.filter"
+        (ngModelChange)="onValueChange($event)"
+        class="w-full"
+      />
+    </div>
+  </ui-popover-content>
+</ui-popover>

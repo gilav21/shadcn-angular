@@ -1,15 +1,14 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { RichTextEditorComponent } from './rich-text-editor.component';
+import { RichTextHistoryDirective } from './addons/history';
 import { RichTextToolbarComponent } from './sub/rich-text-toolbar.component';
-import { RichTextMentionPopoverComponent, MentionItem, TagItem } from './sub/rich-text-mention.component';
-import { RichTextSlashCommand } from './rich-text-command-registry.service';
+import { RichTextMentionsDirective, type MentionItem, type TagItem } from './addons/mentions';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RICH_TEXT_LOCALES } from './rich-text-locales';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
 import { Component } from '@angular/core';
 import { JsonPipe } from '@angular/common';
-import { delay, of } from 'rxjs';
 
 const sampleMentions: MentionItem[] = [
     { id: '1', value: 'john-doe', label: 'John Doe', description: 'john.doe@example.com' },
@@ -37,25 +36,6 @@ const filterByQuery = <T extends { label: string; value: string }>(items: T[], q
 const mentionSearch = (query: string): MentionItem[] => filterByQuery(sampleMentions, query);
 const tagSearch = (query: string): TagItem[] => filterByQuery(sampleTags, query);
 
-const customSlashCommands: RichTextSlashCommand[] = [
-    {
-        id: 'custom.insert-callout',
-        label: 'Insert Callout',
-        description: 'Adds a callout block template',
-        keywords: ['callout', 'tip'],
-        order: 1,
-        run: (context) => context.insertHtml('<blockquote><strong>Callout:</strong> Add details here.</blockquote>'),
-    },
-    {
-        id: 'custom.insert-divider',
-        label: 'Insert Divider',
-        description: 'Adds a horizontal divider',
-        keywords: ['divider', 'hr'],
-        order: 2,
-        run: (context) => context.insertHtml('<hr />'),
-    },
-];
-
 const meta: Meta<RichTextEditorComponent> = {
     title: 'Components/RichTextEditor',
     component: RichTextEditorComponent,
@@ -64,7 +44,7 @@ const meta: Meta<RichTextEditorComponent> = {
             imports: [
                 RichTextEditorComponent,
                 RichTextToolbarComponent,
-                RichTextMentionPopoverComponent,
+                RichTextMentionsDirective,
                 FormsModule,
                 ReactiveFormsModule,
             ],
@@ -111,33 +91,11 @@ const meta: Meta<RichTextEditorComponent> = {
         toolbarItems: {
             control: false,
             description:
-                'Ordered list of toolbar item ids to render (e.g. bold, italic, fontFamily, backgroundColor, separator…). Defaults to the built-in toolbar set.',
+                'Ordered list of toolbar item ids to render (e.g. bold, italic, heading1, separator…). Defaults to the built-in toolbar set.',
         },
         customToolbarItems: {
             control: false,
             description: 'App-provided custom toolbar buttons/dropdowns rendered alongside the built-ins; emits (customToolbarAction) on click.',
-        },
-        fontFamilies: { control: 'object', description: 'Custom font family list for the fontFamily toolbar dropdown.' },
-        mentionSearch: { control: false, description: 'Async/sync search function returning MentionItem[] for @mention autocomplete.' },
-        mentionRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted mentions.' },
-        tagSearch: { control: false, description: 'Async/sync search function returning TagItem[] for #tag autocomplete.' },
-        tagRender: { control: false, description: 'Rendering options (mode: chip|plain, template) for inserted tags.' },
-        imageUploader: { control: false, description: 'Callback uploading a File and returning an Observable<string> URL, used by autoImageUpload and the image insert dialog.' },
-        aiProvider: { control: false, description: 'Bring-your-own AI provider hook powering AI-assisted editing actions.' },
-        slashCommands: { control: false, description: 'Custom slash-command definitions (id, label, action…) shown when the user types `/`; see the WithCustomSlashCommands story.' },
-        historyPreviewOpen: { control: 'boolean', description: 'Whether the inline history preview strip is open (model, two-way bound).' },
-        historyBrowserOpen: { control: 'boolean', description: 'Whether the full history browser dialog is open (model, two-way bound).' },
-        showHistoryPanel: {
-            control: 'boolean',
-            description: 'Show revision history panel for jumping to a previous snapshot',
-        },
-        showHistoryButton: {
-            control: 'boolean',
-            description: 'Show/hide the History button (Ctrl/Cmd+Shift+H shortcut still works)',
-        },
-        enableSlashCommands: {
-            control: 'boolean',
-            description: 'Enable slash command palette (type / in editor)',
         },
         locale: {
             control: 'select',
@@ -150,37 +108,10 @@ const meta: Meta<RichTextEditorComponent> = {
         },
         disabled: { control: 'boolean', description: 'Disables the editor' },
         readonly: { control: 'boolean', description: 'Renders content read-only (no editing)' },
-        mentions: { control: 'boolean', description: 'Enable @mention autocomplete' },
-        tags: { control: 'boolean', description: 'Enable #tag autocomplete' },
-        emojiPicker: { control: 'boolean', description: 'Enable the emoji picker' },
-        images: { control: 'boolean', description: 'Enable image insertion' },
-        autoImageUpload: { control: 'boolean', description: 'Auto-upload pasted/dropped base64 images via imageUploader' },
-        imageResize: { control: 'boolean', description: 'Allow drag-resizing of images' },
-        imageAlignment: { control: 'boolean', description: 'Show the image alignment toolbar' },
-        lockImageAspectRatio: { control: 'boolean', description: 'Constrain image resizing to its aspect ratio' },
         showCount: { control: 'boolean', description: 'Show the character counter' },
         showWordCount: { control: 'boolean', description: 'Show the word counter' },
-        imageSources: {
-            control: 'select',
-            options: ['all', 'upload', 'url'],
-            description: 'Which image insertion sources are offered',
-        },
-        defaultImageAlignment: {
-            control: 'select',
-            options: ['inline', 'left', 'center', 'right'],
-            description: 'Alignment applied to images on insert',
-        },
-        fontFamiliesStrategy: {
-            control: 'radio',
-            options: ['append', 'replace'],
-            description: 'Whether custom fontFamilies append to or replace the built-in list',
-        },
         maxLength: { control: 'number', description: 'Maximum character count (undefined = unlimited)' },
         historyLimit: { control: 'number', description: 'Maximum number of undo/redo snapshots retained' },
-        minImageWidth: { control: 'number', description: 'Lower bound (px) for drag-resizing images' },
-        maxImageWidth: { control: 'number', description: 'Upper bound (px) for drag-resizing images' },
-        defaultImageWidth: { control: 'number', description: 'Width (px) applied to images on insert' },
-        defaultImageHeight: { control: 'number', description: 'Height (px) applied to images on insert' },
     },
 };
 
@@ -202,14 +133,8 @@ export const Playground: Story = {
         maxHeight: '400px',
         disabled: false,
         readonly: false,
-        mentions: false,
-        tags: false,
-        emojiPicker: true,
-        images: true,
         showCount: true,
         showWordCount: true,
-        showHistoryButton: true,
-        enableSlashCommands: true,
         historyDebounceMs: 450,
         historyLimit: 100,
     },
@@ -264,7 +189,7 @@ export const MinimalToolbar: Story = {
     args: {
         mode: 'markdown',
         toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'link', 'emoji'],
+        toolbarItems: ['bold', 'italic', 'separator', 'underline'],
         placeholder: 'Minimal toolbar...',
         minHeight: '150px',
     },
@@ -283,32 +208,10 @@ export const FullToolbar: Story = {
             'separator',
             'code', 'codeBlock',
             'separator',
-            'link', 'image', 'emoji',
-            'separator',
             'undo', 'redo', 'clear',
         ],
         placeholder: 'Full featured editor...',
         minHeight: '200px',
-    },
-};
-
-export const WithMentionsAndTags: Story = {
-    args: {
-        mode: 'markdown',
-        toolbar: 'top',
-        mentions: true,
-        mentionSearch,
-        tags: true,
-        tagSearch,
-        placeholder: 'Type @john-doe or #angular.ui to trigger suggestions...',
-        minHeight: '150px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Supports @mentions and #tags. Type @ or # to trigger the picker.',
-            },
-        },
     },
 };
 
@@ -323,36 +226,12 @@ export const WithCharacterCount: Story = {
     },
 };
 
-export const WithCustomSlashCommands: Story = {
-    args: {
-        mode: 'markdown',
-        toolbar: 'top',
-        enableSlashCommands: true,
-        slashCommands: customSlashCommands,
-        placeholder: 'Type / to open commands. Try /callout or /divider.',
-        minHeight: '160px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Slash commands include built-ins and app-provided commands via `slashCommands` input.',
-            },
-        },
-    },
-};
-
 export const AdvancedEditorConfig: Story = {
     args: {
         mode: 'markdown',
         toolbar: 'top',
-        mentions: true,
-        mentionSearch,
-        tags: true,
-        tagSearch,
         showCount: true,
         showWordCount: true,
-        showHistoryPanel: true,
-        showHistoryButton: true,
         maxLength: 240,
         historyLimit: 150,
         historyDebounceMs: 500,
@@ -375,8 +254,6 @@ export const HebrewRTL: Story = {
         locale: 'he',
         showCount: true,
         showWordCount: true,
-        showHistoryPanel: true,
-        enableSlashCommands: true,
         minHeight: '180px',
     },
     parameters: {
@@ -395,7 +272,6 @@ export const ArabicRTL: Story = {
         locale: 'ar',
         showCount: true,
         showWordCount: true,
-        enableSlashCommands: true,
         minHeight: '180px',
     },
     parameters: {
@@ -414,7 +290,6 @@ export const FrenchLocale: Story = {
         locale: 'fr',
         showCount: true,
         showWordCount: true,
-        enableSlashCommands: true,
         minHeight: '180px',
     },
     parameters: {
@@ -433,7 +308,6 @@ export const JapaneseLocale: Story = {
         locale: 'ja',
         showCount: true,
         showWordCount: true,
-        enableSlashCommands: true,
         minHeight: '180px',
     },
     parameters: {
@@ -492,7 +366,7 @@ export const GhostVariant: Story = {
 @Component({
     selector: 'rich-text-demo',
     standalone: true,
-    imports: [RichTextEditorComponent, FormsModule],
+    imports: [RichTextEditorComponent, RichTextMentionsDirective, FormsModule],
     template: `
     <div class="space-y-4">
       <div>
@@ -500,8 +374,8 @@ export const GhostVariant: Story = {
         <ui-rich-text-editor
           mode="markdown"
           toolbar="top"
-          [mentions]="true"
-          [mentionSearch]="mentionSearch"
+          uiRteMentions
+          [uiRteMentionsSearch]="mentionSearch"
           [(ngModel)]="content"
           (htmlChange)="html = $event"
           (markdownChange)="markdown = $event"
@@ -541,7 +415,7 @@ class RichTextDemoComponent {
 @Component({
     selector: 'rich-text-advanced-demo',
     standalone: true,
-    imports: [RichTextEditorComponent, FormsModule],
+    imports: [RichTextEditorComponent, RichTextHistoryDirective, RichTextMentionsDirective, FormsModule],
     template: `
     <div class="space-y-4">
       <p class="text-sm text-muted-foreground">
@@ -550,13 +424,13 @@ class RichTextDemoComponent {
       <ui-rich-text-editor
         mode="markdown"
         toolbar="top"
-        [mentions]="true"
-        [mentionSearch]="mentionSearch"
-        [tags]="true"
-        [tagSearch]="tagSearch"
+        uiRteHistory
+        uiRteMentions
+        [uiRteMentionsSearch]="mentionSearch"
+        [uiRteTags]="true"
+        [uiRteTagsSearch]="tagSearch"
         [showCount]="true"
         [showWordCount]="true"
-        [showHistoryPanel]="true"
         [maxLength]="220"
         [historyLimit]="200"
         [historyDebounceMs]="500"
@@ -665,114 +539,18 @@ export const ReactiveForm: Story = {
     },
 };
 
-export const AutoImageUpload: Story = {
+export const CustomToolbar: Story = {
     args: {
         mode: 'html',
         toolbar: 'top',
-        autoImageUpload: true,
-        imageUploader: (_file: File) =>
-            of('https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/1200px-Cat_November_2010-1a.jpg')
-                .pipe(delay(2000)),
-        placeholder: 'Paste or drag an image to see auto upload...',
+        toolbarItems: ['bold', 'italic', 'underline', 'separator', 'heading1', 'heading2', 'separator', 'bulletList', 'orderedList'],
+        placeholder: 'A trimmed-down toolbar…',
         minHeight: '200px',
     },
     parameters: {
         docs: {
             description: {
-                story: 'Automatically uploads base64 images using the `imageUploader` callback. Shows a shimmer skeleton while uploading, then replaces with the returned URL. Try pasting or dragging any image into the editor.',
-            },
-        },
-    },
-};
-
-export const ImageControls: Story = {
-    args: {
-        mode: 'html',
-        toolbar: 'top',
-        defaultImageWidth: 240,
-        defaultImageAlignment: 'center',
-        minImageWidth: 80,
-        maxImageWidth: 480,
-        lockImageAspectRatio: false,
-        placeholder: 'Insert an image via the toolbar, then select it and drag the corner or edge handles...',
-        minHeight: '240px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Developer-facing image controls: `defaultImageWidth` / `defaultImageHeight` set the size on insert, `defaultImageAlignment` sets the initial alignment, `minImageWidth` / `maxImageWidth` clamp the drag-resize range, and `lockImageAspectRatio={false}` enables single-axis edge handles. Set `imageResize={false}` to disable resizing entirely, or `imageAlignment={false}` to hide the alignment toolbar.',
-            },
-        },
-    },
-};
-
-export const FontFamilyToolbar: Story = {
-    args: {
-        mode: 'html',
-        toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize', 'separator', 'fontColor'],
-        placeholder: 'Select text and change its font family...',
-        minHeight: '200px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Toolbar with the font family dropdown. Select text and pick a typeface from the built-in web-safe list.',
-            },
-        },
-    },
-};
-
-export const BackgroundColorToolbar: Story = {
-    args: {
-        mode: 'html',
-        toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'fontColor', 'backgroundColor'],
-        placeholder: 'Select text and highlight it with a background color...',
-        minHeight: '200px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Toolbar with the background (highlight) color picker alongside the text color picker.',
-            },
-        },
-    },
-};
-
-export const CustomFontFamilies: Story = {
-    args: {
-        mode: 'html',
-        toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize'],
-        fontFamilies: ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins'],
-        fontFamiliesStrategy: 'replace',
-        placeholder: 'Using custom Google Fonts only...',
-        minHeight: '200px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Custom font families with `fontFamiliesStrategy="replace"` — only the provided fonts appear in the dropdown.',
-            },
-        },
-    },
-};
-
-export const AppendedFontFamilies: Story = {
-    args: {
-        mode: 'html',
-        toolbar: 'top',
-        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize'],
-        fontFamilies: ['Roboto', 'Open Sans', 'Lato'],
-        fontFamiliesStrategy: 'append',
-        placeholder: 'Default fonts + custom fonts appended...',
-        minHeight: '200px',
-    },
-    parameters: {
-        docs: {
-            description: {
-                story: 'Custom font families with `fontFamiliesStrategy="append"` (default) — custom fonts are added after the built-in web-safe defaults.',
+                story: 'A custom `[toolbarItems]` set. Font size/family live in the opt-in `rich-text-editor/typography` addon (`uiRteTypography`); see the Addons/Typography stories.',
             },
         },
     },

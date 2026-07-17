@@ -15,26 +15,16 @@ export interface RichTextLocale extends LocaleMeta {
         blockquote: string;
         inlineCode: string;
         codeBlock: string;
-        insertLink: string;
-        insertImage: string;
-        insertEmoji: string;
         undo: string;
         redo: string;
         clearFormatting: string;
-        textColor: string;
-        backgroundColor: string;
-        fontSize: string;
-        fontFamily: string;
         alignLeft: string;
         alignCenter: string;
         alignRight: string;
-        insertTable: string;
-        importFile: string;
         indent: string;
         outdent: string;
         taskList: string;
         horizontalRule: string;
-        outline: string;
     };
 
     findReplace: {
@@ -48,130 +38,8 @@ export interface RichTextLocale extends LocaleMeta {
         close: string;
     };
 
-    link: {
-        text: string;
-        textPlaceholder: string;
-        url: string;
-        urlPlaceholder: string;
-        insert: string;
-        cancel: string;
-    };
-
-    image: {
-        url: string;
-        urlPlaceholder: string;
-        altText: string;
-        altTextPlaceholder: string;
-        insert: string;
-    };
-
-    fontSize: {
-        selectSize: string;
-        selectSizePlaceholder: string;
-        customSize: string;
-        apply: string;
-    };
-
-    fontFamily: {
-        selectFamily: string;
-        selectFamilyPlaceholder: string;
-    };
-
-    color: {
-        textColor: string;
-        highlightColor: string;
-    };
-
-    slashCommands: {
-        noResults: string;
-        paragraph: string;
-        paragraphDescription: string;
-        heading1: string;
-        heading1Description: string;
-        heading2: string;
-        heading2Description: string;
-        heading3: string;
-        heading3Description: string;
-        bulletList: string;
-        bulletListDescription: string;
-        numberedList: string;
-        numberedListDescription: string;
-        blockQuote: string;
-        blockQuoteDescription: string;
-        inlineCode: string;
-        inlineCodeDescription: string;
-        codeBlock: string;
-        codeBlockDescription: string;
-        link: string;
-        linkDescription: string;
-        undo: string;
-        undoDescription: string;
-        redo: string;
-        redoDescription: string;
-        taskList: string;
-        taskListDescription: string;
-        toggle: string;
-        toggleDescription: string;
-        horizontalRule: string;
-        horizontalRuleDescription: string;
-        outline: string;
-        outlineDescription: string;
-    };
-
-    /** AI assist labels (optional — fall back to English when a locale omits them). */
-    ai?: {
-        trigger: string;
-        slash: string;
-        slashDescription: string;
-        rewrite: string;
-        fixGrammar: string;
-        shorten: string;
-        expand: string;
-        summarize: string;
-        continueWriting: string;
-        promptPlaceholder: string;
-        go: string;
-        generating: string;
-        accept: string;
-        discard: string;
-        retry: string;
-        failed: string;
-    };
-
-    history: {
-        button: string;
-        title: string;
-        browserDescription: string;
-        revision: string;
-        applied: string;
-        preview: string;
-        renderedPreview: string;
-        markdownSnapshot: string;
-        capturedAt: string;
-        cancel: string;
-        restore: string;
-        close: string;
-        moreLines: string;
-        ariaOpen: string;
-        ariaClose: string;
-        ariaApply: string;
-    };
-
-    mentions: {
-        noUsersFound: string;
-        noTagsFound: string;
-        selectUser: string;
-        selectTag: string;
-    };
-
-    outline: {
-        title: string;
-        empty: string;
-        ariaClose: string;
-    };
 
     table: {
-        insertTable: string;
         rows: string;
         columns: string;
         insert: string;
@@ -197,29 +65,13 @@ export interface RichTextLocale extends LocaleMeta {
         cellAlignRight: string;
     };
 
-    imageResizer: {
-        inline: string;
-        floatLeft: string;
-        center: string;
-        floatRight: string;
-        deleteImage: string;
-    };
 
     editor: {
         placeholder: string;
         ariaLabel: string;
-        uploadingImage: string;
-        importingFile: string;
-        importFailed: string;
-        importInvalidFile: string;
         characters: string;
         words: string;
         formattingOptions: string;
-        slashCommandMenu: string;
-        autoUploadFailed: string;
-        autoUploadRetry: string;
-        autoUploadRemove: string;
-        autoUploadNotImage: string;
     };
 }
 
@@ -240,26 +92,16 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Blockquote',
             inlineCode: 'Inline Code',
             codeBlock: 'Code Block',
-            insertLink: 'Insert Link',
-            insertImage: 'Insert Image',
-            insertEmoji: 'Insert Emoji',
             undo: 'Undo',
             redo: 'Redo',
             clearFormatting: 'Clear Formatting',
-            textColor: 'Text Color',
-            backgroundColor: 'Background Color',
-            fontSize: 'Font Size',
-            fontFamily: 'Font Family',
             alignLeft: 'Align Left',
             alignCenter: 'Align Center',
             alignRight: 'Align Right',
-            insertTable: 'Insert Table',
-            importFile: 'Import File',
             indent: 'Increase Indent',
             outdent: 'Decrease Indent',
             taskList: 'Task List',
             horizontalRule: 'Horizontal Rule',
-            outline: 'Document Outline',
         },
         findReplace: {
             find: 'Find',
@@ -271,119 +113,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noResults: 'No results',
             close: 'Close',
         },
-        link: {
-            text: 'Link Text',
-            textPlaceholder: 'Display text',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Insert Link',
-            cancel: 'Cancel',
-        },
-        image: {
-            url: 'Image URL',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Alt Text',
-            altTextPlaceholder: 'Description of image',
-            insert: 'Insert Image',
-        },
-        fontSize: {
-            selectSize: 'Select Size',
-            selectSizePlaceholder: 'Select size',
-            customSize: 'Custom Size',
-            apply: 'Apply',
-        },
-        fontFamily: {
-            selectFamily: 'Select Font',
-            selectFamilyPlaceholder: 'Search fonts...',
-        },
-        color: {
-            textColor: 'Text Color',
-            highlightColor: 'Highlight Color',
-        },
-        slashCommands: {
-            noResults: 'No commands found',
-            paragraph: 'Paragraph',
-            paragraphDescription: 'Switch to paragraph text',
-            heading1: 'Heading 1',
-            heading1Description: 'Large section heading',
-            heading2: 'Heading 2',
-            heading2Description: 'Medium section heading',
-            heading3: 'Heading 3',
-            heading3Description: 'Small section heading',
-            bulletList: 'Bullet List',
-            bulletListDescription: 'Create a bulleted list',
-            numberedList: 'Numbered List',
-            numberedListDescription: 'Create an ordered list',
-            blockQuote: 'Block Quote',
-            blockQuoteDescription: 'Insert a block quote',
-            inlineCode: 'Inline Code',
-            inlineCodeDescription: 'Wrap selection in inline code',
-            codeBlock: 'Code Block',
-            codeBlockDescription: 'Insert a code block',
-            link: 'Link',
-            linkDescription: 'Insert or edit a link',
-            undo: 'Undo',
-            undoDescription: 'Undo last change',
-            redo: 'Redo',
-            redoDescription: 'Redo last undone change',
-            taskList: 'Task List',
-            taskListDescription: 'Create a task checklist',
-            toggle: 'Toggle Block',
-            toggleDescription: 'Insert a collapsible block',
-            horizontalRule: 'Horizontal Rule',
-            horizontalRuleDescription: 'Insert a horizontal divider',
-            outline: 'Outline',
-            outlineDescription: 'Open the document outline',
-        },
-        ai: {
-            trigger: '✨ Ask AI',
-            slash: 'Ask AI',
-            slashDescription: 'Rewrite, summarize, or generate with AI',
-            rewrite: 'Improve writing',
-            fixGrammar: 'Fix spelling & grammar',
-            shorten: 'Make shorter',
-            expand: 'Make longer',
-            summarize: 'Summarize',
-            continueWriting: 'Continue writing',
-            promptPlaceholder: 'Ask AI to…',
-            go: 'Go',
-            generating: 'Generating…',
-            accept: 'Accept',
-            discard: 'Discard',
-            retry: 'Try again',
-            failed: 'AI request failed',
-        },
-        history: {
-            button: 'History ({count})',
-            title: 'Revision History',
-            browserDescription: 'Use this browser when the history button is hidden.',
-            revision: 'Revision {index}',
-            applied: 'Applied',
-            preview: 'Preview',
-            renderedPreview: 'Rendered Preview',
-            markdownSnapshot: 'Markdown Snapshot',
-            capturedAt: 'Captured at {time}',
-            cancel: 'Cancel',
-            restore: 'Restore This Revision',
-            close: 'Close',
-            moreLines: '+{count} more lines',
-            ariaOpen: 'Open revision history (Ctrl or Command + Shift + H)',
-            ariaClose: 'Close revision history',
-            ariaApply: 'Apply revision {index}',
-        },
-        mentions: {
-            noUsersFound: 'No users found',
-            noTagsFound: 'No tags found',
-            selectUser: 'Select a user',
-            selectTag: 'Select a tag',
-        },
-        outline: {
-            title: 'Document Outline',
-            empty: 'No headings yet',
-            ariaClose: 'Close document outline',
-        },
         table: {
-            insertTable: 'Insert Table',
             rows: 'Rows',
             columns: 'Columns',
             insert: 'Insert Table',
@@ -408,28 +138,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'Align Center',
             cellAlignRight: 'Align Right',
         },
-        imageResizer: {
-            inline: 'Inline with text',
-            floatLeft: 'Float left',
-            center: 'Center',
-            floatRight: 'Float right',
-            deleteImage: 'Delete image',
-        },
         editor: {
             placeholder: 'Write something...',
             ariaLabel: 'Rich text editor',
-            uploadingImage: 'Uploading image...',
-            importingFile: 'Importing file...',
-            importFailed: 'Failed to import file. The file may be unsupported or corrupted.',
-            importInvalidFile: 'The selected file is not a valid PDF or DOCX.',
             characters: '{count} characters',
             words: '{count} words',
             formattingOptions: 'Formatting options',
-            slashCommandMenu: 'Slash command menu',
-            autoUploadFailed: 'Upload failed',
-            autoUploadRetry: 'Retry',
-            autoUploadRemove: 'Remove',
-            autoUploadNotImage: 'The image could not be uploaded because its content is not a valid image.',
         },
     },
     he: {
@@ -449,26 +163,16 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'ציטוט',
             inlineCode: 'קוד בתוך שורה',
             codeBlock: 'בלוק קוד',
-            insertLink: 'הוספת קישור',
-            insertImage: 'הוספת תמונה',
-            insertEmoji: 'הוספת אמוג\'י',
             undo: 'ביטול',
             redo: 'ביצוע חוזר',
             clearFormatting: 'ניקוי עיצוב',
-            textColor: 'צבע טקסט',
-            backgroundColor: 'צבע רקע',
-            fontSize: 'גודל גופן',
-            fontFamily: 'משפחת גופנים',
             alignLeft: 'יישור לשמאל',
             alignCenter: 'יישור למרכז',
             alignRight: 'יישור לימין',
-            insertTable: 'הוספת טבלה',
-            importFile: 'ייבוא קובץ',
             indent: 'הגדלת הזחה',
             outdent: 'הקטנת הזחה',
             taskList: 'רשימת משימות',
             horizontalRule: 'קו אופקי',
-            outline: 'מתאר מסמך',
         },
         findReplace: {
             find: 'חיפוש',
@@ -480,119 +184,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noResults: 'אין תוצאות',
             close: 'סגירה',
         },
-        link: {
-            text: 'טקסט הקישור',
-            textPlaceholder: 'טקסט לתצוגה',
-            url: 'כתובת URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'הוספת קישור',
-            cancel: 'ביטול',
-        },
-        image: {
-            url: 'כתובת תמונה',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'טקסט חלופי',
-            altTextPlaceholder: 'תיאור התמונה',
-            insert: 'הוספת תמונה',
-        },
-        fontSize: {
-            selectSize: 'בחירת גודל',
-            selectSizePlaceholder: 'בחירת גודל',
-            customSize: 'גודל מותאם',
-            apply: 'החלה',
-        },
-        fontFamily: {
-            selectFamily: 'בחירת גופן',
-            selectFamilyPlaceholder: 'חיפוש גופנים...',
-        },
-        color: {
-            textColor: 'צבע טקסט',
-            highlightColor: 'צבע הדגשה',
-        },
-        slashCommands: {
-            noResults: 'לא נמצאו פקודות',
-            paragraph: 'פסקה',
-            paragraphDescription: 'מעבר לטקסט פסקה',
-            heading1: 'כותרת 1',
-            heading1Description: 'כותרת מקטע גדולה',
-            heading2: 'כותרת 2',
-            heading2Description: 'כותרת מקטע בינונית',
-            heading3: 'כותרת 3',
-            heading3Description: 'כותרת מקטע קטנה',
-            bulletList: 'רשימת תבליטים',
-            bulletListDescription: 'יצירת רשימה עם תבליטים',
-            numberedList: 'רשימה ממוספרת',
-            numberedListDescription: 'יצירת רשימה ממוספרת',
-            blockQuote: 'ציטוט',
-            blockQuoteDescription: 'הוספת בלוק ציטוט',
-            inlineCode: 'קוד בתוך שורה',
-            inlineCodeDescription: 'עטיפת בחירה בקוד',
-            codeBlock: 'בלוק קוד',
-            codeBlockDescription: 'הוספת בלוק קוד',
-            link: 'קישור',
-            linkDescription: 'הוספה או עריכה של קישור',
-            undo: 'ביטול',
-            undoDescription: 'ביטול שינוי אחרון',
-            redo: 'ביצוע חוזר',
-            redoDescription: 'ביצוע חוזר של שינוי שבוטל',
-            taskList: 'רשימת משימות',
-            taskListDescription: 'יצירת רשימת משימות',
-            toggle: 'בלוק מתקפל',
-            toggleDescription: 'הוספת בלוק מתקפל',
-            horizontalRule: 'קו אופקי',
-            horizontalRuleDescription: 'הכנסת קו מפריד אופקי',
-            outline: 'תוכן עניינים',
-            outlineDescription: 'פתיחת תוכן העניינים של המסמך',
-        },
-        ai: {
-            trigger: '✨ שאל AI',
-            slash: 'שאל AI',
-            slashDescription: 'שכתוב, סיכום או יצירה בעזרת AI',
-            rewrite: 'שפר ניסוח',
-            fixGrammar: 'תקן איות ודקדוק',
-            shorten: 'קצר',
-            expand: 'הרחב',
-            summarize: 'סכם',
-            continueWriting: 'המשך לכתוב',
-            promptPlaceholder: '…בקש מ-AI',
-            go: 'בצע',
-            generating: '…מייצר',
-            accept: 'אשר',
-            discard: 'בטל',
-            retry: 'נסה שוב',
-            failed: 'בקשת ה-AI נכשלה',
-        },
-        history: {
-            button: 'היסטוריה ({count})',
-            title: 'היסטוריית גרסאות',
-            browserDescription: 'ניתן להשתמש בחלון זה כשכפתור ההיסטוריה מוסתר.',
-            revision: 'גרסה {index}',
-            applied: 'הוחל',
-            preview: 'תצוגה מקדימה',
-            renderedPreview: 'תצוגה מעובדת',
-            markdownSnapshot: 'תמונת מצב Markdown',
-            capturedAt: 'תיעוד מ-{time}',
-            cancel: 'ביטול',
-            restore: 'שחזור גרסה זו',
-            close: 'סגירה',
-            moreLines: '+{count} שורות נוספות',
-            ariaOpen: 'פתיחת היסטוריית גרסאות (Ctrl או Command + Shift + H)',
-            ariaClose: 'סגירת היסטוריית גרסאות',
-            ariaApply: 'החלת גרסה {index}',
-        },
-        mentions: {
-            noUsersFound: 'לא נמצאו משתמשים',
-            noTagsFound: 'לא נמצאו תגיות',
-            selectUser: 'בחירת משתמש',
-            selectTag: 'בחירת תגית',
-        },
-        outline: {
-            title: 'מתאר מסמך',
-            empty: 'אין כותרות עדיין',
-            ariaClose: 'סגירת מתאר המסמך',
-        },
         table: {
-            insertTable: 'הוספת טבלה',
             rows: 'שורות',
             columns: 'עמודות',
             insert: 'הוספת טבלה',
@@ -617,28 +209,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'יישור למרכז',
             cellAlignRight: 'יישור לימין',
         },
-        imageResizer: {
-            inline: 'בתוך הטקסט',
-            floatLeft: 'הצמדה לשמאל',
-            center: 'מירכוז',
-            floatRight: 'הצמדה לימין',
-            deleteImage: 'מחיקת תמונה',
-        },
         editor: {
             placeholder: 'ניתן לכתוב כאן...',
             ariaLabel: 'עורך טקסט עשיר',
-            uploadingImage: 'העלאת תמונה...',
-            importingFile: '...מייבא קובץ',
-            importFailed: 'ייבוא הקובץ נכשל. הקובץ עשוי להיות לא נתמך או פגום.',
-            importInvalidFile: 'הקובץ שנבחר אינו קובץ PDF או DOCX תקין.',
             characters: '{count} תווים',
             words: '{count} מילים',
             formattingOptions: 'אפשרויות עיצוב',
-            slashCommandMenu: 'תפריט פקודות',
-            autoUploadFailed: 'ההעלאה נכשלה',
-            autoUploadRetry: 'נסה שוב',
-            autoUploadRemove: 'הסר',
-            autoUploadNotImage: 'לא ניתן להעלות את התמונה מכיוון שהתוכן אינו תמונה תקינה.',
         },
     },
     ar: {
@@ -658,26 +234,16 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'اقتباس',
             inlineCode: 'كود سطري',
             codeBlock: 'كتلة كود',
-            insertLink: 'إدراج رابط',
-            insertImage: 'إدراج صورة',
-            insertEmoji: 'إدراج رمز تعبيري',
             undo: 'تراجع',
             redo: 'إعادة',
             clearFormatting: 'مسح التنسيق',
-            textColor: 'لون النص',
-            backgroundColor: 'لون الخلفية',
-            fontSize: 'حجم الخط',
-            fontFamily: 'نوع الخط',
             alignLeft: 'محاذاة لليسار',
             alignCenter: 'محاذاة للوسط',
             alignRight: 'محاذاة لليمين',
-            insertTable: 'إدراج جدول',
-            importFile: 'استيراد ملف',
             indent: 'زيادة المسافة البادئة',
             outdent: 'تقليل المسافة البادئة',
             taskList: 'قائمة المهام',
             horizontalRule: 'خط أفقي',
-            outline: 'مخطط المستند',
         },
         findReplace: {
             find: 'بحث',
@@ -689,101 +255,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noResults: 'لا توجد نتائج',
             close: 'إغلاق',
         },
-        link: {
-            text: 'نص الرابط',
-            textPlaceholder: 'نص العرض',
-            url: 'عنوان URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'إدراج رابط',
-            cancel: 'إلغاء',
-        },
-        image: {
-            url: 'عنوان الصورة',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'نص بديل',
-            altTextPlaceholder: 'وصف الصورة',
-            insert: 'إدراج صورة',
-        },
-        fontSize: {
-            selectSize: 'اختيار الحجم',
-            selectSizePlaceholder: 'اختيار الحجم',
-            customSize: 'حجم مخصص',
-            apply: 'تطبيق',
-        },
-        fontFamily: {
-            selectFamily: 'اختيار الخط',
-            selectFamilyPlaceholder: 'البحث عن خطوط...',
-        },
-        color: {
-            textColor: 'لون النص',
-            highlightColor: 'لون التمييز',
-        },
-        slashCommands: {
-            noResults: 'لم يتم العثور على أوامر',
-            paragraph: 'فقرة',
-            paragraphDescription: 'التبديل إلى نص الفقرة',
-            heading1: 'عنوان 1',
-            heading1Description: 'عنوان قسم كبير',
-            heading2: 'عنوان 2',
-            heading2Description: 'عنوان قسم متوسط',
-            heading3: 'عنوان 3',
-            heading3Description: 'عنوان قسم صغير',
-            bulletList: 'قائمة نقطية',
-            bulletListDescription: 'إنشاء قائمة نقطية',
-            numberedList: 'قائمة مرقمة',
-            numberedListDescription: 'إنشاء قائمة مرقمة',
-            blockQuote: 'اقتباس',
-            blockQuoteDescription: 'إدراج كتلة اقتباس',
-            inlineCode: 'كود سطري',
-            inlineCodeDescription: 'التفاف التحديد في كود',
-            codeBlock: 'كتلة كود',
-            codeBlockDescription: 'إدراج كتلة كود',
-            link: 'رابط',
-            linkDescription: 'إدراج أو تعديل رابط',
-            undo: 'تراجع',
-            undoDescription: 'التراجع عن آخر تغيير',
-            redo: 'إعادة',
-            redoDescription: 'إعادة آخر تغيير تم التراجع عنه',
-            taskList: 'قائمة المهام',
-            taskListDescription: 'إنشاء قائمة مهام',
-            toggle: 'كتلة قابلة للطي',
-            toggleDescription: 'إدراج كتلة قابلة للطي',
-            horizontalRule: 'خط أفقي',
-            horizontalRuleDescription: 'إدراج فاصل أفقي',
-            outline: 'المخطط التفصيلي',
-            outlineDescription: 'فتح المخطط التفصيلي للمستند',
-        },
-        history: {
-            button: 'السجل ({count})',
-            title: 'سجل المراجعات',
-            browserDescription: 'يمكن استخدام هذا المتصفح عندما يكون زر السجل مخفيًا.',
-            revision: 'المراجعة {index}',
-            applied: 'مُطبَّق',
-            preview: 'معاينة',
-            renderedPreview: 'معاينة مُصيَّرة',
-            markdownSnapshot: 'لقطة Markdown',
-            capturedAt: 'تم الالتقاط في {time}',
-            cancel: 'إلغاء',
-            restore: 'استعادة هذه المراجعة',
-            close: 'إغلاق',
-            moreLines: '+{count} أسطر إضافية',
-            ariaOpen: 'فتح سجل المراجعات (Ctrl أو Command + Shift + H)',
-            ariaClose: 'إغلاق سجل المراجعات',
-            ariaApply: 'تطبيق المراجعة {index}',
-        },
-        mentions: {
-            noUsersFound: 'لم يتم العثور على مستخدمين',
-            noTagsFound: 'لم يتم العثور على وسوم',
-            selectUser: 'اختيار مستخدم',
-            selectTag: 'اختيار وسم',
-        },
-        outline: {
-            title: 'مخطط المستند',
-            empty: 'لا توجد عناوين بعد',
-            ariaClose: 'إغلاق مخطط المستند',
-        },
         table: {
-            insertTable: 'إدراج جدول',
             rows: 'صفوف',
             columns: 'أعمدة',
             insert: 'إدراج جدول',
@@ -808,28 +280,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'محاذاة للوسط',
             cellAlignRight: 'محاذاة لليمين',
         },
-        imageResizer: {
-            inline: 'داخل النص',
-            floatLeft: 'تعويم لليسار',
-            center: 'توسيط',
-            floatRight: 'تعويم لليمين',
-            deleteImage: 'حذف الصورة',
-        },
         editor: {
             placeholder: 'الكتابة هنا...',
             ariaLabel: 'محرر نص منسق',
-            uploadingImage: 'جارٍ رفع الصورة...',
-            importingFile: '...جارٍ استيراد الملف',
-            importFailed: 'فشل استيراد الملف. قد يكون الملف غير مدعوم أو تالفاً.',
-            importInvalidFile: 'الملف المحدد ليس ملف PDF أو DOCX صالحاً.',
             characters: '{count} حرف',
             words: '{count} كلمة',
             formattingOptions: 'خيارات التنسيق',
-            slashCommandMenu: 'قائمة الأوامر',
-            autoUploadFailed: 'فشل الرفع',
-            autoUploadRetry: 'إعادة المحاولة',
-            autoUploadRemove: 'إزالة',
-            autoUploadNotImage: 'تعذر رفع الصورة لأن محتواها ليس صورة صالحة.',
         },
     },
     de: {
@@ -848,26 +304,16 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Zitat',
             inlineCode: 'Inline-Code',
             codeBlock: 'Codeblock',
-            insertLink: 'Link einfügen',
-            insertImage: 'Bild einfügen',
-            insertEmoji: 'Emoji einfügen',
             undo: 'Rückgängig',
             redo: 'Wiederherstellen',
             clearFormatting: 'Formatierung löschen',
-            textColor: 'Textfarbe',
-            backgroundColor: 'Hintergrundfarbe',
-            fontSize: 'Schriftgröße',
-            fontFamily: 'Schriftart',
             alignLeft: 'Linksbündig',
             alignCenter: 'Zentriert',
             alignRight: 'Rechtsbündig',
-            insertTable: 'Tabelle einfügen',
-            importFile: 'Datei importieren',
             indent: 'Einzug vergrößern',
             outdent: 'Einzug verkleinern',
             taskList: 'Aufgabenliste',
             horizontalRule: 'Horizontale Linie',
-            outline: 'Dokumentgliederung',
         },
         findReplace: {
             find: 'Suchen',
@@ -879,101 +325,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noResults: 'Keine Ergebnisse',
             close: 'Schließen',
         },
-        link: {
-            text: 'Linktext',
-            textPlaceholder: 'Anzeigetext',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Link einfügen',
-            cancel: 'Abbrechen',
-        },
-        image: {
-            url: 'Bild-URL',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Alternativtext',
-            altTextPlaceholder: 'Bildbeschreibung',
-            insert: 'Bild einfügen',
-        },
-        fontSize: {
-            selectSize: 'Größe wählen',
-            selectSizePlaceholder: 'Größe wählen',
-            customSize: 'Benutzerdefinierte Größe',
-            apply: 'Anwenden',
-        },
-        fontFamily: {
-            selectFamily: 'Schriftart wählen',
-            selectFamilyPlaceholder: 'Schriftarten suchen...',
-        },
-        color: {
-            textColor: 'Textfarbe',
-            highlightColor: 'Hervorhebungsfarbe',
-        },
-        slashCommands: {
-            noResults: 'Keine Befehle gefunden',
-            paragraph: 'Absatz',
-            paragraphDescription: 'Zu Absatztext wechseln',
-            heading1: 'Überschrift 1',
-            heading1Description: 'Große Abschnittsüberschrift',
-            heading2: 'Überschrift 2',
-            heading2Description: 'Mittlere Abschnittsüberschrift',
-            heading3: 'Überschrift 3',
-            heading3Description: 'Kleine Abschnittsüberschrift',
-            bulletList: 'Aufzählungsliste',
-            bulletListDescription: 'Aufzählungsliste erstellen',
-            numberedList: 'Nummerierte Liste',
-            numberedListDescription: 'Geordnete Liste erstellen',
-            blockQuote: 'Zitat',
-            blockQuoteDescription: 'Zitatblock einfügen',
-            inlineCode: 'Inline-Code',
-            inlineCodeDescription: 'Auswahl in Code einschließen',
-            codeBlock: 'Codeblock',
-            codeBlockDescription: 'Codeblock einfügen',
-            link: 'Link',
-            linkDescription: 'Link einfügen oder bearbeiten',
-            undo: 'Rückgängig',
-            undoDescription: 'Letzte Änderung rückgängig machen',
-            redo: 'Wiederherstellen',
-            redoDescription: 'Letzte rückgängig gemachte Änderung wiederherstellen',
-            taskList: 'Aufgabenliste',
-            taskListDescription: 'Aufgaben-Checkliste erstellen',
-            toggle: 'Aufklappblock',
-            toggleDescription: 'Einklappbaren Block einfügen',
-            horizontalRule: 'Horizontale Linie',
-            horizontalRuleDescription: 'Horizontalen Trenner einfügen',
-            outline: 'Gliederung',
-            outlineDescription: 'Dokumentgliederung öffnen',
-        },
-        history: {
-            button: 'Verlauf ({count})',
-            title: 'Revisionsverlauf',
-            browserDescription: 'Verwenden Sie diesen Browser, wenn die Verlaufsschaltfläche ausgeblendet ist.',
-            revision: 'Revision {index}',
-            applied: 'Angewendet',
-            preview: 'Vorschau',
-            renderedPreview: 'Gerenderte Vorschau',
-            markdownSnapshot: 'Markdown-Snapshot',
-            capturedAt: 'Erfasst am {time}',
-            cancel: 'Abbrechen',
-            restore: 'Diese Revision wiederherstellen',
-            close: 'Schließen',
-            moreLines: '+{count} weitere Zeilen',
-            ariaOpen: 'Revisionsverlauf öffnen (Strg oder Befehlstaste + Umschalt + H)',
-            ariaClose: 'Revisionsverlauf schließen',
-            ariaApply: 'Revision {index} anwenden',
-        },
-        mentions: {
-            noUsersFound: 'Keine Benutzer gefunden',
-            noTagsFound: 'Keine Tags gefunden',
-            selectUser: 'Benutzer auswählen',
-            selectTag: 'Tag auswählen',
-        },
-        outline: {
-            title: 'Dokumentgliederung',
-            empty: 'Noch keine Überschriften',
-            ariaClose: 'Dokumentgliederung schließen',
-        },
         table: {
-            insertTable: 'Tabelle einfügen',
             rows: 'Zeilen',
             columns: 'Spalten',
             insert: 'Tabelle einfügen',
@@ -998,28 +350,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'Zentriert',
             cellAlignRight: 'Rechtsbündig',
         },
-        imageResizer: {
-            inline: 'Im Text',
-            floatLeft: 'Links umfließen',
-            center: 'Zentriert',
-            floatRight: 'Rechts umfließen',
-            deleteImage: 'Bild löschen',
-        },
         editor: {
             placeholder: 'Schreiben Sie etwas...',
             ariaLabel: 'Rich-Text-Editor',
-            uploadingImage: 'Bild wird hochgeladen...',
-            importingFile: 'Datei wird importiert...',
-            importFailed: 'Datei-Import fehlgeschlagen. Die Datei wird möglicherweise nicht unterstützt oder ist beschädigt.',
-            importInvalidFile: 'Die ausgewählte Datei ist keine gültige PDF- oder DOCX-Datei.',
             characters: '{count} Zeichen',
             words: '{count} Wörter',
             formattingOptions: 'Formatierungsoptionen',
-            slashCommandMenu: 'Befehlsmenü',
-            autoUploadFailed: 'Upload fehlgeschlagen',
-            autoUploadRetry: 'Erneut versuchen',
-            autoUploadRemove: 'Entfernen',
-            autoUploadNotImage: 'Das Bild konnte nicht hochgeladen werden, da der Inhalt kein gültiges Bild ist.',
         },
     },
     fr: {
@@ -1038,26 +374,16 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Citation',
             inlineCode: 'Code en ligne',
             codeBlock: 'Bloc de code',
-            insertLink: 'Insérer un lien',
-            insertImage: 'Insérer une image',
-            insertEmoji: 'Insérer un emoji',
             undo: 'Annuler',
             redo: 'Rétablir',
             clearFormatting: 'Effacer la mise en forme',
-            textColor: 'Couleur du texte',
-            backgroundColor: 'Couleur de fond',
-            fontSize: 'Taille de police',
-            fontFamily: 'Police de caractères',
             alignLeft: 'Aligner à gauche',
             alignCenter: 'Centrer',
             alignRight: 'Aligner à droite',
-            insertTable: 'Insérer un tableau',
-            importFile: 'Importer un fichier',
             indent: 'Augmenter le retrait',
             outdent: 'Diminuer le retrait',
             taskList: 'Liste de tâches',
             horizontalRule: 'Ligne horizontale',
-            outline: 'Plan du document',
         },
         findReplace: {
             find: 'Rechercher',
@@ -1069,101 +395,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noResults: 'Aucun résultat',
             close: 'Fermer',
         },
-        link: {
-            text: 'Texte du lien',
-            textPlaceholder: 'Texte affiché',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Insérer le lien',
-            cancel: 'Annuler',
-        },
-        image: {
-            url: 'URL de l\'image',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Texte alternatif',
-            altTextPlaceholder: 'Description de l\'image',
-            insert: 'Insérer l\'image',
-        },
-        fontSize: {
-            selectSize: 'Choisir la taille',
-            selectSizePlaceholder: 'Choisir la taille',
-            customSize: 'Taille personnalisée',
-            apply: 'Appliquer',
-        },
-        fontFamily: {
-            selectFamily: 'Choisir la police',
-            selectFamilyPlaceholder: 'Rechercher des polices...',
-        },
-        color: {
-            textColor: 'Couleur du texte',
-            highlightColor: 'Couleur de surlignage',
-        },
-        slashCommands: {
-            noResults: 'Aucune commande trouvée',
-            paragraph: 'Paragraphe',
-            paragraphDescription: 'Passer au texte paragraphe',
-            heading1: 'Titre 1',
-            heading1Description: 'Grand titre de section',
-            heading2: 'Titre 2',
-            heading2Description: 'Titre de section moyen',
-            heading3: 'Titre 3',
-            heading3Description: 'Petit titre de section',
-            bulletList: 'Liste à puces',
-            bulletListDescription: 'Créer une liste à puces',
-            numberedList: 'Liste numérotée',
-            numberedListDescription: 'Créer une liste ordonnée',
-            blockQuote: 'Citation',
-            blockQuoteDescription: 'Insérer un bloc de citation',
-            inlineCode: 'Code en ligne',
-            inlineCodeDescription: 'Encadrer la sélection en code',
-            codeBlock: 'Bloc de code',
-            codeBlockDescription: 'Insérer un bloc de code',
-            link: 'Lien',
-            linkDescription: 'Insérer ou modifier un lien',
-            undo: 'Annuler',
-            undoDescription: 'Annuler la dernière modification',
-            redo: 'Rétablir',
-            redoDescription: 'Rétablir la dernière modification annulée',
-            taskList: 'Liste de tâches',
-            taskListDescription: 'Créer une liste de tâches',
-            toggle: 'Bloc dépliable',
-            toggleDescription: 'Insérer un bloc dépliable',
-            horizontalRule: 'Ligne horizontale',
-            horizontalRuleDescription: 'Insérer un séparateur horizontal',
-            outline: 'Plan',
-            outlineDescription: 'Ouvrir le plan du document',
-        },
-        history: {
-            button: 'Historique ({count})',
-            title: 'Historique des révisions',
-            browserDescription: 'Utilisez ce navigateur lorsque le bouton d\'historique est masqué.',
-            revision: 'Révision {index}',
-            applied: 'Appliquée',
-            preview: 'Aperçu',
-            renderedPreview: 'Aperçu rendu',
-            markdownSnapshot: 'Instantané Markdown',
-            capturedAt: 'Capturé à {time}',
-            cancel: 'Annuler',
-            restore: 'Restaurer cette révision',
-            close: 'Fermer',
-            moreLines: '+{count} lignes supplémentaires',
-            ariaOpen: 'Ouvrir l\'historique des révisions (Ctrl ou Commande + Maj + H)',
-            ariaClose: 'Fermer l\'historique des révisions',
-            ariaApply: 'Appliquer la révision {index}',
-        },
-        mentions: {
-            noUsersFound: 'Aucun utilisateur trouvé',
-            noTagsFound: 'Aucun tag trouvé',
-            selectUser: 'Sélectionner un utilisateur',
-            selectTag: 'Sélectionner un tag',
-        },
-        outline: {
-            title: 'Plan du document',
-            empty: 'Aucun titre pour le moment',
-            ariaClose: 'Fermer le plan du document',
-        },
         table: {
-            insertTable: 'Insérer un tableau',
             rows: 'Lignes',
             columns: 'Colonnes',
             insert: 'Insérer le tableau',
@@ -1188,28 +420,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'Centrer',
             cellAlignRight: 'Aligner à droite',
         },
-        imageResizer: {
-            inline: 'Dans le texte',
-            floatLeft: 'Flottant à gauche',
-            center: 'Centrée',
-            floatRight: 'Flottant à droite',
-            deleteImage: 'Supprimer l\'image',
-        },
         editor: {
             placeholder: 'Écrivez quelque chose...',
             ariaLabel: 'Éditeur de texte enrichi',
-            uploadingImage: 'Téléchargement de l\'image...',
-            importingFile: 'Importation du fichier...',
-            importFailed: 'Échec de l\'importation du fichier. Le fichier est peut-être non pris en charge ou corrompu.',
-            importInvalidFile: 'Le fichier sélectionné n\'est pas un PDF ou DOCX valide.',
             characters: '{count} caractères',
             words: '{count} mots',
             formattingOptions: 'Options de mise en forme',
-            slashCommandMenu: 'Menu de commandes',
-            autoUploadFailed: 'Échec du téléversement',
-            autoUploadRetry: 'Réessayer',
-            autoUploadRemove: 'Supprimer',
-            autoUploadNotImage: 'L\'image n\'a pas pu être téléchargée car son contenu n\'est pas une image valide.',
         },
     },
     es: {
@@ -1228,26 +444,16 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Cita',
             inlineCode: 'Código en línea',
             codeBlock: 'Bloque de código',
-            insertLink: 'Insertar enlace',
-            insertImage: 'Insertar imagen',
-            insertEmoji: 'Insertar emoji',
             undo: 'Deshacer',
             redo: 'Rehacer',
             clearFormatting: 'Borrar formato',
-            textColor: 'Color de texto',
-            backgroundColor: 'Color de fondo',
-            fontSize: 'Tamaño de fuente',
-            fontFamily: 'Familia tipográfica',
             alignLeft: 'Alinear a la izquierda',
             alignCenter: 'Centrar',
             alignRight: 'Alinear a la derecha',
-            insertTable: 'Insertar tabla',
-            importFile: 'Importar archivo',
             indent: 'Aumentar sangría',
             outdent: 'Disminuir sangría',
             taskList: 'Lista de tareas',
             horizontalRule: 'Línea horizontal',
-            outline: 'Esquema del documento',
         },
         findReplace: {
             find: 'Buscar',
@@ -1259,101 +465,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noResults: 'Sin resultados',
             close: 'Cerrar',
         },
-        link: {
-            text: 'Texto del enlace',
-            textPlaceholder: 'Texto mostrado',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Insertar enlace',
-            cancel: 'Cancelar',
-        },
-        image: {
-            url: 'URL de imagen',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Texto alternativo',
-            altTextPlaceholder: 'Descripción de la imagen',
-            insert: 'Insertar imagen',
-        },
-        fontSize: {
-            selectSize: 'Seleccionar tamaño',
-            selectSizePlaceholder: 'Seleccionar tamaño',
-            customSize: 'Tamaño personalizado',
-            apply: 'Aplicar',
-        },
-        fontFamily: {
-            selectFamily: 'Seleccionar fuente',
-            selectFamilyPlaceholder: 'Buscar fuentes...',
-        },
-        color: {
-            textColor: 'Color de texto',
-            highlightColor: 'Color de resaltado',
-        },
-        slashCommands: {
-            noResults: 'No se encontraron comandos',
-            paragraph: 'Párrafo',
-            paragraphDescription: 'Cambiar a texto de párrafo',
-            heading1: 'Encabezado 1',
-            heading1Description: 'Encabezado de sección grande',
-            heading2: 'Encabezado 2',
-            heading2Description: 'Encabezado de sección mediano',
-            heading3: 'Encabezado 3',
-            heading3Description: 'Encabezado de sección pequeño',
-            bulletList: 'Lista con viñetas',
-            bulletListDescription: 'Crear una lista con viñetas',
-            numberedList: 'Lista numerada',
-            numberedListDescription: 'Crear una lista ordenada',
-            blockQuote: 'Cita',
-            blockQuoteDescription: 'Insertar un bloque de cita',
-            inlineCode: 'Código en línea',
-            inlineCodeDescription: 'Envolver selección en código',
-            codeBlock: 'Bloque de código',
-            codeBlockDescription: 'Insertar un bloque de código',
-            link: 'Enlace',
-            linkDescription: 'Insertar o editar un enlace',
-            undo: 'Deshacer',
-            undoDescription: 'Deshacer último cambio',
-            redo: 'Rehacer',
-            redoDescription: 'Rehacer último cambio deshecho',
-            taskList: 'Lista de tareas',
-            taskListDescription: 'Crear una lista de tareas',
-            toggle: 'Bloque plegable',
-            toggleDescription: 'Insertar un bloque plegable',
-            horizontalRule: 'Línea horizontal',
-            horizontalRuleDescription: 'Insertar un separador horizontal',
-            outline: 'Esquema',
-            outlineDescription: 'Abrir el esquema del documento',
-        },
-        history: {
-            button: 'Historial ({count})',
-            title: 'Historial de revisiones',
-            browserDescription: 'Use este navegador cuando el botón de historial esté oculto.',
-            revision: 'Revisión {index}',
-            applied: 'Aplicada',
-            preview: 'Vista previa',
-            renderedPreview: 'Vista previa renderizada',
-            markdownSnapshot: 'Instantánea de Markdown',
-            capturedAt: 'Capturado a las {time}',
-            cancel: 'Cancelar',
-            restore: 'Restaurar esta revisión',
-            close: 'Cerrar',
-            moreLines: '+{count} líneas más',
-            ariaOpen: 'Abrir historial de revisiones (Ctrl o Comando + Mayús + H)',
-            ariaClose: 'Cerrar historial de revisiones',
-            ariaApply: 'Aplicar revisión {index}',
-        },
-        mentions: {
-            noUsersFound: 'No se encontraron usuarios',
-            noTagsFound: 'No se encontraron etiquetas',
-            selectUser: 'Seleccionar un usuario',
-            selectTag: 'Seleccionar una etiqueta',
-        },
-        outline: {
-            title: 'Esquema del documento',
-            empty: 'Aún no hay encabezados',
-            ariaClose: 'Cerrar el esquema del documento',
-        },
         table: {
-            insertTable: 'Insertar tabla',
             rows: 'Filas',
             columns: 'Columnas',
             insert: 'Insertar tabla',
@@ -1378,28 +490,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'Centrar',
             cellAlignRight: 'Alinear a la derecha',
         },
-        imageResizer: {
-            inline: 'En línea con el texto',
-            floatLeft: 'Flotar a la izquierda',
-            center: 'Centrar',
-            floatRight: 'Flotar a la derecha',
-            deleteImage: 'Eliminar imagen',
-        },
         editor: {
             placeholder: 'Escribe algo...',
             ariaLabel: 'Editor de texto enriquecido',
-            uploadingImage: 'Subiendo imagen...',
-            importingFile: 'Importando archivo...',
-            importFailed: 'Error al importar archivo. El archivo puede no ser compatible o estar dañado.',
-            importInvalidFile: 'El archivo seleccionado no es un PDF o DOCX válido.',
             characters: '{count} caracteres',
             words: '{count} palabras',
             formattingOptions: 'Opciones de formato',
-            slashCommandMenu: 'Menú de comandos',
-            autoUploadFailed: 'Error al subir',
-            autoUploadRetry: 'Reintentar',
-            autoUploadRemove: 'Eliminar',
-            autoUploadNotImage: 'No se pudo subir la imagen porque su contenido no es una imagen válida.',
         },
     },
     ja: {
@@ -1418,26 +514,16 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: '引用',
             inlineCode: 'インラインコード',
             codeBlock: 'コードブロック',
-            insertLink: 'リンクを挿入',
-            insertImage: '画像を挿入',
-            insertEmoji: '絵文字を挿入',
             undo: '元に戻す',
             redo: 'やり直し',
             clearFormatting: '書式をクリア',
-            textColor: '文字色',
-            backgroundColor: '背景色',
-            fontSize: 'フォントサイズ',
-            fontFamily: 'フォント',
             alignLeft: '左揃え',
             alignCenter: '中央揃え',
             alignRight: '右揃え',
-            insertTable: 'テーブルを挿入',
-            importFile: 'ファイルをインポート',
             indent: 'インデントを増やす',
             outdent: 'インデントを減らす',
             taskList: 'タスクリスト',
             horizontalRule: '水平線',
-            outline: 'ドキュメントアウトライン',
         },
         findReplace: {
             find: '検索',
@@ -1449,101 +535,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noResults: '結果なし',
             close: '閉じる',
         },
-        link: {
-            text: 'リンクテキスト',
-            textPlaceholder: '表示テキスト',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'リンクを挿入',
-            cancel: 'キャンセル',
-        },
-        image: {
-            url: '画像URL',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: '代替テキスト',
-            altTextPlaceholder: '画像の説明',
-            insert: '画像を挿入',
-        },
-        fontSize: {
-            selectSize: 'サイズを選択',
-            selectSizePlaceholder: 'サイズを選択',
-            customSize: 'カスタムサイズ',
-            apply: '適用',
-        },
-        fontFamily: {
-            selectFamily: 'フォントを選択',
-            selectFamilyPlaceholder: 'フォントを検索...',
-        },
-        color: {
-            textColor: '文字色',
-            highlightColor: 'ハイライト色',
-        },
-        slashCommands: {
-            noResults: 'コマンドが見つかりません',
-            paragraph: '段落',
-            paragraphDescription: '段落テキストに切り替え',
-            heading1: '見出し 1',
-            heading1Description: '大きなセクション見出し',
-            heading2: '見出し 2',
-            heading2Description: '中くらいのセクション見出し',
-            heading3: '見出し 3',
-            heading3Description: '小さなセクション見出し',
-            bulletList: '箇条書き',
-            bulletListDescription: '箇条書きリストを作成',
-            numberedList: '番号付きリスト',
-            numberedListDescription: '番号付きリストを作成',
-            blockQuote: '引用ブロック',
-            blockQuoteDescription: '引用ブロックを挿入',
-            inlineCode: 'インラインコード',
-            inlineCodeDescription: '選択範囲をコードで囲む',
-            codeBlock: 'コードブロック',
-            codeBlockDescription: 'コードブロックを挿入',
-            link: 'リンク',
-            linkDescription: 'リンクを挿入または編集',
-            undo: '元に戻す',
-            undoDescription: '最後の変更を元に戻す',
-            redo: 'やり直し',
-            redoDescription: '元に戻した変更をやり直す',
-            taskList: 'タスクリスト',
-            taskListDescription: 'タスクチェックリストを作成',
-            toggle: 'トグルブロック',
-            toggleDescription: '折りたたみブロックを挿入',
-            horizontalRule: '水平線',
-            horizontalRuleDescription: '水平の区切り線を挿入',
-            outline: 'アウトライン',
-            outlineDescription: 'ドキュメントのアウトラインを開く',
-        },
-        history: {
-            button: '履歴 ({count})',
-            title: 'リビジョン履歴',
-            browserDescription: '履歴ボタンが非表示の場合はこのブラウザを使用してください。',
-            revision: 'リビジョン {index}',
-            applied: '適用済み',
-            preview: 'プレビュー',
-            renderedPreview: 'レンダリングプレビュー',
-            markdownSnapshot: 'Markdownスナップショット',
-            capturedAt: '{time} にキャプチャ',
-            cancel: 'キャンセル',
-            restore: 'このリビジョンを復元',
-            close: '閉じる',
-            moreLines: '+{count} 行',
-            ariaOpen: 'リビジョン履歴を開く（Ctrl または Command + Shift + H）',
-            ariaClose: 'リビジョン履歴を閉じる',
-            ariaApply: 'リビジョン {index} を適用',
-        },
-        mentions: {
-            noUsersFound: 'ユーザーが見つかりません',
-            noTagsFound: 'タグが見つかりません',
-            selectUser: 'ユーザーを選択',
-            selectTag: 'タグを選択',
-        },
-        outline: {
-            title: 'ドキュメントアウトライン',
-            empty: '見出しがまだありません',
-            ariaClose: 'ドキュメントアウトラインを閉じる',
-        },
         table: {
-            insertTable: 'テーブルを挿入',
             rows: '行',
             columns: '列',
             insert: 'テーブルを挿入',
@@ -1568,28 +560,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: '中央揃え',
             cellAlignRight: '右揃え',
         },
-        imageResizer: {
-            inline: 'テキストと同列',
-            floatLeft: '左に回り込み',
-            center: '中央',
-            floatRight: '右に回り込み',
-            deleteImage: '画像を削除',
-        },
         editor: {
             placeholder: '何か書いてください...',
             ariaLabel: 'リッチテキストエディター',
-            uploadingImage: '画像をアップロード中...',
-            importingFile: 'ファイルをインポート中...',
-            importFailed: 'ファイルのインポートに失敗しました。ファイルがサポートされていないか破損している可能性があります。',
-            importInvalidFile: '選択されたファイルは有効なPDFまたはDOCXではありません。',
             characters: '{count} 文字',
             words: '{count} 語',
             formattingOptions: '書式設定オプション',
-            slashCommandMenu: 'スラッシュコマンドメニュー',
-            autoUploadFailed: 'アップロード失敗',
-            autoUploadRetry: '再試行',
-            autoUploadRemove: '削除',
-            autoUploadNotImage: 'コンテンツが有効な画像ではないため、画像をアップロードできませんでした。',
         },
     },
     zh: {
@@ -1608,26 +584,16 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: '引用',
             inlineCode: '行内代码',
             codeBlock: '代码块',
-            insertLink: '插入链接',
-            insertImage: '插入图片',
-            insertEmoji: '插入表情',
             undo: '撤销',
             redo: '重做',
             clearFormatting: '清除格式',
-            textColor: '文字颜色',
-            backgroundColor: '背景颜色',
-            fontSize: '字号',
-            fontFamily: '字体',
             alignLeft: '左对齐',
             alignCenter: '居中对齐',
             alignRight: '右对齐',
-            insertTable: '插入表格',
-            importFile: '导入文件',
             indent: '增加缩进',
             outdent: '减少缩进',
             taskList: '任务列表',
             horizontalRule: '水平线',
-            outline: '文档大纲',
         },
         findReplace: {
             find: '查找',
@@ -1639,101 +605,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noResults: '无结果',
             close: '关闭',
         },
-        link: {
-            text: '链接文字',
-            textPlaceholder: '显示文字',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: '插入链接',
-            cancel: '取消',
-        },
-        image: {
-            url: '图片 URL',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: '替代文字',
-            altTextPlaceholder: '图片描述',
-            insert: '插入图片',
-        },
-        fontSize: {
-            selectSize: '选择大小',
-            selectSizePlaceholder: '选择大小',
-            customSize: '自定义大小',
-            apply: '应用',
-        },
-        fontFamily: {
-            selectFamily: '选择字体',
-            selectFamilyPlaceholder: '搜索字体...',
-        },
-        color: {
-            textColor: '文字颜色',
-            highlightColor: '高亮颜色',
-        },
-        slashCommands: {
-            noResults: '未找到命令',
-            paragraph: '段落',
-            paragraphDescription: '切换到段落文本',
-            heading1: '标题 1',
-            heading1Description: '大号章节标题',
-            heading2: '标题 2',
-            heading2Description: '中号章节标题',
-            heading3: '标题 3',
-            heading3Description: '小号章节标题',
-            bulletList: '无序列表',
-            bulletListDescription: '创建无序列表',
-            numberedList: '有序列表',
-            numberedListDescription: '创建有序列表',
-            blockQuote: '引用块',
-            blockQuoteDescription: '插入引用块',
-            inlineCode: '行内代码',
-            inlineCodeDescription: '用代码包裹选中内容',
-            codeBlock: '代码块',
-            codeBlockDescription: '插入代码块',
-            link: '链接',
-            linkDescription: '插入或编辑链接',
-            undo: '撤销',
-            undoDescription: '撤销上一次更改',
-            redo: '重做',
-            redoDescription: '重做上一次撤销的更改',
-            taskList: '任务列表',
-            taskListDescription: '创建任务清单',
-            toggle: '折叠块',
-            toggleDescription: '插入可折叠块',
-            horizontalRule: '水平线',
-            horizontalRuleDescription: '插入水平分隔线',
-            outline: '大纲',
-            outlineDescription: '打开文档大纲',
-        },
-        history: {
-            button: '历史 ({count})',
-            title: '修订历史',
-            browserDescription: '当历史按钮被隐藏时使用此浏览器。',
-            revision: '修订 {index}',
-            applied: '已应用',
-            preview: '预览',
-            renderedPreview: '渲染预览',
-            markdownSnapshot: 'Markdown 快照',
-            capturedAt: '捕获于 {time}',
-            cancel: '取消',
-            restore: '恢复此修订',
-            close: '关闭',
-            moreLines: '+{count} 更多行',
-            ariaOpen: '打开修订历史（Ctrl 或 Command + Shift + H）',
-            ariaClose: '关闭修订历史',
-            ariaApply: '应用修订 {index}',
-        },
-        mentions: {
-            noUsersFound: '未找到用户',
-            noTagsFound: '未找到标签',
-            selectUser: '选择用户',
-            selectTag: '选择标签',
-        },
-        outline: {
-            title: '文档大纲',
-            empty: '暂无标题',
-            ariaClose: '关闭文档大纲',
-        },
         table: {
-            insertTable: '插入表格',
             rows: '行',
             columns: '列',
             insert: '插入表格',
@@ -1758,28 +630,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: '居中对齐',
             cellAlignRight: '右对齐',
         },
-        imageResizer: {
-            inline: '与文字内联',
-            floatLeft: '左浮动',
-            center: '居中',
-            floatRight: '右浮动',
-            deleteImage: '删除图片',
-        },
         editor: {
             placeholder: '写点什么...',
             ariaLabel: '富文本编辑器',
-            uploadingImage: '正在上传图片...',
-            importingFile: '正在导入文件...',
-            importFailed: '文件导入失败。文件可能不受支持或已损坏。',
-            importInvalidFile: '所选文件不是有效的PDF或DOCX文件。',
             characters: '{count} 个字符',
             words: '{count} 个词',
             formattingOptions: '格式选项',
-            slashCommandMenu: '斜杠命令菜单',
-            autoUploadFailed: '上传失败',
-            autoUploadRetry: '重试',
-            autoUploadRemove: '移除',
-            autoUploadNotImage: '由于内容不是有效图片，无法上传该图片。',
         },
     },
     ru: {
@@ -1798,26 +654,16 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Цитата',
             inlineCode: 'Строчный код',
             codeBlock: 'Блок кода',
-            insertLink: 'Вставить ссылку',
-            insertImage: 'Вставить изображение',
-            insertEmoji: 'Вставить эмодзи',
             undo: 'Отменить',
             redo: 'Повторить',
             clearFormatting: 'Очистить форматирование',
-            textColor: 'Цвет текста',
-            backgroundColor: 'Цвет фона',
-            fontSize: 'Размер шрифта',
-            fontFamily: 'Шрифт',
             alignLeft: 'По левому краю',
             alignCenter: 'По центру',
             alignRight: 'По правому краю',
-            insertTable: 'Вставить таблицу',
-            importFile: 'Импорт файла',
             indent: 'Увеличить отступ',
             outdent: 'Уменьшить отступ',
             taskList: 'Список задач',
             horizontalRule: 'Горизонтальная линия',
-            outline: 'Структура документа',
         },
         findReplace: {
             find: 'Найти',
@@ -1829,101 +675,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noResults: 'Нет результатов',
             close: 'Закрыть',
         },
-        link: {
-            text: 'Текст ссылки',
-            textPlaceholder: 'Отображаемый текст',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Вставить ссылку',
-            cancel: 'Отмена',
-        },
-        image: {
-            url: 'URL изображения',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Альтернативный текст',
-            altTextPlaceholder: 'Описание изображения',
-            insert: 'Вставить изображение',
-        },
-        fontSize: {
-            selectSize: 'Выбрать размер',
-            selectSizePlaceholder: 'Выберите размер',
-            customSize: 'Свой размер',
-            apply: 'Применить',
-        },
-        fontFamily: {
-            selectFamily: 'Выбрать шрифт',
-            selectFamilyPlaceholder: 'Поиск шрифтов...',
-        },
-        color: {
-            textColor: 'Цвет текста',
-            highlightColor: 'Цвет выделения',
-        },
-        slashCommands: {
-            noResults: 'Команды не найдены',
-            paragraph: 'Абзац',
-            paragraphDescription: 'Переключиться на текст абзаца',
-            heading1: 'Заголовок 1',
-            heading1Description: 'Большой заголовок раздела',
-            heading2: 'Заголовок 2',
-            heading2Description: 'Средний заголовок раздела',
-            heading3: 'Заголовок 3',
-            heading3Description: 'Малый заголовок раздела',
-            bulletList: 'Маркированный список',
-            bulletListDescription: 'Создать маркированный список',
-            numberedList: 'Нумерованный список',
-            numberedListDescription: 'Создать нумерованный список',
-            blockQuote: 'Цитата',
-            blockQuoteDescription: 'Вставить блок цитаты',
-            inlineCode: 'Строчный код',
-            inlineCodeDescription: 'Обернуть выделение в код',
-            codeBlock: 'Блок кода',
-            codeBlockDescription: 'Вставить блок кода',
-            link: 'Ссылка',
-            linkDescription: 'Вставить или изменить ссылку',
-            undo: 'Отменить',
-            undoDescription: 'Отменить последнее изменение',
-            redo: 'Повторить',
-            redoDescription: 'Повторить отменённое изменение',
-            taskList: 'Список задач',
-            taskListDescription: 'Создать список задач',
-            toggle: 'Сворачиваемый блок',
-            toggleDescription: 'Вставить сворачиваемый блок',
-            horizontalRule: 'Горизонтальная линия',
-            horizontalRuleDescription: 'Вставить горизонтальный разделитель',
-            outline: 'Структура',
-            outlineDescription: 'Открыть структуру документа',
-        },
-        history: {
-            button: 'История ({count})',
-            title: 'История ревизий',
-            browserDescription: 'Используйте этот браузер, когда кнопка истории скрыта.',
-            revision: 'Ревизия {index}',
-            applied: 'Применено',
-            preview: 'Просмотр',
-            renderedPreview: 'Отрисованный просмотр',
-            markdownSnapshot: 'Снимок Markdown',
-            capturedAt: 'Захвачено в {time}',
-            cancel: 'Отмена',
-            restore: 'Восстановить эту ревизию',
-            close: 'Закрыть',
-            moreLines: '+{count} строк',
-            ariaOpen: 'Открыть историю ревизий (Ctrl или Command + Shift + H)',
-            ariaClose: 'Закрыть историю ревизий',
-            ariaApply: 'Применить ревизию {index}',
-        },
-        mentions: {
-            noUsersFound: 'Пользователи не найдены',
-            noTagsFound: 'Теги не найдены',
-            selectUser: 'Выбрать пользователя',
-            selectTag: 'Выбрать тег',
-        },
-        outline: {
-            title: 'Структура документа',
-            empty: 'Заголовков пока нет',
-            ariaClose: 'Закрыть структуру документа',
-        },
         table: {
-            insertTable: 'Вставить таблицу',
             rows: 'Строки',
             columns: 'Столбцы',
             insert: 'Вставить таблицу',
@@ -1948,28 +700,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'По центру',
             cellAlignRight: 'По правому краю',
         },
-        imageResizer: {
-            inline: 'В тексте',
-            floatLeft: 'Обтекание слева',
-            center: 'По центру',
-            floatRight: 'Обтекание справа',
-            deleteImage: 'Удалить изображение',
-        },
         editor: {
             placeholder: 'Напишите что-нибудь...',
             ariaLabel: 'Редактор форматированного текста',
-            uploadingImage: 'Загрузка изображения...',
-            importingFile: 'Импорт файла...',
-            importFailed: 'Не удалось импортировать файл. Файл может быть неподдерживаемым или повреждённым.',
-            importInvalidFile: 'Выбранный файл не является допустимым PDF или DOCX.',
             characters: '{count} символов',
             words: '{count} слов',
             formattingOptions: 'Параметры форматирования',
-            slashCommandMenu: 'Меню команд',
-            autoUploadFailed: 'Ошибка загрузки',
-            autoUploadRetry: 'Повторить',
-            autoUploadRemove: 'Удалить',
-            autoUploadNotImage: 'Изображение не удалось загрузить, так как его содержимое не является допустимым изображением.',
         },
     },
     pt: {
@@ -1988,26 +724,16 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             blockquote: 'Citação',
             inlineCode: 'Código em linha',
             codeBlock: 'Bloco de código',
-            insertLink: 'Inserir link',
-            insertImage: 'Inserir imagem',
-            insertEmoji: 'Inserir emoji',
             undo: 'Desfazer',
             redo: 'Refazer',
             clearFormatting: 'Limpar formatação',
-            textColor: 'Cor do texto',
-            backgroundColor: 'Cor de fundo',
-            fontSize: 'Tamanho da fonte',
-            fontFamily: 'Família tipográfica',
             alignLeft: 'Alinhar à esquerda',
             alignCenter: 'Centralizar',
             alignRight: 'Alinhar à direita',
-            insertTable: 'Inserir tabela',
-            importFile: 'Importar arquivo',
             indent: 'Aumentar recuo',
             outdent: 'Diminuir recuo',
             taskList: 'Lista de tarefas',
             horizontalRule: 'Linha horizontal',
-            outline: 'Estrutura do documento',
         },
         findReplace: {
             find: 'Localizar',
@@ -2019,101 +745,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noResults: 'Sem resultados',
             close: 'Fechar',
         },
-        link: {
-            text: 'Texto do link',
-            textPlaceholder: 'Texto exibido',
-            url: 'URL',
-            urlPlaceholder: 'https://example.com',
-            insert: 'Inserir link',
-            cancel: 'Cancelar',
-        },
-        image: {
-            url: 'URL da imagem',
-            urlPlaceholder: 'https://example.com/image.jpg',
-            altText: 'Texto alternativo',
-            altTextPlaceholder: 'Descrição da imagem',
-            insert: 'Inserir imagem',
-        },
-        fontSize: {
-            selectSize: 'Selecionar tamanho',
-            selectSizePlaceholder: 'Selecionar tamanho',
-            customSize: 'Tamanho personalizado',
-            apply: 'Aplicar',
-        },
-        fontFamily: {
-            selectFamily: 'Selecionar fonte',
-            selectFamilyPlaceholder: 'Pesquisar fontes...',
-        },
-        color: {
-            textColor: 'Cor do texto',
-            highlightColor: 'Cor de destaque',
-        },
-        slashCommands: {
-            noResults: 'Nenhum comando encontrado',
-            paragraph: 'Parágrafo',
-            paragraphDescription: 'Mudar para texto de parágrafo',
-            heading1: 'Título 1',
-            heading1Description: 'Título de seção grande',
-            heading2: 'Título 2',
-            heading2Description: 'Título de seção médio',
-            heading3: 'Título 3',
-            heading3Description: 'Título de seção pequeno',
-            bulletList: 'Lista com marcadores',
-            bulletListDescription: 'Criar uma lista com marcadores',
-            numberedList: 'Lista numerada',
-            numberedListDescription: 'Criar uma lista ordenada',
-            blockQuote: 'Citação',
-            blockQuoteDescription: 'Inserir um bloco de citação',
-            inlineCode: 'Código em linha',
-            inlineCodeDescription: 'Envolver seleção em código',
-            codeBlock: 'Bloco de código',
-            codeBlockDescription: 'Inserir um bloco de código',
-            link: 'Link',
-            linkDescription: 'Inserir ou editar um link',
-            undo: 'Desfazer',
-            undoDescription: 'Desfazer última alteração',
-            redo: 'Refazer',
-            redoDescription: 'Refazer última alteração desfeita',
-            taskList: 'Lista de tarefas',
-            taskListDescription: 'Criar uma lista de tarefas',
-            toggle: 'Bloco recolhível',
-            toggleDescription: 'Inserir um bloco recolhível',
-            horizontalRule: 'Linha horizontal',
-            horizontalRuleDescription: 'Inserir um separador horizontal',
-            outline: 'Estrutura de tópicos',
-            outlineDescription: 'Abrir a estrutura de tópicos do documento',
-        },
-        history: {
-            button: 'Histórico ({count})',
-            title: 'Histórico de revisões',
-            browserDescription: 'Use este navegador quando o botão de histórico estiver oculto.',
-            revision: 'Revisão {index}',
-            applied: 'Aplicada',
-            preview: 'Visualizar',
-            renderedPreview: 'Visualização renderizada',
-            markdownSnapshot: 'Snapshot de Markdown',
-            capturedAt: 'Capturado às {time}',
-            cancel: 'Cancelar',
-            restore: 'Restaurar esta revisão',
-            close: 'Fechar',
-            moreLines: '+{count} linhas adicionais',
-            ariaOpen: 'Abrir histórico de revisões (Ctrl ou Command + Shift + H)',
-            ariaClose: 'Fechar histórico de revisões',
-            ariaApply: 'Aplicar revisão {index}',
-        },
-        mentions: {
-            noUsersFound: 'Nenhum usuário encontrado',
-            noTagsFound: 'Nenhuma tag encontrada',
-            selectUser: 'Selecionar um usuário',
-            selectTag: 'Selecionar uma tag',
-        },
-        outline: {
-            title: 'Estrutura do documento',
-            empty: 'Nenhum título ainda',
-            ariaClose: 'Fechar estrutura do documento',
-        },
         table: {
-            insertTable: 'Inserir tabela',
             rows: 'Linhas',
             columns: 'Colunas',
             insert: 'Inserir tabela',
@@ -2138,28 +770,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             cellAlignCenter: 'Centralizar',
             cellAlignRight: 'Alinhar à direita',
         },
-        imageResizer: {
-            inline: 'Em linha com o texto',
-            floatLeft: 'Flutuar à esquerda',
-            center: 'Centralizar',
-            floatRight: 'Flutuar à direita',
-            deleteImage: 'Excluir imagem',
-        },
         editor: {
             placeholder: 'Escreva algo...',
             ariaLabel: 'Editor de texto rico',
-            uploadingImage: 'Enviando imagem...',
-            importingFile: 'Importando arquivo...',
-            importFailed: 'Falha ao importar arquivo. O arquivo pode não ser suportado ou estar corrompido.',
-            importInvalidFile: 'O arquivo selecionado não é um PDF ou DOCX válido.',
             characters: '{count} caracteres',
             words: '{count} palavras',
             formattingOptions: 'Opções de formatação',
-            slashCommandMenu: 'Menu de comandos',
-            autoUploadFailed: 'Falha no envio',
-            autoUploadRetry: 'Tentar novamente',
-            autoUploadRemove: 'Remover',
-            autoUploadNotImage: 'A imagem não pôde ser enviada porque seu conteúdo não é uma imagem válida.',
         },
     },
 };

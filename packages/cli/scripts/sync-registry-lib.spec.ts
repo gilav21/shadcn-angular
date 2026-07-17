@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
@@ -14,6 +14,9 @@ import {
     analyzeAllEntries,
     analyzeBlock,
     analyzeComponent,
+    analyzeComposites,
+    renderCompositeBarrel,
+    formatCompositeReport,
     applyUpdatesToSource,
     BASELINE_LIB_FILES,
     buildBoundaryMap,
@@ -1089,6 +1092,147 @@ const SOURCE_FULL = `export const registry = {
   },
 };`;
 
+describe('parseRegistrySource', () => {
+    it('parses an entry whose breaking[] objects come BEFORE files[]', () => {
+        // Regression: the old regex parser required no `}` between the entry
+        // key and `files:`, so a `breaking: [{...}]` placed before `files:`
+        // silently dropped the entry from the boundary map — and the sync then
+        // folded the base's whole import tree into every addon entry.
+        const source = `export const registry = {
+  editor: {
+    name: 'editor',
+    breaking: [
+      { kind: 'removal', from: "the 'emoji' item", to: 'the directive', note: 'Use apply {addon}.', codemod: 'none' },
+    ],
+    files: ['editor/index.ts', 'editor/editor.component.ts'],
+    dependencies: ['button'],
+    libFiles: ['utils2.ts'],
+  },
+};`;
+        const editor = parseRegistrySource(source).find(e => e.name === 'editor');
+        expect(editor?.files).toEqual(['editor/index.ts', 'editor/editor.component.ts']);
+        expect(editor?.dependencies).toEqual(['button']);
+        expect(editor?.libFiles).toEqual(['utils2.ts']);
+    });
+
+    it('captures type, parent, and the attach import/selector of an addon entry', () => {
+        const source = `export const registry = {
+  'editor/emoji': {
+    name: 'editor/emoji',
+    type: 'addon',
+    parent: 'editor',
+    files: ['editor/addons/emoji/index.ts'],
+    dependencies: ['editor'],
+    attach: {
+      import: "EmojiDirective from './ui/editor/addons/emoji'",
+      selector: 'uiEmoji',
+    },
+  },
+};`;
+        const emoji = parseRegistrySource(source).find(e => e.name === 'editor/emoji');
+        expect(emoji?.type).toBe('addon');
+        expect(emoji?.parent).toBe('editor');
+        expect(emoji?.attachImport).toBe("EmojiDirective from './ui/editor/addons/emoji'");
+        expect(emoji?.attachSelector).toBe('uiEmoji');
+    });
+
+    it('reads libFiles and dependencies that come AFTER a nested-object field', () => {
+        // Regression: the old parser truncated the entry at the first \`},\`,
+        // so arrays after shortcutDefinitions/attach/breaking were missed.
+        const source = `export const registry = {
+  editor: {
+    name: 'editor',
+    files: ['editor/index.ts'],
+    shortcutDefinitions: [
+      { exportName: 'X', componentName: 'editor', sourceFile: 'editor/editor.component.ts' },
+    ],
+    dependencies: ['button'],
+    libFiles: ['shortcut.ts'],
+  },
+};`;
+        const editor = parseRegistrySource(source).find(e => e.name === 'editor');
+        expect(editor?.dependencies).toEqual(['button']);
+        expect(editor?.libFiles).toEqual(['shortcut.ts']);
+    });
+
+    it('does not treat nested objects (attach) or array items as entries', () => {
+        const source = `export const registry = {
+  'editor/emoji': {
+    name: 'editor/emoji',
+    type: 'addon',
+    files: ['editor/addons/emoji/index.ts'],
+    attach: {
+      import: "EmojiDirective from './ui/editor/addons/emoji'",
+      selector: 'uiEmoji',
+    },
+  },
+};`;
+        const parsed = parseRegistrySource(source);
+        expect(parsed.map(e => e.name)).toEqual(['editor/emoji']);
+        expect(parsed[0].isBlock).toBe(false);
+    });
+
+    it('parses an entry whose name/files properties are preceded by comment lines', () => {
+        // Regression (round 2): a leading comment fused into the key segment
+        // corrupted the key (or its colon hijacked the split), silently
+        // dropping the entry — the same failure class as the original bug.
+        const source = `export const registry = {
+  card: {
+    // note: keep first
+    name: 'card',
+    /* pinned files below */
+    files: ['card/index.ts'],
+    // deps: intentionally minimal
+    dependencies: ['button'],
+  },
+};`;
+        const card = parseRegistrySource(source).find(e => e.name === 'card');
+        expect(card?.files).toEqual(['card/index.ts']);
+        expect(card?.dependencies).toEqual(['button']);
+    });
+
+    it('survives braces and brackets inside strings and comments', () => {
+        const source = `export const registry = {
+  card: {
+    name: 'card',
+    // a comment with a stray } and ] inside
+    description: 'uses {tokens} and [brackets] } freely',
+    files: ['card/index.ts'],
+  },
+  badge: { name: 'badge', files: ['badge/badge.component.ts'] },
+};`;
+        expect(parseRegistrySource(source).map(e => e.name)).toEqual(['card', 'badge']);
+    });
+
+    it('handles backslash-escaped quotes inside string values', () => {
+        const source = `export const registry = {
+  card: {
+    name: 'card',
+    description: 'it\\'s a card with a } brace',
+    files: ['card/index.ts'],
+  },
+};`;
+        const card = parseRegistrySource(source).find(e => e.name === 'card');
+        expect(card?.files).toEqual(['card/index.ts']);
+    });
+
+    it('degrades gracefully on truncated source: keeps the entries that balance', () => {
+        const source = `export const registry = {
+  card: { name: 'card', files: ['card/index.ts'] },
+  torn: { name: 'torn', files: ['torn/index.ts'`;
+        expect(parseRegistrySource(source).map(e => e.name)).toEqual(['card']);
+    });
+
+    it('marks type block entries and parses multiple entries in order', () => {
+        const source = `export const registry = {
+  card: { name: 'card', files: ['card/index.ts'] },
+  hero: { name: 'hero', type: 'block', files: ['hero/hero.ts'], dependencies: ['card'] },
+};`;
+        const parsed = parseRegistrySource(source);
+        expect(parsed.map(e => [e.name, e.isBlock])).toEqual([['card', false], ['hero', true]]);
+    });
+});
+
 describe('replaceFilesArray', () => {
     it('rewrites the files array of the named entry', () => {
         const out = replaceFilesArray(SOURCE_FILES_ONLY, 'button', "'a.ts', 'b.ts'");
@@ -1304,5 +1448,116 @@ describe('detectOrphanBlockFolders', () => {
 describe('serializeRegistryJson', () => {
     it('writes 2-space JSON with a trailing newline', () => {
         expect(serializeRegistryJson({ a: 1 })).toBe('{\n  "a": 1\n}\n');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Composite ("<base>/full") generation. A base with two addons and a /full
+// entry drives the full check → fix → re-check contract: the sync appends the
+// marker selector clause to each sibling directive and generates the barrel
+// array, then a second run is clean (idempotent).
+// ---------------------------------------------------------------------------
+describe('analyzeComposites', () => {
+    let compBase: string;
+    let compRoot: string;
+    let compRoots: SyncRoots;
+
+    const directiveSource = (cls: string, marker: string): string =>
+        `import { Directive } from '@angular/core';\n` +
+        `@Directive({ selector: 'ui-ed[${marker}]', standalone: true })\n` +
+        `export class ${cls} {}\n`;
+
+    function compTouch(relPath: string, content = ''): void {
+        const full = path.join(compRoot, relPath);
+        mkdirSync(path.dirname(full), { recursive: true });
+        writeFileSync(full, content);
+    }
+
+    function compositeEntries(): RegistryEntry[] {
+        return [
+            entry({ name: 'ed', files: ['ed/index.ts'] }),
+            entry({
+                name: 'ed/aaa', type: 'addon', parent: 'ed',
+                files: ['ed/addons/aaa/index.ts', 'ed/addons/aaa/aaa.directive.ts'],
+                attachImport: "EdAaaDirective from './ui/ed/addons/aaa'", attachSelector: 'edFull',
+            }),
+            entry({
+                name: 'ed/bbb', type: 'addon', parent: 'ed',
+                files: ['ed/addons/bbb/index.ts', 'ed/addons/bbb/bbb.directive.ts'],
+                attachImport: "EdBbbDirective from './ui/ed/addons/bbb'", attachSelector: 'edFull',
+            }),
+            entry({
+                name: 'ed/full', type: 'addon', parent: 'ed',
+                files: ['ed/addons/full/index.ts'],
+                attachImport: "ED_FULL from './ui/ed/addons/full'", attachSelector: 'edFull',
+            }),
+        ];
+    }
+
+    beforeAll(() => {
+        compBase = mkdtempSync(path.join(tmpdir(), 'sync-composite-'));
+        compRoot = path.join(compBase, 'components');
+        compRoots = { componentsRoot: compRoot, blocksRoot: path.join(compBase, 'blocks') };
+        compTouch('ui/ed/index.ts', 'export class Ed {}');
+        compTouch('ui/ed/addons/aaa/aaa.directive.ts', directiveSource('EdAaaDirective', 'edAaa'));
+        compTouch('ui/ed/addons/bbb/bbb.directive.ts', directiveSource('EdBbbDirective', 'edBbb'));
+    });
+
+    afterAll(() => {
+        rmSync(compBase, { recursive: true, force: true });
+    });
+
+    it('reports the missing marker clauses and barrel, then --fix produces both and a re-check is clean', () => {
+        // 1. check: two selector clauses + one barrel are missing.
+        const first = analyzeComposites(compositeEntries(), compRoots);
+        expect(first.hasDrift).toBe(true);
+        expect(first.edits.filter(e => e.kind === 'selector')).toHaveLength(2);
+        expect(first.edits.filter(e => e.kind === 'barrel')).toHaveLength(1);
+        expect(formatCompositeReport(first).join('\n')).toContain("[edFull]");
+
+        // 2. fix: write every edit exactly as the script would (mkdir + write).
+        for (const edit of first.edits) {
+            mkdirSync(path.dirname(edit.path), { recursive: true });
+            writeFileSync(edit.path, edit.content);
+        }
+
+        // The barrel imports both siblings, sorted, into the derived ED_FULL array.
+        const barrel = readFileSync(path.join(compRoot, 'ui/ed/addons/full/index.ts'), 'utf-8');
+        expect(barrel).toContain("import { EdAaaDirective } from '../aaa';");
+        expect(barrel).toContain("import { EdBbbDirective } from '../bbb';");
+        expect(barrel.indexOf('EdAaaDirective,')).toBeLessThan(barrel.indexOf('EdBbbDirective,'));
+        expect(barrel).toContain('export const ED_FULL = [');
+
+        // Each sibling directive now also matches under the marker.
+        const aaa = readFileSync(path.join(compRoot, 'ui/ed/addons/aaa/aaa.directive.ts'), 'utf-8');
+        expect(aaa).toContain("'ui-ed[edAaa], ui-ed[edFull]'");
+
+        // 3. re-check: clean and idempotent.
+        const second = analyzeComposites(compositeEntries(), compRoots);
+        expect(second.hasDrift).toBe(false);
+        expect(second.edits).toHaveLength(0);
+        expect(formatCompositeReport(second)).toEqual([]);
+    });
+
+    it('derives the array name from attach.import, overriding a stale barrel const name', () => {
+        // The registry's attach.import is the contract `apply` imports, so it wins
+        // over whatever const the (possibly hand-renamed / stale) barrel declares.
+        mkdirSync(path.join(compRoot, 'ui/ed/addons/full'), { recursive: true });
+        writeFileSync(
+            path.join(compRoot, 'ui/ed/addons/full/index.ts'),
+            'export const STALE_NAME = [] as const;\n',
+        );
+        const analysis = analyzeComposites(compositeEntries(), compRoots);
+        const barrelEdit = analysis.edits.find(e => e.kind === 'barrel');
+        expect(barrelEdit?.content).toContain('export const ED_FULL = [');
+        expect(barrelEdit?.content).not.toContain('STALE_NAME');
+    });
+
+    it('renderCompositeBarrel emits the AUTO-GENERATED header', () => {
+        const out = renderCompositeBarrel('X_FULL', [
+            { short: 'aaa', className: 'AaaDir', sourceFile: 'ed/addons/aaa/aaa.directive.ts' },
+        ]);
+        expect(out.startsWith('// AUTO-GENERATED by sync-registry')).toBe(true);
+        expect(out).toContain("import { AaaDir } from '../aaa';");
     });
 });

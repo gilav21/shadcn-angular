@@ -1,16 +1,23 @@
+import { Component, inject } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RichTextToolbarComponent } from './rich-text-toolbar.component';
+import { RichTextToolbarViewContext } from '../rich-text-editor.host';
 import { RICH_TEXT_LOCALES } from '../rich-text-locales';
 import type { RichTextCustomToolbarItem } from '../rich-text-editor.component';
 
-function makeFileEvent(file: File | null): Event {
-    const input = document.createElement('input');
-    Object.defineProperty(input, 'files', {
-        value: file ? [file] : [],
-        configurable: true,
-    });
-    return { target: input } as unknown as Event;
+@Component({
+    standalone: true,
+    template: `<span data-testid="slot-probe">probe</span>`,
+})
+class SlotProbeComponent {}
+
+@Component({
+    standalone: true,
+    template: `<span data-testid="compact-probe">compact:{{ view?.compact() }}</span>`,
+})
+class CompactProbeComponent {
+    protected readonly view = inject(RichTextToolbarViewContext, { optional: true });
 }
 
 describe('RichTextToolbarComponent', () => {
@@ -168,304 +175,6 @@ describe('RichTextToolbarComponent', () => {
         });
     });
 
-    describe('insert handlers', () => {
-        it('emits linkInsert with text and url', () => {
-            let payload: { text: string; url: string } | undefined;
-            component.linkInsert.subscribe((p) => (payload = p));
-            component.onInsertLink('hello', 'https://x.com');
-            expect(payload).toEqual({ text: 'hello', url: 'https://x.com' });
-        });
-
-        it('defaults link text to "Link" when blank', () => {
-            let payload: { text: string; url: string } | undefined;
-            component.linkInsert.subscribe((p) => (payload = p));
-            component.onInsertLink('', 'https://x.com');
-            expect(payload).toEqual({ text: 'Link', url: 'https://x.com' });
-        });
-
-        it('does not emit linkInsert when url is empty', () => {
-            let emitted = false;
-            component.linkInsert.subscribe(() => (emitted = true));
-            component.onInsertLink('text', '');
-            expect(emitted).toBe(false);
-        });
-
-        it('emits imageInsert with alt and src, defaulting alt to "Image"', () => {
-            let payload: { alt: string; src: string } | undefined;
-            component.imageInsert.subscribe((p) => (payload = p));
-            component.onInsertImage('https://x.com/a.png', '');
-            expect(payload).toEqual({ alt: 'Image', src: 'https://x.com/a.png' });
-        });
-
-        it('does not emit imageInsert when src is empty', () => {
-            let emitted = false;
-            component.imageInsert.subscribe(() => (emitted = true));
-            component.onInsertImage('', 'alt');
-            expect(emitted).toBe(false);
-        });
-
-        it('emits emojiInsert', () => {
-            let emoji: string | undefined;
-            component.emojiInsert.subscribe((e) => (emoji = e));
-            component.onEmojiSelect('😀');
-            expect(emoji).toBe('😀');
-        });
-
-        it('emits colorSelect with type and color', () => {
-            let payload: { type: string; color: string } | undefined;
-            component.colorSelect.subscribe((p) => (payload = p));
-            component.onColorSelect('fontColor', '#ff0000');
-            expect(payload).toEqual({ type: 'fontColor', color: '#ff0000' });
-        });
-
-        it('emits fontSizeSelect', () => {
-            let size: string | undefined;
-            component.fontSizeSelect.subscribe((s) => (size = s));
-            component.onFontSizeSelect('18');
-            expect(size).toBe('18');
-        });
-
-        it('renders a ui-color-picker with the text palette as presets in the fontColor popover', async () => {
-            fixture.componentRef.setInput('items', ['fontColor']);
-            fixture.detectChanges();
-            component.openPopoverPanel('fontColor');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const picker = fixture.nativeElement.querySelector('ui-color-picker');
-            expect(picker).not.toBeNull();
-        });
-
-        it('renders a ui-color-picker with alpha enabled in the backgroundColor popover', async () => {
-            fixture.componentRef.setInput('items', ['backgroundColor']);
-            fixture.detectChanges();
-            component.openPopoverPanel('backgroundColor');
-            fixture.detectChanges();
-            await fixture.whenStable();
-            const picker = fixture.nativeElement.querySelector('ui-color-picker');
-            expect(picker).not.toBeNull();
-        });
-
-        async function openColorPickerPresets(popoverId: 'fontColor' | 'backgroundColor'): Promise<HTMLElement> {
-            fixture.componentRef.setInput('items', [popoverId]);
-            fixture.detectChanges();
-            // The toolbar's own popover holds the inline color picker (single popover,
-            // no nested color-picker trigger) — opening it renders the preset swatches.
-            component.openPopoverPanel(popoverId);
-            fixture.detectChanges();
-            await fixture.whenStable();
-            return fixture.nativeElement;
-        }
-
-        function requireSwatch(root: HTMLElement, selector: string): HTMLButtonElement {
-            const swatch = root.querySelector<HTMLButtonElement>(selector);
-            if (!swatch) throw new Error(`No preset swatch matched "${selector}"`);
-            return swatch;
-        }
-
-        it('clicking a real text-palette preset swatch emits colorSelect via the color-picker', async () => {
-            const root = await openColorPickerPresets('fontColor');
-            const targetColor = component.colorPalette[1];
-            const swatch = requireSwatch(root, `button[data-color-btn][aria-label="Select ${targetColor}"]`);
-            expect(swatch).not.toBeNull();
-
-            let emitted: { type: string; color: string } | undefined;
-            component.colorSelect.subscribe((e) => (emitted = e));
-            swatch.click();
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            expect(emitted).toEqual({ type: 'fontColor', color: targetColor });
-        });
-
-        it('clicking the "transparent" background preset emits colorSelect with a fully-transparent color', async () => {
-            const root = await openColorPickerPresets('backgroundColor');
-            const swatch = requireSwatch(root, 'button[data-color-btn][aria-label="Select transparent"]');
-            expect(swatch).not.toBeNull();
-
-            let emitted: { type: string; color: string } | undefined;
-            component.colorSelect.subscribe((e) => (emitted = e));
-            swatch.click();
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            expect(emitted?.type).toBe('backgroundColor');
-            expect(emitted?.color).toBe('#00000000');
-        });
-
-        it('emits colorSelect when the color-picker changes color', () => {
-            fixture.componentRef.setInput('items', ['fontColor']);
-            fixture.detectChanges();
-            let emitted: { type: string; color: string } | undefined;
-            component.colorSelect.subscribe((e) => (emitted = e));
-            component.onColorSelect('fontColor', '#123456');
-            expect(emitted).toEqual({ type: 'fontColor', color: '#123456' });
-        });
-
-        it('seeds the color picker once on open and does not follow currentFontColor while open', () => {
-            fixture.componentRef.setInput('items', ['fontColor']);
-            fixture.componentRef.setInput('currentFontColor', '#111111');
-            fixture.detectChanges();
-
-            component.openPopoverPanel('fontColor');
-            expect(component.seededFontColor()).toBe('#111111');
-
-            // The reflected selection colour changes while the popover is open — the
-            // seed (and thus the picker) must NOT follow it, or a live pick snaps back.
-            fixture.componentRef.setInput('currentFontColor', '#222222');
-            fixture.detectChanges();
-            expect(component.seededFontColor()).toBe('#111111');
-
-            // Re-opening re-seeds from the now-current value.
-            component.openPopoverPanel('fontColor');
-            expect(component.seededFontColor()).toBe('#222222');
-        });
-
-        it('guards insert handlers when disabled', () => {
-            fixture.componentRef.setInput('disabled', true);
-            fixture.detectChanges();
-            let count = 0;
-            component.linkInsert.subscribe(() => count++);
-            component.imageInsert.subscribe(() => count++);
-            component.emojiInsert.subscribe(() => count++);
-            component.colorSelect.subscribe(() => count++);
-            component.onInsertLink('a', 'https://x.com');
-            component.onInsertImage('https://x.com/a.png', 'a');
-            component.onEmojiSelect('x');
-            component.onColorSelect('fontColor', '#000');
-            expect(count).toBe(0);
-        });
-    });
-
-    describe('table grid', () => {
-        it('emits tableInsert and resets hover state on select', () => {
-            let payload: { rows: number; cols: number } | undefined;
-            component.tableInsert.subscribe((p) => (payload = p));
-            component.tableGridHoverRows.set(3);
-            component.tableGridHoverCols.set(4);
-
-            component.onTableGridSelect(3, 4);
-
-            expect(payload).toEqual({ rows: 3, cols: 4 });
-            expect(component.tableGridHoverRows()).toBe(0);
-            expect(component.tableGridHoverCols()).toBe(0);
-            expect(component.openPopover()).toBeNull();
-        });
-
-        it('does not emit tableInsert when disabled', () => {
-            fixture.componentRef.setInput('disabled', true);
-            fixture.detectChanges();
-            let emitted = false;
-            component.tableInsert.subscribe(() => (emitted = true));
-            component.onTableGridSelect(2, 2);
-            expect(emitted).toBe(false);
-        });
-    });
-
-    describe('popover panels', () => {
-        it('opens a popover panel by id', () => {
-            component.openPopoverPanel('link');
-            expect(component.openPopover()).toBe('link');
-        });
-
-        it('seeds selected font size from current font size', () => {
-            fixture.componentRef.setInput('currentFontSize', '20');
-            fixture.detectChanges();
-            component.openPopoverPanel('fontSize');
-            expect(component.selectedFontSize()).toBe('20px');
-        });
-
-        it('seeds selected font family from current font family', () => {
-            fixture.componentRef.setInput('currentFontFamily', 'Georgia');
-            fixture.detectChanges();
-            component.openPopoverPanel('fontFamily');
-            expect(component.selectedFontFamily()).toBe('Georgia');
-        });
-
-        it('closes only the matching popover panel', () => {
-            component.openPopoverPanel('table');
-            component.closePopoverPanel('link');
-            expect(component.openPopover()).toBe('table');
-            component.closePopoverPanel('table');
-            expect(component.openPopover()).toBeNull();
-        });
-    });
-
-    describe('autocomplete change handlers', () => {
-        it('strips non-digits and emits font size, closing the popover', () => {
-            component.openPopover.set('fontSize');
-            let size: string | undefined;
-            component.fontSizeSelect.subscribe((s) => (size = s));
-            component.onFontSizeAutocompleteChange('24px');
-            expect(size).toBe('24');
-            expect(component.openPopover()).toBeNull();
-        });
-
-        it('ignores font size change with no digits', () => {
-            let emitted = false;
-            component.fontSizeSelect.subscribe(() => (emitted = true));
-            component.onFontSizeAutocompleteChange('abc');
-            expect(emitted).toBe(false);
-        });
-
-        it('emits font family and closes the popover', () => {
-            component.openPopover.set('fontFamily');
-            let family: string | undefined;
-            component.fontFamilySelect.subscribe((f) => (family = f));
-            component.onFontFamilyAutocompleteChange('Verdana');
-            expect(family).toBe('Verdana');
-            expect(component.openPopover()).toBeNull();
-        });
-
-        it('ignores empty font family change', () => {
-            let emitted = false;
-            component.fontFamilySelect.subscribe(() => (emitted = true));
-            component.onFontFamilyAutocompleteChange('');
-            expect(emitted).toBe(false);
-        });
-
-        it('guards autocomplete handlers when disabled', () => {
-            fixture.componentRef.setInput('disabled', true);
-            fixture.detectChanges();
-            let count = 0;
-            component.fontSizeSelect.subscribe(() => count++);
-            component.fontFamilySelect.subscribe(() => count++);
-            component.onFontSizeAutocompleteChange('12');
-            component.onFontFamilyAutocompleteChange('Arial');
-            expect(count).toBe(0);
-        });
-    });
-
-    describe('file import', () => {
-        it('emits fileImport with the selected file and resets the input', () => {
-            const file = new File(['x'], 'doc.pdf', { type: 'application/pdf' });
-            let emitted: File | undefined;
-            component.fileImport.subscribe((f) => (emitted = f));
-
-            const event = makeFileEvent(file);
-            component.onFileSelect(event);
-
-            expect(emitted).toBe(file);
-            expect((event.target as HTMLInputElement).value).toBe('');
-        });
-
-        it('does not emit when no file is selected', () => {
-            let emitted = false;
-            component.fileImport.subscribe(() => (emitted = true));
-            component.onFileSelect(makeFileEvent(null));
-            expect(emitted).toBe(false);
-        });
-
-        it('does not emit fileImport when disabled', () => {
-            fixture.componentRef.setInput('disabled', true);
-            fixture.detectChanges();
-            let emitted = false;
-            component.fileImport.subscribe(() => (emitted = true));
-            const file = new File(['x'], 'doc.pdf');
-            component.onFileSelect(makeFileEvent(file));
-            expect(emitted).toBe(false);
-        });
-    });
-
     describe('custom items', () => {
         const customItem: RichTextCustomToolbarItem = {
             id: 'custom1',
@@ -516,13 +225,63 @@ describe('RichTextToolbarComponent', () => {
         });
     });
 
-    describe('computed config', () => {
-        it('exposes font size options suffixed with px', () => {
-            const opts = component.fontSizeOptionsWithPx();
-            expect(opts[0]).toBe('8px');
-            expect(opts.at(-1)).toBe('72px');
+    describe('addon slots', () => {
+        it('renders a button slot with its icon, tooltip, and data-addon-slot id', () => {
+            fixture.componentRef.setInput('items', []);
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'a.button', icon: '<svg></svg>', tooltip: 'Addon', onClick: () => void 0 },
+            ]);
+            fixture.detectChanges();
+            const btn = fixture.nativeElement.querySelector('[data-addon-slot="a.button"]') as HTMLButtonElement;
+            expect(btn.tagName).toBe('BUTTON');
+            expect(btn.title).toBe('Addon');
         });
 
+        it('renders a component slot through the outlet instead of a button', () => {
+            fixture.componentRef.setInput('items', []);
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'a.component', component: SlotProbeComponent },
+            ]);
+            fixture.detectChanges();
+            const slot = fixture.nativeElement.querySelector('[data-addon-slot="a.component"]') as HTMLElement;
+            expect(slot.tagName).toBe('SPAN');
+            expect(slot.querySelector('[data-testid="slot-probe"]')).not.toBeNull();
+            expect(slot.querySelector('button')).toBeNull();
+        });
+
+        it('renders nothing for a malformed slot with neither component nor icon', () => {
+            fixture.componentRef.setInput('items', []);
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'a.broken', tooltip: 'broken', onClick: () => void 0 },
+            ]);
+            fixture.detectChanges();
+            expect(fixture.nativeElement.querySelector('[data-addon-slot="a.broken"]')).toBeNull();
+        });
+
+        it('provides the toolbar view context (compact) to component slots', () => {
+            fixture.componentRef.setInput('items', []);
+            fixture.componentRef.setInput('compact', true);
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'a.ctx', component: CompactProbeComponent },
+            ]);
+            fixture.detectChanges();
+            const probe = fixture.nativeElement.querySelector('[data-testid="compact-probe"]') as HTMLElement;
+            expect(probe.textContent).toBe('compact:true');
+        });
+
+        it('orders slots by their order value, lowest first', () => {
+            fixture.componentRef.setInput('items', []);
+            fixture.componentRef.setInput('addonSlots', [
+                { id: 'late', icon: '<svg></svg>', tooltip: 'late', order: 900, onClick: () => void 0 },
+                { id: 'early', component: SlotProbeComponent, order: 10 },
+            ]);
+            fixture.detectChanges();
+            const slots = [...fixture.nativeElement.querySelectorAll('[data-addon-slot]')] as HTMLElement[];
+            expect(slots.map((s) => s.getAttribute('data-addon-slot'))).toEqual(['early', 'late']);
+        });
+    });
+
+    describe('computed config', () => {
         it('adds compact classes when compact is set', () => {
             fixture.componentRef.setInput('compact', true);
             fixture.detectChanges();

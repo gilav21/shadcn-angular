@@ -1,32 +1,20 @@
 import {
   Component,
   ChangeDetectionStrategy,
+  Injector,
   input,
   output,
   computed,
   inject,
-  signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { NgComponentOutlet } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { cn } from '../../../lib/utils';
-import { ButtonComponent } from '../../button';
 import { SeparatorComponent } from '../../separator';
-import {
-  PopoverComponent,
-  PopoverTriggerComponent,
-  PopoverContentComponent,
-} from '../../popover';
-import {
-  EmojiPickerComponent,
-  EmojiPickerTriggerComponent,
-  EmojiPickerContentComponent,
-} from '../../emoji-picker';
-import { AutocompleteComponent } from '../../autocomplete';
-import { ColorPickerComponent } from '../../color-picker';
 import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
 import { RichTextCustomToolbarItem } from '../rich-text-editor.component';
-import type { RichTextToolbarSlot } from '../rich-text-editor.host';
+import { RichTextToolbarViewContext, type RichTextToolbarSlot } from '../rich-text-editor.host';
 
 /**
  * Identifier for a toolbar button or visual separator. Pass an array of these
@@ -47,14 +35,8 @@ import type { RichTextToolbarSlot } from '../rich-text-editor.host';
  *
  * **Insert:**
  * - `'link'` — Opens a link insertion dialog.
- * - `'image'` — Opens an image insertion dialog.
- * - `'emoji'` — Opens the emoji picker.
  *
  * **Styling:**
- * - `'fontColor'` — Text color picker.
- * - `'backgroundColor'` — Background highlight color picker.
- * - `'fontSize'` — Font size selector dropdown.
- * - `'fontFamily'` — Font family selector dropdown.
  * - `'alignLeft'` / `'alignCenter'` / `'alignRight'` — Text alignment.
  *
  * **History:**
@@ -86,27 +68,17 @@ export type ToolbarItem =
   | 'blockquote'
   | 'code'
   | 'codeBlock'
-  | 'link'
-  | 'image'
-  | 'emoji'
   | 'separator'
   | 'undo'
   | 'redo'
   | 'clear'
-  | 'fontColor'
-  | 'backgroundColor'
-  | 'fontSize'
   | 'alignLeft'
   | 'alignCenter'
   | 'alignRight'
-  | 'fontFamily'
-  | 'table'
-  | 'importFile'
   | 'indent'
   | 'outdent'
   | 'taskList'
-  | 'horizontalRule'
-  | 'outline';
+  | 'horizontalRule';
 
 interface ToolbarButton {
   id: ToolbarItem;
@@ -129,26 +101,16 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'blockquote', label: 'Blockquote', localeKey: 'blockquote' },
   { id: 'code', label: 'Inline Code', localeKey: 'inlineCode' },
   { id: 'codeBlock', label: 'Code Block', localeKey: 'codeBlock' },
-  { id: 'link', label: 'Insert Link', localeKey: 'insertLink', shortcut: 'Ctrl+K' },
-  { id: 'image', label: 'Insert Image', localeKey: 'insertImage' },
-  { id: 'emoji', label: 'Insert Emoji', localeKey: 'insertEmoji' },
   { id: 'undo', label: 'Undo', localeKey: 'undo', shortcut: 'Ctrl+Z' },
   { id: 'redo', label: 'Redo', localeKey: 'redo', shortcut: 'Ctrl+Shift+Z' },
   { id: 'clear', label: 'Clear Formatting', localeKey: 'clearFormatting' },
-  { id: 'fontColor', label: 'Text Color', localeKey: 'textColor' },
-  { id: 'backgroundColor', label: 'Background Color', localeKey: 'backgroundColor' },
-  { id: 'fontSize', label: 'Font Size', localeKey: 'fontSize' },
-  { id: 'fontFamily', label: 'Font Family', localeKey: 'fontFamily' },
   { id: 'alignLeft', label: 'Align Left', localeKey: 'alignLeft' },
   { id: 'alignCenter', label: 'Align Center', localeKey: 'alignCenter' },
   { id: 'alignRight', label: 'Align Right', localeKey: 'alignRight' },
-  { id: 'table', label: 'Insert Table', localeKey: 'insertTable' },
-  { id: 'importFile', label: 'Import File', localeKey: 'importFile' },
   { id: 'indent', label: 'Increase Indent', localeKey: 'indent' },
   { id: 'outdent', label: 'Decrease Indent', localeKey: 'outdent' },
   { id: 'taskList', label: 'Task List', localeKey: 'taskList' },
   { id: 'horizontalRule', label: 'Horizontal Rule', localeKey: 'horizontalRule' },
-  { id: 'outline', label: 'Document Outline', localeKey: 'outline' },
 ];
 
 const ICONS: Record<string, string> = {
@@ -164,72 +126,26 @@ const ICONS: Record<string, string> = {
   blockquote: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v4z"/></svg>`,
   code: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
   codeBlock: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 9.5 8 12l2 2.5"/><path d="m14 9.5 2 2.5-2 2.5"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`,
-  link: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`,
-  image: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>`,
-  emoji: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>`,
   undo: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
   redo: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`,
   clear: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>`,
   paragraph: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 4v16"/><path d="M17 4v16"/><path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13"/></svg>`,
-  fontColor: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/></svg>`,
-  backgroundColor: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/></svg>`,
-  fontSize: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>`,
-  fontFamily: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14h-5"/><path d="M21 18h-5"/><path d="M17 14v8"/><path d="m3 16 4-8 4 8"/><path d="M4.5 14h5"/></svg>`,
   alignLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>`,
   alignCenter: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>`,
   alignRight: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg>`,
-  table: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><rect width="18" height="18" x="3" y="3" rx="2"/></svg>`,
-  importFile: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>`,
   indent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8 7 12 3 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/></svg>`,
   outdent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 8 3 12 7 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/></svg>`,
   taskList: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>`,
   horizontalRule: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>`,
-  outline: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 6H3"/><path d="M15 12H3"/><path d="M17 18H3"/><path d="M21 12h.01"/><path d="M21 18h.01"/></svg>`,
 };
-
-/**
- * The default set of web-safe font families offered by the font family dropdown.
- * Pass a custom array via `[fontFamilyOptions]` on the toolbar (or `[fontFamilies]`
- * on the editor) to replace or extend this list.
- */
-export const DEFAULT_FONT_FAMILIES: string[] = [
-  'Arial',
-  'Helvetica',
-  'Verdana',
-  'Tahoma',
-  'Trebuchet MS',
-  'Times New Roman',
-  'Georgia',
-  'Garamond',
-  'Courier New',
-  'Lucida Console',
-  'Comic Sans MS',
-  'Impact',
-];
-
-/**
- * Controls whether custom font families replace or extend the built-in defaults.
- *
- * - `'append'`  — Custom fonts are added after {@link DEFAULT_FONT_FAMILIES}.
- * - `'replace'` — Only the custom fonts are shown; defaults are discarded.
- */
-export type FontFamilyStrategy = 'append' | 'replace';
 
 @Component({
   selector: 'ui-rich-text-toolbar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    ButtonComponent,
     SeparatorComponent,
-    PopoverComponent,
-    PopoverTriggerComponent,
-    PopoverContentComponent,
-    EmojiPickerComponent,
-    EmojiPickerTriggerComponent,
-    EmojiPickerContentComponent,
-    AutocompleteComponent,
-    ColorPickerComponent,
     FormsModule,
+    NgComponentOutlet,
   ],
   templateUrl: './rich-text-toolbar.component.html',
   styleUrl: './rich-text-toolbar.component.css',
@@ -246,21 +162,9 @@ export class RichTextToolbarComponent {
     'heading1', 'heading2',
     'separator',
     'bulletList', 'orderedList',
-    'separator',
-    'link', 'image', 'emoji',
   ]);
 
   activeFormats = input<Set<string>>(new Set());
-  selectedText = input<string>('');
-  currentFontSize = input<string>('');
-  currentFontFamily = input<string>('');
-  currentFontColor = input<string>('');
-  currentBackgroundColor = input<string>('');
-  /** Seeded from `currentFontColor`/`currentBackgroundColor` when the colour popover opens, then left
-   *  untouched while it is open so the reflected value never writes back over the user's live pick. */
-  readonly seededFontColor = signal('');
-  readonly seededBackgroundColor = signal('');
-  fontFamilyOptions = input<string[]>(DEFAULT_FONT_FAMILIES);
   compact = input<boolean>(false);
   class = input<string>('');
   disabled = input<boolean>(false);
@@ -268,12 +172,6 @@ export class RichTextToolbarComponent {
   locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
 
   formatCommand = output<string>();
-  linkInsert = output<{ text: string; url: string }>();
-  imageInsert = output<{ alt: string; src: string }>();
-  emojiInsert = output<string>();
-  colorSelect = output<{ type: 'fontColor' | 'backgroundColor'; color: string }>();
-  tableInsert = output<{ rows: number; cols: number }>();
-  fileImport = output<File>();
   customItems = input<RichTextCustomToolbarItem[]>([]);
   customItemClick = output<string>();
   addonSlots = input<readonly RichTextToolbarSlot[]>([]);
@@ -282,35 +180,28 @@ export class RichTextToolbarComponent {
   readonly orderedAddonSlots = computed(() =>
     [...this.addonSlots()].sort((a, b) => (a.order ?? 1000) - (b.order ?? 1000)));
 
-  tableGridHoverRows = signal(0);
-  tableGridHoverCols = signal(0);
+  private readonly injector = inject(Injector);
+  private readonly viewContext: RichTextToolbarViewContext = {
+    compact: this.compact,
+  };
+  /**
+   * Per-slot injectors exposing the toolbar view context to component slots.
+   * Cached by slot object identity (a registration never mutates), so other
+   * addons registering/unregistering can't recreate this slot's component.
+   */
+  private readonly slotInjectorCache = new WeakMap<RichTextToolbarSlot, Injector>();
 
-  colorPalette = [
-    '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#ffffff',
-    '#980000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff', '#4a86e8', '#0000ff',
-    '#9900ff', '#ff00ff', '#e6b8af', '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3',
-    '#c9daf8', '#cfe2f3', '#d9d2e9', '#ead1dc', '#dd7e6b', '#ea9999', '#f9cb9c', '#ffe599',
-  ];
-
-  highlightPalette = [
-    'transparent', '#ffffff', '#fef3c7', '#fef9c3', '#d9f99d', '#bbf7d0', '#a7f3d0', '#99f6e4',
-    '#a5f3fc', '#bae6fd', '#c7d2fe', '#ddd6fe', '#f5d0fe', '#fce7f3', '#fed7aa', '#fecaca',
-    '#fde68a', '#fef08a', '#d9f99d', '#bbf7d0', '#6ee7b7', '#5eead4', '#67e8f9', '#7dd3fc',
-    '#a5b4fc', '#c4b5fd', '#e879f9', '#f472b6', '#fb923c', '#f87171', '#facc15', '#a3e635',
-  ];
-
-  fontSizeOptions = Array.from({ length: 33 }, (_, i) => 8 + i * 2);
-
-  fontSizeSelect = output<string>();
-  fontFamilySelect = output<string>();
-
-  openPopover = signal<string | null>(null);
-  selectedFontSize = signal<string>('');
-  selectedFontFamily = signal<string>('');
-
-  fontSizeOptionsWithPx = computed(() =>
-    this.fontSizeOptions.map(size => `${size}px`)
-  );
+  slotInjector(slot: RichTextToolbarSlot): Injector {
+    let slotInjector = this.slotInjectorCache.get(slot);
+    if (!slotInjector) {
+      slotInjector = Injector.create({
+        providers: [{ provide: RichTextToolbarViewContext, useValue: this.viewContext }],
+        parent: slot.injector ?? this.injector,
+      });
+      this.slotInjectorCache.set(slot, slotInjector);
+    }
+    return slotInjector;
+  }
 
   interactionDisabled = computed(() => this.disabled() || this.readonly());
 
@@ -395,98 +286,6 @@ export class RichTextToolbarComponent {
   onFormatClick(item: ToolbarItem): void {
     if (this.interactionDisabled()) return;
     this.formatCommand.emit(item);
-  }
-
-  onInsertLink(text: string, url: string): void {
-    if (this.interactionDisabled()) return;
-    if (url) {
-      this.linkInsert.emit({ text: text || 'Link', url });
-    }
-  }
-
-  onInsertImage(src: string, alt: string): void {
-    if (this.interactionDisabled()) return;
-    if (src) {
-      this.imageInsert.emit({ alt: alt || 'Image', src });
-    }
-  }
-
-  onEmojiSelect(emoji: string): void {
-    if (this.interactionDisabled()) return;
-    this.emojiInsert.emit(emoji);
-  }
-
-  onColorSelect(type: 'fontColor' | 'backgroundColor', color: string): void {
-    if (this.interactionDisabled()) return;
-    this.colorSelect.emit({ type, color });
-  }
-
-  onFontSizeSelect(size: string): void {
-    if (this.interactionDisabled()) return;
-    this.fontSizeSelect.emit(size);
-  }
-
-  openPopoverPanel(popoverId: string): void {
-    this.openPopover.set(popoverId);
-    if (popoverId === 'fontSize') {
-      const currentSize = this.currentFontSize();
-      if (currentSize) {
-        this.selectedFontSize.set(`${currentSize}px`);
-      }
-    }
-    if (popoverId === 'fontFamily') {
-      const currentFamily = this.currentFontFamily();
-      if (currentFamily) {
-        this.selectedFontFamily.set(currentFamily);
-      }
-    }
-    if (popoverId === 'fontColor') {
-      this.seededFontColor.set(this.currentFontColor());
-    }
-    if (popoverId === 'backgroundColor') {
-      this.seededBackgroundColor.set(this.currentBackgroundColor());
-    }
-  }
-
-  closePopoverPanel(popoverId: string): void {
-    if (this.openPopover() === popoverId) {
-      this.openPopover.set(null);
-    }
-  }
-
-  onTableGridSelect(rows: number, cols: number): void {
-    if (this.interactionDisabled()) return;
-    this.tableInsert.emit({ rows, cols });
-    this.openPopover.set(null);
-    this.tableGridHoverRows.set(0);
-    this.tableGridHoverCols.set(0);
-  }
-
-  onFontSizeAutocompleteChange(value: string): void {
-    if (this.interactionDisabled()) return;
-    const numericValue = value.replaceAll(/[^\d]/g, '');
-    if (numericValue && !Number.isNaN(Number(numericValue))) {
-      this.fontSizeSelect.emit(numericValue);
-      this.openPopover.set(null);
-    }
-  }
-
-  onFontFamilyAutocompleteChange(value: string): void {
-    if (this.interactionDisabled()) return;
-    if (value) {
-      this.fontFamilySelect.emit(value);
-      this.openPopover.set(null);
-    }
-  }
-
-  onFileSelect(event: Event): void {
-    if (this.interactionDisabled()) return;
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (file) {
-      this.fileImport.emit(file);
-      input.value = '';
-    }
   }
 
   onCustomItemClick(id: string): void {

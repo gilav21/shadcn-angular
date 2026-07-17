@@ -23,11 +23,11 @@ Kept only where a native element is impossible:
 
 | Component | Role | Why a native element can't be used |
 | --- | --- | --- |
-| `rich-text-editor` history rows (×2) | `button` | Each row **contains** a nested `<ui-button>` (the "preview" action). Interactive content can't nest inside a native `<button>`. |
+| `rich-text-editor/history` panel revision rows (×2) | `button` | Each row (popover panel + browser dialog) **contains** a nested `<ui-button>` (the "preview" action) and applies on click/Enter/Space. Interactive content can't nest inside a native `<button>`. Moved verbatim from the base editor into the opt-in history addon. |
 | `tree-item` children container | `group` | Required by the WAI-ARIA **tree** pattern: a `treeitem`'s child items must live in a `role="group"`. A `<fieldset>` is not a valid child grouping of a `treeitem`. |
 | `data-table` column resize handle | `separator` | This is an **interactive splitter** (mouse + touch drag) and it **contains** a child resize-line element. `<hr>` is a void element (no children) and isn't interactive — `role="separator"` is the correct splitter widget role. |
 | `rich-text-editor` editable surface | `textbox` | A `contenteditable` rich-text region. `<input>`/`<textarea>` are plain-text only and can't host rich formatting. `role="textbox"` + `aria-multiline` is the WAI-ARIA-endorsed pattern. |
-| `rich-text-editor` / `rich-text-mention` autocomplete (listbox + option) | `listbox`, `option` | Custom, fully-templated mention/autocomplete popups. `<select>`/`<datalist>` can't render templated option content. |
+| `rich-text-editor` / `rich-text-mention` / `rich-text-editor/slash-commands` menu (listbox + option) | `listbox`, `option` | Custom, fully-templated mention / slash-command popups. `<select>`/`<datalist>` can't render templated option content (each option is a two-line label + description block). |
 | `tree-select` trigger | `combobox` | A custom templated tree-dropdown. `<select>` can't render a tree of templated options. |
 | `color-picker` saturation/value area | `slider` | A **two-dimensional** picker (x = saturation, y = value). `<input type="range">` is one-dimensional and cannot represent a 2-D control, so `role="slider"` with `aria-valuetext` is the correct ARIA. (The 1-D hue/alpha sliders use native range inputs.) |
 
@@ -90,6 +90,8 @@ not suppressed — this exemption is scoped to the `ui-button` primitive only.
 | `data-table/data-table.component.html` | 1 |
 | `rich-text-editor/rich-text-editor.component.html` | 4 |
 | `rich-text-editor/addons/actions/rich-text-actions-dialog.component.html` | 2 |
+| `rich-text-editor/addons/links/rich-text-links-form.component.html` | Remove/Cancel/Insert are `<ui-button (click)>` — native `<button>` underneath, Enter/Space already fire click. |
+| `rich-text-editor/addons/ai/rich-text-ai-panel.component.html` | Go/Accept/Discard/Retry are `<ui-button (click)>` — native `<button>` underneath, Enter/Space already fire click. |
 
 **The one raw-`<div>` exception — the `file-upload` dropzone.** It is
 `role="presentation"` and its `(click)`/drag handlers are a *pointer convenience*,
@@ -118,8 +120,15 @@ re-scans.
 | --- | --- |
 | `file-viewer/file-viewer.component.ts` | `blob:` URLs from `URL.createObjectURL`, and HTML produced by our own DOCX/PDF/PPTX parsers. Never user-supplied strings. |
 | `icon/icon.component.ts` | `rawHtml` comes exclusively from `DEFAULT_ICONS` (hardcoded SVG paths) or consumer-registered icons via `provideIcons()`. Never user input. |
-| `rich-text-editor/sub/rich-text-image-resizer.component.ts` | Trusted static SVG icon constants defined in the file. |
+| `rich-text-editor/addons/images/rich-text-images-resizer.component.ts` | Trusted static SVG icon constants (alignment + delete) defined in the file. Never user input. |
+| `rich-text-editor/addons/images/rich-text-images-button.component.ts` | The trusted static `IMAGE_ICON` SVG constant defined in the file. Never user input. |
 | `rich-text-editor/sub/rich-text-toolbar.component.ts` | Trusted static toolbar SVG icons (and developer-supplied custom icons via the public API). Never untrusted end-user input. |
+| `rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts` | The trusted static `EMOJI_ICON` SVG constant defined in the file. Never user input. |
+| `rich-text-editor/addons/colors/rich-text-colors-button.component.ts` | The trusted static `FOREGROUND_ICON`/`BACKGROUND_ICON` SVG constants defined in the file. Never user input. |
+| `rich-text-editor/addons/typography/rich-text-typography-button.component.ts` | The trusted static `SIZE_ICON`/`FAMILY_ICON` SVG constants defined in the file. Never user input. |
+| `rich-text-editor/addons/links/rich-text-links-button.component.ts` | The trusted static `LINK_ICON` SVG constant defined in the file. Never user input. |
+| `rich-text-editor/addons/tables/rich-text-tables-button.component.ts` | The trusted static `TABLE_ICON` SVG constant defined in the file. Never user input. |
+| `rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts` | The trusted static `IMPORT_ICON` SVG constant defined in the file. Never user input. |
 
 > To suppress these in a client's SonarQube: mark each issue **Won't Fix** /
 > **Accepted** with a link to this file, or mirror the file/rule exclusion in

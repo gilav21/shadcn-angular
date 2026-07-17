@@ -164,7 +164,14 @@ export default tseslint.config(
     files: [
       'packages/components/ui/file-viewer/file-viewer.component.ts',
       'packages/components/ui/icon/icon.component.ts',
-      'packages/components/ui/rich-text-editor/sub/rich-text-image-resizer.component.ts',
+      'packages/components/ui/rich-text-editor/addons/emoji/rich-text-emoji-button.component.ts',
+      'packages/components/ui/rich-text-editor/addons/colors/rich-text-colors-button.component.ts',
+      'packages/components/ui/rich-text-editor/addons/typography/rich-text-typography-button.component.ts',
+      'packages/components/ui/rich-text-editor/addons/links/rich-text-links-button.component.ts',
+      'packages/components/ui/rich-text-editor/addons/tables/rich-text-tables-button.component.ts',
+      'packages/components/ui/rich-text-editor/addons/images/rich-text-images-button.component.ts',
+      'packages/components/ui/rich-text-editor/addons/images/rich-text-images-resizer.component.ts',
+      'packages/components/ui/rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts',
       'packages/components/ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
     ],
     rules: {

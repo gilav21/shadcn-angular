@@ -7,10 +7,23 @@ import {
   SwitchComponent,
   InputComponent,
   SelectComponent,
-  MentionItem,
-  TagItem,
   ToolbarItem,
 } from '../../../../../packages/components/ui';
+import {
+  RichTextMentionsDirective,
+  type MentionItem,
+  type TagItem,
+} from '../../../../../packages/components/ui/rich-text-editor/addons/mentions';
+import { RichTextEmojiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/emoji';
+import { RichTextSlashCommandsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/slash-commands';
+import { RichTextHistoryDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/history';
+import { RichTextColorsDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/colors';
+import { RichTextTypographyDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/typography';
+import { RichTextLinksDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/links';
+import { RichTextTablesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/tables';
+import { RichTextImagesDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/images';
+import { RichTextAiDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/ai';
+import { RichTextOutlineDirective } from '../../../../../packages/components/ui/rich-text-editor/addons/outline';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { RICH_TEXT_EDITOR_DEMO_LOCALES } from './rich-text-editor-demo.locales';
 
@@ -19,7 +32,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, SwitchComponent, InputComponent, SelectComponent],
+  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, RichTextOutlineDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -27,7 +40,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().basicHeading }}</h3>
-        <ui-rich-text-editor mode="markdown" toolbar="top"
+        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji uiRteSlashCommands uiRteColors uiRteTypography uiRteLinks uiRteTables
           [placeholder]="t().basicPlaceholder" minHeight="150px"
           [(ngModel)]="richTextContent" (htmlChange)="richTextHtml = $event" />
         @if (richTextHtml) {
@@ -49,18 +62,20 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
       <div class="space-y-2">
         <h3 class="text-lg font-medium">AI assist</h3>
         <p class="text-sm text-muted-foreground">
-          Select some text, then click the <strong>✨ Ask AI</strong> chip to rewrite, shorten, expand, fix grammar,
+          Add the <code class="bg-muted px-1 rounded">uiRteAi</code> addon and bind
+          <code class="bg-muted px-1 rounded">[uiRteAi]</code> to a provider. Select some text, then click the
+          <strong>✨ Ask AI</strong> chip to rewrite, shorten, expand, fix grammar,
           summarize, continue, or run a custom prompt. The output streams in; Accept / Discard / Try again.
           This demo wires a <strong>mock</strong> provider (no network) to show the flow.
         </p>
-        <ui-rich-text-editor mode="markdown" toolbar="top" [aiProvider]="mockAiProvider"
+        <ui-rich-text-editor mode="markdown" toolbar="top" [uiRteAi]="mockAiProvider"
           [placeholder]="'Type a sentence, select it, then click ✨ Ask AI…'" minHeight="140px" />
 
         <details class="mt-2 rounded-md border bg-muted/30 p-3">
           <summary class="cursor-pointer text-sm font-medium">Wire up a real AI backend</summary>
           <div class="mt-3 space-y-3 text-sm">
             <p class="text-muted-foreground">
-              <code class="bg-muted px-1 rounded">aiProvider</code> is just a callback that returns
+              <code class="bg-muted px-1 rounded">[uiRteAi]</code> takes a callback that returns
               <code class="bg-muted px-1 rounded">string</code> · <code class="bg-muted px-1 rounded">Promise&lt;string&gt;</code> ·
               <code class="bg-muted px-1 rounded">Observable&lt;string&gt;</code>. Point it at <strong>your</strong> backend —
               <strong>never call the model directly from the browser</strong>, or your API key leaks. For the editor's live
@@ -84,16 +99,16 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().minimalHeading }}</h3>
-        <ui-rich-text-editor mode="markdown" toolbar="top"
-          [toolbarItems]="['bold', 'italic', 'separator', 'link', 'emoji']"
+        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteEmoji uiRteLinks
+          [toolbarItems]="['bold', 'italic', 'separator']"
           [placeholder]="t().minimalPlaceholder" minHeight="100px" />
       </div>
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().mentionsHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().mentionsDescription }}</p>
-        <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSearch]="searchMentions"
-          [mentionRender]="mentionLinkRender" [tags]="true" [tagSearch]="searchTags" [tagRender]="tagLinkRender"
+        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteMentions [uiRteMentionsSearch]="searchMentions"
+          [uiRteMentionsRender]="mentionLinkRender" [uiRteTags]="true" [uiRteTagsSearch]="searchTags" [uiRteTagsRender]="tagLinkRender"
           [placeholder]="t().mentionsPlaceholder" minHeight="120px" />
       </div>
 
@@ -115,10 +130,10 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         @if (!richTextShowHistoryButton()) {
         <p class="text-xs text-muted-foreground">{{ t().historyHiddenNote }}</p>
         }
-        <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSearch]="searchMentions"
-          [mentionRender]="mentionLinkRender" [tags]="true" [tagSearch]="searchTags" [tagRender]="tagLinkRender"
-          [showCount]="true" [showWordCount]="true" [maxLength]="220" [historyLimit]="180" [showHistoryPanel]="true"
-          [showHistoryButton]="richTextShowHistoryButton()" [historyDebounceMs]="500"
+        <ui-rich-text-editor mode="markdown" toolbar="top" uiRteHistory uiRteMentions [uiRteMentionsSearch]="searchMentions"
+          [uiRteMentionsRender]="mentionLinkRender" [uiRteTags]="true" [uiRteTagsSearch]="searchTags" [uiRteTagsRender]="tagLinkRender"
+          [showCount]="true" [showWordCount]="true" [maxLength]="220" [historyLimit]="180"
+          [uiRteHistoryButton]="richTextShowHistoryButton()" [historyDebounceMs]="500"
           [placeholder]="t().advancedPlaceholder" minHeight="160px" />
       </div>
 
@@ -133,7 +148,8 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           </label>
         </div>
         <ui-rich-text-editor mode="html" toolbar="top"
-          [toolbarItems]="outlineToolbarItems()"
+          uiRteOutline [uiRteOutlineButton]="richTextOutlineShowToolbarItem()"
+          [toolbarItems]="outlineToolbarBase"
           [(ngModel)]="richTextOutlineContent"
           minHeight="320px" />
       </div>
@@ -155,31 +171,31 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         <h3 class="text-lg font-medium">{{ t().hebrewHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().hebrewDescription }}</p>
         <ui-rich-text-editor mode="markdown" toolbar="top" locale="he" [showCount]="true" [showWordCount]="true"
-          [enableSlashCommands]="true" minHeight="150px" />
+          uiRteSlashCommands uiRteSlashCommandsLocale="he" minHeight="150px" />
       </div>
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().fontFamilyHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().fontFamilyDescription }}</p>
-        <ui-rich-text-editor mode="html" toolbar="top"
-          [toolbarItems]="['bold', 'italic', 'separator', 'fontFamily', 'fontSize', 'separator', 'fontColor']"
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteColors uiRteTypography
+          [toolbarItems]="['bold', 'italic', 'separator']"
           [placeholder]="t().fontFamilyPlaceholder" minHeight="120px" />
       </div>
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().customFontHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().customFontDescription }}</p>
-        <ui-rich-text-editor mode="html" toolbar="top"
-          [toolbarItems]="['bold', 'italic', 'separator', 'fontFamily', 'fontSize']"
-          [fontFamilies]="['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins']"
-          fontFamiliesStrategy="replace"
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteTypography
+          [toolbarItems]="['bold', 'italic', 'separator']"
+          [uiRteTypographyFamilies]="['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins']"
+          uiRteTypographyFamiliesStrategy="replace"
           [placeholder]="t().customFontPlaceholder" minHeight="120px" />
       </div>
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">{{ t().imageUploadHeading }}</h3>
         <p class="text-sm text-muted-foreground">{{ t().imageUploadDescription }}</p>
-        <ui-rich-text-editor mode="html" toolbar="top" [autoImageUpload]="true" [imageUploader]="fakeImageUploader"
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteImages [uiRteImagesAutoUpload]="true" [uiRteImagesUploader]="fakeImageUploader"
           (autoImageUploadComplete)="lastAutoUploadUrl = $event"
           (autoImageUploadError)="lastAutoUploadError = $event"
           [placeholder]="t().imageUploadPlaceholder" minHeight="160px" />
@@ -242,15 +258,15 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           </div>
         </div>
 
-        <ui-rich-text-editor mode="html" toolbar="top"
-          [imageResize]="imgResize()"
-          [imageAlignment]="imgAlignmentButtons()"
-          [defaultImageWidth]="imgDefaultWidth()"
-          [defaultImageHeight]="imgDefaultHeight()"
-          [defaultImageAlignment]="imgDefaultAlignment()"
-          [minImageWidth]="imgMinWidth()"
-          [maxImageWidth]="imgMaxWidth()"
-          [lockImageAspectRatio]="imgLockAspect()"
+        <ui-rich-text-editor mode="html" toolbar="top" uiRteImages
+          [uiRteImagesResize]="imgResize()"
+          [uiRteImagesAlignment]="imgAlignmentButtons()"
+          [uiRteImagesDefaultWidth]="imgDefaultWidth()"
+          [uiRteImagesDefaultHeight]="imgDefaultHeight()"
+          [uiRteImagesDefaultAlignment]="imgDefaultAlignment()"
+          [uiRteImagesMinWidth]="imgMinWidth()"
+          [uiRteImagesMaxWidth]="imgMaxWidth()"
+          [uiRteImagesLockAspectRatio]="imgLockAspect()"
           [placeholder]="t().imageControlsPlaceholder" minHeight="200px" />
       </div>
     </section>
@@ -307,19 +323,13 @@ export class RichTextEditorDemoComponent {
     return Number.isNaN(parsed) ? undefined : parsed;
   }
 
-  private readonly outlineToolbarBase: ToolbarItem[] = [
+  readonly outlineToolbarBase: ToolbarItem[] = [
     'bold', 'italic', 'underline',
     'separator',
     'paragraph', 'heading1', 'heading2', 'heading3',
     'separator',
     'bulletList', 'orderedList',
   ];
-
-  readonly outlineToolbarItems = computed<ToolbarItem[]>(() =>
-    this.richTextOutlineShowToolbarItem()
-      ? [...this.outlineToolbarBase, 'separator', 'outline']
-      : this.outlineToolbarBase
-  );
 
   richTextOutlineContent = '';
 
@@ -437,7 +447,11 @@ export class RichTextEditorDemoComponent {
     "// In your component — point the provider at YOUR backend.",
     "// The API key lives on the server and never touches the browser.",
     "import { AiRequest } from '@gilav21/shadcn-angular';",
+    "import { RichTextAiDirective } from '@gilav21/shadcn-angular';",
     "import { Observable } from 'rxjs';",
+    "",
+    "// Add RichTextAiDirective to the component imports, then in the template:",
+    "//   <ui-rich-text-editor [uiRteAi]='aiProvider' />",
     "",
     "// Streaming provider → drives the editor's live typewriter effect.",
     "readonly aiProvider = (req: AiRequest): Observable<string> =>",

@@ -13,24 +13,29 @@
  *   npx tsx packages/cli/scripts/sync-registry.ts --fix     # update registry
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
     analyzeAllEntries,
+    analyzeComposites,
     applyUpdatesToSource,
     buildBoundaryMap,
     buildDirOwners,
     detectOrphanBlockFolders,
     formatAddonViolationReport,
+    formatCompositeReport,
     formatDeepImportReport,
     loadRegistryFresh,
     parseRegistrySource,
     serializeRegistryJson,
     validateBlockFiles,
     validateRegistryFiles,
+    type AnalysisResult,
     type BoundaryContext,
+    type CompositeAnalysis,
     type ComponentUpdate,
+    type RegistryEntry,
     type SyncRoots,
 } from './sync-registry-lib';
 
@@ -53,6 +58,36 @@ function applyUpdates(updates: readonly ComponentUpdate[]): void {
 }
 
 /**
+ * Write the marker-selector clauses and generated barrels a `<base>/full`
+ * composite needs. Runs BEFORE the dependency walk so the freshly-generated
+ * barrel's imports drive the composite entry's derived `dependencies`.
+ */
+function writeComposites(composites: CompositeAnalysis): void {
+    for (const edit of composites.edits) {
+        mkdirSync(path.dirname(edit.path), { recursive: true });
+        writeFileSync(edit.path, edit.content);
+        console.log(`Composite ${edit.kind} written: ${edit.label}`);
+    }
+}
+
+/**
+ * Handle every `<base>/full` composite: in --fix, write its marker selector
+ * clauses + generated barrels FIRST (so the dependency walk sees the barrel's
+ * imports); in check mode, report drift. Returns true when check mode found
+ * drift (a non-zero exit condition).
+ */
+function syncComposites(entries: readonly RegistryEntry[], fix: boolean): boolean {
+    const composites = analyzeComposites(entries, ROOTS);
+    for (const warning of composites.warnings) console.warn(warning);
+    if (fix) {
+        writeComposites(composites);
+        return false;
+    }
+    for (const line of formatCompositeReport(composites)) console.log(line);
+    return composites.hasDrift;
+}
+
+/**
  * Serializes the (already-written) TS registry to the data-only manifest the
  * live CLI fetches. `loadRegistryFresh` re-imports the registry object so it
  * reflects any edits `applyUpdates` just made on disk.
@@ -69,6 +104,54 @@ function reportOrphanBlocks(orphans: readonly string[]): void {
         `in packages/cli/src/registry/index.ts before publishing.`);
 }
 
+/**
+ * Print any hard-error condition (addon boundary violation, or a referenced file
+ * missing on disk) and set the failing exit code. Returns true when the sync
+ * must abort before writing anything.
+ */
+function reportBlockingIssues(
+    addonViolations: AnalysisResult['addonViolations'],
+    updates: readonly ComponentUpdate[],
+    blockUpdates: readonly ComponentUpdate[],
+): boolean {
+    if (addonViolations.length > 0) {
+        for (const line of formatAddonViolationReport(addonViolations)) console.error(line);
+        console.error('\nAborting before write — fix the boundary violation(s) above.');
+        process.exitCode = 1;
+        return true;
+    }
+    const missingFiles = [...validateRegistryFiles(updates, ROOTS), ...validateBlockFiles(blockUpdates, ROOTS)];
+    if (missingFiles.length > 0) {
+        console.error('\nRegistry references files that do not exist on disk:');
+        for (const problem of missingFiles) console.error(problem);
+        console.error('\nAborting before write — correct the paths above.');
+        process.exitCode = 1;
+        return true;
+    }
+    return false;
+}
+
+/** Apply registry updates (or report drift), factoring composite drift into the exit code. */
+async function commitChanges(
+    fix: boolean, hasChanges: boolean, compositeDrift: boolean,
+    updates: readonly ComponentUpdate[], blockUpdates: readonly ComponentUpdate[],
+): Promise<void> {
+    if (!hasChanges) {
+        if (compositeDrift) process.exitCode = 1;
+        else console.log('All components and blocks are in sync.');
+        if (fix) await writeRegistryJson();
+        return;
+    }
+    console.log('');
+    if (fix) {
+        applyUpdates([...updates, ...blockUpdates]);
+        await writeRegistryJson();
+    } else {
+        console.log('Run with --fix to update the registry.');
+        process.exitCode = 1;
+    }
+}
+
 async function main(): Promise<void> {
     const fix = process.argv.includes('--fix');
     const allEntries = parseRegistrySource(readFileSync(REGISTRY_PATH, 'utf-8'));
@@ -76,6 +159,8 @@ async function main(): Promise<void> {
     const entries = allEntries.filter(e => !e.isBlock);
 
     reportOrphanBlocks(detectOrphanBlockFolders(blockEntries, BLOCKS_ROOT));
+
+    const compositeDrift = syncComposites(entries, fix);
 
     const entryFileToComponent = buildBoundaryMap(entries);
     const ctx: BoundaryContext = { entryFileToComponent, dirOwners: buildDirOwners(entryFileToComponent) };
@@ -88,39 +173,9 @@ async function main(): Promise<void> {
         for (const line of formatDeepImportReport(deepImports)) console.warn(line);
     }
 
-    if (addonViolations.length > 0) {
-        for (const line of formatAddonViolationReport(addonViolations)) console.error(line);
-        console.error('\nAborting before write — fix the boundary violation(s) above.');
-        process.exitCode = 1;
-        return;
-    }
+    if (reportBlockingIssues(addonViolations, updates, blockUpdates)) return;
 
-    const missingFiles = [
-        ...validateRegistryFiles(updates, ROOTS),
-        ...validateBlockFiles(blockUpdates, ROOTS),
-    ];
-    if (missingFiles.length > 0) {
-        console.error('\nRegistry references files that do not exist on disk:');
-        for (const problem of missingFiles) console.error(problem);
-        console.error('\nAborting before write — correct the paths above.');
-        process.exitCode = 1;
-        return;
-    }
-
-    if (!hasChanges) {
-        console.log('All components and blocks are in sync.');
-        if (fix) await writeRegistryJson();
-        return;
-    }
-
-    console.log('');
-    if (fix) {
-        applyUpdates([...updates, ...blockUpdates]);
-        await writeRegistryJson();
-    } else {
-        console.log('Run with --fix to update the registry.');
-        process.exitCode = 1;
-    }
+    await commitChanges(fix, hasChanges, compositeDrift, updates, blockUpdates);
 }
 
 // Only run the sync when executed directly (e.g. `tsx sync-registry.ts`), not
