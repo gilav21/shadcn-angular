@@ -3,7 +3,7 @@ import path from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import prompts from 'prompts';
-import { getConfig, getPrefix, type Config } from '../utils/config.js';
+import { getConfig, getPrefix, type Config, type TestRunner } from '../utils/config.js';
 import { registry, getComponentNames, isComponentName, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { resolveDependencies } from '../core/resolve.js';
@@ -13,7 +13,6 @@ import {
 } from '../core/plan.js';
 import { performInstall, previewComponentMerges, type InstallResult, type MergePreview } from '../core/install.js';
 import { resolveTestInstall } from '../utils/test-runner.js';
-import type { TestRunner } from '../utils/config.js';
 import { printBreakingUsages } from '../core/breaking-scan.js';
 import { scanLayouts } from '../core/layout.js';
 import { readManifest, fileStatus, getComponentRef, type Manifest } from '../core/manifest.js';

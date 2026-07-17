@@ -1335,7 +1335,7 @@ export function removeEntryArray(source: string, name: string, key: string): str
     if (namePos === -1) return source;
     const blockSlice = entryBlock(source, name, namePos);
 
-    const keyRegex = new RegExp(`,?\\s{0,4096}\\b${key}:\\s{0,4096}\\[[^\\]]{0,100000}\\]`);
+    const keyRegex = new RegExp(String.raw`,?\s{0,4096}\b${key}:\s{0,4096}\[[^\]]{0,100000}\]`);
     const keyMatch = keyRegex.exec(blockSlice);
     if (!keyMatch) return source;
 

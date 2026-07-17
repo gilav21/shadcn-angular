@@ -499,7 +499,7 @@ export async function previewComponentMerges(
         report: emptyMergeReport(),
         // The merge preview only walks component.files; test-shipping is inert here.
         includeTests: false,
-        testRunner: 'vitest' as TestRunner,
+        testRunner: 'vitest',
         testsFor: new Set<ComponentName>(),
     };
     const previews: MergePreview[] = [];

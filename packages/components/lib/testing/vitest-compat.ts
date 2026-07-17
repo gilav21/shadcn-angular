@@ -14,19 +14,9 @@
  * them. Mock-instance methods (`mockReturnValue`, `mock.calls`, …) are identical
  * across both runners and need no bridging.
  */
-import {
-    jest,
-    describe,
-    it,
-    test,
-    expect,
-    beforeEach,
-    afterEach,
-    beforeAll,
-    afterAll,
-} from '@jest/globals';
+import { jest } from '@jest/globals';
 
-export { describe, it, test, expect, beforeEach, afterEach, beforeAll, afterAll };
+export { describe, it, test, expect, beforeEach, afterEach, beforeAll, afterAll } from '@jest/globals';
 
 /** Original descriptors of globals replaced by `vi.stubGlobal`, for restoration. */
 const stubbedGlobals = new Map<PropertyKey, PropertyDescriptor | undefined>();

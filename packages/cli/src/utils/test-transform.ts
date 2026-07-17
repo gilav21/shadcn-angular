@@ -19,8 +19,8 @@ export function vitestCompatSpecifier(utilsAlias: string): string {
 const VITEST_IMPORT_RE = /(\bfrom\s+['"])vitest(['"])/g;
 
 function compatImportRe(utilsAlias: string): RegExp {
-    const escaped = vitestCompatSpecifier(utilsAlias).replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`(\\bfrom\\s+['"])${escaped}(['"])`, 'g');
+    const escaped = vitestCompatSpecifier(utilsAlias).replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+    return new RegExp(String.raw`(\bfrom\s+['"])${escaped}(['"])`, 'g');
 }
 
 /**
