@@ -124,6 +124,49 @@ describe('RichTextAiDirective', () => {
         expect(menu?.querySelectorAll(':scope > button')).toHaveLength(6);
     });
 
+    function openMenu(fixture: ComponentFixture<HostCmp>): void {
+        fixture.componentInstance.provider.set(() => 'x');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>hello world</p>');
+        selectAll(el);
+        fixture.detectChanges();
+        directiveOf(fixture).openPanel();
+        fixture.detectChanges();
+    }
+
+    it('closes the task menu on Escape', () => {
+        const fixture = createFixture();
+        openMenu(fixture);
+        expect(query(fixture, 'rich-text-ai-panel')).toBeTruthy();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        fixture.detectChanges();
+        expect(query(fixture, 'rich-text-ai-panel')).toBeNull();
+    });
+
+    it('closes the task menu on an outside pointer press', () => {
+        const fixture = createFixture();
+        openMenu(fixture);
+        document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(query(fixture, 'rich-text-ai-panel')).toBeNull();
+    });
+
+    it('keeps the task menu open when pressing inside the panel', () => {
+        const fixture = createFixture();
+        openMenu(fixture);
+        query(fixture, 'rich-text-ai-panel')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(query(fixture, 'rich-text-ai-panel')).toBeTruthy();
+    });
+
+    it('closes the task menu on page scroll', () => {
+        const fixture = createFixture();
+        openMenu(fixture);
+        window.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+        expect(query(fixture, 'rich-text-ai-panel')).toBeNull();
+    });
+
     it('registers the /ai slash command only when a provider is set', () => {
         const fixture = createFixture();
         const { cmp } = editorOf(fixture);

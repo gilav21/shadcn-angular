@@ -204,6 +204,29 @@ describe('RichTextSlashCommandsDirective', () => {
         expect(menu()).toBeNull();
     });
 
+    it('stays open when scrolling inside the menu but closes when the page scrolls', () => {
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/');
+        fixture.detectChanges();
+        const list = document.querySelector('[data-slot="rich-text-slash-commands-menu"] [class*="overflow-y-auto"]')!;
+        list.dispatchEvent(new Event('scroll', { bubbles: true }));
+        fixture.detectChanges();
+        expect(menu()).toBeTruthy();
+
+        window.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+    });
+
+    it('positions an empty-block menu at the caret line, not the viewport corner', () => {
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/');
+        fixture.detectChanges();
+        const el = menu() as HTMLElement;
+        expect(el.style.position).toBe('fixed');
+        expect(el.style.top).not.toBe('0px');
+    });
+
     it('includes commands contributed through the shared command registry', () => {
         const { fixture, editor, editorCmp } = create();
         const registry = TestBed.inject(RichTextCommandRegistry);

@@ -190,6 +190,35 @@ describe('RichTextLinksDirective', () => {
         expect(overlayForms(fixture)).toHaveLength(1);
     });
 
+    it('closes the caret overlay on Escape', async () => {
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p>link me</p>');
+        await fixture.whenStable();
+        selectAllOf(el);
+        cmp.showLinkDialog();
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(1);
+
+        const formEl = document.querySelector('[data-slot="rich-text-links-form"]') as HTMLElement;
+        formEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(0);
+    });
+
+    it('closes the caret overlay on page scroll', async () => {
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p>link me</p>');
+        await fixture.whenStable();
+        selectAllOf(el);
+        cmp.showLinkDialog();
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(1);
+
+        window.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(0);
+    });
+
     it('registers the insert.link slash command with the editor', () => {
         const fixture = createFixture();
         const { cmp } = editorOf(fixture);

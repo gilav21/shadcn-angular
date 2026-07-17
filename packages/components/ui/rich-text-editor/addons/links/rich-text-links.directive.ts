@@ -88,6 +88,8 @@ export class RichTextLinksDirective {
     private editingAnchor: HTMLAnchorElement | null = null;
     private readonly outsidePointerBound = (e: Event): void => this.onOutsidePointer(e);
     private readonly editProbeBound = (): void => this.probeEditableLink();
+    private readonly scrollDismissBound = (e: Event): void => this.onScrollDismiss(e);
+    private readonly escapeDismissBound = (e: KeyboardEvent): void => this.onEscapeDismiss(e);
 
     constructor() {
         afterNextRender(() => this.viewReady.set(true));
@@ -150,10 +152,14 @@ export class RichTextLinksDirective {
             root.addEventListener('mouseup', this.editProbeBound);
             root.addEventListener('keyup', this.editProbeBound);
             doc.addEventListener('mousedown', this.outsidePointerBound);
+            doc.addEventListener('keydown', this.escapeDismissBound, true);
+            doc.defaultView?.addEventListener('scroll', this.scrollDismissBound, { capture: true, passive: true });
             onCleanup(() => {
                 root.removeEventListener('mouseup', this.editProbeBound);
                 root.removeEventListener('keyup', this.editProbeBound);
                 doc.removeEventListener('mousedown', this.outsidePointerBound);
+                doc.removeEventListener('keydown', this.escapeDismissBound, true);
+                doc.defaultView?.removeEventListener('scroll', this.scrollDismissBound, { capture: true });
                 this.closeOverlay();
             });
         });
@@ -290,6 +296,23 @@ export class RichTextLinksDirective {
         const node = event.target as Node | null;
         const overlayEl = this.overlayRef.location.nativeElement as HTMLElement;
         if (node && (overlayEl.contains(node) || this.editingAnchor?.contains(node))) return;
+        this.closeOverlay();
+    }
+
+    private onEscapeDismiss(event: KeyboardEvent): void {
+        if (event.key !== 'Escape' || !this.overlayRef) return;
+        event.preventDefault();
+        this.closeOverlay();
+    }
+
+    private onScrollDismiss(event: Event): void {
+        // The overlay is fixed-positioned; a page/editor scroll leaves it
+        // stranded away from its anchor, so close it. Scrolling within the
+        // overlay's own fields must not dismiss it.
+        if (!this.overlayRef) return;
+        const overlayEl = this.overlayRef.location.nativeElement as HTMLElement;
+        const target = event.target;
+        if (target instanceof Node && overlayEl.contains(target)) return;
         this.closeOverlay();
     }
 
