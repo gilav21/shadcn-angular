@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
-import { performInstall, planInstall, previewComponentMerges } from './install.js';
+import { performInstall, planInstall, previewComponentMerges, expandForTests } from './install.js';
 import { getDefaultConfig } from '../utils/config.js';
 import { isPristineLib } from './lib-reconcile.js';
 import { installPackages } from '../utils/package-manager.js';
@@ -19,6 +19,8 @@ vi.mock('fs-extra', () => ({
     readJson: vi.fn(async () => ({ version: 1, files: {} })),
     writeJson: vi.fn(async () => undefined),
     remove: vi.fn(async () => undefined),
+    pathExistsSync: vi.fn(() => false),
+    readJsonSync: vi.fn(() => ({})),
   },
 }));
 vi.mock('./fetch.js', () => ({
@@ -52,6 +54,21 @@ vi.mock('../registry/index.js', async (importOriginal) => {
         files: ['peer-fixture-two/peer-fixture-two.component.ts'],
         peerFiles: ['peer-fixture/shared-peer.ts'],
       },
+      // Verified-portable fixtures for the --include-tests path. No shipped
+      // component declares testFiles/testDependencies yet, so the test-ship
+      // write, the shim install and the testDependency source pull are only
+      // reachable through these.
+      'tested-fixture': {
+        name: 'tested-fixture',
+        files: ['tested-fixture/tested-fixture.component.ts'],
+        testFiles: ['tested-fixture/tested-fixture.component.spec.ts'],
+        testDependencies: ['sibling-fixture'],
+      },
+      'sibling-fixture': {
+        name: 'sibling-fixture',
+        files: ['sibling-fixture/sibling-fixture.component.ts'],
+        testFiles: ['sibling-fixture/sibling-fixture.component.spec.ts'],
+      },
     },
   };
 });
@@ -82,6 +99,8 @@ function resetMocks(): void {
   asMock(fs.readJson).mockResolvedValue({ version: 1, files: {} });
   asMock(fs.writeJson).mockResolvedValue(undefined);
   asMock(fs.remove).mockResolvedValue(undefined);
+  asMock(fs.pathExistsSync).mockReturnValue(false);
+  asMock(fs.readJsonSync).mockReturnValue({});
   asMock(fetchAndTransform).mockImplementation(async (f: string) => `// ${f}`);
   asMock(fetchLibContent).mockImplementation(async (f: string) => `// lib ${f}`);
   asMock(installPackages).mockResolvedValue(undefined);
@@ -106,6 +125,54 @@ describe('performInstall blocks', () => {
       .map(c => String(c[0]).replaceAll('\\', '/'));
     expect(writes.some(p => p.includes('/blocks/login/'))).toBe(true);
     expect(writes.some(p => p.includes('/components/ui/button/'))).toBe(true);
+  });
+});
+
+describe('expandForTests', () => {
+  it('returns the closure untouched and no testsFor when tests are off', () => {
+    const closure = new Set<ComponentName>(['tested-fixture' as ComponentName]);
+    const { all, testsFor } = expandForTests(closure, false);
+    expect(all).toBe(closure);
+    expect(testsFor.size).toBe(0);
+  });
+
+  it('pulls testDependencies into the install set but not into testsFor', () => {
+    const { all, testsFor } = expandForTests(new Set(['tested-fixture' as ComponentName]), true);
+    expect(all.has('tested-fixture' as ComponentName)).toBe(true);
+    expect(all.has('sibling-fixture' as ComponentName)).toBe(true);
+    expect(testsFor.has('tested-fixture' as ComponentName)).toBe(true);
+    expect(testsFor.has('sibling-fixture' as ComponentName)).toBe(false);
+  });
+});
+
+describe('performInstall --include-tests', () => {
+  beforeEach(() => vi.clearAllMocks());
+  const TESTED = 'tested-fixture' as ComponentName;
+  const specWrites = (): string[] => writtenPaths().filter(p => p.endsWith('.spec.ts'));
+
+  it('writes a component\'s own specs but not those of a test-only dependency', async () => {
+    await performInstall({ ...base, components: [TESTED], includeTests: true, testRunner: 'vitest' });
+    const specs = specWrites();
+    expect(specs.some(p => p.includes('tested-fixture/tested-fixture.component.spec.ts'))).toBe(true);
+    expect(specs.some(p => p.includes('sibling-fixture/sibling-fixture.component.spec.ts'))).toBe(false);
+    // The test-only dependency's SOURCE is still installed so the specs compile.
+    expect(writtenPaths().some(p => p.includes('sibling-fixture/sibling-fixture.component.ts'))).toBe(true);
+  });
+
+  it('ships no specs when includeTests is off', async () => {
+    await performInstall({ ...base, components: [TESTED] });
+    expect(specWrites()).toEqual([]);
+  });
+
+  it('installs the vitest-compat shim in jest mode', async () => {
+    await performInstall({ ...base, components: [TESTED], includeTests: true, testRunner: 'jest' });
+    expect(asMock(fetchLibContent).mock.calls.some(c => String(c[0]) === 'testing/vitest-compat.ts')).toBe(true);
+    expect(writtenPaths().some(p => p.includes('lib/testing/vitest-compat.ts'))).toBe(true);
+  });
+
+  it('does not install the shim in vitest mode', async () => {
+    await performInstall({ ...base, components: [TESTED], includeTests: true, testRunner: 'vitest' });
+    expect(writtenPaths().some(p => p.includes('vitest-compat'))).toBe(false);
   });
 });
 
