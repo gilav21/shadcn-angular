@@ -32,6 +32,10 @@ import { RichTextAiPanelComponent } from './rich-text-ai-panel.component';
 const CHIP_OFFSET_Y = 40;
 const PANEL_OFFSET_Y = 8;
 const PANEL_MIN_X = 8;
+// Approximate panel box size (component `w-72` = 288px; tallest `menu` phase is
+// ~240px) used only to clamp/flip the fixed position within the viewport.
+const PANEL_WIDTH = 288;
+const PANEL_MAX_HEIGHT = 240;
 
 /**
  * Opt-in AI-assist addon for `<ui-rich-text-editor>`. Attaches via DI to the
@@ -116,7 +120,10 @@ export class RichTextAiDirective {
 
     private chipRef?: ComponentRef<RichTextAiChipComponent>;
     private panelRef?: ComponentRef<RichTextAiPanelComponent>;
+    private panelDismissBound = false;
     private readonly onSelectionChangeBound = (): void => this.updateChip();
+    private readonly onPanelKeydownBound = (event: KeyboardEvent): void => this.onPanelKeydown(event);
+    private readonly onPanelDismissBound = (event: Event): void => this.dismissMenuFromEvent(event);
 
     constructor() {
         afterNextRender(() => this.viewReady.set(true));
@@ -181,11 +188,52 @@ export class RichTextAiDirective {
         this.errorMessage.set(null);
         this.phase.set('menu');
         this.chipVisible.set(false);
-        if (this.range) {
-            const rect = this.range.getBoundingClientRect();
-            this.panelPosition.set({ x: Math.max(PANEL_MIN_X, rect.left), y: rect.bottom + PANEL_OFFSET_Y });
+        const rect = this.range ? resolveCaretRect(this.range) : null;
+        if (rect) {
+            this.panelPosition.set(clampPanelPosition(rect));
         }
         this.panelOpen.set(true);
+        this.bindPanelDismiss();
+    }
+
+    /**
+     * Dismiss the task menu on Escape / outside pointer / page scroll — it is a
+     * detached chooser, not a committed action. Once a task runs (loading /
+     * review), the draft is live in the editor and these seams no longer fire;
+     * Escape then discards the draft, matching the panel's own Discard button.
+     */
+    private bindPanelDismiss(): void {
+        if (this.panelDismissBound) return;
+        this.document.addEventListener('keydown', this.onPanelKeydownBound, true);
+        this.document.addEventListener('mousedown', this.onPanelDismissBound, true);
+        globalThis.window.addEventListener('scroll', this.onPanelDismissBound, { capture: true, passive: true });
+        this.panelDismissBound = true;
+    }
+
+    private unbindPanelDismiss(): void {
+        if (!this.panelDismissBound) return;
+        this.document.removeEventListener('keydown', this.onPanelKeydownBound, true);
+        this.document.removeEventListener('mousedown', this.onPanelDismissBound, true);
+        globalThis.window.removeEventListener('scroll', this.onPanelDismissBound, { capture: true });
+        this.panelDismissBound = false;
+    }
+
+    private onPanelKeydown(event: KeyboardEvent): void {
+        if (event.key !== 'Escape' || !this.panelOpen()) return;
+        event.preventDefault();
+        if (this.phase() === 'menu') {
+            this.finish();
+        } else {
+            this.discard();
+        }
+    }
+
+    private dismissMenuFromEvent(event: Event): void {
+        if (this.phase() !== 'menu') return;
+        const panelEl = this.panelRef?.location.nativeElement as HTMLElement | undefined;
+        const target = event.target;
+        if (panelEl && target instanceof Node && panelEl.contains(target)) return;
+        this.finish();
     }
 
     private captureSelection(): void {
@@ -334,6 +382,7 @@ export class RichTextAiDirective {
 
     private finish(): void {
         this.cancel();
+        this.unbindPanelDismiss();
         this.draftEl = null;
         this.range = null;
         this.savedHtml = '';
@@ -384,9 +433,42 @@ export class RichTextAiDirective {
 
     private teardown(): void {
         this.cancel();
+        this.unbindPanelDismiss();
         this.chipRef?.destroy();
         this.chipRef = undefined;
         this.panelRef?.destroy();
         this.panelRef = undefined;
     }
+}
+
+/**
+ * The caret rect for a collapsed range in an empty block can degenerate to
+ * `(0,0,0,0)` (notably in a freshly-cleared editor), which would pin the panel
+ * to the viewport's top-left corner. Fall back to the caret's containing
+ * element rect so the panel still tracks the caret's line.
+ */
+function resolveCaretRect(range: Range): DOMRect | null {
+    const rect = range.getBoundingClientRect();
+    if (rect.width > 0 || rect.height > 0 || rect.top > 0 || rect.left > 0) {
+        return rect;
+    }
+    const node = range.startContainer;
+    const el = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+    const blockRect = el?.getBoundingClientRect();
+    return blockRect && (blockRect.width > 0 || blockRect.height > 0) ? blockRect : null;
+}
+
+/**
+ * Clamp the fixed-positioned panel within the viewport: keep it left of the
+ * right edge, and drop it below the caret — flipping above when it would
+ * overflow the viewport bottom (it can't scroll into view).
+ */
+function clampPanelPosition(rect: DOMRect): RichTextAiPoint {
+    const view = globalThis.window;
+    const x = Math.max(PANEL_MIN_X, Math.min(rect.left, view.innerWidth - PANEL_WIDTH - PANEL_MIN_X));
+    const below = rect.bottom + PANEL_OFFSET_Y;
+    const y = below + PANEL_MAX_HEIGHT > view.innerHeight
+        ? Math.max(PANEL_MIN_X, rect.top - PANEL_MAX_HEIGHT - PANEL_OFFSET_Y)
+        : below;
+    return { x, y };
 }

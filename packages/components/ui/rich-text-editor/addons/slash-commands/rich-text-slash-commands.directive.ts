@@ -108,7 +108,7 @@ export class RichTextSlashCommandsDirective {
 
     private menuRef?: ComponentRef<RichTextSlashCommandsMenuComponent>;
     private readonly outsidePointerBound = (event: Event): void => this.onOutsidePointer(event);
-    private readonly dismissBound = (): void => this.close();
+    private readonly dismissBound = (event: Event): void => this.onScrollDismiss(event);
 
     constructor() {
         const offKeydown = this.host.registerKeydownInterceptor((event) => this.handleKeydown(event));
@@ -325,7 +325,10 @@ export class RichTextSlashCommandsDirective {
         if (!selection || selection.rangeCount === 0) {
             return;
         }
-        const rect = selection.getRangeAt(0).getBoundingClientRect();
+        const rect = this.resolveCaretRect(selection.getRangeAt(0));
+        if (!rect) {
+            return;
+        }
         const view = globalThis.window;
         const x = Math.max(8, Math.min(rect.left, view.innerWidth - MENU_WIDTH - 8));
         // Drop below the caret, or flip above when the menu would overflow the
@@ -335,6 +338,32 @@ export class RichTextSlashCommandsDirective {
             ? Math.max(8, rect.top - MENU_MAX_HEIGHT - MENU_CARET_GAP)
             : below;
         this.position = { x, y };
+    }
+
+    /**
+     * The caret rect for a collapsed range in an empty block can degenerate to
+     * `(0,0,0,0)` (notably right after the editor is cleared), which would pin
+     * the menu to the viewport's top-left corner. Fall back to the anchor
+     * block's rect so the menu still tracks the caret's line.
+     */
+    private resolveCaretRect(range: Range): DOMRect | null {
+        const rect = range.getBoundingClientRect();
+        if (rect.width > 0 || rect.height > 0 || rect.top > 0 || rect.left > 0) {
+            return rect;
+        }
+        const blockRect = this.anchorBlock?.getBoundingClientRect();
+        return blockRect && (blockRect.width > 0 || blockRect.height > 0) ? blockRect : null;
+    }
+
+    private onScrollDismiss(event: Event): void {
+        // Scrolling the menu's own option list must not dismiss it; only close
+        // when the surrounding page/editor scrolls out from under the caret.
+        const menuEl = this.menuRef?.location.nativeElement as HTMLElement | undefined;
+        const target = event.target;
+        if (menuEl && target instanceof Node && menuEl.contains(target)) {
+            return;
+        }
+        this.close();
     }
 
     private onOutsidePointer(event: Event): void {

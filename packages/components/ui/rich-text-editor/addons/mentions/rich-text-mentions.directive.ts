@@ -254,7 +254,8 @@ export class RichTextMentionsDirective {
     private updatePosition(): void {
         const selection = this.doc.getSelection();
         if (!selection || selection.rangeCount === 0) return;
-        const rect = selection.getRangeAt(0).getBoundingClientRect();
+        const rect = resolveCaretRect(selection.getRangeAt(0));
+        if (!rect) return;
         const anchor = this.host.overlayAnchor.getBoundingClientRect();
         const maxX = Math.max(0, anchor.width - POPOVER_WIDTH);
         const maxY = Math.max(0, anchor.height - POPOVER_HEIGHT);
@@ -279,4 +280,21 @@ export class RichTextMentionsDirective {
 /** Coerce the bare `uiRteMentions` attribute (empty string) to `true`. */
 function coerceEnabled(value: boolean | string | undefined): boolean {
     return value === '' || value === true || value === undefined;
+}
+
+/**
+ * The caret rect for a collapsed range in an empty block can degenerate to
+ * `(0,0,0,0)` (notably right after the editor is cleared), which would pin the
+ * popover to the anchor's top-left corner. Fall back to the caret's containing
+ * element rect so the popover still tracks the caret's line.
+ */
+function resolveCaretRect(range: Range): DOMRect | null {
+    const rect = range.getBoundingClientRect();
+    if (rect.width > 0 || rect.height > 0 || rect.top > 0 || rect.left > 0) {
+        return rect;
+    }
+    const node = range.startContainer;
+    const el = node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement;
+    const blockRect = el?.getBoundingClientRect();
+    return blockRect && (blockRect.width > 0 || blockRect.height > 0) ? blockRect : null;
 }
