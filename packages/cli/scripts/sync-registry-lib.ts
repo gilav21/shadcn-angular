@@ -427,6 +427,10 @@ export interface RegistryEntry {
     attachImport?: string;
     /** `attach.selector` value (the marker attribute), when declared. */
     attachSelector?: string;
+    /** Declared `testFiles:` array, when present. */
+    testFiles: string[];
+    /** Declared `testDependencies:` array, when present. */
+    testDependencies: string[];
 }
 
 /** Skip a string literal starting at `start` (a quote); returns the index after the closing quote. */
@@ -636,6 +640,8 @@ export function parseRegistrySource(source: string): RegistryEntry[] {
             parent: quotedStrings(props.get('parent'))[0],
             attachImport: attach.import,
             attachSelector: attach.selector,
+            testFiles: quotedStrings(props.get('testFiles')),
+            testDependencies: quotedStrings(props.get('testDependencies')),
         });
         keyRegex.lastIndex = open + block.length;
     }
@@ -669,6 +675,10 @@ export interface ComponentUpdate {
     readonly files: string[];
     readonly libFiles: string[];
     readonly dependencies: string[];
+    /** Portable specs to ship — only set for components verified in portable-tests.json. */
+    readonly testFiles?: string[];
+    /** Spec-only sibling component deps — only set alongside `testFiles`. */
+    readonly testDependencies?: string[];
 }
 
 /** What changed between the registry's declared arrays and the derived ones. */
@@ -1282,6 +1292,75 @@ function quoted(values: readonly string[]): string {
     return values.map(v => `'${v}'`).join(', ');
 }
 
+/**
+ * Replace the entry's `<key>: [...]` contents, inserting the key after the
+ * first present anchor key when absent. Keys are camelCase-distinct
+ * (`testFiles` never collides with `files: [` and `testDependencies` never
+ * collides with `dependencies: [` — the embedded capital letter breaks the
+ * lowercase marker match), so plain `indexOf` markers stay unambiguous.
+ */
+export function updateEntryArray(
+    source: string,
+    name: string,
+    key: string,
+    arrayStr: string,
+    insertAfter: readonly string[],
+): string {
+    const namePos = findNamePos(source, name);
+    if (namePos === -1) return source;
+    const blockSlice = entryBlock(source, name, namePos);
+
+    const marker = `${key}: [`;
+    const offset = blockSlice.indexOf(marker);
+    if (offset >= 0) {
+        const absStart = namePos + offset + marker.length;
+        const end = source.indexOf(']', absStart);
+        return source.slice(0, absStart) + arrayStr + source.slice(end);
+    }
+
+    for (const anchor of insertAfter) {
+        const anchorMarker = `${anchor}: [`;
+        const anchorOffset = blockSlice.indexOf(anchorMarker);
+        if (anchorOffset >= 0) {
+            const end = source.indexOf(']', namePos + anchorOffset + anchorMarker.length);
+            return source.slice(0, end + 1) + `,\n    ${key}: [${arrayStr}]` + source.slice(end + 1);
+        }
+    }
+    return source;
+}
+
+/** Drop the entry's `<key>: [...]` property entirely (used when it derives to empty). */
+export function removeEntryArray(source: string, name: string, key: string): string {
+    const namePos = findNamePos(source, name);
+    if (namePos === -1) return source;
+    const blockSlice = entryBlock(source, name, namePos);
+
+    const keyRegex = new RegExp(`,?\\s{0,4096}\\b${key}:\\s{0,4096}\\[[^\\]]{0,100000}\\]`);
+    const keyMatch = keyRegex.exec(blockSlice);
+    if (!keyMatch) return source;
+
+    const absStart = namePos + keyMatch.index;
+    return source.slice(0, absStart) + source.slice(absStart + keyMatch[0].length);
+}
+
+const TEST_FILES_ANCHORS = ['dependencies', 'libFiles', 'files'] as const;
+const TEST_DEPS_ANCHORS = ['testFiles', ...TEST_FILES_ANCHORS] as const;
+
+function applyTestArrays(source: string, update: ComponentUpdate): string {
+    let out = source;
+    if (update.testFiles !== undefined) {
+        out = update.testFiles.length > 0
+            ? updateEntryArray(out, update.name, 'testFiles', quoted(update.testFiles), TEST_FILES_ANCHORS)
+            : removeEntryArray(out, update.name, 'testFiles');
+    }
+    if (update.testDependencies !== undefined) {
+        out = update.testDependencies.length > 0
+            ? updateEntryArray(out, update.name, 'testDependencies', quoted(update.testDependencies), TEST_DEPS_ANCHORS)
+            : removeEntryArray(out, update.name, 'testDependencies');
+    }
+    return out;
+}
+
 /** Apply every update to the registry `index.ts` source, returning the new source. */
 export function applyUpdatesToSource(source: string, updates: readonly ComponentUpdate[]): string {
     let out = source;
@@ -1297,6 +1376,8 @@ export function applyUpdatesToSource(source: string, updates: readonly Component
         } else {
             out = removeDependencies(out, update.name);
         }
+
+        out = applyTestArrays(out, update);
     }
     return out;
 }
@@ -1331,6 +1412,7 @@ export function validateRegistryFiles(updates: readonly ComponentUpdate[], roots
         problems.push(
             ...findMissingFiles('files', update.name, update.files, uiDir),
             ...findMissingFiles('libFiles', update.name, update.libFiles, libDir),
+            ...findMissingFiles('testFiles', update.name, update.testFiles ?? [], uiDir),
         );
     }
     return problems;
@@ -1367,6 +1449,303 @@ export function detectOrphanBlockFolders(blocks: readonly RegistryEntry[], block
     return readdirSync(blocksRoot, { withFileTypes: true })
         .filter(entry => entry.isDirectory() && !claimed.has(entry.name))
         .map(entry => entry.name);
+}
+
+// ── Portable test collection (`add --include-tests`) ────────────────────
+//
+// Spec files are invisible to the import walk (production code never imports
+// them), so shipping them is an explicit, gated concern: only components
+// listed in `packages/components/portable-tests.json` get a `testFiles[]`
+// array, and every listed component's specs are hard-validated for
+// portability (plain vitest jsdom AND jest via the vitest-compat shim) before
+// the sync writes anything.
+
+/** Checked-in gate file: which components' specs are verified portable. */
+export const PORTABLE_TESTS_FILENAME = 'portable-tests.json';
+
+const BROWSER_SPEC_SUFFIX = '.browser.spec.ts';
+
+export interface CoverageException {
+    /** Line-coverage floor (percent) accepted for this component under jsdom. */
+    readonly lines: number;
+    /** Why full coverage is unreachable outside a real browser. */
+    readonly reason: string;
+}
+
+export interface PortableTestsConfig {
+    readonly verified: readonly string[];
+    readonly coverageExceptions?: Readonly<Record<string, CoverageException>>;
+}
+
+/** Load and shape-check `portable-tests.json`; absent file means nothing verified. */
+export function loadPortableTestsConfig(componentsRoot: string): PortableTestsConfig {
+    const file = path.join(componentsRoot, PORTABLE_TESTS_FILENAME);
+    if (!existsSync(file)) return { verified: [] };
+    const parsed: unknown = JSON.parse(readFileSync(file, 'utf-8'));
+    const record = parsed as Record<string, unknown>;
+    if (typeof parsed !== 'object' || parsed === null
+        || !Array.isArray(record['verified'])
+        || !record['verified'].every((v: unknown) => typeof v === 'string')) {
+        throw new Error(`${PORTABLE_TESTS_FILENAME} must contain a "verified" string array`);
+    }
+    return parsed as PortableTestsConfig;
+}
+
+function isPortableSpecName(fileName: string): boolean {
+    return fileName.endsWith('.spec.ts') && !fileName.endsWith(BROWSER_SPEC_SUFFIX);
+}
+
+/**
+ * Collect the portable specs an entry owns: every non-`.browser` spec sitting
+ * in a directory its `files[]` occupy. Root-level entries (flat directives)
+ * only claim the spec matching their own basename — the `ui/` root is shared,
+ * so directory ownership would over-collect there.
+ */
+export function collectPortableSpecs(
+    files: readonly string[],
+    uiDir: string,
+): string[] {
+    const specs = new Set<string>();
+    for (const dir of new Set(files.map(f => path.posix.dirname(f)))) {
+        if (dir === '.') collectRootSpecs(files, uiDir, specs);
+        else collectDirSpecs(dir, uiDir, specs);
+    }
+    return [...specs].sort(byLocale);
+}
+
+/** Root-level (flat directive) entries claim only their own `<basename>.spec.ts`. */
+function collectRootSpecs(files: readonly string[], uiDir: string, specs: Set<string>): void {
+    for (const file of files) {
+        if (path.posix.dirname(file) !== '.') continue;
+        const spec = file.replace(/\.ts$/, '.spec.ts');
+        if (isPortableSpecName(spec) && existsSync(path.join(uiDir, spec))) specs.add(spec);
+    }
+}
+
+/** A folder-owned entry claims every portable spec in its directories. */
+function collectDirSpecs(dir: string, uiDir: string, specs: Set<string>): void {
+    const dirPath = path.join(uiDir, dir);
+    if (!existsSync(dirPath)) return;
+    for (const name of readdirSync(dirPath)) {
+        if (isPortableSpecName(name)) specs.add(path.posix.join(dir, name));
+    }
+}
+
+const VITEST_IMPORT_RE = /from\s+['"]vitest['"]/;
+const VI_UNSHIMMABLE_RE = /\bvi\.(mock|doMock|unmock|doUnmock|hoisted|importActual|importMock)\s*\(/;
+const FAKE_TIMER_OPTIONS_RE = /\bvi\.useFakeTimers\s*\(\s*\{/;
+
+/**
+ * Portability lint for one spec's content. Everything reported here would
+ * break a consumer runner: `vi.mock`-family calls cannot be shimmed for jest
+ * (hoisting), fake-timer option objects diverge between runners, and a spec
+ * without an explicit vitest import relies on `globals: true`, which a jest
+ * consumer (and a strict vitest config) does not provide.
+ */
+export function lintPortableSpec(specFile: string, content: string): string[] {
+    const problems: string[] = [];
+    if (!VITEST_IMPORT_RE.test(content)) {
+        problems.push(`  ${specFile}: missing an explicit \`from 'vitest'\` import (globals reliance breaks jest consumers)`);
+    }
+    const unshimmable = VI_UNSHIMMABLE_RE.exec(content);
+    if (unshimmable) {
+        problems.push(`  ${specFile}: vi.${unshimmable[1]}() cannot be shimmed for jest — refactor to DI/vi.spyOn or rename to *${BROWSER_SPEC_SUFFIX}`);
+    }
+    if (FAKE_TIMER_OPTIONS_RE.test(content)) {
+        problems.push(`  ${specFile}: vi.useFakeTimers(options) is not portable — call it without options`);
+    }
+    return problems;
+}
+
+export interface SpecImportScan {
+    /** Sibling components whose source the spec imports. */
+    readonly deps: Set<string>;
+    readonly errors: string[];
+}
+
+/**
+ * Classify one spec's relative imports: sibling component barrels become
+ * test-dependency candidates; anything a consumer install would not have on
+ * disk (an unshipped own file, a foreign internal file, an unknown lib file)
+ * is a hard error.
+ */
+interface SpecImportVerdict {
+    readonly dep?: string;
+    readonly error?: string;
+}
+
+interface SpecScanContext {
+    readonly specFile: string;
+    readonly entryName: string;
+    readonly shipped: ReadonlySet<string>;
+    readonly libAllow: ReadonlySet<string>;
+    readonly ctx: BoundaryContext;
+    readonly componentsRoot: string;
+}
+
+function libImportVerdict(resolved: string, scan: SpecScanContext): SpecImportVerdict {
+    const libName = resolved.slice(4);
+    if (BASELINE_LIB_FILES.has(libName) || scan.libAllow.has(libName)) return {};
+    return { error: `  ${scan.specFile}: imports lib/${libName}, which the component does not ship — add it to libFiles` };
+}
+
+function uiImportVerdict(resolved: string, scan: SpecScanContext): SpecImportVerdict {
+    const classified = classifyImport(resolved, scan.entryName, scan.ctx);
+    if (classified.kind === 'dependency' && classified.owner) {
+        return { dep: classified.owner };
+    }
+    if (classified.kind === 'deep-import' && classified.owner) {
+        return { error: `  ${scan.specFile}: deep-imports ${resolved} (internal to '${classified.owner}') — import its barrel instead` };
+    }
+    if (classified.kind === 'addon-boundary' && classified.owner) {
+        return { error: `  ${scan.specFile}: reaches into addon '${classified.owner}' — addon specs belong to the addon entry` };
+    }
+    if (!scan.shipped.has(resolved.slice(3))) {
+        return { error: `  ${scan.specFile}: imports ${resolved}, which is not shipped with '${scan.entryName}'` };
+    }
+    return {};
+}
+
+function specImportVerdict(importPath: string, scan: SpecScanContext): SpecImportVerdict {
+    const resolved = resolveImport(importPath, `ui/${scan.specFile}`, scan.componentsRoot);
+    if (!resolved) return { error: `  ${scan.specFile}: import '${importPath}' does not resolve` };
+    if (resolved.startsWith('lib/')) return libImportVerdict(resolved, scan);
+    return uiImportVerdict(resolved, scan);
+}
+
+export function analyzeSpecImports(
+    specFile: string,
+    content: string,
+    entryName: string,
+    shipped: ReadonlySet<string>,
+    libAllow: ReadonlySet<string>,
+    ctx: BoundaryContext,
+    componentsRoot: string,
+): SpecImportScan {
+    const scan: SpecScanContext = { specFile, entryName, shipped, libAllow, ctx, componentsRoot };
+    const deps = new Set<string>();
+    const errors: string[] = [];
+
+    for (const match of content.matchAll(IMPORT_REGEX)) {
+        const verdict = specImportVerdict(match[1], scan);
+        if (verdict.dep) deps.add(verdict.dep);
+        if (verdict.error) errors.push(verdict.error);
+    }
+    return { deps, errors };
+}
+
+/** Transitive runtime dependency closure over the freshly-derived updates. */
+export function dependencyClosure(name: string, depsByName: ReadonlyMap<string, readonly string[]>): Set<string> {
+    const closure = new Set<string>();
+    const queue = [...(depsByName.get(name) ?? [])];
+    while (queue.length > 0) {
+        const dep = queue.pop();
+        if (dep === undefined || closure.has(dep)) continue;
+        closure.add(dep);
+        queue.push(...(depsByName.get(dep) ?? []));
+    }
+    return closure;
+}
+
+export interface PortableTestsAnalysis {
+    /** Per verified component: the arrays to merge into its ComponentUpdate. */
+    readonly updates: Map<string, { testFiles: string[]; testDependencies: string[] }>;
+    readonly errors: string[];
+    readonly driftLines: string[];
+    readonly hasChanges: boolean;
+}
+
+interface VerifiedScanResult {
+    readonly testFiles: string[];
+    readonly testDependencies: string[];
+    readonly errors: string[];
+}
+
+function scanVerifiedComponent(
+    name: string,
+    update: ComponentUpdate,
+    depsByName: ReadonlyMap<string, readonly string[]>,
+    ctx: BoundaryContext,
+    uiDir: string,
+    componentsRoot: string,
+): VerifiedScanResult {
+    const testFiles = collectPortableSpecs(update.files, uiDir);
+    if (testFiles.length === 0) {
+        return { testFiles, testDependencies: [], errors: [`  ${name}: verified in ${PORTABLE_TESTS_FILENAME} but has no portable specs on disk`] };
+    }
+
+    const errors: string[] = [];
+    const shipped = new Set([...update.files, ...testFiles]);
+    const libAllow = new Set(update.libFiles);
+    const closure = dependencyClosure(name, depsByName);
+    const specDeps = new Set<string>();
+
+    for (const spec of testFiles) {
+        const content = readFileSync(path.join(uiDir, spec), 'utf-8');
+        errors.push(...lintPortableSpec(spec, content));
+        const scan = analyzeSpecImports(spec, content, name, shipped, libAllow, ctx, componentsRoot);
+        errors.push(...scan.errors);
+        for (const dep of scan.deps) specDeps.add(dep);
+    }
+
+    const testDependencies = [...specDeps].filter(d => d !== name && !closure.has(d)).sort(byLocale);
+    return { testFiles, testDependencies, errors };
+}
+
+function testDriftLines(entry: RegistryEntry, testFiles: readonly string[], testDependencies: readonly string[]): string[] {
+    const lines: string[] = [];
+    for (const f of testFiles.filter(f => !entry.testFiles.includes(f))) lines.push(`    + testFiles: ${f}`);
+    for (const f of entry.testFiles.filter(f => !testFiles.includes(f))) lines.push(`    - testFiles: ${f}`);
+    for (const d of testDependencies.filter(d => !entry.testDependencies.includes(d))) lines.push(`    + testDependencies: ${d}`);
+    for (const d of entry.testDependencies.filter(d => !testDependencies.includes(d))) lines.push(`    - testDependencies: ${d}`);
+    return lines;
+}
+
+/**
+ * Derive `testFiles` / `testDependencies` for every component verified in
+ * `portable-tests.json`, hard-validating spec portability, and derive removal
+ * updates for entries whose verification was revoked. Runs after
+ * `analyzeAllEntries` so it sees the freshly-derived files/libFiles/deps.
+ */
+export function analyzePortableTests(
+    entries: readonly RegistryEntry[],
+    updates: readonly ComponentUpdate[],
+    config: PortableTestsConfig,
+    ctx: BoundaryContext,
+    roots: SyncRoots,
+): PortableTestsAnalysis {
+    const uiDir = path.join(roots.componentsRoot, 'ui');
+    const entriesByName = new Map(entries.map(e => [e.name, e]));
+    const updatesByName = new Map(updates.map(u => [u.name, u]));
+    const depsByName = new Map(updates.map(u => [u.name, u.dependencies]));
+
+    const result = new Map<string, { testFiles: string[]; testDependencies: string[] }>();
+    const errors: string[] = [];
+    const driftLines: string[] = [];
+
+    for (const name of config.verified) {
+        const entry = entriesByName.get(name);
+        const update = updatesByName.get(name);
+        if (!entry || !update) {
+            errors.push(`  ${name}: listed in ${PORTABLE_TESTS_FILENAME} but is not a component registry entry`);
+            continue;
+        }
+        const scan = scanVerifiedComponent(name, update, depsByName, ctx, uiDir, roots.componentsRoot);
+        errors.push(...scan.errors);
+        result.set(name, { testFiles: scan.testFiles, testDependencies: scan.testDependencies });
+
+        const drift = testDriftLines(entry, scan.testFiles, scan.testDependencies);
+        if (drift.length > 0) driftLines.push(`  ${name}:`, ...drift);
+    }
+
+    const verified = new Set(config.verified);
+    for (const entry of entries) {
+        if (verified.has(entry.name) || entry.testFiles.length === 0) continue;
+        result.set(entry.name, { testFiles: [], testDependencies: [] });
+        driftLines.push(`  ${entry.name}:`, ...testDriftLines(entry, [], []));
+    }
+
+    return { updates: result, errors, driftLines, hasChanges: driftLines.length > 0 };
 }
 
 /** Serialize the registry object to the data-only manifest the live CLI fetches. */

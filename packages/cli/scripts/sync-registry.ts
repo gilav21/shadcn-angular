@@ -19,7 +19,9 @@ import { fileURLToPath } from 'node:url';
 import {
     analyzeAllEntries,
     analyzeComposites,
+    analyzePortableTests,
     applyUpdatesToSource,
+    loadPortableTestsConfig,
     buildBoundaryMap,
     buildDirOwners,
     detectOrphanBlockFolders,
@@ -168,14 +170,28 @@ async function main(): Promise<void> {
 
     const { updates, blockUpdates, deepImports, addonViolations, driftLines, hasChanges } =
         analyzeAllEntries(entries, blockEntries, ctx, ROOTS);
-    for (const line of driftLines) console.log(line);
+
+    const portable = analyzePortableTests(entries, updates, loadPortableTestsConfig(COMPONENTS_ROOT), ctx, ROOTS);
+    if (portable.errors.length > 0) {
+        console.error('\nPortable-test validation failed:');
+        for (const line of portable.errors) console.error(line);
+        console.error('\nAborting before write — fix the spec portability issues above.');
+        process.exitCode = 1;
+        return;
+    }
+    const mergedUpdates = updates.map(u => {
+        const tests = portable.updates.get(u.name);
+        return tests ? { ...u, ...tests } : u;
+    });
+
+    for (const line of [...driftLines, ...portable.driftLines]) console.log(line);
     if (!fix) {
         for (const line of formatDeepImportReport(deepImports)) console.warn(line);
     }
 
-    if (reportBlockingIssues(addonViolations, updates, blockUpdates)) return;
+    if (reportBlockingIssues(addonViolations, mergedUpdates, blockUpdates)) return;
 
-    await commitChanges(fix, hasChanges, compositeDrift, updates, blockUpdates);
+    await commitChanges(fix, hasChanges || portable.hasChanges, compositeDrift, mergedUpdates, blockUpdates);
 }
 
 // Only run the sync when executed directly (e.g. `tsx sync-registry.ts`), not

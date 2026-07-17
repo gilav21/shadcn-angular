@@ -117,6 +117,21 @@ export interface ComponentDefinition {
    * (report B7). Pruned on reinstall unless the local copy is user-modified.
    */
   readonly obsoleteFiles?: readonly string[];
+  /**
+   * Portable spec files (ui-relative, folder-prefixed like `files`) installed by
+   * `add --include-tests`. Populated by sync-registry only for components listed
+   * in `packages/components/portable-tests.json` — i.e. verified to run green
+   * under both a plain vitest (jsdom) and a jest (jest-preset-angular) consumer
+   * setup. Components without this field ship no tests, never broken ones.
+   */
+  readonly testFiles?: readonly string[];
+  /**
+   * Components whose SOURCE the spec files import beyond the runtime
+   * `dependencies` closure (e.g. calendar's spec importing `../select`).
+   * `add --include-tests` installs their source (not their specs) so the
+   * shipped specs compile.
+   */
+  readonly testDependencies?: readonly string[];
 }
 
 export type BreakingKind = 'selector' | 'input' | 'output' | 'type' | 'removal';
