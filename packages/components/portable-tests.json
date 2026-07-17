@@ -1,4 +1,11 @@
 {
-  "verified": [],
+  "verified": [
+    "alert",
+    "aspect-ratio",
+    "kbd",
+    "label",
+    "separator",
+    "skeleton"
+  ],
   "coverageExceptions": {}
 }

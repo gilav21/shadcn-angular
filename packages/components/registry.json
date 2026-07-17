@@ -78,6 +78,9 @@
       "alert/sub/alert-description.component.ts",
       "alert/sub/alert-title.component.html",
       "alert/sub/alert-title.component.ts"
+    ],
+    "testFiles": [
+      "alert/alert.component.spec.ts"
     ]
   },
   "alert-dialog": {
@@ -130,6 +133,9 @@
       "aspect-ratio/aspect-ratio.component.html",
       "aspect-ratio/aspect-ratio.component.ts",
       "aspect-ratio/index.ts"
+    ],
+    "testFiles": [
+      "aspect-ratio/aspect-ratio.component.spec.ts"
     ]
   },
   "avatar": {
@@ -1328,6 +1334,9 @@
       "kbd/index.ts",
       "kbd/kbd.component.html",
       "kbd/kbd.component.ts"
+    ],
+    "testFiles": [
+      "kbd/kbd.component.spec.ts"
     ]
   },
   "label": {
@@ -1345,6 +1354,9 @@
       "label/index.ts",
       "label/label.component.html",
       "label/label.component.ts"
+    ],
+    "testFiles": [
+      "label/label.component.spec.ts"
     ]
   },
   "menubar": {
@@ -1735,6 +1747,9 @@
     "files": [
       "separator/index.ts",
       "separator/separator.component.ts"
+    ],
+    "testFiles": [
+      "separator/separator.component.spec.ts"
     ]
   },
   "sheet": {
@@ -1819,6 +1834,9 @@
       "skeleton/index.ts",
       "skeleton/skeleton.component.css",
       "skeleton/skeleton.component.ts"
+    ],
+    "testFiles": [
+      "skeleton/skeleton.component.spec.ts"
     ]
   },
   "slider": {

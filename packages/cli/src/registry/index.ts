@@ -179,6 +179,7 @@ export const registry = defineRegistry({
     description: 'Inline callout banner for important messages with title, description, and variants.',
     tags: ['alert', 'banner', 'notice', 'callout', 'message'],
     files: ['alert/alert.component.html', 'alert/alert.component.ts', 'alert/index.ts', 'alert/sub/alert-description.component.html', 'alert/sub/alert-description.component.ts', 'alert/sub/alert-title.component.html', 'alert/sub/alert-title.component.ts'],
+    testFiles: ['alert/alert.component.spec.ts'],
   },
   'alert-dialog': {
     name: 'alert-dialog',
@@ -194,6 +195,7 @@ export const registry = defineRegistry({
     description: 'Wrapper that constrains its content to a fixed width-to-height ratio (e.g. 16:9).',
     tags: ['aspect-ratio', 'ratio', 'responsive', 'media', 'layout'],
     files: ['aspect-ratio/aspect-ratio.component.html', 'aspect-ratio/aspect-ratio.component.ts', 'aspect-ratio/index.ts'],
+    testFiles: ['aspect-ratio/aspect-ratio.component.spec.ts'],
   },
   avatar: {
     name: 'avatar',
@@ -570,6 +572,7 @@ export const registry = defineRegistry({
     description: 'Styled element for displaying keyboard keys and shortcut combinations.',
     tags: ['kbd', 'keyboard', 'shortcut', 'key', 'hotkey'],
     files: ['kbd/index.ts', 'kbd/kbd.component.html', 'kbd/kbd.component.ts'],
+    testFiles: ['kbd/kbd.component.spec.ts'],
   },
   label: {
     name: 'label',
@@ -577,6 +580,7 @@ export const registry = defineRegistry({
     description: 'Accessible form label that associates with and activates its control.',
     tags: ['label', 'form', 'caption', 'text', 'accessibility'],
     files: ['label/index.ts', 'label/label.component.html', 'label/label.component.ts'],
+    testFiles: ['label/label.component.spec.ts'],
   },
   menubar: {
     name: 'menubar',
@@ -696,6 +700,7 @@ export const registry = defineRegistry({
     description: 'Thin horizontal or vertical divider line for visually separating content.',
     tags: ['separator', 'divider', 'rule', 'hr', 'line'],
     files: ['separator/index.ts', 'separator/separator.component.ts'],
+    testFiles: ['separator/separator.component.spec.ts'],
   },
   sheet: {
     name: 'sheet',
@@ -719,6 +724,7 @@ export const registry = defineRegistry({
     description: 'Animated placeholder block shown while content is loading.',
     tags: ['skeleton', 'loading', 'placeholder', 'shimmer', 'loader'],
     files: ['skeleton/index.ts', 'skeleton/skeleton.component.css', 'skeleton/skeleton.component.ts'],
+    testFiles: ['skeleton/skeleton.component.spec.ts'],
   },
   slider: {
     name: 'slider',
