@@ -47,7 +47,9 @@
     "e2e:reset": "tsx e2e/orchestrator/reset.ts",
     "e2e:impact": "tsx e2e/orchestrator/impact.ts",
     "e2e:scaffold": "tsx e2e/orchestrator/scaffold.ts",
-    "new:component": "tsx packages/cli/scripts/new-component.ts"
+    "new:component": "tsx packages/cli/scripts/new-component.ts",
+    "test:portable": "vitest run --config vitest.portable.config.ts",
+    "verify:portable": "tsx packages/cli/scripts/verify-portable.ts"
   },
   "simple-git-hooks": {
     "pre-commit": "npm run hook:pre-commit",
