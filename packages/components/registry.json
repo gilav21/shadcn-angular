@@ -331,6 +331,9 @@
     "dependencies": [
       "skeleton",
       "spinner"
+    ],
+    "testFiles": [
+      "card/card.component.spec.ts"
     ]
   },
   "carousel": {
@@ -1091,6 +1094,9 @@
       "empty/sub/empty-header.component.ts",
       "empty/sub/empty-media.component.ts",
       "empty/sub/empty-title.component.ts"
+    ],
+    "testFiles": [
+      "empty/empty.component.spec.ts"
     ]
   },
   "field": {

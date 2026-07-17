@@ -254,6 +254,7 @@ export const registry = defineRegistry({
     tags: ['card', 'panel', 'container', 'surface', 'box'],
     files: ['card/card.component.css', 'card/card.component.ts', 'card/index.ts', 'card/sub/card-content.component.css', 'card/sub/card-content.component.ts', 'card/sub/card-description.component.ts', 'card/sub/card-footer.component.css', 'card/sub/card-footer.component.ts', 'card/sub/card-header.component.css', 'card/sub/card-header.component.ts', 'card/sub/card-title.component.ts'],
     dependencies: ['skeleton', 'spinner'],
+    testFiles: ['card/card.component.spec.ts'],
   },
   carousel: {
     name: 'carousel',
@@ -496,6 +497,7 @@ export const registry = defineRegistry({
     description: 'Empty-state placeholder with media, title, description, and call-to-action.',
     tags: ['empty', 'empty-state', 'placeholder', 'no-data', 'blank'],
     files: ['empty/empty.component.ts', 'empty/index.ts', 'empty/sub/empty-content.component.ts', 'empty/sub/empty-description.component.ts', 'empty/sub/empty-header.component.ts', 'empty/sub/empty-media.component.ts', 'empty/sub/empty-title.component.ts'],
+    testFiles: ['empty/empty.component.spec.ts'],
   },
   field: {
     name: 'field',

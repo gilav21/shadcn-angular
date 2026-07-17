@@ -2,6 +2,8 @@
   "verified": [
     "alert",
     "aspect-ratio",
+    "card",
+    "empty",
     "kbd",
     "label",
     "separator",
