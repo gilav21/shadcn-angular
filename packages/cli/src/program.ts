@@ -17,6 +17,7 @@ import { setDensity } from './commands/set-density.js';
 import { setRadius } from './commands/set-radius.js';
 import { setMotion } from './commands/set-motion.js';
 import { setLocale } from './commands/set-locale.js';
+import { setTestRunner } from './commands/set-test-runner.js';
 import { changeTheme } from './commands/change-theme.js';
 import { startMcpServer } from './mcp/server.js';
 import { loadRegistry } from './registry/load.js';
@@ -232,6 +233,16 @@ function registerSettingsCommands(program: Command): void {
         .argument('[name]', 'Theme name')
         .option('--from <hex>', 'Generate the theme from a brand hex color (e.g. "#3b82f6")')
         .action((name: string | undefined, options: { from?: string }) => changeTheme(name, options));
+
+    program
+        .command('set-test-runner')
+        .description('Switch installed component tests between vitest and jest (rewrites spec imports, manages the compat shim)')
+        .argument('<runner>', 'Target test runner: vitest or jest')
+        .option('--dry-run', 'Show what would change without writing')
+        .option('--remote', 'Force remote fetch from GitHub registry')
+        .option('-b, --branch <branch>', 'GitHub branch to fetch the shim from', 'master')
+        .option('-r, --registry <url>', 'Custom registry base URL')
+        .action((runner: string, options: { dryRun?: boolean; remote?: boolean; branch: string; registry?: string }) => setTestRunner(runner, options));
 }
 
 /**

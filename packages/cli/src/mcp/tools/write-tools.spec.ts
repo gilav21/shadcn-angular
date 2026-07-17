@@ -156,7 +156,7 @@ describe('registerWriteTools', () => {
     expect([...handlers.keys()].sort((a, b) => a.localeCompare(b))).toEqual([
       'add_component', 'apply_addon', 'change_theme', 'diff_component', 'doctor_fix',
       'init_project', 'migrate', 'refresh_lib', 'set_density', 'set_locale',
-      'set_motion', 'set_radius', 'update_component',
+      'set_motion', 'set_radius', 'set_test_runner', 'update_component',
     ]);
   });
 });

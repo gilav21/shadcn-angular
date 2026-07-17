@@ -108,6 +108,8 @@ export interface TestInstallInputs {
     readonly yes?: boolean;
     /** Preview run — never prompt, never persist. */
     readonly dryRun?: boolean;
+    /** Explicit runner override (e.g. MCP `testRunner`) — wins over detection. */
+    readonly runner?: TestRunner;
 }
 
 export interface ResolvedTests {
@@ -146,7 +148,7 @@ export async function resolveTestInstall(
     const persistedRunner = config.tests?.runner ?? 'vitest';
     if (!effectiveIncludeTests(config, options)) return { includeTests: false, runner: persistedRunner };
 
-    const runner = await resolveRunner(config, cwd, { interactive: !options.yes && !options.dryRun });
+    const runner = options.runner ?? await resolveRunner(config, cwd, { interactive: !options.yes && !options.dryRun });
     if (runner === null) return { includeTests: false, runner: persistedRunner };
 
     await persistTestsChoice(config, options, cwd, runner);
