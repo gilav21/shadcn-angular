@@ -1538,6 +1538,18 @@ function isDefaultColor(color: string): boolean {
     return !color || color === '#000000' || color === '#000' || color === '';
 }
 
+function isNeutralColor(color: string): boolean {
+    if (!color || isDefaultColor(color)) return true;
+    const hex = color.replace('#', '');
+    if (hex.length !== 6) return isDefaultColor(color);
+    const r = Number.parseInt(hex.substring(0, 2), 16);
+    const g = Number.parseInt(hex.substring(2, 4), 16);
+    const b = Number.parseInt(hex.substring(4, 6), 16);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    return (max - min) < 30 && max < 100;
+}
+
 function isRTLChar(code: number): boolean {
     return (code >= 0x0590 && code <= 0x05FF) ||
            (code >= 0xFB1D && code <= 0xFB4F) ||
@@ -4660,7 +4672,8 @@ function buildItemStyles(item: TextItem, bodyFont: string, bodySize: number): st
     if (item.fontFamily && item.fontFamily !== bodyFont) styles.push(`font-family: '${item.fontFamily}'`);
     const sizeRatio = bodySize > 0 ? item.fontSize / bodySize : 1;
     if (sizeRatio < 0.85 || sizeRatio > 1.15) {
-        styles.push(`font-size: ${Math.round(item.fontSize)}pt`);
+        const editorSize = Math.round(sizeRatio * 12);
+        styles.push(`font-size: ${editorSize}pt`);
     }
     if (Math.abs(item.charSpacing) > 0.1) {
         styles.push(`letter-spacing: ${(item.charSpacing * 0.75).toFixed(1)}px`);
@@ -5883,7 +5896,8 @@ function buildLayoutRects(
     const tableGridRects = buildTableGridRects(allTableGrids, remainingRects, allBorderBoxes);
     const decorativeLines = remainingRects
         .filter(r => !tableGridRects.has(r) && r.height <= 3 && r.width > 50 && (r.stroked || r.filled)
-            && !isLineNearBorderBox(r, allBorderBoxes))
+            && !isLineNearBorderBox(r, allBorderBoxes)
+            && isNeutralColor(r.stroked ? r.strokeColor : r.fillColor))
         .sort((a, b) => a.page === b.page ? b.y - a.y : a.page - b.page);
 
     return { underlinedItems, allTableGrids, allBorderBoxes, decorativeLines };
