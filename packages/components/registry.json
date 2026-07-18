@@ -1091,7 +1091,8 @@
       "a11y.ts"
     ],
     "testFiles": [
-      "drawer/drawer.component.spec.ts"
+      "drawer/drawer.component.spec.ts",
+      "drawer/drawer.coverage.spec.ts"
     ]
   },
   "dropdown-menu": {
@@ -1667,7 +1668,8 @@
       "a11y.ts"
     ],
     "testFiles": [
-      "popover/popover.component.spec.ts"
+      "popover/popover.component.spec.ts",
+      "popover/popover.coverage.spec.ts"
     ]
   },
   "progress": {
@@ -1825,7 +1827,8 @@
       "spinner"
     ],
     "testFiles": [
-      "select/select.component.spec.ts"
+      "select/select.component.spec.ts",
+      "select/select.coverage.spec.ts"
     ]
   },
   "separator": {
@@ -2243,6 +2246,7 @@
       "touch.ts"
     ],
     "testFiles": [
+      "tooltip/sub/tooltip-trigger.component.spec.ts",
       "tooltip/sub/tooltip.directive.spec.ts",
       "tooltip/tooltip.component.spec.ts"
     ]

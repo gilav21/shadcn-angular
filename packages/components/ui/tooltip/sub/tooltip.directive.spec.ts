@@ -242,6 +242,60 @@ describe('TooltipDirective', () => {
     });
 });
 
+@Component({
+    template: `
+        <span [uiTooltip]="'Contents host'" style="display: contents">
+            <button>Real target</button>
+        </span>
+    `,
+    imports: [TooltipDirective],
+})
+class ContentsHost {}
+
+@Component({
+    template: `<span [uiTooltip]="'Empty contents'" style="display: contents"></span>`,
+    imports: [TooltipDirective],
+})
+class EmptyContentsHost {}
+
+describe('TooltipDirective — display:contents host', () => {
+    let restoreTouch: (() => void) | null = null;
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        restoreTouch = setTouchDevice(false);
+    });
+
+    afterEach(() => {
+        vi.clearAllTimers();
+        vi.useRealTimers();
+        restoreTouch?.();
+        document.body.querySelectorAll(TOOLTIP_SELECTOR).forEach((el) => el.remove());
+    });
+
+    it('resolves the first child element as the positioning target', async () => {
+        await TestBed.configureTestingModule({ imports: [ContentsHost] }).compileComponents();
+        const fixture = TestBed.createComponent(ContentsHost);
+        fixture.detectChanges();
+
+        const hostSpan = fixture.debugElement.query(By.directive(TooltipDirective)).nativeElement as HTMLElement;
+        hostSpan.dispatchEvent(new Event('mouseenter', { bubbles: true }));
+        vi.advanceTimersByTime(200);
+        expect(tooltipNode()).toBeTruthy();
+    });
+
+    it('falls back to the host when a contents element has no children', async () => {
+        await TestBed.configureTestingModule({ imports: [EmptyContentsHost] }).compileComponents();
+        const fixture = TestBed.createComponent(EmptyContentsHost);
+        fixture.detectChanges();
+
+        const hostSpan = fixture.debugElement.query(By.directive(TooltipDirective)).nativeElement as HTMLElement;
+        hostSpan.dispatchEvent(new Event('mouseenter', { bubbles: true }));
+        vi.advanceTimersByTime(200);
+        expect(tooltipNode()).toBeTruthy();
+    });
+});
+
 describe('TooltipDirective — touch device', () => {
     let fixture: ComponentFixture<DirectiveHost>;
     let host: DirectiveHost;

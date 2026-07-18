@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DialogComponent, DialogTriggerComponent, DialogContentComponent, DialogHeaderComponent, DialogTitleComponent, DialogDescriptionComponent, DialogFooterComponent } from './index';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Test host for integration
 @Component({
@@ -376,5 +376,216 @@ describe('DialogContentComponent — i18n integration', () => {
         const fixture = await setup(undefined, 'ar');
         const sr = fixture.debugElement.query(By.css('[data-slot="dialog-content"] .sr-only'));
         expect(sr.nativeElement.textContent.trim()).toBe('إغلاق');
+    });
+});
+
+// Host that opens the dialog before the first change detection so that
+// DialogContentComponent.ngAfterViewInit sees dialog.open() === true.
+@Component({
+    template: `
+        <ui-dialog [open]="true">
+            <ui-dialog-content>
+                Body
+                <button data-testid="inner-btn">Action</button>
+            </ui-dialog-content>
+        </ui-dialog>
+    `,
+    imports: [DialogComponent, DialogContentComponent],
+})
+class OpenAtInitHost { }
+
+describe('DialogContentComponent — open before view init', () => {
+    afterEach(() => {
+        document.body.style.overflow = '';
+    });
+
+    it('focuses the first focusable element from ngAfterViewInit when already open', async () => {
+        const fixture = TestBed.createComponent(OpenAtInitHost);
+        const btn = () => fixture.debugElement.query(By.css('[data-testid="inner-btn"]'));
+        // Detect changes triggers ngAfterViewInit with the dialog already open.
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const inner = btn();
+        expect(inner).toBeTruthy();
+        const focusSpy = vi.spyOn(inner.nativeElement as HTMLElement, 'focus');
+        const contentComp = fixture.debugElement
+            .query(By.directive(DialogContentComponent))
+            .componentInstance as DialogContentComponent;
+        contentComp.ngAfterViewInit();
+        expect(focusSpy).toHaveBeenCalled();
+    });
+});
+
+describe('DialogContentComponent — focusFirstElement fallback', () => {
+    afterEach(() => {
+        document.body.style.overflow = '';
+    });
+
+    it('focuses the content container itself when no focusable child exists', async () => {
+        const fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+        const dialog = fixture.debugElement
+            .query(By.directive(DialogComponent))
+            .componentInstance as DialogComponent;
+        dialog.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const contentDiv = fixture.debugElement.query(
+            By.css('[data-slot="dialog-content"]')
+        ).nativeElement as HTMLElement;
+        // Strip every focusable element so the fallback branch runs.
+        contentDiv
+            .querySelectorAll('button, [href], input, select, textarea, [tabindex]')
+            .forEach((el) => el.remove());
+
+        const focusSpy = vi.spyOn(contentDiv, 'focus');
+        const contentComp = fixture.debugElement
+            .query(By.directive(DialogContentComponent))
+            .componentInstance as DialogContentComponent;
+        (contentComp as unknown as { focusFirstElement(): void }).focusFirstElement();
+
+        expect(focusSpy).toHaveBeenCalled();
+    });
+});
+
+describe('DialogContentComponent — keyboard focus trap', () => {
+    let fixture: ComponentFixture<DialogContentComponent>;
+    let component: DialogContentComponent;
+    let container: HTMLElement;
+    let first: HTMLButtonElement;
+    let last: HTMLButtonElement;
+
+    function setContentEl(el: HTMLElement | undefined) {
+        (component as unknown as { contentEl?: HTMLElement }).contentEl = el;
+    }
+
+    function tab(options: KeyboardEventInit = {}): KeyboardEvent {
+        const event = new KeyboardEvent('keydown', { key: 'Tab', ...options });
+        const preventSpy = vi.spyOn(event, 'preventDefault');
+        component.onKeydown(event);
+        return Object.assign(event, { preventSpy }) as KeyboardEvent & {
+            preventSpy: ReturnType<typeof vi.spyOn>;
+        };
+    }
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DialogContentComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(DialogContentComponent);
+        component = fixture.componentInstance;
+
+        container = document.createElement('div');
+        first = document.createElement('button');
+        first.textContent = 'first';
+        last = document.createElement('button');
+        last.textContent = 'last';
+        container.append(first, last);
+        document.body.appendChild(container);
+        setContentEl(container);
+    });
+
+    afterEach(() => {
+        container.remove();
+        document.body.style.overflow = '';
+    });
+
+    it('closes the dialog on Escape and prevents default', () => {
+        const event = new KeyboardEvent('keydown', { key: 'Escape' });
+        const preventSpy = vi.spyOn(event, 'preventDefault');
+        component.onKeydown(event);
+        expect(preventSpy).toHaveBeenCalled();
+    });
+
+    it('ignores non-Tab keys', () => {
+        const event = new KeyboardEvent('keydown', { key: 'a' });
+        const preventSpy = vi.spyOn(event, 'preventDefault');
+        component.onKeydown(event);
+        expect(preventSpy).not.toHaveBeenCalled();
+    });
+
+    it('does nothing on Tab when contentEl is not set', () => {
+        setContentEl(undefined);
+        const event = tab();
+        expect((event as unknown as { preventSpy: { mock: { calls: unknown[] } } }).preventSpy.mock.calls).toHaveLength(0);
+    });
+
+    it('does nothing on Tab when there are no focusable elements', () => {
+        setContentEl(document.createElement('div'));
+        const event = tab();
+        expect((event as unknown as { preventSpy: { mock: { calls: unknown[] } } }).preventSpy.mock.calls).toHaveLength(0);
+    });
+
+    it('wraps forward from the last element to the first on Tab', () => {
+        last.focus();
+        expect(document.activeElement).toBe(last);
+        const firstFocus = vi.spyOn(first, 'focus');
+        const event = tab();
+        expect((event as unknown as { preventSpy: { mock: { calls: unknown[] } } }).preventSpy.mock.calls).toHaveLength(1);
+        expect(firstFocus).toHaveBeenCalled();
+    });
+
+    it('does not wrap forward when focus is not on the last element', () => {
+        first.focus();
+        const event = tab();
+        expect((event as unknown as { preventSpy: { mock: { calls: unknown[] } } }).preventSpy.mock.calls).toHaveLength(0);
+    });
+
+    it('wraps backward from the first element to the last on Shift+Tab', () => {
+        first.focus();
+        expect(document.activeElement).toBe(first);
+        const lastFocus = vi.spyOn(last, 'focus');
+        const event = tab({ shiftKey: true });
+        expect((event as unknown as { preventSpy: { mock: { calls: unknown[] } } }).preventSpy.mock.calls).toHaveLength(1);
+        expect(lastFocus).toHaveBeenCalled();
+    });
+
+    it('does not wrap backward when focus is not on the first element', () => {
+        last.focus();
+        const event = tab({ shiftKey: true });
+        expect((event as unknown as { preventSpy: { mock: { calls: unknown[] } } }).preventSpy.mock.calls).toHaveLength(0);
+    });
+});
+
+@Component({
+    template: `
+        <ui-dialog>
+            <ui-dialog-trigger><span class="inner">Open</span></ui-dialog-trigger>
+        </ui-dialog>
+    `,
+    imports: [DialogComponent, DialogTriggerComponent],
+})
+class TriggerKeydownHost { }
+
+describe('DialogTriggerComponent — keyboard activation', () => {
+    let fixture: ComponentFixture<TriggerKeydownHost>;
+    let dialog: DialogComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [TriggerKeydownHost],
+        }).compileComponents();
+        fixture = TestBed.createComponent(TriggerKeydownHost);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        dialog = fixture.debugElement
+            .query(By.directive(DialogComponent))
+            .componentInstance as DialogComponent;
+    });
+
+    it('toggles open when Enter is pressed on the wrapper itself', () => {
+        const wrapper = fixture.debugElement.query(By.css('[data-slot="dialog-trigger"]'))
+            .nativeElement as HTMLElement;
+        wrapper.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(dialog.open()).toBe(true);
+    });
+
+    it('does not toggle when the keydown originates from projected child content', () => {
+        const inner = fixture.debugElement.query(By.css('.inner'))
+            .nativeElement as HTMLElement;
+        inner.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(dialog.open()).toBe(false);
     });
 });

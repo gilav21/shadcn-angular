@@ -497,7 +497,7 @@ export const registry = defineRegistry({
     tags: ['drawer', 'sheet', 'bottom-sheet', 'panel', 'slide'],
     files: ['drawer/drawer.component.ts', 'drawer/index.ts', 'drawer/sub/drawer-close.component.ts', 'drawer/sub/drawer-content.component.html', 'drawer/sub/drawer-content.component.ts', 'drawer/sub/drawer-description.component.ts', 'drawer/sub/drawer-footer.component.ts', 'drawer/sub/drawer-header.component.ts', 'drawer/sub/drawer-title.component.ts', 'drawer/sub/drawer-trigger.component.ts'],
     libFiles: ['a11y.ts'],
-    testFiles: ['drawer/drawer.component.spec.ts'],
+    testFiles: ['drawer/drawer.component.spec.ts', 'drawer/drawer.coverage.spec.ts'],
   },
   'dropdown-menu': {
     name: 'dropdown-menu',
@@ -673,7 +673,7 @@ export const registry = defineRegistry({
     tags: ['popover', 'popup', 'floating', 'overlay', 'flyout'],
     files: ['popover/index.ts', 'popover/popover.component.ts', 'popover/sub/popover-close.component.ts', 'popover/sub/popover-content.component.css', 'popover/sub/popover-content.component.ts', 'popover/sub/popover-trigger.component.ts'],
     libFiles: ['a11y.ts'],
-    testFiles: ['popover/popover.component.spec.ts'],
+    testFiles: ['popover/popover.component.spec.ts', 'popover/popover.coverage.spec.ts'],
   },
   progress: {
     name: 'progress',
@@ -723,7 +723,7 @@ export const registry = defineRegistry({
     files: ['select/index.ts', 'select/select.component.css', 'select/select.component.ts', 'select/sub/select-content.component.ts', 'select/sub/select-group.component.ts', 'select/sub/select-item.component.ts', 'select/sub/select-label.component.ts', 'select/sub/select-separator.component.ts', 'select/sub/select-trigger.component.css', 'select/sub/select-trigger.component.ts', 'select/sub/select-value.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['skeleton', 'spinner'],
-    testFiles: ['select/select.component.spec.ts'],
+    testFiles: ['select/select.component.spec.ts', 'select/select.coverage.spec.ts'],
   },
   separator: {
     name: 'separator',
@@ -858,7 +858,7 @@ export const registry = defineRegistry({
     tags: ['tooltip', 'hint', 'popup', 'hover', 'label'],
     files: ['tooltip/index.ts', 'tooltip/sub/tooltip-content.component.html', 'tooltip/sub/tooltip-content.component.ts', 'tooltip/sub/tooltip-trigger.component.ts', 'tooltip/sub/tooltip.directive.ts', 'tooltip/tooltip.component.ts'],
     libFiles: ['touch.ts'],
-    testFiles: ['tooltip/sub/tooltip.directive.spec.ts', 'tooltip/tooltip.component.spec.ts'],
+    testFiles: ['tooltip/sub/tooltip-trigger.component.spec.ts', 'tooltip/sub/tooltip.directive.spec.ts', 'tooltip/tooltip.component.spec.ts'],
   },
   tree: {
     name: 'tree',

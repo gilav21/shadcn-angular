@@ -67,10 +67,6 @@
     "tree-select"
   ],
   "coverageExceptions": {
-    "alert-dialog": {
-      "lines": 75,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "autocomplete": {
       "lines": 95,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
@@ -99,14 +95,6 @@
       "lines": 49,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
-    "dialog": {
-      "lines": 75,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "drawer": {
-      "lines": 79,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "flip-text": {
       "lines": 60,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
@@ -119,32 +107,12 @@
       "lines": 97,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
-    "popover": {
-      "lines": 83,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "radar-chart": {
       "lines": 98,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
-    "select": {
-      "lines": 81,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "sheet": {
-      "lines": 79,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "speed-dial": {
       "lines": 54,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "toast": {
-      "lines": 82,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "tooltip": {
-      "lines": 78,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "tree": {
