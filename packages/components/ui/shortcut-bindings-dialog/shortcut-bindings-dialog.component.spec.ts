@@ -5,7 +5,28 @@ import { By } from '@angular/platform-browser';
 import { ShortcutBindingsDialogComponent } from './shortcut-bindings-dialog.component';
 import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+class ResizeObserverStub {
+    observe(): void { /* no-op */ }
+    unobserve(): void { /* no-op */ }
+    disconnect(): void { /* no-op */ }
+}
+
+let savedResizeObserver: typeof ResizeObserver | undefined;
+
+beforeEach(() => {
+    savedResizeObserver = globalThis.ResizeObserver;
+    globalThis.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
+});
+
+afterEach(() => {
+    if (savedResizeObserver) {
+        globalThis.ResizeObserver = savedResizeObserver;
+    } else {
+        (globalThis as unknown as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver = undefined;
+    }
+});
 
 @Component({
     template: `
@@ -304,6 +325,36 @@ describe('ShortcutBindingsDialogComponent — rebind + grouping with live bindin
         expect(dialog.isInstanceOverridden('save', 'editor-1')).toBe(true);
         expect(dialog.isInstanceOverridden('save', 'editor-2')).toBe(false);
         expect(service.getShortcutOverrideForInstance('save', 'editor-1')).toBe('ctrl+m');
+    });
+
+    it('ignores an instance capture keydown that is only a bare modifier', () => {
+        const btn = document.createElement('button');
+        dialog.startCaptureForInstance('save', 'editor-1', btn);
+
+        const modifierOnly = new KeyboardEvent('keydown', { key: 'Control', ctrlKey: true });
+        dialog.onInstanceCaptureKeydown(modifierOnly, 'save', 'editor-1');
+
+        expect(dialog.capturingActionKey()).toBe('instance::editor-1::save');
+        expect(dialog.isInstanceOverridden('save', 'editor-1')).toBe(false);
+    });
+
+    it('falls back to the raw componentId as display name for instances without a numeric suffix', () => {
+        service.registerShortcut('freeform', {
+            actionId: 'zoom',
+            description: 'Zoom in',
+            defaultShortcut: 'ctrl+=',
+            category: 'View',
+            handler: () => undefined,
+        });
+        fixture.detectChanges();
+
+        const group = dialog.groupedBindings().find(g => g.componentName === 'freeform');
+        expect(group).toBeDefined();
+        const binding = group!.bindings.find(b => b.actionId === 'zoom');
+        expect(binding).toBeDefined();
+        expect(binding!.instances).toHaveLength(1);
+        expect(binding!.instances[0].componentId).toBe('freeform');
+        expect(binding!.instances[0].displayName).toBe('freeform');
     });
 
     it('does not apply an instance capture when the capturing key does not match', () => {

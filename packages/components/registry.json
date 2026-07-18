@@ -648,6 +648,9 @@
       "button",
       "scroll-area",
       "textarea"
+    ],
+    "testFiles": [
+      "chat/chat.component.spec.ts"
     ]
   },
   "streaming-text": {
@@ -724,6 +727,9 @@
     ],
     "dependencies": [
       "button"
+    ],
+    "testFiles": [
+      "code-block/code-block.component.spec.ts"
     ]
   },
   "text-reveal": {
@@ -1978,6 +1984,9 @@
     "dependencies": [
       "scroll-area",
       "tooltip"
+    ],
+    "testFiles": [
+      "sidebar/sidebar.component.spec.ts"
     ]
   },
   "skeleton": {
@@ -2433,6 +2442,9 @@
       "input-group",
       "scroll-area",
       "tooltip"
+    ],
+    "testFiles": [
+      "emoji-picker/emoji-picker.component.spec.ts"
     ]
   },
   "rich-text-editor": {
@@ -2887,6 +2899,9 @@
     "dependencies": [
       "bento-grid"
     ],
+    "testFiles": [
+      "page-renderer/page-renderer.component.spec.ts"
+    ],
     "files": [
       "page-renderer/index.ts",
       "page-renderer/page-renderer.component.html",
@@ -3214,6 +3229,9 @@
       "orbit/index.ts",
       "orbit/orbit.component.html",
       "orbit/orbit.component.ts"
+    ],
+    "testFiles": [
+      "orbit/orbit.component.spec.ts"
     ]
   },
   "stagger-children": {
@@ -3250,6 +3268,9 @@
     "files": [
       "particles/index.ts",
       "particles/particles.component.ts"
+    ],
+    "testFiles": [
+      "particles/particles.component.spec.ts"
     ]
   },
   "kanban": {
@@ -3334,6 +3355,9 @@
       "button",
       "dialog",
       "scroll-area"
+    ],
+    "testFiles": [
+      "shortcut-bindings-dialog/shortcut-bindings-dialog.component.spec.ts"
     ]
   },
   "tour": {

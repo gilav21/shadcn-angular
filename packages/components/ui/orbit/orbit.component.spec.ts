@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { OrbitComponent } from './orbit.component';
 
 @Component({
@@ -19,11 +19,11 @@ import { OrbitComponent } from './orbit.component';
     imports: [OrbitComponent],
 })
 class TestHostComponent {
-    radius = signal(100);
-    duration = signal(10);
-    delay = signal(0);
-    reverse = signal(false);
-    cls = signal('');
+    readonly radius = signal(100);
+    readonly duration = signal(10);
+    readonly delay = signal(0);
+    readonly reverse = signal(false);
+    readonly cls = signal('');
 }
 
 @Component({
@@ -32,18 +32,64 @@ class TestHostComponent {
 })
 class ReverseHostComponent {}
 
+type AnimateProp = { animate?: unknown };
+type MatchMediaHost = { matchMedia?: unknown };
+
+/** Build a MediaQueryList-like stub whose `.matches` returns the given value. */
+function buildMediaQueryList(matches: boolean, query: string): MediaQueryList {
+    return {
+        matches,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(() => false),
+    } as unknown as MediaQueryList;
+}
+
 describe('OrbitComponent', () => {
-    let animateSpy: ReturnType<typeof vi.spyOn>;
+    let animateMock: ReturnType<typeof vi.fn>;
+    let cancelMock: ReturnType<typeof vi.fn>;
+    let originalAnimate: PropertyDescriptor | undefined;
+    let originalMatchMedia: unknown;
+
+    /** Point `window.matchMedia` at a stub reporting the given `matches` value. */
+    function setReducedMotion(matches: boolean): void {
+        (globalThis.window as unknown as MatchMediaHost).matchMedia = vi.fn(
+            (query: string) => buildMediaQueryList(matches, query)
+        );
+    }
 
     beforeEach(() => {
-        animateSpy = vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue({
-            cancel: vi.fn(),
-            onfinish: null,
-        } as unknown as Animation);
+        cancelMock = vi.fn();
+        animateMock = vi.fn(
+            () => ({ cancel: cancelMock, onfinish: null }) as unknown as Animation
+        );
+        originalAnimate = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate');
+        Object.defineProperty(HTMLElement.prototype, 'animate', {
+            value: animateMock,
+            configurable: true,
+            writable: true,
+        });
+
+        originalMatchMedia = (globalThis.window as unknown as MatchMediaHost).matchMedia;
+        setReducedMotion(false);
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        if (originalAnimate) {
+            Object.defineProperty(HTMLElement.prototype, 'animate', originalAnimate);
+        } else {
+            delete (HTMLElement.prototype as unknown as AnimateProp).animate;
+        }
+
+        if (originalMatchMedia === undefined) {
+            delete (globalThis.window as unknown as MatchMediaHost).matchMedia;
+        } else {
+            (globalThis.window as unknown as MatchMediaHost).matchMedia = originalMatchMedia;
+        }
     });
 
     describe('default configuration', () => {
@@ -60,6 +106,10 @@ describe('OrbitComponent', () => {
             fixture.detectChanges();
         });
 
+        afterEach(() => {
+            fixture.destroy();
+        });
+
         it('should render the host with data-slot attribute', () => {
             const hostEl = fixture.debugElement.query(By.directive(OrbitComponent));
             expect((hostEl.nativeElement as HTMLElement).dataset['slot']).toBe('orbit');
@@ -67,7 +117,7 @@ describe('OrbitComponent', () => {
 
         it('should have absolute inset-0 pointer-events-none on host', () => {
             const hostEl = fixture.debugElement.query(By.directive(OrbitComponent));
-            const className = (hostEl.nativeElement as HTMLElement).className;
+            const className = (hostEl.nativeElement as HTMLElement).getAttribute('class') ?? '';
             expect(className).toContain('absolute');
             expect(className).toContain('inset-0');
             expect(className).toContain('pointer-events-none');
@@ -76,31 +126,35 @@ describe('OrbitComponent', () => {
         it('should render the orbit-item element with projected content', () => {
             const item = fixture.debugElement.query(By.css('.orbit-item'));
             expect(item).toBeTruthy();
-            expect(item.nativeElement.textContent.trim()).toBe('Orbiting');
+            expect((item.nativeElement as HTMLElement).textContent?.trim()).toBe('Orbiting');
         });
 
         it('should position orbit-item with translateX based on radius', () => {
             const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            const styles = comp.itemStyles() as Record<string, string>;
-            expect(styles['transform']).toContain('translateX(100px)');
+            const styles = comp.itemStyles();
+            expect(styles.transform).toContain('translateX(100px)');
         });
 
         it('should position orbit-item at center with translate(-50%, -50%)', () => {
             const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            const styles = comp.itemStyles() as Record<string, string>;
-            expect(styles['top']).toBe('50%');
-            expect(styles['left']).toBe('50%');
-            expect(styles['transform']).toContain('translate(-50%, -50%)');
+            const styles = comp.itemStyles();
+            expect(styles.top).toBe('50%');
+            expect(styles.left).toBe('50%');
+            expect(styles.transform).toContain('translate(-50%, -50%)');
         });
 
         it('should set pointerEvents auto on orbit-item', () => {
             const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            const styles = comp.itemStyles() as Record<string, string>;
-            expect(styles['pointerEvents']).toBe('auto');
+            expect(comp.itemStyles().pointerEvents).toBe('auto');
+        });
+
+        it('should set position absolute on orbit-item', () => {
+            const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
+            expect(comp.itemStyles().position).toBe('absolute');
         });
 
         it('should call element.animate() with rotation keyframes', () => {
-            expect(animateSpy).toHaveBeenCalledWith(
+            expect(animateMock).toHaveBeenCalledWith(
                 [
                     { transform: 'rotate(0deg)' },
                     { transform: 'rotate(360deg)' },
@@ -116,7 +170,7 @@ describe('OrbitComponent', () => {
         });
 
         it('should set normal direction when reverse input is false', () => {
-            expect(animateSpy).toHaveBeenCalledWith(
+            expect(animateMock).toHaveBeenCalledWith(
                 expect.any(Array),
                 expect.objectContaining({ direction: 'normal' })
             );
@@ -127,33 +181,41 @@ describe('OrbitComponent', () => {
             fixture.detectChanges();
 
             const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            const styles = comp.itemStyles() as Record<string, string>;
-            expect(styles['transform']).toContain('translateX(200px)');
+            expect(comp.itemStyles().transform).toContain('translateX(200px)');
+        });
+
+        it('should apply the custom class input to the host', () => {
+            host.cls.set('custom-orbit-class');
+            fixture.detectChanges();
+
+            const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
+            expect(comp.hostClasses()).toContain('custom-orbit-class');
         });
 
         it('should cancel animation on destroy', () => {
             fixture.destroy();
-            const cancelMock = (animateSpy.mock.results[0].value as { cancel: ReturnType<typeof vi.fn> }).cancel;
             expect(cancelMock).toHaveBeenCalled();
-        });
-
-        it('should set position absolute on orbit-item', () => {
-            const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            const styles = comp.itemStyles() as Record<string, string>;
-            expect(styles['position']).toBe('absolute');
         });
     });
 
     describe('reverse configuration', () => {
-        it('should use reverse direction and custom duration/delay', async () => {
+        let fixture: ComponentFixture<ReverseHostComponent>;
+
+        beforeEach(async () => {
             await TestBed.configureTestingModule({
                 imports: [ReverseHostComponent],
             }).compileComponents();
 
-            const fixture = TestBed.createComponent(ReverseHostComponent);
+            fixture = TestBed.createComponent(ReverseHostComponent);
             fixture.detectChanges();
+        });
 
-            expect(animateSpy).toHaveBeenCalledWith(
+        afterEach(() => {
+            fixture.destroy();
+        });
+
+        it('should use reverse direction and custom duration/delay', () => {
+            expect(animateMock).toHaveBeenCalledWith(
                 [
                     { transform: 'rotate(0deg)' },
                     { transform: 'rotate(360deg)' },
@@ -166,17 +228,27 @@ describe('OrbitComponent', () => {
             );
         });
 
-        it('should position orbit-item with custom radius', async () => {
+        it('should position orbit-item with custom radius', () => {
+            const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
+            expect(comp.itemStyles().transform).toContain('translateX(150px)');
+        });
+    });
+
+    describe('reduced motion', () => {
+        it('should not start the rotation animation when reduced motion is preferred', async () => {
+            setReducedMotion(true);
+
             await TestBed.configureTestingModule({
-                imports: [ReverseHostComponent],
+                imports: [TestHostComponent],
             }).compileComponents();
 
-            const fixture = TestBed.createComponent(ReverseHostComponent);
+            const fixture = TestBed.createComponent(TestHostComponent);
             fixture.detectChanges();
 
-            const comp = fixture.debugElement.query(By.directive(OrbitComponent)).componentInstance as OrbitComponent;
-            const styles = comp.itemStyles() as Record<string, string>;
-            expect(styles['transform']).toContain('translateX(150px)');
+            expect(animateMock).not.toHaveBeenCalled();
+
+            fixture.destroy();
+            expect(cancelMock).not.toHaveBeenCalled();
         });
     });
 });

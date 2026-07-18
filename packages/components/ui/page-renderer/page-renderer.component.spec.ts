@@ -1,9 +1,9 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Component, ComponentRef, input } from '@angular/core';
 import { PageRendererComponent } from './page-renderer.component';
 import { PageData, ComponentMeta } from '../../lib/page-builder.types';
-import { Component, input } from '@angular/core';
 
-// Mock component to be rendered
 @Component({
     selector: 'mock-card',
     template: `<div>{{ title() }} - {{ description() }}</div>`,
@@ -14,24 +14,21 @@ class MockCardComponent {
     description = input('');
 }
 
-describe('PageRendererComponent', () => {
-    let component: PageRendererComponent;
-    let fixture: ComponentFixture<PageRendererComponent>;
+const mockComponents: ComponentMeta[] = [
+    {
+        id: 'card',
+        name: 'Card',
+        category: 'Data Display',
+        component: MockCardComponent,
+        inputs: [
+            { name: 'title', type: 'string' },
+            { name: 'description', type: 'string' }
+        ]
+    }
+];
 
-    const mockComponents: ComponentMeta[] = [
-        {
-            id: 'card',
-            name: 'Card',
-            category: 'Data Display',
-            component: MockCardComponent,
-            inputs: [
-                { name: 'title', type: 'string' },
-                { name: 'description', type: 'string' }
-            ]
-        }
-    ];
-
-    const mockPageData: PageData = {
+function makePageData(): PageData {
+    return {
         grid: {
             cols: 2,
             rowHeight: '100px',
@@ -50,22 +47,18 @@ describe('PageRendererComponent', () => {
                 cols: 1,
                 rows: 1,
                 componentId: 'card',
-                inputs: {
-                    title: 'Static Title'
-                },
-                bindings: {
-                    description: 'user.role'
-                }
+                inputs: { title: 'Static Title' },
+                bindings: { description: 'user.role' }
             }
         ]
     };
+}
 
-    const mockContext = {
-        user: {
-            name: 'Alice',
-            role: 'Admin'
-        }
-    };
+const mockContext = { user: { name: 'Alice', role: 'Admin' } };
+
+describe('PageRendererComponent', () => {
+    let component: PageRendererComponent;
+    let fixture: ComponentFixture<PageRendererComponent>;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -75,55 +68,139 @@ describe('PageRendererComponent', () => {
         fixture = TestBed.createComponent(PageRendererComponent);
         component = fixture.componentInstance;
 
-        // Set inputs
-        fixture.componentRef.setInput('data', mockPageData);
+        fixture.componentRef.setInput('data', makePageData());
         fixture.componentRef.setInput('components', mockComponents);
         fixture.componentRef.setInput('context', mockContext);
 
         fixture.detectChanges();
     });
 
+    afterEach(() => {
+        fixture.destroy();
+    });
+
     it('should create', () => {
         expect(component).toBeTruthy();
     });
 
-    it('should render items', () => {
+    it('should render the bento grid host', () => {
         const compiled = fixture.nativeElement as HTMLElement;
         expect(compiled.querySelector('ui-bento-grid')).toBeTruthy();
     });
 
-    it('should resolve bindings correctly', () => {
-        // We can't easily check the rendered content inside bento-grid because it might be async or inside shadow dom/content projection
-        // But we can check the internal state if exposed, or check resolving method
+    it('should merge the class input into the host classes', () => {
+        fixture.componentRef.setInput('class', 'custom-class');
+        fixture.detectChanges();
+        expect(component.classes()).toContain('custom-class');
+        expect(component.classes()).toContain('w-full');
+    });
 
-        // Let's check the resolveBinding method directly if it's public or we can access it
-        // It's private/protected in the implementation but let's see if we can access it via 'any' or check the processed items
+    it('should expose grid config via computed signals', () => {
+        expect(component.gridCols()).toBe(2);
+        expect(component.gridRowHeight()).toBe('100px');
+        expect(component.gridColumnWidth()).toBe('1fr');
+        expect(component.gridGap()).toBe('1rem');
+        expect(component.gridShowBorders()).toBe(false);
+        expect(component.gridBorderRadius()).toBe('0');
+        expect(component.gridItemPadding()).toBe('0');
+    });
 
-        // PageRendererComponent computes 'dashboardItems' which contains the resolved inputs
-        const renderItems = component.dashboardItems();
-        expect(renderItems).toHaveLength(1);
+    it('should default showBorders to true when omitted', () => {
+        const data = makePageData();
+        delete data.grid.showBorders;
+        fixture.componentRef.setInput('data', data);
+        fixture.detectChanges();
+        expect(component.gridShowBorders()).toBe(true);
+    });
 
-        const item = renderItems[0];
-        expect(item).toBeDefined();
-        expect(item?.inputs).toBeDefined();
-        expect(item?.inputs?.['title']).toBe('Static Title');
-        expect(item?.inputs?.['description']).toBe('Admin'); // Resolved from context
+    it('should resolve static inputs and dot-path bindings', () => {
+        const items = component.dashboardItems();
+        expect(items).toHaveLength(1);
+        expect(items[0]?.inputs?.['title']).toBe('Static Title');
+        expect(items[0]?.inputs?.['description']).toBe('Admin');
     });
 
     it('should update resolved bindings when context changes', () => {
-        // Update context
-        const newContext = {
-            user: {
-                name: 'Alice',
-                role: 'SuperAdmin'
-            }
-        };
-        fixture.componentRef.setInput('context', newContext);
+        fixture.componentRef.setInput('context', { user: { name: 'Alice', role: 'SuperAdmin' } });
         fixture.detectChanges();
+        const items = component.dashboardItems();
+        expect(items[0]?.inputs?.['description']).toBe('SuperAdmin');
+    });
 
-        const renderItems = component.dashboardItems();
-        expect(renderItems).toHaveLength(1);
-        expect(renderItems[0]?.inputs).toBeDefined();
-        expect(renderItems[0]?.inputs?.['description']).toBe('SuperAdmin');
+    it('should skip items whose componentId is not registered', () => {
+        const data = makePageData();
+        data.items.push({
+            id: 'orphan',
+            x: 1,
+            y: 0,
+            cols: 1,
+            rows: 1,
+            componentId: 'does-not-exist'
+        });
+        fixture.componentRef.setInput('data', data);
+        fixture.detectChanges();
+        const items = component.dashboardItems();
+        expect(items).toHaveLength(1);
+        expect(items.find(i => i.id === 'orphan')).toBeUndefined();
+    });
+
+    it('should not apply a binding whose resolved value is undefined', () => {
+        const data = makePageData();
+        data.items[0].bindings = { description: 'user.missing.deep' };
+        fixture.componentRef.setInput('data', data);
+        fixture.detectChanges();
+        const item = component.dashboardItems()[0];
+        expect(item?.inputs?.['description']).toBeUndefined();
+        expect(item?.inputs?.['title']).toBe('Static Title');
+    });
+
+    it('should treat an empty binding path as undefined', () => {
+        const data = makePageData();
+        data.items[0].bindings = { description: '' };
+        fixture.componentRef.setInput('data', data);
+        fixture.detectChanges();
+        const item = component.dashboardItems()[0];
+        expect(item?.inputs?.['description']).toBeUndefined();
+    });
+
+    it('should handle items without bindings', () => {
+        const data = makePageData();
+        delete data.items[0].bindings;
+        fixture.componentRef.setInput('data', data);
+        fixture.detectChanges();
+        const item = component.dashboardItems()[0];
+        expect(item?.inputs?.['title']).toBe('Static Title');
+        expect(item?.inputs?.['description']).toBeUndefined();
+    });
+
+    it('should register an instance and apply inputs on component init', () => {
+        const instance: Record<string, unknown> = {};
+        const ref = { instance } as ComponentRef<unknown>;
+        component.onComponentInit({ id: 'item-1', ref });
+        fixture.componentRef.setInput('context', { user: { name: 'Bob', role: 'Editor' } });
+        fixture.detectChanges();
+        const item = component.dashboardItems()[0];
+        expect(item?.inputs?.['description']).toBe('Editor');
+    });
+
+    it('should ignore component init for an unknown item id', () => {
+        const ref = { instance: {} } as ComponentRef<unknown>;
+        expect(() => component.onComponentInit({ id: 'ghost', ref })).not.toThrow();
+    });
+
+    it('should apply inputs on init even when the item has none', () => {
+        const data = makePageData();
+        delete data.items[0].inputs;
+        delete data.items[0].bindings;
+        fixture.componentRef.setInput('data', data);
+        fixture.detectChanges();
+        const ref = { instance: {} } as ComponentRef<unknown>;
+        expect(() => component.onComponentInit({ id: 'item-1', ref })).not.toThrow();
+    });
+
+    it('should clear the instance map on destroy', () => {
+        const ref = { instance: {} } as ComponentRef<unknown>;
+        component.onComponentInit({ id: 'item-1', ref });
+        expect(() => component.ngOnDestroy()).not.toThrow();
     });
 });

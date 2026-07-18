@@ -10,6 +10,13 @@ import {
     type ScopeDetector,
 } from '../../lib/code-scopes';
 
+function leafSpan(fixture: ComponentFixture<unknown>, text: string) {
+    return fixture.debugElement
+        .queryAll(By.css('code span'))
+        .filter(s => !s.nativeElement.querySelector('span'))
+        .find(s => s.nativeElement.textContent === text);
+}
+
 describe('CodeBlockComponent', () => {
     let component: CodeBlockComponent;
     let fixture: ComponentFixture<CodeBlockComponent>;
@@ -116,8 +123,8 @@ describe('CodeBlockComponent', () => {
         beforeEach(() => {
             originalClipboard = navigator.clipboard;
             const mockClipboard = {
-                writeText: vi.fn().mockResolvedValue(undefined),
-                readText: vi.fn().mockResolvedValue(''),
+                writeText: vi.fn((_text: string) => Promise.resolve()),
+                readText: vi.fn(() => Promise.resolve('')),
                 read: vi.fn(),
                 write: vi.fn(),
                 addEventListener: vi.fn(),
@@ -230,12 +237,7 @@ describe('CodeBlockComponent', () => {
                 fixture.detectChanges();
             }
 
-            function findSpan(text: string) {
-                return fixture.debugElement
-                    .queryAll(By.css('code span'))
-                    .filter(s => !s.nativeElement.querySelector('span'))
-                    .find(s => s.nativeElement.textContent === text);
-            }
+            const findSpan = (text: string) => leafSpan(fixture, text);
 
             it('tokenizes the XML prolog as a decorator', () => {
                 setXml('<?xml version="1.0"?>');
@@ -298,6 +300,53 @@ describe('CodeBlockComponent', () => {
                 expect(span).toBeTruthy();
                 expect(span!.nativeElement.className).toContain('text-orange-400');
             });
+        });
+    });
+
+    describe('css tokenization', () => {
+        it('tokenizes selectors and properties with their token classes', () => {
+            fixture.componentRef.setInput('language', 'css');
+            fixture.componentRef.setInput('code', '.foo{\n  color: red;\n}');
+            fixture.detectChanges();
+
+            const selector = leafSpan(fixture, '.foo');
+            expect(selector).toBeTruthy();
+            expect(selector!.nativeElement.className).toContain('text-pink-400');
+            expect(selector!.nativeElement.className).toContain('font-bold');
+
+            const property = leafSpan(fixture, 'color');
+            expect(property).toBeTruthy();
+            expect(property!.nativeElement.className).toContain('text-blue-400');
+        });
+    });
+
+    describe('copyToClipboard guard', () => {
+        let originalClipboard: Clipboard;
+
+        beforeEach(() => {
+            originalClipboard = navigator.clipboard;
+        });
+
+        afterEach(() => {
+            Object.defineProperty(navigator, 'clipboard', {
+                value: originalClipboard,
+                writable: true,
+                configurable: true,
+            });
+        });
+
+        it('does nothing when the Clipboard API is unavailable', () => {
+            Object.defineProperty(navigator, 'clipboard', {
+                value: undefined,
+                writable: true,
+                configurable: true,
+            });
+
+            fixture.componentRef.setInput('code', 'const x = 1;');
+            fixture.detectChanges();
+
+            component.copyToClipboard();
+            expect(component.copied()).toBe(false);
         });
     });
 

@@ -355,6 +355,7 @@ export const registry = defineRegistry({
     tags: ['chat', 'messages', 'conversation', 'messaging', 'thread'],
     files: ['chat/chat.component.html', 'chat/chat.component.ts', 'chat/index.ts', 'chat/sub/chat-input.component.ts', 'chat/sub/chat-list.component.ts'],
     dependencies: ['avatar', 'button', 'scroll-area', 'textarea'],
+    testFiles: ['chat/chat.component.spec.ts'],
   },
   'streaming-text': {
     name: 'streaming-text',
@@ -381,6 +382,7 @@ export const registry = defineRegistry({
     files: ['code-block/code-block.component.html', 'code-block/code-block.component.ts', 'code-block/code-block.locales.ts', 'code-block/index.ts'],
     libFiles: ['code-scopes.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
+    testFiles: ['code-block/code-block.component.spec.ts'],
   },
   'text-reveal': {
     name: 'text-reveal',
@@ -767,6 +769,7 @@ export const registry = defineRegistry({
     tags: ['sidebar', 'navigation', 'drawer', 'side-nav', 'menu'],
     files: ['sidebar/index.ts', 'sidebar/sidebar.component.ts', 'sidebar/sidebar.service.ts', 'sidebar/sub/sidebar-content.component.ts', 'sidebar/sub/sidebar-footer.component.ts', 'sidebar/sub/sidebar-group-content.component.ts', 'sidebar/sub/sidebar-group-label.component.ts', 'sidebar/sub/sidebar-group.component.ts', 'sidebar/sub/sidebar-header.component.ts', 'sidebar/sub/sidebar-inset.component.ts', 'sidebar/sub/sidebar-menu-button.component.ts', 'sidebar/sub/sidebar-menu-item.component.ts', 'sidebar/sub/sidebar-menu-link.component.ts', 'sidebar/sub/sidebar-menu.component.ts', 'sidebar/sub/sidebar-provider.component.ts', 'sidebar/sub/sidebar-separator.component.ts', 'sidebar/sub/sidebar-trigger.component.ts'],
     dependencies: ['scroll-area', 'tooltip'],
+    testFiles: ['sidebar/sidebar.component.spec.ts'],
   },
   skeleton: {
     name: 'skeleton',
@@ -918,6 +921,7 @@ export const registry = defineRegistry({
     files: ['emoji-picker/emoji-data.ts', 'emoji-picker/emoji-picker.component.ts', 'emoji-picker/index.ts', 'emoji-picker/sub/emoji-picker-content.component.ts', 'emoji-picker/sub/emoji-picker-trigger.component.ts'],
     libFiles: ['a11y.ts'],
     dependencies: ['input', 'input-group', 'scroll-area', 'tooltip'],
+    testFiles: ['emoji-picker/emoji-picker.component.spec.ts'],
   },
   'rich-text-editor': {
     name: 'rich-text-editor',
@@ -1052,6 +1056,7 @@ export const registry = defineRegistry({
     description: 'Renders a page-builder layout definition into a live page at runtime.',
     tags: ['page-renderer', 'renderer', 'page-builder', 'layout', 'cms'],
     dependencies: ['bento-grid'],
+    testFiles: ['page-renderer/page-renderer.component.spec.ts'],
     files: ['page-renderer/index.ts', 'page-renderer/page-renderer.component.html', 'page-renderer/page-renderer.component.ts'],
     libFiles: ['page-builder.types.ts'],
   },
@@ -1183,6 +1188,7 @@ export const registry = defineRegistry({
     description: 'Animates child elements orbiting in circular paths around a center.',
     tags: ['orbit', 'circular', 'rotate', 'animation', 'satellite'],
     files: ['orbit/index.ts', 'orbit/orbit.component.html', 'orbit/orbit.component.ts'],
+    testFiles: ['orbit/orbit.component.spec.ts'],
   },
   'stagger-children': {
     name: 'stagger-children',
@@ -1198,6 +1204,7 @@ export const registry = defineRegistry({
     description: 'Interactive particle-field background that reacts to pointer movement.',
     tags: ['particles', 'background', 'canvas', 'animation', 'interactive'],
     files: ['particles/index.ts', 'particles/particles.component.ts'],
+    testFiles: ['particles/particles.component.spec.ts'],
   },
   kanban: {
     name: 'kanban',
@@ -1216,6 +1223,7 @@ export const registry = defineRegistry({
     files: ['shortcut-bindings-dialog/index.ts', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.html', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.ts', 'shortcut-bindings-dialog/shortcut-bindings-dialog.locales.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts'],
     dependencies: ['accordion', 'badge', 'button', 'dialog', 'scroll-area'],
+    testFiles: ['shortcut-bindings-dialog/shortcut-bindings-dialog.component.spec.ts'],
   },
   tour: {
     name: 'tour',
