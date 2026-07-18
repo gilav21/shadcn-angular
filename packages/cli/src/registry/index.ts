@@ -299,6 +299,7 @@ export const registry = defineRegistry({
     tags: ['color-picker', 'color', 'swatch', 'hex', 'rgb', 'palette'],
     files: ['color-picker/color-picker.component.css', 'color-picker/color-picker.component.html', 'color-picker/color-picker.component.ts', 'color-picker/color-picker.locales.ts', 'color-picker/color-picker.utils.ts', 'color-picker/index.ts'],
     dependencies: ['eyedropper', 'icon', 'input', 'popover', 'tabs', 'tooltip'],
+    testFiles: ['color-picker/color-picker.component.spec.ts'],
     libFiles: ['color-extract.ts', 'color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
   },
   confetti: {
@@ -549,6 +550,7 @@ export const registry = defineRegistry({
     files: ['file-upload/file-upload.component.html', 'file-upload/file-upload.component.ts', 'file-upload/file-upload.locales.ts', 'file-upload/index.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button', 'progress'],
+    testFiles: ['file-upload/file-upload.component.spec.ts', 'file-upload/file-upload.dom.spec.ts'],
   },
   'file-viewer': {
     name: 'file-viewer',
@@ -557,6 +559,7 @@ export const registry = defineRegistry({
     tags: ['file-viewer', 'preview', 'pdf', 'document', 'docx', 'viewer'],
     files: ['file-viewer/file-viewer.component.css', 'file-viewer/file-viewer.component.html', 'file-viewer/file-viewer.component.ts', 'file-viewer/index.ts'],
     dependencies: ['spinner'],
+    testFiles: ['file-viewer/file-viewer.component.spec.ts'],
     libFiles: ['parsers/doc-enhanced-parser.ts', 'parsers/docx-parser.ts', 'parsers/file-type-detector.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/ole2-reader.ts', 'parsers/pdf-parser.ts', 'parsers/pdf-pixel-perfect.ts', 'parsers/ppt-parser.ts', 'parsers/pptx-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/ttf-builder.ts', 'parsers/ttf-parser.ts', 'parsers/xlsx-reader.ts', 'parsers/zip-reader.ts'],
     breaking: [
       { kind: 'output', from: 'error', to: 'loadError', note: 'The `error` output was renamed `loadError`. Update `(error)=...` bindings to `(loadError)=...`.', codemod: 'output-rename' },
@@ -711,6 +714,7 @@ export const registry = defineRegistry({
     tags: ['rating', 'stars', 'review', 'score', 'feedback'],
     files: ['rating/index.ts', 'rating/rating.component.html', 'rating/rating.component.ts', 'rating/rating.locales.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
+    testFiles: ['rating/rating.component.spec.ts'],
   },
   resizable: {
     name: 'resizable',
@@ -718,6 +722,7 @@ export const registry = defineRegistry({
     description: 'Split panes the user can resize by dragging handles, with touch support.',
     tags: ['resizable', 'split', 'panes', 'panels', 'drag'],
     files: ['resizable/index.ts', 'resizable/resizable.component.html', 'resizable/resizable.component.ts', 'resizable/sub/resizable-handle.component.ts', 'resizable/sub/resizable-panel.component.ts'],
+    testFiles: ['resizable/resizable.component.spec.ts'],
   },
   'scroll-area': {
     name: 'scroll-area',
@@ -726,6 +731,7 @@ export const registry = defineRegistry({
     tags: ['scroll-area', 'scroll', 'scrollbar', 'overflow', 'container'],
     files: ['scroll-area/index.ts', 'scroll-area/scroll-area.component.html', 'scroll-area/scroll-area.component.ts'],
     libFiles: ['touch.ts'],
+    testFiles: ['scroll-area/scroll-area.component.spec.ts'],
   },
   select: {
     name: 'select',
@@ -777,6 +783,7 @@ export const registry = defineRegistry({
     tags: ['slider', 'range', 'track', 'thumb', 'input'],
     files: ['slider/index.ts', 'slider/slider.component.css', 'slider/slider.component.html', 'slider/slider.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    testFiles: ['slider/slider.component.spec.ts'],
   },
   spinner: {
     name: 'spinner',
@@ -1277,6 +1284,7 @@ export const registry = defineRegistry({
     files: ['eyedropper/eyedropper.component.html', 'eyedropper/eyedropper.component.ts', 'eyedropper/eyedropper.locales.ts', 'eyedropper/index.ts'],
     libFiles: ['color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
     dependencies: ['icon'],
+    testFiles: ['eyedropper/eyedropper.component.spec.ts'],
   },
 
   // ── Blocks (type:'block') ───────────────────────────────────────────────

@@ -1,9 +1,64 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, signal } from '@angular/core';
+import { Component, ElementRef, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { RatingComponent } from './rating.component';
+
+// ── jsdom stubs ────────────────────────────────────────────────────────────
+// Half-step math and closest-star detection read getBoundingClientRect; jsdom
+// returns zeroed rects, so we give every `button[data-star]` a deterministic
+// rect keyed on its sibling index (20px wide, laid out from x=100).
+const STAR_WIDTH = 20;
+const STAR_ORIGIN = 100;
+
+function makeRect(left: number, width: number): DOMRect {
+    return {
+        left,
+        right: left + width,
+        width,
+        top: 0,
+        bottom: 0,
+        height: 0,
+        x: left,
+        y: 0,
+        toJSON: () => ({}),
+    } as DOMRect;
+}
+
+function starRect(el: Element): DOMRect {
+    const parent = el.parentElement;
+    const buttons = parent ? Array.from(parent.querySelectorAll('button[data-star]')) : [];
+    const idx = buttons.indexOf(el);
+    return makeRect(STAR_ORIGIN + idx * STAR_WIDTH, STAR_WIDTH);
+}
+
+// `isTouchDevice()` reads matchMedia('(pointer: coarse)'); toggle this to
+// simulate a touch device inside individual tests.
+let coarsePointer = false;
+
+function fakeMatchMedia(query: string): MediaQueryList {
+    return {
+        matches: /coarse/.test(query) ? coarsePointer : false,
+        media: query,
+        onchange: null,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false,
+    } as unknown as MediaQueryList;
+}
+
+interface RatingInternals {
+    el: ElementRef<HTMLElement>;
+    getRatingFromPoint(clientX: number): number | null;
+    onKeydown(event: KeyboardEvent): void;
+}
+
+function internals(r: RatingComponent): RatingInternals {
+    return r as unknown as RatingInternals;
+}
 
 // Test host
 @Component({
@@ -17,6 +72,7 @@ import { RatingComponent } from './rating.component';
                 [readonly]="readonly()"
                 [disabled]="disabled()"
                 [size]="size()"
+                [class]="cls()"
             />
         </div>
     `,
@@ -30,13 +86,46 @@ class RatingTestHostComponent {
     readonly = signal(false);
     disabled = signal(false);
     size = signal<'sm' | 'md' | 'lg'>('md');
+    cls = signal('');
 }
 
 describe('RatingComponent', () => {
     let fixture: ComponentFixture<RatingTestHostComponent>;
     let component: RatingTestHostComponent;
+    let originalRect: typeof Element.prototype.getBoundingClientRect;
+    let originalMatchMedia: typeof globalThis.matchMedia;
+
+    function rating(): RatingComponent {
+        return fixture.debugElement.query(By.directive(RatingComponent)).componentInstance as RatingComponent;
+    }
+    function buttons(): HTMLElement[] {
+        return fixture.debugElement.queryAll(By.css('button')).map(d => d.nativeElement as HTMLElement);
+    }
+    function rangeInput(): HTMLInputElement {
+        return fixture.debugElement.query(By.css('input[type="range"]')).nativeElement as HTMLInputElement;
+    }
+    function mouse(type: string, clientX: number): MouseEvent {
+        return new MouseEvent(type, { clientX, bubbles: true });
+    }
+    function touchEvent(type: string, clientX: number): TouchEvent {
+        const ev = new Event(type, { bubbles: true, cancelable: true }) as unknown as TouchEvent;
+        Object.defineProperty(ev, 'touches', { value: [{ clientX, clientY: 0 }] });
+        return ev;
+    }
 
     beforeEach(async () => {
+        coarsePointer = false;
+        originalRect = Element.prototype.getBoundingClientRect;
+        originalMatchMedia = globalThis.matchMedia;
+        Element.prototype.getBoundingClientRect = function (this: Element): DOMRect {
+            if (this.tagName === 'BUTTON' && this.hasAttribute('data-star')) {
+                return starRect(this);
+            }
+            return makeRect(0, 0);
+        };
+        globalThis.matchMedia = fakeMatchMedia;
+        (globalThis.window as Window & typeof globalThis).matchMedia = fakeMatchMedia;
+
         await TestBed.configureTestingModule({
             imports: [RatingTestHostComponent]
         }).compileComponents();
@@ -51,31 +140,47 @@ describe('RatingComponent', () => {
     afterEach(() => {
         fixture.nativeElement.remove();
         document.documentElement.removeAttribute('dir');
+        Element.prototype.getBoundingClientRect = originalRect;
+        globalThis.matchMedia = originalMatchMedia;
+        (globalThis.window as Window & typeof globalThis).matchMedia = originalMatchMedia;
     });
 
     describe('Basic Rendering', () => {
         it('should create rating component', () => {
-            const rating = fixture.debugElement.query(By.directive(RatingComponent));
-            expect(rating).toBeTruthy();
+            const r = fixture.debugElement.query(By.directive(RatingComponent));
+            expect(r).toBeTruthy();
         });
 
         it('should have data-slot="rating"', () => {
-            const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            expect(rating).toBeTruthy();
+            const r = fixture.debugElement.query(By.css('[data-slot="rating"]'));
+            expect(r).toBeTruthy();
         });
 
         it('should render correct number of stars', () => {
-            const stars = fixture.debugElement.queryAll(By.css('button'));
-            expect(stars).toHaveLength(5);
+            expect(buttons()).toHaveLength(5);
         });
 
         it('should render 10 stars when max is 10', async () => {
             component.max.set(10);
             fixture.detectChanges();
             await fixture.whenStable();
+            expect(buttons()).toHaveLength(10);
+        });
 
-            const stars = fixture.debugElement.queryAll(By.css('button'));
-            expect(stars).toHaveLength(10);
+        it('reflects size on star classes for sm and lg', async () => {
+            component.size.set('sm');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const smClass = buttons()[0].getAttribute('class') ?? '';
+            expect(smClass).toContain('h-4');
+            expect(smClass).toContain('w-4');
+
+            component.size.set('lg');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const lgClass = buttons()[0].getAttribute('class') ?? '';
+            expect(lgClass).toContain('h-6');
+            expect(lgClass).toContain('w-6');
         });
     });
 
@@ -88,21 +193,21 @@ describe('RatingComponent', () => {
         });
 
         it('should update value on click', async () => {
-            const stars = fixture.debugElement.queryAll(By.css('button'));
-            stars[4].nativeElement.click(); // Click 5th star
+            buttons()[4].dispatchEvent(mouse('click', STAR_ORIGIN + 4 * STAR_WIDTH + STAR_WIDTH));
             fixture.detectChanges();
             await fixture.whenStable();
-
             expect(component.value()).toBe(5);
         });
 
         it('should toggle off when clicking same value', async () => {
-            const stars = fixture.debugElement.queryAll(By.css('button'));
-            stars[2].nativeElement.click(); // Click 3rd star (current value)
+            buttons()[2].dispatchEvent(mouse('click', STAR_ORIGIN + 2 * STAR_WIDTH + STAR_WIDTH));
             fixture.detectChanges();
             await fixture.whenStable();
-
             expect(component.value()).toBe(0);
+        });
+
+        it('exposes the current value via toString()', () => {
+            expect(rating().toString()).toBe('3');
         });
     });
 
@@ -114,24 +219,21 @@ describe('RatingComponent', () => {
         });
 
         it('should have disabled buttons in readonly mode', () => {
-            const buttons = fixture.debugElement.queryAll(By.css('button'));
-            buttons.forEach(btn => {
-                expect(btn.nativeElement.disabled).toBe(true);
+            buttons().forEach(btn => {
+                expect((btn as HTMLButtonElement).disabled).toBe(true);
             });
         });
 
-        it('should not change value on click in readonly mode', async () => {
+        it('should not change value on click in readonly mode', () => {
             const initialValue = component.value();
-            const stars = fixture.debugElement.queryAll(By.css('button'));
-            stars[4].nativeElement.click();
+            buttons()[4].dispatchEvent(mouse('click', 0));
             fixture.detectChanges();
-
             expect(component.value()).toBe(initialValue);
         });
 
         it('should have data-readonly attribute', () => {
-            const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            expect(rating.nativeElement.dataset.readonly).toBeTruthy();
+            const r = fixture.debugElement.query(By.css('[data-slot="rating"]'));
+            expect(r.nativeElement.dataset.readonly).toBeTruthy();
         });
     });
 
@@ -143,57 +245,99 @@ describe('RatingComponent', () => {
         });
 
         it('should have disabled buttons', () => {
-            const buttons = fixture.debugElement.queryAll(By.css('button'));
-            buttons.forEach(btn => {
-                expect(btn.nativeElement.disabled).toBe(true);
+            buttons().forEach(btn => {
+                expect((btn as HTMLButtonElement).disabled).toBe(true);
             });
         });
 
         it('should have data-disabled attribute', () => {
-            const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            expect(rating.nativeElement.dataset.disabled).toBeTruthy();
+            const r = fixture.debugElement.query(By.css('[data-slot="rating"]'));
+            expect(r.nativeElement.dataset.disabled).toBeTruthy();
         });
 
         it('should have opacity-50 class', () => {
-            const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            expect(rating.nativeElement.className).toContain('opacity-50');
+            const r = fixture.debugElement.query(By.css('[data-slot="rating"]'));
+            expect((r.nativeElement.getAttribute('class') ?? '')).toContain('opacity-50');
+        });
+
+        it('ignores keyboard when disabled', () => {
+            const before = component.value();
+            internals(rating()).onKeydown(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+            fixture.detectChanges();
+            expect(component.value()).toBe(before);
+        });
+
+        it('ignores touchstart on a star when disabled', () => {
+            buttons()[2].dispatchEvent(touchEvent('touchstart', 0));
+            fixture.detectChanges();
+            expect(rating().hoverValue()).toBeNull();
+        });
+
+        it('ignores hover when disabled', () => {
+            buttons()[2].dispatchEvent(mouse('mousemove', STAR_ORIGIN));
+            fixture.detectChanges();
+            expect(rating().hoverValue()).toBeNull();
         });
     });
 
     describe('Keyboard Navigation', () => {
         it('should increase value on ArrowRight', async () => {
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+            rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
             fixture.detectChanges();
             await fixture.whenStable();
+            expect(component.value()).toBe(4);
+        });
 
+        it('should increase value on ArrowUp', async () => {
+            rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+            fixture.detectChanges();
+            await fixture.whenStable();
             expect(component.value()).toBe(4);
         });
 
         it('should decrease value on ArrowLeft', async () => {
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+            rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
             fixture.detectChanges();
             await fixture.whenStable();
-
             expect(component.value()).toBe(2);
         });
 
-        it('should go to min on Home', async () => {
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
+        it('should decrease value on ArrowDown', async () => {
+            rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
             fixture.detectChanges();
             await fixture.whenStable();
+            expect(component.value()).toBe(2);
+        });
 
+        it('clamps at max on ArrowUp', async () => {
+            component.value.set(5);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+            fixture.detectChanges();
+            expect(component.value()).toBe(5);
+        });
+
+        it('clamps at zero on ArrowDown', async () => {
+            component.value.set(0);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+            expect(component.value()).toBe(0);
+        });
+
+        it('should go to min on Home', async () => {
+            rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
+            fixture.detectChanges();
+            await fixture.whenStable();
             expect(component.value()).toBe(0);
         });
 
         it('should go to max on End', async () => {
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+            rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
             fixture.detectChanges();
             await fixture.whenStable();
-
             expect(component.value()).toBe(5);
         });
     });
@@ -208,7 +352,6 @@ describe('RatingComponent', () => {
             component.dir.set('rtl');
             fixture.detectChanges();
             await fixture.whenStable();
-
             const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
             expect(container).toBeTruthy();
         });
@@ -217,75 +360,61 @@ describe('RatingComponent', () => {
             component.dir.set('rtl');
             fixture.detectChanges();
             await fixture.whenStable();
-
-            const rating = fixture.debugElement.query(By.directive(RatingComponent));
-            const stars = fixture.debugElement.queryAll(By.css('button'));
-
-            expect(rating).toBeTruthy();
-            expect(stars).toHaveLength(5);
+            expect(fixture.debugElement.query(By.directive(RatingComponent))).toBeTruthy();
+            expect(buttons()).toHaveLength(5);
         });
     });
 
     describe('Accessibility', () => {
         it('exposes a native range input as the slider control', () => {
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            expect(input).toBeTruthy();
+            expect(rangeInput()).toBeTruthy();
         });
 
         it('reflects the current value on the range input', async () => {
+            // NgModel writes the initial value asynchronously (zone leg), so
+            // flush once more before reading the native range reflection.
             await fixture.whenStable();
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            expect(input.nativeElement.value).toBe('3');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(rangeInput().value).toBe('3');
         });
 
         it('exposes min on the range input', () => {
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            expect(input.nativeElement.min).toBe('0');
+            expect(rangeInput().min).toBe('0');
         });
 
         it('exposes max on the range input', () => {
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            expect(input.nativeElement.max).toBe('5');
+            expect(rangeInput().max).toBe('5');
         });
 
         it('should have aria-label on rating', () => {
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            expect(input.nativeElement.getAttribute('aria-label')).toBe('Rating');
+            expect(rangeInput().getAttribute('aria-label')).toBe('Rating');
         });
 
         it('should have aria-label on each star button', () => {
-            const buttons = fixture.debugElement.queryAll(By.css('button'));
-            buttons.forEach((btn, index) => {
-                expect(btn.nativeElement.getAttribute('aria-label')).toContain(`Rate ${index + 1}`);
+            buttons().forEach((btn, index) => {
+                expect(btn.getAttribute('aria-label')).toContain(`Rate ${index + 1}`);
             });
         });
 
         it('should be focusable when not disabled', () => {
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            expect(input.nativeElement.disabled).toBe(false);
+            expect(rangeInput().disabled).toBe(false);
         });
 
         it('should not be focusable when disabled', async () => {
             component.disabled.set(true);
             fixture.detectChanges();
             await fixture.whenStable();
-
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            expect(input.nativeElement.disabled).toBe(true);
+            expect(rangeInput().disabled).toBe(true);
         });
     });
 
     describe('Hover behavior', () => {
-        function rating(): RatingComponent {
-            return fixture.debugElement.query(By.directive(RatingComponent)).componentInstance as RatingComponent;
-        }
-
         it('sets hoverValue and previews fill on full-precision hover', () => {
-            const buttons = fixture.debugElement.queryAll(By.css('button'));
             const r = rating();
-            const btn = buttons[4].nativeElement as HTMLElement;
+            const btn = buttons()[4];
             const rect = btn.getBoundingClientRect();
-            btn.dispatchEvent(new MouseEvent('mousemove', { clientX: rect.left + rect.width / 2, bubbles: true }));
+            btn.dispatchEvent(mouse('mousemove', rect.left + rect.width / 2));
             fixture.detectChanges();
             expect(r.hoverValue()).toBe(5);
             expect(r.displayValue()).toBe(5);
@@ -304,9 +433,17 @@ describe('RatingComponent', () => {
             fixture.detectChanges();
             await fixture.whenStable();
             const r = rating();
-            const btn = fixture.debugElement.queryAll(By.css('button'))[0].nativeElement as HTMLElement;
-            btn.dispatchEvent(new MouseEvent('mousemove', { clientX: 0, bubbles: true }));
+            buttons()[0].dispatchEvent(mouse('mousemove', 0));
             expect(r.hoverValue()).toBeNull();
+        });
+
+        it('ignores hover and mouse-leave on a coarse-pointer (touch) device', () => {
+            coarsePointer = true;
+            const r = rating();
+            r.hoverValue.set(2);
+            buttons()[4].dispatchEvent(mouse('mousemove', STAR_ORIGIN));
+            r.onMouseLeave();
+            expect(r.hoverValue()).toBe(2);
         });
     });
 
@@ -318,31 +455,27 @@ describe('RatingComponent', () => {
             await fixture.whenStable();
         });
 
-        function rating(): RatingComponent {
-            return fixture.debugElement.query(By.directive(RatingComponent)).componentInstance as RatingComponent;
-        }
-
         it('selects a half value when clicking the left half of a star', () => {
-            const btn = fixture.debugElement.queryAll(By.css('button'))[2].nativeElement as HTMLElement;
+            const btn = buttons()[2];
             const rect = btn.getBoundingClientRect();
-            btn.dispatchEvent(new MouseEvent('click', { clientX: rect.left + 2, bubbles: true }));
+            btn.dispatchEvent(mouse('click', rect.left + 2));
             fixture.detectChanges();
             expect(component.value()).toBe(2.5);
         });
 
         it('selects a full value when clicking the right half of a star', () => {
-            const btn = fixture.debugElement.queryAll(By.css('button'))[2].nativeElement as HTMLElement;
+            const btn = buttons()[2];
             const rect = btn.getBoundingClientRect();
-            btn.dispatchEvent(new MouseEvent('click', { clientX: rect.right - 2, bubbles: true }));
+            btn.dispatchEvent(mouse('click', rect.right - 2));
             fixture.detectChanges();
             expect(component.value()).toBe(3);
         });
 
         it('previews a half value on hover of the left half', () => {
             const r = rating();
-            const btn = fixture.debugElement.queryAll(By.css('button'))[0].nativeElement as HTMLElement;
+            const btn = buttons()[0];
             const rect = btn.getBoundingClientRect();
-            btn.dispatchEvent(new MouseEvent('mousemove', { clientX: rect.left + 1, bubbles: true }));
+            btn.dispatchEvent(mouse('mousemove', rect.left + 1));
             fixture.detectChanges();
             expect(r.hoverValue()).toBe(0.5);
             expect(r.getStarFill({ index: 0, value: 1 })).toBe('half');
@@ -352,41 +485,108 @@ describe('RatingComponent', () => {
             component.value.set(2);
             fixture.detectChanges();
             await fixture.whenStable();
-            fixture.detectChanges();
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+            rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
             fixture.detectChanges();
             await fixture.whenStable();
             expect(component.value()).toBe(2.5);
         });
+
+        it('reports empty fill below the half threshold', () => {
+            expect(rating().getStarFill({ index: 4, value: 5 })).toBe('empty');
+        });
+    });
+
+    describe('RTL interactions', () => {
+        beforeEach(async () => {
+            component.precision.set(0.5);
+            component.value.set(0);
+            fixture.detectChanges();
+            await fixture.whenStable();
+        });
+
+        it('treats the right half as the lower value on RTL click', () => {
+            const r = rating();
+            vi.spyOn(r, 'isRtl').mockReturnValue(true);
+            const btn = buttons()[2];
+            const rect = btn.getBoundingClientRect();
+            btn.dispatchEvent(mouse('click', rect.right - 2));
+            fixture.detectChanges();
+            expect(component.value()).toBe(2.5);
+        });
+
+        it('treats the right half as the lower value on RTL hover', () => {
+            const r = rating();
+            vi.spyOn(r, 'isRtl').mockReturnValue(true);
+            const btn = buttons()[2];
+            const rect = btn.getBoundingClientRect();
+            btn.dispatchEvent(mouse('mousemove', rect.right - 2));
+            fixture.detectChanges();
+            expect(r.hoverValue()).toBe(2.5);
+        });
+
+        it('ArrowLeft increases value in RTL', () => {
+            const r = rating();
+            vi.spyOn(r, 'isRtl').mockReturnValue(true);
+            r.value.set(2);
+            internals(r).onKeydown(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+            fixture.detectChanges();
+            expect(component.value()).toBe(2.5);
+        });
+
+        it('ArrowRight decreases value in RTL', () => {
+            const r = rating();
+            vi.spyOn(r, 'isRtl').mockReturnValue(true);
+            r.value.set(2);
+            internals(r).onKeydown(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+            fixture.detectChanges();
+            expect(component.value()).toBe(1.5);
+        });
+
+        it('renders an RTL half-fill gradient', () => {
+            const r = rating();
+            vi.spyOn(r, 'isRtl').mockReturnValue(true);
+            r.value.set(2.5);
+            fixture.detectChanges();
+            const gradientStops = fixture.debugElement.queryAll(By.css('stop'));
+            expect(gradientStops.length).toBeGreaterThan(0);
+        });
+
+        it('ignores unrelated keys', () => {
+            const r = rating();
+            const before = r.value();
+            rangeInput().dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+            fixture.detectChanges();
+            expect(r.value()).toBe(before);
+        });
     });
 
     describe('Touch interactions', () => {
-        function rating(): RatingComponent {
-            return fixture.debugElement.query(By.directive(RatingComponent)).componentInstance as RatingComponent;
-        }
-        function touchEvent(type: string, clientX: number): TouchEvent {
-            const ev = new Event(type, { bubbles: true, cancelable: true }) as unknown as TouchEvent;
-            Object.defineProperty(ev, 'touches', { value: [{ clientX, clientY: 0 }] });
-            return ev;
-        }
-
         it('previews on touchstart of a star', () => {
             const r = rating();
-            const btn = fixture.debugElement.queryAll(By.css('button'))[3].nativeElement as HTMLElement;
-            btn.dispatchEvent(touchEvent('touchstart', 0));
+            buttons()[3].dispatchEvent(touchEvent('touchstart', 0));
             fixture.detectChanges();
             expect(r.hoverValue()).toBe(4);
         });
 
         it('tracks hover across touchmove using the closest star', () => {
             const r = rating();
-            const buttons = fixture.debugElement.queryAll(By.css('button'));
-            const target = buttons[2].nativeElement.getBoundingClientRect();
+            const target = buttons()[2].getBoundingClientRect();
             const root = fixture.debugElement.query(By.css('[data-slot="rating"]')).nativeElement as HTMLElement;
             root.dispatchEvent(touchEvent('touchmove', target.left + target.width / 2));
             fixture.detectChanges();
             expect(r.hoverValue()).toBe(3);
+        });
+
+        it('tracks a half value across touchmove in half precision', async () => {
+            component.precision.set(0.5);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const r = rating();
+            const target = buttons()[2].getBoundingClientRect();
+            const root = fixture.debugElement.query(By.css('[data-slot="rating"]')).nativeElement as HTMLElement;
+            root.dispatchEvent(touchEvent('touchmove', target.left + 1));
+            fixture.detectChanges();
+            expect(r.hoverValue()).toBe(2.5);
         });
 
         it('commits the value on touchend', () => {
@@ -403,7 +603,6 @@ describe('RatingComponent', () => {
             component.value.set(2);
             fixture.detectChanges();
             await fixture.whenStable();
-            fixture.detectChanges();
             const r = rating();
             r.hoverValue.set(2);
             const root = fixture.debugElement.query(By.css('[data-slot="rating"]')).nativeElement as HTMLElement;
@@ -412,7 +611,7 @@ describe('RatingComponent', () => {
             expect(component.value()).toBe(0);
         });
 
-        it('ignores touch handlers when disabled', async () => {
+        it('ignores touchmove when disabled', async () => {
             component.disabled.set(true);
             fixture.detectChanges();
             await fixture.whenStable();
@@ -421,44 +620,105 @@ describe('RatingComponent', () => {
             root.dispatchEvent(touchEvent('touchmove', 50));
             expect(r.hoverValue()).toBeNull();
         });
-    });
 
-    describe('RTL keyboard', () => {
-        it('ArrowLeft increases value in RTL', async () => {
-            component.dir.set('rtl');
-            component.value.set(2);
+        it('ignores touchend when disabled', async () => {
+            component.disabled.set(true);
             fixture.detectChanges();
             await fixture.whenStable();
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-            fixture.detectChanges();
-            await fixture.whenStable();
+            const r = rating();
+            r.hoverValue.set(3);
+            const root = fixture.debugElement.query(By.css('[data-slot="rating"]')).nativeElement as HTMLElement;
+            root.dispatchEvent(touchEvent('touchend', 0));
             expect(component.value()).toBe(3);
         });
+    });
 
-        it('ignores unrelated keys', () => {
-            const r = fixture.debugElement.query(By.directive(RatingComponent)).componentInstance as RatingComponent;
-            const before = r.value();
-            const input = fixture.debugElement.query(By.css('input[type="range"]'));
-            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    describe('getRatingFromPoint edge cases', () => {
+        it('returns null when there is no rating container', () => {
+            const r = rating();
+            vi.spyOn(internals(r).el.nativeElement, 'querySelector').mockReturnValue(null);
+            expect(internals(r).getRatingFromPoint(120)).toBeNull();
+        });
+
+        it('returns null when there are no star buttons', async () => {
+            component.max.set(0);
             fixture.detectChanges();
-            expect(r.value()).toBe(before);
+            await fixture.whenStable();
+            expect(internals(rating()).getRatingFromPoint(120)).toBeNull();
+        });
+
+        it('returns null when the pointer position is not a number', () => {
+            expect(internals(rating()).getRatingFromPoint(Number.NaN)).toBeNull();
+        });
+    });
+
+    describe('ControlValueAccessor', () => {
+        it('writeValue updates the displayed value', () => {
+            const r = rating();
+            r.writeValue(4);
+            expect(r.value()).toBe(4);
+        });
+
+        it('writeValue coerces null to zero', () => {
+            const r = rating();
+            r.writeValue(null as unknown as number);
+            expect(r.value()).toBe(0);
+        });
+
+        it('registerOnChange is invoked when the value changes', () => {
+            const r = rating();
+            const onChange = vi.fn();
+            r.registerOnChange(onChange);
+            buttons()[4].dispatchEvent(mouse('click', STAR_ORIGIN + 4 * STAR_WIDTH + STAR_WIDTH));
+            expect(onChange).toHaveBeenCalledWith(5);
+        });
+
+        it('registerOnTouched is invoked when the value changes', () => {
+            const r = rating();
+            const onTouched = vi.fn();
+            r.registerOnTouched(onTouched);
+            buttons()[4].dispatchEvent(mouse('click', STAR_ORIGIN + 4 * STAR_WIDTH + STAR_WIDTH));
+            expect(onTouched).toHaveBeenCalled();
+        });
+
+        it('setDisabledState disables interaction', () => {
+            const r = rating();
+            r.setDisabledState(true);
+            fixture.detectChanges();
+            expect(r.isDisabled()).toBe(true);
+            expect(rangeInput().disabled).toBe(true);
+        });
+
+        it('emits ratingChange when a star is clicked', () => {
+            const r = rating();
+            const emitted: number[] = [];
+            r.ratingChange.subscribe(v => emitted.push(v));
+            buttons()[4].dispatchEvent(mouse('click', STAR_ORIGIN + 4 * STAR_WIDTH + STAR_WIDTH));
+            expect(emitted).toEqual([5]);
+        });
+    });
+
+    describe('Custom class', () => {
+        it('merges a custom class onto the rating group', async () => {
+            component.cls.set('my-custom-class');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const root = fixture.debugElement.query(By.css('[data-slot="rating"]')).nativeElement as HTMLElement;
+            expect(root.getAttribute('class') ?? '').toContain('my-custom-class');
         });
     });
 
     describe('Security', () => {
         it('should not execute scripts', () => {
-            const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            expect(rating.nativeElement.innerHTML).not.toContain('<script>');
+            const r = fixture.debugElement.query(By.css('[data-slot="rating"]'));
+            expect(r.nativeElement.innerHTML).not.toContain('<script>');
         });
 
-        it('should handle numeric bounds correctly', async () => {
-            // Attempt to set value beyond max
-            const ratingComponent = fixture.debugElement.query(By.directive(RatingComponent)).componentInstance as RatingComponent;
-            ratingComponent.writeValue(100);
+        it('should handle numeric bounds correctly', () => {
+            const r = rating();
+            r.writeValue(100);
             fixture.detectChanges();
-
-            expect(ratingComponent.value()).toBeLessThanOrEqual(100);
+            expect(r.value()).toBeLessThanOrEqual(100);
         });
     });
 });

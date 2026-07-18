@@ -473,6 +473,9 @@
       "tabs",
       "tooltip"
     ],
+    "testFiles": [
+      "color-picker/color-picker.component.spec.ts"
+    ],
     "libFiles": [
       "color-extract.ts",
       "color.ts",
@@ -1261,6 +1264,10 @@
     "dependencies": [
       "button",
       "progress"
+    ],
+    "testFiles": [
+      "file-upload/file-upload.component.spec.ts",
+      "file-upload/file-upload.dom.spec.ts"
     ]
   },
   "file-viewer": {
@@ -1283,6 +1290,9 @@
     ],
     "dependencies": [
       "spinner"
+    ],
+    "testFiles": [
+      "file-viewer/file-viewer.component.spec.ts"
     ],
     "libFiles": [
       "parsers/doc-enhanced-parser.ts",
@@ -1790,6 +1800,9 @@
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
       "touch.ts"
+    ],
+    "testFiles": [
+      "rating/rating.component.spec.ts"
     ]
   },
   "resizable": {
@@ -1809,6 +1822,9 @@
       "resizable/resizable.component.ts",
       "resizable/sub/resizable-handle.component.ts",
       "resizable/sub/resizable-panel.component.ts"
+    ],
+    "testFiles": [
+      "resizable/resizable.component.spec.ts"
     ]
   },
   "scroll-area": {
@@ -1829,6 +1845,9 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "scroll-area/scroll-area.component.spec.ts"
     ]
   },
   "select": {
@@ -2005,6 +2024,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "slider/slider.component.spec.ts"
     ]
   },
   "spinner": {
@@ -3515,6 +3537,9 @@
     ],
     "dependencies": [
       "icon"
+    ],
+    "testFiles": [
+      "eyedropper/eyedropper.component.spec.ts"
     ]
   },
   "login": {
