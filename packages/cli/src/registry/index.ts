@@ -173,7 +173,7 @@ export const registry = defineRegistry({
     files: ['autocomplete/autocomplete.component.css', 'autocomplete/autocomplete.component.html', 'autocomplete/autocomplete.component.ts', 'autocomplete/highlight.pipe.ts', 'autocomplete/index.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['badge', 'command', 'popover'],
-    testFiles: ['autocomplete/autocomplete.component.spec.ts'],
+    testFiles: ['autocomplete/autocomplete.component.spec.ts', 'autocomplete/autocomplete.coverage.spec.ts'],
   },
   alert: {
     name: 'alert',
@@ -340,7 +340,7 @@ export const registry = defineRegistry({
     tags: ['date-picker', 'date', 'calendar', 'range', 'datepicker'],
     files: ['date-picker/date-picker.component.css', 'date-picker/date-picker.component.html', 'date-picker/date-picker.component.ts', 'date-picker/index.ts', 'date-picker/sub/date-range-picker.component.css', 'date-picker/sub/date-range-picker.component.html', 'date-picker/sub/date-range-picker.component.ts'],
     dependencies: ['calendar'],
-    testFiles: ['date-picker/date-picker.component.spec.ts'],
+    testFiles: ['date-picker/date-picker.component.spec.ts', 'date-picker/date-picker.coverage.spec.ts'],
   },
   chat: {
     name: 'chat',
@@ -1389,7 +1389,7 @@ export const registry = defineRegistry({
     tags: ['chart', 'brush', 'zoom', 'pan'],
     files: ['chart-brush/chart-brush.component.html', 'chart-brush/chart-brush.component.ts', 'chart-brush/index.ts'],
     libFiles: ['chart-interaction.ts'],
-    testFiles: ['chart-brush/chart-brush.component.spec.ts'],
+    testFiles: ['chart-brush/chart-brush.component.spec.ts', 'chart-brush/chart-brush.dom.spec.ts'],
   },
   'line-chart': {
     name: 'line-chart',

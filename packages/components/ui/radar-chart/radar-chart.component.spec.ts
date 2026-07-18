@@ -64,4 +64,27 @@ describe('RadarChartComponent', () => {
             expect(p.path.trim().endsWith('Z')).toBe(true);
         }
     });
+
+    it('uses the explicit max value input when provided', () => {
+        fixture.componentRef.setInput('maxValueInput', 20);
+        fixture.detectChanges();
+        expect(component.maxValue()).toBe(20);
+    });
+
+    it('re-shows a hidden series when toggled again', () => {
+        component.toggleSeries('Product B');
+        fixture.detectChanges();
+        expect(component.seriesPolygons()).toHaveLength(1);
+        component.toggleSeries('Product B');
+        fixture.detectChanges();
+        expect(component.seriesPolygons()).toHaveLength(2);
+        expect(component.hiddenSeries()).toEqual([]);
+    });
+
+    it('falls back to empty axes and a max of 1 when there are no series', () => {
+        fixture.componentRef.setInput('series', [] as ChartSeries[]);
+        fixture.detectChanges();
+        expect(component.axes()).toEqual([]);
+        expect(component.maxValue()).toBe(1);
+    });
 });

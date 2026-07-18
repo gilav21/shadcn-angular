@@ -62,7 +62,8 @@
       "popover"
     ],
     "testFiles": [
-      "autocomplete/autocomplete.component.spec.ts"
+      "autocomplete/autocomplete.component.spec.ts",
+      "autocomplete/autocomplete.coverage.spec.ts"
     ]
   },
   "alert": {
@@ -599,7 +600,8 @@
       "calendar"
     ],
     "testFiles": [
-      "date-picker/date-picker.component.spec.ts"
+      "date-picker/date-picker.component.spec.ts",
+      "date-picker/date-picker.coverage.spec.ts"
     ]
   },
   "chat": {
@@ -3793,7 +3795,8 @@
       "chart-interaction.ts"
     ],
     "testFiles": [
-      "chart-brush/chart-brush.component.spec.ts"
+      "chart-brush/chart-brush.component.spec.ts",
+      "chart-brush/chart-brush.dom.spec.ts"
     ]
   },
   "line-chart": {

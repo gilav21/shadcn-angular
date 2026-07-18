@@ -67,48 +67,16 @@
     "tree-select"
   ],
   "coverageExceptions": {
-    "autocomplete": {
-      "lines": 95,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "bento-grid": {
       "lines": 94,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "calendar": {
-      "lines": 96,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "calendar-heatmap": {
-      "lines": 97,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "chart-brush": {
-      "lines": 79,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "comparison-slider": {
       "lines": 77,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
-    "date-picker": {
-      "lines": 49,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "flip-text": {
       "lines": 60,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "org-chart": {
-      "lines": 98,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "pie-chart-drilldown": {
-      "lines": 97,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "radar-chart": {
-      "lines": 98,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "speed-dial": {
