@@ -690,7 +690,7 @@ export const registry = defineRegistry({
     description: 'Set of radio buttons for selecting exactly one option from a list.',
     tags: ['radio-group', 'radio', 'options', 'choice', 'form'],
     files: ['radio-group/index.ts', 'radio-group/radio-group.component.html', 'radio-group/radio-group.component.ts', 'radio-group/sub/radio-group-item.component.css', 'radio-group/sub/radio-group-item.component.html', 'radio-group/sub/radio-group-item.component.ts'],
-    testFiles: ['radio-group/radio-group.component.spec.ts'],
+    testFiles: ['radio-group/radio-group.component.spec.ts', 'radio-group/radio-group.coverage.spec.ts'],
   },
   rating: {
     name: 'rating',

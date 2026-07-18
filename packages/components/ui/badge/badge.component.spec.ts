@@ -66,4 +66,33 @@ describe('BadgeComponent', () => {
 
         expect(fixture.nativeElement.className).toContain('custom-badge');
     });
+
+    it('should render skeleton classes and skeleton element when skeleton=true', () => {
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.componentRef.setInput('class', 'skeleton-extra');
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.className).toContain('inline-flex');
+        expect(fixture.nativeElement.className).toContain('skeleton-extra');
+        expect(fixture.nativeElement.className).not.toContain('bg-primary');
+        expect(fixture.nativeElement.querySelector('ui-skeleton')).toBeTruthy();
+    });
+
+    it('should render label text when label is set', () => {
+        fixture.componentRef.setInput('label', 'New');
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent.trim()).toBe('New');
+    });
+
+    it('toString() returns the label', () => {
+        fixture.componentRef.setInput('label', 'Beta');
+        fixture.detectChanges();
+
+        expect(component.toString()).toBe('Beta');
+    });
+
+    it('toString() returns empty string for default (empty) label', () => {
+        expect(component.toString()).toBe('');
+    });
 });

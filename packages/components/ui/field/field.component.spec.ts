@@ -117,6 +117,42 @@ describe('FieldComponent', () => {
         expect(error.nativeElement.getAttribute('role')).toBe('alert');
         expect(error.nativeElement.classList.contains('text-destructive')).toBe(true);
     });
+
+    it('combines registered describedBy ids from projected description and error', () => {
+        fixture.detectChanges();
+        const field = fixture.debugElement.query(By.directive(FieldComponent))
+            .componentInstance as FieldComponent;
+        const describedBy = field.describedBy();
+        expect(describedBy).toBeTruthy();
+        expect((describedBy as string).split(' ')).toHaveLength(2);
+    });
+
+    it('resolves generated ids on description and error sub-components', () => {
+        fixture.detectChanges();
+        const description = fixture.debugElement.query(By.directive(FieldDescriptionComponent))
+            .componentInstance as FieldDescriptionComponent;
+        const error = fixture.debugElement.query(By.directive(FieldErrorComponent))
+            .componentInstance as FieldErrorComponent;
+        expect(description.resolvedId()).toBeTruthy();
+        expect(error.resolvedId()).toBeTruthy();
+    });
+});
+
+describe('FieldComponent describedBy without registrations', () => {
+    it('returns null when no describedBy ids are registered', async () => {
+        @Component({
+            template: `<ui-field><input /></ui-field>`,
+            imports: [FieldComponent]
+        })
+        class BareFieldHost {}
+
+        await TestBed.configureTestingModule({ imports: [BareFieldHost] }).compileComponents();
+        const fixture = TestBed.createComponent(BareFieldHost);
+        fixture.detectChanges();
+        const field = fixture.debugElement.query(By.directive(FieldComponent))
+            .componentInstance as FieldComponent;
+        expect(field.describedBy()).toBeNull();
+    });
 });
 
 @Component({
@@ -223,6 +259,18 @@ describe('FieldAutoErrorsComponent', () => {
         await explicitFixture.whenStable();
         explicitFixture.detectChanges();
         expect(errorText(explicitFixture)).toBe('This field is required');
+    });
+
+    it('falls back to the raw error key when no message or locale entry exists', async () => {
+        const unknownFixture = TestBed.createComponent(ExplicitControlHostComponent);
+        const ctrl = unknownFixture.componentInstance.ctrl;
+        ctrl.setValue('anything');
+        ctrl.setErrors({ someUnknownKey: true });
+        ctrl.markAsDirty();
+        unknownFixture.detectChanges();
+        await unknownFixture.whenStable();
+        unknownFixture.detectChanges();
+        expect(errorText(unknownFixture)).toBe('someUnknownKey');
     });
 });
 

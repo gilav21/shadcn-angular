@@ -1717,7 +1717,8 @@
       "radio-group/sub/radio-group-item.component.ts"
     ],
     "testFiles": [
-      "radio-group/radio-group.component.spec.ts"
+      "radio-group/radio-group.component.spec.ts",
+      "radio-group/radio-group.coverage.spec.ts"
     ]
   },
   "rating": {

@@ -119,6 +119,49 @@ describe('SwitchComponent', () => {
         const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.getAttribute('aria-label')).toBe('Toggle notifications');
     });
+
+    it('should early-return from toggle() when disabled without changing checked', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+
+        expect(component.isDisabled()).toBe(true);
+        component.toggle();
+
+        expect(component.checked()).toBe(false);
+    });
+
+    it('should early-return from toggle() when disabled via setDisabledState', () => {
+        component.setDisabledState(true);
+        fixture.detectChanges();
+
+        expect(component.isDisabled()).toBe(true);
+        component.toggle();
+
+        expect(component.checked()).toBe(false);
+    });
+
+    it('should coerce a null value to false in writeValue', () => {
+        component.checked.set(true);
+        component.writeValue(null as unknown as boolean);
+        expect(component.checked()).toBe(false);
+    });
+
+    it('should coerce an undefined value to false in writeValue', () => {
+        component.checked.set(true);
+        component.writeValue(undefined as unknown as boolean);
+        expect(component.checked()).toBe(false);
+    });
+
+    it('should set checked from a truthy writeValue', () => {
+        component.writeValue(true);
+        expect(component.checked()).toBe(true);
+    });
+
+    it('should reflect checked state via toString()', () => {
+        expect(component.toString()).toBe('false');
+        component.checked.set(true);
+        expect(component.toString()).toBe('true');
+    });
 });
 
 describe('Switch ControlValueAccessor', () => {

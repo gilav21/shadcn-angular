@@ -79,20 +79,8 @@
       "lines": 95,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
-    "avatar": {
-      "lines": 88,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "badge": {
-      "lines": 90,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "bento-grid": {
       "lines": 94,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "breadcrumb": {
-      "lines": 97,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "calendar": {
@@ -109,10 +97,6 @@
     },
     "chart-brush": {
       "lines": 79,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "checkbox": {
-      "lines": 69,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "chip-list": {
@@ -137,10 +121,6 @@
     },
     "drawer": {
       "lines": 79,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "field": {
-      "lines": 96,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "flip-text": {
@@ -179,16 +159,8 @@
       "lines": 83,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
-    "progress": {
-      "lines": 93,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "radar-chart": {
       "lines": 98,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "radio-group": {
-      "lines": 86,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "scroll-progress": {
@@ -213,10 +185,6 @@
     },
     "stepper": {
       "lines": 85,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "switch": {
-      "lines": 96,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "table": {
