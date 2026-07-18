@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UiRippleDirective } from './ripple.directive';
 
 @Component({
@@ -13,12 +13,41 @@ class TestHostComponent {
     duration = signal(600);
 }
 
+interface MockAnimation {
+    onfinish: (() => void) | null;
+}
+
+function clickAt(button: HTMLButtonElement, clientX: number, clientY: number): void {
+    button.dispatchEvent(new MouseEvent('click', { clientX, clientY, bubbles: true }));
+}
+
 describe('UiRippleDirective', () => {
     let fixture: ComponentFixture<TestHostComponent>;
     let host: TestHostComponent;
     let button: HTMLButtonElement;
 
+    let originalAnimate: PropertyDescriptor | undefined;
+    let originalMatchMedia: PropertyDescriptor | undefined;
+
     beforeEach(async () => {
+        // jsdom does not implement the Web Animations API — provide a stub so
+        // the directive's `ripple.animate(...)` call (and spies on it) work.
+        originalAnimate = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate');
+        Object.defineProperty(HTMLElement.prototype, 'animate', {
+            configurable: true,
+            writable: true,
+            value: (): MockAnimation => ({ onfinish: null }),
+        });
+
+        // jsdom does not implement matchMedia — default to "no reduced motion".
+        originalMatchMedia = Object.getOwnPropertyDescriptor(globalThis, 'matchMedia');
+        Object.defineProperty(globalThis, 'matchMedia', {
+            configurable: true,
+            writable: true,
+            value: (query: string): MediaQueryList =>
+                ({ matches: false, media: query } as unknown as MediaQueryList),
+        });
+
         await TestBed.configureTestingModule({
             imports: [TestHostComponent],
         }).compileComponents();
@@ -37,6 +66,18 @@ describe('UiRippleDirective', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+
+        if (originalAnimate) {
+            Object.defineProperty(HTMLElement.prototype, 'animate', originalAnimate);
+        } else {
+            delete (HTMLElement.prototype as { animate?: unknown }).animate;
+        }
+
+        if (originalMatchMedia) {
+            Object.defineProperty(globalThis, 'matchMedia', originalMatchMedia);
+        } else {
+            delete (globalThis as { matchMedia?: unknown }).matchMedia;
+        }
     });
 
     it('should apply position relative to the host element', () => {
@@ -47,24 +88,46 @@ describe('UiRippleDirective', () => {
         expect(button.style.overflow).toBe('hidden');
     });
 
+    it('should clear position and overflow styles when disabled', () => {
+        host.disabled.set(true);
+        fixture.detectChanges();
+
+        expect(button.style.position).toBe('');
+        expect(button.style.overflow).toBe('');
+    });
+
     it('should create a ripple span element inside the button on click', () => {
-        const mockAnimation = { onfinish: null as (() => void) | null };
+        const mockAnimation: MockAnimation = { onfinish: null };
         vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue(mockAnimation as unknown as Animation);
 
-        button.dispatchEvent(new MouseEvent('click', { clientX: 50, clientY: 25, bubbles: true }));
+        clickAt(button, 50, 25);
         fixture.detectChanges();
 
         const ripple = button.querySelector('span');
         expect(ripple).toBeTruthy();
         expect(ripple!.style.position).toBe('absolute');
         expect(ripple!.style.borderRadius).toBe('50%');
+        expect(ripple!.style.pointerEvents).toBe('none');
+    });
+
+    it('should position the ripple relative to the click coordinates', () => {
+        const mockAnimation: MockAnimation = { onfinish: null };
+        vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue(mockAnimation as unknown as Animation);
+
+        clickAt(button, 50, 25);
+        fixture.detectChanges();
+
+        const ripple = button.querySelector<HTMLSpanElement>('span')!;
+        const diameter = Math.max(100, 50) * 2; // 200
+        expect(ripple.style.left).toBe(`${50 - diameter / 2}px`); // -50px
+        expect(ripple.style.top).toBe(`${25 - diameter / 2}px`); // -75px
     });
 
     it('should size the ripple based on the largest host dimension', () => {
-        const mockAnimation = { onfinish: null as (() => void) | null };
+        const mockAnimation: MockAnimation = { onfinish: null };
         vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue(mockAnimation as unknown as Animation);
 
-        button.dispatchEvent(new MouseEvent('click', { clientX: 50, clientY: 25, bubbles: true }));
+        clickAt(button, 50, 25);
         fixture.detectChanges();
 
         const ripple = button.querySelector<HTMLSpanElement>('span')!;
@@ -81,12 +144,12 @@ describe('UiRippleDirective', () => {
         };
         vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue(mockAnimation as unknown as Animation);
 
-        button.dispatchEvent(new MouseEvent('click', { clientX: 50, clientY: 25, bubbles: true }));
+        clickAt(button, 50, 25);
         fixture.detectChanges();
 
         expect(button.querySelector('span')).toBeTruthy();
 
-        if (finishCallback) finishCallback();
+        finishCallback?.();
 
         expect(button.querySelector('span')).toBeFalsy();
     });
@@ -96,7 +159,23 @@ describe('UiRippleDirective', () => {
         fixture.detectChanges();
 
         const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate');
-        button.dispatchEvent(new MouseEvent('click', { clientX: 50, clientY: 25, bubbles: true }));
+        clickAt(button, 50, 25);
+        fixture.detectChanges();
+
+        expect(button.querySelector('span')).toBeFalsy();
+        expect(animateSpy).not.toHaveBeenCalled();
+    });
+
+    it('should not create a ripple when the user prefers reduced motion', () => {
+        Object.defineProperty(globalThis, 'matchMedia', {
+            configurable: true,
+            writable: true,
+            value: (query: string): MediaQueryList =>
+                ({ matches: true, media: query } as unknown as MediaQueryList),
+        });
+
+        const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate');
+        clickAt(button, 50, 25);
         fixture.detectChanges();
 
         expect(button.querySelector('span')).toBeFalsy();
@@ -107,10 +186,10 @@ describe('UiRippleDirective', () => {
         host.color.set('rgba(0, 0, 255, 0.5)');
         fixture.detectChanges();
 
-        const mockAnimation = { onfinish: null as (() => void) | null };
+        const mockAnimation: MockAnimation = { onfinish: null };
         vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue(mockAnimation as unknown as Animation);
 
-        button.dispatchEvent(new MouseEvent('click', { clientX: 50, clientY: 25, bubbles: true }));
+        clickAt(button, 50, 25);
         fixture.detectChanges();
 
         const ripple = button.querySelector<HTMLSpanElement>('span')!;
@@ -121,15 +200,33 @@ describe('UiRippleDirective', () => {
         host.duration.set(300);
         fixture.detectChanges();
 
-        const mockAnimation = { onfinish: null as (() => void) | null };
-        const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue(mockAnimation as unknown as Animation);
+        const mockAnimation: MockAnimation = { onfinish: null };
+        const animateSpy = vi
+            .spyOn(HTMLElement.prototype, 'animate')
+            .mockReturnValue(mockAnimation as unknown as Animation);
 
-        button.dispatchEvent(new MouseEvent('click', { clientX: 50, clientY: 25, bubbles: true }));
+        clickAt(button, 50, 25);
         fixture.detectChanges();
 
         expect(animateSpy).toHaveBeenCalledWith(
             expect.any(Array),
             expect.objectContaining({ duration: 300 })
         );
+    });
+
+    it('should remove active ripples on destroy', () => {
+        const mockAnimation: MockAnimation = { onfinish: null };
+        vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue(mockAnimation as unknown as Animation);
+
+        clickAt(button, 50, 25);
+        fixture.detectChanges();
+
+        const ripple = button.querySelector<HTMLSpanElement>('span')!;
+        expect(ripple).toBeTruthy();
+        const removeSpy = vi.spyOn(ripple, 'remove');
+
+        fixture.destroy();
+
+        expect(removeSpy).toHaveBeenCalledTimes(1);
     });
 });

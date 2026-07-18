@@ -26,10 +26,55 @@ class TestHostComponent {
 })
 class InViewFalseHostComponent {}
 
+interface FakeEntry {
+    isIntersecting: boolean;
+}
+
+/**
+ * Controllable IntersectionObserver stub — jsdom has no IntersectionObserver.
+ * Instances are recorded so tests can manually fire the intersection callback,
+ * mirroring the browser's scroll-into-view timing (never auto-fires on observe).
+ */
+class FakeIntersectionObserver {
+    static readonly instances: FakeIntersectionObserver[] = [];
+    readonly observe = vi.fn();
+    readonly unobserve = vi.fn();
+    readonly disconnect = vi.fn();
+    readonly options: unknown;
+    private readonly cb: (entries: FakeEntry[]) => void;
+
+    constructor(cb: (entries: FakeEntry[]) => void, options?: unknown) {
+        this.cb = cb;
+        this.options = options;
+        FakeIntersectionObserver.instances.push(this);
+    }
+
+    trigger(isIntersecting: boolean): void {
+        this.cb([{ isIntersecting }]);
+    }
+}
+
 describe('BlurFadeComponent', () => {
     let animateSpy: ReturnType<typeof vi.spyOn>;
+    let savedAnimate: typeof HTMLElement.prototype.animate | undefined;
+    let reducedMotion = false;
 
     beforeEach(() => {
+        reducedMotion = false;
+        FakeIntersectionObserver.instances = [];
+
+        vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
+        vi.stubGlobal('matchMedia', (query: string) => ({
+            matches: query.includes('reduce') ? reducedMotion : false,
+            media: query,
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+        }));
+
+        savedAnimate = HTMLElement.prototype.animate;
+        HTMLElement.prototype.animate = function stubAnimate(): Animation {
+            return { cancel: vi.fn(), onfinish: null } as unknown as Animation;
+        };
         animateSpy = vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue({
             cancel: vi.fn(),
             onfinish: null,
@@ -38,6 +83,12 @@ describe('BlurFadeComponent', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+        if (savedAnimate) {
+            HTMLElement.prototype.animate = savedAnimate;
+        } else {
+            delete (HTMLElement.prototype as { animate?: unknown }).animate;
+        }
     });
 
     describe('when inView=true (intersection observer mode)', () => {
@@ -63,6 +114,32 @@ describe('BlurFadeComponent', () => {
             expect(animateSpy).not.toHaveBeenCalled();
         });
 
+        it('should register the host with the IntersectionObserver', () => {
+            expect(FakeIntersectionObserver.instances).toHaveLength(1);
+            const el = fixture.debugElement.query(By.directive(BlurFadeComponent)).nativeElement as HTMLElement;
+            expect(FakeIntersectionObserver.instances[0].observe).toHaveBeenCalledWith(el);
+        });
+
+        it('should use a 0.1 threshold for the observer', () => {
+            expect(FakeIntersectionObserver.instances[0].options).toEqual({ threshold: 0.1 });
+        });
+
+        it('should animate and disconnect once the host intersects', () => {
+            const observer = FakeIntersectionObserver.instances[0];
+            observer.trigger(true);
+
+            expect(animateSpy).toHaveBeenCalledTimes(1);
+            expect(observer.disconnect).toHaveBeenCalledTimes(1);
+        });
+
+        it('should not animate when the entry is not intersecting', () => {
+            const observer = FakeIntersectionObserver.instances[0];
+            observer.trigger(false);
+
+            expect(animateSpy).not.toHaveBeenCalled();
+            expect(observer.disconnect).not.toHaveBeenCalled();
+        });
+
         it('should set data-slot attribute', () => {
             const el = fixture.debugElement.query(By.directive(BlurFadeComponent));
             expect((el.nativeElement as HTMLElement).dataset['slot']).toBe('blur-fade');
@@ -84,6 +161,24 @@ describe('BlurFadeComponent', () => {
         it('should project content', () => {
             const el = fixture.debugElement.query(By.directive(BlurFadeComponent));
             expect(el.nativeElement.textContent.trim()).toBe('Fade content');
+        });
+    });
+
+    describe('when prefers-reduced-motion is set', () => {
+        it('should skip the animation and force opacity to 1', async () => {
+            reducedMotion = true;
+
+            await TestBed.configureTestingModule({
+                imports: [TestHostComponent],
+            }).compileComponents();
+
+            const fixture = TestBed.createComponent(TestHostComponent);
+            fixture.detectChanges();
+
+            const el = fixture.debugElement.query(By.directive(BlurFadeComponent)).nativeElement as HTMLElement;
+            expect(el.style.opacity).toBe('1');
+            expect(animateSpy).not.toHaveBeenCalled();
+            expect(FakeIntersectionObserver.instances).toHaveLength(0);
         });
     });
 
@@ -132,11 +227,6 @@ describe('BlurFadeComponent', () => {
                 animateSpy.mockClear();
                 TestBed.resetTestingModule();
 
-                animateSpy = vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue({
-                    cancel: vi.fn(),
-                    onfinish: null,
-                } as unknown as Animation);
-
                 @Component({
                     template: `<ui-blur-fade [inView]="false" [direction]="direction" />`,
                     imports: [BlurFadeComponent],
@@ -164,11 +254,6 @@ describe('BlurFadeComponent', () => {
         it('should pass delay to the animation options', async () => {
             TestBed.resetTestingModule();
 
-            animateSpy = vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue({
-                cancel: vi.fn(),
-                onfinish: null,
-            } as unknown as Animation);
-
             @Component({
                 template: `<ui-blur-fade [inView]="false" [direction]="'up'" [delay]="200" />`,
                 imports: [BlurFadeComponent],
@@ -190,11 +275,6 @@ describe('BlurFadeComponent', () => {
 
         it('should pass duration to the animation options', async () => {
             TestBed.resetTestingModule();
-
-            animateSpy = vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue({
-                cancel: vi.fn(),
-                onfinish: null,
-            } as unknown as Animation);
 
             @Component({
                 template: `<ui-blur-fade [inView]="false" [direction]="'up'" [duration]="800" />`,
@@ -277,10 +357,9 @@ describe('BlurFadeComponent', () => {
             const comp = fixture.debugElement.query(By.directive(BlurFadeComponent)).componentInstance as BlurFadeComponent;
 
             const opacityValues: string[] = [];
-            const origAnimate = animateSpy.getMockImplementation() ?? (() => ({ cancel: vi.fn(), onfinish: null }));
-            animateSpy.mockImplementation(function (this: HTMLElement, ...args: unknown[]) {
+            animateSpy.mockImplementation(function (this: HTMLElement): Animation {
                 opacityValues.push(el.style.opacity);
-                return (origAnimate as (...a: unknown[]) => Animation).apply(this, args);
+                return { cancel: vi.fn(), onfinish: null } as unknown as Animation;
             });
 
             comp.playAnimation();
@@ -302,6 +381,20 @@ describe('BlurFadeComponent', () => {
             fixture.destroy();
 
             expect(cancelFn).toHaveBeenCalled();
+        });
+
+        it('should disconnect the observer on destroy in intersection mode', async () => {
+            await TestBed.configureTestingModule({
+                imports: [TestHostComponent],
+            }).compileComponents();
+
+            const fixture = TestBed.createComponent(TestHostComponent);
+            fixture.detectChanges();
+
+            const observer = FakeIntersectionObserver.instances[0];
+            fixture.destroy();
+
+            expect(observer.disconnect).toHaveBeenCalled();
         });
     });
 });

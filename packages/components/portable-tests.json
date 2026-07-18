@@ -8,6 +8,7 @@
     "avatar",
     "badge",
     "bento-grid",
+    "blur-fade",
     "breadcrumb",
     "button-group",
     "calendar",
@@ -21,6 +22,7 @@
     "chip-list",
     "collapsible",
     "comparison-slider",
+    "confetti",
     "date-picker",
     "dialog",
     "drawer",
@@ -34,6 +36,9 @@
     "input-otp",
     "kbd",
     "label",
+    "magnetic",
+    "marquee",
+    "meteors",
     "native-select",
     "number-input",
     "org-chart",
@@ -45,10 +50,12 @@
     "progress",
     "radar-chart",
     "radio-group",
+    "ripple",
     "scroll-progress",
     "select",
     "separator",
     "sheet",
+    "shine-border",
     "skeleton",
     "speed-dial",
     "split-button",
@@ -64,7 +71,8 @@
     "toggle-group",
     "tooltip",
     "tree",
-    "tree-select"
+    "tree-select",
+    "wobble-card"
   ],
   "coverageExceptions": {}
 }

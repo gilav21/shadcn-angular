@@ -305,6 +305,7 @@ export const registry = defineRegistry({
     description: 'Directive that bursts celebratory confetti particles on a triggered event.',
     tags: ['confetti', 'celebration', 'particles', 'animation', 'effect'],
     files: ['confetti.directive.ts'],
+    testFiles: ['confetti.directive.spec.ts'],
   },
   command: {
     name: 'command',
@@ -1069,6 +1070,7 @@ export const registry = defineRegistry({
     description: 'Animated meteor-shower background effect of streaking light trails.',
     tags: ['meteors', 'meteor', 'background', 'animation', 'effect'],
     files: ['meteors/index.ts', 'meteors/meteors.component.ts'],
+    testFiles: ['meteors/meteors.component.spec.ts'],
   },
   'shine-border': {
     name: 'shine-border',
@@ -1076,6 +1078,7 @@ export const registry = defineRegistry({
     description: 'Wrapper that draws an animated shimmering gradient border around content.',
     tags: ['shine-border', 'border', 'shine', 'glow', 'animation'],
     files: ['shine-border/index.ts', 'shine-border/shine-border.component.html', 'shine-border/shine-border.component.ts'],
+    testFiles: ['shine-border/shine-border.component.spec.ts'],
   },
   'scroll-progress': {
     name: 'scroll-progress',
@@ -1091,6 +1094,7 @@ export const registry = defineRegistry({
     description: 'Reveals content with a combined blur and fade-in entrance animation.',
     tags: ['blur-fade', 'blur', 'fade', 'animation', 'reveal'],
     files: ['blur-fade/blur-fade.component.html', 'blur-fade/blur-fade.component.ts', 'blur-fade/index.ts'],
+    testFiles: ['blur-fade/blur-fade.component.spec.ts'],
   },
   ripple: {
     name: 'ripple',
@@ -1098,6 +1102,7 @@ export const registry = defineRegistry({
     description: 'Directive adding a Material-style click ripple effect to any element.',
     tags: ['ripple', 'click', 'ink', 'animation', 'directive'],
     files: ['ripple.directive.ts'],
+    testFiles: ['ripple.directive.spec.ts'],
   },
   marquee: {
     name: 'marquee',
@@ -1105,6 +1110,7 @@ export const registry = defineRegistry({
     description: 'Continuously scrolling row of content, ideal for logo or testimonial strips.',
     tags: ['marquee', 'scroll', 'ticker', 'carousel', 'animation'],
     files: ['marquee/index.ts', 'marquee/marquee.component.html', 'marquee/marquee.component.ts'],
+    testFiles: ['marquee/marquee.component.spec.ts'],
   },
   'word-rotate': {
     name: 'word-rotate',
@@ -1133,6 +1139,7 @@ export const registry = defineRegistry({
     description: 'Card that wobbles and tilts in response to the pointer for a 3D feel.',
     tags: ['wobble-card', 'wobble', 'tilt', 'card', 'animation'],
     files: ['wobble-card/index.ts', 'wobble-card/wobble-card.component.html', 'wobble-card/wobble-card.component.ts'],
+    testFiles: ['wobble-card/wobble-card.component.spec.ts'],
   },
   magnetic: {
     name: 'magnetic',
@@ -1140,6 +1147,7 @@ export const registry = defineRegistry({
     description: 'Directive that makes an element drift toward the cursor like a magnet.',
     tags: ['magnetic', 'magnet', 'cursor', 'hover', 'directive'],
     files: ['magnetic.directive.ts'],
+    testFiles: ['magnetic.directive.spec.ts'],
   },
   orbit: {
     name: 'orbit',
