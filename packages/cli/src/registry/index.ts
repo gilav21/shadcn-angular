@@ -273,6 +273,7 @@ export const registry = defineRegistry({
     tags: ['carousel', 'slider', 'slideshow', 'gallery', 'swiper'],
     files: ['carousel/carousel.component.ts', 'carousel/carousel.locales.ts', 'carousel/index.ts', 'carousel/sub/carousel-content.component.ts', 'carousel/sub/carousel-item.component.ts', 'carousel/sub/carousel-next.component.ts', 'carousel/sub/carousel-previous.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    testFiles: ['carousel/carousel.component.spec.ts'],
   },
   checkbox: {
     name: 'checkbox',
@@ -315,6 +316,7 @@ export const registry = defineRegistry({
     tags: ['command', 'palette', 'cmdk', 'search', 'menu', 'spotlight'],
     files: ['command/command.component.ts', 'command/index.ts', 'command/sub/command-dialog.component.ts', 'command/sub/command-empty.component.ts', 'command/sub/command-group.component.ts', 'command/sub/command-input.component.ts', 'command/sub/command-item.component.css', 'command/sub/command-item.component.ts', 'command/sub/command-list.component.ts', 'command/sub/command-separator.component.ts', 'command/sub/command-shortcut.component.ts'],
     dependencies: ['dialog'],
+    testFiles: ['command/command.component.spec.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts'],
     shortcutDefinitions: [
       {
@@ -331,6 +333,7 @@ export const registry = defineRegistry({
     tags: ['context-menu', 'right-click', 'menu', 'dropdown', 'actions'],
     files: ['context-menu/context-menu.component.ts', 'context-menu/index.ts', 'context-menu/sub/context-menu-content.component.ts', 'context-menu/sub/context-menu-item.component.ts', 'context-menu/sub/context-menu-label.component.ts', 'context-menu/sub/context-menu-separator.component.ts', 'context-menu/sub/context-menu-shortcut.component.ts', 'context-menu/sub/context-menu-sub-content.component.ts', 'context-menu/sub/context-menu-sub-trigger.component.ts', 'context-menu/sub/context-menu-sub.component.ts', 'context-menu/sub/context-menu-trigger.component.ts', 'context-menu/sub/context-menu-trigger.directive.ts'],
     libFiles: ['touch.ts'],
+    testFiles: ['context-menu/context-menu.component.spec.ts', 'context-menu/context-menu.coverage.spec.ts', 'context-menu/sub/context-menu-sub-content.component.spec.ts'],
     breaking: [
       { kind: 'type', from: 'data: signal<StoredSuggestion>', to: 'data: signal<unknown>', note: 'The context-menu `data` signal is now typed `unknown`; cast or narrow it at the read site (e.g. `$any(contextMenu.data())` or a type guard).', codemod: 'none' },
     ],
@@ -510,6 +513,7 @@ export const registry = defineRegistry({
     tags: ['dropdown-menu', 'dropdown', 'menu', 'actions', 'overflow'],
     files: ['dropdown-menu/dropdown-menu.component.ts', 'dropdown-menu/index.ts', 'dropdown-menu/sub/dropdown-menu-content.component.ts', 'dropdown-menu/sub/dropdown-menu-item.component.css', 'dropdown-menu/sub/dropdown-menu-item.component.ts', 'dropdown-menu/sub/dropdown-menu-label.component.ts', 'dropdown-menu/sub/dropdown-menu-separator.component.ts', 'dropdown-menu/sub/dropdown-menu-sub-content.component.ts', 'dropdown-menu/sub/dropdown-menu-sub-trigger.component.ts', 'dropdown-menu/sub/dropdown-menu-sub.component.ts', 'dropdown-menu/sub/dropdown-menu-trigger.component.ts'],
     libFiles: ['a11y.ts', 'touch.ts'],
+    testFiles: ['dropdown-menu/dropdown-menu.component.spec.ts'],
   },
   empty: {
     name: 'empty',
@@ -565,6 +569,7 @@ export const registry = defineRegistry({
     tags: ['hover-card', 'hover', 'preview', 'popover', 'tooltip'],
     files: ['hover-card/hover-card.component.ts', 'hover-card/index.ts', 'hover-card/sub/hover-card-content.component.css', 'hover-card/sub/hover-card-content.component.ts', 'hover-card/sub/hover-card-trigger.component.ts'],
     libFiles: ['touch.ts'],
+    testFiles: ['hover-card/hover-card.component.spec.ts'],
   },
   input: {
     name: 'input',
@@ -616,6 +621,7 @@ export const registry = defineRegistry({
     tags: ['menubar', 'menu', 'toolbar', 'app-menu', 'navigation'],
     files: ['menubar/index.ts', 'menubar/menubar.component.css', 'menubar/menubar.component.ts', 'menubar/sub/menubar-content.component.ts', 'menubar/sub/menubar-item.component.css', 'menubar/sub/menubar-item.component.ts', 'menubar/sub/menubar-menu.component.ts', 'menubar/sub/menubar-separator.component.ts', 'menubar/sub/menubar-shortcut.component.ts', 'menubar/sub/menubar-sub-content.component.ts', 'menubar/sub/menubar-sub-trigger.component.css', 'menubar/sub/menubar-sub-trigger.component.ts', 'menubar/sub/menubar-sub.component.ts', 'menubar/sub/menubar-trigger.component.css', 'menubar/sub/menubar-trigger.component.ts'],
     libFiles: ['touch.ts'],
+    testFiles: ['menubar/menubar.component.spec.ts'],
   },
   'native-select': {
     name: 'native-select',
@@ -632,6 +638,7 @@ export const registry = defineRegistry({
     tags: ['navigation-menu', 'navbar', 'menu', 'links', 'navigation'],
     files: ['navigation-menu/index.ts', 'navigation-menu/navigation-menu.component.html', 'navigation-menu/navigation-menu.component.ts', 'navigation-menu/navigation-menu.service.ts', 'navigation-menu/sub/navigation-menu-content.component.css', 'navigation-menu/sub/navigation-menu-content.component.ts', 'navigation-menu/sub/navigation-menu-indicator.component.ts', 'navigation-menu/sub/navigation-menu-item.component.ts', 'navigation-menu/sub/navigation-menu-link.component.css', 'navigation-menu/sub/navigation-menu-link.component.ts', 'navigation-menu/sub/navigation-menu-list.component.ts', 'navigation-menu/sub/navigation-menu-trigger.component.css', 'navigation-menu/sub/navigation-menu-trigger.component.ts'],
     libFiles: ['touch.ts'],
+    testFiles: ['navigation-menu/navigation-menu.component.spec.ts'],
   },
   'number-input': {
     name: 'number-input',
@@ -1211,6 +1218,7 @@ export const registry = defineRegistry({
     files: ['tour/index.ts', 'tour/tour.component.html', 'tour/tour.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
+    testFiles: ['tour/tour.component.spec.ts'],
   },
   'comparison-slider': {
     name: 'comparison-slider',

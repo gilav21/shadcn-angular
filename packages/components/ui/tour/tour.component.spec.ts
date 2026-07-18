@@ -1,23 +1,92 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TourComponent, TourStep } from './tour.component';
 
-if (typeof globalThis.window !== 'undefined' && typeof globalThis.window.matchMedia === 'undefined') {
-    Object.defineProperty(globalThis.window, 'matchMedia', {
-        writable: true,
-        value: (_query: string) => ({
-            matches: false,
-            media: _query,
-            onchange: null,
-            addListener: () => { },
-            removeListener: () => { },
-            addEventListener: () => { },
-            removeEventListener: () => { },
-            dispatchEvent: () => false,
-        }),
-    });
+interface MutableRect {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+    bottom: number;
+    right: number;
+    x: number;
+    y: number;
+    toJSON(): void;
 }
+
+function makeRect(top: number, left: number, width: number, height: number): DOMRect {
+    const rect: MutableRect = {
+        top,
+        left,
+        width,
+        height,
+        bottom: top + height,
+        right: left + width,
+        x: left,
+        y: top,
+        toJSON: () => undefined,
+    };
+    return rect as unknown as DOMRect;
+}
+
+const DEFAULT_TARGET_RECT = makeRect(100, 100, 200, 50);
+const CARD_OFFSET_WIDTH = 300;
+const CARD_OFFSET_HEIGHT = 150;
+
+class ResizeObserverStub {
+    constructor(readonly callback: () => void) { }
+    observe(): void { /* no-op */ }
+    unobserve(): void { /* no-op */ }
+    disconnect(): void { /* no-op */ }
+}
+
+interface StubbableElementProto {
+    scrollIntoView?: (arg?: unknown) => void;
+}
+
+let rectSpy: ReturnType<typeof vi.spyOn>;
+let addedScrollIntoView = false;
+
+function installBrowserStubs(): void {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false,
+    }));
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+
+    const proto = Element.prototype as unknown as StubbableElementProto;
+    if (typeof proto.scrollIntoView !== 'function') {
+        proto.scrollIntoView = () => undefined;
+        addedScrollIntoView = true;
+    }
+
+    rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(DEFAULT_TARGET_RECT);
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(CARD_OFFSET_WIDTH);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(CARD_OFFSET_HEIGHT);
+}
+
+function restoreBrowserStubs(): void {
+    if (addedScrollIntoView) {
+        delete (Element.prototype as unknown as StubbableElementProto).scrollIntoView;
+        addedScrollIntoView = false;
+    }
+    vi.unstubAllGlobals();
+}
+
+beforeEach(() => {
+    installBrowserStubs();
+});
+
+afterEach(() => {
+    restoreBrowserStubs();
+});
 
 async function flush(fixture: ComponentFixture<unknown>): Promise<void> {
     fixture.detectChanges();
@@ -235,6 +304,29 @@ describe('TourComponent', () => {
         expect(tour.currentIndex()).toBe(1);
     });
 
+    it('should handle Enter key to advance', () => {
+        host.active.set(true);
+        fixture.detectChanges();
+
+        const tour = getTour(fixture);
+        const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
+        tour.onKeydown(event);
+
+        expect(tour.currentIndex()).toBe(1);
+    });
+
+    it('should ignore unrelated keys', () => {
+        host.active.set(true);
+        fixture.detectChanges();
+
+        const tour = getTour(fixture);
+        const event = new KeyboardEvent('keydown', { key: 'a', bubbles: true });
+        tour.onKeydown(event);
+
+        expect(tour.currentIndex()).toBe(0);
+        expect(event.defaultPrevented).toBe(false);
+    });
+
     it('should handle ArrowLeft key to go back', async () => {
         host.active.set(true);
         await flush(fixture);
@@ -270,6 +362,19 @@ describe('TourComponent', () => {
         expect(target?.style.outline).toContain('2px');
     });
 
+    it('should re-read the target rect on scroll and resize reposition', async () => {
+        host.active.set(true);
+        await flush(fixture);
+
+        rectSpy.mockReturnValue(makeRect(250, 150, 200, 50));
+        globalThis.window.dispatchEvent(new Event('scroll'));
+        globalThis.window.dispatchEvent(new Event('resize'));
+        await flush(fixture);
+
+        const tour = getTour(fixture);
+        expect(tour.isReady()).toBe(true);
+    });
+
     it('should move highlight from previous target when advancing', async () => {
         host.active.set(true);
         await flush(fixture);
@@ -284,6 +389,26 @@ describe('TourComponent', () => {
         expect(currentTarget?.hasAttribute('data-ui-tour-highlight')).toBe(true);
     });
 
+    it('should save and restore original inline styles on teardown', async () => {
+        const target = document.getElementById('step1');
+        target!.style.outline = '1px dotted red';
+        target!.style.borderRadius = '99px';
+        const savedOutline = target!.style.outline;
+        const savedRadius = target!.style.borderRadius;
+
+        host.active.set(true);
+        await flush(fixture);
+
+        expect(target?.style.outline).toContain('2px');
+        expect(target?.style.borderRadius).toBe('6px');
+
+        host.active.set(false);
+        fixture.detectChanges();
+
+        expect(target?.style.outline).toBe(savedOutline);
+        expect(target?.style.borderRadius).toBe(savedRadius);
+    });
+
     it('should remove highlight on teardown', async () => {
         host.active.set(true);
         await flush(fixture);
@@ -294,6 +419,16 @@ describe('TourComponent', () => {
         const target = document.getElementById('step1');
         expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(false);
         expect(target?.style.outline).toBe('');
+    });
+
+    it('should clean up highlight when the component is destroyed', async () => {
+        host.active.set(true);
+        await flush(fixture);
+
+        fixture.destroy();
+
+        const target = document.getElementById('step1');
+        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(false);
     });
 });
 
@@ -341,6 +476,127 @@ describe('TourComponent — single step', () => {
 });
 
 @Component({
+    selector: 'app-pos-host',
+    imports: [TourComponent],
+    template: `
+        <div id="pt">Positioning Target</div>
+        <ui-tour [steps]="steps()" [(active)]="active" />
+    `,
+})
+class PositioningHostComponent {
+    readonly steps = signal<TourStep[]>([{ target: '#pt', title: 'Pos' }]);
+    readonly active = signal(false);
+}
+
+describe('TourComponent — positioning', () => {
+    let fixture: ComponentFixture<PositioningHostComponent>;
+    let host: PositioningHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [PositioningHostComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(PositioningHostComponent);
+        host = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    async function activateWithRect(rect: DOMRect): Promise<TourComponent> {
+        rectSpy.mockReturnValue(rect);
+        host.active.set(true);
+        await flush(fixture);
+        return getTour(fixture);
+    }
+
+    it('places the card below a top-anchored target (default rect)', async () => {
+        const tour = await activateWithRect(makeRect(100, 100, 200, 50));
+        expect(tour.cardPos().top).toBeGreaterThan(150);
+    });
+
+    it('places the card above a bottom-anchored target', async () => {
+        const tour = await activateWithRect(makeRect(600, 400, 100, 100));
+        expect(tour.cardPos().top).toBeLessThan(600);
+    });
+
+    it('places the card to the right when there is horizontal room only', async () => {
+        const target = makeRect(100, 100, 100, 600);
+        const tour = await activateWithRect(target);
+        expect(tour.cardPos().left).toBeGreaterThan(target.right);
+    });
+
+    it('places the card to the left when only left room remains', async () => {
+        const target = makeRect(100, 800, 100, 600);
+        const tour = await activateWithRect(target);
+        expect(tour.cardPos().left).toBeLessThan(target.left);
+    });
+
+    it('clamps into the viewport when the target fills the screen', async () => {
+        const tour = await activateWithRect(makeRect(0, 0, 1024, 768));
+        const pos = tour.cardPos();
+        expect(pos.top).toBeGreaterThanOrEqual(8);
+        expect(pos.top).toBeLessThanOrEqual(768 - CARD_OFFSET_HEIGHT - 8);
+    });
+
+    it('honours an explicit side override on the step', async () => {
+        host.steps.set([{ target: '#pt', title: 'Pos', side: 'bottom' }]);
+        fixture.detectChanges();
+        const target = makeRect(100, 100, 200, 50);
+        const tour = await activateWithRect(target);
+        expect(tour.cardPos().top).toBeGreaterThan(target.bottom - CARD_OFFSET_HEIGHT);
+    });
+
+    it('applies position:relative to a statically-positioned target', async () => {
+        await activateWithRect(makeRect(100, 100, 200, 50));
+        const target = document.getElementById('pt');
+        expect(target?.style.position).toBe('relative');
+    });
+});
+
+@Component({
+    selector: 'app-test-host-skipahead',
+    imports: [TourComponent],
+    template: `
+        <div id="present" style="position:fixed;top:100px;left:100px;width:200px;height:50px;">Present</div>
+        <ui-tour [steps]="steps" [(active)]="active" (stepChange)="onStepChange($event)" />
+    `,
+})
+class TestHostSkipAheadComponent {
+    readonly steps: TourStep[] = [
+        { target: '#absent', title: 'Missing First' },
+        { target: '#present', title: 'Present Second' },
+    ];
+    readonly active = signal(false);
+    lastStepChange = -1;
+
+    onStepChange(index: number): void {
+        this.lastStepChange = index;
+    }
+}
+
+describe('TourComponent — skip missing target', () => {
+    it('warns and advances to the next resolvable step', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+        await TestBed.configureTestingModule({
+            imports: [TestHostSkipAheadComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostSkipAheadComponent);
+        const host = fixture.componentInstance;
+        fixture.detectChanges();
+
+        host.active.set(true);
+        await flush(fixture);
+
+        const tour = getTour(fixture);
+        expect(tour.currentIndex()).toBe(1);
+        expect(host.lastStepChange).toBe(1);
+        expect(host.active()).toBe(true);
+        expect(warnSpy).toHaveBeenCalled();
+    });
+});
+
+@Component({
     selector: 'app-test-host-missing',
     imports: [TourComponent],
     template: `
@@ -364,6 +620,7 @@ describe('TourComponent — missing target', () => {
     let host: TestHostMissingTargetComponent;
 
     beforeEach(async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
         await TestBed.configureTestingModule({
             imports: [TestHostMissingTargetComponent],
         }).compileComponents();
@@ -492,7 +749,6 @@ describe('TourComponent — i18n integration', () => {
         await flush(fixture);
         const card = document.querySelector('[data-slot="tour-card"]') as HTMLElement;
         expect(card.textContent).toContain('CUSTOM_NEXT');
-        // skip still falls through to the locale dictionary
         expect(card.textContent).toContain('דלג');
     });
 });

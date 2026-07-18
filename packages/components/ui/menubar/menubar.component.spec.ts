@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import {
     MenubarComponent,
+    MenubarService,
     MenubarMenuComponent,
     MenubarTriggerComponent,
     MenubarContentComponent,
@@ -9,13 +10,69 @@ import {
     MenubarShortcutComponent,
     MenubarSubComponent,
     MenubarSubTriggerComponent,
-    MenubarSubContentComponent
+    MenubarSubContentComponent,
 } from './';
-import { Component, signal } from '@angular/core';
+import { Component, Type } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Basic test host
+type ProtoWithPopover = { showPopover?: () => void; hidePopover?: () => void };
+
+const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+const proto = HTMLElement.prototype as unknown as ProtoWithPopover;
+const hadShowPopover = 'showPopover' in proto;
+const hadHidePopover = 'hidePopover' in proto;
+const originalShowPopover = proto.showPopover;
+const originalHidePopover = proto.hidePopover;
+
+function stubMatchMedia(coarse: boolean): void {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('coarse') ? coarse : false,
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+    }));
+}
+
+function installStubs(): void {
+    stubMatchMedia(false);
+    Element.prototype.getBoundingClientRect = () =>
+        ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    proto.showPopover = () => undefined;
+    proto.hidePopover = () => undefined;
+}
+
+function restoreStubs(): void {
+    vi.unstubAllGlobals();
+    Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+    if (hadShowPopover) {
+        proto.showPopover = originalShowPopover;
+    } else {
+        delete proto.showPopover;
+    }
+    if (hadHidePopover) {
+        proto.hidePopover = originalHidePopover;
+    } else {
+        delete proto.hidePopover;
+    }
+}
+
+function keydown(el: Element, key: string): void {
+    el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+}
+
+function fireClick(el: Element): void {
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+function fireMouse(el: Element, type: 'mouseenter' | 'mouseleave'): void {
+    el.dispatchEvent(new MouseEvent(type, { bubbles: true }));
+}
+
 @Component({
     template: `
         <ui-menubar>
@@ -23,12 +80,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
                 <ui-menubar-trigger>File</ui-menubar-trigger>
                 <ui-menubar-content>
                     <ui-menubar-item>New</ui-menubar-item>
-                    <ui-menubar-item>
-                        Open
-                        <ui-menubar-shortcut>⌘O</ui-menubar-shortcut>
-                    </ui-menubar-item>
+                    <ui-menubar-item shortcut="⌘O">Open</ui-menubar-item>
                     <ui-menubar-separator />
                     <ui-menubar-item [disabled]="true">Save</ui-menubar-item>
+                    <ui-menubar-shortcut>⌘S</ui-menubar-shortcut>
                 </ui-menubar-content>
             </ui-menubar-menu>
             <ui-menubar-menu>
@@ -40,11 +95,19 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
             </ui-menubar-menu>
         </ui-menubar>
     `,
-    imports: [MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSeparatorComponent, MenubarShortcutComponent]
+    imports: [MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSeparatorComponent, MenubarShortcutComponent],
 })
 class TestHostComponent { }
 
-// Submenu test host with 3-level deep structure
+@Component({
+    template: `
+        <ui-menubar-item [disabled]="true">Disabled</ui-menubar-item>
+        <ui-menubar-item shortcut="⌘X" inset>Loose</ui-menubar-item>
+    `,
+    imports: [MenubarItemComponent],
+})
+class LooseItemHostComponent { }
+
 @Component({
     template: `
         <ui-menubar>
@@ -53,22 +116,10 @@ class TestHostComponent { }
                 <ui-menubar-content>
                     <ui-menubar-item>New File</ui-menubar-item>
                     <ui-menubar-sub>
-                        <ui-menubar-sub-trigger>Share</ui-menubar-sub-trigger>
+                        <ui-menubar-sub-trigger inset>Share</ui-menubar-sub-trigger>
                         <ui-menubar-sub-content>
                             <ui-menubar-item>Email</ui-menubar-item>
                             <ui-menubar-item>Link</ui-menubar-item>
-                            <ui-menubar-sub>
-                                <ui-menubar-sub-trigger>Social</ui-menubar-sub-trigger>
-                                <ui-menubar-sub-content>
-                                    <ui-menubar-item>Twitter</ui-menubar-item>
-                                    <ui-menubar-sub>
-                                        <ui-menubar-sub-trigger>More</ui-menubar-sub-trigger>
-                                        <ui-menubar-sub-content>
-                                            <ui-menubar-item>Level 3 Item</ui-menubar-item>
-                                        </ui-menubar-sub-content>
-                                    </ui-menubar-sub>
-                                </ui-menubar-sub-content>
-                            </ui-menubar-sub>
                         </ui-menubar-sub-content>
                     </ui-menubar-sub>
                 </ui-menubar-content>
@@ -81,630 +132,527 @@ class TestHostComponent { }
             </ui-menubar-menu>
         </ui-menubar>
     `,
-    imports: [MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSubComponent, MenubarSubTriggerComponent, MenubarSubContentComponent]
+    imports: [MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSubComponent, MenubarSubTriggerComponent, MenubarSubContentComponent],
 })
 class SubmenuTestHostComponent { }
 
-// RTL test host with submenus
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-menubar>
-                <ui-menubar-menu>
-                    <ui-menubar-trigger>ملف</ui-menubar-trigger>
-                    <ui-menubar-content>
-                        <ui-menubar-item>
-                            جديد
-                            <ui-menubar-shortcut>⌘N</ui-menubar-shortcut>
-                        </ui-menubar-item>
-                        <ui-menubar-sub>
-                            <ui-menubar-sub-trigger>مشاركة</ui-menubar-sub-trigger>
-                            <ui-menubar-sub-content>
-                                <ui-menubar-item>بريد إلكتروني</ui-menubar-item>
-                                <ui-menubar-sub>
-                                    <ui-menubar-sub-trigger>شبكات اجتماعية</ui-menubar-sub-trigger>
-                                    <ui-menubar-sub-content>
-                                        <ui-menubar-item>تويتر</ui-menubar-item>
-                                        <ui-menubar-sub>
-                                            <ui-menubar-sub-trigger>المزيد</ui-menubar-sub-trigger>
-                                            <ui-menubar-sub-content>
-                                                <ui-menubar-item>عنصر المستوى 3</ui-menubar-item>
-                                            </ui-menubar-sub-content>
-                                        </ui-menubar-sub>
-                                    </ui-menubar-sub-content>
-                                </ui-menubar-sub>
-                            </ui-menubar-sub-content>
-                        </ui-menubar-sub>
-                    </ui-menubar-content>
-                </ui-menubar-menu>
-                <ui-menubar-menu>
-                    <ui-menubar-trigger>تحرير</ui-menubar-trigger>
-                    <ui-menubar-content>
-                        <ui-menubar-item>تراجع</ui-menubar-item>
-                    </ui-menubar-content>
-                </ui-menubar-menu>
-            </ui-menubar>
-        </div>
-    `,
-    imports: [MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarShortcutComponent, MenubarSubComponent, MenubarSubTriggerComponent, MenubarSubContentComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
+function createFixture<T>(type: Type<T>): ComponentFixture<T> {
+    TestBed.configureTestingModule({ imports: [type] });
+    const fixture = TestBed.createComponent(type);
+    fixture.detectChanges();
+    return fixture;
 }
 
+function menuInstance(fixture: ComponentFixture<unknown>): MenubarMenuComponent {
+    return fixture.debugElement.query(By.directive(MenubarMenuComponent)).componentInstance as MenubarMenuComponent;
+}
+
+function serviceInstance(fixture: ComponentFixture<unknown>): MenubarService {
+    return (fixture.debugElement.query(By.directive(MenubarComponent)).componentInstance as MenubarComponent).service;
+}
+
+function openFirstMenu(fixture: ComponentFixture<unknown>): MenubarMenuComponent {
+    const menu = menuInstance(fixture);
+    menu.open();
+    fixture.detectChanges();
+    return menu;
+}
+
+describe('MenubarService', () => {
+    it('returns false for isRtl when no root is registered', () => {
+        const svc = new MenubarService();
+        expect(svc.isRtl()).toBe(false);
+    });
+
+    it('evaluates the root element direction once a root is registered', () => {
+        const svc = new MenubarService();
+        svc.registerRoot(document.createElement('div'));
+        expect(svc.isRtl()).toBe(false);
+    });
+
+    it('registers, activates and unregisters menus', () => {
+        const svc = new MenubarService();
+        const fakeTrigger = {} as MenubarTriggerComponent;
+        svc.register('m1', fakeTrigger);
+        expect(svc.menus.has('m1')).toBe(true);
+        svc.setActive('m1');
+        expect(svc.isActive('m1')).toBe(true);
+        svc.unregister('m1');
+        expect(svc.menus.has('m1')).toBe(false);
+    });
+});
+
 describe('MenubarComponent', () => {
-    let component: MenubarComponent;
     let fixture: ComponentFixture<MenubarComponent>;
 
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [MenubarComponent]
-        }).compileComponents();
-
+    beforeEach(() => {
+        installStubs();
+        TestBed.configureTestingModule({ imports: [MenubarComponent] });
         fixture = TestBed.createComponent(MenubarComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        expect(component).toBeTruthy();
+    afterEach(() => {
+        fixture.destroy();
+        restoreStubs();
     });
 
-    it('should have role="menubar"', () => {
-        const menubar = fixture.nativeElement.querySelector('[role="menubar"]');
-        expect(menubar).toBeTruthy();
+    it('renders a role="menubar" container with a data-slot', () => {
+        const el = fixture.nativeElement as HTMLElement;
+        expect(el.querySelector('[role="menubar"]')).toBeTruthy();
+        expect(el.querySelector('[data-slot="menubar"]')).toBeTruthy();
     });
 
-    it('should have data-slot="menubar"', () => {
-        const menubar = fixture.nativeElement.querySelector('[data-slot="menubar"]');
-        expect(menubar).toBeTruthy();
+    it('applies the custom class input', () => {
+        fixture.componentRef.setInput('class', 'custom-menubar');
+        fixture.detectChanges();
+        const el = fixture.nativeElement.querySelector('[data-slot="menubar"]') as HTMLElement;
+        expect(el.className).toContain('custom-menubar');
+    });
+
+    it('ignores document clicks when no menu is active', () => {
+        const component = fixture.componentInstance;
+        component.onClick({ target: document.body } as unknown as MouseEvent);
+        expect(component.service.activeMenuId()).toBeNull();
+    });
+
+    it('closes the active menu on an outside document click', () => {
+        const component = fixture.componentInstance;
+        component.service.setActive('menu-x');
+        component.onClick({ target: document.body } as unknown as MouseEvent);
+        expect(component.service.activeMenuId()).toBeNull();
+    });
+
+    it('keeps the active menu open when the click is inside the menubar', () => {
+        const component = fixture.componentInstance;
+        component.service.setActive('menu-x');
+        component.onClick({ target: component.el.nativeElement } as unknown as MouseEvent);
+        expect(component.service.activeMenuId()).toBe('menu-x');
     });
 });
 
-describe('Menubar Integration', () => {
+describe('Menubar rendering and menu open/close', () => {
     let fixture: ComponentFixture<TestHostComponent>;
 
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [TestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(TestHostComponent);
-        fixture.detectChanges();
+    beforeEach(() => {
+        installStubs();
+        fixture = createFixture(TestHostComponent);
     });
 
-    it('should render menu triggers', () => {
-        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'));
-        expect(triggers).toHaveLength(2);
+    afterEach(() => {
+        fixture.destroy();
+        restoreStubs();
     });
 
-    it('should not show content when closed', () => {
-        const content = fixture.debugElement.query(By.css('[data-slot="menubar-content"]'));
-        expect(content).toBeNull();
+    it('renders both triggers and hides content while closed', () => {
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'))).toHaveLength(2);
+        expect(fixture.debugElement.query(By.css('[data-slot="menubar-content"]'))).toBeNull();
     });
 
-    it('should open menu on trigger click', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="menubar-trigger"]'));
-        trigger.nativeElement.click();
+    it('opens a menu on trigger click and toggles it closed again', () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="menubar-trigger"]')).nativeElement as HTMLElement;
+        fireClick(trigger);
         fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="menubar-content"]'));
-        expect(content).toBeTruthy();
+        expect(fixture.debugElement.query(By.css('[data-slot="menubar-content"]'))).toBeTruthy();
+        fireClick(trigger);
+        fixture.detectChanges();
+        expect(fixture.debugElement.query(By.css('[data-slot="menubar-content"]'))).toBeNull();
     });
 
-    it('should render menu items', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="menubar-item"]'));
-        expect(items).toHaveLength(3);
+    it('renders items, separator, shortcut input and shortcut component when open', () => {
+        openFirstMenu(fixture);
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="menubar-item"]'))).toHaveLength(3);
+        expect(fixture.debugElement.query(By.css('[data-slot="menubar-separator"]'))).toBeTruthy();
+        expect(fixture.debugElement.query(By.css('[data-slot="menubar-shortcut"]'))).toBeTruthy();
+        const inlineShortcut = fixture.nativeElement.querySelector('.ms-auto') as HTMLElement;
+        expect(inlineShortcut.textContent).toContain('⌘O');
     });
 
-    it('should render separator', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const separator = fixture.debugElement.query(By.css('[data-slot="menubar-separator"]'));
-        expect(separator).toBeTruthy();
+    it('marks disabled items with data-disabled', () => {
+        openFirstMenu(fixture);
+        expect(fixture.debugElement.query(By.css('[data-disabled]'))).toBeTruthy();
     });
 
-    it('should render shortcut', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
+    it('closes the menu when a non-disabled item is clicked', () => {
+        const menu = openFirstMenu(fixture);
+        const item = fixture.debugElement.query(By.css('[data-slot="menubar-item"]:not([data-disabled])')).nativeElement as HTMLElement;
+        fireClick(item);
         fixture.detectChanges();
-        await fixture.whenStable();
-
-        const shortcut = fixture.debugElement.query(By.css('[data-slot="menubar-shortcut"]'));
-        expect(shortcut).toBeTruthy();
-        expect(shortcut.nativeElement.textContent).toContain('⌘O');
+        expect(menu.isOpen()).toBe(false);
     });
 
-    it('should mark disabled items', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
+    it('menu.toggle() closes an already open menu', () => {
+        const menu = openFirstMenu(fixture);
+        expect(menu.isOpen()).toBe(true);
+        menu.toggle();
         fixture.detectChanges();
-        await fixture.whenStable();
-
-        const disabledItem = fixture.debugElement.query(By.css('[data-disabled]'));
-        expect(disabledItem).toBeTruthy();
+        expect(menu.isOpen()).toBe(false);
     });
 
-    it('should close menu on item click', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const item = fixture.debugElement.query(By.css('[data-slot="menubar-item"]:not([data-disabled])'));
-        item.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(menuComp.componentInstance.isOpen()).toBe(false);
+    it('menu.close() is a no-op when the menu is already closed', () => {
+        const menu = menuInstance(fixture);
+        menu.close();
+        expect(menu.isOpen()).toBe(false);
     });
 });
 
-describe('Menubar Keyboard Navigation', () => {
+describe('Menubar item edge cases', () => {
+    let fixture: ComponentFixture<LooseItemHostComponent>;
+
+    beforeEach(() => {
+        installStubs();
+        fixture = createFixture(LooseItemHostComponent);
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        restoreStubs();
+    });
+
+    it('does not emit selected for a disabled item', () => {
+        const items = fixture.debugElement.queryAll(By.directive(MenubarItemComponent));
+        const disabled = items[0].componentInstance as MenubarItemComponent;
+        const spy = vi.fn();
+        disabled.selected.subscribe(spy);
+        disabled.onClick();
+        expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('emits selected and tolerates a missing parent menu', () => {
+        const items = fixture.debugElement.queryAll(By.directive(MenubarItemComponent));
+        const loose = items[1].componentInstance as MenubarItemComponent;
+        const spy = vi.fn();
+        loose.selected.subscribe(spy);
+        loose.onClick();
+        expect(spy).toHaveBeenCalledTimes(1);
+        const el = items[1].nativeElement.querySelector('[data-slot="menubar-item"]') as HTMLElement;
+        expect(el.className).toContain('rtl:pr-8');
+        expect((items[1].nativeElement.querySelector('.ms-auto') as HTMLElement).textContent).toContain('⌘X');
+    });
+});
+
+describe('Menubar trigger interactions', () => {
     let fixture: ComponentFixture<TestHostComponent>;
 
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [TestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(TestHostComponent);
-        fixture.detectChanges();
+    beforeEach(() => {
+        vi.useFakeTimers();
+        installStubs();
+        fixture = createFixture(TestHostComponent);
     });
 
-    it('should open menu with Enter key on trigger', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="menubar-trigger"]'));
-        trigger.nativeElement.focus();
-        trigger.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        expect(menuComp.componentInstance.isOpen()).toBe(true);
+    afterEach(() => {
+        fixture.destroy();
+        vi.clearAllTimers();
+        restoreStubs();
     });
 
-    it('should open menu with ArrowDown key on trigger', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="menubar-trigger"]'));
-        trigger.nativeElement.focus();
-        trigger.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    it('opens the menu with Enter and focuses the first item', () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="menubar-trigger"]')).nativeElement as HTMLElement;
+        keydown(trigger, 'Enter');
         fixture.detectChanges();
-        await fixture.whenStable();
-
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        expect(menuComp.componentInstance.isOpen()).toBe(true);
+        vi.advanceTimersByTime(1);
+        expect(menuInstance(fixture).isOpen()).toBe(true);
+        const firstItem = fixture.nativeElement.querySelector('[data-menubar-content] [role="menuitem"]') as HTMLElement;
+        expect(document.activeElement).toBe(firstItem);
     });
 
-    it('should navigate to next trigger with ArrowRight in LTR', async () => {
+    it('opens the menu with ArrowDown', () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="menubar-trigger"]')).nativeElement as HTMLElement;
+        keydown(trigger, 'ArrowDown');
+        fixture.detectChanges();
+        vi.advanceTimersByTime(1);
+        expect(menuInstance(fixture).isOpen()).toBe(true);
+    });
+
+    it('moves focus to the next trigger with ArrowRight (LTR, closed)', () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'));
         triggers[0].nativeElement.focus();
-        triggers[0].nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
+        keydown(triggers[0].nativeElement, 'ArrowRight');
         expect(document.activeElement).toBe(triggers[1].nativeElement);
     });
 
-    it('should navigate to previous trigger with ArrowLeft in LTR', async () => {
+    it('moves focus to the previous trigger with ArrowLeft (LTR, closed)', () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'));
         triggers[1].nativeElement.focus();
-        triggers[1].nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
+        keydown(triggers[1].nativeElement, 'ArrowLeft');
         expect(document.activeElement).toBe(triggers[0].nativeElement);
     });
 
-    it('should close menu with Escape key', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const content = fixture.debugElement.query(By.css('[data-slot="menubar-content"]'));
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(menuComp.componentInstance.isOpen()).toBe(false);
+    it('reverses ArrowRight/ArrowLeft direction in RTL', () => {
+        vi.spyOn(serviceInstance(fixture), 'isRtl').mockReturnValue(true);
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'));
+        triggers[0].nativeElement.focus();
+        keydown(triggers[0].nativeElement, 'ArrowRight');
+        expect(document.activeElement).toBe(triggers[1].nativeElement);
+        keydown(triggers[1].nativeElement, 'ArrowLeft');
+        expect(document.activeElement).toBe(triggers[0].nativeElement);
     });
 
-    it('should navigate items with ArrowDown in content', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
+    it('activates the adjacent menu when navigating with a menu already open', () => {
+        openFirstMenu(fixture);
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'));
+        keydown(triggers[0].nativeElement, 'ArrowRight');
         fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
+        expect(document.activeElement).toBe(triggers[1].nativeElement);
+        expect(serviceInstance(fixture).activeMenuId()).toBeTruthy();
+    });
 
+    it('opens the hovered trigger only while another menu is active on a non-touch device', () => {
+        const triggerDe = fixture.debugElement.queryAll(By.directive(MenubarTriggerComponent))[1];
+        const triggerComp = triggerDe.componentInstance as MenubarTriggerComponent;
+        triggerComp.onMouseEnter();
+        expect(triggerComp.menu.isOpen()).toBe(false);
+        serviceInstance(fixture).setActive('menubar-menu-0');
+        triggerComp.onMouseEnter();
+        expect(serviceInstance(fixture).activeMenuId()).toBe(triggerComp.menu.id);
+    });
+
+    it('ignores hover on touch devices', () => {
+        stubMatchMedia(true);
+        const triggerComp = fixture.debugElement.queryAll(By.directive(MenubarTriggerComponent))[1].componentInstance as MenubarTriggerComponent;
+        serviceInstance(fixture).setActive('menubar-menu-0');
+        triggerComp.onMouseEnter();
+        expect(triggerComp.menu.isOpen()).toBe(false);
+    });
+});
+
+describe('Menubar content keyboard navigation', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+    let content: MenubarContentComponent;
+
+    beforeEach(() => {
+        installStubs();
+        fixture = createFixture(TestHostComponent);
+        openFirstMenu(fixture);
+        content = fixture.debugElement.query(By.directive(MenubarContentComponent)).componentInstance as MenubarContentComponent;
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        restoreStubs();
+    });
+
+    it('cycles items with ArrowDown and ArrowUp', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="menubar-item"]:not([data-disabled])'));
         items[0].nativeElement.focus();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="menubar-content"]'));
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        // Menu should still be open
-        expect(menuComp.componentInstance.isOpen()).toBe(true);
+        keydown(items[0].nativeElement, 'ArrowDown');
+        expect(document.activeElement).toBe(items[1].nativeElement);
+        keydown(items[1].nativeElement, 'ArrowUp');
+        expect(document.activeElement).toBe(items[0].nativeElement);
     });
 
-    it('should navigate items with ArrowUp in content', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
+    it('closes the menu and refocuses the trigger on Escape', () => {
+        const menu = menuInstance(fixture);
+        const contentEl = fixture.debugElement.query(By.css('[data-slot="menubar-content"]')).nativeElement as HTMLElement;
+        keydown(contentEl, 'Escape');
         fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const items = fixture.debugElement.queryAll(By.css('[data-slot="menubar-item"]:not([data-disabled])'));
-        items[1].nativeElement.focus();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="menubar-content"]'));
-        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(menuComp.componentInstance.isOpen()).toBe(true);
-    });
-});
-
-describe('Menubar Submenu (LTR)', () => {
-    let fixture: ComponentFixture<SubmenuTestHostComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [SubmenuTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(SubmenuTestHostComponent);
-        fixture.detectChanges();
+        expect(menu.isOpen()).toBe(false);
+        const trigger = fixture.debugElement.query(By.css('[data-slot="menubar-trigger"]')).nativeElement as HTMLElement;
+        expect(document.activeElement).toBe(trigger);
     });
 
-    it('should render submenu trigger', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const subTriggers = fixture.debugElement.queryAll(By.directive(MenubarSubTriggerComponent));
-        expect(subTriggers.length).toBeGreaterThan(0);
-    });
-
-    it('should open submenu on hover', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const subComp = fixture.debugElement.query(By.directive(MenubarSubComponent));
-        subComp.componentInstance.enter();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(subComp.componentInstance.isOpen()).toBe(true);
-    });
-
-    it('should open submenu with ArrowRight in LTR', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const subTrigger = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent));
-        const subComp = fixture.debugElement.query(By.directive(MenubarSubComponent));
-
-        const triggerEl = subTrigger.nativeElement.querySelector('[role="menuitem"]');
-        triggerEl.focus();
-        triggerEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        expect(subComp.componentInstance.isOpen()).toBe(true);
-    });
-
-    it('should open submenu with Enter key', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const subTrigger = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent));
-        const subComp = fixture.debugElement.query(By.directive(MenubarSubComponent));
-
-        const triggerEl = subTrigger.nativeElement.querySelector('[role="menuitem"]');
-        triggerEl.focus();
-        triggerEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        expect(subComp.componentInstance.isOpen()).toBe(true);
-    });
-
-    it('should close submenu with ArrowLeft in LTR', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const subComp = fixture.debugElement.query(By.directive(MenubarSubComponent));
-        subComp.componentInstance.enter();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const subContent = fixture.debugElement.query(By.directive(MenubarSubContentComponent));
-        const menuEl = subContent.nativeElement.querySelector('[role="menu"]');
-        menuEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 150));
-
-        expect(subComp.componentInstance.isOpen()).toBe(false);
-    });
-
-    it('should support 3-level deep submenu navigation', async () => {
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const subComps = fixture.debugElement.queryAll(By.directive(MenubarSubComponent));
-
-        // Open level 1 submenu
-        subComps[0].componentInstance.enter();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(subComps[0].componentInstance.isOpen()).toBe(true);
-    });
-});
-
-describe('Menubar RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should open menu in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const trigger = fixture.debugElement.query(By.css('[data-slot="menubar-trigger"]'));
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const content = fixture.debugElement.query(By.css('[data-slot="menubar-content"]'));
-        expect(content).toBeTruthy();
-    });
-
-    it('should have shortcut with RTL margin class', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const shortcut = fixture.debugElement.query(By.css('[data-slot="menubar-shortcut"]'));
-        expect(shortcut).toBeTruthy();
-        // The shortcut span has ltr:ml-auto rtl:mr-auto
-        expect(shortcut.nativeElement.className).toContain('rtl:mr-auto');
-    });
-
-    it('should navigate to previous trigger with ArrowRight in RTL (opposite of LTR)', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
+    it('moves between menus with ArrowRight/ArrowLeft from content (LTR)', () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'));
-        triggers[0].nativeElement.focus();
-        triggers[0].nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        const contentEl = fixture.debugElement.query(By.css('[data-slot="menubar-content"]')).nativeElement as HTMLElement;
+        keydown(contentEl, 'ArrowRight');
         fixture.detectChanges();
-        await fixture.whenStable();
-
-        // In RTL, ArrowRight should go to the previous trigger (opposite of LTR)
         expect(document.activeElement).toBe(triggers[1].nativeElement);
-    });
-
-    it('should navigate to next trigger with ArrowLeft in RTL (opposite of LTR)', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
+        keydown(fixture.debugElement.query(By.css('[data-slot="menubar-content"]')).nativeElement, 'ArrowLeft');
         fixture.detectChanges();
-        await fixture.whenStable();
-
-        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'));
-        triggers[1].nativeElement.focus();
-        triggers[1].nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        // In RTL, ArrowLeft should go to the next trigger (opposite of LTR)
         expect(document.activeElement).toBe(triggers[0].nativeElement);
     });
+
+    it('reverses ArrowRight/ArrowLeft from content in RTL', () => {
+        vi.spyOn(serviceInstance(fixture), 'isRtl').mockReturnValue(true);
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'));
+        const contentEl = fixture.debugElement.query(By.css('[data-slot="menubar-content"]')).nativeElement as HTMLElement;
+        keydown(contentEl, 'ArrowLeft');
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(triggers[1].nativeElement);
+        keydown(fixture.debugElement.query(By.css('[data-slot="menubar-content"]')).nativeElement, 'ArrowRight');
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(triggers[0].nativeElement);
+    });
+
+    it('returns an empty list of focusable items when the menu is closed', () => {
+        menuInstance(fixture).close();
+        fixture.detectChanges();
+        expect(content.getFocusableItems()).toHaveLength(0);
+    });
 });
 
-describe('Menubar Submenu RTL Keyboard Navigation', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
+describe('Menubar submenu', () => {
+    let fixture: ComponentFixture<SubmenuTestHostComponent>;
+    let sub: MenubarSubComponent;
+    let subTrigger: MenubarSubTriggerComponent;
+    let subContent: MenubarSubContentComponent;
 
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
+    beforeEach(() => {
+        vi.useFakeTimers();
+        installStubs();
+        fixture = createFixture(SubmenuTestHostComponent);
+        openFirstMenu(fixture);
+        sub = fixture.debugElement.query(By.directive(MenubarSubComponent)).componentInstance as MenubarSubComponent;
+        subTrigger = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent)).componentInstance as MenubarSubTriggerComponent;
+        subContent = fixture.debugElement.query(By.directive(MenubarSubContentComponent)).componentInstance as MenubarSubContentComponent;
     });
 
     afterEach(() => {
-        document.documentElement.removeAttribute('dir');
+        fixture.destroy();
+        vi.clearAllTimers();
+        restoreStubs();
     });
 
-    it('should open submenu with ArrowLeft in RTL (opposite of LTR)', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
+    it('opens on hover and closes after the leave delay (non-touch)', () => {
+        subTrigger.onMouseEnter();
         fixture.detectChanges();
-        await fixture.whenStable();
-
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
+        expect(sub.isOpen()).toBe(true);
+        subTrigger.onMouseLeave();
+        vi.advanceTimersByTime(100);
         fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const subTrigger = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent));
-        const subComp = fixture.debugElement.query(By.directive(MenubarSubComponent));
-
-        const triggerEl = subTrigger.nativeElement.querySelector('[role="menuitem"]');
-        triggerEl.focus();
-        triggerEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        expect(subComp.componentInstance.isOpen()).toBe(true);
+        expect(sub.isOpen()).toBe(false);
     });
 
-    it('should NOT open submenu with ArrowRight in RTL (reserved for closing)', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const subTrigger = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent));
-        const subComp = fixture.debugElement.query(By.directive(MenubarSubComponent));
-
-        const triggerEl = subTrigger.nativeElement.querySelector('[role="menuitem"]');
-        triggerEl.focus();
-        triggerEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Should remain closed
-        expect(subComp.componentInstance.isOpen()).toBe(false);
+    it('ignores hover interactions on touch devices', () => {
+        stubMatchMedia(true);
+        subTrigger.onMouseEnter();
+        expect(sub.isOpen()).toBe(false);
+        sub.enter();
+        subTrigger.onMouseLeave();
+        vi.advanceTimersByTime(100);
+        expect(sub.isOpen()).toBe(true);
     });
 
-    it('should close submenu with ArrowRight in RTL (opposite of LTR)', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const subComp = fixture.debugElement.query(By.directive(MenubarSubComponent));
-        subComp.componentInstance.enter();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        expect(subComp.componentInstance.isOpen()).toBe(true);
-
-        const subContent = fixture.debugElement.query(By.directive(MenubarSubContentComponent));
-        const menuEl = subContent.nativeElement.querySelector('[role="menu"]');
-        menuEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 150));
-
-        expect(subComp.componentInstance.isOpen()).toBe(false);
+    it('toggles the submenu on tap for touch devices', () => {
+        stubMatchMedia(true);
+        subTrigger.onClick();
+        expect(sub.isOpen()).toBe(true);
+        subTrigger.onClick();
+        vi.advanceTimersByTime(100);
+        expect(sub.isOpen()).toBe(false);
     });
 
-    it('should still open submenu with Enter key in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        const subTrigger = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent));
-        const subComp = fixture.debugElement.query(By.directive(MenubarSubComponent));
-
-        const triggerEl = subTrigger.nativeElement.querySelector('[role="menuitem"]');
-        triggerEl.focus();
-        triggerEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        expect(subComp.componentInstance.isOpen()).toBe(true);
+    it('ignores tap clicks on non-touch devices', () => {
+        subTrigger.onClick();
+        expect(sub.isOpen()).toBe(false);
     });
 
-    it('should support 3-level deep submenu navigation in RTL', async () => {
-        component.dir.set('rtl');
-        document.documentElement.setAttribute('dir', 'rtl');
+    it('opens the submenu and focuses its content with ArrowRight (LTR)', () => {
+        const triggerEl = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent)).nativeElement.querySelector('[role="menuitem"]') as HTMLElement;
+        keydown(triggerEl, 'ArrowRight');
         fixture.detectChanges();
-        await fixture.whenStable();
+        vi.advanceTimersByTime(1);
+        expect(sub.isOpen()).toBe(true);
+        const firstSubItem = subContent.el.nativeElement.querySelector('[role="menuitem"]:not([data-disabled])') as HTMLElement;
+        expect(document.activeElement).toBe(firstSubItem);
+    });
 
-        const menuComp = fixture.debugElement.query(By.directive(MenubarMenuComponent));
-        menuComp.componentInstance.open();
+    it('opens the submenu with Enter', () => {
+        const triggerEl = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent)).nativeElement.querySelector('[role="menuitem"]') as HTMLElement;
+        keydown(triggerEl, 'Enter');
         fixture.detectChanges();
-        await fixture.whenStable();
+        vi.advanceTimersByTime(1);
+        expect(sub.isOpen()).toBe(true);
+    });
 
-        const subComps = fixture.debugElement.queryAll(By.directive(MenubarSubComponent));
-
-        // Open level 1 submenu
-        subComps[0].componentInstance.enter();
+    it('does not open the submenu with ArrowRight in RTL and opens with ArrowLeft', () => {
+        vi.spyOn(serviceInstance(fixture), 'isRtl').mockReturnValue(true);
+        const triggerEl = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent)).nativeElement.querySelector('[role="menuitem"]') as HTMLElement;
+        keydown(triggerEl, 'ArrowRight');
+        expect(sub.isOpen()).toBe(false);
+        keydown(triggerEl, 'ArrowLeft');
         fixture.detectChanges();
-        await fixture.whenStable();
+        expect(sub.isOpen()).toBe(true);
+    });
 
-        expect(subComps[0].componentInstance.isOpen()).toBe(true);
+    it('leaves the submenu closed for ArrowLeft on the trigger in LTR', () => {
+        const triggerEl = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent)).nativeElement.querySelector('[role="menuitem"]') as HTMLElement;
+        keydown(triggerEl, 'ArrowLeft');
+        expect(sub.isOpen()).toBe(false);
+    });
+
+    it('navigates submenu items with ArrowDown/ArrowUp', () => {
+        sub.enter();
+        fixture.detectChanges();
+        const menuEl = subContent.el.nativeElement.querySelector('[role="menu"]') as HTMLElement;
+        const items = Array.from(menuEl.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        items[0].focus();
+        keydown(items[0], 'ArrowDown');
+        expect(document.activeElement).toBe(items[1]);
+        keydown(items[1], 'ArrowUp');
+        expect(document.activeElement).toBe(items[0]);
+    });
+
+    it('closes the submenu and refocuses the trigger with ArrowLeft from content (LTR)', () => {
+        sub.enter();
+        fixture.detectChanges();
+        const menuEl = subContent.el.nativeElement.querySelector('[role="menu"]') as HTMLElement;
+        keydown(menuEl, 'ArrowLeft');
+        vi.advanceTimersByTime(100);
+        fixture.detectChanges();
+        expect(sub.isOpen()).toBe(false);
+    });
+
+    it('closes the submenu with ArrowRight from content in RTL', () => {
+        vi.spyOn(serviceInstance(fixture), 'isRtl').mockReturnValue(true);
+        sub.enter();
+        fixture.detectChanges();
+        const menuEl = subContent.el.nativeElement.querySelector('[role="menu"]') as HTMLElement;
+        keydown(menuEl, 'ArrowRight');
+        vi.advanceTimersByTime(100);
+        fixture.detectChanges();
+        expect(sub.isOpen()).toBe(false);
+    });
+
+    it('keeps the submenu open for ArrowLeft from content in RTL', () => {
+        vi.spyOn(serviceInstance(fixture), 'isRtl').mockReturnValue(true);
+        sub.enter();
+        fixture.detectChanges();
+        const menuEl = subContent.el.nativeElement.querySelector('[role="menu"]') as HTMLElement;
+        keydown(menuEl, 'ArrowLeft');
+        vi.advanceTimersByTime(100);
+        expect(sub.isOpen()).toBe(true);
+    });
+
+    it('opens the sub-content on hover and closes it after the leave delay', () => {
+        sub.enter();
+        fixture.detectChanges();
+        const menuEl = subContent.el.nativeElement.querySelector('[role="menu"]') as HTMLElement;
+        fireMouse(menuEl, 'mouseleave');
+        vi.advanceTimersByTime(100);
+        expect(sub.isOpen()).toBe(false);
+        fireMouse(menuEl, 'mouseenter');
+        vi.advanceTimersByTime(100);
+        expect(sub.isOpen()).toBe(true);
+    });
+
+    it('ignores sub-content hover on touch devices', () => {
+        stubMatchMedia(true);
+        sub.enter();
+        subContent.onMouseLeave();
+        vi.advanceTimersByTime(100);
+        expect(sub.isOpen()).toBe(true);
+        subContent.onMouseEnter();
+        expect(sub.isOpen()).toBe(true);
+    });
+
+    it('exposes focus helpers that refocus the trigger and first content item', () => {
+        sub.enter();
+        fixture.detectChanges();
+        sub.focusContent();
+        vi.advanceTimersByTime(1);
+        const firstSubItem = subContent.el.nativeElement.querySelector('[role="menuitem"]:not([data-disabled])') as HTMLElement;
+        expect(document.activeElement).toBe(firstSubItem);
+        sub.focusTrigger();
+        vi.advanceTimersByTime(1);
+        expect(document.activeElement).toBe(subTrigger.triggerEl.nativeElement);
+    });
+
+    it('renders the submenu trigger with an open state class when open', () => {
+        sub.enter();
+        fixture.detectChanges();
+        const triggerEl = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent)).nativeElement.querySelector('[data-slot="menubar-sub-trigger"]') as HTMLElement;
+        expect(triggerEl.className).toContain('bg-accent');
+        expect(triggerEl.className).toContain('rtl:pr-8');
     });
 });

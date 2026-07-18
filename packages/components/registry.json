@@ -395,6 +395,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "carousel/carousel.component.spec.ts"
     ]
   },
   "checkbox": {
@@ -528,6 +531,9 @@
     "dependencies": [
       "dialog"
     ],
+    "testFiles": [
+      "command/command.component.spec.ts"
+    ],
     "libFiles": [
       "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
@@ -572,6 +578,11 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "context-menu/context-menu.component.spec.ts",
+      "context-menu/context-menu.coverage.spec.ts",
+      "context-menu/sub/context-menu-sub-content.component.spec.ts"
     ],
     "breaking": [
       {
@@ -1137,6 +1148,9 @@
     "libFiles": [
       "a11y.ts",
       "touch.ts"
+    ],
+    "testFiles": [
+      "dropdown-menu/dropdown-menu.component.spec.ts"
     ]
   },
   "empty": {
@@ -1317,6 +1331,9 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "hover-card/hover-card.component.spec.ts"
     ]
   },
   "input": {
@@ -1474,6 +1491,9 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "menubar/menubar.component.spec.ts"
     ]
   },
   "native-select": {
@@ -1525,6 +1545,9 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "navigation-menu/navigation-menu.component.spec.ts"
     ]
   },
   "number-input": {
@@ -3317,6 +3340,9 @@
     ],
     "dependencies": [
       "button"
+    ],
+    "testFiles": [
+      "tour/tour.component.spec.ts"
     ]
   },
   "comparison-slider": {

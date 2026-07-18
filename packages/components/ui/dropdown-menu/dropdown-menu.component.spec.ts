@@ -1,8 +1,62 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent, DropdownMenuSeparatorComponent, DropdownMenuLabelComponent, DropdownMenuSubComponent, DropdownMenuSubTriggerComponent, DropdownMenuSubContentComponent } from './index';
+import { DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent, DropdownMenuSeparatorComponent, DropdownMenuLabelComponent, DropdownMenuSubComponent, DropdownMenuSubTriggerComponent, DropdownMenuSubContentComponent, DropdownMenuService, DROPDOWN_MENU_SUB, type DropdownItem } from './index';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+type MutableStyle = { getComputedStyle?: typeof globalThis.getComputedStyle };
+
+/**
+ * jsdom's `getComputedStyle` does not derive `direction` from the `dir`
+ * attribute, so `isRtl()` always sees `ltr`. This wrapper reflects the nearest
+ * `[dir]` ancestor into the returned `direction`, matching real browsers.
+ */
+function installDirComputedStyle(): () => void {
+    const original = globalThis.getComputedStyle.bind(globalThis);
+    (globalThis as MutableStyle).getComputedStyle = ((
+        el: Element,
+        pseudo?: string | null
+    ): CSSStyleDeclaration => {
+        const style = original(el, pseudo ?? undefined);
+        const dir = (el as HTMLElement).closest?.('[dir]')?.getAttribute('dir');
+        if (dir === 'rtl' || dir === 'ltr') {
+            return new Proxy(style, {
+                get: (target, prop) =>
+                    prop === 'direction' ? dir : Reflect.get(target, prop),
+            }) as CSSStyleDeclaration;
+        }
+        return style;
+    }) as typeof globalThis.getComputedStyle;
+    return () => {
+        (globalThis as MutableStyle).getComputedStyle = original;
+    };
+}
+
+/** Stub matchMedia so `isTouchDevice()` is deterministic under jsdom. */
+function installMatchMedia(coarse: boolean): () => void {
+    const original = (globalThis as { matchMedia?: typeof globalThis.matchMedia })
+        .matchMedia;
+    (globalThis as { matchMedia?: typeof globalThis.matchMedia }).matchMedia = ((
+        query: string
+    ) =>
+        ({
+            matches: query.includes('coarse') ? coarse : false,
+            media: query,
+            onchange: null,
+            addEventListener: (): void => undefined,
+            removeEventListener: (): void => undefined,
+            addListener: (): void => undefined,
+            removeListener: (): void => undefined,
+            dispatchEvent: (): boolean => false,
+        }) as unknown as MediaQueryList) as typeof globalThis.matchMedia;
+    return () => {
+        (globalThis as { matchMedia?: typeof globalThis.matchMedia }).matchMedia =
+            original;
+    };
+}
+
+const tick = (ms = 60): Promise<void> =>
+    new Promise(resolve => setTimeout(resolve, ms));
 
 // Test host for integration
 @Component({
@@ -402,8 +456,10 @@ describe('DropdownMenu Keyboard Navigation', () => {
 describe('DropdownMenu RTL Support', () => {
     let fixture: ComponentFixture<RTLTestHostComponent>;
     let component: RTLTestHostComponent;
+    let restoreStyle: () => void;
 
     beforeEach(async () => {
+        restoreStyle = installDirComputedStyle();
         await TestBed.configureTestingModule({
             imports: [RTLTestHostComponent]
         }).compileComponents();
@@ -415,6 +471,7 @@ describe('DropdownMenu RTL Support', () => {
 
     afterEach(() => {
         document.documentElement.removeAttribute('dir');
+        restoreStyle();
     });
 
     it('should render in LTR mode', () => {
@@ -706,8 +763,10 @@ describe('DropdownMenu Submenu (LTR)', () => {
 describe('DropdownMenu Submenu RTL Keyboard Navigation', () => {
     let fixture: ComponentFixture<RTLSubmenuTestHostComponent>;
     let component: RTLSubmenuTestHostComponent;
+    let restoreStyle: () => void;
 
     beforeEach(async () => {
+        restoreStyle = installDirComputedStyle();
         await TestBed.configureTestingModule({
             imports: [RTLSubmenuTestHostComponent]
         }).compileComponents();
@@ -719,6 +778,7 @@ describe('DropdownMenu Submenu RTL Keyboard Navigation', () => {
 
     afterEach(() => {
         document.documentElement.removeAttribute('dir');
+        restoreStyle();
     });
 
     it('should render submenu in RTL mode', async () => {
@@ -875,5 +935,368 @@ describe('DropdownMenu Submenu RTL Keyboard Navigation', () => {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         expect(subComp.componentInstance.isOpen()).toBe(true);
+    });
+});
+
+// Host exercising 3 enabled items (middle-item Tab navigation), align,
+// inset and shortcut rendering.
+@Component({
+    template: `
+        <ui-dropdown-menu>
+            <ui-dropdown-menu-trigger>Open</ui-dropdown-menu-trigger>
+            <ui-dropdown-menu-content [align]="align()">
+                <ui-dropdown-menu-item shortcut="⌘K" [inset]="true">A</ui-dropdown-menu-item>
+                <ui-dropdown-menu-item>B</ui-dropdown-menu-item>
+                <ui-dropdown-menu-item>C</ui-dropdown-menu-item>
+            </ui-dropdown-menu-content>
+        </ui-dropdown-menu>
+    `,
+    imports: [DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent]
+})
+class ThreeItemHostComponent {
+    align = signal<'start' | 'center' | 'end'>('center');
+}
+
+// Host whose content has no focusable items (Tab short-circuit + align="end").
+@Component({
+    template: `
+        <ui-dropdown-menu>
+            <ui-dropdown-menu-trigger>Open</ui-dropdown-menu-trigger>
+            <ui-dropdown-menu-content align="end">
+                <ui-dropdown-menu-label>Only a label</ui-dropdown-menu-label>
+            </ui-dropdown-menu-content>
+        </ui-dropdown-menu>
+    `,
+    imports: [DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuLabelComponent]
+})
+class EmptyContentHostComponent { }
+
+// Host whose trigger wraps an already-interactive control and whose only item
+// is disabled.
+@Component({
+    template: `
+        <ui-dropdown-menu>
+            <ui-dropdown-menu-trigger><button type="button">Real button</button></ui-dropdown-menu-trigger>
+            <ui-dropdown-menu-content>
+                <ui-dropdown-menu-item [disabled]="true">Disabled</ui-dropdown-menu-item>
+            </ui-dropdown-menu-content>
+        </ui-dropdown-menu>
+    `,
+    imports: [DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent]
+})
+class InteractiveTriggerHostComponent { }
+
+// Data-driven host using the `items` input to render every branch of the
+// internal recursive template (separator / label / sub / item + click).
+@Component({
+    template: `<ui-dropdown-menu [items]="items()"><ui-dropdown-menu-trigger>Open</ui-dropdown-menu-trigger></ui-dropdown-menu>`,
+    imports: [DropdownMenuComponent, DropdownMenuTriggerComponent]
+})
+class DataDrivenHostComponent {
+    clicked = signal(0);
+    items = signal<DropdownItem[]>([
+        { type: 'label', label: 'Group' },
+        { type: 'separator' },
+        { type: 'item', label: 'Click me', shortcut: '⌘C', click: () => this.clicked.update(v => v + 1) },
+        { type: 'item', label: 'No handler' },
+        {
+            type: 'sub', label: 'More', inset: true, children: [
+                { type: 'item', label: 'Nested' },
+            ],
+        },
+    ]);
+}
+
+describe('DropdownMenu content Tab navigation (three items)', () => {
+    let fixture: ComponentFixture<ThreeItemHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [ThreeItemHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(ThreeItemHostComponent);
+        fixture.detectChanges();
+        fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await tick();
+    });
+
+    function items(): HTMLElement[] {
+        return fixture.debugElement
+            .queryAll(By.css('[role="menuitem"]:not([data-disabled])'))
+            .map(d => d.nativeElement as HTMLElement);
+    }
+
+    function pressTab(shiftKey: boolean): void {
+        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
+        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true }));
+        fixture.detectChanges();
+    }
+
+    it('renders inset + shortcut and centers via align', () => {
+        expect(items()).toHaveLength(3);
+        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
+        expect(content.nativeElement.className).toContain('-translate-x-1/2');
+        expect(content.nativeElement.textContent).toContain('⌘K');
+    });
+
+    it('Tab from a non-last item moves focus forward', () => {
+        const list = items();
+        list[0].focus();
+        pressTab(false);
+        expect(document.activeElement).toBe(list[1]);
+    });
+
+    it('Shift+Tab from a non-first item moves focus backward', () => {
+        const list = items();
+        list[2].focus();
+        pressTab(true);
+        expect(document.activeElement).toBe(list[1]);
+    });
+
+    it('ArrowUp from the first item wraps to the last', () => {
+        const list = items();
+        list[0].focus();
+        list[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(list[2]);
+    });
+});
+
+describe('DropdownMenu content edge cases', () => {
+    it('Tab is a no-op when no focusable items exist', async () => {
+        await TestBed.configureTestingModule({ imports: [EmptyContentHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(EmptyContentHostComponent);
+        fixture.detectChanges();
+        fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
+        expect(content.nativeElement.className).toContain('ltr:right-0');
+        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+        fixture.detectChanges();
+        expect(fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance.open()).toBe(true);
+    });
+
+    it('closes when a click lands outside the menu', async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+        const dropdown = fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance;
+        dropdown.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+        expect(dropdown.open()).toBe(false);
+    });
+});
+
+describe('DropdownMenuService without a registered root', () => {
+    it('reports LTR when no root element is registered', () => {
+        expect(new DropdownMenuService().isRtl()).toBe(false);
+    });
+});
+
+describe('DropdownMenu interactive-trigger + disabled item', () => {
+    let fixture: ComponentFixture<InteractiveTriggerHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [InteractiveTriggerHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(InteractiveTriggerHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await tick();
+        fixture.detectChanges();
+    });
+
+    it('stays transparent (no role="button") when wrapping a real control', () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="dropdown-trigger"]'));
+        expect(trigger.nativeElement.getAttribute('role')).toBeNull();
+    });
+
+    it('ignores Enter that originates from projected content', () => {
+        const dropdown = fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance;
+        const innerButton = fixture.debugElement.query(By.css('button')).nativeElement as HTMLElement;
+        innerButton.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        fixture.detectChanges();
+        expect(dropdown.open()).toBe(false);
+    });
+
+    it('does not close when a disabled item is activated', async () => {
+        const dropdown = fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance;
+        dropdown.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const item = fixture.debugElement.query(By.css('[data-slot="dropdown-item"]')).nativeElement as HTMLElement;
+        item.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        item.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+        fixture.detectChanges();
+        expect(dropdown.open()).toBe(true);
+    });
+});
+
+describe('DropdownMenu Space activation closes menu', () => {
+    it('closes when Space activates an enabled item', async () => {
+        await TestBed.configureTestingModule({ imports: [ThreeItemHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(ThreeItemHostComponent);
+        fixture.detectChanges();
+        const dropdown = fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance;
+        dropdown.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const item = fixture.debugElement.query(By.css('[data-slot="dropdown-item"]')).nativeElement as HTMLElement;
+        item.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+        fixture.detectChanges();
+        expect(dropdown.open()).toBe(false);
+    });
+});
+
+describe('DropdownMenu data-driven items input', () => {
+    let fixture: ComponentFixture<DataDrivenHostComponent>;
+    let host: DataDrivenHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataDrivenHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataDrivenHostComponent);
+        host = fixture.componentInstance;
+        fixture.detectChanges();
+        fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+    });
+
+    it('renders separator, label, sub and item branches', () => {
+        expect(fixture.debugElement.query(By.css('[data-slot="dropdown-separator"]'))).toBeTruthy();
+        expect(fixture.debugElement.query(By.css('[data-slot="dropdown-label"]'))).toBeTruthy();
+        expect(fixture.debugElement.queryAll(By.directive(DropdownMenuSubTriggerComponent)).length).toBeGreaterThan(0);
+        expect(fixture.debugElement.queryAll(By.css('[data-slot="dropdown-item"]')).length).toBeGreaterThan(0);
+    });
+
+    it('invokes the click handler and tolerates items without one', () => {
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="dropdown-item"]'));
+        (items[0].nativeElement as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        (items[1].nativeElement as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+        expect(host.clicked()).toBe(1);
+    });
+});
+
+describe('DropdownMenu submenu pointer + touch', () => {
+    let fixture: ComponentFixture<SubmenuTestHostComponent>;
+    let restoreMedia: () => void;
+
+    async function setup(coarse: boolean): Promise<void> {
+        restoreMedia = installMatchMedia(coarse);
+        await TestBed.configureTestingModule({ imports: [SubmenuTestHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(SubmenuTestHostComponent);
+        fixture.detectChanges();
+        fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+    }
+
+    afterEach(() => restoreMedia());
+
+    function subTriggerDiv(): HTMLElement {
+        return fixture.debugElement.query(By.directive(DropdownMenuSubTriggerComponent))
+            .nativeElement.querySelector('[role="menuitem"]') as HTMLElement;
+    }
+
+    it('opens on mouseenter and schedules close on mouseleave (non-touch)', async () => {
+        await setup(false);
+        const sub = fixture.debugElement.query(By.directive(DropdownMenuSubComponent)).componentInstance;
+        const trigger = subTriggerDiv();
+        trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        fixture.detectChanges();
+        expect(sub.isOpen()).toBe(true);
+
+        trigger.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+        await tick(150);
+        expect(sub.isOpen()).toBe(false);
+    });
+
+    it('keeps the submenu open while the pointer moves onto the content', async () => {
+        await setup(false);
+        const sub = fixture.debugElement.query(By.directive(DropdownMenuSubComponent)).componentInstance;
+        sub.enter();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.directive(DropdownMenuSubContentComponent))
+            .nativeElement.querySelector('[role="menu"]') as HTMLElement;
+        content.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        fixture.detectChanges();
+        expect(sub.isOpen()).toBe(true);
+        content.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+        await tick(150);
+        expect(sub.isOpen()).toBe(false);
+    });
+
+    it('toggles on tap for touch devices', async () => {
+        await setup(true);
+        const sub = fixture.debugElement.query(By.directive(DropdownMenuSubComponent)).componentInstance;
+        const trigger = subTriggerDiv();
+        trigger.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        fixture.detectChanges();
+        expect(sub.isOpen()).toBe(false);
+
+        trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+        expect(sub.isOpen()).toBe(true);
+
+        trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        await tick(150);
+        expect(sub.isOpen()).toBe(false);
+    });
+});
+
+describe('DropdownMenu submenu content arrow navigation', () => {
+    let fixture: ComponentFixture<SubmenuTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [SubmenuTestHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(SubmenuTestHostComponent);
+        fixture.detectChanges();
+        fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.debugElement.query(By.directive(DropdownMenuSubComponent)).componentInstance.enter();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await tick();
+    });
+
+    function subMenu(): HTMLElement {
+        return fixture.debugElement.query(By.directive(DropdownMenuSubContentComponent))
+            .nativeElement.querySelector('[role="menu"]') as HTMLElement;
+    }
+
+    function subItems(): HTMLElement[] {
+        return Array.from(subMenu().querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
+    }
+
+    it('ArrowDown moves focus to the next item inside the submenu', () => {
+        const list = subItems();
+        list[0].focus();
+        list[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(list[1]);
+    });
+
+    it('ArrowUp wraps focus to the last item inside the submenu', () => {
+        const list = subItems();
+        list[0].focus();
+        list[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(list.at(-1));
+    });
+
+    it('exposes DROPDOWN_MENU_SUB through the sub component injector', () => {
+        const subDe = fixture.debugElement.query(By.directive(DropdownMenuSubComponent));
+        expect(subDe.injector.get(DROPDOWN_MENU_SUB)).toBe(subDe.componentInstance);
     });
 });
