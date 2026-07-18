@@ -664,7 +664,7 @@ export const registry = defineRegistry({
     files: ['phone-input/index.ts', 'phone-input/phone-input-data.ts', 'phone-input/phone-input.component.html', 'phone-input/phone-input.component.ts', 'phone-input/phone-input.locales.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'input-group.token.ts'],
     dependencies: ['input', 'input-group', 'input-mask', 'popover'],
-    testFiles: ['phone-input/phone-input.component.spec.ts'],
+    testFiles: ['phone-input/phone-input.component.spec.ts', 'phone-input/phone-input.coverage.spec.ts'],
   },
   popover: {
     name: 'popover',
@@ -779,7 +779,7 @@ export const registry = defineRegistry({
     description: 'Multi-step progress indicator for wizards and sequential flows.',
     tags: ['stepper', 'steps', 'wizard', 'progress', 'multi-step'],
     files: ['stepper/index.ts', 'stepper/stepper.component.html', 'stepper/stepper.component.ts', 'stepper/sub/stepper-content.component.ts', 'stepper/sub/stepper-description.component.ts', 'stepper/sub/stepper-item.component.ts', 'stepper/sub/stepper-separator.component.ts', 'stepper/sub/stepper-title.component.ts', 'stepper/sub/stepper-trigger.component.ts'],
-    testFiles: ['stepper/stepper.component.spec.ts'],
+    testFiles: ['stepper/stepper.component.spec.ts', 'stepper/stepper.coverage.spec.ts'],
   },
   switch: {
     name: 'switch',
@@ -806,7 +806,7 @@ export const registry = defineRegistry({
     tags: ['tabs', 'tab', 'panels', 'navigation', 'segmented'],
     files: ['tabs/index.ts', 'tabs/sub/tabs-content.component.ts', 'tabs/sub/tabs-list.component.ts', 'tabs/sub/tabs-trigger.component.css', 'tabs/sub/tabs-trigger.component.ts', 'tabs/tabs.component.ts'],
     dependencies: ['skeleton'],
-    testFiles: ['tabs/tabs.component.spec.ts'],
+    testFiles: ['tabs/tabs-simple.component.spec.ts', 'tabs/tabs.component.spec.ts'],
   },
   textarea: {
     name: 'textarea',
@@ -1045,7 +1045,7 @@ export const registry = defineRegistry({
     tags: ['split-button', 'button', 'dropdown', 'actions', 'menu'],
     files: ['split-button/index.ts', 'split-button/split-button.component.ts', 'split-button/sub/split-button-item.component.ts', 'split-button/sub/split-button-menu.component.ts', 'split-button/sub/split-button-primary.component.ts'],
     dependencies: ['button'],
-    testFiles: ['split-button/split-button.component.spec.ts'],
+    testFiles: ['split-button/split-button.component.spec.ts', 'split-button/split-button.coverage.spec.ts'],
   },
   // Animations
   'gradient-text': {

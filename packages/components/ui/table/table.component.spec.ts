@@ -10,7 +10,8 @@ import {
   TableRowComponent,
   TableHeadComponent,
   TableCellComponent,
-  TableCaptionComponent
+  TableCaptionComponent,
+  TableHeaderDirective
 } from './index';
 
 @Component({
@@ -187,5 +188,40 @@ describe('TableBodyComponent Skeleton Mode', () => {
     fixture.componentRef.setInput('skeletonRows', 2);
     fixture.detectChanges();
     expect(fixture.debugElement.queryAll(By.css('[data-slot="table-row"]'))).toHaveLength(2);
+  });
+});
+
+@Component({
+  template: `<thead uiTableHeader [class]="customClass"></thead>`,
+  imports: [TableHeaderDirective]
+})
+class DirectiveHostComponent {
+  customClass = '';
+}
+
+describe('TableHeaderDirective', () => {
+  let fixture: ComponentFixture<DirectiveHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [DirectiveHostComponent, TableHeaderDirective],
+    }).compileComponents();
+    fixture = TestBed.createComponent(DirectiveHostComponent);
+  });
+
+  it('should attach to thead[uiTableHeader] and expose computed classes', () => {
+    fixture.detectChanges();
+    const thead = fixture.debugElement.query(By.directive(TableHeaderDirective));
+    expect(thead).toBeTruthy();
+    const directive = thead.injector.get(TableHeaderDirective);
+    expect(directive.classes()).toBe('');
+  });
+
+  it('should merge the class input into computed classes', () => {
+    fixture.componentInstance.customClass = 'border-collapse';
+    fixture.detectChanges();
+    const thead = fixture.debugElement.query(By.directive(TableHeaderDirective));
+    const directive = thead.injector.get(TableHeaderDirective);
+    expect(directive.classes()).toBe('border-collapse');
   });
 });

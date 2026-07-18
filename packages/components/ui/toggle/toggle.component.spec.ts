@@ -1,6 +1,12 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ToggleComponent } from './toggle.component';
-import { Component, signal } from '@angular/core';
+import {
+    Component,
+    signal,
+    createComponent,
+    inputBinding,
+    EnvironmentInjector,
+} from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
@@ -113,6 +119,102 @@ describe('ToggleComponent', () => {
 
         const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.disabled).toBe(true);
+    });
+
+    it('should toggle on touchend and prevent default', () => {
+        const button = fixture.debugElement.query(By.css('button'));
+        let preventedDefault = false;
+        const event = {
+            preventDefault: () => {
+                preventedDefault = true;
+            },
+        } as unknown as TouchEvent;
+
+        component.onTouchEnd(event);
+        fixture.detectChanges();
+
+        expect(preventedDefault).toBe(true);
+        expect(component.pressed()).toBe(true);
+        expect(button.nativeElement.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('should not toggle on touchend when disabled', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+
+        let preventedDefault = false;
+        const event = {
+            preventDefault: () => {
+                preventedDefault = true;
+            },
+        } as unknown as TouchEvent;
+
+        component.onTouchEnd(event);
+
+        expect(preventedDefault).toBe(false);
+        expect(component.pressed()).toBe(false);
+    });
+
+    it('should suppress the synthetic click that follows a touch toggle', () => {
+        const event = {
+            preventDefault: () => {
+                /* noop */
+            },
+        } as unknown as TouchEvent;
+
+        component.onTouchEnd(event);
+        expect(component.pressed()).toBe(true);
+
+        component.onClick();
+
+        expect(component.pressed()).toBe(true);
+    });
+
+    it('should not toggle on click when disabled', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+
+        component.onClick();
+
+        expect(component.pressed()).toBe(false);
+    });
+
+    it('setPressed should update the pressed state', () => {
+        component.setPressed(true);
+        fixture.detectChanges();
+        expect(component.pressed()).toBe(true);
+
+        component.setPressed(false);
+        fixture.detectChanges();
+        expect(component.pressed()).toBe(false);
+    });
+});
+
+describe('ToggleComponent defaultPressed', () => {
+    it('seeds pressed from defaultPressed once inputs are bound (ngOnInit)', async () => {
+        await TestBed.configureTestingModule({}).compileComponents();
+        const environmentInjector = TestBed.inject(EnvironmentInjector);
+
+        const ref = createComponent(ToggleComponent, {
+            environmentInjector,
+            bindings: [inputBinding('defaultPressed', () => true)],
+        });
+        ref.changeDetectorRef.detectChanges();
+
+        expect(ref.instance.defaultPressed()).toBe(true);
+        expect(ref.instance.pressed()).toBe(true);
+        ref.destroy();
+    });
+
+    it('leaves pressed false when defaultPressed is not set', async () => {
+        await TestBed.configureTestingModule({}).compileComponents();
+        const environmentInjector = TestBed.inject(EnvironmentInjector);
+
+        const ref = createComponent(ToggleComponent, { environmentInjector });
+        ref.changeDetectorRef.detectChanges();
+
+        expect(ref.instance.pressed()).toBe(false);
+        ref.destroy();
     });
 });
 

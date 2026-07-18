@@ -1640,7 +1640,8 @@
       "popover"
     ],
     "testFiles": [
-      "phone-input/phone-input.component.spec.ts"
+      "phone-input/phone-input.component.spec.ts",
+      "phone-input/phone-input.coverage.spec.ts"
     ]
   },
   "popover": {
@@ -2004,7 +2005,8 @@
       "stepper/sub/stepper-trigger.component.ts"
     ],
     "testFiles": [
-      "stepper/stepper.component.spec.ts"
+      "stepper/stepper.component.spec.ts",
+      "stepper/stepper.coverage.spec.ts"
     ]
   },
   "switch": {
@@ -2086,6 +2088,7 @@
       "skeleton"
     ],
     "testFiles": [
+      "tabs/tabs-simple.component.spec.ts",
       "tabs/tabs.component.spec.ts"
     ]
   },
@@ -2847,7 +2850,8 @@
       "button"
     ],
     "testFiles": [
-      "split-button/split-button.component.spec.ts"
+      "split-button/split-button.component.spec.ts",
+      "split-button/split-button.coverage.spec.ts"
     ]
   },
   "gradient-text": {

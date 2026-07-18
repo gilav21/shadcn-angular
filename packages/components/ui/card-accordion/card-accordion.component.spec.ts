@@ -163,4 +163,180 @@ describe('CardAccordion simple mode', () => {
     const content = fixture.debugElement.query(By.css('[data-slot="card-accordion-content"]'));
     expect(content.nativeElement.textContent).toContain('Body A');
   });
+
+  it('should toggle open state via the built-in simple-mode trigger button', async () => {
+    TestBed.configureTestingModule({ imports: [SimpleHostComponent] });
+    const fixture = TestBed.createComponent(SimpleHostComponent);
+    fixture.detectChanges();
+
+    const item = fixture.debugElement.query(By.directive(CardAccordionItemComponent))
+      .componentInstance as CardAccordionItemComponent;
+    expect(item.isOpen()).toBe(false);
+
+    const button = fixture.debugElement.query(By.css('[data-slot="card-accordion-trigger"]'));
+    button.nativeElement.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(item.isOpen()).toBe(true);
+    const container = fixture.debugElement.query(By.css('[data-slot="card-accordion-item"]'));
+    expect(container.nativeElement.getAttribute('data-state')).toBe('open');
+  });
+});
+
+describe('CardAccordionItem without a parent accordion', () => {
+  @Component({
+    template: `<ui-card-accordion-item value="orphan" title="Solo" />`,
+    imports: [CardAccordionItemComponent],
+  })
+  class OrphanItemHostComponent {}
+
+  it('falls back to closed/empty ids and toggling is a no-op', () => {
+    TestBed.configureTestingModule({ imports: [OrphanItemHostComponent] });
+    const fixture = TestBed.createComponent(OrphanItemHostComponent);
+    fixture.detectChanges();
+
+    const item = fixture.debugElement.query(By.directive(CardAccordionItemComponent))
+      .componentInstance as CardAccordionItemComponent;
+
+    expect(item.isOpen()).toBe(false);
+    expect(item.triggerId()).toBe('');
+    expect(item.panelId()).toBe('');
+
+    const button = fixture.debugElement.query(By.css('[data-slot="card-accordion-trigger"]'));
+    button.nativeElement.click();
+    fixture.detectChanges();
+
+    expect(item.isOpen()).toBe(false);
+  });
+});
+
+describe('CardAccordionContent fallback branches', () => {
+  @Component({
+    template: `
+      <ui-card-accordion-item value="c1">
+        <ui-card-accordion-content>Body</ui-card-accordion-content>
+      </ui-card-accordion-item>
+    `,
+    imports: [CardAccordionItemComponent, CardAccordionContentComponent],
+  })
+  class ContentItemNoAccordionHostComponent {}
+
+  @Component({
+    template: `<ui-card-accordion-content>Loose</ui-card-accordion-content>`,
+    imports: [CardAccordionContentComponent],
+  })
+  class ContentNoItemHostComponent {}
+
+  it('has an item but no accordion: value present, accordion fallbacks fire', () => {
+    TestBed.configureTestingModule({ imports: [ContentItemNoAccordionHostComponent] });
+    const fixture = TestBed.createComponent(ContentItemNoAccordionHostComponent);
+    fixture.detectChanges();
+
+    const content = fixture.debugElement.query(By.directive(CardAccordionContentComponent))
+      .componentInstance as CardAccordionContentComponent;
+
+    expect(content.isOpen()).toBe(false);
+    expect(content.triggerId()).toBe('');
+    expect(content.panelId()).toBe('');
+  });
+
+  it('has neither item nor accordion: value-absent fallbacks fire', () => {
+    TestBed.configureTestingModule({ imports: [ContentNoItemHostComponent] });
+    const fixture = TestBed.createComponent(ContentNoItemHostComponent);
+    fixture.detectChanges();
+
+    const content = fixture.debugElement.query(By.directive(CardAccordionContentComponent))
+      .componentInstance as CardAccordionContentComponent;
+
+    expect(content.isOpen()).toBe(false);
+    expect(content.triggerId()).toBe('');
+    expect(content.panelId()).toBe('');
+  });
+});
+
+describe('CardAccordionContent triggerId with a full accordion', () => {
+  @Component({
+    template: `
+      <ui-card-accordion>
+        <ui-card-accordion-item value="full">
+          <ui-card-accordion-trigger>Head</ui-card-accordion-trigger>
+          <ui-card-accordion-content>Body</ui-card-accordion-content>
+        </ui-card-accordion-item>
+      </ui-card-accordion>
+    `,
+    imports: [
+      CardAccordionComponent,
+      CardAccordionItemComponent,
+      CardAccordionTriggerComponent,
+      CardAccordionContentComponent,
+    ],
+  })
+  class FullContentHostComponent {}
+
+  it('resolves the real trigger id from the parent accordion', () => {
+    TestBed.configureTestingModule({ imports: [FullContentHostComponent] });
+    const fixture = TestBed.createComponent(FullContentHostComponent);
+    fixture.detectChanges();
+
+    const content = fixture.debugElement.query(By.directive(CardAccordionContentComponent))
+      .componentInstance as CardAccordionContentComponent;
+    const trigger = fixture.debugElement.query(By.directive(CardAccordionTriggerComponent))
+      .componentInstance as CardAccordionTriggerComponent;
+
+    expect(content.triggerId()).not.toBe('');
+    expect(content.triggerId()).toBe(trigger.triggerId());
+  });
+});
+
+describe('CardAccordionTrigger fallback branches', () => {
+  @Component({
+    template: `
+      <ui-card-accordion-item value="t1">
+        <ui-card-accordion-trigger>Head</ui-card-accordion-trigger>
+      </ui-card-accordion-item>
+    `,
+    imports: [CardAccordionItemComponent, CardAccordionTriggerComponent],
+  })
+  class TriggerItemNoAccordionHostComponent {}
+
+  @Component({
+    template: `<ui-card-accordion-trigger>Loose</ui-card-accordion-trigger>`,
+    imports: [CardAccordionTriggerComponent],
+  })
+  class TriggerNoItemHostComponent {}
+
+  it('has an item but no accordion: fallbacks fire and toggle is a no-op', () => {
+    TestBed.configureTestingModule({ imports: [TriggerItemNoAccordionHostComponent] });
+    const fixture = TestBed.createComponent(TriggerItemNoAccordionHostComponent);
+    fixture.detectChanges();
+
+    const trigger = fixture.debugElement.query(By.directive(CardAccordionTriggerComponent))
+      .componentInstance as CardAccordionTriggerComponent;
+
+    expect(trigger.isOpen()).toBe(false);
+    expect(trigger.triggerId()).toBe('');
+    expect(trigger.panelId()).toBe('');
+
+    const button = fixture.debugElement.query(By.css('[data-slot="card-accordion-trigger"]'));
+    button.nativeElement.click();
+    fixture.detectChanges();
+    expect(trigger.isOpen()).toBe(false);
+  });
+
+  it('has neither item nor accordion: value-absent fallbacks fire', () => {
+    TestBed.configureTestingModule({ imports: [TriggerNoItemHostComponent] });
+    const fixture = TestBed.createComponent(TriggerNoItemHostComponent);
+    fixture.detectChanges();
+
+    const trigger = fixture.debugElement.query(By.directive(CardAccordionTriggerComponent))
+      .componentInstance as CardAccordionTriggerComponent;
+
+    expect(trigger.isOpen()).toBe(false);
+    expect(trigger.triggerId()).toBe('');
+    expect(trigger.panelId()).toBe('');
+
+    trigger.toggle();
+    expect(trigger.isOpen()).toBe(false);
+  });
 });

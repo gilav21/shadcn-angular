@@ -67,10 +67,6 @@
     "tree-select"
   ],
   "coverageExceptions": {
-    "accordion": {
-      "lines": 90,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "alert-dialog": {
       "lines": 75,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
@@ -91,20 +87,8 @@
       "lines": 97,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
-    "card-accordion": {
-      "lines": 94,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "chart-brush": {
       "lines": 79,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "chip-list": {
-      "lines": 92,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "collapsible": {
-      "lines": 80,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "comparison-slider": {
@@ -127,28 +111,8 @@
       "lines": 60,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
-    "input": {
-      "lines": 93,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "input-group": {
-      "lines": 90,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "input-otp": {
-      "lines": 80,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "number-input": {
-      "lines": 93,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "org-chart": {
       "lines": 98,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "phone-input": {
-      "lines": 96,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "pie-chart-drilldown": {
@@ -163,10 +127,6 @@
       "lines": 98,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
-    "scroll-progress": {
-      "lines": 80,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "select": {
       "lines": 81,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
@@ -179,32 +139,8 @@
       "lines": 54,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
-    "split-button": {
-      "lines": 85,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "stepper": {
-      "lines": 85,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "table": {
-      "lines": 94,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "tabs": {
-      "lines": 91,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "textarea": {
-      "lines": 95,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
     "toast": {
       "lines": 82,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "toggle": {
-      "lines": 64,
       "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
     },
     "tooltip": {

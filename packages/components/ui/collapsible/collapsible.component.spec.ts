@@ -111,3 +111,112 @@ describe('CollapsibleComponent', () => {
         expect(trigger.query(By.css('span')).attributes['data-state']).toBe('open');
     });
 });
+
+@Component({
+    template: `
+    <ui-collapsible [disabled]="disabled" [class]="cls" (openChange)="onOpenChange($event)">
+      <ui-collapsible-trigger>Toggle</ui-collapsible-trigger>
+      <ui-collapsible-content [class]="contentCls">Content</ui-collapsible-content>
+    </ui-collapsible>
+  `,
+    imports: [CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent]
+})
+class ApiHostComponent {
+    disabled = false;
+    cls = '';
+    contentCls = '';
+    changes: boolean[] = [];
+
+    onOpenChange(val: boolean) {
+        this.changes.push(val);
+    }
+}
+
+describe('CollapsibleComponent API', () => {
+    let fixture: ComponentFixture<ApiHostComponent>;
+    let host: ApiHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [ApiHostComponent]
+        }).compileComponents();
+    });
+
+    function configure(setInputs?: (h: ApiHostComponent) => void): CollapsibleComponent {
+        fixture = TestBed.createComponent(ApiHostComponent);
+        host = fixture.componentInstance;
+        setInputs?.(host);
+        fixture.detectChanges();
+        return fixture.debugElement.query(By.directive(CollapsibleComponent)).componentInstance;
+    }
+
+    it('show() opens and emits true', () => {
+        const collapsible = configure();
+        collapsible.show();
+        fixture.detectChanges();
+        expect(collapsible.open()).toBe(true);
+        expect(host.changes).toEqual([true]);
+    });
+
+    it('hide() closes and emits false after being shown', () => {
+        const collapsible = configure();
+        collapsible.show();
+        collapsible.hide();
+        fixture.detectChanges();
+        expect(collapsible.open()).toBe(false);
+        expect(host.changes).toEqual([true, false]);
+    });
+
+    it('hide() works while disabled (no disabled guard)', () => {
+        const collapsible = configure(h => { h.disabled = true; });
+        collapsible.hide();
+        fixture.detectChanges();
+        expect(collapsible.open()).toBe(false);
+        expect(host.changes).toEqual([false]);
+    });
+
+    it('toggle() is a no-op when disabled', () => {
+        const collapsible = configure(h => { h.disabled = true; });
+        collapsible.toggle();
+        fixture.detectChanges();
+        expect(collapsible.open()).toBe(false);
+        expect(host.changes).toEqual([]);
+    });
+
+    it('show() is a no-op when disabled', () => {
+        const collapsible = configure(h => { h.disabled = true; });
+        collapsible.show();
+        fixture.detectChanges();
+        expect(collapsible.open()).toBe(false);
+        expect(host.changes).toEqual([]);
+    });
+
+    it('toggle() flips open state and emits both transitions', () => {
+        const collapsible = configure();
+        collapsible.toggle();
+        fixture.detectChanges();
+        expect(collapsible.open()).toBe(true);
+
+        collapsible.toggle();
+        fixture.detectChanges();
+        expect(collapsible.open()).toBe(false);
+        expect(host.changes).toEqual([true, false]);
+    });
+
+    it('merges the class input into host classes', () => {
+        const collapsible = configure(h => { h.cls = 'my-custom-class'; });
+        expect(collapsible.classes()).toContain('my-custom-class');
+    });
+
+    it('projects a custom class onto the content when open', () => {
+        const collapsible = configure(h => { h.contentCls = 'content-extra'; });
+        collapsible.show();
+        fixture.detectChanges();
+        const inner = fixture.debugElement
+            .query(By.directive(CollapsibleContentComponent))
+            .query(By.css('[data-slot="collapsible-content"]'));
+        expect(inner).toBeTruthy();
+        expect(inner.nativeElement.className).toContain('content-extra');
+        expect(inner.nativeElement.className).toContain('overflow-hidden');
+    });
+});
