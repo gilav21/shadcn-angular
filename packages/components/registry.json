@@ -2311,7 +2311,8 @@
       "a11y.ts"
     ],
     "testFiles": [
-      "speed-dial/speed-dial.component.spec.ts"
+      "speed-dial/speed-dial.component.spec.ts",
+      "speed-dial/speed-dial.coverage.spec.ts"
     ]
   },
   "chip-list": {
@@ -3275,7 +3276,8 @@
       "touch.ts"
     ],
     "testFiles": [
-      "comparison-slider/comparison-slider.component.spec.ts"
+      "comparison-slider/comparison-slider.component.spec.ts",
+      "comparison-slider/comparison-slider.interaction.spec.ts"
     ]
   },
   "sortable": {

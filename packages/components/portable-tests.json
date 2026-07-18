@@ -66,30 +66,5 @@
     "tree",
     "tree-select"
   ],
-  "coverageExceptions": {
-    "bento-grid": {
-      "lines": 94,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "comparison-slider": {
-      "lines": 77,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "flip-text": {
-      "lines": 60,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "speed-dial": {
-      "lines": 54,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "tree": {
-      "lines": 74,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    },
-    "tree-select": {
-      "lines": 93,
-      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
-    }
-  }
+  "coverageExceptions": {}
 }

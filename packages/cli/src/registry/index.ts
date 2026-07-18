@@ -878,7 +878,7 @@ export const registry = defineRegistry({
     tags: ['speed-dial', 'fab', 'floating-action', 'menu', 'actions'],
     files: ['speed-dial/index.ts', 'speed-dial/speed-dial.component.ts', 'speed-dial/sub/speed-dial-context-trigger.component.ts', 'speed-dial/sub/speed-dial-context-trigger.directive.ts', 'speed-dial/sub/speed-dial-item.component.ts', 'speed-dial/sub/speed-dial-mask.component.ts', 'speed-dial/sub/speed-dial-menu.component.ts', 'speed-dial/sub/speed-dial-trigger.component.ts'],
     libFiles: ['a11y.ts'],
-    testFiles: ['speed-dial/speed-dial.component.spec.ts']
+    testFiles: ['speed-dial/speed-dial.component.spec.ts', 'speed-dial/speed-dial.coverage.spec.ts']
   },
   'chip-list': {
     name: 'chip-list',
@@ -1196,7 +1196,7 @@ export const registry = defineRegistry({
     tags: ['comparison-slider', 'before-after', 'compare', 'slider', 'image'],
     files: ['comparison-slider/comparison-slider.component.html', 'comparison-slider/comparison-slider.component.ts', 'comparison-slider/comparison-slider.locales.ts', 'comparison-slider/index.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
-    testFiles: ['comparison-slider/comparison-slider.component.spec.ts'],
+    testFiles: ['comparison-slider/comparison-slider.component.spec.ts', 'comparison-slider/comparison-slider.interaction.spec.ts'],
   },
   sortable: {
     name: 'sortable',

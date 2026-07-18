@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { FlipTextComponent } from './flip-text.component';
 
 @Component({
@@ -98,5 +98,88 @@ describe('FlipTextComponent', () => {
         host.text.set('Hello');
         fixture.detectChanges();
         expect(fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span'))).toHaveLength(5);
+    });
+});
+
+describe('FlipTextComponent playAnimation', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+    let host: TestHostComponent;
+
+    const proto = HTMLElement.prototype as unknown as {
+        getAnimations?: () => Animation[];
+        animate?: (...args: unknown[]) => Animation;
+    };
+    const originalGetAnimations = Object.getOwnPropertyDescriptor(proto, 'getAnimations');
+    const originalAnimate = Object.getOwnPropertyDescriptor(proto, 'animate');
+
+    let cancelSpy: ReturnType<typeof vi.fn>;
+    let animateSpy: ReturnType<typeof vi.fn>;
+
+    beforeEach(async () => {
+        cancelSpy = vi.fn();
+        animateSpy = vi.fn(() => ({}) as Animation);
+
+        proto.getAnimations = vi.fn(() => [{ cancel: cancelSpy } as unknown as Animation]);
+        proto.animate = animateSpy as unknown as (...args: unknown[]) => Animation;
+
+        await TestBed.configureTestingModule({
+            imports: [TestHostComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(TestHostComponent);
+        host = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        if (originalGetAnimations) {
+            Object.defineProperty(proto, 'getAnimations', originalGetAnimations);
+        } else {
+            delete proto.getAnimations;
+        }
+        if (originalAnimate) {
+            Object.defineProperty(proto, 'animate', originalAnimate);
+        } else {
+            delete proto.animate;
+        }
+        vi.restoreAllMocks();
+    });
+
+    it('cancels existing animations, resets opacity and animates each character', () => {
+        host.text.set('Hi');
+        host.delay.set(60);
+        host.duration.set(400);
+        fixture.detectChanges();
+
+        const comp = fixture.debugElement.query(By.directive(FlipTextComponent))
+            .componentInstance as FlipTextComponent;
+
+        comp.playAnimation();
+
+        const charSpans = fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span'));
+        expect(cancelSpy).toHaveBeenCalledTimes(2);
+        expect(animateSpy).toHaveBeenCalledTimes(2);
+        expect(charSpans[0].nativeElement.style.opacity).toBe('0');
+        expect(charSpans[1].nativeElement.style.opacity).toBe('0');
+
+        const firstOptions = animateSpy.mock.calls[0][1] as KeyframeAnimationOptions;
+        const secondOptions = animateSpy.mock.calls[1][1] as KeyframeAnimationOptions;
+        expect(firstOptions.duration).toBe(400);
+        expect(firstOptions.delay).toBe(0);
+        expect(secondOptions.delay).toBe(60);
+        expect(firstOptions.fill).toBe('forwards');
+    });
+
+    it('does nothing when there are no character spans', () => {
+        host.text.set('');
+        fixture.detectChanges();
+
+        const comp = fixture.debugElement.query(By.directive(FlipTextComponent))
+            .componentInstance as FlipTextComponent;
+
+        comp.playAnimation();
+
+        expect(animateSpy).not.toHaveBeenCalled();
+        expect(cancelSpy).not.toHaveBeenCalled();
     });
 });

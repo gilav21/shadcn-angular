@@ -1,9 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { BentoGridComponent, DashboardItem } from './bento-grid.component';
 import { BentoGridItemComponent } from './sub/bento-grid-item.component';
+
+/** Create a standalone, change-detected bento-grid fixture. */
+function makeStandaloneGrid(): ComponentFixture<BentoGridComponent> {
+    const f = TestBed.createComponent(BentoGridComponent);
+    f.detectChanges();
+    return f;
+}
 
 @Component({
     template: `
@@ -67,6 +74,10 @@ describe('BentoGridComponent', () => {
         fixture = TestBed.createComponent(BentoGridTestHostComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
     });
 
     function getGrid(): BentoGridComponent {
@@ -575,11 +586,6 @@ describe('BentoGridComponent', () => {
     });
 
     describe('input transforms', () => {
-        function makeStandaloneGrid(): ComponentFixture<BentoGridComponent> {
-            const f = TestBed.createComponent(BentoGridComponent);
-            f.detectChanges();
-            return f;
-        }
 
         it('should transform numeric rowHeight to px', () => {
             const f = makeStandaloneGrid();
@@ -1106,6 +1112,354 @@ describe('BentoGridComponent', () => {
             expect(component.lastItemsChange).toBeTruthy();
             const a = component.lastItemsChange!.find(i => i.id === 'a')!;
             expect(a.cols).toBeGreaterThan(2);
+        });
+    });
+
+    interface GridInternals {
+        parseCssDimension(value: string, referenceValue?: number): number;
+        shrinkItem(
+            winner: { x: number; y: number; cols: number; rows: number },
+            loser: DashboardItem,
+        ): DashboardItem | null;
+        resolveOverlaps(
+            items: DashboardItem[],
+            updatedItem: { x: number; y: number; cols: number; rows: number },
+            excludeId: string,
+        ): DashboardItem[];
+        handleResizeMove(clientX: number, clientY: number): void;
+        computeResizeDeltas(
+            clientX: number,
+            clientY: number,
+            rawDirection: string,
+        ): { deltaX: number; deltaY: number; direction: string };
+        computeResizePreview(
+            direction: string,
+            deltaX: number,
+            deltaY: number,
+        ): { cols: number; rows: number; x: number; y: number };
+        getColWidth(containerWidth: number): number;
+        handleTouchDragMove(clientX: number, clientY: number, item: DashboardItem): void;
+        commitResize(): void;
+        initialResizeState: unknown;
+    }
+
+    function priv(grid: BentoGridComponent): GridInternals {
+        return grid as unknown as GridInternals;
+    }
+
+    function hostEl(): HTMLElement {
+        return fixture.debugElement.query(By.directive(BentoGridComponent)).nativeElement as HTMLElement;
+    }
+
+    function makeDrop(clientX: number, clientY: number, currentTarget?: EventTarget): DragEvent {
+        const ev = new Event('drop') as DragEvent;
+        Object.defineProperty(ev, 'clientX', { value: clientX });
+        Object.defineProperty(ev, 'clientY', { value: clientY });
+        Object.defineProperty(ev, 'dataTransfer', {
+            value: { dropEffect: '', getData: () => '' },
+        });
+        if (currentTarget) {
+            Object.defineProperty(ev, 'currentTarget', { value: currentTarget });
+        }
+        return ev;
+    }
+
+    describe('input transforms — remaining branches', () => {
+
+        it('transforms numeric-string rowHeight and columnWidth to px', () => {
+            const f = makeStandaloneGrid();
+            f.componentRef.setInput('rowHeight', '150');
+            f.componentRef.setInput('columnWidth', '90');
+            f.detectChanges();
+            expect(f.componentInstance.rowHeight()).toBe('150px');
+            expect(f.componentInstance.columnWidth()).toBe('90px');
+        });
+
+        it('transforms numeric gap to px', () => {
+            const f = makeStandaloneGrid();
+            f.componentRef.setInput('gap', 20);
+            f.detectChanges();
+            expect(f.componentInstance.gap()).toBe('20px');
+        });
+
+        it('transforms numeric-string borderRadius/itemPadding and keeps unit strings', () => {
+            const f = makeStandaloneGrid();
+            f.componentRef.setInput('borderRadius', '10');
+            f.componentRef.setInput('itemPadding', '8');
+            f.detectChanges();
+            expect(f.componentInstance.borderRadius()).toBe('10px');
+            expect(f.componentInstance.itemPadding()).toBe('8px');
+
+            f.componentRef.setInput('borderRadius', '2rem');
+            f.componentRef.setInput('itemPadding', '3rem');
+            f.detectChanges();
+            expect(f.componentInstance.borderRadius()).toBe('2rem');
+            expect(f.componentInstance.itemPadding()).toBe('3rem');
+        });
+    });
+
+    describe('parseCssDimension units', () => {
+        it('parses empty, non-numeric, em, %, and unitless values', () => {
+            const p = priv(getGrid());
+            expect(p.parseCssDimension('')).toBe(0);
+            expect(p.parseCssDimension('auto')).toBe(0);
+            expect(p.parseCssDimension('2em')).toBeGreaterThan(0);
+            expect(p.parseCssDimension('10%', 200)).toBe(20);
+            expect(p.parseCssDimension('10pt')).toBe(10);
+        });
+    });
+
+    describe('canMerge / mergeSelected — remaining paths', () => {
+        it('returns false when a selected id is no longer present in items', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.toggleSelection('1', true);
+            grid.toggleSelection('2', true);
+            component.items.set([
+                { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'Item 1' },
+            ]);
+            fixture.detectChanges();
+            expect(grid.canMerge()).toBe(false);
+        });
+
+        it('breaks the flood-fill when the queue yields no node (defensive guard)', () => {
+            component.editable.set(true);
+            component.items.set([
+                { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'a' },
+                { id: '2', x: 2, y: 1, cols: 1, rows: 1, content: 'b' },
+            ]);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.toggleSelection('1', true);
+            grid.toggleSelection('2', true);
+
+            const originalShift = Array.prototype.shift;
+            let firstShift = true;
+            let result: boolean;
+            try {
+                Array.prototype.shift = function <T>(this: T[]): T | undefined {
+                    if (firstShift) {
+                        firstShift = false;
+                        return undefined;
+                    }
+                    return originalShift.call(this) as T | undefined;
+                };
+                result = grid.canMerge();
+            } finally {
+                Array.prototype.shift = originalShift;
+            }
+
+            expect(result).toBe(false);
+        });
+
+        it('sorts vertically-stacked items by row before merging', () => {
+            component.editable.set(true);
+            component.items.set([
+                { id: 'bottom', x: 1, y: 2, cols: 1, rows: 1, content: 'B' },
+                { id: 'top', x: 1, y: 1, cols: 1, rows: 1, content: 'T' },
+            ]);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.toggleSelection('bottom', true);
+            grid.toggleSelection('top', true);
+            expect(grid.canMerge()).toBe(true);
+            grid.mergeSelected();
+
+            const merged = component.lastItemsChange!;
+            expect(merged).toHaveLength(1);
+            expect(merged[0].id).toBe('top');
+            expect(merged[0].y).toBe(1);
+            expect(merged[0].rows).toBe(2);
+        });
+    });
+
+    describe('guard clauses', () => {
+        it('deleteItem does nothing for an undefined id', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            getGrid().deleteItem(undefined);
+            expect(component.lastItemsChange).toBeNull();
+        });
+
+        it('splitItem does nothing for an unknown id', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            getGrid().splitItem('does-not-exist', 'vertical');
+            expect(component.lastItemsChange).toBeNull();
+        });
+
+        it('onContainerDragOver does nothing when not editable', () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = new Event('dragover') as DragEvent;
+            let prevented = false;
+            Object.defineProperty(ev, 'preventDefault', { value: () => { prevented = true; } });
+            grid.onContainerDragOver(ev);
+            expect(prevented).toBe(false);
+        });
+
+        it('handleResizeMove returns early when nothing is resizing', () => {
+            const grid = getGrid();
+            expect(() => priv(grid).handleResizeMove(10, 20)).not.toThrow();
+            expect(grid.resizePreview()).toBeNull();
+        });
+
+        it('computeResizeDeltas returns raw direction with zero deltas when no initial state', () => {
+            const result = priv(getGrid()).computeResizeDeltas(50, 60, 'se');
+            expect(result).toEqual({ deltaX: 0, deltaY: 0, direction: 'se' });
+        });
+
+        it('computeResizePreview returns a unit preview when no initial state', () => {
+            const result = priv(getGrid()).computeResizePreview('se', 100, 100);
+            expect(result).toEqual({ cols: 1, rows: 1, x: 1, y: 1 });
+        });
+
+        it('commitResize returns early when there is no active resize', () => {
+            const grid = getGrid();
+            priv(grid).commitResize();
+            expect(component.lastItemsChange).toBeNull();
+        });
+    });
+
+    describe('internal drop edge cases', () => {
+        it('ignores an internal drop whose dragged item is missing from items', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('ghost');
+            grid.dropPreview.set({ x: 2, y: 2, cols: 1, rows: 1 });
+            const ev = makeDrop(10, 10);
+            Object.defineProperty(ev, 'stopPropagation', { value: () => undefined });
+            grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
+            expect(component.lastItemsChange).toBeNull();
+            expect(grid.draggedItemId()).toBeNull();
+        });
+
+        it('ignores an external drop with no payload', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const drops: unknown[] = [];
+            grid.externalDrop.subscribe(e => drops.push(e));
+            const ev = makeDrop(10, 10);
+            Object.defineProperty(ev, 'stopPropagation', { value: () => undefined });
+            grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
+            expect(drops).toHaveLength(0);
+        });
+    });
+
+    describe('RTL coordinate mirroring', () => {
+        it('mirrors drop coordinates and honours the drag offset in RTL', () => {
+            component.editable.set(true);
+            component.items.set([
+                { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'a' },
+            ]);
+            fixture.detectChanges();
+            hostEl().style.direction = 'rtl';
+            const grid = getGrid();
+            grid.draggedItemId.set('1');
+            grid.dragOffset.set({ x: 5, y: 5 });
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            grid.onContainerDrop(makeDrop(50, 50, containerEl));
+            expect(grid.draggedItemId()).toBeNull();
+        });
+
+        it('flips the resize direction and mirrors deltas in RTL', () => {
+            const grid = getGrid();
+            hostEl().style.direction = 'rtl';
+            priv(grid).initialResizeState = {
+                x: 0, y: 0, w: 100, h: 100, cols: 2, rows: 2,
+                itemX: 3, itemY: 3, colStep: 100, rowStep: 100,
+            };
+            const result = priv(grid).computeResizeDeltas(30, 40, 'ne');
+            expect(result.deltaX).toBe(-30);
+            expect(result.deltaY).toBe(40);
+            expect(result.direction).toBe('nw');
+        });
+
+        it('mirrors touch-drag coordinates in RTL', () => {
+            component.editable.set(true);
+            component.items.set([
+                { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'a' },
+            ]);
+            fixture.detectChanges();
+            hostEl().style.direction = 'rtl';
+            const grid = getGrid();
+            grid.dragOffset.set({ x: 3, y: 3 });
+            priv(grid).handleTouchDragMove(80, 40, component.items()[0]);
+            expect(grid.dropPreview()).not.toBeNull();
+        });
+    });
+
+    describe('shrinkItem geometry', () => {
+        it('produces strips on all sides and keeps the largest fragment', () => {
+            const p = priv(getGrid());
+            const winner = { x: 2, y: 2, cols: 1, rows: 1 };
+            const loser: DashboardItem = { id: 'l', x: 1, y: 1, cols: 3, rows: 3, content: '' };
+            const result = p.shrinkItem(winner, loser);
+            expect(result).not.toBeNull();
+            expect(result!.cols * result!.rows).toBeGreaterThan(0);
+        });
+
+        it('keeps non-overlapping items via resolveOverlaps when shrink yields null', () => {
+            const grid = getGrid();
+            const p = priv(grid);
+            const spy = vi.spyOn(p, 'shrinkItem').mockReturnValue(null);
+            const items: DashboardItem[] = [
+                { id: 'x', x: 1, y: 1, cols: 1, rows: 1, content: '' },
+                { id: 'y', x: 6, y: 6, cols: 1, rows: 1, content: '' },
+            ];
+            const result = p.resolveOverlaps(items, { x: 1, y: 1, cols: 1, rows: 1 }, 'x');
+            spy.mockRestore();
+            expect(result).toHaveLength(2);
+            expect(result.find(i => i.id === 'y')).toBeTruthy();
+        });
+    });
+
+    describe('getColWidth with fixed columns', () => {
+        it('parses a fixed column width', () => {
+            const f = TestBed.createComponent(BentoGridComponent);
+            f.componentRef.setInput('columnWidth', '100px');
+            f.detectChanges();
+            expect(priv(f.componentInstance).getColWidth(1000)).toBe(100);
+        });
+    });
+
+    describe('onResizeStart guards', () => {
+        it('returns when the event target is not inside a bento-item', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = new MouseEvent('mousedown', { clientX: 10, clientY: 10 });
+            Object.defineProperty(ev, 'target', { value: document.body });
+            grid.onResizeStart(ev, component.items()[0], 'se');
+            expect(grid.resizingItemId()).toBeNull();
+        });
+
+        it('returns when the bento-item has no grid ancestor', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const detached = document.createElement('div');
+            detached.className = 'bento-item';
+            const ev = new MouseEvent('mousedown', { clientX: 10, clientY: 10 });
+            Object.defineProperty(ev, 'target', { value: detached });
+            grid.onResizeStart(ev, component.items()[0], 'se');
+            expect(grid.resizingItemId()).toBeNull();
+        });
+    });
+
+    describe('handleTouchDragMove guard', () => {
+        it('returns early when the grid container is not found', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const spy = vi.spyOn(hostEl(), 'querySelector').mockReturnValue(null);
+            priv(grid).handleTouchDragMove(10, 10, component.items()[0]);
+            spy.mockRestore();
+            expect(grid.dropPreview()).toBeNull();
         });
     });
 });
