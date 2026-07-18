@@ -25,6 +25,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "accordion/accordion.component.spec.ts"
     ]
   },
   "autocomplete": {
@@ -57,6 +60,9 @@
       "badge",
       "command",
       "popover"
+    ],
+    "testFiles": [
+      "autocomplete/autocomplete.component.spec.ts"
     ]
   },
   "alert": {
@@ -116,6 +122,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "alert-dialog/alert-dialog.component.spec.ts"
     ]
   },
   "aspect-ratio": {
@@ -162,6 +171,9 @@
     "dependencies": [
       "skeleton",
       "spinner"
+    ],
+    "testFiles": [
+      "avatar/avatar.component.spec.ts"
     ]
   },
   "badge": {
@@ -184,6 +196,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "badge/badge.component.spec.ts"
     ]
   },
   "breadcrumb": {
@@ -219,6 +234,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "breadcrumb/breadcrumb.component.spec.ts"
     ]
   },
   "button": {
@@ -272,6 +290,12 @@
       "button-group/index.ts",
       "button-group/sub/button-group-separator.component.ts",
       "button-group/sub/button-group-text.component.ts"
+    ],
+    "testFiles": [
+      "button-group/button-group.component.spec.ts"
+    ],
+    "testDependencies": [
+      "button"
     ]
   },
   "calendar": {
@@ -302,6 +326,9 @@
     "dependencies": [
       "button",
       "select"
+    ],
+    "testFiles": [
+      "calendar/calendar.component.spec.ts"
     ]
   },
   "card": {
@@ -384,6 +411,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "checkbox/checkbox.component.spec.ts"
     ]
   },
   "collapsible": {
@@ -402,6 +432,9 @@
       "collapsible/index.ts",
       "collapsible/sub/collapsible-content.component.ts",
       "collapsible/sub/collapsible-trigger.component.ts"
+    ],
+    "testFiles": [
+      "collapsible/collapsible.component.spec.ts"
     ]
   },
   "color-picker": {
@@ -564,6 +597,9 @@
     ],
     "dependencies": [
       "calendar"
+    ],
+    "testFiles": [
+      "date-picker/date-picker.component.spec.ts"
     ]
   },
   "chat": {
@@ -677,6 +713,9 @@
       "text-reveal/text-reveal.component.css",
       "text-reveal/text-reveal.component.html",
       "text-reveal/text-reveal.component.ts"
+    ],
+    "testFiles": [
+      "text-reveal/text-reveal.component.spec.ts"
     ]
   },
   "data-table": {
@@ -910,6 +949,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "dialog/dialog.component.spec.ts"
     ]
   },
   "dock": {
@@ -965,6 +1007,9 @@
     "dependencies": [
       "popover",
       "tree"
+    ],
+    "testFiles": [
+      "tree-select/tree-select.component.spec.ts"
     ]
   },
   "virtual-scroll": {
@@ -1044,6 +1089,9 @@
     ],
     "libFiles": [
       "a11y.ts"
+    ],
+    "testFiles": [
+      "drawer/drawer.component.spec.ts"
     ]
   },
   "dropdown-menu": {
@@ -1128,6 +1176,9 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts"
+    ],
+    "testFiles": [
+      "field/field.component.spec.ts"
     ]
   },
   "icon": {
@@ -1147,6 +1198,9 @@
       "icon/icon.component.ts",
       "icon/icon.token.ts",
       "icon/index.ts"
+    ],
+    "testFiles": [
+      "icon/icon.component.spec.ts"
     ]
   },
   "file-upload": {
@@ -1273,6 +1327,9 @@
       "icon",
       "skeleton",
       "spinner"
+    ],
+    "testFiles": [
+      "input/input.component.spec.ts"
     ]
   },
   "input-group": {
@@ -1302,6 +1359,9 @@
     ],
     "libFiles": [
       "input-group.token.ts"
+    ],
+    "testFiles": [
+      "input-group/input-group.component.spec.ts"
     ]
   },
   "input-otp": {
@@ -1323,6 +1383,9 @@
       "input-otp/sub/input-otp-group.component.ts",
       "input-otp/sub/input-otp-separator.component.ts",
       "input-otp/sub/input-otp-slot.component.ts"
+    ],
+    "testFiles": [
+      "input-otp/input-otp.component.spec.ts"
     ]
   },
   "kbd": {
@@ -1413,6 +1476,9 @@
       "native-select/native-select.component.css",
       "native-select/native-select.component.html",
       "native-select/native-select.component.ts"
+    ],
+    "testFiles": [
+      "native-select/native-select.component.spec.ts"
     ]
   },
   "navigation-menu": {
@@ -1473,6 +1539,9 @@
     ],
     "dependencies": [
       "input"
+    ],
+    "testFiles": [
+      "number-input/number-input.component.spec.ts"
     ]
   },
   "number-ticker": {
@@ -1532,6 +1601,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "pagination/pagination.component.spec.ts"
     ]
   },
   "phone-input": {
@@ -1566,6 +1638,9 @@
       "input-group",
       "input-mask",
       "popover"
+    ],
+    "testFiles": [
+      "phone-input/phone-input.component.spec.ts"
     ]
   },
   "popover": {
@@ -1589,6 +1664,9 @@
     ],
     "libFiles": [
       "a11y.ts"
+    ],
+    "testFiles": [
+      "popover/popover.component.spec.ts"
     ]
   },
   "progress": {
@@ -1614,6 +1692,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "progress/progress.component.spec.ts"
     ]
   },
   "radio-group": {
@@ -1634,6 +1715,9 @@
       "radio-group/sub/radio-group-item.component.css",
       "radio-group/sub/radio-group-item.component.html",
       "radio-group/sub/radio-group-item.component.ts"
+    ],
+    "testFiles": [
+      "radio-group/radio-group.component.spec.ts"
     ]
   },
   "rating": {
@@ -1737,6 +1821,9 @@
     "dependencies": [
       "skeleton",
       "spinner"
+    ],
+    "testFiles": [
+      "select/select.component.spec.ts"
     ]
   },
   "separator": {
@@ -1788,6 +1875,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "sheet/sheet.component.spec.ts"
     ]
   },
   "sidebar": {
@@ -1911,6 +2001,9 @@
       "stepper/sub/stepper-separator.component.ts",
       "stepper/sub/stepper-title.component.ts",
       "stepper/sub/stepper-trigger.component.ts"
+    ],
+    "testFiles": [
+      "stepper/stepper.component.spec.ts"
     ]
   },
   "switch": {
@@ -1932,6 +2025,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "switch/switch.component.spec.ts"
     ]
   },
   "table": {
@@ -1961,6 +2057,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "table/table.component.spec.ts"
     ]
   },
   "tabs": {
@@ -1984,6 +2083,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "tabs/tabs.component.spec.ts"
     ]
   },
   "textarea": {
@@ -2008,6 +2110,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "textarea/textarea.component.spec.ts"
     ]
   },
   "timeline": {
@@ -2032,6 +2137,9 @@
       "timeline/sub/timeline-time.component.ts",
       "timeline/sub/timeline-title.component.ts",
       "timeline/timeline.component.ts"
+    ],
+    "testFiles": [
+      "timeline/timeline.component.spec.ts"
     ]
   },
   "toast": {
@@ -2059,6 +2167,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "toast/toast.component.spec.ts"
     ]
   },
   "toggle": {
@@ -2077,6 +2188,9 @@
       "toggle/toggle.component.css",
       "toggle/toggle.component.html",
       "toggle/toggle.component.ts"
+    ],
+    "testFiles": [
+      "toggle/toggle.component.spec.ts"
     ]
   },
   "toggle-group": {
@@ -2097,6 +2211,9 @@
       "toggle-group/sub/toggle-group-item.component.ts",
       "toggle-group/toggle-group.component.html",
       "toggle-group/toggle-group.component.ts"
+    ],
+    "testFiles": [
+      "toggle-group/toggle-group.component.spec.ts"
     ]
   },
   "tooltip": {
@@ -2120,6 +2237,10 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "tooltip/sub/tooltip.directive.spec.ts",
+      "tooltip/tooltip.component.spec.ts"
     ]
   },
   "tree": {
@@ -2144,6 +2265,9 @@
       "tree/sub/tree-node-content.directive.ts",
       "tree/tree.component.html",
       "tree/tree.component.ts"
+    ],
+    "testFiles": [
+      "tree/tree.component.spec.ts"
     ],
     "optionalDependencies": [
       {
@@ -2175,6 +2299,9 @@
     ],
     "libFiles": [
       "a11y.ts"
+    ],
+    "testFiles": [
+      "speed-dial/speed-dial.component.spec.ts"
     ]
   },
   "chip-list": {
@@ -2200,6 +2327,9 @@
     "dependencies": [
       "badge",
       "input"
+    ],
+    "testFiles": [
+      "chip-list/chip-list.component.spec.ts"
     ]
   },
   "emoji-picker": {
@@ -2411,6 +2541,9 @@
     "libFiles": [
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "pie-chart/pie-chart.component.spec.ts"
     ]
   },
   "pie-chart-drilldown": {
@@ -2432,6 +2565,9 @@
     "libFiles": [
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "pie-chart-drilldown/pie-chart-drilldown.component.spec.ts"
     ]
   },
   "bar-chart": {
@@ -2571,6 +2707,9 @@
       "chart.types.ts",
       "chart.utils.ts",
       "color.ts"
+    ],
+    "testFiles": [
+      "org-chart/org-chart.component.spec.ts"
     ]
   },
   "bento-grid": {
@@ -2587,6 +2726,9 @@
     "dependencies": [
       "component-outlet",
       "context-menu"
+    ],
+    "testFiles": [
+      "bento-grid/bento-grid.component.spec.ts"
     ],
     "files": [
       "bento-grid/bento-grid.component.css",
@@ -2702,6 +2844,9 @@
     ],
     "dependencies": [
       "button"
+    ],
+    "testFiles": [
+      "split-button/split-button.component.spec.ts"
     ]
   },
   "gradient-text": {
@@ -2737,6 +2882,9 @@
       "flip-text/flip-text.component.html",
       "flip-text/flip-text.component.ts",
       "flip-text/index.ts"
+    ],
+    "testFiles": [
+      "flip-text/flip-text.component.spec.ts"
     ]
   },
   "meteors": {
@@ -2787,6 +2935,9 @@
       "scroll-progress/index.ts",
       "scroll-progress/scroll-progress.component.html",
       "scroll-progress/scroll-progress.component.ts"
+    ],
+    "testFiles": [
+      "scroll-progress/scroll-progress.component.spec.ts"
     ]
   },
   "blur-fade": {
@@ -3111,6 +3262,9 @@
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
       "touch.ts"
+    ],
+    "testFiles": [
+      "comparison-slider/comparison-slider.component.spec.ts"
     ]
   },
   "sortable": {
@@ -3541,6 +3695,9 @@
     "dependencies": [
       "accordion",
       "skeleton"
+    ],
+    "testFiles": [
+      "card-accordion/card-accordion.component.spec.ts"
     ]
   },
   "data-table-range-chart": {
@@ -3582,6 +3739,9 @@
       "chart-tooltip/chart-tooltip.component.html",
       "chart-tooltip/chart-tooltip.component.ts",
       "chart-tooltip/index.ts"
+    ],
+    "testFiles": [
+      "chart-tooltip/chart-tooltip.component.spec.ts"
     ]
   },
   "chart-legend": {
@@ -3600,6 +3760,9 @@
     ],
     "libFiles": [
       "chart.types.ts"
+    ],
+    "testFiles": [
+      "chart-legend/chart-legend.component.spec.ts"
     ]
   },
   "chart-brush": {
@@ -3619,6 +3782,9 @@
     ],
     "libFiles": [
       "chart-interaction.ts"
+    ],
+    "testFiles": [
+      "chart-brush/chart-brush.component.spec.ts"
     ]
   },
   "line-chart": {
@@ -3784,6 +3950,9 @@
     "libFiles": [
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "gauge-chart/gauge-chart.component.spec.ts"
     ]
   },
   "bullet-chart": {
@@ -3832,6 +4001,9 @@
     ],
     "dependencies": [
       "chart-legend"
+    ],
+    "testFiles": [
+      "radar-chart/radar-chart.component.spec.ts"
     ]
   },
   "heatmap": {
@@ -3884,6 +4056,9 @@
     ],
     "dependencies": [
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "calendar-heatmap/calendar-heatmap.component.spec.ts"
     ]
   },
   "funnel-chart": {

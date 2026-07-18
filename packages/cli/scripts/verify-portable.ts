@@ -20,12 +20,12 @@
  *   tsx packages/cli/scripts/verify-portable.ts --all
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registry } from '../src/registry/index.js';
-import { loadPortableTestsConfig, type CoverageException } from './sync-registry-lib';
+import { loadPortableTestsConfig, PORTABLE_TESTS_FILENAME, type CoverageException } from './sync-registry-lib';
 
 // `vitest/vitest.mjs` is the bin but is not in the package `exports` map, so
 // resolve the (exported) package.json and join the bin path beside it.
@@ -40,6 +40,9 @@ const COMPONENTS_ROOT = path.resolve(SCRIPT_DIR, '../../components');
 const COVERAGE_SUMMARY = path.join(REPO_ROOT, 'coverage-portable', 'coverage-summary.json');
 const JEST_FIXTURE_RUN = path.join(REPO_ROOT, 'e2e/jest-fixture/run.mjs');
 const DEFAULT_LINE_TARGET = 100;
+// A component whose jsdom or jest run exceeds this is treated as a drop, so one
+// hanging heavy component can't stall a full --record sweep.
+const PER_COMPONENT_TIMEOUT_MS = 180_000;
 
 interface ComponentTarget {
     readonly name: string;
@@ -81,7 +84,7 @@ function runSpecs(target: ComponentTarget): boolean {
         '--coverage',
         `--coverage.include=packages/components/ui/${target.name}/**/*.ts`,
         ...specPaths,
-    ], { cwd: REPO_ROOT, stdio: 'inherit' });
+    ], { cwd: REPO_ROOT, stdio: 'inherit', timeout: PER_COMPONENT_TIMEOUT_MS });
     return result.status === 0;
 }
 
@@ -92,7 +95,7 @@ function runSpecs(target: ComponentTarget): boolean {
  * portable when both legs pass. Requires the CLI to be built.
  */
 function runJestLeg(name: string): boolean {
-    const result = spawnSync(process.execPath, [JEST_FIXTURE_RUN, name], { cwd: REPO_ROOT, stdio: 'inherit' });
+    const result = spawnSync(process.execPath, [JEST_FIXTURE_RUN, name], { cwd: REPO_ROOT, stdio: 'inherit', timeout: PER_COMPONENT_TIMEOUT_MS });
     return result.status === 0;
 }
 
@@ -126,8 +129,7 @@ function verifyOne(target: ComponentTarget, floor: number, withJest: boolean): V
     return { name: target.name, passed: true, detail: `specs green, ${lines}% lines${withJest ? ', jest leg green' : ''}` };
 }
 
-function main(): void {
-    const argv = process.argv.slice(2);
+function verifyMain(argv: string[]): void {
     const withJest = argv.includes('--jest');
     const targets = resolveTargets(argv);
     const exceptions = loadPortableTestsConfig(COMPONENTS_ROOT).coverageExceptions;
@@ -143,6 +145,68 @@ function main(): void {
     } else {
         console.log(`\nAll ${outcomes.length} component(s) verified portable.`);
     }
+}
+
+const CEILING_REASON = 'jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)';
+
+interface SweepOutcome {
+    readonly name: string;
+    readonly kept: boolean;
+    readonly floor?: number;
+    readonly detail: string;
+}
+
+/** Measure one component's jsdom ceiling + jest leg for `--record` (no hard fail). */
+function sweepOne(target: ComponentTarget): SweepOutcome {
+    console.log(`\n▶ Measuring ${target.name} (${target.testFiles.length} spec file(s))…`);
+    if (!runSpecs(target)) {
+        return { name: target.name, kept: false, detail: 'dropped: specs fail under the jsdom config' };
+    }
+    const lines = readLineCoverage();
+    if (!runJestLeg(target.name)) {
+        return { name: target.name, kept: false, detail: `dropped: jest leg fails (jsdom ${lines}% lines)` };
+    }
+    const floor = Math.floor(lines);
+    return { name: target.name, kept: true, floor, detail: `ship at ${floor}% floor (measured ${lines}%)` };
+}
+
+/**
+ * `--record`: measure every candidate's jsdom coverage ceiling + jest leg, keep
+ * the passers at that floor, drop the ones that don't run, and rewrite
+ * portable-tests.json. The operator then runs `sync-registry --fix`.
+ */
+function recordMain(argv: string[]): void {
+    const config = loadPortableTestsConfig(COMPONENTS_ROOT);
+    const targets = resolveTargets(argv.includes('--all') ? argv : ['--all', ...argv]);
+    const outcomes = targets.map(sweepOne);
+
+    const verified = outcomes.filter(o => o.kept).map(o => o.name).sort((a, b) => a.localeCompare(b));
+    const coverageExceptions: Record<string, CoverageException> = {};
+    for (const o of outcomes) {
+        if (o.kept && o.floor !== undefined && o.floor < DEFAULT_LINE_TARGET) {
+            coverageExceptions[o.name] = { lines: o.floor, reason: CEILING_REASON };
+        }
+    }
+    // Preserve exceptions for components not in this sweep (e.g. hand-authored floors).
+    for (const [name, exc] of Object.entries(config.coverageExceptions ?? {})) {
+        if (!targets.some(t => t.name === name) && verified.includes(name)) coverageExceptions[name] = exc;
+    }
+
+    writeFileSync(
+        path.join(COMPONENTS_ROOT, PORTABLE_TESTS_FILENAME),
+        JSON.stringify({ verified, coverageExceptions }, null, 2) + '\n',
+    );
+
+    console.log('\n── Sweep result ──');
+    for (const o of outcomes) console.log(`  ${o.kept ? '✓' : '✗'} ${o.name}: ${o.detail}`);
+    const dropped = outcomes.filter(o => !o.kept).length;
+    console.log(`\nKept ${verified.length}, dropped ${dropped}. Wrote ${PORTABLE_TESTS_FILENAME}; run sync-registry --fix next.`);
+}
+
+function main(): void {
+    const argv = process.argv.slice(2);
+    if (argv.includes('--record')) recordMain(argv.filter(a => a !== '--record'));
+    else verifyMain(argv);
 }
 
 const invokedPath = process.argv[1];

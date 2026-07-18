@@ -1,13 +1,255 @@
 {
   "verified": [
+    "accordion",
     "alert",
+    "alert-dialog",
     "aspect-ratio",
+    "autocomplete",
+    "avatar",
+    "badge",
+    "bento-grid",
+    "breadcrumb",
+    "button-group",
+    "calendar",
+    "calendar-heatmap",
     "card",
+    "card-accordion",
+    "chart-brush",
+    "chart-legend",
+    "chart-tooltip",
+    "checkbox",
+    "chip-list",
+    "collapsible",
+    "comparison-slider",
+    "date-picker",
+    "dialog",
+    "drawer",
     "empty",
+    "field",
+    "flip-text",
+    "gauge-chart",
+    "icon",
+    "input",
+    "input-group",
+    "input-otp",
     "kbd",
     "label",
+    "native-select",
+    "number-input",
+    "org-chart",
+    "pagination",
+    "phone-input",
+    "pie-chart",
+    "pie-chart-drilldown",
+    "popover",
+    "progress",
+    "radar-chart",
+    "radio-group",
+    "scroll-progress",
+    "select",
     "separator",
-    "skeleton"
+    "sheet",
+    "skeleton",
+    "speed-dial",
+    "split-button",
+    "stepper",
+    "switch",
+    "table",
+    "tabs",
+    "text-reveal",
+    "textarea",
+    "timeline",
+    "toast",
+    "toggle",
+    "toggle-group",
+    "tooltip",
+    "tree",
+    "tree-select"
   ],
-  "coverageExceptions": {}
+  "coverageExceptions": {
+    "accordion": {
+      "lines": 90,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "alert-dialog": {
+      "lines": 75,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "autocomplete": {
+      "lines": 95,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "avatar": {
+      "lines": 88,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "badge": {
+      "lines": 90,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "bento-grid": {
+      "lines": 94,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "breadcrumb": {
+      "lines": 97,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "calendar": {
+      "lines": 96,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "calendar-heatmap": {
+      "lines": 97,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "card-accordion": {
+      "lines": 94,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "chart-brush": {
+      "lines": 79,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "checkbox": {
+      "lines": 69,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "chip-list": {
+      "lines": 92,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "collapsible": {
+      "lines": 80,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "comparison-slider": {
+      "lines": 77,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "date-picker": {
+      "lines": 49,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "dialog": {
+      "lines": 75,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "drawer": {
+      "lines": 79,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "field": {
+      "lines": 96,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "flip-text": {
+      "lines": 60,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "input": {
+      "lines": 93,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "input-group": {
+      "lines": 90,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "input-otp": {
+      "lines": 80,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "number-input": {
+      "lines": 93,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "org-chart": {
+      "lines": 98,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "phone-input": {
+      "lines": 96,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "pie-chart-drilldown": {
+      "lines": 97,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "popover": {
+      "lines": 83,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "progress": {
+      "lines": 93,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "radar-chart": {
+      "lines": 98,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "radio-group": {
+      "lines": 86,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "scroll-progress": {
+      "lines": 80,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "select": {
+      "lines": 81,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "sheet": {
+      "lines": 79,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "speed-dial": {
+      "lines": 54,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "split-button": {
+      "lines": 85,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "stepper": {
+      "lines": 85,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "switch": {
+      "lines": 96,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "table": {
+      "lines": 94,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "tabs": {
+      "lines": 91,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "textarea": {
+      "lines": 95,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "toast": {
+      "lines": 82,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "toggle": {
+      "lines": 64,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "tooltip": {
+      "lines": 78,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "tree": {
+      "lines": 74,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    },
+    "tree-select": {
+      "lines": 93,
+      "reason": "jsdom ceiling — remaining lines require a real browser (measured by verify-portable --record)"
+    }
+  }
 }
