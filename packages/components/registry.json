@@ -2604,6 +2604,9 @@
       "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "bar-chart/bar-chart.component.spec.ts"
     ]
   },
   "bar-chart-drilldown": {
@@ -3852,6 +3855,9 @@
     "dependencies": [
       "chart-legend",
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "line-chart/line-chart.component.spec.ts"
     ]
   },
   "area-chart": {
@@ -3881,6 +3887,9 @@
     "dependencies": [
       "chart-legend",
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "area-chart/area-chart.component.spec.ts"
     ]
   },
   "combo-chart": {
@@ -3911,6 +3920,9 @@
     "dependencies": [
       "chart-legend",
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "combo-chart/combo-chart.component.spec.ts"
     ]
   },
   "scatter-chart": {
@@ -3939,6 +3951,9 @@
     "dependencies": [
       "chart-legend",
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "scatter-chart/scatter-chart.component.spec.ts"
     ]
   },
   "bubble-chart": {
@@ -3967,6 +3982,9 @@
     "dependencies": [
       "chart-legend",
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "bubble-chart/bubble-chart.component.spec.ts"
     ]
   },
   "gauge-chart": {
@@ -4014,6 +4032,9 @@
       "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "bullet-chart/bullet-chart.component.spec.ts"
     ]
   },
   "radar-chart": {
@@ -4122,6 +4143,9 @@
     ],
     "dependencies": [
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "funnel-chart/funnel-chart.component.spec.ts"
     ]
   },
   "waterfall-chart": {

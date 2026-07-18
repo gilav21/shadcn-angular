@@ -957,6 +957,7 @@ export const registry = defineRegistry({
     tags: ['bar-chart', 'bar', 'column', 'chart', 'comparison'],
     files: ['bar-chart/bar-chart.component.html', 'bar-chart/bar-chart.component.ts', 'bar-chart/index.ts'],
     libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    testFiles: ['bar-chart/bar-chart.component.spec.ts'],
   },
   'bar-chart-drilldown': {
     name: 'bar-chart-drilldown',
@@ -1407,6 +1408,7 @@ export const registry = defineRegistry({
     files: ['line-chart/index.ts', 'line-chart/line-chart.component.html', 'line-chart/line-chart.component.ts'],
     libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
+    testFiles: ['line-chart/line-chart.component.spec.ts'],
   },
   'area-chart': {
     name: 'area-chart',
@@ -1416,6 +1418,7 @@ export const registry = defineRegistry({
     files: ['area-chart/area-chart.component.html', 'area-chart/area-chart.component.ts', 'area-chart/index.ts'],
     libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
+    testFiles: ['area-chart/area-chart.component.spec.ts'],
   },
   'combo-chart': {
     name: 'combo-chart',
@@ -1425,6 +1428,7 @@ export const registry = defineRegistry({
     files: ['combo-chart/combo-chart.component.html', 'combo-chart/combo-chart.component.ts', 'combo-chart/index.ts'],
     libFiles: ['chart-interaction.ts', 'chart-path.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
+    testFiles: ['combo-chart/combo-chart.component.spec.ts'],
   },
   'scatter-chart': {
     name: 'scatter-chart',
@@ -1434,6 +1438,7 @@ export const registry = defineRegistry({
     files: ['scatter-chart/index.ts', 'scatter-chart/scatter-chart.component.html', 'scatter-chart/scatter-chart.component.ts'],
     libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
+    testFiles: ['scatter-chart/scatter-chart.component.spec.ts'],
   },
   'bubble-chart': {
     name: 'bubble-chart',
@@ -1443,6 +1448,7 @@ export const registry = defineRegistry({
     files: ['bubble-chart/bubble-chart.component.html', 'bubble-chart/bubble-chart.component.ts', 'bubble-chart/index.ts'],
     libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-legend', 'chart-tooltip'],
+    testFiles: ['bubble-chart/bubble-chart.component.spec.ts'],
   },
   'gauge-chart': {
     name: 'gauge-chart',
@@ -1460,6 +1466,7 @@ export const registry = defineRegistry({
     tags: ['bullet-chart', 'bullet', 'kpi', 'target', 'chart'],
     files: ['bullet-chart/bullet-chart.component.html', 'bullet-chart/bullet-chart.component.ts', 'bullet-chart/index.ts'],
     libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    testFiles: ['bullet-chart/bullet-chart.component.spec.ts'],
   },
   'radar-chart': {
     name: 'radar-chart',
@@ -1498,6 +1505,7 @@ export const registry = defineRegistry({
     files: ['funnel-chart/funnel-chart.component.html', 'funnel-chart/funnel-chart.component.ts', 'funnel-chart/index.ts'],
     libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-tooltip'],
+    testFiles: ['funnel-chart/funnel-chart.component.spec.ts'],
   },
   'waterfall-chart': {
     name: 'waterfall-chart',

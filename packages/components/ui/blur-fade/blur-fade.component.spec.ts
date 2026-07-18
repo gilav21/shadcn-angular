@@ -61,7 +61,7 @@ describe('BlurFadeComponent', () => {
 
     beforeEach(() => {
         reducedMotion = false;
-        FakeIntersectionObserver.instances = [];
+        FakeIntersectionObserver.instances.length = 0;
 
         vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
         vi.stubGlobal('matchMedia', (query: string) => ({
