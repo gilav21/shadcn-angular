@@ -1,196 +1,324 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { NumberTickerComponent, NumberTickerDigitComponent } from './number-ticker.component';
 
-@Component({
-    template: `<ui-number-ticker [value]="value()" [decimalPlaces]="decimalPlaces()" [delay]="delay()" [duration]="duration()" />`,
-    imports: [NumberTickerComponent]
-})
-class NumberTickerTestHostComponent {
-    value = signal(1234);
-    decimalPlaces = signal(0);
-    delay = signal(0);
-    duration = signal(0.01);
+type RafCb = (timestamp: number) => void;
+
+interface FakeAnimation {
+    onfinish: (() => void) | null;
+    finish: () => void;
+    cancel: () => void;
 }
 
-describe('NumberTickerComponent', () => {
-    let fixture: ComponentFixture<NumberTickerTestHostComponent>;
-    let component: NumberTickerTestHostComponent;
+let rafQueue: RafCb[] = [];
+let rafIdSeq = 0;
+let cancelledIds: number[] = [];
+let reducedMotion = false;
+let animations: FakeAnimation[] = [];
+let originalAnimate: unknown;
 
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [NumberTickerTestHostComponent]
-        }).compileComponents();
+function installStubs(): void {
+    rafQueue = [];
+    rafIdSeq = 0;
+    cancelledIds = [];
+    reducedMotion = false;
+    animations = [];
 
-        fixture = TestBed.createComponent(NumberTickerTestHostComponent);
-        component = fixture.componentInstance;
+    vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: reducedMotion,
+        media: query,
+        onchange: null,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false,
+    }));
+
+    vi.stubGlobal('requestAnimationFrame', (cb: RafCb): number => {
+        rafQueue.push(cb);
+        return ++rafIdSeq;
+    });
+
+    vi.stubGlobal('cancelAnimationFrame', (id: number): void => {
+        cancelledIds.push(id);
+    });
+
+    const proto = Element.prototype as unknown as { animate?: unknown };
+    originalAnimate = proto.animate;
+    proto.animate = function (): FakeAnimation {
+        const anim: FakeAnimation = {
+            onfinish: null,
+            finish: () => undefined,
+            cancel: () => undefined,
+        };
+        animations.push(anim);
+        return anim;
+    };
+}
+
+function restoreStubs(): void {
+    vi.unstubAllGlobals();
+    const proto = Element.prototype as unknown as { animate?: unknown };
+    if (originalAnimate === undefined) {
+        delete proto.animate;
+    } else {
+        proto.animate = originalAnimate;
+    }
+}
+
+function flushFrame(timestamp: number): void {
+    const cbs = rafQueue;
+    rafQueue = [];
+    for (const cb of cbs) cb(timestamp);
+}
+
+/**
+ * The zoneless change-detection scheduler also enqueues frames through the
+ * stubbed `requestAnimationFrame` (via `scheduleCallbackWithRafRace`), so the
+ * raw queue mixes CD frames with the ticker's own loop. Filtering by the
+ * component's `_animate` reference isolates the animation frames the length
+ * assertions actually care about.
+ */
+function animationFrames(cmp: NumberTickerComponent): RafCb[] {
+    const animate = (cmp as unknown as { _animate: RafCb })._animate;
+    return rafQueue.filter((cb) => cb === animate);
+}
+
+describe('NumberTickerComponent — animation (deterministic frames)', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        installStubs();
+    });
+
+    afterEach(() => {
+        vi.clearAllTimers();
+        vi.useRealTimers();
+        restoreStubs();
+    });
+
+    async function makeTicker(inputs: Record<string, unknown>): Promise<ComponentFixture<NumberTickerComponent>> {
+        await TestBed.configureTestingModule({ imports: [NumberTickerComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(NumberTickerComponent);
+        for (const [key, val] of Object.entries(inputs)) {
+            fixture.componentRef.setInput(key, val);
+        }
         fixture.detectChanges();
+        return fixture;
+    }
+
+    it('counts up to the target across eased frames', async () => {
+        const fixture = await makeTicker({ value: 100, duration: 1 });
+        const cmp = fixture.componentInstance;
+
+        vi.advanceTimersByTime(1);
+        flushFrame(0);
+        expect(cmp.displayValue()).toBe('0');
+
+        flushFrame(500);
+        const mid = Number(cmp.displayValue());
+        expect(mid).toBeGreaterThan(0);
+        expect(mid).toBeLessThan(100);
+
+        flushFrame(1000);
+        expect(cmp.displayValue()).toBe('100');
     });
 
-    it('should create', () => {
-        const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent));
-        expect(ticker).toBeTruthy();
-    });
+    it('renders one digit component per formatted character', async () => {
+        const fixture = await makeTicker({ value: 1234, duration: 1 });
+        const cmp = fixture.componentInstance;
 
-    it('should accept value input', () => {
-        const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent));
-        expect(ticker.componentInstance.value()).toBe(1234);
-    });
+        vi.advanceTimersByTime(1);
+        flushFrame(0);
+        flushFrame(1000);
+        fixture.detectChanges();
 
-    it('should render digit components', () => {
+        expect(cmp.displayValue()).toBe('1,234');
         const digits = fixture.debugElement.queryAll(By.directive(NumberTickerDigitComponent));
-        expect(digits.length).toBeGreaterThan(0);
-    });
-
-    it('should render a span element with tabular-nums class', () => {
+        expect(digits).toHaveLength(5);
         const span = fixture.debugElement.query(By.css('.tabular-nums'));
         expect(span).toBeTruthy();
     });
 
-    it('should accept decimalPlaces input', () => {
-        const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent));
-        component.decimalPlaces.set(2);
+    it('waits for the configured delay before scheduling frames', async () => {
+        const fixture = await makeTicker({ value: 50, duration: 1, delay: 2 });
+        const cmp = fixture.componentInstance;
+
+        vi.advanceTimersByTime(1999);
+        expect(animationFrames(cmp)).toHaveLength(0);
+
+        vi.advanceTimersByTime(1);
+        expect(animationFrames(cmp)).toHaveLength(1);
+
+        flushFrame(0);
+        flushFrame(1000);
+        expect(cmp.displayValue()).toBe('50');
+    });
+
+    it('formats with the configured decimal places', async () => {
+        const fixture = await makeTicker({ value: 12.5, duration: 1, decimalPlaces: 2 });
+        const cmp = fixture.componentInstance;
+
+        vi.advanceTimersByTime(1);
+        flushFrame(0);
+        flushFrame(1000);
+        expect(cmp.displayValue()).toBe('12.50');
+    });
+
+    it('animates downward when a lower target replaces the current value', async () => {
+        const fixture = await makeTicker({ value: 100, duration: 1, direction: 'down' });
+        const cmp = fixture.componentInstance;
+
+        vi.advanceTimersByTime(1);
+        flushFrame(0);
+        flushFrame(1000);
+        expect(cmp.displayValue()).toBe('100');
+
+        const cancelledBefore = cancelledIds.length;
+        fixture.componentRef.setInput('value', 20);
         fixture.detectChanges();
+        expect(cancelledIds.length).toBeGreaterThan(cancelledBefore);
 
-        expect(ticker.componentInstance.decimalPlaces()).toBe(2);
+        vi.advanceTimersByTime(1);
+        flushFrame(0);
+        flushFrame(500);
+        const midDown = Number(cmp.displayValue());
+        expect(midDown).toBeGreaterThan(20);
+        expect(midDown).toBeLessThan(100);
+
+        flushFrame(1000);
+        expect(cmp.displayValue()).toBe('20');
     });
 
-    it('should update when value changes', async () => {
-        component.value.set(5678);
-        fixture.detectChanges();
+    it('jumps straight to the target when reduced motion is preferred', async () => {
+        reducedMotion = true;
+        const fixture = await makeTicker({ value: 1234, duration: 1 });
+        const cmp = fixture.componentInstance;
 
-        const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent));
-        expect(ticker.componentInstance.value()).toBe(5678);
+        expect(cmp.displayValue()).toBe('1,234');
+        expect(animationFrames(cmp)).toHaveLength(0);
     });
 
-    it('should accept custom class input', () => {
-        const tickerComponent = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance;
-        expect(tickerComponent.class()).toBe('');
+    it('cancels the pending frame on destroy', async () => {
+        const fixture = await makeTicker({ value: 100, duration: 1 });
+
+        vi.advanceTimersByTime(1);
+        flushFrame(0);
+
+        const before = cancelledIds.length;
+        fixture.destroy();
+        expect(cancelledIds.length).toBeGreaterThan(before);
     });
 
-    describe('display digits formatting', () => {
-        it('should display formatted value with commas after animation completes', async () => {
-            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
+    it('merges a custom class into the computed classes', async () => {
+        const fixture = await makeTicker({ value: 1, duration: 1, class: 'text-red-500' });
+        const cmp = fixture.componentInstance;
 
-            await vi.waitFor(() => {
-                const display = ticker.displayValue();
-                expect(display).toBe('1,234');
-            }, { timeout: 2000 });
-        });
-
-        it('should render one digit component per character including commas', async () => {
-            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
-
-            await vi.waitFor(() => {
-                expect(ticker.displayValue()).toBe('1,234');
-            }, { timeout: 2000 });
-
-            fixture.detectChanges();
-
-            const digits = fixture.debugElement.queryAll(By.directive(NumberTickerDigitComponent));
-            expect(digits).toHaveLength(5);
-        });
-    });
-
-    describe('decimal places', () => {
-        it('should include decimal point in display when decimalPlaces is set', async () => {
-            component.value.set(12.5);
-            component.decimalPlaces.set(2);
-            component.duration.set(0.01);
-            fixture.detectChanges();
-
-            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
-
-            await vi.waitFor(() => {
-                expect(ticker.displayValue()).toBe('12.50');
-            }, { timeout: 2000 });
-        });
-
-        it('should format value with specified number of decimal places', async () => {
-            component.value.set(99.1);
-            component.decimalPlaces.set(3);
-            component.duration.set(0.01);
-            fixture.detectChanges();
-
-            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
-
-            await vi.waitFor(() => {
-                expect(ticker.displayValue()).toBe('99.100');
-            }, { timeout: 2000 });
-        });
-    });
-
-    describe('value change triggers update', () => {
-        it('should update displayValue when value changes from 1234 to 5678', async () => {
-            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
-
-            await vi.waitFor(() => {
-                expect(ticker.displayValue()).toBe('1,234');
-            }, { timeout: 2000 });
-
-            component.value.set(5678);
-            fixture.detectChanges();
-
-            await vi.waitFor(() => {
-                expect(ticker.displayValue()).toBe('5,678');
-            }, { timeout: 2000 });
-        });
-
-        it('should update displayDigits computed when value changes', async () => {
-            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
-
-            await vi.waitFor(() => {
-                expect(ticker.displayValue()).toBe('1,234');
-            }, { timeout: 2000 });
-
-            const initialDigits = ticker.displayDigits();
-            expect(initialDigits).toEqual(['1', ',', '2', '3', '4']);
-
-            component.value.set(5678);
-            fixture.detectChanges();
-
-            await vi.waitFor(() => {
-                expect(ticker.displayDigits()).toEqual(['5', ',', '6', '7', '8']);
-            }, { timeout: 2000 });
-        });
+        expect(cmp.classes()).toContain('text-red-500');
+        expect(cmp.classes()).toContain('tabular-nums');
     });
 });
 
 describe('NumberTickerDigitComponent', () => {
     @Component({
         template: `<ui-number-ticker-digit [digit]="digit()" />`,
-        imports: [NumberTickerDigitComponent]
+        imports: [NumberTickerDigitComponent],
     })
-    class DigitTestHostComponent {
+    class DigitHostComponent {
         digit = signal('5');
     }
 
-    let fixture: ComponentFixture<DigitTestHostComponent>;
+    let fixture: ComponentFixture<DigitHostComponent>;
+    let host: DigitHostComponent;
 
     beforeEach(async () => {
+        installStubs();
         await TestBed.configureTestingModule({
-            imports: [DigitTestHostComponent]
+            imports: [DigitHostComponent],
         }).compileComponents();
 
-        fixture = TestBed.createComponent(DigitTestHostComponent);
+        fixture = TestBed.createComponent(DigitHostComponent);
+        host = fixture.componentInstance;
         fixture.detectChanges();
     });
 
-    it('should create', () => {
-        const digit = fixture.debugElement.query(By.directive(NumberTickerDigitComponent));
-        expect(digit).toBeTruthy();
+    afterEach(() => {
+        restoreStubs();
     });
 
-    it('should render the digit value', () => {
+    function digitInstance(): NumberTickerDigitComponent {
+        return fixture.debugElement.query(By.directive(NumberTickerDigitComponent)).componentInstance as NumberTickerDigitComponent;
+    }
+
+    it('renders the digit value', () => {
         const element = fixture.debugElement.query(By.directive(NumberTickerDigitComponent));
         expect(element.nativeElement.textContent).toContain('5');
+    });
+
+    it('flags numeric characters as digits and others as not', () => {
+        const el = digitInstance();
+        expect(el.isDigit()).toBe(true);
+
+        host.digit.set(',');
+        fixture.detectChanges();
+        expect(el.isDigit()).toBe(false);
+        expect(el.prevDigit()).toBe(',');
+        expect(animations).toHaveLength(0);
+    });
+
+    it('animates a digit change and settles prevDigit when the animation finishes', () => {
+        const el = digitInstance();
+
+        host.digit.set('7');
+        fixture.detectChanges();
+
+        expect(animations).toHaveLength(1);
+        expect(el.prevDigit()).toBe('5');
+
+        animations[0].onfinish?.();
+        expect(el.prevDigit()).toBe('7');
+    });
+
+    it('finishes an in-flight animation before starting the next', () => {
+        host.digit.set('7');
+        fixture.detectChanges();
+        expect(animations).toHaveLength(1);
+
+        const finishSpy = vi.spyOn(animations[0], 'finish');
+
+        host.digit.set('3');
+        fixture.detectChanges();
+
+        expect(finishSpy).toHaveBeenCalled();
+        expect(animations).toHaveLength(2);
+    });
+
+    it('falls back to setting prevDigit when the flex container is missing', () => {
+        const debugEl = fixture.debugElement.query(By.directive(NumberTickerDigitComponent));
+        const el = debugEl.componentInstance as NumberTickerDigitComponent;
+        vi.spyOn(debugEl.nativeElement, 'querySelector').mockReturnValue(null);
+
+        host.digit.set('8');
+        fixture.detectChanges();
+
+        expect(el.prevDigit()).toBe('8');
+        expect(animations).toHaveLength(0);
     });
 });
 
 describe('NumberTickerComponent — i18n integration', () => {
-    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+    beforeEach(() => {
+        installStubs();
+    });
+
+    afterEach(() => {
+        restoreStubs();
+    });
+
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}): Promise<ComponentFixture<NumberTickerComponent>> {
+        reducedMotion = true;
         const { provideUiLocale } = await import('../../lib/i18n');
         await TestBed.configureTestingModule({
             imports: [NumberTickerComponent],
@@ -201,14 +329,12 @@ describe('NumberTickerComponent — i18n integration', () => {
         fixture.componentRef.setInput('duration', 0);
         if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
         fixture.detectChanges();
-        await new Promise<void>(r => setTimeout(r, 50));
         return fixture;
     }
 
-    it('formats with en-US grouping when no locale set (default)', async () => {
+    it('defaults the resolved locale to the app-wide value when no locale is set', async () => {
         const fixture = await setup();
-        const cmp = fixture.componentInstance;
-        expect(cmp.resolvedLocale()).toBe('en');
+        expect(fixture.componentInstance.resolvedLocale()).toBe('en');
     });
 
     it('resolves locale from the per-instance input', async () => {

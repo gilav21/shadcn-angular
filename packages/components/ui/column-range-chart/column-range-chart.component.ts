@@ -131,9 +131,11 @@ export class ColumnRangeChartComponent implements AfterViewInit {
     const totalGaps = (barCount - 1) * gap;
     const barWidth = (area.width - totalGaps) / barCount;
 
+    const span = range.max - range.min;
+
     return data.map((point, index) => {
-      const normalizedLow = (point.low - range.min) / (range.max - range.min);
-      const normalizedHigh = (point.high - range.min) / (range.max - range.min);
+      const normalizedLow = span > 0 ? (point.low - range.min) / span : 0;
+      const normalizedHigh = span > 0 ? (point.high - range.min) / span : 0;
 
       const lowY = area.bottom - normalizedLow * area.height;
       const highY = area.bottom - normalizedHigh * area.height;
@@ -177,7 +179,8 @@ export class ColumnRangeChartComponent implements AfterViewInit {
   getTickPosition(tick: number): number {
     const range = this.dataRange();
     const area = this.chartArea();
-    const normalized = (tick - range.min) / (range.max - range.min);
+    const span = range.max - range.min;
+    const normalized = span > 0 ? (tick - range.min) / span : 0;
     return area.bottom - normalized * area.height;
   }
 

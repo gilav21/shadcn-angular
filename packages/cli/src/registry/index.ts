@@ -647,6 +647,7 @@ export const registry = defineRegistry({
     tags: ['number-ticker', 'counter', 'count-up', 'animation', 'stats'],
     files: ['number-ticker/index.ts', 'number-ticker/number-ticker.component.html', 'number-ticker/number-ticker.component.ts', 'number-ticker/sub/number-ticker-digit.component.html', 'number-ticker/sub/number-ticker-digit.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    testFiles: ['number-ticker/number-ticker.component.spec.ts'],
   },
   pagination: {
     name: 'pagination',
@@ -966,6 +967,7 @@ export const registry = defineRegistry({
     tags: ['bar-chart-drilldown', 'bar', 'drilldown', 'chart', 'interactive'],
     files: ['bar-chart-drilldown/bar-chart-drilldown.component.html', 'bar-chart-drilldown/bar-chart-drilldown.component.ts', 'bar-chart-drilldown/index.ts'],
     libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    testFiles: ['bar-chart-drilldown/bar-chart-drilldown.component.spec.ts'],
   },
   'stacked-bar-chart': {
     name: 'stacked-bar-chart',
@@ -974,6 +976,7 @@ export const registry = defineRegistry({
     tags: ['stacked-bar-chart', 'stacked', 'bar', 'chart', 'series'],
     files: ['stacked-bar-chart/index.ts', 'stacked-bar-chart/stacked-bar-chart.component.html', 'stacked-bar-chart/stacked-bar-chart.component.ts'],
     libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    testFiles: ['stacked-bar-chart/stacked-bar-chart.component.spec.ts'],
   },
   'column-range-chart': {
     name: 'column-range-chart',
@@ -982,6 +985,7 @@ export const registry = defineRegistry({
     tags: ['column-range-chart', 'range', 'column', 'chart', 'min-max'],
     files: ['column-range-chart/column-range-chart.component.html', 'column-range-chart/column-range-chart.component.ts', 'column-range-chart/index.ts'],
     libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    testFiles: ['column-range-chart/column-range-chart.component.spec.ts'],
   },
   'bar-race-chart': {
     name: 'bar-race-chart',
@@ -990,6 +994,7 @@ export const registry = defineRegistry({
     tags: ['bar-race-chart', 'race', 'animated', 'chart', 'ranking'],
     files: ['bar-race-chart/bar-race-chart.component.html', 'bar-race-chart/bar-race-chart.component.ts', 'bar-race-chart/bar-race-chart.locales.ts', 'bar-race-chart/index.ts'],
     libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    testFiles: ['bar-race-chart/bar-race-chart.component.spec.ts'],
   },
   'org-chart': {
     name: 'org-chart',
@@ -1056,6 +1061,7 @@ export const registry = defineRegistry({
     description: 'Text styled with an animated multi-color gradient fill.',
     tags: ['gradient-text', 'gradient', 'text', 'animation', 'color'],
     files: ['gradient-text/gradient-text.component.html', 'gradient-text/gradient-text.component.ts', 'gradient-text/index.ts'],
+    testFiles: ['gradient-text/gradient-text.component.spec.ts'],
   },
   'flip-text': {
     name: 'flip-text',
@@ -1486,6 +1492,7 @@ export const registry = defineRegistry({
     files: ['heatmap/heatmap.component.html', 'heatmap/heatmap.component.ts', 'heatmap/index.ts'],
     libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-tooltip'],
+    testFiles: ['heatmap/heatmap.component.spec.ts'],
   },
   'calendar-heatmap': {
     name: 'calendar-heatmap',
@@ -1515,6 +1522,7 @@ export const registry = defineRegistry({
     files: ['waterfall-chart/index.ts', 'waterfall-chart/waterfall-chart.component.html', 'waterfall-chart/waterfall-chart.component.ts'],
     libFiles: ['chart-interaction.ts', 'chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
     dependencies: ['chart-tooltip'],
+    testFiles: ['waterfall-chart/waterfall-chart.component.spec.ts'],
   },
   'rich-text-editor/actions': {
     name: 'rich-text-editor/actions',

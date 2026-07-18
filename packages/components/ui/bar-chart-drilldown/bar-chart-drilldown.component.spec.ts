@@ -1,7 +1,92 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BarChartDrilldownComponent } from './bar-chart-drilldown.component';
 import { DrilldownDataPoint, DrilldownSeries } from '../../lib/chart.types';
-import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+  afterAll,
+  vi,
+} from 'vitest';
+
+interface SvgWithBBox {
+  getBBox?: () => DOMRect;
+}
+
+interface Restorable {
+  ResizeObserver: typeof globalThis.ResizeObserver;
+  getBBox: (() => DOMRect) | undefined;
+  getBoundingClientRect: typeof Element.prototype.getBoundingClientRect;
+  matchMedia: typeof globalThis.matchMedia;
+}
+
+const saved: Restorable = {} as Restorable;
+
+beforeAll(() => {
+  saved.ResizeObserver = globalThis.ResizeObserver;
+  saved.getBBox = (SVGElement.prototype as unknown as SvgWithBBox).getBBox;
+  saved.getBoundingClientRect = Element.prototype.getBoundingClientRect;
+  saved.matchMedia = globalThis.matchMedia;
+
+  class ResizeObserverStub {
+    observe(): void {
+      /* no-op */
+    }
+    unobserve(): void {
+      /* no-op */
+    }
+    disconnect(): void {
+      /* no-op */
+    }
+  }
+  globalThis.ResizeObserver =
+    ResizeObserverStub as unknown as typeof globalThis.ResizeObserver;
+
+  (SVGElement.prototype as unknown as SvgWithBBox).getBBox = vi.fn(
+    () => ({ x: 0, y: 0, width: 100, height: 20 }) as DOMRect,
+  ) as unknown as () => DOMRect;
+
+  Element.prototype.getBoundingClientRect = vi.fn(
+    () => ({
+      x: 0,
+      y: 0,
+      width: 500,
+      height: 300,
+      top: 0,
+      left: 0,
+      right: 500,
+      bottom: 300,
+      toJSON: () => ({}),
+    }) as DOMRect,
+  ) as unknown as typeof Element.prototype.getBoundingClientRect;
+
+  globalThis.matchMedia = vi.fn(
+    (query: string) =>
+      ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList,
+  ) as unknown as typeof globalThis.matchMedia;
+});
+
+afterAll(() => {
+  globalThis.ResizeObserver = saved.ResizeObserver;
+  if (saved.getBBox) {
+    (SVGElement.prototype as unknown as SvgWithBBox).getBBox = saved.getBBox;
+  } else {
+    delete (SVGElement.prototype as unknown as SvgWithBBox).getBBox;
+  }
+  Element.prototype.getBoundingClientRect = saved.getBoundingClientRect;
+  globalThis.matchMedia = saved.matchMedia;
+});
 
 describe('BarChartDrilldownComponent', () => {
     let component: BarChartDrilldownComponent;

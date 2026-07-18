@@ -1575,6 +1575,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "number-ticker/number-ticker.component.spec.ts"
     ]
   },
   "pagination": {
@@ -2629,6 +2632,9 @@
       "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "bar-chart-drilldown/bar-chart-drilldown.component.spec.ts"
     ]
   },
   "stacked-bar-chart": {
@@ -2651,6 +2657,9 @@
       "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "stacked-bar-chart/stacked-bar-chart.component.spec.ts"
     ]
   },
   "column-range-chart": {
@@ -2673,6 +2682,9 @@
       "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "column-range-chart/column-range-chart.component.spec.ts"
     ]
   },
   "bar-race-chart": {
@@ -2702,6 +2714,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "bar-race-chart/bar-race-chart.component.spec.ts"
     ]
   },
   "org-chart": {
@@ -2882,6 +2897,9 @@
       "gradient-text/gradient-text.component.html",
       "gradient-text/gradient-text.component.ts",
       "gradient-text/index.ts"
+    ],
+    "testFiles": [
+      "gradient-text/gradient-text.component.spec.ts"
     ]
   },
   "flip-text": {
@@ -4089,6 +4107,9 @@
     ],
     "dependencies": [
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "heatmap/heatmap.component.spec.ts"
     ]
   },
   "calendar-heatmap": {
@@ -4173,6 +4194,9 @@
     ],
     "dependencies": [
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "waterfall-chart/waterfall-chart.component.spec.ts"
     ]
   },
   "rich-text-editor/actions": {

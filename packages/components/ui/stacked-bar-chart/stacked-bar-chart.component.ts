@@ -169,9 +169,8 @@ export class StackedBarChartComponent implements AfterViewInit {
         const value = s.data[catIndex]?.value ?? 0;
         const percentage = total > 0 ? (value / total) * 100 : 0;
 
-        const normalizedValue = isPercent
-          ? percentage / 100
-          : value / maxVal;
+        const scaledValue = maxVal > 0 ? value / maxVal : 0;
+        const normalizedValue = isPercent ? percentage / 100 : scaledValue;
         const segmentHeight = normalizedValue * area.height;
 
         segments.push({
