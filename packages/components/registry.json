@@ -272,6 +272,10 @@
       "ripple",
       "skeleton",
       "spinner"
+    ],
+    "testFiles": [
+      "button/button.component.spec.ts",
+      "button/confirm.directive.spec.ts"
     ]
   },
   "button-group": {
@@ -647,6 +651,9 @@
       "streaming-text/index.ts",
       "streaming-text/streaming-text.component.html",
       "streaming-text/streaming-text.component.ts"
+    ],
+    "testFiles": [
+      "streaming-text/streaming-text.component.spec.ts"
     ]
   },
   "sparkles": {
@@ -670,6 +677,9 @@
     ],
     "dependencies": [
       "button"
+    ],
+    "testFiles": [
+      "sparkles/sparkles.component.spec.ts"
     ]
   },
   "code-block": {
@@ -1991,6 +2001,9 @@
       "spinner/spinner.component.ts",
       "spinner/sub/page-spinner.component.html",
       "spinner/sub/page-spinner.component.ts"
+    ],
+    "testFiles": [
+      "spinner/spinner.component.spec.ts"
     ]
   },
   "stepper": {
@@ -3056,6 +3069,9 @@
       "word-rotate/word-rotate.component.css",
       "word-rotate/word-rotate.component.html",
       "word-rotate/word-rotate.component.ts"
+    ],
+    "testFiles": [
+      "word-rotate/word-rotate.component.spec.ts"
     ]
   },
   "morphing-text": {
@@ -3074,6 +3090,9 @@
       "morphing-text/morphing-text.component.css",
       "morphing-text/morphing-text.component.html",
       "morphing-text/morphing-text.component.ts"
+    ],
+    "testFiles": [
+      "morphing-text/morphing-text.component.spec.ts"
     ]
   },
   "typing-animation": {
@@ -3092,6 +3111,9 @@
       "typing-animation/typing-animation.component.css",
       "typing-animation/typing-animation.component.html",
       "typing-animation/typing-animation.component.ts"
+    ],
+    "testFiles": [
+      "typing-animation/typing-animation.component.spec.ts"
     ]
   },
   "wobble-card": {
@@ -3164,6 +3186,9 @@
       "stagger-children/index.ts",
       "stagger-children/stagger-children.component.html",
       "stagger-children/stagger-children.component.ts"
+    ],
+    "testFiles": [
+      "stagger-children/stagger-children.component.spec.ts"
     ]
   },
   "particles": {

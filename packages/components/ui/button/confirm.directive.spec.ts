@@ -3,6 +3,7 @@ import { Component, ApplicationRef } from '@angular/core';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ConfirmDirective } from './confirm.directive';
 import { ButtonComponent } from './button.component';
+import { ConfirmDialogComponent } from './confirm-dialog.component';
 
 @Component({
     template: `
@@ -73,12 +74,10 @@ describe('ConfirmDirective', () => {
         appRef.tick();
         await fixture.whenStable();
 
-        const actionButton = document.body.querySelector('ui-alert-dialog-action button') as HTMLButtonElement | null;
-        if (actionButton) {
-            actionButton.click();
-            appRef.tick();
-            await fixture.whenStable();
-        }
+        const actionButton = document.body.querySelector('ui-alert-dialog-action') as HTMLElement | null;
+        actionButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        appRef.tick();
+        await fixture.whenStable();
 
         expect(spy).toHaveBeenCalled();
     });
@@ -91,12 +90,10 @@ describe('ConfirmDirective', () => {
         appRef.tick();
         await fixture.whenStable();
 
-        const cancelButton = document.body.querySelector('ui-alert-dialog-cancel button') as HTMLButtonElement | null;
-        if (cancelButton) {
-            cancelButton.click();
-            appRef.tick();
-            await fixture.whenStable();
-        }
+        const cancelButton = document.body.querySelector('ui-alert-dialog-cancel') as HTMLElement | null;
+        cancelButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        appRef.tick();
+        await fixture.whenStable();
 
         expect(spy).not.toHaveBeenCalled();
     });
@@ -112,5 +109,75 @@ describe('ConfirmDirective', () => {
         expect(bodyText).toContain('This cannot be undone.');
         expect(bodyText).toContain('Yes, delete');
         expect(bodyText).toContain('No, keep it');
+    });
+});
+
+describe('ConfirmDialogComponent', () => {
+    let fixture: ComponentFixture<ConfirmDialogComponent>;
+    let dialog: ConfirmDialogComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [ConfirmDialogComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(ConfirmDialogComponent);
+        dialog = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('opens via show() and closes via hide()', () => {
+        dialog.show();
+        fixture.detectChanges();
+        expect(dialog.open()).toBe(true);
+
+        dialog.hide();
+        fixture.detectChanges();
+        expect(dialog.open()).toBe(false);
+    });
+
+    it('emits cancelled when the dialog closes externally (Escape / hide)', () => {
+        const cancelledSpy = vi.fn();
+        dialog.confirmed.subscribe(() => cancelledSpy('confirmed'));
+        dialog.cancelled.subscribe(() => cancelledSpy('cancelled'));
+
+        dialog.show();
+        fixture.detectChanges();
+
+        dialog.hide();
+        fixture.detectChanges();
+
+        expect(cancelledSpy).toHaveBeenCalledWith('cancelled');
+    });
+
+    it('emits confirmed (not cancelled) via onConfirm()', () => {
+        const confirmedSpy = vi.fn();
+        const cancelledSpy = vi.fn();
+        dialog.confirmed.subscribe(confirmedSpy);
+        dialog.cancelled.subscribe(cancelledSpy);
+
+        dialog.show();
+        fixture.detectChanges();
+
+        dialog.onConfirm();
+        fixture.detectChanges();
+
+        expect(confirmedSpy).toHaveBeenCalledTimes(1);
+        expect(cancelledSpy).not.toHaveBeenCalled();
+        expect(dialog.open()).toBe(false);
+    });
+
+    it('emits cancelled once via onCancel() without double-firing from the effect', () => {
+        const cancelledSpy = vi.fn();
+        dialog.cancelled.subscribe(cancelledSpy);
+
+        dialog.show();
+        fixture.detectChanges();
+
+        dialog.onCancel();
+        fixture.detectChanges();
+
+        expect(cancelledSpy).toHaveBeenCalledTimes(1);
+        expect(dialog.open()).toBe(false);
     });
 });

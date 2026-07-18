@@ -236,6 +236,7 @@ export const registry = defineRegistry({
     files: ['button/button.component.css', 'button/button.component.html', 'button/button.component.ts', 'button/confirm-dialog.component.ts', 'button/confirm.directive.ts', 'button/index.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['alert-dialog', 'ripple', 'skeleton', 'spinner'],
+    testFiles: ['button/button.component.spec.ts', 'button/confirm.directive.spec.ts'],
   },
   'button-group': {
     name: 'button-group',
@@ -357,6 +358,7 @@ export const registry = defineRegistry({
     description: 'Renders text that appears progressively, mimicking AI token streaming.',
     tags: ['streaming-text', 'stream', 'typewriter', 'ai', 'animation'],
     files: ['streaming-text/index.ts', 'streaming-text/streaming-text.component.html', 'streaming-text/streaming-text.component.ts'],
+    testFiles: ['streaming-text/streaming-text.component.spec.ts'],
   },
   sparkles: {
     name: 'sparkles',
@@ -365,6 +367,7 @@ export const registry = defineRegistry({
     tags: ['sparkles', 'glitter', 'shine', 'particles', 'animation'],
     files: ['sparkles/index.ts', 'sparkles/sparkles.component.css', 'sparkles/sparkles.component.html', 'sparkles/sparkles.component.ts', 'sparkles/sub/sparkles-button.component.html', 'sparkles/sub/sparkles-button.component.ts'],
     dependencies: ['button'],
+    testFiles: ['sparkles/sparkles.component.spec.ts'],
   },
   'code-block': {
     name: 'code-block',
@@ -774,6 +777,7 @@ export const registry = defineRegistry({
     description: 'Animated loading spinner, available inline or as a full-page overlay.',
     tags: ['spinner', 'loader', 'loading', 'busy', 'progress'],
     files: ['spinner/index.ts', 'spinner/spinner.component.html', 'spinner/spinner.component.ts', 'spinner/sub/page-spinner.component.html', 'spinner/sub/page-spinner.component.ts'],
+    testFiles: ['spinner/spinner.component.spec.ts'],
   },
   stepper: {
     name: 'stepper',
@@ -1125,6 +1129,7 @@ export const registry = defineRegistry({
     description: 'Cycles through a list of words in place with an animated transition.',
     tags: ['word-rotate', 'rotate', 'words', 'text', 'animation'],
     files: ['word-rotate/index.ts', 'word-rotate/word-rotate.component.css', 'word-rotate/word-rotate.component.html', 'word-rotate/word-rotate.component.ts'],
+    testFiles: ['word-rotate/word-rotate.component.spec.ts'],
   },
   'morphing-text': {
     name: 'morphing-text',
@@ -1132,6 +1137,7 @@ export const registry = defineRegistry({
     description: 'Smoothly morphs one phrase into the next with a fluid blend effect.',
     tags: ['morphing-text', 'morph', 'text', 'transition', 'animation'],
     files: ['morphing-text/index.ts', 'morphing-text/morphing-text.component.css', 'morphing-text/morphing-text.component.html', 'morphing-text/morphing-text.component.ts'],
+    testFiles: ['morphing-text/morphing-text.component.spec.ts'],
   },
   'typing-animation': {
     name: 'typing-animation',
@@ -1139,6 +1145,7 @@ export const registry = defineRegistry({
     description: 'Reveals text character by character with a blinking typewriter cursor.',
     tags: ['typing-animation', 'typewriter', 'typing', 'text', 'animation'],
     files: ['typing-animation/index.ts', 'typing-animation/typing-animation.component.css', 'typing-animation/typing-animation.component.html', 'typing-animation/typing-animation.component.ts'],
+    testFiles: ['typing-animation/typing-animation.component.spec.ts'],
   },
   'wobble-card': {
     name: 'wobble-card',
@@ -1169,6 +1176,7 @@ export const registry = defineRegistry({
     description: 'Animates child elements into view one after another with a staggered delay.',
     tags: ['stagger-children', 'stagger', 'sequence', 'animation', 'list'],
     files: ['stagger-children/index.ts', 'stagger-children/stagger-children.component.html', 'stagger-children/stagger-children.component.ts'],
+    testFiles: ['stagger-children/stagger-children.component.spec.ts'],
   },
   particles: {
     name: 'particles',

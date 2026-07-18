@@ -16,6 +16,7 @@
     "breadcrumb",
     "bubble-chart",
     "bullet-chart",
+    "button",
     "button-group",
     "calendar",
     "calendar-heatmap",
@@ -51,6 +52,7 @@
     "magnetic",
     "marquee",
     "meteors",
+    "morphing-text",
     "native-select",
     "number-input",
     "number-ticker",
@@ -71,10 +73,14 @@
     "sheet",
     "shine-border",
     "skeleton",
+    "sparkles",
     "speed-dial",
+    "spinner",
     "split-button",
     "stacked-bar-chart",
+    "stagger-children",
     "stepper",
+    "streaming-text",
     "switch",
     "table",
     "tabs",
@@ -87,8 +93,10 @@
     "tooltip",
     "tree",
     "tree-select",
+    "typing-animation",
     "waterfall-chart",
-    "wobble-card"
+    "wobble-card",
+    "word-rotate"
   ],
   "coverageExceptions": {}
 }
