@@ -30,7 +30,7 @@ const failedComps = new Set(failedFiles.map(compOf).filter(Boolean));
 
 console.log(`\nTests: ${res.numFailedTests} failed / ${res.numTotalTests} total across ${res.numTotalTestSuites} suites.`);
 if (failedComps.size === 0) { console.log('STABLE — all shipped specs pass jest.'); process.exit(0); }
-console.log('Failing components:', [...failedComps].sort().join(', '));
+console.log('Failing components:', [...failedComps].sort((a, b) => a.localeCompare(b)).join(', '));
 const kept = verified.filter((n) => !failedComps.has(n));
 const exc = { ...cfg.coverageExceptions };
 for (const n of failedComps) delete exc[n];
