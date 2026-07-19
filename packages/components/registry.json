@@ -802,6 +802,21 @@
       "skeleton",
       "table"
     ],
+    "testFiles": [
+      "data-table/data-table-advanced-filter.spec.ts",
+      "data-table/data-table-ai.spec.ts",
+      "data-table/data-table-autofit.spec.ts",
+      "data-table/data-table-column-builder.spec.ts",
+      "data-table/data-table-fill.spec.ts",
+      "data-table/data-table-paste.spec.ts",
+      "data-table/data-table-virtual-scroll.spec.ts",
+      "data-table/data-table.component.spec.ts",
+      "data-table/data-table.host.spec.ts",
+      "data-table/sub/data-table-column-header.component.spec.ts",
+      "data-table/sub/data-table-date-filter.component.spec.ts",
+      "data-table/sub/data-table-multiselect-filter.component.spec.ts",
+      "data-table/sub/data-table-pagination.component.spec.ts"
+    ],
     "libFiles": [
       "addon-slots.ts",
       "ai.ts",
@@ -2500,6 +2515,14 @@
     ],
     "dependencies": [
       "separator"
+    ],
+    "testFiles": [
+      "rich-text-editor/rich-text-command-registry.service.spec.ts",
+      "rich-text-editor/rich-text-editor.component.spec.ts",
+      "rich-text-editor/rich-text-markdown.service.spec.ts",
+      "rich-text-editor/rich-text-paste-normalizer.service.spec.ts",
+      "rich-text-editor/rich-text-sanitizer.service.spec.ts",
+      "rich-text-editor/sub/rich-text-toolbar.component.spec.ts"
     ],
     "libFiles": [
       "addon-slots.ts",

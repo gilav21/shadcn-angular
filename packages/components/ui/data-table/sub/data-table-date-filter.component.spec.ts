@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { DateRange } from '../../calendar';
+import { CalendarLocale } from '../../../lib/i18n';
 import {
   DataTableDateFilterComponent,
   dateFilterFn,
@@ -100,6 +101,13 @@ describe('DataTableDateFilterComponent', () => {
     expect(root.getAttribute('dir')).toBe('rtl');
   });
 
+  it('falls back to English Today/Clear labels when the locale omits them', () => {
+    const sparseLocale = { code: 'xx' } as unknown as CalendarLocale;
+    fixture.componentRef.setInput('locale', sparseLocale);
+    expect(component.todayLabel()).toBe('Today');
+    expect(component.clearLabel()).toBe('Clear');
+  });
+
   it('omits the dir attribute for LTR locales so ancestor dir="rtl" still applies', () => {
     // dir signal returns `'rtl' | null`; null removes the attribute, which
     // lets a `<html dir="rtl">` ancestor keep applying for LTR-base locales.
@@ -146,6 +154,22 @@ describe('DataTableDateRangeFilterComponent', () => {
     const partial: DateRange = { start: new Date(2024, 0, 1), end: null };
     component.onRangeSelect(partial);
     expect(emitted).toBeUndefined();
+  });
+
+  it('ignores values that are not range objects on selection', () => {
+    component.onRangeSelect('not-a-range');
+    component.onRangeSelect(null);
+    component.onRangeSelect({ notStart: 1 });
+    expect(emitted).toBeUndefined();
+    expect(component.selectedValue()).toEqual({ start: null, end: null });
+  });
+
+  it('falls back to English preset and clear labels when the locale omits them', () => {
+    const sparseLocale = { code: 'xx' } as unknown as CalendarLocale;
+    fixture.componentRef.setInput('locale', sparseLocale);
+    expect(component.clearLabel()).toBe('Clear');
+    const labels = component.effectivePresets().map((p) => p.label);
+    expect(labels).toEqual(['Today', 'Last 7 days', 'Last 30 days', 'This month']);
   });
 
   it('should emit null on clear', () => {

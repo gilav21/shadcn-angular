@@ -1,10 +1,29 @@
-import { beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, afterEach, describe, it, expect } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { parseNlFilterSpec } from './data-table.utils';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef } from './data-table.types';
 import type { AiRequest } from '../../lib/ai';
+
+let originalResizeObserver: typeof ResizeObserver | undefined;
+
+beforeEach(() => {
+  originalResizeObserver = globalThis.ResizeObserver;
+  globalThis.ResizeObserver = class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  } as unknown as typeof ResizeObserver;
+});
+
+afterEach(() => {
+  if (originalResizeObserver) {
+    globalThis.ResizeObserver = originalResizeObserver;
+  } else {
+    Reflect.deleteProperty(globalThis, 'ResizeObserver');
+  }
+});
 
 const KEYS = ['status', 'amount', 'clientName'];
 
@@ -104,6 +123,54 @@ describe('DataTableComponent AI (table-side)', () => {
     await component.runAiFilter();
     expect(component.globalFilter()).toBe('bob');
     expect(component.aiFilterRunning()).toBe(false);
+  });
+
+  it('no-ops the toolbar filter for a blank query', async () => {
+    let called = false;
+    fixture.componentRef.setInput('aiProvider', () => {
+      called = true;
+      return '{}';
+    });
+    component.aiFilterQuery.set('   ');
+    await component.runAiFilter();
+    expect(called).toBe(false);
+    expect(component.aiFilterRunning()).toBe(false);
+  });
+
+  it('resets the running flag when the provider rejects', async () => {
+    fixture.componentRef.setInput('aiProvider', () => Promise.reject(new Error('boom')));
+    component.aiFilterQuery.set('show anything');
+    await expect(component.runAiFilter()).rejects.toThrow('boom');
+    expect(component.aiFilterRunning()).toBe(false);
+  });
+
+  it('emits nlFilter but leaves state unchanged for an empty spec', async () => {
+    fixture.componentRef.setInput('aiProvider', () => '{}');
+    let emitted: unknown = null;
+    component.nlFilter.subscribe((e) => (emitted = e));
+    await component.applyNaturalLanguageFilter('nothing matches');
+    expect(component.globalFilter()).toBe('');
+    expect(component.columnFilters()).toEqual({});
+    expect(emitted).toMatchObject({ query: 'nothing matches', spec: {} });
+  });
+
+  it('skips rows the column editValidator rejects during AI-fill', async () => {
+    fixture.componentRef.setInput('columns', [
+      { accessorKey: 'name', header: 'Name' },
+      { accessorKey: 'status', header: 'Status' },
+      {
+        accessorKey: 'note',
+        header: 'Note',
+        valueSetter: (r: AiRow, v: unknown) => ({ ...r, note: v as string }),
+        editValidator: (v: unknown) => (v === 'ok' ? true : 'rejected'),
+      },
+    ] as ColumnDef<AiRow>[]);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('aiProvider', (req: AiRequest) =>
+      JSON.parse(req.input).name === 'Alice' ? 'ok' : 'bad',
+    );
+    await component.aiFillColumn('note', 'write a note');
+    expect(component.data().map((r) => r.note)).toEqual(['ok', '']);
   });
 
   it('shows the NL-filter input only with a provider + visible toolbar', () => {

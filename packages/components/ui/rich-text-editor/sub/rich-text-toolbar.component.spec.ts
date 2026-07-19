@@ -144,6 +144,13 @@ describe('RichTextToolbarComponent', () => {
             const heLocale = RICH_TEXT_LOCALES['he'];
             expect(leftTip).toBe(heLocale.toolbar.alignRight);
         });
+
+        it('swaps the alignRight tooltip to alignLeft in RTL locale', () => {
+            fixture.componentRef.setInput('locale', RICH_TEXT_LOCALES['he']);
+            fixture.detectChanges();
+            const heLocale = RICH_TEXT_LOCALES['he'];
+            expect(component.getTooltip('alignRight')).toBe(heLocale.toolbar.alignLeft);
+        });
     });
 
     describe('getIcon', () => {
@@ -172,6 +179,15 @@ describe('RichTextToolbarComponent', () => {
                 return component.getIcon('outdent');
             })();
             expect(String(indentRtl)).toBe(String(outdentLtr));
+        });
+
+        it('swaps the alignRight icon to alignLeft and outdent to indent in RTL', () => {
+            const alignRightLtr = component.getIcon('alignRight');
+            const outdentLtr = component.getIcon('outdent');
+            fixture.componentRef.setInput('locale', RICH_TEXT_LOCALES['he']);
+            fixture.detectChanges();
+            expect(String(component.getIcon('alignRight'))).not.toBe(String(alignRightLtr));
+            expect(String(component.getIcon('outdent'))).not.toBe(String(outdentLtr));
         });
     });
 

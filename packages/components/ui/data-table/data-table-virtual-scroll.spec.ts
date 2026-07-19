@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { computeRowRange, computeColumnRange, computeVariableRowRange } from './data-table.utils';
+import {
+    computeRowRange,
+    computeColumnRange,
+    computeVariableRowRange,
+    buildPrefixSums,
+} from './data-table.utils';
 
 describe('computeRowRange', () => {
     it('should return empty range for zero rows', () => {
@@ -76,6 +81,13 @@ describe('computeColumnRange', () => {
         expect(result.paddingRight).toBe(0);
     });
 
+    it('places the window past the last column when scrolled beyond every column', () => {
+        const result = computeColumnRange(100000, 500, widths, 0);
+        expect(result.start).toBe(widths.length);
+        expect(result.end).toBe(widths.length);
+        expect(result.paddingRight).toBe(0);
+    });
+
     it('should compute correct total width', () => {
         const result = computeColumnRange(0, 500, widths, 0);
         const totalWidth = widths.reduce((sum, w) => sum + w, 0);
@@ -125,5 +137,47 @@ describe('computeVariableRowRange', () => {
             visibleHeight += getHeight(i);
         }
         expect(result.paddingTop + visibleHeight + result.paddingBottom).toBe(totalHeight);
+    });
+
+    it('places the window past the last row when scrolled beyond every row', () => {
+        const result = computeVariableRowRange(100000, 300, getHeight, heights.length, 0);
+        expect(result.start).toBe(heights.length);
+        expect(result.end).toBe(heights.length);
+        expect(result.paddingBottom).toBe(0);
+    });
+
+    interface Range {
+        start: number;
+        end: number;
+        paddingTop: number;
+        paddingBottom: number;
+    }
+
+    function expectPrefixRange(
+        scrollTop: number,
+        viewportHeight: number,
+        buffer: number,
+        expected: Range,
+    ): void {
+        const prefixSums = buildPrefixSums(getHeight, heights.length);
+        const result = computeVariableRowRange(scrollTop, viewportHeight, getHeight, heights.length, buffer, prefixSums);
+        expect(result).toEqual(expected);
+    }
+
+    it('windows via prefix sums, extending the end row past a partially visible row', () => {
+        expectPrefixRange(0, 300, 2, { start: 0, end: 5, paddingTop: 0, paddingBottom: 1440 });
+        expectPrefixRange(200, 300, 1, { start: 1, end: 7, paddingTop: 40, paddingBottom: 400 });
+    });
+
+    it('windows via prefix sums without extending when the viewport ends on a row boundary', () => {
+        expectPrefixRange(40, 300, 0, { start: 1, end: 3, paddingTop: 40, paddingBottom: 1570 });
+    });
+});
+
+describe('buildPrefixSums', () => {
+    it('builds a cumulative height table with a leading zero', () => {
+        const heights = [40, 100, 200];
+        const sums = buildPrefixSums((i) => heights[i], heights.length);
+        expect(Array.from(sums)).toEqual([0, 40, 140, 340]);
     });
 });

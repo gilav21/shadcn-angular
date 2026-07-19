@@ -515,5 +515,96 @@ describe('RichTextSanitizerService', () => {
             expect(out.toLowerCase()).toContain('color');
             expect(out.toLowerCase()).toContain('#2563eb');
         });
+
+        it('tolerates calling the teardown twice (no entry on the second call)', () => {
+            const off = service.registerAttributeRules([idRule]);
+            off();
+            expect(() => off()).not.toThrow();
+            expect(service.sanitize('<span data-action-click="a">x</span>')).toBe('<span>x</span>');
+        });
+    });
+
+    describe('isUrlSafe', () => {
+        it('returns false for empty or non-string input', () => {
+            expect(service.isUrlSafe('')).toBe(false);
+            expect(service.isUrlSafe(null as unknown as string)).toBe(false);
+        });
+
+        it('returns true for a plain safe url', () => {
+            expect(service.isUrlSafe('https://example.com')).toBe(true);
+        });
+    });
+
+    describe('sanitizeImageSrc edge cases', () => {
+        it('returns null for empty or non-string input', () => {
+            expect(service.sanitizeImageSrc('')).toBeNull();
+            expect(service.sanitizeImageSrc(null as unknown as string)).toBeNull();
+        });
+
+        it('rejects protocol-relative URLs', () => {
+            expect(service.sanitizeImageSrc('//evil.com/x.png')).toBeNull();
+            expect(service.sanitizeImageSrc('/\\evil.com/x.png')).toBeNull();
+        });
+
+        it('rejects a data:image/png whose bytes are not a real image', () => {
+            const bogus = `data:image/png;base64,${btoa('not-a-png-header')}`;
+            expect(service.sanitizeImageSrc(bogus)).toBeNull();
+        });
+
+        it('allows a data:image/png with no base64 marker (unchecked bytes)', () => {
+            expect(service.sanitizeImageSrc('data:image/png,rawplaceholder'))
+                .toBe('data:image/png,rawplaceholder');
+        });
+
+        it('rejects a data:image/png with an empty base64 payload', () => {
+            expect(service.sanitizeImageSrc('data:image/png;base64,')).toBeNull();
+        });
+
+        it('rejects a data:image/png with invalid base64 that throws on decode', () => {
+            expect(service.sanitizeImageSrc('data:image/png;base64,@@@@@@@@')).toBeNull();
+        });
+    });
+
+    describe('sanitizeSvgDataUrl edge cases', () => {
+        it('returns null when there is no base64 marker', () => {
+            expect(service.sanitizeSvgDataUrl('data:image/svg+xml,<svg></svg>')).toBeNull();
+        });
+
+        it('returns null when the base64 payload is empty', () => {
+            expect(service.sanitizeSvgDataUrl('data:image/svg+xml;base64,')).toBeNull();
+        });
+
+        it('returns null when the base64 payload throws on decode', () => {
+            expect(service.sanitizeSvgDataUrl('data:image/svg+xml;base64,@@@@@@@@')).toBeNull();
+        });
+
+        it('returns null when the decoded payload is not an <svg> document', () => {
+            const src = `data:image/svg+xml;base64,${btoa('<div>not svg</div>')}`;
+            expect(service.sanitizeSvgDataUrl(src)).toBeNull();
+        });
+    });
+
+    describe('dir attribute handling', () => {
+        it('keeps a valid dir value', () => {
+            expect(service.sanitize('<p dir="rtl">x</p>')).toContain('dir="rtl"');
+            expect(service.sanitize('<p dir="ltr">x</p>')).toContain('dir="ltr"');
+            expect(service.sanitize('<p dir="auto">x</p>')).toContain('dir="auto"');
+        });
+
+        it('strips an invalid dir value', () => {
+            expect(service.sanitize('<p dir="sideways">x</p>')).not.toContain('dir=');
+        });
+    });
+
+    describe('style attribute edge cases', () => {
+        it('drops an empty style attribute', () => {
+            expect(service.sanitize('<p style="">x</p>')).toBe('<p>x</p>');
+        });
+
+        it('skips a declaration with no colon', () => {
+            const out = service.sanitize('<p style="color:red;bogusdeclaration">x</p>');
+            expect(out).toContain('color: red');
+            expect(out).not.toContain('bogusdeclaration');
+        });
     });
 });
