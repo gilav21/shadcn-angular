@@ -284,6 +284,10 @@ describe('LineChartComponent', () => {
     });
 
     it('exposes the viewBox and responsive width', () => {
+        // Force the unmeasured state: a real browser's ResizeObserver measures
+        // the host, but this asserts the default width-input fallback (500).
+        (component as unknown as { _measuredWidth: { set(v: number | null): void } })._measuredWidth.set(null);
+        fixture.detectChanges();
         expect(component.viewBox()).toBe(`0 0 ${component.svgWidth()} 300`);
         expect(component.svgWidth()).toBe(500);
     });

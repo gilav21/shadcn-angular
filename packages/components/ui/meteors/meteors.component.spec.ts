@@ -168,7 +168,8 @@ describe('MeteorsComponent', () => {
         });
 
         it('should set host inset to 0', () => {
-            expect(getHostEl().style.inset).toBe('0');
+            // A real browser normalizes the inline value '0' to '0px'; jsdom keeps '0'.
+            expect(getHostEl().style.inset).toMatch(/^0(px)?$/);
         });
 
         it('should set pointer-events to none', () => {

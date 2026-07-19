@@ -19,8 +19,13 @@ let coarsePointer = false;
 const OPEN_DELAY = 200;
 const CLOSE_DELAY = 300;
 
+const VIEWPORT_WIDTH = 1024;
+const VIEWPORT_HEIGHT = 768;
+
 let savedGetBoundingClientRect: typeof Element.prototype.getBoundingClientRect;
 let savedMatchMedia: typeof window.matchMedia | undefined;
+let savedInnerWidth: PropertyDescriptor | undefined;
+let savedInnerHeight: PropertyDescriptor | undefined;
 
 function fakeMatchMedia(query: string): MediaQueryList {
     const matches = query.includes('coarse') ? coarsePointer : false;
@@ -48,6 +53,11 @@ function installStubs(): void {
 
     savedMatchMedia = window.matchMedia;
     (window as unknown as { matchMedia: typeof window.matchMedia }).matchMedia = fakeMatchMedia;
+
+    savedInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+    savedInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+    Object.defineProperty(window, 'innerWidth', { value: VIEWPORT_WIDTH, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: VIEWPORT_HEIGHT, configurable: true });
 }
 
 function restoreStubs(): void {
@@ -57,6 +67,18 @@ function restoreStubs(): void {
     } else {
         delete (window as unknown as { matchMedia?: typeof window.matchMedia }).matchMedia;
     }
+
+    if (savedInnerWidth) {
+        Object.defineProperty(window, 'innerWidth', savedInnerWidth);
+    } else {
+        delete (window as unknown as { innerWidth?: number }).innerWidth;
+    }
+    if (savedInnerHeight) {
+        Object.defineProperty(window, 'innerHeight', savedInnerHeight);
+    } else {
+        delete (window as unknown as { innerHeight?: number }).innerHeight;
+    }
+
     vi.useRealTimers();
 }
 

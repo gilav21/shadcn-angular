@@ -367,14 +367,33 @@ describe('SelectContentComponent positioning & keyboard', () => {
     });
 
     it('honours an explicit popper position and a top side preference', async () => {
-        await TestBed.configureTestingModule({ imports: [ContentHost] }).compileComponents();
-        const fixture = TestBed.createComponent(ContentHost);
-        fixture.componentInstance.selectPosition.set('popper');
-        fixture.componentInstance.side.set('top');
-        await openHost(fixture);
+        // The trigger stub above always reports { top: 100, bottom: 140 }. The
+        // side-resolution math (resolvePopperSide) picks 'top' whenever the
+        // space above the trigger is >= the space below it, regardless of the
+        // real (environment-dependent) content height — so pin the viewport
+        // height low enough that "below" is nearly out of room. This keeps the
+        // outcome deterministic under both jsdom (0-height layout) and a real
+        // browser (real layout), where the untouched jsdom-default viewport
+        // otherwise leaves plenty of room below the trigger.
+        const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+        Object.defineProperty(window, 'innerHeight', { configurable: true, value: 150 });
 
-        const content = fixture.debugElement.query(By.css('[data-slot="select-content"]'));
-        expect(content.nativeElement.className).toContain('bottom-full');
+        try {
+            await TestBed.configureTestingModule({ imports: [ContentHost] }).compileComponents();
+            const fixture = TestBed.createComponent(ContentHost);
+            fixture.componentInstance.selectPosition.set('popper');
+            fixture.componentInstance.side.set('top');
+            await openHost(fixture);
+
+            const content = fixture.debugElement.query(By.css('[data-slot="select-content"]'));
+            expect(content.nativeElement.className).toContain('bottom-full');
+        } finally {
+            if (originalInnerHeight) {
+                Object.defineProperty(window, 'innerHeight', originalInnerHeight);
+            } else {
+                Reflect.deleteProperty(window, 'innerHeight');
+            }
+        }
     });
 
     it('restores placement state and previous focus when closing', async () => {

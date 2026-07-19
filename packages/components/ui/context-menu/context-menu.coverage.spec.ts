@@ -43,6 +43,24 @@ function removePortals(): void {
     document.querySelectorAll('[data-context-menu-portal],[data-context-menu-sub-portal]').forEach((el) => el.remove());
 }
 
+/** Pins window.innerWidth/innerHeight to fixed values so the clamping math in
+ * calculatePosition() is deterministic across jsdom and real browser runs.
+ * Returns a restore function that must be called to undo the stub. */
+function stubViewport(width: number, height: number): () => void {
+    const originalWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
+    const originalHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: height });
+    return () => {
+        if (originalWidth) {
+            Object.defineProperty(window, 'innerWidth', originalWidth);
+        }
+        if (originalHeight) {
+            Object.defineProperty(window, 'innerHeight', originalHeight);
+        }
+    };
+}
+
 @Component({
     template: `
         <ui-context-menu>
@@ -165,9 +183,14 @@ describe('ContextMenuContentComponent viewport clamping', () => {
     it('clamps to the right/bottom edges when the menu overflows', () => {
         const content = open(1000, 700);
         stubContentRect(200, 100);
-        (content as unknown as PositionedPortal).calculatePosition();
-        // x = 1024 - 200 - 8, y = 768 - 100 - 8
-        expect(content.adjustedPosition()).toEqual({ x: 816, y: 660 });
+        const restoreViewport = stubViewport(1024, 768);
+        try {
+            (content as unknown as PositionedPortal).calculatePosition();
+            // x = 1024 - 200 - 8, y = 768 - 100 - 8
+            expect(content.adjustedPosition()).toEqual({ x: 816, y: 660 });
+        } finally {
+            restoreViewport();
+        }
     });
 
     it('clamps to the minimum 8px offset near the top-left', () => {
@@ -464,9 +487,14 @@ describe('ContextMenuSubContentComponent positioning', () => {
         vi.spyOn(menuInstance(fixture), 'isRtl').mockReturnValue(true);
         const content = openSub();
         stubRects(makeRect(50, 20, 1050, 700), makeRect(200, 100));
-        calc(content);
-        // x = 1024 - 200 - 8, y = 768 - 100 - 8
-        expect(content.portalPosition()).toEqual({ x: 816, y: 660 });
+        const restoreViewport = stubViewport(1024, 768);
+        try {
+            calc(content);
+            // x = 1024 - 200 - 8, y = 768 - 100 - 8
+            expect(content.portalPosition()).toEqual({ x: 816, y: 660 });
+        } finally {
+            restoreViewport();
+        }
     });
 
     it('flips to the left and clamps to 8px in LTR, clamping y to the top', () => {

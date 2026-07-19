@@ -23,6 +23,11 @@ let savedRevokeObjectURL: ObjectUrlApi['revokeObjectURL'];
 let savedBlob: unknown;
 let savedFile: unknown;
 
+/** True when a Blob/File ctor's instances lack a usable arrayBuffer() (jsdom). */
+function lacksArrayBuffer(ctor: unknown): boolean {
+    return typeof (ctor as { prototype?: { arrayBuffer?: unknown } })?.prototype?.arrayBuffer !== 'function';
+}
+
 beforeEach(() => {
     savedCreateObjectURL = urlApi.createObjectURL;
     savedRevokeObjectURL = urlApi.revokeObjectURL;
@@ -32,9 +37,15 @@ beforeEach(() => {
     let counter = 0;
     urlApi.createObjectURL = () => `blob:mock/${counter++}`;
     urlApi.revokeObjectURL = () => { /* jsdom lacks this; noop stub */ };
-    // jsdom's Blob/File lack arrayBuffer(); back them with Node's implementations.
-    globalBlobApi.Blob = nodeBlobApi.Blob;
-    globalBlobApi.File = nodeBlobApi.File;
+    // jsdom's Blob/File lack arrayBuffer(); back them with Node's implementations
+    // ONLY there. In a real browser the natives are complete and node:buffer's
+    // File is undefined, so swapping would null the global and break instanceof.
+    if (nodeBlobApi.Blob && lacksArrayBuffer(globalBlobApi.Blob)) {
+        globalBlobApi.Blob = nodeBlobApi.Blob;
+    }
+    if (nodeBlobApi.File && lacksArrayBuffer(globalBlobApi.File)) {
+        globalBlobApi.File = nodeBlobApi.File;
+    }
 });
 
 afterEach(() => {
@@ -1448,8 +1459,12 @@ describe('FileViewerComponent end-to-end parser paths', () => {
         } as unknown as Response)) as unknown as typeof fetch;
         fixture.componentRef.setInput('src', 'https://x.com/note.txt');
         fixture.detectChanges();
-        await flush();
-        expect(component.state()).toBe('loaded');
+        // The effect → fetch → blob-read chain resolves over several async hops;
+        // poll rather than assume a fixed flush drains them (browser timing varies).
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(component.state()).toBe('loaded');
+        });
         expect(component.textContent()).toBe('effect text');
         globalThis.fetch = orig;
     });

@@ -47,6 +47,10 @@ interface StubbableElementProto {
 
 let rectSpy: ReturnType<typeof vi.spyOn>;
 let addedScrollIntoView = false;
+const VIEWPORT_WIDTH = 1024;
+const VIEWPORT_HEIGHT = 768;
+let savedInnerWidth: PropertyDescriptor | undefined;
+let savedInnerHeight: PropertyDescriptor | undefined;
 
 function installBrowserStubs(): void {
     vi.stubGlobal('matchMedia', (query: string) => ({
@@ -70,6 +74,13 @@ function installBrowserStubs(): void {
     rectSpy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(DEFAULT_TARGET_RECT);
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(CARD_OFFSET_WIDTH);
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(CARD_OFFSET_HEIGHT);
+
+    // window.innerWidth/Height are plain data properties (not accessors) under
+    // jsdom, so spyOn(..., 'get') throws — override the descriptor directly.
+    savedInnerWidth = Object.getOwnPropertyDescriptor(globalThis.window, 'innerWidth');
+    savedInnerHeight = Object.getOwnPropertyDescriptor(globalThis.window, 'innerHeight');
+    Object.defineProperty(globalThis.window, 'innerWidth', { value: VIEWPORT_WIDTH, configurable: true });
+    Object.defineProperty(globalThis.window, 'innerHeight', { value: VIEWPORT_HEIGHT, configurable: true });
 }
 
 function restoreBrowserStubs(): void {
@@ -77,6 +88,8 @@ function restoreBrowserStubs(): void {
         delete (Element.prototype as unknown as StubbableElementProto).scrollIntoView;
         addedScrollIntoView = false;
     }
+    if (savedInnerWidth) Object.defineProperty(globalThis.window, 'innerWidth', savedInnerWidth);
+    if (savedInnerHeight) Object.defineProperty(globalThis.window, 'innerHeight', savedInnerHeight);
     vi.unstubAllGlobals();
 }
 

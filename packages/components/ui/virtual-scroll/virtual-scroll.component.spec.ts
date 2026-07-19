@@ -457,8 +457,15 @@ describe('VirtualScrollComponent', () => {
         const vsComponent = getVs();
         const priv = asPrivate(vsComponent);
 
+        // Index 50 sits well past the rendered/viewport window (~0-11 with the
+        // 300px viewport + buffer used by this fixture), in both jsdom and a
+        // real browser. paddingBottom subtracts getOffsetForIndex(renderEnd),
+        // which never touches index 50, so growing it can only ever inflate
+        // the total-height term — deterministic across environments, unlike
+        // an in-window index whose growth is simultaneously added to and
+        // subtracted from the padding math and can net out to zero.
         const before = vsComponent.paddingBottom();
-        priv.handleResizes([resizeEntry('10', 150)]);
+        priv.handleResizes([resizeEntry('50', 150)]);
         fixture.detectChanges();
 
         expect(vsComponent.paddingBottom()).toBeGreaterThan(before);

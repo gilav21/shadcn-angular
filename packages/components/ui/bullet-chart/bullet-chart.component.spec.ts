@@ -131,6 +131,9 @@ describe('BulletChartComponent', () => {
 
     it('falls back to the width input for viewBox / svgWidth when unmeasured', () => {
         fixture.componentRef.setInput('width', 500);
+        // Force the unmeasured state: a real browser's ResizeObserver measures
+        // the host (~viewport width), but this asserts the width-input fallback.
+        (component as unknown as { _measuredWidth: { set(v: number | null): void } })._measuredWidth.set(null);
         fixture.detectChanges();
         expect(component.svgWidth()).toBe(500);
         expect(component.viewBox()).toBe('0 0 500 40');

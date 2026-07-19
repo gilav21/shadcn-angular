@@ -259,6 +259,17 @@ describe('EmojiPickerComponent', () => {
         (content as unknown as ContentInternals).scrollArea = scrollArea;
 
         const viewport = scrollArea.viewportRef?.nativeElement as HTMLElement;
+        const sections = Array.from(
+            contentEl().querySelectorAll('[data-category]')
+        ) as HTMLElement[];
+        sections.forEach((section, index) => {
+            Object.defineProperty(section, 'offsetTop', { value: index * 1000, configurable: true });
+        });
+        Object.defineProperty(viewport, 'scrollTop', {
+            value: (sections.length - 1) * 1000,
+            configurable: true,
+        });
+
         viewport.dispatchEvent(new Event('scroll'));
         vi.runAllTimers();
         fixture.detectChanges();

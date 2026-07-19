@@ -224,7 +224,11 @@ describe('ShineBorderComponent', () => {
     it('should render a static gradient and skip RAF when reduced motion is preferred', async () => {
         reducedMotion = true;
         await createFixture();
-        expect(getWrapper().style.background).toContain('conic-gradient(from 0deg');
+        // Static gradient sits at the base 0deg angle. A real browser's CSSOM
+        // elides the default `from 0deg` and rewrites hex colors to rgb(); jsdom
+        // keeps both — accept either form. The null animationFrameId below
+        // confirms it's static (no RAF), not animated.
+        expect(getWrapper().style.background).toMatch(/^conic-gradient\((from 0deg, )?(rgb\(|#)/);
         expect((getComponent() as unknown as PrivateShineBorder).animationFrameId).toBeNull();
     });
 

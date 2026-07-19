@@ -133,6 +133,9 @@ describe('SpeedDial showAt + clampToContainer', () => {
     let fixture: ComponentFixture<ConfigHostComponent>;
     let host: ConfigHostComponent;
     let sd: SpeedDialComponent;
+    let originalInnerWidth: number;
+    let originalInnerHeight: number;
+    let getBoundingClientRectSpy: ReturnType<typeof vi.spyOn> | undefined;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({ imports: [ConfigHostComponent] }).compileComponents();
@@ -141,10 +144,34 @@ describe('SpeedDial showAt + clampToContainer', () => {
         fixture.detectChanges();
         sd = getSpeedDial(fixture);
         vi.useFakeTimers();
+
+        originalInnerWidth = globalThis.innerWidth;
+        originalInnerHeight = globalThis.innerHeight;
+        Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: 1024 });
+        Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: 768 });
+
+        const sdElement = fixture.debugElement.query(By.directive(SpeedDialComponent)).nativeElement as HTMLElement;
+        const container = sdElement.closest('[uiSpeedDialContextTrigger]') as HTMLElement | null ?? sdElement.parentElement;
+        if (container) {
+            getBoundingClientRectSpy = vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 0,
+                height: 0,
+                x: 0,
+                y: 0,
+                toJSON: () => ({}),
+            } as DOMRect);
+        }
     });
 
     afterEach(() => {
         vi.useRealTimers();
+        Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: originalInnerWidth });
+        Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: originalInnerHeight });
+        getBoundingClientRectSpy?.mockRestore();
     });
 
     it('opens after the reposition timeout and emits shown', () => {
