@@ -1010,6 +1010,12 @@
       "dock/sub/dock-item.component.ts",
       "dock/sub/dock-label.component.html",
       "dock/sub/dock-label.component.ts"
+    ],
+    "testFiles": [
+      "dock/dock.component.spec.ts",
+      "dock/sub/dock-icon.component.spec.ts",
+      "dock/sub/dock-item.component.spec.ts",
+      "dock/sub/dock-label.component.spec.ts"
     ]
   },
   "tree-select": {
@@ -1063,6 +1069,10 @@
       "virtual-scroll/virtual-scroll.component.css",
       "virtual-scroll/virtual-scroll.component.html",
       "virtual-scroll/virtual-scroll.component.ts"
+    ],
+    "testFiles": [
+      "virtual-scroll/virtual-scroll.component.spec.ts",
+      "virtual-scroll/virtual-scroll.runway.spec.ts"
     ],
     "breaking": [
       {
@@ -2861,6 +2871,10 @@
       "select",
       "switch"
     ],
+    "testFiles": [
+      "page-builder/page-builder.component.spec.ts",
+      "page-builder/sub/property-editor.component.spec.ts"
+    ],
     "files": [
       "page-builder/index.ts",
       "page-builder/page-builder.component.html",
@@ -3456,6 +3470,10 @@
       "sortable-aria-live.ts",
       "sortable-registry.ts",
       "touch.ts"
+    ],
+    "testFiles": [
+      "sortable/sortable.component.spec.ts",
+      "sortable/sub/sortable-ghost.directive.spec.ts"
     ]
   },
   "context-menu-attach": {
@@ -3821,6 +3839,9 @@
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "directives/copy-to.directive.spec.ts"
     ]
   },
   "card-accordion": {
@@ -3882,6 +3903,9 @@
       "dialog",
       "pie-chart",
       "stacked-bar-chart"
+    ],
+    "testFiles": [
+      "data-table-range-chart/data-table-range-chart.component.spec.ts"
     ]
   },
   "chart-tooltip": {

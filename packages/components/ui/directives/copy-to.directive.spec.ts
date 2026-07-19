@@ -3,6 +3,17 @@ import { Component, ApplicationRef } from '@angular/core';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { CopyToDirective } from './copy-to.directive';
 
+function clickButton(button: HTMLButtonElement): void {
+	button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+}
+
+// The indicator is created in a clipboard.writeText().then() microtask that the
+// zone whenStable doesn't drain under the jest leg. Flush microtasks explicitly
+// (Promise-only, so it is safe under fake timers).
+function flushPromises(): Promise<void> {
+	return Promise.resolve().then(() => Promise.resolve());
+}
+
 @Component({
 	template: `
 		<button [uiCopyTo]="textToCopy" (copied)="onCopied()">
@@ -62,7 +73,7 @@ describe('CopyToDirective', () => {
 		const copyWriteTextSpy = vi.spyOn(navigator.clipboard, 'writeText');
 		const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 
-		button.click();
+		clickButton(button);
 		await fixture.whenStable();
 
 		expect(copyWriteTextSpy).toHaveBeenCalledWith('Hello, World!');
@@ -72,7 +83,7 @@ describe('CopyToDirective', () => {
 		const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 		const initialCount = host.copiedCount;
 
-		button.click();
+		clickButton(button);
 		appRef.tick();
 		await fixture.whenStable();
 
@@ -84,9 +95,9 @@ describe('CopyToDirective', () => {
 
 		expect(document.body.querySelector('.ui-copy-indicator')).toBeNull();
 
-		button.click();
+		clickButton(button);
 		appRef.tick();
-		await fixture.whenStable();
+		await flushPromises();
 
 		const indicator = document.body.querySelector('.ui-copy-indicator');
 		expect(indicator).toBeTruthy();
@@ -97,9 +108,9 @@ describe('CopyToDirective', () => {
 		vi.useFakeTimers();
 		const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 
-		button.click();
+		clickButton(button);
 		appRef.tick();
-		await fixture.whenStable();
+		await flushPromises();
 
 		expect(document.body.querySelector('.ui-copy-indicator')).toBeTruthy();
 
@@ -113,7 +124,6 @@ describe('CopyToDirective', () => {
 
 	it('should handle empty text gracefully', async () => {
 		const copyWriteTextSpy = vi.spyOn(navigator.clipboard, 'writeText');
-		const _button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 
 		// Create a new component with empty text input
 		const emptyFixture = TestBed.createComponent(TestHostComponent);
@@ -121,9 +131,9 @@ describe('CopyToDirective', () => {
 		emptyFixture.detectChanges();
 
 		const emptyButton = emptyFixture.nativeElement.querySelector('button') as HTMLButtonElement;
-		emptyButton.click();
+		clickButton(emptyButton);
 		appRef.tick();
-		await emptyFixture.whenStable();
+		await flushPromises();
 
 		expect(copyWriteTextSpy).toHaveBeenCalledWith('');
 	});
@@ -131,9 +141,9 @@ describe('CopyToDirective', () => {
 	it('should clean up on destroy', async () => {
 		const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
 
-		button.click();
+		clickButton(button);
 		appRef.tick();
-		await fixture.whenStable();
+		await flushPromises();
 
 		const indicator = document.body.querySelector('.ui-copy-indicator');
 		expect(indicator).toBeTruthy();

@@ -1,109 +1,111 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { VirtualScrollComponent } from './virtual-scroll.component';
 import { Component, signal } from '@angular/core';
+import { VirtualScrollComponent, VirtualItemDirective } from './virtual-scroll.component';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+interface RunwayItem {
+    id: number;
+    height: number;
+}
+
+// Private runway surface exercised directly — jsdom has no layout to drive it.
+type RunwayInternals = {
+    getOffsetForIndex(index: number): number;
+    handleResizes(entries: ResizeObserverEntry[]): void;
+};
 
 @Component({
     template: `
-    <ui-virtual-scroll 
-      [items]="items()" 
-      [minItemHeight]="50" 
+    <ui-virtual-scroll
+      [items]="items()"
+      [minItemHeight]="50"
       [buffer]="2"
       style="height: 400px; display: block;"
     >
       <ng-template uiVirtualItem let-item>
-        <div [style.height.px]="item.height">{{ item.id }}</div>
+        <div [style.height.px]="$any(item).height">{{ $any(item).id }}</div>
       </ng-template>
     </ui-virtual-scroll>
   `,
-    imports: [VirtualScrollComponent],
+    imports: [VirtualScrollComponent, VirtualItemDirective],
     standalone: true
 })
 class TestHostComponent {
-    items = signal<any[]>([]);
+    readonly items = signal<RunwayItem[]>([]);
 }
 
 describe('VirtualScroll Runway Logic', () => {
     let fixture: ComponentFixture<TestHostComponent>;
-    let component: VirtualScrollComponent<any>;
-    let host: TestHostComponent;
+    let component: VirtualScrollComponent<RunwayItem>;
+    let priv: RunwayInternals;
+    let savedResizeObserver: typeof ResizeObserver | undefined;
 
     beforeEach(async () => {
+        savedResizeObserver = globalThis.ResizeObserver;
+        class NoopResizeObserver {
+            observe(): void { /* jsdom has no layout */ }
+            unobserve(): void { /* jsdom has no layout */ }
+            disconnect(): void { /* jsdom has no layout */ }
+        }
+        globalThis.ResizeObserver = NoopResizeObserver as unknown as typeof ResizeObserver;
+
         await TestBed.configureTestingModule({
             imports: [TestHostComponent, VirtualScrollComponent]
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
-        host = fixture.componentInstance;
-
-        // Create 100 items
-        host.items.set(Array.from({ length: 100 }, (_, i) => ({ id: i, height: 50 })));
-
+        fixture.componentInstance.items.set(
+            Array.from({ length: 100 }, (_, i) => ({ id: i, height: 50 })),
+        );
         fixture.detectChanges();
 
-        // Get component reference
-        const debugEl = fixture.debugElement.children[0];
-        component = debugEl.componentInstance;
+        component = fixture.debugElement.children[0].componentInstance;
+        priv = component as unknown as RunwayInternals;
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        globalThis.ResizeObserver = savedResizeObserver as typeof ResizeObserver;
     });
 
     it('should calculate initial offsets based on minHeight', () => {
-        // 50px minHeight
-        // Index 0 -> 0
-        expect((component as any).getOffsetForIndex(0)).toBe(0);
-
-        // Index 10 -> 500
-        expect((component as any).getOffsetForIndex(10)).toBe(500);
-
-        expect((component as any).getOffsetForIndex(99)).toBe(4950);
+        expect(priv.getOffsetForIndex(0)).toBe(0);
+        expect(priv.getOffsetForIndex(10)).toBe(500);
+        expect(priv.getOffsetForIndex(99)).toBe(4950);
     });
 
     it('should update offsets when items are measured', () => {
-        // Mock a resize event for item 0 -> 100px (was 50)
         const entries = [{
-            target: { dataset: { index: '0' } } as any,
-            borderBoxSize: [{ blockSize: 100 }]
+            target: { dataset: { index: '0' } },
+            borderBoxSize: [{ blockSize: 100 }],
         }] as unknown as ResizeObserverEntry[];
 
-        (component as any).handleResizes(entries);
+        priv.handleResizes(entries);
 
-        // Index 0 -> 0 (start unchanged)
-        // Index 1 -> 100 (was 50, pushed down by 50)
-        expect((component as any).getOffsetForIndex(0)).toBe(0);
-        expect((component as any).getOffsetForIndex(1)).toBe(100);
-        expect((component as any).getOffsetForIndex(10)).toBe(550); // 500 + 50
+        expect(priv.getOffsetForIndex(0)).toBe(0);
+        expect(priv.getOffsetForIndex(1)).toBe(100);
+        expect(priv.getOffsetForIndex(10)).toBe(550);
     });
 
     it('scroll anchoring: should adjust scrollTop when upstream item expands', () => {
-        // Scroll down to index 10 (offset 500)
         component.scrollTop.set(500);
-
-        // Simulate current viewport starts at index 10
-        // We need to force validity of this state effectively
-        // The component calculates 'visibleStart' based on scrollTop
         expect(component.viewportRange().start).toBe(10);
 
-        // Now resize item 5 (upstream) from 50 -> 150 (+100px)
         const entries = [{
-            target: { dataset: { index: '5' } } as any,
-            borderBoxSize: [{ blockSize: 150 }]
+            target: { dataset: { index: '5' } },
+            borderBoxSize: [{ blockSize: 150 }],
         }] as unknown as ResizeObserverEntry[];
 
-        // Mock the container ref to capture the adjustment
         component.containerRef = signal({
             nativeElement: {
                 scrollTop: 500,
                 clientHeight: 400,
-                scrollTo: () => { }
-            } as any
-        } as any).asReadonly();
+                scrollTo: () => { /* noop */ },
+            },
+        } as unknown as never).asReadonly();
 
-        // Spy on scrollTop assignment
-        // Since handleResizes modifies nativeElement.scrollTop directly
-        // based on our mock above
+        priv.handleResizes(entries);
 
-        (component as any).handleResizes(entries);
-
-        // Container scrollTop should have increased by 100 to maintain relative position
-        // mock scrollTop was 500, now should be 600
         expect(component.containerRef()!.nativeElement.scrollTop).toBe(600);
     });
 });

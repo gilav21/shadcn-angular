@@ -470,6 +470,7 @@ export const registry = defineRegistry({
     description: 'macOS-style dock of icons that magnify on hover for quick app navigation.',
     tags: ['dock', 'launcher', 'taskbar', 'icons', 'navigation'],
     files: ['dock/dock.component.html', 'dock/dock.component.ts', 'dock/index.ts', 'dock/sub/dock-icon.component.html', 'dock/sub/dock-icon.component.ts', 'dock/sub/dock-item.component.html', 'dock/sub/dock-item.component.ts', 'dock/sub/dock-label.component.html', 'dock/sub/dock-label.component.ts'],
+    testFiles: ['dock/dock.component.spec.ts', 'dock/sub/dock-icon.component.spec.ts', 'dock/sub/dock-item.component.spec.ts', 'dock/sub/dock-label.component.spec.ts'],
   },
   'tree-select': {
     name: 'tree-select',
@@ -487,6 +488,7 @@ export const registry = defineRegistry({
     description: 'Renders only visible rows of large lists for high-performance scrolling.',
     tags: ['virtual-scroll', 'virtualization', 'list', 'performance', 'windowing'],
     files: ['virtual-scroll/index.ts', 'virtual-scroll/virtual-scroll.component.css', 'virtual-scroll/virtual-scroll.component.html', 'virtual-scroll/virtual-scroll.component.ts'],
+    testFiles: ['virtual-scroll/virtual-scroll.component.spec.ts', 'virtual-scroll/virtual-scroll.runway.spec.ts'],
     breaking: [
       { kind: 'selector', from: 'virtualItem', to: 'uiVirtualItem', note: 'The item-template directive selector was renamed `[virtualItem]` -> `[uiVirtualItem]`. The old selector still works as a deprecated alias; rename `<ng-template virtualItem>` to `<ng-template uiVirtualItem>` in your templates.', codemod: 'selector' },
       { kind: 'type', from: 'items: T[]', to: 'items: T[] where T extends object', note: 'The `items` input is now generic over `T extends object`; any object row type binds unchanged. An `id: string | number` is optional and used for stable tracking when present.', codemod: 'none' },
@@ -1043,6 +1045,7 @@ export const registry = defineRegistry({
     description: 'Drag-and-drop visual builder for composing pages from configurable blocks.',
     tags: ['page-builder', 'builder', 'editor', 'drag-drop', 'cms'],
     dependencies: ['bento-grid', 'icon', 'select', 'switch'],
+    testFiles: ['page-builder/page-builder.component.spec.ts', 'page-builder/sub/property-editor.component.spec.ts'],
     files: ['page-builder/index.ts', 'page-builder/page-builder.component.html', 'page-builder/page-builder.component.ts', 'page-builder/page-builder.types.ts', 'page-builder/sub/property-editor.component.html', 'page-builder/sub/property-editor.component.ts'],
     libFiles: ['page-builder.types.ts'],
     obsoleteFiles: ['page-builder/property-editor.component.ts'],
@@ -1251,6 +1254,7 @@ export const registry = defineRegistry({
     tags: ['sortable', 'drag-drop', 'reorder', 'list', 'dnd'],
     files: ['sortable/index.ts', 'sortable/sortable-locales.ts', 'sortable/sortable.component.html', 'sortable/sortable.component.ts', 'sortable/sortable.types.ts', 'sortable/sub/sortable-ghost.directive.ts', 'sortable/sub/sortable-item.component.html', 'sortable/sub/sortable-item.component.ts', 'sortable/sub/sortable-placeholder.directive.ts'],
     libFiles: ['auto-scroll.ts', 'flip.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'sortable-aria-live.ts', 'sortable-registry.ts', 'touch.ts'],
+    testFiles: ['sortable/sortable.component.spec.ts', 'sortable/sub/sortable-ghost.directive.spec.ts'],
   },
   'context-menu-attach': {
     name: 'context-menu-attach',
@@ -1393,6 +1397,7 @@ export const registry = defineRegistry({
     tags: ['copy', 'clipboard', 'directive', 'copy-to-clipboard'],
     files: ['directives/copy-to.directive.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    testFiles: ['directives/copy-to.directive.spec.ts'],
   },
   'card-accordion': {
     name: 'card-accordion',
@@ -1411,6 +1416,7 @@ export const registry = defineRegistry({
     files: ['data-table-range-chart/data-table-range-chart.component.html', 'data-table-range-chart/data-table-range-chart.component.ts'],
     libFiles: ['chart.types.ts'],
     dependencies: ['bar-chart', 'button', 'dialog', 'pie-chart', 'stacked-bar-chart'],
+    testFiles: ['data-table-range-chart/data-table-range-chart.component.spec.ts'],
   },
   'chart-tooltip': {
     name: 'chart-tooltip',
