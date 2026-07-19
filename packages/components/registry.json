@@ -4396,6 +4396,19 @@
       "dialog",
       "rich-text-editor"
     ],
+    "testFiles": [
+      "rich-text-editor/addons/actions/actions-runtime.spec.ts",
+      "rich-text-editor/addons/actions/presets/hover-card.preset.spec.ts",
+      "rich-text-editor/addons/actions/presets/linked-preview-dialog.preset.spec.ts",
+      "rich-text-editor/addons/actions/presets/open-dialog.preset.spec.ts",
+      "rich-text-editor/addons/actions/presets/preset-overlay.utils.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions-bind.directive.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions-dialog.component.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions-form.component.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions-popover.component.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions.directive.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions.serializer.spec.ts"
+    ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
@@ -4488,6 +4501,12 @@
     "dependencies": [
       "rich-text-editor"
     ],
+    "testFiles": [
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.spec.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.spec.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts"
+    ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-command-registry.service.ts"
@@ -4532,6 +4551,10 @@
       "rich-text-editor",
       "scroll-area"
     ],
+    "testFiles": [
+      "rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts",
+      "rich-text-editor/addons/history/rich-text-history.directive.spec.ts"
+    ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
     ],
@@ -4575,6 +4598,11 @@
       "color-picker",
       "popover",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/colors/rich-text-colors-button.component.spec.ts",
+      "rich-text-editor/addons/colors/rich-text-colors.context.spec.ts",
+      "rich-text-editor/addons/colors/rich-text-colors.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
@@ -4667,6 +4695,12 @@
       "button",
       "popover",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/links/rich-text-links-button.component.spec.ts",
+      "rich-text-editor/addons/links/rich-text-links-form.component.spec.ts",
+      "rich-text-editor/addons/links/rich-text-links.context.spec.ts",
+      "rich-text-editor/addons/links/rich-text-links.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
@@ -4766,6 +4800,14 @@
       "popover",
       "rich-text-editor"
     ],
+    "testFiles": [
+      "rich-text-editor/addons/images/rich-text-images-button.component.spec.ts",
+      "rich-text-editor/addons/images/rich-text-images-overlay.component.spec.ts",
+      "rich-text-editor/addons/images/rich-text-images-resizer.component.spec.ts",
+      "rich-text-editor/addons/images/rich-text-images.context.spec.ts",
+      "rich-text-editor/addons/images/rich-text-images.directive.spec.ts",
+      "rich-text-editor/addons/images/rich-text-images.utils.spec.ts"
+    ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts",
@@ -4810,6 +4852,11 @@
     "dependencies": [
       "rich-text-editor",
       "scroll-area"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/mentions/rich-text-mention-popover.component.spec.ts",
+      "rich-text-editor/addons/mentions/rich-text-mentions.directive.spec.ts",
+      "rich-text-editor/addons/mentions/rich-text-mentions.utils.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
@@ -4916,6 +4963,12 @@
       "button",
       "rich-text-editor"
     ],
+    "testFiles": [
+      "rich-text-editor/addons/ai/rich-text-ai-chip.component.spec.ts",
+      "rich-text-editor/addons/ai/rich-text-ai-panel.component.spec.ts",
+      "rich-text-editor/addons/ai/rich-text-ai.context.spec.ts",
+      "rich-text-editor/addons/ai/rich-text-ai.directive.spec.ts"
+    ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
@@ -5003,6 +5056,9 @@
       "rich-text-editor/slash-commands",
       "rich-text-editor/tables",
       "rich-text-editor/typography"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/full/rich-text-full.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"

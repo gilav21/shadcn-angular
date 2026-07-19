@@ -84,6 +84,14 @@ describe('RichTextImagesDirective', () => {
         fixtures.push(fixture);
         document.body.appendChild(fixture.nativeElement);
         fixture.detectChanges();
+        // The overlay is created in an effect gated on `viewReady`, flipped from
+        // an afterNextRender callback the zone leg doesn't flush here — force it
+        // and re-run CD. Under the zoneless leg afterNextRender already ran, so
+        // this is a harmless no-op.
+        const directive = fixture.debugElement.query(By.directive(RichTextImagesDirective))
+            ?.injector.get(RichTextImagesDirective);
+        (directive as unknown as { viewReady?: { set(v: boolean): void } } | undefined)?.viewReady?.set(true);
+        fixture.detectChanges();
         return fixture;
     }
 
@@ -510,7 +518,7 @@ describe('RichTextImagesDirective', () => {
         fixture.detectChanges();
         const readAsDataURL = vi.spyOn(FileReader.prototype, 'readAsDataURL')
             .mockImplementation(function (this: FileReader): void {
-                this.onerror?.(new ProgressEvent('error'));
+                this.onerror?.(new ProgressEvent('error') as ProgressEvent<FileReader>);
             });
         buttonContext(fixture).onUploadFile(imageFile());
         await wait();

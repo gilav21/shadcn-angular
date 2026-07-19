@@ -37,6 +37,9 @@ describe('rich-text-slash-commands.utils', () => {
     }
 
     afterEach(() => {
+        // Restore any getSelection spy first — jest does not auto-restore spies
+        // between tests, so a leaked mock would null out later tests.
+        vi.restoreAllMocks();
         document.getSelection()?.removeAllRanges();
         while (roots.length > 0) {
             roots.pop()!.remove();

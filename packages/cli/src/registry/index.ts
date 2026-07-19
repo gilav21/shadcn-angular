@@ -1574,6 +1574,7 @@ export const registry = defineRegistry({
     files: ['rich-text-editor/addons/actions/actions-runtime.ts', 'rich-text-editor/addons/actions/index.ts', 'rich-text-editor/addons/actions/presets/hover-card.preset.ts', 'rich-text-editor/addons/actions/presets/index.ts', 'rich-text-editor/addons/actions/presets/linked-preview-dialog.preset.ts', 'rich-text-editor/addons/actions/presets/open-dialog.preset.ts', 'rich-text-editor/addons/actions/presets/preset-overlay.utils.ts', 'rich-text-editor/addons/actions/rich-text-actions-bind.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.html', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-form.component.html', 'rich-text-editor/addons/actions/rich-text-actions-form.component.ts', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.html', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.ts', 'rich-text-editor/addons/actions/rich-text-actions.directive.ts', 'rich-text-editor/addons/actions/rich-text-actions.locales.ts', 'rich-text-editor/addons/actions/rich-text-actions.serializer.ts', 'rich-text-editor/addons/actions/rich-text-actions.types.ts'],
     libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/image-validator.ts', 'parsers/svg-sanitizer.ts'],
     dependencies: ['button', 'dialog', 'rich-text-editor'],
+    testFiles: ['rich-text-editor/addons/actions/actions-runtime.spec.ts', 'rich-text-editor/addons/actions/presets/hover-card.preset.spec.ts', 'rich-text-editor/addons/actions/presets/linked-preview-dialog.preset.spec.ts', 'rich-text-editor/addons/actions/presets/open-dialog.preset.spec.ts', 'rich-text-editor/addons/actions/presets/preset-overlay.utils.spec.ts', 'rich-text-editor/addons/actions/rich-text-actions-bind.directive.spec.ts', 'rich-text-editor/addons/actions/rich-text-actions-dialog.component.spec.ts', 'rich-text-editor/addons/actions/rich-text-actions-form.component.spec.ts', 'rich-text-editor/addons/actions/rich-text-actions-popover.component.spec.ts', 'rich-text-editor/addons/actions/rich-text-actions.directive.spec.ts', 'rich-text-editor/addons/actions/rich-text-actions.serializer.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-command-registry.service.ts'],
     attach: {
       import: "RichTextActionsDirective from './ui/rich-text-editor/addons/actions'",
@@ -1607,6 +1608,7 @@ export const registry = defineRegistry({
     files: ['rich-text-editor/addons/slash-commands/index.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.html', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.locales.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.ts'],
     libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['rich-text-editor'],
+    testFiles: ['rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts', 'rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-command-registry.service.ts'],
     attach: {
       import: "RichTextSlashCommandsDirective from './ui/rich-text-editor/addons/slash-commands'",
@@ -1623,6 +1625,7 @@ export const registry = defineRegistry({
     files: ['rich-text-editor/addons/history/index.ts', 'rich-text-editor/addons/history/rich-text-history-panel.component.html', 'rich-text-editor/addons/history/rich-text-history-panel.component.ts', 'rich-text-editor/addons/history/rich-text-history.directive.ts', 'rich-text-editor/addons/history/rich-text-history.locales.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button', 'dialog', 'popover', 'rich-text-editor', 'scroll-area'],
+    testFiles: ['rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts', 'rich-text-editor/addons/history/rich-text-history.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
     attach: {
       import: "RichTextHistoryDirective from './ui/rich-text-editor/addons/history'",
@@ -1639,6 +1642,7 @@ export const registry = defineRegistry({
     files: ['rich-text-editor/addons/colors/index.ts', 'rich-text-editor/addons/colors/rich-text-colors-button.component.html', 'rich-text-editor/addons/colors/rich-text-colors-button.component.ts', 'rich-text-editor/addons/colors/rich-text-colors.context.ts', 'rich-text-editor/addons/colors/rich-text-colors.directive.ts', 'rich-text-editor/addons/colors/rich-text-colors.locales.ts'],
     libFiles: ['addon-slots.ts', 'color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['color-picker', 'popover', 'rich-text-editor'],
+    testFiles: ['rich-text-editor/addons/colors/rich-text-colors-button.component.spec.ts', 'rich-text-editor/addons/colors/rich-text-colors.context.spec.ts', 'rich-text-editor/addons/colors/rich-text-colors.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
     attach: {
       import: "RichTextColorsDirective from './ui/rich-text-editor/addons/colors'",
@@ -1672,6 +1676,7 @@ export const registry = defineRegistry({
     files: ['rich-text-editor/addons/links/index.ts', 'rich-text-editor/addons/links/rich-text-links-button.component.html', 'rich-text-editor/addons/links/rich-text-links-button.component.ts', 'rich-text-editor/addons/links/rich-text-links-form.component.html', 'rich-text-editor/addons/links/rich-text-links-form.component.ts', 'rich-text-editor/addons/links/rich-text-links.context.ts', 'rich-text-editor/addons/links/rich-text-links.directive.ts', 'rich-text-editor/addons/links/rich-text-links.locales.ts'],
     libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button', 'popover', 'rich-text-editor'],
+    testFiles: ['rich-text-editor/addons/links/rich-text-links-button.component.spec.ts', 'rich-text-editor/addons/links/rich-text-links-form.component.spec.ts', 'rich-text-editor/addons/links/rich-text-links.context.spec.ts', 'rich-text-editor/addons/links/rich-text-links.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
     attach: {
       import: "RichTextLinksDirective from './ui/rich-text-editor/addons/links'",
@@ -1705,6 +1710,7 @@ export const registry = defineRegistry({
     files: ['rich-text-editor/addons/images/index.ts', 'rich-text-editor/addons/images/rich-text-images-button.component.html', 'rich-text-editor/addons/images/rich-text-images-button.component.ts', 'rich-text-editor/addons/images/rich-text-images-overlay.component.html', 'rich-text-editor/addons/images/rich-text-images-overlay.component.ts', 'rich-text-editor/addons/images/rich-text-images-resizer.component.html', 'rich-text-editor/addons/images/rich-text-images-resizer.component.ts', 'rich-text-editor/addons/images/rich-text-images.context.ts', 'rich-text-editor/addons/images/rich-text-images.directive.ts', 'rich-text-editor/addons/images/rich-text-images.locales.ts', 'rich-text-editor/addons/images/rich-text-images.utils.ts'],
     libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/image-validator.ts'],
     dependencies: ['button', 'popover', 'rich-text-editor'],
+    testFiles: ['rich-text-editor/addons/images/rich-text-images-button.component.spec.ts', 'rich-text-editor/addons/images/rich-text-images-overlay.component.spec.ts', 'rich-text-editor/addons/images/rich-text-images-resizer.component.spec.ts', 'rich-text-editor/addons/images/rich-text-images.context.spec.ts', 'rich-text-editor/addons/images/rich-text-images.directive.spec.ts', 'rich-text-editor/addons/images/rich-text-images.utils.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts'],
     attach: {
       import: "RichTextImagesDirective from './ui/rich-text-editor/addons/images'",
@@ -1721,6 +1727,7 @@ export const registry = defineRegistry({
     files: ['rich-text-editor/addons/mentions/index.ts', 'rich-text-editor/addons/mentions/rich-text-mention-popover.component.html', 'rich-text-editor/addons/mentions/rich-text-mention-popover.component.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.directive.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.locales.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.types.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.utils.ts'],
     libFiles: ['addon-slots.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['rich-text-editor', 'scroll-area'],
+    testFiles: ['rich-text-editor/addons/mentions/rich-text-mention-popover.component.spec.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.directive.spec.ts', 'rich-text-editor/addons/mentions/rich-text-mentions.utils.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
     attach: {
       import: "RichTextMentionsDirective from './ui/rich-text-editor/addons/mentions'",
@@ -1754,6 +1761,7 @@ export const registry = defineRegistry({
     files: ['rich-text-editor/addons/ai/index.ts', 'rich-text-editor/addons/ai/rich-text-ai-chip.component.html', 'rich-text-editor/addons/ai/rich-text-ai-chip.component.ts', 'rich-text-editor/addons/ai/rich-text-ai-panel.component.html', 'rich-text-editor/addons/ai/rich-text-ai-panel.component.ts', 'rich-text-editor/addons/ai/rich-text-ai.context.ts', 'rich-text-editor/addons/ai/rich-text-ai.directive.ts', 'rich-text-editor/addons/ai/rich-text-ai.locales.ts'],
     libFiles: ['addon-slots.ts', 'ai.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button', 'rich-text-editor'],
+    testFiles: ['rich-text-editor/addons/ai/rich-text-ai-chip.component.spec.ts', 'rich-text-editor/addons/ai/rich-text-ai-panel.component.spec.ts', 'rich-text-editor/addons/ai/rich-text-ai.context.spec.ts', 'rich-text-editor/addons/ai/rich-text-ai.directive.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts', 'rich-text-editor/rich-text-sanitizer.service.ts'],
     attach: {
       import: "RichTextAiDirective from './ui/rich-text-editor/addons/ai'",
@@ -1786,6 +1794,7 @@ export const registry = defineRegistry({
     tags: ['rich-text', 'bundle', 'composition', 'everything', 'addon'],
     files: ['rich-text-editor/addons/full/index.ts'],
     dependencies: ['rich-text-editor/actions', 'rich-text-editor/ai', 'rich-text-editor/colors', 'rich-text-editor/emoji', 'rich-text-editor/file-import', 'rich-text-editor/history', 'rich-text-editor/images', 'rich-text-editor/links', 'rich-text-editor/mentions', 'rich-text-editor/outline', 'rich-text-editor/slash-commands', 'rich-text-editor/tables', 'rich-text-editor/typography'],
+    testFiles: ['rich-text-editor/addons/full/rich-text-full.spec.ts'],
     requiresBaseFiles: ['rich-text-editor/rich-text-editor.host.ts'],
     attach: {
       import: "RTE_FULL from './ui/rich-text-editor/addons/full'",

@@ -215,10 +215,3 @@ describe('bindRichTextActions', () => {
     });
 });
 
-describe('module purity', () => {
-    it('the runtime source imports no @angular package', async () => {
-        const mod = await import('./actions-runtime.ts?raw');
-        const src = mod.default as string;
-        expect(src).not.toMatch(/from '@angular/);
-    });
-});

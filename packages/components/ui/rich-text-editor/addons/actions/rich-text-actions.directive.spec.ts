@@ -258,6 +258,7 @@ describe('RichTextActionsDirective', () => {
 
     function caretInside(fixture: ComponentFixture<HostCmp>, html: string): HTMLElement {
         fixture.detectChanges();
+        forceViewReady(fixture);
         const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
         editor.innerHTML = html;
         const span = editor.querySelector('span')!;
@@ -268,6 +269,21 @@ describe('RichTextActionsDirective', () => {
         editor.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
         fixture.detectChanges();
         return editor;
+    }
+
+    /**
+     * The directive registers its mouseup/keyup listeners (and injects the
+     * visualization stylesheet) inside an effect gated on `viewReady`, which is
+     * flipped from an afterNextRender callback. The zone leg does not flush
+     * afterRender hooks in this TestBed, so force the flag and re-run change
+     * detection to register the listeners before the test interacts. Under the
+     * zoneless leg afterNextRender already ran, so this is a harmless no-op.
+     */
+    function forceViewReady(fixture: ComponentFixture<HostCmp>): void {
+        const directive = fixture.debugElement.query(By.directive(RichTextActionsDirective))
+            ?.injector.get(RichTextActionsDirective);
+        (directive as unknown as { viewReady?: { set(v: boolean): void } } | undefined)?.viewReady?.set(true);
+        fixture.detectChanges();
     }
 
     it('shows the edit popover when the caret enters an actioned span', () => {
@@ -422,8 +438,10 @@ describe('RichTextActionsDirective', () => {
     it('ref-counts the shared visualization stylesheet across two editor instances', () => {
         const a = createFixture();
         a.detectChanges();
+        forceViewReady(a);
         const b = createFixture();
         b.detectChanges();
+        forceViewReady(b);
         const doc = a.nativeElement.ownerDocument as Document;
         const style = doc.querySelector('style[data-rte-actions-style]') as HTMLStyleElement;
         expect(style).toBeTruthy();

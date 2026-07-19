@@ -59,11 +59,11 @@ describe('RichTextLinksButtonComponent', () => {
 
     it('seeds the form via onOpen when the popover opens, and tracks open state', () => {
         probe.onOpenChange(true);
-        expect(onOpen).toHaveBeenCalledOnce();
+        expect(onOpen).toHaveBeenCalledTimes(1);
         expect(probe.open()).toBe(true);
 
         probe.onOpenChange(false);
-        expect(onOpen).toHaveBeenCalledOnce();
+        expect(onOpen).toHaveBeenCalledTimes(1);
         expect(probe.open()).toBe(false);
     });
 

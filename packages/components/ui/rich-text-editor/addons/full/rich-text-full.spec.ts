@@ -121,7 +121,7 @@ describe('uiRteFull composition (real editor)', () => {
         fixture.detectChanges();
 
         for (const id of ['emoji.insert', 'colors.foreground', 'links.insert', 'tables.insert', 'view.outline']) {
-            expect(slot(id), `slot '${id}' should render on the uiRteFull editor`).toBeTruthy();
+            expect(slot(id)).toBeTruthy();
         }
     });
 

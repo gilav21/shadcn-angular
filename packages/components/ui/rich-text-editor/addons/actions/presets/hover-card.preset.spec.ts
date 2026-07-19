@@ -33,13 +33,28 @@ describe('hover-card preset', () => {
     });
 
     it('renders the card in the anchored element\'s direction (rtl)', () => {
-        const injector = TestBed.inject(Injector);
-        const handlers = hoverCardHandlers(injector);
-        const ev = hoverEvent('start', { title: 'טיפ', body: 'תוכן' });
-        ev.element.dir = 'rtl';
-        handlers['preset.hover-card'](ev);
-        const inner = document.querySelector('[data-slot="preset-hover-card"] [dir]') as HTMLElement;
-        expect(inner?.getAttribute('dir')).toBe('rtl');
+        // getComputedStyle(el).direction doesn't cascade `dir` across jsdom
+        // runners; reflect the nearest [dir] ancestor.
+        const originalGetComputedStyle = globalThis.getComputedStyle;
+        globalThis.getComputedStyle = ((el: Element, pseudo?: string | null) => {
+            const real = originalGetComputedStyle(el, pseudo ?? undefined);
+            const dir = (el as HTMLElement).closest?.('[dir]')?.getAttribute('dir');
+            if (!dir) return real;
+            return new Proxy(real, {
+                get: (target, prop) => (prop === 'direction' ? dir : Reflect.get(target, prop)),
+            });
+        }) as typeof getComputedStyle;
+        try {
+            const injector = TestBed.inject(Injector);
+            const handlers = hoverCardHandlers(injector);
+            const ev = hoverEvent('start', { title: 'טיפ', body: 'תוכן' });
+            ev.element.dir = 'rtl';
+            handlers['preset.hover-card'](ev);
+            const inner = document.querySelector('[data-slot="preset-hover-card"] [dir]') as HTMLElement;
+            expect(inner?.getAttribute('dir')).toBe('rtl');
+        } finally {
+            globalThis.getComputedStyle = originalGetComputedStyle;
+        }
     });
 
     it('custom id/label and extraFields are respected', () => {

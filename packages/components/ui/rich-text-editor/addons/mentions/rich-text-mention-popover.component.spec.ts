@@ -75,7 +75,7 @@ describe('RichTextMentionPopoverComponent', () => {
 
         component.onKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
 
-        expect(closeSpy).toHaveBeenCalledOnce();
+        expect(closeSpy).toHaveBeenCalledTimes(1);
     });
 
     it('clamps a stale selected index down to the last item', () => {
@@ -113,7 +113,7 @@ describe('RichTextMentionPopoverComponent', () => {
         component.closed.subscribe(closeSpy);
 
         component.onKeydown(new KeyboardEvent('keydown', { key: 'Tab' }));
-        expect(closeSpy).toHaveBeenCalledOnce();
+        expect(closeSpy).toHaveBeenCalledTimes(1);
     });
 
     it('closes when a document click lands outside the popover', () => {
@@ -124,7 +124,7 @@ describe('RichTextMentionPopoverComponent', () => {
 
         outside.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-        expect(closeSpy).toHaveBeenCalledOnce();
+        expect(closeSpy).toHaveBeenCalledTimes(1);
         outside.remove();
     });
 

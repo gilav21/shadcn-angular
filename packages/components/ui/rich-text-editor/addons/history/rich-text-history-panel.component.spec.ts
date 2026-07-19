@@ -373,8 +373,8 @@ describe('RichTextHistoryPanelComponent', () => {
     });
 
     describe('focus timers', () => {
-        beforeEach(() => vi.useFakeTimers());
-        afterEach(() => vi.useRealTimers());
+        beforeEach(() => { vi.useFakeTimers(); });
+        afterEach(() => { vi.useRealTimers(); });
 
         function seedActionInPanel(list: 'popover' | 'dialog', index: number): HTMLElement {
             const el = fixture.nativeElement as HTMLElement;

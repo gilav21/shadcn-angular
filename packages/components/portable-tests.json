@@ -90,9 +90,18 @@
     "rating",
     "resizable",
     "rich-text-editor",
+    "rich-text-editor/actions",
+    "rich-text-editor/ai",
+    "rich-text-editor/colors",
     "rich-text-editor/emoji",
     "rich-text-editor/file-import",
+    "rich-text-editor/full",
+    "rich-text-editor/history",
+    "rich-text-editor/images",
+    "rich-text-editor/links",
+    "rich-text-editor/mentions",
     "rich-text-editor/outline",
+    "rich-text-editor/slash-commands",
     "rich-text-editor/tables",
     "rich-text-editor/typography",
     "ripple",
@@ -143,6 +152,10 @@
     "rich-text-editor": {
       "lines": 99,
       "reason": "2 provably-dead lines in rich-text-markdown.service pushListItem (67 null-guard on stack[-1] after length!==0; 73-74 sibling else unreachable given the caller pops while top.indent>=indent). Unexported helper, not test-reachable."
+    },
+    "rich-text-editor/slash-commands": {
+      "lines": 99,
+      "reason": "1 dead line in rich-text-slash-commands.directive.ts:178 — the for-of loop body over host.builtinCommands() which is computed(() => []) (an empty seam for future base commands), unreachable in the current build."
     }
   }
 }

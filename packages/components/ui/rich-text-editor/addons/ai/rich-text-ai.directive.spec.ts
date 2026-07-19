@@ -13,7 +13,7 @@ import { RichTextEditorComponent } from '../..';
  * for the duration of each test and restore the original afterwards.
  */
 type RangeRectFn = () => DOMRect;
-const rangeProto = Range.prototype as Range & { getBoundingClientRect?: RangeRectFn };
+const rangeProto = Range.prototype as unknown as { getBoundingClientRect?: RangeRectFn };
 let originalRangeRect: RangeRectFn | undefined;
 
 function fixedRect(): DOMRect {

@@ -82,7 +82,7 @@ describe('RichTextHistoryDirective', () => {
         const fixture = TestBed.createComponent(HostCmp);
         openFixtures.push(fixture);
         fixture.detectChanges();
-        await fixture.whenStable();
+        await Promise.resolve();
         fixture.detectChanges();
         const editor = fixture.nativeElement.querySelector('[contenteditable]') as HTMLElement;
         const editorCmp = fixture.debugElement.query(By.directive(RichTextEditorComponent))
@@ -129,7 +129,7 @@ describe('RichTextHistoryDirective', () => {
         const fixture = TestBed.createComponent(ToggleHostCmp);
         openFixtures.push(fixture);
         fixture.detectChanges();
-        await fixture.whenStable();
+        await Promise.resolve();
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('ui-rich-text-history-panel')).toBeTruthy();
 

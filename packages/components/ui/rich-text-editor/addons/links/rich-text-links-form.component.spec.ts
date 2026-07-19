@@ -86,8 +86,8 @@ describe('RichTextLinksFormComponent', () => {
 
         buttons[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
         buttons[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
-        expect(removed).toHaveBeenCalledOnce();
-        expect(cancelled).toHaveBeenCalledOnce();
+        expect(removed).toHaveBeenCalledTimes(1);
+        expect(cancelled).toHaveBeenCalledTimes(1);
     });
 
     it('reflects the RTL direction from the locale', () => {
