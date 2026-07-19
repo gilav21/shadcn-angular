@@ -1269,6 +1269,7 @@ export const registry = defineRegistry({
     tags: ['context-menu-attach', 'context-menu', 'right-click', 'directive', 'attach'],
     files: ['context-menu-attach.directive.ts'],
     dependencies: ['context-menu'],
+    testFiles: ['context-menu-attach.directive.spec.ts'],
   },
   'tree-context-menu': {
     name: 'tree-context-menu',
@@ -1277,6 +1278,7 @@ export const registry = defineRegistry({
     tags: ['tree-context-menu', 'tree', 'context-menu', 'right-click', 'directive'],
     files: ['tree-context-menu.directive.ts'],
     dependencies: ['context-menu'],
+    testFiles: ['tree-context-menu.directive.spec.ts'],
   },
   'table-context-menu': {
     name: 'table-context-menu',
@@ -1285,6 +1287,7 @@ export const registry = defineRegistry({
     tags: ['table-context-menu', 'table', 'context-menu', 'right-click', 'directive'],
     files: ['table-context-menu.directive.ts'],
     dependencies: ['context-menu'],
+    testFiles: ['table-context-menu.directive.spec.ts'],
   },
   'data-table-context-menu': {
     name: 'data-table-context-menu',
@@ -1293,6 +1296,7 @@ export const registry = defineRegistry({
     tags: ['data-table-context-menu', 'data-table', 'context-menu', 'right-click', 'directive'],
     files: ['data-table-context-menu.directive.ts'],
     dependencies: ['context-menu', 'data-table', 'table-context-menu'],
+    testFiles: ['data-table-context-menu.directive.spec.ts'],
   },
   eyedropper: {
     name: 'eyedropper',

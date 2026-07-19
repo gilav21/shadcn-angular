@@ -3527,6 +3527,9 @@
     ],
     "dependencies": [
       "context-menu"
+    ],
+    "testFiles": [
+      "context-menu-attach.directive.spec.ts"
     ]
   },
   "tree-context-menu": {
@@ -3545,6 +3548,9 @@
     ],
     "dependencies": [
       "context-menu"
+    ],
+    "testFiles": [
+      "tree-context-menu.directive.spec.ts"
     ]
   },
   "table-context-menu": {
@@ -3563,6 +3569,9 @@
     ],
     "dependencies": [
       "context-menu"
+    ],
+    "testFiles": [
+      "table-context-menu.directive.spec.ts"
     ]
   },
   "data-table-context-menu": {
@@ -3583,6 +3592,9 @@
       "context-menu",
       "data-table",
       "table-context-menu"
+    ],
+    "testFiles": [
+      "data-table-context-menu.directive.spec.ts"
     ]
   },
   "eyedropper": {
