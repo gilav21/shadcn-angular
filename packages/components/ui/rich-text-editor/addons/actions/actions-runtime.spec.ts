@@ -165,6 +165,54 @@ describe('bindRichTextActions', () => {
         expect(events).toEqual([]);
         off(); el.remove();
     });
+
+    it('delivers nothing when the click attribute is present but empty', () => {
+        const el = container('<span data-action-click="">t</span>');
+        const fn = vi.fn();
+        const off = bindRichTextActions(el, { handlers: { '*': fn } });
+        (el.querySelector('span') as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(fn).not.toHaveBeenCalled();
+        off(); el.remove();
+    });
+
+    it('ignores keydown for keys other than Enter or Space', () => {
+        const el = container('<span data-action-click="a">t</span>');
+        const fn = vi.fn();
+        const off = bindRichTextActions(el, { handlers: { a: fn } });
+        const span = el.querySelector('span') as HTMLElement;
+        span.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+        expect(fn).not.toHaveBeenCalled();
+        off(); el.remove();
+    });
+
+    it('ignores Enter keydown when the target is not an actioned element', () => {
+        const el = container('<span data-action-click="a">t</span><em>plain</em>');
+        const fn = vi.fn();
+        const off = bindRichTextActions(el, { handlers: { a: fn } });
+        const em = el.querySelector('em') as HTMLElement;
+        em.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        expect(fn).not.toHaveBeenCalled();
+        off(); el.remove();
+    });
+
+    it('ignores hover over a non-actioned element', () => {
+        const el = container('<span data-action-hover="h">t</span><em>plain</em>');
+        const fn = vi.fn();
+        const off = bindRichTextActions(el, { handlers: { h: fn } });
+        const em = el.querySelector('em') as HTMLElement;
+        em.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        expect(fn).not.toHaveBeenCalled();
+        off(); el.remove();
+    });
+
+    it('delivers hover when the mouseover carries no related target', () => {
+        const el = container('<span data-action-hover="term">t</span>');
+        const phases: string[] = [];
+        const off = bindRichTextActions(el, { handlers: { term: (e) => phases.push(e.phase) } });
+        (el.querySelector('span') as HTMLElement).dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        expect(phases).toEqual(['start']);
+        off(); el.remove();
+    });
 });
 
 describe('module purity', () => {

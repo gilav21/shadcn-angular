@@ -16,7 +16,29 @@ const LABELS_HE: RichTextImageResizerLabels = {
     floatRight: 'הצמדה לימין',
     deleteImage: 'מחיקת תמונה',
 };
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+/** jsdom lacks ResizeObserver; the resizer's tracking effect constructs one. */
+class ResizeObserverStub {
+    observe(): void { /* no-op */ }
+    unobserve(): void { /* no-op */ }
+    disconnect(): void { /* no-op */ }
+}
+type ResizeObserverGlobal = { ResizeObserver?: typeof ResizeObserver };
+const originalResizeObserver = (globalThis as ResizeObserverGlobal).ResizeObserver;
+
+beforeEach(() => {
+    (globalThis as ResizeObserverGlobal).ResizeObserver =
+        ResizeObserverStub as unknown as typeof ResizeObserver;
+});
+
+afterEach(() => {
+    if (originalResizeObserver) {
+        (globalThis as ResizeObserverGlobal).ResizeObserver = originalResizeObserver;
+    } else {
+        delete (globalThis as ResizeObserverGlobal).ResizeObserver;
+    }
+});
 
 describe('RichTextImageResizerComponent', () => {
     let component: RichTextImageResizerComponent;
@@ -408,6 +430,23 @@ describe('RichTextImageResizerComponent', () => {
             expect(img.style.width).toBe('150px');
         });
 
+        it('ignores pointer moves after the target is cleared mid-drag', () => {
+            const start = {
+                clientX: 0,
+                clientY: 0,
+                preventDefault: () => {},
+                stopPropagation: () => {},
+            } as unknown as MouseEvent;
+            component.startResize(start, 'se');
+            fixture.componentRef.setInput('target', null);
+            fixture.detectChanges();
+
+            expect(() =>
+                document.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, clientY: 0 })),
+            ).not.toThrow();
+            document.dispatchEvent(new MouseEvent('mouseup'));
+        });
+
         it('does nothing on startResize when there is no target', () => {
             fixture.componentRef.setInput('target', null);
             fixture.detectChanges();
@@ -461,6 +500,17 @@ describe('RichTextImageResizerComponent', () => {
                 // aspect = 100/50 = 2; newWidth = 150 -> newHeight = 75
                 expect(img.style.width).toBe('150px');
                 expect(img.style.height).toBe('75px');
+            });
+
+            it('falls back to changedTouches when touches is empty', () => {
+                const event = {
+                    touches: [] as unknown as TouchList,
+                    changedTouches: [{ clientX: 5, clientY: 5 }] as unknown as TouchList,
+                    preventDefault: () => {},
+                    stopPropagation: () => {},
+                } as unknown as TouchEvent;
+                expect(() => component.startResize(event, 'se')).not.toThrow();
+                document.dispatchEvent(new Event('touchend'));
             });
 
             it('emits resizeEnd on touchend and clears touch listeners', () => {
@@ -568,6 +618,18 @@ describe('RichTextImageResizerComponent', () => {
             expect(component.visible()).toBe(false);
         });
 
+        it('stays hidden when a target is tracked without a container', async () => {
+            const img = document.createElement('img');
+            img.getBoundingClientRect = () =>
+                ({ width: 80, height: 40, top: 10, left: 10, right: 90, bottom: 50 } as DOMRect);
+            fixture.componentRef.setInput('target', img);
+            fixture.detectChanges();
+
+            await new Promise((r) => requestAnimationFrame(() => r(null)));
+
+            expect(component.visible()).toBe(false);
+        });
+
         it('stops tracking and hides when the target is cleared', () => {
             const img = document.createElement('img');
             const container = document.createElement('div');
@@ -579,6 +641,40 @@ describe('RichTextImageResizerComponent', () => {
             fixture.detectChanges();
 
             expect(component.visible()).toBe(false);
+        });
+
+        it('reschedules an update on container scroll and window resize', () => {
+            const img = document.createElement('img');
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            fixture.componentRef.setInput('container', container);
+            fixture.componentRef.setInput('target', img);
+            fixture.detectChanges();
+
+            expect(() => {
+                container.dispatchEvent(new Event('scroll'));
+                window.dispatchEvent(new Event('resize'));
+            }).not.toThrow();
+            container.remove();
+        });
+
+        it('reschedules an update when the ResizeObserver fires', () => {
+            let observed: (() => void) | null = null;
+            class CapturingResizeObserver {
+                constructor(cb: () => void) { observed = cb; }
+                observe(): void { observed?.(); }
+                unobserve(): void { /* no-op */ }
+                disconnect(): void { /* no-op */ }
+            }
+            (globalThis as ResizeObserverGlobal).ResizeObserver =
+                CapturingResizeObserver as unknown as typeof ResizeObserver;
+
+            const img = document.createElement('img');
+            const container = document.createElement('div');
+            fixture.componentRef.setInput('container', container);
+            fixture.componentRef.setInput('target', img);
+            expect(() => fixture.detectChanges()).not.toThrow();
+            expect(observed).not.toBeNull();
         });
 
         it('cleans up listeners on destroy without throwing', () => {

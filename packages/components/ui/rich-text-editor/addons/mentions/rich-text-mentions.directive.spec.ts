@@ -1,11 +1,78 @@
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, afterEach } from 'vitest';
-import { RichTextEditorComponent } from '../../rich-text-editor.component';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { Observable, of, throwError } from 'rxjs';
 import { RichTextMentionsDirective } from './rich-text-mentions.directive';
 import { RichTextMentionPopoverComponent } from './rich-text-mention-popover.component';
-import type { MentionItem, TagItem, RichTextEntityRenderOptions } from './rich-text-mentions.types';
+import type {
+    MentionItem,
+    TagItem,
+    RichTextEntityRenderOptions,
+    RichTextEntitySearchResult,
+} from './rich-text-mentions.types';
+import { RichTextEditorComponent } from '../..';
+
+type Restore = () => void;
+
+function fixedRect(): DOMRect {
+    return {
+        x: 10, y: 10, width: 100, height: 18, top: 10, left: 10, right: 110, bottom: 28,
+        toJSON: () => ({}),
+    } as DOMRect;
+}
+
+/** Define a temporary property, returning a closure that restores the original. */
+function defineTemp(proto: Record<string, unknown>, key: string, value: unknown): Restore {
+    const original = Object.getOwnPropertyDescriptor(proto, key);
+    Object.defineProperty(proto, key, { value, configurable: true, writable: true });
+    return () => {
+        if (original) {
+            Object.defineProperty(proto, key, original);
+        } else {
+            delete proto[key];
+        }
+    };
+}
+
+/**
+ * jsdom's Range implements neither getBoundingClientRect nor getClientRects, and
+ * throws "Not implemented" for Element.prototype.scrollIntoView (the popover
+ * scrolls the active candidate into view on arrow navigation).
+ */
+function stubRangeRects(): Restore {
+    const rangeProto = Range.prototype as unknown as Record<string, unknown>;
+    const elementProto = Element.prototype as unknown as Record<string, unknown>;
+    const restores = [
+        defineTemp(rangeProto, 'getBoundingClientRect', () => fixedRect()),
+        defineTemp(rangeProto, 'getClientRects', () => [fixedRect()]),
+        defineTemp(elementProto, 'scrollIntoView', () => {}),
+        stubResizeObserver(),
+    ];
+    return () => {
+        for (const restore of restores) restore();
+    };
+}
+
+/** jsdom lacks ResizeObserver, which `ui-scroll-area` (the popover list) constructs. */
+function stubResizeObserver(): Restore {
+    const globals = globalThis as { ResizeObserver?: unknown };
+    const had = 'ResizeObserver' in globals;
+    const original = globals.ResizeObserver;
+    class StubResizeObserver {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+    }
+    globals.ResizeObserver = StubResizeObserver;
+    return () => {
+        if (had) {
+            globals.ResizeObserver = original;
+        } else {
+            delete globals.ResizeObserver;
+        }
+    };
+}
 
 const USERS: MentionItem[] = [
     { id: 'u1', value: 'john-doe', label: 'John Doe', description: 'john.doe@example.com' },
@@ -56,8 +123,31 @@ class ToggleHostCmp {
     readonly search = (): MentionItem[] => USERS;
 }
 
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextMentionsDirective],
+    template: `<ui-rich-text-editor mode="html"
+        uiRteMentions
+        [uiRteMentionsSearch]="search()"></ui-rich-text-editor>`,
+})
+class SearchHostCmp {
+    readonly search = signal<(q: string) => RichTextEntitySearchResult<MentionItem>>(() => USERS);
+}
+
+@Component({
+    standalone: true,
+    imports: [RichTextEditorComponent, RichTextMentionsDirective],
+    template: `<ui-rich-text-editor mode="html" uiRteMentions [uiRteTags]="true"></ui-rich-text-editor>`,
+})
+class DefaultSearchHostCmp {}
+
 describe('RichTextMentionsDirective', () => {
     const fixtures: ComponentFixture<unknown>[] = [];
+    let restoreRects: Restore;
+
+    beforeEach(() => {
+        restoreRects = stubRangeRects();
+    });
 
     function createFixture(): ComponentFixture<HostCmp> {
         const fixture = TestBed.createComponent(HostCmp);
@@ -105,6 +195,7 @@ describe('RichTextMentionsDirective', () => {
             f.destroy();
         }
         fixtures.length = 0;
+        restoreRects();
     });
 
     it('closes the popover live when both mention and tag triggers are disabled', () => {
@@ -234,5 +325,154 @@ describe('RichTextMentionsDirective', () => {
         expect(popoverOf(fixture)).toBeTruthy();
         type(fixture, 'plain text');
         expect(popoverOf(fixture)).toBeNull();
+    });
+
+    function typeInto(fixture: ComponentFixture<unknown>, text: string): HTMLElement {
+        const el = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
+        el.textContent = text;
+        setCaret(el.firstChild as Text, text.length);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+        return el;
+    }
+
+    function popoverIn(fixture: ComponentFixture<unknown>): RichTextMentionPopoverComponent | null {
+        const de = fixture.debugElement.query(By.directive(RichTextMentionPopoverComponent));
+        return de ? (de.componentInstance as RichTextMentionPopoverComponent) : null;
+    }
+
+    function mountSearchHost(): ComponentFixture<SearchHostCmp> {
+        const fixture = TestBed.createComponent(SearchHostCmp);
+        fixtures.push(fixture);
+        document.body.appendChild(fixture.nativeElement);
+        return fixture;
+    }
+
+    it('falls back to the empty default search for mentions and tags', async () => {
+        const fixture = TestBed.createComponent(DefaultSearchHostCmp);
+        fixtures.push(fixture);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+
+        typeInto(fixture, '@jo');
+        await wait();
+        fixture.detectChanges();
+        expect(popoverIn(fixture)!.items()).toHaveLength(0);
+
+        typeInto(fixture, '#ux');
+        await wait();
+        fixture.detectChanges();
+        expect(popoverIn(fixture)!.items()).toHaveLength(0);
+    });
+
+    it('loads observable search results into the popover', async () => {
+        const fixture = mountSearchHost();
+        fixture.componentInstance.search.set(() => of(USERS));
+        fixture.detectChanges();
+
+        typeInto(fixture, '@j');
+        await wait();
+        fixture.detectChanges();
+        expect(popoverIn(fixture)!.items()).toHaveLength(USERS.length);
+    });
+
+    it('loads promise search results into the popover', async () => {
+        const fixture = mountSearchHost();
+        fixture.componentInstance.search.set(() => Promise.resolve(USERS));
+        fixture.detectChanges();
+
+        typeInto(fixture, '@j');
+        await wait();
+        await Promise.resolve();
+        fixture.detectChanges();
+        expect(popoverIn(fixture)!.items()).toHaveLength(USERS.length);
+    });
+
+    it('recovers from a failing search by showing no candidates', async () => {
+        const fixture = mountSearchHost();
+        fixture.componentInstance.search.set(() => throwError(() => new Error('boom')) as Observable<MentionItem[]>);
+        fixture.detectChanges();
+
+        typeInto(fixture, '@j');
+        await wait();
+        fixture.detectChanges();
+        expect(popoverIn(fixture)!.items()).toHaveLength(0);
+    });
+
+    it('ignores non-navigation keys while the popover is open', () => {
+        const fixture = createFixture();
+        const { el } = type(fixture, '@jo');
+        expect(popoverOf(fixture)).toBeTruthy();
+
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true, cancelable: true }));
+        expect(popoverOf(fixture)).toBeTruthy();
+    });
+
+    it('closes the popover when it signals closed via an outside click', () => {
+        const fixture = createFixture();
+        type(fixture, '@jo');
+        expect(popoverOf(fixture)).toBeTruthy();
+
+        const outside = document.createElement('button');
+        document.body.appendChild(outside);
+        outside.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(popoverOf(fixture)).toBeNull();
+        outside.remove();
+    });
+
+    it('restores the saved caret when the live selection was cleared before insert', () => {
+        const fixture = createFixture();
+        const { el } = type(fixture, '@jo');
+        document.getSelection()?.removeAllRanges();
+
+        popoverOf(fixture)!.onItemClick({ id: 'u1', value: 'john-doe', label: 'John Doe' });
+        fixture.detectChanges();
+
+        expect(el.querySelector('[data-mention="john-doe"]')).toBeTruthy();
+    });
+
+    it('appends the entity at the content root when no selection survives to insert time', () => {
+        const fixture = createFixture();
+        const { el } = type(fixture, '@jo');
+        const spy = vi.spyOn(Document.prototype, 'getSelection').mockReturnValue(null);
+        try {
+            popoverOf(fixture)!.onItemClick({ id: 'u1', value: 'john-doe', label: 'John Doe' });
+            fixture.detectChanges();
+        } finally {
+            spy.mockRestore();
+        }
+        expect(el.querySelector('[data-mention="john-doe"]')).toBeTruthy();
+    });
+
+    it('skips caret positioning when the selection has no range', () => {
+        const fixture = createFixture();
+        const directive = fixture.debugElement.query(By.directive(RichTextEditorComponent))
+            .injector.get(RichTextMentionsDirective) as unknown as { updatePosition(): void };
+        const spy = vi.spyOn(Document.prototype, 'getSelection')
+            .mockReturnValue({ rangeCount: 0 } as unknown as Selection);
+        try {
+            expect(() => directive.updatePosition()).not.toThrow();
+        } finally {
+            spy.mockRestore();
+        }
+    });
+
+    it('opens without a caret rect when the range rect is degenerate', () => {
+        const fixture = createFixture();
+        const rangeProto = Range.prototype as unknown as Record<string, unknown>;
+        const saved = Object.getOwnPropertyDescriptor(rangeProto, 'getBoundingClientRect');
+        const zeroRect = (): DOMRect => ({
+            x: 0, y: 0, width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, toJSON: () => ({}),
+        } as DOMRect);
+        Object.defineProperty(rangeProto, 'getBoundingClientRect', { value: zeroRect, configurable: true, writable: true });
+
+        try {
+            type(fixture, '@jo');
+            expect(popoverOf(fixture)).toBeTruthy();
+        } finally {
+            if (saved) Object.defineProperty(rangeProto, 'getBoundingClientRect', saved);
+        }
     });
 });

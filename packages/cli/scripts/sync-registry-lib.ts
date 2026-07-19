@@ -1665,6 +1665,7 @@ function scanVerifiedComponent(
     name: string,
     update: ComponentUpdate,
     depsByName: ReadonlyMap<string, readonly string[]>,
+    libFilesByName: ReadonlyMap<string, readonly string[]>,
     ctx: BoundaryContext,
     uiDir: string,
     componentsRoot: string,
@@ -1676,8 +1677,13 @@ function scanVerifiedComponent(
 
     const errors: string[] = [];
     const shipped = new Set([...update.files, ...testFiles]);
-    const libAllow = new Set(update.libFiles);
     const closure = dependencyClosure(name, depsByName);
+    // A spec may import any lib the install closure ships — the component's own
+    // libFiles plus every dependency's (e.g. an addon spec using a lib the base ships).
+    const libAllow = new Set(update.libFiles);
+    for (const dep of closure) {
+        for (const lib of libFilesByName.get(dep) ?? []) libAllow.add(lib);
+    }
     const specDeps = new Set<string>();
 
     for (const spec of testFiles) {
@@ -1718,6 +1724,7 @@ export function analyzePortableTests(
     const entriesByName = new Map(entries.map(e => [e.name, e]));
     const updatesByName = new Map(updates.map(u => [u.name, u]));
     const depsByName = new Map(updates.map(u => [u.name, u.dependencies]));
+    const libFilesByName = new Map(updates.map(u => [u.name, u.libFiles]));
 
     const result = new Map<string, { testFiles: string[]; testDependencies: string[] }>();
     const errors: string[] = [];
@@ -1730,7 +1737,7 @@ export function analyzePortableTests(
             errors.push(`  ${name}: listed in ${PORTABLE_TESTS_FILENAME} but is not a component registry entry`);
             continue;
         }
-        const scan = scanVerifiedComponent(name, update, depsByName, ctx, uiDir, roots.componentsRoot);
+        const scan = scanVerifiedComponent(name, update, depsByName, libFilesByName, ctx, uiDir, roots.componentsRoot);
         errors.push(...scan.errors);
         result.set(name, { testFiles: scan.testFiles, testDependencies: scan.testDependencies });
 

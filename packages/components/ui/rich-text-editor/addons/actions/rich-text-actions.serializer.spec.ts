@@ -19,6 +19,9 @@ describe('action serializer', () => {
         expect(validateActionParams('{"a":[1,2]}')).toBeNull();
         expect(validateActionParams('{"a":null}')).toBeNull();
         expect(validateActionParams('not json')).toBeNull();
+        expect(validateActionParams('[1,2]')).toBeNull();
+        expect(validateActionParams('42')).toBeNull();
+        expect(validateActionParams('null')).toBeNull();
     });
 
     it('rejects params over 4096 serialized chars', () => {
@@ -41,6 +44,18 @@ describe('action serializer', () => {
             { trigger: 'click', id: 'open-dialog', params: { dialogId: 'pricing' } },
             { trigger: 'hover', id: 'term-preview', params: { termId: 'sla' } },
         ]);
+    });
+
+    it('reads empty params when the params attribute holds malformed or non-object JSON', () => {
+        const malformed = document.createElement('span');
+        malformed.setAttribute('data-action-click', 'a');
+        malformed.setAttribute('data-action-click-params', '{bad');
+        expect(readActions(malformed)).toEqual([{ trigger: 'click', id: 'a', params: {} }]);
+
+        const nonObject = document.createElement('span');
+        nonObject.setAttribute('data-action-hover', 'b');
+        nonObject.setAttribute('data-action-hover-params', '[1,2]');
+        expect(readActions(nonObject)).toEqual([{ trigger: 'hover', id: 'b', params: {} }]);
     });
 
     it('writes no params attribute for an empty params object', () => {

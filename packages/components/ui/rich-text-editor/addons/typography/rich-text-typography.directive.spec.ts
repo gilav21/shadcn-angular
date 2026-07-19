@@ -1,8 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, afterEach } from 'vitest';
-import { RichTextEditorComponent } from '../../rich-text-editor.component';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AutocompleteComponent } from '../../../autocomplete';
 import {
     RichTextTypographyDirective,
@@ -10,6 +9,7 @@ import {
 } from './rich-text-typography.directive';
 import { RichTextTypographyButtonComponent } from './rich-text-typography-button.component';
 import type { RichTextTypographyButtonContext, RichTextTypographyKind } from './rich-text-typography.context';
+import { RichTextEditorComponent } from '../..';
 
 @Component({
     standalone: true,
@@ -44,6 +44,68 @@ type ButtonProbe = {
     onValueChange(value: string): void;
     onOpenChange(next: boolean): void;
 };
+
+type DocWithExec = { execCommand?: (id: string, showUI?: boolean, value?: string) => boolean };
+type GlobalWithCss = { CSS?: { escape(value: string): string } };
+
+/** Minimal `CSS.escape` for the attribute selectors the font-family path builds. */
+function cssEscape(value: string): string {
+    return value.replace(/[^\w-]/g, (ch) => `\\${ch}`);
+}
+
+/**
+ * jsdom's `Selection.containsNode` ignores the partial-containment flag, so a
+ * selection over a mention chip's inner text never "contains" the chip. Emulate
+ * proper overlap so the editor's mention-styling path can find the chip.
+ */
+function emulateContainsNode(this: Selection, node: Node, allowPartial?: boolean): boolean {
+    if (this.rangeCount === 0) {
+        return false;
+    }
+    const selectionRange = this.getRangeAt(0);
+    const nodeRange = node.ownerDocument!.createRange();
+    try {
+        nodeRange.selectNode(node);
+    } catch {
+        return false;
+    }
+    if (allowPartial) {
+        return selectionRange.compareBoundaryPoints(Range.START_TO_END, nodeRange) > 0
+            && selectionRange.compareBoundaryPoints(Range.END_TO_START, nodeRange) < 0;
+    }
+    return selectionRange.compareBoundaryPoints(Range.START_TO_START, nodeRange) <= 0
+        && selectionRange.compareBoundaryPoints(Range.END_TO_END, nodeRange) >= 0;
+}
+
+/**
+ * jsdom implements no `document.execCommand`, so the editor's `fontSize`/`fontName`
+ * paths that wrap the selection in a `<font>` element (later rewritten to a styled
+ * span) never run. Emulate just those two so the real production code exercises,
+ * exactly as a browser would produce the deprecated `<font>` wrapper.
+ */
+function emulateExecCommand(id: string, _showUI?: boolean, value?: string): boolean {
+    let attr: string | null = null;
+    if (id === 'fontSize') attr = 'size';
+    else if (id === 'fontName') attr = 'face';
+    if (!attr) {
+        return false;
+    }
+    const selection = document.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+        return true;
+    }
+    const range = selection.getRangeAt(0);
+    const fontTag: string = 'font';
+    const font = document.createElement(fontTag);
+    font.setAttribute(attr, value ?? '');
+    try {
+        range.surroundContents(font);
+    } catch {
+        font.appendChild(range.extractContents());
+        range.insertNode(font);
+    }
+    return true;
+}
 
 describe('RichTextTypographyDirective', () => {
     const openFixtures: ComponentFixture<unknown>[] = [];
@@ -96,7 +158,29 @@ describe('RichTextTypographyDirective', () => {
         fixture.detectChanges();
     }
 
+    let hadExec = false;
+    let hadCss = false;
+    const originalContainsNode = Selection.prototype.containsNode;
+    beforeEach(() => {
+        hadExec = 'execCommand' in Document.prototype;
+        if (!hadExec) {
+            (Document.prototype as DocWithExec).execCommand = emulateExecCommand;
+        }
+        hadCss = 'CSS' in globalThis;
+        if (!hadCss) {
+            (globalThis as GlobalWithCss).CSS = { escape: cssEscape };
+        }
+        Selection.prototype.containsNode = emulateContainsNode;
+    });
+
     afterEach(() => {
+        if (!hadExec) {
+            delete (Document.prototype as DocWithExec).execCommand;
+        }
+        if (!hadCss) {
+            delete (globalThis as GlobalWithCss).CSS;
+        }
+        Selection.prototype.containsNode = originalContainsNode;
         document.getSelection()?.removeAllRanges();
         while (openFixtures.length > 0) {
             const fixture = openFixtures.pop()!;
@@ -168,6 +252,17 @@ describe('RichTextTypographyDirective', () => {
 
         const chip = el.querySelector<HTMLElement>('[data-mention]')!;
         expect(chip.style.fontSize).toBe('30px');
+    });
+
+    it('ignores an empty font family value', () => {
+        const fixture = createFixture();
+        const { el } = selectContent(fixture, '<p>Keep me</p>');
+        const before = el.innerHTML;
+
+        pick(fixture, 'family', '');
+
+        expect(el.innerHTML).toBe(before);
+        expect(fixture.componentInstance.familiesSelected).toEqual([]);
     });
 
     it('ignores a font size with no digits', () => {

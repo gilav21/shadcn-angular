@@ -1,10 +1,32 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { RichTextEditorComponent, RichTextCommandRegistry } from '../..';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { RICH_TEXT_OUTLINE_LOCALES } from './rich-text-outline.locales';
 import { RichTextOutlineDirective } from './rich-text-outline.directive';
+import { RichTextCommandRegistry, RichTextEditorComponent } from '../..';
+
+type Restore = () => void;
+
+/** jsdom lacks ResizeObserver, which `ui-scroll-area` (the panel) constructs. */
+function stubResizeObserver(): Restore {
+    const globals = globalThis as { ResizeObserver?: unknown };
+    const had = 'ResizeObserver' in globals;
+    const original = globals.ResizeObserver;
+    class StubResizeObserver {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+    }
+    globals.ResizeObserver = StubResizeObserver;
+    return () => {
+        if (had) {
+            globals.ResizeObserver = original;
+        } else {
+            delete globals.ResizeObserver;
+        }
+    };
+}
 
 @Component({
     standalone: true,
@@ -38,6 +60,11 @@ const flushObserver = (): Promise<void> => new Promise((resolve) => setTimeout(r
 
 describe('RichTextOutlineDirective', () => {
     const fixtures: ComponentFixture<unknown>[] = [];
+    let restoreResizeObserver: Restore;
+
+    beforeEach(() => {
+        restoreResizeObserver = stubResizeObserver();
+    });
 
     function editorRegistry(fixture: ComponentFixture<HostCmp>): RichTextCommandRegistry {
         return (fixture.debugElement.query(By.directive(RichTextEditorComponent))
@@ -84,6 +111,7 @@ describe('RichTextOutlineDirective', () => {
             if (!fixture.componentRef.hostView.destroyed) fixture.destroy();
             fixture.nativeElement.remove();
         }
+        restoreResizeObserver();
     });
 
     it('removes the toolbar button live when uiRteOutline flips to false and restores on re-enable', () => {

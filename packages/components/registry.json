@@ -4441,6 +4441,11 @@
       "emoji-picker",
       "rich-text-editor"
     ],
+    "testFiles": [
+      "rich-text-editor/addons/emoji/rich-text-emoji-button.component.spec.ts",
+      "rich-text-editor/addons/emoji/rich-text-emoji.context.spec.ts",
+      "rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts"
+    ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
     ],
@@ -4614,6 +4619,10 @@
       "popover",
       "rich-text-editor"
     ],
+    "testFiles": [
+      "rich-text-editor/addons/typography/rich-text-typography.context.spec.ts",
+      "rich-text-editor/addons/typography/rich-text-typography.directive.spec.ts"
+    ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
     ],
@@ -4701,6 +4710,11 @@
     "dependencies": [
       "popover",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/tables/rich-text-tables-button.component.spec.ts",
+      "rich-text-editor/addons/tables/rich-text-tables.context.spec.ts",
+      "rich-text-editor/addons/tables/rich-text-tables.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
@@ -4849,6 +4863,13 @@
     "dependencies": [
       "rich-text-editor"
     ],
+    "testFiles": [
+      "rich-text-editor/addons/file-import/rich-text-file-import-button.component.spec.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.spec.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import.context.spec.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import.directive.spec.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import.utils.spec.ts"
+    ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
       "rich-text-editor/rich-text-sanitizer.service.ts"
@@ -4938,6 +4959,11 @@
       "button",
       "rich-text-editor",
       "scroll-area"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/outline/rich-text-outline-panel.component.spec.ts",
+      "rich-text-editor/addons/outline/rich-text-outline.context.spec.ts",
+      "rich-text-editor/addons/outline/rich-text-outline.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"

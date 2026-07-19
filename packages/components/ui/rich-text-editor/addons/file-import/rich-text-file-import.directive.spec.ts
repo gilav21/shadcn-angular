@@ -1,11 +1,38 @@
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, afterEach, vi } from 'vitest';
-import { RichTextEditorComponent } from '../../rich-text-editor.component';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+
+// jsdom's Blob (and thus File / File.slice) lacks `arrayBuffer()`, which the
+// import pipeline reads header bytes through. Polyfill it via FileReader, which
+// jsdom does implement, saving/restoring so a real impl (if ever present) wins.
+type BlobArrayBuffer = { arrayBuffer?: () => Promise<ArrayBuffer> };
+const hadBlobArrayBuffer = 'arrayBuffer' in Blob.prototype;
+
+function blobArrayBufferPolyfill(this: Blob): Promise<ArrayBuffer> {
+    return new Promise<ArrayBuffer>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = () => reject(reader.error ?? new Error('read failed'));
+        reader.readAsArrayBuffer(this);
+    });
+}
+
+beforeEach(() => {
+    if (!hadBlobArrayBuffer) {
+        (Blob.prototype as BlobArrayBuffer).arrayBuffer = blobArrayBufferPolyfill;
+    }
+});
+
+afterEach(() => {
+    if (!hadBlobArrayBuffer) {
+        delete (Blob.prototype as BlobArrayBuffer).arrayBuffer;
+    }
+});
 import { RichTextFileImportDirective } from './rich-text-file-import.directive';
 import { RichTextFileImportButtonComponent } from './rich-text-file-import-button.component';
 import type { RichTextFileImportButtonContext } from './rich-text-file-import.context';
+import { RichTextEditorComponent } from '../..';
 
 // Minimal ZIP writer so a real .docx (a ZIP of `word/document.xml`) can be built
 // in-code and driven through the actual docx parser — the same fixture the base
@@ -78,11 +105,39 @@ function docxFile(text = 'Imported DOCX text'): File {
     return new File([bytes], 'in.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 
+// Minimal single-page PDF (one Helvetica text run) the real pdf-parser accepts,
+// so the addon's PDF import path runs end-to-end and inserts the parsed HTML.
+function pdfFile(text = 'Imported PDF text'): File {
+    const stream = `BT /F1 12 Tf 100 700 Td (${text}) Tj ET`;
+    const objects: Array<{ num: number; content: string }> = [
+        { num: 1, content: '<< /Type /Catalog /Pages 2 0 R >>' },
+        { num: 2, content: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
+        { num: 3, content: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>' },
+        { num: 4, content: `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream` },
+        { num: 5, content: '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>' },
+    ];
+    let body = '%PDF-1.4\n';
+    const offsets = new Map<number, number>();
+    for (const obj of objects) {
+        offsets.set(obj.num, body.length);
+        body += `${obj.num} 0 obj\n${obj.content}\nendobj\n`;
+    }
+    const xrefOffset = body.length;
+    const total = objects.length + 1;
+    let xref = `xref\n0 ${total}\n0000000000 65535 f \n`;
+    for (let i = 1; i < total; i++) {
+        xref += `${String(offsets.get(i) ?? 0).padStart(10, '0')} 00000 n \n`;
+    }
+    const trailer = `trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+    const bytes = new TextEncoder().encode(body + xref + trailer);
+    return new File([bytes], 'in.pdf', { type: 'application/pdf' });
+}
+
 @Component({
     standalone: true,
     imports: [RichTextEditorComponent, RichTextFileImportDirective],
     template: `<ui-rich-text-editor mode="html" [disabled]="disabled()" [readonly]="readonly()"
-        uiRteFileImport [uiRteFileImportLocale]="locale()"
+        [uiRteFileImport]="enabled()" [uiRteFileImportToolbar]="toolbar()" [uiRteFileImportLocale]="locale()"
         (fileImportStart)="starts.push($event)"
         (fileImportComplete)="completes.push($event)"
         (fileImportError)="errors.push($event)"></ui-rich-text-editor>`,
@@ -90,6 +145,8 @@ function docxFile(text = 'Imported DOCX text'): File {
 class HostCmp {
     readonly disabled = signal(false);
     readonly readonly = signal(false);
+    readonly enabled = signal(true);
+    readonly toolbar = signal(true);
     readonly locale = signal<string | undefined>(undefined);
     starts: File[] = [];
     completes: string[] = [];
@@ -250,6 +307,84 @@ describe('RichTextFileImportDirective', () => {
         buttonContext(fixture).onImport(docxFile());
         await wait();
         expect(fixture.componentInstance.starts).toHaveLength(0);
+    });
+
+    it('imports a valid PDF and inserts its parsed text', async () => {
+        const fixture = createFixture();
+        const { el } = setContent(fixture, '<p>x</p>');
+        caretAtEnd(el);
+        buttonContext(fixture).onImport(pdfFile('PDF body copy'));
+        await waitUntil(() => fixture.componentInstance.completes.length > 0);
+        fixture.detectChanges();
+
+        expect(el.textContent).toContain('PDF body copy');
+        expect(fixture.componentInstance.completes).toHaveLength(1);
+    });
+
+    it('reports a failure when a parsed document yields no content', () => {
+        const fixture = createFixture();
+        const directive = fixture.debugElement.query(By.directive(RichTextFileImportDirective))
+            .injector.get(RichTextFileImportDirective);
+        (directive as unknown as { insertImported(html: string): void }).insertImported('   ');
+        expect(fixture.componentInstance.errors).toContain(
+            'Failed to import file. The file may be unsupported or corrupted.',
+        );
+    });
+
+    function directiveOf(fixture: ComponentFixture<HostCmp>): RichTextFileImportDirective {
+        return fixture.debugElement.query(By.directive(RichTextFileImportDirective))
+            .injector.get(RichTextFileImportDirective);
+    }
+
+    it('omits the toolbar slot when the toolbar contribution is disabled', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.toolbar.set(false);
+        fixture.detectChanges();
+        const { cmp } = editorOf(fixture);
+        expect(cmp.toolbarSlots.slots().some((s) => s.id === 'file-import.import')).toBe(false);
+    });
+
+    it('ignores a drop while the import feature is disabled', async () => {
+        const fixture = createFixture();
+        fixture.componentInstance.enabled.set(false);
+        fixture.detectChanges();
+        const { cmp } = editorOf(fixture);
+        await cmp.onEditorDrop(dropEvent([docxFile()]));
+        await wait();
+        expect(fixture.componentInstance.starts).toHaveLength(0);
+    });
+
+    it('ignores a drop whose files are not supported documents', async () => {
+        const fixture = createFixture();
+        const { cmp } = editorOf(fixture);
+        await cmp.onEditorDrop(dropEvent([new File([new Uint8Array([1, 2])], 'note.txt', { type: 'text/plain' })]));
+        await wait();
+        expect(fixture.componentInstance.starts).toHaveLength(0);
+    });
+
+    it('replaces a pending error timer and auto-dismisses the message', () => {
+        vi.useFakeTimers();
+        const fixture = createFixture();
+        const directive = directiveOf(fixture) as unknown as {
+            reportError(message: string): void;
+            errorMessage(): string;
+        };
+        directive.reportError('first');
+        directive.reportError('second');
+        expect(directive.errorMessage()).toBe('second');
+        vi.advanceTimersByTime(4000);
+        expect(directive.errorMessage()).toBe('');
+        vi.useRealTimers();
+    });
+
+    it('is a no-op when syncing overlay inputs before the overlay exists', () => {
+        const fixture = createFixture();
+        const directive = directiveOf(fixture) as unknown as {
+            overlayRef: unknown;
+            syncOverlayInputs(): void;
+        };
+        directive.overlayRef = undefined;
+        expect(() => directive.syncOverlayInputs()).not.toThrow();
     });
 
     it('resolves Hebrew locale strings for the button and RTL flag', () => {

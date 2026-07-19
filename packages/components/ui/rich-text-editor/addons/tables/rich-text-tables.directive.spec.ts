@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, afterEach } from 'vitest';
-import { RichTextEditorComponent } from '../../rich-text-editor.component';
+import { RichTextEditorComponent } from '../..';
 import { RichTextTablesDirective } from './rich-text-tables.directive';
 import { RichTextTablesButtonComponent } from './rich-text-tables-button.component';
 import type { RichTextTablesButtonContext } from './rich-text-tables.context';

@@ -1,12 +1,12 @@
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, afterEach } from 'vitest';
-import { RichTextEditorComponent } from '../../rich-text-editor.component';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { ColorPickerComponent } from '../../../color-picker';
 import { RichTextColorsDirective, type RichTextColorChange } from './rich-text-colors.directive';
 import { RichTextColorsButtonComponent } from './rich-text-colors-button.component';
 import type { RichTextColorButtonContext, RichTextColorKind } from './rich-text-colors.context';
+import { RichTextEditorComponent } from '../..';
 
 @Component({
     standalone: true,
@@ -35,6 +35,51 @@ type ButtonProbe = {
     onColorChange(color: string): void;
     onOpenChange(next: boolean): void;
 };
+
+/**
+ * jsdom has no editing engine: its `document.execCommand` is an inert stub and
+ * `Selection.containsNode` always returns false. The colours addon applies
+ * colour through `execCommand('foreColor'|'hiliteColor')` and styles mention
+ * chips it finds via `containsNode`, so install faithful, functional stand-ins
+ * (wrap the live range in a styled span; range-based node containment) for the
+ * duration of each test and restore the originals afterwards.
+ */
+type ExecCommandFn = (id: string, showUI?: boolean, value?: string) => boolean;
+type ContainsNodeFn = (node: Node, allowPartial?: boolean) => boolean;
+const execDoc = document as Document & { execCommand: ExecCommandFn };
+const selProto = Selection.prototype as Selection & { containsNode: ContainsNodeFn };
+let originalExecCommand: ExecCommandFn;
+let originalContainsNode: ContainsNodeFn;
+
+const COLOR_COMMAND_PROP: Readonly<Record<string, 'color' | 'backgroundColor'>> = {
+    foreColor: 'color',
+    hiliteColor: 'backgroundColor',
+    backColor: 'backgroundColor',
+};
+
+function functionalExecCommand(id: string, _showUI?: boolean, value?: string): boolean {
+    const prop = COLOR_COMMAND_PROP[id];
+    if (!prop || value === undefined) return false;
+    const selection = document.getSelection();
+    if (!selection || selection.rangeCount === 0) return true;
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return true;
+    const span = document.createElement('span');
+    span.style[prop] = value;
+    span.appendChild(range.extractContents());
+    range.insertNode(span);
+    selection.removeAllRanges();
+    const reselected = document.createRange();
+    reselected.selectNodeContents(span);
+    selection.addRange(reselected);
+    return true;
+}
+
+function rangeContainsNode(this: Selection, node: Node): boolean {
+    if (this.rangeCount === 0) return false;
+    const container = this.getRangeAt(0).commonAncestorContainer;
+    return container === node || container.contains(node) || node.contains(container);
+}
 
 describe('RichTextColorsDirective', () => {
     const openFixtures: ComponentFixture<unknown>[] = [];
@@ -87,7 +132,16 @@ describe('RichTextColorsDirective', () => {
         fixture.detectChanges();
     }
 
+    beforeEach(() => {
+        originalExecCommand = execDoc.execCommand;
+        originalContainsNode = selProto.containsNode;
+        execDoc.execCommand = functionalExecCommand;
+        selProto.containsNode = rangeContainsNode;
+    });
+
     afterEach(() => {
+        execDoc.execCommand = originalExecCommand;
+        selProto.containsNode = originalContainsNode;
         document.getSelection()?.removeAllRanges();
         while (openFixtures.length > 0) {
             const fixture = openFixtures.pop()!;

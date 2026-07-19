@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, afterEach } from 'vitest';
-import { RichTextEditorComponent } from '../../rich-text-editor.component';
+import { RichTextEditorComponent } from '../..';
 import { EmojiPickerComponent } from '../../../emoji-picker';
 import { RichTextEmojiDirective } from './rich-text-emoji.directive';
 

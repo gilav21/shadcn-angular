@@ -89,6 +89,30 @@ describe('RichTextActionsDialogComponent', () => {
         expect(payload!.trigger).toBe('hover');
     });
 
+    it('stores the hover params bucket via onHoverParamsChange', () => {
+        const fixture = mount();
+        fixture.componentInstance.onHoverParamsChange({ previewLen: 80 });
+        expect(fixture.componentInstance.hoverParams()).toEqual({ previewLen: 80 });
+    });
+
+    it('picking an unknown id clears the selection and stays unconfirmable', () => {
+        const fixture = mount();
+        const inst = fixture.componentInstance;
+        inst.pickAction('does-not-exist');
+        expect(inst.selectedDef()).toBeNull();
+        expect(inst.selectedTrigger()).toBeNull();
+        expect(inst.canConfirm()).toBe(false);
+    });
+
+    it('onConfirm is a no-op when no action is selected', () => {
+        const fixture = mount();
+        const inst = fixture.componentInstance;
+        let emitted = false;
+        inst.confirm.subscribe(() => (emitted = true));
+        inst.onConfirm();
+        expect(emitted).toBe(false);
+    });
+
     it('emits dismiss when the dialog open state flips to false', () => {
         const fixture = mount();
         let dismissed = false;

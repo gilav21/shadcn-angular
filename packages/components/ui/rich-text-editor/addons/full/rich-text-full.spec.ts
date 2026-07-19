@@ -1,13 +1,13 @@
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, afterEach } from 'vitest';
-import { RichTextEditorComponent } from '../../rich-text-editor.component';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { EmojiPickerComponent } from '../../../emoji-picker';
 import type { MentionItem, RichTextEntitySearchFn } from '../mentions';
 import type { RichTextActionDefinition } from '../actions';
 import type { AiProvider } from '../../../../lib/ai';
 import { RTE_FULL } from './index';
+import { RichTextEditorComponent } from '../..';
 
 /**
  * `RTE_FULL` is the generated composition array — importing it registers every
@@ -56,8 +56,43 @@ describe('RTE_FULL composition array', () => {
     });
 });
 
+type GlobalWithObservers = {
+    ResizeObserver?: unknown;
+    matchMedia?: unknown;
+};
+
+/** Minimal no-op ResizeObserver for the emoji picker's scroll-area under jsdom. */
+class NoopResizeObserver {
+    observe(): void { /* no-op */ }
+    unobserve(): void { /* no-op */ }
+    disconnect(): void { /* no-op */ }
+}
+
 describe('uiRteFull composition (real editor)', () => {
     let fixture: ComponentFixture<HostCmp>;
+
+    let hadResizeObserver = false;
+    let hadMatchMedia = false;
+    beforeEach(() => {
+        const globalRef = globalThis as GlobalWithObservers;
+        hadResizeObserver = 'ResizeObserver' in globalThis;
+        if (!hadResizeObserver) {
+            globalRef.ResizeObserver = NoopResizeObserver;
+        }
+        hadMatchMedia = 'matchMedia' in globalThis;
+        if (!hadMatchMedia) {
+            globalRef.matchMedia = (query: string) => ({
+                matches: false,
+                media: query,
+                onchange: null,
+                addEventListener: () => undefined,
+                removeEventListener: () => undefined,
+                addListener: () => undefined,
+                removeListener: () => undefined,
+                dispatchEvent: () => false,
+            });
+        }
+    });
 
     function fullEditor(): HTMLElement {
         return fixture.nativeElement.querySelector('[data-testid="full"]') as HTMLElement;
@@ -71,6 +106,13 @@ describe('uiRteFull composition (real editor)', () => {
         window.getSelection()?.removeAllRanges();
         if (fixture && !fixture.componentRef.hostView.destroyed) {
             fixture.destroy();
+        }
+        const globalRef = globalThis as GlobalWithObservers;
+        if (!hadResizeObserver) {
+            delete globalRef.ResizeObserver;
+        }
+        if (!hadMatchMedia) {
+            delete globalRef.matchMedia;
         }
     });
 
