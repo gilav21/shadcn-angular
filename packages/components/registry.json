@@ -884,6 +884,9 @@
       "context-menu",
       "data-table"
     ],
+    "testFiles": [
+      "data-table/addons/context-menu/context-menu.directive.spec.ts"
+    ],
     "requiresBaseFiles": [
       "data-table/data-table.host.ts"
     ],
@@ -921,6 +924,9 @@
     "dependencies": [
       "data-table"
     ],
+    "testFiles": [
+      "data-table/addons/export/export.directive.spec.ts"
+    ],
     "requiresBaseFiles": [
       "data-table/data-table.host.ts"
     ],
@@ -949,6 +955,9 @@
     ],
     "dependencies": [
       "data-table"
+    ],
+    "testFiles": [
+      "data-table/addons/pivot/pivot.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "data-table/data-table.host.ts"
@@ -3358,6 +3367,9 @@
       "scroll-area",
       "separator",
       "textarea"
+    ],
+    "testFiles": [
+      "kanban/kanban.component.spec.ts"
     ]
   },
   "shortcut-bindings-dialog": {

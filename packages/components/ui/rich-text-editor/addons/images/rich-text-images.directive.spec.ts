@@ -448,9 +448,12 @@ describe('RichTextImagesDirective', () => {
         const fixture = createFixture();
         setContent(fixture, '<p>x</p>');
         buttonContext(fixture).onUploadFile(imageFile());
-        await wait();
-        fixture.detectChanges();
-        expect(editorOf(fixture).el.querySelector('img')).toBeTruthy();
+        // Poll instead of a fixed wait — the FileReader.onload timing differs
+        // across runners, so a single flush can race the data-URL insert.
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(editorOf(fixture).el.querySelector('img')).toBeTruthy();
+        });
     });
 
     it('omits the toolbar slot when the toolbar contribution is disabled', () => {

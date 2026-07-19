@@ -1,5 +1,14 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Component, signal } from '@angular/core';
+
+// jest's jsdom lacks the object-URL APIs the export-download path spies on —
+// polyfill only when absent so vi.spyOn has a method to replace (both runners).
+const urlApi = URL as unknown as {
+  createObjectURL?: (blob: unknown) => string;
+  revokeObjectURL?: (url: string) => void;
+};
+urlApi.createObjectURL ??= () => 'blob:mock';
+urlApi.revokeObjectURL ??= () => undefined;
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { DataTableExportDirective, type ExportDataProvider } from './export.directive';
@@ -12,10 +21,10 @@ import {
   type ColumnDef,
   type DataTableExportOptions,
   type DataTableExportQuery,
+  type DataTableLocale,
   type RowActionContext,
   type SortDirection,
 } from '../..';
-import type { DataTableLocale } from '../../data-table.locales';
 
 interface Row {
   id: string;
@@ -151,11 +160,22 @@ describe('DataTableExportDirective', () => {
     host.rows = [{ id: '1', name: 'Alice', score: 30 }];
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('exportToCsv quotes cells containing commas and triggers a download', async () => {
     host.rows = [{ id: '1', name: 'Smith, John', score: 1 }];
     const { directive } = setup(host);
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    const blobSpy = vi.spyOn(globalThis, 'Blob');
+    // Spying a class and letting it call through fails under jest (it invokes
+    // the constructor via apply, not new) — construct through a captured ref.
+    const OriginalBlob = globalThis.Blob;
+    const blobSpy = vi.spyOn(globalThis, 'Blob').mockImplementation(function makeBlob(
+      ...args: unknown[]
+    ): Blob {
+      return new OriginalBlob(...(args as [BlobPart[]?, BlobPropertyBag?]));
+    } as never);
     vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
 
