@@ -5381,3 +5381,659 @@ describe('RichTextEditorComponent as an ngModel-bound form control', () => {
         expect(editor.textContent).toContain('hi');
     });
 });
+
+describe('RichTextEditorComponent — targeted branch coverage top-up', () => {
+    let fixture: ComponentFixture<RichTextEditorComponent>;
+    let component: RichTextEditorComponent;
+    let editor: HTMLDivElement;
+
+    // eslint config scopes strict `no-explicit-any` off for specs; the existing
+    // suite already uses `(component as any)` for private-member access.
+    const priv = () => component as any;
+    const caretIn = (node: Node, offset: number) => setCaretAt(node, offset);
+    const setTarget = (cell: HTMLTableCellElement) => {
+        priv().tableContextMenuTarget = cell;
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(RichTextEditorComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('mode', 'html');
+        fixture.detectChanges();
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+    });
+
+    it('ngAfterViewInit no-ops when the editor view child is absent', () => {
+        priv().editorDiv = undefined;
+        expect(() => component.ngAfterViewInit()).not.toThrow();
+    });
+
+    it('onInput skips history scheduling during an undo/redo replay', () => {
+        const spy = vi.spyOn(priv(), 'scheduleDebouncedHistoryPush');
+        priv().isUndoRedo = true;
+        editor.innerHTML = 'x';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        expect(spy).not.toHaveBeenCalled();
+        expect(priv().isUndoRedo).toBe(false);
+    });
+
+    it('Enter in an empty trailing task item exits while keeping earlier items', () => {
+        component.writeValue(
+            '<ul data-task-list=""><li data-task="" data-checked="false"><input type="checkbox"><span>done</span></li>' +
+                '<li data-task="" data-checked="false"><input type="checkbox"><span></span></li></ul>',
+        );
+        fixture.detectChanges();
+        const secondLi = editor.querySelectorAll('li')[1];
+        caretIn(secondLi.querySelector('span')!, 0);
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        expect(editor.querySelector('ul')).toBeTruthy();
+        expect(editor.querySelector('p')).toBeTruthy();
+    });
+
+    it('Enter in a code block without a <code> child inserts a newline into the pre', () => {
+        component.writeValue('<pre>abc</pre>');
+        fixture.detectChanges();
+        const pre = editor.querySelector('pre')!;
+        caretIn(pre.firstChild!, 3);
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        expect(editor.querySelector('pre')!.textContent).toContain('\n');
+    });
+
+    it('onBeforeInput treats a missing editor as empty text', () => {
+        fixture.componentRef.setInput('maxLength', 3);
+        fixture.detectChanges();
+        priv().editorDiv = undefined;
+        const ev = { inputType: 'insertText', data: 'ab', preventDefault: vi.fn() } as unknown as InputEvent;
+        component.onBeforeInput(ev);
+        expect(ev.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('onBeforeInput counts a null insert payload against a collapsed caret', () => {
+        fixture.componentRef.setInput('maxLength', 3);
+        fixture.detectChanges();
+        component.writeValue('abc');
+        fixture.detectChanges();
+        caretIn(editor.firstChild!, 3);
+        const ev = { inputType: 'insertText', data: null, preventDefault: vi.fn() } as unknown as InputEvent;
+        component.onBeforeInput(ev);
+        expect(ev.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('onPaste stops at the first interceptor that returns true', () => {
+        const dispose = component.registerPasteInterceptor(() => true);
+        const norm = vi.spyOn(priv().pasteNormalizer, 'normalize');
+        component.onPaste({
+            preventDefault: vi.fn(),
+            clipboardData: { getData: () => '' } as unknown as DataTransfer,
+        } as unknown as ClipboardEvent);
+        expect(norm).not.toHaveBeenCalled();
+        dispose();
+    });
+
+    it('onPaste tolerates clipboard data returning null for both formats', () => {
+        const norm = vi.spyOn(priv().pasteNormalizer, 'normalize');
+        component.onPaste({
+            preventDefault: vi.fn(),
+            clipboardData: { getData: () => null } as unknown as DataTransfer,
+        } as unknown as ClipboardEvent);
+        expect(norm).toHaveBeenCalledWith(null, '');
+    });
+
+    it('handlePasteMaxLength treats a missing editor as empty content', () => {
+        fixture.componentRef.setInput('maxLength', 5);
+        fixture.detectChanges();
+        priv().editorDiv = undefined;
+        expect(priv().handlePasteMaxLength('abc')).toBe(false);
+    });
+
+    it('onEditorDragOver ignores drags with no dataTransfer', () => {
+        const ev = { dataTransfer: undefined, preventDefault: vi.fn() } as unknown as DragEvent;
+        component.onEditorDragOver(ev);
+        expect(component.dragOver()).toBe(false);
+        expect(ev.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('onEditorDragOver accepts a file drag when an addon predicate matches', () => {
+        component.registerDropZonePredicate(() => true);
+        const ev = { dataTransfer: { types: ['Files'] }, preventDefault: vi.fn() } as unknown as DragEvent;
+        component.onEditorDragOver(ev);
+        expect(ev.preventDefault).toHaveBeenCalled();
+        expect(component.dragOver()).toBe(true);
+    });
+
+    it('onEditorDragLeave keeps drag state when moving to a child element', () => {
+        const current = document.createElement('div');
+        const child = document.createElement('span');
+        current.appendChild(child);
+        component.dragOver.set(true);
+        component.onEditorDragLeave({ currentTarget: current, relatedTarget: child } as unknown as DragEvent);
+        expect(component.dragOver()).toBe(true);
+    });
+
+    it('onBlur without a selection range still emits blur', () => {
+        document.getSelection()?.removeAllRanges();
+        const spy = vi.fn();
+        component.blurred.subscribe(spy);
+        component.onBlur();
+        expect(spy).toHaveBeenCalled();
+    });
+
+    it('onBlur keeps the floating toolbar when focus stays inside the component', () => {
+        vi.useFakeTimers();
+        try {
+            fixture.componentRef.setInput('toolbar', 'floating');
+            fixture.detectChanges();
+            component.showFloatingToolbar.set(true);
+            editor.focus();
+            component.onBlur();
+            vi.advanceTimersByTime(250);
+            expect(component.showFloatingToolbar()).toBe(true);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('restoreHistoryEntry updates the model even without a live editor element', () => {
+        component.writeValue('<p>one</p>');
+        fixture.detectChanges();
+        priv().pushHistory();
+        priv().editorDiv = undefined;
+        expect(() => component.restoreHistoryEntry(0)).not.toThrow();
+    });
+
+    it('applyFloatingBlockCommand ignores unknown commands', () => {
+        component.writeValue('<p>abc</p>');
+        fixture.detectChanges();
+        selectAllOf(editor.querySelector('p')!);
+        expect(() => component.onFloatingFormatCommand('noop')).not.toThrow();
+    });
+
+    it('insertTextFromOverlay tolerates a missing editor and no selection', () => {
+        document.getSelection()?.removeAllRanges();
+        priv().editorDiv = undefined;
+        expect(() => component.insertTextFromOverlay('hi')).not.toThrow();
+    });
+
+    it('onKeydown stops at a keydown interceptor that returns true', () => {
+        const handleEnter = vi.spyOn(priv(), 'handleEnterKey');
+        const dispose = component.registerKeydownInterceptor(() => true);
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        expect(handleEnter).not.toHaveBeenCalled();
+        dispose();
+    });
+
+    it('onEditorDrop stops at a drop interceptor that returns true', async () => {
+        const dispose = component.registerDropInterceptor(() => true);
+        await component.onEditorDrop({ preventDefault: vi.fn(), dataTransfer: {} } as unknown as DragEvent);
+        dispose();
+        expect(component.dragOver()).toBe(false);
+    });
+
+    it('applyInlineStyle restores the saved range when there is no live selection', () => {
+        component.writeValue('<p>color me</p>');
+        fixture.detectChanges();
+        selectAllOf(editor.querySelector('p')!);
+        component.saveSelection();
+        document.getSelection()?.removeAllRanges();
+        expect(() => component.applyInlineStyle({ color: '#ff0000' })).not.toThrow();
+    });
+
+    it('applyInlineStyle leaves a collapsed in-editor caret untouched', () => {
+        component.writeValue('<p>abc</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild!, 1);
+        priv().savedRange = null;
+        expect(() => component.applyInlineStyle({ backgroundColor: '#00ff00' })).not.toThrow();
+    });
+
+    it('onFontSizeSelect tolerates a missing editor element', () => {
+        component.writeValue('<p>abc</p>');
+        fixture.detectChanges();
+        selectAllOf(editor.querySelector('p')!);
+        priv().editorDiv = undefined;
+        expect(() => component.onFontSizeSelect('18')).not.toThrow();
+    });
+
+    it('onFontSizeSelect keeps an explicit px unit', () => {
+        component.writeValue('<p>sized</p>');
+        fixture.detectChanges();
+        selectAllOf(editor.querySelector('p')!);
+        component.onFontSizeSelect('20px');
+        expect(editor.innerHTML).toContain('20px');
+    });
+
+    it('onFontFamilySelect tolerates a missing editor element', () => {
+        component.writeValue('<p>abc</p>');
+        fixture.detectChanges();
+        selectAllOf(editor.querySelector('p')!);
+        priv().editorDiv = undefined;
+        expect(() => component.onFontFamilySelect('Arial')).not.toThrow();
+    });
+
+    it('wrapSelectionWithTag is a no-op without a selection', () => {
+        document.getSelection()?.removeAllRanges();
+        expect(() => priv().wrapSelectionWithTag('code')).not.toThrow();
+    });
+
+    it('insertCodeBlock is a no-op without a selection', () => {
+        document.getSelection()?.removeAllRanges();
+        expect(() => priv().insertCodeBlock()).not.toThrow();
+    });
+
+    it('insertCodeBlock seeds an empty code element with a newline', () => {
+        component.writeValue('<p>x</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild!, 1);
+        priv().insertCodeBlock();
+        expect(editor.querySelector('pre code')!.textContent).toBe('\n');
+    });
+
+    it('registerLinkEditor disposer is inert once a newer editor replaced it', () => {
+        const openA = vi.fn();
+        const openB = vi.fn();
+        const disposeA = component.registerLinkEditor(openA);
+        component.registerLinkEditor(openB);
+        disposeA();
+        component.showLinkDialog();
+        expect(openB).toHaveBeenCalled();
+        expect(openA).not.toHaveBeenCalled();
+    });
+
+    it('right-clicking the context-menu overlay off any cell closes the menu', () => {
+        component.writeValue('<table><tbody><tr><td>A</td></tr></tbody></table>');
+        fixture.detectChanges();
+        const td = editor.querySelector('td') as HTMLTableCellElement;
+        component.onEditorContextMenu({
+            target: td, clientX: 10, clientY: 10, preventDefault: vi.fn(), stopPropagation: vi.fn(),
+        } as unknown as MouseEvent);
+        fixture.detectChanges();
+        component.onContextMenuOverlayContextMenu({
+            clientX: 9999, clientY: 9999, preventDefault: vi.fn(), stopPropagation: vi.fn(),
+        } as unknown as MouseEvent);
+        expect(component.tableContextMenuOpen()).toBe(false);
+    });
+
+    it('onEditorMouseMove over non-cell content with no active resize cursor does nothing', () => {
+        component.writeValue('<p>text</p>');
+        fixture.detectChanges();
+        component.onEditorMouseMove({ target: editor.querySelector('p')! } as unknown as MouseEvent);
+        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(false);
+    });
+
+    it('onEditorMouseMove near a border tolerates a missing editor element', () => {
+        component.writeValue('<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>');
+        fixture.detectChanges();
+        const td = editor.querySelectorAll('td')[0] as HTMLTableCellElement;
+        priv().editorDiv = undefined;
+        component.onEditorMouseMove({ target: td, clientX: 97 } as unknown as MouseEvent);
+        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(true);
+    });
+
+    it('onEditorMouseMove in the middle of a cell clears nothing when idle', () => {
+        component.writeValue('<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>');
+        fixture.detectChanges();
+        const td = editor.querySelectorAll('td')[0] as HTMLTableCellElement;
+        component.onEditorMouseMove({ target: td, clientX: 50 } as unknown as MouseEvent);
+        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(false);
+    });
+
+    it('onEditorMouseMove clearing the resize cursor tolerates a missing editor', () => {
+        component.writeValue('<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>');
+        fixture.detectChanges();
+        const td = editor.querySelectorAll('td')[0] as HTMLTableCellElement;
+        priv().tableResizeCursor.set(true);
+        priv().editorDiv = undefined;
+        component.onEditorMouseMove({ target: td, clientX: 50 } as unknown as MouseEvent);
+        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(false);
+    });
+
+    it('onEditorMouseDown outside a table cell starts no cell selection', () => {
+        component.writeValue('<p>text</p>');
+        fixture.detectChanges();
+        component.onEditorMouseDown({
+            target: editor.querySelector('p')!, button: 0, preventDefault: vi.fn(), stopPropagation: vi.fn(),
+        } as unknown as MouseEvent);
+        expect(priv().tableCellSelecting).toBe(false);
+    });
+
+    it('starting a resize from a left border targets the previous column', () => {
+        component.writeValue('<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>');
+        fixture.detectChanges();
+        const second = editor.querySelectorAll('td')[1] as HTMLTableCellElement;
+        priv().tableResizeCursor.set(true);
+        component.onEditorMouseDown({
+            target: second, button: 0, clientX: 101, preventDefault: vi.fn(), stopPropagation: vi.fn(),
+        } as unknown as MouseEvent);
+        expect(priv().tableResizeState.colIndex).toBe(0);
+        priv().onTableResizeUp();
+    });
+
+    it('onTableResizeUp tolerates a missing editor element', () => {
+        priv().tableResizeState = {
+            table: document.createElement('table'), colIndex: 0, startX: 0, startWidths: [100], tableWidth: 100,
+        };
+        priv().editorDiv = undefined;
+        expect(() => priv().onTableResizeUp()).not.toThrow();
+    });
+
+    it('onEditorTouchStart outside a cell starts no selection', () => {
+        component.writeValue('<p>t</p>');
+        fixture.detectChanges();
+        component.onEditorTouchStart({ target: editor.querySelector('p')! } as unknown as TouchEvent);
+        expect(priv().tableCellSelecting).toBe(false);
+    });
+
+    it('cell selection over a ragged table skips empty grid slots', () => {
+        component.writeValue('<table><tbody><tr><td>1</td><td>2</td></tr><tr><td>3</td></tr></tbody></table>');
+        fixture.detectChanges();
+        const rows = editor.querySelectorAll('tr');
+        const anchor = rows[0].cells[1] as HTMLTableCellElement;
+        const current = rows[1].cells[0] as HTMLTableCellElement;
+        priv().updateCellSelection(anchor, current);
+        expect(component.tableCellSelected().length).toBeGreaterThan(0);
+    });
+
+    it('adding a row above the header row inserts header cells', () => {
+        component.writeValue('<table><thead><tr><th>H</th></tr></thead><tbody><tr><td>B</td></tr></tbody></table>');
+        fixture.detectChanges();
+        setTarget(editor.querySelector('th') as HTMLTableCellElement);
+        component.addTableRowAbove();
+        expect(editor.querySelectorAll('tr')[0].querySelector('th')).toBeTruthy();
+    });
+
+    it('adding a row below in a table without a tbody appends to the table', () => {
+        editor.innerHTML = '';
+        const table = document.createElement('table');
+        const tr = document.createElement('tr');
+        const td = document.createElement('td');
+        td.textContent = 'A';
+        tr.appendChild(td);
+        table.appendChild(tr);
+        editor.appendChild(table);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        setTarget(td);
+        component.addTableRowBelow();
+        expect(editor.querySelectorAll('tr')).toHaveLength(2);
+    });
+
+    it('toggling the header row off leaves a multi-row thead intact', () => {
+        component.writeValue(
+            '<table><thead><tr><th>A</th></tr><tr><th>B</th></tr></thead><tbody><tr><td>C</td></tr></tbody></table>',
+        );
+        fixture.detectChanges();
+        setTarget(editor.querySelector('th') as HTMLTableCellElement);
+        component.toggleTableHeaderRow();
+        expect(editor.querySelector('thead')).toBeTruthy();
+    });
+
+    it('indenting an ordered list item nests a new ol', () => {
+        component.writeValue('<ol><li>a</li><li>b</li></ol>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('li')[1].firstChild!, 1);
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+        expect(editor.querySelector('li ol')).toBeTruthy();
+    });
+
+    it('outdenting a nested item keeps a nested list that still has items', () => {
+        component.writeValue('<ul><li>a<ul><li>b</li><li>c</li></ul></li></ul>');
+        fixture.detectChanges();
+        caretIn(editor.querySelectorAll('ul ul li')[0].firstChild!, 1);
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true }));
+        expect(editor.querySelector('ul ul')).toBeTruthy();
+    });
+
+    it('insertToggleBlock tolerates a missing editor element', () => {
+        priv().editorDiv = undefined;
+        expect(() => priv().insertToggleBlock()).not.toThrow();
+    });
+
+    it('clearFindHighlights skips marks already detached from the DOM', () => {
+        priv().findHighlightElements = [document.createElement('mark')];
+        expect(() => priv().clearFindHighlights()).not.toThrow();
+    });
+
+    it('scrollToCurrentMatch is a no-op with no current match element', () => {
+        expect(() => priv().scrollToCurrentMatch()).not.toThrow();
+    });
+
+    it('onFindReplaceKeydown ignores non-Enter keys', () => {
+        expect(() => component.onFindReplaceKeydown(new KeyboardEvent('keydown', { key: 'a' }))).not.toThrow();
+    });
+
+    it('syncContentFromEditor is a no-op before the view initializes', () => {
+        const f = TestBed.createComponent(RichTextEditorComponent);
+        expect(() => (f.componentInstance as any).syncContentFromEditor()).not.toThrow();
+    });
+
+    it('toggleMentionStyle turns a style off when already on', () => {
+        const el = document.createElement('span');
+        el.style.fontWeight = 'bold';
+        priv().toggleMentionStyle([el], 'fontWeight', 'bold', 'normal');
+        expect(el.style.fontWeight).toBe('normal');
+    });
+
+    it('applyMutation skips history when pushHistory is false', () => {
+        component.writeValue('<p>x</p>');
+        fixture.detectChanges();
+        const spy = vi.spyOn(priv(), 'pushHistory');
+        priv().applyMutation({ pushHistory: false });
+        expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('execEditorCommand returns false when execCommand is unavailable', () => {
+        const doc = document as unknown as { execCommand?: unknown };
+        const saved = doc.execCommand;
+        delete doc.execCommand;
+        expect(priv().execEditorCommand('bold')).toBe(false);
+        doc.execCommand = saved;
+    });
+
+    it('queryEditorCommandState returns false when queryCommandState is unavailable', () => {
+        const doc = document as unknown as { queryCommandState?: unknown };
+        const saved = doc.queryCommandState;
+        delete doc.queryCommandState;
+        expect(priv().queryEditorCommandState('bold')).toBe(false);
+        doc.queryCommandState = saved;
+    });
+
+    it('overlayAnchor falls back to the content root when no container is present', () => {
+        priv().editorContainer = undefined;
+        expect(component.overlayAnchor).toBe(component.contentRoot);
+    });
+
+    it('registerShortcutAction disposer is inert once the action was replaced', () => {
+        const runA = vi.fn();
+        const runB = vi.fn();
+        const disposeA = component.registerShortcutAction('x', runA);
+        component.registerShortcutAction('x', runB);
+        disposeA();
+        priv().runShortcutAction('x');
+        expect(runB).toHaveBeenCalled();
+        expect(runA).not.toHaveBeenCalled();
+    });
+
+    it('selection() reports kind none for a collapsed caret', () => {
+        component.writeValue('<p>abc</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild!, 1);
+        expect(component.selection().kind).toBe('none');
+    });
+
+    it('closestElementWithAttrs returns null for a detached text node', () => {
+        expect(priv().closestElementWithAttrs(document.createTextNode('x'), ['data-x'], editor)).toBeNull();
+    });
+
+    it('saveSelection ignores selections outside the editor', () => {
+        document.getSelection()?.removeAllRanges();
+        priv().savedRange = null;
+        component.saveSelection();
+        expect(priv().savedRange).toBeNull();
+    });
+
+    it('updateFloatingToolbarPosition is a no-op without a selection', () => {
+        document.getSelection()?.removeAllRanges();
+        expect(() => priv().updateFloatingToolbarPosition()).not.toThrow();
+    });
+
+    it('collapseFloatingToolbarAfterFormat tolerates no selection', () => {
+        fixture.componentRef.setInput('toolbar', 'floating');
+        fixture.detectChanges();
+        document.getSelection()?.removeAllRanges();
+        expect(() => priv().collapseFloatingToolbarAfterFormat()).not.toThrow();
+    });
+
+    it('placeCaretAtEndOfBlock inserts a zero-width node into an empty block', () => {
+        component.writeValue('<p> </p>');
+        fixture.detectChanges();
+        const p = editor.querySelector('p')!;
+        priv().placeCaretAtEndOfBlock(p);
+        expect(p.textContent).toContain('​');
+    });
+
+    it('executeToolbarCommandOnBlock with a null block falls through to the format command', () => {
+        const spy = vi.spyOn(component, 'onFormatCommand');
+        component.executeToolbarCommandOnBlock('paragraph', null);
+        expect(spy).toHaveBeenCalledWith('paragraph');
+    });
+
+    it('wrapping an LI already in a different list swaps the list tag', () => {
+        component.writeValue('<ul><li>a</li></ul>');
+        fixture.detectChanges();
+        priv().executeToolbarCommandOnBlock('orderedList', editor.querySelector('li'));
+        expect(editor.querySelector('ol')).toBeTruthy();
+    });
+
+    it('wrapping an LI already in the target list type leaves it unchanged', () => {
+        component.writeValue('<ul><li>a</li></ul>');
+        fixture.detectChanges();
+        priv().executeToolbarCommandOnBlock('bulletList', editor.querySelector('li'));
+        expect(editor.querySelector('ul')).toBeTruthy();
+    });
+
+    it('computeDelta picks the nearer match when both directions match', () => {
+        expect(typeof priv().computeDelta('a\nb', 'b\na')).toBe('string');
+    });
+
+    it('applyDelta ignores keep-ops that point past the base', () => {
+        expect(priv().applyDelta('a\nb', '=5')).toBe('');
+    });
+
+    it('undo at the first history entry does nothing', () => {
+        component.writeValue('<p>a</p>');
+        fixture.detectChanges();
+        priv().pushHistory();
+        priv().historyIndex = 0;
+        expect(() => priv().undo()).not.toThrow();
+    });
+
+    it('undo updates the model even without a live editor element', () => {
+        component.writeValue('<p>a</p>');
+        fixture.detectChanges();
+        priv().pushHistory();
+        editor.innerHTML = '<p>ab</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        priv().flushPendingHistoryPush();
+        priv().editorDiv = undefined;
+        expect(() => priv().undo()).not.toThrow();
+    });
+
+    it('redo at the last history entry does nothing', () => {
+        component.writeValue('<p>a</p>');
+        fixture.detectChanges();
+        priv().pushHistory();
+        expect(() => priv().redo()).not.toThrow();
+    });
+
+    it('redo updates the model even without a live editor element', () => {
+        component.writeValue('<p>a</p>');
+        fixture.detectChanges();
+        priv().pushHistory();
+        editor.innerHTML = '<p>ab</p>';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        priv().flushPendingHistoryPush();
+        priv().undo();
+        priv().editorDiv = undefined;
+        expect(() => priv().redo()).not.toThrow();
+    });
+
+    it('onPaste continues past an interceptor that returns false', () => {
+        const norm = vi.spyOn(priv().pasteNormalizer, 'normalize');
+        const dispose = component.registerPasteInterceptor(() => false);
+        component.onPaste({
+            preventDefault: vi.fn(),
+            clipboardData: { getData: () => 'txt' } as unknown as DataTransfer,
+        } as unknown as ClipboardEvent);
+        expect(norm).toHaveBeenCalled();
+        dispose();
+    });
+
+    it('onEditorDragOver ignores a file drag when no addon predicate matches', () => {
+        const dispose = component.registerDropZonePredicate(() => false);
+        const ev = { dataTransfer: { types: ['Files'] }, preventDefault: vi.fn() } as unknown as DragEvent;
+        component.onEditorDragOver(ev);
+        expect(ev.preventDefault).not.toHaveBeenCalled();
+        dispose();
+    });
+
+    it('onKeydown continues past a keydown interceptor that returns false', () => {
+        const handleEnter = vi.spyOn(priv(), 'handleEnterKey');
+        component.writeValue('<p>x</p>');
+        fixture.detectChanges();
+        caretIn(editor.querySelector('p')!.firstChild!, 1);
+        const dispose = component.registerKeydownInterceptor(() => false);
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+        expect(handleEnter).toHaveBeenCalled();
+        dispose();
+    });
+
+    it('onEditorDrop continues past a drop interceptor that returns false', async () => {
+        const intercept = vi.fn(() => false);
+        const dispose = component.registerDropInterceptor(intercept);
+        await component.onEditorDrop({ preventDefault: vi.fn(), dataTransfer: {} } as unknown as DragEvent);
+        expect(intercept).toHaveBeenCalled();
+        dispose();
+    });
+
+    it('onEditorMouseMove near a left border evaluates the column-index guard', () => {
+        component.writeValue('<table><tbody><tr><td>A</td><td>B</td></tr></tbody></table>');
+        fixture.detectChanges();
+        const second = editor.querySelectorAll('td')[1] as HTMLTableCellElement;
+        component.onEditorMouseMove({ target: second, clientX: 102 } as unknown as MouseEvent);
+        expect((component as unknown as { tableResizeCursor: { (): boolean; set(v: boolean): void } }).tableResizeCursor()).toBe(true);
+    });
+
+    it('buildCellGrid ignores rowspans that exceed the table bounds', () => {
+        component.writeValue(
+            '<table><tbody><tr><td rowspan="5">A</td><td>B</td></tr><tr><td>C</td></tr></tbody></table>',
+        );
+        fixture.detectChanges();
+        setTarget(editor.querySelector('td') as HTMLTableCellElement);
+        expect(() => component.addTableRowBelow()).not.toThrow();
+    });
+
+    it('buildCellGrid treats a rowspan of zero as a single-row span', () => {
+        component.writeValue('<table><tbody><tr><td rowspan="0">A</td><td>B</td></tr></tbody></table>');
+        fixture.detectChanges();
+        setTarget(editor.querySelectorAll('td')[1] as HTMLTableCellElement);
+        expect(() => component.addTableColumnRight()).not.toThrow();
+    });
+
+    it('wrapBlockInList swaps an LI parent list to the requested type', () => {
+        component.writeValue('<ul><li>a</li></ul>');
+        fixture.detectChanges();
+        const li = editor.querySelector('li')!;
+        expect(priv().wrapBlockInList(li, 'ol')).toBe(li);
+        expect(editor.querySelector('ol')).toBeTruthy();
+    });
+
+    it('wrapBlockInList swaps an ordered LI parent list to a ul', () => {
+        component.writeValue('<ol><li>a</li></ol>');
+        fixture.detectChanges();
+        const li = editor.querySelector('li')!;
+        expect(priv().wrapBlockInList(li, 'ul')).toBe(li);
+        expect(editor.querySelector('ul')).toBeTruthy();
+    });
+});

@@ -1139,6 +1139,9 @@ describe('BentoGridComponent', () => {
         ): { cols: number; rows: number; x: number; y: number };
         getColWidth(containerWidth: number): number;
         handleTouchDragMove(clientX: number, clientY: number, item: DashboardItem): void;
+        handleTouchDragEnd(): void;
+        handleResizeEnd(): void;
+        flipResizeDirectionForRtl(direction: string): string;
         commitResize(): void;
         initialResizeState: unknown;
     }
@@ -1460,6 +1463,230 @@ describe('BentoGridComponent', () => {
             priv(grid).handleTouchDragMove(10, 10, component.items()[0]);
             spy.mockRestore();
             expect(grid.dropPreview()).toBeNull();
+        });
+    });
+
+    describe('splitItem with undefined id', () => {
+        it('does nothing when id is undefined', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            getGrid().splitItem(undefined, 'vertical');
+            expect(component.lastItemsChange).toBeNull();
+        });
+    });
+
+    describe('onDragOver / onContainerDragOver without dataTransfer', () => {
+        it('onDragOver does not throw when dataTransfer is absent', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = new Event('dragover') as DragEvent;
+            Object.defineProperty(ev, 'dataTransfer', { value: null });
+            expect(() =>
+                grid.onDragOver(ev, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' }),
+            ).not.toThrow();
+        });
+
+        it('onContainerDragOver does not throw when dataTransfer is absent', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const ev = new Event('dragover') as DragEvent;
+            Object.defineProperty(ev, 'dataTransfer', { value: null });
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            expect(() => grid.onContainerDragOver(ev)).not.toThrow();
+        });
+
+        it('onContainerDragOver leaves dropPreview untouched when the dragged item is missing', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('ghost');
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const ev = new Event('dragover') as DragEvent;
+            Object.defineProperty(ev, 'clientX', { value: 30 });
+            Object.defineProperty(ev, 'clientY', { value: 40 });
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            Object.defineProperty(ev, 'dataTransfer', { value: { types: [], dropEffect: '' } });
+            grid.onContainerDragOver(ev);
+            expect(grid.dropPreview()).toBeNull();
+        });
+    });
+
+    describe('handleInternalDrop with no preview', () => {
+        it('clears drag state without emitting when dropPreview is null', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('1');
+            grid.dropPreview.set(null);
+            const ev = makeDrop(10, 10);
+            Object.defineProperty(ev, 'stopPropagation', { value: () => undefined });
+            grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
+            expect(component.lastItemsChange).toBeNull();
+            expect(grid.draggedItemId()).toBeNull();
+        });
+    });
+
+    describe('onContainerDrop overlap handling', () => {
+        it('blocks the move when the target cell is occupied by another item', () => {
+            component.editable.set(true);
+            component.items.set([
+                { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'a' },
+                { id: '2', x: 2, y: 1, cols: 1, rows: 1, content: 'b' },
+            ]);
+            component.cols.set(4);
+            component.gap.set('0px');
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('1');
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const spy = vi.spyOn(containerEl, 'getBoundingClientRect').mockReturnValue({
+                left: 0, top: 0, right: 400, bottom: 120, width: 400, height: 120, x: 0, y: 0, toJSON: () => ({}),
+            });
+            const ev = makeDrop(100 + 5, 5, containerEl);
+            grid.onContainerDrop(ev);
+            spy.mockRestore();
+            expect(component.lastItemsChange).toBeNull();
+            expect(grid.draggedItemId()).toBeNull();
+        });
+
+        it('does nothing when the dragged item is missing from items', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('ghost');
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const ev = makeDrop(10, 10, containerEl);
+            grid.onContainerDrop(ev);
+            expect(component.lastItemsChange).toBeNull();
+            expect(grid.draggedItemId()).toBeNull();
+        });
+
+        it('ignores external JSON that is not a widget payload', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const ev = new Event('drop') as DragEvent;
+            Object.defineProperty(ev, 'clientX', { value: 10 });
+            Object.defineProperty(ev, 'clientY', { value: 10 });
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            Object.defineProperty(ev, 'dataTransfer', {
+                value: { dropEffect: '', getData: () => JSON.stringify({ type: 'not-widget' }) },
+            });
+            const drops: unknown[] = [];
+            grid.externalDrop.subscribe(e => drops.push(e));
+            grid.onContainerDrop(ev);
+            expect(drops).toHaveLength(0);
+        });
+    });
+
+    describe('shrinkItem — largest-fragment tie-break', () => {
+        it('keeps the earlier candidate when it is strictly larger than the next one', () => {
+            const p = priv(getGrid());
+            const winner = { x: 2, y: 5, cols: 10, rows: 1 };
+            const loser: DashboardItem = { id: 'l', x: 0, y: 0, cols: 3, rows: 10, content: '' };
+            const result = p.shrinkItem(winner, loser);
+            expect(result).not.toBeNull();
+            expect(result!.cols * result!.rows).toBeGreaterThan(0);
+        });
+    });
+
+    describe('handleResizeEnd false branch', () => {
+        it('does not commit when resizingItemId is set but there is no preview', () => {
+            const grid = getGrid();
+            grid.resizingItemId.set('1');
+            grid.resizePreview.set(null);
+            priv(grid).handleResizeEnd();
+            expect(component.lastItemsChange).toBeNull();
+            expect(grid.resizingItemId()).toBeNull();
+        });
+    });
+
+    describe('flipResizeDirectionForRtl fallback', () => {
+        it('falls back to the input direction for an unmapped value', () => {
+            const result = priv(getGrid()).flipResizeDirectionForRtl('bogus');
+            expect(result).toBe('bogus');
+        });
+    });
+
+    describe('onDragStart / onTouchDragStart without a .bento-item ancestor', () => {
+        it('onDragStart falls back to a zeroed rect when no bento-item is found', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = new Event('dragstart') as DragEvent;
+            Object.defineProperty(ev, 'clientX', { value: 10 });
+            Object.defineProperty(ev, 'clientY', { value: 10 });
+            Object.defineProperty(ev, 'target', { value: document.body });
+            Object.defineProperty(ev, 'dataTransfer', { value: { effectAllowed: '' } });
+            grid.onDragStart(ev, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' });
+            expect(grid.dragOffset()).toEqual({ x: 10, y: 10 });
+        });
+
+        it('onTouchDragStart falls back to a zeroed rect when no bento-item is found', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = makeTouchEvent('touchstart', [{ clientX: 15, clientY: 20 }], document.body);
+            grid.onTouchDragStart(ev, component.items()[0]);
+            expect(grid.dragOffset()).toEqual({ x: 15, y: 20 });
+            globalThis.window.dispatchEvent(makeTouchEvent('touchend', []));
+        });
+    });
+
+    describe('handleTouchDragEnd branches', () => {
+        it('does nothing when there is no dragged item', () => {
+            const grid = getGrid();
+            grid.draggedItemId.set(null);
+            expect(() => priv(grid).handleTouchDragEnd()).not.toThrow();
+            expect(component.lastItemsChange).toBeNull();
+        });
+
+        it('clears drag state without emitting when there is no drop preview', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('1');
+            grid.dropPreview.set(null);
+            priv(grid).handleTouchDragEnd();
+            expect(component.lastItemsChange).toBeNull();
+            expect(grid.draggedItemId()).toBeNull();
+        });
+
+        it('clears drag state without emitting when the dragged item is missing from items', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('ghost');
+            grid.dropPreview.set({ x: 1, y: 1, cols: 1, rows: 1 });
+            priv(grid).handleTouchDragEnd();
+            expect(component.lastItemsChange).toBeNull();
+            expect(grid.draggedItemId()).toBeNull();
+        });
+    });
+
+    describe('getGridCoordinatesFromPoint without a drag offset', () => {
+        it('uses the raw pointer coordinates when dragOffset is null', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.dragOffset.set(null);
+            priv(grid).handleTouchDragMove(10, 10, component.items()[0]);
+            expect(grid.dropPreview()).not.toBeNull();
+        });
+    });
+
+    describe('commitResize false branch', () => {
+        it('resets resize state without emitting when the resized item is missing from items', () => {
+            const grid = getGrid();
+            grid.resizingItemId.set('ghost');
+            grid.resizePreview.set({ id: 'ghost', cols: 2, rows: 2, x: 1, y: 1 });
+            priv(grid).commitResize();
+            expect(component.lastItemsChange).toBeNull();
+            expect(grid.resizingItemId()).toBeNull();
         });
     });
 });

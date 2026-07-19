@@ -1027,6 +1027,182 @@ describe('FileViewerComponent rendering internals', () => {
             expect(conn).toContain('<path');
         });
     });
+
+    describe('additional branch coverage: false/fallback paths', () => {
+        it('scrollContentToTop no-ops when the content slot is absent (custom mode)', () => {
+            const customFixture = TestBed.createComponent(CustomModeHostComponent);
+            customFixture.detectChanges();
+            const viewer = customFixture.debugElement.children[0].componentInstance as FileViewerComponent;
+            viewer.totalPages.set(3);
+            expect(() => viewer.nextPage()).not.toThrow();
+            expect(viewer.currentPage()).toBe(2);
+        });
+
+        it('loadFromUrl handles a non-Error rejection', async () => {
+            const orig = globalThis.fetch;
+            globalThis.fetch = vi.fn(() => Promise.reject('network down')) as unknown as typeof fetch;
+            await api.loadFromUrl('https://x.com/fail.txt');
+            expect(component.state()).toBe('error');
+            expect(component.errorMessage()).toBe('Failed to load file');
+            globalThis.fetch = orig;
+        });
+
+        it('loadFile handles a non-Error rejection from arrayBuffer', async () => {
+            const badFile = { arrayBuffer: () => Promise.reject('nope') } as unknown as File;
+            await api.loadFile(badFile);
+            expect(component.state()).toBe('error');
+            expect(component.errorMessage()).toBe('Failed to process file');
+        });
+
+        it('routes the video type through media processing', async () => {
+            fixture.componentRef.setInput('type', 'video');
+            const file = new File([new Uint8Array([1, 2, 3])], 'v.mp4', { type: 'video/mp4' });
+            await api.loadFile(file);
+            expect(component.mediaSrc()).toBeTruthy();
+            expect(component.state()).toBe('loaded');
+        });
+
+        it('renderDocxToHtml ignores unrecognized element types', () => {
+            expect(api.renderDocxToHtml([{ type: 'bookmarkEnd' }])).toBe('');
+        });
+
+        it('builds a run span for rtl direction alone (no other styles)', () => {
+            const run = { text: 'x', style: { rtl: true } };
+            const html = api.renderDocxParagraph({ type: 'paragraph', style: '', runs: [run] });
+            expect(html).toContain('dir="rtl"');
+            expect(html).not.toContain('style="');
+        });
+
+        it('omits missing paragraph border sides', () => {
+            const html = api.renderDocxParagraph({
+                type: 'paragraph', style: '', runs: [{ text: 'x', style: {} }],
+                borders: {},
+            });
+            expect(html).not.toContain('border-top');
+            expect(html).not.toContain('border-bottom');
+            expect(html).not.toContain('border-left');
+            expect(html).not.toContain('border-right');
+            expect(html).not.toContain('padding:4px 8px');
+        });
+
+        it('treats out-of-range heading levels as a plain paragraph', () => {
+            const html = api.renderDocxParagraph({ type: 'paragraph', style: 'Heading8', runs: [{ text: 'x', style: {} }] });
+            expect(html).toContain('<p');
+            expect(html).not.toContain('<h8');
+        });
+
+        it('ignores unrecognized element types inside table cell content', () => {
+            const table = {
+                type: 'table', tableStyle: {},
+                rows: [{ cells: [{ elements: [{ type: 'bookmarkStart' }], colSpan: 1, rowSpan: 1 }] }],
+            };
+            expect(api.renderDocxTable(table)).toContain('<td');
+        });
+
+        it('cell with an empty cellStyle object yields no style attribute', () => {
+            const table = {
+                type: 'table', tableStyle: {},
+                rows: [{ cells: [{ elements: [], colSpan: 1, rowSpan: 1, cellStyle: {} }] }],
+            };
+            expect(api.renderDocxTable(table)).not.toContain('style="');
+        });
+
+        it('cell borders and paddings with all sides empty add no extra styles', () => {
+            const table = {
+                type: 'table', tableStyle: {},
+                rows: [{
+                    cells: [{
+                        elements: [], colSpan: 1, rowSpan: 1,
+                        cellStyle: { backgroundColor: '#fff', borders: {}, paddings: {} },
+                    }],
+                }],
+            };
+            const html = api.renderDocxTable(table);
+            expect(html).toContain('background-color:#fff');
+            expect(html).not.toContain('border-top');
+            expect(html).not.toContain('padding-top');
+        });
+
+        it('renders a comment without an author safely', () => {
+            const html = api.renderDocxComments([{ id: 'c2', author: '', date: '', paragraphs: [] }]);
+            expect(html).toContain('*c2');
+            expect(html).not.toContain('<strong>');
+        });
+
+        it('applies text outline width without a color', () => {
+            const html = api.renderSlideRun({ text: 'x', textOutline: { width: 2 } });
+            expect(html).toContain('text-stroke-width:2pt');
+            expect(html).not.toContain('text-stroke-color');
+        });
+
+        it('bullet char falls back to a bullet dot when char is missing', () => {
+            expect(api.renderBulletPrefix({ type: 'char' }, 0)).toContain('•');
+        });
+
+        it('bullet with an unrecognized type still renders a prefix span', () => {
+            expect(api.renderBulletPrefix({ type: 'other' }, 0)).toContain('<span');
+        });
+
+        it('autoNum bullet falls back to default scheme and start number', () => {
+            expect(api.renderBulletPrefix({ type: 'autoNum' }, 3)).toContain('3.');
+        });
+
+        it('text frame border uses the default width when unspecified', () => {
+            const html = api.renderSlideTextFrame({
+                type: 'text', x: 0, y: 0, width: 10, height: 10,
+                borderColor: '#000',
+                paragraphs: [],
+            });
+            expect(html).toContain('border:1px solid #000');
+        });
+
+        it('paragraph vertical-align falls back to baseline for an unknown fontAlign', () => {
+            const html = api.renderSlideParagraph({ runs: [{ text: 'x' }], fontAlign: 'weird' }, 0);
+            expect(html).toContain('vertical-align:baseline');
+        });
+
+        it('shape border uses the default width when unspecified', () => {
+            const html = api.renderSlideShape({ type: 'shape', x: 0, y: 0, width: 5, height: 5, borderColor: '#000' });
+            expect(html).toContain('border:1px solid #000');
+        });
+
+        it('connector marker defs render tail-only and head-only variants', () => {
+            const tailOnly = api.renderSlideConnector({ type: 'connector', x: 0, y: 0, width: 10, height: 10, tailEnd: true });
+            expect(tailOnly).toContain('marker-end');
+            expect(tailOnly).not.toContain('marker-start');
+
+            const headOnly = api.renderSlideConnector({ type: 'connector', x: 0, y: 0, width: 10, height: 10, headEnd: true });
+            expect(headOnly).toContain('marker-start');
+            expect(headOnly).not.toContain('marker-end');
+        });
+
+        it('slide table without column widths omits the colgroup', () => {
+            const html = api.renderSlideTable({ type: 'table', x: 0, y: 0, width: 10, height: 10, rows: [] });
+            expect(html).not.toContain('<colgroup>');
+        });
+
+        it('linear gradient falls back to 0deg when angle is missing', () => {
+            expect(api.buildGradientCss({ type: 'linear', stops: [{ color: '#000', position: 0 }] })).toContain('linear-gradient(0deg');
+        });
+
+        it('maps additional dash-to-decoration case labels', () => {
+            expect(api.mapDashToDecorationStyle('dash')).toBe('dashed');
+            expect(api.mapDashToDecorationStyle('sysDash')).toBe('dashed');
+            expect(api.mapDashToDecorationStyle('lgDash')).toBe('dashed');
+        });
+
+        it('tab alignment falls back to left when unspecified or unmapped', () => {
+            const noAlign = api.renderTabContent('a\tb', [{ position: 20 }]);
+            expect(noAlign).toContain('text-align:left');
+
+            const unmapped = api.renderTabContent('a\tb', [{ position: 20, alignment: 'l' }]);
+            expect(unmapped).toContain('text-align:left');
+        });
+
+        it('tab width falls back to 48px when no tab stop or default size is given', () => {
+            expect(api.renderTabContent('a\tb')).toContain('width:48px');
+        });
+    });
 });
 
 describe('file-type-detector', () => {

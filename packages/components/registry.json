@@ -811,6 +811,7 @@
       "data-table/data-table-paste.spec.ts",
       "data-table/data-table-virtual-scroll.spec.ts",
       "data-table/data-table.component.spec.ts",
+      "data-table/data-table.coverage.spec.ts",
       "data-table/data-table.host.spec.ts",
       "data-table/sub/data-table-column-header.component.spec.ts",
       "data-table/sub/data-table-date-filter.component.spec.ts",

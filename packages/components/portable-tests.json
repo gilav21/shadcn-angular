@@ -153,14 +153,6 @@
     "word-rotate"
   ],
   "coverageExceptions": {
-    "data-table": {
-      "lines": 99,
-      "reason": "5 provably-dead defensive guards in the 5000-line grid (component.ts 448/469 gated by virtualVariableRowHeight at all call sites; 1082/1096 unreachable once groupingActive() guarantees a truthy groupBy; 4314 !aggregateFn guard, both callers pre-check)."
-    },
-    "rich-text-editor": {
-      "lines": 99,
-      "reason": "2 provably-dead lines in rich-text-markdown.service pushListItem (67 null-guard on stack[-1] after length!==0; 73-74 sibling else unreachable given the caller pops while top.indent>=indent). Unexported helper, not test-reachable."
-    },
     "rich-text-editor/slash-commands": {
       "lines": 99,
       "reason": "1 dead line in rich-text-slash-commands.directive.ts:178 — the for-of loop body over host.builtinCommands() which is computed(() => []) (an empty seam for future base commands), unreachable in the current build."

@@ -15,6 +15,9 @@ type PasteNormalizerPrivate = {
     ) => void;
     unwrapElement: (el: Element) => void;
     isEffectivelyEmpty: (el: HTMLElement) => boolean;
+    applyMissingProps: (props: Map<string, string>, target: HTMLElement) => void;
+    extractGhostTableContent: (table: HTMLTableElement) => DocumentFragment;
+    parseStyles: (styleAttr: string) => Map<string, string>;
 };
 
 describe('RichTextPasteNormalizerService', () => {
@@ -2117,4 +2120,209 @@ describe('RichTextPasteNormalizerService', () => {
             expect(span.textContent).toBe('  ');
         });
     });
+    // =========================================================================
+    // BRANCH COVERAGE BOOST
+    // =========================================================================
+
+    describe('branch coverage boost', () => {
+        const priv = () => service as unknown as PasteNormalizerPrivate;
+
+        it('applyMissingProps leaves style unset when nothing to serialize', () => {
+            const el = document.createElement('div');
+            priv().applyMissingProps(new Map<string, string>(), el);
+            expect(el.hasAttribute('style')).toBe(false);
+        });
+
+        it('detectWordHeadingLevel/parseWordListItem tolerate a P with no class attribute', () => {
+            const html = '<p style="mso-foo:1">marker</p><p>plain paragraph</p>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('plain paragraph');
+        });
+
+        it('Word list item without a level falls back to level 1 and default listId', () => {
+            const html = '<p class="MsoListParagraph">Task alpha</p>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('<ul>');
+            expect(result).toContain('<li>Task alpha</li>');
+        });
+
+        it('Word list span with no style and non-Ignore span is handled', () => {
+            const html =
+                '<p class="MsoListParagraph"><span>keep</span> text</p>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('keep');
+        });
+
+        it('Word list item whose first child is an element (not text) is not marker-stripped', () => {
+            const html =
+                '<p class="MsoListParagraph"><b>bold lead</b> rest</p>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('bold lead');
+        });
+
+        it('builds a nested ORDERED list when a deeper item is ordered', () => {
+            const html =
+                '<p class="MsoListParagraph" style="mso-list:l0 level1">Parent</p>' +
+                '<p class="MsoListParagraph" style="mso-list:l0 level2">1) Child</p>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('<ol>');
+            expect(result).toContain('Child');
+        });
+
+        it('extractGhostTableContent skips rows that have no cell', () => {
+            const table = document.createElement('table');
+            const emptyRow = document.createElement('tr');
+            const cellRow = document.createElement('tr');
+            const td = document.createElement('td');
+            td.textContent = 'content';
+            cellRow.appendChild(td);
+            table.append(emptyRow, cellRow);
+
+            const fragment = priv().extractGhostTableContent(table as HTMLTableElement);
+            expect(fragment.textContent).toBe('content');
+        });
+
+        it('maps color:auto to null (system color miss) without setting a value', () => {
+            const html = '<p style="mso-x:1; background-color:red; background:blue; color:auto">x</p>';
+            const result = service.normalize(html, '');
+            expect(result).not.toContain('color: auto');
+            expect(result).toContain('background-color: red');
+            expect(result).not.toContain('background: blue');
+        });
+
+        it('ignores non-mso vendor-prefixed style properties', () => {
+            const html = '<p style="mso-x:1;-webkit-text-stroke:1px">x</p>';
+            const result = service.normalize(html, '');
+            expect(result).not.toContain('-webkit-text-stroke');
+        });
+
+        it('does not overwrite an already-mapped font-size / font-weight / etc from mso-* props', () => {
+            const html =
+                '<p style="font-size:12pt; mso-ansi-font-size:14pt; ' +
+                'font-weight:bold; mso-ansi-font-weight:300; ' +
+                'line-height:1.5; mso-line-height-alt:2; ' +
+                'border:1px solid; mso-border-alt:2px; ' +
+                'padding:5px; mso-padding-alt:10px; ' +
+                'color:green; mso-color-alt:blue">x</p>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('font-size: 12pt');
+            expect(result).toContain('color: green');
+            expect(result).toContain('padding: 5px');
+        });
+
+        it('ignores mso-* props with non-triggering values', () => {
+            const html =
+                '<p style="mso-bidi-font-weight:normal; mso-bidi-font-style:normal; ' +
+                'mso-text-underline:none; mso-font-kerning:0pt; mso-highlight:auto; ' +
+                'mso-text-raise:0">x</p>';
+            const result = service.normalize(html, '');
+            expect(result).not.toContain('font-weight: bold');
+            expect(result).not.toContain('font-style: italic');
+            expect(result).not.toContain('text-decoration: underline');
+            expect(result).not.toContain('vertical-align');
+        });
+
+        it('leaves a Google Docs <b> without id/normal-weight in place', () => {
+            const html =
+                '<span id="docs-internal-guid-abc">wrap</span><b>bold text</b>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('bold text');
+        });
+
+        it('Google Docs span keeps other attributes after style is emptied', () => {
+            const html =
+                '<span id="docs-internal-guid-abc"></span>' +
+                '<span style="font-family:Arial" title="tip">t</span>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('title="tip"');
+        });
+
+        it('Google Docs list item without a style attribute is preserved', () => {
+            const html =
+                '<span id="docs-internal-guid-abc"></span><ul><li>item</li></ul>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('<li>item</li>');
+        });
+
+        it('Google Sheets element retains non data-sheets- attributes', () => {
+            const html =
+                '<span data-sheets-value="1" title="keep">cell</span>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('title="keep"');
+            expect(result).not.toContain('data-sheets-value');
+        });
+
+        it('font element with unmapped size and no attributes produces a plain span', () => {
+            const html =
+                '<meta name="Generator" content="LibreOffice/7.0">' +
+                '<font size="9">odd</font><font>bare</font>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('odd');
+            expect(result).toContain('bare');
+            expect(result).not.toContain('font-size');
+        });
+
+        it('Excel column widths: bare col, existing cell width, and px passthrough', () => {
+            const html =
+                '<meta name="Generator" content="Microsoft Excel 15">' +
+                '<table><colgroup>' +
+                '<col width="50px"><col><col width="30">' +
+                '</colgroup><tr>' +
+                '<td>a</td><td>b</td><td style="width:99px">c</td>' +
+                '</tr></table>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('width: 50px');
+            expect(result).toContain('width: 99px');
+        });
+
+        it('Excel conditional-comment filter ignores an ordinary comment', () => {
+            const html =
+                '<meta name="Generator" content="Microsoft Excel 15">' +
+                '<table><tr><td>x</td></tr></table><!-- ordinary note -->';
+            const result = service.normalize(html, '');
+            expect(result).toContain('<td>x</td>');
+        });
+
+        it('getPdfColumnWidth falls back to 80 with three or fewer lines', () => {
+            const text = [
+                'This is line one of some text here now.',
+                'This is line two of some text here now.',
+                'This is line three of some text here too.',
+            ].join('\n');
+            const result = service.normalize(null, text);
+            expect(result).toContain('<p>');
+        });
+
+        it('strips short numeric-only lines from PDF text', () => {
+            const text = [
+                'This first line of prose is long enough to matter here.',
+                '42',
+                'This second line of prose is also long enough to matter.',
+                'This third line of prose keeps the average length high.',
+                'And a fourth line of prose to keep things flowing along.',
+                'Finally a fifth line of prose so the heuristic triggers.',
+            ].join('\n');
+            const result = service.normalize(null, text);
+            expect(result).not.toContain('42');
+        });
+
+        it('parseStyles skips declarations with an empty prop or value', () => {
+            const parsed = priv().parseStyles('color:red; :orphan; empty:');
+            expect(parsed.get('color')).toBe('red');
+            expect(parsed.has('empty')).toBe(false);
+            expect(parsed.size).toBe(1);
+        });
+
+        it('keeps an empty paragraph that is the only child of its parent', () => {
+            const result = service.normalize('<p></p>', '');
+            expect(result).toContain('<p>');
+        });
+
+        it('preserves non-underline/line-through text-decoration values', () => {
+            const html = '<span style="text-decoration:overline">deco</span>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('text-decoration: overline');
+        });
+    });
+
 });
