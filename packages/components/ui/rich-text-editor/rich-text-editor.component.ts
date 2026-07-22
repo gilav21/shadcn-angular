@@ -37,7 +37,8 @@ import {
     type RichTextHistoryEntrySnapshot,
 } from './rich-text-editor.host';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
-import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
+import { createLocaleBindings, interpolate } from '../../lib/i18n/i18n.utils';
+import type { LocaleInput } from '../../lib/i18n/i18n.types';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',

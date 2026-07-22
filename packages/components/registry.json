@@ -2536,12 +2536,9 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts",
       "parsers/image-validator.ts",
       "parsers/svg-sanitizer.ts",
       "shortcut-binding.service.ts"
