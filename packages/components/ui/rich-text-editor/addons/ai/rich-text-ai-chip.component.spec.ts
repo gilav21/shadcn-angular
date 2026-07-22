@@ -12,7 +12,7 @@ import { RICH_TEXT_AI_LOCALES } from './rich-text-ai.locales';
 interface MockContext extends RichTextAiContext {
     chipVisible: WritableSignal<boolean>;
     chipPosition: WritableSignal<RichTextAiPoint>;
-    openPanel: ReturnType<typeof vi.fn>;
+    openPanel: (() => void) & ReturnType<typeof vi.fn>;
 }
 
 function buildContext(): MockContext {
@@ -25,7 +25,7 @@ function buildContext(): MockContext {
         phase: signal('menu'),
         panelPosition: signal<RichTextAiPoint>({ x: 0, y: 0 }),
         errorMessage: signal<string | null>(null),
-        openPanel: vi.fn(),
+        openPanel: vi.fn<() => void>(),
         runTask: vi.fn(),
         runCustom: vi.fn(),
         accept: vi.fn(),

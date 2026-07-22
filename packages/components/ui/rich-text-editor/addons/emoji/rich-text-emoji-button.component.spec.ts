@@ -19,7 +19,7 @@ interface ButtonProbe {
 function buildContext(): RichTextEmojiContext & { onInsert: ReturnType<typeof vi.fn> } {
     return {
         tooltip: signal('Insert Emoji'),
-        onInsert: vi.fn(),
+        onInsert: vi.fn<(emoji: string) => void>(),
     };
 }
 

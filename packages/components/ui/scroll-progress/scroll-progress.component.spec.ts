@@ -60,9 +60,9 @@ describe('ScrollProgressComponent', () => {
 
     afterEach(() => {
         Object.defineProperty(document.documentElement, 'scrollTop', { value: 0, configurable: true });
-        delete (document.documentElement as unknown as Record<string, unknown>).scrollHeight;
-        delete (document.documentElement as unknown as Record<string, unknown>).clientHeight;
-        delete (document.body as unknown as Record<string, unknown>).scrollTop;
+        delete (document.documentElement as unknown as Record<string, unknown>)['scrollHeight'];
+        delete (document.documentElement as unknown as Record<string, unknown>)['clientHeight'];
+        delete (document.body as unknown as Record<string, unknown>)['scrollTop'];
     });
 
     it('should render a fixed bar element with data-slot attribute', () => {
@@ -239,7 +239,7 @@ describe('ScrollProgressComponent', () => {
             if (ownDescriptor) {
                 Object.defineProperty(document, 'defaultView', ownDescriptor);
             } else {
-                delete (document as unknown as Record<string, unknown>).defaultView;
+                delete (document as unknown as Record<string, unknown>)['defaultView'];
             }
         }
     });

@@ -16,11 +16,11 @@ interface MockContext extends RichTextAiContext {
     panelOpen: WritableSignal<boolean>;
     phase: WritableSignal<RichTextAiPhase>;
     errorMessage: WritableSignal<string | null>;
-    runTask: ReturnType<typeof vi.fn>;
-    runCustom: ReturnType<typeof vi.fn>;
-    accept: ReturnType<typeof vi.fn>;
-    discard: ReturnType<typeof vi.fn>;
-    retryLast: ReturnType<typeof vi.fn>;
+    runTask: RichTextAiContext['runTask'] & ReturnType<typeof vi.fn>;
+    runCustom: RichTextAiContext['runCustom'] & ReturnType<typeof vi.fn>;
+    accept: RichTextAiContext['accept'] & ReturnType<typeof vi.fn>;
+    discard: RichTextAiContext['discard'] & ReturnType<typeof vi.fn>;
+    retryLast: RichTextAiContext['retryLast'] & ReturnType<typeof vi.fn>;
 }
 
 const TASKS: readonly RichTextAiTaskOption[] = [
@@ -38,12 +38,12 @@ function buildContext(): MockContext {
         phase: signal<RichTextAiPhase>('menu'),
         panelPosition: signal<RichTextAiPoint>({ x: 5, y: 6 }),
         errorMessage: signal<string | null>(null),
-        openPanel: vi.fn(),
-        runTask: vi.fn(),
-        runCustom: vi.fn(),
-        accept: vi.fn(),
-        discard: vi.fn(),
-        retryLast: vi.fn(),
+        openPanel: vi.fn<() => void>(),
+        runTask: vi.fn<RichTextAiContext['runTask']>(),
+        runCustom: vi.fn<RichTextAiContext['runCustom']>(),
+        accept: vi.fn<RichTextAiContext['accept']>(),
+        discard: vi.fn<RichTextAiContext['discard']>(),
+        retryLast: vi.fn<RichTextAiContext['retryLast']>(),
     };
 }
 

@@ -32,8 +32,8 @@ function buildContext(kind: RichTextColorKind): RichTextColorButtonContext & {
         presets: signal(['#ff0000', '#00ff00']),
         alpha: kind === 'background',
         seededColor: signal('#123456'),
-        onOpen: vi.fn(),
-        onSelect: vi.fn(),
+        onOpen: vi.fn<() => void>(),
+        onSelect: vi.fn<(color: string) => void>(),
     };
 }
 

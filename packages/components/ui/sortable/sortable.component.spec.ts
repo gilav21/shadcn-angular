@@ -97,7 +97,7 @@ function listOffsetLeft(container: Element): number {
 }
 
 function deterministicRect(el: Element): DOMRect | null {
-    const slot = (el as HTMLElement).dataset?.slot;
+    const slot = (el as HTMLElement).dataset?.['slot'];
     if (slot === 'sortable-item') {
         const container = el.closest('[data-slot="sortable"]');
         if (!container) return stubRect(0, 0, STUB_LIST_W, STUB_ITEM_H);

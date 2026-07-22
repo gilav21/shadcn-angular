@@ -41,7 +41,7 @@ describe('ChartBrushComponent DOM handlers', () => {
         if (originalGBCR) {
             Object.defineProperty(Element.prototype, 'getBoundingClientRect', originalGBCR);
         } else {
-            delete (Element.prototype as unknown as Record<string, unknown>).getBoundingClientRect;
+            delete (Element.prototype as unknown as Record<string, unknown>)['getBoundingClientRect'];
         }
     });
 
