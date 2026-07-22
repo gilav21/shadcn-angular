@@ -13,7 +13,8 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../lib/utils';
-import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
 import { TreeComponent, TreeNode } from '../tree';
 import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from '../popover';
 import { TreeSelectTriggerComponent } from './sub/tree-select-trigger.component';

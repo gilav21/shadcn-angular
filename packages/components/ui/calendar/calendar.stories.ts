@@ -1,6 +1,7 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
-import { CALENDAR_LOCALES, resolveLocale, type CalendarLocale, type LocaleInput } from '../../lib/i18n';
+import { resolveLocale, type LocaleInput } from '../../lib/i18n';
+import { CALENDAR_LOCALES, type CalendarLocale } from '../../lib/i18n/calendar.locales';
 
 // Every input is exposed as an interactive control (argTypes) with a sensible
 // default (args); the Playground binds all of them so the Controls panel drives

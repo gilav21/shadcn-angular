@@ -9,7 +9,8 @@ import {
     input,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
-import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
+import { createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
+import { COMMON_LOCALES, type CommonLocale } from '../../../lib/i18n/common.locales';
 import { SHEET, sheetVariants, SheetSide } from '../sheet.component';
 import { SheetHeaderComponent } from './sheet-header.component';
 import { SheetTitleComponent } from './sheet-title.component';

@@ -11,7 +11,8 @@ import {
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { signal } from '@angular/core';
-import { provideUiLocale, type CalendarLocale } from '../../lib/i18n';
+import { provideUiLocale } from '../../lib/i18n';
+import type { CalendarLocale } from '../../lib/i18n/calendar.locales';
 
 describe('CalendarComponent', () => {
     let fixture: ComponentFixture<CalendarComponent>;

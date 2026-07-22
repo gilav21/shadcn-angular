@@ -49,7 +49,6 @@
       "autocomplete/index.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -117,7 +116,6 @@
     ],
     "libFiles": [
       "a11y.ts",
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -226,8 +224,6 @@
       "breadcrumb/sub/breadcrumb-separator.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -260,7 +256,6 @@
       "button/index.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -322,7 +317,6 @@
     ],
     "libFiles": [
       "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -389,8 +383,6 @@
       "carousel/sub/carousel-previous.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -479,8 +471,6 @@
     "libFiles": [
       "color-extract.ts",
       "color.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -538,7 +528,6 @@
       "command/command.component.spec.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -718,8 +707,6 @@
     ],
     "libFiles": [
       "code-scopes.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -823,7 +810,6 @@
       "ai.ts",
       "component-pool.service.ts",
       "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -914,8 +900,6 @@
       "data-table/addons/export/index.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1003,7 +987,6 @@
     ],
     "libFiles": [
       "a11y.ts",
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -1063,7 +1046,6 @@
       "tree-select/tree-select.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -1295,8 +1277,6 @@
       "file-upload/index.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1619,8 +1599,6 @@
       "number-input/number-input.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1653,8 +1631,6 @@
       "number-ticker/sub/number-ticker-digit.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1688,8 +1664,6 @@
       "pagination/sub/pagination-previous.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1718,8 +1692,6 @@
       "phone-input/phone-input.locales.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1781,8 +1753,6 @@
       "progress/progress.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1834,8 +1804,6 @@
       "rating/rating.locales.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1916,7 +1884,6 @@
       "select/sub/select-value.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -1975,7 +1942,6 @@
     ],
     "libFiles": [
       "a11y.ts",
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -2062,8 +2028,6 @@
       "slider/slider.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -2278,7 +2242,6 @@
       "toast/toast.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -2818,8 +2781,6 @@
       "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -3342,8 +3303,6 @@
     ],
     "libFiles": [
       "color.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -3388,8 +3347,6 @@
       "shortcut-bindings-dialog/shortcut-bindings-dialog.locales.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -3424,7 +3381,6 @@
       "tour/tour.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -3456,8 +3412,6 @@
       "comparison-slider/index.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -3494,8 +3448,6 @@
     "libFiles": [
       "auto-scroll.ts",
       "flip.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -3614,8 +3566,6 @@
     ],
     "libFiles": [
       "color.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -3878,7 +3828,6 @@
       "directives/copy-to.directive.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -4404,8 +4353,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4465,8 +4412,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4513,8 +4458,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4559,8 +4502,6 @@
       "rich-text-editor/addons/history/rich-text-history.locales.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4609,8 +4550,6 @@
     "libFiles": [
       "addon-slots.ts",
       "color.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4657,8 +4596,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4706,8 +4643,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4756,8 +4691,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4809,8 +4742,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4864,8 +4795,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4916,8 +4845,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4974,8 +4901,6 @@
     "libFiles": [
       "addon-slots.ts",
       "ai.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -5023,8 +4948,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",

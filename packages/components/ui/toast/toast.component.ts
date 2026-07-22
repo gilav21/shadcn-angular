@@ -7,7 +7,8 @@ import {
   signal,
   Injectable,
 } from '@angular/core';
-import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const toastVariants = cva(
