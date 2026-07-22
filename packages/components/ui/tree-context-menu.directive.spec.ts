@@ -5,14 +5,6 @@ import { By } from '@angular/platform-browser';
 import { TreeContextMenuDirective, type TreeContextMenuEvent } from './tree-context-menu.directive';
 import { ContextMenuComponent } from './context-menu';
 
-interface Node {
-  key?: string;
-  label: string;
-  expanded: boolean;
-  selected: boolean;
-  element: HTMLElement;
-}
-
 @Component({
   selector: 'ui-tct-host',
   standalone: true,
@@ -35,9 +27,9 @@ interface Node {
 class TestHostComponent {
   readonly disabled = signal(false);
   readonly menu = { show: vi.fn() } as unknown as ContextMenuComponent;
-  readonly events: TreeContextMenuEvent<Node>[] = [];
+  readonly events: TreeContextMenuEvent<unknown>[] = [];
 
-  onCtx(event: TreeContextMenuEvent<Node>): void {
+  onCtx(event: TreeContextMenuEvent<unknown>): void {
     this.events.push(event);
   }
 }
@@ -70,9 +62,9 @@ function setup(): {
 })
 class NoMenuHostComponent {
   readonly menu = undefined as unknown as ContextMenuComponent;
-  readonly events: TreeContextMenuEvent<Node>[] = [];
+  readonly events: TreeContextMenuEvent<unknown>[] = [];
 
-  onCtx(event: TreeContextMenuEvent<Node>): void {
+  onCtx(event: TreeContextMenuEvent<unknown>): void {
     this.events.push(event);
   }
 }

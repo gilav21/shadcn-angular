@@ -76,10 +76,10 @@ class TestHostComponent {
   readonly disabled = signal(false);
   readonly rowsOnly = signal(true);
   readonly menu = { show: vi.fn() } as unknown as ContextMenuComponent;
-  readonly rowEvents: TableRowContextMenuEvent<Row>[] = [];
+  readonly rowEvents: TableRowContextMenuEvent<unknown>[] = [];
   readonly headerEvents: DataTableHeaderContextMenuEvent[] = [];
 
-  onRow(event: TableRowContextMenuEvent<Row>): void {
+  onRow(event: TableRowContextMenuEvent<unknown>): void {
     this.rowEvents.push(event);
   }
 
@@ -98,10 +98,10 @@ class TestHostNullMenuComponent {
   readonly disabled = signal(false);
   readonly rowsOnly = signal(true);
   readonly menu = null as unknown as ContextMenuComponent;
-  readonly rowEvents: TableRowContextMenuEvent<Row>[] = [];
+  readonly rowEvents: TableRowContextMenuEvent<unknown>[] = [];
   readonly headerEvents: DataTableHeaderContextMenuEvent[] = [];
 
-  onRow(event: TableRowContextMenuEvent<Row>): void {
+  onRow(event: TableRowContextMenuEvent<unknown>): void {
     this.rowEvents.push(event);
   }
 

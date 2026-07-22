@@ -16,8 +16,7 @@ interface Row {
   imports: [ContextMenuAttachDirective],
   template: `
     <div
-      uiContextMenuAttach
-      [uiContextMenuAttach]="menu()"
+      [uiContextMenuAttach]="menu()!"
       [contextMenuData]="data()"
       [disabled]="disabled()"
       (contextMenuTriggered)="onTriggered($event)"
