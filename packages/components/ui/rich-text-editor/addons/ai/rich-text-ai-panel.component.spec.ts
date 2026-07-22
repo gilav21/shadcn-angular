@@ -30,7 +30,7 @@ const TASKS: readonly RichTextAiTaskOption[] = [
 
 function buildContext(): MockContext {
     return {
-        locale: signal(RICH_TEXT_AI_LOCALES.en),
+        locale: signal(RICH_TEXT_AI_LOCALES['en']),
         tasks: signal(TASKS),
         chipVisible: signal(false),
         chipPosition: signal<RichTextAiPoint>({ x: 0, y: 0 }),

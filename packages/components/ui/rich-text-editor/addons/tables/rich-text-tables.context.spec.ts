@@ -12,7 +12,7 @@ describe('RICH_TEXT_TABLES_BUTTON_CONTEXT', () => {
         const onSelect = vi.fn((_rows: number, _cols: number) => undefined);
         const onOpen = vi.fn(() => undefined);
         const context: RichTextTablesButtonContext = {
-            locale: signal(RICH_TEXT_TABLES_LOCALES.en),
+            locale: signal(RICH_TEXT_TABLES_LOCALES['en']),
             onOpen,
             onSelect,
         };
@@ -22,6 +22,6 @@ describe('RICH_TEXT_TABLES_BUTTON_CONTEXT', () => {
 
         expect(onOpen).toHaveBeenCalledTimes(1);
         expect(onSelect).toHaveBeenCalledWith(2, 3);
-        expect(context.locale().tooltip).toBe(RICH_TEXT_TABLES_LOCALES.en.tooltip);
+        expect(context.locale().tooltip).toBe(RICH_TEXT_TABLES_LOCALES['en'].tooltip);
     });
 });

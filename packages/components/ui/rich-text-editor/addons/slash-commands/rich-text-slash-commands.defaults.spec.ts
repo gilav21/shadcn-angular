@@ -3,8 +3,8 @@ import { buildDefaultSlashCommands } from './rich-text-slash-commands.defaults';
 import { RICH_TEXT_SLASH_COMMANDS_LOCALES } from './rich-text-slash-commands.locales';
 import { RichTextSlashCommandContext } from '../..';
 
-const EN = RICH_TEXT_SLASH_COMMANDS_LOCALES.en;
-const HE = RICH_TEXT_SLASH_COMMANDS_LOCALES.he;
+const EN = RICH_TEXT_SLASH_COMMANDS_LOCALES['en'];
+const HE = RICH_TEXT_SLASH_COMMANDS_LOCALES['he'];
 
 /** id → the toolbar command each built-in slash command forwards to. */
 const TOOLBAR_BY_ID: Record<string, string> = {

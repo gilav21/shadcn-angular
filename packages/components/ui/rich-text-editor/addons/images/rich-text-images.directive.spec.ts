@@ -694,7 +694,7 @@ describe('RichTextImagesDirective', () => {
             expect(() => internalsOf(fixture).scanForBase64Images()).not.toThrow();
         } finally {
             if (descriptor) {
-                delete (cmp as unknown as Record<string, unknown>).contentRoot;
+                delete (cmp as unknown as Record<string, unknown>)['contentRoot'];
             }
         }
     });

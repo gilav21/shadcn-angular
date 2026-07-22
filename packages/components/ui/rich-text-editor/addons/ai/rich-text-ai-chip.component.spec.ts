@@ -17,7 +17,7 @@ interface MockContext extends RichTextAiContext {
 
 function buildContext(): MockContext {
     return {
-        locale: signal(RICH_TEXT_AI_LOCALES.en),
+        locale: signal(RICH_TEXT_AI_LOCALES['en']),
         tasks: signal([]),
         chipVisible: signal(true),
         chipPosition: signal<RichTextAiPoint>({ x: 12, y: 34 }),
