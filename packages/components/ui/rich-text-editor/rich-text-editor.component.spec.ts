@@ -4246,7 +4246,7 @@ describe('RichTextEditorComponent — i18n integration', () => {
     });
 
     it('falls back to the global UI_LOCALE_ID when no locale input is set', async () => {
-        const { provideUiLocale } = await import('../../lib/i18n');
+        const { provideUiLocale } = await import('../../lib/i18n/i18n.token');
         await TestBed.configureTestingModule({
             imports: [RichTextEditorComponent],
             providers: [provideUiLocale('he')],
@@ -4258,7 +4258,7 @@ describe('RichTextEditorComponent — i18n integration', () => {
     });
 
     it('per-instance locale input overrides the global signal', async () => {
-        const { provideUiLocale } = await import('../../lib/i18n');
+        const { provideUiLocale } = await import('../../lib/i18n/i18n.token');
         await TestBed.configureTestingModule({
             imports: [RichTextEditorComponent],
             providers: [provideUiLocale('he')],
@@ -5285,7 +5285,7 @@ describe('RichTextEditorComponent — RTL, Enter edges & misc coverage', () => {
     const caretIn = (node: Node, offset: number) => setCaretAt(node, offset);
 
     const createRtl = async () => {
-        const { provideUiLocale } = await import('../../lib/i18n');
+        const { provideUiLocale } = await import('../../lib/i18n/i18n.token');
         await TestBed.configureTestingModule({
             imports: [RichTextEditorComponent],
             providers: [provideUiLocale('he')],
