@@ -1296,22 +1296,43 @@ export class PdfReader {
         return this.collectPages(pagesRef);
     }
 
-    private collectPages(node: PdfObject): PdfObject[] {
+    private static readonly INHERITABLE_PAGE_KEYS = ['Resources', 'MediaBox', 'CropBox', 'Rotate'] as const;
+
+    private collectPages(node: PdfObject, inherited: Record<string, PdfObject> = {}): PdfObject[] {
         const dict = this.getDict(node);
         const typeObj = dict['Type'];
         const typeName = typeObj ? this.getString(typeObj) : '';
         const kids = dict['Kids'];
 
         if (typeName === 'Page' || (!kids && dict['Contents'])) {
+            this.applyInheritedPageKeys(dict, inherited);
             return [this.resolveDeep(node)];
         }
 
         if (!kids) return [];
+        const nextInherited = this.mergeInheritablePageKeys(dict, inherited);
         const pages: PdfObject[] = [];
         for (const kid of this.getArray(kids)) {
-            pages.push(...this.collectPages(kid));
+            pages.push(...this.collectPages(kid, nextInherited));
         }
         return pages;
+    }
+
+    private applyInheritedPageKeys(dict: Record<string, PdfObject>, inherited: Record<string, PdfObject>): void {
+        for (const key of PdfReader.INHERITABLE_PAGE_KEYS) {
+            if (!dict[key] && inherited[key]) dict[key] = inherited[key];
+        }
+    }
+
+    private mergeInheritablePageKeys(
+        dict: Record<string, PdfObject>,
+        inherited: Record<string, PdfObject>,
+    ): Record<string, PdfObject> {
+        const merged = { ...inherited };
+        for (const key of PdfReader.INHERITABLE_PAGE_KEYS) {
+            if (dict[key]) merged[key] = dict[key];
+        }
+        return merged;
     }
 
     isEncrypted(): boolean {
@@ -4221,7 +4242,7 @@ function uint8ArrayToBase64(data: Uint8Array): string {
 
 // ── Text-to-HTML conversion ─────────────────────────────────────────────
 
-interface TextLine {
+export interface TextLine {
     items: TextItem[];
     y: number;
     minX: number;
@@ -4235,7 +4256,7 @@ function escapeHtml(str: string): string {
         .replaceAll('"', '&quot;');
 }
 
-function deduplicateTextItems(items: TextItem[]): TextItem[] {
+export function deduplicateTextItems(items: TextItem[]): TextItem[] {
     if (items.length <= 1) return items;
     const sorted = [...items].sort((a, b) => {
         if (a.page !== b.page) return a.page - b.page;
@@ -5863,7 +5884,7 @@ function fixRtlLineItem(item: TextItem): void {
     item.text = fixSplitRoundBrackets(item.text);
 }
 
-function applyRtlWordFixes(rawLines: TextLine[]): void {
+export function applyRtlWordFixes(rawLines: TextLine[]): void {
     const isRtlDoc = rawLines.some(line => isLineRTL(line));
     for (const line of rawLines) {
         if (!isLineRTL(line)) { applyLtrLineFixesIfRtlDoc(line, isRtlDoc); continue; }
@@ -5994,7 +6015,7 @@ interface StructureNode {
     readonly children: StructureNode[];
 }
 
-interface StructureMap {
+export interface StructureMap {
     readonly mcidToType: Map<string, string>;
     readonly hasStructure: boolean;
 }
@@ -6112,7 +6133,7 @@ function collectMcidTypesFromElement(
     if (node) collectMcidTypes(node, mcidToType);
 }
 
-function parseStructureTree(reader: PdfReader, pages: PdfObject[]): StructureMap {
+export function parseStructureTree(reader: PdfReader, pages: PdfObject[]): StructureMap {
     const emptyResult: StructureMap = { mcidToType: new Map(), hasStructure: false };
     try {
         const catalog = reader.getRoot();
