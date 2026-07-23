@@ -19,6 +19,21 @@ export function realLegacyBlob(name: string): string {
         'git', ['-C', root, 'log', '--all', 'HEAD', '--diff-filter=d', '--pretty=format:%H', '--', rel],
         { encoding: 'utf-8' },
     ).split('\n')[0];
-    if (!commit) throw new Error(`no historical blob found for ${rel}`);
+    if (!commit) {
+        const diag = (args: string[]): string => {
+            try { return execFileSync('git', ['-C', root, ...args], { encoding: 'utf-8' }).trim(); }
+            catch (e) { return `ERR ${String(e).slice(0, 80)}`; }
+        };
+        throw new Error(
+            `no historical blob found for ${rel}\n` +
+            `  [diag] root=${root}\n` +
+            `  [diag] is-shallow=${diag(['rev-parse', '--is-shallow-repository'])}\n` +
+            `  [diag] HEAD=${diag(['rev-parse', 'HEAD'])}\n` +
+            `  [diag] rev-list-count=${diag(['rev-list', '--count', 'HEAD'])}\n` +
+            `  [diag] refs=${diag(['for-each-ref', '--format=%(refname)']).replaceAll('\n', ',')}\n` +
+            `  [diag] log-any-path=${diag(['log', '--all', 'HEAD', '--oneline', '-3', '--', rel]) || '(none)'}\n` +
+            `  [diag] follow=${diag(['log', '--all', 'HEAD', '--oneline', '--follow', '-3', '--', `packages/components/ui/${name}/${name}.component.ts`]) || '(none)'}`,
+        );
+    }
     return execFileSync('git', ['-C', root, 'show', `${commit}:${rel}`], { encoding: 'utf-8' });
 }
