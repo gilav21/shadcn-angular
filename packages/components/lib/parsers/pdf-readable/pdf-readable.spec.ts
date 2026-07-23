@@ -217,6 +217,55 @@ describe('parsePdfReadable', () => {
         });
     });
 
+    describe('tables (Phase 3)', () => {
+        it('reconstructs tab-aligned rows into a table', async () => {
+            const row = (y: number, a: string, b: string): string =>
+                `BT /F1 12 Tf 100 ${y} Td (${a}) Tj ET BT /F1 12 Tf 300 ${y} Td (${b}) Tj ET `;
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    row(700, 'Name', 'Qty') +
+                    row(680, 'Bolts', '12') +
+                    row(660, 'Nuts', '40'))
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<table');
+            const cells = result.html.match(/<td/g) ?? [];
+            expect(cells).toHaveLength(6);
+        });
+
+        it('renders a ruled grid as a bordered table without spurious rules', async () => {
+            const grid =
+                '50 710 400 1 re S 50 670 400 1 re S 50 630 400 1 re S ' +
+                '50 630 1 81 re S 250 630 1 81 re S 450 630 1 81 re S ';
+            const cellText =
+                'BT /F1 12 Tf 60 690 Td (Alpha) Tj ET BT /F1 12 Tf 260 690 Td (Beta) Tj ET ' +
+                'BT /F1 12 Tf 60 650 Td (Gamma) Tj ET BT /F1 12 Tf 260 650 Td (Delta) Tj ET';
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(grid + cellText)
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<table');
+            expect(result.html).toContain('border');
+            expect(result.html).not.toContain('<hr');
+            expect(result.html).toContain('Alpha');
+            expect(result.html).toContain('Delta');
+        });
+
+        it('does not tabulate ordinary flowing paragraphs', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (An ordinary paragraph of body text) Tj ' +
+                    '0 -14 Td (that flows across multiple lines without) Tj ' +
+                    '0 -14 Td (any tab-aligned column structure at all.) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).not.toContain('<table');
+        });
+    });
+
     describe('options', () => {
         it('returns empty fontFaceCss when embedFonts is off', async () => {
             const pdf = new PdfBuilder()

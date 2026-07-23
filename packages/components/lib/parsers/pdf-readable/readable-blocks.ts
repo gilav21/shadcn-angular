@@ -1,6 +1,7 @@
 import type { ImageItem, PathRect } from '../pdf-parser';
 import { classifyGroup, type ClassifyContext, type GroupKind } from './readable-classify';
 import { resolveBlockStyle, type ColumnBounds } from './readable-styles';
+import { findTableInBand } from './readable-tables';
 import type {
     BlockStyle,
     DocBlock,
@@ -34,14 +35,42 @@ export function buildPageBlocks(
         pageBounds: lines.length > 0 ? boundsOfLines(lines) : { x0: 0, x1: page.width },
     };
     const usedRects = applyUnderlines(lines, page.rects);
-    const regions = xyCut(lines, 0);
-    const blocks: DocBlock[] = [];
-    for (const region of regions) {
-        blocks.push(...regionToBlocks(region, page.index, ctx));
-    }
+    const tableRects = page.rects.filter(rect => !usedRects.has(rect));
+    const blocks = linesToBlocks(lines, tableRects, page.index, ctx, usedRects);
     const withRules = interleaveByTop(blocks, detectRules(page, usedRects, lines));
     if (!includeImages || page.images.length === 0) return withRules;
     return interleaveImages(withRules, page.images, page.index);
+}
+
+/**
+ * Table detection runs before band/column splitting — a ruled grid's widely
+ * spaced rows would otherwise be cut into separate bands, and an unruled
+ * table's aligned cells would be segmented as layout columns. `before`/
+ * `after` remainders are re-analyzed recursively; each detected table
+ * consumes at least two rows, so recursion terminates.
+ */
+function linesToBlocks(
+    lines: Line[],
+    tableRects: readonly PathRect[],
+    pageIndex: number,
+    ctx: ClassifyContext,
+    usedRects: Set<PathRect>,
+): DocBlock[] {
+    if (lines.length === 0) return [];
+    const split = findTableInBand(lines, tableRects, pageIndex, ctx);
+    if (split) {
+        for (const rect of split.usedRects) usedRects.add(rect);
+        return [
+            ...linesToBlocks(split.before, tableRects, pageIndex, ctx, usedRects),
+            split.table,
+            ...linesToBlocks(split.after, tableRects, pageIndex, ctx, usedRects),
+        ];
+    }
+    const blocks: DocBlock[] = [];
+    for (const band of splitVerticalBands(lines)) {
+        blocks.push(...xyCut(band, 1).flatMap(region => regionToBlocks(region, pageIndex, ctx)));
+    }
+    return blocks;
 }
 
 // ── XY-cut segmentation ─────────────────────────────────────────────────
