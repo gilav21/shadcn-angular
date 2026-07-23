@@ -32,7 +32,11 @@ export function historicalBlob(repoRelPath: string, commitish: string): string {
 function commitsTouching(root: string, repoRelPath: string): string[] {
     const out = execFileSync(
         'git',
-        ['-C', root, 'log', '--all', '--diff-filter=d', '--pretty=format:%H', '--', repoRelPath],
+        // `HEAD` alongside `--all`: on CI a PR is a detached checkout of
+        // refs/pull/N/merge, whose ancestry isn't covered by `--all` (which only
+        // walks branch/tag/remote refs), so the pre-migration/pre-marker commits
+        // are unreachable without it. Locally `--all` already covers HEAD.
+        ['-C', root, 'log', '--all', 'HEAD', '--diff-filter=d', '--pretty=format:%H', '--', repoRelPath],
         { encoding: 'utf-8' },
     ).trim();
     return out ? out.split('\n') : [];
