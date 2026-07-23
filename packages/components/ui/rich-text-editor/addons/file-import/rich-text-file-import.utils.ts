@@ -27,6 +27,16 @@ export function isSupportedDocumentFile(file: File): boolean {
         file.name.endsWith('.pdf') || file.name.endsWith('.docx');
 }
 
+/** Cheap FNV-1a content hash used to dedupe injected font stylesheets. */
+export function simpleHash(text: string): string {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) {
+        hash ^= text.codePointAt(i) ?? 0;
+        hash = Math.imul(hash, 0x01000193);
+    }
+    return (hash >>> 0).toString(36);
+}
+
 /**
  * Whether a drag payload carries a supported document, mirroring the former
  * built-in: a drag with no inspectable items is optimistically accepted.

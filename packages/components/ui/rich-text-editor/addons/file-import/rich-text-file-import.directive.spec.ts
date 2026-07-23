@@ -108,7 +108,11 @@ function docxFile(text = 'Imported DOCX text'): File {
 // Minimal single-page PDF (one Helvetica text run) the real pdf-parser accepts,
 // so the addon's PDF import path runs end-to-end and inserts the parsed HTML.
 function pdfFile(text = 'Imported PDF text'): File {
-    const stream = `BT /F1 12 Tf 100 700 Td (${text}) Tj ET`;
+    const bytes = pdfBytesWithStream(`BT /F1 12 Tf 100 700 Td (${text}) Tj ET`);
+    return new File([bytes.buffer as ArrayBuffer], 'in.pdf', { type: 'application/pdf' });
+}
+
+function pdfBytesWithStream(stream: string): Uint8Array {
     const objects: Array<{ num: number; content: string }> = [
         { num: 1, content: '<< /Type /Catalog /Pages 2 0 R >>' },
         { num: 2, content: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
@@ -129,8 +133,7 @@ function pdfFile(text = 'Imported PDF text'): File {
         xref += `${String(offsets.get(i) ?? 0).padStart(10, '0')} 00000 n \n`;
     }
     const trailer = `trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-    const bytes = new TextEncoder().encode(body + xref + trailer);
-    return new File([bytes], 'in.pdf', { type: 'application/pdf' });
+    return new TextEncoder().encode(body + xref + trailer);
 }
 
 @Component({
@@ -319,6 +322,41 @@ describe('RichTextFileImportDirective', () => {
 
         expect(el.textContent).toContain('PDF body copy');
         expect(fixture.componentInstance.completes).toHaveLength(1);
+    });
+
+    it('injects embedded-font CSS into the document head exactly once per content', () => {
+        const fixture = createFixture();
+        const probe = directiveOf(fixture) as unknown as { injectFontCss(css: string): void };
+        const css = "@font-face{font-family:'pdfX-f0';src:url('data:font/ttf;base64,AAAA') format('truetype');}";
+        try {
+            probe.injectFontCss(css);
+            probe.injectFontCss(css);
+            const styles = document.head.querySelectorAll('style[data-ui-rte-pdf-fonts]');
+            expect(styles).toHaveLength(1);
+            expect(styles[0].textContent).toContain('pdfX-f0');
+        } finally {
+            for (const s of Array.from(document.head.querySelectorAll('style[data-ui-rte-pdf-fonts]'))) {
+                s.remove();
+            }
+        }
+    });
+
+    it('preserves readable-pipeline styling through the editor sanitizer', async () => {
+        const { parsePdfReadable } = await import('../../../../lib/parsers/pdf-readable/pdf-readable');
+        const { RichTextSanitizerService } = await import('../../rich-text-sanitizer.service');
+        const stream =
+            'BT /F1 24 Tf 100 720 Td (Styled Title) Tj ET ' +
+            'BT /F1 12 Tf 1 0 0 rg 100 680 Td (Red body text follows the title) Tj ' +
+            '0 -14 Td (and continues on a second line.) Tj ET';
+        const bytes = pdfBytesWithStream(stream);
+        const result = await parsePdfReadable(bytes.buffer as ArrayBuffer);
+        const sanitizer = TestBed.inject(RichTextSanitizerService);
+        const sanitized = sanitizer.sanitize(result.html);
+
+        expect(sanitized).toContain('font-size');
+        expect(sanitized).toContain('color');
+        expect(sanitized).toContain('Styled Title');
+        expect(sanitized).not.toContain('<style');
     });
 
     it('reports a failure when a parsed document yields no content', () => {

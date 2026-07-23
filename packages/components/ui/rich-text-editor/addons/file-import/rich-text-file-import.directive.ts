@@ -29,6 +29,7 @@ import {
     isPdfHeader,
     isSupportedDocumentFile,
     isZipHeader,
+    simpleHash,
 } from './rich-text-file-import.utils';
 
 const FILE_IMPORT_SLOT_ID = 'file-import.import';
@@ -188,9 +189,27 @@ export class RichTextFileImportDirective {
 
     private async importPdf(file: File): Promise<void> {
         const buffer = await file.arrayBuffer();
-        const { parsePdf } = await import('../../../../lib/parsers/pdf-parser');
-        const result = await parsePdf(buffer);
+        const { parsePdfReadable } = await import('../../../../lib/parsers/pdf-readable/pdf-readable');
+        const result = await parsePdfReadable(buffer);
+        if (result.html.trim() && result.fontFaceCss) this.injectFontCss(result.fontFaceCss);
         this.insertImported(result.html);
+    }
+
+    /**
+     * Embedded PDF fonts arrive as `@font-face` CSS that cannot travel inside
+     * the sanitized editor HTML (`<style>` tags are stripped), so it is
+     * injected into `document.head` instead. Deduped by content hash and
+     * intentionally never removed on destroy — the inserted content outlives
+     * this directive.
+     */
+    private injectFontCss(css: string): void {
+        const hash = `${css.length.toString(36)}-${simpleHash(css)}`;
+        const doc = this.host.overlayAnchor.ownerDocument;
+        if (doc.head.querySelector(`style[data-ui-rte-pdf-fonts="${hash}"]`)) return;
+        const style = doc.createElement('style');
+        style.dataset['uiRtePdfFonts'] = hash;
+        style.textContent = css;
+        doc.head.appendChild(style);
     }
 
     private insertImported(html: string): void {
