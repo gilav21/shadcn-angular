@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { ensureFullHistory } from './_git.js';
 
 /**
  * Seeds an *older* revision of a repository file into the fixture app so a spec
@@ -23,6 +24,7 @@ function repoRoot(): string {
 /** The file's content at an explicit commit-ish (`<commit>:<path>`). */
 export function historicalBlob(repoRelPath: string, commitish: string): string {
     const root = repoRoot();
+    ensureFullHistory(root);
     return execFileSync('git', ['-C', root, 'show', `${commitish}:${repoRelPath}`], {
         encoding: 'utf-8',
     });
@@ -30,13 +32,10 @@ export function historicalBlob(repoRelPath: string, commitish: string): string {
 
 /** Commits that touched `repoRelPath`, newest first, excluding its deletion commit. */
 function commitsTouching(root: string, repoRelPath: string): string[] {
+    ensureFullHistory(root);
     const out = execFileSync(
         'git',
-        // `HEAD` alongside `--all`: on CI a PR is a detached checkout of
-        // refs/pull/N/merge, whose ancestry isn't covered by `--all` (which only
-        // walks branch/tag/remote refs), so the pre-migration/pre-marker commits
-        // are unreachable without it. Locally `--all` already covers HEAD.
-        ['-C', root, 'log', '--all', 'HEAD', '--diff-filter=d', '--pretty=format:%H', '--', repoRelPath],
+        ['-C', root, 'log', '--all', '--diff-filter=d', '--pretty=format:%H', '--', repoRelPath],
         { encoding: 'utf-8' },
     ).trim();
     return out ? out.split('\n') : [];
