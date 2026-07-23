@@ -25,6 +25,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "accordion/accordion.component.spec.ts"
     ]
   },
   "autocomplete": {
@@ -46,7 +49,6 @@
       "autocomplete/index.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -57,6 +59,10 @@
       "badge",
       "command",
       "popover"
+    ],
+    "testFiles": [
+      "autocomplete/autocomplete.component.spec.ts",
+      "autocomplete/autocomplete.coverage.spec.ts"
     ]
   },
   "alert": {
@@ -78,6 +84,9 @@
       "alert/sub/alert-description.component.ts",
       "alert/sub/alert-title.component.html",
       "alert/sub/alert-title.component.ts"
+    ],
+    "testFiles": [
+      "alert/alert.component.spec.ts"
     ]
   },
   "alert-dialog": {
@@ -107,12 +116,14 @@
     ],
     "libFiles": [
       "a11y.ts",
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "alert-dialog/alert-dialog.component.spec.ts"
     ]
   },
   "aspect-ratio": {
@@ -130,6 +141,9 @@
       "aspect-ratio/aspect-ratio.component.html",
       "aspect-ratio/aspect-ratio.component.ts",
       "aspect-ratio/index.ts"
+    ],
+    "testFiles": [
+      "aspect-ratio/aspect-ratio.component.spec.ts"
     ]
   },
   "avatar": {
@@ -156,6 +170,9 @@
     "dependencies": [
       "skeleton",
       "spinner"
+    ],
+    "testFiles": [
+      "avatar/avatar.component.spec.ts"
     ]
   },
   "badge": {
@@ -178,6 +195,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "badge/badge.component.spec.ts"
     ]
   },
   "breadcrumb": {
@@ -204,8 +224,6 @@
       "breadcrumb/sub/breadcrumb-separator.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -213,6 +231,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "breadcrumb/breadcrumb.component.spec.ts"
     ]
   },
   "button": {
@@ -235,7 +256,6 @@
       "button/index.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -247,6 +267,10 @@
       "ripple",
       "skeleton",
       "spinner"
+    ],
+    "testFiles": [
+      "button/button.component.spec.ts",
+      "button/confirm.directive.spec.ts"
     ]
   },
   "button-group": {
@@ -266,6 +290,12 @@
       "button-group/index.ts",
       "button-group/sub/button-group-separator.component.ts",
       "button-group/sub/button-group-text.component.ts"
+    ],
+    "testFiles": [
+      "button-group/button-group.component.spec.ts"
+    ],
+    "testDependencies": [
+      "button"
     ]
   },
   "calendar": {
@@ -287,7 +317,6 @@
     ],
     "libFiles": [
       "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -296,6 +325,9 @@
     "dependencies": [
       "button",
       "select"
+    ],
+    "testFiles": [
+      "calendar/calendar.component.spec.ts"
     ]
   },
   "card": {
@@ -325,6 +357,9 @@
     "dependencies": [
       "skeleton",
       "spinner"
+    ],
+    "testFiles": [
+      "card/card.component.spec.ts"
     ]
   },
   "carousel": {
@@ -348,12 +383,13 @@
       "carousel/sub/carousel-previous.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "carousel/carousel.component.spec.ts"
     ]
   },
   "checkbox": {
@@ -375,6 +411,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "checkbox/checkbox.component.spec.ts"
     ]
   },
   "collapsible": {
@@ -393,6 +432,9 @@
       "collapsible/index.ts",
       "collapsible/sub/collapsible-content.component.ts",
       "collapsible/sub/collapsible-trigger.component.ts"
+    ],
+    "testFiles": [
+      "collapsible/collapsible.component.spec.ts"
     ]
   },
   "color-picker": {
@@ -423,11 +465,12 @@
       "tabs",
       "tooltip"
     ],
+    "testFiles": [
+      "color-picker/color-picker.component.spec.ts"
+    ],
     "libFiles": [
       "color-extract.ts",
       "color.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -448,6 +491,9 @@
     ],
     "files": [
       "confetti.directive.ts"
+    ],
+    "testFiles": [
+      "confetti.directive.spec.ts"
     ]
   },
   "command": {
@@ -478,8 +524,10 @@
     "dependencies": [
       "dialog"
     ],
+    "testFiles": [
+      "command/command.component.spec.ts"
+    ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -523,6 +571,11 @@
     "libFiles": [
       "touch.ts"
     ],
+    "testFiles": [
+      "context-menu/context-menu.component.spec.ts",
+      "context-menu/context-menu.coverage.spec.ts",
+      "context-menu/sub/context-menu-sub-content.component.spec.ts"
+    ],
     "breaking": [
       {
         "kind": "type",
@@ -555,6 +608,10 @@
     ],
     "dependencies": [
       "calendar"
+    ],
+    "testFiles": [
+      "date-picker/date-picker.component.spec.ts",
+      "date-picker/date-picker.coverage.spec.ts"
     ]
   },
   "chat": {
@@ -580,6 +637,9 @@
       "button",
       "scroll-area",
       "textarea"
+    ],
+    "testFiles": [
+      "chat/chat.component.spec.ts"
     ]
   },
   "streaming-text": {
@@ -597,6 +657,9 @@
       "streaming-text/index.ts",
       "streaming-text/streaming-text.component.html",
       "streaming-text/streaming-text.component.ts"
+    ],
+    "testFiles": [
+      "streaming-text/streaming-text.component.spec.ts"
     ]
   },
   "sparkles": {
@@ -620,6 +683,9 @@
     ],
     "dependencies": [
       "button"
+    ],
+    "testFiles": [
+      "sparkles/sparkles.component.spec.ts"
     ]
   },
   "code-block": {
@@ -641,8 +707,6 @@
     ],
     "libFiles": [
       "code-scopes.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -650,6 +714,9 @@
     ],
     "dependencies": [
       "button"
+    ],
+    "testFiles": [
+      "code-block/code-block.component.spec.ts"
     ]
   },
   "text-reveal": {
@@ -668,6 +735,9 @@
       "text-reveal/text-reveal.component.css",
       "text-reveal/text-reveal.component.html",
       "text-reveal/text-reveal.component.ts"
+    ],
+    "testFiles": [
+      "text-reveal/text-reveal.component.spec.ts"
     ]
   },
   "data-table": {
@@ -719,12 +789,27 @@
       "skeleton",
       "table"
     ],
+    "testFiles": [
+      "data-table/data-table-advanced-filter.spec.ts",
+      "data-table/data-table-ai.spec.ts",
+      "data-table/data-table-autofit.spec.ts",
+      "data-table/data-table-column-builder.spec.ts",
+      "data-table/data-table-fill.spec.ts",
+      "data-table/data-table-paste.spec.ts",
+      "data-table/data-table-virtual-scroll.spec.ts",
+      "data-table/data-table.component.spec.ts",
+      "data-table/data-table.coverage.spec.ts",
+      "data-table/data-table.host.spec.ts",
+      "data-table/sub/data-table-column-header.component.spec.ts",
+      "data-table/sub/data-table-date-filter.component.spec.ts",
+      "data-table/sub/data-table-multiselect-filter.component.spec.ts",
+      "data-table/sub/data-table-pagination.component.spec.ts"
+    ],
     "libFiles": [
       "addon-slots.ts",
       "ai.ts",
       "component-pool.service.ts",
       "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -786,6 +871,9 @@
       "context-menu",
       "data-table"
     ],
+    "testFiles": [
+      "data-table/addons/context-menu/context-menu.directive.spec.ts"
+    ],
     "requiresBaseFiles": [
       "data-table/data-table.host.ts"
     ],
@@ -812,8 +900,6 @@
       "data-table/addons/export/index.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -822,6 +908,9 @@
     ],
     "dependencies": [
       "data-table"
+    ],
+    "testFiles": [
+      "data-table/addons/export/export.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "data-table/data-table.host.ts"
@@ -851,6 +940,9 @@
     ],
     "dependencies": [
       "data-table"
+    ],
+    "testFiles": [
+      "data-table/addons/pivot/pivot.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "data-table/data-table.host.ts"
@@ -895,12 +987,14 @@
     ],
     "libFiles": [
       "a11y.ts",
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "dialog/dialog.component.spec.ts"
     ]
   },
   "dock": {
@@ -924,6 +1018,12 @@
       "dock/sub/dock-item.component.ts",
       "dock/sub/dock-label.component.html",
       "dock/sub/dock-label.component.ts"
+    ],
+    "testFiles": [
+      "dock/dock.component.spec.ts",
+      "dock/sub/dock-icon.component.spec.ts",
+      "dock/sub/dock-item.component.spec.ts",
+      "dock/sub/dock-label.component.spec.ts"
     ]
   },
   "tree-select": {
@@ -946,7 +1046,6 @@
       "tree-select/tree-select.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -956,6 +1055,9 @@
     "dependencies": [
       "popover",
       "tree"
+    ],
+    "testFiles": [
+      "tree-select/tree-select.component.spec.ts"
     ]
   },
   "virtual-scroll": {
@@ -974,6 +1076,10 @@
       "virtual-scroll/virtual-scroll.component.css",
       "virtual-scroll/virtual-scroll.component.html",
       "virtual-scroll/virtual-scroll.component.ts"
+    ],
+    "testFiles": [
+      "virtual-scroll/virtual-scroll.component.spec.ts",
+      "virtual-scroll/virtual-scroll.runway.spec.ts"
     ],
     "breaking": [
       {
@@ -1035,6 +1141,10 @@
     ],
     "libFiles": [
       "a11y.ts"
+    ],
+    "testFiles": [
+      "drawer/drawer.component.spec.ts",
+      "drawer/drawer.coverage.spec.ts"
     ]
   },
   "dropdown-menu": {
@@ -1064,6 +1174,9 @@
     "libFiles": [
       "a11y.ts",
       "touch.ts"
+    ],
+    "testFiles": [
+      "dropdown-menu/dropdown-menu.component.spec.ts"
     ]
   },
   "empty": {
@@ -1085,6 +1198,9 @@
       "empty/sub/empty-header.component.ts",
       "empty/sub/empty-media.component.ts",
       "empty/sub/empty-title.component.ts"
+    ],
+    "testFiles": [
+      "empty/empty.component.spec.ts"
     ]
   },
   "field": {
@@ -1116,6 +1232,9 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts"
+    ],
+    "testFiles": [
+      "field/field.component.spec.ts"
     ]
   },
   "icon": {
@@ -1135,6 +1254,9 @@
       "icon/icon.component.ts",
       "icon/icon.token.ts",
       "icon/index.ts"
+    ],
+    "testFiles": [
+      "icon/icon.component.spec.ts"
     ]
   },
   "file-upload": {
@@ -1155,8 +1277,6 @@
       "file-upload/index.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1165,6 +1285,10 @@
     "dependencies": [
       "button",
       "progress"
+    ],
+    "testFiles": [
+      "file-upload/file-upload.component.spec.ts",
+      "file-upload/file-upload.dom.spec.ts"
     ]
   },
   "file-viewer": {
@@ -1187,6 +1311,9 @@
     ],
     "dependencies": [
       "spinner"
+    ],
+    "testFiles": [
+      "file-viewer/file-viewer.component.spec.ts"
     ],
     "libFiles": [
       "parsers/doc-enhanced-parser.ts",
@@ -1235,6 +1362,9 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "hover-card/hover-card.component.spec.ts"
     ]
   },
   "input": {
@@ -1261,6 +1391,9 @@
       "icon",
       "skeleton",
       "spinner"
+    ],
+    "testFiles": [
+      "input/input.component.spec.ts"
     ]
   },
   "input-group": {
@@ -1290,6 +1423,9 @@
     ],
     "libFiles": [
       "input-group.token.ts"
+    ],
+    "testFiles": [
+      "input-group/input-group.component.spec.ts"
     ]
   },
   "input-otp": {
@@ -1311,6 +1447,9 @@
       "input-otp/sub/input-otp-group.component.ts",
       "input-otp/sub/input-otp-separator.component.ts",
       "input-otp/sub/input-otp-slot.component.ts"
+    ],
+    "testFiles": [
+      "input-otp/input-otp.component.spec.ts"
     ]
   },
   "kbd": {
@@ -1328,6 +1467,9 @@
       "kbd/index.ts",
       "kbd/kbd.component.html",
       "kbd/kbd.component.ts"
+    ],
+    "testFiles": [
+      "kbd/kbd.component.spec.ts"
     ]
   },
   "label": {
@@ -1345,6 +1487,9 @@
       "label/index.ts",
       "label/label.component.html",
       "label/label.component.ts"
+    ],
+    "testFiles": [
+      "label/label.component.spec.ts"
     ]
   },
   "menubar": {
@@ -1377,6 +1522,9 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "menubar/menubar.component.spec.ts"
     ]
   },
   "native-select": {
@@ -1395,6 +1543,9 @@
       "native-select/native-select.component.css",
       "native-select/native-select.component.html",
       "native-select/native-select.component.ts"
+    ],
+    "testFiles": [
+      "native-select/native-select.component.spec.ts"
     ]
   },
   "navigation-menu": {
@@ -1425,6 +1576,9 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "navigation-menu/navigation-menu.component.spec.ts"
     ]
   },
   "number-input": {
@@ -1445,8 +1599,6 @@
       "number-input/number-input.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1455,6 +1607,9 @@
     ],
     "dependencies": [
       "input"
+    ],
+    "testFiles": [
+      "number-input/number-input.component.spec.ts"
     ]
   },
   "number-ticker": {
@@ -1476,12 +1631,13 @@
       "number-ticker/sub/number-ticker-digit.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "number-ticker/number-ticker.component.spec.ts"
     ]
   },
   "pagination": {
@@ -1508,12 +1664,13 @@
       "pagination/sub/pagination-previous.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "pagination/pagination.component.spec.ts"
     ]
   },
   "phone-input": {
@@ -1535,8 +1692,6 @@
       "phone-input/phone-input.locales.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -1548,6 +1703,10 @@
       "input-group",
       "input-mask",
       "popover"
+    ],
+    "testFiles": [
+      "phone-input/phone-input.component.spec.ts",
+      "phone-input/phone-input.coverage.spec.ts"
     ]
   },
   "popover": {
@@ -1571,6 +1730,10 @@
     ],
     "libFiles": [
       "a11y.ts"
+    ],
+    "testFiles": [
+      "popover/popover.component.spec.ts",
+      "popover/popover.coverage.spec.ts"
     ]
   },
   "progress": {
@@ -1590,12 +1753,13 @@
       "progress/progress.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "progress/progress.component.spec.ts"
     ]
   },
   "radio-group": {
@@ -1616,6 +1780,10 @@
       "radio-group/sub/radio-group-item.component.css",
       "radio-group/sub/radio-group-item.component.html",
       "radio-group/sub/radio-group-item.component.ts"
+    ],
+    "testFiles": [
+      "radio-group/radio-group.component.spec.ts",
+      "radio-group/radio-group.coverage.spec.ts"
     ]
   },
   "rating": {
@@ -1636,13 +1804,14 @@
       "rating/rating.locales.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
       "touch.ts"
+    ],
+    "testFiles": [
+      "rating/rating.component.spec.ts"
     ]
   },
   "resizable": {
@@ -1662,6 +1831,9 @@
       "resizable/resizable.component.ts",
       "resizable/sub/resizable-handle.component.ts",
       "resizable/sub/resizable-panel.component.ts"
+    ],
+    "testFiles": [
+      "resizable/resizable.component.spec.ts"
     ]
   },
   "scroll-area": {
@@ -1682,6 +1854,9 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "scroll-area/scroll-area.component.spec.ts"
     ]
   },
   "select": {
@@ -1709,7 +1884,6 @@
       "select/sub/select-value.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -1719,6 +1893,10 @@
     "dependencies": [
       "skeleton",
       "spinner"
+    ],
+    "testFiles": [
+      "select/select.component.spec.ts",
+      "select/select.coverage.spec.ts"
     ]
   },
   "separator": {
@@ -1735,6 +1913,9 @@
     "files": [
       "separator/index.ts",
       "separator/separator.component.ts"
+    ],
+    "testFiles": [
+      "separator/separator.component.spec.ts"
     ]
   },
   "sheet": {
@@ -1761,12 +1942,14 @@
     ],
     "libFiles": [
       "a11y.ts",
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "sheet/sheet.component.spec.ts"
     ]
   },
   "sidebar": {
@@ -1802,6 +1985,9 @@
     "dependencies": [
       "scroll-area",
       "tooltip"
+    ],
+    "testFiles": [
+      "sidebar/sidebar.component.spec.ts"
     ]
   },
   "skeleton": {
@@ -1819,6 +2005,9 @@
       "skeleton/index.ts",
       "skeleton/skeleton.component.css",
       "skeleton/skeleton.component.ts"
+    ],
+    "testFiles": [
+      "skeleton/skeleton.component.spec.ts"
     ]
   },
   "slider": {
@@ -1839,12 +2028,13 @@
       "slider/slider.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "slider/slider.component.spec.ts"
     ]
   },
   "spinner": {
@@ -1864,6 +2054,9 @@
       "spinner/spinner.component.ts",
       "spinner/sub/page-spinner.component.html",
       "spinner/sub/page-spinner.component.ts"
+    ],
+    "testFiles": [
+      "spinner/spinner.component.spec.ts"
     ]
   },
   "stepper": {
@@ -1887,6 +2080,10 @@
       "stepper/sub/stepper-separator.component.ts",
       "stepper/sub/stepper-title.component.ts",
       "stepper/sub/stepper-trigger.component.ts"
+    ],
+    "testFiles": [
+      "stepper/stepper.component.spec.ts",
+      "stepper/stepper.coverage.spec.ts"
     ]
   },
   "switch": {
@@ -1908,6 +2105,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "switch/switch.component.spec.ts"
     ]
   },
   "table": {
@@ -1937,6 +2137,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "table/table.component.spec.ts"
     ]
   },
   "tabs": {
@@ -1960,6 +2163,10 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "tabs/tabs-simple.component.spec.ts",
+      "tabs/tabs.component.spec.ts"
     ]
   },
   "textarea": {
@@ -1984,6 +2191,9 @@
     ],
     "dependencies": [
       "skeleton"
+    ],
+    "testFiles": [
+      "textarea/textarea.component.spec.ts"
     ]
   },
   "timeline": {
@@ -2008,6 +2218,9 @@
       "timeline/sub/timeline-time.component.ts",
       "timeline/sub/timeline-title.component.ts",
       "timeline/timeline.component.ts"
+    ],
+    "testFiles": [
+      "timeline/timeline.component.spec.ts"
     ]
   },
   "toast": {
@@ -2029,12 +2242,14 @@
       "toast/toast.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "toast/toast.component.spec.ts"
     ]
   },
   "toggle": {
@@ -2053,6 +2268,9 @@
       "toggle/toggle.component.css",
       "toggle/toggle.component.html",
       "toggle/toggle.component.ts"
+    ],
+    "testFiles": [
+      "toggle/toggle.component.spec.ts"
     ]
   },
   "toggle-group": {
@@ -2073,6 +2291,9 @@
       "toggle-group/sub/toggle-group-item.component.ts",
       "toggle-group/toggle-group.component.html",
       "toggle-group/toggle-group.component.ts"
+    ],
+    "testFiles": [
+      "toggle-group/toggle-group.component.spec.ts"
     ]
   },
   "tooltip": {
@@ -2096,6 +2317,11 @@
     ],
     "libFiles": [
       "touch.ts"
+    ],
+    "testFiles": [
+      "tooltip/sub/tooltip-trigger.component.spec.ts",
+      "tooltip/sub/tooltip.directive.spec.ts",
+      "tooltip/tooltip.component.spec.ts"
     ]
   },
   "tree": {
@@ -2120,6 +2346,9 @@
       "tree/sub/tree-node-content.directive.ts",
       "tree/tree.component.html",
       "tree/tree.component.ts"
+    ],
+    "testFiles": [
+      "tree/tree.component.spec.ts"
     ],
     "optionalDependencies": [
       {
@@ -2151,6 +2380,10 @@
     ],
     "libFiles": [
       "a11y.ts"
+    ],
+    "testFiles": [
+      "speed-dial/speed-dial.component.spec.ts",
+      "speed-dial/speed-dial.coverage.spec.ts"
     ]
   },
   "chip-list": {
@@ -2176,6 +2409,9 @@
     "dependencies": [
       "badge",
       "input"
+    ],
+    "testFiles": [
+      "chip-list/chip-list.component.spec.ts"
     ]
   },
   "emoji-picker": {
@@ -2204,6 +2440,9 @@
       "input-group",
       "scroll-area",
       "tooltip"
+    ],
+    "testFiles": [
+      "emoji-picker/emoji-picker.component.spec.ts"
     ]
   },
   "rich-text-editor": {
@@ -2250,14 +2489,19 @@
     "dependencies": [
       "separator"
     ],
+    "testFiles": [
+      "rich-text-editor/rich-text-command-registry.service.spec.ts",
+      "rich-text-editor/rich-text-editor.component.spec.ts",
+      "rich-text-editor/rich-text-markdown.service.spec.ts",
+      "rich-text-editor/rich-text-paste-normalizer.service.spec.ts",
+      "rich-text-editor/rich-text-sanitizer.service.spec.ts",
+      "rich-text-editor/sub/rich-text-toolbar.component.spec.ts"
+    ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts",
       "parsers/image-validator.ts",
       "parsers/svg-sanitizer.ts",
       "shortcut-binding.service.ts"
@@ -2387,6 +2631,9 @@
     "libFiles": [
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "pie-chart/pie-chart.component.spec.ts"
     ]
   },
   "pie-chart-drilldown": {
@@ -2408,6 +2655,9 @@
     "libFiles": [
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "pie-chart-drilldown/pie-chart-drilldown.component.spec.ts"
     ]
   },
   "bar-chart": {
@@ -2430,6 +2680,9 @@
       "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "bar-chart/bar-chart.component.spec.ts"
     ]
   },
   "bar-chart-drilldown": {
@@ -2452,6 +2705,9 @@
       "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "bar-chart-drilldown/bar-chart-drilldown.component.spec.ts"
     ]
   },
   "stacked-bar-chart": {
@@ -2474,6 +2730,9 @@
       "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "stacked-bar-chart/stacked-bar-chart.component.spec.ts"
     ]
   },
   "column-range-chart": {
@@ -2496,6 +2755,9 @@
       "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "column-range-chart/column-range-chart.component.spec.ts"
     ]
   },
   "bar-race-chart": {
@@ -2519,12 +2781,13 @@
       "chart-responsive.ts",
       "chart.types.ts",
       "chart.utils.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "bar-race-chart/bar-race-chart.component.spec.ts"
     ]
   },
   "org-chart": {
@@ -2547,6 +2810,9 @@
       "chart.types.ts",
       "chart.utils.ts",
       "color.ts"
+    ],
+    "testFiles": [
+      "org-chart/org-chart.component.spec.ts"
     ]
   },
   "bento-grid": {
@@ -2563,6 +2829,9 @@
     "dependencies": [
       "component-outlet",
       "context-menu"
+    ],
+    "testFiles": [
+      "bento-grid/bento-grid.component.spec.ts"
     ],
     "files": [
       "bento-grid/bento-grid.component.css",
@@ -2592,6 +2861,10 @@
       "icon",
       "select",
       "switch"
+    ],
+    "testFiles": [
+      "page-builder/page-builder.component.spec.ts",
+      "page-builder/sub/property-editor.component.spec.ts"
     ],
     "files": [
       "page-builder/index.ts",
@@ -2630,6 +2903,9 @@
     ],
     "dependencies": [
       "bento-grid"
+    ],
+    "testFiles": [
+      "page-renderer/page-renderer.component.spec.ts"
     ],
     "files": [
       "page-renderer/index.ts",
@@ -2678,6 +2954,10 @@
     ],
     "dependencies": [
       "button"
+    ],
+    "testFiles": [
+      "split-button/split-button.component.spec.ts",
+      "split-button/split-button.coverage.spec.ts"
     ]
   },
   "gradient-text": {
@@ -2695,6 +2975,9 @@
       "gradient-text/gradient-text.component.html",
       "gradient-text/gradient-text.component.ts",
       "gradient-text/index.ts"
+    ],
+    "testFiles": [
+      "gradient-text/gradient-text.component.spec.ts"
     ]
   },
   "flip-text": {
@@ -2713,6 +2996,9 @@
       "flip-text/flip-text.component.html",
       "flip-text/flip-text.component.ts",
       "flip-text/index.ts"
+    ],
+    "testFiles": [
+      "flip-text/flip-text.component.spec.ts"
     ]
   },
   "meteors": {
@@ -2729,6 +3015,9 @@
     "files": [
       "meteors/index.ts",
       "meteors/meteors.component.ts"
+    ],
+    "testFiles": [
+      "meteors/meteors.component.spec.ts"
     ]
   },
   "shine-border": {
@@ -2746,6 +3035,9 @@
       "shine-border/index.ts",
       "shine-border/shine-border.component.html",
       "shine-border/shine-border.component.ts"
+    ],
+    "testFiles": [
+      "shine-border/shine-border.component.spec.ts"
     ]
   },
   "scroll-progress": {
@@ -2763,6 +3055,9 @@
       "scroll-progress/index.ts",
       "scroll-progress/scroll-progress.component.html",
       "scroll-progress/scroll-progress.component.ts"
+    ],
+    "testFiles": [
+      "scroll-progress/scroll-progress.component.spec.ts"
     ]
   },
   "blur-fade": {
@@ -2780,6 +3075,9 @@
       "blur-fade/blur-fade.component.html",
       "blur-fade/blur-fade.component.ts",
       "blur-fade/index.ts"
+    ],
+    "testFiles": [
+      "blur-fade/blur-fade.component.spec.ts"
     ]
   },
   "ripple": {
@@ -2795,6 +3093,9 @@
     ],
     "files": [
       "ripple.directive.ts"
+    ],
+    "testFiles": [
+      "ripple.directive.spec.ts"
     ]
   },
   "marquee": {
@@ -2812,6 +3113,9 @@
       "marquee/index.ts",
       "marquee/marquee.component.html",
       "marquee/marquee.component.ts"
+    ],
+    "testFiles": [
+      "marquee/marquee.component.spec.ts"
     ]
   },
   "word-rotate": {
@@ -2830,6 +3134,9 @@
       "word-rotate/word-rotate.component.css",
       "word-rotate/word-rotate.component.html",
       "word-rotate/word-rotate.component.ts"
+    ],
+    "testFiles": [
+      "word-rotate/word-rotate.component.spec.ts"
     ]
   },
   "morphing-text": {
@@ -2848,6 +3155,9 @@
       "morphing-text/morphing-text.component.css",
       "morphing-text/morphing-text.component.html",
       "morphing-text/morphing-text.component.ts"
+    ],
+    "testFiles": [
+      "morphing-text/morphing-text.component.spec.ts"
     ]
   },
   "typing-animation": {
@@ -2866,6 +3176,9 @@
       "typing-animation/typing-animation.component.css",
       "typing-animation/typing-animation.component.html",
       "typing-animation/typing-animation.component.ts"
+    ],
+    "testFiles": [
+      "typing-animation/typing-animation.component.spec.ts"
     ]
   },
   "wobble-card": {
@@ -2883,6 +3196,9 @@
       "wobble-card/index.ts",
       "wobble-card/wobble-card.component.html",
       "wobble-card/wobble-card.component.ts"
+    ],
+    "testFiles": [
+      "wobble-card/wobble-card.component.spec.ts"
     ]
   },
   "magnetic": {
@@ -2898,6 +3214,9 @@
     ],
     "files": [
       "magnetic.directive.ts"
+    ],
+    "testFiles": [
+      "magnetic.directive.spec.ts"
     ]
   },
   "orbit": {
@@ -2915,6 +3234,9 @@
       "orbit/index.ts",
       "orbit/orbit.component.html",
       "orbit/orbit.component.ts"
+    ],
+    "testFiles": [
+      "orbit/orbit.component.spec.ts"
     ]
   },
   "stagger-children": {
@@ -2932,6 +3254,9 @@
       "stagger-children/index.ts",
       "stagger-children/stagger-children.component.html",
       "stagger-children/stagger-children.component.ts"
+    ],
+    "testFiles": [
+      "stagger-children/stagger-children.component.spec.ts"
     ]
   },
   "particles": {
@@ -2948,6 +3273,9 @@
     "files": [
       "particles/index.ts",
       "particles/particles.component.ts"
+    ],
+    "testFiles": [
+      "particles/particles.component.spec.ts"
     ]
   },
   "kanban": {
@@ -2975,8 +3303,6 @@
     ],
     "libFiles": [
       "color.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -2998,6 +3324,9 @@
       "scroll-area",
       "separator",
       "textarea"
+    ],
+    "testFiles": [
+      "kanban/kanban.component.spec.ts"
     ]
   },
   "shortcut-bindings-dialog": {
@@ -3018,8 +3347,6 @@
       "shortcut-bindings-dialog/shortcut-bindings-dialog.locales.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -3032,6 +3359,9 @@
       "button",
       "dialog",
       "scroll-area"
+    ],
+    "testFiles": [
+      "shortcut-bindings-dialog/shortcut-bindings-dialog.component.spec.ts"
     ]
   },
   "tour": {
@@ -3051,7 +3381,6 @@
       "tour/tour.component.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
@@ -3060,6 +3389,9 @@
     ],
     "dependencies": [
       "button"
+    ],
+    "testFiles": [
+      "tour/tour.component.spec.ts"
     ]
   },
   "comparison-slider": {
@@ -3080,13 +3412,15 @@
       "comparison-slider/index.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts",
       "touch.ts"
+    ],
+    "testFiles": [
+      "comparison-slider/comparison-slider.component.spec.ts",
+      "comparison-slider/comparison-slider.interaction.spec.ts"
     ]
   },
   "sortable": {
@@ -3114,8 +3448,6 @@
     "libFiles": [
       "auto-scroll.ts",
       "flip.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -3123,6 +3455,10 @@
       "sortable-aria-live.ts",
       "sortable-registry.ts",
       "touch.ts"
+    ],
+    "testFiles": [
+      "sortable/sortable.component.spec.ts",
+      "sortable/sub/sortable-ghost.directive.spec.ts"
     ]
   },
   "context-menu-attach": {
@@ -3141,6 +3477,9 @@
     ],
     "dependencies": [
       "context-menu"
+    ],
+    "testFiles": [
+      "context-menu-attach.directive.spec.ts"
     ]
   },
   "tree-context-menu": {
@@ -3159,6 +3498,9 @@
     ],
     "dependencies": [
       "context-menu"
+    ],
+    "testFiles": [
+      "tree-context-menu.directive.spec.ts"
     ]
   },
   "table-context-menu": {
@@ -3177,6 +3519,9 @@
     ],
     "dependencies": [
       "context-menu"
+    ],
+    "testFiles": [
+      "table-context-menu.directive.spec.ts"
     ]
   },
   "data-table-context-menu": {
@@ -3197,6 +3542,9 @@
       "context-menu",
       "data-table",
       "table-context-menu"
+    ],
+    "testFiles": [
+      "data-table-context-menu.directive.spec.ts"
     ]
   },
   "eyedropper": {
@@ -3218,8 +3566,6 @@
     ],
     "libFiles": [
       "color.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -3228,6 +3574,9 @@
     ],
     "dependencies": [
       "icon"
+    ],
+    "testFiles": [
+      "eyedropper/eyedropper.component.spec.ts"
     ]
   },
   "login": {
@@ -3479,12 +3828,14 @@
       "directives/copy-to.directive.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
       "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
       "i18n/index.ts"
+    ],
+    "testFiles": [
+      "directives/copy-to.directive.spec.ts"
     ]
   },
   "card-accordion": {
@@ -3517,6 +3868,9 @@
     "dependencies": [
       "accordion",
       "skeleton"
+    ],
+    "testFiles": [
+      "card-accordion/card-accordion.component.spec.ts"
     ]
   },
   "data-table-range-chart": {
@@ -3543,6 +3897,9 @@
       "dialog",
       "pie-chart",
       "stacked-bar-chart"
+    ],
+    "testFiles": [
+      "data-table-range-chart/data-table-range-chart.component.spec.ts"
     ]
   },
   "chart-tooltip": {
@@ -3558,6 +3915,9 @@
       "chart-tooltip/chart-tooltip.component.html",
       "chart-tooltip/chart-tooltip.component.ts",
       "chart-tooltip/index.ts"
+    ],
+    "testFiles": [
+      "chart-tooltip/chart-tooltip.component.spec.ts"
     ]
   },
   "chart-legend": {
@@ -3576,6 +3936,9 @@
     ],
     "libFiles": [
       "chart.types.ts"
+    ],
+    "testFiles": [
+      "chart-legend/chart-legend.component.spec.ts"
     ]
   },
   "chart-brush": {
@@ -3595,6 +3958,10 @@
     ],
     "libFiles": [
       "chart-interaction.ts"
+    ],
+    "testFiles": [
+      "chart-brush/chart-brush.component.spec.ts",
+      "chart-brush/chart-brush.dom.spec.ts"
     ]
   },
   "line-chart": {
@@ -3624,6 +3991,9 @@
     "dependencies": [
       "chart-legend",
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "line-chart/line-chart.component.spec.ts"
     ]
   },
   "area-chart": {
@@ -3653,6 +4023,9 @@
     "dependencies": [
       "chart-legend",
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "area-chart/area-chart.component.spec.ts"
     ]
   },
   "combo-chart": {
@@ -3683,6 +4056,9 @@
     "dependencies": [
       "chart-legend",
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "combo-chart/combo-chart.component.spec.ts"
     ]
   },
   "scatter-chart": {
@@ -3711,6 +4087,9 @@
     "dependencies": [
       "chart-legend",
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "scatter-chart/scatter-chart.component.spec.ts"
     ]
   },
   "bubble-chart": {
@@ -3739,6 +4118,9 @@
     "dependencies": [
       "chart-legend",
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "bubble-chart/bubble-chart.component.spec.ts"
     ]
   },
   "gauge-chart": {
@@ -3760,6 +4142,9 @@
     "libFiles": [
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "gauge-chart/gauge-chart.component.spec.ts"
     ]
   },
   "bullet-chart": {
@@ -3783,6 +4168,9 @@
       "chart-scale.ts",
       "chart.types.ts",
       "chart.utils.ts"
+    ],
+    "testFiles": [
+      "bullet-chart/bullet-chart.component.spec.ts"
     ]
   },
   "radar-chart": {
@@ -3808,6 +4196,9 @@
     ],
     "dependencies": [
       "chart-legend"
+    ],
+    "testFiles": [
+      "radar-chart/radar-chart.component.spec.ts"
     ]
   },
   "heatmap": {
@@ -3834,6 +4225,9 @@
     ],
     "dependencies": [
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "heatmap/heatmap.component.spec.ts"
     ]
   },
   "calendar-heatmap": {
@@ -3860,6 +4254,9 @@
     ],
     "dependencies": [
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "calendar-heatmap/calendar-heatmap.component.spec.ts"
     ]
   },
   "funnel-chart": {
@@ -3885,6 +4282,9 @@
     ],
     "dependencies": [
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "funnel-chart/funnel-chart.component.spec.ts"
     ]
   },
   "waterfall-chart": {
@@ -3912,6 +4312,9 @@
     ],
     "dependencies": [
       "chart-tooltip"
+    ],
+    "testFiles": [
+      "waterfall-chart/waterfall-chart.component.spec.ts"
     ]
   },
   "rich-text-editor/actions": {
@@ -3950,8 +4353,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -3963,6 +4364,19 @@
       "button",
       "dialog",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/actions/actions-runtime.spec.ts",
+      "rich-text-editor/addons/actions/presets/hover-card.preset.spec.ts",
+      "rich-text-editor/addons/actions/presets/linked-preview-dialog.preset.spec.ts",
+      "rich-text-editor/addons/actions/presets/open-dialog.preset.spec.ts",
+      "rich-text-editor/addons/actions/presets/preset-overlay.utils.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions-bind.directive.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions-dialog.component.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions-form.component.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions-popover.component.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions.directive.spec.ts",
+      "rich-text-editor/addons/actions/rich-text-actions.serializer.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
@@ -3998,8 +4412,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4008,6 +4420,11 @@
     "dependencies": [
       "emoji-picker",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/emoji/rich-text-emoji-button.component.spec.ts",
+      "rich-text-editor/addons/emoji/rich-text-emoji.context.spec.ts",
+      "rich-text-editor/addons/emoji/rich-text-emoji.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
@@ -4041,8 +4458,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4050,6 +4465,12 @@
     ],
     "dependencies": [
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands-menu.component.spec.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.defaults.spec.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.directive.spec.ts",
+      "rich-text-editor/addons/slash-commands/rich-text-slash-commands.utils.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
@@ -4081,8 +4502,6 @@
       "rich-text-editor/addons/history/rich-text-history.locales.ts"
     ],
     "libFiles": [
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4094,6 +4513,10 @@
       "popover",
       "rich-text-editor",
       "scroll-area"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/history/rich-text-history-panel.component.spec.ts",
+      "rich-text-editor/addons/history/rich-text-history.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
@@ -4127,8 +4550,6 @@
     "libFiles": [
       "addon-slots.ts",
       "color.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4138,6 +4559,11 @@
       "color-picker",
       "popover",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/colors/rich-text-colors-button.component.spec.ts",
+      "rich-text-editor/addons/colors/rich-text-colors.context.spec.ts",
+      "rich-text-editor/addons/colors/rich-text-colors.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
@@ -4170,8 +4596,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4181,6 +4605,10 @@
       "autocomplete",
       "popover",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/typography/rich-text-typography.context.spec.ts",
+      "rich-text-editor/addons/typography/rich-text-typography.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
@@ -4215,8 +4643,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4226,6 +4652,12 @@
       "button",
       "popover",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/links/rich-text-links-button.component.spec.ts",
+      "rich-text-editor/addons/links/rich-text-links-form.component.spec.ts",
+      "rich-text-editor/addons/links/rich-text-links.context.spec.ts",
+      "rich-text-editor/addons/links/rich-text-links.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
@@ -4259,8 +4691,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4269,6 +4699,11 @@
     "dependencies": [
       "popover",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/tables/rich-text-tables-button.component.spec.ts",
+      "rich-text-editor/addons/tables/rich-text-tables.context.spec.ts",
+      "rich-text-editor/addons/tables/rich-text-tables.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
@@ -4307,8 +4742,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4319,6 +4752,14 @@
       "button",
       "popover",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/images/rich-text-images-button.component.spec.ts",
+      "rich-text-editor/addons/images/rich-text-images-overlay.component.spec.ts",
+      "rich-text-editor/addons/images/rich-text-images-resizer.component.spec.ts",
+      "rich-text-editor/addons/images/rich-text-images.context.spec.ts",
+      "rich-text-editor/addons/images/rich-text-images.directive.spec.ts",
+      "rich-text-editor/addons/images/rich-text-images.utils.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
@@ -4354,8 +4795,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4364,6 +4803,11 @@
     "dependencies": [
       "rich-text-editor",
       "scroll-area"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/mentions/rich-text-mention-popover.component.spec.ts",
+      "rich-text-editor/addons/mentions/rich-text-mentions.directive.spec.ts",
+      "rich-text-editor/addons/mentions/rich-text-mentions.utils.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
@@ -4401,8 +4845,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4416,6 +4858,13 @@
     ],
     "dependencies": [
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/file-import/rich-text-file-import-button.component.spec.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import-overlay.component.spec.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import.context.spec.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import.directive.spec.ts",
+      "rich-text-editor/addons/file-import/rich-text-file-import.utils.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
@@ -4452,8 +4901,6 @@
     "libFiles": [
       "addon-slots.ts",
       "ai.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4462,6 +4909,12 @@
     "dependencies": [
       "button",
       "rich-text-editor"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/ai/rich-text-ai-chip.component.spec.ts",
+      "rich-text-editor/addons/ai/rich-text-ai-panel.component.spec.ts",
+      "rich-text-editor/addons/ai/rich-text-ai.context.spec.ts",
+      "rich-text-editor/addons/ai/rich-text-ai.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts",
@@ -4495,8 +4948,6 @@
     ],
     "libFiles": [
       "addon-slots.ts",
-      "i18n/calendar.locales.ts",
-      "i18n/common.locales.ts",
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
@@ -4506,6 +4957,11 @@
       "button",
       "rich-text-editor",
       "scroll-area"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/outline/rich-text-outline-panel.component.spec.ts",
+      "rich-text-editor/addons/outline/rich-text-outline.context.spec.ts",
+      "rich-text-editor/addons/outline/rich-text-outline.directive.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"
@@ -4545,6 +5001,9 @@
       "rich-text-editor/slash-commands",
       "rich-text-editor/tables",
       "rich-text-editor/typography"
+    ],
+    "testFiles": [
+      "rich-text-editor/addons/full/rich-text-full.spec.ts"
     ],
     "requiresBaseFiles": [
       "rich-text-editor/rich-text-editor.host.ts"

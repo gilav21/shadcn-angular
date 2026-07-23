@@ -4,7 +4,16 @@ import { ComponentMeta, PageBuilderViewMode, PageData } from '../../lib/page-bui
 import { By } from '@angular/platform-browser';
 import { BentoGridComponent } from '../bento-grid';
 import { Component, input } from '@angular/core';
-import { vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// jest's jsdom lacks the object-URL APIs the blob-download path spies on —
+// polyfill only when absent so vi.spyOn has a method to replace (both runners).
+const urlApi = URL as unknown as {
+    createObjectURL?: (blob: unknown) => string;
+    revokeObjectURL?: (url: string) => void;
+};
+urlApi.createObjectURL ??= () => 'blob:mock';
+urlApi.revokeObjectURL ??= () => undefined;
 
 @Component({
     template: '<div class="mock-widget">Mock Widget</div>',
@@ -21,6 +30,15 @@ class MockProgressComponent {
     readonly value = input<number>(0);
     readonly label = input<string>('');
     readonly disabled = input<boolean>(false);
+}
+
+/**
+ * jsdom's `File`/`Blob` does not implement `.text()`, so build a minimal
+ * file-like object whose `.text()` resolves the given string. This keeps the
+ * import/deserialize paths deterministic under both jsdom and ts-jest.
+ */
+function textFile(content: string): File {
+    return { text: (): Promise<string> => Promise.resolve(content) } as unknown as File;
 }
 
 describe('PageBuilderComponent', () => {
@@ -480,7 +498,7 @@ describe('PageBuilderComponent — editor behavior', () => {
                     { id: 'ghost', x: 0, y: 0, cols: 1, rows: 1, componentId: 'unknown-comp' },
                 ],
             };
-            const file = new File([JSON.stringify(layout)], 'layout.json', { type: 'application/json' });
+            const file = textFile(JSON.stringify(layout));
             const event = { target: { files: [file] } } as unknown as Event;
 
             await component.handleFileInput(event);
@@ -496,7 +514,7 @@ describe('PageBuilderComponent — editor behavior', () => {
             const alertSpy = vi.spyOn(globalThis, 'alert').mockImplementation(() => undefined);
             component.addItem(widgetMeta);
 
-            const file = new File(['{"not":"a layout"}'], 'bad.json', { type: 'application/json' });
+            const file = textFile('{"not":"a layout"}');
             await component.handleFileInput({ target: { files: [file] } } as unknown as Event);
 
             expect(alertSpy).toHaveBeenCalledWith('Invalid layout file format');
@@ -505,7 +523,7 @@ describe('PageBuilderComponent — editor behavior', () => {
 
         it('alerts on unparseable JSON', async () => {
             const alertSpy = vi.spyOn(globalThis, 'alert').mockImplementation(() => undefined);
-            const file = new File(['not json at all'], 'bad.json', { type: 'application/json' });
+            const file = textFile('not json at all');
             await component.handleFileInput({ target: { files: [file] } } as unknown as Event);
             expect(alertSpy).toHaveBeenCalledWith('Failed to parse layout file');
         });
@@ -520,10 +538,10 @@ describe('PageBuilderComponent — editor behavior', () => {
         it('exportJson writes the serialized layout through showSaveFilePicker', async () => {
             component.addItem(progressMeta);
 
-            const write = vi.fn().mockResolvedValue(undefined);
-            const close = vi.fn().mockResolvedValue(undefined);
-            const createWritable = vi.fn().mockResolvedValue({ write, close });
-            const showSaveFilePicker = vi.fn().mockResolvedValue({ createWritable });
+            const write = vi.fn((_data: string) => Promise.resolve());
+            const close = vi.fn(() => Promise.resolve(undefined));
+            const createWritable = vi.fn(() => Promise.resolve({ write, close }));
+            const showSaveFilePicker = vi.fn(() => Promise.resolve({ createWritable }));
             (globalThis as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = showSaveFilePicker;
 
             try {
@@ -543,9 +561,9 @@ describe('PageBuilderComponent — editor behavior', () => {
                 grid: { cols: 4, rowHeight: '20px', columnWidth: '20px', gap: '1rem', showBorders: true, borderRadius: '0.5rem', itemPadding: '1rem', squareCells: true },
                 items: [{ id: 'imp', x: 0, y: 0, cols: 2, rows: 2, componentId: 'mock-widget' }],
             };
-            const file = new File([JSON.stringify(layout)], 'layout.json', { type: 'application/json' });
-            const getFile = vi.fn().mockResolvedValue(file);
-            const showOpenFilePicker = vi.fn().mockResolvedValue([{ getFile }]);
+            const file = textFile(JSON.stringify(layout));
+            const getFile = vi.fn(() => Promise.resolve(file));
+            const showOpenFilePicker = vi.fn(() => Promise.resolve([{ getFile }]));
             (globalThis as unknown as { showOpenFilePicker: unknown }).showOpenFilePicker = showOpenFilePicker;
 
             try {
@@ -589,6 +607,232 @@ describe('PageBuilderComponent — editor behavior', () => {
             component.onItemsChange(next);
             expect(component.items()).toBe(next);
             expect(component.items()[0].cols).toBe(4);
+        });
+    });
+
+    describe('simulation leaves non-progress items untouched', () => {
+        it('returns non-progress items unchanged on each tick', () => {
+            vi.useFakeTimers();
+            try {
+                component.addItem(widgetMeta);
+                const widgetId = component.items()[0].id;
+                component.addItem(progressMeta);
+                component.onItemChange({ id: component.items()[1].id, prop: 'value', value: 0 });
+
+                component.toggleSimulatedData();
+                vi.advanceTimersByTime(1000);
+
+                const widget = component.items().find(i => i.id === widgetId);
+                expect(widget?.inputs).toEqual({});
+                expect(component.items()[1].inputs?.['value']).toBe(5);
+                component.toggleSimulatedData();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+    });
+
+    describe('onItemChange with multiple items', () => {
+        it('leaves items whose id does not match the change untouched', () => {
+            component.addItem(widgetMeta);
+            component.addItem(progressMeta);
+            const [first, second] = component.items();
+            const secondBefore = second;
+
+            component.onItemChange({ id: first.id, prop: 'cols', value: 7 });
+
+            expect(component.items()[0].cols).toBe(7);
+            expect(component.items()[1]).toBe(secondBefore);
+        });
+    });
+
+    describe('selection edge cases', () => {
+        it('clears selection when an empty id list arrives', () => {
+            component.addItem(widgetMeta);
+            component.selectedItemId.set(component.items()[0].id);
+            component.onSelectionChange([]);
+            expect(component.selectedItemId()).toBeNull();
+        });
+
+        it('is a no-op when deleting with nothing selected', () => {
+            component.addItem(widgetMeta);
+            component.selectedItemId.set(null);
+            component.onDeleteItem();
+            expect(component.items()).toHaveLength(1);
+        });
+    });
+
+    describe('componentsByCategory grouping', () => {
+        it('appends multiple components sharing one category into the same bucket', () => {
+            const twins: ComponentMeta[] = [
+                { id: 'a', name: 'A', category: 'Same', component: MockWidgetComponent },
+                { id: 'b', name: 'B', category: 'Same', component: MockProgressComponent },
+            ];
+            const f = TestBed.createComponent(PageBuilderComponent);
+            f.componentRef.setInput('components', twins);
+            f.detectChanges();
+            const grouped = f.componentInstance.componentsByCategory();
+            expect(grouped['Same'].map(c => c.id)).toEqual(['a', 'b']);
+        });
+    });
+
+    describe('addItem falls back to default cols/rows', () => {
+        it('uses 2x2 when the component meta omits defaultCols/defaultRows', () => {
+            const bare: ComponentMeta = { id: 'bare', name: 'Bare', category: 'X', component: MockWidgetComponent };
+            const f = TestBed.createComponent(PageBuilderComponent);
+            f.componentRef.setInput('components', [bare]);
+            f.detectChanges();
+            f.componentInstance.addItem(bare);
+            const item = f.componentInstance.items()[0];
+            expect(item.cols).toBe(2);
+            expect(item.rows).toBe(2);
+        });
+    });
+
+    describe('saveJson with an unregistered item', () => {
+        it('serializes an empty componentId when the content has no registered meta', () => {
+            component.onItemsChange([{ id: 'orphan', x: 0, y: 0, cols: 1, rows: 1, content: class Unknown { } }]);
+            let emitted: PageData | undefined;
+            component.save.subscribe((p: PageData) => { emitted = p; });
+            component.saveJson();
+            expect(emitted!.items[0].componentId).toBe('');
+        });
+    });
+
+    describe('getComponentMeta without an Angular mirror', () => {
+        it('returns the raw meta when reflectComponentType yields no mirror', () => {
+            class PlainWidget { readonly plain = true; }
+            const plainMeta: ComponentMeta = { id: 'plain', name: 'Plain', category: 'X', component: PlainWidget as never };
+            const f = TestBed.createComponent(PageBuilderComponent);
+            f.componentRef.setInput('components', [plainMeta]);
+            f.detectChanges();
+            const cmp = f.componentInstance;
+            cmp.addItem(plainMeta);
+            const meta = cmp.getComponentMeta(cmp.items()[0]);
+            expect(meta?.id).toBe('plain');
+            expect(meta?.inputs).toBeUndefined();
+        });
+    });
+
+    describe('resolveInputType coverage', () => {
+        it('reads a raw (non-function) numeric instance value as a number type', () => {
+            component.addItem(progressMeta);
+            const item = component.items()[0];
+            component.onComponentInit({ id: item.id, ref: { instance: { value: 42 } } as never });
+            const meta = component.getComponentMeta(item);
+            expect(meta!.inputs!.find(i => i.name === 'value')?.type).toBe('number');
+        });
+
+        it('derives a boolean type from a boolean default input value', () => {
+            const booledMeta: ComponentMeta = { ...progressMeta, defaultInputs: { value: 40, disabled: true } };
+            const f = TestBed.createComponent(PageBuilderComponent);
+            f.componentRef.setInput('components', [booledMeta]);
+            f.detectChanges();
+            const cmp = f.componentInstance;
+            cmp.addItem(booledMeta);
+            const meta = cmp.getComponentMeta(cmp.items()[0]);
+            expect(meta!.inputs!.find(i => i.name === 'disabled')?.type).toBe('boolean');
+        });
+    });
+
+    describe('effect skips mirroring while square cells is off', () => {
+        it('does not mirror column width to row height once disabled', () => {
+            component.toggleSquareCells();
+            expect(component.gridColumnWidth()).toBe('1fr');
+            component.gridRowHeight.set('99px');
+            fixture.detectChanges();
+            expect(component.gridColumnWidth()).toBe('1fr');
+        });
+    });
+
+    describe('applyLayout with a sparse grid config', () => {
+        it('leaves defaults intact for falsy/omitted grid fields', async () => {
+            const layout = {
+                grid: { cols: 0, rowHeight: '', columnWidth: '', gap: '', borderRadius: '', itemPadding: '' },
+                items: [{ id: 'z', x: 0, y: 0, cols: 2, rows: 2, componentId: 'mock-widget' }],
+            } as unknown as PageData;
+            await component.handleFileInput({ target: { files: [textFile(JSON.stringify(layout))] } } as unknown as Event);
+            expect(component.gridCols()).toBe(12);
+            expect(component.gridRowHeight()).toBe('20px');
+            expect(component.items().map(i => i.id)).toEqual(['z']);
+        });
+    });
+
+    describe('exportJson browser-download fallback', () => {
+        function stubDownloadEnv(): { revoke: ReturnType<typeof vi.fn>; click: ReturnType<typeof vi.spyOn> } {
+            const revoke = vi.fn();
+            vi.spyOn(globalThis.URL, 'createObjectURL').mockReturnValue('blob:mock');
+            vi.spyOn(globalThis.URL, 'revokeObjectURL').mockImplementation(revoke);
+            const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+            return { revoke, click };
+        }
+
+        afterEach(() => {
+            delete (globalThis as unknown as Record<string, unknown>)['showSaveFilePicker'];
+        });
+
+        it('downloads a blob when the file picker is unavailable', () => {
+            vi.useFakeTimers();
+            try {
+                delete (globalThis as unknown as Record<string, unknown>)['showSaveFilePicker'];
+                const { revoke, click } = stubDownloadEnv();
+                component.addItem(widgetMeta);
+                void component.exportJson();
+                expect(click).toHaveBeenCalledTimes(1);
+                vi.advanceTimersByTime(2000);
+                expect(revoke).toHaveBeenCalledWith('blob:mock');
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('falls back to the blob download when the picker rejects with a non-abort error', async () => {
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            const { click } = stubDownloadEnv();
+            (globalThis as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker =
+                vi.fn().mockImplementation(() => Promise.reject(new Error('disk full')));
+            await component.exportJson();
+            expect(errorSpy).toHaveBeenCalled();
+            expect(click).toHaveBeenCalledTimes(1);
+        });
+
+        it('aborts silently when the picker rejects with an AbortError', async () => {
+            vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            const { click } = stubDownloadEnv();
+            const abort = new Error('cancelled');
+            abort.name = 'AbortError';
+            (globalThis as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker =
+                vi.fn().mockImplementation(() => Promise.reject(abort));
+            await component.exportJson();
+            expect(click).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('importJson picker error handling', () => {
+        afterEach(() => {
+            delete (globalThis as unknown as Record<string, unknown>)['showOpenFilePicker'];
+        });
+
+        it('falls back to the hidden input when the picker rejects with a non-abort error', async () => {
+            vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            (globalThis as unknown as { showOpenFilePicker: unknown }).showOpenFilePicker =
+                vi.fn().mockImplementation(() => Promise.reject(new Error('read failed')));
+            const realInput = fixture.debugElement.query(By.css('#import-json-input')).nativeElement as HTMLInputElement;
+            const clickSpy = vi.spyOn(realInput, 'click').mockImplementation(() => undefined);
+            await component.importJson();
+            expect(clickSpy).toHaveBeenCalled();
+        });
+
+        it('aborts silently when the picker rejects with an AbortError', async () => {
+            vi.spyOn(console, 'error').mockImplementation(() => undefined);
+            const abort = new Error('cancelled');
+            abort.name = 'AbortError';
+            (globalThis as unknown as { showOpenFilePicker: unknown }).showOpenFilePicker =
+                vi.fn().mockImplementation(() => Promise.reject(abort));
+            const realInput = fixture.debugElement.query(By.css('#import-json-input')).nativeElement as HTMLInputElement;
+            const clickSpy = vi.spyOn(realInput, 'click').mockImplementation(() => undefined);
+            await component.importJson();
+            expect(clickSpy).not.toHaveBeenCalled();
         });
     });
 });

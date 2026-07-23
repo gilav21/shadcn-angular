@@ -64,6 +64,47 @@ describe('AvatarComponent', () => {
         expect(fixture.nativeElement.className).toContain('h-12');
         expect(fixture.nativeElement.className).toContain('w-12');
     });
+
+    it('should apply skeleton classes when skeleton input is set', () => {
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.componentRef.setInput('class', 'my-extra');
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.className).toContain('block');
+        expect(fixture.nativeElement.className).toContain('shrink-0');
+        expect(fixture.nativeElement.className).toContain('my-extra');
+        // Skeleton mode drops the non-skeleton avatar utilities.
+        expect(fixture.nativeElement.className).not.toContain('overflow-hidden');
+    });
+
+    it('should set status to "loaded" on onLoad()', () => {
+        expect(component.status()).toBe('loading');
+        component.onLoad();
+        expect(component.status()).toBe('loaded');
+    });
+
+    it('should set status to "error" on onError()', () => {
+        component.onError();
+        expect(component.status()).toBe('error');
+    });
+
+    it('toString() returns the fallback when set', () => {
+        fixture.componentRef.setInput('fallback', 'JD');
+        fixture.componentRef.setInput('alt', 'John Doe');
+        fixture.detectChanges();
+        expect(component.toString()).toBe('JD');
+    });
+
+    it('toString() falls back to alt when fallback is empty', () => {
+        fixture.componentRef.setInput('fallback', '');
+        fixture.componentRef.setInput('alt', 'John Doe');
+        fixture.detectChanges();
+        expect(component.toString()).toBe('John Doe');
+    });
+
+    it('toString() returns empty string when neither fallback nor alt is set', () => {
+        expect(component.toString()).toBe('');
+    });
 });
 
 describe('AvatarImageComponent', () => {

@@ -3,7 +3,8 @@ import { InputComponent } from './input.component';
 import { Component, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
 // Test host for reactive forms
 @Component({
@@ -256,5 +257,170 @@ describe('InputComponent - floating label', () => {
         fixture.detectChanges();
         const wrapper = fixture.debugElement.query(By.css('[data-slot="input-floating"]')).nativeElement;
         expect(wrapper.getAttribute('data-variant')).toBe('underline');
+    });
+});
+
+describe('InputComponent - container mode (prefix/suffix/clearable/loading)', () => {
+    let component: InputComponent;
+    let fixture: ComponentFixture<InputComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [InputComponent] }).compileComponents();
+        fixture = TestBed.createComponent(InputComponent);
+        component = fixture.componentInstance;
+    });
+
+    it('renders the input-container when a prefix is set and applies innerClasses to the inner input', () => {
+        fixture.componentRef.setInput('prefix', '$');
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.css('[data-slot="input-container"]'))).toBeTruthy();
+        expect(component.needsContainer()).toBe(true);
+        expect(component.innerClasses()).toContain('flex-1');
+        expect(fixture.debugElement.query(By.css('input')).nativeElement.className).toContain('flex-1');
+    });
+
+    it('renders a suffix span when suffix is set and not loading', () => {
+        fixture.componentRef.setInput('suffix', 'kg');
+        fixture.detectChanges();
+
+        const span = fixture.debugElement.query(By.css('[data-slot="input-container"] span'));
+        expect(span.nativeElement.textContent.trim()).toBe('kg');
+    });
+
+    it('adds disabled styling to containerClasses when disabled', () => {
+        fixture.componentRef.setInput('prefix', '$');
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+
+        const classes = component.containerClasses();
+        expect(classes).toContain('pointer-events-none');
+        expect(classes).toContain('cursor-not-allowed');
+        expect(component.isDisabled()).toBe(true);
+    });
+
+    it('does NOT add disabled styling to containerClasses when enabled', () => {
+        fixture.componentRef.setInput('prefix', '$');
+        fixture.detectChanges();
+
+        expect(component.containerClasses()).not.toContain('cursor-not-allowed');
+    });
+
+    it('shows a clear button only when clearable and there is a value, and clears on click', () => {
+        fixture.componentRef.setInput('clearable', true);
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.css('button[aria-label="Clear"]'))).toBeNull();
+
+        component.writeValue('hello');
+        fixture.detectChanges();
+
+        const clearBtn = fixture.debugElement.query(By.css('button[aria-label="Clear"]'));
+        expect(clearBtn).toBeTruthy();
+
+        clearBtn.nativeElement.click();
+        fixture.detectChanges();
+
+        expect(component.value()).toBe('');
+    });
+
+    it('shows the spinner when loading and hides the suffix span', () => {
+        fixture.componentRef.setInput('loading', true);
+        fixture.componentRef.setInput('suffix', 'kg');
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.css('ui-spinner'))).toBeTruthy();
+        expect(fixture.debugElement.query(By.css('[data-slot="input-container"] span'))).toBeNull();
+    });
+});
+
+describe('InputComponent - imperative API and CVA callbacks', () => {
+    let component: InputComponent;
+    let fixture: ComponentFixture<InputComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [InputComponent] }).compileComponents();
+        fixture = TestBed.createComponent(InputComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('focus() calls focus on the inner input element', () => {
+        const input = fixture.debugElement.query(By.css('input')).nativeElement as HTMLInputElement;
+        const focusSpy = vi.spyOn(input, 'focus');
+
+        component.focus();
+
+        expect(focusSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('clearValue() empties the value and refocuses the input', () => {
+        component.writeValue('something');
+        fixture.detectChanges();
+        const input = fixture.debugElement.query(By.css('input')).nativeElement as HTMLInputElement;
+        const focusSpy = vi.spyOn(input, 'focus');
+
+        component.clearValue();
+
+        expect(component.value()).toBe('');
+        expect(focusSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('toString() returns the current value', () => {
+        component.writeValue('abc');
+        expect(component.toString()).toBe('abc');
+        expect(`${component}`).toBe('abc');
+    });
+
+    it('writeValue(null) coerces to an empty string', () => {
+        component.writeValue(null as unknown as string);
+        expect(component.value()).toBe('');
+    });
+
+    it('onValueChange uses the default onChange when no form is registered', () => {
+        expect(() => component.onValueChange('typed')).not.toThrow();
+        expect(component.value()).toBe('typed');
+    });
+
+    it('onValueChange invokes the registered onChange callback', () => {
+        const onChange = vi.fn();
+        component.registerOnChange(onChange);
+
+        component.onValueChange('new value');
+
+        expect(onChange).toHaveBeenCalledWith('new value');
+    });
+});
+
+describe('InputComponent - within an input group', () => {
+    let component: InputComponent;
+    let fixture: ComponentFixture<InputComponent>;
+    const groupDisabled = signal(false);
+
+    beforeEach(async () => {
+        groupDisabled.set(false);
+        await TestBed.configureTestingModule({
+            imports: [InputComponent],
+            providers: [{ provide: UI_INPUT_GROUP, useValue: { disabled: groupDisabled.asReadonly() } }],
+        }).compileComponents();
+        fixture = TestBed.createComponent(InputComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('downgrades the default outline variant to ghost inside a group', () => {
+        expect((component as unknown as { effectiveVariant: () => string }).effectiveVariant()).toBe('ghost');
+    });
+
+    it('keeps an explicit non-outline variant unchanged inside a group', () => {
+        fixture.componentRef.setInput('variant', 'underline');
+        fixture.detectChanges();
+        expect((component as unknown as { effectiveVariant: () => string }).effectiveVariant()).toBe('underline');
+    });
+
+    it('is disabled when the group is disabled', () => {
+        groupDisabled.set(true);
+        fixture.detectChanges();
+        expect(component.isDisabled()).toBe(true);
     });
 });

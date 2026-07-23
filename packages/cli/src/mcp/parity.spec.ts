@@ -57,6 +57,7 @@ const PARITY_MAP: readonly ParityEntry[] = [
     { command: 'set-radius', tool: 'set_radius' },
     { command: 'set-motion', tool: 'set_motion' },
     { command: 'set-locale', tool: 'set_locale' },
+    { command: 'set-test-runner', tool: 'set_test_runner' },
     { command: 'change-theme', tool: 'change_theme' },
 
     // CLI-only, by design.

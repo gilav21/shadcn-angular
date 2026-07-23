@@ -137,6 +137,33 @@ describe('ComparisonSliderComponent', () => {
         expect(component.position()).toBe(49);
     });
 
+    it('should increment position on ArrowUp in horizontal orientation', () => {
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
+        fixture.componentRef.setInput('position', 50);
+        fixture.detectChanges();
+        handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        fixture.detectChanges();
+        expect(component.position()).toBe(51);
+    });
+
+    it('should decrement position on ArrowDown in horizontal orientation', () => {
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
+        fixture.componentRef.setInput('position', 50);
+        fixture.detectChanges();
+        handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+        fixture.detectChanges();
+        expect(component.position()).toBe(49);
+    });
+
+    it('should ignore unhandled keys without changing position', () => {
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
+        fixture.componentRef.setInput('position', 50);
+        fixture.detectChanges();
+        handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+        fixture.detectChanges();
+        expect(component.position()).toBe(50);
+    });
+
     it('should expose aria-valuetext on the handle', () => {
         fixture.componentRef.setInput('position', 30);
         fixture.detectChanges();

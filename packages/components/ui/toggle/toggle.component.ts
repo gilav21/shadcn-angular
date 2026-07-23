@@ -5,6 +5,7 @@ import {
     output,
     computed,
     signal,
+    OnInit,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -41,7 +42,7 @@ export type ToggleSize = VariantProps<typeof toggleVariants>['size'];
     styleUrl: './toggle.component.css',
     host: { class: 'contents' },
 })
-export class ToggleComponent {
+export class ToggleComponent implements OnInit {
     variant = input<ToggleVariant>('default');
     size = input<ToggleSize>('default');
     disabled = input(false);
@@ -51,10 +52,11 @@ export class ToggleComponent {
 
     pressed = signal(false);
 
-    constructor() {
-        const defaultVal = this.defaultPressed();
-        if (defaultVal) {
-            this.pressed.set(defaultVal);
+    ngOnInit(): void {
+        // Seed from the bound input — signal inputs hold no value in the
+        // constructor, so reading defaultPressed there never pressed the toggle.
+        if (this.defaultPressed()) {
+            this.pressed.set(true);
         }
     }
 

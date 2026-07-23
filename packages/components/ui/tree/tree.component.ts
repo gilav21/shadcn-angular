@@ -335,10 +335,10 @@ export class TreeComponent {
     }
 
     private handleArrowDown(itemValues: string[], currentIndex: number, totalItems: number): void {
+        // currentIndex === -1 (nothing focused) also satisfies this — it moves to
+        // itemValues[0], so no separate first-item branch is needed.
         if (currentIndex < totalItems - 1) {
             this.focusedKey.set(itemValues[currentIndex + 1]);
-        } else if (currentIndex === -1 && totalItems > 0) {
-            this.focusedKey.set(itemValues[0]);
         }
     }
 

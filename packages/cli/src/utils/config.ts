@@ -32,6 +32,25 @@ export interface Config {
     update?: {
         overwrite?: boolean;
     };
+    /**
+     * Test-shipping defaults for `add`/`update`. `include: true` makes every
+     * install also copy the component's portable spec files; `runner` selects
+     * the consumer test runner the specs are transformed for (`'jest'` rewrites
+     * the vitest import to the installed vitest-compat shim).
+     */
+    tests?: {
+        include?: boolean;
+        runner?: TestRunner;
+    };
+}
+
+/** Consumer test runners the shipped specs support. */
+export type TestRunner = 'vitest' | 'jest';
+
+export const TEST_RUNNERS: readonly TestRunner[] = ['vitest', 'jest'];
+
+export function isTestRunner(value: unknown): value is TestRunner {
+    return TEST_RUNNERS.includes(value as TestRunner);
 }
 
 /** Returns the configured prefix or the default when none is set. */
@@ -83,6 +102,14 @@ function validateUpdate(obj: Record<string, unknown>): boolean {
     return !('overwrite' in upd) || upd['overwrite'] === undefined || typeof upd['overwrite'] === 'boolean';
 }
 
+function validateTests(obj: Record<string, unknown>): boolean {
+    if (!('tests' in obj) || obj['tests'] === undefined) return true;
+    if (typeof obj['tests'] !== 'object' || obj['tests'] === null) return false;
+    const tests = obj['tests'] as Record<string, unknown>;
+    if ('include' in tests && tests['include'] !== undefined && typeof tests['include'] !== 'boolean') return false;
+    return !('runner' in tests) || tests['runner'] === undefined || isTestRunner(tests['runner']);
+}
+
 function validateConfig(data: unknown): data is Config {
     if (!data || typeof data !== 'object') return false;
     const obj = data as Record<string, unknown>;
@@ -90,7 +117,7 @@ function validateConfig(data: unknown): data is Config {
     if (!validateAliases(obj)) return false;
     if ('prefix' in obj && obj['prefix'] !== undefined && !isValidPrefix(obj['prefix'])) return false;
     if (!validateUpdate(obj)) return false;
-    return true;
+    return validateTests(obj);
 }
 
 export async function getConfig(cwd: string): Promise<Config | null> {

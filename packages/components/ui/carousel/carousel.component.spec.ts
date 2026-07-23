@@ -2,9 +2,53 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent } from './index';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Test host for integration
+// ── Shared jsdom stubs ──────────────────────────────────────────────────────
+// jsdom lacks ResizeObserver; the carousel constructs one in ngAfterContentInit.
+// Stub it (via vi.stubGlobal) for the whole file and unstub after each test.
+class ResizeObserverStub {
+    observe(): void { /* no-op */ }
+    unobserve(): void { /* no-op */ }
+    disconnect(): void { /* no-op */ }
+}
+
+beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+});
+
+afterEach(() => {
+    document.documentElement.removeAttribute('dir');
+    vi.unstubAllGlobals();
+});
+
+// ── Shared helpers (hoisted to module scope, no duplication) ─────────────────
+/** Runs the ngAfterContentInit setTimeout(0) then re-renders. */
+async function flushSetup(fixture: ComponentFixture<unknown>): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
+}
+
+function getCarousel(fixture: ComponentFixture<unknown>): CarouselComponent {
+    return fixture.debugElement.query(By.directive(CarouselComponent)).componentInstance as CarouselComponent;
+}
+
+function getScrollEl(fixture: ComponentFixture<unknown>): HTMLElement {
+    return fixture.debugElement.query(By.css('[data-slot="carousel-content"]')).nativeElement as HTMLElement;
+}
+
+function getItems(fixture: ComponentFixture<unknown>): HTMLElement[] {
+    return fixture.debugElement.queryAll(By.css('[data-slot="carousel-item"]')).map((d) => d.nativeElement as HTMLElement);
+}
+
+/** Defines read-only scroll/size metrics on an element for jsdom (which reports 0). */
+function setMetrics(el: HTMLElement, metrics: Record<string, number>): void {
+    for (const [key, value] of Object.entries(metrics)) {
+        Object.defineProperty(el, key, { configurable: true, get: () => value });
+    }
+}
+
+// ── Test hosts ───────────────────────────────────────────────────────────────
 @Component({
     template: `
         <ui-carousel>
@@ -21,7 +65,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 })
 class TestHostComponent { }
 
-// Vertical orientation test host
 @Component({
     template: `
         <ui-carousel orientation="vertical">
@@ -35,7 +78,31 @@ class TestHostComponent { }
 })
 class VerticalTestHost { }
 
-// RTL Test host
+@Component({
+    template: `
+        <ui-carousel orientation="vertical">
+            <ui-carousel-content>
+                <ui-carousel-item>Slide 1</ui-carousel-item>
+                <ui-carousel-item>Slide 2</ui-carousel-item>
+            </ui-carousel-content>
+            <ui-carousel-previous />
+            <ui-carousel-next />
+        </ui-carousel>
+    `,
+    imports: [CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent]
+})
+class VerticalWithButtonsHost { }
+
+@Component({
+    template: `
+        <ui-carousel>
+            <ui-carousel-content></ui-carousel-content>
+        </ui-carousel>
+    `,
+    imports: [CarouselComponent, CarouselContentComponent]
+})
+class EmptyContentHost { }
+
 @Component({
     template: `
         <div [dir]="dir()">
@@ -91,6 +158,23 @@ describe('CarouselComponent', () => {
         const carousel = fixture.debugElement.query(By.css('[aria-roledescription="carousel"]'));
         expect(carousel).toBeTruthy();
     });
+
+    it('applies a custom class input', () => {
+        fixture.componentRef.setInput('class', 'my-extra');
+        fixture.detectChanges();
+        expect(component.classes()).toContain('my-extra');
+    });
+
+    it('scroll methods no-op before a scroll container exists', async () => {
+        await flushSetup(fixture);
+        expect(() => {
+            component.scrollPrev();
+            component.scrollNext();
+            component.scrollTo(0);
+            component.updateScrollState();
+        }).not.toThrow();
+        expect(component.canScrollNext()).toBe(true);
+    });
 });
 
 describe('Carousel Integration', () => {
@@ -136,6 +220,123 @@ describe('Carousel Integration', () => {
     });
 });
 
+describe('Carousel scroll behaviour (LTR horizontal)', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+    let carousel: CarouselComponent;
+    let scrollEl: HTMLElement;
+    let scrollBy: ReturnType<typeof vi.fn>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+        await flushSetup(fixture);
+        carousel = getCarousel(fixture);
+        scrollEl = getScrollEl(fixture);
+        scrollBy = vi.fn();
+        (scrollEl as unknown as { scrollBy: unknown }).scrollBy = scrollBy;
+    });
+
+    it('reports "at start" when scrollLeft is 0', () => {
+        setMetrics(scrollEl, { scrollLeft: 0, scrollWidth: 300, clientWidth: 100 });
+        setMetrics(getItems(fixture)[0], { offsetWidth: 100 });
+        carousel.updateScrollState();
+        expect(carousel.canScrollPrev()).toBe(false);
+        expect(carousel.canScrollNext()).toBe(true);
+        expect(carousel.currentIndex()).toBe(0);
+    });
+
+    it('reports "at end" and computes the current index', () => {
+        setMetrics(scrollEl, { scrollLeft: 200, scrollWidth: 300, clientWidth: 100 });
+        setMetrics(getItems(fixture)[0], { offsetWidth: 100 });
+        carousel.updateScrollState();
+        expect(carousel.canScrollPrev()).toBe(true);
+        expect(carousel.canScrollNext()).toBe(false);
+        expect(carousel.currentIndex()).toBe(2);
+    });
+
+    it('leaves the index untouched when item width is 0', () => {
+        setMetrics(scrollEl, { scrollLeft: 50, scrollWidth: 300, clientWidth: 100 });
+        setMetrics(getItems(fixture)[0], { offsetWidth: 0 });
+        carousel.updateScrollState();
+        expect(carousel.currentIndex()).toBe(0);
+    });
+
+    it('scrollNext scrolls one page forward', () => {
+        setMetrics(scrollEl, { clientWidth: 120 });
+        carousel.scrollNext();
+        expect(scrollBy).toHaveBeenCalledWith({ left: 120, behavior: 'smooth' });
+    });
+
+    it('scrollPrev scrolls one page backward', () => {
+        setMetrics(scrollEl, { clientWidth: 120 });
+        carousel.scrollPrev();
+        expect(scrollBy).toHaveBeenCalledWith({ left: -120, behavior: 'smooth' });
+    });
+
+    it('scrollTo scrolls the target item into view', () => {
+        const items = getItems(fixture);
+        const into = vi.fn();
+        (items[1] as unknown as { scrollIntoView: unknown }).scrollIntoView = into;
+        carousel.scrollTo(1);
+        expect(into).toHaveBeenCalledWith({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+    });
+
+    it('scrollTo is a no-op for an out-of-range index', () => {
+        expect(() => carousel.scrollTo(99)).not.toThrow();
+    });
+
+    it('ArrowRight triggers next, ArrowLeft triggers prev, other keys are ignored', () => {
+        setMetrics(scrollEl, { clientWidth: 100 });
+        carousel.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+        expect(scrollBy).toHaveBeenLastCalledWith({ left: 100, behavior: 'smooth' });
+        carousel.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+        expect(scrollBy).toHaveBeenLastCalledWith({ left: -100, behavior: 'smooth' });
+        carousel.onKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(scrollBy).toHaveBeenCalledTimes(2);
+    });
+
+    it('clicking next/previous buttons drives the scroll container', () => {
+        setMetrics(scrollEl, { clientWidth: 100 });
+        const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]')).nativeElement as HTMLButtonElement;
+        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]')).nativeElement as HTMLButtonElement;
+        next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(scrollBy).toHaveBeenLastCalledWith({ left: 100, behavior: 'smooth' });
+        prev.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(scrollBy).toHaveBeenLastCalledWith({ left: -100, behavior: 'smooth' });
+    });
+});
+
+describe('Carousel scroll behaviour (RTL horizontal)', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+    let carousel: CarouselComponent;
+    let scrollEl: HTMLElement;
+    let scrollBy: ReturnType<typeof vi.fn>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+        await flushSetup(fixture);
+        carousel = getCarousel(fixture);
+        carousel.rtl.set(true);
+        scrollEl = getScrollEl(fixture);
+        setMetrics(scrollEl, { clientWidth: 100 });
+        scrollBy = vi.fn();
+        (scrollEl as unknown as { scrollBy: unknown }).scrollBy = scrollBy;
+    });
+
+    it('scrollNext inverts direction in RTL', () => {
+        carousel.scrollNext();
+        expect(scrollBy).toHaveBeenCalledWith({ left: -100, behavior: 'smooth' });
+    });
+
+    it('scrollPrev inverts direction in RTL', () => {
+        carousel.scrollPrev();
+        expect(scrollBy).toHaveBeenCalledWith({ left: 100, behavior: 'smooth' });
+    });
+});
+
 describe('Carousel Vertical Orientation', () => {
     let fixture: ComponentFixture<VerticalTestHost>;
 
@@ -157,6 +358,82 @@ describe('Carousel Vertical Orientation', () => {
         const content = fixture.debugElement.query(By.css('[data-slot="carousel-content"]'));
         expect(content.nativeElement.className).toContain('flex-col');
     });
+
+    it('should apply vertical padding class to items', () => {
+        const item = fixture.debugElement.query(By.css('[data-slot="carousel-item"]'));
+        expect(item.nativeElement.className).toContain('pt-4');
+    });
+
+    it('updates scroll state and index along the vertical axis', async () => {
+        await flushSetup(fixture);
+        const carousel = getCarousel(fixture);
+        const scrollEl = getScrollEl(fixture);
+        setMetrics(scrollEl, { scrollTop: 200, scrollHeight: 300, clientHeight: 100 });
+        setMetrics(getItems(fixture)[0], { offsetHeight: 100 });
+        carousel.updateScrollState();
+        expect(carousel.canScrollPrev()).toBe(true);
+        expect(carousel.canScrollNext()).toBe(false);
+        expect(carousel.currentIndex()).toBe(2);
+    });
+
+    it('scrolls along the top axis with arrow up/down', async () => {
+        await flushSetup(fixture);
+        const carousel = getCarousel(fixture);
+        const scrollEl = getScrollEl(fixture);
+        setMetrics(scrollEl, { clientHeight: 200 });
+        const scrollBy = vi.fn();
+        (scrollEl as unknown as { scrollBy: unknown }).scrollBy = scrollBy;
+        carousel.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        expect(scrollBy).toHaveBeenLastCalledWith({ top: 200, behavior: 'smooth' });
+        carousel.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+        expect(scrollBy).toHaveBeenLastCalledWith({ top: -200, behavior: 'smooth' });
+    });
+});
+
+describe('Carousel vertical nav buttons', () => {
+    it('renders previous/next with vertical positioning classes', async () => {
+        await TestBed.configureTestingModule({ imports: [VerticalWithButtonsHost] }).compileComponents();
+        const fixture = TestBed.createComponent(VerticalWithButtonsHost);
+        fixture.detectChanges();
+        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]')).nativeElement as HTMLElement;
+        const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]')).nativeElement as HTMLElement;
+        expect(prev.className).toContain('rotate-90');
+        expect(next.className).toContain('rotate-90');
+    });
+});
+
+describe('Carousel with empty content', () => {
+    it('handles a scroll container that has no items', async () => {
+        await TestBed.configureTestingModule({ imports: [EmptyContentHost] }).compileComponents();
+        const fixture = TestBed.createComponent(EmptyContentHost);
+        fixture.detectChanges();
+        await flushSetup(fixture);
+        const carousel = getCarousel(fixture);
+        const scrollEl = getScrollEl(fixture);
+        setMetrics(scrollEl, { scrollLeft: 0, scrollWidth: 100, clientWidth: 100 });
+        expect(() => carousel.updateScrollState()).not.toThrow();
+        expect(carousel.currentIndex()).toBe(0);
+    });
+});
+
+describe('Carousel lifecycle cleanup', () => {
+    it('clears the pending setup timer when destroyed before it fires', async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+        expect(() => fixture.destroy()).not.toThrow();
+    });
+
+    it('detaches the scroll listener and observers on destroy', async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+        await flushSetup(fixture);
+        const scrollEl = getScrollEl(fixture);
+        const removeSpy = vi.spyOn(scrollEl, 'removeEventListener');
+        fixture.destroy();
+        expect(removeSpy).toHaveBeenCalledWith('scroll', expect.any(Function));
+    });
 });
 
 describe('Carousel RTL Support', () => {
@@ -173,10 +450,6 @@ describe('Carousel RTL Support', () => {
         fixture.detectChanges();
     });
 
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
     it('should render in LTR mode', () => {
         const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
         expect(container).toBeTruthy();
@@ -190,6 +463,14 @@ describe('Carousel RTL Support', () => {
 
         const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
         expect(container).toBeTruthy();
+    });
+
+    it('re-reads RTL state when the document dir attribute mutates', async () => {
+        const carousel = getCarousel(fixture);
+        const spy = vi.spyOn(carousel, 'updateScrollState');
+        document.documentElement.setAttribute('dir', 'rtl');
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(spy).toHaveBeenCalled();
     });
 
     it('should maintain navigation buttons in RTL', async () => {
@@ -210,16 +491,12 @@ describe('Carousel RTL Support', () => {
         await fixture.whenStable();
 
         const carouselComp = fixture.debugElement.query(By.directive(CarouselComponent));
-        // Manually set RTL state since DOM detection may not work in test
         carouselComp.componentInstance.rtl.set(true);
-        // At first index, canScrollPrev is false
         carouselComp.componentInstance.canScrollPrev.set(false);
         carouselComp.componentInstance.canScrollNext.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
 
-        // In RTL at first index, the "next" button (right arrow) should be disabled
-        // because it maps to canScrollPrev which is false
         const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]'));
         expect(next.nativeElement.disabled).toBe(true);
     });
@@ -231,39 +508,36 @@ describe('Carousel RTL Support', () => {
         await fixture.whenStable();
 
         const carouselComp = fixture.debugElement.query(By.directive(CarouselComponent));
-        // Manually set RTL state
         carouselComp.componentInstance.rtl.set(true);
-        // At first index, canScrollPrev is false, canScrollNext is true
         carouselComp.componentInstance.canScrollPrev.set(false);
         carouselComp.componentInstance.canScrollNext.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
 
-        // In RTL at first index, the "previous" button (left arrow) should be enabled
-        // because it maps to canScrollNext which is true
         const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
         expect(prev.nativeElement.disabled).toBe(false);
     });
 
-    it('should move to next slide when clicking previous (left arrow) in RTL', async () => {
+    it('clicking previous in RTL scrolls forward; clicking next scrolls back', async () => {
         component.dir.set('rtl');
         document.documentElement.setAttribute('dir', 'rtl');
         fixture.detectChanges();
-        await fixture.whenStable();
+        await flushSetup(fixture);
 
-        // Click the previous button (left arrow) - in RTL this scrolls forward
-        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
-        prev.nativeElement.click();
+        const carousel = getCarousel(fixture);
+        carousel.rtl.set(true);
+        const scrollEl = getScrollEl(fixture);
+        setMetrics(scrollEl, { clientWidth: 100 });
+        const scrollBy = vi.fn();
+        (scrollEl as unknown as { scrollBy: unknown }).scrollBy = scrollBy;
         fixture.detectChanges();
 
-        // Wait for scroll animation
-        await new Promise(resolve => setTimeout(resolve, 100));
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        // The carousel should have moved (index may increase or scroll position changed)
-        // We verify the button was clicked and component method was called
-        expect(prev.nativeElement.disabled).toBe(false);
+        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]')).nativeElement as HTMLButtonElement;
+        const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]')).nativeElement as HTMLButtonElement;
+        prev.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(scrollBy).toHaveBeenLastCalledWith({ left: -100, behavior: 'smooth' });
+        next.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(scrollBy).toHaveBeenLastCalledWith({ left: 100, behavior: 'smooth' });
     });
 
     it('should have previous (left arrow) disabled at last index in RTL', async () => {
@@ -273,15 +547,11 @@ describe('Carousel RTL Support', () => {
         await fixture.whenStable();
 
         const carouselComp = fixture.debugElement.query(By.directive(CarouselComponent));
-
-        // Simulate being at the last slide by scrolling to end
-        // In the test environment, we manually set the state
+        carouselComp.componentInstance.rtl.set(true);
         carouselComp.componentInstance.canScrollNext.set(false);
         fixture.detectChanges();
         await fixture.whenStable();
 
-        // In RTL at last index, the "previous" button (left arrow) should be disabled
-        // because it maps to scrollNext which has nothing more to scroll to
         const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
         expect(prev.nativeElement.disabled).toBe(true);
     });
@@ -293,15 +563,12 @@ describe('Carousel RTL Support', () => {
         await fixture.whenStable();
 
         const carouselComp = fixture.debugElement.query(By.directive(CarouselComponent));
-
-        // Simulate being at the last slide
+        carouselComp.componentInstance.rtl.set(true);
         carouselComp.componentInstance.canScrollNext.set(false);
         carouselComp.componentInstance.canScrollPrev.set(true);
         fixture.detectChanges();
         await fixture.whenStable();
 
-        // In RTL at last index, the "next" button (right arrow) should be enabled
-        // because it maps to scrollPrev which can scroll back
         const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]'));
         expect(next.nativeElement.disabled).toBe(false);
     });
@@ -312,7 +579,7 @@ describe('Carousel RTL Support', () => {
     imports: [CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent],
     template: `
         <div dir="rtl">
-            <ui-carousel>
+            <ui-carousel dir="rtl">
                 <ui-carousel-content>
                     <ui-carousel-item>شريحة 1</ui-carousel-item>
                     <ui-carousel-item>شريحة 2</ui-carousel-item>
@@ -326,25 +593,38 @@ describe('Carousel RTL Support', () => {
 class RtlInitHost { }
 
 describe('Carousel RTL auto-detection on init', () => {
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
-
     it('re-reads RTL direction after content init so a direct rtl load is detected', async () => {
-        await TestBed.configureTestingModule({ imports: [RtlInitHost] }).compileComponents();
-        const rtlFixture = TestBed.createComponent(RtlInitHost);
-        document.body.appendChild(rtlFixture.nativeElement);
-        rtlFixture.detectChanges();
-        await rtlFixture.whenStable();
+        // isRtl() reads getComputedStyle(el).direction; jsdom does not cascade
+        // `dir` into computed direction consistently across runners, so reflect
+        // the nearest [dir] ancestor here (what a real browser resolves).
+        const originalGetComputedStyle = globalThis.getComputedStyle;
+        globalThis.getComputedStyle = ((el: Element, pseudo?: string | null) => {
+            const real = originalGetComputedStyle(el, pseudo ?? undefined);
+            const dir = (el as HTMLElement).closest?.('[dir]')?.getAttribute('dir');
+            if (!dir) return real;
+            return new Proxy(real, {
+                get: (target, prop) => (prop === 'direction' ? dir : Reflect.get(target, prop)),
+            });
+        }) as typeof getComputedStyle;
 
-        const carousel = rtlFixture.debugElement.query(By.directive(CarouselComponent)).componentInstance as CarouselComponent;
+        try {
+            await TestBed.configureTestingModule({ imports: [RtlInitHost] }).compileComponents();
+            const rtlFixture = TestBed.createComponent(RtlInitHost);
+            document.body.appendChild(rtlFixture.nativeElement);
+            rtlFixture.detectChanges();
+            await rtlFixture.whenStable();
 
-        carousel.rtl.set(false);
-        carousel.ngAfterContentInit();
-        await new Promise(resolve => setTimeout(resolve, 5));
+            const carousel = rtlFixture.debugElement.query(By.directive(CarouselComponent)).componentInstance as CarouselComponent;
 
-        expect(carousel.rtl()).toBe(true);
-        rtlFixture.nativeElement.remove();
+            carousel.rtl.set(false);
+            carousel.ngAfterContentInit();
+            await new Promise(resolve => setTimeout(resolve, 5));
+
+            expect(carousel.rtl()).toBe(true);
+            rtlFixture.nativeElement.remove();
+        } finally {
+            globalThis.getComputedStyle = originalGetComputedStyle;
+        }
     });
 });
 

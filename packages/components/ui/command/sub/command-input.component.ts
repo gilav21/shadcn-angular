@@ -5,10 +5,12 @@ import {
   ElementRef,
   inject,
   input,
+  OnInit,
   ViewChild,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
-import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
+import { createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
+import { COMMON_LOCALES, type CommonLocale } from '../../../lib/i18n/common.locales';
 import { CommandService } from '../command.component';
 
 @Component({
@@ -32,7 +34,7 @@ import { CommandService } from '../command.component';
   `,
   host: { class: 'contents' },
 })
-export class CommandInputComponent {
+export class CommandInputComponent implements OnInit {
   @ViewChild('inputEl') inputEl!: ElementRef<HTMLInputElement>;
   readonly cmdService = inject(CommandService);
 
@@ -48,7 +50,7 @@ export class CommandInputComponent {
   protected readonly t = this.i18n.t;
   protected readonly dir = this.i18n.dir;
 
-  constructor() {
+  ngOnInit(): void {
     if (this.value()) {
       this.cmdService.search.set(this.value());
     }

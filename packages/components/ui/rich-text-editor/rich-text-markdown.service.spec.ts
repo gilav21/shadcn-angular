@@ -285,6 +285,12 @@ describe('RichTextMarkdownService', () => {
             expect(service.toMarkdown(html)).toBe('- a\n  1. b');
         });
 
+        it('converts a nested task list detected via data-task-list', () => {
+            const html = '<ul data-task-list><li><span>a</span>'
+                + '<ul data-task-list><li data-checked="true"><span>b</span></li></ul></li></ul>';
+            expect(service.toMarkdown(html)).toBe('- [ ] a\n  - [x] b');
+        });
+
         it('converts a blockquote prefixing each line with >', () => {
             // <br> becomes a "  \n" (trailing double-space) line break in markdown.
             const html = '<blockquote>line1<br>line2</blockquote>';
@@ -527,6 +533,28 @@ describe('RichTextMarkdownService', () => {
             expect(back).toContain('data-action-click="a"');
             offRules();
             offSpan();
+        });
+    });
+
+    // =====================================================================
+    // COVERAGE EDGE CASES
+    // =====================================================================
+    describe('coverage edge cases', () => {
+        it('closes a mid-text blockquote when a non-quote line follows', () => {
+            // A ">" preceded by a newline survives escapeHtmlInContent, so the
+            // middle line becomes a blockquote and the following plain line
+            // triggers the "flush blockquote then push line" branch.
+            const html = service.toHtml('para\n> quoted\nafter');
+            expect(html).toContain('<blockquote>quoted</blockquote>');
+            expect(html).toContain('after');
+        });
+
+        it('skips a whitespace-only paragraph block', () => {
+            // The " " block between the double newlines trims to empty and is
+            // dropped by parseParagraphs.
+            const html = service.toHtml('a\n\n \n\nb');
+            expect(html).toContain('<p>a</p>');
+            expect(html).toContain('<p>b</p>');
         });
     });
 });

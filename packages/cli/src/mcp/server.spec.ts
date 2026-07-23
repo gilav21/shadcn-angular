@@ -62,12 +62,12 @@ describe('MCP server (in-memory)', () => {
   it('exposes the full tool set with correct annotations', async () => {
     const { tools } = await client.listTools();
     const names = tools.map(t => t.name);
-    expect(tools).toHaveLength(21);
+    expect(tools).toHaveLength(22);
     for (const expected of [
       'list_components', 'search_components', 'get_component', 'why',
       'get_component_source', 'get_component_examples', 'get_install_plan',
       'init_project', 'add_component', 'update_component', 'diff_component',
-      'set_density', 'set_radius', 'set_motion', 'set_locale', 'change_theme',
+      'set_density', 'set_radius', 'set_motion', 'set_locale', 'set_test_runner', 'change_theme',
       'get_project_status', 'doctor_fix', 'refresh_lib', 'migrate', 'apply_addon',
     ]) {
       expect(names, expected).toContain(expected);
@@ -86,7 +86,7 @@ describe('MCP server (in-memory)', () => {
       'list_components', 'search_components', 'get_component', 'why',
       'get_component_source', 'get_component_examples', 'get_install_plan', 'get_project_status',
       'init_project', 'add_component', 'update_component', 'diff_component', 'set_locale',
-      'doctor_fix', 'refresh_lib', 'migrate', 'apply_addon',
+      'set_test_runner', 'doctor_fix', 'refresh_lib', 'migrate', 'apply_addon',
     ];
     for (const name of sourceAware) {
       const props = tools.find(t => t.name === name)?.inputSchema.properties ?? {};

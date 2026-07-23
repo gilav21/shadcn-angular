@@ -1,0 +1,5 @@
+# Component sources are installed by `add --include-tests` at test time, not committed.
+src/
+node_modules/
+components.lock.json
+jest-results.json

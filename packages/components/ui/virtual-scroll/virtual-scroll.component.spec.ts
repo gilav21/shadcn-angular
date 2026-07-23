@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { VirtualScrollComponent, VirtualItemDirective, VirtualItem } from './virtual-scroll.component';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 interface TestItem extends VirtualItem {
     id: number;
@@ -15,6 +15,86 @@ function createItems(count: number): TestItem[] {
         name: `Item ${i}`,
     }));
 }
+
+/**
+ * Private surface of the component exercised directly by these specs. jsdom has
+ * no layout, so the runway math (offsets, resize handling, scroll progress) is
+ * driven through these members rather than real DOM measurement.
+ */
+type VsPrivate = {
+    getOffsetForIndex(index: number): number;
+    getIndexForOffset(scrollY: number): number;
+    handleResizes(entries: ResizeObserverEntry[]): void;
+    calculateScrollProgress(): number;
+};
+
+type VsComponent = VirtualScrollComponent<TestItem>;
+
+// jsdom reports 0 for every layout metric and no-ops scrollTop assignment, so
+// the component can never observe a scroll. This injects a settable scrollTop
+// backing store plus fixed height metrics and returns a restore fn.
+function installViewportMetrics(
+    el: HTMLElement,
+    clientHeight: number,
+    scrollHeight: number,
+): () => void {
+    const saved = new Map<string, PropertyDescriptor | undefined>();
+    let backingScrollTop = 0;
+    const define = (prop: string, get: () => number, set?: (v: number) => void): void => {
+        saved.set(prop, Object.getOwnPropertyDescriptor(el, prop));
+        Object.defineProperty(el, prop, { configurable: true, get, set });
+    };
+    define('scrollTop', () => backingScrollTop, (v: number) => { backingScrollTop = v; });
+    define('clientHeight', () => clientHeight);
+    define('scrollHeight', () => scrollHeight);
+    define('offsetHeight', () => clientHeight);
+    // jsdom does not implement Element.scrollTo; scrollToIndex calls it.
+    saved.set('scrollTo', Object.getOwnPropertyDescriptor(el, 'scrollTo'));
+    Object.defineProperty(el, 'scrollTo', {
+        configurable: true,
+        value: (opts: ScrollToOptions) => { backingScrollTop = opts.top ?? backingScrollTop; },
+    });
+    return () => {
+        for (const [prop, desc] of saved) {
+            if (desc) {
+                Object.defineProperty(el, prop, desc);
+            } else {
+                delete (el as unknown as Record<string, unknown>)[prop];
+            }
+        }
+    };
+}
+
+// A single ResizeObserverEntry shaped exactly as handleResizes reads it.
+function resizeEntry(index: string | undefined, blockSize: number): ResizeObserverEntry {
+    return {
+        target: { dataset: index === undefined ? {} : { index } },
+        borderBoxSize: [{ blockSize, inlineSize: 0 }],
+    } as unknown as ResizeObserverEntry;
+}
+
+// jsdom lacks ResizeObserver; the component constructs two. Capture every
+// callback so specs can invoke the item-resize and container-resize paths.
+let savedResizeObserver: typeof ResizeObserver | undefined;
+let roCallbacks: ResizeObserverCallback[] = [];
+
+beforeEach(() => {
+    savedResizeObserver = globalThis.ResizeObserver;
+    roCallbacks = [];
+    class StubResizeObserver {
+        constructor(cb: ResizeObserverCallback) {
+            roCallbacks.push(cb);
+        }
+        observe(): void { /* no layout in jsdom */ }
+        unobserve(): void { /* no layout in jsdom */ }
+        disconnect(): void { /* no layout in jsdom */ }
+    }
+    globalThis.ResizeObserver = StubResizeObserver as unknown as typeof ResizeObserver;
+});
+
+afterEach(() => {
+    globalThis.ResizeObserver = savedResizeObserver as typeof ResizeObserver;
+});
 
 @Component({
     template: `
@@ -59,6 +139,12 @@ class TestHostComponent {
 describe('VirtualScrollComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
     let host: TestHostComponent;
+    let container: HTMLElement;
+    let restoreMetrics: () => void;
+
+    const getVs = (): VsComponent =>
+        fixture.debugElement.query(By.directive(VirtualScrollComponent)).componentInstance;
+    const asPrivate = (vs: VsComponent): VsPrivate => vs as unknown as VsPrivate;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -68,6 +154,14 @@ describe('VirtualScrollComponent', () => {
         fixture = TestBed.createComponent(TestHostComponent);
         host = fixture.componentInstance;
         fixture.detectChanges();
+
+        container = fixture.nativeElement.querySelector('[data-slot="virtual-scroll"]');
+        restoreMetrics = installViewportMetrics(container, 300, 5000);
+    });
+
+    afterEach(() => {
+        restoreMetrics();
+        fixture.destroy();
     });
 
     it('should create', () => {
@@ -79,7 +173,6 @@ describe('VirtualScrollComponent', () => {
     });
 
     it('should render the virtual scroll container', () => {
-        const container = fixture.nativeElement.querySelector('[data-slot="virtual-scroll"]');
         expect(container).toBeTruthy();
     });
 
@@ -118,9 +211,6 @@ describe('VirtualScrollComponent', () => {
 
     it('should virtualize and limit rendered items to roughly viewport + buffer count', () => {
         const renderedItems = fixture.nativeElement.querySelectorAll('.test-item');
-        // Container height 300px / minItemHeight 50px = 6 viewport items
-        // Plus buffer of 5 on each side = max ~16 items
-        // At the top, only bottom buffer applies so max ~11
         expect(renderedItems.length).toBeLessThanOrEqual(20);
         expect(renderedItems.length).toBeGreaterThan(0);
     });
@@ -139,8 +229,7 @@ describe('VirtualScrollComponent', () => {
     });
 
     it('should update scrollTop signal when scroll event is dispatched', () => {
-        const vsComponent = fixture.debugElement.query(By.directive(VirtualScrollComponent)).componentInstance as VirtualScrollComponent<TestItem>;
-        const container = fixture.nativeElement.querySelector('[data-slot="virtual-scroll"]');
+        const vsComponent = getVs();
 
         expect(vsComponent.scrollTop()).toBe(0);
 
@@ -152,8 +241,6 @@ describe('VirtualScrollComponent', () => {
     });
 
     it('should render different items after scrolling down', () => {
-        const container = fixture.nativeElement.querySelector('[data-slot="virtual-scroll"]');
-
         const itemsBefore = fixture.nativeElement.querySelectorAll('.virtual-item');
         const firstIndexBefore = Number.parseInt(itemsBefore[0].dataset.index, 10);
         expect(firstIndexBefore).toBe(0);
@@ -178,7 +265,6 @@ describe('VirtualScrollComponent', () => {
     it('should emit windowChange output when render range changes', () => {
         host.windowChangeEvents = [];
 
-        const container = fixture.nativeElement.querySelector('[data-slot="virtual-scroll"]');
         container.scrollTop = 1000;
         container.dispatchEvent(new Event('scroll'));
         fixture.detectChanges();
@@ -191,7 +277,7 @@ describe('VirtualScrollComponent', () => {
     });
 
     it('should emit scrollEnd when near the bottom of the list', async () => {
-        const vsComponent = fixture.debugElement.query(By.directive(VirtualScrollComponent)).componentInstance as VirtualScrollComponent<TestItem>;
+        const vsComponent = getVs();
 
         host.scrollEndCount = 0;
         host.hasMore.set(true);
@@ -199,29 +285,47 @@ describe('VirtualScrollComponent', () => {
         host.items.set(createItems(5));
         fixture.detectChanges();
 
-        // In jsdom, container has no real layout so containerHeight is 0.
-        // Manually set containerHeight to simulate a tall container where all items fit.
         vsComponent.containerHeight.set(300);
         fixture.detectChanges();
         await fixture.whenStable();
 
-        // viewportRange end should now be >= totalItems - 2, triggering scrollEnd
         expect(host.scrollEndCount).toBeGreaterThan(0);
     });
 
     it('should scroll to a specific index via scrollToIndex', () => {
-        const vsComponent = fixture.debugElement.query(By.directive(VirtualScrollComponent)).componentInstance as VirtualScrollComponent<TestItem>;
+        const vsComponent = getVs();
 
         vsComponent.scrollToIndex(50);
         fixture.detectChanges();
 
-        // scrollToIndex(50) should set scrollTop to 50 * 50 = 2500 (with default minItemHeight)
         expect(vsComponent.scrollTop()).toBe(50 * 50);
     });
 
+    it('should be a no-op when scrollToIndex runs without a container', () => {
+        const vsComponent = getVs();
+        vsComponent.containerRef = signal(undefined).asReadonly();
+
+        expect(() => vsComponent.scrollToIndex(10)).not.toThrow();
+        expect(vsComponent.scrollTop()).toBe(0);
+    });
+
+    it('should scroll to the bottom via scrollToBottom', () => {
+        const vsComponent = getVs();
+
+        vsComponent.scrollToBottom();
+
+        expect(container.scrollTop).toBe(5000);
+    });
+
+    it('should be a no-op when scrollToBottom runs without a container', () => {
+        const vsComponent = getVs();
+        vsComponent.containerRef = signal(undefined).asReadonly();
+
+        expect(() => vsComponent.scrollToBottom()).not.toThrow();
+    });
+
     it('should apply padding-top on the content wrapper after scrolling', () => {
-        const vsComponent = fixture.debugElement.query(By.directive(VirtualScrollComponent)).componentInstance as VirtualScrollComponent<TestItem>;
-        const container = fixture.nativeElement.querySelector('[data-slot="virtual-scroll"]');
+        const vsComponent = getVs();
 
         container.scrollTop = 2000;
         container.dispatchEvent(new Event('scroll'));
@@ -230,17 +334,15 @@ describe('VirtualScrollComponent', () => {
         const paddingTopValue = vsComponent.paddingTop();
         expect(paddingTopValue).toBeGreaterThan(0);
 
-        const contentWrapper = container.querySelector('.flex.flex-col');
+        const contentWrapper = container.querySelector('.flex.flex-col') as HTMLElement | null;
         if (contentWrapper) {
-            const style = contentWrapper.style.paddingTop;
-            expect(Number.parseInt(style, 10)).toBeGreaterThan(0);
+            expect(Number.parseInt(contentWrapper.style.paddingTop, 10)).toBeGreaterThan(0);
         }
     });
 
     it('should emit scrollState output with correct shape', () => {
         host.scrollStateEvents = [];
 
-        const container = fixture.nativeElement.querySelector('[data-slot="virtual-scroll"]');
         container.scrollTop = 500;
         container.dispatchEvent(new Event('scroll'));
         fixture.detectChanges();
@@ -259,24 +361,23 @@ describe('VirtualScrollComponent', () => {
         host.items.set([]);
         fixture.detectChanges();
 
-        const vsComponent = fixture.debugElement.query(By.directive(VirtualScrollComponent)).componentInstance as VirtualScrollComponent<TestItem>;
+        const vsComponent = getVs();
         expect(vsComponent.viewportRange()).toEqual({ start: 0, end: 0 });
     });
 
     it('should compute renderRange that adds buffer to viewportRange', () => {
-        const vsComponent = fixture.debugElement.query(By.directive(VirtualScrollComponent)).componentInstance as VirtualScrollComponent<TestItem>;
+        const vsComponent = getVs();
         const viewport = vsComponent.viewportRange();
         const render = vsComponent.renderRange();
 
         expect(render.start).toBeLessThanOrEqual(viewport.start);
         expect(render.end).toBeGreaterThanOrEqual(viewport.end);
-        // Buffer is 5, so the difference on each side should be at most 5
         expect(viewport.start - render.start).toBeLessThanOrEqual(5);
         expect(render.end - viewport.end).toBeLessThanOrEqual(5);
     });
 
     it('should include _virtualIndex property on visibleItems', () => {
-        const vsComponent = fixture.debugElement.query(By.directive(VirtualScrollComponent)).componentInstance as VirtualScrollComponent<TestItem>;
+        const vsComponent = getVs();
         const visible = vsComponent.visibleItems();
 
         expect(visible.length).toBeGreaterThan(0);
@@ -287,13 +388,12 @@ describe('VirtualScrollComponent', () => {
     });
 
     it('should compute paddingBottom greater than zero when not scrolled to end', () => {
-        const vsComponent = fixture.debugElement.query(By.directive(VirtualScrollComponent)).componentInstance as VirtualScrollComponent<TestItem>;
-        const paddingBottom = vsComponent.paddingBottom();
-        expect(paddingBottom).toBeGreaterThan(0);
+        const vsComponent = getVs();
+        expect(vsComponent.paddingBottom()).toBeGreaterThan(0);
     });
 
     it('should scroll to top via scrollToTop', () => {
-        const vsComponent = fixture.debugElement.query(By.directive(VirtualScrollComponent)).componentInstance as VirtualScrollComponent<TestItem>;
+        const vsComponent = getVs();
 
         vsComponent.scrollToIndex(50);
         fixture.detectChanges();
@@ -302,6 +402,112 @@ describe('VirtualScrollComponent', () => {
         vsComponent.scrollToTop();
         fixture.detectChanges();
         expect(vsComponent.scrollTop()).toBe(0);
+    });
+
+    it('should compute offsets across chunk boundaries for far indices', () => {
+        const priv = asPrivate(getVs());
+        // Chunk size is 500 items * 50px = 25000px per full chunk.
+        expect(priv.getOffsetForIndex(600)).toBe(25000 + 100 * 50);
+        expect(priv.getOffsetForIndex(0)).toBe(0);
+    });
+
+    it('should clamp the index when scrolling past the end of the content', () => {
+        const priv = asPrivate(getVs());
+        // Total content is 100 * 50 = 5000px; scrolling far beyond clamps to last.
+        expect(priv.getIndexForOffset(999999)).toBe(99);
+    });
+
+    it('should recompute container height when the container ResizeObserver fires', () => {
+        const vsComponent = getVs();
+        vsComponent.containerHeight.set(0);
+
+        // roCallbacks[1] is the container observer created in ngAfterViewInit.
+        roCallbacks[1]([], {} as ResizeObserver);
+
+        expect(vsComponent.containerHeight()).toBe(300);
+    });
+
+    it('should apply measured item heights via the item ResizeObserver callback', () => {
+        const vsComponent = getVs();
+        const priv = asPrivate(vsComponent);
+        const before = vsComponent.measurementVersion();
+
+        // roCallbacks[0] is the item observer wired to handleResizes.
+        roCallbacks[0]([resizeEntry('0', 120)], {} as ResizeObserver);
+
+        expect(vsComponent.measurementVersion()).toBe(before + 1);
+        expect(priv.getOffsetForIndex(1)).toBe(120);
+    });
+
+    it('should ignore resize entries without an index or with a negligible delta', () => {
+        const vsComponent = getVs();
+        const priv = asPrivate(vsComponent);
+
+        priv.handleResizes([
+            resizeEntry(undefined, 200),
+            resizeEntry('-1', 200),
+            resizeEntry('0', 50),
+        ]);
+
+        // No real change applied: index 1 still sits at one min-height.
+        expect(priv.getOffsetForIndex(1)).toBe(50);
+    });
+
+    it('should grow paddingBottom offsets after items are measured taller', () => {
+        const vsComponent = getVs();
+        const priv = asPrivate(vsComponent);
+
+        // Index 50 sits well past the rendered/viewport window (~0-11 with the
+        // 300px viewport + buffer used by this fixture), in both jsdom and a
+        // real browser. paddingBottom subtracts getOffsetForIndex(renderEnd),
+        // which never touches index 50, so growing it can only ever inflate
+        // the total-height term — deterministic across environments, unlike
+        // an in-window index whose growth is simultaneously added to and
+        // subtracted from the padding math and can net out to zero.
+        const before = vsComponent.paddingBottom();
+        priv.handleResizes([resizeEntry('50', 150)]);
+        fixture.detectChanges();
+
+        expect(vsComponent.paddingBottom()).toBeGreaterThan(before);
+    });
+
+    it('should report zero scroll progress when there is no container', () => {
+        const vsComponent = getVs();
+        vsComponent.containerRef = signal(undefined).asReadonly();
+
+        expect(asPrivate(vsComponent).calculateScrollProgress()).toBe(0);
+    });
+
+    it('should report zero scroll progress when content fits the viewport', () => {
+        const vsComponent = getVs();
+        vsComponent.containerRef = signal({
+            nativeElement: { scrollTop: 0, scrollHeight: 100, clientHeight: 300 },
+        } as unknown as never).asReadonly();
+
+        expect(asPrivate(vsComponent).calculateScrollProgress()).toBe(0);
+    });
+
+    it('should report a fractional scroll progress when scrolled within tall content', () => {
+        const vsComponent = getVs();
+        vsComponent.containerRef = signal({
+            nativeElement: { scrollTop: 2000, scrollHeight: 5000, clientHeight: 300 },
+        } as unknown as never).asReadonly();
+
+        const progress = asPrivate(vsComponent).calculateScrollProgress();
+        expect(progress).toBeCloseTo(2000 / (5000 - 300), 5);
+    });
+
+    it('should disconnect observers on destroy', () => {
+        expect(() => fixture.destroy()).not.toThrow();
+    });
+});
+
+describe('VirtualItemDirective', () => {
+    it('narrows the template context via its static ngTemplateContextGuard', () => {
+        const dir = new VirtualItemDirective();
+        expect(
+            VirtualItemDirective.ngTemplateContextGuard(dir, { $implicit: { id: 1 }, index: 0 }),
+        ).toBe(true);
     });
 });
 

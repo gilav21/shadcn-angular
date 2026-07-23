@@ -183,6 +183,142 @@ describe('NumberInputComponent', () => {
         expect(upEvent.preventDefault).toHaveBeenCalled();
         expect(downEvent.preventDefault).toHaveBeenCalled();
     });
+
+    it('should ignore other keys in onKeydown', () => {
+        const spy = vi.spyOn(component, 'increment');
+        const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+        vi.spyOn(enterEvent, 'preventDefault');
+
+        component.onKeydown(enterEvent);
+
+        expect(spy).not.toHaveBeenCalled();
+        expect(enterEvent.preventDefault).not.toHaveBeenCalled();
+    });
+
+    it('should increment from null current value using 0 fallback', () => {
+        const emitted: (number | null)[] = [];
+        component.valueChange.subscribe((v) => emitted.push(v));
+
+        component.writeValue(null);
+        fixture.detectChanges();
+
+        component.increment();
+
+        expect(emitted[0]).toBe(1);
+    });
+
+    it('should decrement from null current value using 0 fallback', () => {
+        const emitted: (number | null)[] = [];
+        component.valueChange.subscribe((v) => emitted.push(v));
+
+        component.writeValue(null);
+        fixture.detectChanges();
+
+        component.decrement();
+
+        expect(emitted[0]).toBe(-1);
+    });
+
+    it('should keep value null on blur when current value is null', () => {
+        const emitted: (number | null)[] = [];
+        component.valueChange.subscribe((v) => emitted.push(v));
+
+        component.writeValue(null);
+        fixture.detectChanges();
+
+        component.onBlur();
+
+        expect(emitted).toHaveLength(0);
+        expect(component['_currentValue']()).toBeNull();
+    });
+
+    it('should call onTouched on blur', () => {
+        const touched = vi.fn();
+        component.registerOnTouched(touched);
+
+        component.onBlur();
+
+        expect(touched).toHaveBeenCalled();
+    });
+
+    it('should focus the underlying input', () => {
+        const inner = component.inputRef();
+        const spy = vi.spyOn(inner, 'focus');
+
+        component.focus();
+
+        expect(spy).toHaveBeenCalled();
+    });
+
+    it('should increment on wheel scroll up when input is focused', () => {
+        const emitted: (number | null)[] = [];
+        component.valueChange.subscribe((v) => emitted.push(v));
+
+        fixture.componentRef.setInput('value', 5);
+        fixture.detectChanges();
+
+        const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+        input.focus();
+
+        const wheelEvent = new WheelEvent('wheel', { deltaY: -1, cancelable: true });
+        vi.spyOn(wheelEvent, 'preventDefault');
+        input.dispatchEvent(wheelEvent);
+
+        expect(wheelEvent.preventDefault).toHaveBeenCalled();
+        expect(emitted[emitted.length - 1]).toBe(6);
+    });
+
+    it('should decrement on wheel scroll down when input is focused', () => {
+        const emitted: (number | null)[] = [];
+        component.valueChange.subscribe((v) => emitted.push(v));
+
+        fixture.componentRef.setInput('value', 5);
+        fixture.detectChanges();
+
+        const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+        input.focus();
+
+        const wheelEvent = new WheelEvent('wheel', { deltaY: 1, cancelable: true });
+        input.dispatchEvent(wheelEvent);
+
+        expect(emitted[emitted.length - 1]).toBe(4);
+    });
+
+    it('should not change value when wheel deltaY is 0', () => {
+        const emitted: (number | null)[] = [];
+        component.valueChange.subscribe((v) => emitted.push(v));
+
+        fixture.componentRef.setInput('value', 5);
+        fixture.detectChanges();
+
+        const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+        input.focus();
+
+        const wheelEvent = new WheelEvent('wheel', { deltaY: 0, cancelable: true });
+        vi.spyOn(wheelEvent, 'preventDefault');
+        input.dispatchEvent(wheelEvent);
+
+        expect(wheelEvent.preventDefault).toHaveBeenCalled();
+        expect(emitted).toHaveLength(0);
+    });
+
+    it('should ignore wheel when the input is not the active element', () => {
+        const emitted: (number | null)[] = [];
+        component.valueChange.subscribe((v) => emitted.push(v));
+
+        fixture.componentRef.setInput('value', 5);
+        fixture.detectChanges();
+
+        const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+        input.blur();
+
+        const wheelEvent = new WheelEvent('wheel', { deltaY: -1, cancelable: true });
+        vi.spyOn(wheelEvent, 'preventDefault');
+        input.dispatchEvent(wheelEvent);
+
+        expect(wheelEvent.preventDefault).not.toHaveBeenCalled();
+        expect(emitted).toHaveLength(0);
+    });
 });
 
 @Component({

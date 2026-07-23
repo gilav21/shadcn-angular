@@ -1,11 +1,33 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { RichTextEditorComponent } from '../..';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+/** jsdom lacks ResizeObserver; the panel's ScrollArea constructs one on view init. */
+class ResizeObserverStub {
+    observe(): void { /* no-op */ }
+    unobserve(): void { /* no-op */ }
+    disconnect(): void { /* no-op */ }
+}
+type ResizeObserverGlobal = { ResizeObserver?: typeof ResizeObserver };
+const originalResizeObserver = (globalThis as ResizeObserverGlobal).ResizeObserver;
+
+beforeEach(() => {
+    (globalThis as ResizeObserverGlobal).ResizeObserver =
+        ResizeObserverStub as unknown as typeof ResizeObserver;
+});
+
+afterEach(() => {
+    if (originalResizeObserver) {
+        (globalThis as ResizeObserverGlobal).ResizeObserver = originalResizeObserver;
+    } else {
+        delete (globalThis as ResizeObserverGlobal).ResizeObserver;
+    }
+});
 import { ShortcutBindingService } from '../../../../lib/shortcut-binding.service';
 import { RichTextHistoryDirective } from './rich-text-history.directive';
 import { RichTextHistoryPanelComponent } from './rich-text-history-panel.component';
+import { RichTextEditorComponent } from '../..';
 
 @Component({
     standalone: true,
@@ -60,7 +82,7 @@ describe('RichTextHistoryDirective', () => {
         const fixture = TestBed.createComponent(HostCmp);
         openFixtures.push(fixture);
         fixture.detectChanges();
-        await fixture.whenStable();
+        await Promise.resolve();
         fixture.detectChanges();
         const editor = fixture.nativeElement.querySelector('[contenteditable]') as HTMLElement;
         const editorCmp = fixture.debugElement.query(By.directive(RichTextEditorComponent))
@@ -107,7 +129,7 @@ describe('RichTextHistoryDirective', () => {
         const fixture = TestBed.createComponent(ToggleHostCmp);
         openFixtures.push(fixture);
         fixture.detectChanges();
-        await fixture.whenStable();
+        await Promise.resolve();
         fixture.detectChanges();
         expect(fixture.nativeElement.querySelector('ui-rich-text-history-panel')).toBeTruthy();
 

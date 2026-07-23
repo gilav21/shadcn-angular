@@ -1,8 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SheetComponent, SheetTriggerComponent, SheetContentComponent, SheetHeaderComponent, SheetTitleComponent, SheetDescriptionComponent, SheetFooterComponent, SheetCloseComponent } from '../sheet';
-import { Component, signal } from '@angular/core';
+import { SHEET } from '../sheet';
+import { Component, signal, WritableSignal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+type MockSheet = { open: WritableSignal<boolean>; hide: () => void };
+
+/** Build a KeyboardEvent whose target / currentTarget are explicitly set. */
+function keyEvent(key: string, target: EventTarget, currentTarget: EventTarget, shiftKey = false): KeyboardEvent {
+    const ev = new KeyboardEvent('keydown', { key, shiftKey });
+    Object.defineProperty(ev, 'target', { value: target, configurable: true });
+    Object.defineProperty(ev, 'currentTarget', { value: currentTarget, configurable: true });
+    return ev;
+}
 
 // Test host for integration
 @Component({
@@ -373,5 +384,215 @@ describe('SheetContentComponent — i18n integration', () => {
         const fixture = await setup(undefined, 'fr');
         const closeBtn = fixture.debugElement.query(By.css('button[aria-label]'));
         expect(closeBtn.nativeElement.getAttribute('aria-label')).toBe('Fermer');
+    });
+});
+
+describe('Sheet Trigger / Close keyboard activation', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [TestHostComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+    });
+
+    afterEach(() => {
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    });
+
+    it('toggles the sheet when Enter is pressed on the trigger', async () => {
+        const triggerEl = fixture.debugElement.query(By.css('[data-slot="sheet-trigger"]'));
+        triggerEl.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
+        expect(content).toBeTruthy();
+    });
+
+    it('ignores trigger keydown that bubbles from an inner element', () => {
+        const triggerComp = fixture.debugElement.query(By.directive(SheetTriggerComponent)).componentInstance as SheetTriggerComponent;
+        const span = fixture.debugElement.query(By.css('[data-slot="sheet-trigger"]')).nativeElement as HTMLElement;
+        const inner = document.createElement('button');
+        span.appendChild(inner);
+
+        triggerComp.onKeydown(keyEvent('Enter', inner, span));
+
+        const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
+        expect(content).toBeNull();
+    });
+
+    it('hides the sheet when Enter is pressed on the close control', async () => {
+        const sheetComp = fixture.debugElement.query(By.directive(SheetComponent)).componentInstance as SheetComponent;
+        sheetComp.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const closeEl = fixture.debugElement.query(By.css('[data-slot="sheet-close"]'));
+        closeEl.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(sheetComp.open()).toBe(false);
+    });
+
+    it('ignores close keydown that bubbles from an inner element', async () => {
+        const sheetComp = fixture.debugElement.query(By.directive(SheetComponent)).componentInstance as SheetComponent;
+        sheetComp.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const closeComp = fixture.debugElement.query(By.directive(SheetCloseComponent)).componentInstance as SheetCloseComponent;
+        const span = fixture.debugElement.query(By.css('[data-slot="sheet-close"]')).nativeElement as HTMLElement;
+        const inner = document.createElement('button');
+        span.appendChild(inner);
+
+        closeComp.onKeydown(keyEvent('Enter', inner, span));
+        fixture.detectChanges();
+
+        expect(sheetComp.open()).toBe(true);
+    });
+});
+
+// Host that renders content directly against a mock SHEET already open.
+@Component({
+    template: `
+        <ui-sheet-content title="Trap" description="Trapped">
+            <button data-testid="first">First</button>
+            <button data-testid="last">Last</button>
+        </ui-sheet-content>
+    `,
+    imports: [SheetContentComponent],
+})
+class TrapHostComponent { }
+
+describe('Sheet Content focus trap & close button', () => {
+    let fixture: ComponentFixture<TrapHostComponent>;
+    let mockSheet: MockSheet;
+    let contentComp: SheetContentComponent;
+
+    beforeEach(async () => {
+        mockSheet = { open: signal(true), hide: vi.fn() };
+        await TestBed.configureTestingModule({
+            imports: [TrapHostComponent],
+            providers: [{ provide: SHEET, useValue: mockSheet }],
+        }).compileComponents();
+        fixture = TestBed.createComponent(TrapHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        contentComp = fixture.debugElement.query(By.directive(SheetContentComponent)).componentInstance as SheetContentComponent;
+    });
+
+    afterEach(() => {
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    });
+
+    function focusables(): HTMLElement[] {
+        const content = fixture.nativeElement.querySelector('[data-slot="sheet-content"]') as HTMLElement;
+        return Array.from(
+            content.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+        );
+    }
+
+    it('focuses the first focusable element on open (ngAfterViewInit)', () => {
+        const first = focusables()[0];
+        expect(document.activeElement).toBe(first);
+    });
+
+    it('wraps focus to the first element when Tab is pressed on the last element', () => {
+        const els = focusables();
+        const first = els[0];
+        const last = els.at(-1) as HTMLElement;
+        last.focus();
+
+        contentComp.onKeydown(keyEvent('Tab', last, last));
+
+        expect(document.activeElement).toBe(first);
+    });
+
+    it('wraps focus to the last element when Shift+Tab is pressed on the first element', () => {
+        const els = focusables();
+        const first = els[0];
+        const last = els.at(-1) as HTMLElement;
+        first.focus();
+
+        contentComp.onKeydown(keyEvent('Tab', first, first, true));
+
+        expect(document.activeElement).toBe(last);
+    });
+
+    it('does not move focus when Tab is pressed from a middle element', () => {
+        const els = focusables();
+        const middle = els[1];
+        middle.focus();
+
+        contentComp.onKeydown(keyEvent('Tab', middle, middle));
+
+        expect(document.activeElement).toBe(middle);
+    });
+
+    it('does not move focus when Shift+Tab is pressed from a middle element', () => {
+        const els = focusables();
+        const middle = els[1];
+        middle.focus();
+
+        contentComp.onKeydown(keyEvent('Tab', middle, middle, true));
+
+        expect(document.activeElement).toBe(middle);
+    });
+
+    it('hides the sheet via the X close button click (close())', () => {
+        const closeBtn = fixture.debugElement.query(By.css('button[aria-label]'));
+        closeBtn.nativeElement.click();
+        expect(mockSheet.hide).toHaveBeenCalled();
+    });
+
+    it('hides the sheet on Escape keydown', () => {
+        contentComp.onKeydown(keyEvent('Escape', document.body, document.body));
+        expect(mockSheet.hide).toHaveBeenCalled();
+    });
+});
+
+// Host with no projected focusable content, mock sheet starts closed.
+@Component({
+    template: `<ui-sheet-content>Just text</ui-sheet-content>`,
+    imports: [SheetContentComponent],
+})
+class NoFocusableHostComponent { }
+
+describe('Sheet Content — falls back to focusing the container', () => {
+    let mockSheet: MockSheet;
+
+    afterEach(() => {
+        vi.useRealTimers();
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    });
+
+    it('focuses the content container when no focusable child exists', async () => {
+        mockSheet = { open: signal(false), hide: vi.fn() };
+        await TestBed.configureTestingModule({
+            imports: [NoFocusableHostComponent],
+            providers: [{ provide: SHEET, useValue: mockSheet }],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(NoFocusableHostComponent);
+        fixture.detectChanges();
+
+        vi.useFakeTimers();
+        mockSheet.open.set(true);
+        fixture.detectChanges();
+
+        const content = fixture.nativeElement.querySelector('[data-slot="sheet-content"]') as HTMLElement;
+        content.querySelector('button')?.remove();
+        const focusSpy = vi.spyOn(content, 'focus');
+
+        vi.advanceTimersByTime(5);
+
+        expect(focusSpy).toHaveBeenCalled();
     });
 });

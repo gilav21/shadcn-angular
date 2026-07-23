@@ -4,6 +4,15 @@ import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { FileUploadComponent, FileUploadItem } from './file-upload.component';
 
+// jsdom (esp. under jest) does not implement the object-URL APIs the component
+// uses for image previews — polyfill them only when absent so both runners work.
+const urlApi = URL as unknown as {
+    createObjectURL?: (blob: unknown) => string;
+    revokeObjectURL?: (url: string) => void;
+};
+urlApi.createObjectURL ??= () => 'blob:mock';
+urlApi.revokeObjectURL ??= () => undefined;
+
 // Test host
 @Component({
     template: `

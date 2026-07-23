@@ -222,8 +222,24 @@ describe('Slider Keyboard — additional keys', () => {
 describe('Slider pointer dragging', () => {
     let component: SliderComponent;
     let fixture: ComponentFixture<SliderComponent>;
+    const protoRef = Element.prototype as unknown as { getBoundingClientRect: () => DOMRect };
+    let originalRect: () => DOMRect;
 
     beforeEach(async () => {
+        originalRect = protoRef.getBoundingClientRect;
+        protoRef.getBoundingClientRect = () =>
+            ({
+                left: 0,
+                top: 0,
+                right: 200,
+                bottom: 10,
+                width: 200,
+                height: 10,
+                x: 0,
+                y: 0,
+                toJSON: () => ({}),
+            }) as DOMRect;
+
         await TestBed.configureTestingModule({ imports: [SliderComponent] }).compileComponents();
         fixture = TestBed.createComponent(SliderComponent);
         component = fixture.componentInstance;
@@ -233,6 +249,7 @@ describe('Slider pointer dragging', () => {
 
     afterEach(() => {
         fixture.nativeElement.remove();
+        protoRef.getBoundingClientRect = originalRect;
     });
 
     function track(): HTMLElement {
@@ -324,15 +341,31 @@ describe('Slider pointer dragging', () => {
     });
 
     it('inverts position mapping in RTL', () => {
-        fixture.nativeElement.setAttribute('dir', 'rtl');
-        const t = track();
-        const rect = t.getBoundingClientRect();
-        // In RTL, the left edge corresponds to max
-        t.dispatchEvent(new MouseEvent('mousedown', { clientX: rect.left, bubbles: true }));
-        fixture.detectChanges();
-        expect(component.value()).toBe(100);
-        document.dispatchEvent(new MouseEvent('mouseup'));
-        fixture.nativeElement.removeAttribute('dir');
+        // isRtl() reads getComputedStyle(el).direction; jsdom doesn't cascade
+        // `dir` into computed direction across runners, so reflect the nearest
+        // [dir] ancestor here (what a real browser resolves).
+        const originalGetComputedStyle = globalThis.getComputedStyle;
+        globalThis.getComputedStyle = ((el: Element, pseudo?: string | null) => {
+            const real = originalGetComputedStyle(el, pseudo ?? undefined);
+            const dir = (el as HTMLElement).closest?.('[dir]')?.getAttribute('dir');
+            if (!dir) return real;
+            return new Proxy(real, {
+                get: (target, prop) => (prop === 'direction' ? dir : Reflect.get(target, prop)),
+            });
+        }) as typeof getComputedStyle;
+        try {
+            fixture.nativeElement.setAttribute('dir', 'rtl');
+            const t = track();
+            const rect = t.getBoundingClientRect();
+            // In RTL, the left edge corresponds to max
+            t.dispatchEvent(new MouseEvent('mousedown', { clientX: rect.left, bubbles: true }));
+            fixture.detectChanges();
+            expect(component.value()).toBe(100);
+            document.dispatchEvent(new MouseEvent('mouseup'));
+            fixture.nativeElement.removeAttribute('dir');
+        } finally {
+            globalThis.getComputedStyle = originalGetComputedStyle;
+        }
     });
 
     it('toString returns the current value', () => {

@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DockComponent, DockItemData } from './dock.component';
 import { DockItemComponent } from './sub/dock-item.component';
@@ -6,6 +6,29 @@ import { DockIconComponent } from './sub/dock-icon.component';
 import { DockLabelComponent } from './sub/dock-label.component';
 import { Component, ViewChild, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
+
+type RectProto = { getBoundingClientRect: () => DOMRect };
+type DockInternals = {
+    _itemCenters: number[];
+    _rafId: number | null;
+    _mouseX: number;
+};
+
+function makeRect(x: number): DOMRect {
+    return {
+        x, y: 0, width: 40, height: 40,
+        top: 0, left: x, right: x + 40, bottom: 40,
+        toJSON: () => undefined,
+    } as unknown as DOMRect;
+}
+
+function nextFrame(): Promise<void> {
+    return new Promise(resolve => requestAnimationFrame(() => resolve()));
+}
+
+function internals(dock: DockComponent): DockInternals {
+    return dock as unknown as DockInternals;
+}
 
 @Component({
     template: `
@@ -29,9 +52,7 @@ class CustomModeHostComponent {
 }
 
 @Component({
-    template: `
-    <ui-dock [items]="items()" [magnification]="60" [distance]="100" />
-  `,
+    template: `<ui-dock [items]="items()" [magnification]="60" [distance]="100" [position]="position()" />`,
     imports: [DockComponent]
 })
 class SimpleModeHostComponent {
@@ -40,14 +61,32 @@ class SimpleModeHostComponent {
         { label: 'Settings', icon: 'S', active: true },
         { label: 'Profile', icon: 'P', class: 'custom-class' },
     ]);
+    position = signal<'bottom' | 'top' | 'left' | 'right'>('bottom');
     @ViewChild(DockComponent) dockComponent!: DockComponent;
 }
 
 describe('DockComponent', () => {
+    const originalRect = Element.prototype.getBoundingClientRect;
+
+    afterEach(() => {
+        (Element.prototype as unknown as RectProto).getBoundingClientRect = originalRect;
+        vi.restoreAllMocks();
+    });
+
+    function layoutItems(items: HTMLElement[]): void {
+        const rects = new Map<Element, DOMRect>();
+        items.forEach((el, index) => rects.set(el, makeRect(index * 50)));
+        (Element.prototype as unknown as RectProto).getBoundingClientRect = function (this: Element): DOMRect {
+            return rects.get(this) ?? originalRect.call(this);
+        };
+    }
+
     describe('Custom Mode (Content Projection)', () => {
         let component: CustomModeHostComponent;
         let fixture: ComponentFixture<CustomModeHostComponent>;
         let dockComponent: DockComponent;
+        let dockEl: HTMLElement;
+        let itemEls: HTMLElement[];
 
         beforeEach(async () => {
             await TestBed.configureTestingModule({
@@ -58,6 +97,12 @@ describe('DockComponent', () => {
             component = fixture.componentInstance;
             fixture.detectChanges();
             dockComponent = component.dockComponent;
+            dockEl = fixture.debugElement.query(By.directive(DockComponent)).nativeElement;
+            itemEls = fixture.debugElement
+                .queryAll(By.directive(DockItemComponent))
+                .map(d => d.nativeElement as HTMLElement);
+            layoutItems(itemEls);
+            dockComponent.recalculateItemCenters();
         });
 
         it('should create', () => {
@@ -70,13 +115,12 @@ describe('DockComponent', () => {
         });
 
         it('should render projected dock items', () => {
-            const items = fixture.debugElement.queryAll(By.directive(DockItemComponent));
-            expect(items).toHaveLength(2);
+            expect(itemEls).toHaveLength(2);
         });
 
         it('should have data-slot on dock root', () => {
-            const dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]'));
-            expect(dockEl).toBeTruthy();
+            const el = fixture.debugElement.query(By.css('[data-slot="dock"]'));
+            expect(el).toBeTruthy();
         });
 
         it('should have default inputs', () => {
@@ -84,51 +128,67 @@ describe('DockComponent', () => {
             expect(dockComponent.distance()).toBe(100);
         });
 
-        it('should update item widths on mousemove', async () => {
-            const items = fixture.debugElement.queryAll(By.directive(DockItemComponent));
+        it('should magnify item under the pointer via a real mousemove event', async () => {
+            dockEl.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+            dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 0, bubbles: true }));
+            await nextFrame();
 
-            const rect1 = {
-                x: 0, y: 0, width: 40, height: 40,
-                top: 0, left: 0, right: 40, bottom: 40,
-                toJSON: () => { }
-            } as DOMRect;
-
-            const rect2 = {
-                x: 40, y: 0, width: 40, height: 40,
-                top: 0, left: 40, right: 80, bottom: 40,
-                toJSON: () => { }
-            } as DOMRect;
-
-            vi.spyOn(items[0].nativeElement, 'getBoundingClientRect').mockReturnValue(rect1);
-            vi.spyOn(items[1].nativeElement, 'getBoundingClientRect').mockReturnValue(rect2);
-
-            dockComponent.recalculateItemCenters();
-
-            const event = new MouseEvent('mousemove', {
-                clientX: 20,
-                bubbles: true
-            });
-
-            dockComponent.onMouseMove(event);
-
-            await new Promise(resolve => requestAnimationFrame(resolve));
-
-            const item1Style = items[0].nativeElement.style.width;
-            expect(item1Style).toBeTruthy();
-            const widthVal = Number.parseFloat(item1Style);
-            expect(widthVal).toBeGreaterThan(40);
-            expect(widthVal).toBeLessThanOrEqual(80);
+            expect(Number.parseFloat(itemEls[0].style.width)).toBeCloseTo(80, 5);
+            const neighbour = Number.parseFloat(itemEls[1].style.width);
+            expect(neighbour).toBeGreaterThan(40);
+            expect(neighbour).toBeLessThan(80);
         });
 
-        it('should reset item widths on mouseleave', async () => {
-            const items = fixture.debugElement.queryAll(By.directive(DockItemComponent));
+        it('should leave items at base width when pointer is far away', async () => {
+            dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 1000, clientY: 0, bubbles: true }));
+            await nextFrame();
 
-            items[0].nativeElement.style.width = '80px';
+            expect(itemEls[0].style.width).toBe('40px');
+            expect(itemEls[1].style.width).toBe('40px');
+        });
 
+        it('should coalesce rapid mousemoves into a single frame', async () => {
+            dockComponent.onMouseMove(new MouseEvent('mousemove', { clientX: 20 }));
+            expect(internals(dockComponent)._rafId).not.toBeNull();
+            dockComponent.onMouseMove(new MouseEvent('mousemove', { clientX: 70 }));
+            expect(internals(dockComponent)._mouseX).toBe(70);
+            await nextFrame();
+            expect(internals(dockComponent)._rafId).toBeNull();
+        });
+
+        it('should reset item widths on mouseleave', () => {
+            itemEls[0].style.width = '80px';
+            dockEl.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+            expect(itemEls[0].style.width).toBe('40px');
+        });
+
+        it('should cancel a pending frame on mouseleave', () => {
+            const cancelSpy = vi.spyOn(globalThis, 'cancelAnimationFrame');
+            dockComponent.onMouseMove(new MouseEvent('mousemove', { clientX: 20 }));
             dockComponent.onMouseLeave();
+            expect(cancelSpy).toHaveBeenCalled();
+            expect(internals(dockComponent)._rafId).toBeNull();
+        });
 
-            const item1Style = items[0].nativeElement.style.width;
-            expect(item1Style).toBe('40px');
+        it('should recalculate centers on mouseenter', () => {
+            const spy = vi.spyOn(dockComponent, 'recalculateItemCenters');
+            dockComponent.onMouseEnter();
+            expect(spy).toHaveBeenCalled();
+        });
+
+        it('should skip items without a matching center', () => {
+            internals(dockComponent)._itemCenters = [];
+            internals(dockComponent)._mouseX = 20;
+            dockComponent.updateItems();
+            expect(itemEls[0].style.width).toBe('40px');
+        });
+
+        it('should cancel a pending frame on destroy', () => {
+            const cancelSpy = vi.spyOn(globalThis, 'cancelAnimationFrame');
+            dockComponent.onMouseMove(new MouseEvent('mousemove', { clientX: 20 }));
+            expect(internals(dockComponent)._rafId).not.toBeNull();
+            fixture.destroy();
+            expect(cancelSpy).toHaveBeenCalled();
         });
     });
 
@@ -146,11 +206,6 @@ describe('DockComponent', () => {
             component = fixture.componentInstance;
             fixture.detectChanges();
             dockComponent = component.dockComponent;
-        });
-
-        it('should create', () => {
-            expect(component).toBeTruthy();
-            expect(dockComponent).toBeTruthy();
         });
 
         it('should not detect custom content', () => {
@@ -186,11 +241,36 @@ describe('DockComponent', () => {
             expect(items[2].nativeElement.className).toContain('custom-class');
         });
 
-        it('should apply position variant classes', () => {
-            fixture.componentRef.setInput('items', component.items());
-
+        it('should render the bottom position variant by default', () => {
             const dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]'));
             expect(dockEl.nativeElement.className).toContain('items-end');
+        });
+
+        it('should render the top position variant', () => {
+            component.position.set('top');
+            fixture.detectChanges();
+            const dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]'));
+            expect(dockEl.nativeElement.className).toContain('items-start');
+        });
+
+        it('should render vertical (left/right) position variants as a column', () => {
+            component.position.set('left');
+            fixture.detectChanges();
+            let dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]'));
+            expect(dockEl.nativeElement.className).toContain('flex-col');
+
+            component.position.set('right');
+            fixture.detectChanges();
+            dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]'));
+            expect(dockEl.nativeElement.className).toContain('flex-col');
+        });
+
+        it('should no-op updateItems when there are no items', () => {
+            component.items.set([]);
+            fixture.detectChanges();
+            const spy = vi.spyOn(dockComponent, 'updateItems');
+            dockComponent.updateItems();
+            expect(spy).toHaveReturned();
         });
     });
 });

@@ -12,6 +12,7 @@ import { getPrefix, type Config } from '../utils/config.js';
 import { DEFAULT_PREFIX } from '../utils/prefix.js';
 import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
 import { performInstall } from './install.js';
+import { resolveTestInstall } from '../utils/test-runner.js';
 import { emptyMergeReport, type MergeReport } from './merge.js';
 import type { ApplyOptions } from './apply-wire.js';
 import {
@@ -243,7 +244,10 @@ export async function applyCore(
     let installed = false;
     let mergeReport = emptyMergeReport();
     if (!options.dryRun) {
-        const installResult = await performInstall({ components: [addon.name], cwd, config, options });
+        // Ship the addon's tests when the project opted into shipped tests
+        // (persisted by a prior `add --include-tests`), matching `add`.
+        const { includeTests, runner } = await resolveTestInstall(config, { yes: options.yes, dryRun: options.dryRun }, cwd);
+        const installResult = await performInstall({ components: [addon.name], cwd, config, options, includeTests, testRunner: runner });
         installed = true;
         mergeReport = installResult.mergeReport;
 

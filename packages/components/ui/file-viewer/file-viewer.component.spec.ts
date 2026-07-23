@@ -1,11 +1,59 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
-import { vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
+import * as nodeBuffer from 'node:buffer';
 import { FileViewerComponent, FileViewerToolbarDirective, FileViewerContentDirective } from './file-viewer.component';
 
 function createTextBlob(content: string): File {
     return new File([content], 'test.txt', { type: 'text/plain' });
 }
+
+type ObjectUrlApi = {
+    createObjectURL?: (blob: unknown) => string;
+    revokeObjectURL?: (url: string) => void;
+};
+type GlobalBlobApi = { Blob: unknown; File: unknown };
+
+const urlApi = URL as unknown as ObjectUrlApi;
+const globalBlobApi = globalThis as unknown as GlobalBlobApi;
+const nodeBlobApi = nodeBuffer as unknown as { Blob: unknown; File: unknown };
+
+let savedCreateObjectURL: ObjectUrlApi['createObjectURL'];
+let savedRevokeObjectURL: ObjectUrlApi['revokeObjectURL'];
+let savedBlob: unknown;
+let savedFile: unknown;
+
+/** True when a Blob/File ctor's instances lack a usable arrayBuffer() (jsdom). */
+function lacksArrayBuffer(ctor: unknown): boolean {
+    return typeof (ctor as { prototype?: { arrayBuffer?: unknown } })?.prototype?.arrayBuffer !== 'function';
+}
+
+beforeEach(() => {
+    savedCreateObjectURL = urlApi.createObjectURL;
+    savedRevokeObjectURL = urlApi.revokeObjectURL;
+    savedBlob = globalBlobApi.Blob;
+    savedFile = globalBlobApi.File;
+
+    let counter = 0;
+    urlApi.createObjectURL = () => `blob:mock/${counter++}`;
+    urlApi.revokeObjectURL = () => { /* jsdom lacks this; noop stub */ };
+    // jsdom's Blob/File lack arrayBuffer(); back them with Node's implementations
+    // ONLY there. In a real browser the natives are complete and node:buffer's
+    // File is undefined, so swapping would null the global and break instanceof.
+    if (nodeBlobApi.Blob && lacksArrayBuffer(globalBlobApi.Blob)) {
+        globalBlobApi.Blob = nodeBlobApi.Blob;
+    }
+    if (nodeBlobApi.File && lacksArrayBuffer(globalBlobApi.File)) {
+        globalBlobApi.File = nodeBlobApi.File;
+    }
+});
+
+afterEach(() => {
+    urlApi.createObjectURL = savedCreateObjectURL;
+    urlApi.revokeObjectURL = savedRevokeObjectURL;
+    globalBlobApi.Blob = savedBlob;
+    globalBlobApi.File = savedFile;
+});
 
 @Component({
     template: `
@@ -397,7 +445,7 @@ describe('FileViewerComponent rendering internals', () => {
     describe('loadFromUrl', () => {
         it('handles non-ok responses', async () => {
             const orig = globalThis.fetch;
-            globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 } as Response);
+            globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 404 } as Response)) as unknown as typeof fetch;
             await api.loadFromUrl('https://x.com/missing.txt');
             expect(component.state()).toBe('error');
             expect(component.errorMessage()).toContain('404');
@@ -407,11 +455,11 @@ describe('FileViewerComponent rendering internals', () => {
         it('loads a text file from a url', async () => {
             const orig = globalThis.fetch;
             const blob = new Blob(['url text'], { type: 'text/plain' });
-            globalThis.fetch = vi.fn().mockResolvedValue({
+            globalThis.fetch = vi.fn(() => Promise.resolve({
                 ok: true,
                 status: 200,
                 blob: () => Promise.resolve(blob),
-            } as unknown as Response);
+            } as unknown as Response)) as unknown as typeof fetch;
             await api.loadFromUrl('https://x.com/note.txt');
             await flush();
             expect(component.state()).toBe('loaded');
@@ -979,6 +1027,182 @@ describe('FileViewerComponent rendering internals', () => {
             expect(conn).toContain('<path');
         });
     });
+
+    describe('additional branch coverage: false/fallback paths', () => {
+        it('scrollContentToTop no-ops when the content slot is absent (custom mode)', () => {
+            const customFixture = TestBed.createComponent(CustomModeHostComponent);
+            customFixture.detectChanges();
+            const viewer = customFixture.debugElement.children[0].componentInstance as FileViewerComponent;
+            viewer.totalPages.set(3);
+            expect(() => viewer.nextPage()).not.toThrow();
+            expect(viewer.currentPage()).toBe(2);
+        });
+
+        it('loadFromUrl handles a non-Error rejection', async () => {
+            const orig = globalThis.fetch;
+            globalThis.fetch = vi.fn(() => Promise.reject('network down')) as unknown as typeof fetch;
+            await api.loadFromUrl('https://x.com/fail.txt');
+            expect(component.state()).toBe('error');
+            expect(component.errorMessage()).toBe('Failed to load file');
+            globalThis.fetch = orig;
+        });
+
+        it('loadFile handles a non-Error rejection from arrayBuffer', async () => {
+            const badFile = { arrayBuffer: () => Promise.reject('nope') } as unknown as File;
+            await api.loadFile(badFile);
+            expect(component.state()).toBe('error');
+            expect(component.errorMessage()).toBe('Failed to process file');
+        });
+
+        it('routes the video type through media processing', async () => {
+            fixture.componentRef.setInput('type', 'video');
+            const file = new File([new Uint8Array([1, 2, 3])], 'v.mp4', { type: 'video/mp4' });
+            await api.loadFile(file);
+            expect(component.mediaSrc()).toBeTruthy();
+            expect(component.state()).toBe('loaded');
+        });
+
+        it('renderDocxToHtml ignores unrecognized element types', () => {
+            expect(api.renderDocxToHtml([{ type: 'bookmarkEnd' }])).toBe('');
+        });
+
+        it('builds a run span for rtl direction alone (no other styles)', () => {
+            const run = { text: 'x', style: { rtl: true } };
+            const html = api.renderDocxParagraph({ type: 'paragraph', style: '', runs: [run] });
+            expect(html).toContain('dir="rtl"');
+            expect(html).not.toContain('style="');
+        });
+
+        it('omits missing paragraph border sides', () => {
+            const html = api.renderDocxParagraph({
+                type: 'paragraph', style: '', runs: [{ text: 'x', style: {} }],
+                borders: {},
+            });
+            expect(html).not.toContain('border-top');
+            expect(html).not.toContain('border-bottom');
+            expect(html).not.toContain('border-left');
+            expect(html).not.toContain('border-right');
+            expect(html).not.toContain('padding:4px 8px');
+        });
+
+        it('treats out-of-range heading levels as a plain paragraph', () => {
+            const html = api.renderDocxParagraph({ type: 'paragraph', style: 'Heading8', runs: [{ text: 'x', style: {} }] });
+            expect(html).toContain('<p');
+            expect(html).not.toContain('<h8');
+        });
+
+        it('ignores unrecognized element types inside table cell content', () => {
+            const table = {
+                type: 'table', tableStyle: {},
+                rows: [{ cells: [{ elements: [{ type: 'bookmarkStart' }], colSpan: 1, rowSpan: 1 }] }],
+            };
+            expect(api.renderDocxTable(table)).toContain('<td');
+        });
+
+        it('cell with an empty cellStyle object yields no style attribute', () => {
+            const table = {
+                type: 'table', tableStyle: {},
+                rows: [{ cells: [{ elements: [], colSpan: 1, rowSpan: 1, cellStyle: {} }] }],
+            };
+            expect(api.renderDocxTable(table)).not.toContain('style="');
+        });
+
+        it('cell borders and paddings with all sides empty add no extra styles', () => {
+            const table = {
+                type: 'table', tableStyle: {},
+                rows: [{
+                    cells: [{
+                        elements: [], colSpan: 1, rowSpan: 1,
+                        cellStyle: { backgroundColor: '#fff', borders: {}, paddings: {} },
+                    }],
+                }],
+            };
+            const html = api.renderDocxTable(table);
+            expect(html).toContain('background-color:#fff');
+            expect(html).not.toContain('border-top');
+            expect(html).not.toContain('padding-top');
+        });
+
+        it('renders a comment without an author safely', () => {
+            const html = api.renderDocxComments([{ id: 'c2', author: '', date: '', paragraphs: [] }]);
+            expect(html).toContain('*c2');
+            expect(html).not.toContain('<strong>');
+        });
+
+        it('applies text outline width without a color', () => {
+            const html = api.renderSlideRun({ text: 'x', textOutline: { width: 2 } });
+            expect(html).toContain('text-stroke-width:2pt');
+            expect(html).not.toContain('text-stroke-color');
+        });
+
+        it('bullet char falls back to a bullet dot when char is missing', () => {
+            expect(api.renderBulletPrefix({ type: 'char' }, 0)).toContain('•');
+        });
+
+        it('bullet with an unrecognized type still renders a prefix span', () => {
+            expect(api.renderBulletPrefix({ type: 'other' }, 0)).toContain('<span');
+        });
+
+        it('autoNum bullet falls back to default scheme and start number', () => {
+            expect(api.renderBulletPrefix({ type: 'autoNum' }, 3)).toContain('3.');
+        });
+
+        it('text frame border uses the default width when unspecified', () => {
+            const html = api.renderSlideTextFrame({
+                type: 'text', x: 0, y: 0, width: 10, height: 10,
+                borderColor: '#000',
+                paragraphs: [],
+            });
+            expect(html).toContain('border:1px solid #000');
+        });
+
+        it('paragraph vertical-align falls back to baseline for an unknown fontAlign', () => {
+            const html = api.renderSlideParagraph({ runs: [{ text: 'x' }], fontAlign: 'weird' }, 0);
+            expect(html).toContain('vertical-align:baseline');
+        });
+
+        it('shape border uses the default width when unspecified', () => {
+            const html = api.renderSlideShape({ type: 'shape', x: 0, y: 0, width: 5, height: 5, borderColor: '#000' });
+            expect(html).toContain('border:1px solid #000');
+        });
+
+        it('connector marker defs render tail-only and head-only variants', () => {
+            const tailOnly = api.renderSlideConnector({ type: 'connector', x: 0, y: 0, width: 10, height: 10, tailEnd: true });
+            expect(tailOnly).toContain('marker-end');
+            expect(tailOnly).not.toContain('marker-start');
+
+            const headOnly = api.renderSlideConnector({ type: 'connector', x: 0, y: 0, width: 10, height: 10, headEnd: true });
+            expect(headOnly).toContain('marker-start');
+            expect(headOnly).not.toContain('marker-end');
+        });
+
+        it('slide table without column widths omits the colgroup', () => {
+            const html = api.renderSlideTable({ type: 'table', x: 0, y: 0, width: 10, height: 10, rows: [] });
+            expect(html).not.toContain('<colgroup>');
+        });
+
+        it('linear gradient falls back to 0deg when angle is missing', () => {
+            expect(api.buildGradientCss({ type: 'linear', stops: [{ color: '#000', position: 0 }] })).toContain('linear-gradient(0deg');
+        });
+
+        it('maps additional dash-to-decoration case labels', () => {
+            expect(api.mapDashToDecorationStyle('dash')).toBe('dashed');
+            expect(api.mapDashToDecorationStyle('sysDash')).toBe('dashed');
+            expect(api.mapDashToDecorationStyle('lgDash')).toBe('dashed');
+        });
+
+        it('tab alignment falls back to left when unspecified or unmapped', () => {
+            const noAlign = api.renderTabContent('a\tb', [{ position: 20 }]);
+            expect(noAlign).toContain('text-align:left');
+
+            const unmapped = api.renderTabContent('a\tb', [{ position: 20, alignment: 'l' }]);
+            expect(unmapped).toContain('text-align:left');
+        });
+
+        it('tab width falls back to 48px when no tab stop or default size is given', () => {
+            expect(api.renderTabContent('a\tb')).toContain('width:48px');
+        });
+    });
 });
 
 describe('file-type-detector', () => {
@@ -1173,5 +1397,312 @@ describe('zip-reader', () => {
         view.setUint16(centralNameOffset - 46 + 28, maliciousName.length, true);
 
         expect(() => readZip(zip)).toThrow();
+    });
+});
+
+// ── Fixture builders for the end-to-end parser paths ──────────────────
+
+function fixtureCrc32(data: Uint8Array): number {
+    let crc = 0xffffffff;
+    for (const b of data) {
+        crc ^= b;
+        for (let i = 0; i < 8; i++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+const u16 = (v: number): number[] => [v & 0xff, (v >>> 8) & 0xff];
+const u32 = (v: number): number[] => [v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff];
+
+/** Build a stored (uncompressed) ZIP with correct CRCs from the given parts. */
+function buildStoredZip(files: ReadonlyArray<{ name: string; content: string }>): Uint8Array {
+    const enc = new TextEncoder();
+    const entries = files.map(f => ({ name: f.name, data: enc.encode(f.content) }));
+    const local: number[] = [];
+    const central: number[] = [];
+    const offsets: number[] = [];
+    let offset = 0;
+    for (const e of entries) {
+        const nb = enc.encode(e.name);
+        const crc = fixtureCrc32(e.data);
+        offsets.push(offset);
+        const l = [
+            ...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+            ...u32(crc), ...u32(e.data.length), ...u32(e.data.length),
+            ...u16(nb.length), ...u16(0), ...nb, ...e.data,
+        ];
+        local.push(...l);
+        offset += l.length;
+    }
+    const centralStart = offset;
+    for (let i = 0; i < entries.length; i++) {
+        const nb = enc.encode(entries[i].name);
+        central.push(
+            ...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(0), ...u16(0), ...u16(0),
+            ...u32(fixtureCrc32(entries[i].data)), ...u32(entries[i].data.length), ...u32(entries[i].data.length),
+            ...u16(nb.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(offsets[i]), ...nb,
+        );
+    }
+    const eocd = [
+        ...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(entries.length), ...u16(entries.length),
+        ...u32(central.length), ...u32(centralStart), ...u16(0),
+    ];
+    return new Uint8Array([...local, ...central, ...eocd]);
+}
+
+function buildMinimalDocx(): Uint8Array {
+    const w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+    const body = `<w:body><w:p><w:r><w:t>Hi</w:t></w:r></w:p></w:body>`;
+    return buildStoredZip([{ name: 'word/document.xml', content: `<?xml version="1.0"?><w:document ${w}>${body}</w:document>` }]);
+}
+
+function buildMinimalPdf(): Uint8Array {
+    const objs = [
+        '<< /Type /Catalog /Pages 2 0 R >>',
+        '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+        '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << >> /Contents 4 0 R >>',
+        '<< /Length 3 >>\nstream\nx\nendstream',
+    ];
+    let body = '%PDF-1.4\n';
+    const offs: number[] = [];
+    for (let i = 0; i < objs.length; i++) {
+        offs.push(body.length);
+        body += `${i + 1} 0 obj\n${objs[i]}\nendobj\n`;
+    }
+    const xrefOff = body.length;
+    const total = objs.length + 1;
+    let xref = `xref\n0 ${total}\n0000000000 65535 f \n`;
+    for (const o of offs) xref += `${String(o).padStart(10, '0')} 00000 n \n`;
+    const trailer = `trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xrefOff}\n%%EOF`;
+    return new TextEncoder().encode(body + xref + trailer);
+}
+
+const OLE_SECTOR = 512;
+const OLE_EOC = 0xfffffffe;
+const OLE_FREE = 0xffffffff;
+
+function oleSetU16(b: Uint8Array, o: number, v: number): void { b[o] = v & 0xff; b[o + 1] = (v >>> 8) & 0xff; }
+function oleSetU32(b: Uint8Array, o: number, v: number): void {
+    b[o] = v & 0xff; b[o + 1] = (v >>> 8) & 0xff; b[o + 2] = (v >>> 16) & 0xff; b[o + 3] = (v >>> 24) & 0xff;
+}
+
+function oleWriteDirEntry(dir: Uint8Array, idx: number, name: string, type: number, start: number, size: number): void {
+    const base = idx * 128;
+    for (let i = 0; i < name.length; i++) oleSetU16(dir, base + i * 2, name.codePointAt(i) ?? 0);
+    oleSetU16(dir, base + 64, (name.length + 1) * 2);
+    dir[base + 66] = type;
+    oleSetU32(dir, base + 116, start);
+    oleSetU32(dir, base + 120, size);
+}
+
+/** Build a minimal OLE2 (compound file) holding a single named stream. */
+function buildOle2(streamName: string, payload: Uint8Array): Uint8Array {
+    const payloadSectors = Math.max(1, Math.ceil(payload.length / OLE_SECTOR));
+    const streamStart = 1;
+    const dirSector = streamStart + payloadSectors;
+    const buf = new Uint8Array(OLE_SECTOR + (dirSector + 1) * OLE_SECTOR);
+    const magic = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+    for (let i = 0; i < magic.length; i++) buf[i] = magic[i];
+    oleSetU16(buf, 30, 9);
+    oleSetU16(buf, 32, 6);
+    oleSetU32(buf, 44, 1);
+    oleSetU32(buf, 48, dirSector);
+    oleSetU32(buf, 56, 0);
+    oleSetU32(buf, 60, OLE_EOC);
+    oleSetU32(buf, 68, OLE_EOC);
+    const sectorBase = (i: number): number => OLE_SECTOR + i * OLE_SECTOR;
+    const fatOff = sectorBase(0);
+    for (let i = 0; i < OLE_SECTOR / 4; i++) oleSetU32(buf, fatOff + i * 4, OLE_FREE);
+    oleSetU32(buf, fatOff, 0xfffffffd);
+    for (let i = 0; i < payloadSectors; i++) {
+        oleSetU32(buf, fatOff + (streamStart + i) * 4, i === payloadSectors - 1 ? OLE_EOC : streamStart + i + 1);
+    }
+    oleSetU32(buf, fatOff + dirSector * 4, OLE_EOC);
+    buf.set(payload, sectorBase(streamStart));
+    const dir = new Uint8Array(OLE_SECTOR);
+    oleWriteDirEntry(dir, 0, 'Root Entry', 5, OLE_EOC, 0);
+    oleWriteDirEntry(dir, 1, streamName, 2, streamStart, payload.length);
+    buf.set(dir, sectorBase(dirSector));
+    return buf;
+}
+
+function buildMinimalPptx(): Uint8Array {
+    const p = 'xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"';
+    const a = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"';
+    const slide = `<?xml version="1.0"?><p:sld ${p} ${a}><p:cSld><p:spTree></p:spTree></p:cSld></p:sld>`;
+    return buildStoredZip([{ name: 'ppt/slides/slide1.xml', content: slide }]);
+}
+
+function pptRecordHeader(ver: number, type: number, len: number): number[] {
+    const vi = ver & 0x0f;
+    return [vi & 0xff, (vi >>> 8) & 0xff, type & 0xff, (type >>> 8) & 0xff,
+        len & 0xff, (len >>> 8) & 0xff, (len >>> 16) & 0xff, (len >>> 24) & 0xff];
+}
+
+function buildMinimalPpt(): Uint8Array {
+    const textBytesAtom: number[] = [];
+    const text = 'Hello';
+    for (let i = 0; i < text.length; i++) textBytesAtom.push((text.codePointAt(i) ?? 0) & 0xff);
+    const persistAtom = [...pptRecordHeader(0, 0x03f3, 20), ...new Array(20).fill(0)];
+    const bytesAtom = [...pptRecordHeader(0, 0x0fa8, textBytesAtom.length), ...textBytesAtom];
+    const children = [...persistAtom, ...bytesAtom];
+    const slideList = [...pptRecordHeader(0xf, 0x0ff0, children.length), ...children];
+    return buildOle2('PowerPoint Document', new Uint8Array(slideList));
+}
+
+function fileOf(bytes: Uint8Array, name: string): File {
+    return new File([bytes as BlobPart], name, { type: 'application/octet-stream' });
+}
+
+describe('FileViewerComponent end-to-end parser paths', () => {
+    let fixture: ComponentFixture<FileViewerComponent>;
+    let component: FileViewerComponent;
+    let api: FileViewerInternals;
+
+    beforeEach(() => {
+        fixture = TestBed.createComponent(FileViewerComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        api = internals(component);
+    });
+
+    it('loads a PDF through the pixel-perfect renderer', async () => {
+        fixture.componentRef.setInput('type', 'pdf');
+        await api.loadFile(fileOf(buildMinimalPdf(), 'doc.pdf'));
+        expect(component.state()).toBe('loaded');
+        expect(component.detectedType()).toBe('pdf');
+        expect(component.totalPages()).toBe(1);
+    });
+
+    it('loads an XLSX workbook', async () => {
+        fixture.componentRef.setInput('type', 'xlsx');
+        await api.loadFile(fileOf(buildStoredZip([{ name: 'hello.txt', content: 'hi' }]), 's.xlsx'));
+        expect(component.state()).toBe('loaded');
+        expect(component.detectedType()).toBe('xlsx');
+    });
+
+    it('loads a DOCX document and renders body html', async () => {
+        fixture.componentRef.setInput('type', 'docx');
+        await api.loadFile(fileOf(buildMinimalDocx(), 'a.docx'));
+        expect(component.state()).toBe('loaded');
+        expect(component.docxHtml()).toBeTruthy();
+    });
+
+    it('loads a legacy DOC via graceful fallback', async () => {
+        fixture.componentRef.setInput('type', 'doc');
+        await api.loadFile(fileOf(buildOle2('NotWordDocument', new Uint8Array(16)), 'a.doc'));
+        expect(component.state()).toBe('loaded');
+        expect(component.detectedType()).toBe('doc');
+    });
+
+    it('loads a PPTX presentation and builds slide html', async () => {
+        fixture.componentRef.setInput('type', 'pptx');
+        await api.loadFile(fileOf(buildMinimalPptx(), 'p.pptx'));
+        expect(component.state()).toBe('loaded');
+        expect(component.detectedType()).toBe('pptx');
+        expect(component.totalPages()).toBe(1);
+    });
+
+    it('loads a legacy PPT presentation and builds slide html', async () => {
+        fixture.componentRef.setInput('type', 'ppt');
+        await api.loadFile(fileOf(buildMinimalPpt(), 'p.ppt'));
+        expect(component.state()).toBe('loaded');
+        expect(component.detectedType()).toBe('ppt');
+        expect(component.totalPages()).toBe(1);
+    });
+
+    it('routes an image through file loading', async () => {
+        fixture.componentRef.setInput('type', 'image');
+        await api.loadFile(fileOf(new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]), 'a.jpg'));
+        expect(component.state()).toBe('loaded');
+        expect(component.imageSrc()).toBeTruthy();
+    });
+
+    it('sets error state when a parser throws during processing', async () => {
+        fixture.componentRef.setInput('type', 'pdf');
+        await api.loadFile(fileOf(new Uint8Array([1, 2, 3, 4, 5]), 'bad.pdf'));
+        expect(component.state()).toBe('error');
+        expect(component.errorMessage()).toBeTruthy();
+    });
+
+    it('loads from a src url via the reactive effect', async () => {
+        const orig = globalThis.fetch;
+        const blob = new Blob(['effect text'], { type: 'text/plain' });
+        globalThis.fetch = vi.fn(() => Promise.resolve({
+            ok: true,
+            status: 200,
+            blob: () => Promise.resolve(blob),
+        } as unknown as Response)) as unknown as typeof fetch;
+        fixture.componentRef.setInput('src', 'https://x.com/note.txt');
+        fixture.detectChanges();
+        // The effect → fetch → blob-read chain resolves over several async hops;
+        // poll rather than assume a fixed flush drains them (browser timing varies).
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(component.state()).toBe('loaded');
+        });
+        expect(component.textContent()).toBe('effect text');
+        globalThis.fetch = orig;
+    });
+
+    it('scrolls the pdf content region to top on page change', () => {
+        component.state.set('loaded');
+        component.detectedType.set('pdf');
+        api.pdfPages.set([{ html: '<p>a</p>' }, { html: '<p>b</p>' }]);
+        api.pdfGlobalCss.set('');
+        component.totalPages.set(2);
+        component.currentPage.set(1);
+        fixture.detectChanges();
+        component.nextPage();
+        expect(component.currentPage()).toBe(2);
+    });
+});
+
+describe('FileViewerComponent remaining branch coverage', () => {
+    let component: FileViewerComponent;
+    let api: FileViewerInternals;
+
+    beforeEach(() => {
+        const fixture = TestBed.createComponent(FileViewerComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+        api = internals(component);
+    });
+
+    it('extractFilename falls back to "file" when the URL is invalid', () => {
+        expect(api.extractFilename('http://[')).toBe('file');
+    });
+
+    it('renders a page break for an empty paragraph whose page-break run is hidden', () => {
+        const html = api.renderDocxParagraph({
+            type: 'paragraph', style: '',
+            runs: [{ text: '', breakType: 'page', style: { hidden: true } }],
+        });
+        expect(html).toContain('<hr');
+    });
+
+    it('closes an open thead when the final table row is a header', () => {
+        const html = api.renderDocxTable({
+            type: 'table', tableStyle: {},
+            rows: [{
+                rowStyle: { isHeader: true },
+                cells: [{ elements: [{ type: 'paragraph', style: '', runs: [{ text: 'h', style: {} }] }], colSpan: 1, rowSpan: 1 }],
+            }],
+        });
+        expect(html).toContain('<thead>');
+        expect(html.endsWith('</thead></table>')).toBe(true);
+    });
+
+    it('skips cell width when a cell style has no width', () => {
+        const html = api.renderDocxTable({
+            type: 'table', tableStyle: {},
+            rows: [{ cells: [{ elements: [], colSpan: 1, rowSpan: 1, cellStyle: { backgroundColor: '#fff' } }] }],
+        });
+        expect(html).toContain('background-color:#fff');
+        expect(html).not.toContain('width:');
+    });
+
+    it('returns the long-dash-dot connector dash array', () => {
+        expect(api.getConnectorDashAttr('lgDashDot')).toContain('12,4,2,4');
     });
 });

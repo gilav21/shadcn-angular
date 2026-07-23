@@ -6,6 +6,11 @@ import { TreeComponent, TreeNode } from './tree.component';
 import { TreeItemComponent } from './sub/tree-item.component';
 import { TreeLabelComponent } from './sub/tree-label.component';
 import { TreeIconComponent } from './sub/tree-icon.component';
+import { TreeNodeContentDirective } from './sub/tree-node-content.directive';
+
+function dispatchKey(treeEl: { triggerEventHandler: (n: string, e: unknown) => void }, key: string): void {
+    treeEl.triggerEventHandler('keydown', { key, preventDefault: () => { /* noop */ } });
+}
 
 // Test host
 @Component({
@@ -473,5 +478,372 @@ describe('TreeComponent - initialExpandDepth', () => {
 
         expect(treeInstance.isExpanded('root-1')).toBe(true);
         expect(treeInstance.isExpanded('child-1-2')).toBe(true);
+    });
+});
+
+describe('TreeComponent - Public methods (expandAll/collapseAll/focus)', () => {
+    let fixture: ComponentFixture<DataDrivenTreeTestHostComponent>;
+    let treeInstance: TreeComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataDrivenTreeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataDrivenTreeTestHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
+    });
+
+    it('should expand all provided keys and emit', () => {
+        const emissions: string[][] = [];
+        treeInstance.expandChange.subscribe(keys => emissions.push(keys));
+
+        treeInstance.expandAll(['root-1', 'child-1-2']);
+
+        expect(treeInstance.isExpanded('root-1')).toBe(true);
+        expect(treeInstance.isExpanded('child-1-2')).toBe(true);
+        expect(emissions).toHaveLength(1);
+        expect(emissions[0]).toEqual(['root-1', 'child-1-2']);
+    });
+
+    it('should collapse all and emit empty array', () => {
+        treeInstance.expandAll(['root-1']);
+        const emissions: string[][] = [];
+        treeInstance.expandChange.subscribe(keys => emissions.push(keys));
+
+        treeInstance.collapseAll();
+
+        expect(treeInstance.isExpanded('root-1')).toBe(false);
+        expect(emissions).toHaveLength(1);
+        expect(emissions[0]).toEqual([]);
+    });
+
+    it('should focus a specific key', () => {
+        treeInstance.focus('root-2');
+        expect(treeInstance.focusedKey()).toBe('root-2');
+    });
+
+    it('should default focus to first item when no key and nothing focused', () => {
+        expect(treeInstance.focusedKey()).toBeNull();
+        treeInstance.focus();
+        expect(treeInstance.focusedKey()).toBe('root-1');
+    });
+
+    it('should keep existing focus when focus() called without key', () => {
+        treeInstance.focus('root-2');
+        treeInstance.focus();
+        expect(treeInstance.focusedKey()).toBe('root-2');
+    });
+
+    it('should reflect focused item in activeDescendantId', () => {
+        treeInstance.focusedKey.set('root-1');
+        fixture.detectChanges();
+        const rootItem = treeInstance.items().find(i => i.value() === 'root-1');
+        expect(treeInstance.activeDescendantId()).toBe(rootItem?.id());
+    });
+
+    it('should return null activeDescendantId when focused key has no item', () => {
+        treeInstance.focusedKey.set('non-existent');
+        fixture.detectChanges();
+        expect(treeInstance.activeDescendantId()).toBeNull();
+    });
+});
+
+describe('TreeComponent - Keyboard navigation (data-driven)', () => {
+    let fixture: ComponentFixture<DataDrivenTreeTestHostComponent>;
+    let treeInstance: TreeComponent;
+    let treeEl: ReturnType<ComponentFixture<DataDrivenTreeTestHostComponent>['debugElement']['query']>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataDrivenTreeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataDrivenTreeTestHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
+
+        treeInstance.toggleExpanded('root-1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        treeEl = fixture.debugElement.query(By.css('[role="tree"]'));
+    });
+
+    it('should move focus down with ArrowDown', () => {
+        treeInstance.focusedKey.set('root-1');
+        dispatchKey(treeEl, 'ArrowDown');
+        expect(treeInstance.focusedKey()).toBe('child-1-1');
+    });
+
+    it('should focus first item on ArrowDown with no current focus', () => {
+        treeInstance.focusedKey.set(null);
+        dispatchKey(treeEl, 'ArrowDown');
+        expect(treeInstance.focusedKey()).toBe('root-1');
+    });
+
+    it('should keep focus on the last item when pressing ArrowDown at the end', () => {
+        treeInstance.focusedKey.set('root-2');
+        dispatchKey(treeEl, 'ArrowDown');
+        expect(treeInstance.focusedKey()).toBe('root-2');
+    });
+
+    it('should move focus up with ArrowUp', () => {
+        treeInstance.focusedKey.set('child-1-1');
+        dispatchKey(treeEl, 'ArrowUp');
+        expect(treeInstance.focusedKey()).toBe('root-1');
+    });
+
+    it('should focus last item on ArrowUp with no current focus', () => {
+        treeInstance.focusedKey.set(null);
+        dispatchKey(treeEl, 'ArrowUp');
+        expect(treeInstance.focusedKey()).toBe('root-2');
+    });
+
+    it('should focus first item on Home', () => {
+        treeInstance.focusedKey.set('root-2');
+        dispatchKey(treeEl, 'Home');
+        expect(treeInstance.focusedKey()).toBe('root-1');
+    });
+
+    it('should focus last item on End', () => {
+        treeInstance.focusedKey.set('root-1');
+        dispatchKey(treeEl, 'End');
+        expect(treeInstance.focusedKey()).toBe('root-2');
+    });
+
+    it('should toggle selection with Enter', () => {
+        treeInstance.focusedKey.set('root-1');
+        dispatchKey(treeEl, 'Enter');
+        expect(treeInstance.focusedKey()).toBe('root-1');
+    });
+
+    it('should toggle selection with Space', () => {
+        treeInstance.focusedKey.set('root-1');
+        expect(() => dispatchKey(treeEl, ' ')).not.toThrow();
+    });
+
+    it('should expand a collapsed parent with ArrowRight', () => {
+        treeInstance.focusedKey.set('child-1-2');
+        dispatchKey(treeEl, 'ArrowRight');
+        expect(treeInstance.isExpanded('child-1-2')).toBe(true);
+    });
+
+    it('should move to first child with ArrowRight on expanded parent', () => {
+        treeInstance.focusedKey.set('root-1');
+        dispatchKey(treeEl, 'ArrowRight');
+        expect(treeInstance.focusedKey()).toBe('child-1-1');
+    });
+
+    it('should do nothing with ArrowRight on a leaf', () => {
+        treeInstance.focusedKey.set('child-1-1');
+        dispatchKey(treeEl, 'ArrowRight');
+        expect(treeInstance.focusedKey()).toBe('child-1-1');
+    });
+
+    it('should do nothing with ArrowRight when nothing focused', () => {
+        treeInstance.focusedKey.set(null);
+        dispatchKey(treeEl, 'ArrowRight');
+        expect(treeInstance.focusedKey()).toBeNull();
+    });
+
+    it('should collapse an expanded parent with ArrowLeft', () => {
+        treeInstance.focusedKey.set('root-1');
+        dispatchKey(treeEl, 'ArrowLeft');
+        expect(treeInstance.isExpanded('root-1')).toBe(false);
+    });
+
+    it('should focus parent and collapse it with ArrowLeft on a child', () => {
+        treeInstance.focusedKey.set('child-1-1');
+        dispatchKey(treeEl, 'ArrowLeft');
+        expect(treeInstance.focusedKey()).toBe('root-1');
+        expect(treeInstance.isExpanded('root-1')).toBe(false);
+    });
+
+    it('should do nothing with ArrowLeft when nothing focused', () => {
+        treeInstance.focusedKey.set(null);
+        dispatchKey(treeEl, 'ArrowLeft');
+        expect(treeInstance.focusedKey()).toBeNull();
+    });
+
+    it('should reuse ancestor cache across visibility checks', () => {
+        treeInstance.focusedKey.set('root-1');
+        dispatchKey(treeEl, 'ArrowDown');
+        dispatchKey(treeEl, 'ArrowDown');
+        expect(treeInstance.focusedKey()).toBe('child-1-2');
+    });
+});
+
+describe('TreeComponent - Keyboard navigation (RTL, data-driven)', () => {
+    let fixture: ComponentFixture<DataDrivenTreeTestHostComponent>;
+    let treeInstance: TreeComponent;
+    let treeEl: ReturnType<ComponentFixture<DataDrivenTreeTestHostComponent>['debugElement']['query']>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataDrivenTreeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataDrivenTreeTestHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
+        const host = fixture.debugElement.query(By.directive(TreeComponent)).nativeElement as HTMLElement;
+        host.style.direction = 'rtl';
+
+        treeInstance.toggleExpanded('root-1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        treeEl = fixture.debugElement.query(By.css('[role="tree"]'));
+    });
+
+    it('should confirm RTL is detected', () => {
+        expect(treeInstance.isRtl()).toBe(true);
+    });
+
+    it('should expand with ArrowLeft in RTL', () => {
+        treeInstance.focusedKey.set('child-1-2');
+        dispatchKey(treeEl, 'ArrowLeft');
+        expect(treeInstance.isExpanded('child-1-2')).toBe(true);
+    });
+
+    it('should collapse with ArrowRight in RTL', () => {
+        treeInstance.focusedKey.set('root-1');
+        dispatchKey(treeEl, 'ArrowRight');
+        expect(treeInstance.isExpanded('root-1')).toBe(false);
+    });
+});
+
+describe('TreeComponent - Keyboard navigation (template-driven, ancestor fallback)', () => {
+    let fixture: ComponentFixture<TreeTestHostComponent>;
+    let treeInstance: TreeComponent;
+    let treeEl: ReturnType<ComponentFixture<TreeTestHostComponent>['debugElement']['query']>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [TreeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(TreeTestHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
+
+        treeInstance.toggleExpanded('folder-1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        treeEl = fixture.debugElement.query(By.css('[role="tree"]'));
+    });
+
+    it('should navigate down using parentItem-based ancestor resolution', () => {
+        treeInstance.focusedKey.set('folder-1');
+        dispatchKey(treeEl, 'ArrowDown');
+        expect(treeInstance.focusedKey()).toBe('file-1');
+    });
+
+    it('should collapse to parent with ArrowLeft using parentItem fallback', () => {
+        treeInstance.focusedKey.set('file-1');
+        dispatchKey(treeEl, 'ArrowLeft');
+        expect(treeInstance.focusedKey()).toBe('folder-1');
+        expect(treeInstance.isExpanded('folder-1')).toBe(false);
+    });
+});
+
+@Component({
+    template: `<ui-tree />`,
+    imports: [TreeComponent]
+})
+class EmptyTreeHostComponent {}
+
+describe('TreeComponent - Keyboard navigation with no items', () => {
+    it('should return early on keydown when there are no items', async () => {
+        await TestBed.configureTestingModule({
+            imports: [EmptyTreeHostComponent]
+        }).compileComponents();
+
+        const fixture = TestBed.createComponent(EmptyTreeHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
+        const treeEl = fixture.debugElement.query(By.css('[role="tree"]'));
+
+        dispatchKey(treeEl, 'ArrowDown');
+        expect(treeInstance.focusedKey()).toBeNull();
+    });
+});
+
+describe('TreeItemComponent - click handlers', () => {
+    let fixture: ComponentFixture<TreeTestHostComponent>;
+    let treeInstance: TreeComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [TreeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(TreeTestHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
+    });
+
+    it('should toggle expansion when the expand button is clicked', () => {
+        const button = fixture.debugElement.query(By.css('button'));
+        expect(treeInstance.isExpanded('folder-1')).toBe(false);
+        button.triggerEventHandler('click', { stopPropagation: () => { /* noop */ } });
+        fixture.detectChanges();
+        expect(treeInstance.isExpanded('folder-1')).toBe(true);
+    });
+
+    it('should focus and select when a header is clicked', () => {
+        const header = fixture.debugElement.query(By.css('[data-slot="tree-item"] > div'));
+        header.triggerEventHandler('click', {});
+        fixture.detectChanges();
+        expect(treeInstance.focusedKey()).toBe('folder-1');
+        expect(treeInstance.isSelected('folder-1')).toBe(true);
+    });
+
+    it('should deselect on second header click in single mode', () => {
+        const header = fixture.debugElement.query(By.css('[data-slot="tree-item"] > div'));
+        header.triggerEventHandler('click', {});
+        fixture.detectChanges();
+        header.triggerEventHandler('click', {});
+        fixture.detectChanges();
+        expect(treeInstance.isSelected('folder-1')).toBe(false);
+    });
+});
+
+@Component({
+    template: `
+        <ui-tree [data]="data">
+            <ng-template uiTreeNodeContent let-node>
+                <span class="custom-node">Custom: {{ node.label }}</span>
+            </ng-template>
+        </ui-tree>
+    `,
+    imports: [TreeComponent, TreeNodeContentDirective]
+})
+class CustomNodeTreeHostComponent {
+    data: TreeNode[] = [{ key: 'a', label: 'Alpha' }];
+}
+
+describe('TreeComponent - custom node content directive', () => {
+    it('should render custom node template via uiTreeNodeContent', async () => {
+        await TestBed.configureTestingModule({
+            imports: [CustomNodeTreeHostComponent]
+        }).compileComponents();
+
+        const fixture = TestBed.createComponent(CustomNodeTreeHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const treeInstance = fixture.debugElement.query(By.directive(TreeComponent)).componentInstance as TreeComponent;
+        expect(treeInstance.nodeContent()).toBeTruthy();
+
+        const custom = fixture.debugElement.query(By.css('.custom-node'));
+        expect(custom.nativeElement.textContent).toContain('Custom: Alpha');
     });
 });

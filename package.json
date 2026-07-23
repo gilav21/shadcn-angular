@@ -14,7 +14,7 @@
     "preflight": "node scripts/preflight.mjs",
     "check:completeness": "tsx packages/cli/scripts/check-completeness.ts",
     "check:registry": "tsx packages/cli/scripts/sync-registry.ts",
-    "hook:pre-commit": "lint-staged && npm run a11y:staged",
+    "hook:pre-commit": "lint-staged && npm run a11y:staged && npm run typecheck",
     "hook:pre-push": "npm run preflight && npm run test-storybook:a11y",
     "a11y:staged": "node scripts/a11y-staged.mjs",
     "build:demo": "cd demo && npm run build",
@@ -45,9 +45,14 @@
     "e2e:ui": "tsx e2e/orchestrator/run.ts --ui",
     "e2e:debug": "tsx e2e/orchestrator/run.ts --debug",
     "e2e:reset": "tsx e2e/orchestrator/reset.ts",
+    "e2e:reset:jest": "tsx e2e/orchestrator/reset-with-runner.ts jest",
+    "e2e:reset:vitest": "tsx e2e/orchestrator/reset-with-runner.ts vitest",
     "e2e:impact": "tsx e2e/orchestrator/impact.ts",
     "e2e:scaffold": "tsx e2e/orchestrator/scaffold.ts",
-    "new:component": "tsx packages/cli/scripts/new-component.ts"
+    "new:component": "tsx packages/cli/scripts/new-component.ts",
+    "test:portable": "vitest run --config vitest.portable.config.ts",
+    "verify:portable": "tsx packages/cli/scripts/verify-portable.ts",
+    "verify:jest": "node e2e/jest-fixture/run.mjs"
   },
   "simple-git-hooks": {
     "pre-commit": "npm run hook:pre-commit",
@@ -71,6 +76,7 @@
     "@analogjs/vitest-angular": "^2.5.0",
     "@compodoc/compodoc": "^1.1.32",
     "@eslint/js": "^9.39.4",
+    "@jest/globals": "^30.4.1",
     "@playwright/test": "^1.57.0",
     "@storybook/addon-a11y": "^10.1.11",
     "@storybook/addon-docs": "^10.1.11",
@@ -88,6 +94,8 @@
     "esbuild": "^0.28.1",
     "eslint": "^9.39.4",
     "eslint-plugin-sonarjs": "^4.1.0",
+    "jest-environment-jsdom": "^30.4.1",
+    "jest-preset-angular": "^17.0.0",
     "jsdom": "^27.4.0",
     "lint-staged": "^17.0.8",
     "lmdb": "^3.5.4",
@@ -101,7 +109,8 @@
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.61.0",
     "vite": "^7.3.5",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "zone.js": "^0.15.1"
   },
   "dependencies": {
     "lightningcss": "^1.30.2"

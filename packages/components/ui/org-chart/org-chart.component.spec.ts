@@ -164,4 +164,44 @@ describe('OrgChartComponent', () => {
         expect(component.flatNodes()).toEqual([]);
         expect(component.connections()).toEqual([]);
     });
+
+    it('should return null tree when no node is a root (all parented to missing ids)', () => {
+        const orphanData: OrgNode[] = [
+            { id: 'a', name: 'A', parentId: 'missing-1' },
+            { id: 'b', name: 'B', parentId: 'missing-2' },
+        ];
+        fixture.componentRef.setInput('data', orphanData);
+        fixture.detectChanges();
+
+        expect(component.tree()).toBeNull();
+        expect(component.flatNodes()).toEqual([]);
+        expect(component.connections()).toEqual([]);
+        expect(component.svgWidth()).toBe(400);
+        expect(component.svgHeight()).toBe(300);
+    });
+
+    it('should generate straight (L-command) connection paths in vertical layout', () => {
+        fixture.componentRef.setInput('lineType', 'straight');
+        fixture.detectChanges();
+
+        const connections = component.connections();
+        expect(connections).toHaveLength(2);
+        for (const connection of connections) {
+            expect(connection.path).toContain('L');
+            expect(connection.path).not.toContain('C');
+        }
+    });
+
+    it('should generate straight (L-command) connection paths in horizontal layout', () => {
+        fixture.componentRef.setInput('layout', 'horizontal');
+        fixture.componentRef.setInput('lineType', 'straight');
+        fixture.detectChanges();
+
+        const connections = component.connections();
+        expect(connections).toHaveLength(2);
+        for (const connection of connections) {
+            expect(connection.path).toContain('L');
+            expect(connection.path).not.toContain('C');
+        }
+    });
 });

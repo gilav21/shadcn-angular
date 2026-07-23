@@ -34,6 +34,39 @@ describe('buildFillValues (B1 fill series)', () => {
     expect(buildFillValues([], 2)).toEqual(['', '']);
   });
 
+  it('cycles non-string values that match no numeric, date, or name series', () => {
+    expect(buildFillValues([true, false], 3)).toEqual([true, false, true]);
+  });
+
+  it('cycles trailing-number text when the prefixes differ', () => {
+    expect(buildFillValues(['A1', 'B2'], 3)).toEqual(['A1', 'B2', 'A1']);
+  });
+
+  it('cycles weekday names when the step is inconsistent', () => {
+    expect(buildFillValues(['Mon', 'Tue', 'Thu'], 4)).toEqual(['Mon', 'Tue', 'Thu', 'Mon']);
+  });
+
+  it('cycles a repeated name whose step resolves to zero', () => {
+    expect(buildFillValues(['Mon', 'Mon'], 2)).toEqual(['Mon', 'Mon']);
+  });
+
+  it('cycles Date objects when the day step is not constant', () => {
+    const source = [new Date(2024, 0, 1), new Date(2024, 0, 3), new Date(2024, 0, 4)];
+    const out = buildFillValues(source, 2) as Date[];
+    expect(out).toEqual([source[0], source[1]]);
+  });
+
+  it('cycles an invalid Date object that cannot form a series', () => {
+    const invalid = new Date(Number.NaN);
+    const out = buildFillValues([invalid], 2) as Date[];
+    expect(out).toHaveLength(2);
+    expect(out[0]).toBe(invalid);
+  });
+
+  it('renders negative trailing numbers with a leading minus sign', () => {
+    expect(buildFillValues(['Item 2', 'Item 1'], 3)).toEqual(['Item 0', 'Item -1', 'Item -2']);
+  });
+
   describe('ISO date strings', () => {
     it('steps by day', () => {
       expect(buildFillValues(['2024-01-01', '2024-01-02'], 2)).toEqual(['2024-01-03', '2024-01-04']);

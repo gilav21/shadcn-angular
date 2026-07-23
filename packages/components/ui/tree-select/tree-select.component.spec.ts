@@ -1,11 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TreeSelectComponent } from './tree-select.component';
+import { TreeSelectComponent, TREE_SELECT } from './tree-select.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { TreeComponent, TreeNode } from '../tree';
 import { PopoverTriggerComponent, PopoverContentComponent } from '../popover';
+import { TreeSelectTriggerComponent } from './sub/tree-select-trigger.component';
+import { TreeSelectContentComponent } from './sub/tree-select-content.component';
 
 const SAMPLE_NODES: TreeNode[] = [
     {
@@ -114,6 +116,21 @@ class CustomModeTestHostComponent {
         this.selectedLabel.set(selection[0] ?? 'Pick a file...');
     }
 }
+
+@Component({
+    template: `
+        <ui-tree-select>
+            <ui-tree-select-trigger class="custom-trigger">Trigger</ui-tree-select-trigger>
+            <ui-tree-select-content class="custom-content">Content</ui-tree-select-content>
+        </ui-tree-select>
+    `,
+    imports: [
+        TreeSelectComponent,
+        TreeSelectTriggerComponent,
+        TreeSelectContentComponent,
+    ]
+})
+class SubComponentHost {}
 
 describe('TreeSelectComponent', () => {
     let component: TreeSelectComponent;
@@ -391,6 +408,98 @@ describe('TreeSelect select method', () => {
         component.selectionChange.subscribe((val: string[]) => emitted = val);
         component.select(null);
         expect(emitted).toEqual([]);
+    });
+});
+
+describe('TreeSelect value input + onSelectionChange edge cases', () => {
+    let component: TreeSelectComponent;
+    let fixture: ComponentFixture<TreeSelectComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [TreeSelectComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(TreeSelectComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('nodes', SAMPLE_NODES);
+        fixture.detectChanges();
+    });
+
+    it('syncs internalValue from the value input when it is defined', () => {
+        fixture.componentRef.setInput('value', 'report');
+        fixture.detectChanges();
+
+        expect(component.internalValue()).toBe('report');
+        expect(component.selectedNode()?.label).toBe('Report.docx');
+    });
+
+    it('does not overwrite internalValue when value input stays undefined', () => {
+        component.internalValue.set('expenses');
+        fixture.detectChanges();
+
+        expect(component.internalValue()).toBe('expenses');
+    });
+
+    it('resolves the value input null branch to a null internal value', () => {
+        fixture.componentRef.setInput('value', 'report');
+        fixture.detectChanges();
+        expect(component.internalValue()).toBe('report');
+
+        fixture.componentRef.setInput('value', null);
+        fixture.detectChanges();
+        expect(component.internalValue()).toBeNull();
+        expect(component.selectedNode()).toBeNull();
+    });
+
+    it('coalesces an empty selection to null in onSelectionChange', () => {
+        component.isOpen.set(true);
+        let emitted: string[] | undefined;
+        component.selectionChange.subscribe((val: string[]) => emitted = val);
+
+        component.onSelectionChange([]);
+
+        expect(component.internalValue()).toBeNull();
+        expect(emitted).toEqual([]);
+        expect(component.isOpen()).toBe(false);
+    });
+
+    it('exposes the default onTouched no-op until registerOnTouched replaces it', () => {
+        const withTouched = component as unknown as { onTouched: () => void };
+        expect(() => withTouched.onTouched()).not.toThrow();
+
+        let touched = false;
+        component.registerOnTouched(() => { touched = true; });
+        withTouched.onTouched();
+        expect(touched).toBe(true);
+    });
+});
+
+describe('TreeSelect TREE_SELECT injection token', () => {
+    it('resolves the TREE_SELECT forwardRef to the component instance', async () => {
+        await TestBed.configureTestingModule({
+            imports: [TreeSelectComponent]
+        }).compileComponents();
+
+        const fixture = TestBed.createComponent(TreeSelectComponent);
+        fixture.componentRef.setInput('nodes', SAMPLE_NODES);
+        fixture.detectChanges();
+
+        const injected = fixture.debugElement.injector.get(TREE_SELECT);
+        expect(injected).toBe(fixture.componentInstance);
+    });
+});
+
+describe('TreeSelect sub components', () => {
+    it('instantiates projected trigger and content sub-components', () => {
+        TestBed.configureTestingModule({ imports: [SubComponentHost] });
+        const fixture = TestBed.createComponent(SubComponentHost);
+        fixture.detectChanges();
+
+        const trigger = fixture.debugElement.query(By.directive(TreeSelectTriggerComponent));
+        const content = fixture.debugElement.query(By.directive(TreeSelectContentComponent));
+        expect(trigger.componentInstance.class()).toBe('custom-trigger');
+        expect(content.componentInstance.class()).toBe('custom-content');
     });
 });
 

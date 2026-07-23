@@ -1,9 +1,20 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, afterEach } from 'vitest';
-import { RichTextEditorComponent, RichTextCommandRegistry, type RichTextSlashCommand } from '../..';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { RichTextSlashCommandsDirective } from './rich-text-slash-commands.directive';
+import { RichTextCommandRegistry, RichTextEditorComponent, type RichTextSlashCommand } from '../..';
+
+type RangeWithRect = { getBoundingClientRect?: () => DOMRect };
+
+/** jsdom leaves `Range.getBoundingClientRect` undefined; the directive positions
+ *  its menu from the caret rect, so supply a stable non-degenerate rect. */
+function fixedCaretRect(): DOMRect {
+    return {
+        x: 120, y: 100, left: 120, top: 100, right: 130, bottom: 118, width: 10, height: 18,
+        toJSON: () => ({}),
+    } as DOMRect;
+}
 
 @Component({
     standalone: true,
@@ -71,7 +82,18 @@ describe('RichTextSlashCommandsDirective', () => {
         return Array.from(document.querySelectorAll('[data-slash-index]'));
     }
 
+    let hadRangeRect = false;
+    beforeEach(() => {
+        hadRangeRect = 'getBoundingClientRect' in Range.prototype;
+        if (!hadRangeRect) {
+            (Range.prototype as RangeWithRect).getBoundingClientRect = fixedCaretRect;
+        }
+    });
+
     afterEach(() => {
+        if (!hadRangeRect) {
+            delete (Range.prototype as RangeWithRect).getBoundingClientRect;
+        }
         window.getSelection()?.removeAllRanges();
         while (openFixtures.length > 0) {
             const fixture = openFixtures.pop()!;
@@ -353,5 +375,218 @@ describe('RichTextSlashCommandsDirective', () => {
 
         offInstance();
         offGlobal();
+    });
+
+    function enter(): KeyboardEvent {
+        return new KeyboardEvent('keydown', { key: 'Enter', cancelable: true });
+    }
+
+    const ZERO_RECT = {
+        x: 0, y: 0, left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON: () => ({}),
+    } as DOMRect;
+
+    it('closes on an outside pointer-down but stays open for editor and menu pointer-downs', () => {
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/');
+        fixture.detectChanges();
+        expect(menu()).toBeTruthy();
+
+        menuOptions()[0].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(menu()).toBeTruthy();
+
+        editor.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(menu()).toBeTruthy();
+
+        document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+    });
+
+    it('ignores keys that are not menu keys while the menu is open', () => {
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/');
+        fixture.detectChanges();
+        editorCmp.onKeydown(new KeyboardEvent('keydown', { key: 'x', cancelable: true }));
+        fixture.detectChanges();
+        expect(menu()).toBeTruthy();
+    });
+
+    it('no-ops non-dismiss keys with no results and closes on Escape', () => {
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/zzzznope');
+        fixture.detectChanges();
+        expect(menuOptions()).toHaveLength(0);
+
+        editorCmp.onKeydown(enter());
+        fixture.detectChanges();
+        expect(menu()).toBeTruthy();
+
+        editorCmp.onKeydown(new KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+    });
+
+    it('does not execute a command selected while the editor is disabled', () => {
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/h1');
+        fixture.detectChanges();
+        fixture.componentInstance.disabled.set(true);
+        fixture.detectChanges();
+
+        menuOptions()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+        expect(editor.querySelector('h1')).toBeNull();
+    });
+
+    it('highlights an option on hover and runs it on click', async () => {
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/');
+        fixture.detectChanges();
+
+        menuOptions()[1].dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        fixture.detectChanges();
+        expect(menuOptions()[1].getAttribute('aria-selected')).toBe('true');
+
+        menuOptions()[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+    });
+
+    it('runs custom commands that use insertHtml, showLinkDialog, and focusEditor', async () => {
+        const { fixture, editor, editorCmp } = create();
+        fixture.componentInstance.custom.set([
+            { id: 'c.html', label: 'Html Cmd', keywords: ['htmlcmd'], order: 300, run: (ctx) => ctx.insertHtml('<b>BOLD</b>') },
+            { id: 'c.link', label: 'Link Cmd', keywords: ['linkcmd'], order: 301, run: (ctx) => ctx.showLinkDialog() },
+            { id: 'c.focus', label: 'Focus Cmd', keywords: ['focuscmd'], order: 302, run: (ctx) => ctx.focusEditor() },
+        ]);
+        fixture.detectChanges();
+
+        typeSlash(editor, editorCmp, '/htmlcmd');
+        fixture.detectChanges();
+        editorCmp.onKeydown(enter());
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(editor.querySelector('b')?.textContent).toBe('BOLD');
+
+        typeSlash(editor, editorCmp, '/linkcmd');
+        fixture.detectChanges();
+        editorCmp.onKeydown(enter());
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        typeSlash(editor, editorCmp, '/focuscmd');
+        fixture.detectChanges();
+        editorCmp.onKeydown(enter());
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+    });
+
+    it('refocuses the editor when a command leaves the selection outside it', async () => {
+        const { fixture, editor, editorCmp } = create();
+        fixture.componentInstance.custom.set([
+            { id: 'c.blur', label: 'Blur Cmd', keywords: ['blurcmd'], order: 300, run: () => window.getSelection()?.removeAllRanges() },
+        ]);
+        fixture.detectChanges();
+        typeSlash(editor, editorCmp, '/blurcmd');
+        fixture.detectChanges();
+        editorCmp.onKeydown(enter());
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+    });
+
+    it('selects a command even when the live selection was cleared first', async () => {
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/h1');
+        fixture.detectChanges();
+        window.getSelection()?.removeAllRanges();
+        editorCmp.onKeydown(enter());
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+    });
+
+    it('breaks command order ties by label', () => {
+        const { fixture, editor, editorCmp } = create();
+        fixture.componentInstance.custom.set([
+            { id: 'c.z', label: 'Zebra Dup', keywords: ['dupkey'], order: 500, run: () => undefined },
+            { id: 'c.a', label: 'Alpha Dup', keywords: ['dupkey'], order: 500, run: () => undefined },
+        ]);
+        fixture.detectChanges();
+        typeSlash(editor, editorCmp, '/dupkey');
+        fixture.detectChanges();
+        const labels = menuOptions().map(o => o.textContent?.trim() ?? '');
+        const alpha = labels.findIndex(l => l.includes('Alpha Dup'));
+        const zebra = labels.findIndex(l => l.includes('Zebra Dup'));
+        expect(alpha).toBeGreaterThanOrEqual(0);
+        expect(alpha).toBeLessThan(zebra);
+    });
+
+    it('falls back to the anchor block rect when the caret rect is degenerate', () => {
+        (Range.prototype as RangeWithRect).getBoundingClientRect = () => ZERO_RECT;
+        const blockRect = {
+            x: 50, y: 80, left: 50, top: 80, right: 60, bottom: 96, width: 10, height: 16, toJSON: () => ({}),
+        } as DOMRect;
+        const origEl = HTMLElement.prototype.getBoundingClientRect;
+        HTMLElement.prototype.getBoundingClientRect = () => blockRect;
+        try {
+            const { fixture, editor, editorCmp } = create();
+            typeSlash(editor, editorCmp, '/');
+            fixture.detectChanges();
+            const el = menu() as HTMLElement;
+            expect(el.style.top).not.toBe('0px');
+        } finally {
+            HTMLElement.prototype.getBoundingClientRect = origEl;
+        }
+    });
+
+    it('leaves the menu unpositioned and still opens when no rect is usable', async () => {
+        (Range.prototype as RangeWithRect).getBoundingClientRect = () => ZERO_RECT;
+        const { fixture, editor, editorCmp } = create();
+        typeSlash(editor, editorCmp, '/');
+        fixture.detectChanges();
+        expect(menu()).toBeTruthy();
+
+        editorCmp.onKeydown(enter());
+        await fixture.whenStable();
+        fixture.detectChanges();
+        expect(menu()).toBeNull();
+    });
+
+    it('guards positioning and outside-pointer handling against missing state', () => {
+        const { fixture } = create();
+        const dir = fixture.debugElement.query(By.directive(RichTextSlashCommandsDirective))
+            .injector.get(RichTextSlashCommandsDirective) as unknown as {
+                updatePosition(): void;
+                onOutsidePointer(event: Event): void;
+            };
+        window.getSelection()?.removeAllRanges();
+        expect(() => dir.updatePosition()).not.toThrow();
+        expect(() => dir.onOutsidePointer(new MouseEvent('mousedown'))).not.toThrow();
+    });
+
+    it('renders the menu in the native top layer when the popover API is available', () => {
+        type WithPopover = { showPopover?: () => void; hidePopover?: () => void };
+        const proto = HTMLElement.prototype as WithPopover;
+        const hadShow = 'showPopover' in HTMLElement.prototype;
+        proto.showPopover = function showPopover(this: HTMLElement) { this.setAttribute('data-open', ''); };
+        proto.hidePopover = () => undefined;
+        try {
+            const { fixture, editor, editorCmp } = create();
+            typeSlash(editor, editorCmp, '/');
+            fixture.detectChanges();
+            const el = menu() as HTMLElement;
+            expect(el.getAttribute('popover')).toBe('manual');
+            expect(el.style.zIndex).toBe('');
+        } finally {
+            if (!hadShow) {
+                delete proto.showPopover;
+                delete proto.hidePopover;
+            }
+        }
     });
 });

@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { ensureFullHistory } from './_git.js';
 
 /**
  * Seeds an *older* revision of a repository file into the fixture app so a spec
@@ -23,6 +24,7 @@ function repoRoot(): string {
 /** The file's content at an explicit commit-ish (`<commit>:<path>`). */
 export function historicalBlob(repoRelPath: string, commitish: string): string {
     const root = repoRoot();
+    ensureFullHistory(root);
     return execFileSync('git', ['-C', root, 'show', `${commitish}:${repoRelPath}`], {
         encoding: 'utf-8',
     });
@@ -30,6 +32,7 @@ export function historicalBlob(repoRelPath: string, commitish: string): string {
 
 /** Commits that touched `repoRelPath`, newest first, excluding its deletion commit. */
 function commitsTouching(root: string, repoRelPath: string): string[] {
+    ensureFullHistory(root);
     const out = execFileSync(
         'git',
         ['-C', root, 'log', '--all', '--diff-filter=d', '--pretty=format:%H', '--', repoRelPath],

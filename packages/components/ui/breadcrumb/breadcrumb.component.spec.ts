@@ -278,6 +278,67 @@ describe('Breadcrumb Skeleton Mode', () => {
     });
 });
 
+describe('BreadcrumbSeparator content detection', () => {
+    it('reports no content for an empty separator (default chevron path)', () => {
+        const fixture = TestBed.createComponent(BreadcrumbSeparatorComponent);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.hasContent()).toBe(false);
+        expect(fixture.nativeElement.querySelector('svg')).toBeTruthy();
+        fixture.destroy();
+    });
+
+    it('detects projected element content and hides the default chevron', async () => {
+        @Component({
+            standalone: true,
+            imports: [BreadcrumbSeparatorComponent],
+            template: `<ui-breadcrumb-separator><span class="marker">x</span></ui-breadcrumb-separator>`,
+        })
+        class ElHost {}
+        await TestBed.configureTestingModule({ imports: [ElHost] }).compileComponents();
+        const fixture = TestBed.createComponent(ElHost);
+        fixture.detectChanges();
+        const separator = fixture.debugElement.query(By.css('[data-slot="breadcrumb-separator"]'));
+        const cmp = separator.componentInstance as BreadcrumbSeparatorComponent;
+        expect(cmp.hasContent()).toBe(true);
+        expect(separator.nativeElement.querySelector('svg')).toBeNull();
+        expect(separator.nativeElement.querySelector('.marker')).toBeTruthy();
+    });
+
+    it('detects projected text content', async () => {
+        @Component({
+            standalone: true,
+            imports: [BreadcrumbSeparatorComponent],
+            template: `<ui-breadcrumb-separator>/</ui-breadcrumb-separator>`,
+        })
+        class TextHost {}
+        await TestBed.configureTestingModule({ imports: [TextHost] }).compileComponents();
+        const fixture = TestBed.createComponent(TextHost);
+        fixture.detectChanges();
+        const separator = fixture.debugElement.query(By.css('[data-slot="breadcrumb-separator"]'));
+        const cmp = separator.componentInstance as BreadcrumbSeparatorComponent;
+        expect(cmp.hasContent()).toBe(true);
+        expect(separator.nativeElement.querySelector('svg')).toBeNull();
+    });
+
+    it('renders the default chevron when only whitespace text is projected', async () => {
+        @Component({
+            standalone: true,
+            imports: [BreadcrumbSeparatorComponent],
+            template: `<ui-breadcrumb-separator>{{ ws }}</ui-breadcrumb-separator>`,
+        })
+        class WsHost {
+            readonly ws = '   ';
+        }
+        await TestBed.configureTestingModule({ imports: [WsHost] }).compileComponents();
+        const fixture = TestBed.createComponent(WsHost);
+        fixture.detectChanges();
+        const separator = fixture.debugElement.query(By.css('[data-slot="breadcrumb-separator"]'));
+        const cmp = separator.componentInstance as BreadcrumbSeparatorComponent;
+        expect(cmp.hasContent()).toBe(false);
+        expect(separator.nativeElement.querySelector('svg')).toBeTruthy();
+    });
+});
+
 describe('BreadcrumbComponent — i18n integration', () => {
     async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
         const { provideUiLocale } = await import('../../lib/i18n');

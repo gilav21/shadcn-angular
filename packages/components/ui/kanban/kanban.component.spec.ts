@@ -1,13 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
     KanbanComponent,
     KanbanColumnComponent,
     KanbanCardComponent,
     KanbanColumnHeaderComponent,
     KanbanCardContentComponent,
+    KanbanCardDialogComponent,
+    KanbanColumnDialogComponent,
+    KanbanDeleteColumnDialogComponent,
     KanbanColumn,
     KanbanCard,
     KanbanCardAddEvent,
@@ -98,6 +101,48 @@ class KanbanSimpleTestHostComponent {
     ],
 })
 class KanbanCustomTestHostComponent {}
+
+// Column rendered WITHOUT a parent ui-kanban — exercises the optional-injection
+// fallback where the KANBAN token is null.
+@Component({
+    template: `<ui-kanban-column columnId="solo" title="Solo Column" />`,
+    imports: [KanbanColumnComponent],
+})
+class KanbanOrphanColumnHostComponent {}
+
+/**
+ * jsdom lacks ResizeObserver, which ScrollAreaComponent constructs in
+ * ngAfterViewInit — without this stub every kanban render crashes.
+ */
+class ResizeObserverStub {
+    observe(): void { /* noop */ }
+    unobserve(): void { /* noop */ }
+    disconnect(): void { /* noop */ }
+}
+
+/**
+ * jsdom does not implement DragEvent. This stub carries the `clientX`/`clientY`
+ * and `dataTransfer` fields the kanban drag handlers read.
+ */
+class DragEventStub extends Event {
+    readonly clientX: number;
+    readonly clientY: number;
+    dataTransfer: unknown = null;
+    constructor(type: string, init: { bubbles?: boolean; clientX?: number; clientY?: number } = {}) {
+        super(type, { bubbles: init.bubbles ?? false });
+        this.clientX = init.clientX ?? 0;
+        this.clientY = init.clientY ?? 0;
+    }
+}
+
+beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub);
+    vi.stubGlobal('DragEvent', DragEventStub);
+});
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
 
 describe('KanbanComponent', () => {
     describe('Simple Mode', () => {
@@ -645,6 +690,132 @@ describe('KanbanComponent', () => {
             expect(component.cardUpdatedEvent).toBeNull();
             expect(component.columnUpdatedEvent).toBeNull();
         });
+
+        it('opens dialogs for edit / rename / set-wip / delete without throwing', () => {
+            const kanban = getKanban();
+            const card = component.cards()[0];
+            const col = component.columns()[0];
+            expect(() => {
+                kanban.onEditCard(card);
+                kanban.onRenameColumn(col);
+                kanban.onSetWipLimit(col);
+                kanban.onDeleteColumn(col);
+                kanban.showCardContextMenu(10, 20, card);
+                kanban.showColumnContextMenu(10, 20, col);
+            }).not.toThrow();
+        });
+
+        it('onBoardContextMenu bails out when the target is inside a column', () => {
+            const kanban = getKanban();
+            const spy = vi.spyOn(kanban, 'showCardContextMenu');
+            const columnEl = fixture.debugElement.query(By.css('[data-slot="kanban-column"]')).nativeElement as HTMLElement;
+            const fakeEvent = { target: columnEl, preventDefault: () => { /* noop */ } } as unknown as MouseEvent;
+            kanban.onBoardContextMenu(fakeEvent);
+            expect(spy).not.toHaveBeenCalled();
+        });
+
+        it('undoCardDelete with no pending delete is a no-op', () => {
+            const kanban = getKanban();
+            component.historyState = null;
+            kanban.undoCardDelete();
+            expect(component.historyState).toBeNull();
+        });
+
+        it('trims the undo history at the maximum size', () => {
+            const kanban = getKanban();
+            const card = component.cards()[0];
+            for (let i = 0; i < 55; i++) {
+                kanban.onSetCardPriority(card, 'low');
+            }
+            fixture.detectChanges();
+            expect(component.historyState!.canUndo).toBe(true);
+            for (let i = 0; i < 60; i++) {
+                kanban.undo();
+            }
+            expect(component.historyState!.canUndo).toBe(false);
+        });
+
+        it('cancels pending deletes when an undo runs', () => {
+            vi.useFakeTimers();
+            const kanban = getKanban();
+            kanban.onDeleteCard(component.cards()[0]);
+            fixture.detectChanges();
+            expect(kanban.deleteToastVisible()).toBe(true);
+
+            kanban.undo();
+            fixture.detectChanges();
+            expect(kanban.deleteToastVisible()).toBe(false);
+
+            vi.advanceTimersByTime(6000);
+            expect(component.cardDeletedId).toBeNull();
+            vi.useRealTimers();
+        });
+
+        it('undo / redo keyboard shortcuts invoke the registered handlers', () => {
+            const kanban = getKanban();
+            const handle = (kanban as unknown as {
+                shortcutHandle?: { dispatch: (e: KeyboardEvent) => boolean };
+            }).shortcutHandle;
+            kanban.onMoveCardToColumn(component.cards()[0], 'doing');
+            fixture.detectChanges();
+            expect(component.historyState!.canUndo).toBe(true);
+
+            handle?.dispatch(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true }));
+            fixture.detectChanges();
+            expect(component.historyState!.canUndo).toBe(false);
+            expect(component.historyState!.canRedo).toBe(true);
+
+            handle?.dispatch(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, shiftKey: true }));
+            fixture.detectChanges();
+            expect(component.historyState!.canRedo).toBe(false);
+        });
+
+        function firstCard(): KanbanCardComponent {
+            return fixture.debugElement.query(By.directive(KanbanCardComponent)).componentInstance as KanbanCardComponent;
+        }
+
+        it('renders the medium-priority border colour', () => {
+            component.cards.set([
+                ...component.cards(),
+                { id: 'card-med', columnId: 'todo', title: 'Medium', order: 9, priority: 'medium' },
+            ]);
+            fixture.detectChanges();
+            const medEl = fixture.debugElement.query(By.css('[data-card-id="card-med"]')).nativeElement as HTMLElement;
+            expect(medEl.className).toContain('border-s-yellow-500');
+        });
+
+        it('card dragstart populates the dataTransfer and starts the drag', () => {
+            const kanban = getKanban();
+            const card = firstCard();
+            const setData = vi.fn((_type: string, _value: string) => { /* noop */ });
+            const ev = new DragEvent('dragstart');
+            Object.defineProperty(ev, 'dataTransfer', { value: { effectAllowed: '', setData } });
+            card.onDragStart(ev);
+            expect(setData).toHaveBeenCalledWith('text/plain', 'card-1');
+            expect(kanban.draggedCardId()).toBe('card-1');
+        });
+
+        it('card dragstart without a dataTransfer is ignored', () => {
+            const kanban = getKanban();
+            const card = firstCard();
+            card.onDragStart(new DragEvent('dragstart'));
+            expect(kanban.draggedCardId()).toBeNull();
+        });
+
+        it('card dragend ends the active drag', () => {
+            const kanban = getKanban();
+            kanban.startDrag('card-1', 'todo');
+            firstCard().onDragEnd();
+            expect(kanban.draggedCardId()).toBeNull();
+        });
+
+        it('card contextmenu opens the card context menu', () => {
+            const kanban = getKanban();
+            const spy = vi.spyOn(kanban, 'showCardContextMenu');
+            firstCard().onContextMenu(new MouseEvent('contextmenu', { clientX: 4, clientY: 8 }));
+            expect(spy).toHaveBeenCalled();
+            expect(spy.mock.calls[0][2].id).toBe('card-1');
+        });
     });
 
     describe('Column drag interactions', () => {
@@ -789,6 +960,76 @@ describe('KanbanComponent', () => {
             col.onDragLeave();
             expect(col.isDragOver()).toBe(false);
         });
+
+        it('dragover is throttled to one update per 50ms', () => {
+            const kanban = getKanban();
+            kanban.startDrag('card-3', 'doing');
+            fixture.detectChanges();
+            const col = getColumn(0);
+            col['lastDragOverTime'] = 0;
+            const mk = (clientY: number): DragEvent => {
+                const ev = new DragEvent('dragover', { bubbles: true, clientY });
+                Object.defineProperty(ev, 'dataTransfer', { value: { dropEffect: '' } });
+                return ev;
+            };
+            col.onDragOver(mk(-100000));
+            expect(col.dropIndicatorIndex()).toBe(0);
+            // Immediate second call is inside the throttle window → no change.
+            col.dropIndicatorIndex.set(5);
+            col.onDragOver(mk(100000));
+            expect(col.dropIndicatorIndex()).toBe(5);
+        });
+
+        it('dragover on a collapsed column falls back to the top slot', () => {
+            const kanban = getKanban();
+            kanban.startDrag('card-3', 'doing');
+            fixture.detectChanges();
+            const col = getColumn(0);
+            col.toggleCollapse();
+            fixture.detectChanges();
+            col['lastDragOverTime'] = 0;
+            const ev = new DragEvent('dragover', { bubbles: true, clientY: 10 });
+            Object.defineProperty(ev, 'dataTransfer', { value: { dropEffect: '' } });
+            col.onDragOver(ev);
+            expect(col.dropIndicatorIndex()).toBe(0);
+            expect(col.dropIndicatorTop()).toBe(12);
+        });
+
+        it('dragover on an empty column places the indicator at the top', () => {
+            const kanban = getKanban();
+            kanban.startDrag('card-1', 'todo');
+            fixture.detectChanges();
+            const col = getColumn(2); // done column, empty
+            col['lastDragOverTime'] = 0;
+            const ev = new DragEvent('dragover', { bubbles: true, clientY: 50 });
+            Object.defineProperty(ev, 'dataTransfer', { value: { dropEffect: '' } });
+            col.onDragOver(ev);
+            expect(col.dropIndicatorIndex()).toBe(0);
+            expect(col.dropIndicatorTop()).toBe(12);
+        });
+
+        it('dragover computes a mid-list indicator position from card rects', () => {
+            const kanban = getKanban();
+            kanban.startDrag('card-3', 'doing');
+            fixture.detectChanges();
+            const col = getColumn(0); // first column holds card-1, card-2
+            const columnEl = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'))[0];
+            const cardEls = columnEl.queryAll(By.css('[data-slot="kanban-card"]'))
+                .map(d => d.nativeElement as HTMLElement);
+            expect(cardEls).toHaveLength(2);
+            const rect = (top: number): DOMRect => ({
+                top, bottom: top + 20, height: 20, left: 0, right: 0,
+                width: 0, x: 0, y: top, toJSON: () => ({}),
+            } as DOMRect);
+            vi.spyOn(cardEls[0], 'getBoundingClientRect').mockReturnValue(rect(0));
+            vi.spyOn(cardEls[1], 'getBoundingClientRect').mockReturnValue(rect(40));
+
+            col['lastDragOverTime'] = 0;
+            const ev = new DragEvent('dragover', { bubbles: true, clientY: 30 });
+            Object.defineProperty(ev, 'dataTransfer', { value: { dropEffect: '' } });
+            col.onDragOver(ev);
+            expect(col.dropIndicatorIndex()).toBe(1);
+        });
     });
 
     describe('Custom Mode', () => {
@@ -818,6 +1059,12 @@ describe('KanbanComponent', () => {
         it('should render kanban data-slot in custom mode', () => {
             const kanban = fixture.debugElement.query(By.css('[data-slot="kanban"]'));
             expect(kanban).toBeTruthy();
+        });
+
+        it('reports card count from projected custom cards', () => {
+            const col = fixture.debugElement.query(By.directive(KanbanColumnComponent)).componentInstance as KanbanColumnComponent;
+            expect(col.hasCustomCards()).toBe(true);
+            expect(col.cardCount()).toBe(1);
         });
     });
 });
@@ -854,5 +1101,234 @@ describe('KanbanComponent — i18n integration', () => {
     it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
         const fixture = await setup({ providerLocale: 'fr' });
         expect(fixture.componentInstance.resolvedLocale().code).toBe('fr');
+    });
+});
+
+describe('KanbanColumnComponent — no parent board', () => {
+    it('renders with an empty card list when the KANBAN token is absent', async () => {
+        await TestBed.configureTestingModule({
+            imports: [KanbanOrphanColumnHostComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(KanbanOrphanColumnHostComponent);
+        fixture.detectChanges();
+        const col = fixture.debugElement.query(By.directive(KanbanColumnComponent)).componentInstance as KanbanColumnComponent;
+        expect(col.visibleCards()).toHaveLength(0);
+        expect(col.cardCount()).toBe(0);
+    });
+});
+
+describe('KanbanCardDialogComponent', () => {
+    let fixture: ComponentFixture<KanbanCardDialogComponent>;
+    let dialog: KanbanCardDialogComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [KanbanCardDialogComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(KanbanCardDialogComponent);
+        dialog = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('open() in edit mode seeds the form from the card and derives chip signals', () => {
+        const card: KanbanCard = {
+            id: 'c1', columnId: 'todo', title: 'Fix bug', description: 'desc', order: 0,
+            priority: 'high',
+            labels: [{ text: 'Bug', color: '#ef4444' }],
+            assignees: [{ name: 'Alice' }],
+        };
+        dialog.open('edit', 'todo', card);
+        expect(dialog.formTitle()).toBe('Fix bug');
+        expect(dialog.labelChipStrings()).toEqual(['Bug']);
+        expect(dialog.labelColorMap()).toEqual({ Bug: '#ef4444' });
+        expect(dialog.assigneeChipStrings()).toEqual(['Alice']);
+    });
+
+    it('derives assignee option names from the assigneeOptions input', () => {
+        fixture.componentRef.setInput('assigneeOptions', [{ name: 'Bob' }, { name: 'Carol' }]);
+        fixture.detectChanges();
+        expect(dialog.assigneeOptionNames()).toEqual(['Bob', 'Carol']);
+    });
+
+    it('adds and removes label chips', () => {
+        dialog.newLabelColor.set('#22c55e');
+        dialog.onLabelChipAdded('Feature');
+        expect(dialog.formLabels()).toEqual([{ text: 'Feature', color: '#22c55e' }]);
+        dialog.onLabelChipRemoved('Feature');
+        expect(dialog.formLabels()).toHaveLength(0);
+    });
+
+    it('adds and removes assignee chips, resolving option metadata', () => {
+        fixture.componentRef.setInput('assigneeOptions', [{ name: 'Alice', avatar: 'a.png' }]);
+        fixture.detectChanges();
+        dialog.onAssigneeChipAdded('Alice');
+        dialog.onAssigneeChipAdded('Zoe');
+        expect(dialog.formAssignees()).toEqual([{ name: 'Alice', avatar: 'a.png' }, { name: 'Zoe' }]);
+        dialog.onAssigneeChipRemoved('Alice');
+        expect(dialog.formAssignees()).toEqual([{ name: 'Zoe' }]);
+    });
+
+    it('onAssigneeSelectionChange reconciles selections with existing and option data', () => {
+        fixture.componentRef.setInput('assigneeOptions', [{ name: 'Alice', avatar: 'a.png' }]);
+        fixture.detectChanges();
+        dialog.formAssignees.set([{ name: 'Existing' }]);
+        dialog.onAssigneeSelectionChange(['Existing', 'Alice', 'New']);
+        expect(dialog.formAssignees()).toEqual([
+            { name: 'Existing' },
+            { name: 'Alice', avatar: 'a.png' },
+            { name: 'New' },
+        ]);
+    });
+
+    it('onSubmit emits the assembled card payload and closes', () => {
+        let emitted: { mode: string; columnId: string; data: KanbanCardAddEvent } | undefined;
+        dialog.submitted.subscribe(e => { emitted = e; });
+        dialog.open('add', 'doing');
+        dialog.formTitle.set('  New card  ');
+        dialog.formDescription.set('  body  ');
+        dialog.formPriority.set('low');
+        dialog.formLabels.set([{ text: 'X', color: '#000' }]);
+        dialog.formAssignees.set([{ name: 'A' }]);
+        dialog.onSubmit();
+        expect(emitted!.mode).toBe('add');
+        expect(emitted!.columnId).toBe('doing');
+        expect(emitted!.data.title).toBe('New card');
+        expect(emitted!.data.description).toBe('body');
+        expect(emitted!.data.priority).toBe('low');
+        expect(dialog.dialogOpen()).toBe(false);
+    });
+
+    it('onSubmit does nothing when the title is blank', () => {
+        const spy = vi.fn();
+        dialog.submitted.subscribe(spy);
+        dialog.formTitle.set('   ');
+        dialog.onSubmit();
+        expect(spy).not.toHaveBeenCalled();
+    });
+});
+
+describe('KanbanColumnDialogComponent', () => {
+    let fixture: ComponentFixture<KanbanColumnDialogComponent>;
+    let dialog: KanbanColumnDialogComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [KanbanColumnDialogComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(KanbanColumnDialogComponent);
+        dialog = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('openAddColumn configures the add-column mode', () => {
+        dialog.openAddColumn();
+        expect(dialog.dialogTitle()).toBe('Add Column');
+        expect(dialog.submitLabel()).toBe('Add Column');
+        expect(dialog.showNameField()).toBe(true);
+        expect(dialog.showWipField()).toBe(true);
+        expect(dialog.canSubmit()).toBe(false);
+    });
+
+    it('openRenameColumn seeds the current title and rename labels', () => {
+        dialog.openRenameColumn({ id: 'todo', title: 'To Do', order: 0 });
+        expect(dialog.dialogTitle()).toBe('Rename Column');
+        expect(dialog.submitLabel()).toBe('Rename');
+        expect(dialog.formName()).toBe('To Do');
+        expect(dialog.canSubmit()).toBe(true);
+    });
+
+    it('openSetWip seeds the current limit and allows submit without a name', () => {
+        dialog.openSetWip({ id: 'todo', title: 'To Do', order: 0, wipLimit: 4 });
+        expect(dialog.dialogTitle()).toBe('Set WIP Limit');
+        expect(dialog.submitLabel()).toBe('Set Limit');
+        expect(dialog.showNameField()).toBe(false);
+        expect(dialog.formWip()).toBe('4');
+        expect(dialog.canSubmit()).toBe(true);
+    });
+
+    it('onSubmit emits a parsed positive wip limit', () => {
+        let emitted: { mode: string; name?: string; wipLimit?: number; columnId?: string } | undefined;
+        dialog.submitted.subscribe(e => { emitted = e; });
+        dialog.openAddColumn();
+        dialog.formName.set('Backlog');
+        dialog.formWip.set('5');
+        dialog.onSubmit();
+        expect(emitted!.mode).toBe('add-column');
+        expect(emitted!.name).toBe('Backlog');
+        expect(emitted!.wipLimit).toBe(5);
+        expect(dialog.dialogOpen()).toBe(false);
+    });
+
+    it('onSubmit drops a non-positive or non-numeric wip limit', () => {
+        let emitted: { wipLimit?: number } | undefined;
+        dialog.submitted.subscribe(e => { emitted = e; });
+        dialog.openSetWip({ id: 'todo', title: 'To Do', order: 0 });
+        dialog.formWip.set('0');
+        dialog.onSubmit();
+        expect(emitted!.wipLimit).toBeUndefined();
+    });
+});
+
+describe('KanbanDeleteColumnDialogComponent', () => {
+    let fixture: ComponentFixture<KanbanDeleteColumnDialogComponent>;
+    let dialog: KanbanDeleteColumnDialogComponent;
+
+    const columns: KanbanColumn[] = [
+        { id: 'todo', title: 'To Do', order: 0 },
+        { id: 'doing', title: 'In Progress', order: 1 },
+        { id: 'done', title: 'Done', order: 2 },
+    ];
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [KanbanDeleteColumnDialogComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(KanbanDeleteColumnDialogComponent);
+        dialog = fixture.componentInstance;
+        fixture.componentRef.setInput('columns', columns);
+        fixture.detectChanges();
+    });
+
+    it('builds move options for the other columns plus a delete-all choice', () => {
+        dialog.open(columns[0], 2);
+        fixture.detectChanges();
+        const options = dialog.moveOptions();
+        expect(options).toHaveLength(3);
+        expect(options.at(-1)!.value).toBeUndefined();
+        expect(options[0].value).toBe('doing');
+        expect(dialog.cardCount()).toBe(2);
+        expect(dialog.isLastColumn()).toBe(false);
+    });
+
+    it('optionButtonClass reflects the selected target', () => {
+        dialog.open(columns[0], 2);
+        dialog.selectedTarget.set('doing');
+        expect(dialog.optionButtonClass('doing')).toContain('bg-primary');
+        expect(dialog.optionButtonClass('done')).toContain('bg-background');
+    });
+
+    it('canConfirm allows deleting via the always-present delete-all option', () => {
+        dialog.open(columns[0], 2);
+        expect(dialog.canConfirm()).toBe(true);
+        dialog.selectedTarget.set('doing');
+        expect(dialog.canConfirm()).toBe(true);
+    });
+
+    it('onConfirm emits the delete event with the chosen target', () => {
+        let emitted: KanbanColumnDeleteEvent | undefined;
+        dialog.confirmed.subscribe(e => { emitted = e; });
+        dialog.open(columns[0], 2);
+        dialog.selectedTarget.set('doing');
+        dialog.onConfirm();
+        expect(emitted!.columnId).toBe('todo');
+        expect(emitted!.moveCardsTo).toBe('doing');
+    });
+
+    it('has no move options and onConfirm is a no-op before a column is set', () => {
+        const spy = vi.fn();
+        dialog.confirmed.subscribe(spy);
+        expect(dialog.moveOptions()).toHaveLength(0);
+        dialog.onConfirm();
+        expect(spy).not.toHaveBeenCalled();
     });
 });

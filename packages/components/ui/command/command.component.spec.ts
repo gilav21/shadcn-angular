@@ -9,9 +9,34 @@ import {
     CommandEmptyComponent,
     CommandSeparatorComponent,
     CommandShortcutComponent,
+    CommandDialogComponent,
+    CommandService,
+    generateId,
+    COMMAND_DIALOG_SHORTCUT_DEFINITIONS,
 } from '../command';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
+
+type ScrollIntoView = typeof Element.prototype.scrollIntoView;
+const scrollProto = Element.prototype as unknown as { scrollIntoView?: ScrollIntoView };
+let originalScrollIntoView: ScrollIntoView | undefined;
+let hadScrollIntoView = false;
+
+beforeEach(() => {
+    hadScrollIntoView = 'scrollIntoView' in scrollProto;
+    originalScrollIntoView = scrollProto.scrollIntoView;
+    scrollProto.scrollIntoView = vi.fn();
+});
+
+afterEach(() => {
+    if (hadScrollIntoView) {
+        scrollProto.scrollIntoView = originalScrollIntoView;
+    } else {
+        delete scrollProto.scrollIntoView;
+    }
+    originalScrollIntoView = undefined;
+});
 
 @Component({
     template: `
@@ -490,5 +515,279 @@ describe('CommandInputComponent — i18n integration', () => {
         const fixture = await setup(undefined, 'fr');
         const input = fixture.nativeElement.querySelector('input');
         expect(input.getAttribute('placeholder')).toBe('Rechercher...');
+    });
+});
+
+describe('CommandComponent service-driven behaviour', () => {
+    @Component({
+        template: `
+            <ui-command>
+                <ui-command-input />
+                <ui-command-list>
+                    <ui-command-item value="calendar" (selectItem)="sel($event)">Calendar</ui-command-item>
+                    <ui-command-item value="profile" (selectItem)="sel($event)">Profile</ui-command-item>
+                </ui-command-list>
+            </ui-command>
+        `,
+        imports: [CommandComponent, CommandInputComponent, CommandListComponent, CommandItemComponent],
+    })
+    class DrivenHost {
+        sel = vi.fn();
+    }
+
+    let fixture: ComponentFixture<DrivenHost>;
+    let service: CommandService;
+    let command: CommandComponent;
+    let itemIds: string[];
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DrivenHost] }).compileComponents();
+        fixture = TestBed.createComponent(DrivenHost);
+        fixture.detectChanges();
+        const commandDe = fixture.debugElement.query(By.directive(CommandComponent));
+        service = commandDe.injector.get(CommandService);
+        command = commandDe.componentInstance as CommandComponent;
+        itemIds = fixture.debugElement
+            .queryAll(By.directive(CommandItemComponent))
+            .map(de => (de.componentInstance as CommandItemComponent).id);
+    });
+
+    it('resets a filtered-out active item to the first remaining match', () => {
+        service.activeItemId.set(itemIds[0]);
+        service.search.set('profile');
+        fixture.detectChanges();
+
+        expect(service.activeItemId()).toBe(itemIds[1]);
+    });
+
+    it('delegates moveNext/movePrev/selectActive to the service', () => {
+        command.moveNext();
+        fixture.detectChanges();
+        expect(service.activeItemId()).toBe(itemIds[0]);
+
+        command.moveNext();
+        fixture.detectChanges();
+        expect(service.activeItemId()).toBe(itemIds[1]);
+
+        command.movePrev();
+        fixture.detectChanges();
+        expect(service.activeItemId()).toBe(itemIds[0]);
+
+        command.selectActive();
+        expect(fixture.componentInstance.sel).toHaveBeenCalledWith('calendar');
+    });
+
+    it('ignores moveNext/movePrev when no items are visible', () => {
+        service.search.set('zzz-no-match');
+        fixture.detectChanges();
+        expect(service.filteredItems()).toHaveLength(0);
+
+        service.activeItemId.set(null);
+        command.moveNext();
+        command.movePrev();
+        expect(service.activeItemId()).toBeNull();
+    });
+
+    it('does not select an active item that is no longer visible', () => {
+        service.search.set('zzz-no-match');
+        fixture.detectChanges();
+
+        service.activeItemId.set(itemIds[0]);
+        command.selectActive();
+        expect(fixture.componentInstance.sel).not.toHaveBeenCalled();
+    });
+});
+
+describe('CommandComponent construction inputs', () => {
+    @Component({
+        template: `
+            <ui-command [shouldFilter]="shouldFilter" [search]="search">
+                <ui-command-list>
+                    <ui-command-item value="calendar">Calendar</ui-command-item>
+                    <ui-command-item value="profile">Profile</ui-command-item>
+                </ui-command-list>
+            </ui-command>
+        `,
+        imports: [CommandComponent, CommandListComponent, CommandItemComponent],
+    })
+    class ConfiguredHost {
+        shouldFilter = true;
+        search: string | null = null;
+    }
+
+    function build(configure: (host: ConfiguredHost) => void): CommandService {
+        TestBed.configureTestingModule({ imports: [ConfiguredHost] });
+        const fixture = TestBed.createComponent(ConfiguredHost);
+        configure(fixture.componentInstance);
+        fixture.detectChanges();
+        return fixture.debugElement.query(By.directive(CommandComponent)).injector.get(CommandService);
+    }
+
+    it('mirrors a non-null search input into the service', () => {
+        const service = build(host => { host.search = 'calendar'; });
+        expect(service.search()).toBe('calendar');
+        expect(service.filteredItems()).toHaveLength(1);
+    });
+
+    it('returns every registered item when shouldFilter is false', () => {
+        const service = build(host => {
+            host.shouldFilter = false;
+            host.search = 'zzz-no-match';
+        });
+        expect(service.filteredItems()).toHaveLength(2);
+    });
+});
+
+describe('CommandInputComponent — focus', () => {
+    @Component({
+        template: `<ui-command><ui-command-input /></ui-command>`,
+        imports: [CommandComponent, CommandInputComponent],
+    })
+    class FocusHost { }
+
+    it('focuses the native input when focus() is called', () => {
+        TestBed.configureTestingModule({ imports: [FocusHost] });
+        const fixture = TestBed.createComponent(FocusHost);
+        fixture.detectChanges();
+
+        const inputDe = fixture.debugElement.query(By.directive(CommandInputComponent));
+        const inputCmp = inputDe.componentInstance as CommandInputComponent;
+        const nativeInput = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+        const focusSpy = vi.spyOn(nativeInput, 'focus');
+
+        inputCmp.focus();
+        expect(focusSpy).toHaveBeenCalled();
+    });
+
+    it('seeds the service search from a non-empty value input on init', () => {
+        @Component({
+            template: `<ui-command><ui-command-input value="hello" /></ui-command>`,
+            imports: [CommandComponent, CommandInputComponent],
+        })
+        class SeededHost { }
+
+        TestBed.configureTestingModule({ imports: [SeededHost] });
+        const fixture = TestBed.createComponent(SeededHost);
+        fixture.detectChanges();
+
+        const commandDe = fixture.debugElement.query(By.directive(CommandComponent));
+        const service = commandDe.injector.get(CommandService);
+        expect(service.search()).toBe('hello');
+    });
+});
+
+describe('command exported helpers', () => {
+    it('exposes the default Mod+K toggle shortcut definition', () => {
+        const def = COMMAND_DIALOG_SHORTCUT_DEFINITIONS[0];
+        expect(def.actionId).toBe('command-dialog.toggle');
+        expect(def.defaultShortcut).toBe('Mod+K');
+        expect(def.scope).toBe('global');
+    });
+
+    it('generateId returns distinct alphanumeric ids', () => {
+        const a = generateId();
+        const b = generateId();
+        expect(a).not.toBe(b);
+        expect(a).toMatch(/^[a-z\d]+$/);
+    });
+});
+
+describe('CommandDialogComponent', () => {
+    @Component({
+        template: `
+            <ui-command-dialog
+                [(open)]="open"
+                [shortcut]="shortcut"
+                [shortcutEnabled]="enabled"
+                [shortcutActionId]="actionId"
+            >
+                <ui-command-input />
+                <ui-command-list>
+                    <ui-command-item value="alpha">Alpha</ui-command-item>
+                </ui-command-list>
+            </ui-command-dialog>
+        `,
+        imports: [CommandDialogComponent, CommandInputComponent, CommandListComponent, CommandItemComponent],
+    })
+    class DialogHost {
+        open = false;
+        shortcut = 'Mod+K';
+        enabled = true;
+        actionId = 'command-dialog.toggle';
+    }
+
+    function createDialog(): ComponentFixture<DialogHost> {
+        TestBed.configureTestingModule({ imports: [DialogHost] });
+        const fixture = TestBed.createComponent(DialogHost);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('toggles open when the registered shortcut is dispatched', () => {
+        const fixture = createDialog();
+        const shortcuts = TestBed.inject(ShortcutBindingService);
+
+        const handled = shortcuts.dispatch(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+        fixture.detectChanges();
+
+        expect(handled).toBe(true);
+        expect(fixture.componentInstance.open).toBe(true);
+    });
+
+    it('focuses the command input shortly after opening', () => {
+        vi.useFakeTimers();
+        const fixture = createDialog();
+        const shortcuts = TestBed.inject(ShortcutBindingService);
+
+        shortcuts.dispatch(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+        fixture.detectChanges();
+
+        const inputDe = fixture.debugElement.query(By.directive(CommandInputComponent));
+        const inputCmp = inputDe.componentInstance as CommandInputComponent;
+        const focusSpy = vi.spyOn(inputCmp, 'focus');
+
+        vi.advanceTimersByTime(0);
+
+        expect(fixture.componentInstance.open).toBe(true);
+        expect(focusSpy).toHaveBeenCalled();
+
+        fixture.destroy();
+        vi.clearAllTimers();
+        vi.useRealTimers();
+    });
+
+    it('does not register the shortcut when disabled', () => {
+        TestBed.configureTestingModule({ imports: [DialogHost] });
+        const fixture = TestBed.createComponent(DialogHost);
+        fixture.componentInstance.enabled = false;
+        fixture.detectChanges();
+
+        const shortcuts = TestBed.inject(ShortcutBindingService);
+        const handled = shortcuts.dispatch(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+
+        expect(handled).toBe(false);
+        expect(fixture.componentInstance.open).toBe(false);
+    });
+
+    it('does not register the shortcut when the shortcut string is blank', () => {
+        TestBed.configureTestingModule({ imports: [DialogHost] });
+        const fixture = TestBed.createComponent(DialogHost);
+        fixture.componentInstance.shortcut = '   ';
+        fixture.detectChanges();
+
+        const shortcuts = TestBed.inject(ShortcutBindingService);
+        const handled = shortcuts.dispatch(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+
+        expect(handled).toBe(false);
+    });
+
+    it('unregisters the shortcut on destroy', () => {
+        const fixture = createDialog();
+        const shortcuts = TestBed.inject(ShortcutBindingService);
+
+        fixture.destroy();
+
+        const handled = shortcuts.dispatch(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+        expect(handled).toBe(false);
     });
 });

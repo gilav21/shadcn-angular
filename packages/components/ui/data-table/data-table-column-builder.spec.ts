@@ -1,3 +1,4 @@
+import { TemplateRef, Type } from '@angular/core';
 import { describe, it, expect } from 'vitest';
 import { columnHelper } from './data-table-column-builder';
 
@@ -100,6 +101,44 @@ describe('columnHelper', () => {
         expect(columns.map(c => c.accessorKey)).toEqual([
             '_selection', '_expander', 'name', 'email', 'status', '_actions'
         ]);
+    });
+
+    it('should create template columns', () => {
+        const template = {} as TemplateRef<unknown>;
+        const columns = columnHelper<TestRow>()
+            .template('name', 'Name', template, { width: '150px' })
+            .build();
+
+        expect(columns[0].accessorKey).toBe('name');
+        expect(columns[0].header).toBe('Name');
+        expect(columns[0].template).toBe(template);
+        expect(columns[0].width).toBe('150px');
+    });
+
+    it('should create component columns', () => {
+        class CellComponent {}
+        const columns = columnHelper<TestRow>()
+            .component('status', 'Status', CellComponent as Type<unknown>)
+            .build();
+
+        expect(columns[0].accessorKey).toBe('status');
+        expect(columns[0].header).toBe('Status');
+        expect(columns[0].component).toBe(CellComponent);
+    });
+
+    it('should override defaults on select/expander/actions via options', () => {
+        const columns = columnHelper<TestRow>()
+            .select({ width: '60px', sticky: false })
+            .expander({ width: '70px', enableSorting: true })
+            .actions({ width: '80px', header: 'Ops' })
+            .build();
+
+        expect(columns[0].width).toBe('60px');
+        expect(columns[0].sticky).toBe(false);
+        expect(columns[1].width).toBe('70px');
+        expect(columns[1].enableSorting).toBe(true);
+        expect(columns[2].width).toBe('80px');
+        expect(columns[2].header).toBe('Ops');
     });
 
     it('should return a copy of columns array', () => {

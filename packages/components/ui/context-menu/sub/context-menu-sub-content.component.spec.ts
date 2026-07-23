@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ContextMenuComponent } from '../context-menu.component';
 import { ContextMenuSubComponent } from './context-menu-sub.component';
 import { ContextMenuSubTriggerComponent } from './context-menu-sub-trigger.component';
@@ -106,6 +106,14 @@ describe('ContextMenuSubContentComponent', () => {
 
     function contentComponent(): ContextMenuSubContentComponent {
         return fixture.debugElement.query(By.directive(ContextMenuSubContentComponent)).componentInstance;
+    }
+
+    function forceRtl(): void {
+        // jsdom does not derive getComputedStyle().direction from the `dir`
+        // attribute, so isRtl() would report LTR. Spy on the outer menu's RTL
+        // resolver to reflect the host's requested direction under jsdom.
+        const menu = fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance as ContextMenuComponent;
+        vi.spyOn(menu, 'isRtl').mockReturnValue(true);
     }
 
     function triggerEl(): HTMLElement {
@@ -273,6 +281,7 @@ describe('ContextMenuSubContentComponent', () => {
         it('ArrowLeft in RTL is ignored (no preventDefault)', async () => {
             host.dir.set('rtl');
             document.documentElement.setAttribute('dir', 'rtl');
+            forceRtl();
             fixture.detectChanges(false);
             const event = dispatchKey(itemEl('a'), 'ArrowLeft');
             expect(event.defaultPrevented).toBe(false);
@@ -281,6 +290,7 @@ describe('ContextMenuSubContentComponent', () => {
         it('ArrowRight in RTL closes the sub', async () => {
             host.dir.set('rtl');
             document.documentElement.setAttribute('dir', 'rtl');
+            forceRtl();
             fixture.detectChanges(false);
             const event = dispatchKey(itemEl('a'), 'ArrowRight');
             expect(event.defaultPrevented).toBe(true);

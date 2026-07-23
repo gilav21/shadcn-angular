@@ -105,6 +105,16 @@ describe('ProgressComponent', () => {
         const innerBar = fixture.debugElement.query(By.css('.bg-primary'));
         expect(innerBar.nativeElement.style.width).toBe('60%');
     });
+
+    it('toString() returns the current value as a string', () => {
+        fixture.componentRef.setInput('value', 42);
+        fixture.detectChanges();
+        expect(component.toString()).toBe('42');
+
+        fixture.componentRef.setInput('value', 0);
+        fixture.detectChanges();
+        expect(component.toString()).toBe('0');
+    });
 });
 
 describe('Progress RTL Support', () => {

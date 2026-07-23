@@ -3,7 +3,7 @@ import { ToastService, ToastComponent } from './toast.component';
 import { ToasterComponent } from './sub/toaster.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 describe('ToastService', () => {
     let service: ToastService;
@@ -40,6 +40,139 @@ describe('ToastService', () => {
 
         service.error('Error');
         expect(service.toasts()[1].variant).toBe('destructive');
+    });
+});
+
+describe('ToastService — countdown & cleanup (fake timers)', () => {
+    let service: ToastService;
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(0);
+        TestBed.configureTestingModule({});
+        service = TestBed.inject(ToastService);
+        service.dismissAll();
+    });
+
+    afterEach(() => {
+        service.dismissAll();
+        vi.useRealTimers();
+    });
+
+    it('seeds countdownSeconds from duration when showCountdown is set', () => {
+        service.toast({ title: 'CD', duration: 5000, showCountdown: true });
+        expect(service.toasts()[0].countdownSeconds).toBe(5);
+    });
+
+    it('leaves countdownSeconds undefined when showCountdown is not set', () => {
+        service.toast({ title: 'NoCD', duration: 5000 });
+        expect(service.toasts()[0].countdownSeconds).toBeUndefined();
+    });
+
+    it('decrements countdownSeconds each second via the interval', () => {
+        const id = service.toast({ title: 'Tick', duration: 5000, showCountdown: true });
+        expect(service.toasts()[0].countdownSeconds).toBe(5);
+
+        vi.advanceTimersByTime(1000);
+        expect(service.toasts()[0].countdownSeconds).toBe(4);
+
+        vi.advanceTimersByTime(2000);
+        expect(service.toasts()[0].countdownSeconds).toBe(2);
+
+        service.dismiss(id);
+    });
+
+    it('does not touch other toasts inside the countdown interval', () => {
+        service.toast({ title: 'Plain', duration: 5000 });
+        service.toast({ title: 'Tick', duration: 5000, showCountdown: true });
+
+        vi.advanceTimersByTime(1000);
+
+        const plain = service.toasts().find(t => t.title === 'Plain');
+        const tick = service.toasts().find(t => t.title === 'Tick');
+        expect(plain?.countdownSeconds).toBeUndefined();
+        expect(tick?.countdownSeconds).toBe(4);
+    });
+
+    it('auto-dismisses when the duration timeout fires', () => {
+        service.toast({ title: 'Auto', duration: 2000 });
+        expect(service.toasts()).toHaveLength(1);
+        vi.advanceTimersByTime(2000);
+        expect(service.toasts()).toHaveLength(0);
+    });
+
+    it('does not schedule a timeout when duration is 0', () => {
+        service.toast({ title: 'Sticky', duration: 0 });
+        vi.advanceTimersByTime(100000);
+        expect(service.toasts()).toHaveLength(1);
+    });
+
+    it('dismiss clears both the timeout and the countdown interval', () => {
+        const id = service.toast({ title: 'Tick', duration: 5000, showCountdown: true });
+        expect(vi.getTimerCount()).toBeGreaterThan(0);
+        service.dismiss(id);
+        expect(service.toasts()).toHaveLength(0);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('dismiss is a no-op for an unknown id (no timers registered)', () => {
+        service.dismiss('missing');
+        expect(service.toasts()).toHaveLength(0);
+    });
+
+    it('dismissAll clears every pending timeout and interval', () => {
+        service.toast({ title: 'A', duration: 5000, showCountdown: true });
+        service.toast({ title: 'B', duration: 5000 });
+        expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+        service.dismissAll();
+        expect(service.toasts()).toHaveLength(0);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+});
+
+describe('ToastComponent — progress bar', () => {
+    async function make(inputs: Record<string, unknown>) {
+        await TestBed.configureTestingModule({
+            imports: [ToastComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(ToastComponent);
+        for (const [k, v] of Object.entries(inputs)) fixture.componentRef.setInput(k, v);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('renders a progress bar at the computed width when counting down', async () => {
+        const fixture = await make({
+            showCountdown: true,
+            duration: 5000,
+            countdownSeconds: 3,
+        });
+        const bar = fixture.debugElement.query(By.css('[data-slot="toast-progress"] > div'));
+        expect(bar).toBeTruthy();
+        expect((bar.nativeElement as HTMLElement).style.width).toBe('60%');
+    });
+
+    it('clamps progress to zero once the countdown reaches zero', async () => {
+        const fixture = await make({
+            showCountdown: true,
+            duration: 5000,
+            countdownSeconds: 0,
+        });
+        const bar = fixture.debugElement.query(By.css('[data-slot="toast-progress"] > div'));
+        expect((bar.nativeElement as HTMLElement).style.width).toBe('0%');
+    });
+
+    it('reports zero progress when countdownSeconds is absent', async () => {
+        const fixture = await make({ showCountdown: true, duration: 5000 });
+        const bar = fixture.debugElement.query(By.css('[data-slot="toast-progress"] > div'));
+        expect((bar.nativeElement as HTMLElement).style.width).toBe('0%');
+    });
+
+    it('omits the progress bar when showCountdown is false', async () => {
+        const fixture = await make({ duration: 5000 });
+        const bar = fixture.debugElement.query(By.css('[data-slot="toast-progress"]'));
+        expect(bar).toBeNull();
     });
 });
 

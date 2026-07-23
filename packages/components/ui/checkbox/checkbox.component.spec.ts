@@ -1,7 +1,9 @@
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CheckboxComponent } from './checkbox.component';
 import { By } from '@angular/platform-browser';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('CheckboxComponent', () => {
     let component: CheckboxComponent;
@@ -151,5 +153,145 @@ describe('CheckboxComponent with Label', () => {
         fixture.detectChanges();
 
         expect(component.checked()).toBe(true);
+    });
+});
+
+describe('CheckboxComponent methods', () => {
+    let component: CheckboxComponent;
+    let fixture: ComponentFixture<CheckboxComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [CheckboxComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(CheckboxComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('toggle() flips checked and notifies registered callbacks', () => {
+        const onChange = vi.fn();
+        const onTouched = vi.fn();
+        component.registerOnChange(onChange);
+        component.registerOnTouched(onTouched);
+
+        component.toggle();
+
+        expect(component.checked()).toBe(true);
+        expect(onChange).toHaveBeenCalledWith(true);
+        expect(onTouched).toHaveBeenCalledTimes(1);
+
+        component.toggle();
+        expect(component.checked()).toBe(false);
+        expect(onChange).toHaveBeenLastCalledWith(false);
+    });
+
+    it('toggle() is a no-op when disabled', () => {
+        const onChange = vi.fn();
+        component.registerOnChange(onChange);
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+
+        component.toggle();
+
+        expect(component.checked()).toBe(false);
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it('markTouched() runs on blur of the native input', () => {
+        const onTouched = vi.fn();
+        component.registerOnTouched(onTouched);
+
+        const input = fixture.debugElement.query(By.css('input[type="checkbox"]'));
+        input.nativeElement.dispatchEvent(new Event('blur'));
+
+        expect(onTouched).toHaveBeenCalledTimes(1);
+    });
+
+    it('writeValue() sets the checked state, coercing null to false', () => {
+        component.writeValue(true);
+        expect(component.checked()).toBe(true);
+
+        component.writeValue(null as unknown as boolean);
+        expect(component.checked()).toBe(false);
+    });
+
+    it('setDisabledState() drives the disabled computed and native input', () => {
+        component.setDisabledState(true);
+        fixture.detectChanges();
+
+        const input = fixture.debugElement.query(By.css('input[type="checkbox"]'));
+        expect(input.nativeElement.disabled).toBe(true);
+
+        component.setDisabledState(false);
+        fixture.detectChanges();
+        expect(input.nativeElement.disabled).toBe(false);
+    });
+
+    it('toString() reflects the current checked value', () => {
+        expect(component.toString()).toBe('false');
+        component.checked.set(true);
+        expect(component.toString()).toBe('true');
+    });
+
+    it('renders aria-label when no label is set', () => {
+        fixture.componentRef.setInput('ariaLabel', 'Agree');
+        fixture.componentRef.setInput('ariaLabelledby', 'lbl-1');
+        fixture.componentRef.setInput('elementId', 'cb-1');
+        fixture.detectChanges();
+
+        const input = fixture.debugElement.query(By.css('input[type="checkbox"]'));
+        expect(input.nativeElement.getAttribute('aria-label')).toBe('Agree');
+        expect(input.nativeElement.getAttribute('aria-labelledby')).toBe('lbl-1');
+        expect(input.nativeElement.getAttribute('id')).toBe('cb-1');
+    });
+});
+
+@Component({
+    imports: [CheckboxComponent, FormsModule, ReactiveFormsModule],
+    template: `
+        <ui-checkbox [formControl]="control" />
+        <ui-checkbox [(ngModel)]="modelValue" />
+    `,
+})
+class CheckboxHostComponent {
+    readonly control = new FormControl(false);
+    modelValue = false;
+}
+
+describe('CheckboxComponent as a form control', () => {
+    let fixture: ComponentFixture<CheckboxHostComponent>;
+    let host: CheckboxHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [CheckboxHostComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(CheckboxHostComponent);
+        host = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('wires NG_VALUE_ACCESSOR so reactive + template forms drive the checkbox', () => {
+        const checkboxes = fixture.debugElement.queryAll(By.directive(CheckboxComponent));
+        const reactive = checkboxes[0].componentInstance as CheckboxComponent;
+        const template = checkboxes[1].componentInstance as CheckboxComponent;
+
+        host.control.setValue(true);
+        fixture.detectChanges();
+        expect(reactive.checked()).toBe(true);
+
+        const reactiveInput = checkboxes[0].query(By.css('input'));
+        reactiveInput.nativeElement.click();
+        fixture.detectChanges();
+        expect(host.control.value).toBe(false);
+
+        host.control.disable();
+        fixture.detectChanges();
+        expect(reactiveInput.nativeElement.disabled).toBe(true);
+
+        expect(template.checked()).toBe(false);
     });
 });

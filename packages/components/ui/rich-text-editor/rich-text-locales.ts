@@ -1,4 +1,4 @@
-import type { LocaleMeta } from '../../lib/i18n';
+import type { LocaleMeta } from '../../lib/i18n/i18n.types';
 
 export interface RichTextLocale extends LocaleMeta {
     toolbar: {

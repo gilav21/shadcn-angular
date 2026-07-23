@@ -185,6 +185,66 @@ describe('Tooltip RTL Support', () => {
     });
 });
 
+// Side-specific host to cover each sideClasses branch of tooltip-content
+@Component({
+    template: `
+        <ui-tooltip [side]="side()">
+            <ui-tooltip-trigger>Hover me</ui-tooltip-trigger>
+            <ui-tooltip-content>Tooltip text</ui-tooltip-content>
+        </ui-tooltip>
+    `,
+    imports: [TooltipComponent, TooltipTriggerComponent, TooltipContentComponent]
+})
+class SideTestHostComponent {
+    side = signal<'top' | 'right' | 'bottom' | 'left'>('top');
+}
+
+describe('Tooltip Content side classes', () => {
+    let fixture: ComponentFixture<SideTestHostComponent>;
+    let component: SideTestHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SideTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SideTestHostComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    const cases: Array<['top' | 'right' | 'bottom' | 'left', string]> = [
+        ['top', 'bottom-full'],
+        ['bottom', 'top-full'],
+        ['left', 'right-full'],
+        ['right', 'left-full'],
+    ];
+
+    for (const [side, expected] of cases) {
+        it(`applies the ${side} side class`, () => {
+            component.side.set(side);
+            fixture.detectChanges();
+            fixture.debugElement.query(By.directive(TooltipComponent)).componentInstance.show();
+            fixture.detectChanges();
+
+            const content = fixture.debugElement.query(By.css('[data-slot="tooltip-content"]'));
+            expect(content.nativeElement.className).toContain(expected);
+        });
+    }
+});
+
+describe('Tooltip Content without a tooltip parent', () => {
+    it('falls back to the top side classes when no TOOLTIP is provided', async () => {
+        await TestBed.configureTestingModule({
+            imports: [TooltipContentComponent]
+        }).compileComponents();
+
+        const fixture = TestBed.createComponent(TooltipContentComponent);
+        expect(fixture.componentInstance.tooltip).toBeNull();
+        expect(fixture.componentInstance.classes()).toContain('bottom-full');
+    });
+});
+
 // Simple content mode test host
 @Component({
     template: `

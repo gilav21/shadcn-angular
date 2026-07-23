@@ -11,5 +11,7 @@ export {
     formatRelativeTime,
     type LocaleBindings,
 } from './i18n.utils';
-export { COMMON_LOCALES, type CommonLocale } from './common.locales';
-export { CALENDAR_LOCALES, type CalendarLocale } from './calendar.locales';
+// Locale string bundles are intentionally NOT re-exported by this barrel:
+// re-exporting them would drag every locale file into any consumer that imports
+// the barrel. Import CALENDAR_LOCALES / COMMON_LOCALES straight from their own
+// sibling modules where they are actually needed.

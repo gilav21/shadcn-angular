@@ -5,6 +5,7 @@ import {
   DataTableMultiselectFilterComponent,
   multiselectFilterFn,
 } from './data-table-multiselect-filter.component';
+import { DataTableLocale } from '../data-table.locales';
 
 describe('DataTableMultiselectFilterComponent', () => {
   let component: DataTableMultiselectFilterComponent<string>;
@@ -90,6 +91,17 @@ describe('DataTableMultiselectFilterComponent', () => {
 
     const badge = fixture.debugElement.query(By.css('ui-badge'));
     expect(badge).toBeTruthy();
+  });
+
+  it('falls back to English literals when the active locale omits the labels', () => {
+    const sparseLocale = { code: 'xx' } as unknown as DataTableLocale;
+    fixture.componentRef.setInput('locale', sparseLocale);
+    fixture.detectChanges();
+
+    expect(component.resolvedPlaceholder()).toBe('Search...');
+    expect(component.selectAllLabel()).toBe('Select all');
+    expect(component.clearAllLabel()).toBe('Clear');
+    expect(component.noResultsLabel()).toBe('No results.');
   });
 
   it('should restore pre-selected values from input', async () => {

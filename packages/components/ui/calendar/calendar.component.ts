@@ -9,12 +9,8 @@ import {
   untracked,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
-import {
-  CALENDAR_LOCALES,
-  type CalendarLocale,
-  createLocaleBindings,
-  type LocaleInput,
-} from '../../lib/i18n';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { CALENDAR_LOCALES, type CalendarLocale } from '../../lib/i18n/calendar.locales';
 import { ButtonComponent } from '../button';
 import {
   SelectComponent,

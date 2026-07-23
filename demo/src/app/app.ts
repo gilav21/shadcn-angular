@@ -5,7 +5,8 @@ import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs';
 import { APP_LOCALE } from './app.config';
-import { CALENDAR_LOCALES, UI_LOCALE_ID } from '../../../packages/components/lib/i18n';
+import { UI_LOCALE_ID } from '../../../packages/components/lib/i18n';
+import { CALENDAR_LOCALES } from '../../../packages/components/lib/i18n/calendar.locales';
 import { APP_LOCALES } from './app.locales';
 import { CssSettingsComponent } from './css-settings.component';
 import {

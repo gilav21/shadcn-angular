@@ -1,9 +1,28 @@
-import { beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, afterEach, describe, it, expect } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { evaluateAdvancedFilter, matchesCondition } from './data-table.utils';
 import { DataTableComponent } from './data-table.component';
 import { DataTableFilterBuilderComponent } from './sub/data-table-filter-builder.component';
-import { ColumnDef, FilterGroup } from './data-table.types';
+import { ColumnDef, FilterGroup, FilterOperator } from './data-table.types';
+
+let originalResizeObserver: typeof ResizeObserver | undefined;
+
+beforeEach(() => {
+  originalResizeObserver = globalThis.ResizeObserver;
+  globalThis.ResizeObserver = class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  } as unknown as typeof ResizeObserver;
+});
+
+afterEach(() => {
+  if (originalResizeObserver) {
+    globalThis.ResizeObserver = originalResizeObserver;
+  } else {
+    Reflect.deleteProperty(globalThis, 'ResizeObserver');
+  }
+});
 
 describe('matchesCondition (A5)', () => {
   it('handles text operators case-insensitively', () => {
@@ -29,6 +48,10 @@ describe('matchesCondition (A5)', () => {
     expect(matchesCondition('  ', 'isEmpty', undefined)).toBe(true);
     expect(matchesCondition('x', 'isNotEmpty', undefined)).toBe(true);
     expect(matchesCondition(null, 'isEmpty', undefined)).toBe(true);
+  });
+
+  it('matches everything for an unknown operator', () => {
+    expect(matchesCondition('anything', 'bogus' as FilterOperator, 'x')).toBe(true);
   });
 });
 
@@ -140,6 +163,56 @@ describe('DataTableComponent advanced filter integration (A5)', () => {
     });
     expect(component.filteredData().map((r) => r.id).sort((a, b) => a.localeCompare(b))).toEqual(['2', '3']);
   });
+
+  it('advancedFilterGroup defaults to an empty AND group when unset', () => {
+    expect(component.advancedFilterGroup()).toEqual({ type: 'group', combinator: 'and', rules: [] });
+  });
+
+  it('filterBuilderColumns lists the configured columns as {key,header}', () => {
+    expect(component.filterBuilderColumns()).toEqual([
+      { key: 'name', header: 'Name' },
+      { key: 'amount', header: 'Amount' },
+    ]);
+  });
+
+  it('filterBuilderLabels falls back to the English defaults', () => {
+    expect(component.filterBuilderLabels().addCondition).toBe('+ Condition');
+  });
+
+  it('advancedFilterCount counts leaf conditions across nested groups, and clearAdvancedFilter resets it', () => {
+    component.advancedFilter.set({
+      type: 'group',
+      combinator: 'and',
+      rules: [
+        { type: 'condition', column: 'amount', operator: 'gt', value: 1000 },
+        {
+          type: 'group',
+          combinator: 'or',
+          rules: [
+            { type: 'condition', column: 'name', operator: 'contains', value: 'a' },
+            { type: 'condition', column: 'name', operator: 'contains', value: 'b' },
+          ],
+        },
+      ],
+    });
+    expect(component.advancedFilterCount()).toBe(3);
+
+    component.clearAdvancedFilter();
+    expect(component.advancedFilter()).toBeNull();
+    expect(component.advancedFilterCount()).toBe(0);
+  });
+
+  it('onAdvancedFilterChange updates the advancedFilter model', () => {
+    const group: FilterGroup = { type: 'group', combinator: 'or', rules: [] };
+    component.onAdvancedFilterChange(group);
+    expect(component.advancedFilter()).toEqual(group);
+  });
+
+  it('resolvedLoaderComponentInputs merges the loading trigger into the custom loader inputs', () => {
+    fixture.componentRef.setInput('loaderComponentInputs', { color: 'blue' });
+    component.setLoadingTrigger('sorting');
+    expect(component.resolvedLoaderComponentInputs()).toEqual({ color: 'blue', trigger: 'sorting' });
+  });
 });
 
 describe('DataTableFilterBuilderComponent (A5)', () => {
@@ -186,5 +259,85 @@ describe('DataTableFilterBuilderComponent (A5)', () => {
     component.groupChange.subscribe((g) => (emitted = g));
     component.removeRule(0);
     expect(emitted!.rules).toHaveLength(0);
+  });
+
+  it('needsValue is false for valueless operators and true otherwise', () => {
+    expect(component.needsValue('isEmpty')).toBe(false);
+    expect(component.needsValue('isNotEmpty')).toBe(false);
+    expect(component.needsValue('contains')).toBe(true);
+  });
+
+  it('asText stringifies the rule value for the input box', () => {
+    expect(component.asText(42)).toBe('42');
+    expect(component.asText('hello')).toBe('hello');
+  });
+
+  it('patch updates a condition rule column/value and ignores group rules', () => {
+    fixture.componentRef.setInput('group', {
+      type: 'group', combinator: 'and',
+      rules: [{ type: 'condition', column: 'name', operator: 'contains', value: 'x' }],
+    });
+    let emitted: FilterGroup | null = null;
+    component.groupChange.subscribe((g) => (emitted = g));
+    component.patch(0, { column: 'age', value: 'y' });
+    expect(emitted!.rules[0]).toMatchObject({ column: 'age', value: 'y' });
+
+    fixture.componentRef.setInput('group', {
+      type: 'group', combinator: 'and',
+      rules: [{ type: 'group', combinator: 'or', rules: [] }],
+    });
+    emitted = null;
+    component.patch(0, { column: 'age' });
+    expect(emitted).toBeNull();
+  });
+
+  it('patchOperator updates a condition rule operator via a change event and ignores group rules', () => {
+    fixture.componentRef.setInput('group', {
+      type: 'group', combinator: 'and',
+      rules: [{ type: 'condition', column: 'name', operator: 'contains', value: 'x' }],
+    });
+    let emitted: FilterGroup | null = null;
+    component.groupChange.subscribe((g) => (emitted = g));
+    const select = document.createElement('select');
+    const option = document.createElement('option');
+    option.value = 'equals';
+    select.append(option);
+    select.value = 'equals';
+    component.patchOperator(0, { target: select } as unknown as Event);
+    expect(emitted!.rules[0]).toMatchObject({ operator: 'equals' });
+
+    fixture.componentRef.setInput('group', {
+      type: 'group', combinator: 'and',
+      rules: [{ type: 'group', combinator: 'or', rules: [] }],
+    });
+    emitted = null;
+    component.patchOperator(0, { target: select } as unknown as Event);
+    expect(emitted).toBeNull();
+  });
+
+  it('updateRule replaces the rule at the given index (nested group change)', () => {
+    fixture.componentRef.setInput('group', {
+      type: 'group', combinator: 'and',
+      rules: [{ type: 'group', combinator: 'or', rules: [] }],
+    });
+    let emitted: FilterGroup | null = null;
+    component.groupChange.subscribe((g) => (emitted = g));
+    const nested: FilterGroup = { type: 'group', combinator: 'and', rules: [] };
+    component.updateRule(0, nested);
+    expect(emitted!.rules[0]).toEqual(nested);
+  });
+
+  it('renders a nested subgroup and a condition value input', () => {
+    fixture.componentRef.setInput('group', {
+      type: 'group', combinator: 'and',
+      rules: [
+        { type: 'condition', column: 'name', operator: 'contains', value: 'x' },
+        { type: 'group', combinator: 'or', rules: [] },
+      ],
+    });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('[data-slot="filter-subgroup"]')).toBeTruthy();
+    expect(host.querySelector('[data-slot="filter-condition"] input')).toBeTruthy();
   });
 });

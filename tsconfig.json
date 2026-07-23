@@ -36,6 +36,7 @@
     "exclude": [
         "node_modules",
         "e2e/harness",
-        "e2e/fixture-app"
+        "e2e/fixture-app",
+        "e2e/jest-fixture"
     ]
 }

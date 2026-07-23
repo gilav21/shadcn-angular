@@ -3,6 +3,31 @@ import { BarRaceChartComponent } from './bar-race-chart.component';
 import { ChartDataPoint } from '../../lib/chart.types';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
+class ResizeObserverStub {
+    observe(): void {
+        /* no-op */
+    }
+    unobserve(): void {
+        /* no-op */
+    }
+    disconnect(): void {
+        /* no-op */
+    }
+}
+
+const globalWithStubs = globalThis as unknown as {
+    ResizeObserver?: unknown;
+};
+const savedResizeObserver = globalWithStubs.ResizeObserver;
+
+beforeEach(() => {
+    globalWithStubs.ResizeObserver = ResizeObserverStub;
+});
+
+afterEach(() => {
+    globalWithStubs.ResizeObserver = savedResizeObserver;
+});
+
 describe('BarRaceChartComponent', () => {
     let component: BarRaceChartComponent;
     let fixture: ComponentFixture<BarRaceChartComponent>;
@@ -379,6 +404,80 @@ describe('BarRaceChartComponent', () => {
             vi.advanceTimersByTime(500);
             expect(component.currentFrameIndex()).toBe(2);
         });
+    });
+
+    describe('isRtl direction resolution', () => {
+        it('resolves isRtl to true when dir="rtl"', () => {
+            fixture.componentRef.setInput('dir', 'rtl');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(true);
+
+            const bars = component.displayBars();
+            const area = component.chartArea();
+            expect(bars[0].x).toBeLessThanOrEqual(area.right);
+        });
+
+        it('resolves isRtl to false when dir="ltr"', () => {
+            fixture.componentRef.setInput('dir', 'ltr');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(false);
+        });
+    });
+
+    describe('maxValue for an empty frame', () => {
+        it('returns the fallback maximum when the frame has no data', () => {
+            fixture.componentRef.setInput('frames', [[]]);
+            fixture.detectChanges();
+            expect(component.maxValue()).toBe(100);
+        });
+    });
+
+    describe('animateNextFrame guard', () => {
+        it('exits early when invoked while not playing', () => {
+            expect(component.isPlaying()).toBe(false);
+            const internals = component as unknown as {
+                animateNextFrame(): void;
+            };
+            internals.animateNextFrame();
+            expect(component.currentFrameIndex()).toBe(0);
+            expect(component.isPlaying()).toBe(false);
+        });
+    });
+});
+
+describe('BarRaceChartComponent — autoPlay', () => {
+    const frames: ChartDataPoint[][] = [
+        [{ name: 'A', value: 1 }],
+        [{ name: 'A', value: 2 }],
+    ];
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('starts playing automatically when autoPlay is true', async () => {
+        await TestBed.configureTestingModule({
+            imports: [BarRaceChartComponent],
+        }).compileComponents();
+
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        const component = fixture.componentInstance;
+        fixture.componentRef.setInput('frames', frames);
+        fixture.componentRef.setInput('autoPlay', true);
+        fixture.detectChanges();
+
+        expect(component.isPlaying()).toBe(false);
+
+        vi.advanceTimersByTime(0);
+
+        expect(component.isPlaying()).toBe(true);
+        expect(component.currentFrameIndex()).toBe(1);
+
+        component.pause();
     });
 });
 

@@ -2,10 +2,9 @@ import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, it, expect, afterEach } from 'vitest';
-import { RichTextEditorComponent } from '../../rich-text-editor.component';
-import { RichTextSanitizerService } from '../../rich-text-sanitizer.service';
 import { RichTextActionsDirective } from './rich-text-actions.directive';
 import type { ActionParams, RichTextActionDefinition, RichTextActionTrigger } from './rich-text-actions.types';
+import { RichTextEditorComponent, RichTextSanitizerService } from '../..';
 
 interface ApplyTargetLike {
     kind: 'text' | 'image';
@@ -16,6 +15,12 @@ interface DirectiveInternals {
     applyAction(
         def: RichTextActionDefinition, trigger: RichTextActionTrigger, params: ActionParams, target: ApplyTargetLike,
     ): boolean;
+    applyCombined(
+        def: RichTextActionDefinition,
+        params: { click: ActionParams; hover: ActionParams },
+        target: ApplyTargetLike,
+    ): boolean;
+    editAction(el: HTMLElement, trigger: RichTextActionTrigger): void;
 }
 
 @Component({
@@ -253,6 +258,7 @@ describe('RichTextActionsDirective', () => {
 
     function caretInside(fixture: ComponentFixture<HostCmp>, html: string): HTMLElement {
         fixture.detectChanges();
+        forceViewReady(fixture);
         const editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLElement;
         editor.innerHTML = html;
         const span = editor.querySelector('span')!;
@@ -265,6 +271,21 @@ describe('RichTextActionsDirective', () => {
         return editor;
     }
 
+    /**
+     * The directive registers its mouseup/keyup listeners (and injects the
+     * visualization stylesheet) inside an effect gated on `viewReady`, which is
+     * flipped from an afterNextRender callback. The zone leg does not flush
+     * afterRender hooks in this TestBed, so force the flag and re-run change
+     * detection to register the listeners before the test interacts. Under the
+     * zoneless leg afterNextRender already ran, so this is a harmless no-op.
+     */
+    function forceViewReady(fixture: ComponentFixture<HostCmp>): void {
+        const directive = fixture.debugElement.query(By.directive(RichTextActionsDirective))
+            ?.injector.get(RichTextActionsDirective);
+        (directive as unknown as { viewReady?: { set(v: boolean): void } } | undefined)?.viewReady?.set(true);
+        fixture.detectChanges();
+    }
+
     it('shows the edit popover when the caret enters an actioned span', () => {
         const fixture = createFixture();
         caretInside(fixture, '<p><span data-action-click="open-dialog" data-action-click-params=\'{"dialogId":"x"}\'>t</span></p>');
@@ -272,6 +293,22 @@ describe('RichTextActionsDirective', () => {
         expect(popover).toBeTruthy();
         expect(popover!.textContent).toContain('Open dialog');
         expect(popover!.querySelector('[data-testid="rta-edit"]')).toBeTruthy();
+    });
+
+    it('renders the popover in the native top layer when showPopover is available', () => {
+        const proto = HTMLElement.prototype as { showPopover?: () => void };
+        const had = 'showPopover' in proto;
+        const original = proto.showPopover;
+        proto.showPopover = function noop(): void { /* jsdom lacks the top layer */ };
+        try {
+            const fixture = createFixture();
+            caretInside(fixture, '<p><span data-action-click="open-dialog">t</span></p>');
+            const popover = currentPopover();
+            expect(popover.getAttribute('popover')).toBe('manual');
+        } finally {
+            if (had) proto.showPopover = original;
+            else delete proto.showPopover;
+        }
     });
 
     it('removes a trigger and unwraps a bare span', () => {
@@ -401,8 +438,10 @@ describe('RichTextActionsDirective', () => {
     it('ref-counts the shared visualization stylesheet across two editor instances', () => {
         const a = createFixture();
         a.detectChanges();
+        forceViewReady(a);
         const b = createFixture();
         b.detectChanges();
+        forceViewReady(b);
         const doc = a.nativeElement.ownerDocument as Document;
         const style = doc.querySelector('style[data-rte-actions-style]') as HTMLStyleElement;
         expect(style).toBeTruthy();
@@ -417,10 +456,16 @@ describe('RichTextActionsDirective', () => {
         const fixture = createFixture();
         fixture.detectChanges();
         const editor = fixture.debugElement.query(By.directive(RichTextEditorComponent)).componentInstance as {
-            commands: { listCommands(): { id: string; run: (ctx: unknown) => void }[] };
+            commands: { listCommands(): {
+                id: string; run: (ctx: unknown) => void;
+                when?: (ctx: { hasSelection: boolean; readonly: boolean }) => boolean;
+            }[] };
         };
         const cmd = editor.commands.listCommands().find((c) => c.id === 'actions.attach');
         expect(cmd).toBeTruthy();
+        expect(cmd!.when!({ hasSelection: true, readonly: false })).toBe(true);
+        expect(cmd!.when!({ hasSelection: false, readonly: false })).toBe(false);
+        expect(cmd!.when!({ hasSelection: true, readonly: true })).toBe(false);
         cmd!.run({ hasSelection: true, readonly: false });
         fixture.detectChanges();
         expect(document.querySelector('[data-testid="rta-cancel"]')).toBeTruthy();
@@ -447,9 +492,51 @@ describe('RichTextActionsDirective', () => {
             editor.wrapSelection = () => [];
             expect(dir.applyAction(def, 'click', {}, { kind: 'text', existing: null, image: null })).toBe(false);
             expect(errors.some((m) => m.includes('lost the text selection'))).toBe(true);
+
+            const combined: RichTextActionDefinition = {
+                id: 'c', label: 'C', triggers: ['click', 'hover'], combined: true,
+            };
+            const nonFlat = { nested: { deep: 1 } } as unknown as ActionParams;
+            expect(dir.applyCombined(combined, { click: nonFlat, hover: {} }, { kind: 'text', existing: null, image: null }))
+                .toBe(false);
+            expect(errors.some((m) => m.includes('non-flat combined params'))).toBe(true);
+
+            expect(dir.applyCombined(combined, { click: {}, hover: {} }, { kind: 'image', existing: null, image: null }))
+                .toBe(false);
+
+            expect(dir.applyCombined(combined, { click: {}, hover: {} }, { kind: 'text', existing: null, image: null }))
+                .toBe(false);
+            expect(errors.some((m) => m.includes('lost the text selection before applying the combined'))).toBe(true);
+
+            const existing = document.createElement('span');
+            expect(dir.applyCombined(combined, { click: { a: 1 }, hover: { b: 2 } }, {
+                kind: 'text', existing, image: null,
+            })).toBe(true);
+            expect(existing.getAttribute('data-action-click')).toBe('c');
+            expect(existing.getAttribute('data-action-hover')).toBe('c');
         } finally {
             console.error = orig;
         }
+    });
+
+    it('edit on a combined action carries the hover params into the dialog prefill', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.defs = [
+            { id: 'dictionary', label: 'Dictionary', triggers: ['click', 'hover'], combined: true },
+        ];
+        fixture.detectChanges();
+        const de = fixture.debugElement.query(By.directive(RichTextActionsDirective));
+        const dir = de.injector.get(RichTextActionsDirective) as unknown as DirectiveInternals;
+        const el = document.createElement('span');
+        el.setAttribute('data-action-click', 'dictionary');
+        el.setAttribute('data-action-hover', 'dictionary');
+        el.setAttribute('data-action-hover-params', '{"previewLen":90}');
+        el.textContent = 'term';
+        document.body.appendChild(el);
+        dir.editAction(el, 'click');
+        fixture.detectChanges();
+        expect(currentDialog()).toBeTruthy();
+        el.remove();
     });
 
     it('attaches a combined action to both triggers in one undoable transaction', async () => {

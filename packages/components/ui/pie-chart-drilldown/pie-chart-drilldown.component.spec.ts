@@ -445,6 +445,85 @@ describe('PieChartDrilldownComponent', () => {
         });
     });
 
+    describe('legendPosition layout variants', () => {
+        it('should reverse the row for legendPosition left', () => {
+            fixture.componentRef.setInput('legendPosition', 'left');
+            fixture.detectChanges();
+
+            expect(component.chartContainerClasses()).toContain('sm:flex-row-reverse');
+            expect(component.chartContainerClasses()).toContain('flex-col sm:flex-row');
+        });
+
+        it('should reverse the column for legendPosition top and use horizontal legend', () => {
+            fixture.componentRef.setInput('legendPosition', 'top');
+            fixture.detectChanges();
+
+            expect(component.chartContainerClasses()).toContain('flex-col-reverse');
+            expect(component.legendClasses()).toContain('flex-row flex-wrap justify-center');
+            expect(component.legendClasses()).not.toContain('sm:flex-col');
+        });
+
+        it('should use a vertical legend layout for legendPosition right', () => {
+            fixture.componentRef.setInput('legendPosition', 'right');
+            fixture.detectChanges();
+
+            expect(component.legendClasses()).toContain('sm:flex-col');
+        });
+    });
+
+    describe('missing drilldown series fallbacks', () => {
+        it('should fall back to empty data when currentDrilldownId has no matching series', () => {
+            component.currentDrilldownId.set('nonexistent-id');
+            fixture.detectChanges();
+
+            expect(component.currentData()).toEqual([]);
+            expect(component.currentSlices()).toHaveLength(0);
+        });
+
+        it('should fall back to empty series name when currentDrilldownId has no matching series', () => {
+            component.currentDrilldownId.set('nonexistent-id');
+            fixture.detectChanges();
+
+            expect(component.currentSeriesName()).toBe('');
+        });
+
+        it('should not drill down when the slice drilldown id has no matching series', () => {
+            fixture.componentRef.setInput('data', [
+                { name: 'Orphan', value: 10, drilldown: 'nonexistent-id' },
+            ]);
+            fixture.componentRef.setInput('drilldownSeries', []);
+            fixture.detectChanges();
+
+            const drilldownEvents: unknown[] = [];
+            component.drilldown.subscribe(event => drilldownEvents.push(event));
+
+            component.onSliceClick(new MouseEvent('click'), component.currentSlices()[0]);
+
+            expect(component.isDrilledDown()).toBe(false);
+            expect(component.currentDrilldownId()).toBeNull();
+            expect(drilldownEvents).toHaveLength(0);
+        });
+    });
+
+    describe('hoveredSlice fallback', () => {
+        it('should return null when hoveredIndex points at a non-existent slice', () => {
+            component.hoveredIndex.set(99);
+            expect(component.hoveredSlice()).toBeNull();
+        });
+    });
+
+    describe('onSliceClick with a non-mouse event', () => {
+        it('should omit the event when triggered by a keyboard event', () => {
+            const clickEvents: { event?: MouseEvent }[] = [];
+            component.sliceClick.subscribe(event => clickEvents.push(event));
+
+            component.onSliceClick(new KeyboardEvent('keydown'), component.currentSlices()[0]);
+
+            expect(clickEvents).toHaveLength(1);
+            expect(clickEvents[0].event).toBeUndefined();
+        });
+    });
+
     describe('currentSeriesName', () => {
         it('should return Overview by default when not drilled down', () => {
             expect(component.currentSeriesName()).toBe('Overview');

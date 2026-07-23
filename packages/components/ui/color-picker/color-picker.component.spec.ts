@@ -1,9 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, signal } from '@angular/core';
+import { Component, PLATFORM_ID, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ColorPickerComponent } from './color-picker.component';
+import { keyboardStep, readRecents, writeRecents } from './color-picker.utils';
 
 @Component({
     template: `
@@ -346,7 +347,7 @@ describe('ColorPickerComponent', () => {
             host.showHarmonies.set(true);
             fixture.detectChanges();
             const picker = await openAndGetPicker(fixture);
-            const writeText = vi.fn().mockResolvedValue(undefined);
+            const writeText = vi.fn((_text: string) => Promise.resolve());
             Object.defineProperty(globalThis.navigator, 'clipboard', {
                 value: { writeText },
                 configurable: true,
@@ -577,7 +578,7 @@ describe('ColorPickerComponent', () => {
     describe('Copy format value', () => {
         it('copy writes the formatted value to the clipboard and flags the format', async () => {
             const picker = await openAndGetPicker(fixture);
-            const writeText = vi.fn().mockResolvedValue(undefined);
+            const writeText = vi.fn((_text: string) => Promise.resolve());
             Object.defineProperty(globalThis.navigator, 'clipboard', {
                 value: { writeText },
                 configurable: true,
@@ -590,7 +591,7 @@ describe('ColorPickerComponent', () => {
 
         it('copy swallows clipboard rejections', async () => {
             const picker = await openAndGetPicker(fixture);
-            const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+            const writeText = vi.fn((_text: string) => Promise.reject(new Error('denied')));
             Object.defineProperty(globalThis.navigator, 'clipboard', {
                 value: { writeText },
                 configurable: true,
@@ -644,8 +645,8 @@ describe('ColorPickerComponent', () => {
             const trigger = fixture.debugElement.query(By.css('button'));
             trigger.nativeElement.click();
             fixture.detectChanges();
-            const html = fixture.debugElement.nativeElement.innerHTML as string;
-            expect(html).not.toContain('<script>alert');
+            const scripts = (fixture.debugElement.nativeElement as HTMLElement).querySelectorAll('script');
+            expect(scripts).toHaveLength(0);
         });
     });
 
@@ -656,6 +657,166 @@ describe('ColorPickerComponent', () => {
             await fixture.whenStable();
             const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
             expect(container).toBeTruthy();
+        });
+    });
+
+    describe('Derived color spaces', () => {
+        it('exposes an OKLCH triple for the current color', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.applyRgba({ r: 255, g: 0, b: 0, a: 1 });
+            const value = picker.oklch();
+            expect(value.l).toBeGreaterThan(0);
+            expect(value.c).toBeGreaterThan(0);
+        });
+    });
+
+    describe('Compare slot no-op', () => {
+        it('setCompareSlot on the active slot is a no-op', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.selectPreset('#ff0000');
+            fixture.detectChanges();
+            picker.setCompareSlot('a');
+            expect(picker.compareActive()).toBe('a');
+            expect(picker.currentColor()).toBe('#ff0000');
+        });
+    });
+
+    describe('Area drag movement', () => {
+        it('window mousemove during a drag re-maps the pointer to S/V', async () => {
+            const picker = await openAndGetPicker(fixture);
+            stubAreaRect(picker);
+            picker.onAreaMouseDown(new MouseEvent('mousedown', { clientX: 0, clientY: 0 }));
+            window.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 100 }));
+            fixture.detectChanges();
+            expect(picker.saturation()).toBe(100);
+            expect(picker.value()).toBe(0);
+            window.dispatchEvent(new MouseEvent('mouseup'));
+        });
+    });
+
+    describe('Guard clauses', () => {
+        it('onAreaTouchStart ignores an empty touch list', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const before = picker.saturation();
+            const ev = new Event('touchstart', { cancelable: true }) as unknown as TouchEvent;
+            Object.defineProperty(ev, 'touches', { value: [] });
+            picker.onAreaTouchStart(ev);
+            expect(picker.saturation()).toBe(before);
+        });
+
+        it('onAreaKeyDown does nothing while disabled', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const before = picker.saturation();
+            host.disabled.set(true);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+            expect(picker.saturation()).toBe(before);
+        });
+
+        it('onAreaKeyDown ignores keys that do not move the marker', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const before = picker.saturation();
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'Enter' }));
+            expect(picker.saturation()).toBe(before);
+        });
+
+        it('selectPreset ignores an unparseable color', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.selectPreset('not-a-color');
+            fixture.detectChanges();
+            expect(host.color()).toBe('#3b82f6');
+        });
+    });
+
+    describe('Keyboard steps (remaining directions)', () => {
+        it('ArrowLeft, ArrowUp, End, PageUp and PageDown all move the marker', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.saturation.set(50);
+            picker.value.set(50);
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+            expect(picker.saturation()).toBe(49);
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+            expect(picker.value()).toBe(51);
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'End' }));
+            expect(picker.saturation()).toBe(100);
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'PageDown' }));
+            expect(picker.value()).toBe(41);
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'PageUp' }));
+            expect(picker.value()).toBe(51);
+        });
+    });
+
+    describe('Image extraction', () => {
+        function fileChangeEvent(file: File): Event {
+            const input = document.createElement('input');
+            input.type = 'file';
+            Object.defineProperty(input, 'files', { value: [file], configurable: true });
+            const ev = new Event('change');
+            Object.defineProperty(ev, 'target', { value: input });
+            return ev;
+        }
+
+        it('extracts a palette and applies the first color on success', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const proto = HTMLCanvasElement.prototype as unknown as {
+                getContext: (id: string, o?: unknown) => unknown;
+            };
+            const originalGetContext = proto.getContext;
+            vi.stubGlobal('createImageBitmap', () =>
+                Promise.resolve({ width: 2, height: 2, close: () => undefined }),
+            );
+            proto.getContext = () => ({
+                drawImage: () => undefined,
+                getImageData: () => ({
+                    data: new Uint8ClampedArray([120, 80, 40, 255, 30, 60, 90, 255, 10, 20, 30, 255, 200, 150, 100, 255]),
+                }),
+            });
+            const file = new File([new Uint8Array([1, 2, 3])], 'x.png', { type: 'image/png' });
+            await picker.onImageSelected(fileChangeEvent(file));
+            expect(picker.extractedPalette().length).toBeGreaterThan(0);
+            expect(picker.currentColor()).toMatch(/^#[0-9a-f]{6}$/);
+            proto.getContext = originalGetContext;
+            vi.unstubAllGlobals();
+        });
+
+        it('clears the extracted palette when extraction throws', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.extractedPalette.set(['#aaaaaa']);
+            vi.stubGlobal('createImageBitmap', () => Promise.reject(new Error('decode failed')));
+            const file = new File([new Uint8Array([1])], 'x.png', { type: 'image/png' });
+            await picker.onImageSelected(fileChangeEvent(file));
+            expect(picker.extractedPalette()).toEqual([]);
+            vi.unstubAllGlobals();
+        });
+    });
+
+    describe('Copy timers', () => {
+        it('copy clears a pending timer on re-copy and resets the flag after 1.5s', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const writeText = vi.fn((_text: string) => Promise.resolve());
+            Object.defineProperty(globalThis.navigator, 'clipboard', { value: { writeText }, configurable: true });
+            vi.useFakeTimers();
+            await picker.copy('hex');
+            expect(picker.copiedFormat()).toBe('hex');
+            await picker.copy('rgb');
+            expect(picker.copiedFormat()).toBe('rgb');
+            vi.advanceTimersByTime(1500);
+            expect(picker.copiedFormat()).toBeNull();
+            vi.useRealTimers();
+        });
+
+        it('copyHarmony clears a pending timer on re-copy and resets after 1.5s', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const writeText = vi.fn((_text: string) => Promise.resolve());
+            Object.defineProperty(globalThis.navigator, 'clipboard', { value: { writeText }, configurable: true });
+            vi.useFakeTimers();
+            await picker.copyHarmony('#111111');
+            await picker.copyHarmony('#222222');
+            expect(picker.copiedHarmony()).toBe('#222222');
+            vi.advanceTimersByTime(1500);
+            expect(picker.copiedHarmony()).toBeNull();
+            vi.useRealTimers();
         });
     });
 });
@@ -699,5 +860,136 @@ describe('ColorPickerComponent — i18n integration', () => {
         const t = (fixture.componentInstance as unknown as { t: () => Record<string, string> }).t();
         expect(t['code']).toBe('de');
         expect(t['pickColorFromImage']).toBe('Farbe aus Bild wählen');
+    });
+});
+
+describe('ColorPickerComponent — server platform', () => {
+    it('copy and copyHarmony are inert when not running in a browser', async () => {
+        await TestBed.configureTestingModule({
+            imports: [ColorPickerComponent],
+            providers: [{ provide: PLATFORM_ID, useValue: 'server' }],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(ColorPickerComponent);
+        fixture.detectChanges();
+        const picker = fixture.componentInstance;
+        await picker.copyHarmony('#abcdef');
+        await picker.copy('hex');
+        expect(picker.copiedHarmony()).toBeNull();
+        expect(picker.copiedFormat()).toBeNull();
+    });
+});
+
+describe('ColorPickerComponent — controlled recents', () => {
+    it('emits recentColorsChange instead of mutating internal state', async () => {
+        await TestBed.configureTestingModule({ imports: [ColorPickerComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(ColorPickerComponent);
+        fixture.componentRef.setInput('recentColors', []);
+        fixture.componentRef.setInput('presets', ['#ff0000']);
+        let emitted: string[] | null = null;
+        fixture.componentInstance.recentColorsChange.subscribe((v: string[]) => { emitted = v; });
+        fixture.detectChanges();
+        fixture.componentInstance.selectPreset('#ff0000');
+        expect(emitted).toEqual(['#ff0000']);
+    });
+});
+
+describe('ColorPickerComponent — area not yet rendered', () => {
+    it('updateFromAreaPosition is a no-op when the SV area is absent', async () => {
+        await TestBed.configureTestingModule({ imports: [ColorPickerComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(ColorPickerComponent);
+        fixture.detectChanges();
+        const picker = fixture.componentInstance;
+        const before = picker.saturation();
+        (picker as unknown as { colorArea: () => undefined }).colorArea = () => undefined;
+        (picker as unknown as { updateFromAreaPosition: (x: number, y: number) => void })
+            .updateFromAreaPosition(5, 5);
+        expect(picker.saturation()).toBe(before);
+    });
+});
+
+describe('ColorPickerComponent — persisted recents', () => {
+    afterEach(() => {
+        globalThis.localStorage.clear();
+    });
+
+    it('hydrates recents from localStorage and persists later changes', async () => {
+        globalThis.localStorage.setItem('ui-color-picker:swatches', JSON.stringify(['#111111', '#222222']));
+        await TestBed.configureTestingModule({ imports: [ColorPickerComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(ColorPickerComponent);
+        fixture.componentRef.setInput('storageKey', 'swatches');
+        fixture.componentRef.setInput('presets', ['#333333']);
+        fixture.detectChanges();
+        const picker = fixture.componentInstance;
+        expect(picker.recents()).toContain('#111111');
+        picker.selectPreset('#333333');
+        fixture.detectChanges();
+        expect(globalThis.localStorage.getItem('ui-color-picker:swatches')).toContain('#333333');
+    });
+});
+
+describe('color-picker.utils', () => {
+    afterEach(() => {
+        globalThis.localStorage.clear();
+        vi.restoreAllMocks();
+    });
+
+    describe('keyboardStep', () => {
+        it('maps every navigation key to a step and returns null otherwise', () => {
+            expect(keyboardStep(new KeyboardEvent('keydown', { key: 'ArrowLeft' }))).toEqual({ dSaturation: -1, dValue: 0 });
+            expect(keyboardStep(new KeyboardEvent('keydown', { key: 'ArrowUp' }))).toEqual({ dSaturation: 0, dValue: 1 });
+            expect(keyboardStep(new KeyboardEvent('keydown', { key: 'End' }))).toEqual({ dSaturation: 100, dValue: 0 });
+            expect(keyboardStep(new KeyboardEvent('keydown', { key: 'PageUp' }))).toEqual({ dSaturation: 0, dValue: 10 });
+            expect(keyboardStep(new KeyboardEvent('keydown', { key: 'PageDown' }))).toEqual({ dSaturation: 0, dValue: -10 });
+            expect(keyboardStep(new KeyboardEvent('keydown', { key: 'Tab' }))).toBeNull();
+        });
+    });
+
+    describe('readRecents', () => {
+        it('returns an empty list for a null key', () => {
+            expect(readRecents(null, 8)).toEqual([]);
+        });
+
+        it('returns an empty list when nothing is stored', () => {
+            expect(readRecents('missing', 8)).toEqual([]);
+        });
+
+        it('filters non-strings and caps the result at max', () => {
+            globalThis.localStorage.setItem('ui-color-picker:mixed', JSON.stringify(['#111', '#222', 5, '#333']));
+            expect(readRecents('mixed', 2)).toEqual(['#111', '#222']);
+        });
+
+        it('returns an empty list when the stored value is not an array', () => {
+            globalThis.localStorage.setItem('ui-color-picker:scalar', JSON.stringify(123));
+            expect(readRecents('scalar', 8)).toEqual([]);
+        });
+
+        it('swallows malformed JSON and returns an empty list', () => {
+            globalThis.localStorage.setItem('ui-color-picker:broken', '{not valid json');
+            expect(readRecents('broken', 8)).toEqual([]);
+        });
+    });
+
+    describe('writeRecents', () => {
+        it('does nothing for a null key', () => {
+            // setItem lives on Storage.prototype; spy there so it is a real mock
+            // under both runners (the localStorage instance isn't spyable in jest).
+            const spy = vi.spyOn(Storage.prototype, 'setItem');
+            writeRecents(null, ['#fff']);
+            expect(spy).not.toHaveBeenCalled();
+            spy.mockRestore();
+        });
+
+        it('persists the list under the prefixed key', () => {
+            writeRecents('persist', ['#ffffff', '#000000']);
+            expect(globalThis.localStorage.getItem('ui-color-picker:persist')).toBe(JSON.stringify(['#ffffff', '#000000']));
+        });
+
+        it('swallows storage errors', () => {
+            const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+                throw new Error('quota exceeded');
+            });
+            expect(() => writeRecents('boom', ['#fff'])).not.toThrow();
+            spy.mockRestore();
+        });
     });
 });

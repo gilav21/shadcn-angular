@@ -16,7 +16,8 @@ import {
 import { DOCUMENT } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, isRtl } from '../../lib/utils';
-import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
 
 export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
 

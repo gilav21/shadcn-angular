@@ -4,6 +4,7 @@ import { Component, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
 // Reactive forms test host
 @Component({
@@ -106,6 +107,58 @@ describe('TextareaComponent', () => {
         expect(textarea.nativeElement.className).toContain('rounded-md');
         expect(textarea.nativeElement.className).toContain('border');
         expect(textarea.nativeElement.className).toContain('w-full');
+    });
+
+    it('should update the value signal and default onChange when onValueChange is called', () => {
+        expect(() => component.onValueChange('typed text')).not.toThrow();
+        expect(component.value()).toBe('typed text');
+    });
+
+    it('should invoke the default onTouched without a registered callback', () => {
+        expect(() => component.onTouched()).not.toThrow();
+    });
+
+    it('should reflect the current value through toString()', () => {
+        component.onValueChange('serialized');
+        expect(component.toString()).toBe('serialized');
+    });
+
+    it('should coerce a null value to an empty string in writeValue', () => {
+        component.value.set('previous');
+        component.writeValue(null as unknown as string);
+        expect(component.value()).toBe('');
+    });
+});
+
+describe('Textarea inside an input group', () => {
+    let fixture: ComponentFixture<TextareaComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [TextareaComponent],
+            providers: [
+                {
+                    provide: UI_INPUT_GROUP,
+                    useValue: { disabled: signal(false) },
+                },
+            ],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(TextareaComponent);
+        fixture.detectChanges();
+    });
+
+    it('should downgrade the default outline variant to ghost when grouped', () => {
+        const textarea = fixture.debugElement.query(By.css('textarea'));
+        expect(textarea.nativeElement.className).toContain('border-none');
+        expect(textarea.nativeElement.className).not.toContain('rounded-md');
+    });
+
+    it('should keep an explicit variant unchanged when grouped', () => {
+        fixture.componentRef.setInput('variant', 'underline');
+        fixture.detectChanges();
+        const textarea = fixture.debugElement.query(By.css('textarea'));
+        expect(textarea.nativeElement.className).toContain('border-b');
     });
 });
 

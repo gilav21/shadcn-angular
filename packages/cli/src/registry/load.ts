@@ -40,6 +40,8 @@ function isValidRegistryEntry(entry: unknown): boolean {
     const e = entry as Record<string, unknown>;
     if (typeof e['name'] !== 'string' || !Array.isArray(e['files'])) return false;
     if (e['addons'] !== undefined && !isStringArray(e['addons'])) return false;
+    if (e['testFiles'] !== undefined && !isStringArray(e['testFiles'])) return false;
+    if (e['testDependencies'] !== undefined && !isStringArray(e['testDependencies'])) return false;
     if (e['type'] === 'addon') return isValidAddonEntry(e);
     return true;
 }

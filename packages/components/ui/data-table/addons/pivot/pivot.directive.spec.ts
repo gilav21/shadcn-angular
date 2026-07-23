@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, it, expect } from 'vitest';
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
@@ -67,6 +67,51 @@ describe('computePivot', () => {
     expect(result.rows).toEqual([]);
     expect(result.pivotColumnKeys).toEqual([]);
   });
+
+  it('takes the minimum cell value with the min aggregate', () => {
+    const result = computePivot(DATA, { rows: ['region'], column: 'product', value: 'sales', aggregate: 'min' });
+    const [pa, pb] = result.pivotColumnKeys;
+    expect(result.rows[0]).toMatchObject({ region: 'NA', [pa]: 20, [pb]: 50 });
+  });
+
+  it('takes the maximum cell value with the max aggregate', () => {
+    const result = computePivot(DATA, { rows: ['region'], column: 'product', value: 'sales', aggregate: 'max' });
+    const [pa] = result.pivotColumnKeys;
+    expect(result.rows[0][pa]).toBe(100);
+  });
+
+  it('ignores non-numeric values when aggregating', () => {
+    const data = [
+      { region: 'NA', product: 'A', sales: 'oops' },
+      { region: 'NA', product: 'A', sales: 30 },
+      { region: 'NA', product: 'A', sales: null },
+    ];
+    const result = computePivot(data, { rows: ['region'], column: 'product', value: 'sales', aggregate: 'sum' });
+    const [pa] = result.pivotColumnKeys;
+    expect(result.rows[0][pa]).toBe(30);
+  });
+
+  it('rounds averages to two decimals', () => {
+    const data = [
+      { region: 'NA', product: 'A', sales: 10 },
+      { region: 'NA', product: 'A', sales: 10 },
+      { region: 'NA', product: 'A', sales: 11 },
+    ];
+    const result = computePivot(data, { rows: ['region'], column: 'product', value: 'sales', aggregate: 'avg' });
+    const [pa] = result.pivotColumnKeys;
+    expect(result.rows[0][pa] as number).toBeCloseTo(10.33, 2);
+  });
+
+  it('returns 0 from an unknown aggregate over non-empty values', () => {
+    const result = computePivot(DATA, {
+      rows: ['region'],
+      column: 'product',
+      value: 'sales',
+      aggregate: 'bogus' as unknown as 'sum',
+    });
+    const [pa] = result.pivotColumnKeys;
+    expect(result.rows[0][pa]).toBe(0);
+  });
 });
 
 @Component({
@@ -88,6 +133,43 @@ class TestHostComponent {
 
 describe('DataTablePivotDirective', () => {
   let fixture: ComponentFixture<TestHostComponent>;
+
+  const globalRef = globalThis as unknown as {
+    ResizeObserver?: unknown;
+    matchMedia?: unknown;
+  };
+  const savedResizeObserver = globalRef.ResizeObserver;
+  const savedMatchMedia = globalRef.matchMedia;
+  const savedGetRect = Element.prototype.getBoundingClientRect;
+
+  beforeAll(() => {
+    class ResizeObserverStub {
+      observe(): void {
+        /* no-op */
+      }
+      unobserve(): void {
+        /* no-op */
+      }
+      disconnect(): void {
+        /* no-op */
+      }
+    }
+    globalRef.ResizeObserver = ResizeObserverStub;
+    globalRef.matchMedia = (query: string) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+    Element.prototype.getBoundingClientRect = () =>
+      ({ width: 0, height: 0, top: 0, left: 0, right: 0, bottom: 0, x: 0, y: 0 }) as DOMRect;
+  });
+
+  afterAll(() => {
+    globalRef.ResizeObserver = savedResizeObserver;
+    globalRef.matchMedia = savedMatchMedia;
+    Element.prototype.getBoundingClientRect = savedGetRect;
+  });
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();

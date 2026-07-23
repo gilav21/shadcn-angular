@@ -1,12 +1,77 @@
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, afterEach } from 'vitest';
-import { RichTextEditorComponent } from '../../rich-text-editor.component';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { RichTextLinksDirective } from './rich-text-links.directive';
 import { RichTextLinksButtonComponent } from './rich-text-links-button.component';
 import { RichTextLinksFormComponent } from './rich-text-links-form.component';
 import type { RichTextLinksButtonContext } from './rich-text-links.context';
+import { RichTextEditorComponent } from '../..';
+
+type Restore = () => void;
+
+function fixedRect(): DOMRect {
+    return {
+        x: 12, y: 12, width: 80, height: 16, top: 12, left: 12, right: 92, bottom: 28,
+        toJSON: () => ({}),
+    } as DOMRect;
+}
+
+/** jsdom's Range implements neither getBoundingClientRect nor getClientRects. */
+function stubRangeRects(): Restore {
+    const proto = Range.prototype as unknown as Record<string, unknown>;
+    const hadBox = 'getBoundingClientRect' in proto;
+    const hadList = 'getClientRects' in proto;
+    const originalBox = Object.getOwnPropertyDescriptor(proto, 'getBoundingClientRect');
+    const originalList = Object.getOwnPropertyDescriptor(proto, 'getClientRects');
+    Object.defineProperty(proto, 'getBoundingClientRect', { value: () => fixedRect(), configurable: true, writable: true });
+    Object.defineProperty(proto, 'getClientRects', { value: () => [fixedRect()], configurable: true, writable: true });
+    return () => {
+        if (hadBox && originalBox) Object.defineProperty(proto, 'getBoundingClientRect', originalBox);
+        else delete proto['getBoundingClientRect'];
+        if (hadList && originalList) Object.defineProperty(proto, 'getClientRects', originalList);
+        else delete proto['getClientRects'];
+    };
+}
+
+/** jsdom implements neither showPopover nor hidePopover on HTMLElement. */
+function stubPopoverApi(): Restore {
+    const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
+    const hadShow = 'showPopover' in proto;
+    const hadHide = 'hidePopover' in proto;
+    const originalShow = Object.getOwnPropertyDescriptor(proto, 'showPopover');
+    const originalHide = Object.getOwnPropertyDescriptor(proto, 'hidePopover');
+    Object.defineProperty(proto, 'showPopover', { value: () => {}, configurable: true, writable: true });
+    Object.defineProperty(proto, 'hidePopover', { value: () => {}, configurable: true, writable: true });
+    return () => {
+        if (hadShow && originalShow) Object.defineProperty(proto, 'showPopover', originalShow);
+        else delete proto['showPopover'];
+        if (hadHide && originalHide) Object.defineProperty(proto, 'hidePopover', originalHide);
+        else delete proto['hidePopover'];
+    };
+}
+
+/**
+ * jsdom leaves HTMLElement.isContentEditable undefined (it never computes the
+ * inherited contenteditable state), so the addon's edit-probe never recognizes
+ * an anchor inside the editable root. Shim it to honor the nearest ancestor.
+ */
+function stubContentEditable(): Restore {
+    const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
+    const had = Object.prototype.hasOwnProperty.call(proto, 'isContentEditable');
+    const original = Object.getOwnPropertyDescriptor(proto, 'isContentEditable');
+    Object.defineProperty(proto, 'isContentEditable', {
+        configurable: true,
+        get(this: HTMLElement): boolean {
+            const value = this.closest('[contenteditable]')?.getAttribute('contenteditable');
+            return value === '' || value === 'true';
+        },
+    });
+    return () => {
+        if (had && original) Object.defineProperty(proto, 'isContentEditable', original);
+        else delete proto['isContentEditable'];
+    };
+}
 
 @Component({
     standalone: true,
@@ -40,6 +105,15 @@ type ButtonProbe = {
 
 describe('RichTextLinksDirective', () => {
     const openFixtures: ComponentFixture<unknown>[] = [];
+    let restoreRects: Restore;
+    let restoreCe: Restore;
+    let restorePopover: Restore;
+
+    beforeEach(() => {
+        restoreRects = stubRangeRects();
+        restoreCe = stubContentEditable();
+        restorePopover = stubPopoverApi();
+    });
 
     function createFixture(): ComponentFixture<HostCmp> {
         const fixture = TestBed.createComponent(HostCmp);
@@ -99,6 +173,9 @@ describe('RichTextLinksDirective', () => {
                 fixture.destroy();
             }
         }
+        restoreRects();
+        restoreCe();
+        restorePopover();
     });
 
     it('removes the toolbar slot live when uiRteLinks flips to false and restores on re-enable', () => {
@@ -313,5 +390,89 @@ describe('RichTextLinksDirective', () => {
         openFixtures.pop();
 
         expect(editor.toolbarSlots.slots()).toHaveLength(0);
+    });
+
+    it('opens the caret overlay when the insert.link slash command runs', () => {
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p>run me</p>');
+        selectAllOf(el);
+        const command = cmp.commands.listCommands().find((c) => c.id === 'insert.link')!;
+
+        command.run({
+            query: '', selectedText: '',
+            executeToolbarCommand: () => undefined,
+            insertText: () => undefined,
+            insertHtml: () => undefined,
+            showLinkDialog: () => cmp.showLinkDialog(),
+            focusEditor: () => undefined,
+        });
+        fixture.detectChanges();
+
+        expect(overlayForms(fixture)).toHaveLength(1);
+    });
+
+    it('positions the insert overlay from the caret hint when there is no selection rect', () => {
+        const fixture = createFixture();
+        const { cmp } = setContent(fixture, '<p>hi</p>');
+        document.getSelection()?.removeAllRanges();
+
+        cmp.showLinkDialog();
+        fixture.detectChanges();
+
+        expect(overlayForms(fixture)).toHaveLength(1);
+    });
+
+    it('rejects an unsafe url when updating an existing link and closes the overlay', async () => {
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old</a></p>');
+        await fixture.whenStable();
+        const anchor = el.querySelector('a')!;
+        caretInside(anchor.firstChild!, 1);
+        cmp.contentRoot.dispatchEvent(new Event('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+
+        overlayForms(fixture)[0].submitLink.emit({ text: 'x', url: 'javascript:alert(1)' });
+        fixture.detectChanges();
+
+        expect(el.querySelector('a')?.getAttribute('href')).toBe('https://old.test');
+        expect(overlayForms(fixture)).toHaveLength(0);
+    });
+
+    it('closes the edit overlay when the caret leaves the link', async () => {
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old</a>tail</p>');
+        await fixture.whenStable();
+        const anchor = el.querySelector('a')!;
+        caretInside(anchor.firstChild!, 1);
+        cmp.contentRoot.dispatchEvent(new Event('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(1);
+
+        const tail = el.querySelector('p')!.lastChild!;
+        caretInside(tail, 2);
+        cmp.contentRoot.dispatchEvent(new Event('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+
+        expect(overlayForms(fixture)).toHaveLength(0);
+    });
+
+    it('dismisses the edit overlay on an outside pointer but keeps it for inside pointers', async () => {
+        const fixture = createFixture();
+        const { el, cmp } = setContent(fixture, '<p><a href="https://old.test">old</a></p>');
+        await fixture.whenStable();
+        const anchor = el.querySelector('a')!;
+        caretInside(anchor.firstChild!, 1);
+        cmp.contentRoot.dispatchEvent(new Event('mouseup', { bubbles: true }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(1);
+
+        const formEl = document.querySelector('[data-slot="rich-text-links-form"]') as HTMLElement;
+        formEl.querySelector('input')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(1);
+
+        document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(overlayForms(fixture)).toHaveLength(0);
     });
 });

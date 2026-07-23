@@ -24,6 +24,9 @@ export default tseslint.config(
       'coverage-cli/**',
       '.storybook/**',
       'e2e/fixture-app/**',
+      // Transient consumer install used by the jest-fixpoint — gitignored
+      // vendored copies of components, not source (tsconfig excludes it too).
+      'e2e/jest-fixture/src/components/**',
       // Nested git worktrees (`.claude/worktrees/<branch>/`) are separate
       // checkouts of this repo — they are linted by their own runs, and their
       // files aren't in this checkout's tsconfig, so parserOptions.project

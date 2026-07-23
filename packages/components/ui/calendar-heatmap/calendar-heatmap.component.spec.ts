@@ -64,4 +64,54 @@ describe('CalendarHeatmapComponent', () => {
         expect(component.hoverTitle()).toContain('2026-01-05');
         expect(component.tooltipRows()[0].value).toContain('9');
     });
+
+    it('falls back to safe defaults when the data set is empty', () => {
+        fixture.componentRef.setInput('data', []);
+        fixture.detectChanges();
+        expect(component.valueDomain()).toEqual([0, 1]);
+        expect(component.weekCount()).toBe(0);
+        expect(component.usedWidth()).toBe(26);
+        expect(component.cells()).toEqual([]);
+    });
+
+    it('prefixes the accessible label with the title when provided', () => {
+        fixture.componentRef.setInput('title', 'Commits');
+        fixture.detectChanges();
+        expect(component.ariaLabel()).toBe('Commits. Calendar heatmap with 4 days.');
+    });
+
+    it('omits the title prefix from the accessible label by default', () => {
+        expect(component.ariaLabel()).toBe('Calendar heatmap with 4 days.');
+    });
+
+    it('sets the hover state and tooltip position on cell enter', () => {
+        const rect = fixture.nativeElement.querySelector('rect[data-slot="calendar-day"]');
+        rect.dispatchEvent(new MouseEvent('mouseenter'));
+        fixture.detectChanges();
+        const placed = component.cells()[0];
+        expect(component.hovered()).toBe(placed.day);
+        expect(component.tooltipPos()).toEqual({
+            x: placed.x + placed.size,
+            y: Math.max(8, placed.y - 8),
+        });
+    });
+
+    it('clears the hover state on cell leave', () => {
+        const rect = fixture.nativeElement.querySelector('rect[data-slot="calendar-day"]');
+        rect.dispatchEvent(new MouseEvent('mouseenter'));
+        fixture.detectChanges();
+        expect(component.hovered()).not.toBeNull();
+        rect.dispatchEvent(new MouseEvent('mouseleave'));
+        fixture.detectChanges();
+        expect(component.hovered()).toBeNull();
+    });
+
+    it('emits the hovered day through the dayHover output', () => {
+        const emitted: (CalendarDay | null)[] = [];
+        component.dayHover.subscribe(d => emitted.push(d));
+        const placed = component.cells()[0];
+        component.onCellEnter(placed);
+        component.onLeave();
+        expect(emitted).toEqual([placed.day, null]);
+    });
 });

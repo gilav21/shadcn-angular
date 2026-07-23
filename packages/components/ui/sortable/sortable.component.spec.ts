@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from 'vitest';
 import {
     SortableComponent,
     SortableItemComponent,
@@ -66,6 +66,119 @@ function getSortable<T>(fixture: ComponentFixture<TestHostComponent>): SortableC
         .query(el => el.componentInstance instanceof SortableComponent)
         ?.componentInstance as SortableComponent<T>;
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * jsdom drag/layout stubs
+ * ---------------------------------------------------------------------------
+ * jsdom performs no layout, has no Web Animations API, and no matchMedia. The
+ * sortable's pointer-drag math reads getBoundingClientRect(); FLIP + land
+ * effects call element.animate(); reduced-motion checks call matchMedia(). We
+ * install deterministic stubs so index math is stable: every list is a
+ * 200px-wide column, list N sits at x = N * 300, and item I sits at y = I * 40.
+ * Originals are saved in beforeAll and restored in afterAll.
+ */
+const STUB_ITEM_H = 40;
+const STUB_LIST_W = 200;
+const STUB_LIST_H = 1000;
+const STUB_LIST_GAP = 300;
+
+function stubRect(x: number, y: number, w: number, h: number): DOMRect {
+    return {
+        x, y, width: w, height: h,
+        top: y, left: x, right: x + w, bottom: y + h,
+        toJSON(): unknown { return {}; },
+    } as DOMRect;
+}
+
+function listOffsetLeft(container: Element): number {
+    const all = Array.from(container.ownerDocument.querySelectorAll('[data-slot="sortable"]'));
+    return Math.max(0, all.indexOf(container)) * STUB_LIST_GAP;
+}
+
+function deterministicRect(el: Element): DOMRect | null {
+    const slot = (el as HTMLElement).dataset?.['slot'];
+    if (slot === 'sortable-item') {
+        const container = el.closest('[data-slot="sortable"]');
+        if (!container) return stubRect(0, 0, STUB_LIST_W, STUB_ITEM_H);
+        const items = Array.from(container.querySelectorAll('[data-slot="sortable-item"]'));
+        const idx = Math.max(0, items.indexOf(el));
+        return stubRect(listOffsetLeft(container), idx * STUB_ITEM_H, STUB_LIST_W, STUB_ITEM_H);
+    }
+    if (slot === 'sortable') {
+        return stubRect(listOffsetLeft(el), 0, STUB_LIST_W, STUB_LIST_H);
+    }
+    return null;
+}
+
+interface FakeAnimation {
+    finished: Promise<void>;
+    cancel(): void;
+}
+
+type ElementProtoStub = {
+    getBoundingClientRect: (this: Element) => DOMRect;
+    animate?: (...args: unknown[]) => FakeAnimation;
+};
+type WindowStub = { matchMedia?: (query: string) => unknown };
+
+let savedGetRect: ((this: Element) => DOMRect) | null = null;
+let hadAnimate = false;
+let savedAnimate: ((...args: unknown[]) => FakeAnimation) | undefined;
+let hadMatchMedia = false;
+let savedMatchMedia: ((query: string) => unknown) | undefined;
+
+function installDomStubs(): void {
+    const elProto = Element.prototype as unknown as ElementProtoStub;
+    savedGetRect = elProto.getBoundingClientRect;
+    elProto.getBoundingClientRect = function (this: Element): DOMRect {
+        return deterministicRect(this) ?? (savedGetRect as (this: Element) => DOMRect).call(this);
+    };
+
+    const htmlProto = HTMLElement.prototype as unknown as ElementProtoStub;
+    hadAnimate = 'animate' in HTMLElement.prototype;
+    savedAnimate = htmlProto.animate;
+    htmlProto.animate = (): FakeAnimation => ({ finished: Promise.resolve(), cancel(): void {} });
+
+    const win = globalThis.window as unknown as WindowStub;
+    hadMatchMedia = 'matchMedia' in globalThis.window;
+    savedMatchMedia = win.matchMedia;
+    win.matchMedia = (query: string) => ({
+        matches: false, media: query, onchange: null,
+        addEventListener(): void {}, removeEventListener(): void {},
+        addListener(): void {}, removeListener(): void {},
+        dispatchEvent(): boolean { return false; },
+    });
+}
+
+function restoreDomStubs(): void {
+    const elProto = Element.prototype as unknown as ElementProtoStub;
+    if (savedGetRect) elProto.getBoundingClientRect = savedGetRect;
+
+    const htmlProto = HTMLElement.prototype as unknown as ElementProtoStub;
+    if (hadAnimate) htmlProto.animate = savedAnimate;
+    else delete htmlProto.animate;
+
+    const win = globalThis.window as unknown as WindowStub;
+    if (hadMatchMedia) win.matchMedia = savedMatchMedia;
+    else delete win.matchMedia;
+}
+
+/** Build a touch-like event carrying a `touches` array jsdom otherwise lacks. */
+function makeTouchEvent(type: string, clientX: number, clientY: number): TouchEvent {
+    const evt = new Event(type, { bubbles: true, cancelable: true });
+    const point = { clientX, clientY };
+    Object.assign(evt, { touches: [point], changedTouches: [point] });
+    return evt as unknown as TouchEvent;
+}
+
+beforeAll(() => {
+    installDomStubs();
+});
+
+afterAll(() => {
+    restoreDomStubs();
+});
 
 describe('SortableComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
@@ -1277,25 +1390,22 @@ describe('SortableComponent', () => {
         document.body.removeChild(f.nativeElement);
     });
 
-    it('animates the source back to its origin on a no-op pointer drop (no net target change)', async () => {
+    it('a no-op pointer drop (target stays in the source gap) clears drag state and leaves order intact', () => {
         attachAndSizeFixture();
+        const sortable = getSortable<TestRow>(fixture);
         const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
-        const sourceRect = items[0].getBoundingClientRect();
-        const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate');
+        const before = host.rows().map(r => r.name);
 
-        items[0].dispatchEvent(new MouseEvent('mousedown', { clientX: 5, clientY: sourceRect.top + 5, bubbles: true }));
-        // Move just a few pixels — stays inside the source's no-op gap (target === source+1).
-        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 5, clientY: sourceRect.top + 9 }));
-        // Flush CD so the dragStyle transform actually paints before mouseup captures it.
-        fixture.detectChanges();
-        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: sourceRect.top + 9 }));
-        fixture.detectChanges();
-        await new Promise<void>(r => setTimeout(r, 30));
+        items[0].dispatchEvent(new MouseEvent('mousedown', { clientX: 5, clientY: 5, bubbles: true }));
+        expect(sortable.dragSource()).toBe(0);
+        // Move a few px — pointer stays inside the source's own no-op gap (target === source + 1).
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 5, clientY: 9 }));
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: 9 }));
         fixture.detectChanges();
 
-        // FLIP's measure+play fired for the snap-back — element.animate should have been invoked.
-        expect(animateSpy).toHaveBeenCalled();
-        animateSpy.mockRestore();
+        expect(sortable.dragSource()).toBeNull();
+        expect(sortable.dragTarget()).toBeNull();
+        expect(host.rows().map(r => r.name)).toEqual(before);
         detachFixture();
     });
 
@@ -1424,5 +1534,584 @@ describe('SortableComponent — i18n integration', () => {
         f.detectChanges();
         expect(sortable.currentLocale().code).toBe('ar');
         expect(sortable.currentLocale().rtl).toBe(true);
+    });
+});
+
+/** Private surface reached via cast to exercise defensive guards jsdom can't hit naturally. */
+interface SortablePrivate {
+    cancelDragDueTo(reason: string): void;
+    onDragEnd(): void;
+    updatePeerRejectVisual(peer: unknown, toIndex: number): void;
+    keyboardCrossList(fromIndex: number, direction: number): void;
+    readonly _dragTarget: { set(value: number | null): void };
+}
+
+function asPrivate<T>(sortable: SortableComponent<T>): SortablePrivate {
+    return sortable as unknown as SortablePrivate;
+}
+
+function firstSortable<T>(f: ComponentFixture<unknown>, listId?: string): SortableComponent<T> {
+    const all = f.debugElement
+        .queryAll(el => el.componentInstance instanceof SortableComponent)
+        .map(d => d.componentInstance as SortableComponent<T>);
+    return (listId ? all.find(s => s.listId() === listId) : all[0]) as SortableComponent<T>;
+}
+
+describe('SortableComponent — coverage completion', () => {
+    it('SortableItemTemplateDirective exposes a passthrough ngTemplateContextGuard', () => {
+        const guard = SortableItemTemplateDirective.ngTemplateContextGuard;
+        expect(guard({} as SortableItemTemplateDirective, { $implicit: 1, index: 0 })).toBe(true);
+    });
+
+    it('a handle with no sortable ancestor ignores mouse and touch without throwing', () => {
+        @Component({
+            selector: 'app-orphan-handle-host',
+            standalone: true,
+            imports: [SortableHandleDirective],
+            template: `<span uiSortableHandle class="lonely">grip</span>`,
+        })
+        class OrphanHandleHost {}
+        const f = TestBed.createComponent(OrphanHandleHost);
+        f.detectChanges();
+        const handle = f.nativeElement.querySelector('.lonely') as HTMLElement;
+        expect(() => {
+            handle.dispatchEvent(new MouseEvent('mousedown', { clientX: 1, clientY: 1, bubbles: true }));
+            handle.dispatchEvent(makeTouchEvent('touchstart', 1, 1));
+        }).not.toThrow();
+    });
+
+    it('drag by the handle starts a drag on both mouse and touch', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        f.componentInstance.handleOnly.set(true);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+
+        const handle = f.nativeElement.querySelector('.handle') as HTMLElement;
+        handle.dispatchEvent(new MouseEvent('mousedown', { clientX: 3, clientY: 3, bubbles: true }));
+        expect(sortable.dragSource()).toBe(0);
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 3, clientY: 3 }));
+        expect(sortable.dragSource()).toBeNull();
+
+        handle.dispatchEvent(makeTouchEvent('touchstart', 4, 4));
+        expect(sortable.dragSource()).toBe(0);
+        globalThis.dispatchEvent(makeTouchEvent('touchend', 4, 4));
+        expect(sortable.dragSource()).toBeNull();
+
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('handle touchstart with no touch points does not start a drag', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        const handle = f.nativeElement.querySelector('.handle') as HTMLElement;
+
+        const empty = new Event('touchstart', { bubbles: true, cancelable: true });
+        Object.assign(empty, { touches: [], changedTouches: [] });
+        handle.dispatchEvent(empty);
+        expect(sortable.dragSource()).toBeNull();
+    });
+
+    it('drag by the item body via touch reorders and cleans up on touchend', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        const items: NodeListOf<HTMLElement> = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+
+        items[0].dispatchEvent(makeTouchEvent('touchstart', 5, 5));
+        expect(sortable.dragSource()).toBe(0);
+        globalThis.dispatchEvent(makeTouchEvent('touchmove', 5, 115));
+        globalThis.dispatchEvent(makeTouchEvent('touchend', 5, 115));
+        f.detectChanges();
+
+        expect(sortable.dragSource()).toBeNull();
+        expect(f.componentInstance.rows()[2].name).toBe('Alpha');
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('item touchstart with no touch points does not start a drag', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        const items: NodeListOf<HTMLElement> = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+
+        const empty = new Event('touchstart', { bubbles: true, cancelable: true });
+        Object.assign(empty, { touches: [], changedTouches: [] });
+        items[0].dispatchEvent(empty);
+        expect(sortable.dragSource()).toBeNull();
+    });
+
+    it('built-in land effect is skipped when prefers-reduced-motion is set', async () => {
+        @Component({
+            selector: 'app-reduced-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
+            template: `
+                <ui-sortable [(items)]="rows" [landEffect]="pulseFn">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class ReducedHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+            readonly pulseFn = (): string => SORTABLE_LAND_EFFECTS.pulse;
+        }
+        const win = globalThis.window as unknown as { matchMedia: (q: string) => unknown };
+        const stubbed = win.matchMedia;
+        win.matchMedia = (query: string) => ({
+            matches: true, media: query, onchange: null,
+            addEventListener(): void {}, removeEventListener(): void {},
+            addListener(): void {}, removeListener(): void {},
+            dispatchEvent(): boolean { return false; },
+        });
+        const f = TestBed.createComponent(ReducedHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate');
+        const sortable = firstSortable<TestRow>(f);
+
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        f.detectChanges();
+        await new Promise<void>(r => setTimeout(r, 20));
+
+        const additive = animateSpy.mock.calls.some(args => {
+            const opts = args[1] as KeyframeAnimationOptions | null | undefined;
+            return typeof opts === 'object' && opts?.composite === 'add';
+        });
+        expect(additive).toBe(false);
+        animateSpy.mockRestore();
+        win.matchMedia = stubbed;
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('lifting an out-of-range index announces a generic item label', async () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        sortable.handleItemKeyDown(9, new KeyboardEvent('keydown', { key: ' ' }));
+        await new Promise<void>(r => setTimeout(r, 60));
+        const region: HTMLElement | null = document.querySelector('[data-slot="sortable-aria-live"]');
+        expect(region?.textContent).toContain('item 10');
+    });
+
+    it('draggedItem and effectiveDragDelta return neutral values when no drag is active', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        expect(sortable.draggedItem()).toBeNull();
+        expect(sortable.effectiveDragDelta()).toEqual({ x: 0, y: 0 });
+    });
+
+    it('re-registers when [group] changes to a different non-empty value', () => {
+        clearRegistry();
+        @Component({
+            selector: 'app-grpchg-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
+            template: `
+                <ui-sortable [(items)]="rows" [group]="grp()" listId="G">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class GrpChgHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+            readonly grp = signal('g1');
+        }
+        const f = TestBed.createComponent(GrpChgHost);
+        f.detectChanges();
+        expect(groupSize('g1')).toBe(1);
+
+        f.componentInstance.grp.set('g2');
+        f.detectChanges();
+        expect(groupSize('g2')).toBe(1);
+        expect(peersInGroup('g2')[0].listId).toBe('G');
+    });
+
+    it('registry entry removeItem removes a matching item and no-ops for an absent one', () => {
+        clearRegistry();
+        @Component({
+            selector: 'app-remove-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
+            template: `
+                <ui-sortable [(items)]="rows" group="rem" listId="X">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class RemoveHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+        }
+        const f = TestBed.createComponent(RemoveHost);
+        f.detectChanges();
+        const entry = peersInGroup('rem')[0];
+
+        entry.removeItem({ id: 99, name: 'ghost' });
+        expect(f.componentInstance.rows().map(r => r.name)).toEqual(['A', 'B']);
+
+        const existing = f.componentInstance.rows()[0];
+        entry.removeItem(existing);
+        f.detectChanges();
+        expect(f.componentInstance.rows().map(r => r.name)).toEqual(['B']);
+    });
+
+    it('cancelDragDueTo is a no-op when no drag is in flight', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        expect(() => asPrivate(sortable).cancelDragDueTo('external')).not.toThrow();
+        expect(sortable.dragSource()).toBeNull();
+    });
+
+    it('updatePeerRejectVisual is a no-op when there is no dragged item', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        const peer = { setRejectReason: vi.fn(), canAccept: vi.fn() };
+        asPrivate(sortable).updatePeerRejectVisual(peer, 0);
+        expect(peer.setRejectReason).not.toHaveBeenCalled();
+        expect(peer.canAccept).not.toHaveBeenCalled();
+    });
+
+    it('onDragEnd clears state when invoked without an active source', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        expect(() => asPrivate(sortable).onDragEnd()).not.toThrow();
+        expect(sortable.dragSource()).toBeNull();
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('onDragEnd with no computed gap snaps back via FLIP and clears drag state', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+
+        sortable.startDrag(0, 5, 5);
+        expect(sortable.dragSource()).toBe(0);
+        asPrivate(sortable)._dragTarget.set(null);
+        asPrivate(sortable).onDragEnd();
+
+        expect(sortable.dragSource()).toBeNull();
+        expect(sortable.dragTarget()).toBeNull();
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('a movement key pressed on an un-lifted item is ignored', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        const before = f.componentInstance.rows().map(r => r.name);
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        expect(f.componentInstance.rows().map(r => r.name)).toEqual(before);
+    });
+
+    it('ArrowUp on the lifted first item is a no-op move (clamped to same index)', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+        expect(f.componentInstance.rows().map(r => r.name)).toEqual(['Alpha', 'Beta', 'Gamma']);
+    });
+
+    it('Tab while lifted is a no-op when the list has no group', () => {
+        const f = TestBed.createComponent(TestHostComponent);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'Tab' }));
+        expect(f.componentInstance.rows().map(r => r.name)).toEqual(['Alpha', 'Beta', 'Gamma']);
+    });
+
+    it('Tab while lifted is a no-op when the group has a single list', () => {
+        clearRegistry();
+        @Component({
+            selector: 'app-solo-grp-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
+            template: `
+                <ui-sortable [(items)]="rows" group="solo" listId="only">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class SoloGrpHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+        }
+        const f = TestBed.createComponent(SoloGrpHost);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'Tab' }));
+        expect(f.componentInstance.rows().map(r => r.name)).toEqual(['A', 'B']);
+    });
+
+    it('keyboardCrossList is a no-op when the resolved peer is the list itself (zero direction)', () => {
+        clearRegistry();
+        @Component({
+            selector: 'app-selfpeer-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
+            template: `
+                <ui-sortable [(items)]="left" group="selfp" listId="L">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+                <ui-sortable [(items)]="right" group="selfp" listId="R">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class SelfPeerHost {
+            readonly left = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+            readonly right = signal<TestRow[]>([{ id: 2, name: 'B' }]);
+        }
+        const f = TestBed.createComponent(SelfPeerHost);
+        f.detectChanges();
+        const leftS = firstSortable<TestRow>(f, 'L');
+        asPrivate(leftS).keyboardCrossList(0, 0);
+        expect(f.componentInstance.left().map(r => r.name)).toEqual(['A']);
+        expect(f.componentInstance.right().map(r => r.name)).toEqual(['B']);
+    });
+
+    it('Tab hand-off to a rejecting peer announces and emits dropRejected without moving', () => {
+        clearRegistry();
+        const rejects: SortableDropRejectedEvent<TestRow>[] = [];
+        @Component({
+            selector: 'app-kbd-reject-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
+            template: `
+                <ui-sortable [(items)]="left" group="kr" listId="L" (dropRejected)="capture($event)">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+                <ui-sortable [(items)]="right" group="kr" listId="R" [accepts]="reject">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class KbdRejectHost {
+            readonly left = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+            readonly right = signal<TestRow[]>([]);
+            readonly reject = (): { ok: boolean; reason?: string } => ({ ok: false, reason: 'full' });
+            capture(e: SortableDropRejectedEvent<TestRow>): void { rejects.push(e); }
+        }
+        const f = TestBed.createComponent(KbdRejectHost);
+        f.detectChanges();
+        const leftS = firstSortable<TestRow>(f, 'L');
+        leftS.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        leftS.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'Tab' }));
+        f.detectChanges();
+
+        expect(f.componentInstance.left().map(r => r.name)).toEqual(['A', 'B']);
+        expect(f.componentInstance.right()).toEqual([]);
+        expect(rejects).toHaveLength(1);
+        expect(rejects[0].reason).toBe('full');
+        expect(rejects[0].toListId).toBe('R');
+    });
+
+    it('cancelling a cross-list drag mid-hover notifies the hovered peer it left', () => {
+        clearRegistry();
+        const rejects: SortableDropRejectedEvent<TestRow>[] = [];
+        let leaves = 0;
+        @Component({
+            selector: 'app-cancel-peer-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
+            template: `
+                <ui-sortable [(items)]="left" group="cp" listId="L"
+                    (dropRejected)="capture($event)"
+                    style="display:block; position:fixed; left:0px; top:0px; width:200px;">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+                <ui-sortable [(items)]="right" group="cp" listId="R"
+                    (itemLeave)="onLeave()"
+                    style="display:block; position:fixed; left:300px; top:0px; width:200px;">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class CancelPeerHost {
+            readonly left = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+            readonly right = signal<TestRow[]>([{ id: 3, name: 'X' }]);
+            capture(e: SortableDropRejectedEvent<TestRow>): void { rejects.push(e); }
+            onLeave(): void { leaves++; }
+        }
+        const f = TestBed.createComponent(CancelPeerHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const leftS = firstSortable<TestRow>(f, 'L');
+
+        const leftItems = f.nativeElement.querySelectorAll('ui-sortable')[0].querySelectorAll('[data-slot="sortable-item"]');
+        (leftItems[0] as HTMLElement).dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 10, bubbles: true }));
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 350, clientY: 10 }));
+        f.detectChanges();
+        expect(leftS.hoverPeer()?.listId).toBe('R');
+
+        f.componentInstance.left.update(rs => rs.slice(0, 1));
+        f.detectChanges();
+
+        expect(leftS.dragSource()).toBeNull();
+        expect(rejects).toHaveLength(1);
+        expect(rejects[0].reason).toBe('list-changed');
+        expect(rejects[0].toListId).toBe('R');
+        expect(leaves).toBe(1);
+
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 350, clientY: 10 }));
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('switching the hovered peer during a drag notifies the previous peer it left', () => {
+        clearRegistry();
+        @Component({
+            selector: 'app-three-list-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
+            template: `
+                <ui-sortable [(items)]="a" group="tri" listId="A"
+                    style="display:block; position:fixed; left:0px; top:0px; width:200px;">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+                <ui-sortable [(items)]="b" group="tri" listId="B"
+                    style="display:block; position:fixed; left:300px; top:0px; width:200px;">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+                <ui-sortable [(items)]="c" group="tri" listId="C"
+                    style="display:block; position:fixed; left:600px; top:0px; width:200px;">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class ThreeListHost {
+            readonly a = signal<TestRow[]>([{ id: 1, name: 'A1' }]);
+            readonly b = signal<TestRow[]>([{ id: 2, name: 'B1' }]);
+            readonly c = signal<TestRow[]>([{ id: 3, name: 'C1' }]);
+        }
+        const f = TestBed.createComponent(ThreeListHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const aS = firstSortable<TestRow>(f, 'A');
+
+        const aItems = f.nativeElement.querySelectorAll('ui-sortable')[0].querySelectorAll('[data-slot="sortable-item"]');
+        (aItems[0] as HTMLElement).dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 10, bubbles: true }));
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 350, clientY: 10 }));
+        f.detectChanges();
+        expect(aS.hoverPeer()?.listId).toBe('B');
+
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 650, clientY: 10 }));
+        f.detectChanges();
+        expect(aS.hoverPeer()?.listId).toBe('C');
+
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 650, clientY: 10 }));
+        f.detectChanges();
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('scheduleLandEffect bails out when the landed element no longer exists', async () => {
+        @Component({
+            selector: 'app-land-gone-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
+            template: `
+                <ui-sortable [(items)]="rows" [landEffect]="landFn">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class LandGoneHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+            readonly landFn = (): string => 'land-x';
+        }
+        const f = TestBed.createComponent(LandGoneHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const sortable = firstSortable<TestRow>(f);
+
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        f.componentInstance.rows.set([]);
+        f.detectChanges();
+        await new Promise<void>(r => setTimeout(r, 20));
+
+        expect(f.nativeElement.querySelectorAll('[data-slot="sortable-item"]')).toHaveLength(0);
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('a standalone sortable-item without a parent renders with neutral position class', () => {
+        @Component({
+            selector: 'app-orphan-host',
+            standalone: true,
+            imports: [SortableItemComponent],
+            template: `<ui-sortable-item [index]="0">orphan</ui-sortable-item>`,
+        })
+        class OrphanHost {}
+        const f = TestBed.createComponent(OrphanHost);
+        f.detectChanges();
+        const item = f.debugElement.query(el => el.componentInstance instanceof SortableItemComponent)
+            .componentInstance as SortableItemComponent;
+        expect(item.positionClassValue()).toBe('');
+        expect(item.disabled()).toBe(false);
+        expect(item.dragStyle()).toEqual({});
+    });
+
+    it('positionClass yields empty string for an item index beyond the list length', () => {
+        @Component({
+            selector: 'app-pos-oob-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
+            template: `
+                <ui-sortable [(items)]="rows" [positionClass]="posFn">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                    <ui-sortable-item [index]="9" uiSortableFooter class="probe">extra</ui-sortable-item>
+                </ui-sortable>
+            `,
+        })
+        class PosOobHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+            readonly posFn = (): string => 'has-pos';
+        }
+        const f = TestBed.createComponent(PosOobHost);
+        f.detectChanges();
+        const probe = f.debugElement
+            .queryAll(el => el.componentInstance instanceof SortableItemComponent)
+            .map(d => d.componentInstance as SortableItemComponent)
+            .find(c => c.index() === 9)!;
+        expect(probe.positionClassValue()).toBe('');
     });
 });

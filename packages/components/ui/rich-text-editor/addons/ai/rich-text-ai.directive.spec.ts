@@ -1,11 +1,27 @@
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import { Subject } from 'rxjs';
-import { RichTextEditorComponent } from '../../rich-text-editor.component';
 import type { AiProvider } from '../../../../lib/ai';
 import { RichTextAiDirective } from './rich-text-ai.directive';
+import { RichTextEditorComponent } from '../..';
+
+/**
+ * jsdom implements neither `Range.prototype.getBoundingClientRect` (the chip and
+ * panel positioning read it) nor a layout engine, so install a fixed-rect stub
+ * for the duration of each test and restore the original afterwards.
+ */
+type RangeRectFn = () => DOMRect;
+const rangeProto = Range.prototype as unknown as { getBoundingClientRect?: RangeRectFn };
+let originalRangeRect: RangeRectFn | undefined;
+
+function fixedRect(): DOMRect {
+    return {
+        x: 10, y: 20, left: 10, top: 20, right: 110, bottom: 60, width: 100, height: 40,
+        toJSON: () => ({}),
+    } as DOMRect;
+}
 
 @Component({
     standalone: true,
@@ -75,12 +91,22 @@ describe('RichTextAiDirective', () => {
         return fixture.nativeElement.querySelector(`[data-slot="${slot}"]`);
     }
 
+    beforeEach(() => {
+        originalRangeRect = rangeProto.getBoundingClientRect;
+        rangeProto.getBoundingClientRect = fixedRect;
+    });
+
     afterEach(() => {
         for (const f of fixtures) {
             f.nativeElement.remove();
             f.destroy();
         }
         fixtures.length = 0;
+        if (originalRangeRect) {
+            rangeProto.getBoundingClientRect = originalRangeRect;
+        } else {
+            delete rangeProto.getBoundingClientRect;
+        }
     });
 
     it('shows the Ask-AI chip on a selection only when a provider is set', () => {
@@ -321,5 +347,266 @@ describe('RichTextAiDirective', () => {
         (query(fixture, 'rich-text-ai-trigger') as HTMLButtonElement).click();
         fixture.detectChanges();
         expect(query(fixture, 'rich-text-ai-menu')?.textContent).toContain('שפר ניסוח');
+    });
+
+    function clickEl(el: Element): void {
+        el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    }
+
+    function collapseCaret(el: HTMLElement): void {
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = document.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+    }
+
+    it('runs a built-in task when a menu button is clicked', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set((req) => `[${req.input}]`);
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>hello world</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        directiveOf(fixture).openPanel();
+        fixture.detectChanges();
+        const first = query(fixture, 'rich-text-ai-menu')!.querySelector<HTMLButtonElement>(':scope > button')!;
+        clickEl(first);
+        fixture.detectChanges();
+        expect(el.querySelector('[data-ai-draft]')?.textContent).toBe('[hello world]');
+        expect(query(fixture, 'rich-text-ai-review')).toBeTruthy();
+    });
+
+    it('runs a custom prompt typed into the panel input and cleared on reopen', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set((req) => `(${req.prompt}) ${req.input}`);
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>base</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        directiveOf(fixture).openPanel();
+        fixture.detectChanges();
+        const input = query(fixture, 'rich-text-ai-menu')!.querySelector('input') as HTMLInputElement;
+        input.value = 'make it bold';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+        const menuButtons = query(fixture, 'rich-text-ai-menu')!.querySelectorAll('button');
+        clickEl(menuButtons[menuButtons.length - 1]);
+        fixture.detectChanges();
+        expect(el.querySelector('[data-ai-draft]')?.textContent).toBe('(make it bold) base');
+        expect(fixture.componentInstance.requests.at(-1)).toEqual({ task: 'custom', prompt: 'make it bold' });
+    });
+
+    it('accepts, discards, and retries via the review buttons', () => {
+        const fixture = createFixture();
+        let calls = 0;
+        fixture.componentInstance.provider.set(() => `draft-${++calls}`);
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>seed</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('rewrite');
+        fixture.detectChanges();
+
+        const retry = query(fixture, 'rich-text-ai-review')!.querySelectorAll('button')[2];
+        clickEl(retry);
+        fixture.detectChanges();
+        expect(el.querySelector('[data-ai-draft]')?.textContent).toBe('draft-2');
+
+        const accept = query(fixture, 'rich-text-ai-review')!.querySelectorAll('button')[0];
+        clickEl(accept);
+        fixture.detectChanges();
+        expect(el.textContent).toContain('draft-2');
+        expect(query(fixture, 'rich-text-ai-panel')).toBeNull();
+    });
+
+    it('discards the draft via the review Discard button', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'NEW');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>original</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('rewrite');
+        fixture.detectChanges();
+        const discard = query(fixture, 'rich-text-ai-review')!.querySelectorAll('button')[1];
+        clickEl(discard);
+        fixture.detectChanges();
+        expect(el.textContent).toContain('original');
+    });
+
+    it('discards the draft on Escape while in review', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'REPLACED');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>keep</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('rewrite');
+        fixture.detectChanges();
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        fixture.detectChanges();
+        expect(el.textContent).toContain('keep');
+        expect(query(fixture, 'rich-text-ai-panel')).toBeNull();
+    });
+
+    it('keeps the panel open on an outside pointer press once past the menu phase', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'x');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>hi</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('rewrite');
+        fixture.detectChanges();
+        document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        fixture.detectChanges();
+        expect(query(fixture, 'rich-text-ai-panel')).toBeTruthy();
+        dir.discard();
+    });
+
+    it('ignores non-Escape keys and a second openPanel while the menu is open', () => {
+        const fixture = createFixture();
+        openMenu(fixture);
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+        directiveOf(fixture).openPanel();
+        fixture.detectChanges();
+        expect(query(fixture, 'rich-text-ai-panel')).toBeTruthy();
+    });
+
+    it('hides the chip on a collapsed caret and ignores selectionchange while the panel is open', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'x');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>hello</p>');
+        collapseCaret(el);
+        document.dispatchEvent(new Event('selectionchange'));
+        fixture.detectChanges();
+        expect(query(fixture, 'rich-text-ai-trigger')).toBeNull();
+
+        directiveOf(fixture).openPanel();
+        fixture.detectChanges();
+        document.dispatchEvent(new Event('selectionchange'));
+        fixture.detectChanges();
+        expect(query(fixture, 'rich-text-ai-trigger')).toBeNull();
+    });
+
+    it('captures a collapsed caret for a continue task and discards it', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set((req) => `${req.input}!`);
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>story</p>');
+        collapseCaret(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('continue');
+        fixture.detectChanges();
+        expect(el.querySelector('[data-ai-draft]')).toBeTruthy();
+
+        dir.discard();
+        fixture.detectChanges();
+        expect(el.querySelector('[data-ai-draft]')).toBeNull();
+        expect(el.textContent).toContain('story');
+    });
+
+    it('does nothing when opening the panel with no selection range', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'x');
+        fixture.detectChanges();
+        setContent(fixture, '<p>text</p>');
+        document.getSelection()?.removeAllRanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('rewrite');
+        fixture.detectChanges();
+        expect(query(fixture, 'rich-text-ai-menu')).toBeTruthy();
+        expect(fixture.nativeElement.querySelector('[data-ai-draft]')).toBeNull();
+    });
+
+    it('retries the last task from scratch when no draft exists yet', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set((req) => `redo:${req.input}`);
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>again</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.retryLast();
+        fixture.detectChanges();
+        expect(el.querySelector('[data-ai-draft]')?.textContent).toBe('redo:again');
+        dir.discard();
+    });
+
+    it('no-ops the stream when the provider is removed before a retry', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'first');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>src</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const dir = directiveOf(fixture);
+        dir.openPanel();
+        dir.runTask('rewrite');
+        expect(el.querySelector('[data-ai-draft]')?.textContent).toBe('first');
+
+        fixture.componentInstance.provider.set(undefined);
+        fixture.detectChanges();
+        dir.retryLast();
+        fixture.detectChanges();
+        expect(el.querySelector('[data-ai-draft]')?.textContent).toBe('');
+        dir.discard();
+    });
+
+    it('accepting with no active draft is a safe no-op', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'x');
+        fixture.detectChanges();
+        setContent(fixture, '<p>content</p>');
+        expect(() => directiveOf(fixture).accept()).not.toThrow();
+    });
+
+    it('falls back to the block element rect when the caret rect is degenerate', () => {
+        const fixture = createFixture();
+        fixture.componentInstance.provider.set(() => 'x');
+        fixture.detectChanges();
+        const el = setContent(fixture, '<p>positioned</p>');
+        selectAll(el);
+        fixture.detectChanges();
+
+        const elementProto = Element.prototype as Element & { getBoundingClientRect: () => DOMRect };
+        const originalElementRect = elementProto.getBoundingClientRect;
+        rangeProto.getBoundingClientRect = () => ({
+            x: 0, y: 0, left: 0, top: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON: () => ({}),
+        } as DOMRect);
+        elementProto.getBoundingClientRect = fixedRect;
+        try {
+            directiveOf(fixture).openPanel();
+            fixture.detectChanges();
+            expect(query(fixture, 'rich-text-ai-panel')).toBeTruthy();
+        } finally {
+            elementProto.getBoundingClientRect = originalElementRect;
+            rangeProto.getBoundingClientRect = fixedRect;
+        }
     });
 });

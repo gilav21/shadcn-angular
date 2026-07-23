@@ -11,6 +11,7 @@ import { initProject } from '../../core/init-core.js';
 import { applyCore, resolveAddonInfo, ApplyError } from '../../core/apply-core.js';
 import { diffComponentFiles, type ComponentDiff } from '../../core/diff-core.js';
 import { getConfig, getDefaultConfig, getPrefix, type Config } from '../../utils/config.js';
+import { resolveTestInstall } from '../../utils/test-runner.js';
 import { aliasToProjectPath, resolveProjectPath } from '../../utils/paths.js';
 import { isValidPrefix, DEFAULT_PREFIX } from '../../utils/prefix.js';
 import { json, err } from './result.js';
@@ -21,6 +22,7 @@ import { setRadiusCore, RADIUS_NAMED } from '../../commands/set-radius.js';
 import { setMotionCore } from '../../commands/set-motion.js';
 import { changeThemeCore, VALID_THEMES } from '../../commands/change-theme.js';
 import { setLocaleCore } from '../../commands/set-locale.js';
+import { setTestRunnerCore } from '../../commands/set-test-runner.js';
 import { applyInitDefaults, type InitDefaults } from '../../commands/init.js';
 import { isValidHex } from '../../utils/color.js';
 import { collectDoctorReport, buildFixPlan, doctorFixCore, refreshLibCore } from '../../commands/doctor.js';
@@ -122,6 +124,8 @@ function registerAddTool(server: ToolHost, cwd: string): void {
             overwrite: z.array(z.string()).optional().describe('Component names whose conflicting local files may be overwritten.'),
             optionalDeps: z.array(z.string()).optional(),
             path: z.string().optional(),
+            includeTests: z.boolean().optional().describe('Also install each component\'s unit tests (persists tests.include in components.json).'),
+            testRunner: z.enum(['vitest', 'jest']).optional().describe('Runner the installed tests target; auto-detected when omitted.'),
             ...sourceInputSchema,
         },
         annotations: { destructiveHint: true },
@@ -131,11 +135,13 @@ function registerAddTool(server: ToolHost, cwd: string): void {
         const options = await resolveSource(args, config);
         const invalid = validateNames(args.names);
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
+        const tests = await resolveTestInstall(config, { includeTests: args.includeTests, runner: args.testRunner, yes: true }, cwd);
         const result = await performInstall({
             components: args.names as ComponentName[],
             optionalDeps: (args.optionalDeps ?? []) as ComponentName[],
             overwrite: (args.overwrite ?? []) as ComponentName[],
             cwd, config, options, path: args.path,
+            includeTests: tests.includeTests, testRunner: tests.runner,
         });
         return json(result);
     });
@@ -148,19 +154,23 @@ function registerUpdateTool(server: ToolHost, cwd: string): void {
         inputSchema: {
             names: z.array(z.string()).min(1),
             overwrite: z.boolean().optional().describe('Replace local edits whole-file instead of 3-way merging.'),
+            includeTests: z.boolean().optional().describe('Also refresh each component\'s unit tests (persists tests.include in components.json).'),
+            testRunner: z.enum(['vitest', 'jest']).optional().describe('Runner the refreshed tests target; auto-detected when omitted.'),
             ...sourceInputSchema,
         },
         annotations: { destructiveHint: true },
-    }, async ({ names, overwrite, ...source }) => {
+    }, async ({ names, overwrite, includeTests, testRunner, ...source }) => {
         const config = await getConfig(cwd);
         if (!config) return err('Project not initialized — run init_project first.');
         const options = { ...await resolveSource(source, config), overwrite };
         const invalid = validateNames(names);
         if (invalid.length) return err(`Unknown component(s): ${invalid.join(', ')}`);
+        const tests = await resolveTestInstall(config, { includeTests, runner: testRunner, yes: true }, cwd);
         const result = await performInstall({
             components: names as ComponentName[],
             overwrite: names as ComponentName[],
             cwd, config, options,
+            includeTests: tests.includeTests, testRunner: tests.runner,
         });
         // Reconcile shared lib files too: a component update can introduce a new
         // lib export (e.g. utils.ts `stringifyValue`) that the component's own
@@ -295,6 +305,27 @@ function registerRadiusMotionLocaleTool(server: ToolHost, cwd: string): void {
             const config = await getConfig(cwd);
             const options = await resolveSource(source, config ?? undefined);
             return json({ success: true, message: await setLocaleCore(code, cwd, options) });
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+}
+
+function registerTestRunnerTool(server: ToolHost, cwd: string): void {
+    server.registerTool('set_test_runner', {
+        title: 'Switch test runner',
+        description: 'Switch the project\'s installed component tests between vitest and jest: rewrites each spec\'s import in place (no re-fetch, local spec edits preserved), installs or removes the vitest-compat shim, and persists tests.runner in components.json. Pass dryRun to preview.',
+        inputSchema: {
+            runner: z.enum(['vitest', 'jest']).describe('Target test runner.'),
+            dryRun: z.boolean().optional().describe('Report what would change without writing.'),
+            ...sourceInputSchema,
+        },
+        annotations: { destructiveHint: true },
+    }, async ({ runner, dryRun, ...source }) => {
+        try {
+            const config = await getConfig(cwd);
+            const options = { ...await resolveSource(source, config ?? undefined), dryRun };
+            return json(await setTestRunnerCore(runner, cwd, options));
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));
         }
@@ -446,6 +477,7 @@ export function registerWriteTools(server: ToolHost, cwd: string): void {
     registerDiffTool(server, cwd);
     registerDensityTool(server, cwd);
     registerRadiusMotionLocaleTool(server, cwd);
+    registerTestRunnerTool(server, cwd);
     registerThemeTool(server, cwd);
     registerDoctorTool(server, cwd);
     registerRefreshLibTool(server, cwd);

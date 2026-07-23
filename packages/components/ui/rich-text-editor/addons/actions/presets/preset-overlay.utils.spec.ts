@@ -48,6 +48,17 @@ describe('anchorOverlay', () => {
 
 describe('directionOf', () => {
     it('reads rtl from an element in an rtl subtree, ltr otherwise', () => {
+        // getComputedStyle(el).direction doesn't cascade `dir` across jsdom
+        // runners; reflect the nearest [dir] ancestor (what a browser resolves).
+        const originalGetComputedStyle = globalThis.getComputedStyle;
+        globalThis.getComputedStyle = ((el: Element, pseudo?: string | null) => {
+            const real = originalGetComputedStyle(el, pseudo ?? undefined);
+            const dir = (el as HTMLElement).closest?.('[dir]')?.getAttribute('dir');
+            if (!dir) return real;
+            return new Proxy(real, {
+                get: (target, prop) => (prop === 'direction' ? dir : Reflect.get(target, prop)),
+            });
+        }) as typeof getComputedStyle;
         const rtl = document.createElement('div');
         rtl.dir = 'rtl';
         document.body.appendChild(rtl);
@@ -59,6 +70,7 @@ describe('directionOf', () => {
         } finally {
             rtl.remove();
             ltr.remove();
+            globalThis.getComputedStyle = originalGetComputedStyle;
         }
     });
 });

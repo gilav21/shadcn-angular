@@ -12,7 +12,7 @@ import {
 } from './index';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Basic test host
 @Component({
@@ -435,5 +435,222 @@ describe('AlertDialogContentComponent — i18n integration', () => {
         const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]');
         expect(action!.textContent.trim()).toBe('Continuer');
         expect(cancel!.textContent.trim()).toBe('Annuler');
+    });
+});
+
+// Host that projects non-interactive content (no title, no buttons)
+@Component({
+    template: `
+        <ui-alert-dialog>
+            <ui-alert-dialog-trigger>Open</ui-alert-dialog-trigger>
+            <ui-alert-dialog-content>
+                <div>Plain content without any focusable elements</div>
+            </ui-alert-dialog-content>
+        </ui-alert-dialog>
+    `,
+    imports: [AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent],
+})
+class NoFocusableHostComponent { }
+
+// Host that is open on initial render (exercises ngAfterViewInit while open)
+@Component({
+    template: `
+        <ui-alert-dialog [open]="true">
+            <ui-alert-dialog-content title="Open at init" description="Desc" />
+        </ui-alert-dialog>
+    `,
+    imports: [AlertDialogComponent, AlertDialogContentComponent],
+})
+class OpenAtInitHostComponent { }
+
+function openViaTriggerWithTimers(fixture: ComponentFixture<unknown>): void {
+    vi.useFakeTimers();
+    const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
+    trigger.nativeElement.click();
+    fixture.detectChanges();
+    vi.runAllTimers();
+    fixture.detectChanges();
+}
+
+describe('AlertDialogContent — focus trap & keyboard', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    function container(): HTMLElement {
+        const content = document.querySelector('[data-slot="alert-dialog-content"]')!;
+        return content.parentElement as HTMLElement;
+    }
+
+    it('closes on Escape key', () => {
+        openViaTriggerWithTimers(fixture);
+        expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeTruthy();
+
+        const evt = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true });
+        const prevented = vi.spyOn(evt, 'preventDefault');
+        container().dispatchEvent(evt);
+        vi.useRealTimers();
+        fixture.detectChanges();
+
+        expect(prevented).toHaveBeenCalled();
+        expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeNull();
+    });
+
+    it('wraps focus from first to last on Shift+Tab', () => {
+        openViaTriggerWithTimers(fixture);
+        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]')!;
+        const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]')!;
+        cancel.focus();
+        expect(document.activeElement).toBe(cancel);
+
+        container().dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true }));
+        expect(document.activeElement).toBe(action);
+    });
+
+    it('wraps focus from last to first on Tab', () => {
+        openViaTriggerWithTimers(fixture);
+        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]')!;
+        const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]')!;
+        action.focus();
+        expect(document.activeElement).toBe(action);
+
+        container().dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+        expect(document.activeElement).toBe(cancel);
+    });
+
+    it('does not trap when focus is mid-list', () => {
+        openViaTriggerWithTimers(fixture);
+        const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]')!;
+        action.focus();
+
+        const shiftEvt = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true });
+        const shiftPrevent = vi.spyOn(shiftEvt, 'preventDefault');
+        container().dispatchEvent(shiftEvt);
+        expect(shiftPrevent).not.toHaveBeenCalled();
+        expect(document.activeElement).toBe(action);
+
+        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]')!;
+        cancel.focus();
+        const tabEvt = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
+        const tabPrevent = vi.spyOn(tabEvt, 'preventDefault');
+        container().dispatchEvent(tabEvt);
+        expect(tabPrevent).not.toHaveBeenCalled();
+        expect(document.activeElement).toBe(cancel);
+    });
+
+    it('ignores non-handled keys', () => {
+        openViaTriggerWithTimers(fixture);
+        const evt = new KeyboardEvent('keydown', { key: 'a', bubbles: true });
+        const prevented = vi.spyOn(evt, 'preventDefault');
+        container().dispatchEvent(evt);
+        expect(prevented).not.toHaveBeenCalled();
+        expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeTruthy();
+    });
+});
+
+describe('AlertDialogContent — no focusable content', () => {
+    let fixture: ComponentFixture<NoFocusableHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [NoFocusableHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(NoFocusableHostComponent);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('focuses the content element itself and skips title id assignment', () => {
+        openViaTriggerWithTimers(fixture);
+        const content = document.querySelector<HTMLElement>('[data-slot="alert-dialog-content"]')!;
+        expect(content).toBeTruthy();
+        expect(content.getAttribute('aria-labelledby')).toBeNull();
+        expect(document.querySelector('[data-slot="alert-dialog-title"]')).toBeNull();
+    });
+
+    it('returns early from Tab handling when there is nothing focusable', () => {
+        openViaTriggerWithTimers(fixture);
+        const content = document.querySelector('[data-slot="alert-dialog-content"]')!;
+        const evt = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
+        const prevented = vi.spyOn(evt, 'preventDefault');
+        (content.parentElement as HTMLElement).dispatchEvent(evt);
+        expect(prevented).not.toHaveBeenCalled();
+    });
+});
+
+describe('AlertDialogContent — open on initial render', () => {
+    it('focuses on ngAfterViewInit when already open', async () => {
+        await TestBed.configureTestingModule({ imports: [OpenAtInitHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(OpenAtInitHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeTruthy();
+        expect(document.querySelector('[data-slot="alert-dialog-title"]')?.textContent).toContain('Open at init');
+    });
+});
+
+describe('AlertDialogContent — restores focus on close', () => {
+    it('returns focus to the previously active element', async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+
+        const opener = document.createElement('button');
+        document.body.appendChild(opener);
+        opener.focus();
+        const restoreSpy = vi.spyOn(opener, 'focus');
+
+        const alertDialog = fixture.debugElement.query(By.directive(AlertDialogComponent)).componentInstance as AlertDialogComponent;
+        alertDialog.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        alertDialog.hide();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(restoreSpy).toHaveBeenCalled();
+        opener.remove();
+    });
+});
+
+describe('AlertDialogTrigger — keyboard activation', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('toggles open on Enter when the event targets the trigger itself', () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
+        trigger.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        fixture.detectChanges();
+        expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeTruthy();
+    });
+
+    it('does nothing when the keydown originates from a nested element', () => {
+        const triggerCmp = fixture.debugElement
+            .query(By.directive(AlertDialogTriggerComponent))
+            .componentInstance as AlertDialogTriggerComponent;
+        const alertDialog = fixture.debugElement.query(By.directive(AlertDialogComponent)).componentInstance as AlertDialogComponent;
+
+        const nested = document.createElement('a');
+        const host = document.createElement('span');
+        const event = { target: nested, currentTarget: host, preventDefault: vi.fn() } as unknown as Event;
+        triggerCmp.onKeydown(event);
+
+        expect(alertDialog.open()).toBe(false);
     });
 });

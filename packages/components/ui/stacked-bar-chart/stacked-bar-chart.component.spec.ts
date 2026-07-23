@@ -1,7 +1,29 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { StackedBarChartComponent } from './stacked-bar-chart.component';
 import { ChartSeries } from '../../lib/chart.types';
-import { describe, it, expect, beforeEach } from 'vitest';
+import {
+    describe,
+    it,
+    expect,
+    beforeEach,
+    afterEach,
+} from 'vitest';
+
+class ResizeObserverStub {
+    observe(): void {
+        /* no-op: jsdom has no layout, so no resize callbacks fire */
+    }
+    unobserve(): void {
+        /* no-op */
+    }
+    disconnect(): void {
+        /* no-op */
+    }
+}
+
+const originalResizeObserver = (
+    globalThis as unknown as { ResizeObserver?: unknown }
+).ResizeObserver;
 
 describe('StackedBarChartComponent', () => {
     let component: StackedBarChartComponent;
@@ -26,6 +48,8 @@ describe('StackedBarChartComponent', () => {
     const sampleCategories = ['Q1', 'Q2'];
 
     beforeEach(async () => {
+        (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver =
+            ResizeObserverStub;
         await TestBed.configureTestingModule({
             imports: [StackedBarChartComponent],
         }).compileComponents();
@@ -35,6 +59,11 @@ describe('StackedBarChartComponent', () => {
         fixture.componentRef.setInput('series', sampleSeries);
         fixture.componentRef.setInput('categories', sampleCategories);
         fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        (globalThis as unknown as { ResizeObserver?: unknown }).ResizeObserver =
+            originalResizeObserver;
     });
 
     it('should create', () => {
@@ -302,6 +331,108 @@ describe('StackedBarChartComponent', () => {
 
             expect(label).toContain('Series A');
             expect(label).toContain('Q1');
+        });
+    });
+
+    describe('direction (RTL/LTR)', () => {
+        it('should be RTL when dir is rtl', () => {
+            fixture.componentRef.setInput('dir', 'rtl');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(true);
+        });
+
+        it('should be LTR when dir is ltr', () => {
+            fixture.componentRef.setInput('dir', 'ltr');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(false);
+        });
+
+        it('should reverse bar positions in RTL', () => {
+            fixture.componentRef.setInput('dir', 'ltr');
+            fixture.detectChanges();
+            const ltrFirstX = component.stackedBars()[0].segments[0].x;
+
+            fixture.componentRef.setInput('dir', 'rtl');
+            fixture.detectChanges();
+            const rtlFirstX = component.stackedBars()[0].segments[0].x;
+
+            expect(rtlFirstX).not.toBe(ltrFirstX);
+        });
+    });
+
+    describe('total labels (getBarTopY / formatValue)', () => {
+        it('should render total labels when showTotal is true', () => {
+            fixture.componentRef.setInput('showTotal', true);
+            fixture.detectChanges();
+
+            const bar = component.stackedBars()[0];
+            expect(component.getBarTopY(bar)).toBe(bar.segments.at(-1)!.y);
+            expect(fixture.nativeElement.textContent).toContain(
+                component.formatValue(bar.total),
+            );
+        });
+
+        it('should return 0 from getBarTopY when a bar has no segments', () => {
+            const emptyBar = { segments: [] } as unknown as Parameters<
+                typeof component.getBarTopY
+            >[0];
+            expect(component.getBarTopY(emptyBar)).toBe(0);
+        });
+
+        it('should return 0 from getBarCenterX when a bar has no segments', () => {
+            const emptyBar = { segments: [] } as unknown as Parameters<
+                typeof component.getBarCenterX
+            >[0];
+            expect(component.getBarCenterX(emptyBar)).toBe(0);
+        });
+
+        it('should format numeric totals compactly', () => {
+            expect(typeof component.formatValue(45)).toBe('string');
+            expect(component.formatValue(45).length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('percent tooltip (formatPercentage)', () => {
+        it('should render a percentage in the tooltip in percent mode', () => {
+            fixture.componentRef.setInput('stacking', 'percent');
+            fixture.detectChanges();
+
+            const bar = component.stackedBars()[0];
+            component.onSegmentHover(bar.categoryIndex, bar.segments[0]);
+            fixture.detectChanges();
+
+            const tooltip = fixture.nativeElement.querySelector('.z-50');
+            expect(tooltip).toBeTruthy();
+            expect(tooltip.textContent).toContain(
+                component.formatPercentage(bar.segments[0].percentage),
+            );
+        });
+
+        it('should format a percentage value with one decimal', () => {
+            expect(component.formatPercentage(40)).toContain('%');
+        });
+    });
+
+    describe('empty and zero data', () => {
+        it('should produce no bars when categories are empty', () => {
+            fixture.componentRef.setInput('series', [] as ChartSeries[]);
+            fixture.componentRef.setInput('categories', [] as string[]);
+            fixture.detectChanges();
+            expect(component.stackedBars()).toHaveLength(0);
+        });
+
+        it('should assign zero percentage when a category total is zero', () => {
+            const zeroSeries: ChartSeries[] = [
+                { name: 'Z', data: [{ name: 'Q1', value: 0 }] },
+            ];
+            fixture.componentRef.setInput('series', zeroSeries);
+            fixture.componentRef.setInput('categories', ['Q1']);
+            fixture.detectChanges();
+
+            const bar = component.stackedBars()[0];
+            expect(bar.total).toBe(0);
+            expect(bar.segments[0].percentage).toBe(0);
+            expect(bar.segments[0].height).toBe(0);
         });
     });
 

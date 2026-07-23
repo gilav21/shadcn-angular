@@ -18,7 +18,8 @@ import {
     type AddOptions,
     type ConflictCheckResult,
 } from '../core/plan.js';
-import { performInstall } from '../core/install.js';
+import { performInstall, expandForTests } from '../core/install.js';
+import { resolveTestInstall } from '../utils/test-runner.js';
 
 export { fetchAndTransform } from '../core/fetch.js';
 export { checkFileConflict, classifyComponent } from '../core/plan.js';
@@ -388,15 +389,19 @@ function printInstallResult(result: { installed: ComponentName[]; warnings: stri
 }
 
 async function resolveComponentsAndConflicts(
-    componentsToAdd: ComponentName[], options: AddOptions, config: Config, cwd: string,
+    componentsToAdd: ComponentName[], options: AddOptions, config: Config, cwd: string, includeTests: boolean,
 ): Promise<{ allComponents: Set<ComponentName>; extraDeps: ComponentName[]; componentPath: string | undefined; blocksPath: string | undefined; conflicts: ConflictCheckResult }> {
     const resolvedComponents = resolveDependencies(componentsToAdd);
     const optionalChoices = await promptOptionalDependencies(resolvedComponents, options);
     const addonChoices = await promptAddons(resolvedComponents, options);
     const extras = [...optionalChoices, ...addonChoices];
-    const allComponents = extras.length > 0
+    const closure = extras.length > 0
         ? resolveDependencies([...resolvedComponents, ...extras])
         : resolvedComponents;
+    // With --include-tests, pull the spec-only sibling source too so the conflict
+    // scan and install cover it; testsFor (which specs actually ship) is derived
+    // independently in performInstall from the originally-requested closure.
+    const { all: allComponents } = expandForTests(closure, includeTests);
     const hasBlock = [...allComponents].some(n => registry[n].type === 'block');
     const { componentPath, blocksPath } = await resolveBlockDestination(hasBlock, options, config);
      
@@ -430,8 +435,10 @@ export async function add(components: string[], options: AddOptions): Promise<vo
 
     validateComponents(componentsToAdd);
 
+    const { includeTests, runner } = await resolveTestInstall(config, options, cwd);
+
     const { allComponents, extraDeps, componentPath, blocksPath, conflicts } =
-        await resolveComponentsAndConflicts(componentsToAdd, options, config, cwd);
+        await resolveComponentsAndConflicts(componentsToAdd, options, config, cwd, includeTests);
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
 
     const toOverwrite = await promptOverwrite(conflicting, options,
@@ -452,6 +459,7 @@ export async function add(components: string[], options: AddOptions): Promise<vo
             // not a 3-way merge.
             overwrite: toOverwrite, forceOverwrite: true, cwd, config, options,
             path: componentPath, blocksPath, precomputedConflicts: conflicts,
+            includeTests, testRunner: runner,
         });
         printInstallResult(result, spinner);
         printAvailableAddons(addonHints);

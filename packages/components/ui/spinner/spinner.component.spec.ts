@@ -49,8 +49,9 @@ describe('SpinnerComponent', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
         expect(svg.nativeElement.style.width).toBe('48px');
         expect(svg.nativeElement.style.height).toBe('48px');
-        // Preset classes should be gone
-        expect(svg.nativeElement.className).not.toContain('h-5');
+        // Preset classes should be gone (SVGElement.className is an
+        // SVGAnimatedString across runners — read the class attribute instead).
+        expect(svg.nativeElement.getAttribute('class') ?? '').not.toContain('h-5');
     });
 
     it('should have animate-spin class', () => {

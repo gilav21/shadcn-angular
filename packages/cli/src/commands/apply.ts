@@ -6,6 +6,7 @@ import prompts from 'prompts';
 import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { aliasToProjectPath, resolveProjectPath } from '../utils/paths.js';
 import { performInstall } from '../core/install.js';
+import { resolveTestInstall } from '../utils/test-runner.js';
 import { reportMergeSummary } from './merge-report.js';
 import {
     findTemplateInstances,
@@ -167,7 +168,10 @@ async function wireTarget(addon: AddonInfo, target: Target, options: ApplyOption
 async function installAndCheckCompat(addon: AddonInfo, cwd: string, uiAlias: string, options: ApplyOptions, config: Config): Promise<boolean> {
     const spinner = ora(`Installing ${addon.name} if missing...`).start();
     try {
-        const result = await performInstall({ components: [addon.name], cwd, config, options });
+        // Ship the addon's tests too when the project opted into shipped tests
+        // (persisted by a prior `add --include-tests`), matching `add`'s behavior.
+        const { includeTests, runner } = await resolveTestInstall(config, { yes: options.yes, dryRun: options.dryRun }, cwd);
+        const result = await performInstall({ components: [addon.name], cwd, config, options, includeTests, testRunner: runner });
 
         // Verify the contract BEFORE declaring success, so a base that predates
         // the addon fails the spinner outright instead of the jarring

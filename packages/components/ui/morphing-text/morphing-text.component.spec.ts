@@ -14,12 +14,27 @@ class TestHostComponent {
     cls = signal('');
 }
 
+interface WindowLike {
+    matchMedia?: (q: string) => { matches: boolean };
+}
+
 describe('MorphingTextComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
     let host: TestHostComponent;
+    let originalMatchMedia: WindowLike['matchMedia'];
+    let reducedMotion = false;
+
+    const getComp = (): MorphingTextComponent =>
+        fixture.debugElement.query(By.directive(MorphingTextComponent))
+            .componentInstance as MorphingTextComponent;
 
     beforeEach(async () => {
         vi.useFakeTimers();
+
+        const win = globalThis.window as unknown as WindowLike;
+        originalMatchMedia = win.matchMedia;
+        reducedMotion = false;
+        win.matchMedia = (): { matches: boolean } => ({ matches: reducedMotion });
 
         await TestBed.configureTestingModule({
             imports: [TestHostComponent],
@@ -27,29 +42,43 @@ describe('MorphingTextComponent', () => {
 
         fixture = TestBed.createComponent(TestHostComponent);
         host = fixture.componentInstance;
-        fixture.detectChanges();
     });
 
     afterEach(() => {
+        fixture.destroy();
+        const win = globalThis.window as unknown as WindowLike;
+        if (originalMatchMedia) {
+            win.matchMedia = originalMatchMedia;
+        } else {
+            delete win.matchMedia;
+        }
         vi.useRealTimers();
     });
 
     it('should render current text initially', () => {
-        const comp = fixture.debugElement.query(By.directive(MorphingTextComponent)).componentInstance as MorphingTextComponent;
-        expect(comp.currentText()).toBe('Hello');
+        fixture.detectChanges();
+        expect(getComp().currentText()).toBe('Hello');
     });
 
     it('should render next text initially (second text in list)', () => {
-        const comp = fixture.debugElement.query(By.directive(MorphingTextComponent)).componentInstance as MorphingTextComponent;
-        expect(comp.nextText()).toBe('World');
+        fixture.detectChanges();
+        expect(getComp().nextText()).toBe('World');
+    });
+
+    it('should return empty strings for current/next when texts is empty', () => {
+        host.texts.set([]);
+        fixture.detectChanges();
+
+        const comp = getComp();
+        expect(comp.currentText()).toBe('');
+        expect(comp.nextText()).toBe('');
+        expect(comp.longestText()).toBe('');
     });
 
     it('should compute the longest text for sizing', () => {
         host.texts.set(['Hi', 'Hello World', 'Bye']);
         fixture.detectChanges();
-
-        const comp = fixture.debugElement.query(By.directive(MorphingTextComponent)).componentInstance as MorphingTextComponent;
-        expect(comp.longestText()).toBe('Hello World');
+        expect(getComp().longestText()).toBe('Hello World');
     });
 
     it('should render an invisible span with the longest text', () => {
@@ -58,16 +87,17 @@ describe('MorphingTextComponent', () => {
 
         const invisibleSpan = fixture.debugElement.query(By.css('.invisible'));
         expect(invisibleSpan).toBeTruthy();
-        expect(invisibleSpan.nativeElement.textContent).toBe('Hello World');
+        expect((invisibleSpan.nativeElement as HTMLElement).textContent).toBe('Hello World');
     });
 
     it('should start with currentVisible = true', () => {
-        const comp = fixture.debugElement.query(By.directive(MorphingTextComponent)).componentInstance as MorphingTextComponent;
-        expect(comp.currentVisible()).toBe(true);
+        fixture.detectChanges();
+        expect(getComp().currentVisible()).toBe(true);
     });
 
     it('should toggle currentVisible after half the interval', () => {
-        const comp = fixture.debugElement.query(By.directive(MorphingTextComponent)).componentInstance as MorphingTextComponent;
+        fixture.detectChanges();
+        const comp = getComp();
         expect(comp.currentVisible()).toBe(true);
 
         vi.advanceTimersByTime(1500);
@@ -77,7 +107,8 @@ describe('MorphingTextComponent', () => {
     });
 
     it('should advance to next text after a full interval cycle', () => {
-        const comp = fixture.debugElement.query(By.directive(MorphingTextComponent)).componentInstance as MorphingTextComponent;
+        fixture.detectChanges();
+        const comp = getComp();
 
         vi.advanceTimersByTime(3000);
         fixture.detectChanges();
@@ -85,7 +116,52 @@ describe('MorphingTextComponent', () => {
         expect(comp.currentText()).toBe('World');
     });
 
+    it('should wrap around to the first text after cycling through all', () => {
+        fixture.detectChanges();
+        const comp = getComp();
+
+        vi.advanceTimersByTime(3000 * 3);
+        fixture.detectChanges();
+
+        expect(comp.currentText()).toBe('Hello');
+    });
+
+    it('should not start the loop when only one text is provided', () => {
+        host.texts.set(['Solo']);
+        fixture.detectChanges();
+        const comp = getComp();
+
+        vi.advanceTimersByTime(9000);
+        fixture.detectChanges();
+
+        expect(comp.currentVisible()).toBe(true);
+        expect(comp.currentText()).toBe('Solo');
+    });
+
+    it('should not start the loop when reduced motion is preferred', () => {
+        reducedMotion = true;
+        fixture.detectChanges();
+        const comp = getComp();
+
+        vi.advanceTimersByTime(9000);
+        fixture.detectChanges();
+
+        expect(comp.currentVisible()).toBe(true);
+        expect(comp.currentText()).toBe('Hello');
+    });
+
+    it('should stop toggling after the fixture is destroyed', () => {
+        fixture.detectChanges();
+        const comp = getComp();
+
+        fixture.destroy();
+
+        expect(() => vi.advanceTimersByTime(9000)).not.toThrow();
+        expect(comp.currentVisible()).toBe(true);
+    });
+
     it('should set data-slot attribute', () => {
+        fixture.detectChanges();
         const el = fixture.debugElement.query(By.css('[data-slot="morphing-text"]'));
         expect(el).toBeTruthy();
     });
@@ -101,8 +177,12 @@ describe('MorphingTextComponent', () => {
     it('should compute transition duration as fraction of interval', () => {
         host.interval.set(6000);
         fixture.detectChanges();
+        expect(getComp().transitionDuration()).toBe('500ms');
+    });
 
-        const comp = fixture.debugElement.query(By.directive(MorphingTextComponent)).componentInstance as MorphingTextComponent;
-        expect(comp.transitionDuration()).toBe('500ms');
+    it('should cap transition duration at a third of small intervals', () => {
+        host.interval.set(900);
+        fixture.detectChanges();
+        expect(getComp().transitionDuration()).toBe('300ms');
     });
 });
