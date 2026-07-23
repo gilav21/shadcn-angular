@@ -94,6 +94,8 @@ function appendItem(
         style,
         mcid: item.mcid,
         spaceBefore: pendingSpace || decision !== 'merge',
+        hardBreak: previous !== undefined &&
+            gap > Math.max(previous.fontSize, item.fontSize) * HARD_BREAK_EM,
     });
     return false;
 }

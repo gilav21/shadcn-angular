@@ -82,10 +82,13 @@ export interface Word {
     /** Baseline y in PDF coordinates (bottom-up). */
     readonly y: number;
     readonly fontSize: number;
-    readonly style: RunStyle;
+    /** Mutable: underline detection rewrites the style after path analysis. */
+    style: RunStyle;
     readonly mcid: number;
     /** Whether a word gap precedes this word on its line (in logical order source). */
     spaceBefore: boolean;
+    /** True when a column-sized gap precedes this word visually — a segment boundary. */
+    readonly hardBreak: boolean;
 }
 
 export type TextDirection = 'ltr' | 'rtl';
@@ -103,6 +106,8 @@ export interface Line {
 }
 
 export type BlockAlign = '' | 'left' | 'right' | 'center' | 'justify';
+
+export type HeadingLevel = 1 | 2 | 3 | 4;
 
 export interface BlockStyle {
     align: BlockAlign;
@@ -124,7 +129,8 @@ export interface ParagraphBlock {
 
 export interface HeadingBlock {
     readonly kind: 'heading';
-    readonly level: 1 | 2 | 3 | 4;
+    /** Mutable: a document-wide post-pass re-ranks levels by size/bold signature. */
+    level: HeadingLevel;
     readonly lines: Line[];
     readonly page: number;
     readonly style: BlockStyle;
@@ -176,6 +182,8 @@ export interface RuleBlock {
     readonly kind: 'rule';
     readonly page: number;
     readonly style: BlockStyle;
+    /** Vertical position (PDF coords) used to order the rule among blocks. */
+    readonly top: number;
 }
 
 export type DocBlock =

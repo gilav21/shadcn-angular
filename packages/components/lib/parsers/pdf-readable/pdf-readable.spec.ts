@@ -137,12 +137,83 @@ describe('parsePdfReadable', () => {
         it('wraps pages and separates them with hr when pageWrappers is on', async () => {
             const pdf = new PdfBuilder()
                 .addFont('F1', 'Helvetica')
-                .setContent('BT /F1 12 Tf 100 700 Td (One) Tj ET')
-                .addPage('BT /F1 12 Tf 100 700 Td (Two) Tj ET')
+                .setContent('BT /F1 12 Tf 100 700 Td (One.) Tj ET')
+                .addPage('BT /F1 12 Tf 100 700 Td (Two.) Tj ET')
                 .build();
             const result = await parsePdfReadable(pdf, { pageWrappers: true });
             expect(result.html).toContain('max-width:612pt');
             expect(result.html).toContain('<hr>');
+        });
+    });
+
+    describe('document structure (Phase 2)', () => {
+        it('classifies a large title line as a heading', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 24 Tf 100 720 Td (Document Title) Tj ET ' +
+                    'BT /F1 12 Tf 100 680 Td (Body text starts here with normal size) Tj ' +
+                    '0 -14 Td (and continues for a second line) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<h1');
+            expect(result.html).toContain('Document Title');
+        });
+
+        it('converts dash-marked lines into a list without the markers', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (- First item text) Tj ' +
+                    '0 -14 Td (- Second item text) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<ul');
+            expect(result.html).toContain('<li');
+            expect(result.html).not.toContain('- First');
+        });
+
+        it('suppresses repeating footers across three or more pages', async () => {
+            const pageContent = (n: number): string =>
+                `BT /F1 12 Tf 100 700 Td (Body content of page ${n}) Tj ET ` +
+                `BT /F1 9 Tf 280 30 Td (Confidential Draft) Tj ET`;
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(pageContent(1))
+                .addPage(pageContent(2))
+                .addPage(pageContent(3))
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).not.toContain('Confidential Draft');
+            expect(result.html).toContain('Body content of page 2');
+        });
+
+        it('merges a paragraph continuing across a page break', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 100 Td (This sentence continues without any) Tj ET')
+                .addPage('BT /F1 12 Tf 100 700 Td (terminal punctuation onto page two.) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            const paragraphs = result.html.match(/<p[\s>]/g) ?? [];
+            expect(paragraphs).toHaveLength(1);
+            expect(result.text).toBe(
+                'This sentence continues without any terminal punctuation onto page two.');
+        });
+
+        it('renders two-column pages in column reading order', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 60 700 Td (Left column first line) Tj 0 -14 Td (left column second line) Tj ET ' +
+                    'BT /F1 12 Tf 340 700 Td (Right column first line) Tj 0 -14 Td (right column second line) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            const leftIdx = result.text.indexOf('left column second line');
+            const rightIdx = result.text.indexOf('Right column first line');
+            expect(leftIdx).toBeGreaterThanOrEqual(0);
+            expect(rightIdx).toBeGreaterThan(leftIdx);
         });
     });
 

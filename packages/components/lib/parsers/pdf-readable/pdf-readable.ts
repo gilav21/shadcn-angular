@@ -1,9 +1,12 @@
 import { PdfReader, applyRtlWordFixes } from '../pdf-parser';
 import { FontRegistry } from '../pdf-pixel-perfect';
 import { buildPageBlocks } from './readable-blocks';
+import { assignHeadingLevels, type ClassifyContext } from './readable-classify';
 import { emitDocument } from './readable-emit';
 import { extractDocument } from './readable-extract';
 import { clusterIntoLineItems, linesFromClusters } from './readable-lines';
+import { suppressRepeatedLines } from './readable-repeats';
+import { mergeCrossPageParagraphs } from './readable-styles';
 import type { WordBuildContext } from './readable-words';
 import type {
     DocModel,
@@ -101,17 +104,27 @@ function buildDocModel(
     }));
     applyRtlWordFixes(prepared.flatMap(entry => entry.clusters));
 
-    const pageModels: PageModel[] = prepared.map(({ page, clusters, ctx }) => {
-        const lines = linesFromClusters(clusters, page.index, ctx);
-        return {
-            index: page.index,
-            width: page.width,
-            height: page.height,
-            blocks: buildPageBlocks(lines, page, opts.includeImages),
-        };
-    });
+    const pagesLines = prepared.map(({ page, clusters, ctx }) =>
+        linesFromClusters(clusters, page.index, ctx));
+    const filteredLines = suppressRepeatedLines(
+        pagesLines, extracted.pages.map(page => page.height));
 
-    return { pages: pageModels, bodyFontSize: detectBodyFontSize(extracted.pages) };
+    const bodyFontSize = detectBodyFontSize(extracted.pages);
+    const classifyCtx: Omit<ClassifyContext, 'pageBounds'> = {
+        bodyFontSize,
+        bodyLeading: bodyFontSize * 1.2,
+        structure: extracted.structure,
+    };
+    const pageModels: PageModel[] = prepared.map(({ page }, idx) => ({
+        index: page.index,
+        width: page.width,
+        height: page.height,
+        blocks: buildPageBlocks(filteredLines[idx], page, opts.includeImages, classifyCtx),
+    }));
+    mergeCrossPageParagraphs(pageModels);
+    assignHeadingLevels(pageModels, extracted.structure.hasStructure);
+
+    return { pages: pageModels, bodyFontSize };
 }
 
 function detectBodyFontSize(pages: readonly PageExtract[]): number {

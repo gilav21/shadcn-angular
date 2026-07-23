@@ -1,5 +1,5 @@
 import type { TextItem, TextLine } from '../pdf-parser';
-import type { Line } from './readable-types';
+import type { Line, Word } from './readable-types';
 import { buildWords, detectDirection, toLogicalOrder, type WordBuildContext } from './readable-words';
 
 const MIN_Y_TOLERANCE = 2;
@@ -46,7 +46,11 @@ function dominantItem(items: readonly TextItem[]): TextItem {
     return best;
 }
 
-/** Converts baseline clusters into the readable Line model (logical word order). */
+/**
+ * Converts baseline clusters into the readable Line model (logical word
+ * order). Clusters containing column-sized visual gaps are split into one
+ * Line per segment so the XY-cut can see inter-column valleys.
+ */
 export function linesFromClusters(
     clusters: readonly TextLine[],
     page: number,
@@ -54,35 +58,51 @@ export function linesFromClusters(
 ): Line[] {
     const lines: Line[] = [];
     for (const cluster of clusters) {
-        const line = lineFromCluster(cluster, page, ctx);
-        if (line) lines.push(line);
+        lines.push(...linesFromCluster(cluster, page, ctx));
     }
     return lines;
 }
 
-function lineFromCluster(cluster: TextLine, page: number, ctx: WordBuildContext): Line | null {
+function linesFromCluster(cluster: TextLine, page: number, ctx: WordBuildContext): Line[] {
     const visualWords = buildWords(cluster.items, ctx);
-    if (visualWords.length === 0) return null;
-    const dir = detectDirection(visualWords);
-    const words = toLogicalOrder(visualWords, dir);
+    return splitAtHardBreaks(visualWords).map(segment =>
+        lineFromSegment(segment, cluster.y, page));
+}
+
+function splitAtHardBreaks(words: readonly Word[]): Word[][] {
+    const segments: Word[][] = [];
+    for (const word of words) {
+        const current = segments.at(-1);
+        if (!current || word.hardBreak) {
+            segments.push([word]);
+        } else {
+            current.push(word);
+        }
+    }
+    return segments;
+}
+
+function lineFromSegment(segment: Word[], y: number, page: number): Line {
+    const dir = detectDirection(segment);
+    const words = toLogicalOrder(segment, dir);
     return {
         words,
-        x: Math.min(...visualWords.map(w => w.x)),
-        endX: Math.max(...visualWords.map(w => w.endX)),
-        y: cluster.y,
-        fontSize: dominantFontSize(cluster.items),
+        x: Math.min(...segment.map(w => w.x)),
+        endX: Math.max(...segment.map(w => w.endX)),
+        y,
+        fontSize: dominantSegmentFontSize(segment),
         dir,
         page,
     };
 }
 
-function dominantFontSize(items: readonly TextItem[]): number {
+function dominantSegmentFontSize(words: readonly Word[]): number {
     const weights = new Map<number, number>();
-    for (const item of items) {
-        const size = Math.round(item.fontSize * 2) / 2;
-        weights.set(size, (weights.get(size) ?? 0) + item.text.length);
+    for (const word of words) {
+        const size = Math.round(word.fontSize * 2) / 2;
+        weights.set(size, (weights.get(size) ?? 0) + word.text.length);
     }
-    let bestSize = items[0].fontSize;
+    let bestSize = words[0].fontSize;
     let bestWeight = -1;
     for (const [size, weight] of weights) {
         if (weight > bestWeight) {

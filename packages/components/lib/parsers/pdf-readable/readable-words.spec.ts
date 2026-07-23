@@ -196,5 +196,6 @@ function wordOf(text: string, x = 0): Word {
         },
         mcid: -1,
         spaceBefore: true,
+        hardBreak: false,
     };
 }

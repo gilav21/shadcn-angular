@@ -1,4 +1,11 @@
-import type { BlockAlign, BlockStyle, Line, TextDirection } from './readable-types';
+import type {
+    BlockAlign,
+    BlockStyle,
+    Line,
+    PageModel,
+    ParagraphBlock,
+    TextDirection,
+} from './readable-types';
 
 const EDGE_TOLERANCE = 1.5;
 const CENTER_TOLERANCE = 3;
@@ -134,4 +141,48 @@ function computeMarginTop(
     const gap = previousBaseline - lines[0].y - leading;
     if (gap <= 1) return 0;
     return Math.min(MAX_MARGIN_TOP, Math.round(gap * 10) / 10);
+}
+
+/**
+ * Joins a paragraph that continues across a page break: the trailing
+ * paragraph of each page merges into the leading paragraph of the next when
+ * both flow in the same style and the earlier one does not end a sentence.
+ */
+export function mergeCrossPageParagraphs(pages: readonly PageModel[]): void {
+    for (let i = 1; i < pages.length; i++) {
+        const previous = trailingParagraph(pages[i - 1]);
+        const next = leadingParagraph(pages[i]);
+        if (!previous || !next || !paragraphsContinue(previous, next)) continue;
+        previous.lines.push(...next.lines);
+        pages[i].blocks.splice(pages[i].blocks.indexOf(next), 1);
+    }
+}
+
+function trailingParagraph(page: PageModel): ParagraphBlock | null {
+    const block = page.blocks.at(-1);
+    return block?.kind === 'paragraph' ? block : null;
+}
+
+function leadingParagraph(page: PageModel): ParagraphBlock | null {
+    const block = page.blocks[0];
+    return block?.kind === 'paragraph' ? block : null;
+}
+
+function paragraphsContinue(previous: ParagraphBlock, next: ParagraphBlock): boolean {
+    const lastLine = previous.lines.at(-1);
+    const firstNext = next.lines[0];
+    if (!lastLine || !firstNext) return false;
+    if (Math.abs(lastLine.fontSize - firstNext.fontSize) > 0.5) return false;
+    if (lastLine.dir !== firstNext.dir) return false;
+    if (next.style.textIndent > 0) return false;
+    const text = lastLine.words.map(w => w.text).join(' ').trimEnd();
+    if (/[.!?:;…]$/.test(text)) return false;
+    return isLineFull(previous);
+}
+
+function isLineFull(block: ParagraphBlock): boolean {
+    if (block.lines.length < 2) return true;
+    const widths = block.lines.map(l => l.endX - l.x);
+    const lastWidth = widths.at(-1) ?? 0;
+    return lastWidth >= Math.max(...widths) * 0.85;
 }
