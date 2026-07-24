@@ -124,7 +124,7 @@ function linesToBlocks(
     usedRects: Set<PathRect>,
 ): DocBlock[] {
     if (lines.length === 0) return [];
-    const split = findTableInBand(lines, tableRects, pageIndex, ctx);
+    const split = findTableInBand(lines, tableRects, pageIndex, ctx, { unruled: 'strict' });
     if (split) {
         for (const rect of split.usedRects) usedRects.add(rect);
         return [
@@ -149,7 +149,123 @@ export function xyCut(lines: Line[], depth: number): Line[][] {
     if (bands.length > 1) return bands.flatMap(band => xyCut(band, depth + 1));
     const columns = splitColumns(lines);
     if (columns.length > 1) return columns.flatMap(column => xyCut(column, depth + 1));
+    const aroundSpanners = splitColumnsAroundSpanners(lines);
+    if (aroundSpanners.length > 1) return aroundSpanners.flatMap(region => xyCut(region, depth + 1));
     return [lines];
+}
+
+/** A line spanning most of the region width vetoes any column valley. */
+const SPANNER_WIDTH_RATIO = 0.7;
+
+/**
+ * Column split tolerant of full-width lines: a title or section header that
+ * crosses the gutter must not collapse the columns beneath it. Spanning
+ * lines become their own vertical chunks; the flowing lines between them are
+ * column-split using valleys computed from the flowing lines alone. Chunks
+ * whose lines cross a valley stay unsplit — no content is ever reordered
+ * across a boundary that the geometry does not support.
+ */
+function splitColumnsAroundSpanners(lines: Line[]): Line[][] {
+    if (lines.length < MIN_COLUMN_LINES * 2 + 1) return [lines];
+    const x0 = Math.min(...lines.map(l => l.x));
+    const x1 = Math.max(...lines.map(l => l.endX));
+    const width = x1 - x0;
+    if (width <= 0) return [lines];
+
+    const isWide = (line: Line): boolean => (line.endX - line.x) > width * SPANNER_WIDTH_RATIO;
+    let flowing = lines.filter(line => !isWide(line));
+    if (flowing.length < MIN_COLUMN_LINES * 2) return [lines];
+
+    let cuts = findColumnValleys(flowing).sort((a, b) => a - b);
+    const crossers = new Set<Line>();
+    if (cuts.length === 0) {
+        const tolerant = findLowCoverageValley(flowing);
+        if (!tolerant) return [lines];
+        for (const line of tolerant.crossers) crossers.add(line);
+        flowing = flowing.filter(line => !crossers.has(line));
+        if (flowing.length < MIN_COLUMN_LINES * 2) return [lines];
+        cuts = [tolerant.cut];
+    }
+    const isSpanner = (line: Line): boolean => isWide(line) || crossers.has(line);
+
+    const chunks = chunkBySpanners(lines, isSpanner);
+    const regions: Line[][] = [];
+    let didSplit = false;
+    for (const chunk of chunks) {
+        const split = splitChunkAtCuts(chunk, cuts);
+        if (split.length > 1) didSplit = true;
+        regions.push(...split);
+    }
+    return didSplit ? regions : [lines];
+}
+
+/** Fraction of flowing lines allowed to cross a tolerant valley. */
+const MAX_CROSSER_RATIO = 0.12;
+
+/**
+ * Fallback gutter search when no zero-coverage valley exists: finds the
+ * lowest-coverage vertical strip wide enough to be a column gutter, provided
+ * only a small fraction of lines cross it. Those crossers are returned so
+ * the caller can isolate them as their own chunks instead of letting them
+ * veto the entire column structure.
+ */
+function findLowCoverageValley(lines: readonly Line[]): { cut: number; crossers: Line[] } | null {
+    const x0 = Math.floor(Math.min(...lines.map(l => l.x)));
+    const x1 = Math.ceil(Math.max(...lines.map(l => l.endX)));
+    const width = x1 - x0;
+    if (width <= 0) return null;
+
+    const coverage = new Array<number>(width).fill(0);
+    for (const line of lines) {
+        const from = Math.max(0, Math.floor(line.x) - x0);
+        const to = Math.min(width, Math.ceil(line.endX) - x0);
+        for (let i = from; i < to; i++) coverage[i]++;
+    }
+    const minValley = Math.max(6, medianFontSize(lines) * 0.5);
+    const maxCrossers = Math.max(1, Math.floor(lines.length * MAX_CROSSER_RATIO));
+    const edgeMargin = width * 0.1;
+
+    let best: { cut: number; cost: number } | null = null;
+    for (let start = Math.ceil(edgeMargin); start + minValley < width - edgeMargin; start++) {
+        let peak = 0;
+        for (let i = start; i < start + minValley; i++) peak = Math.max(peak, coverage[i]);
+        if (peak > maxCrossers) continue;
+        if (!best || peak < best.cost) best = { cut: x0 + start + minValley / 2, cost: peak };
+    }
+    if (!best) return null;
+    const crossers = lines.filter(line => line.x < best.cut && line.endX > best.cut);
+    if (crossers.length > maxCrossers) return null;
+    return { cut: best.cut, crossers };
+}
+
+/** Groups y-sorted lines into runs, breaking at every spanning line. */
+function chunkBySpanners(lines: Line[], isSpanner: (line: Line) => boolean): Line[][] {
+    const sorted = [...lines].sort((a, b) => b.y - a.y || a.x - b.x);
+    const chunks: Line[][] = [];
+    for (const line of sorted) {
+        const current = chunks.at(-1);
+        if (isSpanner(line)) {
+            chunks.push([line], []);
+        } else if (current && !current.some(isSpanner)) {
+            current.push(line);
+        } else {
+            chunks.push([line]);
+        }
+    }
+    return chunks.filter(chunk => chunk.length > 0);
+}
+
+function splitChunkAtCuts(chunk: Line[], cuts: readonly number[]): Line[][] {
+    if (chunk.length < MIN_COLUMN_LINES * 2) return [chunk];
+    if (chunk.some(line => cuts.some(cut => line.x < cut && line.endX > cut))) return [chunk];
+
+    const columns: Line[][] = Array.from({ length: cuts.length + 1 }, () => []);
+    for (const line of chunk) {
+        columns[columnIndexFor(line, cuts)].push(line);
+    }
+    const filled = columns.filter(column => column.length >= MIN_COLUMN_LINES);
+    if (filled.length < 2 || filled.length !== columns.filter(c => c.length > 0).length) return [chunk];
+    return orderColumns(filled, chunk);
 }
 
 function splitVerticalBands(lines: Line[]): Line[][] {
@@ -254,8 +370,21 @@ function medianFontSize(lines: readonly Line[]): number {
 
 // ── Region → typed blocks ───────────────────────────────────────────────
 
+/**
+ * Unruled table detection runs here — per region, AFTER column splitting —
+ * because at page level an unruled table is indistinguishable from a
+ * multi-column text layout and detection would swallow the columns.
+ */
 function regionToBlocks(rawRegion: Line[], pageIndex: number, ctx: ClassifyContext): DocBlock[] {
     if (rawRegion.length === 0) return [];
+    const tableSplit = findTableInBand(rawRegion, [], pageIndex, ctx, { ruled: false });
+    if (tableSplit) {
+        return [
+            ...regionToBlocks(tableSplit.before, pageIndex, ctx),
+            tableSplit.table,
+            ...regionToBlocks(tableSplit.after, pageIndex, ctx),
+        ];
+    }
     const region = mergeSameBaselineLines(rawRegion);
     const bounds = boundsOfLines(region);
     const groups = splitIntoParagraphGroups(region);

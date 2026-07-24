@@ -99,6 +99,42 @@ describe('xyCut', () => {
     });
 });
 
+describe('xyCut — spanner-tolerant columns', () => {
+    it('splits columns under a full-width title instead of collapsing them', () => {
+        const title = lineOf('Full Width Title Spanning The Whole Region Here', 50, 550, 700);
+        const left = [
+            lineOf('L1', 50, 280, 686),
+            lineOf('L2', 50, 280, 672),
+            lineOf('L3', 50, 280, 658),
+        ];
+        const right = [
+            lineOf('R1', 320, 550, 686),
+            lineOf('R2', 320, 550, 672),
+            lineOf('R3', 320, 550, 658),
+        ];
+        const regions = xyCut([title, ...left, ...right], 4 - 1);
+        expect(regions.length).toBeGreaterThanOrEqual(3);
+        expect(regions[0][0].words[0].text).toContain('Full Width Title');
+        const l1Region = regions.findIndex(r => r.some(l => l.words[0].text === 'L1'));
+        const r1Region = regions.findIndex(r => r.some(l => l.words[0].text === 'R1'));
+        expect(l1Region).toBeGreaterThan(-1);
+        expect(r1Region).toBeGreaterThan(-1);
+        expect(l1Region).not.toBe(r1Region);
+    });
+
+    it('keeps a chunk whole when a line crosses the valley', () => {
+        const lines = [
+            lineOf('Wide Title Spanning All Of The Columns Below', 50, 550, 700),
+            lineOf('a', 50, 280, 686), lineOf('b', 320, 550, 686),
+            lineOf('crosses the gutter here', 200, 400, 672),
+            lineOf('c', 50, 280, 658), lineOf('d', 320, 550, 658),
+        ];
+        const regions = xyCut(lines, 4 - 1);
+        const flat = regions.flat();
+        expect(flat).toHaveLength(lines.length);
+    });
+});
+
 describe('applyUnderlines', () => {
     it('flags words above a thin rect as underlined', () => {
         const line = lineOf('underlined text', 50, 150, 700);

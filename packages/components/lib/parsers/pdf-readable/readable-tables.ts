@@ -25,15 +25,32 @@ export interface BandTableSplit {
  * whose segment edges snap to shared column positions are reconstructed as
  * an unruled table. Returns null when the band holds no table.
  */
+export interface TableDetectionModes {
+    /** Detect ruled (drawn-grid) tables. Default true. */
+    readonly ruled?: boolean;
+    /**
+     * Detect unruled (edge-aligned) tables. Default true. At PAGE level use
+     * 'strict' — before column splitting a two-column text layout is nearly
+     * indistinguishable from an unruled table, so only unmistakably cellular
+     * rows (uniformly short segments) may be claimed there; everything else
+     * gets its chance at region level after columns are resolved.
+     */
+    readonly unruled?: boolean | 'strict';
+}
+
 export function findTableInBand(
     band: readonly Line[],
     rects: readonly PathRect[],
     pageIndex: number,
     ctx: ClassifyContext,
+    modes: TableDetectionModes = {},
 ): BandTableSplit | null {
     const rows = groupByBaseline(band);
-    return findRuledTable(band, rows, rects, pageIndex) ??
-        findUnruledTable(rows, pageIndex, ctx);
+    const ruled = (modes.ruled ?? true) ? findRuledTable(band, rows, rects, pageIndex) : null;
+    if (ruled) return ruled;
+    const unruled = modes.unruled ?? true;
+    if (unruled === false) return null;
+    return findUnruledTable(rows, pageIndex, ctx, unruled === 'strict');
 }
 
 function groupByBaseline(band: readonly Line[]): Line[][] {
@@ -186,6 +203,7 @@ function findUnruledTable(
     rows: readonly Line[][],
     pageIndex: number,
     ctx: ClassifyContext,
+    strict = false,
 ): BandTableSplit | null {
     const run = findMultiSegmentRun(rows, ctx.bodyLeading);
     if (!run) return null;
@@ -194,7 +212,7 @@ function findUnruledTable(
     const rtl = isRtlTable(runRows);
     const columns = clusterColumnEdges(runRows, ctx.bodyFontSize, rtl);
     if (!columns) return null;
-    if (!looksCellular(runRows, columns.length)) return null;
+    if (!looksCellular(runRows, columns.length, strict)) return null;
 
     const cells = runRows.map(row => rowToCells(row, columns, rtl));
     if (cellFillRatio(cells) < MIN_CELL_FILL) return null;
@@ -229,7 +247,7 @@ function cellFillRatio(cells: readonly TableCellModel[][]): number {
  * Two-column candidates get the stricter bound since they are the ambiguous
  * case; without this, every two-column page would collapse into a table.
  */
-function looksCellular(rows: readonly Line[][], columnCount: number): boolean {
+function looksCellular(rows: readonly Line[][], columnCount: number, strict = false): boolean {
     const segments = rows.flat();
     const bandX0 = Math.min(...segments.map(l => l.x));
     const bandX1 = Math.max(...segments.map(l => l.endX));
@@ -238,7 +256,10 @@ function looksCellular(rows: readonly Line[][], columnCount: number): boolean {
     const widths = segments.map(l => l.endX - l.x).sort((a, b) => a - b);
     const median = widths[Math.floor(widths.length / 2)];
     const maxRatio = columnCount >= 3 ? 0.4 : 0.3;
-    return median / bandWidth <= maxRatio;
+    if (median / bandWidth > maxRatio) return false;
+    if (!strict) return true;
+    const widest = widths.at(-1) ?? 0;
+    return widest / bandWidth <= 0.35;
 }
 
 /**
