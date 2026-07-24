@@ -165,6 +165,27 @@ describe('buildPageBlocks', () => {
         expect(kinds).toEqual(['paragraph', 'rule', 'paragraph']);
     });
 
+    it('gives a table cell the saturated fill it sits on (highlighted total)', () => {
+        const lines: Line[] = [];
+        for (const y of [700, 680, 660]) {
+            lines.push(lineOf('Item', 50, 100, y), lineOf('Qty', 250, 290, y), lineOf('Total', 450, 500, y));
+        }
+        const fill: PathRect = {
+            x: 440, y: 653, width: 90, height: 22,
+            page: 0, stroked: false, filled: true,
+            strokeColor: '#000000', fillColor: '#3b82f6', lineWidth: 0,
+        };
+        const page = pageExtractOf(lines, { rects: [fill] });
+        const blocks = buildPageBlocks([...lines], page, false, ctx);
+        const table = blocks.find(b => b.kind === 'table');
+        expect(table?.kind).toBe('table');
+        if (table?.kind === 'table') {
+            const highlighted = table.rows.flat().filter(c => c.background === '#3b82f6');
+            expect(highlighted).toHaveLength(1);
+            expect(highlighted[0].lines[0].words[0].text).toBe('Total');
+        }
+    });
+
     it('floats an image sitting beside a multi-line paragraph', () => {
         const lines = [
             lineOf('Wrapping text beside image line one', 200, 550, 700),

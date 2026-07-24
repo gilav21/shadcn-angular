@@ -185,7 +185,11 @@ function emitTable(block: TableBlock, ctx: EmitContext): string {
         const cells = row.map(cell => {
             const dominant = dominantRunStyle(cell.lines);
             const inner = emitLineContents(cell.lines, dominant, ctx);
-            const styleValue = cellBorder + styleAttr([['padding', '2pt 4pt'], ...baseFontPairs(dominant, ctx)]);
+            const fill: Array<[string, string]> = cell.background
+                ? [['background', cell.background]]
+                : [];
+            const styleValue = cellBorder +
+                styleAttr([['padding', '2pt 4pt'], ...fill, ...baseFontPairs(dominant, ctx)]);
             return `<${cellTag} style="${styleValue}">${inner}</${cellTag}>`;
         });
         return `<tr>${cells.join('')}</tr>`;

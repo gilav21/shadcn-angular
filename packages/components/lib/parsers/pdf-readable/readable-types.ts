@@ -167,6 +167,10 @@ export interface BlockquoteBlock {
 
 export interface TableCellModel {
     readonly lines: Line[];
+    /** Background reconstructed from a saturated fill behind the cell (e.g. a
+     *  highlighted total); '' or absent when none. Keeps light-on-color text
+     *  (invisible on the white reading surface) readable. */
+    background?: string;
 }
 
 export interface TableBlock {

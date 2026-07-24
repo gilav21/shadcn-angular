@@ -10,6 +10,7 @@ import type {
     Line,
     PageExtract,
     RuleBlock,
+    TableBlock,
 } from './readable-types';
 
 const PARAGRAPH_GAP_FACTOR = 1.8;
@@ -73,12 +74,42 @@ function applyFillBackgrounds(blocks: readonly DocBlock[], rects: readonly PathR
         r.filled && r.width * r.height >= MIN_FILL_AREA && isSaturatedColor(r.fillColor));
     if (fills.length === 0) return;
     for (const block of blocks) {
+        if (block.kind === 'table') {
+            applyCellBackgrounds(block, fills);
+            continue;
+        }
         const bounds = textBlockBounds(block);
-        if (bounds && block.kind !== 'table') {
+        if (bounds) {
             const fill = fills.find(r => rectCoversCentroid(r, bounds));
             if (fill) block.style.background = fill.fillColor;
         }
     }
+}
+
+/**
+ * Gives a table cell the saturated fill it sits on — a highlighted total
+ * (light text on a coloured box) is otherwise invisible on the white surface.
+ * Applied per cell because a table row rarely shares one background.
+ */
+function applyCellBackgrounds(table: TableBlock, fills: readonly PathRect[]): void {
+    for (const row of table.rows) {
+        for (const cell of row) {
+            if (cell.lines.length === 0) continue;
+            const centroid = cellCentroid(cell.lines);
+            const fill = fills.find(r => rectCoversCentroid(r, centroid));
+            if (fill) cell.background = fill.fillColor;
+        }
+    }
+}
+
+function cellCentroid(lines: readonly Line[]): Centroid {
+    let sx = 0;
+    let sy = 0;
+    for (const line of lines) {
+        sx += (line.x + line.endX) / 2;
+        sy += line.y;
+    }
+    return { cx: sx / lines.length, cy: sy / lines.length };
 }
 
 interface Centroid { readonly cx: number; readonly cy: number; }
