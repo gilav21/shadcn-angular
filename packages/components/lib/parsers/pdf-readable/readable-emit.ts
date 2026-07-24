@@ -134,7 +134,7 @@ function emitList(block: ListBlock, ctx: EmitContext): string {
 }
 
 function emitTable(block: TableBlock, ctx: EmitContext): string {
-    const cellBorder = block.ruled ? 'border:0.5pt solid #999;' : '';
+    const cellBorder = tableCellBorder(block);
     const rows = block.rows.map((row, rowIdx) => {
         const cellTag = block.headerRow && rowIdx === 0 ? 'th' : 'td';
         const cells = row.map(cell => {
@@ -147,6 +147,19 @@ function emitTable(block: TableBlock, ctx: EmitContext): string {
     });
     const tableStyle = `border-collapse:collapse;${styleAttr([['margin-top', ptOrEmpty(block.style.marginTop)]])}`;
     return `<table style="${tableStyle}"${block.style.dir === 'rtl' ? ' dir="rtl"' : ''}>${rows.join('')}</table>`;
+}
+
+/**
+ * Ruled tables keep their full grid. Unruled data tables (three or more
+ * columns and rows) get light horizontal row separators, matching how such
+ * tables — invoices, statements — are drawn; two-column layouts (contact
+ * headers, key/value pairs) stay borderless so they read as text.
+ */
+function tableCellBorder(block: TableBlock): string {
+    if (block.ruled) return 'border:0.5pt solid #999;';
+    const columnCount = Math.max(...block.rows.map(row => row.length), 0);
+    if (block.rows.length >= 3 && columnCount >= 3) return 'border-bottom:0.5pt solid #e5e7eb;';
+    return '';
 }
 
 function emitImage(block: ImageBlock): string {
