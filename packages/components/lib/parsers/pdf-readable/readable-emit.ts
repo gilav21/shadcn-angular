@@ -240,9 +240,10 @@ function runStyleKey(style: RunStyle): string {
 function baseFontPairs(dominant: RunStyle | null, ctx: EmitContext): Array<[string, string]> {
     if (!dominant) return [];
     return [
-        ['font-family', fontFamilyValue(dominant.fontName, ctx)],
+        ['font-family', fontFamilyValue(dominant, ctx)],
         ['font-size', `${round(dominant.fontSize)}pt`],
         ['color', colorValue(dominant.color)],
+        ['letter-spacing', dominant.letterSpacing > 0 ? `${dominant.letterSpacing}pt` : ''],
     ];
 }
 
@@ -253,7 +254,7 @@ function runDeltaPairs(
 ): Array<[string, string]> {
     const pairs: Array<[string, string]> = [];
     if (!dominant || style.fontName !== dominant.fontName) {
-        pairs.push(['font-family', fontFamilyValue(style.fontName, ctx)]);
+        pairs.push(['font-family', fontFamilyValue(style, ctx)]);
     }
     if (!dominant || Math.abs(style.fontSize - dominant.fontSize) >= 0.25) {
         pairs.push(['font-size', `${round(style.fontSize)}pt`]);
@@ -270,20 +271,34 @@ function runDeltaPairs(
 function blockStylePairs(style: BlockStyle): Array<[string, string]> {
     return [
         ['text-align', style.align],
+        [style.dir === 'rtl' ? 'margin-right' : 'margin-left', ptOrEmpty(style.indentStart)],
         ['text-indent', ptOrEmpty(style.textIndent)],
         ['line-height', style.lineHeight > 0 ? String(style.lineHeight) : ''],
         ['margin-top', ptOrEmpty(style.marginTop)],
     ];
 }
 
-function fontFamilyValue(fontName: string, ctx: EmitContext): string {
-    const mapping = ctx.fonts.get(fontName);
-    if (!mapping) return '';
+function fontFamilyValue(style: RunStyle, ctx: EmitContext): string {
+    const mapping = ctx.fonts.get(style.fontName);
+    const family = style.fontFamily || mapping?.fallback || '';
     const parts: string[] = [];
-    if (mapping.embedded && mapping.family) parts.push(`'${mapping.family}'`);
-    if (mapping.fallback) parts.push(`'${mapping.fallback}'`);
-    parts.push('sans-serif');
+    if (mapping?.embedded && mapping.family) parts.push(`'${mapping.family}'`);
+    if (family) parts.push(`'${sanitizeFamilyName(family)}'`);
+    parts.push(genericFamilyOf(family || style.fontName));
     return parts.length > 1 ? parts.join(',') : '';
+}
+
+function sanitizeFamilyName(family: string): string {
+    return family.replaceAll(/['"\\;]/g, '');
+}
+
+const SERIF_HINT = /times|serif|georgia|garamond|book|roman|minion|caslon|palatino|cambria/i;
+const MONO_HINT = /courier|mono|consolas|menlo/i;
+
+function genericFamilyOf(name: string): string {
+    if (MONO_HINT.test(name)) return 'monospace';
+    if (SERIF_HINT.test(name)) return 'serif';
+    return 'sans-serif';
 }
 
 function colorValue(color: string): string {

@@ -187,8 +187,9 @@ function medianFontSize(lines: readonly Line[]): number {
 
 // ── Region → typed blocks ───────────────────────────────────────────────
 
-function regionToBlocks(region: Line[], pageIndex: number, ctx: ClassifyContext): DocBlock[] {
-    if (region.length === 0) return [];
+function regionToBlocks(rawRegion: Line[], pageIndex: number, ctx: ClassifyContext): DocBlock[] {
+    if (rawRegion.length === 0) return [];
+    const region = mergeSameBaselineLines(rawRegion);
     const bounds = boundsOfLines(region);
     const groups = splitIntoParagraphGroups(region);
     const blocks: DocBlock[] = [];
@@ -196,7 +197,7 @@ function regionToBlocks(region: Line[], pageIndex: number, ctx: ClassifyContext)
     for (const lines of groups) {
         const gapAbove = previousBaseline === null ? null : previousBaseline - lines[0].y;
         const kind = classifyGroup(lines, bounds, gapAbove, ctx);
-        const style = resolveBlockStyle(lines, bounds, previousBaseline);
+        const style = resolveBlockStyle(lines, bounds, previousBaseline, ctx.pageBounds);
         blocks.push(blockFrom(kind, lines, pageIndex, style));
         previousBaseline = lines.at(-1)?.y ?? previousBaseline;
     }
@@ -219,6 +220,43 @@ function blockFrom(
         default:
             return { kind: 'paragraph', lines: [...lines], page, style };
     }
+}
+
+/**
+ * Rejoins hard-break segments that share a baseline inside one region.
+ * Segmentation exists so the XY-cut can see column valleys; once a region is
+ * final, same-baseline segments were one visual line and must not stack as
+ * separate paragraphs.
+ */
+function mergeSameBaselineLines(region: readonly Line[]): Line[] {
+    const sorted = [...region].sort((a, b) => b.y - a.y || a.x - b.x);
+    const merged: Line[] = [];
+    for (const line of sorted) {
+        const previous = merged.at(-1);
+        if (previous && Math.abs(previous.y - line.y) <= previous.fontSize * 0.35) {
+            merged[merged.length - 1] = joinLines(previous, line);
+        } else {
+            merged.push(line);
+        }
+    }
+    return merged;
+}
+
+function joinLines(a: Line, b: Line): Line {
+    const rtl = a.dir === 'rtl' || b.dir === 'rtl';
+    const [left, right] = a.x <= b.x ? [a, b] : [b, a];
+    const [first, second] = rtl ? [right, left] : [left, right];
+    const words = [...first.words, ...second.words.map((word, i) =>
+        i === 0 ? { ...word, spaceBefore: true } : word)];
+    return {
+        words,
+        x: Math.min(a.x, b.x),
+        endX: Math.max(a.endX, b.endX),
+        y: a.y,
+        fontSize: Math.max(a.fontSize, b.fontSize),
+        dir: rtl ? 'rtl' : 'ltr',
+        page: a.page,
+    };
 }
 
 export function boundsOfLines(lines: readonly Line[]): ColumnBounds {
@@ -320,7 +358,7 @@ function detectRules(
 }
 
 function emptyStyle(): BlockStyle {
-    return { align: '', textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' };
+    return { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' };
 }
 
 // ── Image & rule interleaving ───────────────────────────────────────────

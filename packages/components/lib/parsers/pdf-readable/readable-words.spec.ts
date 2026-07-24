@@ -186,6 +186,7 @@ function wordOf(text: string, x = 0): Word {
         fontSize: 12,
         style: {
             fontName: 'F1',
+            fontFamily: '',
             fontSize: 12,
             color: '#000000',
             bold: false,

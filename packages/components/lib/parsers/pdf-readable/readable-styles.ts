@@ -22,16 +22,38 @@ export function resolveBlockStyle(
     lines: readonly Line[],
     bounds: ColumnBounds,
     previousBaseline: number | null,
+    pageBounds: ColumnBounds = bounds,
 ): BlockStyle {
     const dir = blockDirection(lines);
     const lineHeight = computeLineHeight(lines);
+    const align = detectAlignment(lines, pageBounds, dir);
     return {
-        align: detectAlignment(lines, bounds, dir),
+        align,
+        indentStart: computeIndentStart(lines, pageBounds, dir, align),
         textIndent: computeTextIndent(lines, dir),
         lineHeight,
         marginTop: computeMarginTop(lines, previousBaseline, lineHeight),
         dir,
     };
+}
+
+/**
+ * Preserves a block's real horizontal position: when it is not centered or
+ * end-aligned, its offset from the page content start becomes a margin. This
+ * is what keeps scattered fragments and indented regions where the PDF put
+ * them instead of collapsing everything to the left edge.
+ */
+function computeIndentStart(
+    lines: readonly Line[],
+    pageBounds: ColumnBounds,
+    dir: TextDirection,
+    align: BlockAlign,
+): number {
+    if (lines.length === 0 || align === 'center' || align === 'right' || align === 'left') return 0;
+    const offset = dir === 'rtl'
+        ? pageBounds.x1 - Math.max(...lines.map(l => l.endX))
+        : Math.min(...lines.map(l => l.x)) - pageBounds.x0;
+    return offset > 4 ? Math.round(offset * 10) / 10 : 0;
 }
 
 export function blockDirection(lines: readonly Line[]): TextDirection {
@@ -67,6 +89,7 @@ export function detectAlignment(
 
 function singleLineAlignment(line: Line, bounds: ColumnBounds, dir: TextDirection): BlockAlign {
     const width = bounds.x1 - bounds.x0;
+    if (line.endX - line.x < width * 0.25) return '';
     const left = line.x - bounds.x0;
     const right = bounds.x1 - line.endX;
     const margin = width * MARGIN_FRACTION;

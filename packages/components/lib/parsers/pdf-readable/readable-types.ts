@@ -64,6 +64,8 @@ export type BaselineShift = 'none' | 'sub' | 'sup';
 /** Visual style of a run of text, used to group words into styled spans. */
 export interface RunStyle {
     readonly fontName: string;
+    /** Human font family from the PDF (e.g. 'Times New Roman'); '' when unknown. */
+    readonly fontFamily: string;
     readonly fontSize: number;
     readonly color: string;
     readonly bold: boolean;
@@ -113,6 +115,8 @@ export type HeadingLevel = 1 | 2 | 3 | 4;
 
 export interface BlockStyle {
     align: BlockAlign;
+    /** Horizontal offset of the whole block from the page's content start, in pt. */
+    indentStart: number;
     /** First-line indent in pt (0 = none). */
     textIndent: number;
     /** Unitless line-height ratio (0 = unset). */

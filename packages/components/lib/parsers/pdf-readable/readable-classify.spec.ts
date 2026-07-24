@@ -132,12 +132,12 @@ describe('assignHeadingLevels', () => {
         const h1: HeadingBlock = {
             kind: 'heading', level: 2,
             lines: [lineOf('Big', 50, 200, 700, { fontSize: 20 })],
-            page: 0, style: { align: '', textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' },
+            page: 0, style: { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' },
         };
         const h2: HeadingBlock = {
             kind: 'heading', level: 3,
             lines: [lineOf('Small', 50, 200, 600, { fontSize: 15 })],
-            page: 0, style: { align: '', textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' },
+            page: 0, style: { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' },
         };
         const pages: PageModel[] = [{ index: 0, width: 612, height: 792, blocks: [h1, h2] }];
         assignHeadingLevels(pages, false);
@@ -149,12 +149,12 @@ describe('assignHeadingLevels', () => {
         const bold: HeadingBlock = {
             kind: 'heading', level: 4,
             lines: [lineOf('Bold', 50, 200, 700, { fontSize: 14, style: { bold: true } })],
-            page: 0, style: { align: '', textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' },
+            page: 0, style: { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' },
         };
         const regular: HeadingBlock = {
             kind: 'heading', level: 4,
             lines: [lineOf('Regular', 50, 200, 600, { fontSize: 14 })],
-            page: 0, style: { align: '', textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' },
+            page: 0, style: { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' },
         };
         const pages: PageModel[] = [{ index: 0, width: 612, height: 792, blocks: [bold, regular] }];
         assignHeadingLevels(pages, false);
@@ -166,7 +166,7 @@ describe('assignHeadingLevels', () => {
         const tagged: HeadingBlock = {
             kind: 'heading', level: 3,
             lines: [lineOf('Tagged', 50, 200, 700, { fontSize: 20 })],
-            page: 0, style: { align: '', textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' },
+            page: 0, style: { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' },
         };
         assignHeadingLevels([{ index: 0, width: 612, height: 792, blocks: [tagged] }], true);
         expect(tagged.level).toBe(3);

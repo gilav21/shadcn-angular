@@ -132,6 +132,7 @@ function isSpaceMarker(item: TextItem): boolean {
 function itemRunStyle(item: TextItem, link: string): RunStyle {
     return {
         fontName: item.fontName,
+        fontFamily: item.fontFamily,
         fontSize: item.fontSize,
         color: item.color,
         bold: item.bold,

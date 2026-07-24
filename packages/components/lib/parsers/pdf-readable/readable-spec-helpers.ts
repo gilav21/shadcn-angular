@@ -4,6 +4,7 @@ import type { Line, RunStyle, TextDirection, Word } from './readable-types';
 export function runStyleOf(overrides?: Partial<RunStyle>): RunStyle {
     return {
         fontName: 'F1',
+        fontFamily: '',
         fontSize: 12,
         color: '#000000',
         bold: false,

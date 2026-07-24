@@ -65,8 +65,14 @@ describe('detectAlignment', () => {
         expect(detectAlignment(lines, bounds, 'rtl')).toBe('');
     });
 
-    it('centers a lone short line sitting mid-column', () => {
-        expect(detectAlignment([makeLine(250, 350, 700)], bounds, 'ltr')).toBe('center');
+    it('centers a lone wide line sitting mid-column', () => {
+        expect(detectAlignment([makeLine(200, 400, 700)], bounds, 'ltr')).toBe('center');
+    });
+
+    it('keeps a narrow fragment natural so its real position is preserved as an indent', () => {
+        expect(detectAlignment([makeLine(250, 350, 700)], bounds, 'ltr')).toBe('');
+        const style = resolveBlockStyle([makeLine(250, 350, 700)], bounds, null, bounds);
+        expect(style.indentStart).toBe(200);
     });
 
     it('does not force justify on two-line paragraphs', () => {

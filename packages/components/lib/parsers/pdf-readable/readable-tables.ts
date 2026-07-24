@@ -341,6 +341,7 @@ function makeTableBlock(
         page: pageIndex,
         style: {
             align: '',
+            indentStart: 0,
             textIndent: 0,
             lineHeight: 0,
             marginTop: 0,
