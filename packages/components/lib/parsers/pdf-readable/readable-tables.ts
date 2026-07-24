@@ -4,6 +4,8 @@ import type { Line, TableBlock, TableCellModel } from './readable-types';
 
 const MIN_ROWS = 2;
 const MIN_COLS = 2;
+/** Minimum fraction of filled cells for an unruled grid to count as a table. */
+const MIN_CELL_FILL = 0.5;
 const SNAP_RATE = 0.8;
 const EDGE_CLUSTER_EM = 0.5;
 const SEPARATOR_THICKNESS = 3;
@@ -72,6 +74,7 @@ function findRuledTable(
 
     const cells = buildRuledCells(inGrid, grid);
     if (!cells) return null;
+    if (cellFillRatio(cells) < MIN_CELL_FILL) return null;
 
     const consumed = new Set(inGrid);
     const yTop = Math.max(...grid.ys);
@@ -194,12 +197,30 @@ function findUnruledTable(
     if (!looksCellular(runRows, columns.length)) return null;
 
     const cells = runRows.map(row => rowToCells(row, columns, rtl));
+    if (cellFillRatio(cells) < MIN_CELL_FILL) return null;
     return {
         before: rows.slice(0, run.start).flat(),
         table: makeTableBlock(cells, false, pageIndex),
         after: rows.slice(run.end).flat(),
         usedRects: new Set<PathRect>(),
     };
+}
+
+/**
+ * Fraction of grid cells that hold text. A genuine table fills most of its
+ * grid; scattered key/value prose snapped onto shared edges leaves most cells
+ * empty, and is more readable as flowing paragraphs than a ragged sparse grid.
+ */
+function cellFillRatio(cells: readonly TableCellModel[][]): number {
+    let filled = 0;
+    let total = 0;
+    for (const row of cells) {
+        for (const cell of row) {
+            total++;
+            if (cell.lines.length > 0) filled++;
+        }
+    }
+    return total > 0 ? filled / total : 0;
 }
 
 /**
