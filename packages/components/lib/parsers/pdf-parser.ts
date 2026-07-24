@@ -2874,11 +2874,16 @@ function processColorOperator(
         case 'scn':
         case 'sc': {
             const values: number[] = [];
+            let patternName = '';
             while (operandStack.length > 0) {
                 const v = operandStack.pop() ?? '';
-                if (v.startsWith('/')) continue;
+                if (v.startsWith('/')) { patternName = v.slice(1); continue; }
                 const num = Number.parseFloat(v);
                 if (!Number.isNaN(num)) values.unshift(num);
+            }
+            if (gs.fillColorSpace === 'Pattern' && patternName) {
+                ctx.patternFillImage = extractPatternImage(ctx.reader, patternName, ctx.resources);
+                return true;
             }
             const color = resolveScnFillColor(ctx, values);
             if (color) gs.fillColor = color;
@@ -2975,6 +2980,7 @@ function buildFormContext(
         formDepth: parentCtx.formDepth + 1, compatibilityMode: 0,
         mcidStack: [], ocgOffSet: parentCtx.ocgOffSet ?? new Set<string>(),
         ocgHiddenDepth: 0, perFragment: parentCtx.perFragment,
+        patternFillImage: null,
     };
 }
 
@@ -3237,6 +3243,13 @@ function extractPathOpPoints(
                 ],
                 newX: op.args[2], newY: op.args[3],
             };
+        case 're': {
+            const [x, y, w, h] = op.args;
+            return {
+                points: [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }],
+                newX: x, newY: y,
+            };
+        }
         default:
             return { points: [], newX: curX, newY: curY };
     }
@@ -3312,6 +3325,69 @@ function emitPathRects(ctx: ContentExtractionContext, stroked: boolean, filled: 
     }
 }
 
+/**
+ * Extracts the single Image XObject drawn by a Type-1 tiling pattern, as a data
+ * URL, or null when the pattern is not an image-backed tiling pattern. Mirrors
+ * the pixel-perfect renderer's pattern handling so logos painted via a
+ * `/Pattern cs` + `scn` fill (e.g. a letterhead logo) are recovered in the
+ * readable path too. No tiling repetition or general pattern rendering — only
+ * the one embedded image is emitted, positioned at the filled path's bounds.
+ */
+function extractPatternImage(
+    reader: PdfReader,
+    patternName: string,
+    resources: Record<string, PdfObject>,
+): string | null {
+    const patterns = resources['Pattern'] ? reader.getDict(resources['Pattern']) : {};
+    const patRef = patterns[patternName];
+    if (!patRef) return null;
+    const patDict = reader.getDict(patRef);
+    if (reader.getNumber(patDict['PatternType']) !== 1) return null;
+    const patRes = patDict['Resources'] ? reader.getDict(patDict['Resources']) : {};
+    const patXObj = patRes['XObject'] ? reader.getDict(patRes['XObject']) : {};
+    for (const imgRef of Object.values(patXObj)) {
+        const imgDict = reader.getDict(imgRef);
+        if (reader.getString(imgDict['Subtype']) !== 'Image') continue;
+        const w = reader.getNumber(imgDict['Width']);
+        const h = reader.getNumber(imgDict['Height']);
+        if (w <= 0 || h <= 0) continue;
+        const filterName = resolveImageFilterName(reader, imgDict);
+        const dataUrl = buildImageDataUrl(filterName, reader.resolveDeep(imgRef), reader, w, h, imgDict);
+        if (dataUrl) return dataUrl;
+    }
+    return null;
+}
+
+/** Emits a pending pattern-fill image at the current path's device bounds. */
+function emitPatternFillImage(ctx: ContentExtractionContext): boolean {
+    const dataUrl = ctx.patternFillImage;
+    ctx.patternFillImage = null;
+    if (!dataUrl) return false;
+    const { minX, minY, maxX, maxY, hasPoints } = computePathBounds(ctx.currentPath, ctx.gs.ctm);
+    if (!hasPoints) return false;
+    const width = maxX - minX;
+    const height = maxY - minY;
+    if (width <= 1 || height <= 1) return false;
+    const x = Math.round(minX * 100) / 100;
+    const y = Math.round(minY * 100) / 100;
+    // A logo is often over-painted (repeated fills at the same spot for opacity);
+    // absolute rendering overlaps them into one, so the flowing path must too.
+    const isDuplicate = ctx.imageItems.some(item =>
+        item.dataUrl === dataUrl && Math.abs(item.x - x) < 1 && Math.abs(item.y - y) < 1);
+    if (isDuplicate) return true;
+    ctx.imageItems.push({
+        dataUrl,
+        width: Math.round(width),
+        height: Math.round(height),
+        renderWidth: width,
+        renderHeight: height,
+        x,
+        y,
+        page: ctx.pageIndex,
+    });
+    return true;
+}
+
 function processPathPaintOperator(token: string, ctx: ContentExtractionContext): boolean {
     switch (token) {
         case 'S':
@@ -3323,6 +3399,7 @@ function processPathPaintOperator(token: string, ctx: ContentExtractionContext):
         case 'f':
         case 'F':
         case 'f*':
+            if (emitPatternFillImage(ctx)) { ctx.currentPath = []; return true; }
             pathOpsToSvg(ctx.currentPath, ctx, false, true);
             emitPathRects(ctx, false, true);
             ctx.currentPath = [];
@@ -3331,6 +3408,7 @@ function processPathPaintOperator(token: string, ctx: ContentExtractionContext):
         case 'B*':
         case 'b':
         case 'b*':
+            if (emitPatternFillImage(ctx)) { ctx.currentPath = []; return true; }
             pathOpsToSvg(ctx.currentPath, ctx, true, true);
             emitPathRects(ctx, true, true);
             ctx.currentPath = [];
@@ -3429,6 +3507,9 @@ interface ContentExtractionContext {
     ocgOffSet: Set<string>;
     ocgHiddenDepth: number;
     perFragment: boolean;
+    /** Data URL of the image a tiling-pattern fill will paint, set at `scn`,
+     *  consumed by the next path-paint. Null when no pattern fill is pending. */
+    patternFillImage: string | null;
 }
 
 function popNumber(ctx: ContentExtractionContext): number {
@@ -3837,6 +3918,7 @@ function buildExtractionContext(
         formDepth: 0, compatibilityMode: 0,
         mcidStack: [], ocgOffSet: new Set<string>(),
         ocgHiddenDepth: 0, perFragment: options?.perFragment ?? false,
+        patternFillImage: null,
     };
 }
 

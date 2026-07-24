@@ -1234,6 +1234,49 @@ describe('parsePdf - images', () => {
     });
 });
 
+describe('extractPageContent - tiling pattern image fills', () => {
+    function patternPdf(content: string): ArrayBuffer {
+        const img = makeFlatePngImageObj();
+        return scaffold({
+            content: strToBytes(content),
+            resources: '/Pattern << /P1 7 0 R >>',
+        })
+            .streamObj(5, img.dict, img.bytes)
+            .streamObj(7, '/PatternType 1 /Resources << /XObject << /PImg 5 0 R >> >>', strToBytes('/PImg Do'))
+            .build();
+    }
+
+    function imagesOf(pdf: ArrayBuffer) {
+        const reader = new PdfReader(pdf);
+        reader.parse();
+        return extractPageContent(reader, reader.getPages()[0], 0).imageItems;
+    }
+
+    it('emits the pattern image once at the filled path bounds', () => {
+        const images = imagesOf(patternPdf('/Pattern cs /P1 scn 100 600 80 40 re f'));
+        expect(images).toHaveLength(1);
+        expect(images[0].dataUrl).toContain('data:image/png;base64,');
+        expect(images[0].renderWidth).toBeCloseTo(80, 0);
+        expect(images[0].renderHeight).toBeCloseTo(40, 0);
+    });
+
+    it('deduplicates a logo over-painted at the same position', () => {
+        const images = imagesOf(patternPdf(
+            '/Pattern cs /P1 scn 100 600 80 40 re f /Pattern cs /P1 scn 100 600 80 40 re f'));
+        expect(images).toHaveLength(1);
+    });
+
+    it('ignores a pattern that has no image XObject', () => {
+        const pdf = scaffold({
+            content: strToBytes('/Pattern cs /P1 scn 100 600 80 40 re f'),
+            resources: '/Pattern << /P1 7 0 R >>',
+        })
+            .streamObj(7, '/PatternType 1 /Resources << >>', strToBytes(' '))
+            .build();
+        expect(imagesOf(pdf)).toHaveLength(0);
+    });
+});
+
 describe('parsePdf - inline images (BI/ID/EI)', () => {
     it('emits an inline image placeholder for a non-JPEG inline image', async () => {
         // BI ... ID <data> EI with abbreviated keys.
