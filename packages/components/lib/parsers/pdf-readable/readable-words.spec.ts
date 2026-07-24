@@ -228,6 +228,12 @@ describe('toLogicalOrder', () => {
         expect(logical.map(w => w.text)).toEqual(['לפני', 'Windows', 'Vista', 'אחרי']);
     });
 
+    it('keeps a multi-part number left-to-right inside an RTL line', () => {
+        const words = [wordOf('שלום', 0), wordOf('12', 20), wordOf('-', 30), wordOf('34', 40), wordOf('עולם', 60)];
+        const logical = toLogicalOrder(words, 'rtl');
+        expect(logical.map(w => w.text)).toEqual(['עולם', '12', '-', '34', 'שלום']);
+    });
+
     it('recomputes spaceBefore against the logical predecessor after reversal', () => {
         const glued = wordOf('לום', 30);
         glued.spaceBefore = false;

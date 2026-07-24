@@ -287,8 +287,15 @@ function restoreLtrRuns(words: Word[]): void {
     }
 }
 
+/**
+ * Whether a word keeps its visual left-to-right position when an RTL line is
+ * reordered. Any run without RTL letters — Latin, digits, and the neutral
+ * punctuation between them (the hyphens in "050-5340625", dots in decimals) —
+ * qualifies, so multi-part numbers and Latin phrases are not reversed
+ * character-group by character-group inside Hebrew text.
+ */
 function isLtrWord(word: Word): boolean {
-    return STRONG_LTR_RE.test(word.text) && !RTL_RE.test(word.text);
+    return !RTL_RE.test(word.text);
 }
 
 function reverseRange(words: Word[], start: number, end: number): void {
