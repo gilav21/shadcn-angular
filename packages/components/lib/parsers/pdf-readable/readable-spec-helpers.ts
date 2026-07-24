@@ -10,6 +10,7 @@ export function runStyleOf(overrides?: Partial<RunStyle>): RunStyle {
         italic: false,
         underline: false,
         baselineShift: 'none',
+        letterSpacing: 0,
         link: '',
         ...overrides,
     };

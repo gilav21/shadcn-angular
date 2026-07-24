@@ -138,6 +138,7 @@ function itemRunStyle(item: TextItem, link: string): RunStyle {
         italic: item.italic,
         underline: false,
         baselineShift: baselineShiftOf(item),
+        letterSpacing: item.charSpacing > 0.25 ? Math.round(item.charSpacing * 100) / 100 : 0,
         link,
     };
 }
@@ -156,6 +157,7 @@ export function sameStyle(a: RunStyle, b: RunStyle): boolean {
         a.italic === b.italic &&
         a.underline === b.underline &&
         a.baselineShift === b.baselineShift &&
+        a.letterSpacing === b.letterSpacing &&
         a.link === b.link;
 }
 

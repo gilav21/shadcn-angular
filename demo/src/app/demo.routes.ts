@@ -103,6 +103,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'data-table', loadComponent: () => import('./demos/data-display/data-table-demo.component').then(m => m.DataTableDemoComponent) },
   { path: 'icon', loadComponent: () => import('./demos/data-display/icon-demo.component').then(m => m.IconDemoComponent) },
   { path: 'file-viewer', loadComponent: () => import('./demos/data-display/file-viewer-demo.component').then(m => m.FileViewerDemoComponent) },
+  { path: 'pdf-readable-compare', loadComponent: () => import('./demos/data-display/pdf-readable-compare-demo.component').then(m => m.PdfReadableCompareDemoComponent) },
   { path: 'component-outlet', loadComponent: () => import('./demos/data-display/component-outlet-demo.component').then(m => m.ComponentOutletDemoComponent) },
   { path: 'copy-to', loadComponent: () => import('./demos/data-display/copy-to-demo.component').then(m => m.CopyToDemoComponent) },
   { path: 'context-menu-attach', loadComponent: () => import('./demos/data-display/context-menu-attach-demo.component').then(m => m.ContextMenuAttachDemoComponent) },

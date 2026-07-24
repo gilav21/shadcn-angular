@@ -261,6 +261,9 @@ function runDeltaPairs(
     if (!dominant || style.color !== dominant.color) {
         pairs.push(['color', colorValue(style.color)]);
     }
+    if (style.letterSpacing > 0 && (!dominant || style.letterSpacing !== dominant.letterSpacing)) {
+        pairs.push(['letter-spacing', `${style.letterSpacing}pt`]);
+    }
     return pairs;
 }
 

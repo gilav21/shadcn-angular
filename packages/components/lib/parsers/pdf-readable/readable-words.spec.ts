@@ -192,6 +192,7 @@ function wordOf(text: string, x = 0): Word {
             italic: false,
             underline: false,
             baselineShift: 'none',
+            letterSpacing: 0,
             link: '',
         },
         mcid: -1,

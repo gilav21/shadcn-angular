@@ -70,6 +70,8 @@ export interface RunStyle {
     readonly italic: boolean;
     readonly underline: boolean;
     readonly baselineShift: BaselineShift;
+    /** PDF character spacing in pt (0 = normal); emitted as letter-spacing. */
+    readonly letterSpacing: number;
     /** Link target URI, '' when the run is not a link. */
     readonly link: string;
 }
