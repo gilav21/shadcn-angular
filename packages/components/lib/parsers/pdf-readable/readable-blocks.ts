@@ -17,6 +17,8 @@ const MAX_CUT_DEPTH = 4;
 const MIN_COLUMN_LINES = 2;
 const UNDERLINE_MAX_HEIGHT = 2.5;
 const RULE_MAX_HEIGHT = 3;
+/** Rules within this vertical distance (pt) collapse to one separator. */
+const RULE_MERGE_GAP = 4;
 
 /**
  * Converts one page's lines (top-to-bottom) into typed, ordered blocks:
@@ -409,17 +411,40 @@ function detectRules(
     const contentWidth = lines.length > 0
         ? Math.max(...lines.map(l => l.endX)) - Math.min(...lines.map(l => l.x))
         : page.width;
-    return page.rects
+    const candidates = page.rects
         .filter(rect => !usedRects.has(rect) &&
             rect.height <= RULE_MAX_HEIGHT &&
             rect.width >= contentWidth * 0.4 &&
-            (rect.stroked || rect.filled))
-        .map(rect => ({
-            kind: 'rule' as const,
-            page: page.index,
-            style: emptyStyle(),
-            top: rect.y,
-        }));
+            (rect.stroked || rect.filled) &&
+            !isNearWhite(rect.filled ? rect.fillColor : rect.strokeColor))
+        .map(rect => rect.y)
+        .sort((a, b) => b - a);
+    return dedupeCloseTops(candidates).map(top => ({
+        kind: 'rule' as const,
+        page: page.index,
+        style: emptyStyle(),
+        top,
+    }));
+}
+
+/** Collapses rules whose tops sit within {@link RULE_MERGE_GAP} — one drawn
+ *  separator is often several overlapping sub-pixel rects. */
+function dedupeCloseTops(descendingTops: readonly number[]): number[] {
+    const result: number[] = [];
+    for (const top of descendingTops) {
+        if (result.length === 0 || result[result.length - 1] - top > RULE_MERGE_GAP) {
+            result.push(top);
+        }
+    }
+    return result;
+}
+
+/** A rule drawn in white (or near-white) is invisible on the page and is noise. */
+function isNearWhite(color: string): boolean {
+    const match = /^#([0-9a-f]{6})$/i.exec(color);
+    if (!match) return false;
+    const value = Number.parseInt(match[1], 16);
+    return ((value >> 16) & 0xff) > 235 && ((value >> 8) & 0xff) > 235 && (value & 0xff) > 235;
 }
 
 function emptyStyle(): BlockStyle {
