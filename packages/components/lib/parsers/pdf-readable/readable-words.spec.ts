@@ -109,6 +109,28 @@ describe('buildWords', () => {
         expect(words.map(w => w.text)).toEqual(['abc def']);
     });
 
+    it('keeps a per-glyph word intact when overshooting advances make every gap negative', () => {
+        const step = 5.5;
+        const width = 8;
+        const xs = [0, step, 2 * step, 3 * step, 4 * step, 5 * step];
+        const chars = ['s', 't', 'a', 't', 'e', 'n'];
+        const items = xs.map((x, i) => makeItem({ text: chars[i], x, endX: x + width, fontSize: 13.5 }));
+        const words = buildWords(items, ctx);
+        expect(words.map(w => w.text)).toEqual(['staten']);
+    });
+
+    it('splits per-glyph words at the small near-zero gap between them', () => {
+        const step = 5.5;
+        const width = 8;
+        const wordGap = 0.5;
+        const xs = [0, step, 2 * step, 2 * step + width + wordGap];
+        xs.push(xs[3] + step, xs[3] + 2 * step);
+        const chars = ['a', 'b', 'c', 'd', 'e', 'f'];
+        const items = xs.map((x, i) => makeItem({ text: chars[i], x, endX: x + width, fontSize: 13.5 }));
+        const words = buildWords(items, ctx);
+        expect(words.map(w => w.text)).toEqual(['abc def']);
+    });
+
     it('returns no bimodal threshold for uniform gaps', () => {
         const items = [0, 10, 20, 30, 40].map(x => makeItem({ text: 'a', x, endX: x + 8 }));
         expect(bimodalGapThreshold(items)).toBeNull();

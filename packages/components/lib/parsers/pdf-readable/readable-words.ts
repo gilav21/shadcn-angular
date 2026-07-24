@@ -8,6 +8,15 @@ const HARD_BREAK_EM = 1.5;
 /** Overlap tolerance: fonts with overestimated advances produce negative letter gaps. */
 const NEGATIVE_GAP_EM = 0.45;
 const DEFAULT_SPACE_EM = 0.25;
+/**
+ * When a line's median inter-glyph gap drops below this fraction of the font
+ * size the PDF was emitted glyph-by-glyph with overshooting advances (every
+ * intra-word gap runs negative). Word breaks are then the small near-zero
+ * outliers a fixed valley search misses.
+ */
+const PER_GLYPH_MEDIAN_EM = 0.08;
+/** Word-break offset above the negative letter baseline for per-glyph PDFs. */
+const PER_GLYPH_WORD_EM = 0.15;
 const RTL_RE = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
 const STRONG_LTR_RE = /[A-Za-z\u00C0-\u024F]/u;
 
@@ -46,15 +55,23 @@ export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): W
  */
 export function bimodalGapThreshold(items: readonly TextItem[]): number | null {
     const gaps: number[] = [];
-    let fontSize = 12;
     for (let i = 1; i < items.length; i++) {
         const gap = items[i].x - items[i - 1].endX;
-        fontSize = Math.max(items[i].fontSize, 1);
-        if (gap <= fontSize * HARD_BREAK_EM) gaps.push(gap);
+        if (gap <= Math.max(items[i].fontSize, 1) * HARD_BREAK_EM) gaps.push(gap);
     }
     if (gaps.length < 4) return null;
     gaps.sort((a, b) => a - b);
+    const fontSize = medianFontSize(items);
+    const median = gaps[gaps.length >> 1];
+    if (median < -PER_GLYPH_MEDIAN_EM * fontSize) {
+        return median + PER_GLYPH_WORD_EM * fontSize;
+    }
     return valleyBetweenClusters(gaps, fontSize);
+}
+
+function medianFontSize(items: readonly TextItem[]): number {
+    const sizes = items.map(item => Math.max(item.fontSize, 1)).sort((a, b) => a - b);
+    return sizes[sizes.length >> 1];
 }
 
 function valleyBetweenClusters(sortedGaps: number[], fontSize: number): number | null {

@@ -282,7 +282,6 @@ function fontFamilyValue(style: RunStyle, ctx: EmitContext): string {
     const mapping = ctx.fonts.get(style.fontName);
     const family = style.fontFamily || mapping?.fallback || '';
     const parts: string[] = [];
-    if (mapping?.embedded && mapping.family) parts.push(`'${mapping.family}'`);
     if (family) parts.push(`'${sanitizeFamilyName(family)}'`);
     parts.push(genericFamilyOf(family || style.fontName));
     return parts.length > 1 ? parts.join(',') : '';
