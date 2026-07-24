@@ -144,6 +144,21 @@ describe('buildWords', () => {
         expect(words.map(w => w.text)).toEqual(['aa bb cc']);
     });
 
+    it('splits words on a line where word gaps outnumber letter gaps', () => {
+        const items = [
+            makeItem({ text: 'a', x: 0, endX: 8 }),
+            makeItem({ text: 'a', x: 8, endX: 16 }),
+            makeItem({ text: 'a', x: 16, endX: 24 }),
+            makeItem({ text: 'b', x: 26.2, endX: 34.2 }),
+            makeItem({ text: 'c', x: 36.4, endX: 44.4 }),
+            makeItem({ text: 'd', x: 46.6, endX: 54.6 }),
+            makeItem({ text: 'e', x: 56.8, endX: 64.8 }),
+            makeItem({ text: 'f', x: 67, endX: 75 }),
+        ];
+        const words = buildWords(items, ctx);
+        expect(words.map(w => w.text)).toEqual(['aaa b c d e f']);
+    });
+
     it('returns no bimodal threshold for uniform gaps', () => {
         const items = [0, 10, 20, 30, 40].map(x => makeItem({ text: 'a', x, endX: x + 8 }));
         expect(bimodalGapThreshold(items)).toBeNull();

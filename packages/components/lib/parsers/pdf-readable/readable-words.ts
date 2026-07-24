@@ -8,7 +8,9 @@ const HARD_BREAK_EM = 1.5;
 /** Overlap tolerance: fonts with overestimated advances produce negative letter gaps. */
 const NEGATIVE_GAP_EM = 0.45;
 const DEFAULT_SPACE_EM = 0.25;
-/** Word-break offset above the line's median (letter-tier) gap, in em. */
+/** Percentile of the sorted gaps taken as the letter-tier baseline. */
+const LETTER_TIER_PERCENTILE = 0.2;
+/** Word-break offset above the letter-tier gap, in em. */
 const WORD_MARGIN_EM = 0.15;
 /** Minimum gap, in em, between the letter tier and the breaking gaps above it. */
 const MIN_VALLEY_EM = 0.08;
@@ -43,13 +45,15 @@ export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): W
 /**
  * Word-break gap threshold for one baseline cluster, or null when the gaps are
  * too uniform to separate letters from words. Letters cluster at the line's
- * median gap; a word break sits a margin above it. This holds whether the
- * median is ~0 (normal fonts), negative (per-glyph PDFs whose advances
- * overshoot), or the line carries several gap tiers (letter / word / field) —
- * the margin isolates the letter tier without being dragged up by the largest
- * field gap. Hard-break-sized gaps are excluded so a column jump cannot move
- * the median. The threshold is returned only when a real valley of at least
- * `MIN_VALLEY_EM` separates the letter tier from the breaking gaps above it.
+ * lowest gap tier; a word break sits a margin above it. The baseline is a low
+ * percentile rather than the median so a line dominated by word gaps — a table
+ * row of short labels, where word gaps outnumber letter gaps — still anchors on
+ * the letter tier instead of drifting up into the word tier and merging every
+ * word. Works whether that tier is ~0 (normal fonts) or negative (per-glyph
+ * PDFs whose advances overshoot). Hard-break-sized gaps are excluded so a
+ * column jump cannot move the baseline. The threshold is returned only when a
+ * real valley of at least `MIN_VALLEY_EM` separates the letter tier from the
+ * breaking gaps above it.
  */
 export function bimodalGapThreshold(items: readonly TextItem[]): number | null {
     const gaps: number[] = [];
@@ -60,7 +64,8 @@ export function bimodalGapThreshold(items: readonly TextItem[]): number | null {
     if (gaps.length < 4) return null;
     gaps.sort((a, b) => a - b);
     const fontSize = medianFontSize(items);
-    const threshold = gaps[gaps.length >> 1] + WORD_MARGIN_EM * fontSize;
+    const baseline = gaps[Math.floor(gaps.length * LETTER_TIER_PERCENTILE)];
+    const threshold = baseline + WORD_MARGIN_EM * fontSize;
     return hasValleyAt(gaps, threshold, fontSize) ? threshold : null;
 }
 

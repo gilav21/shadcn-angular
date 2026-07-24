@@ -1,6 +1,7 @@
 import {
     PdfReader,
     type PdfObject,
+    type TextItem,
     deduplicateTextItems,
     extractPageContent,
     parseStructureTree,
@@ -36,7 +37,49 @@ export function extractDocument(
         if (registry) registerPageFonts(reader, pages[i], registry, fonts);
     }
 
+    if (registry) correctItemAdvances(pageExtracts, registry);
     return { pages: pageExtracts, structure, fonts };
+}
+
+/**
+ * Rewrites each glyph run's right edge from the embedded font program's real
+ * advances instead of the PDF `/Widths` array. Subset fonts frequently ship a
+ * `/Widths` (or `defaultWidth`) that overshoots the true advance, so the
+ * `endX` from {@link extractPageContent} runs long and collapses the small
+ * positive inter-word gaps into overlaps — words merge. The registry's
+ * advances (the same metrics the pixel-perfect renderer positions with)
+ * restore accurate gaps. Runs whose glyphs are not all known to the registry
+ * keep their original `endX`.
+ */
+function correctItemAdvances(pages: readonly PageExtract[], registry: GlyphAdvanceSource): void {
+    for (const page of pages) {
+        for (const item of page.items) {
+            const width = embeddedRunWidth(item, registry);
+            if (width !== null) item.endX = item.x + width;
+        }
+    }
+}
+
+/** The one {@link FontRegistry} capability the advance correction needs. */
+export interface GlyphAdvanceSource {
+    getGlyphAdvance(fontName: string, code: number, unicode?: string): number | null;
+}
+
+/** Width in points of a glyph run from the embedded font advances, or null when
+ *  any glyph is unknown to the registry (leave the original `endX`). */
+export function embeddedRunWidth(item: TextItem, registry: GlyphAdvanceSource): number | null {
+    let advance = 0;
+    let spaces = 0;
+    for (const ch of item.text) {
+        const code = ch === ' ' ? 32 : -1;
+        const glyph = registry.getGlyphAdvance(item.fontName, code, ch);
+        if (glyph === null) return null;
+        advance += glyph;
+        if (ch === ' ') spaces++;
+    }
+    const scale = item.horizontalScaling > 0 ? item.horizontalScaling / 100 : 1;
+    return (advance / 1000) * item.fontSize * scale +
+        [...item.text].length * item.charSpacing + spaces * item.wordSpacing;
 }
 
 function extractSinglePage(
