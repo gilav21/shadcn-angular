@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PathRect } from '../pdf-parser';
 import { applyUnderlines, buildPageBlocks, xyCut } from './readable-blocks';
 import type { ClassifyContext } from './readable-classify';
+import { blockLines } from './readable-emit';
 import { lineOf } from './readable-spec-helpers';
 import type { Line, PageExtract } from './readable-types';
 
@@ -205,6 +206,27 @@ describe('buildPageBlocks — side-by-side columns', () => {
             const total = columns.columns.reduce((s, c) => s + c.widthRatio, 0);
             expect(total).toBeCloseTo(1, 5);
         }
+    });
+
+    it('column-zones a prose region when a single-column body floods the gutter', () => {
+        const lines: Line[] = [];
+        let y = 700;
+        for (let i = 0; i < 4; i++) {
+            lines.push(
+                lineOf(`left prose row ${i} flowing text`, 50, 260, y),
+                lineOf(`right prose row ${i} flowing text`, 310, 510, y),
+            );
+            y -= 16;
+        }
+        for (let i = 0; i < 3; i++) {
+            lines.push(lineOf(`body line ${i} crossing the gutter`, 150, 400, y));
+            y -= 16;
+        }
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        expect(blocks.some(b => b.kind === 'columns')).toBe(true);
+        const bodyBlock = blocks.find(b =>
+            b.kind !== 'columns' && blockLines(b).some(l => l.words[0].text.startsWith('body')));
+        expect(bodyBlock).toBeDefined();
     });
 
     it('does not column-wrap a single shared baseline (label/value line)', () => {

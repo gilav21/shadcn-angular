@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PathRect } from '../pdf-parser';
 import type { ClassifyContext } from './readable-classify';
-import { lineOf } from './readable-spec-helpers';
-import { findTableInBand } from './readable-tables';
+import { lineOf, wordAt } from './readable-spec-helpers';
+import { findColumnZone, findTableInBand } from './readable-tables';
 import type { Line } from './readable-types';
 
 const ctx: ClassifyContext = {
@@ -140,6 +140,62 @@ describe('findTableInBand — unruled', () => {
         ];
         const split = findTableInBand(band, [], 0, ctx);
         expect(split?.table.headerRow).toBe(true);
+    });
+});
+
+describe('findColumnZone — multi-line prose columns', () => {
+    function proseColumns(): Line[] {
+        const band: Line[] = [];
+        for (const y of [700, 684, 668, 652]) {
+            band.push(
+                lineOf('left flowing prose line here', 50, 260, y),
+                lineOf('right flowing prose line text', 310, 510, y),
+            );
+        }
+        band.push(lineOf('Body single column paragraph text follows', 50, 500, 620));
+        return band;
+    }
+
+    it('detects a two-column prose zone and leaves the body after it', () => {
+        const zone = findColumnZone(proseColumns(), ctx);
+        expect(zone).not.toBeNull();
+        expect(zone?.columns).toHaveLength(2);
+        expect(zone?.columns[0][0].words[0].text.startsWith('left')).toBe(true);
+        expect(zone?.columns[1][0].words[0].text.startsWith('right')).toBe(true);
+        expect(zone?.after.some(l => l.words[0].text.startsWith('Body'))).toBe(true);
+    });
+
+    it('splits a line that merges the left column into the right across the gutter', () => {
+        const merged: Line = {
+            words: [wordAt('leftmerge', 50, 260, 668), wordAt('Rightmerge', 310, 510, 668)],
+            x: 50, endX: 510, y: 668, fontSize: 12, dir: 'ltr', page: 0,
+        };
+        const band = [
+            lineOf('left a', 50, 260, 700), lineOf('right a', 310, 510, 700),
+            lineOf('left b', 50, 260, 684), lineOf('right b', 310, 510, 684),
+            merged,
+            lineOf('left d', 50, 260, 652), lineOf('right d', 310, 510, 652),
+            lineOf('Body single column paragraph text follows', 50, 500, 620),
+        ];
+        const zone = findColumnZone(band, ctx);
+        expect(zone).not.toBeNull();
+        const leftText = zone!.columns[0].flatMap(l => l.words.map(w => w.text));
+        const rightText = zone!.columns[1].flatMap(l => l.words.map(w => w.text));
+        expect(leftText).toContain('leftmerge');
+        expect(rightText).toContain('Rightmerge');
+    });
+
+    it('returns null for a single-column band', () => {
+        const band = [
+            lineOf('one column line here', 50, 300, 700),
+            lineOf('another column line', 50, 320, 684),
+            lineOf('a third column line', 50, 310, 668),
+        ];
+        expect(findColumnZone(band, ctx)).toBeNull();
+    });
+
+    it('leaves short-cell tabular rows to the table detector', () => {
+        expect(findColumnZone(unruledRows(), ctx)).toBeNull();
     });
 });
 

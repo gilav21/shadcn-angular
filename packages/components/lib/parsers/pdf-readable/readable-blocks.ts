@@ -1,7 +1,7 @@
 import type { ImageItem, PathRect } from '../pdf-parser';
 import { classifyGroup, type ClassifyContext, type GroupKind } from './readable-classify';
 import { resolveBlockStyle, type ColumnBounds } from './readable-styles';
-import { findTableInBand } from './readable-tables';
+import { findColumnZone, findTableInBand } from './readable-tables';
 import type {
     BlockStyle,
     ColumnsBlock,
@@ -149,7 +149,7 @@ function linesToBlocks(
  * table are handled recursively, exactly as at page level.
  */
 function bandToBlocks(band: Line[], pageIndex: number, ctx: ClassifyContext): DocBlock[] {
-    const split = findTableInBand(band, [], pageIndex, ctx, { ruled: false });
+    const split = findTableInBand(band, [], pageIndex, ctx, { ruled: false, unruled: 'strict' });
     if (split) {
         return [
             ...bandToBlocks(split.before, pageIndex, ctx),
@@ -186,6 +186,14 @@ function cutToBlocks(
     const aroundSpanners = splitColumnsAroundSpanners(lines);
     if (aroundSpanners.length > 1) {
         return aroundSpanners.flatMap(region => cutToBlocks(region, depth + 1, pageIndex, ctx));
+    }
+    const zone = findColumnZone(lines, ctx);
+    if (zone) {
+        return [
+            ...cutToBlocks(zone.before, depth + 1, pageIndex, ctx),
+            columnsBlockFrom(zone.columns, depth, pageIndex, ctx),
+            ...cutToBlocks(zone.after, depth + 1, pageIndex, ctx),
+        ];
     }
     return regionToBlocks(lines, pageIndex, ctx);
 }
@@ -230,7 +238,7 @@ function columnsBlockFrom(
 ): ColumnsBlock {
     const widthRatios = columnZoneRatios(columns);
     const groups = columns.map((col, i) => ({
-        blocks: cutToBlocks(col, depth + 1, pageIndex, ctx),
+        blocks: cutToBlocks(col, depth + 1, pageIndex, { ...ctx, pageBounds: boundsOfLines(col) }),
         widthRatio: widthRatios[i],
     }));
     const allLines = columns.flat();

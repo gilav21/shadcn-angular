@@ -1,6 +1,7 @@
 import type { PathRect } from '../pdf-parser';
 import type { ClassifyContext } from './readable-classify';
-import type { Line, TableBlock, TableCellModel } from './readable-types';
+import type { Line, TableBlock, TableCellModel, Word } from './readable-types';
+import { detectDirection } from './readable-words';
 
 const MIN_ROWS = 2;
 const MIN_COLS = 2;
@@ -473,18 +474,237 @@ function rowToCells(
     const cells: Line[][] = columns.positions.map(() => []);
     for (const line of row) {
         const value = columns.byCenter ? centerOf(line) : edgeOf(line, rtl);
-        let bestIdx = 0;
-        let bestDist = Number.POSITIVE_INFINITY;
-        for (let i = 0; i < columns.positions.length; i++) {
-            const dist = Math.abs(value - columns.positions[i]);
-            if (dist < bestDist) {
-                bestDist = dist;
-                bestIdx = i;
-            }
-        }
-        cells[bestIdx].push(line);
+        cells[nearestColumnIndex(value, columns.positions)].push(line);
     }
     return cells.map(cellLines => ({ lines: cellLines }));
+}
+
+// ── Multi-line prose columns ────────────────────────────────────────────
+
+/** Each column of a prose column-zone must span at least this many baselines. */
+const COLUMN_ZONE_MIN_ROWS = 3;
+/** A line must overhang the gutter by more than this (pt) to be a split candidate. */
+const GUTTER_SPLIT_TOLERANCE = 2;
+/** Split a straddling line only at an internal gap this wide, in em. */
+const GUTTER_GAP_EM = 0.6;
+/** Places the gutter threshold this far (pt) left of the second column's edge,
+ *  inside the gap, so a right-column start exactly on the edge classifies right. */
+const GUTTER_INSET = 2;
+
+export interface ColumnZoneSplit {
+    readonly before: Line[];
+    readonly columns: Line[][];
+    readonly after: Line[];
+}
+
+/**
+ * Detects a multi-line, multi-column PROSE region — e.g. a CV's Summary
+ * paragraph beside a Core-Skills list — that the unruled-table pass would
+ * mis-claim as a sparse 6×2 table or collapse into interleaved full-width
+ * text. A long left-column line abutting the right column (only a small gap
+ * between them) is split at the gutter first so the whole region is seen. The
+ * region is returned as ordered column line-groups plus the rows above/below,
+ * or null when the band is not a clean multi-line column zone. Short-cell
+ * (cellular) runs are left to the table detector — only wide prose columns,
+ * each spanning several baselines, are returned here.
+ */
+export function findColumnZone(
+    band: readonly Line[],
+    ctx: ClassifyContext,
+): ColumnZoneSplit | null {
+    const tolerance = Math.max(3, ctx.bodyFontSize * EDGE_CLUSTER_EM);
+    const gutter = detectSecondaryGutter(groupByBaseline(band), tolerance);
+    if (gutter === null) return null;
+
+    const rows = groupByBaseline(splitStraddlingLines(band, gutter));
+    const zone = gutterZoneBounds(rows, gutter);
+    if (!zone) return null;
+
+    const zoneRows = rows.slice(zone.start, zone.end);
+    const rtl = isRtlTable(zoneRows);
+    const columns = clusterColumns(zoneRows, ctx.bodyFontSize, rtl);
+    if (!columns || columns.positions.length < MIN_COLS) return null;
+    if (looksCellular(zoneRows, columns.positions.length, true)) return null;
+
+    const groups = zoneColumnGroups(zoneRows, columns, rtl);
+    if (groups.length < MIN_COLS) return null;
+    if (groups.some(group => distinctBaselines(group) < COLUMN_ZONE_MIN_ROWS)) return null;
+    return {
+        before: rows.slice(0, zone.start).flat(),
+        columns: groups,
+        after: rows.slice(zone.end).flat(),
+    };
+}
+
+/**
+ * The x of the strongest inner column start — a second column's left edge
+ * shared by at least {@link COLUMN_ZONE_MIN_ROWS} rows. Only non-leftmost
+ * segments count, so the page margin never qualifies. Returns null for a
+ * single-column band.
+ */
+function detectSecondaryGutter(rows: readonly Line[][], tolerance: number): number | null {
+    const innerStarts: Array<{ value: number; rowIdx: number }> = [];
+    rows.forEach((row, rowIdx) => {
+        const sorted = [...row].sort((a, b) => a.x - b.x);
+        for (let i = 1; i < sorted.length; i++) innerStarts.push({ value: sorted[i].x, rowIdx });
+    });
+    if (innerStarts.length < COLUMN_ZONE_MIN_ROWS) return null;
+    const clusters = clusterWithSupport(innerStarts, tolerance);
+    let best: { center: number; rows: Set<number> } | null = null;
+    for (const cluster of clusters) {
+        if (!best || cluster.rows.size > best.rows.size) best = cluster;
+    }
+    return best && best.rows.size >= COLUMN_ZONE_MIN_ROWS ? best.center - GUTTER_INSET : null;
+}
+
+/** Splits lines that overhang the gutter with a real internal gap; leaves
+ *  genuine full-width spanners (no wide gap at the gutter) intact. */
+function splitStraddlingLines(band: readonly Line[], gutter: number): Line[] {
+    const result: Line[] = [];
+    for (const line of band) {
+        const straddles = line.x < gutter - GUTTER_SPLIT_TOLERANCE &&
+            line.endX > gutter + GUTTER_SPLIT_TOLERANCE;
+        if (straddles) {
+            result.push(...splitLineAtGutter(line, gutter));
+        } else {
+            result.push(line);
+        }
+    }
+    return result;
+}
+
+function splitLineAtGutter(line: Line, gutter: number): Line[] {
+    const sorted = [...line.words].sort((a, b) => a.x - b.x);
+    const minGap = line.fontSize * GUTTER_GAP_EM;
+    const hasColumnGap = sorted.some((word, i) =>
+        i > 0 && sorted[i - 1].endX <= gutter && word.x >= gutter &&
+        word.x - sorted[i - 1].endX >= minGap);
+    if (!hasColumnGap) return [line];
+    const left = line.words.filter(w => (w.x + w.endX) / 2 < gutter);
+    const right = line.words.filter(w => (w.x + w.endX) / 2 >= gutter);
+    if (left.length === 0 || right.length === 0) return [line];
+    return [lineFromWords(left, line), lineFromWords(right, line)];
+}
+
+function lineFromWords(words: Word[], source: Line): Line {
+    return {
+        words,
+        x: Math.min(...words.map(w => w.x)),
+        endX: Math.max(...words.map(w => w.endX)),
+        y: source.y,
+        fontSize: source.fontSize,
+        dir: detectDirection(words),
+        page: source.page,
+    };
+}
+
+interface RowSides {
+    readonly left: boolean;
+    readonly right: boolean;
+    readonly spanner: boolean;
+}
+
+function classifyRowSides(row: readonly Line[], gutter: number): RowSides {
+    let left = false;
+    let right = false;
+    let spanner = false;
+    for (const line of row) {
+        if (line.x < gutter - GUTTER_SPLIT_TOLERANCE && line.endX > gutter + GUTTER_SPLIT_TOLERANCE) {
+            spanner = true;
+        } else if ((line.x + line.endX) / 2 >= gutter) {
+            right = true;
+        } else {
+            left = true;
+        }
+    }
+    return { left, right, spanner };
+}
+
+/**
+ * The topmost contiguous, spanner-free run of rows that carries both columns,
+ * trimmed to the first and last rows holding right-column content (interior
+ * left-only continuation rows are kept). Returns null when no such run has
+ * enough rows on both sides.
+ */
+function gutterZoneBounds(
+    rows: readonly Line[][],
+    gutter: number,
+): { start: number; end: number } | null {
+    const sides = rows.map(row => classifyRowSides(row, gutter));
+    let i = 0;
+    while (i < sides.length) {
+        if (sides[i].spanner) { i++; continue; }
+        let j = i;
+        while (j < sides.length && !sides[j].spanner) j++;
+        const bounds = trimToColumnRows(sides, i, j);
+        if (bounds) return bounds;
+        i = j;
+    }
+    return null;
+}
+
+function trimToColumnRows(
+    sides: readonly RowSides[],
+    windowStart: number,
+    windowEnd: number,
+): { start: number; end: number } | null {
+    let firstRight = -1;
+    let lastRight = -1;
+    for (let k = windowStart; k < windowEnd; k++) {
+        if (sides[k].right) {
+            if (firstRight < 0) firstRight = k;
+            lastRight = k;
+        }
+    }
+    if (firstRight < 0) return null;
+    let rightRows = 0;
+    let leftRows = 0;
+    for (let k = firstRight; k <= lastRight; k++) {
+        if (sides[k].right) rightRows++;
+        if (sides[k].left) leftRows++;
+    }
+    if (rightRows < COLUMN_ZONE_MIN_ROWS || leftRows < COLUMN_ZONE_MIN_ROWS) return null;
+    return { start: firstRight, end: lastRight + 1 };
+}
+
+/** Groups a zone's lines into columns (reading order) by their column edge. */
+function zoneColumnGroups(
+    zoneRows: readonly Line[][],
+    columns: ColumnModel,
+    rtl: boolean,
+): Line[][] {
+    const groups: Line[][] = columns.positions.map(() => []);
+    for (const line of zoneRows.flat()) {
+        const value = columns.byCenter ? centerOf(line) : edgeOf(line, rtl);
+        groups[nearestColumnIndex(value, columns.positions)].push(line);
+    }
+    const filled = groups.filter(group => group.length > 0);
+    filled.sort((a, b) => Math.min(...a.map(l => l.x)) - Math.min(...b.map(l => l.x)));
+    return rtl ? [...filled].reverse() : filled;
+}
+
+function nearestColumnIndex(value: number, positions: readonly number[]): number {
+    let bestIdx = 0;
+    let bestDist = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < positions.length; i++) {
+        const dist = Math.abs(value - positions[i]);
+        if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+    }
+    return bestIdx;
+}
+
+function distinctBaselines(lines: readonly Line[]): number {
+    const sorted = [...lines].sort((a, b) => b.y - a.y);
+    const tolerance = (sorted[0]?.fontSize ?? 12) * 0.5;
+    let count = 0;
+    let last = Number.POSITIVE_INFINITY;
+    for (const line of sorted) {
+        if (last - line.y > tolerance) {
+            count++;
+            last = line.y;
+        }
+    }
+    return count;
 }
 
 // ── Shared ──────────────────────────────────────────────────────────────
