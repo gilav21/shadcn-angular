@@ -133,7 +133,7 @@ function emitLinesBlock(
 ): string {
     if (lines.length === 0) return '';
     const dominant = dominantRunStyle(lines);
-    const content = emitLineContents(lines, dominant, ctx);
+    const content = emitLineContents(lines, dominant, ctx, preserveLineBreaks(lines));
     const styleValue = styleAttr([
         ...blockStylePairs(style),
         ...baseFontPairs(dominant, ctx),
@@ -199,13 +199,45 @@ function emitLineContents(
     lines: readonly Line[],
     dominant: RunStyle | null,
     ctx: EmitContext,
+    preserveBreaks = false,
 ): string {
+    if (preserveBreaks) {
+        return lines.map(line => {
+            const lineRuns: RunModel[] = [];
+            appendLineRuns(lineRuns, line.words);
+            return lineRuns.map(run => emitRun(run, dominant, ctx)).join('');
+        }).join('<br>');
+    }
     const runs: RunModel[] = [];
     for (let i = 0; i < lines.length; i++) {
         if (i > 0) appendLineJoin(runs, lines[i - 1]);
         appendLineRuns(runs, lines[i].words);
     }
     return runs.map(run => emitRun(run, dominant, ctx)).join('');
+}
+
+/**
+ * A multi-line block whose lines mostly stop short of the wrap edge is a
+ * stack of independent lines (key/value list, address, signature slots), not
+ * flowing prose — its original line breaks carry meaning and are preserved.
+ * Genuine paragraphs wrap because each line but the last fills the measure, so
+ * most of them reach the fill edge and this returns false.
+ */
+export function preserveLineBreaks(lines: readonly Line[]): boolean {
+    if (lines.length < 2) return false;
+    const rtl = lines.filter(l => l.dir === 'rtl').length * 2 > lines.length;
+    const sizes = lines.map(l => l.fontSize).sort((a, b) => a - b);
+    const tolerance = (sizes[Math.floor(sizes.length / 2)] ?? 12) * 1.5;
+    const fillEdge = rtl
+        ? Math.min(...lines.map(l => l.x))
+        : Math.max(...lines.map(l => l.endX));
+    let reaching = 0;
+    for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i];
+        const reaches = rtl ? line.x <= fillEdge + tolerance : line.endX >= fillEdge - tolerance;
+        if (reaches) reaching++;
+    }
+    return reaching * 2 < lines.length - 1;
 }
 
 function appendLineJoin(runs: RunModel[], previousLine: Line): void {
