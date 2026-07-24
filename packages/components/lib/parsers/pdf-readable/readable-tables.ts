@@ -82,12 +82,32 @@ function findRuledTable(
     rects: readonly PathRect[],
     pageIndex: number,
 ): BandTableSplit | null {
-    const grid = detectRuledGrid(bandScopedRects(band, rects));
+    const separators = bandScopedRects(band, rects).filter(isSeparatorRect);
+    const components = connectedComponents(separators)
+        .sort((a, b) => componentTop(b) - componentTop(a));
+    for (const component of components) {
+        const split = ruledTableFromComponent(band, component, pageIndex);
+        if (split) return split;
+    }
+    return null;
+}
+
+/**
+ * Builds a table from one spatially-cohesive cluster of separator rects. A
+ * page can carry several disjoint bordered regions (e.g. a details box above a
+ * data grid); clustering first keeps each its own grid instead of fusing them
+ * into a single page-spanning table with the overflow dumped out of order.
+ */
+function ruledTableFromComponent(
+    band: readonly Line[],
+    component: readonly PathRect[],
+    pageIndex: number,
+): BandTableSplit | null {
+    const grid = detectRuledGrid(component);
     if (!grid) return null;
 
     const inGrid = band.filter(line => lineInGrid(line, grid));
-    const gridRows = groupByBaseline(inGrid);
-    if (gridRows.length < MIN_ROWS) return null;
+    if (groupByBaseline(inGrid).length < MIN_ROWS) return null;
 
     const cells = buildRuledCells(inGrid, grid);
     if (!cells) return null;
@@ -101,6 +121,54 @@ function findRuledTable(
         after: band.filter(line => !consumed.has(line) && line.y <= yTop),
         usedRects: new Set(grid.sources),
     };
+}
+
+/** Whether a rect is a grid separator (thin line or stroked cell box). */
+function isSeparatorRect(rect: PathRect): boolean {
+    const isHorizontalLine = rect.height <= SEPARATOR_THICKNESS && rect.width > 20;
+    const isVerticalLine = rect.width <= SEPARATOR_THICKNESS && rect.height > 8;
+    const isCellBox = rect.stroked && rect.width > 20 && rect.height > 8;
+    return isHorizontalLine || isVerticalLine || isCellBox;
+}
+
+/** Vertical gap (pt) within which two separators are treated as one grid. */
+const COMPONENT_GAP = 4;
+
+/**
+ * Groups separator rects into connected components — clusters whose inflated
+ * bounding boxes touch. Rects in different components belong to different
+ * tables and must not share a grid.
+ */
+function connectedComponents(rects: readonly PathRect[]): PathRect[][] {
+    const parent = rects.map((_, i) => i);
+    const find = (i: number): number => {
+        let root = i;
+        while (parent[root] !== root) root = parent[root];
+        while (parent[i] !== root) { const next = parent[i]; parent[i] = root; i = next; }
+        return root;
+    };
+    for (let i = 0; i < rects.length; i++) {
+        for (let j = i + 1; j < rects.length; j++) {
+            if (rectsTouch(rects[i], rects[j])) parent[find(i)] = find(j);
+        }
+    }
+    const groups = new Map<number, PathRect[]>();
+    for (let i = 0; i < rects.length; i++) {
+        const root = find(i);
+        const group = groups.get(root) ?? [];
+        group.push(rects[i]);
+        groups.set(root, group);
+    }
+    return [...groups.values()];
+}
+
+function rectsTouch(a: PathRect, b: PathRect): boolean {
+    return a.x - COMPONENT_GAP <= b.x + b.width && b.x - COMPONENT_GAP <= a.x + a.width &&
+        a.y - COMPONENT_GAP <= b.y + b.height && b.y - COMPONENT_GAP <= a.y + a.height;
+}
+
+function componentTop(component: readonly PathRect[]): number {
+    return Math.max(...component.map(rect => rect.y + rect.height));
 }
 
 /** Restricts grid detection to rects vertically overlapping this band. */

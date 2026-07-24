@@ -193,4 +193,40 @@ describe('findTableInBand — ruled', () => {
         ];
         expect(findTableInBand(band, [], 0, ctx)).toBeNull();
     });
+
+    it('keeps two disjoint grids separate instead of fusing them', () => {
+        const upper = [
+            separatorRect(50, 710, 400, 1),
+            separatorRect(50, 670, 400, 1),
+            separatorRect(50, 630, 400, 1),
+            separatorRect(50, 630, 1, 81),
+            separatorRect(250, 630, 1, 81),
+            separatorRect(450, 630, 1, 81),
+        ];
+        const lower = [
+            separatorRect(50, 560, 400, 1),
+            separatorRect(50, 520, 400, 1),
+            separatorRect(50, 480, 400, 1),
+            separatorRect(50, 480, 1, 81),
+            separatorRect(250, 480, 1, 81),
+            separatorRect(450, 480, 1, 81),
+        ];
+        const band = [
+            lineOf('TL', 60, 90, 690), lineOf('TR', 260, 290, 690),
+            lineOf('BL', 60, 90, 650), lineOf('BR', 260, 290, 650),
+            lineOf('Between paragraph text', 50, 400, 595),
+            lineOf('UL', 60, 90, 540), lineOf('UR', 260, 290, 540),
+            lineOf('DL', 60, 90, 500), lineOf('DR', 260, 290, 500),
+        ];
+        const split = findTableInBand(band, [...upper, ...lower], 0, ctx);
+        expect(split).not.toBeNull();
+        expect(split?.table.rows).toHaveLength(2);
+        const inTable = split!.table.rows.flat()
+            .flatMap(cell => cell.lines.flatMap(l => l.words.map(w => w.text)));
+        expect(inTable).toContain('TL');
+        expect(inTable).not.toContain('UL');
+        expect(inTable).not.toContain('Between');
+        const afterText = split!.after.flatMap(l => l.words.map(w => w.text));
+        expect(afterText).toContain('UL');
+    });
 });
