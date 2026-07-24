@@ -8,15 +8,10 @@ const HARD_BREAK_EM = 1.5;
 /** Overlap tolerance: fonts with overestimated advances produce negative letter gaps. */
 const NEGATIVE_GAP_EM = 0.45;
 const DEFAULT_SPACE_EM = 0.25;
-/**
- * When a line's median inter-glyph gap drops below this fraction of the font
- * size the PDF was emitted glyph-by-glyph with overshooting advances (every
- * intra-word gap runs negative). Word breaks are then the small near-zero
- * outliers a fixed valley search misses.
- */
-const PER_GLYPH_MEDIAN_EM = 0.08;
-/** Word-break offset above the negative letter baseline for per-glyph PDFs. */
-const PER_GLYPH_WORD_EM = 0.15;
+/** Word-break offset above the line's median (letter-tier) gap, in em. */
+const WORD_MARGIN_EM = 0.15;
+/** Minimum gap, in em, between the letter tier and the breaking gaps above it. */
+const MIN_VALLEY_EM = 0.08;
 const RTL_RE = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
 const STRONG_LTR_RE = /[A-Za-z\u00C0-\u024F]/u;
 
@@ -46,12 +41,15 @@ export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): W
 }
 
 /**
- * When a line's inter-fragment gaps form two clearly separated clusters
- * (letter gaps vs word gaps), returns the valley between them as the
- * word-break threshold. Works on the full distribution including NEGATIVE
- * gaps — fonts with overestimated advances put letter gaps below zero while
- * word gaps stay slightly positive. Hard-break-sized gaps are excluded so a
- * single column jump does not dominate the valley search.
+ * Word-break gap threshold for one baseline cluster, or null when the gaps are
+ * too uniform to separate letters from words. Letters cluster at the line's
+ * median gap; a word break sits a margin above it. This holds whether the
+ * median is ~0 (normal fonts), negative (per-glyph PDFs whose advances
+ * overshoot), or the line carries several gap tiers (letter / word / field) —
+ * the margin isolates the letter tier without being dragged up by the largest
+ * field gap. Hard-break-sized gaps are excluded so a column jump cannot move
+ * the median. The threshold is returned only when a real valley of at least
+ * `MIN_VALLEY_EM` separates the letter tier from the breaking gaps above it.
  */
 export function bimodalGapThreshold(items: readonly TextItem[]): number | null {
     const gaps: number[] = [];
@@ -62,33 +60,25 @@ export function bimodalGapThreshold(items: readonly TextItem[]): number | null {
     if (gaps.length < 4) return null;
     gaps.sort((a, b) => a - b);
     const fontSize = medianFontSize(items);
-    const median = gaps[gaps.length >> 1];
-    if (median < -PER_GLYPH_MEDIAN_EM * fontSize) {
-        return median + PER_GLYPH_WORD_EM * fontSize;
+    const threshold = gaps[gaps.length >> 1] + WORD_MARGIN_EM * fontSize;
+    return hasValleyAt(gaps, threshold, fontSize) ? threshold : null;
+}
+
+/** True when some gaps fall below `threshold` and the rest sit a clear valley above it. */
+function hasValleyAt(sortedGaps: readonly number[], threshold: number, fontSize: number): boolean {
+    let maxBelow = -Infinity;
+    let minAbove = Infinity;
+    for (const gap of sortedGaps) {
+        if (gap < threshold) maxBelow = Math.max(maxBelow, gap);
+        else minAbove = Math.min(minAbove, gap);
     }
-    return valleyBetweenClusters(gaps, fontSize);
+    if (maxBelow === -Infinity || minAbove === Infinity) return false;
+    return minAbove - maxBelow >= MIN_VALLEY_EM * fontSize;
 }
 
 function medianFontSize(items: readonly TextItem[]): number {
     const sizes = items.map(item => Math.max(item.fontSize, 1)).sort((a, b) => a - b);
     return sizes[sizes.length >> 1];
-}
-
-function valleyBetweenClusters(sortedGaps: number[], fontSize: number): number | null {
-    let bestJump = 0;
-    let valley = 0;
-    let lowCount = 0;
-    for (let i = 1; i < sortedGaps.length; i++) {
-        const jump = sortedGaps[i] - sortedGaps[i - 1];
-        if (jump > bestJump) {
-            bestJump = jump;
-            valley = (sortedGaps[i - 1] + sortedGaps[i]) / 2;
-            lowCount = i;
-        }
-    }
-    const highCount = sortedGaps.length - lowCount;
-    const minJump = Math.max(1.5, fontSize * 0.12);
-    return bestJump >= minJump && lowCount >= 2 && highCount >= 1 ? valley : null;
 }
 
 function appendItem(

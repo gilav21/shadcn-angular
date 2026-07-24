@@ -131,6 +131,19 @@ describe('buildWords', () => {
         expect(words.map(w => w.text)).toEqual(['abc def']);
     });
 
+    it('breaks a word-tier gap that a larger field-tier gap would otherwise mask', () => {
+        const items = [
+            makeItem({ text: 'a', x: 0, endX: 8 }),
+            makeItem({ text: 'a', x: 8, endX: 16 }),
+            makeItem({ text: 'b', x: 18.2, endX: 26.2 }),
+            makeItem({ text: 'b', x: 26.2, endX: 34.2 }),
+            makeItem({ text: 'c', x: 48.2, endX: 56.2 }),
+            makeItem({ text: 'c', x: 56.2, endX: 64.2 }),
+        ];
+        const words = buildWords(items, ctx);
+        expect(words.map(w => w.text)).toEqual(['aa bb cc']);
+    });
+
     it('returns no bimodal threshold for uniform gaps', () => {
         const items = [0, 10, 20, 30, 40].map(x => makeItem({ text: 'a', x, endX: x + 8 }));
         expect(bimodalGapThreshold(items)).toBeNull();
