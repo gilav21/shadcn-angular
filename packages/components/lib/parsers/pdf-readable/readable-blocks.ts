@@ -37,6 +37,7 @@ export function buildPageBlocks(
     const usedRects = applyUnderlines(lines, page.rects);
     const tableRects = page.rects.filter(rect => !usedRects.has(rect));
     const blocks = linesToBlocks(lines, tableRects, page.index, ctx, usedRects);
+    applyFillBackgrounds(blocks, page.rects);
     const withRules = interleaveByTop(blocks, detectRules(page, usedRects, lines));
     if (!includeImages || page.images.length === 0) return withRules;
     const images = page.images.filter(img => !isBackgroundDecoration(img, page.width * page.height));
@@ -52,6 +53,58 @@ export function buildPageBlocks(
 function isBackgroundDecoration(image: ImageItem, pageArea: number): boolean {
     const coverage = pageArea > 0 ? (image.renderWidth * image.renderHeight) / pageArea : 0;
     return coverage > 0.4 && image.dataUrl.length < 6000;
+}
+
+/** Smallest filled rect worth treating as a block background, in pt². */
+const MIN_FILL_AREA = 1500;
+
+/**
+ * Reconstructs solid colour blocks (headers, callouts, badges) by giving a text
+ * block the fill of the saturated rectangle it sits on. Without this, light
+ * text designed to sit on a coloured panel — invisible on the white reading
+ * surface — is lost. Only saturated fills qualify so black rules and grey
+ * shading never turn same-coloured text unreadable.
+ */
+function applyFillBackgrounds(blocks: readonly DocBlock[], rects: readonly PathRect[]): void {
+    const fills = rects.filter(r =>
+        r.filled && r.width * r.height >= MIN_FILL_AREA && isSaturatedColor(r.fillColor));
+    if (fills.length === 0) return;
+    for (const block of blocks) {
+        const bounds = textBlockBounds(block);
+        if (bounds && block.kind !== 'table') {
+            const fill = fills.find(r => rectCoversCentroid(r, bounds));
+            if (fill) block.style.background = fill.fillColor;
+        }
+    }
+}
+
+interface Centroid { readonly cx: number; readonly cy: number; }
+
+function textBlockBounds(block: DocBlock): Centroid | null {
+    const lines = textLinesOf(block);
+    if (lines.length === 0) return null;
+    let sx = 0;
+    let sy = 0;
+    for (const line of lines) {
+        sx += (line.x + line.endX) / 2;
+        sy += line.y;
+    }
+    return { cx: sx / lines.length, cy: sy / lines.length };
+}
+
+function rectCoversCentroid(rect: PathRect, c: Centroid): boolean {
+    return c.cx >= rect.x && c.cx <= rect.x + rect.width &&
+        c.cy >= rect.y && c.cy <= rect.y + rect.height;
+}
+
+function isSaturatedColor(hex: string): boolean {
+    const match = /^#([0-9a-f]{6})$/i.exec(hex);
+    if (!match) return false;
+    const value = Number.parseInt(match[1], 16);
+    const r = (value >> 16) & 0xff;
+    const g = (value >> 8) & 0xff;
+    const b = value & 0xff;
+    return Math.max(r, g, b) - Math.min(r, g, b) > 40;
 }
 
 /**
@@ -370,7 +423,7 @@ function detectRules(
 }
 
 function emptyStyle(): BlockStyle {
-    return { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '' };
+    return { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '', background: '' };
 }
 
 // ── Image & rule interleaving ───────────────────────────────────────────

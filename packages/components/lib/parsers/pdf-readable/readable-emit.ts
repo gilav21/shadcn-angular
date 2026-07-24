@@ -275,6 +275,9 @@ function blockStylePairs(style: BlockStyle): Array<[string, string]> {
         ['text-indent', ptOrEmpty(style.textIndent)],
         ['line-height', style.lineHeight > 0 ? String(style.lineHeight) : ''],
         ['margin-top', ptOrEmpty(style.marginTop)],
+        ['background', style.background],
+        ['padding', style.background ? '4pt 8pt' : ''],
+        ['border-radius', style.background ? '3pt' : ''],
     ];
 }
 

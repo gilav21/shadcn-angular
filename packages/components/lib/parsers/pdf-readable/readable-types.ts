@@ -124,6 +124,8 @@ export interface BlockStyle {
     /** Vertical spacing to the previous block in pt. */
     marginTop: number;
     dir: TextDirection | '';
+    /** Background colour reconstructed from a filled rect behind the block; '' when none. */
+    background: string;
 }
 
 export interface ParagraphBlock {

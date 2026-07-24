@@ -346,6 +346,7 @@ function makeTableBlock(
             lineHeight: 0,
             marginTop: 0,
             dir: rtl ? 'rtl' : '',
+            background: '',
         },
     };
 }
