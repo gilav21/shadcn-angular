@@ -159,6 +159,14 @@ describe('buildWords', () => {
         expect(words.map(w => w.text)).toEqual(['aaa b c d e f']);
     });
 
+    it('keeps trailing punctuation after an RTL word when it leads visually', () => {
+        // Visual left-to-right "!" then Hebrew letters => logical "הצלחה!".
+        const glyphs = ['!', 'ה', 'ח', 'ל', 'צ', 'ה'];
+        const items = glyphs.map((text, i) => makeItem({ text, x: i * 8, endX: i * 8 + 8 }));
+        const words = buildWords(items, ctx);
+        expect(words.map(w => w.text)).toEqual(['הצלחה!']);
+    });
+
     it('does not merge an RTL run with an adjacent number even at a hairline gap', () => {
         const words = buildWords([
             makeItem({ text: '25024809', x: 0, endX: 87 }),

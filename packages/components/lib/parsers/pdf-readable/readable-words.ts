@@ -171,13 +171,15 @@ function estimateSpaceWidth(item: TextItem, ctx: WordBuildContext): number {
 
 /**
  * Fragments arrive in visual left-to-right order. For RTL script the
- * visually-left fragment is logically LATER, so an RTL fragment merging into
- * an RTL word is prepended — this reassembles per-character Hebrew/Arabic
- * PDFs into logical-order words. Digits and Latin embed left-to-right and
- * keep appending.
+ * visually-left fragment is logically LATER, so an incoming RTL fragment is
+ * prepended — this reassembles per-character Hebrew/Arabic PDFs into
+ * logical-order words. Neutrals (punctuation) already collected into the word
+ * count as RTL context so a leading "!" or "." does not strand itself inside
+ * the word ("בהצלחה!" not "בהצלח!ה"). A strong-LTR predecessor (Latin) keeps
+ * appending; digit/Latin boundaries never reach here — they break first.
  */
 function mergesRightToLeft(previousText: string, incomingText: string): boolean {
-    return RTL_RE.test(incomingText) && RTL_RE.test(previousText);
+    return RTL_RE.test(incomingText) && !STRONG_LTR_RE.test(previousText);
 }
 
 function isSpaceMarker(item: TextItem): boolean {
