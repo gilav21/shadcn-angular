@@ -34,8 +34,11 @@ export function emitDocument(
     const textParts: string[] = [];
 
     for (const page of doc.pages) {
-        const pageHtml = page.blocks.map(block => emitBlock(block, ctx)).filter(Boolean);
+        let pageHtml = page.blocks.map(block => emitBlock(block, ctx)).filter(Boolean);
         if (pageHtml.length === 0) continue;
+        if (pageIsRtl(page.blocks)) {
+            pageHtml = [`<div dir="rtl">${pageHtml.join('\n')}</div>`];
+        }
         if (options.pageWrappers) {
             htmlParts.push(
                 `<div style="max-width:${round(page.width)}pt;margin:0 auto">${pageHtml.join('\n')}</div>`);
@@ -50,6 +53,22 @@ export function emitDocument(
         html: htmlParts.join(separator),
         text: textParts.join(' ').replaceAll(/\s+/g, ' ').trim(),
     };
+}
+
+/**
+ * RTL-majority pages anchor to the right edge: without a page-level
+ * dir="rtl" container every block falls back to the LTR left edge, which
+ * mirrors the entire document (user-verified defect on Hebrew letters).
+ */
+function pageIsRtl(blocks: readonly DocBlock[]): boolean {
+    let rtl = 0;
+    let total = 0;
+    for (const block of blocks) {
+        if (block.kind === 'image' || block.kind === 'rule') continue;
+        total++;
+        if (block.style.dir === 'rtl') rtl++;
+    }
+    return total > 0 && rtl * 2 > total;
 }
 
 function collectPageText(blocks: readonly DocBlock[], out: string[]): void {
