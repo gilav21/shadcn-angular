@@ -135,9 +135,28 @@ function linesToBlocks(
     }
     const blocks: DocBlock[] = [];
     for (const band of splitVerticalBands(lines)) {
-        blocks.push(...xyCut(band, 1).flatMap(region => regionToBlocks(region, pageIndex, ctx)));
+        blocks.push(...bandToBlocks(band, pageIndex, ctx));
     }
     return blocks;
+}
+
+/**
+ * Splits one vertical band into blocks, detecting an unruled table before the
+ * XY-cut so a short, aligned cellular grid (e.g. a centered signature block)
+ * is not sliced into one stacked column per cell. Multi-column prose fails the
+ * cellular test and falls through to column cutting. Rows above/below the
+ * table are handled recursively, exactly as at page level.
+ */
+function bandToBlocks(band: Line[], pageIndex: number, ctx: ClassifyContext): DocBlock[] {
+    const split = findTableInBand(band, [], pageIndex, ctx, { ruled: false });
+    if (split) {
+        return [
+            ...bandToBlocks(split.before, pageIndex, ctx),
+            split.table,
+            ...bandToBlocks(split.after, pageIndex, ctx),
+        ];
+    }
+    return xyCut(band, 1).flatMap(region => regionToBlocks(region, pageIndex, ctx));
 }
 
 // ── XY-cut segmentation ─────────────────────────────────────────────────

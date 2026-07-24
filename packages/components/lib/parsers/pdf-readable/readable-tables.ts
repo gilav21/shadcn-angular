@@ -278,9 +278,9 @@ function findUnruledTable(
     const runRows = rows.slice(run.start, run.end);
 
     const rtl = isRtlTable(runRows);
-    const columns = clusterColumnEdges(runRows, ctx.bodyFontSize, rtl);
+    const columns = clusterColumns(runRows, ctx.bodyFontSize, rtl);
     if (!columns) return null;
-    if (!looksCellular(runRows, columns.length, strict)) return null;
+    if (!looksCellular(runRows, columns.positions.length, strict)) return null;
 
     const cells = runRows.map(row => rowToCells(row, columns, rtl));
     if (cellFillRatio(cells) < MIN_CELL_FILL) return null;
@@ -361,31 +361,84 @@ function rowGap(rows: readonly Line[][], index: number): number {
     return rows[index - 1][0].y - rows[index][0].y;
 }
 
+/** Column positions plus the metric used to assign lines to them. */
+interface ColumnModel {
+    readonly positions: number[];
+    readonly byCenter: boolean;
+}
+
+/** Largest fragment (as a fraction of band width) allowed for center clustering. */
+const SHORT_FRAGMENT_RATIO = 0.35;
+/** Most fragments a row may hold to qualify for center clustering. */
+const MAX_CENTER_FRAGMENTS = 3;
 /**
- * Clusters segment start-edges (right edges for RTL) across the candidate
- * rows into column positions. Accepts only when at least {@link SNAP_RATE}
+ * Center-alignment tolerance, in em. Looser than the edge tolerance because a
+ * centered label and its value are typeset independently and their midpoints
+ * drift by up to ~1 em; columns sit far enough apart that this never merges
+ * two of them.
+ */
+const CENTER_CLUSTER_EM = 1.05;
+
+/**
+ * Clusters candidate rows into column positions. Start-edge alignment (right
+ * edges for RTL) is tried first; when that fails but the rows are short,
+ * few-per-row fragments — the shape of a centered label/value grid such as a
+ * signature block whose cells share neither left nor right edge — their
+ * midpoints are clustered instead. Accepts only when at least {@link SNAP_RATE}
  * of segments snap to a cluster supported by two or more distinct rows.
  */
-function clusterColumnEdges(
+function clusterColumns(
     rows: readonly Line[][],
     bodyFontSize: number,
     rtl: boolean,
-): number[] | null {
+): ColumnModel | null {
     const tolerance = Math.max(3, bodyFontSize * EDGE_CLUSTER_EM);
-    const edges = rows.flatMap((row, rowIdx) =>
-        row.map(line => ({ value: edgeOf(line, rtl), rowIdx })));
-    const clusters = clusterWithSupport(edges, tolerance);
+    const byEdge = clusterPositionsWithSupport(rows, tolerance, line => edgeOf(line, rtl));
+    if (byEdge) {
+        byEdge.sort((a, b) => a - b);
+        return { positions: byEdge, byCenter: false };
+    }
+    if (!rowsAreShortFragments(rows)) return null;
+    const centerTolerance = Math.max(3, bodyFontSize * CENTER_CLUSTER_EM);
+    const byCenter = clusterPositionsWithSupport(rows, centerTolerance, centerOf);
+    if (!byCenter) return null;
+    byCenter.sort((a, b) => (rtl ? b - a : a - b));
+    return { positions: byCenter, byCenter: true };
+}
 
+function clusterPositionsWithSupport(
+    rows: readonly Line[][],
+    tolerance: number,
+    positionOf: (line: Line) => number,
+): number[] | null {
+    const edges = rows.flatMap((row, rowIdx) =>
+        row.map(line => ({ value: positionOf(line), rowIdx })));
+    const clusters = clusterWithSupport(edges, tolerance);
     const supported = clusters.filter(c => c.rows.size >= MIN_ROWS);
     if (supported.length < MIN_COLS) return null;
     const snapped = edges.filter(edge =>
         supported.some(c => Math.abs(edge.value - c.center) <= tolerance)).length;
     if (snapped / edges.length < SNAP_RATE) return null;
-    return supported.map(c => c.center).sort((a, b) => a - b);
+    return supported.map(c => c.center);
+}
+
+/** True when every row holds few, short fragments — never prose columns. */
+function rowsAreShortFragments(rows: readonly Line[][]): boolean {
+    const segments = rows.flat();
+    const bandX0 = Math.min(...segments.map(l => l.x));
+    const bandX1 = Math.max(...segments.map(l => l.endX));
+    const bandWidth = bandX1 - bandX0;
+    if (bandWidth <= 0) return false;
+    if (rows.some(row => row.length > MAX_CENTER_FRAGMENTS)) return false;
+    return segments.every(line => line.endX - line.x <= bandWidth * SHORT_FRAGMENT_RATIO);
 }
 
 function edgeOf(line: Line, rtl: boolean): number {
     return rtl ? -line.endX : line.x;
+}
+
+function centerOf(line: Line): number {
+    return (line.x + line.endX) / 2;
 }
 
 function isRtlTable(rows: ReadonlyArray<readonly Line[]>): boolean {
@@ -414,16 +467,16 @@ function clusterWithSupport(
 
 function rowToCells(
     row: readonly Line[],
-    columns: readonly number[],
+    columns: ColumnModel,
     rtl: boolean,
 ): TableCellModel[] {
-    const cells: Line[][] = columns.map(() => []);
+    const cells: Line[][] = columns.positions.map(() => []);
     for (const line of row) {
-        const edge = edgeOf(line, rtl);
+        const value = columns.byCenter ? centerOf(line) : edgeOf(line, rtl);
         let bestIdx = 0;
         let bestDist = Number.POSITIVE_INFINITY;
-        for (let i = 0; i < columns.length; i++) {
-            const dist = Math.abs(edge - columns[i]);
+        for (let i = 0; i < columns.positions.length; i++) {
+            const dist = Math.abs(value - columns.positions[i]);
             if (dist < bestDist) {
                 bestDist = dist;
                 bestIdx = i;

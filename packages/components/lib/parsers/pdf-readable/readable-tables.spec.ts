@@ -105,6 +105,32 @@ describe('findTableInBand — unruled', () => {
         expect(findTableInBand(band, [], 0, ctx)).toBeNull();
     });
 
+    it('clusters a centered label/value grid whose edges do not align', () => {
+        const band = [
+            lineOf('Ada Lovelace', 420, 498, 700), lineOf('42', 258, 283, 700),
+            lineOf('Signed', 89, 161, 700),
+            lineOf('Name', 439, 479, 680), lineOf('ID', 262, 296, 680),
+            lineOf('Mark', 100, 150, 680),
+        ];
+        const split = findTableInBand(band, [], 0, ctx);
+        expect(split).not.toBeNull();
+        expect(split?.table.rows).toHaveLength(2);
+        expect(split?.table.rows[0]).toHaveLength(3);
+        expect(split?.table.rows[0][0].lines[0].words[0].text).toBe('Signed');
+        expect(split?.table.rows[0][2].lines[0].words[0].text).toBe('Ada Lovelace');
+    });
+
+    it('does not center-cluster wide prose columns into a table', () => {
+        const band: Line[] = [];
+        for (const y of [700, 686, 672, 658]) {
+            band.push(
+                lineOf('a long flowing prose sentence here', 50, 260, y),
+                lineOf('another long flowing prose sentence', 300, 520, y),
+            );
+        }
+        expect(findTableInBand(band, [], 0, ctx)).toBeNull();
+    });
+
     it('marks an all-bold first row as the header row', () => {
         const band = [
             lineOf('Name', 50, 100, 700, { style: { bold: true } }),
