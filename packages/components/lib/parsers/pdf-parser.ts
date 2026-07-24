@@ -703,6 +703,19 @@ export class PdfReader {
     }
 
     private findXRef(): void {
+        try {
+            this.followStartxref();
+        } catch (error) {
+            this.reconstructXRef();
+            if (this.objects.size === 0 && this.compressedObjects.size === 0) throw error;
+            return;
+        }
+        if (this.objects.size === 0 && this.compressedObjects.size === 0) {
+            this.reconstructXRef();
+        }
+    }
+
+    private followStartxref(): void {
         let match = this.findLastStartxref(this.text.slice(-1024));
         match ??= this.findLastStartxref(this.text.slice(-8192));
         if (!match) throw new Error('Could not find startxref in PDF');
@@ -712,6 +725,91 @@ export class PdfReader {
             this.parseTraditionalXRef(xrefOffset);
         } else {
             this.parseXRefStream(xrefOffset);
+        }
+    }
+
+    /**
+     * Repair path for PDFs whose startxref offset or xref chain is broken
+     * (common in incremental saves): scan the raw file for `N G obj` headers
+     * and rebuild the object table directly. Later occurrences win, matching
+     * incremental-update semantics. The trailer is recovered from the last
+     * parsable `trailer` dict, or synthesized from a scanned /Type /Catalog.
+     */
+    private reconstructXRef(): void {
+        const re = /(\d{1,10})[ \t\r\n]{1,4}(\d{1,5})[ \t\r\n]{1,4}obj\b/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(this.text)) !== null) {
+            const gen = Number.parseInt(m[2], 10);
+            this.objects.set(`${m[1]} ${gen}`, { offset: m.index, gen });
+        }
+        this.recoverTrailer();
+        this.indexScannedObjectStreams();
+    }
+
+    private recoverTrailer(): void {
+        if (this.trailer?.['Root']) return;
+        let tPos = this.text.lastIndexOf('trailer');
+        while (tPos !== -1) {
+            if (this.tryAdoptTrailerAt(tPos)) return;
+            tPos = this.text.lastIndexOf('trailer', tPos - 1);
+        }
+        this.recoverRootFromCatalogScan();
+    }
+
+    private tryAdoptTrailerAt(tPos: number): boolean {
+        const dictStart = this.text.indexOf('<<', tPos);
+        if (dictStart === -1) return false;
+        try {
+            const result = this.parseObjectAt(dictStart);
+            const dict = result.obj.value as Record<string, PdfObject>;
+            if (result.obj.type === 'dict' && dict['Root']) {
+                this.trailer = dict;
+                return true;
+            }
+        } catch { /* try an earlier trailer */ }
+        return false;
+    }
+
+    private recoverRootFromCatalogScan(): void {
+        for (const [key, entry] of this.objects) {
+            const slice = this.text.substring(entry.offset, entry.offset + 256);
+            if (!slice.includes('/Type') || !slice.includes('/Catalog')) continue;
+            const num = Number.parseInt(key.split(' ')[0], 10);
+            this.trailer = {
+                Root: { type: 'ref', value: `${num} ${entry.gen}` },
+            };
+            return;
+        }
+    }
+
+    private indexScannedObjectStreams(): void {
+        for (const [key] of this.objects) {
+            try {
+                const obj = this.resolveRef({ type: 'ref', value: key });
+                if (obj.type !== 'stream') continue;
+                const dict = obj.value as Record<string, PdfObject>;
+                const typeName = dict['Type']?.type === 'name' ? dict['Type'].value : '';
+                if (typeName !== 'ObjStm') continue;
+                const num = Number.parseInt(key.split(' ')[0], 10);
+                this.indexObjectStreamContents(num, obj);
+            } catch { /* skip unreadable candidates */ }
+        }
+    }
+
+    private indexObjectStreamContents(streamObjNum: number, obj: PdfObject): void {
+        const dict = obj.value as Record<string, PdfObject>;
+        const count = dict['N']?.type === 'number' ? dict['N'].value as number : 0;
+        const decoded = this.getStreamData(obj);
+        if (count <= 0 || decoded.length === 0) return;
+        const header = new TextDecoder('latin1').decode(decoded.subarray(0, 10240));
+        const numbers = header.split(/\s+/, count * 2).map(n => Number.parseInt(n, 10));
+        for (let i = 0; i < count; i++) {
+            const objNum = numbers[i * 2];
+            if (!Number.isFinite(objNum)) break;
+            const key = `${objNum} 0`;
+            if (!this.objects.has(key) && !this.compressedObjects.has(key)) {
+                this.compressedObjects.set(key, { streamObjNum, index: i });
+            }
         }
     }
 

@@ -5,8 +5,8 @@ import type { BaselineShift, RunStyle, TextDirection, Word } from './readable-ty
 const SPACE_GAP_FACTOR = 0.45;
 /** Gaps larger than this multiple of the font size never merge into one word. */
 const HARD_BREAK_EM = 1.5;
-/** Kerning tolerance: small negative gaps still merge. */
-const NEGATIVE_GAP_EM = 0.15;
+/** Overlap tolerance: fonts with overestimated advances produce negative letter gaps. */
+const NEGATIVE_GAP_EM = 0.45;
 const DEFAULT_SPACE_EM = 0.25;
 const RTL_RE = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
 const STRONG_LTR_RE = /[A-Za-z\u00C0-\u024F]/u;
@@ -38,34 +38,40 @@ export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): W
 
 /**
  * When a line's inter-fragment gaps form two clearly separated clusters
- * (letter gaps vs word gaps — typical of justified or letter-spaced text),
- * returns the valley between them as the word-break threshold.
+ * (letter gaps vs word gaps), returns the valley between them as the
+ * word-break threshold. Works on the full distribution including NEGATIVE
+ * gaps — fonts with overestimated advances put letter gaps below zero while
+ * word gaps stay slightly positive. Hard-break-sized gaps are excluded so a
+ * single column jump does not dominate the valley search.
  */
 export function bimodalGapThreshold(items: readonly TextItem[]): number | null {
     const gaps: number[] = [];
+    let fontSize = 12;
     for (let i = 1; i < items.length; i++) {
         const gap = items[i].x - items[i - 1].endX;
-        if (gap > 0) gaps.push(gap);
+        fontSize = Math.max(items[i].fontSize, 1);
+        if (gap <= fontSize * HARD_BREAK_EM) gaps.push(gap);
     }
     if (gaps.length < 4) return null;
     gaps.sort((a, b) => a - b);
-    return valleyBetweenClusters(gaps);
+    return valleyBetweenClusters(gaps, fontSize);
 }
 
-function valleyBetweenClusters(sortedGaps: number[]): number | null {
-    let bestRatio = 0;
+function valleyBetweenClusters(sortedGaps: number[], fontSize: number): number | null {
+    let bestJump = 0;
     let valley = 0;
+    let lowCount = 0;
     for (let i = 1; i < sortedGaps.length; i++) {
-        const ratio = sortedGaps[i] / Math.max(sortedGaps[i - 1], 0.01);
-        if (ratio > bestRatio) {
-            bestRatio = ratio;
+        const jump = sortedGaps[i] - sortedGaps[i - 1];
+        if (jump > bestJump) {
+            bestJump = jump;
             valley = (sortedGaps[i - 1] + sortedGaps[i]) / 2;
+            lowCount = i;
         }
     }
-    const splitIndex = sortedGaps.findIndex(g => g > valley);
-    const lowCount = splitIndex < 0 ? sortedGaps.length : splitIndex;
     const highCount = sortedGaps.length - lowCount;
-    return bestRatio >= 2.5 && lowCount >= 2 && highCount >= 1 ? valley : null;
+    const minJump = Math.max(1.5, fontSize * 0.12);
+    return bestJump >= minJump && lowCount >= 2 && highCount >= 1 ? valley : null;
 }
 
 function appendItem(
@@ -81,7 +87,12 @@ function appendItem(
     const decision = previous ? classifyGap(gap, previous, item, ctx, bimodal) : 'break';
 
     if (previous && decision !== 'break' && sameStyle(previous.style, style)) {
-        previous.text += (decision === 'space' || pendingSpace ? ' ' : '') + item.text;
+        const separator = decision === 'space' || pendingSpace ? ' ' : '';
+        if (mergesRightToLeft(previous.text, item.text)) {
+            previous.text = item.text + separator + previous.text;
+        } else {
+            previous.text += separator + item.text;
+        }
         previous.endX = Math.max(previous.endX, item.endX);
         return false;
     }
@@ -123,6 +134,17 @@ function estimateSpaceWidth(item: TextItem, ctx: WordBuildContext): number {
     const advance = ctx.spaceAdvance(item.fontName);
     const em = advance !== null && advance > 0 ? advance / 1000 : DEFAULT_SPACE_EM;
     return em * item.fontSize * scale;
+}
+
+/**
+ * Fragments arrive in visual left-to-right order. For RTL script the
+ * visually-left fragment is logically LATER, so an RTL fragment merging into
+ * an RTL word is prepended — this reassembles per-character Hebrew/Arabic
+ * PDFs into logical-order words. Digits and Latin embed left-to-right and
+ * keep appending.
+ */
+function mergesRightToLeft(previousText: string, incomingText: string): boolean {
+    return RTL_RE.test(incomingText) && RTL_RE.test(previousText);
 }
 
 function isSpaceMarker(item: TextItem): boolean {
