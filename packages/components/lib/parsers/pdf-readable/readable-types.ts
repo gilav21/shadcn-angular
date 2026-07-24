@@ -194,6 +194,27 @@ export interface RuleBlock {
     readonly top: number;
 }
 
+/** One column of a {@link ColumnsBlock}: its blocks and its share of the row width. */
+export interface ColumnGroup {
+    readonly blocks: DocBlock[];
+    /** Fraction (0-1) of the row width, from the detected column geometry. */
+    readonly widthRatio: number;
+}
+
+/**
+ * Adjacent regions the layout analysis found side by side in one vertical band
+ * (a two-column CV header, a receipt's left/right columns). Rendered as one
+ * borderless table row so the columns sit next to each other instead of
+ * stacking. Detection-driven only — never synthesized where no column gutter
+ * was found.
+ */
+export interface ColumnsBlock {
+    readonly kind: 'columns';
+    readonly columns: ColumnGroup[];
+    readonly page: number;
+    readonly style: BlockStyle;
+}
+
 export type DocBlock =
     | ParagraphBlock
     | HeadingBlock
@@ -201,7 +222,8 @@ export type DocBlock =
     | BlockquoteBlock
     | TableBlock
     | ImageBlock
-    | RuleBlock;
+    | RuleBlock
+    | ColumnsBlock;
 
 export interface PageModel {
     readonly index: number;

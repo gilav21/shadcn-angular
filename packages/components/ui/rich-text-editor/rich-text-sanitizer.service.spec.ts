@@ -38,6 +38,24 @@ describe('RichTextSanitizerService', () => {
             const html = '<ul><li>Item 1</li><li>Item 2</li></ul>';
             expect(service.sanitize(html)).toBe('<ul><li>Item 1</li><li>Item 2</li></ul>');
         });
+
+        it('preserves pdf-readable side-by-side columns with a nested table', () => {
+            const html =
+                '<table style="border-collapse:collapse;width:100%" dir="rtl"><tr>' +
+                '<td style="vertical-align:top;width:55.6%;padding:0 6pt">' +
+                '<table style="border-collapse:collapse;"><tr><td>A</td><td>B</td></tr></table>' +
+                '</td>' +
+                '<td style="vertical-align:top;width:44.4%;padding:0 6pt"><p>Left</p></td>' +
+                '</tr></table>';
+            const result = service.sanitize(html).replaceAll(': ', ':');
+            expect(result).toContain('vertical-align:top');
+            expect(result).toContain('width:55.6%');
+            expect(result).toContain('border-collapse:collapse');
+            expect(result).toContain('dir="rtl"');
+            // nested table and its cells survive
+            expect(result.match(/<table/g) ?? []).toHaveLength(2);
+            expect(result).toContain('<td>A</td>');
+        });
     });
 
     describe('XSS prevention - script injection', () => {

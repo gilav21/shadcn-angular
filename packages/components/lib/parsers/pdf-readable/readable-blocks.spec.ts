@@ -183,3 +183,36 @@ describe('buildPageBlocks', () => {
         if (imageBlock?.kind === 'image') expect(imageBlock.float).toBe('left');
     });
 });
+
+describe('buildPageBlocks — side-by-side columns', () => {
+    function twoColumns(rowCount: number): Line[] {
+        const lines: Line[] = [];
+        let y = 700;
+        for (let i = 0; i < rowCount; i++) {
+            lines.push(lineOf(`left row ${i}`, 50, 200, y), lineOf(`right row ${i}`, 350, 500, y));
+            y -= 16;
+        }
+        return lines;
+    }
+
+    it('wraps two multi-row columns in a columns block', () => {
+        const lines = twoColumns(4);
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        const columns = blocks.find(b => b.kind === 'columns');
+        expect(columns).toBeDefined();
+        if (columns?.kind === 'columns') {
+            expect(columns.columns).toHaveLength(2);
+            const total = columns.columns.reduce((s, c) => s + c.widthRatio, 0);
+            expect(total).toBeCloseTo(1, 5);
+        }
+    });
+
+    it('does not column-wrap a single shared baseline (label/value line)', () => {
+        const lines = [
+            lineOf('Total', 50, 120, 700),
+            lineOf('42', 400, 430, 700),
+        ];
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        expect(blocks.some(b => b.kind === 'columns')).toBe(false);
+    });
+});

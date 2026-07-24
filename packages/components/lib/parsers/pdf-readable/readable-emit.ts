@@ -1,6 +1,7 @@
 import { sameStyle } from './readable-words';
 import type {
     BlockStyle,
+    ColumnsBlock,
     DocBlock,
     DocModel,
     FontMapping,
@@ -89,6 +90,8 @@ export function blockLines(block: DocBlock): readonly Line[] {
             return block.items.flatMap(item => item.lines);
         case 'table':
             return block.rows.flatMap(row => row.flatMap(cell => cell.lines));
+        case 'columns':
+            return block.columns.flatMap(col => col.blocks.flatMap(blockLines));
         default:
             return [];
     }
@@ -110,9 +113,32 @@ function emitBlock(block: DocBlock, ctx: EmitContext): string {
             return emitImage(block);
         case 'rule':
             return '<hr>';
+        case 'columns':
+            return emitColumns(block, ctx);
         default:
             return '';
     }
+}
+
+/**
+ * Renders side-by-side column regions as one borderless table row. A table is
+ * the layout primitive the rich-text sanitizer preserves reliably (floats are
+ * unstable in contenteditable); cells are top-aligned with widths taken from
+ * the detected column geometry.
+ */
+function emitColumns(block: ColumnsBlock, ctx: EmitContext): string {
+    const cells = block.columns.map(column => {
+        const inner = column.blocks.map(child => emitBlock(child, ctx)).filter(Boolean).join('');
+        const width = Math.round(column.widthRatio * 1000) / 10;
+        const cellStyle = styleAttr([
+            ['vertical-align', 'top'],
+            ['width', `${width}%`],
+            ['padding', '0 6pt'],
+        ]);
+        return `<td style="${cellStyle}">${inner}</td>`;
+    });
+    const dirAttr = block.style.dir === 'rtl' ? ' dir="rtl"' : '';
+    return `<table style="border-collapse:collapse;width:100%"${dirAttr}><tr>${cells.join('')}</tr></table>`;
 }
 
 function emitHeading(block: HeadingBlock, ctx: EmitContext): string {

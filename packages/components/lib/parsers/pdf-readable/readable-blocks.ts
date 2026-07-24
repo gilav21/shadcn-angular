@@ -4,6 +4,7 @@ import { resolveBlockStyle, type ColumnBounds } from './readable-styles';
 import { findTableInBand } from './readable-tables';
 import type {
     BlockStyle,
+    ColumnsBlock,
     DocBlock,
     ImageBlock,
     Line,
@@ -156,7 +157,111 @@ function bandToBlocks(band: Line[], pageIndex: number, ctx: ClassifyContext): Do
             ...bandToBlocks(split.after, pageIndex, ctx),
         ];
     }
-    return xyCut(band, 1).flatMap(region => regionToBlocks(region, pageIndex, ctx));
+    return cutToBlocks(band, 1, pageIndex, ctx);
+}
+
+/**
+ * Column-aware variant of {@link xyCut} that builds blocks directly: a
+ * vertical band-split recurses into stacked blocks, but a horizontal
+ * column-split is wrapped in a {@link ColumnsBlock} so the columns render side
+ * by side instead of one after another. Spanner-tolerant splits keep their
+ * flattened (stacked) reading order — the spanning rows between column groups
+ * make a single parallel row unsound.
+ */
+function cutToBlocks(
+    lines: Line[],
+    depth: number,
+    pageIndex: number,
+    ctx: ClassifyContext,
+): DocBlock[] {
+    if (lines.length <= 1 || depth >= MAX_CUT_DEPTH) return regionToBlocks(lines, pageIndex, ctx);
+    const bands = splitVerticalBands(lines);
+    if (bands.length > 1) return bands.flatMap(band => cutToBlocks(band, depth + 1, pageIndex, ctx));
+    const columns = splitColumns(lines);
+    if (columns.length > 1) {
+        return columnsSpanMultipleRows(columns)
+            ? [columnsBlockFrom(columns, depth, pageIndex, ctx)]
+            : columns.flatMap(column => cutToBlocks(column, depth + 1, pageIndex, ctx));
+    }
+    const aroundSpanners = splitColumnsAroundSpanners(lines);
+    if (aroundSpanners.length > 1) {
+        return aroundSpanners.flatMap(region => cutToBlocks(region, depth + 1, pageIndex, ctx));
+    }
+    return regionToBlocks(lines, pageIndex, ctx);
+}
+
+/**
+ * Rows every column must span to render side by side. Set above 2 so a short
+ * header strip (a contact block beside a title) is not forced into cells —
+ * only a genuine multi-row column layout (a receipt's parallel columns) does.
+ */
+const MIN_COLUMN_ROWS = 3;
+
+/**
+ * True only when every column spans multiple distinct baselines. A single
+ * visual line whose cells sit at one baseline (a right-aligned label with its
+ * value across the page) fragments into "columns" of one row each — rendering
+ * that side by side would cramp a full-width line into a narrow cell.
+ */
+function columnsSpanMultipleRows(columns: readonly Line[][]): boolean {
+    return columns.every(column => distinctBaselineCount(column) >= MIN_COLUMN_ROWS);
+}
+
+function distinctBaselineCount(lines: readonly Line[]): number {
+    const sorted = [...lines].sort((a, b) => b.y - a.y);
+    const tolerance = (sorted[0]?.fontSize ?? 12) * 0.5;
+    let count = 0;
+    let last = Number.POSITIVE_INFINITY;
+    for (const line of sorted) {
+        if (last - line.y > tolerance) {
+            count++;
+            last = line.y;
+        }
+    }
+    return count;
+}
+
+/** Wraps parallel column regions as one side-by-side row, widths from geometry. */
+function columnsBlockFrom(
+    columns: Line[][],
+    depth: number,
+    pageIndex: number,
+    ctx: ClassifyContext,
+): ColumnsBlock {
+    const widthRatios = columnZoneRatios(columns);
+    const groups = columns.map((col, i) => ({
+        blocks: cutToBlocks(col, depth + 1, pageIndex, ctx),
+        widthRatio: widthRatios[i],
+    }));
+    const allLines = columns.flat();
+    const dir = allLines.filter(l => l.dir === 'rtl').length * 2 > allLines.length ? 'rtl' : '';
+    return { kind: 'columns', columns: groups, page: pageIndex, style: { ...emptyStyle(), dir } };
+}
+
+/**
+ * Each column's share of the row width from its allocated horizontal zone —
+ * its own extent plus the surrounding whitespace, split at the gutter
+ * midpoints. Sizing by bare text extent would starve a narrow-text column
+ * (a contact block) and wrap it to a sliver; the zone gives it the room the
+ * original left for it.
+ */
+function columnZoneRatios(columns: readonly Line[][]): number[] {
+    const spans = columns.map(col => ({
+        x0: Math.min(...col.map(l => l.x)),
+        x1: Math.max(...col.map(l => l.endX)),
+    }));
+    const overallX0 = Math.min(...spans.map(s => s.x0));
+    const overallX1 = Math.max(...spans.map(s => s.x1));
+    const totalWidth = Math.max(1, overallX1 - overallX0);
+    const order = spans.map((_, i) => i).sort((a, b) => spans[a].x0 - spans[b].x0);
+    const ratios = new Array<number>(columns.length).fill(0);
+    for (let k = 0; k < order.length; k++) {
+        const i = order[k];
+        const left = k === 0 ? overallX0 : (spans[order[k - 1]].x1 + spans[i].x0) / 2;
+        const right = k === order.length - 1 ? overallX1 : (spans[i].x1 + spans[order[k + 1]].x0) / 2;
+        ratios[i] = Math.max(1, right - left) / totalWidth;
+    }
+    return ratios;
 }
 
 // ── XY-cut segmentation ─────────────────────────────────────────────────
@@ -684,6 +789,9 @@ function textLinesOf(block: DocBlock): readonly Line[] {
         return block.lines;
     }
     if (block.kind === 'list') return block.items.flatMap(item => item.lines);
+    if (block.kind === 'columns') {
+        return block.columns.flatMap(col => col.blocks.flatMap(textLinesOf));
+    }
     return [];
 }
 
@@ -697,6 +805,10 @@ function blockTopOf(block: DocBlock): number {
     if (block.kind === 'table') {
         const firstCell = block.rows[0]?.find(cell => cell.lines.length > 0);
         return firstCell?.lines[0]?.y ?? 0;
+    }
+    if (block.kind === 'columns') {
+        const tops = block.columns.flatMap(col => col.blocks.map(blockTopOf));
+        return tops.length > 0 ? Math.max(...tops) : 0;
     }
     const lines = textLinesOf(block);
     return lines[0]?.y ?? 0;
