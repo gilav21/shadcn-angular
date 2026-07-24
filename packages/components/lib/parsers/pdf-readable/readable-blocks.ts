@@ -39,7 +39,19 @@ export function buildPageBlocks(
     const blocks = linesToBlocks(lines, tableRects, page.index, ctx, usedRects);
     const withRules = interleaveByTop(blocks, detectRules(page, usedRects, lines));
     if (!includeImages || page.images.length === 0) return withRules;
-    return interleaveImages(withRules, page.images, page.index);
+    const images = page.images.filter(img => !isBackgroundDecoration(img, page.width * page.height));
+    return images.length > 0 ? interleaveImages(withRules, images, page.index) : withRules;
+}
+
+/**
+ * A single near-empty vector blown up to cover most of the page is a
+ * background or watermark, not content. Rendered inline in the reading view it
+ * only injects a large blank gap, so it is dropped. Guarded on a tiny payload
+ * so real full-page photos or charts (large rasters) are never suppressed.
+ */
+function isBackgroundDecoration(image: ImageItem, pageArea: number): boolean {
+    const coverage = pageArea > 0 ? (image.renderWidth * image.renderHeight) / pageArea : 0;
+    return coverage > 0.4 && image.dataUrl.length < 6000;
 }
 
 /**
