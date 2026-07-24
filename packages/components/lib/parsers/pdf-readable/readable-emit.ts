@@ -225,16 +225,22 @@ function emitLineContents(
  */
 export function preserveLineBreaks(lines: readonly Line[]): boolean {
     if (lines.length < 2) return false;
-    const rtl = lines.filter(l => l.dir === 'rtl').length * 2 > lines.length;
     const sizes = lines.map(l => l.fontSize).sort((a, b) => a - b);
-    const tolerance = (sizes[Math.floor(sizes.length / 2)] ?? 12) * 1.5;
-    const fillEdge = rtl
-        ? Math.min(...lines.map(l => l.x))
-        : Math.max(...lines.map(l => l.endX));
+    const tolerance = (sizes[Math.floor(sizes.length / 2)] ?? 12) * 2.5;
+    const lefts = lines.map(l => l.x);
+    const rights = lines.map(l => l.endX);
+    const spreadLeft = Math.max(...lefts) - Math.min(...lefts);
+    const spreadRight = Math.max(...rights) - Math.min(...rights);
+    // The aligned edge barely moves; the opposite (higher-spread) edge is where
+    // prose wraps. Right-aligned LTR and RTL both wrap on the left.
+    const wrapsRight = spreadRight >= spreadLeft;
+    const fillEdge = wrapsRight ? Math.max(...rights) : Math.min(...lefts);
     let reaching = 0;
     for (let i = 0; i < lines.length - 1; i++) {
         const line = lines[i];
-        const reaches = rtl ? line.x <= fillEdge + tolerance : line.endX >= fillEdge - tolerance;
+        const reaches = wrapsRight
+            ? line.endX >= fillEdge - tolerance
+            : line.x <= fillEdge + tolerance;
         if (reaches) reaching++;
     }
     return reaching * 2 < lines.length - 1;

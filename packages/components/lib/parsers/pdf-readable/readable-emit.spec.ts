@@ -30,9 +30,9 @@ describe('preserveLineBreaks', () => {
 
     it('measures the right edge for RTL stacks', () => {
         const lines: Line[] = [
-            lineOf('ערך', 500, 582, 600, { dir: 'rtl' }),
-            lineOf('ועוד', 505, 582, 584, { dir: 'rtl' }),
-            lineOf('ערך אחר', 470, 582, 568, { dir: 'rtl' }),
+            lineOf('ערך', 530, 582, 600, { dir: 'rtl' }),
+            lineOf('ועוד', 535, 582, 584, { dir: 'rtl' }),
+            lineOf('ערך ארוך יותר', 440, 582, 568, { dir: 'rtl' }),
         ];
         expect(preserveLineBreaks(lines)).toBe(true);
     });
