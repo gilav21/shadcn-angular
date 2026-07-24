@@ -135,10 +135,31 @@ function classifyGap(
     const fontSize = Math.max(previous.fontSize, item.fontSize);
     if (gap > fontSize * HARD_BREAK_EM) return 'break';
     if (gap < -fontSize * NEGATIVE_GAP_EM) return 'break';
+    if (directionFlips(previous.text, item.text)) return 'break';
     if (bimodal !== null) return gap >= bimodal ? 'space' : 'merge';
     const spaceWidth = estimateSpaceWidth(item, ctx) +
         Math.max(0, item.wordSpacing) + Math.max(0, item.charSpacing);
     return gap >= spaceWidth * SPACE_GAP_FACTOR ? 'space' : 'merge';
+}
+
+/**
+ * True when the two runs are of opposite strong direction — Hebrew/Arabic
+ * against Latin or digits. Such a boundary must not merge into one word even
+ * at a hairline gap: keeping them separate lets {@link toLogicalOrder} place an
+ * embedded number after its RTL label ("מספר צרכן 25024809") instead of gluing
+ * it in front ("25024809מספר צרכן").
+ */
+function directionFlips(previousText: string, incomingText: string): boolean {
+    return (isRtlRun(previousText) && isLtrRun(incomingText)) ||
+        (isLtrRun(previousText) && isRtlRun(incomingText));
+}
+
+function isRtlRun(text: string): boolean {
+    return RTL_RE.test(text);
+}
+
+function isLtrRun(text: string): boolean {
+    return !RTL_RE.test(text) && (STRONG_LTR_RE.test(text) || /\d/.test(text));
 }
 
 function estimateSpaceWidth(item: TextItem, ctx: WordBuildContext): number {

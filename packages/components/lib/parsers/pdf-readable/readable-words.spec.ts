@@ -159,6 +159,15 @@ describe('buildWords', () => {
         expect(words.map(w => w.text)).toEqual(['aaa b c d e f']);
     });
 
+    it('does not merge an RTL run with an adjacent number even at a hairline gap', () => {
+        const words = buildWords([
+            makeItem({ text: '25024809', x: 0, endX: 87 }),
+            makeItem({ text: 'מספר', x: 87.02, endX: 130 }),
+        ], ctx);
+        expect(words).toHaveLength(2);
+        expect(words[1].spaceBefore).toBe(true);
+    });
+
     it('returns no bimodal threshold for uniform gaps', () => {
         const items = [0, 10, 20, 30, 40].map(x => makeItem({ text: 'a', x, endX: x + 8 }));
         expect(bimodalGapThreshold(items)).toBeNull();
