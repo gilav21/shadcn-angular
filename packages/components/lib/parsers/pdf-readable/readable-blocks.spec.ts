@@ -202,6 +202,42 @@ describe('buildPageBlocks', () => {
         expect(blocks.some(b => b.kind === 'rule')).toBe(false);
     });
 
+    it('anchors a left-side standalone image to the left on an RTL page', () => {
+        const lines = [
+            lineOf('שלום עולם זהו טקסט עברית', 300, 560, 700, { dir: 'rtl' }),
+            lineOf('עוד שורה של טקסט עברית כאן', 300, 560, 686, { dir: 'rtl' }),
+        ];
+        const logo = {
+            dataUrl: 'data:image/png;base64,x',
+            width: 100, height: 40, renderWidth: 100, renderHeight: 40,
+            x: 20, y: 730, page: 0,
+        };
+        const page = pageExtractOf(lines, { images: [logo] });
+        const blocks = buildPageBlocks([...lines], page, true, ctx);
+        const imageBlock = blocks.find(b => b.kind === 'image');
+        expect(imageBlock?.kind).toBe('image');
+        if (imageBlock?.kind === 'image') {
+            expect(imageBlock.float).toBe('');
+            expect(imageBlock.style.align).toBe('left');
+        }
+    });
+
+    it('leaves a standalone image unanchored on an LTR page', () => {
+        const lines = [
+            lineOf('This is a line of ordinary English body text here', 50, 550, 700),
+            lineOf('and a second line of ordinary English body text', 50, 550, 686),
+        ];
+        const logo = {
+            dataUrl: 'data:image/png;base64,x',
+            width: 100, height: 40, renderWidth: 100, renderHeight: 40,
+            x: 20, y: 730, page: 0,
+        };
+        const page = pageExtractOf(lines, { images: [logo] });
+        const blocks = buildPageBlocks([...lines], page, true, ctx);
+        const imageBlock = blocks.find(b => b.kind === 'image');
+        if (imageBlock?.kind === 'image') expect(imageBlock.style.align).toBe('');
+    });
+
     it('floats an image sitting beside a multi-line paragraph', () => {
         const lines = [
             lineOf('Wrapping text beside image line one', 200, 550, 700),

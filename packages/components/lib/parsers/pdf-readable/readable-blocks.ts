@@ -3,6 +3,7 @@ import { classifyGroup, hasListMarker, type ClassifyContext, type GroupKind } fr
 import { resolveBlockStyle, type ColumnBounds } from './readable-styles';
 import { findColumnZone, findTableInBand } from './readable-tables';
 import type {
+    BlockAlign,
     BlockStyle,
     ColumnsBlock,
     DocBlock,
@@ -61,7 +62,20 @@ export function buildPageBlocks(
     if (images.length === 0) return withRules;
     const consumed = applyButtonBoxes(withRules, images);
     const remaining = consumed.size > 0 ? images.filter(img => !consumed.has(img)) : images;
-    return remaining.length > 0 ? interleaveImages(withRules, remaining, page.index) : withRules;
+    if (remaining.length === 0) return withRules;
+    return interleaveImages(withRules, remaining, page.index, isRtlPage(withRules) ? page.width : 0);
+}
+
+/** Majority of the text-bearing blocks read right-to-left. */
+function isRtlPage(blocks: readonly DocBlock[]): boolean {
+    let rtl = 0;
+    let total = 0;
+    for (const block of blocks) {
+        if (block.kind === 'image' || block.kind === 'rule') continue;
+        total++;
+        if (block.style.dir === 'rtl') rtl++;
+    }
+    return total > 0 && rtl * 2 > total;
 }
 
 /** A stroked outline outside this size band is a frame/panel, not a button. */
@@ -895,6 +909,7 @@ function interleaveImages(
     blocks: readonly DocBlock[],
     images: readonly ImageItem[],
     pageIndex: number,
+    rtlPageWidth: number,
 ): DocBlock[] {
     const floatsByHost = assignFloats(blocks, images);
     const floated = new Set([...floatsByHost.values()].map(f => f.image));
@@ -908,16 +923,35 @@ function interleaveImages(
         if (floatImage) result.push(floatImage);
         const blockTop = blockTopOf(block);
         while (imageIdx < inline.length && imageTop(inline[imageIdx]) > blockTop) {
-            result.push(imageBlockFrom(inline[imageIdx], pageIndex, ''));
+            result.push(standaloneImage(inline[imageIdx], pageIndex, rtlPageWidth));
             imageIdx++;
         }
         result.push(block);
     }
     while (imageIdx < inline.length) {
-        result.push(imageBlockFrom(inline[imageIdx], pageIndex, ''));
+        result.push(standaloneImage(inline[imageIdx], pageIndex, rtlPageWidth));
         imageIdx++;
     }
     return result;
+}
+
+/**
+ * A standalone image, anchored to its true horizontal side on an RTL page
+ * (rtlPageWidth > 0) so the RTL container does not right-anchor a logo that sat
+ * on the left. On LTR pages the inline default already matches, so no anchor is
+ * set (avoids disturbing existing output).
+ */
+function standaloneImage(image: ImageItem, pageIndex: number, rtlPageWidth: number): ImageBlock {
+    const block = imageBlockFrom(image, pageIndex, '');
+    if (rtlPageWidth > 0) block.style.align = imageSideAlign(image, rtlPageWidth);
+    return block;
+}
+
+function imageSideAlign(image: ImageItem, pageWidth: number): BlockAlign {
+    const center = (image.x + image.renderWidth / 2) / pageWidth;
+    if (center < 0.4) return 'left';
+    if (center > 0.6) return 'right';
+    return 'center';
 }
 
 /** Pairs each image that sits beside a multi-line text block with that block. */

@@ -1,5 +1,6 @@
 import { sameStyle } from './readable-words';
 import type {
+    BlockAlign,
     BlockStyle,
     ColumnsBlock,
     DocBlock,
@@ -222,8 +223,19 @@ function emitImage(block: ImageBlock): string {
     ];
     if (block.float) {
         pairs.push(['float', block.float], ['margin', '4pt']);
+    } else if (block.style.align) {
+        // A standalone image is inline by default, so an RTL page container
+        // right-anchors it regardless of where it sat on the page. Pin it to its
+        // true side with a block box and auto margins.
+        pairs.push(['display', 'block'], ...blockImageMargins(block.style.align));
     }
     return `<img src="${block.image.dataUrl}" alt="Embedded image" style="${styleAttr(pairs)}">`;
+}
+
+function blockImageMargins(align: BlockAlign): Array<[string, string]> {
+    if (align === 'right') return [['margin-left', 'auto']];
+    if (align === 'center') return [['margin-left', 'auto'], ['margin-right', 'auto']];
+    return [['margin-right', 'auto']];
 }
 
 /** Joins a block's lines into styled runs; hyphen-broken lines join seamlessly. */
