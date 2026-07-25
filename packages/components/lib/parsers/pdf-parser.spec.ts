@@ -1327,6 +1327,29 @@ describe('parsePdf - per-fragment extraction mode', () => {
     });
 });
 
+describe('parsePdf - glyph displacement scales with the text matrix (ISO 32000 §9.4.4)', () => {
+    it('endX includes the text-matrix horizontal scale so width/fontSize is scale-invariant', () => {
+        // Same text shown at matrix scale 1 and scale 2. Because endX is a
+        // device-space coordinate, its advance must be scaled by the text
+        // matrix; then (endX - x) / effectiveFontSize is identical for both.
+        const pdf = scaffold({
+            content: strToBytes('BT /F1 10 Tf 1 0 0 1 50 700 Tm (AB) Tj 2 0 0 2 50 600 Tm (AB) Tj ET'),
+            resources: '/Font << /F1 5 0 R >>',
+        }).obj(5, '/Type /Font /Subtype /Type1 /BaseFont /Helvetica').build();
+        const reader = new PdfReader(pdf);
+        reader.parse();
+        const pages = reader.getPages();
+        const items = extractPageContent(reader, pages[0], 0).textItems
+            .filter(t => t.text === 'AB');
+        expect(items).toHaveLength(2);
+        const [scale1, scale2] = items;
+        expect(scale2.fontSize).toBeCloseTo(scale1.fontSize * 2, 4);
+        const widthPerEm1 = (scale1.endX - scale1.x) / scale1.fontSize;
+        const widthPerEm2 = (scale2.endX - scale2.x) / scale2.fontSize;
+        expect(widthPerEm2).toBeCloseTo(widthPerEm1, 5);
+    });
+});
+
 describe('parsePdf - RTL (Hebrew) handling', () => {
     it('maps Hebrew via Encoding Differences and marks the paragraph RTL', async () => {
         // Map single-byte codes to Hebrew glyph names (afii57664.. style) so the

@@ -2518,7 +2518,7 @@ function processTextShow(
         fontSize: effectiveFontSize,
         x: combined[4],
         y: combined[5],
-        endX: combined[4] + advance,
+        endX: combined[4] + advance * scaleX,
         page: pageIndex,
         color: gs.fillColor,
         bold: fontInfo?.isBold ?? false,
