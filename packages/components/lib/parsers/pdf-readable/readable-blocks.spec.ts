@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { ImageItem, PathRect } from '../pdf-parser';
-import { applyUnderlines, asJustifiedRow, buildPageBlocks, splitJustifiedRows, xyCut } from './readable-blocks';
+import {
+    applyUnderlines,
+    asJustifiedRow,
+    asQuadrantRow,
+    buildPageBlocks,
+    extractLeadingQuadrant,
+    splitJustifiedRows,
+    xyCut,
+} from './readable-blocks';
 import type { ClassifyContext } from './readable-classify';
 import { blockLines } from './readable-emit';
 import { lineOf } from './readable-spec-helpers';
@@ -505,5 +513,91 @@ describe('splitJustifiedRows', () => {
             lineOf('body row two', 50, 400, 660, { fontSize: 13 }),
         ];
         expect(splitJustifiedRows(dense, 0, ctxB)).toBeNull();
+    });
+});
+
+// Sub-detector A — nested 2×2 quadrant at the head of a column cell.
+describe('asQuadrantRow', () => {
+    const cellLeft = 311;
+    const farXMin = 311 + 253 * 0.45; // 424.85
+
+    it('splits a left-edge segment and a far-x quadrant segment', () => {
+        const l = lineOf('Jerusalem Israel', 311, 427, 741, { fontSize: 14 });
+        const r = lineOf('/in/name/', 453, 543, 741, { fontSize: 14 });
+        const q = asQuadrantRow([l, r], cellLeft, farXMin);
+        expect(q?.left.words[0].text).toBe('Jerusalem Israel');
+        expect(q?.right.words[0].text).toBe('/in/name/');
+    });
+
+    it('rejects a single-segment row', () => {
+        const l = lineOf('Core Skills', 311, 376, 741, { fontSize: 14 });
+        expect(asQuadrantRow([l], cellLeft, farXMin)).toBeNull();
+    });
+
+    it('rejects a second segment that is not past the far-x threshold', () => {
+        const l = lineOf('label', 311, 360, 741, { fontSize: 14 });
+        const near = lineOf('value', 380, 420, 741, { fontSize: 14 });
+        expect(asQuadrantRow([l, near], cellLeft, farXMin)).toBeNull();
+    });
+
+    it('rejects a left segment that is not at the cell edge', () => {
+        const indented = lineOf('label', 345, 420, 741, { fontSize: 14 });
+        const r = lineOf('value', 453, 543, 741, { fontSize: 14 });
+        expect(asQuadrantRow([indented, r], cellLeft, farXMin)).toBeNull();
+    });
+});
+
+describe('extractLeadingQuadrant', () => {
+    const cellCtx: ClassifyContext = {
+        bodyFontSize: 14,
+        bodyLeading: 16.8,
+        structure: { mcidToType: new Map(), hasStructure: false },
+        pageBounds: { x0: 311, x1: 564 },
+    };
+    const q0L = lineOf('Jerusalem Israel', 311, 427, 741, { fontSize: 14 });
+    const q0R = lineOf('/in/name/', 453, 543, 741, { fontSize: 14 });
+    const q1L = lineOf('050 5340625', 311, 407, 723, { fontSize: 14 });
+    const q1R = lineOf('email addr', 437, 563, 723, { fontSize: 14 });
+    const heading = lineOf('Core Skills', 311, 376, 701, { fontSize: 14 });
+
+    it('peels a two-row contact quadrant and leaves the heading as rest', () => {
+        const result = extractLeadingQuadrant([q0L, q0R, q1L, q1R, heading], 0, 0, cellCtx);
+        expect(result).not.toBeNull();
+        expect(result?.block.kind).toBe('columns');
+        expect(result?.block.columns).toHaveLength(2);
+        expect(result?.rest).toHaveLength(1);
+        expect(result?.rest[0].words[0].text).toBe('Core Skills');
+    });
+
+    it('does not fire on a single quadrant row (below the minimum run)', () => {
+        expect(extractLeadingQuadrant([q0L, q0R, heading], 0, 0, cellCtx)).toBeNull();
+    });
+
+    it('does not fire when nothing single-column follows the run', () => {
+        expect(extractLeadingQuadrant([q0L, q0R, q1L, q1R], 0, 0, cellCtx)).toBeNull();
+    });
+
+    it('does not fire on a long run (a full two-column body)', () => {
+        const q2L = lineOf('third left', 311, 407, 705, { fontSize: 14 });
+        const q2R = lineOf('third right', 453, 543, 705, { fontSize: 14 });
+        const q3L = lineOf('fourth left', 311, 407, 687, { fontSize: 14 });
+        const q3R = lineOf('fourth right', 453, 543, 687, { fontSize: 14 });
+        const tail = lineOf('Core Skills', 311, 376, 669, { fontSize: 14 });
+        const col = [q0L, q0R, q1L, q1R, q2L, q2R, q3L, q3R, tail];
+        expect(extractLeadingQuadrant(col, 0, 0, cellCtx)).toBeNull();
+    });
+
+    it('does not fire on a single-column cell (dense prose column)', () => {
+        const prose = [
+            lineOf('prose line one', 311, 540, 741, { fontSize: 14 }),
+            lineOf('prose line two', 311, 540, 723, { fontSize: 14 }),
+            lineOf('prose line three', 311, 540, 701, { fontSize: 14 }),
+        ];
+        expect(extractLeadingQuadrant(prose, 0, 0, cellCtx)).toBeNull();
+    });
+
+    it('does not fire when the far-x starts scatter across the run', () => {
+        const scatterR = lineOf('email addr', 490, 563, 723, { fontSize: 14 });
+        expect(extractLeadingQuadrant([q0L, q0R, q1L, scatterR, heading], 0, 0, cellCtx)).toBeNull();
     });
 });

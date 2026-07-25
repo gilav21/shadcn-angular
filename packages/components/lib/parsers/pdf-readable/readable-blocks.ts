@@ -77,6 +77,21 @@ const JUSTIFIED_MIN_SEGMENT_CHARS = 3;
  *  bare symbol) — never half of a justified content header. */
 const MARKER_TOKEN_RE = /^[\divxlcm]+(?:[./-][\divxlcm]+)*%?$/i;
 
+/** A nested quadrant's second column must begin past this fraction of the cell
+ *  width — a genuine 2nd track, not a wrapped continuation. */
+const QUADRANT_FAR_X_RATIO = 0.45;
+
+/** The nested quadrant run must be at least this many consecutive rows. */
+const QUADRANT_MIN_ROWS = 2;
+
+/** …and no longer than this — a longer run is a full two-column body (owned by
+ *  the outer column pass), not a leading header quadrant. */
+const QUADRANT_MAX_ROWS = 3;
+
+/** The far-x starts across the run must agree within this many font-sizes to be
+ *  one shared second column rather than scattered wrapped text. */
+const QUADRANT_CLUSTER_FONTS = 2;
+
 /**
  * Converts one page's lines (top-to-bottom) into typed, ordered blocks:
  * recursive XY-cut into columns/regions, paragraph grouping, classification
@@ -412,12 +427,83 @@ function columnsBlockFrom(
 ): ColumnsBlock {
     const widthRatios = columnZoneRatios(columns);
     const groups = columns.map((col, i) => ({
-        blocks: cutToBlocks(col, depth + 1, pageIndex, { ...ctx, pageBounds: boundsOfLines(col) }),
+        blocks: cellToBlocks(col, depth, pageIndex, { ...ctx, pageBounds: boundsOfLines(col) }),
         widthRatio: widthRatios[i],
     }));
     const allLines = columns.flat();
     const dir = allLines.filter(l => l.dir === 'rtl').length * 2 > allLines.length ? 'rtl' : '';
     return { kind: 'columns', columns: groups, page: pageIndex, style: { ...emptyStyle(), dir } };
+}
+
+/**
+ * Builds one column cell's blocks. Sub-detector A first tries to peel a leading
+ * nested 2×2 quadrant (a contact card sitting atop a CV's right column) off the
+ * top of the cell; whatever it does not consume flows normally.
+ */
+function cellToBlocks(
+    col: Line[],
+    depth: number,
+    pageIndex: number,
+    cellCtx: ClassifyContext,
+): DocBlock[] {
+    if (DETECT_NESTED_STRUCTURE) {
+        const quadrant = extractLeadingQuadrant(col, depth, pageIndex, cellCtx);
+        if (quadrant) {
+            return [quadrant.block, ...cutToBlocks(quadrant.rest, depth + 1, pageIndex, cellCtx)];
+        }
+    }
+    return cutToBlocks(col, depth + 1, pageIndex, cellCtx);
+}
+
+/**
+ * Sub-detector A — a nested 2×2 quadrant at the head of a column cell. A short
+ * leading run (≤ {@link QUADRANT_MAX_ROWS}) of baseline rows that each carry a
+ * segment at the cell's left edge AND a second segment past a far-x threshold,
+ * whose far-x starts agree across the run, followed by single-column content, is
+ * a 2×2 grid the outer column pass could not see (the doc2 contact card:
+ * Jerusalem|LinkedIn / phone|email above the "Core Skills" heading). It emits as
+ * a nested borderless two-column block; the trailing content flows normally.
+ * Returns null unless the whole shape holds — dense prose columns (their cells
+ * are single-column) and marker+text rows never match.
+ */
+export function extractLeadingQuadrant(
+    col: Line[],
+    depth: number,
+    pageIndex: number,
+    ctx: ClassifyContext,
+): { block: ColumnsBlock; rest: Line[] } | null {
+    const rows = groupByBaseline(col);
+    const cell = boundsOfLines(col);
+    const farXMin = cell.x0 + (cell.x1 - cell.x0) * QUADRANT_FAR_X_RATIO;
+    const run: { left: Line; right: Line }[] = [];
+    for (const row of rows) {
+        const quadrantRow = asQuadrantRow(row, cell.x0, farXMin);
+        if (!quadrantRow) break;
+        run.push(quadrantRow);
+    }
+    if (run.length < QUADRANT_MIN_ROWS || run.length > QUADRANT_MAX_ROWS) return null;
+    if (run.length >= rows.length) return null;
+    const fontSize = Math.max(...run.flatMap(q => [q.left.fontSize, q.right.fontSize]));
+    const farXs = run.map(q => q.right.x);
+    if (Math.max(...farXs) - Math.min(...farXs) > fontSize * QUADRANT_CLUSTER_FONTS) return null;
+    const block = columnsBlockFrom(
+        [run.map(q => q.left), run.map(q => q.right)], depth + 1, pageIndex, ctx,
+    );
+    return { block, rest: rows.slice(run.length).flat() };
+}
+
+/** A cell row split into its left-edge segment and a far-x quadrant segment. */
+export function asQuadrantRow(
+    row: readonly Line[],
+    cellLeft: number,
+    farXMin: number,
+): { left: Line; right: Line } | null {
+    if (row.length !== 2) return null;
+    const [a, b] = row;
+    const [left, right] = a.x <= b.x ? [a, b] : [b, a];
+    if (left.x > cellLeft + Math.max(left.fontSize, right.fontSize)) return null;
+    if (right.x < farXMin) return null;
+    return { left, right };
 }
 
 /**
