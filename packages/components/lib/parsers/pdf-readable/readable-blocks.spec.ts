@@ -186,6 +186,22 @@ describe('buildPageBlocks', () => {
         }
     });
 
+    it('does not emit a table row separator as a document rule', () => {
+        const lines: Line[] = [];
+        for (const y of [700, 680, 660, 640]) {
+            lines.push(lineOf('Item', 50, 120, y), lineOf('Qty', 250, 300, y), lineOf('Total', 430, 500, y));
+        }
+        const rowSeparator: PathRect = {
+            x: 50, y: 670, width: 300, height: 0.75,
+            page: 0, stroked: true, filled: false,
+            strokeColor: '#999999', fillColor: '#ffffff', lineWidth: 0.75,
+        };
+        const page = pageExtractOf(lines, { rects: [rowSeparator] });
+        const blocks = buildPageBlocks([...lines], page, false, ctx);
+        expect(blocks.some(b => b.kind === 'table')).toBe(true);
+        expect(blocks.some(b => b.kind === 'rule')).toBe(false);
+    });
+
     it('floats an image sitting beside a multi-line paragraph', () => {
         const lines = [
             lineOf('Wrapping text beside image line one', 200, 550, 700),

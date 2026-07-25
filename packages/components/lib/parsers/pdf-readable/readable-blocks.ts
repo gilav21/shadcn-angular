@@ -31,6 +31,9 @@ const UNDERLINE_MAX_HEIGHT = 2.5;
 const RULE_MAX_HEIGHT = 3;
 /** Rules within this vertical distance (pt) collapse to one separator. */
 const RULE_MERGE_GAP = 4;
+/** A rule candidate within this distance (pt) of a table's row band counts as
+ *  the table's own grid, not a document rule. */
+const RULE_TABLE_MARGIN = 2;
 
 /**
  * Converts one page's lines (top-to-bottom) into typed, ordered blocks:
@@ -52,7 +55,7 @@ export function buildPageBlocks(
     const tableRects = page.rects.filter(rect => !usedRects.has(rect));
     const blocks = linesToBlocks(lines, tableRects, page.index, ctx, usedRects);
     applyFillBackgrounds(blocks, page.rects);
-    const withRules = interleaveByTop(blocks, detectRules(page, usedRects, lines));
+    const withRules = interleaveByTop(blocks, detectRules(page, usedRects, lines, blocks));
     if (!includeImages || page.images.length === 0) return withRules;
     const images = page.images.filter(img => !isBackgroundDecoration(img, page.width * page.height));
     if (images.length === 0) return withRules;
@@ -799,16 +802,19 @@ function detectRules(
     page: PageExtract,
     usedRects: ReadonlySet<PathRect>,
     lines: readonly Line[],
+    blocks: readonly DocBlock[],
 ): RuleBlock[] {
     const contentWidth = lines.length > 0
         ? Math.max(...lines.map(l => l.endX)) - Math.min(...lines.map(l => l.x))
         : page.width;
+    const tableSpans = tableRowSpans(blocks);
     const candidates = page.rects
         .filter(rect => !usedRects.has(rect) &&
             rect.height <= RULE_MAX_HEIGHT &&
             rect.width >= contentWidth * 0.4 &&
             (rect.stroked || rect.filled) &&
-            !isNearWhite(rect.filled ? rect.fillColor : rect.strokeColor))
+            !isNearWhite(rect.filled ? rect.fillColor : rect.strokeColor) &&
+            !insideAnySpan(rect.y, tableSpans))
         .map(rect => rect.y)
         .sort((a, b) => b - a);
     return dedupeCloseTops(candidates).map(top => ({
@@ -817,6 +823,27 @@ function detectRules(
         style: emptyStyle(),
         top,
     }));
+}
+
+/**
+ * Vertical extents of the detected tables. A thin wide rect inside one is a
+ * cell border / row separator (the table's own structure), not a standalone
+ * document rule — an unruled data table (invoice, statement) is reconstructed
+ * from geometry, so its grey grid lines are never consumed as table rects and
+ * would otherwise leak out as spurious rules between the rows.
+ */
+function tableRowSpans(blocks: readonly DocBlock[]): Array<{ top: number; bottom: number }> {
+    const spans: Array<{ top: number; bottom: number }> = [];
+    for (const block of blocks) {
+        if (block.kind !== 'table') continue;
+        const ys = block.rows.flatMap(row => row.flatMap(cell => cell.lines.map(l => l.y)));
+        if (ys.length > 0) spans.push({ top: Math.max(...ys), bottom: Math.min(...ys) });
+    }
+    return spans;
+}
+
+function insideAnySpan(y: number, spans: ReadonlyArray<{ top: number; bottom: number }>): boolean {
+    return spans.some(span => y >= span.bottom - RULE_TABLE_MARGIN && y <= span.top + RULE_TABLE_MARGIN);
 }
 
 /** Collapses rules whose tops sit within {@link RULE_MERGE_GAP} — one drawn
