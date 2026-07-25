@@ -286,6 +286,18 @@ describe('toLogicalOrder', () => {
         expect(logical[2].spaceBefore).toBe(false);
     });
 
+    it('keeps a boundary colon on the RTL side of an embedded number', () => {
+        const words = [wordOf('00313', 184), wordOf(':', 255), wordOf('זהות', 278)];
+        const logical = toLogicalOrder(words, 'rtl');
+        expect(logical.map(w => w.text)).toEqual(['זהות', ':', '00313']);
+    });
+
+    it('still carries a neutral between two LTR numbers with them', () => {
+        const words = [wordOf('שלום', 0), wordOf('12', 20), wordOf(':', 30), wordOf('34', 40), wordOf('עולם', 60)];
+        const logical = toLogicalOrder(words, 'rtl');
+        expect(logical.map(w => w.text)).toEqual(['עולם', '12', ':', '34', 'שלום']);
+    });
+
     it('leaves LTR lines untouched', () => {
         const words = [wordOf('a'), wordOf('b')];
         expect(toLogicalOrder(words, 'ltr')).toBe(words);

@@ -16,6 +16,10 @@ const WORD_MARGIN_EM = 0.15;
 const MIN_VALLEY_EM = 0.08;
 const RTL_RE = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
 const STRONG_LTR_RE = /[A-Za-z\u00C0-\u024F]/u;
+/** A word with no letters and no digits \u2014 punctuation/symbols only (a
+ *  standalone ":" separator, brackets), whose bidi direction is resolved from
+ *  its neighbours rather than its own content. */
+const NEUTRAL_WORD_RE = /^[^\p{L}\p{N}]+$/u;
 
 export interface WordBuildContext {
     readonly annotations: readonly PdfAnnotation[];
@@ -300,9 +304,10 @@ function recomputeLogicalSpaces(words: Word[], visualSpaceBefore: Map<Word, bool
 }
 
 function restoreLtrRuns(words: Word[]): void {
+    const inLtrRun = ltrRunMembership(words);
     let runStart = -1;
     for (let i = 0; i <= words.length; i++) {
-        const isLtr = i < words.length && isLtrWord(words[i]);
+        const isLtr = i < words.length && inLtrRun[i];
         if (isLtr && runStart < 0) runStart = i;
         if (!isLtr && runStart >= 0) {
             reverseRange(words, runStart, i - 1);
@@ -312,14 +317,36 @@ function restoreLtrRuns(words: Word[]): void {
 }
 
 /**
- * Whether a word keeps its visual left-to-right position when an RTL line is
- * reordered. Any run without RTL letters — Latin, digits, and the neutral
- * punctuation between them (the hyphens in "050-5340625", dots in decimals) —
- * qualifies, so multi-part numbers and Latin phrases are not reversed
- * character-group by character-group inside Hebrew text.
+ * Marks which words keep their visual left-to-right position when an RTL line
+ * is reordered. A word with Latin letters or digits always qualifies. A
+ * neutral-only word (punctuation/symbols — e.g. a standalone ":") qualifies
+ * only when its nearest non-neutral neighbours on BOTH sides are LTR: per the
+ * Unicode bidi neutral rules a neutral between two LTR runs takes LTR, but one
+ * at the boundary with RTL (a field label's colon before a number) takes the
+ * paragraph direction and must stay on the RTL side.
  */
-function isLtrWord(word: Word): boolean {
-    return !RTL_RE.test(word.text);
+function ltrRunMembership(words: readonly Word[]): boolean[] {
+    const classes = words.map(wordBidiClass);
+    return classes.map((cls, i) => {
+        if (cls === 'ltr') return true;
+        if (cls === 'rtl') return false;
+        return nearestStrongIsLtr(classes, i, -1) && nearestStrongIsLtr(classes, i, 1);
+    });
+}
+
+type BidiClass = 'ltr' | 'rtl' | 'neutral';
+
+function wordBidiClass(word: Word): BidiClass {
+    if (RTL_RE.test(word.text)) return 'rtl';
+    return NEUTRAL_WORD_RE.test(word.text) ? 'neutral' : 'ltr';
+}
+
+/** Whether the nearest non-neutral word from `from` in `step` direction is LTR. */
+function nearestStrongIsLtr(classes: readonly BidiClass[], from: number, step: number): boolean {
+    for (let i = from + step; i >= 0 && i < classes.length; i += step) {
+        if (classes[i] !== 'neutral') return classes[i] === 'ltr';
+    }
+    return false;
 }
 
 function reverseRange(words: Word[], start: number, end: number): void {
