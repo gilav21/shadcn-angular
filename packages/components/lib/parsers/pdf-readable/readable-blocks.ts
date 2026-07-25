@@ -6,9 +6,11 @@ import type {
     BlockStyle,
     ColumnsBlock,
     DocBlock,
+    HeadingBlock,
     ImageBlock,
     Line,
     PageExtract,
+    ParagraphBlock,
     RuleBlock,
     TableBlock,
 } from './readable-types';
@@ -45,7 +47,82 @@ export function buildPageBlocks(
     const withRules = interleaveByTop(blocks, detectRules(page, usedRects, lines));
     if (!includeImages || page.images.length === 0) return withRules;
     const images = page.images.filter(img => !isBackgroundDecoration(img, page.width * page.height));
-    return images.length > 0 ? interleaveImages(withRules, images, page.index) : withRules;
+    if (images.length === 0) return withRules;
+    const consumed = applyButtonBoxes(withRules, images);
+    const remaining = consumed.size > 0 ? images.filter(img => !consumed.has(img)) : images;
+    return remaining.length > 0 ? interleaveImages(withRules, remaining, page.index) : withRules;
+}
+
+/** A stroked outline outside this size band is a frame/panel, not a button. */
+const BUTTON_MIN_W = 24;
+const BUTTON_MAX_W = 320;
+const BUTTON_MIN_H = 10;
+const BUTTON_MAX_H = 60;
+/** A button label is at most this many words on one line. */
+const BUTTON_MAX_WORDS = 4;
+
+/**
+ * Reconstructs a bordered button. A PDF draws a button as an unfilled stroked
+ * rounded-rect outline plus an independent text label; a flow layout cannot
+ * overlap them, so they render as an empty box stacked above a loose label.
+ * When a button-sized outline geometrically contains exactly one short
+ * single-line text block, that block takes the outline as a CSS border and the
+ * outline image — plus any identical fill twin painted behind it — is withheld
+ * from image interleaving. Ambiguous outlines (zero or several contained
+ * labels) are left untouched so panels and framed paragraphs never collapse.
+ */
+function applyButtonBoxes(blocks: readonly DocBlock[], images: readonly ImageItem[]): Set<ImageItem> {
+    const consumed = new Set<ImageItem>();
+    for (const outline of images) {
+        if (!isButtonOutline(outline)) continue;
+        const label = singleContainedLabel(blocks, outline);
+        if (!label) continue;
+        const width = outline.svgStrokeWidth && outline.svgStrokeWidth > 0 ? outline.svgStrokeWidth : 1;
+        label.style.border = `${width.toFixed(1)}pt solid ${outline.svgStrokeColor}`;
+        consumed.add(outline);
+        for (const twin of images) {
+            if (twin !== outline && sameBox(twin, outline)) consumed.add(twin);
+        }
+    }
+    return consumed;
+}
+
+function isButtonOutline(img: ImageItem): boolean {
+    if (!img.svgStrokeColor) return false;
+    const w = img.renderWidth;
+    const h = img.renderHeight;
+    return w >= BUTTON_MIN_W && w <= BUTTON_MAX_W && h >= BUTTON_MIN_H && h <= BUTTON_MAX_H && w > h;
+}
+
+function sameBox(a: ImageItem, b: ImageItem): boolean {
+    return Math.abs(a.x - b.x) <= 2 && Math.abs(a.y - b.y) <= 2
+        && Math.abs(a.renderWidth - b.renderWidth) <= 2
+        && Math.abs(a.renderHeight - b.renderHeight) <= 2;
+}
+
+/** The lone short single-line label whose centre sits inside the outline, or
+ *  null when zero or several blocks qualify (ambiguous). */
+function singleContainedLabel(
+    blocks: readonly DocBlock[],
+    outline: ImageItem,
+): ParagraphBlock | HeadingBlock | null {
+    let found: ParagraphBlock | HeadingBlock | null = null;
+    for (const block of blocks) {
+        if (block.kind !== 'paragraph' && block.kind !== 'heading') continue;
+        if (block.lines.length !== 1 || block.lines[0].words.length > BUTTON_MAX_WORDS) continue;
+        if (!outlineContainsLine(outline, block.lines[0])) continue;
+        if (found) return null;
+        found = block;
+    }
+    return found;
+}
+
+/** The image `y` is the outline's vertical centre; its true band is y ± h/2. */
+function outlineContainsLine(outline: ImageItem, line: Line): boolean {
+    const halfHeight = outline.renderHeight / 2;
+    const centerX = (line.x + line.endX) / 2;
+    return centerX >= outline.x && centerX <= outline.x + outline.renderWidth
+        && line.y >= outline.y - halfHeight && line.y <= outline.y + halfHeight;
 }
 
 /**
@@ -723,9 +800,11 @@ function detectRules(
  *  separator is often several overlapping sub-pixel rects. */
 function dedupeCloseTops(descendingTops: readonly number[]): number[] {
     const result: number[] = [];
+    let last = Infinity;
     for (const top of descendingTops) {
-        if (result.length === 0 || result[result.length - 1] - top > RULE_MERGE_GAP) {
+        if (last - top > RULE_MERGE_GAP) {
             result.push(top);
+            last = top;
         }
     }
     return result;
@@ -740,7 +819,7 @@ function isNearWhite(color: string): boolean {
 }
 
 function emptyStyle(): BlockStyle {
-    return { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '', background: '' };
+    return { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '', background: '', border: '' };
 }
 
 // ── Image & rule interleaving ───────────────────────────────────────────

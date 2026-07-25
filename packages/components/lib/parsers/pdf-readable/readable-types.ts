@@ -126,6 +126,10 @@ export interface BlockStyle {
     dir: TextDirection | '';
     /** Background colour reconstructed from a filled rect behind the block; '' when none. */
     background: string;
+    /** CSS border reconstructed from a stroked box (e.g. a button outline) the
+     *  block sits inside; '' when none. Renders the block as a bordered,
+     *  shrink-wrapped inline box. */
+    border: string;
 }
 
 export interface ParagraphBlock {

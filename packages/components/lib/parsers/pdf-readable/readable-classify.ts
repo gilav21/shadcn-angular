@@ -2,7 +2,7 @@ import type { StructureMap } from '../pdf-parser';
 import { detectAlignment, type ColumnBounds } from './readable-styles';
 import type { HeadingBlock, HeadingLevel, Line, ListItemModel, PageModel, Word } from './readable-types';
 
-const HEADING_SCORE_THRESHOLD = 1.0;
+const HEADING_SCORE_THRESHOLD = 1;
 const MAX_HEADING_LINES = 2;
 const STRUCTURE_COVERAGE = 0.8;
 const BULLET_RE = /^[•◦▪‣·∙*–—-]$|^[•◦▪‣·∙]/u;

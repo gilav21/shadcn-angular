@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PathRect } from '../pdf-parser';
+import type { ImageItem, PathRect } from '../pdf-parser';
 import { applyUnderlines, buildPageBlocks, xyCut } from './readable-blocks';
 import type { ClassifyContext } from './readable-classify';
 import { blockLines } from './readable-emit';
@@ -257,5 +257,55 @@ describe('buildPageBlocks — side-by-side columns', () => {
         ];
         const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
         expect(blocks.some(b => b.kind === 'columns')).toBe(false);
+    });
+});
+
+describe('button box reconstruction', () => {
+    function outlineOf(
+        x: number, y: number, w: number, h: number,
+        overrides?: Partial<ImageItem>,
+    ): ImageItem {
+        return {
+            dataUrl: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
+            width: w, height: h, renderWidth: w, renderHeight: h,
+            x, y, page: 0,
+            svgStrokeColor: '#707070', svgStrokeWidth: 1,
+            ...overrides,
+        };
+    }
+
+    it('gives a short label inside a stroked outline a border and drops the box', () => {
+        const label = lineOf('Print', 40, 92, 503, { fontSize: 17 });
+        const outline = outlineOf(29, 509, 77, 36);
+        const blocks = buildPageBlocks([label], pageExtractOf([label], { images: [outline] }), true, ctx);
+        expect(blocks.some(b => b.kind === 'image')).toBe(false);
+        const boxed = blocks.find(b => (b.kind === 'paragraph' || b.kind === 'heading') && b.style.border !== '');
+        expect(boxed).toBeDefined();
+        expect(boxed?.style.border).toBe('1.0pt solid #707070');
+    });
+
+    it('also drops the white fill twin painted behind the outline', () => {
+        const label = lineOf('OK', 40, 70, 503, { fontSize: 17 });
+        const fill = outlineOf(29, 509, 77, 36, { svgStrokeColor: '', svgStrokeWidth: 0 });
+        const stroke = outlineOf(29, 509, 77, 36);
+        const blocks = buildPageBlocks([label], pageExtractOf([label], { images: [fill, stroke] }), true, ctx);
+        expect(blocks.some(b => b.kind === 'image')).toBe(false);
+    });
+
+    it('leaves a large framed panel alone (outline too big for a button)', () => {
+        const label = lineOf('Section title inside a page frame', 60, 400, 700, { fontSize: 12 });
+        const frame = outlineOf(40, 400, 500, 300);
+        const blocks = buildPageBlocks([label], pageExtractOf([label], { images: [frame] }), true, ctx);
+        expect(blocks.some(b => b.kind === 'image')).toBe(true);
+        const boxed = blocks.find(b => (b.kind === 'paragraph' || b.kind === 'heading') && b.style.border !== '');
+        expect(boxed).toBeUndefined();
+    });
+
+    it('leaves an outline enclosing several labels alone (ambiguous)', () => {
+        const a = lineOf('One', 40, 70, 512, { fontSize: 12 });
+        const b = lineOf('Two', 40, 70, 500, { fontSize: 12 });
+        const outline = outlineOf(29, 506, 77, 36);
+        const blocks = buildPageBlocks([a, b], pageExtractOf([a, b], { images: [outline] }), true, ctx);
+        expect(blocks.some(b2 => b2.kind === 'image')).toBe(true);
     });
 });

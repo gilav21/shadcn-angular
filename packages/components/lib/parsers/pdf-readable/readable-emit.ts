@@ -372,6 +372,7 @@ function runDeltaPairs(
 
 function blockStylePairs(style: BlockStyle, inColumn = false): Array<[string, string]> {
     const marginTop = inColumn && style.marginTop <= 0 ? '0' : ptOrEmpty(style.marginTop);
+    const boxed = style.background !== '' || style.border !== '';
     const pairs: Array<[string, string]> = [
         ['text-align', style.align],
         [style.dir === 'rtl' ? 'margin-right' : 'margin-left', ptOrEmpty(style.indentStart)],
@@ -379,8 +380,10 @@ function blockStylePairs(style: BlockStyle, inColumn = false): Array<[string, st
         ['line-height', style.lineHeight > 0 ? String(style.lineHeight) : ''],
         ['margin-top', marginTop],
         ['background', style.background],
-        ['padding', style.background ? '4pt 8pt' : ''],
-        ['border-radius', style.background ? '3pt' : ''],
+        ['border', style.border],
+        ['display', style.border ? 'inline-block' : ''],
+        ['padding', boxed ? '4pt 8pt' : ''],
+        ['border-radius', boxed ? '3pt' : ''],
     ];
     if (inColumn) pairs.push(['margin-bottom', '0']);
     return pairs;

@@ -633,6 +633,12 @@ export interface ImageItem {
     x: number;
     y: number;
     page: number;
+    /** For SVG vector items only: the stroke colour of an unfilled outline
+     *  (e.g. a button border), or '' when the shape is not a plain outline.
+     *  Undefined for raster images. */
+    svgStrokeColor?: string;
+    /** For SVG vector items only: stroke width in pt. */
+    svgStrokeWidth?: number;
 }
 
 export interface PathRect {
@@ -3197,6 +3203,7 @@ function pathOpsToSvg(ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext,
 
     const svgHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${(minX - 1).toFixed(1)} ${(minY - 1).toFixed(1)} ${width} ${height}" style="max-width:100%;height:auto"><path d="${d}" ${fillAttr} ${strokeAttr}${opacityAttr}/></svg>`;
 
+    const strokeWidth = Math.max(ctx.gs.lineWidth, 0.5);
     const avgY = (minY + maxY) / 2;
     ctx.imageItems.push({
         dataUrl: `data:image/svg+xml;base64,${btoa(svgHtml)}`,
@@ -3207,6 +3214,8 @@ function pathOpsToSvg(ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext,
         x: minX,
         y: avgY,
         page: ctx.pageIndex,
+        svgStrokeColor: stroked && !filled ? ctx.gs.strokeColor : '',
+        svgStrokeWidth: stroked ? strokeWidth : 0,
     });
 }
 

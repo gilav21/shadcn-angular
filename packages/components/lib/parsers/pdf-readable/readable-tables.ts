@@ -730,6 +730,7 @@ function makeTableBlock(
             marginTop: 0,
             dir: rtl ? 'rtl' : '',
             background: '',
+            border: '',
         },
     };
 }

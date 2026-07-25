@@ -35,6 +35,7 @@ export function resolveBlockStyle(
         marginTop: computeMarginTop(lines, previousBaseline, lineHeight),
         dir,
         background: '',
+        border: '',
     };
 }
 
