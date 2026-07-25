@@ -843,6 +843,22 @@ export class FontRegistry {
         return entry?.glyphFixupMap?.get(code);
     }
 
+    /**
+     * Advance for a Unicode code point in thousandths of an em, preferring the
+     * PDF-declared `/Widths` (the spec-authoritative positioning metric, ISO
+     * 32000 §9.2.4) that {@link buildUnicodeFallbackWidths} records, or null
+     * when the font declares none. Unlike {@link getGlyphAdvance} this never
+     * returns the embedded program's design advance, which can disagree with
+     * the width the generator actually laid text out with (e.g. an inflated
+     * space glyph).
+     */
+    getDeclaredAdvance(fontName: string, unicode: string): number | null {
+        const entry = this.getEntry(fontName);
+        const cp = unicode.codePointAt(0) ?? 0;
+        if (!entry?.unicodeFallbackWidths || cp <= 0) return null;
+        return entry.unicodeFallbackWidths.get(cp) ?? null;
+    }
+
     private allUniqueEntries(): FontRegistryEntry[] {
         const seen = new Set<number>();
         const result: FontRegistryEntry[] = [];

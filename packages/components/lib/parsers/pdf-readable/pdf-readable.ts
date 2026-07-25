@@ -99,7 +99,9 @@ function buildDocModel(
         clusters: clusterIntoLineItems(page.items),
         ctx: {
             annotations: page.annotations,
-            spaceAdvance: (fontName: string) => registry?.getGlyphAdvance(fontName, 32, ' ') ?? null,
+            spaceAdvance: (fontName: string) =>
+                registry?.getDeclaredAdvance(fontName, ' ') ??
+                registry?.getGlyphAdvance(fontName, 32, ' ') ?? null,
         } satisfies WordBuildContext,
     }));
     applyRtlWordFixes(prepared.flatMap(entry => entry.clusters));

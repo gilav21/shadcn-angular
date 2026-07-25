@@ -176,6 +176,18 @@ describe('buildWords', () => {
         expect(words[1].spaceBefore).toBe(true);
     });
 
+    it('splits words on the declared space width without a bimodal valley', () => {
+        // Font declares a 0.25em space; at fontSize 12 that is 3pt, break
+        // threshold 0.45*3 = 1.35pt. A 3pt gap is a space, a 0.5pt gap merges.
+        const declared: WordBuildContext = { annotations: [], spaceAdvance: () => 250 };
+        const joined = buildWords([
+            makeItem({ text: 'foo', x: 0, endX: 20, fontSize: 12 }),
+            makeItem({ text: 'bar', x: 20.5, endX: 40, fontSize: 12 }),
+            makeItem({ text: 'baz', x: 43, endX: 63, fontSize: 12 }),
+        ], declared).map(w => w.text).join('|');
+        expect(joined).toBe('foobar baz');
+    });
+
     it('returns no bimodal threshold for uniform gaps', () => {
         const items = [0, 10, 20, 30, 40].map(x => makeItem({ text: 'a', x, endX: x + 8 }));
         expect(bimodalGapThreshold(items)).toBeNull();

@@ -140,6 +140,11 @@ function classifyGap(
     if (gap > fontSize * HARD_BREAK_EM) return 'break';
     if (gap < -fontSize * NEGATIVE_GAP_EM) return 'break';
     if (directionFlips(previous.text, item.text)) return 'break';
+    const known = knownSpaceWidth(item, ctx);
+    if (known !== null) {
+        const spaceWidth = known + Math.max(0, item.wordSpacing) + Math.max(0, item.charSpacing);
+        return gap >= spaceWidth * SPACE_GAP_FACTOR ? 'space' : 'merge';
+    }
     if (bimodal !== null) return gap >= bimodal ? 'space' : 'merge';
     const spaceWidth = estimateSpaceWidth(item, ctx) +
         Math.max(0, item.wordSpacing) + Math.max(0, item.charSpacing);
@@ -166,11 +171,26 @@ function isLtrRun(text: string): boolean {
     return !RTL_RE.test(text) && (STRONG_LTR_RE.test(text) || /\d/.test(text));
 }
 
+/** Space width in points, falling back to {@link DEFAULT_SPACE_EM} when the
+ *  font declares no space advance. */
 function estimateSpaceWidth(item: TextItem, ctx: WordBuildContext): number {
+    const known = knownSpaceWidth(item, ctx);
+    if (known !== null) return known;
     const scale = item.horizontalScaling > 0 ? item.horizontalScaling / 100 : 1;
+    return DEFAULT_SPACE_EM * item.fontSize * scale;
+}
+
+/**
+ * Width of the font's declared space glyph in points, or null when the font
+ * declares no usable space advance. The declared (`/Widths`) advance is the
+ * spec-exact word-break yardstick (ISO 32000 §9.4.4), so the caller prefers it
+ * over the statistical {@link bimodalGapThreshold} fallback.
+ */
+function knownSpaceWidth(item: TextItem, ctx: WordBuildContext): number | null {
     const advance = ctx.spaceAdvance(item.fontName);
-    const em = advance !== null && advance > 0 ? advance / 1000 : DEFAULT_SPACE_EM;
-    return em * item.fontSize * scale;
+    if (advance === null || advance <= 0) return null;
+    const scale = item.horizontalScaling > 0 ? item.horizontalScaling / 100 : 1;
+    return (advance / 1000) * item.fontSize * scale;
 }
 
 /**
