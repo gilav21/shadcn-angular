@@ -37,6 +37,47 @@ const RULE_MERGE_GAP = 4;
 const RULE_TABLE_MARGIN = 2;
 
 /**
+ * Master switch for the nested-structure detectors (sub-detector B: left/right
+ * justified single-baseline rows; sub-detector A: nested 2×2 quadrant in a
+ * cell). Default OFF — a resolved region flows exactly as before until each
+ * detector has been validated equal-or-better across the whole doc set.
+ */
+const DETECT_NESTED_STRUCTURE = true;
+
+/** A justified row's inter-segment gap must span at least this fraction of the
+ *  region width to count as a genuine left/right split rather than a word gap. */
+const JUSTIFIED_GAP_RATIO = 0.25;
+
+/** Both segments of a justified row must hug their region edge within this many
+ *  font-sizes (edge-pinned test). */
+const JUSTIFIED_EDGE_FONTS = 2;
+
+/** A justified header band is short — a title strip, not a column of prose.
+ *  Regions taller than this (dense multi-column pages, long content blocks) are
+ *  never a two-item header. */
+const JUSTIFIED_MAX_ROWS = 2;
+
+/** The band must span most of the page/column width; a narrow region is a prose
+ *  column whose per-glyph line happens to reach both its own edges. */
+const JUSTIFIED_MIN_WIDTH_RATIO = 0.5;
+
+/** Absolute floor (pt) on the band width. A justified header spans a wide page
+ *  band; a narrow region (an in-cell amount|label row, whose scoped page bounds
+ *  make the ratio test pass) belongs to the nested-cell detector, not here. */
+const JUSTIFIED_MIN_WIDTH_PT = 300;
+
+/** A header sits at body weight or larger; a sub-body strip (a print-chrome
+ *  timestamp/URL footer) is not a document header. */
+const JUSTIFIED_MIN_FONT_RATIO = 0.95;
+
+/** Minimum trimmed length for each segment — a shorter one is a marker glyph. */
+const JUSTIFIED_MIN_SEGMENT_CHARS = 3;
+
+/** A page-number / list-marker token (digits, roman numerals, a fraction, a
+ *  bare symbol) — never half of a justified content header. */
+const MARKER_TOKEN_RE = /^[\divxlcm]+(?:[./-][\divxlcm]+)*%?$/i;
+
+/**
  * Converts one page's lines (top-to-bottom) into typed, ordered blocks:
  * recursive XY-cut into columns/regions, paragraph grouping, classification
  * (headings/lists/blockquotes), underline flagging from drawn rects,
@@ -650,6 +691,19 @@ function regionToBlocks(rawRegion: Line[], pageIndex: number, ctx: ClassifyConte
             ...regionToBlocks(tableSplit.after, pageIndex, ctx),
         ];
     }
+    if (DETECT_NESTED_STRUCTURE) {
+        const justified = splitJustifiedRows(rawRegion, pageIndex, ctx);
+        if (justified) return justified;
+    }
+    return flowRegionToBlocks(rawRegion, pageIndex, ctx);
+}
+
+/**
+ * Flows a region's hard-break segments into stacked paragraph/heading/list
+ * blocks: rejoin same-baseline segments, split into paragraph groups, classify
+ * each. This is the terminal (non-column, non-table) path of a resolved region.
+ */
+function flowRegionToBlocks(rawRegion: Line[], pageIndex: number, ctx: ClassifyContext): DocBlock[] {
     const region = mergeSameBaselineLines(rawRegion);
     const bounds = boundsOfLines(region);
     const groups = splitIntoParagraphGroups(region);
@@ -725,6 +779,109 @@ export function boundsOfLines(lines: readonly Line[]): ColumnBounds {
         x0: Math.min(...lines.map(l => l.x)),
         x1: Math.max(...lines.map(l => l.endX)),
     };
+}
+
+/**
+ * Sub-detector B — left/right justified single-baseline rows. A region row that
+ * carries exactly two segments each pinned to an opposite region edge with a
+ * wide gap between them (a receipt's "−$15.00 USD … Lemon Squeezy LLC" header)
+ * is a two-column layout that {@link mergeSameBaselineLines} would otherwise
+ * flatten into one line. Such rows emit as a borderless two-cell row; the rest
+ * of the region flows normally. Returns null when no row qualifies, so the
+ * region is left to the standard flow path untouched.
+ */
+export function splitJustifiedRows(
+    rawRegion: Line[],
+    pageIndex: number,
+    ctx: ClassifyContext,
+): DocBlock[] | null {
+    const bounds = boundsOfLines(rawRegion);
+    const width = bounds.x1 - bounds.x0;
+    if (width <= 0) return null;
+    const rows = groupByBaseline(rawRegion);
+    if (rows.length > JUSTIFIED_MAX_ROWS) return null;
+    if (!rows.some(row => asJustifiedRow(row, bounds, width, ctx))) return null;
+    const blocks: DocBlock[] = [];
+    let buffer: Line[] = [];
+    const flush = (): void => {
+        if (buffer.length > 0) {
+            blocks.push(...flowRegionToBlocks(buffer, pageIndex, ctx));
+            buffer = [];
+        }
+    };
+    for (const row of rows) {
+        const justified = asJustifiedRow(row, bounds, width, ctx);
+        if (justified) {
+            flush();
+            blocks.push(columnsBlockFrom(
+                [[justified.left], [justified.right]], MAX_CUT_DEPTH, pageIndex, ctx,
+            ));
+        } else {
+            buffer.push(...row);
+        }
+    }
+    flush();
+    return blocks;
+}
+
+/** Groups a region's segments into baseline rows, top-to-bottom, mirroring the
+ *  same-baseline tolerance {@link mergeSameBaselineLines} uses. */
+function groupByBaseline(region: readonly Line[]): Line[][] {
+    const sorted = [...region].sort((a, b) => b.y - a.y || a.x - b.x);
+    const rows: Line[][] = [];
+    for (const line of sorted) {
+        const current = rows.at(-1);
+        if (current && Math.abs(current[0].y - line.y) <= current[0].fontSize * 0.35) {
+            current.push(line);
+        } else {
+            rows.push([line]);
+        }
+    }
+    return rows;
+}
+
+/**
+ * Returns the two edge-pinned segments of a justified header row, or null.
+ * Beyond the geometry (exactly two segments, each pinned to an opposite region
+ * edge, a wide inter-segment gap) it rejects the shapes that share that
+ * geometry but are not headers: page-number/marker tokens, duplicated segments
+ * (rendered-twice visibility tests), narrow prose columns, and sub-body print
+ * chrome. The region-level short-band check is applied by the caller
+ * ({@link splitJustifiedRows}).
+ */
+export function asJustifiedRow(
+    row: readonly Line[],
+    bounds: ColumnBounds,
+    width: number,
+    ctx: ClassifyContext,
+): { left: Line; right: Line } | null {
+    if (row.length !== 2) return null;
+    const [a, b] = row;
+    const [left, right] = a.x <= b.x ? [a, b] : [b, a];
+    const fontSize = Math.max(left.fontSize, right.fontSize);
+    const pinTolerance = fontSize * JUSTIFIED_EDGE_FONTS;
+    if (left.x > bounds.x0 + pinTolerance) return null;
+    if (right.endX < bounds.x1 - pinTolerance) return null;
+    if (right.x - left.endX < width * JUSTIFIED_GAP_RATIO) return null;
+    if (width < JUSTIFIED_MIN_WIDTH_PT) return null;
+    if (fontSize < ctx.bodyFontSize * JUSTIFIED_MIN_FONT_RATIO) return null;
+    const pageWidth = ctx.pageBounds.x1 - ctx.pageBounds.x0;
+    if (pageWidth > 0 && width < pageWidth * JUSTIFIED_MIN_WIDTH_RATIO) return null;
+    if (isMarkerSegment(left) || isMarkerSegment(right)) return null;
+    if (segmentText(left) === segmentText(right)) return null;
+    return { left, right };
+}
+
+/** A segment's text, normalised for the marker/duplicate checks. */
+function segmentText(line: Line): string {
+    return line.words.map(w => w.text).join(' ').replaceAll(/\s+/g, ' ').trim();
+}
+
+/** True when a segment is a page number, list marker, or bare symbol rather
+ *  than a content label. */
+function isMarkerSegment(line: Line): boolean {
+    const text = segmentText(line);
+    return text.length < JUSTIFIED_MIN_SEGMENT_CHARS || MARKER_TOKEN_RE.test(text);
 }
 
 function splitIntoParagraphGroups(lines: readonly Line[]): Line[][] {

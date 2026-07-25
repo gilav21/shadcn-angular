@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ImageItem, PathRect } from '../pdf-parser';
-import { applyUnderlines, buildPageBlocks, xyCut } from './readable-blocks';
+import { applyUnderlines, asJustifiedRow, buildPageBlocks, splitJustifiedRows, xyCut } from './readable-blocks';
 import type { ClassifyContext } from './readable-classify';
 import { blockLines } from './readable-emit';
 import { lineOf } from './readable-spec-helpers';
@@ -404,5 +404,106 @@ describe('button box reconstruction', () => {
         const outline = outlineOf(29, 506, 77, 36);
         const blocks = buildPageBlocks([a, b], pageExtractOf([a, b], { images: [outline] }), true, ctx);
         expect(blocks.some(b2 => b2.kind === 'image')).toBe(true);
+    });
+});
+
+// Sub-detector B — left/right justified single-baseline rows.
+describe('asJustifiedRow', () => {
+    const bounds = { x0: 50, x1: 500 };
+    const width = bounds.x1 - bounds.x0;
+    function justCtx(
+        pageBounds: { x0: number; x1: number } = { x0: 40, x1: 560 },
+        bodyFontSize = 13,
+    ): ClassifyContext {
+        return {
+            bodyFontSize,
+            bodyLeading: bodyFontSize * 1.2,
+            structure: { mcidToType: new Map(), hasStructure: false },
+            pageBounds,
+        };
+    }
+    const leftLabel = lineOf('Amount due', 50, 150, 700, { fontSize: 13.5 });
+    const rightLabel = lineOf('Vendor Name LLC', 360, 500, 700, { fontSize: 13.5 });
+
+    it('fires on two edge-pinned labels with a wide gap', () => {
+        const row = asJustifiedRow([leftLabel, rightLabel], bounds, width, justCtx());
+        expect(row).not.toBeNull();
+        expect(row?.left.words[0].text).toBe('Amount due');
+        expect(row?.right.words[0].text).toBe('Vendor Name LLC');
+    });
+
+    it('rejects a single-segment row', () => {
+        expect(asJustifiedRow([leftLabel], bounds, width, justCtx())).toBeNull();
+    });
+
+    it('rejects segments that are not pinned to both edges', () => {
+        const midLeft = lineOf('Amount due', 200, 260, 700, { fontSize: 13.5 });
+        const midRight = lineOf('Vendor Name LLC', 300, 360, 700, { fontSize: 13.5 });
+        expect(asJustifiedRow([midLeft, midRight], bounds, width, justCtx())).toBeNull();
+    });
+
+    it('rejects an inter-segment gap too small to be a justified split', () => {
+        const near = lineOf('Vendor Name LLC', 170, 500, 700, { fontSize: 13.5 });
+        expect(asJustifiedRow([leftLabel, near], bounds, width, justCtx())).toBeNull();
+    });
+
+    it('rejects a page-number / marker segment (list-marker + text case)', () => {
+        const pageNo = lineOf('7', 480, 500, 700, { fontSize: 13.5 });
+        expect(asJustifiedRow([leftLabel, pageNo], bounds, width, justCtx())).toBeNull();
+    });
+
+    it('rejects duplicated segments (rendered-twice visibility test)', () => {
+        const dupA = lineOf('e cient', 50, 150, 700, { fontSize: 13.5 });
+        const dupB = lineOf('e cient', 360, 500, 700, { fontSize: 13.5 });
+        expect(asJustifiedRow([dupA, dupB], bounds, width, justCtx())).toBeNull();
+    });
+
+    it('rejects a narrow band (an in-cell amount|label row)', () => {
+        const narrow = { x0: 50, x1: 280 };
+        const l = lineOf('Amount due', 50, 120, 700, { fontSize: 13.5 });
+        const r = lineOf('Vendor LLC', 220, 280, 700, { fontSize: 13.5 });
+        expect(asJustifiedRow([l, r], narrow, narrow.x1 - narrow.x0, justCtx(narrow))).toBeNull();
+    });
+
+    it('rejects a sub-body font strip (print-chrome footer)', () => {
+        const l = lineOf('4/20/26, 10:52 PM', 50, 150, 700, { fontSize: 8 });
+        const r = lineOf('Vendor Name LLC', 360, 500, 700, { fontSize: 8 });
+        expect(asJustifiedRow([l, r], bounds, width, justCtx())).toBeNull();
+    });
+});
+
+describe('splitJustifiedRows', () => {
+    const ctxB: ClassifyContext = {
+        bodyFontSize: 13,
+        bodyLeading: 15.6,
+        structure: { mcidToType: new Map(), hasStructure: false },
+        pageBounds: { x0: 40, x1: 560 },
+    };
+    const left = lineOf('Amount due', 50, 150, 700, { fontSize: 13.5 });
+    const right = lineOf('Vendor Name LLC', 360, 500, 700, { fontSize: 13.5 });
+
+    it('emits a two-column row for a justified header and flows the rest', () => {
+        const below = lineOf('Some following prose line here', 50, 400, 680, { fontSize: 13.5 });
+        const blocks = splitJustifiedRows([left, right, below], 0, ctxB);
+        expect(blocks).not.toBeNull();
+        expect(blocks?.[0].kind).toBe('columns');
+        if (blocks?.[0].kind === 'columns') expect(blocks[0].columns).toHaveLength(2);
+    });
+
+    it('leaves a region with no justified row to the normal flow (returns null)', () => {
+        const prose = [
+            lineOf('ordinary line one', 50, 300, 700, { fontSize: 13 }),
+            lineOf('ordinary line two', 50, 300, 686, { fontSize: 13 }),
+        ];
+        expect(splitJustifiedRows(prose, 0, ctxB)).toBeNull();
+    });
+
+    it('does not fire inside a dense region (more than a short header band)', () => {
+        const dense = [
+            left, right,
+            lineOf('body row one', 50, 400, 680, { fontSize: 13 }),
+            lineOf('body row two', 50, 400, 660, { fontSize: 13 }),
+        ];
+        expect(splitJustifiedRows(dense, 0, ctxB)).toBeNull();
     });
 });
