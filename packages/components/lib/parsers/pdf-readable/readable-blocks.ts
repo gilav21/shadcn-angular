@@ -44,6 +44,13 @@ const MIN_BOX_HEIGHT = 20;
 /** The two horizontal edges of a box must agree on x-start and width, and a
  *  vertical edge must meet a corner, within this many pt. */
 const BOX_EDGE_MATCH = 6;
+/** A form-field slot underline sits within this many font-sizes of the value
+ *  above it and the label below it (the sandwich that distinguishes it from a
+ *  bare answer-blank rule, whose space below carries no text). */
+const SLOT_GAP_FONTS = 2;
+/** A slot underline sits under a single value; a rule wider than this fraction
+ *  of the page is a document separator or a box edge, never a field slot. */
+const SLOT_MAX_WIDTH_RATIO = 0.5;
 
 /**
  * Master switch for the nested-structure detectors (sub-detector B: left/right
@@ -118,6 +125,7 @@ export function buildPageBlocks(
         pageBounds: lines.length > 0 ? boundsOfLines(lines) : { x0: 0, x1: page.width },
     };
     const usedRects = applyUnderlines(lines, page.rects);
+    applySlotUnderlines(lines, page.rects, usedRects, page.width);
     const tableRects = page.rects.filter(rect => !usedRects.has(rect));
     const blocks = linesToBlocks(lines, tableRects, page.index, ctx, usedRects);
     applyFillBackgrounds(blocks, page.rects);
@@ -1206,6 +1214,72 @@ function overlapRatio(aStart: number, aEnd: number, bStart: number, bEnd: number
     const overlap = Math.min(aEnd, bEnd) - Math.max(aStart, bStart);
     const span = aEnd - aStart;
     return span <= 0 ? 0 : overlap / span;
+}
+
+/**
+ * Underlines a form-field slot value. A signature/field slot is drawn as a short
+ * horizontal rule sitting a line below its value with the field label a line
+ * further down (value / ───── / label). `applyUnderlines` misses it — the rule
+ * is too far below the value baseline — so it renders as a loose line. Requiring
+ * BOTH a value centred above AND a label centred below (the sandwich) excludes a
+ * bare answer-blank rule, whose writing space below carries no text, and the
+ * width cap excludes document separators and box edges.
+ */
+export function applySlotUnderlines(
+    lines: readonly Line[],
+    rects: readonly PathRect[],
+    usedRects: Set<PathRect>,
+    pageWidth: number,
+): void {
+    for (const rect of rects) {
+        if (usedRects.has(rect)) continue;
+        const value = slotValueLine(lines, rect, pageWidth);
+        if (value && underlineOverlappingWords(value, rect)) usedRects.add(rect);
+    }
+}
+
+/** The value line a slot underline belongs to, or null when the rect is not a
+ *  field slot (too tall/short/wide, unsaturated, or missing the value/label
+ *  sandwich). */
+function slotValueLine(lines: readonly Line[], rect: PathRect, pageWidth: number): Line | null {
+    if (rect.height > UNDERLINE_MAX_HEIGHT || rect.width < 4) return null;
+    if (rect.width > pageWidth * SLOT_MAX_WIDTH_RATIO) return null;
+    // A field slot is drawn in the form's accent colour; a grey/black thin rect
+    // with text either side is a table gridline or a plain rule, not a slot
+    // (this also excludes with_form's black answer-blank lines).
+    if (!isSaturatedColor(rect.stroked ? rect.strokeColor : rect.fillColor)) return null;
+    const value = closestCentredLine(lines, rect, 'above');
+    if (!value || !closestCentredLine(lines, rect, 'below')) return null;
+    return value;
+}
+
+/** Underlines the value's words that sit over the rect; true if any matched. */
+function underlineOverlappingWords(value: Line, rect: PathRect): boolean {
+    let underlined = false;
+    for (const word of value.words) {
+        if (overlapRatio(word.x, word.endX, rect.x, rect.x + rect.width) < 0.3) continue;
+        word.style = { ...word.style, underline: true };
+        underlined = true;
+    }
+    return underlined;
+}
+
+/** The nearest line whose horizontal centre falls within the rect and whose
+ *  baseline sits within {@link SLOT_GAP_FONTS} font-sizes on the given side. */
+function closestCentredLine(lines: readonly Line[], rect: PathRect, side: 'above' | 'below'): Line | null {
+    let best: Line | null = null;
+    let bestGap = Number.POSITIVE_INFINITY;
+    for (const line of lines) {
+        const gap = side === 'above' ? line.y - rect.y : rect.y - line.y;
+        if (gap <= 0 || gap > line.fontSize * SLOT_GAP_FONTS) continue;
+        const centre = (line.x + line.endX) / 2;
+        if (centre < rect.x || centre > rect.x + rect.width) continue;
+        if (gap < bestGap) {
+            best = line;
+            bestGap = gap;
+        }
+    }
+    return best;
 }
 
 function detectRules(

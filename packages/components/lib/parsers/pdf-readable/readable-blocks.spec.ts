@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ImageItem, PathRect } from '../pdf-parser';
 import {
+    applySlotUnderlines,
     applyUnderlines,
     asJustifiedRow,
     asQuadrantRow,
@@ -158,6 +159,42 @@ describe('applyUnderlines', () => {
         const rect = rectOf(48, 650, 105, 1);
         applyUnderlines([line], [rect]);
         expect(line.words[0].style.underline).toBe(false);
+    });
+});
+
+describe('applySlotUnderlines', () => {
+    const slot = (color: string, width = 200): PathRect => ({
+        x: 350, y: 520, width, height: 0.8,
+        page: 0, stroked: true, filled: false,
+        strokeColor: color, fillColor: color, lineWidth: 0.8,
+    });
+    const value = (): Line => lineOf('Signature Value', 400, 500, 530);
+    const label = (): Line => lineOf('Field label', 410, 490, 506);
+
+    it('underlines a saturated slot value sandwiched by a label below', () => {
+        const v = value();
+        const used = new Set<PathRect>();
+        applySlotUnderlines([v, label()], [slot('#00008b')], used, 612);
+        expect(v.words[0].style.underline).toBe(true);
+        expect(used.size).toBe(1);
+    });
+
+    it('ignores a grey/black line (a gridline or answer blank, not a slot)', () => {
+        const v = value();
+        applySlotUnderlines([v, label()], [slot('#999999')], new Set(), 612);
+        expect(v.words[0].style.underline).toBe(false);
+    });
+
+    it('ignores a slot with no label below (a bare answer blank)', () => {
+        const v = value();
+        applySlotUnderlines([v], [slot('#00008b')], new Set(), 612);
+        expect(v.words[0].style.underline).toBe(false);
+    });
+
+    it('ignores a rule wider than half the page (a separator, not a slot)', () => {
+        const v = value();
+        applySlotUnderlines([v, label()], [slot('#00008b', 400)], new Set(), 612);
+        expect(v.words[0].style.underline).toBe(false);
     });
 });
 
