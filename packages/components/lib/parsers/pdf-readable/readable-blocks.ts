@@ -35,6 +35,9 @@ const RULE_MERGE_GAP = 4;
 /** A rule candidate within this distance (pt) of a table's row band counts as
  *  the table's own grid, not a document rule. */
 const RULE_TABLE_MARGIN = 2;
+/** A rule at least this fraction of the page width is a page-level separator,
+ *  never a table cell gridline (cells never span the whole page). */
+const PAGE_SEPARATOR_WIDTH_RATIO = 0.85;
 
 /**
  * Master switch for the nested-structure detectors (sub-detector B: left/right
@@ -1071,7 +1074,7 @@ function detectRules(
             rect.width >= contentWidth * 0.4 &&
             (rect.stroked || rect.filled) &&
             !isNearWhite(rect.filled ? rect.fillColor : rect.strokeColor) &&
-            !insideAnySpan(rect.y, tableSpans))
+            !hidesInTableGrid(rect, tableSpans, page.width))
         .map(rect => rect.y)
         .sort((a, b) => b - a);
     return dedupeCloseTops(candidates).map(top => ({
@@ -1082,25 +1085,57 @@ function detectRules(
     }));
 }
 
+/** A detected table's bounding band: vertical row extent and column extent. */
+interface TableSpan {
+    readonly top: number;
+    readonly bottom: number;
+    readonly left: number;
+    readonly right: number;
+}
+
 /**
- * Vertical extents of the detected tables. A thin wide rect inside one is a
+ * Bounding bands of the detected tables. A thin wide rect inside one is a
  * cell border / row separator (the table's own structure), not a standalone
  * document rule — an unruled data table (invoice, statement) is reconstructed
  * from geometry, so its grey grid lines are never consumed as table rects and
  * would otherwise leak out as spurious rules between the rows.
  */
-function tableRowSpans(blocks: readonly DocBlock[]): Array<{ top: number; bottom: number }> {
-    const spans: Array<{ top: number; bottom: number }> = [];
+function tableRowSpans(blocks: readonly DocBlock[]): TableSpan[] {
+    const spans: TableSpan[] = [];
     for (const block of blocks) {
         if (block.kind !== 'table') continue;
-        const ys = block.rows.flatMap(row => row.flatMap(cell => cell.lines.map(l => l.y)));
-        if (ys.length > 0) spans.push({ top: Math.max(...ys), bottom: Math.min(...ys) });
+        const cellLines = block.rows.flatMap(row => row.flatMap(cell => cell.lines));
+        const ys = cellLines.map(l => l.y);
+        if (ys.length === 0) continue;
+        spans.push({
+            top: Math.max(...ys),
+            bottom: Math.min(...ys),
+            left: Math.min(...cellLines.map(l => l.x)),
+            right: Math.max(...cellLines.map(l => l.endX)),
+        });
     }
     return spans;
 }
 
-function insideAnySpan(y: number, spans: ReadonlyArray<{ top: number; bottom: number }>): boolean {
-    return spans.some(span => y >= span.bottom - RULE_TABLE_MARGIN && y <= span.top + RULE_TABLE_MARGIN);
+/**
+ * A thin wide rect inside a table's row band is that table's own cell border /
+ * row separator and must not leak out as a document rule — EXCEPT a near-full-
+ * page-width rule that extends beyond the table's own column span, which is a
+ * page-level separator drawn across the header band (doc1's blue header rule
+ * sits at the top of the header table yet runs the full page width). Cell
+ * gridlines are always contained within their table's columns, so requiring the
+ * rule to both span most of the page AND poke past the table keeps every real
+ * gridline (doc4's grey grid maxes at 58% page width, fully contained) guarded.
+ */
+function hidesInTableGrid(rect: PathRect, spans: readonly TableSpan[], pageWidth: number): boolean {
+    return spans.some(span => {
+        const inBand = rect.y >= span.bottom - RULE_TABLE_MARGIN && rect.y <= span.top + RULE_TABLE_MARGIN;
+        if (!inBand) return false;
+        const pageWide = rect.width >= pageWidth * PAGE_SEPARATOR_WIDTH_RATIO;
+        const pokesOut = rect.x < span.left - RULE_TABLE_MARGIN ||
+            rect.x + rect.width > span.right + RULE_TABLE_MARGIN;
+        return !(pageWide && pokesOut);
+    });
 }
 
 /** Collapses rules whose tops sit within {@link RULE_MERGE_GAP} — one drawn

@@ -210,6 +210,22 @@ describe('buildPageBlocks', () => {
         expect(blocks.some(b => b.kind === 'rule')).toBe(false);
     });
 
+    it('emits a full-page rule crossing a table band as a document separator', () => {
+        const lines: Line[] = [];
+        for (const y of [700, 680, 660, 640]) {
+            lines.push(lineOf('Item', 120, 200, y), lineOf('Qty', 250, 300, y), lineOf('Total', 430, 500, y));
+        }
+        const headerRule: PathRect = {
+            x: 20, y: 670, width: 570, height: 0.8,
+            page: 0, stroked: true, filled: false,
+            strokeColor: '#00008b', fillColor: '#000000', lineWidth: 0.8,
+        };
+        const page = pageExtractOf(lines, { rects: [headerRule] });
+        const blocks = buildPageBlocks([...lines], page, false, ctx);
+        expect(blocks.some(b => b.kind === 'table')).toBe(true);
+        expect(blocks.some(b => b.kind === 'rule')).toBe(true);
+    });
+
     it('anchors a left-side standalone image to the left on an RTL page', () => {
         const lines = [
             lineOf('שלום עולם זהו טקסט עברית', 300, 560, 700, { dir: 'rtl' }),
