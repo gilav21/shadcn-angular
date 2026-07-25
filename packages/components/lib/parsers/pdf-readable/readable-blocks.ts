@@ -38,6 +38,12 @@ const RULE_TABLE_MARGIN = 2;
 /** A rule at least this fraction of the page width is a page-level separator,
  *  never a table cell gridline (cells never span the whole page). */
 const PAGE_SEPARATOR_WIDTH_RATIO = 0.85;
+/** A rectangular border must enclose at least this vertical span (pt); a smaller
+ *  gap between two parallel rules is a pair of separators, not a bordering box. */
+const MIN_BOX_HEIGHT = 20;
+/** The two horizontal edges of a box must agree on x-start and width, and a
+ *  vertical edge must meet a corner, within this many pt. */
+const BOX_EDGE_MATCH = 6;
 
 /**
  * Master switch for the nested-structure detectors (sub-detector B: left/right
@@ -115,7 +121,8 @@ export function buildPageBlocks(
     const tableRects = page.rects.filter(rect => !usedRects.has(rect));
     const blocks = linesToBlocks(lines, tableRects, page.index, ctx, usedRects);
     applyFillBackgrounds(blocks, page.rects);
-    const withRules = interleaveByTop(blocks, detectRules(page, usedRects, lines, blocks));
+    const boxed = applyBlockBorders(blocks, page.rects, usedRects, page.index);
+    const withRules = interleaveByTop(boxed, detectRules(page, usedRects, lines, boxed));
     if (!includeImages || page.images.length === 0) return withRules;
     const images = page.images.filter(img => !isBackgroundDecoration(img, page.width * page.height));
     if (images.length === 0) return withRules;
@@ -271,6 +278,149 @@ function cellCentroid(lines: readonly Line[]): Centroid {
         sy += line.y;
     }
     return { cx: sx / lines.length, cy: sy / lines.length };
+}
+
+/** A rectangle drawn as separate stroked edges: its extent, stroke, and the
+ *  edge rects that formed it (withheld from rule/underline emission). */
+interface RectBox {
+    readonly left: number;
+    readonly right: number;
+    readonly top: number;
+    readonly bottom: number;
+    readonly color: string;
+    readonly lineWidth: number;
+    readonly edges: PathRect[];
+}
+
+/** Number of distinct y-positions among rects (double-drawn edges at the same
+ *  y collapse to one). */
+function distinctYCount(rects: readonly PathRect[]): number {
+    const ys: number[] = [];
+    for (const r of rects) {
+        if (!ys.some(y => Math.abs(y - r.y) <= BOX_EDGE_MATCH)) ys.push(r.y);
+    }
+    return ys.length;
+}
+
+function isBoxEdgeColor(rect: PathRect): boolean {
+    return (rect.stroked || rect.filled) &&
+        !isNearWhite(rect.filled ? rect.fillColor : rect.strokeColor);
+}
+
+/**
+ * Detects rectangles drawn as four (or three) separate stroked edges rather
+ * than a single rect op — the blue box a form draws around a details panel.
+ * Two parallel horizontal edges that share an x-span and are far enough apart
+ * to enclose content, closed by at least one vertical edge meeting a corner.
+ */
+function findRectBoxes(rects: readonly PathRect[]): RectBox[] {
+    const horizontals = rects.filter(r => r.width > r.height && r.height <= RULE_MAX_HEIGHT && isBoxEdgeColor(r));
+    const verticals = rects.filter(r => r.height > r.width && r.width <= RULE_MAX_HEIGHT && isBoxEdgeColor(r));
+    const boxes: RectBox[] = [];
+    const paired = new Set<PathRect>();
+    for (const top of horizontals) {
+        if (paired.has(top)) continue;
+        const sameSpan = horizontals.filter(h =>
+            Math.abs(h.x - top.x) <= BOX_EDGE_MATCH && Math.abs(h.width - top.width) <= BOX_EDGE_MATCH);
+        // A panel box has exactly two horizontal edges (top + bottom) at its
+        // x-span; three or more same-span lines are a table grid's rows, not a
+        // border (double-drawn edges collapse to two distinct positions).
+        if (distinctYCount(sameSpan) !== 2) continue;
+        const bottom = horizontals.find(b => b !== top && !paired.has(b) &&
+            top.y - b.y >= MIN_BOX_HEIGHT &&
+            Math.abs(top.x - b.x) <= BOX_EDGE_MATCH &&
+            Math.abs(top.width - b.width) <= BOX_EDGE_MATCH);
+        if (!bottom) continue;
+        const left = Math.min(top.x, bottom.x);
+        const right = Math.max(top.x + top.width, bottom.x + bottom.width);
+        const sides = verticals.filter(v =>
+            v.y <= top.y + BOX_EDGE_MATCH && v.y + v.height >= bottom.y - BOX_EDGE_MATCH &&
+            (Math.abs(v.x - left) <= BOX_EDGE_MATCH || Math.abs(v.x - right) <= BOX_EDGE_MATCH));
+        if (sides.length === 0) continue;
+        paired.add(top);
+        paired.add(bottom);
+        const twin = boxes.find(b =>
+            Math.abs(b.left - left) <= BOX_EDGE_MATCH && Math.abs(b.top - top.y) <= BOX_EDGE_MATCH &&
+            Math.abs(b.bottom - bottom.y) <= BOX_EDGE_MATCH);
+        if (twin) {
+            // A form over-draws the same box twice; keep one wrapper but consume
+            // every copy's edges so none leaks out as a loose rule.
+            twin.edges.push(top, bottom, ...sides);
+            continue;
+        }
+        boxes.push({
+            left, right, top: top.y, bottom: bottom.y,
+            color: top.stroked ? top.strokeColor : top.fillColor,
+            lineWidth: top.lineWidth > 0 ? top.lineWidth : 0.8,
+            edges: [top, bottom, ...sides],
+        });
+    }
+    return boxes;
+}
+
+/** Vertical/horizontal extent of a block's content, tables included. */
+function blockContentBox(block: DocBlock): { top: number; bottom: number; left: number; right: number } | null {
+    const lines = block.kind === 'table'
+        ? block.rows.flatMap(row => row.flatMap(cell => cell.lines))
+        : textLinesOf(block);
+    if (lines.length === 0) return null;
+    return {
+        top: Math.max(...lines.map(l => l.y)),
+        bottom: Math.min(...lines.map(l => l.y)),
+        left: Math.min(...lines.map(l => l.x)),
+        right: Math.max(...lines.map(l => l.endX)),
+    };
+}
+
+/**
+ * Wraps the run of blocks a drawn rectangle encloses in a bordered single-column
+ * {@link ColumnsBlock}, so a form's details panel keeps its box instead of
+ * losing it to the flow (its edge rects would otherwise emit as loose rules).
+ * Only a contiguous run is wrapped — nothing is reordered — and the edge rects
+ * are marked used so they neither rule nor underline.
+ */
+function applyBlockBorders(
+    blocks: DocBlock[],
+    rects: readonly PathRect[],
+    usedRects: Set<PathRect>,
+    pageIndex: number,
+): DocBlock[] {
+    const boxes = findRectBoxes(rects.filter(r => !usedRects.has(r)));
+    let result = blocks;
+    for (const box of boxes) {
+        const wrapped = wrapEnclosedRun(result, box, pageIndex);
+        if (!wrapped) continue;
+        result = wrapped;
+        for (const edge of box.edges) usedRects.add(edge);
+    }
+    return result;
+}
+
+function wrapEnclosedRun(blocks: DocBlock[], box: RectBox, pageIndex: number): DocBlock[] | null {
+    const enclosed = blocks
+        .map((block, index) => ({ index, box: blockContentBox(block) }))
+        .filter(entry => entry.box !== null && insideBox(entry.box, box));
+    if (enclosed.length === 0) return null;
+    const first = enclosed[0].index;
+    const last = enclosed[enclosed.length - 1].index;
+    if (last - first + 1 !== enclosed.length) return null;
+    const group = blocks.slice(first, last + 1);
+    const rtl = group.filter(b => b.style.dir === 'rtl').length * 2 > group.length;
+    const wrapper: ColumnsBlock = {
+        kind: 'columns',
+        columns: [{ blocks: group, widthRatio: 1 }],
+        page: pageIndex,
+        style: { ...emptyStyle(), border: `${box.lineWidth.toFixed(1)}pt solid ${box.color}`, dir: rtl ? 'rtl' : '' },
+    };
+    return [...blocks.slice(0, first), wrapper, ...blocks.slice(last + 1)];
+}
+
+function insideBox(
+    b: { top: number; bottom: number; left: number; right: number },
+    box: RectBox,
+): boolean {
+    return b.left >= box.left - BOX_EDGE_MATCH && b.right <= box.right + BOX_EDGE_MATCH &&
+        b.bottom >= box.bottom - BOX_EDGE_MATCH && b.top <= box.top + BOX_EDGE_MATCH;
 }
 
 interface Centroid { readonly cx: number; readonly cy: number; }

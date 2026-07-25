@@ -141,7 +141,8 @@ function emitColumns(block: ColumnsBlock, ctx: EmitContext): string {
         return `<td style="${cellStyle}">${inner}</td>`;
     });
     const dirAttr = block.style.dir === 'rtl' ? ' dir="rtl"' : '';
-    return `<table style="border-collapse:collapse;width:100%"${dirAttr}><tr>${cells.join('')}</tr></table>`;
+    const boxStyle = block.style.border ? `;border:${block.style.border}` : '';
+    return `<table style="border-collapse:collapse;width:100%${boxStyle}"${dirAttr}><tr>${cells.join('')}</tr></table>`;
 }
 
 function emitHeading(block: HeadingBlock, ctx: EmitContext): string {

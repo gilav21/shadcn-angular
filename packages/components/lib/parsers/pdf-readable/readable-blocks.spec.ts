@@ -226,6 +226,43 @@ describe('buildPageBlocks', () => {
         expect(blocks.some(b => b.kind === 'rule')).toBe(true);
     });
 
+    it('wraps blocks enclosed by a drawn rectangle in a bordered box', () => {
+        const lines = [
+            lineOf('Patient details panel heading', 60, 300, 690),
+            lineOf('Name value plus more details here', 60, 340, 664),
+        ];
+        const edge = (x: number, y: number, width: number, height: number): PathRect => ({
+            x, y, width, height,
+            page: 0, stroked: true, filled: false,
+            strokeColor: '#00008b', fillColor: '#000000', lineWidth: 0.8,
+        });
+        const top = edge(40, 700, 400, 0.8);
+        const bottom = edge(40, 640, 400, 0.8);
+        const leftEdge = edge(40, 640, 0.8, 60);
+        const page = pageExtractOf(lines, { rects: [top, bottom, leftEdge] });
+        const blocks = buildPageBlocks([...lines], page, false, ctx);
+        const box = blocks.find(b => b.kind === 'columns');
+        expect(box?.kind).toBe('columns');
+        if (box?.kind === 'columns') expect(box.style.border).toContain('#00008b');
+        expect(blocks.some(b => b.kind === 'rule')).toBe(false);
+    });
+
+    it('does not box a table grid (a family of same-span lines)', () => {
+        const lines: Line[] = [];
+        for (const y of [700, 680, 660, 640]) {
+            lines.push(lineOf('Item', 50, 120, y), lineOf('Qty', 250, 300, y), lineOf('Total', 430, 500, y));
+        }
+        const gridLines = [712, 690, 670, 650, 628].map(y => rectOf(40, y, 470, 0.8));
+        const leftEdge: PathRect = {
+            x: 40, y: 628, width: 0.8, height: 84,
+            page: 0, stroked: true, filled: false,
+            strokeColor: '#000000', fillColor: '#000000', lineWidth: 0.8,
+        };
+        const page = pageExtractOf(lines, { rects: [...gridLines, leftEdge] });
+        const blocks = buildPageBlocks([...lines], page, false, ctx);
+        expect(blocks.some(b => b.kind === 'columns' && b.style.border !== '')).toBe(false);
+    });
+
     it('anchors a left-side standalone image to the left on an RTL page', () => {
         const lines = [
             lineOf('שלום עולם זהו טקסט עברית', 300, 560, 700, { dir: 'rtl' }),
