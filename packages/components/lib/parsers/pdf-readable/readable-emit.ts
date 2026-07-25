@@ -355,16 +355,16 @@ function runDeltaPairs(
     ctx: EmitContext,
 ): Array<[string, string]> {
     const pairs: Array<[string, string]> = [];
-    if (!dominant || style.fontName !== dominant.fontName) {
+    if (style.fontName !== dominant?.fontName) {
         pairs.push(['font-family', fontFamilyValue(style, ctx)]);
     }
     if (!dominant || Math.abs(style.fontSize - dominant.fontSize) >= 0.25) {
         pairs.push(['font-size', `${round(style.fontSize)}pt`]);
     }
-    if (!dominant || style.color !== dominant.color) {
+    if (style.color !== dominant?.color) {
         pairs.push(['color', colorValue(style.color)]);
     }
-    if (style.letterSpacing > 0 && (!dominant || style.letterSpacing !== dominant.letterSpacing)) {
+    if (style.letterSpacing > 0 && style.letterSpacing !== dominant?.letterSpacing) {
         pairs.push(['letter-spacing', `${style.letterSpacing}pt`]);
     }
     return pairs;
