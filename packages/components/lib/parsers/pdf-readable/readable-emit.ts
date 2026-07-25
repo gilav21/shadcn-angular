@@ -18,6 +18,7 @@ import type {
 interface EmitContext {
     readonly fonts: Map<string, FontMapping>;
     readonly bodyFontSize: number;
+    readonly inColumn?: boolean;
 }
 
 interface RunModel {
@@ -127,8 +128,9 @@ function emitBlock(block: DocBlock, ctx: EmitContext): string {
  * the detected column geometry.
  */
 function emitColumns(block: ColumnsBlock, ctx: EmitContext): string {
+    const cellCtx: EmitContext = { ...ctx, inColumn: true };
     const cells = block.columns.map(column => {
-        const inner = column.blocks.map(child => emitBlock(child, ctx)).filter(Boolean).join('');
+        const inner = column.blocks.map(child => emitBlock(child, cellCtx)).filter(Boolean).join('');
         const width = Math.round(column.widthRatio * 1000) / 10;
         const cellStyle = styleAttr([
             ['vertical-align', 'top'],
@@ -161,7 +163,7 @@ function emitLinesBlock(
     const dominant = dominantRunStyle(lines);
     const content = emitLineContents(lines, dominant, ctx, preserveLineBreaks(lines));
     const styleValue = styleAttr([
-        ...blockStylePairs(style),
+        ...blockStylePairs(style, ctx.inColumn ?? false),
         ...baseFontPairs(dominant, ctx),
     ]);
     return `<${tag}${attrString(styleValue, style.dir === 'rtl' ? 'rtl' : '')}>${content}</${tag}>`;
@@ -368,17 +370,20 @@ function runDeltaPairs(
     return pairs;
 }
 
-function blockStylePairs(style: BlockStyle): Array<[string, string]> {
-    return [
+function blockStylePairs(style: BlockStyle, inColumn = false): Array<[string, string]> {
+    const marginTop = inColumn && style.marginTop <= 0 ? '0' : ptOrEmpty(style.marginTop);
+    const pairs: Array<[string, string]> = [
         ['text-align', style.align],
         [style.dir === 'rtl' ? 'margin-right' : 'margin-left', ptOrEmpty(style.indentStart)],
         ['text-indent', ptOrEmpty(style.textIndent)],
         ['line-height', style.lineHeight > 0 ? String(style.lineHeight) : ''],
-        ['margin-top', ptOrEmpty(style.marginTop)],
+        ['margin-top', marginTop],
         ['background', style.background],
         ['padding', style.background ? '4pt 8pt' : ''],
         ['border-radius', style.background ? '3pt' : ''],
     ];
+    if (inColumn) pairs.push(['margin-bottom', '0']);
+    return pairs;
 }
 
 function fontFamilyValue(style: RunStyle, ctx: EmitContext): string {
