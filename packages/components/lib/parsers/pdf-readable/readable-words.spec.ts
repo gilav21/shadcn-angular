@@ -181,6 +181,36 @@ describe('buildWords', () => {
         expect(bimodalGapThreshold(items)).toBeNull();
     });
 
+    it('excludes script-direction-boundary gaps from the bimodal valley', () => {
+        // Uniform ~2.3pt gaps between whole RTL words, with one embedded digit
+        // whose wider gaps sit at RTL/LTR boundaries. The direction-flip gaps
+        // must not form a false valley that merges the genuine word gaps.
+        const texts = ['אבג', 'דהו', 'זחט', '0', 'יכל', 'מנס', 'עפצ'];
+        let x = 0;
+        const items = texts.map(text => {
+            const item = makeItem({ text, x, endX: x + 20, fontSize: 10 });
+            const flip = text === '0';
+            x = item.endX + (flip ? 5.3 : 2.3);
+            return item;
+        });
+        expect(bimodalGapThreshold(items)).toBeNull();
+    });
+
+    it('separates RTL words around an embedded digit instead of mooshing them', () => {
+        const texts = ['אבג', 'דהו', 'זחט', '0', 'יכל', 'מנס'];
+        let x = 0;
+        const items = texts.map(text => {
+            const item = makeItem({ text, x, endX: x + 20, fontSize: 10 });
+            x = item.endX + (text === '0' ? 5.3 : 2.3);
+            return item;
+        });
+        const joined = buildWords(items, ctx).map(w => w.text).join(' ');
+        expect(joined).toContain('אבג');
+        expect(joined).toContain('דהו');
+        expect(joined.includes('אבגדהו')).toBe(false);
+        expect(joined.includes('דהוזחט')).toBe(false);
+    });
+
     it('flags raised text as superscript', () => {
         const words = buildWords([
             makeItem({ text: '2', textRise: 4 }),

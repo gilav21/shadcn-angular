@@ -78,8 +78,9 @@ export function embeddedRunWidth(item: TextItem, registry: GlyphAdvanceSource): 
         if (ch === ' ') spaces++;
     }
     const scale = item.horizontalScaling > 0 ? item.horizontalScaling / 100 : 1;
-    return (advance / 1000) * item.fontSize * scale +
-        [...item.text].length * item.charSpacing + spaces * item.wordSpacing;
+    const glyphSpan = (advance / 1000) * item.fontSize;
+    const spacing = [...item.text].length * item.charSpacing + spaces * item.wordSpacing;
+    return (glyphSpan + spacing) * scale;
 }
 
 function extractSinglePage(

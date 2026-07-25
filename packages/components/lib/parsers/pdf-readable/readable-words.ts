@@ -51,13 +51,17 @@ export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): W
  * the letter tier instead of drifting up into the word tier and merging every
  * word. Works whether that tier is ~0 (normal fonts) or negative (per-glyph
  * PDFs whose advances overshoot). Hard-break-sized gaps are excluded so a
- * column jump cannot move the baseline. The threshold is returned only when a
- * real valley of at least `MIN_VALLEY_EM` separates the letter tier from the
- * breaking gaps above it.
+ * column jump cannot move the baseline. Gaps straddling a script-direction
+ * boundary (RTL against Latin/digits) are excluded too: such a gap is a break
+ * boundary, not a word or letter gap, so an embedded number beside RTL text
+ * cannot inflate the valley and merge the genuine word gaps around it. The
+ * threshold is returned only when a real valley of at least `MIN_VALLEY_EM`
+ * separates the letter tier from the breaking gaps above it.
  */
 export function bimodalGapThreshold(items: readonly TextItem[]): number | null {
     const gaps: number[] = [];
     for (let i = 1; i < items.length; i++) {
+        if (directionFlips(items[i - 1].text, items[i].text)) continue;
         const gap = items[i].x - items[i - 1].endX;
         if (gap <= Math.max(items[i].fontSize, 1) * HARD_BREAK_EM) gaps.push(gap);
     }

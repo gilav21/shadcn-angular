@@ -2478,10 +2478,10 @@ function calcTextAdvance(charCodes: number[], fontInfo: FontInfo | undefined, gs
         const w = fontInfo ? (fontInfo.widths.get(code) ?? fontInfo.defaultWidth) : 600;
         totalWidth += w;
     }
-    const advance = (totalWidth / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
-    const spacing = charCodes.length * gs.charSpacing
-        + charCodes.filter(c => c === 32).length * gs.wordSpacing;
-    return advance + spacing;
+    const glyphSpan = (totalWidth / 1000) * gs.fontSize;
+    const spaceCount = fontInfo?.isTwoByte ? 0 : charCodes.filter(c => c === 32).length;
+    const spacing = charCodes.length * gs.charSpacing + spaceCount * gs.wordSpacing;
+    return (glyphSpan + spacing) * (gs.horizontalScaling / 100);
 }
 
 function isInvisibleTextMode(mode: number): boolean {
