@@ -1,5 +1,5 @@
 import type { ImageItem, PathRect } from '../pdf-parser';
-import { classifyGroup, type ClassifyContext, type GroupKind } from './readable-classify';
+import { classifyGroup, hasListMarker, type ClassifyContext, type GroupKind } from './readable-classify';
 import { resolveBlockStyle, type ColumnBounds } from './readable-styles';
 import { findColumnZone, findTableInBand } from './readable-tables';
 import type {
@@ -17,6 +17,14 @@ import type {
 
 const PARAGRAPH_GAP_FACTOR = 1.8;
 const FONT_SIZE_CHANGE_RATIO = 1.2;
+/**
+ * Font-size ratio between a bullet line and an adjacent non-bullet line above
+ * which the non-bullet line is treated as an interleaved subheading rather than
+ * a wrapped list continuation. Below the {@link FONT_SIZE_CHANGE_RATIO}
+ * paragraph split so only list boundaries are affected; above the 0.5pt font
+ * rounding so same-size continuations never trip it.
+ */
+const LIST_SUBHEADING_RATIO = 1.05;
 const MAX_CUT_DEPTH = 4;
 const MIN_COLUMN_LINES = 2;
 const UNDERLINE_MAX_HEIGHT = 2.5;
@@ -726,7 +734,22 @@ function startsNewParagraph(previous: Line, line: Line, medianGap: number): bool
     const sizeRatio = Math.max(previous.fontSize, line.fontSize) /
         Math.max(1, Math.min(previous.fontSize, line.fontSize));
     if (sizeRatio >= FONT_SIZE_CHANGE_RATIO) return true;
+    if (isListSubheadingBoundary(previous, line, sizeRatio)) return true;
     return previous.dir !== line.dir;
+}
+
+/**
+ * A subheading interleaved in a bullet list (e.g. a CV's job-title lines
+ * between bullet groups) shares the list's baseline gap and stays under the
+ * paragraph font-change threshold, so it would otherwise be swept into the
+ * list — dropped when it precedes the first marker, or merged into the prior
+ * item when it follows one. It is set apart by the bullet-marker status
+ * flipping between the two lines together with a real font-size difference; a
+ * genuine wrapped continuation keeps the body font, so the size gate leaves it
+ * attached.
+ */
+function isListSubheadingBoundary(previous: Line, line: Line, sizeRatio: number): boolean {
+    return hasListMarker(previous) !== hasListMarker(line) && sizeRatio >= LIST_SUBHEADING_RATIO;
 }
 
 function medianBaselineGap(lines: readonly Line[]): number {

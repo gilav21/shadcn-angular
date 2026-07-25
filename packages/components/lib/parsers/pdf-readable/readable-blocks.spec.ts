@@ -206,6 +206,51 @@ describe('buildPageBlocks', () => {
     });
 });
 
+describe('buildPageBlocks — subheadings interleaved in a bullet list', () => {
+    const bullet = (text: string, y: number) => lineOf(text, 50, 520, y, { fontSize: 10 });
+    const title = (text: string, y: number) => lineOf(text, 50, 400, y, { fontSize: 11 });
+
+    it('keeps a subheading before the first bullet and between bullet groups out of the list', () => {
+        const lines = [
+            title('Job Alpha Position', 700),
+            bullet('• first responsibility here', 686),
+            bullet('• second responsibility here', 672),
+            title('Job Beta Position', 658),
+            bullet('• third responsibility here', 644),
+            bullet('• fourth responsibility here', 630),
+        ];
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        const kinds = blocks.map(b => b.kind);
+        expect(kinds.filter(k => k === 'list')).toHaveLength(2);
+        expect(kinds.filter(k => k !== 'list')).toHaveLength(2);
+        const flat = blocks.flatMap(b => blockLines(b)).flatMap(l => l.words.map(w => w.text)).join(' ');
+        expect(flat).toContain('Job Alpha Position');
+        expect(flat).toContain('Job Beta Position');
+        const listLineText = blocks
+            .filter(b => b.kind === 'list')
+            .flatMap(list => list.kind === 'list' ? list.items : [])
+            .flatMap(item => item.lines)
+            .flatMap(line => line.words.map(w => w.text))
+            .join(' ');
+        expect(listLineText).not.toContain('Position');
+    });
+
+    it('keeps a same-font wrapped continuation attached to its bullet', () => {
+        const lines = [
+            bullet('• a responsibility that wraps onto', 700),
+            bullet('the following continuation line here', 686),
+            bullet('• another standalone responsibility', 672),
+        ];
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        const list = blocks.find(b => b.kind === 'list');
+        expect(list?.kind).toBe('list');
+        if (list?.kind === 'list') {
+            expect(list.items).toHaveLength(2);
+            expect(list.items[0].lines).toHaveLength(2);
+        }
+    });
+});
+
 describe('buildPageBlocks — side-by-side columns', () => {
     function twoColumns(rowCount: number): Line[] {
         const lines: Line[] = [];

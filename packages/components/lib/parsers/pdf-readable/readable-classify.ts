@@ -227,6 +227,11 @@ function lineMarker(line: Line): MarkerInfo | null {
     return null;
 }
 
+/** Whether the line opens with a bullet or ordered list marker. */
+export function hasListMarker(line: Line): boolean {
+    return lineMarker(line) !== null;
+}
+
 function firstToken(word: Word): string {
     return word.text.split(' ')[0] ?? '';
 }
