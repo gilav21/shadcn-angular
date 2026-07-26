@@ -876,3 +876,22 @@ describe('float beside a short block', () => {
         expect(float?.kind === 'image' ? float.float : '').toBe('left');
     });
 });
+
+// Bold-to-plain line transitions split paragraph groups.
+describe('bold-to-plain paragraph boundary', () => {
+    it('splits a uniformly bold line from the plain line below it', () => {
+        const question = lineOf('Que veut dire la mère de Mona quand elle dit', 50, 500, 700, { style: { bold: true } });
+        const option = lineOf('a) Mona doit faire plus de recherche avant', 50, 480, 686);
+        const blocks = buildPageBlocks([question, option], pageExtractOf([question, option]), true, ctx);
+        const texts = blocks.map(b => blockLines(b).map(l => l.words[0].text).join(' | '));
+        expect(texts.some(t => t.includes('Que veut') && t.includes('Mona doit'))).toBe(false);
+    });
+
+    it('keeps a plain label line with the bold line below it (one visual unit)', () => {
+        const label = lineOf('לכבוד: 22/05/2026', 292, 548, 700, { dir: 'rtl', fontSize: 10 });
+        const name = lineOf('גיל אברהם-אלפי', 452, 548, 688, { dir: 'rtl', fontSize: 10, style: { bold: true } });
+        const blocks = buildPageBlocks([label, name], pageExtractOf([label, name]), true, ctx);
+        const joined = blocks.some(b => blockLines(b).length === 2);
+        expect(joined).toBe(true);
+    });
+});

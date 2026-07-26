@@ -1448,7 +1448,24 @@ function startsNewParagraph(previous: Line, line: Line, medianGap: number): bool
         Math.max(1, Math.min(previous.fontSize, line.fontSize));
     if (sizeRatio >= FONT_SIZE_CHANGE_RATIO) return true;
     if (isListSubheadingBoundary(previous, line, sizeRatio)) return true;
+    if (dominantStyleChanges(previous, line)) return true;
     return previous.dir !== line.dir;
+}
+
+/**
+ * A uniformly bold line followed by a uniformly plain one is a heading-to-body
+ * boundary (a name over a role line, a column header over data rows), not a
+ * wrap. Only this direction splits: a plain label line followed by a bold
+ * value ("לכבוד: <date>" over a bold recipient) is one visual unit, and mixed
+ * lines (prose with an inline bold word) never trip the test.
+ */
+function dominantStyleChanges(previous: Line, line: Line): boolean {
+    const uniformBold = (l: Line): boolean | null => {
+        const [first, ...rest] = l.words;
+        if (!first) return null;
+        return rest.every(w => w.style.bold === first.style.bold) ? first.style.bold : null;
+    };
+    return uniformBold(previous) === true && uniformBold(line) === false;
 }
 
 /**
