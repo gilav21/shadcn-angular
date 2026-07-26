@@ -137,6 +137,9 @@ export interface ParagraphBlock {
     readonly lines: Line[];
     readonly page: number;
     readonly style: BlockStyle;
+    /** Every internal line break is deliberate — the next line's first word
+     *  would have fit on the broken line — so emission preserves the breaks. */
+    readonly stacked?: boolean;
 }
 
 export interface HeadingBlock {

@@ -960,7 +960,7 @@ function flowRegionToBlocks(rawRegion: Line[], pageIndex: number, ctx: ClassifyC
         const gapAbove = previousBaseline === null ? null : previousBaseline - lines[0].y;
         const kind = classifyGroup(lines, bounds, gapAbove, ctx);
         const style = resolveBlockStyle(lines, bounds, previousBaseline, ctx.pageBounds);
-        blocks.push(blockFrom(kind, lines, pageIndex, style));
+        blocks.push(blockFrom(kind, lines, pageIndex, style, ctx.pageBounds));
         previousBaseline = lines.at(-1)?.y ?? previousBaseline;
     }
     return blocks;
@@ -971,6 +971,7 @@ function blockFrom(
     lines: Line[],
     page: number,
     style: BlockStyle,
+    measure: ColumnBounds,
 ): DocBlock {
     switch (kind.kind) {
         case 'heading':
@@ -980,8 +981,46 @@ function blockFrom(
         case 'blockquote':
             return { kind: 'blockquote', lines: [...lines], page, style };
         default:
-            return { kind: 'paragraph', lines: [...lines], page, style };
+            return {
+                kind: 'paragraph',
+                lines: [...lines],
+                page,
+                style,
+                stacked: allBreaksIntentional(lines, measure),
+            };
     }
+}
+
+/** Safety margin, in em, the next line's first word must clear beyond the
+ *  broken line's remaining room before a break counts as deliberate. */
+const INTENTIONAL_BREAK_MARGIN_EM = 1;
+
+/**
+ * True when every line break in the group is deliberate: the next line's first
+ * word would have fit in the room left on the broken line (ISO 32000 has no
+ * break semantics — this is the pdfminer-style layout inference). Wrapped prose
+ * breaks a line precisely because the next word does NOT fit, so a genuine
+ * paragraph fails this on its very first break. The measure is the enclosing
+ * region/column's content bounds (column-scoped for column cells), and the fit
+ * requires a full safety margin so a ragged edge near the measure never
+ * misreads as deliberate. A hyphen-ended line is a wrap artifact regardless of
+ * room (narrow gloss columns sit far from their region measure), so it vetoes
+ * the whole group. RTL lines fill right-to-left, so their remaining room is on
+ * the left edge.
+ */
+function allBreaksIntentional(lines: readonly Line[], measure: ColumnBounds): boolean {
+    if (lines.length < 2) return false;
+    for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i];
+        const nextWord = lines[i + 1].words[0];
+        if (!nextWord) return false;
+        if (line.words.at(-1)?.text.endsWith('-')) return false;
+        const room = line.dir === 'rtl' ? line.x - measure.x0 : measure.x1 - line.endX;
+        const needed = (nextWord.endX - nextWord.x) +
+            INTENTIONAL_BREAK_MARGIN_EM * Math.max(line.fontSize, 1);
+        if (needed > room) return false;
+    }
+    return true;
 }
 
 /**

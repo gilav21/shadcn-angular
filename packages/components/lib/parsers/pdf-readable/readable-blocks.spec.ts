@@ -12,7 +12,7 @@ import {
 } from './readable-blocks';
 import type { ClassifyContext } from './readable-classify';
 import { blockLines } from './readable-emit';
-import { lineOf } from './readable-spec-helpers';
+import { lineOf, wordAt } from './readable-spec-helpers';
 import type { Line, PageExtract } from './readable-types';
 
 const ctx: Omit<ClassifyContext, 'pageBounds'> = {
@@ -689,5 +689,67 @@ describe('extractLeadingQuadrant', () => {
     it('does not fire when the far-x starts scatter across the run', () => {
         const scatterR = lineOf('email addr', 490, 563, 723, { fontSize: 14 });
         expect(extractLeadingQuadrant([q0L, q0R, q1L, scatterR, heading], 0, 0, cellCtx)).toBeNull();
+    });
+});
+
+// Deliberate line breaks — the next line's first word would have fit.
+describe('stacked paragraphs (intentional break preservation)', () => {
+    const wideSibling = lineOf('A heading line that stretches the page measure wide', 36, 571, 400, { fontSize: 14 });
+
+    function paragraphWith(text: string, blocks: readonly ReturnType<typeof buildPageBlocks>[number][]) {
+        return blocks.find(b => b.kind === 'paragraph' &&
+            b.lines.some(l => l.words.some(w => w.text.includes(text))));
+    }
+
+    it('marks two short entries stacked when the next entry would have fit', () => {
+        const mba = lineOf('MBA, Strategy (2020-2023)', 36, 389, 194, { fontSize: 10 });
+        const bsc: Line = {
+            ...lineOf('B.Sc. Computer Science - College (2015-2018)', 36, 334, 173, { fontSize: 10 }),
+            words: [
+                wordAt('B.Sc. Computer Science', 36, 147, 173),
+                wordAt('- College (2015-2018)', 149, 334, 173),
+            ],
+        };
+        const blocks = buildPageBlocks([wideSibling, mba, bsc], pageExtractOf([wideSibling, mba, bsc]), true, ctx);
+        const para = paragraphWith('MBA', blocks);
+        expect(para?.kind).toBe('paragraph');
+        expect(para && para.kind === 'paragraph' ? para.stacked : undefined).toBe(true);
+    });
+
+    it('leaves wrapped prose flowing (next word did not fit)', () => {
+        const first: Line = {
+            ...lineOf('This long prose line runs right up to the measure edge', 36, 566, 194, { fontSize: 10 }),
+            words: [
+                wordAt('This long prose line runs right up to the', 36, 420, 194),
+                wordAt('measure edge', 422, 566, 194),
+            ],
+        };
+        const second: Line = {
+            ...lineOf('continuation of the sentence here', 36, 220, 182, { fontSize: 10 }),
+            words: [
+                wordAt('continuation', 36, 95, 182),
+                wordAt('of the sentence here', 97, 220, 182),
+            ],
+        };
+        const blocks = buildPageBlocks([wideSibling, first, second], pageExtractOf([wideSibling, first, second]), true, ctx);
+        const para = paragraphWith('continuation', blocks);
+        expect(para && para.kind === 'paragraph' ? para.stacked : undefined).toBe(false);
+    });
+
+    it('treats a hyphen-ended line as a wrap artifact even with room to spare', () => {
+        const first = lineOf('Ce premier cha-', 36, 120, 194, { fontSize: 10 });
+        const second = lineOf('pitre est fort', 36, 110, 182, { fontSize: 10 });
+        const blocks = buildPageBlocks([wideSibling, first, second], pageExtractOf([wideSibling, first, second]), true, ctx);
+        const para = paragraphWith('premier', blocks);
+        expect(para && para.kind === 'paragraph' ? para.stacked : undefined).toBe(false);
+    });
+
+    it('marks an RTL stack via the left-edge room', () => {
+        const title = lineOf('אישור מחלה', 420, 571, 194, { dir: 'rtl', fontSize: 12 });
+        const name = lineOf('אברהם גיל', 460, 571, 179, { dir: 'rtl', fontSize: 12 });
+        const wideRtl = lineOf('שורת פתיחה רחבה מאוד שמותחת את שולי העמוד לכל הרוחב', 36, 571, 400, { dir: 'rtl', fontSize: 12 });
+        const blocks = buildPageBlocks([wideRtl, title, name], pageExtractOf([wideRtl, title, name]), true, ctx);
+        const para = paragraphWith('אישור', blocks);
+        expect(para && para.kind === 'paragraph' ? para.stacked : undefined).toBe(true);
     });
 });

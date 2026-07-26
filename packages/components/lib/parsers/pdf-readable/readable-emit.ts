@@ -102,7 +102,7 @@ export function blockLines(block: DocBlock): readonly Line[] {
 function emitBlock(block: DocBlock, ctx: EmitContext): string {
     switch (block.kind) {
         case 'paragraph':
-            return emitLinesBlock('p', block.lines, block.style, ctx);
+            return emitLinesBlock('p', block.lines, block.style, ctx, block.stacked ?? false);
         case 'heading':
             return emitHeading(block, ctx);
         case 'blockquote':
@@ -160,10 +160,11 @@ function emitLinesBlock(
     lines: readonly Line[],
     style: BlockStyle,
     ctx: EmitContext,
+    stacked = false,
 ): string {
     if (lines.length === 0) return '';
     const dominant = dominantRunStyle(lines);
-    const content = emitLineContents(lines, dominant, ctx, preserveLineBreaks(lines));
+    const content = emitLineContents(lines, dominant, ctx, stacked || preserveLineBreaks(lines));
     const styleValue = styleAttr([
         ...blockStylePairs(style, ctx.inColumn ?? false),
         ...baseFontPairs(dominant, ctx),
