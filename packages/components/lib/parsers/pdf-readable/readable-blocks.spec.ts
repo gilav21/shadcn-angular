@@ -895,3 +895,39 @@ describe('bold-to-plain paragraph boundary', () => {
         expect(joined).toBe(true);
     });
 });
+
+// Shared-fill panel — stacked fill slices merge and wrap their blocks once.
+describe('shared fill panel', () => {
+    function fillRect(x: number, y: number, w: number, h: number): PathRect {
+        return {
+            x, y, width: w, height: h, page: 0,
+            stroked: false, filled: true,
+            strokeColor: '#5d93e5', fillColor: '#5d93e5', lineWidth: 0,
+        };
+    }
+
+    it('wraps consecutive blocks on one sliced fill into a single anchored panel', () => {
+        const vendor = lineOf('טיפול נמרץ וטרינרי', 36, 200, 600, { dir: 'rtl', fontSize: 10 });
+        const a = lineOf('לכבוד: 22/05/2026', 292, 548, 770, { dir: 'rtl', fontSize: 10 });
+        const b = lineOf('חשבונית מס / קבלה 162492', 358, 548, 700, { dir: 'rtl', fontSize: 18 });
+        const c = lineOf('מקור', 527, 548, 660, { dir: 'rtl', fontSize: 11 });
+        const lines = [a, b, c, vendor];
+        const slices = [fillRect(265, 740, 309, 60), fillRect(265, 680, 309, 60), fillRect(265, 640, 309, 40)];
+        const blocks = buildPageBlocks(lines, pageExtractOf(lines, { rects: slices }), true, ctx);
+        const panels = blocks.filter(bl => bl.kind === 'columns' && bl.style.background === '#5d93e5');
+        expect(panels).toHaveLength(1);
+        const panel = panels[0];
+        if (panel.kind !== 'columns') throw new Error('unreachable');
+        expect(panel.columns[0].blocks.length).toBeGreaterThanOrEqual(2);
+        expect(panel.panelRatio).toBeGreaterThan(0.3);
+        expect(panel.panelSide).toBe('right');
+        expect(panel.columns[0].blocks.every(bl => bl.style.background === '')).toBe(true);
+    });
+
+    it('leaves a single-block fill as a per-block background (no wrapper)', () => {
+        const only = lineOf('סה"כ לתשלום 3,966', 300, 500, 700, { dir: 'rtl', fontSize: 10 });
+        const blocks = buildPageBlocks([only], pageExtractOf([only], { rects: [fillRect(290, 690, 220, 20)] }), true, ctx);
+        expect(blocks.some(bl => bl.kind === 'columns')).toBe(false);
+        expect(blocks.some(bl => bl.style.background === '#5d93e5')).toBe(true);
+    });
+});

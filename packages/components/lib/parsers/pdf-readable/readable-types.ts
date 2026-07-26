@@ -226,6 +226,10 @@ export interface ColumnsBlock {
     readonly columns: ColumnGroup[];
     readonly page: number;
     readonly style: BlockStyle;
+    /** For a background panel narrower than the measure: its width share and
+     *  anchored side, so it leaves room for content floated beside it. */
+    readonly panelRatio?: number;
+    readonly panelSide?: 'left' | 'right';
 }
 
 export type DocBlock =

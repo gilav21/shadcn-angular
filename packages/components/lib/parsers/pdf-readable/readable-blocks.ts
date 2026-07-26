@@ -130,8 +130,9 @@ export function buildPageBlocks(
         ? attachInlineImages(lines, page.images)
         : new Set<ImageItem>();
     const tableRects = page.rects.filter(rect => !usedRects.has(rect));
-    const blocks = linesToBlocks(lines, tableRects, page.index, ctx, usedRects);
-    applyFillBackgrounds(blocks, page.rects);
+    const blocks = applyFillBackgrounds(
+        linesToBlocks(lines, tableRects, page.index, ctx, usedRects),
+        page.rects, page.index, ctx.pageBounds);
     const boxed = applyBlockBorders(blocks, page.rects, usedRects, page.index);
     const withRules = interleaveByTop(boxed, detectRules(page, usedRects, lines, boxed));
     if (!includeImages || page.images.length === inlined.size) return withRules;
@@ -412,10 +413,16 @@ const MIN_FILL_AREA = 1500;
  * surface — is lost. Only saturated fills qualify so black rules and grey
  * shading never turn same-coloured text unreadable.
  */
-function applyFillBackgrounds(blocks: readonly DocBlock[], rects: readonly PathRect[]): void {
-    const fills = rects.filter(r =>
-        r.filled && r.width * r.height >= MIN_FILL_AREA && isSaturatedColor(r.fillColor));
-    if (fills.length === 0) return;
+function applyFillBackgrounds(
+    blocks: readonly DocBlock[],
+    rects: readonly PathRect[],
+    pageIndex: number,
+    measure: ColumnBounds,
+): DocBlock[] {
+    const fills = mergeContiguousFills(rects.filter(r =>
+        r.filled && r.width * r.height >= MIN_FILL_AREA && isSaturatedColor(r.fillColor)));
+    if (fills.length === 0) return [...blocks];
+    const fillOf = new Map<DocBlock, PathRect>();
     for (const block of blocks) {
         if (block.kind === 'table') {
             applyCellBackgrounds(block, fills);
@@ -424,9 +431,95 @@ function applyFillBackgrounds(blocks: readonly DocBlock[], rects: readonly PathR
         const bounds = textBlockBounds(block);
         if (bounds) {
             const fill = fills.find(r => rectCoversCentroid(r, bounds));
-            if (fill) block.style.background = fill.fillColor;
+            if (fill) {
+                block.style.background = fill.fillColor;
+                fillOf.set(block, fill);
+            }
         }
     }
+    return wrapSharedFillRuns(blocks, fillOf, pageIndex, measure);
+}
+
+/** Vertical gap (pt) under which two same-colour fill slices are one rect. */
+const FILL_MERGE_GAP = 2;
+
+/**
+ * A PDF often paints one visual background as several stacked slices (doc4's
+ * blue header: four rects, identical x-span and colour, touching y-bands).
+ * Merging them restores the single rect the design drew.
+ */
+function mergeContiguousFills(fills: readonly PathRect[]): PathRect[] {
+    const merged: PathRect[] = [];
+    const sorted = [...fills].sort((a, b) => a.x - b.x || b.y - a.y);
+    for (const fill of sorted) {
+        const host = merged.find(m =>
+            m.fillColor === fill.fillColor &&
+            Math.abs(m.x - fill.x) <= FILL_MERGE_GAP &&
+            Math.abs(m.x + m.width - (fill.x + fill.width)) <= FILL_MERGE_GAP &&
+            fill.y <= m.y + m.height + FILL_MERGE_GAP &&
+            fill.y + fill.height >= m.y - FILL_MERGE_GAP);
+        if (host) {
+            const top = Math.max(host.y + host.height, fill.y + fill.height);
+            const bottom = Math.min(host.y, fill.y);
+            merged[merged.indexOf(host)] = { ...host, y: bottom, height: top - bottom };
+        } else {
+            merged.push({ ...fill });
+        }
+    }
+    return merged;
+}
+
+/**
+ * Wraps a run of two or more consecutive blocks sitting on the SAME merged
+ * fill into one background container, so the original's single coloured panel
+ * renders as one continuous box instead of striped per-block bands.
+ */
+function wrapSharedFillRuns(
+    blocks: readonly DocBlock[],
+    fillOf: ReadonlyMap<DocBlock, PathRect>,
+    pageIndex: number,
+    measure: ColumnBounds,
+): DocBlock[] {
+    const result: DocBlock[] = [];
+    let i = 0;
+    while (i < blocks.length) {
+        const fill = fillOf.get(blocks[i]);
+        let end = i + 1;
+        while (fill && end < blocks.length && fillOf.get(blocks[end]) === fill) end++;
+        if (fill && end - i >= 2) {
+            const group = blocks.slice(i, end);
+            for (const member of group) member.style.background = '';
+            result.push(fillPanel(group, fill, pageIndex, measure));
+        } else {
+            result.push(...blocks.slice(i, end));
+        }
+        i = end;
+    }
+    return result;
+}
+
+/** A panel is treated as full-width above this share of the measure. */
+const PANEL_FULL_RATIO = 0.85;
+
+function fillPanel(
+    group: DocBlock[],
+    fill: PathRect,
+    pageIndex: number,
+    measure: ColumnBounds,
+): ColumnsBlock {
+    const rtl = group.filter(b => b.style.dir === 'rtl').length * 2 > group.length;
+    const measureWidth = Math.max(1, measure.x1 - measure.x0);
+    const ratio = Math.min(1, fill.width / measureWidth);
+    const partial = ratio < PANEL_FULL_RATIO;
+    const roomLeft = fill.x - measure.x0;
+    const roomRight = measure.x1 - (fill.x + fill.width);
+    return {
+        kind: 'columns',
+        columns: [{ blocks: group, widthRatio: 1 }],
+        page: pageIndex,
+        style: { ...emptyStyle(), dir: rtl ? 'rtl' : '', background: fill.fillColor },
+        ...(partial ? { panelRatio: ratio, panelSide: roomLeft > roomRight ? 'right' as const : 'left' as const } : {}),
+    };
 }
 
 /**

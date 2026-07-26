@@ -145,7 +145,14 @@ function emitColumns(block: ColumnsBlock, ctx: EmitContext): string {
     });
     const dirAttr = block.style.dir === 'rtl' ? ' dir="rtl"' : '';
     const boxStyle = block.style.border ? `;border:${block.style.border}` : '';
-    return `<table style="border-collapse:collapse;width:100%${boxStyle}"${dirAttr}><tr>${cells.join('')}</tr></table>`;
+    const fillStyle = block.style.background ? `;background:${block.style.background}` : '';
+    let width = '100%';
+    let anchor = '';
+    if (block.panelRatio) {
+        width = `${Math.round(block.panelRatio * 1000) / 10}%`;
+        anchor = block.panelSide === 'right' ? ';margin-left:auto' : ';margin-right:auto';
+    }
+    return `<table style="border-collapse:collapse;width:${width}${anchor}${boxStyle}${fillStyle}"${dirAttr}><tr>${cells.join('')}</tr></table>`;
 }
 
 function emitHeading(block: HeadingBlock, ctx: EmitContext): string {
