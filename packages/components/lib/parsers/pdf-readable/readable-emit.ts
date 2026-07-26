@@ -1,3 +1,4 @@
+import type { ImageItem } from '../pdf-parser';
 import { sameStyle } from './readable-words';
 import type {
     BlockAlign,
@@ -25,6 +26,8 @@ interface EmitContext {
 interface RunModel {
     readonly style: RunStyle;
     readonly text: string;
+    /** Icon-sized image flowing inline; the run renders as an <img> then. */
+    readonly image?: ImageItem;
 }
 
 export function emitDocument(
@@ -295,6 +298,10 @@ export function preserveLineBreaks(lines: readonly Line[]): boolean {
 function appendLineJoin(runs: RunModel[], previousLine: Line): void {
     const last = runs.at(-1);
     if (!last) return;
+    if (last.image) {
+        runs.push({ style: last.style, text: ' ' });
+        return;
+    }
     if (last.text.endsWith('-') && previousLine.dir === 'ltr') {
         runs[runs.length - 1] = { style: last.style, text: last.text.slice(0, -1) };
         return;
@@ -307,7 +314,9 @@ function appendLineRuns(runs: RunModel[], words: readonly Word[]): void {
         const word = words[i];
         const separator = i > 0 && word.spaceBefore ? ' ' : '';
         const last = runs.at(-1);
-        if (last && sameStyle(last.style, word.style)) {
+        if (word.image) {
+            runs.push({ style: word.style, text: '', image: word.image });
+        } else if (last && !last.image && sameStyle(last.style, word.style)) {
             runs[runs.length - 1] = { style: last.style, text: last.text + separator + word.text };
         } else {
             runs.push({ style: word.style, text: separator + word.text });
@@ -316,6 +325,14 @@ function appendLineRuns(runs: RunModel[], words: readonly Word[]): void {
 }
 
 function emitRun(run: RunModel, dominant: RunStyle | null, ctx: EmitContext): string {
+    if (run.image) {
+        const size = styleAttr([
+            ['width', `${round(run.image.renderWidth)}pt`],
+            ['height', `${round(run.image.renderHeight)}pt`],
+            ['vertical-align', 'baseline'],
+        ]);
+        return ` <img src="${run.image.dataUrl}" alt="" style="${size}">`;
+    }
     let html = escapeHtml(run.text);
     const style = run.style;
     const spanStyle = runDeltaPairs(style, dominant, ctx);

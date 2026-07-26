@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { preserveLineBreaks } from './readable-emit';
-import { lineOf } from './readable-spec-helpers';
-import type { Line } from './readable-types';
+import { emitDocument, preserveLineBreaks } from './readable-emit';
+import { lineOf, wordAt } from './readable-spec-helpers';
+import type { DocModel, Line, Word } from './readable-types';
 
 describe('preserveLineBreaks', () => {
     it('is false for a single line', () => {
@@ -35,5 +35,49 @@ describe('preserveLineBreaks', () => {
             lineOf('ערך ארוך יותר', 440, 582, 568, { dir: 'rtl' }),
         ];
         expect(preserveLineBreaks(lines)).toBe(true);
+    });
+});
+
+describe('inline image emission', () => {
+    const OPTS = { embedFonts: false, includeImages: true, pageWrappers: false, fontFamilyPrefix: 'p-' };
+    const icon = {
+        dataUrl: 'data:image/png;base64,AAAA', width: 9, height: 9,
+        renderWidth: 9, renderHeight: 9, x: 438, y: 743, page: 0,
+    };
+
+    function docWith(lines: Line[]): DocModel {
+        return {
+            pages: [{ index: 0, width: 612, height: 792, blocks: [
+                { kind: 'paragraph', lines, page: 0, style: { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '', background: '', border: '' } },
+            ] }],
+            bodyFontSize: 12,
+        };
+    }
+
+    function imageWord(): Word {
+        return {
+            text: '', x: 438, endX: 447, y: 743, fontSize: 12,
+            style: wordAt('x', 0, 0, 0).style, mcid: -1,
+            spaceBefore: true, hardBreak: false, image: icon,
+        };
+    }
+
+    it('emits an inline word image as an <img> at its reading position', () => {
+        const line = lineOf('/in/gil-avraham/', 453, 543, 743);
+        line.words.unshift(imageWord());
+        const { html } = emitDocument(docWith([line]), OPTS, new Map());
+        const img = html.indexOf('<img');
+        const text = html.indexOf('/in/gil-avraham/');
+        expect(img).toBeGreaterThan(-1);
+        expect(img).toBeLessThan(text);
+    });
+
+    it('keeps a line-ending image across a paragraph line join', () => {
+        const first = lineOf('Jerusalem, Israel', 311, 427, 743);
+        first.words.push(imageWord());
+        const second = lineOf('more text below', 311, 400, 723);
+        const { html } = emitDocument(docWith([first, second]), OPTS, new Map());
+        expect(html).toContain('<img');
+        expect(html).toContain('more text below');
     });
 });

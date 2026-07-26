@@ -93,6 +93,8 @@ export interface Word {
     spaceBefore: boolean;
     /** True when a column-sized gap precedes this word visually — a segment boundary. */
     readonly hardBreak: boolean;
+    /** An icon-sized image flowing inline within the line; text is '' then. */
+    image?: ImageItem;
 }
 
 export type TextDirection = 'ltr' | 'rtl';

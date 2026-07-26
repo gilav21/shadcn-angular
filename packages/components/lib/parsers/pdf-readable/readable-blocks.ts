@@ -126,18 +126,99 @@ export function buildPageBlocks(
     };
     const usedRects = applyUnderlines(lines, page.rects);
     applySlotUnderlines(lines, page.rects, usedRects, page.width);
+    const inlined = includeImages
+        ? attachInlineImages(lines, page.images)
+        : new Set<ImageItem>();
     const tableRects = page.rects.filter(rect => !usedRects.has(rect));
     const blocks = linesToBlocks(lines, tableRects, page.index, ctx, usedRects);
     applyFillBackgrounds(blocks, page.rects);
     const boxed = applyBlockBorders(blocks, page.rects, usedRects, page.index);
     const withRules = interleaveByTop(boxed, detectRules(page, usedRects, lines, boxed));
-    if (!includeImages || page.images.length === 0) return withRules;
-    const images = page.images.filter(img => !isBackgroundDecoration(img, page.width * page.height));
+    if (!includeImages || page.images.length === inlined.size) return withRules;
+    const images = page.images.filter(img =>
+        !inlined.has(img) && !isBackgroundDecoration(img, page.width * page.height));
     if (images.length === 0) return withRules;
     const consumed = applyButtonBoxes(withRules, images);
     const remaining = consumed.size > 0 ? images.filter(img => !consumed.has(img)) : images;
     if (remaining.length === 0) return withRules;
     return interleaveImages(withRules, remaining, page.index, isRtlPage(withRules) ? page.width : 0);
+}
+
+/** An inline icon is at most this multiple of the line font size tall. */
+const INLINE_IMAGE_MAX_H_EM = 1.6;
+/** An inline icon is at most this multiple of the line font size wide. */
+const INLINE_IMAGE_MAX_W_EM = 3;
+/** Horizontal slack, in em, an icon may sit outside the line's x-extent. */
+const INLINE_IMAGE_SLACK_EM = 2;
+
+/**
+ * Attaches icon-sized images to the text line they flow within (a LinkedIn
+ * glyph just before a profile URL). Page-level image interleave cannot reach
+ * a line nested inside a column cell, so the icon becomes an inline word on
+ * the line itself: height and width capped at icon size, vertical band
+ * overlapping the line, x within the line's extent plus slack. Consumed
+ * images are excluded from every later image pass. Insertion index follows
+ * the line's reading direction so logical word order stays intact.
+ */
+function attachInlineImages(lines: readonly Line[], images: readonly ImageItem[]): Set<ImageItem> {
+    const consumed = new Set<ImageItem>();
+    for (const image of images) {
+        const host = findInlineHost(lines, image);
+        if (!host) continue;
+        insertInlineWord(host, image);
+        consumed.add(image);
+    }
+    return consumed;
+}
+
+function findInlineHost(lines: readonly Line[], image: ImageItem): Line | null {
+    let best: Line | null = null;
+    let bestDistance = Infinity;
+    for (const line of lines) {
+        if (!fitsInline(line, image)) continue;
+        const outside = Math.max(
+            0,
+            line.x - (image.x + image.renderWidth),
+            image.x - line.endX,
+        );
+        const distance = outside * 10 + Math.abs(image.y - line.y);
+        if (distance < bestDistance) {
+            best = line;
+            bestDistance = distance;
+        }
+    }
+    return best;
+}
+
+function fitsInline(line: Line, image: ImageItem): boolean {
+    const em = Math.max(line.fontSize, 1);
+    if (image.renderHeight > em * INLINE_IMAGE_MAX_H_EM) return false;
+    if (image.renderWidth > em * INLINE_IMAGE_MAX_W_EM) return false;
+    const centerY = image.y + image.renderHeight / 2;
+    if (centerY < line.y - em * 0.5 || centerY > line.y + em * 1.2) return false;
+    const slack = em * INLINE_IMAGE_SLACK_EM;
+    return image.x >= line.x - slack && image.x + image.renderWidth <= line.endX + slack;
+}
+
+/** Splices the icon into the host line's words at its visual reading position. */
+function insertInlineWord(line: Line, image: ImageItem): void {
+    const centerX = image.x + image.renderWidth / 2;
+    const before = line.dir === 'rtl'
+        ? line.words.filter(w => w.x >= centerX).length
+        : line.words.filter(w => w.endX <= centerX).length;
+    const anchor = line.words[Math.min(before, line.words.length - 1)];
+    line.words.splice(before, 0, {
+        text: '',
+        x: image.x,
+        endX: image.x + image.renderWidth,
+        y: line.y,
+        fontSize: line.fontSize,
+        style: anchor.style,
+        mcid: anchor.mcid,
+        spaceBefore: true,
+        hardBreak: false,
+        image,
+    });
 }
 
 /** Majority of the text-bearing blocks read right-to-left. */
