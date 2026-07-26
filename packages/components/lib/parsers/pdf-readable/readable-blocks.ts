@@ -1770,7 +1770,8 @@ function floatSideFor(block: DocBlock, image: ImageItem): 'left' | 'right' | nul
     const bottom = Math.min(...lines.map(l => l.y));
     const imgTopY = imageTop(image);
     const overlap = Math.min(top, imgTopY) - Math.max(bottom, image.y);
-    if (overlap < image.renderHeight * 0.5) return null;
+    const bandHeight = top - bottom + Math.max(...lines.map(l => l.fontSize));
+    if (overlap < Math.min(image.renderHeight, bandHeight) * 0.5) return null;
 
     const blockLeft = Math.min(...lines.map(l => l.x));
     const blockRight = Math.max(...lines.map(l => l.endX));

@@ -860,3 +860,19 @@ describe('attachInlineImages (via buildPageBlocks)', () => {
         expect(inlineImagesOf(blocks)).toHaveLength(0);
     });
 });
+
+// Float criterion — a tall image beside a short block counts by the smaller band.
+describe('float beside a short block', () => {
+    it('floats a tall logo left of a two-line header block it fully spans', () => {
+        const a = lineOf('לכבוד: 22/05/2026', 292, 548, 773, { dir: 'rtl', fontSize: 10 });
+        const b = lineOf('גיל אברהם-אלפי', 452, 548, 759, { dir: 'rtl', fontSize: 10 });
+        const logo: ImageItem = {
+            dataUrl: 'data:image/png;base64,logo', width: 112, height: 112,
+            renderWidth: 112, renderHeight: 112, x: 89, y: 690, page: 0,
+        };
+        const blocks = buildPageBlocks([a, b], pageExtractOf([a, b], { images: [logo] }), true, ctx);
+        const float = blocks.find(bl => bl.kind === 'image' && bl.float !== '');
+        expect(float).toBeDefined();
+        expect(float?.kind === 'image' ? float.float : '').toBe('left');
+    });
+});
