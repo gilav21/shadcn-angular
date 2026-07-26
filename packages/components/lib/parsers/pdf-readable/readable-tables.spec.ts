@@ -312,3 +312,45 @@ describe('findTableInBand — ruled', () => {
         expect(afterText).toContain('UL');
     });
 });
+
+describe('ruled table with an external leading label', () => {
+    const grid = [
+        separatorRect(50, 700, 200, 30), separatorRect(250, 700, 200, 30),
+        separatorRect(50, 670, 200, 30), separatorRect(250, 670, 200, 30),
+    ];
+
+    it('moves a top-row label outside the grid before the table', () => {
+        const band = [
+            lineOf('Header A', 60, 150, 715), lineOf('Header B', 260, 350, 715),
+            lineOf('Data A', 60, 150, 685), lineOf('Data B', 260, 350, 685),
+            lineOf('Label', 460, 520, 715),
+        ];
+        const split = findTableInBand(band, grid, 0, ctx);
+        expect(split).not.toBeNull();
+        expect(split?.before.map(l => l.words[0].text)).toContain('Label');
+        expect(split?.after.map(l => l.words[0].text)).not.toContain('Label');
+    });
+
+    it('keeps a caption below the grid in the after position', () => {
+        const band = [
+            lineOf('Header A', 60, 150, 715), lineOf('Header B', 260, 350, 715),
+            lineOf('Data A', 60, 150, 685), lineOf('Data B', 260, 350, 685),
+            lineOf('Caption below', 60, 200, 650),
+        ];
+        const split = findTableInBand(band, grid, 0, ctx);
+        expect(split).not.toBeNull();
+        expect(split?.after.map(l => l.words[0].text)).toContain('Caption below');
+        expect(split?.before.map(l => l.words[0].text)).not.toContain('Caption below');
+    });
+
+    it('keeps a label beside a lower row in the after position', () => {
+        const band = [
+            lineOf('Header A', 60, 150, 715), lineOf('Header B', 260, 350, 715),
+            lineOf('Data A', 60, 150, 685), lineOf('Data B', 260, 350, 685),
+            lineOf('SideNote', 460, 520, 685),
+        ];
+        const split = findTableInBand(band, grid, 0, ctx);
+        expect(split).not.toBeNull();
+        expect(split?.after.map(l => l.words[0].text)).toContain('SideNote');
+    });
+});

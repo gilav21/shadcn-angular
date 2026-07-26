@@ -116,12 +116,26 @@ function ruledTableFromComponent(
 
     const consumed = new Set(inGrid);
     const yTop = Math.max(...grid.ys);
+    const leads = (line: Line): boolean => leadsTopRow(line, grid, yTop);
     return {
-        before: band.filter(line => !consumed.has(line) && line.y > yTop),
+        before: band.filter(line => !consumed.has(line) && (line.y > yTop || leads(line))),
         table: makeTableBlock(cells, true, pageIndex),
-        after: band.filter(line => !consumed.has(line) && line.y <= yTop),
+        after: band.filter(line => !consumed.has(line) && line.y <= yTop && !leads(line)),
         usedRects: new Set(grid.sources),
     };
+}
+
+/**
+ * A line on the table's top-row baseline sitting horizontally OUTSIDE the grid
+ * is the row's leading label (an RTL form writes "סובל מ" just right of the
+ * diagnosis grid) — it reads before the table, not after it. Lines beside
+ * lower rows or below the grid (captions) keep their after position.
+ */
+function leadsTopRow(line: Line, grid: RuledGrid, yTop: number): boolean {
+    const ysDescending = [...grid.ys].sort((a, b) => b - a);
+    const rowFloor = ysDescending.length > 1 ? ysDescending[1] : yTop;
+    if (line.y > yTop || line.y <= rowFloor) return false;
+    return line.endX <= Math.min(...grid.xs) || line.x >= Math.max(...grid.xs);
 }
 
 /** Whether a rect is a grid separator (thin line or stroked cell box). */
