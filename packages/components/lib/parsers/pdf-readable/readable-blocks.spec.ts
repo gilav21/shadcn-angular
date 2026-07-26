@@ -6,6 +6,7 @@ import {
     asJustifiedRow,
     asQuadrantRow,
     buildPageBlocks,
+    extractKeyValueRun,
     extractLeadingQuadrant,
     splitJustifiedRows,
     xyCut,
@@ -751,5 +752,62 @@ describe('stacked paragraphs (intentional break preservation)', () => {
         const blocks = buildPageBlocks([wideRtl, title, name], pageExtractOf([wideRtl, title, name]), true, ctx);
         const para = paragraphWith('אישור', blocks);
         expect(para && para.kind === 'paragraph' ? para.stacked : undefined).toBe(true);
+    });
+});
+
+// Sub-detector C — interior key/value run inside a column cell.
+describe('extractKeyValueRun', () => {
+    const heading = lineOf('Order summary', 154, 256, 567, { fontSize: 13.5 });
+    const amount1 = lineOf('$15.00 USD', 49, 120, 545, { fontSize: 13.5 });
+    const label1 = lineOf('Purchase', 142, 201, 545, { fontSize: 13.5 });
+    const wrap1 = lineOf('amount', 152, 201, 527, { fontSize: 13.5 });
+    const amount2 = lineOf('$15.00 USD', 49, 123, 457, { fontSize: 13.5 });
+    const label2 = lineOf('Total', 227, 256, 457, { fontSize: 13.5 });
+
+    it('extracts an interior amount|label run with a wrapped label continuation', () => {
+        const run = extractKeyValueRun([heading, amount1, label1, wrap1, amount2, label2], 0);
+        expect(run).not.toBeNull();
+        expect(run?.before.map(l => l.words[0].text)).toEqual(['Order summary']);
+        expect(run?.block.rows).toHaveLength(2);
+        expect(run?.block.rows[0][0].lines[0].words[0].text).toBe('$15.00 USD');
+        expect(run?.block.rows[0][1].lines.map(l => l.words[0].text)).toEqual(['Purchase', 'amount']);
+        expect(run?.block.rows[1][1].lines[0].words[0].text).toBe('Total');
+        expect(run?.after).toHaveLength(0);
+    });
+
+    it('rejects a single pair (below the minimum run)', () => {
+        expect(extractKeyValueRun([heading, amount1, label1], 0)).toBeNull();
+    });
+
+    it('rejects list-marker rows (key too narrow)', () => {
+        const marker1 = lineOf('•', 49, 54, 545, { fontSize: 13.5 });
+        const item1 = lineOf('First bullet item', 72, 200, 545, { fontSize: 13.5 });
+        const marker2 = lineOf('•', 49, 54, 527, { fontSize: 13.5 });
+        const item2 = lineOf('Second bullet item', 72, 205, 527, { fontSize: 13.5 });
+        expect(extractKeyValueRun([marker1, item1, marker2, item2], 0)).toBeNull();
+    });
+
+    it('rejects single-segment prose rows', () => {
+        const prose = [
+            lineOf('a prose line', 49, 250, 545, { fontSize: 13.5 }),
+            lineOf('another prose line', 49, 240, 527, { fontSize: 13.5 }),
+        ];
+        expect(extractKeyValueRun(prose, 0)).toBeNull();
+    });
+
+    it('rejects a narrow key-to-value gap (one flowed line, not two cells)', () => {
+        const key = lineOf('$15.00 USD', 49, 120, 545, { fontSize: 13.5 });
+        const near = lineOf('Purchase', 128, 190, 545, { fontSize: 13.5 });
+        const key2 = lineOf('$15.00 USD', 49, 120, 527, { fontSize: 13.5 });
+        const near2 = lineOf('Total', 128, 160, 527, { fontSize: 13.5 });
+        expect(extractKeyValueRun([key, near, key2, near2], 0)).toBeNull();
+    });
+
+    it('rejects duplicated segments (rendered-twice visibility case)', () => {
+        const dupL1 = lineOf('e cient', 49, 120, 545, { fontSize: 13.5 });
+        const dupR1 = lineOf('e cient', 190, 260, 545, { fontSize: 13.5 });
+        const dupL2 = lineOf('e cient', 49, 120, 527, { fontSize: 13.5 });
+        const dupR2 = lineOf('e cient', 190, 260, 527, { fontSize: 13.5 });
+        expect(extractKeyValueRun([dupL1, dupR1, dupL2, dupR2], 0)).toBeNull();
     });
 });

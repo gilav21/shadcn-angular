@@ -612,8 +612,94 @@ function cellToBlocks(
         if (quadrant) {
             return [quadrant.block, ...cutToBlocks(quadrant.rest, depth + 1, pageIndex, cellCtx)];
         }
+        const run = extractKeyValueRun(col, pageIndex);
+        if (run) {
+            return [
+                ...(run.before.length > 0 ? cutToBlocks(run.before, depth + 1, pageIndex, cellCtx) : []),
+                run.block,
+                ...(run.after.length > 0 ? cellToBlocks(run.after, depth, pageIndex, cellCtx) : []),
+            ];
+        }
     }
     return cutToBlocks(col, depth + 1, pageIndex, cellCtx);
+}
+
+/** Minimum matched pairs before an interior key/value run becomes a table. */
+const KV_MIN_PAIRS = 2;
+/** Minimum key-to-value gap, in em, for a row to read as two cells. */
+const KV_MIN_GAP_EM = 1.5;
+/** Minimum key-segment width, in em — excludes list markers and stray glyphs. */
+const KV_MIN_KEY_EM = 2;
+
+/**
+ * Sub-detector C — an interior key/value run inside a column cell. A run of
+ * baseline rows each carrying exactly two segments — the key pinned to the
+ * cell's left edge, a clear gap, then the value — is a two-column sub-table
+ * the outer passes cannot see (a receipt's Order-summary cell: amount|label
+ * rows). Unlike sub-detector A the run may sit anywhere in the cell, the value
+ * starts need not cluster (a right-pinned "Total" under a mid-cell label), and
+ * a one-segment row that overlaps the previous value's x-band is that value's
+ * wrap continuation. Emits a borderless two-column table so each pair stays
+ * row-aligned; the rows before and after flow normally. Prose cells never
+ * match: their rows are single-segment, and list markers fail the key-width
+ * and gap gates.
+ */
+export function extractKeyValueRun(
+    col: Line[],
+    pageIndex: number,
+): { before: Line[]; block: TableBlock; after: Line[] } | null {
+    const rows = groupByBaseline(col);
+    const cell = boundsOfLines(col);
+    const start = rows.findIndex(row => asKeyValueRow(row, cell.x0) !== null);
+    if (start < 0) return null;
+    const pairs: { key: Line; value: Line[] }[] = [];
+    let next = start;
+    while (next < rows.length) {
+        const row = rows[next];
+        const pair = asKeyValueRow(row, cell.x0);
+        if (pair) {
+            pairs.push({ key: pair.key, value: [pair.value] });
+        } else if (!attachValueContinuation(row, pairs)) {
+            break;
+        }
+        next++;
+    }
+    if (pairs.length < KV_MIN_PAIRS) return null;
+    const rowsModel = pairs.map(p => [{ lines: [p.key] }, { lines: p.value }]);
+    const block: TableBlock = {
+        kind: 'table',
+        rows: rowsModel,
+        ruled: false,
+        headerRow: false,
+        page: pageIndex,
+        style: emptyStyle(),
+    };
+    return { before: rows.slice(0, start).flat(), block, after: rows.slice(next).flat() };
+}
+
+/** A cell row read as key | gap | value, or null when the shape does not hold. */
+function asKeyValueRow(row: readonly Line[], cellLeft: number): { key: Line; value: Line } | null {
+    if (row.length !== 2) return null;
+    const [a, b] = row;
+    const [key, value] = a.x <= b.x ? [a, b] : [b, a];
+    const fontSize = Math.max(key.fontSize, value.fontSize, 1);
+    if (key.x > cellLeft + fontSize) return null;
+    if (key.endX - key.x < fontSize * KV_MIN_KEY_EM) return null;
+    if (value.x - key.endX < fontSize * KV_MIN_GAP_EM) return null;
+    if (segmentText(key) === segmentText(value)) return null;
+    return { key, value };
+}
+
+/** Attaches a one-segment row to the previous value when it wraps within that
+ *  value's x-band; returns false when the row ends the run instead. */
+function attachValueContinuation(row: readonly Line[], pairs: { key: Line; value: Line[] }[]): boolean {
+    const previous = pairs.at(-1)?.value.at(-1);
+    if (row.length !== 1 || !previous) return false;
+    const line = row[0];
+    const slack = Math.max(line.fontSize, 1);
+    if (line.x < previous.x - slack || line.x > previous.endX + slack) return false;
+    pairs.at(-1)?.value.push(line);
+    return true;
 }
 
 /**
