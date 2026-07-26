@@ -410,7 +410,7 @@ function wrapEnclosedRun(blocks: DocBlock[], box: RectBox, pageIndex: number): D
         .filter(entry => entry.box !== null && insideBox(entry.box, box));
     if (enclosed.length === 0) return null;
     const first = enclosed[0].index;
-    const last = enclosed[enclosed.length - 1].index;
+    const last = enclosed.at(-1)?.index ?? first;
     if (last - first + 1 !== enclosed.length) return null;
     const group = blocks.slice(first, last + 1);
     const rtl = group.filter(b => b.style.dir === 'rtl').length * 2 > group.length;
