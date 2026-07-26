@@ -145,7 +145,7 @@ export function buildPageBlocks(
 }
 
 /** An inline icon is at most this multiple of the line font size tall. */
-const INLINE_IMAGE_MAX_H_EM = 1.6;
+const INLINE_IMAGE_MAX_H_EM = 2.4;
 /** An inline icon is at most this multiple of the line font size wide. */
 const INLINE_IMAGE_MAX_W_EM = 3;
 /** Horizontal slack, in em, an icon may sit outside the line's x-extent. */
@@ -162,13 +162,78 @@ const INLINE_IMAGE_SLACK_EM = 2;
  */
 function attachInlineImages(lines: readonly Line[], images: readonly ImageItem[]): Set<ImageItem> {
     const consumed = new Set<ImageItem>();
-    for (const image of images) {
+    const byArea = [...images].sort((a, b) =>
+        b.renderWidth * b.renderHeight - a.renderWidth * a.renderHeight);
+    for (const image of byArea) {
         const host = findInlineHost(lines, image);
         if (!host) continue;
-        insertInlineWord(host, image);
         consumed.add(image);
+        if (!hasInlineTwin(host, image)) insertInlineWord(host, image);
     }
+    for (const image of byArea) {
+        if (!consumed.has(image) && coveredByInlineImage(lines, image)) consumed.add(image);
+    }
+    swapStacksToTopPaint(lines, images, consumed);
     return consumed;
+}
+
+/**
+ * A stacked icon paints bottom-up: background circle first, glyph last, so the
+ * largest (hosting) layer is often a blank backdrop. Each inlined word swaps
+ * to the last-painted non-outline layer covered by its box — the layer the
+ * reader actually sees.
+ */
+function swapStacksToTopPaint(
+    lines: readonly Line[],
+    images: readonly ImageItem[],
+    consumed: ReadonlySet<ImageItem>,
+): void {
+    for (const line of lines) {
+        for (const word of line.words) {
+            if (word.image) word.image = topPaintedLayer(word.image, images, consumed);
+        }
+    }
+}
+
+function topPaintedLayer(
+    host: ImageItem,
+    images: readonly ImageItem[],
+    consumed: ReadonlySet<ImageItem>,
+): ImageItem {
+    let top = host;
+    for (const candidate of images) {
+        if (candidate === host || !consumed.has(candidate)) continue;
+        if (candidate.svgStrokeColor) continue;
+        const centerX = candidate.x + candidate.renderWidth / 2;
+        const centerY = candidate.y + candidate.renderHeight / 2;
+        const inside = centerX >= host.x && centerX <= host.x + host.renderWidth &&
+            centerY >= host.y && centerY <= host.y + host.renderHeight;
+        if (inside && images.indexOf(candidate) > images.indexOf(top)) top = candidate;
+    }
+    return top;
+}
+
+/** A PDF often stacks an icon from several drawings (raster + outline ring +
+ *  inner glyph); once the largest is inlined, the overlapping rest are noise. */
+function hasInlineTwin(line: Line, image: ImageItem): boolean {
+    const centerX = image.x + image.renderWidth / 2;
+    return line.words.some(w => w.image && centerX >= w.x && centerX <= w.endX);
+}
+
+/** True when the image's center falls inside an already-inlined image's box —
+ *  a leftover layer of a stacked icon, dropped rather than emitted standalone. */
+function coveredByInlineImage(lines: readonly Line[], image: ImageItem): boolean {
+    const centerX = image.x + image.renderWidth / 2;
+    const centerY = image.y + image.renderHeight / 2;
+    for (const line of lines) {
+        for (const word of line.words) {
+            const host = word.image;
+            if (!host) continue;
+            if (centerX >= host.x && centerX <= host.x + host.renderWidth &&
+                centerY >= host.y && centerY <= host.y + host.renderHeight) return true;
+        }
+    }
+    return false;
 }
 
 function findInlineHost(lines: readonly Line[], image: ImageItem): Line | null {
@@ -190,14 +255,35 @@ function findInlineHost(lines: readonly Line[], image: ImageItem): Line | null {
     return best;
 }
 
+/** An adjacent badge (a header avatar hugging the line's end) is at most this
+ *  multiple of the line font size in either dimension. */
+const BADGE_MAX_EM = 3;
+/** A badge may sit at most this multiple of the font size away from the line. */
+const BADGE_GAP_EM = 1;
+
 function fitsInline(line: Line, image: ImageItem): boolean {
     const em = Math.max(line.fontSize, 1);
-    if (image.renderHeight > em * INLINE_IMAGE_MAX_H_EM) return false;
-    if (image.renderWidth > em * INLINE_IMAGE_MAX_W_EM) return false;
     const centerY = image.y + image.renderHeight / 2;
     if (centerY < line.y - em * 0.5 || centerY > line.y + em * 1.2) return false;
+    return fitsWithinLine(line, image, em) || fitsAsBadge(line, image, em);
+}
+
+/** Icon-sized and horizontally inside the line's extent (plus slack). */
+function fitsWithinLine(line: Line, image: ImageItem, em: number): boolean {
+    if (image.renderHeight > em * INLINE_IMAGE_MAX_H_EM) return false;
+    if (image.renderWidth > em * INLINE_IMAGE_MAX_W_EM) return false;
     const slack = em * INLINE_IMAGE_SLACK_EM;
     return image.x >= line.x - slack && image.x + image.renderWidth <= line.endX + slack;
+}
+
+/** Badge-sized and hugging the line's start or end within a small gap. */
+function fitsAsBadge(line: Line, image: ImageItem, em: number): boolean {
+    if (image.renderHeight > em * BADGE_MAX_EM) return false;
+    if (image.renderWidth > em * BADGE_MAX_EM) return false;
+    const gapRight = image.x - line.endX;
+    const gapLeft = line.x - (image.x + image.renderWidth);
+    return (gapRight >= 0 && gapRight <= em * BADGE_GAP_EM) ||
+        (gapLeft >= 0 && gapLeft <= em * BADGE_GAP_EM);
 }
 
 /** Splices the icon into the host line's words at its visual reading position. */

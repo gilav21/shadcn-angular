@@ -14,7 +14,7 @@ import {
 import type { ClassifyContext } from './readable-classify';
 import { blockLines } from './readable-emit';
 import { lineOf, wordAt } from './readable-spec-helpers';
-import type { Line, PageExtract } from './readable-types';
+import type { DocBlock, Line, PageExtract } from './readable-types';
 
 const ctx: Omit<ClassifyContext, 'pageBounds'> = {
     bodyFontSize: 12,
@@ -809,5 +809,54 @@ describe('extractKeyValueRun', () => {
         const dupL2 = lineOf('e cient', 49, 120, 527, { fontSize: 13.5 });
         const dupR2 = lineOf('e cient', 190, 260, 527, { fontSize: 13.5 });
         expect(extractKeyValueRun([dupL1, dupR1, dupL2, dupR2], 0)).toBeNull();
+    });
+});
+
+// Inline images — badge adjacency and stacked-icon layer choice.
+describe('attachInlineImages (via buildPageBlocks)', () => {
+    function imageOf(x: number, y: number, w: number, h: number, overrides?: Partial<ImageItem>): ImageItem {
+        return {
+            dataUrl: `data:image/png;base64,${w}x${h}`, width: w, height: h,
+            renderWidth: w, renderHeight: h, x, y, page: 0, ...overrides,
+        };
+    }
+
+    function flattenBlocks(blocks: readonly DocBlock[]): DocBlock[] {
+        return blocks.flatMap(b =>
+            b.kind === 'columns' ? [b, ...b.columns.flatMap(c => flattenBlocks(c.blocks))] : [b]);
+    }
+
+    function inlineImagesOf(blocks: readonly DocBlock[]): ImageItem[] {
+        return flattenBlocks(blocks)
+            .flatMap(b => blockLines(b).flatMap(l => l.words))
+            .map(w => w.image)
+            .filter((img): img is ImageItem => img !== undefined);
+    }
+
+    it('attaches an adjacent badge hugging the line end and keeps the top-painted layer', () => {
+        const header = lineOf('Lemon Squeezy LLC', 368, 500, 718, { fontSize: 13.5 });
+        const circle = imageOf(510, 714, 38, 38);
+        const ring = imageOf(510, 714, 38, 38, { svgStrokeColor: '#faf8f5', svgStrokeWidth: 1 });
+        const glyph = imageOf(518, 714, 21, 19);
+        const blocks = buildPageBlocks([header], pageExtractOf([header], { images: [circle, ring, glyph] }), true, ctx);
+        const inline = inlineImagesOf(blocks);
+        expect(inline).toHaveLength(1);
+        expect(inline[0]).toBe(glyph);
+        expect(blocks.some(b => b.kind === 'image')).toBe(false);
+    });
+
+    it('leaves a large image alone (not icon- or badge-sized)', () => {
+        const header = lineOf('A heading line', 36, 200, 718, { fontSize: 12 });
+        const big = imageOf(210, 700, 120, 90);
+        const blocks = buildPageBlocks([header], pageExtractOf([header], { images: [big] }), true, ctx);
+        expect(inlineImagesOf(blocks)).toHaveLength(0);
+        expect(blocks.some(b => b.kind === 'image')).toBe(true);
+    });
+
+    it('leaves a distant small image alone (gap beyond the badge reach)', () => {
+        const header = lineOf('A heading line', 36, 200, 718, { fontSize: 12 });
+        const far = imageOf(260, 712, 12, 12);
+        const blocks = buildPageBlocks([header], pageExtractOf([header], { images: [far] }), true, ctx);
+        expect(inlineImagesOf(blocks)).toHaveLength(0);
     });
 });
