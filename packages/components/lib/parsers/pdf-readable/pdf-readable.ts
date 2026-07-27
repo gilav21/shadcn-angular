@@ -56,6 +56,7 @@ export async function parsePdfReadable(
         text,
         imageOnly: false,
         pageCount: pages.length,
+        pageWidthPt: Math.max(0, ...doc.pages.map(page => page.width)),
     };
 }
 
@@ -174,5 +175,6 @@ function emitImageOnly(
         text: '',
         imageOnly: true,
         pageCount: extracted.pages.length,
+        pageWidthPt: Math.max(0, ...extracted.pages.map(page => page.width)),
     };
 }

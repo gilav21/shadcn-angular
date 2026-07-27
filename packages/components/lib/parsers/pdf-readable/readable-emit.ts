@@ -461,7 +461,11 @@ function runDeltaPairs(
     if (!dominant || Math.abs(style.fontSize - dominant.fontSize) >= 0.25) {
         pairs.push(['font-size', `${round(style.fontSize)}pt`]);
     }
-    if (style.color !== dominant?.color) {
+    // Bold/italic/link runs always carry their colour: a hosting stylesheet
+    // (the editor's prose styles) recolours <strong>/<em>/<a> descendants,
+    // which beats a colour merely inherited from the block.
+    const hostRestyled = style.bold || style.italic || style.link !== '';
+    if (style.color !== dominant?.color || hostRestyled) {
         pairs.push(['color', colorValue(style.color)]);
     }
     if (style.letterSpacing > 0 && style.letterSpacing !== dominant?.letterSpacing) {

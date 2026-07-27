@@ -29,6 +29,9 @@ export interface PdfReadableResult {
     /** True when the PDF has no extractable text and only images were emitted. */
     readonly imageOnly: boolean;
     readonly pageCount: number;
+    /** Widest page's width in pt — the design measure the layout geometry
+     *  assumes. Hosts narrower than this should scroll rather than reflow. */
+    readonly pageWidthPt: number;
 }
 
 /** CSS family resolution for one PDF font resource. */

@@ -192,7 +192,19 @@ export class RichTextFileImportDirective {
         const { parsePdfReadable } = await import('../../../../lib/parsers/pdf-readable/pdf-readable');
         const result = await parsePdfReadable(buffer);
         if (result.html.trim() && result.fontFaceCss) this.injectFontCss(result.fontFaceCss);
-        this.insertImported(result.html);
+        this.insertImported(this.atDesignMeasure(result.html, result.pageWidthPt));
+    }
+
+    /**
+     * The PDF's layout geometry (floats, anchored panels, pt indents) assumes
+     * the page's own measure; in a narrower editor the constraints would
+     * squeeze flow content into slivers. Wrapping the import at the design
+     * measure lets the editor scroll horizontally instead — like any document
+     * wider than its window.
+     */
+    private atDesignMeasure(html: string, pageWidthPt: number): string {
+        if (!pageWidthPt || pageWidthPt <= 0) return html;
+        return `<div style="min-width:${Math.round(pageWidthPt)}pt">${html}</div>`;
     }
 
     /**
