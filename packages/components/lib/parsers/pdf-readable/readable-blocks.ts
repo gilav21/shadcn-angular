@@ -1459,16 +1459,32 @@ const INTENTIONAL_BREAK_MARGIN_EM = 1;
 function allBreaksIntentional(lines: readonly Line[], measure: ColumnBounds): boolean {
     if (lines.length < 2) return false;
     if (lines.some(line => line.words.at(-1)?.text.endsWith('-'))) return false;
+    const roomOnLeft = raggedOnLeft(lines);
     for (let i = 0; i < lines.length - 1; i++) {
         const line = lines[i];
         const nextWord = lines[i + 1].words[0];
         if (!nextWord) return false;
-        const room = line.dir === 'rtl' ? line.x - measure.x0 : measure.x1 - line.endX;
+        const room = roomOnLeft ? line.x - measure.x0 : measure.x1 - line.endX;
         const needed = firstTokenWidth(nextWord) +
             INTENTIONAL_BREAK_MARGIN_EM * Math.max(line.fontSize, 1);
         if (needed > room) return false;
     }
     return true;
+}
+
+/**
+ * The room a broken word would have used sits on the block's RAGGED edge —
+ * where the text stops short — not on a side implied by script direction: a
+ * right-aligned LTR stack (a receipt's rate-of-exchange lines) wraps on the
+ * left exactly like RTL text does. Equal spreads fall back to the direction.
+ */
+function raggedOnLeft(lines: readonly Line[]): boolean {
+    const spreadLeft = Math.max(...lines.map(l => l.x)) - Math.min(...lines.map(l => l.x));
+    const spreadRight = Math.max(...lines.map(l => l.endX)) - Math.min(...lines.map(l => l.endX));
+    if (spreadLeft === spreadRight) {
+        return lines.filter(l => l.dir === 'rtl').length * 2 > lines.length;
+    }
+    return spreadLeft > spreadRight;
 }
 
 /** Width of the word's first whitespace-separated token. Fragment merging can

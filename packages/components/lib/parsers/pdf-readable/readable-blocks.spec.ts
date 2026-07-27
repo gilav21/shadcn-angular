@@ -1003,3 +1003,19 @@ describe('narrow blockquote width cap', () => {
         expect(maxWidth).toBeLessThan(160);
     });
 });
+
+// Break-fit room sits on the ragged edge, not the script-direction side.
+describe('right-aligned LTR stack', () => {
+    it('preserves breaks in a right-pinned LTR stack (room is on the left)', () => {
+        const wide = lineOf('A full width heading stretching the measure here now', 36, 571, 700, { fontSize: 14 });
+        const label = lineOf('rate of exchange', 436, 546, 457, { fontSize: 13.5 });
+        const a = lineOf('46.30 ILS = 15.00 USD', 392, 546, 432, { fontSize: 13.5 });
+        const b = lineOf('1 ILS = 0.324 USD', 430, 546, 414, { fontSize: 13.5 });
+        const blocks = buildPageBlocks([wide, label, a, b], pageExtractOf([wide, label, a, b]), true, ctx);
+        const stack = blocks.find(bl => (bl.kind === 'paragraph' || bl.kind === 'blockquote') &&
+            bl.lines.some(l => l.words.some(w => w.text.includes('46.30'))));
+        const stacked = stack && (stack.kind === 'paragraph' || stack.kind === 'blockquote')
+            ? stack.stacked : undefined;
+        expect(stacked).toBe(true);
+    });
+});
