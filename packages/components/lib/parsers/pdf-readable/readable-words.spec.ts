@@ -328,3 +328,28 @@ function wordOf(text: string, x = 0): Word {
         hardBreak: false,
     };
 }
+
+describe('neutral colon between an LTR value and an RTL label', () => {
+    it('breaks the colon off the LTR value so the RTL label absorbs it', () => {
+        const items = [
+            makeItem({ text: '19011466', x: 464, endX: 512 }),
+            makeItem({ text: ':', x: 515, endX: 519 }),
+            makeItem({ text: 'מספר חשבונית', x: 519, endX: 582 }),
+        ];
+        const words = buildWords(items, ctx);
+        const texts = words.map(w => w.text);
+        expect(texts).toContain('19011466');
+        expect(texts.some(t => t.includes('מספר חשבונית') && t.includes(':'))).toBe(true);
+        expect(texts.some(t => t.includes('19011466') && t.includes(':'))).toBe(false);
+    });
+
+    it('keeps a colon glued to an LTR value when LTR text follows', () => {
+        const items = [
+            makeItem({ text: 'Total', x: 100, endX: 130 }),
+            makeItem({ text: ':', x: 131, endX: 134 }),
+            makeItem({ text: '42', x: 137, endX: 148 }),
+        ];
+        const words = buildWords(items, ctx);
+        expect(words.map(w => w.text).join(' ')).toContain('Total:');
+    });
+});

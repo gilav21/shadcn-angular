@@ -36,12 +36,13 @@ export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): W
     const bimodal = bimodalGapThreshold(items);
     let pendingSpace = false;
 
-    for (const item of items) {
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
         if (isSpaceMarker(item)) {
             pendingSpace = true;
             continue;
         }
-        pendingSpace = appendItem(words, item, ctx, pendingSpace, bimodal);
+        pendingSpace = appendItem(words, item, ctx, pendingSpace, bimodal, items[i + 1]);
     }
     return words;
 }
@@ -100,11 +101,14 @@ function appendItem(
     ctx: WordBuildContext,
     pendingSpace: boolean,
     bimodal: number | null,
+    nextItem?: TextItem,
 ): boolean {
     const style = itemRunStyle(item, findLinkUri(item, ctx.annotations));
     const previous = words.at(-1);
     const gap = previous ? item.x - previous.endX : 0;
-    const decision = previous ? classifyGap(gap, previous, item, ctx, bimodal) : 'break';
+    const decision = previous
+        ? classifyGap(gap, previous, item, ctx, bimodal, nextItem)
+        : 'break';
 
     if (previous && decision !== 'break' && sameStyle(previous.style, style)) {
         const separator = decision === 'space' || pendingSpace ? ' ' : '';
@@ -139,11 +143,13 @@ function classifyGap(
     item: TextItem,
     ctx: WordBuildContext,
     bimodal: number | null,
+    nextItem?: TextItem,
 ): GapDecision {
     const fontSize = Math.max(previous.fontSize, item.fontSize);
     if (gap > fontSize * HARD_BREAK_EM) return 'break';
     if (gap < -fontSize * NEGATIVE_GAP_EM) return 'break';
     if (directionFlips(previous.text, item.text)) return 'break';
+    if (neutralBelongsToRtl(previous, item, nextItem)) return 'break';
     const known = knownSpaceWidth(item, ctx);
     if (known !== null) {
         const spaceWidth = known + Math.max(0, item.wordSpacing) + Math.max(0, item.charSpacing);
@@ -153,6 +159,18 @@ function classifyGap(
     const spaceWidth = estimateSpaceWidth(item, ctx) +
         Math.max(0, item.wordSpacing) + Math.max(0, item.charSpacing);
     return gap >= spaceWidth * SPACE_GAP_FACTOR ? 'space' : 'merge';
+}
+
+/**
+ * A neutral fragment (a field colon) wedged between an LTR value and an RTL
+ * label takes the RTL side per the UBA (a neutral between opposite-direction
+ * runs resolves to the paragraph direction). Merging it into the LTR value
+ * would strand the colon at the visual line end ("19011466 :"); breaking here
+ * lets it start a word that the following RTL label absorbs ("מספר חשבונית :").
+ */
+function neutralBelongsToRtl(previous: Word, item: TextItem, nextItem?: TextItem): boolean {
+    if (!NEUTRAL_WORD_RE.test(item.text.trim() || ' ')) return false;
+    return isLtrRun(previous.text) && nextItem !== undefined && isRtlRun(nextItem.text);
 }
 
 /**
