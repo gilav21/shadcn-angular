@@ -65,8 +65,50 @@ export function linesFromClusters(
 
 function linesFromCluster(cluster: TextLine, page: number, ctx: WordBuildContext): Line[] {
     const visualWords = buildWords(cluster.items, ctx);
-    return splitAtHardBreaks(visualWords).map(segment =>
-        lineFromSegment(segment, cluster.y, page));
+    const segments = splitAtHardBreaks(visualWords);
+    bindValuesToBareLabels(segments);
+    return segments
+        .filter(segment => segment.length > 0)
+        .map(segment => lineFromSegment(segment, cluster.y, page));
+}
+
+const RTL_CHAR_RE = new RegExp('[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]', 'u');
+const LTR_STRONG_RE = /[\dA-Za-z]/u;
+
+/** Digits/Latin with no RTL script - a field value, not label text. */
+function isLtrValueText(text: string): boolean {
+    return text !== '' && !RTL_CHAR_RE.test(text) && LTR_STRONG_RE.test(text);
+}
+
+/**
+ * An RTL form aligns each field's value in a column LEFT of its label, so the
+ * label-to-value gap can exceed the value-to-next-field gap and hard-break
+ * segmentation strands the value in the neighbouring field's segment ("31.00"
+ * grouped with "מין: ז", leaving "גיל:" value-less). A bare colon-terminated
+ * RTL label segment therefore pulls the LTR value from the visually-right end
+ * of the segment to its left — the value it reads out to.
+ */
+function bindValuesToBareLabels(segments: Word[][]): void {
+    for (let i = 0; i + 1 < segments.length; i++) {
+        const label = segments[i + 1];
+        if (!isBareRtlColonLabel(label)) continue;
+        const donor = segments[i];
+        const value = donor.at(-1);
+        if (!value || !isLtrValueText(value.text.trim())) continue;
+        donor.pop();
+        value.spaceBefore = true;
+        label.unshift(value);
+    }
+}
+
+/** A segment of RTL text carrying a field colon and no value — a label still
+ *  waiting for its value. (Words are in visual order here, so the colon's
+ *  position is not checked, only its presence.) */
+function isBareRtlColonLabel(segment: readonly Word[]): boolean {
+    if (segment.length === 0) return false;
+    const text = segment.map(w => w.text).join(' ').trim();
+    return RTL_CHAR_RE.test(text) && text.includes(':') &&
+        segment.every(w => !isLtrValueText(w.text.trim()));
 }
 
 function splitAtHardBreaks(words: readonly Word[]): Word[][] {

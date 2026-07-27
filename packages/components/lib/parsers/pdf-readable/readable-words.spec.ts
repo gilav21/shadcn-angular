@@ -8,6 +8,7 @@ import {
     toLogicalOrder,
     type WordBuildContext,
 } from './readable-words';
+import { clusterIntoLineItems, linesFromClusters } from './readable-lines';
 import type { Word } from './readable-types';
 
 function makeItem(overrides: Partial<TextItem>): TextItem {
@@ -351,5 +352,38 @@ describe('neutral colon between an LTR value and an RTL label', () => {
         ];
         const words = buildWords(items, ctx);
         expect(words.map(w => w.text).join(' ')).toContain('Total:');
+    });
+});
+
+describe('bare RTL label binds its column-aligned value', () => {
+    it('moves an LTR value from the neighbouring segment onto its value-less label', () => {
+        const items = [
+            makeItem({ text: 'ז', x: 65, endX: 69 }),
+            makeItem({ text: ':', x: 80, endX: 82 }),
+            makeItem({ text: 'מין', x: 82, endX: 93 }),
+            makeItem({ text: '31.00', x: 100, endX: 120 }),
+            makeItem({ text: ':', x: 142, endX: 144 }),
+            makeItem({ text: 'גיל', x: 144, endX: 155 }),
+        ];
+        const clusters = clusterIntoLineItems(items);
+        const lines = linesFromClusters(clusters, 0, ctx);
+        const texts = lines.map(l => l.words.map(w => w.text).join(' '));
+        expect(texts.some(t => t.includes('גיל') && t.includes('31.00'))).toBe(true);
+        expect(texts.some(t => t.includes('מין') && t.includes('31.00'))).toBe(false);
+    });
+
+    it('leaves a labelled value pair alone when the label already has its value', () => {
+        const items = [
+            makeItem({ text: '00313475139', x: 184, endX: 244 }),
+            makeItem({ text: ':', x: 256, endX: 258 }),
+            makeItem({ text: 'זהות', x: 258, endX: 276 }),
+            makeItem({ text: 'מס', x: 279, endX: 290 }),
+        ];
+        const clusters = clusterIntoLineItems(items);
+        const lines = linesFromClusters(clusters, 0, ctx);
+        expect(lines).toHaveLength(1);
+        const text = lines[0].words.map(w => w.text).join(' ');
+        expect(text).toContain('מס זהות');
+        expect(text).toContain('00313475139');
     });
 });
