@@ -354,3 +354,10 @@ describe('ruled table with an external leading label', () => {
         expect(split?.after.map(l => l.words[0].text)).toContain('SideNote');
     });
 });
+
+describe('table span ratio', () => {
+    it('stamps a near-full-span table for full-width rendering', () => {
+        const split = findTableInBand(unruledRows(), [], 0, ctx);
+        expect(split?.table.spanRatio).toBeGreaterThan(0.85);
+    });
+});

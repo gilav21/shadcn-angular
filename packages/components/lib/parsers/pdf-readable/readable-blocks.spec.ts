@@ -986,3 +986,20 @@ describe('footer-band justified rows', () => {
         expect(asJustifiedRow([m1, m2], bounds, bounds.x1 - bounds.x0, footCtx)).toBeNull();
     });
 });
+
+// Narrow blockquote keeps its own width so the browser re-wraps like the original.
+describe('narrow blockquote width cap', () => {
+    it('caps a narrow multi-line blockquote at its source extent', () => {
+        const wide = lineOf('שורה רחבה שממלאת את רוב רוחב העמוד ומגדירה את המידה כאן בסדר', 42, 552, 700, { dir: 'rtl', fontSize: 10 });
+        const v1 = lineOf('עוסק מורשה (ח.פ): 515766087', 87, 201, 635, { dir: 'rtl', fontSize: 10 });
+        const v2 = lineOf('כפר הנוער בן שמן, בן שמן (כפר נוער)', 66, 201, 622, { dir: 'rtl', fontSize: 10 });
+        const v3 = lineOf('טלפון 08-6280200', 129, 201, 609, { dir: 'rtl', fontSize: 10 });
+        const blocks = buildPageBlocks([wide, v1, v2, v3], pageExtractOf([wide, v1, v2, v3]), true, ctx);
+        const vendor = blocks.find(b => b.kind === 'blockquote' &&
+            b.lines.some(l => l.words.some(w => w.text.includes('מורשה'))));
+        expect(vendor?.kind).toBe('blockquote');
+        const maxWidth = vendor && vendor.kind === 'blockquote' ? vendor.style.maxWidth : 0;
+        expect(maxWidth).toBeGreaterThan(130);
+        expect(maxWidth).toBeLessThan(160);
+    });
+});

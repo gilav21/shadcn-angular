@@ -109,7 +109,7 @@ function emitBlock(block: DocBlock, ctx: EmitContext): string {
         case 'heading':
             return emitHeading(block, ctx);
         case 'blockquote':
-            return emitBlockquote(block.lines, block.style, ctx);
+            return emitBlockquote(block.lines, block.style, ctx, block.stacked ?? false);
         case 'list':
             return emitList(block, ctx);
         case 'table':
@@ -154,15 +154,21 @@ function emitColumns(block: ColumnsBlock, ctx: EmitContext): string {
         width = `${Math.round(block.panelRatio * 1000) / 10}%`;
         anchor = block.panelSide === 'right' ? ';margin-left:auto' : ';margin-right:auto';
     }
-    return `<table style="border-collapse:collapse;width:${width}${anchor}${boxStyle}${fillStyle}"${dirAttr}><tr>${cells.join('')}</tr></table>`;
+    const tall = block.panelMinHeight ? `;height:${round(block.panelMinHeight)}pt` : '';
+    return `<table style="border-collapse:collapse;width:${width}${anchor}${tall}${boxStyle}${fillStyle}"${dirAttr}><tr>${cells.join('')}</tr></table>`;
 }
 
 function emitHeading(block: HeadingBlock, ctx: EmitContext): string {
     return emitLinesBlock(`h${block.level}`, block.lines, block.style, ctx);
 }
 
-function emitBlockquote(lines: readonly Line[], style: BlockStyle, ctx: EmitContext): string {
-    const inner = emitLinesBlock('p', lines, { ...style, marginTop: 0 }, ctx);
+function emitBlockquote(
+    lines: readonly Line[],
+    style: BlockStyle,
+    ctx: EmitContext,
+    stacked = false,
+): string {
+    const inner = emitLinesBlock('p', lines, { ...style, marginTop: 0 }, ctx, stacked);
     const attrs = attrString(styleAttr([['margin-top', ptOrEmpty(style.marginTop)]]), '');
     return `<blockquote${attrs}>${inner}</blockquote>`;
 }
@@ -213,9 +219,16 @@ function emitTable(block: TableBlock, ctx: EmitContext): string {
         });
         return `<tr>${cells.join('')}</tr>`;
     });
-    const tableStyle = `border-collapse:collapse;${styleAttr([['margin-top', ptOrEmpty(block.style.marginTop)]])}`;
+    const fullWidth = (block.spanRatio ?? 0) >= TABLE_FULL_SPAN_RATIO;
+    const tableStyle = `border-collapse:collapse;${styleAttr([
+        ['margin-top', ptOrEmpty(block.style.marginTop)],
+        ['width', fullWidth ? '100%' : ''],
+    ])}`;
     return `<table style="${tableStyle}"${block.style.dir === 'rtl' ? ' dir="rtl"' : ''}>${rows.join('')}</table>`;
 }
+
+/** A table spanning at least this share of its measure renders full width. */
+const TABLE_FULL_SPAN_RATIO = 0.7;
 
 /**
  * Ruled tables keep their full grid. Unruled data tables (three or more
@@ -426,6 +439,7 @@ function blockStylePairs(style: BlockStyle, inColumn = false): Array<[string, st
         ['display', style.border ? 'inline-block' : ''],
         ['padding', boxed ? '4pt 8pt' : ''],
         ['border-radius', boxed ? '3pt' : ''],
+        ['max-width', style.maxWidth ? `${round(style.maxWidth)}pt` : ''],
     ];
     if (inColumn) pairs.push(['margin-bottom', '0']);
     return pairs;

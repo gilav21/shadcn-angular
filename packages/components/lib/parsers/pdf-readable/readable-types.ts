@@ -132,6 +132,9 @@ export interface BlockStyle {
      *  block sits inside; '' when none. Renders the block as a bordered,
      *  shrink-wrapped inline box. */
     border: string;
+    /** Source width cap in pt for a block much narrower than its measure, so
+     *  the browser re-wraps it at the original's own width (0 = none). */
+    maxWidth?: number;
 }
 
 export interface ParagraphBlock {
@@ -172,6 +175,8 @@ export interface BlockquoteBlock {
     readonly lines: Line[];
     readonly page: number;
     readonly style: BlockStyle;
+    /** Every internal line break is deliberate; emission preserves them. */
+    readonly stacked?: boolean;
 }
 
 export interface TableCellModel {
@@ -189,6 +194,9 @@ export interface TableBlock {
     readonly headerRow: boolean;
     readonly page: number;
     readonly style: BlockStyle;
+    /** The table's x-extent as a share of its measure; a near-full span
+     *  renders at full width like the original. */
+    spanRatio?: number;
 }
 
 export interface ImageBlock {
@@ -230,6 +238,9 @@ export interface ColumnsBlock {
      *  anchored side, so it leaves room for content floated beside it. */
     readonly panelRatio?: number;
     readonly panelSide?: 'left' | 'right';
+    /** The painted fill's height in pt — preserves the panel's proportions
+     *  when its text fills only part of the drawn box. */
+    readonly panelMinHeight?: number;
 }
 
 export type DocBlock =

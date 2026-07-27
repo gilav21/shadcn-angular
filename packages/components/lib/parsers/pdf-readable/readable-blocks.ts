@@ -519,6 +519,7 @@ function fillPanel(
         columns: [{ blocks: group, widthRatio: 1 }],
         page: pageIndex,
         style: { ...emptyStyle(), dir: rtl ? 'rtl' : '', background: fill.fillColor },
+        panelMinHeight: fill.height,
         ...(partial ? { panelRatio: ratio, panelSide: roomLeft > roomRight ? 'right' as const : 'left' as const } : {}),
     };
 }
@@ -1326,7 +1327,13 @@ function blockFrom(
         case 'list':
             return { kind: 'list', ordered: kind.ordered, items: kind.items, page, style };
         case 'blockquote':
-            return { kind: 'blockquote', lines: [...lines], page, style };
+            return {
+                kind: 'blockquote',
+                lines: [...lines],
+                page,
+                style: { ...style, maxWidth: narrowBlockWidth(lines, measure) },
+                stacked: allBreaksIntentional(lines, measure),
+            };
         default:
             return {
                 kind: 'paragraph',
@@ -1357,17 +1364,37 @@ const INTENTIONAL_BREAK_MARGIN_EM = 1;
  */
 function allBreaksIntentional(lines: readonly Line[], measure: ColumnBounds): boolean {
     if (lines.length < 2) return false;
+    if (lines.some(line => line.words.at(-1)?.text.endsWith('-'))) return false;
     for (let i = 0; i < lines.length - 1; i++) {
         const line = lines[i];
         const nextWord = lines[i + 1].words[0];
         if (!nextWord) return false;
-        if (line.words.at(-1)?.text.endsWith('-')) return false;
         const room = line.dir === 'rtl' ? line.x - measure.x0 : measure.x1 - line.endX;
         const needed = (nextWord.endX - nextWord.x) +
             INTENTIONAL_BREAK_MARGIN_EM * Math.max(line.fontSize, 1);
         if (needed > room) return false;
     }
     return true;
+}
+
+/** A block spanning at most this share of its measure keeps its own width. */
+const NARROW_BLOCK_MAX_RATIO = 0.5;
+
+/**
+ * A multi-line block much narrower than its measure was wrapped by the
+ * original at ITS OWN width — constraining the emitted block to that width
+ * lets the browser reproduce the original's line breaks naturally (a vendor
+ * address card re-wraps at ~135pt into its three original lines), instead of
+ * re-flowing to whatever measure the surrounding layout happens to leave.
+ */
+function narrowBlockWidth(lines: readonly Line[], measure: ColumnBounds): number {
+    if (lines.length < 2) return 0;
+    const x0 = Math.min(...lines.map(l => l.x));
+    const x1 = Math.max(...lines.map(l => l.endX));
+    const measureWidth = Math.max(1, measure.x1 - measure.x0);
+    if (x1 - x0 > measureWidth * NARROW_BLOCK_MAX_RATIO) return 0;
+    const fontSize = Math.max(1, ...lines.map(l => l.fontSize));
+    return x1 - x0 + fontSize;
 }
 
 /**

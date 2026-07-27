@@ -48,10 +48,22 @@ export function findTableInBand(
 ): BandTableSplit | null {
     const rows = groupByBaseline(band);
     const ruled = (modes.ruled ?? true) ? findRuledTable(band, rows, rects, pageIndex) : null;
-    if (ruled) return ruled;
+    if (ruled) return applyTableSpan(ruled, ctx);
     const unruled = modes.unruled ?? true;
     if (unruled === false) return null;
-    return findUnruledTable(rows, pageIndex, ctx, unruled === 'strict');
+    const split = findUnruledTable(rows, pageIndex, ctx, unruled === 'strict');
+    return split ? applyTableSpan(split, ctx) : null;
+}
+
+/** Stamps the table's x-extent share of the measure so emission can render a
+ *  near-full-span data table at full width like the original. */
+function applyTableSpan(split: BandTableSplit, ctx: ClassifyContext): BandTableSplit {
+    const lines = split.table.rows.flat().flatMap(cell => cell.lines);
+    if (lines.length === 0) return split;
+    const span = Math.max(...lines.map(l => l.endX)) - Math.min(...lines.map(l => l.x));
+    const measure = Math.max(1, ctx.pageBounds.x1 - ctx.pageBounds.x0);
+    split.table.spanRatio = Math.min(1, span / measure);
+    return split;
 }
 
 function groupByBaseline(band: readonly Line[]): Line[][] {
