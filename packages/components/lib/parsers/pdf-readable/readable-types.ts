@@ -197,6 +197,9 @@ export interface TableBlock {
     /** The table's x-extent as a share of its measure; a near-full span
      *  renders at full width like the original. */
     spanRatio?: number;
+    /** The PDF drew horizontal rules between this table's rows, so emission
+     *  shows light row separators; without evidence the table is borderless. */
+    rowRules?: boolean;
 }
 
 export interface ImageBlock {

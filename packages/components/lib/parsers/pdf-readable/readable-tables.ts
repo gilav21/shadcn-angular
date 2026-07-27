@@ -18,6 +18,9 @@ export interface BandTableSplit {
     readonly after: Line[];
     /** Separator rects consumed by a ruled grid — excluded from later rule/hr detection. */
     readonly usedRects: ReadonlySet<PathRect>;
+    /** Lines on the top-row baseline just outside the grid on the leading
+     *  side — a form's row label, rendered beside the table. */
+    readonly leadingLabel?: Line[];
 }
 
 /**
@@ -51,19 +54,58 @@ export function findTableInBand(
     if (ruled) return applyTableSpan(ruled, ctx);
     const unruled = modes.unruled ?? true;
     if (unruled === false) return null;
-    const split = findUnruledTable(rows, pageIndex, ctx, unruled === 'strict');
-    return split ? applyTableSpan(split, ctx) : null;
+    const measureWidth = Math.max(1, ctx.pageBounds.x1 - ctx.pageBounds.x0);
+    const sectionRules = rects.filter(r => r.width >= measureWidth * SECTION_RULE_RATIO);
+    const split = findUnruledTable(rows, pageIndex, ctx, unruled === 'strict', sectionRules);
+    return split ? applyTableSpan(split, ctx, rects) : null;
+}
+
+/** Only a rule spanning most of the measure divides sections; narrower rules
+ *  inside a run are the table's own row styling. */
+const SECTION_RULE_RATIO = 0.85;
+
+/** Distinct baselines of thin horizontal rules strictly inside the rows' y-range. */
+function interiorRuleYs(lines: readonly Line[], rects: readonly PathRect[]): number[] {
+    const ys = lines.map(l => l.y);
+    const top = Math.max(...ys);
+    const bottom = Math.min(...ys);
+    const found: number[] = [];
+    for (const rect of rects) {
+        const isRule = rect.height <= SEPARATOR_THICKNESS && rect.width > 20;
+        if (!isRule || rect.y >= top || rect.y <= bottom) continue;
+        if (!found.some(y => Math.abs(y - rect.y) <= 2)) found.push(rect.y);
+    }
+    return found;
 }
 
 /** Stamps the table's x-extent share of the measure so emission can render a
- *  near-full-span data table at full width like the original. */
-function applyTableSpan(split: BandTableSplit, ctx: ClassifyContext): BandTableSplit {
+ *  near-full-span data table at full width like the original, and records
+ *  whether the PDF drew rules between the table's rows. */
+function applyTableSpan(
+    split: BandTableSplit,
+    ctx: ClassifyContext,
+    rects: readonly PathRect[] = [],
+): BandTableSplit {
     const lines = split.table.rows.flat().flatMap(cell => cell.lines);
     if (lines.length === 0) return split;
-    const span = Math.max(...lines.map(l => l.endX)) - Math.min(...lines.map(l => l.x));
+    const x0 = Math.min(...lines.map(l => l.x));
+    const span = Math.max(...lines.map(l => l.endX)) - x0;
     const measure = Math.max(1, ctx.pageBounds.x1 - ctx.pageBounds.x0);
-    split.table.spanRatio = Math.min(1, span / measure);
+    const startsAtMeasure = x0 - ctx.pageBounds.x0 <= measure * TABLE_START_SLACK_RATIO;
+    split.table.spanRatio = startsAtMeasure ? Math.min(1, span / measure) : 0;
+    split.table.rowRules = split.table.ruled || hasInteriorRowRules(lines, rects);
     return split;
+}
+
+/** A table starting further than this share into the measure is positioned
+ *  content (a header card beside a logo), never stretched to full width. */
+const TABLE_START_SLACK_RATIO = 0.15;
+
+/** True when thin horizontal rules repeat between the table's text rows —
+ *  drawn row separators. A single crossing rule is a section divider (handled
+ *  by {@link splitRowsAtSectionRule}), not row styling. */
+function hasInteriorRowRules(lines: readonly Line[], rects: readonly PathRect[]): boolean {
+    return interiorRuleYs(lines, rects).length >= 2;
 }
 
 function groupByBaseline(band: readonly Line[]): Line[][] {
@@ -125,22 +167,25 @@ function ruledTableFromComponent(
     const cells = buildRuledCells(inGrid, grid);
     if (!cells) return null;
     if (cellFillRatio(cells) < MIN_CELL_FILL) return null;
+    if (isRtlTable([inGrid])) for (const row of cells) row.reverse();
 
     const consumed = new Set(inGrid);
     const yTop = Math.max(...grid.ys);
     const leads = (line: Line): boolean => leadsTopRow(line, grid, yTop);
+    const leadingLabel = band.filter(line => !consumed.has(line) && line.y <= yTop && leads(line));
     return {
-        before: band.filter(line => !consumed.has(line) && (line.y > yTop || leads(line))),
+        before: band.filter(line => !consumed.has(line) && line.y > yTop),
         table: makeTableBlock(cells, true, pageIndex),
         after: band.filter(line => !consumed.has(line) && line.y <= yTop && !leads(line)),
         usedRects: new Set(grid.sources),
+        ...(leadingLabel.length > 0 ? { leadingLabel } : {}),
     };
 }
 
 /**
  * A line on the table's top-row baseline sitting horizontally OUTSIDE the grid
  * is the row's leading label (an RTL form writes "סובל מ" just right of the
- * diagnosis grid) — it reads before the table, not after it. Lines beside
+ * diagnosis grid) — it renders beside the table, not after it. Lines beside
  * lower rows or below the grid (captions) keep their after position.
  */
 function leadsTopRow(line: Line, grid: RuledGrid, yTop: number): boolean {
@@ -299,9 +344,11 @@ function findUnruledTable(
     pageIndex: number,
     ctx: ClassifyContext,
     strict = false,
+    rects: readonly PathRect[] = [],
 ): BandTableSplit | null {
     const run = findMultiSegmentRun(rows, ctx.bodyLeading);
     if (!run) return null;
+    capRunAtSectionRule(run, rows, rects);
     const runRows = rows.slice(run.start, run.end);
 
     const rtl = isRtlTable(runRows);
@@ -317,6 +364,29 @@ function findUnruledTable(
         after: rows.slice(run.end).flat(),
         usedRects: new Set<PathRect>(),
     };
+}
+
+/**
+ * A SINGLE full-width rule crossing the run is a section divider (a form's
+ * header separator), so rows below it must not fold into the table above —
+ * the run ends at the rule and the tail flows normally. Repeated rules
+ * between rows are the table's own row styling and leave the run intact.
+ */
+function capRunAtSectionRule(
+    run: { start: number; end: number },
+    rows: readonly Line[][],
+    rects: readonly PathRect[],
+): void {
+    const runLines = rows.slice(run.start, run.end).flat();
+    if (runLines.length === 0) return;
+    const ruleYs = interiorRuleYs(runLines, rects);
+    if (ruleYs.length !== 1) return;
+    for (let i = run.start; i < run.end; i++) {
+        if (rows[i][0].y < ruleYs[0]) {
+            if (i > run.start) run.end = i;
+            return;
+        }
+    }
 }
 
 /**

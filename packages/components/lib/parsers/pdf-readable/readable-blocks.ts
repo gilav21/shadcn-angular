@@ -1,7 +1,7 @@
 import type { ImageItem, PathRect } from '../pdf-parser';
 import { classifyGroup, hasListMarker, type ClassifyContext, type GroupKind } from './readable-classify';
 import { resolveBlockStyle, type ColumnBounds } from './readable-styles';
-import { findColumnZone, findTableInBand } from './readable-tables';
+import { type BandTableSplit, findColumnZone, findTableInBand } from './readable-tables';
 import type {
     BlockAlign,
     BlockStyle,
@@ -14,6 +14,8 @@ import type {
     ParagraphBlock,
     RuleBlock,
     TableBlock,
+    TableCellModel,
+    Word,
 } from './readable-types';
 
 const PARAGRAPH_GAP_FACTOR = 1.8;
@@ -132,7 +134,8 @@ export function buildPageBlocks(
         : new Set<ImageItem>();
     const tableRects = page.rects.filter(rect => !usedRects.has(rect));
     const blocks = applyFillBackgrounds(
-        linesToBlocks(lines, tableRects, page.index, ctx, usedRects),
+        rejoinSplitBaselines(
+            linesToBlocks(lines, tableRects, page.index, ctx, usedRects), ctx),
         page.rects, page.index, ctx.pageBounds);
     const boxed = applyBlockBorders(blocks, page.rects, usedRects, page.index);
     const withRules = interleaveByTop(boxed, detectRules(page, usedRects, lines, boxed));
@@ -742,7 +745,7 @@ function linesToBlocks(
         for (const rect of split.usedRects) usedRects.add(rect);
         return [
             ...linesToBlocks(split.before, tableRects, pageIndex, ctx, usedRects),
-            split.table,
+            tableWithLeadingLabel(split, pageIndex),
             ...linesToBlocks(split.after, tableRects, pageIndex, ctx, usedRects),
         ];
     }
@@ -751,6 +754,97 @@ function linesToBlocks(
         blocks.push(...bandToBlocks(band, pageIndex, ctx));
     }
     return blocks;
+}
+
+/**
+ * Re-joins a visual line the XY-cut split across sibling blocks. Same-baseline
+ * segments are one line (the invariant {@link mergeSameBaselineLines} enforces
+ * inside a region), but a column valley can strand a row's short leading
+ * segment ("סה"כ ימי מחלה: 1") in its own single-line block while the rest of
+ * the row joins a neighbouring paragraph. The stranded words are merged back
+ * into the matching baseline — appended on the logically-later side — and the
+ * host's deliberate-break flag is recomputed over the restored line.
+ */
+function rejoinSplitBaselines(blocks: DocBlock[], ctx: ClassifyContext): DocBlock[] {
+    const strays = blocks.filter(b =>
+        b.kind === 'paragraph' && b.lines.length === 1 && (b.stacked ?? false) === false);
+    const dropped = new Set<DocBlock>();
+    for (const stray of strays) {
+        if (stray.kind !== 'paragraph') continue;
+        const line = stray.lines[0];
+        const host = blocks.find(b => b !== stray && !dropped.has(b) &&
+            (b.kind === 'paragraph' || b.kind === 'blockquote') &&
+            b.lines.some(l => Math.abs(l.y - line.y) <= l.fontSize * 0.35));
+        if (!host || (host.kind !== 'paragraph' && host.kind !== 'blockquote')) continue;
+        const target = host.lines.find(l => Math.abs(l.y - line.y) <= l.fontSize * 0.35);
+        if (!target || !sameRowFragment(target, line)) continue;
+        mergeLineInto(target, line);
+        dropped.add(stray);
+        rebuildStacked(host, ctx);
+    }
+    return dropped.size > 0 ? blocks.filter(b => !dropped.has(b)) : blocks;
+}
+
+/** Fragments of one visual row share a font size and sit within a few ems of
+ *  each other; a small-type marginal note beside a body line matches neither
+ *  and stays its own block. */
+function sameRowFragment(target: Line, stray: Line): boolean {
+    const sizeRatio = Math.max(target.fontSize, stray.fontSize) /
+        Math.max(1, Math.min(target.fontSize, stray.fontSize));
+    if (sizeRatio > 1.25) return false;
+    const gap = Math.max(target.x, stray.x) - Math.min(target.endX, stray.endX);
+    return gap <= Math.max(target.fontSize, stray.fontSize) * 8;
+}
+
+/** Appends the stray segment's words on the logically-later side of the host
+ *  line (visual left for RTL, visual right for LTR) and widens its extent. */
+function mergeLineInto(target: Line, stray: Line): void {
+    const strayIsVisuallyLeft = stray.x < target.x;
+    const strayIsLater = target.dir === 'rtl' ? strayIsVisuallyLeft : !strayIsVisuallyLeft;
+    if (stray.words[0]) stray.words[0].spaceBefore = true;
+    if (strayIsLater) {
+        target.words.push(...stray.words);
+    } else {
+        if (target.words[0]) target.words[0].spaceBefore = true;
+        target.words.unshift(...stray.words);
+    }
+    (target as { x: number }).x = Math.min(target.x, stray.x);
+    (target as { endX: number }).endX = Math.max(target.endX, stray.endX);
+}
+
+function rebuildStacked(host: DocBlock, ctx: ClassifyContext): void {
+    if (host.kind !== 'paragraph' && host.kind !== 'blockquote') return;
+    (host as { stacked?: boolean }).stacked = allBreaksIntentional(host.lines, ctx.pageBounds);
+}
+
+/**
+ * A table with a leading row label (a form's "סובל מ" beside the diagnosis
+ * grid) renders as one side-by-side row: the label keeps its edge position
+ * next to the table exactly as the original draws it.
+ */
+function tableWithLeadingLabel(split: BandTableSplit, pageIndex: number): DocBlock {
+    const label = split.leadingLabel;
+    if (!label || label.length === 0) return split.table;
+    const rtl = split.table.style.dir === 'rtl';
+    const tableLines = split.table.rows.flat().flatMap((cell: TableCellModel) => cell.lines);
+    const tableSpan = Math.max(...tableLines.map((l: Line) => l.endX)) -
+        Math.min(...tableLines.map((l: Line) => l.x));
+    const labelSpan = Math.max(...label.map((l: Line) => l.endX)) - Math.min(...label.map((l: Line) => l.x));
+    const total = Math.max(1, tableSpan + labelSpan);
+    const labelBlock: DocBlock = {
+        kind: 'paragraph',
+        lines: [...label],
+        page: pageIndex,
+        style: { ...emptyStyle(), dir: rtl ? 'rtl' : '' },
+    };
+    const labelColumn = { blocks: [labelBlock], widthRatio: Math.max(0.08, labelSpan / total) };
+    const tableColumn = { blocks: [split.table], widthRatio: Math.min(0.92, tableSpan / total) };
+    return {
+        kind: 'columns',
+        columns: [labelColumn, tableColumn],
+        page: pageIndex,
+        style: { ...emptyStyle(), dir: rtl ? 'rtl' : '' },
+    };
 }
 
 /**
@@ -1370,11 +1464,22 @@ function allBreaksIntentional(lines: readonly Line[], measure: ColumnBounds): bo
         const nextWord = lines[i + 1].words[0];
         if (!nextWord) return false;
         const room = line.dir === 'rtl' ? line.x - measure.x0 : measure.x1 - line.endX;
-        const needed = (nextWord.endX - nextWord.x) +
+        const needed = firstTokenWidth(nextWord) +
             INTENTIONAL_BREAK_MARGIN_EM * Math.max(line.fontSize, 1);
         if (needed > room) return false;
     }
     return true;
+}
+
+/** Width of the word's first whitespace-separated token. Fragment merging can
+ *  fold a whole line into one Word; the wrap decision only ever concerned the
+ *  first token, so its width is estimated proportionally. */
+function firstTokenWidth(word: Word): number {
+    const width = word.endX - word.x;
+    const text = word.text.trim();
+    const spaceAt = text.search(/\s/);
+    if (spaceAt < 0 || text.length === 0) return width;
+    return width * (spaceAt / text.length);
 }
 
 /** A block spanning at most this share of its measure keeps its own width. */
@@ -1972,8 +2077,13 @@ function floatSideFor(block: DocBlock, image: ImageItem): 'left' | 'right' | nul
     const bandHeight = top - bottom + Math.max(...lines.map(l => l.fontSize));
     if (overlap < Math.min(image.renderHeight, bandHeight) * 0.5) return null;
 
-    const blockLeft = Math.min(...lines.map(l => l.x));
-    const blockRight = Math.max(...lines.map(l => l.endX));
+    // Only lines vertically beside the image constrain the shared band — a
+    // lower row extending under the image does not block the float.
+    const beside = lines.filter(l =>
+        l.y <= imgTopY + l.fontSize && l.y >= image.y - l.fontSize);
+    if (beside.length === 0) return null;
+    const blockLeft = Math.min(...beside.map(l => l.x));
+    const blockRight = Math.max(...beside.map(l => l.endX));
     const imgRight = image.x + image.renderWidth;
     if (imgRight <= blockLeft + 1) return 'left';
     if (image.x >= blockRight - 1) return 'right';
@@ -1988,6 +2098,7 @@ function textLinesOf(block: DocBlock): readonly Line[] {
     if (block.kind === 'columns') {
         return block.columns.flatMap(col => col.blocks.flatMap(textLinesOf));
     }
+    if (block.kind === 'table') return block.rows.flat().flatMap(cell => cell.lines);
     return [];
 }
 

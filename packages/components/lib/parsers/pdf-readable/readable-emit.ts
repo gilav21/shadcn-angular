@@ -231,15 +231,14 @@ function emitTable(block: TableBlock, ctx: EmitContext): string {
 const TABLE_FULL_SPAN_RATIO = 0.7;
 
 /**
- * Ruled tables keep their full grid. Unruled data tables (three or more
- * columns and rows) get light horizontal row separators, matching how such
- * tables — invoices, statements — are drawn; two-column layouts (contact
- * headers, key/value pairs) stay borderless so they read as text.
+ * Ruled tables keep their full grid. An unruled table gets light horizontal
+ * row separators only when the PDF actually drew rules between its rows
+ * (invoices, statements); without that evidence — a borderless form header,
+ * a key/value layout — it stays borderless so it reads as text.
  */
 function tableCellBorder(block: TableBlock): string {
     if (block.ruled) return 'border:0.5pt solid #999;';
-    const columnCount = Math.max(...block.rows.map(row => row.length), 0);
-    if (block.rows.length >= 3 && columnCount >= 3) return 'border-bottom:0.5pt solid #e5e7eb;';
+    if (block.rowRules) return 'border-bottom:0.5pt solid #e5e7eb;';
     return '';
 }
 

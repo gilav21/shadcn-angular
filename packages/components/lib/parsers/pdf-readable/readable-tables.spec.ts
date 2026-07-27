@@ -264,7 +264,7 @@ describe('findTableInBand — ruled', () => {
         ];
         const split = findTableInBand(band, rects, 0, ctx);
         expect(split).not.toBeNull();
-        const remaining = [...(split?.before ?? []), ...(split?.after ?? [])];
+        const remaining = [...(split?.before ?? []), ...(split?.after ?? []), ...(split?.leadingLabel ?? [])];
         expect(remaining.some(l => l.words[0].text === 'Side note')).toBe(true);
     });
 
@@ -319,7 +319,7 @@ describe('ruled table with an external leading label', () => {
         separatorRect(50, 670, 200, 30), separatorRect(250, 670, 200, 30),
     ];
 
-    it('moves a top-row label outside the grid before the table', () => {
+    it('captures a top-row label outside the grid as the leading label', () => {
         const band = [
             lineOf('Header A', 60, 150, 715), lineOf('Header B', 260, 350, 715),
             lineOf('Data A', 60, 150, 685), lineOf('Data B', 260, 350, 685),
@@ -327,7 +327,7 @@ describe('ruled table with an external leading label', () => {
         ];
         const split = findTableInBand(band, grid, 0, ctx);
         expect(split).not.toBeNull();
-        expect(split?.before.map(l => l.words[0].text)).toContain('Label');
+        expect(split?.leadingLabel?.map(l => l.words[0].text)).toContain('Label');
         expect(split?.after.map(l => l.words[0].text)).not.toContain('Label');
     });
 
@@ -359,5 +359,32 @@ describe('table span ratio', () => {
     it('stamps a near-full-span table for full-width rendering', () => {
         const split = findTableInBand(unruledRows(), [], 0, ctx);
         expect(split?.table.spanRatio).toBeGreaterThan(0.85);
+    });
+});
+
+describe('section rule and row-rule evidence', () => {
+    it('ends an unruled run at a single crossing section rule', () => {
+        const band = [
+            ...unruledRows(),
+            lineOf('Below A', 50, 100, 640), lineOf('Below B', 250, 300, 640),
+        ];
+        const divider = [separatorRect(40, 650, 500, 1)];
+        const split = findTableInBand(band, divider, 0, ctx);
+        expect(split).not.toBeNull();
+        expect(split?.table.rows).toHaveLength(3);
+        expect(split?.after.some(l => l.words[0].text.startsWith('Below'))).toBe(true);
+    });
+
+    it('keeps repeated interior rules as row styling (run intact, rowRules on)', () => {
+        const rules = [separatorRect(40, 690, 500, 1), separatorRect(40, 670, 500, 1)];
+        const split = findTableInBand(unruledRows(), rules, 0, ctx);
+        expect(split).not.toBeNull();
+        expect(split?.table.rows).toHaveLength(3);
+        expect(split?.table.rowRules).toBe(true);
+    });
+
+    it('leaves a rule-free unruled table borderless', () => {
+        const split = findTableInBand(unruledRows(), [], 0, ctx);
+        expect(split?.table.rowRules).toBe(false);
     });
 });
