@@ -81,3 +81,29 @@ describe('inline image emission', () => {
         expect(html).toContain('more text below');
     });
 });
+
+describe('heading font weight', () => {
+    const OPTS2 = { embedFonts: false, includeImages: true, pageWrappers: false, fontFamilyPrefix: 'p-' };
+    const styleOf = (bold: boolean) => ({ ...wordAt('x', 0, 0, 0).style, bold });
+
+    function headingDoc(bold: boolean): DocModel {
+        const line = lineOf('Welcome', 50, 300, 700, { fontSize: 30 });
+        line.words[0].style = styleOf(bold);
+        return {
+            pages: [{ index: 0, width: 612, height: 792, blocks: [
+                { kind: 'heading', level: 1, lines: [line], page: 0, style: { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '', background: '', border: '' } },
+            ] }],
+            bodyFontSize: 12,
+        };
+    }
+
+    it('emits font-weight:normal on a heading whose PDF text is not bold', () => {
+        const { html } = emitDocument(headingDoc(false), OPTS2, new Map());
+        expect(html).toContain('font-weight:normal');
+    });
+
+    it('leaves a genuinely bold heading without the override', () => {
+        const { html } = emitDocument(headingDoc(true), OPTS2, new Map());
+        expect(html).not.toContain('font-weight:normal');
+    });
+});

@@ -931,3 +931,24 @@ describe('shared fill panel', () => {
         expect(blocks.some(bl => bl.style.background === '#5d93e5')).toBe(true);
     });
 });
+
+// Alignment-class boundary — edge-pinned vs centered lines split.
+describe('alignment paragraph boundary', () => {
+    it('splits a right-pinned title from the centered bold line below it', () => {
+        const title = lineOf('תשלום חשבונית', 472, 584, 745, { dir: 'rtl', fontSize: 20.5 });
+        const success = lineOf('תשלום בוצע בהצלחה!', 225, 388, 722, { dir: 'rtl', fontSize: 20.5, style: { bold: true } });
+        const wide = lineOf('שורת גוף מלאה שנמתחת כמעט על כל רוחב האזור כאן', 44, 584, 698, { dir: 'rtl', fontSize: 20.5 });
+        const blocks = buildPageBlocks([title, success, wide], pageExtractOf([title, success, wide]), true, ctx);
+        const containing = blocks.filter(b => blockLines(b).some(l => l.words[0].text.includes('בוצע')));
+        expect(containing).toHaveLength(1);
+        expect(blockLines(containing[0])).toHaveLength(1);
+    });
+
+    it('keeps a full-width line joined with its centered wrap tail', () => {
+        const full = lineOf('לידיעתכם התשלום ייקלט במהלך 24 השעות הקרובות בכפוף לאישור מחברת', 44, 584, 698, { dir: 'rtl', fontSize: 20.5 });
+        const tail = lineOf('האשראי.', 276, 337, 675, { dir: 'rtl', fontSize: 20.5 });
+        const blocks = buildPageBlocks([full, tail], pageExtractOf([full, tail]), true, ctx);
+        const joined = blocks.some(b => blockLines(b).length === 2);
+        expect(joined).toBe(true);
+    });
+});

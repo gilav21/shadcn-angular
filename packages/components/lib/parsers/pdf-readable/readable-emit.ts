@@ -178,6 +178,8 @@ function emitLinesBlock(
     const styleValue = styleAttr([
         ...blockStylePairs(style, ctx.inColumn ?? false),
         ...baseFontPairs(dominant, ctx),
+        // A heading tag is browser-bold by default; the PDF's own weight wins.
+        ['font-weight', tag.startsWith('h') && dominant && !dominant.bold ? 'normal' : ''],
     ]);
     return `<${tag}${attrString(styleValue, style.dir === 'rtl' ? 'rtl' : '')}>${content}</${tag}>`;
 }

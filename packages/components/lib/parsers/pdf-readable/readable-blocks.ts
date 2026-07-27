@@ -1519,10 +1519,11 @@ function isMarkerSegment(line: Line): boolean {
 function splitIntoParagraphGroups(lines: readonly Line[]): Line[][] {
     if (lines.length === 0) return [];
     const medianGap = medianBaselineGap(lines);
+    const bounds = boundsOfLines(lines);
     let current: Line[] = [lines[0]];
     const groups: Line[][] = [current];
     for (let i = 1; i < lines.length; i++) {
-        if (startsNewParagraph(lines[i - 1], lines[i], medianGap)) {
+        if (startsNewParagraph(lines[i - 1], lines[i], medianGap, bounds)) {
             current = [lines[i]];
             groups.push(current);
         } else {
@@ -1532,7 +1533,12 @@ function splitIntoParagraphGroups(lines: readonly Line[]): Line[][] {
     return groups;
 }
 
-function startsNewParagraph(previous: Line, line: Line, medianGap: number): boolean {
+function startsNewParagraph(
+    previous: Line,
+    line: Line,
+    medianGap: number,
+    bounds: ColumnBounds,
+): boolean {
     const gap = previous.y - line.y;
     if (gap <= 0) return true;
     if (gap > Math.max(previous.fontSize, line.fontSize) * 2.2) return true;
@@ -1542,7 +1548,35 @@ function startsNewParagraph(previous: Line, line: Line, medianGap: number): bool
     if (sizeRatio >= FONT_SIZE_CHANGE_RATIO) return true;
     if (isListSubheadingBoundary(previous, line, sizeRatio)) return true;
     if (dominantStyleChanges(previous, line)) return true;
+    if (alignmentBreaks(previous, line, bounds)) return true;
     return previous.dir !== line.dir;
+}
+
+type LineAlignClass = 'full' | 'start' | 'end' | 'center' | 'other';
+
+/**
+ * An edge-pinned line next to a centered one is two differently-aligned
+ * statements (a right-pinned RTL title over a centered emphasis line), not a
+ * wrap. Full-width lines never split here — their continuation tail can land
+ * anywhere, including dead centre — and 'other' placements stay inconclusive.
+ */
+function alignmentBreaks(previous: Line, line: Line, bounds: ColumnBounds): boolean {
+    const a = lineAlignClass(previous, bounds);
+    const b = lineAlignClass(line, bounds);
+    if (a === 'full' || b === 'full' || a === 'other' || b === 'other') return false;
+    return (a === 'center') !== (b === 'center');
+}
+
+function lineAlignClass(line: Line, bounds: ColumnBounds): LineAlignClass {
+    const em = Math.max(line.fontSize, 1);
+    const left = line.x - bounds.x0;
+    const right = bounds.x1 - line.endX;
+    if (left <= em && right <= em) return 'full';
+    if (left <= em) return 'start';
+    if (right <= em) return 'end';
+    const tolerance = Math.max(em * 2, 0.2 * Math.min(left, right));
+    if (Math.abs(left - right) <= tolerance) return 'center';
+    return 'other';
 }
 
 /**
