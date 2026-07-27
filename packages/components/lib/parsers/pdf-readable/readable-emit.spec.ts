@@ -107,3 +107,29 @@ describe('heading font weight', () => {
         expect(html).not.toContain('font-weight:normal');
     });
 });
+
+describe('signature slot cells', () => {
+    const OPTS3 = { embedFonts: false, includeImages: true, pageWrappers: false, fontFamilyPrefix: 'p-' };
+
+    function sigDoc(): DocModel {
+        const value = lineOf('הפקה מקוונת', 88, 161, 530, { dir: 'rtl', fontSize: 10 });
+        value.words[0].style = { ...value.words[0].style, underline: true, color: '#00008b' };
+        const label = lineOf('חתימה וחותמת הרופא', 90, 177, 503, { dir: 'rtl', fontSize: 10 });
+        return {
+            pages: [{ index: 0, width: 612, height: 792, blocks: [{
+                kind: 'table',
+                rows: [[{ lines: [value] }], [{ lines: [label] }]],
+                ruled: false, headerRow: false, page: 0,
+                style: { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: 'rtl', background: '', border: '' },
+            }] }],
+            bodyFontSize: 10,
+        };
+    }
+
+    it('promotes a fully-underlined cell to a centered wide slot line', () => {
+        const { html } = emitDocument(sigDoc(), OPTS3, new Map());
+        expect(html).toContain('border-bottom:1pt solid #00008b');
+        expect(html).toContain('text-align:center');
+        expect(html).not.toContain('<u>');
+    });
+});

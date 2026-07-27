@@ -14,6 +14,7 @@ import type {
     PdfReadableOptions,
     RunStyle,
     TableBlock,
+    TableCellModel,
     Word,
 } from './readable-types';
 
@@ -21,6 +22,8 @@ interface EmitContext {
     readonly fonts: Map<string, FontMapping>;
     readonly bodyFontSize: number;
     readonly inColumn?: boolean;
+    /** The underline renders as a cell border instead of text decoration. */
+    readonly suppressUnderline?: boolean;
 }
 
 interface RunModel {
@@ -205,18 +208,10 @@ function emitList(block: ListBlock, ctx: EmitContext): string {
 
 function emitTable(block: TableBlock, ctx: EmitContext): string {
     const cellBorder = tableCellBorder(block);
+    const signature = block.rows.some(row => row.some(isSignatureSlotCell));
     const rows = block.rows.map((row, rowIdx) => {
         const cellTag = block.headerRow && rowIdx === 0 ? 'th' : 'td';
-        const cells = row.map(cell => {
-            const dominant = dominantRunStyle(cell.lines);
-            const inner = emitLineContents(cell.lines, dominant, ctx);
-            const fill: Array<[string, string]> = cell.background
-                ? [['background', cell.background]]
-                : [];
-            const styleValue = cellBorder +
-                styleAttr([['padding', '2pt 4pt'], ...fill, ...baseFontPairs(dominant, ctx)]);
-            return `<${cellTag} style="${styleValue}">${inner}</${cellTag}>`;
-        });
+        const cells = row.map(cell => emitTableCell(cell, cellTag, cellBorder, signature, ctx));
         return `<tr>${cells.join('')}</tr>`;
     });
     const fullWidth = (block.spanRatio ?? 0) >= TABLE_FULL_SPAN_RATIO;
@@ -225,6 +220,47 @@ function emitTable(block: TableBlock, ctx: EmitContext): string {
         ['width', fullWidth ? '100%' : ''],
     ])}`;
     return `<table style="${tableStyle}"${block.style.dir === 'rtl' ? ' dir="rtl"' : ''}>${rows.join('')}</table>`;
+}
+
+/** A cell whose every word carries a slot underline is a signature field: the
+ *  form drew a wide line under it, wider than the text itself. */
+function isSignatureSlotCell(cell: TableCellModel): boolean {
+    const words = cell.lines.flatMap(line => line.words);
+    return words.length > 0 && words.every(word => word.style.underline);
+}
+
+/**
+ * In a signature table every field centres over its slot, with the underline
+ * promoted from text decoration to a full-cell bottom border — the wide,
+ * roomy line the form drew rather than a text-hugging one.
+ */
+function emitTableCell(
+    cell: TableCellModel,
+    cellTag: string,
+    cellBorder: string,
+    signature: boolean,
+    ctx: EmitContext,
+): string {
+    const dominant = dominantRunStyle(cell.lines);
+    const slot = signature && isSignatureSlotCell(cell);
+    let inner = emitLineContents(cell.lines, dominant, slot ? { ...ctx, suppressUnderline: true } : ctx);
+    if (slot && dominant) {
+        const slotStyle = styleAttr([
+            ['border-bottom', `1pt solid ${colorValue(dominant.color)}`],
+            ['padding-bottom', '3pt'],
+        ]);
+        inner = `<div style="${slotStyle}">${inner}</div>`;
+    }
+    const fill: Array<[string, string]> = cell.background
+        ? [['background', cell.background]]
+        : [];
+    const styleValue = cellBorder + styleAttr([
+        ['padding', signature ? '4pt 12pt' : '2pt 4pt'],
+        ['text-align', signature ? 'center' : ''],
+        ...fill,
+        ...baseFontPairs(dominant, ctx),
+    ]);
+    return `<${cellTag} style="${styleValue}">${inner}</${cellTag}>`;
 }
 
 /** A table spanning at least this share of its measure renders full width. */
@@ -360,7 +396,7 @@ function emitRun(run: RunModel, dominant: RunStyle | null, ctx: EmitContext): st
     const style = run.style;
     const spanStyle = runDeltaPairs(style, dominant, ctx);
     if (spanStyle.some(([, v]) => v !== '')) html = `<span style="${styleAttr(spanStyle)}">${html}</span>`;
-    if (style.underline) html = `<u>${html}</u>`;
+    if (style.underline && !ctx.suppressUnderline) html = `<u>${html}</u>`;
     if (style.italic) html = `<em>${html}</em>`;
     if (style.bold) html = `<strong>${html}</strong>`;
     if (style.baselineShift === 'sup') html = `<sup>${html}</sup>`;
