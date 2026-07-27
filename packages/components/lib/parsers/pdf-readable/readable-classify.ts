@@ -15,6 +15,8 @@ export interface ClassifyContext {
     readonly structure: StructureMap;
     /** Full-page content bounds — blockquote insets are measured against these. */
     readonly pageBounds: ColumnBounds;
+    /** Page height in pt; footer-band detection is off when absent. */
+    readonly pageHeight?: number;
 }
 
 export type GroupKind =

@@ -952,3 +952,37 @@ describe('alignment paragraph boundary', () => {
         expect(joined).toBe(true);
     });
 });
+
+// Footer band — a URL | page-number row is a genuine justified footer.
+describe('footer-band justified rows', () => {
+    const footCtx: ClassifyContext = {
+        bodyFontSize: 20.5,
+        bodyLeading: 24,
+        structure: { mcidToType: new Map(), hasStructure: false },
+        pageBounds: { x0: 27, x1: 584 },
+        pageHeight: 792,
+    };
+    const url = lineOf('https://www.pazgas.co.il/he/services-pay-gas-bill/iv_step2', 27, 250, 37, { fontSize: 8 });
+    const pageNo = lineOf('1/1', 570, 584, 37, { fontSize: 8 });
+
+    it('accepts a footer URL | page-number row despite marker and sub-body font', () => {
+        const bounds = { x0: 27, x1: 584 };
+        const row = asJustifiedRow([url, pageNo], bounds, bounds.x1 - bounds.x0, footCtx);
+        expect(row).not.toBeNull();
+        expect(row?.right.words[0].text).toBe('1/1');
+    });
+
+    it('still rejects a marker row outside the footer band', () => {
+        const bodyUrl = lineOf('https://www.pazgas.co.il/he/services-pay-gas-bill/iv_step2', 27, 250, 400, { fontSize: 8 });
+        const bodyNo = lineOf('1/1', 570, 584, 400, { fontSize: 8 });
+        const bounds = { x0: 27, x1: 584 };
+        expect(asJustifiedRow([bodyUrl, bodyNo], bounds, bounds.x1 - bounds.x0, footCtx)).toBeNull();
+    });
+
+    it('rejects a footer row of two bare markers', () => {
+        const m1 = lineOf('7', 27, 40, 37, { fontSize: 8 });
+        const m2 = lineOf('1/1', 570, 584, 37, { fontSize: 8 });
+        const bounds = { x0: 27, x1: 584 };
+        expect(asJustifiedRow([m1, m2], bounds, bounds.x1 - bounds.x0, footCtx)).toBeNull();
+    });
+});

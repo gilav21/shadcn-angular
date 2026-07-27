@@ -123,6 +123,7 @@ export function buildPageBlocks(
     const ctx: ClassifyContext = {
         ...docCtx,
         pageBounds: lines.length > 0 ? boundsOfLines(lines) : { x0: 0, x1: page.width },
+        pageHeight: page.height,
     };
     const usedRects = applyUnderlines(lines, page.rects);
     applySlotUnderlines(lines, page.rects, usedRects, page.width);
@@ -1445,15 +1446,25 @@ export function splitJustifiedRows(
         const justified = asJustifiedRow(row, bounds, width, ctx);
         if (justified) {
             flush();
-            blocks.push(columnsBlockFrom(
+            const rowBlock = columnsBlockFrom(
                 [[justified.left], [justified.right]], MAX_CUT_DEPTH, pageIndex, ctx,
-            ));
+            );
+            pinJustifiedCells(rowBlock);
+            blocks.push(rowBlock);
         } else {
             buffer.push(...row);
         }
     }
     flush();
     return blocks;
+}
+
+/** A justified row's segments were pinned to opposite region edges, so their
+ *  cells anchor the same way — the page number stays at the far margin. */
+function pinJustifiedCells(rowBlock: ColumnsBlock): void {
+    const [leftCol, rightCol] = rowBlock.columns;
+    for (const block of leftCol?.blocks ?? []) block.style.align = 'left';
+    for (const block of rightCol?.blocks ?? []) block.style.align = 'right';
 }
 
 /** Groups a region's segments into baseline rows, top-to-bottom, mirroring the
@@ -1496,12 +1507,29 @@ export function asJustifiedRow(
     if (right.endX < bounds.x1 - pinTolerance) return null;
     if (right.x - left.endX < width * JUSTIFIED_GAP_RATIO) return null;
     if (width < JUSTIFIED_MIN_WIDTH_PT) return null;
-    if (fontSize < ctx.bodyFontSize * JUSTIFIED_MIN_FONT_RATIO) return null;
+    const footer = isFooterBandRow(left, right, ctx);
+    if (!footer && fontSize < ctx.bodyFontSize * JUSTIFIED_MIN_FONT_RATIO) return null;
     const pageWidth = ctx.pageBounds.x1 - ctx.pageBounds.x0;
     if (pageWidth > 0 && width < pageWidth * JUSTIFIED_MIN_WIDTH_RATIO) return null;
-    if (isMarkerSegment(left) || isMarkerSegment(right)) return null;
+    if (rejectsMarkers(left, right, footer)) return null;
     if (segmentText(left) === segmentText(right)) return null;
     return { left, right };
+}
+
+/** Rows this low on the page are footer chrome, where small type and a bare
+ *  page number at the edges are exactly what a real footer looks like. */
+const FOOTER_BAND_RATIO = 0.08;
+
+function isFooterBandRow(left: Line, right: Line, ctx: ClassifyContext): boolean {
+    const pageHeight = ctx.pageHeight ?? 0;
+    return pageHeight > 0 && Math.max(left.y, right.y) <= pageHeight * FOOTER_BAND_RATIO;
+}
+
+/** Outside the footer band any marker segment rejects the row; inside it only
+ *  a row of two bare markers does (URL | page-number is a genuine footer). */
+function rejectsMarkers(left: Line, right: Line, footer: boolean): boolean {
+    if (footer) return isMarkerSegment(left) && isMarkerSegment(right);
+    return isMarkerSegment(left) || isMarkerSegment(right);
 }
 
 /** A segment's text, normalised for the marker/duplicate checks. */

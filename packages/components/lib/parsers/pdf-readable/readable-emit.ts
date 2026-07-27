@@ -143,7 +143,9 @@ function emitColumns(block: ColumnsBlock, ctx: EmitContext): string {
         ]);
         return `<td style="${cellStyle}">${inner}</td>`;
     });
-    const dirAttr = block.style.dir === 'rtl' ? ' dir="rtl"' : '';
+    // Explicit both ways: an RTL page container would otherwise reverse the
+    // column order of a majority-LTR row (a URL | page-number footer).
+    const dirAttr = block.style.dir === 'rtl' ? ' dir="rtl"' : ' dir="ltr"';
     const boxStyle = block.style.border ? `;border:${block.style.border}` : '';
     const fillStyle = block.style.background ? `;background:${block.style.background}` : '';
     let width = '100%';
