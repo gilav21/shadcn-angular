@@ -72,7 +72,7 @@ function linesFromCluster(cluster: TextLine, page: number, ctx: WordBuildContext
         .map(segment => lineFromSegment(segment, cluster.y, page));
 }
 
-const RTL_CHAR_RE = new RegExp('[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]', 'u');
+const RTL_CHAR_RE = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
 const LTR_STRONG_RE = /[\dA-Za-z]/u;
 
 /** Digits/Latin with no RTL script - a field value, not label text. */

@@ -143,6 +143,9 @@ function emitColumns(block: ColumnsBlock, ctx: EmitContext): string {
             ['vertical-align', 'top'],
             ['width', `${width}%`],
             ['padding', '0 6pt'],
+            ['border', '0'],
+            ['min-width', '0'],
+            ['background', 'transparent'],
         ]);
         return `<td style="${cellStyle}">${inner}</td>`;
     });
@@ -158,7 +161,9 @@ function emitColumns(block: ColumnsBlock, ctx: EmitContext): string {
         anchor = block.panelSide === 'right' ? ';margin-left:auto' : ';margin-right:auto';
     }
     const tall = block.panelMinHeight ? `;height:${round(block.panelMinHeight)}pt` : '';
-    return `<table style="border-collapse:collapse;width:${width}${anchor}${tall}${boxStyle}${fillStyle}"${dirAttr}><tr>${cells.join('')}</tr></table>`;
+    const topMargin = block.style.marginTop > 0 ? `${round(block.style.marginTop)}pt` : '0';
+    const margins = `;margin-top:${topMargin};margin-bottom:0`;
+    return `<table style="border-collapse:collapse;width:${width}${anchor}${tall}${boxStyle}${fillStyle}${margins}"${dirAttr}><tr>${cells.join('')}</tr></table>`;
 }
 
 function emitHeading(block: HeadingBlock, ctx: EmitContext): string {
@@ -215,9 +220,12 @@ function emitTable(block: TableBlock, ctx: EmitContext): string {
         return `<tr>${cells.join('')}</tr>`;
     });
     const fullWidth = (block.spanRatio ?? 0) >= TABLE_FULL_SPAN_RATIO;
+    // Width and margins are always concrete: a hosting stylesheet (the rich
+    // text editor styles every table for editing UX) must not restyle layout.
     const tableStyle = `border-collapse:collapse;${styleAttr([
-        ['margin-top', ptOrEmpty(block.style.marginTop)],
-        ['width', fullWidth ? '100%' : ''],
+        ['margin-top', block.style.marginTop > 0 ? ptOrEmpty(block.style.marginTop) : '0'],
+        ['margin-bottom', '0'],
+        ['width', fullWidth ? '100%' : 'auto'],
     ])}`;
     return `<table style="${tableStyle}"${block.style.dir === 'rtl' ? ' dir="rtl"' : ''}>${rows.join('')}</table>`;
 }
@@ -256,7 +264,9 @@ function emitTableCell(
         : [];
     const styleValue = cellBorder + styleAttr([
         ['padding', signature ? '4pt 12pt' : '2pt 4pt'],
-        ['text-align', signature ? 'center' : ''],
+        ['text-align', signature ? 'center' : 'start'],
+        ['min-width', '0'],
+        ['background', cell.background ? '' : 'transparent'],
         ...fill,
         ...baseFontPairs(dominant, ctx),
     ]);
@@ -274,8 +284,8 @@ const TABLE_FULL_SPAN_RATIO = 0.7;
  */
 function tableCellBorder(block: TableBlock): string {
     if (block.ruled) return 'border:0.5pt solid #999;';
-    if (block.rowRules) return 'border-bottom:0.5pt solid #e5e7eb;';
-    return '';
+    if (block.rowRules) return 'border:0;border-bottom:0.5pt solid #e5e7eb;';
+    return 'border:0;';
 }
 
 function emitImage(block: ImageBlock): string {
