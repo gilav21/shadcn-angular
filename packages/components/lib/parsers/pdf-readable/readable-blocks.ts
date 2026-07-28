@@ -409,6 +409,15 @@ function isBackgroundDecoration(image: ImageItem, pageArea: number): boolean {
 
 /** Smallest filled rect worth treating as a block background, in pt². */
 const MIN_FILL_AREA = 1500;
+/** A fill at least one text line tall and a few characters wide is a drawn
+ *  highlight (a total pill) even when its area is under the panel floor. */
+const MIN_PILL_HEIGHT = 12;
+const MIN_PILL_WIDTH = 30;
+
+function holdsText(rect: PathRect): boolean {
+    if (rect.width * rect.height >= MIN_FILL_AREA) return true;
+    return rect.height >= MIN_PILL_HEIGHT && rect.width >= MIN_PILL_WIDTH;
+}
 
 /**
  * Reconstructs solid colour blocks (headers, callouts, badges) by giving a text
@@ -424,24 +433,43 @@ function applyFillBackgrounds(
     measure: ColumnBounds,
 ): DocBlock[] {
     const fills = mergeContiguousFills(rects.filter(r =>
-        r.filled && r.width * r.height >= MIN_FILL_AREA && isSaturatedColor(r.fillColor)));
+        r.filled && holdsText(r) && isSaturatedColor(r.fillColor)));
     if (fills.length === 0) return [...blocks];
     const fillOf = new Map<DocBlock, PathRect>();
     for (const block of blocks) {
-        if (block.kind === 'table') {
-            applyCellBackgrounds(block, fills);
-            continue;
-        }
-        const bounds = textBlockBounds(block);
-        if (bounds) {
-            const fill = fills.find(r => rectCoversCentroid(r, bounds));
-            if (fill) {
-                block.style.background = fill.fillColor;
-                fillOf.set(block, fill);
-            }
-        }
+        assignBlockFill(block, fills, fillOf);
     }
     return wrapSharedFillRuns(blocks, fillOf, pageIndex, measure);
+}
+
+/**
+ * Assigns a drawn fill to one block, recursing into column cells — a filled
+ * panel inside a columns row (an invoice's header box) otherwise loses its
+ * background and leaves its light-on-colour text invisible on white.
+ */
+function assignBlockFill(
+    block: DocBlock,
+    fills: readonly PathRect[],
+    fillOf: Map<DocBlock, PathRect>,
+): void {
+    if (block.kind === 'table') {
+        applyCellBackgrounds(block, fills);
+        return;
+    }
+    if (block.kind === 'columns') {
+        for (const column of block.columns) {
+            for (const child of column.blocks) assignBlockFill(child, fills, fillOf);
+        }
+        return;
+    }
+    const bounds = textBlockBounds(block);
+    if (bounds) {
+        const fill = fills.find(r => rectCoversCentroid(r, bounds));
+        if (fill) {
+            block.style.background = fill.fillColor;
+            fillOf.set(block, fill);
+        }
+    }
 }
 
 /** Vertical gap (pt) under which two same-colour fill slices are one rect. */
