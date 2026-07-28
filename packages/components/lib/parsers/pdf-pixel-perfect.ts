@@ -742,15 +742,32 @@ function buildFontBaseProps(entry: FontRegistryEntry): string {
         `-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;`;
 }
 
+const FAMILY_SERIF_HINT = /times|serif|georgia|garamond|book|roman|minion|caslon|palatino|cambria/i;
+const FAMILY_MONO_HINT = /courier|mono|consolas|menlo/i;
+
+/** Per-glyph fallback chain behind the embedded font: a subsetted font whose
+ *  cmap does not cover the emitted Unicode text (Chromium-printed PDFs)
+ *  otherwise renders those glyphs as nothing at all. */
+function fallbackChainFor(entry: FontRegistryEntry): string {
+    const name = entry.familyName || entry.baseFontName || '';
+    let generic = 'sans-serif';
+    if (FAMILY_MONO_HINT.test(name)) generic = 'monospace';
+    else if (FAMILY_SERIF_HINT.test(name)) generic = 'serif';
+    const original = entry.familyName ? `'${entry.familyName.replaceAll(/['";]/g, '')}',` : '';
+    return `${original}${generic}`;
+}
+
 function resolveFontFamily(entry: FontRegistryEntry, isSymbolFont: boolean, familyPrefix = ''): string {
     if (isSymbolFont) return 'sans-serif';
     const embeddedId = `'${familyPrefix}f${entry.id.toString(16)}'`;
     if (entry.reEncodedData && entry.fontData && fontFormatToMime(entry.fontData.format)) {
-        return embeddedId;
+        return `${embeddedId},${fallbackChainFor(entry)}`;
     }
     const systemFamily = getSystemFontFamily(entry.baseFontName);
     if (systemFamily && !entry.reEncodedData) return systemFamily;
-    if (entry.fontData && fontFormatToMime(entry.fontData.format)) return embeddedId;
+    if (entry.fontData && fontFormatToMime(entry.fontData.format)) {
+        return `${embeddedId},${fallbackChainFor(entry)}`;
+    }
     return entry.familyName || 'serif';
 }
 
@@ -903,6 +920,11 @@ export class FontRegistry {
     }
 
     private fontFaceRuleFor(entry: FontRegistryEntry): string | null {
+        // Prefer the PDF's own font program: browsers rasterize it faithfully
+        // and per-glyph fallback covers whatever its cmap misses. The rebuilt
+        // program is a last resort — Chrome declines to paint some of its
+        // glyphs while still claiming them, which renders text invisibly.
+        if (this.rawIsLoadable(entry)) return this.rawFontFaceRule(entry);
         if (entry.reEncodedData) {
             const b64 = uint8ToBase64(entry.reEncodedData);
             return `@font-face{font-family:'${this.familyNameFor(entry)}';` +
@@ -912,6 +934,21 @@ export class FontRegistry {
         if (entry.fontData.format !== 'truetype' && entry.fontData.format !== 'opentype') {
             return null;
         }
+        const fmt = fontFormatToMime(entry.fontData.format);
+        if (!fmt) return null;
+        const b64 = uint8ToBase64(entry.fontData.data);
+        return `@font-face{font-family:'${this.familyNameFor(entry)}';` +
+            `src:url('data:${fmt.mime};base64,${b64}') format('${fmt.cssFormat}');}`;
+    }
+
+    private rawIsLoadable(entry: FontRegistryEntry): boolean {
+        return !!entry.fontData &&
+            (entry.fontData.format === 'truetype' || entry.fontData.format === 'opentype') &&
+            fontFormatToMime(entry.fontData.format) !== null;
+    }
+
+    private rawFontFaceRule(entry: FontRegistryEntry): string | null {
+        if (!entry.fontData) return null;
         const fmt = fontFormatToMime(entry.fontData.format);
         if (!fmt) return null;
         const b64 = uint8ToBase64(entry.fontData.data);

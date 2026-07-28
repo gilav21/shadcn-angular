@@ -138,6 +138,15 @@ function allOn(): Record<AddonKey, boolean> {
         @if (enabledCount() === 0) {
         <p class="text-sm text-muted-foreground">{{ t().allOffNote }}</p>
         }
+
+        @if (addons().fileImport) {
+        <p class="text-sm text-muted-foreground">
+          Try the import button with an example PDF:
+          @for (example of examplePdfs; track example) {
+            <a class="text-primary underline underline-offset-2 me-2" [href]="'/examples/' + example" download>{{ example }}</a>
+          }
+        </p>
+        }
         <div class="space-y-1 text-sm text-muted-foreground">
           @if (addons().slashCommands) { <p>{{ t().slashHint }}</p> }
           @if (addons().mentions) { <p>{{ t().mentionsHint }}</p> }
@@ -168,6 +177,9 @@ function allOn(): Record<AddonKey, boolean> {
   `,
 })
 export class RichTextEditorAddonsDemoComponent {
+  /** Fictional example documents shipped with the demo under /examples. */
+  readonly examplePdfs = ['invoice.pdf', 'newsletter.pdf', 'quarterly-report.pdf', 'hebrew-receipt.pdf', 'registration-form.pdf'];
+
   private readonly localeId = inject(UI_LOCALE_ID);
   protected readonly t = computed(
     () => RICH_TEXT_EDITOR_ADDONS_DEMO_LOCALES[this.localeId()] ?? RICH_TEXT_EDITOR_ADDONS_DEMO_LOCALES['en'],
