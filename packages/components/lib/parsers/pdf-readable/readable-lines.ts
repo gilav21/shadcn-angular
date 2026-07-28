@@ -1,0 +1,156 @@
+import type { TextItem, TextLine } from '../pdf-parser';
+import type { Line, Word } from './readable-types';
+import { buildWords, detectDirection, toLogicalOrder, type WordBuildContext } from './readable-words';
+
+const MIN_Y_TOLERANCE = 2;
+const Y_TOLERANCE_EM = 0.45;
+
+/**
+ * Clusters one page's text fragments into visual baseline lines
+ * (top-to-bottom, fragments left-to-right). The returned shape is the
+ * parser's TextLine so RTL fixes can be applied in place before word building.
+ */
+export function clusterIntoLineItems(items: readonly TextItem[]): TextLine[] {
+    if (items.length === 0) return [];
+    const sorted = [...items].sort((a, b) =>
+        Math.abs(a.y - b.y) > lineTolerance(a, b) ? b.y - a.y : a.x - b.x);
+
+    const clusters: TextLine[] = [];
+    for (const item of sorted) {
+        const line = clusters.at(-1);
+        if (line && belongsToLine(item, line)) {
+            line.items.push(item);
+            line.minX = Math.min(line.minX, item.x);
+        } else {
+            clusters.push({ items: [item], y: item.y, minX: item.x });
+        }
+    }
+    for (const cluster of clusters) cluster.items.sort((a, b) => a.x - b.x);
+    return clusters;
+}
+
+function belongsToLine(item: TextItem, line: TextLine): boolean {
+    const anchor = dominantItem(line.items);
+    return Math.abs(item.y - line.y) <= lineTolerance(item, anchor);
+}
+
+function lineTolerance(a: TextItem, b: TextItem): number {
+    return Math.max(MIN_Y_TOLERANCE, Math.max(a.fontSize, b.fontSize) * Y_TOLERANCE_EM);
+}
+
+function dominantItem(items: readonly TextItem[]): TextItem {
+    let best = items[0];
+    for (const item of items) {
+        if (item.fontSize > best.fontSize) best = item;
+    }
+    return best;
+}
+
+/**
+ * Converts baseline clusters into the readable Line model (logical word
+ * order). Clusters containing column-sized visual gaps are split into one
+ * Line per segment so the XY-cut can see inter-column valleys.
+ */
+export function linesFromClusters(
+    clusters: readonly TextLine[],
+    page: number,
+    ctx: WordBuildContext,
+): Line[] {
+    const lines: Line[] = [];
+    for (const cluster of clusters) {
+        lines.push(...linesFromCluster(cluster, page, ctx));
+    }
+    return lines;
+}
+
+function linesFromCluster(cluster: TextLine, page: number, ctx: WordBuildContext): Line[] {
+    const visualWords = buildWords(cluster.items, ctx);
+    const segments = splitAtHardBreaks(visualWords);
+    bindValuesToBareLabels(segments);
+    return segments
+        .filter(segment => segment.length > 0)
+        .map(segment => lineFromSegment(segment, cluster.y, page));
+}
+
+const RTL_CHAR_RE = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
+const LTR_STRONG_RE = /[\dA-Za-z]/u;
+
+/** Digits/Latin with no RTL script - a field value, not label text. */
+function isLtrValueText(text: string): boolean {
+    return text !== '' && !RTL_CHAR_RE.test(text) && LTR_STRONG_RE.test(text);
+}
+
+/**
+ * An RTL form aligns each field's value in a column LEFT of its label, so the
+ * label-to-value gap can exceed the value-to-next-field gap and hard-break
+ * segmentation strands the value in the neighbouring field's segment ("31.00"
+ * grouped with "מין: ז", leaving "גיל:" value-less). A bare colon-terminated
+ * RTL label segment therefore pulls the LTR value from the visually-right end
+ * of the segment to its left — the value it reads out to.
+ */
+function bindValuesToBareLabels(segments: Word[][]): void {
+    for (let i = 0; i + 1 < segments.length; i++) {
+        const label = segments[i + 1];
+        if (!isBareRtlColonLabel(label)) continue;
+        const donor = segments[i];
+        const value = donor.at(-1);
+        if (!value || !isLtrValueText(value.text.trim())) continue;
+        donor.pop();
+        value.spaceBefore = true;
+        label.unshift(value);
+    }
+}
+
+/** A segment of RTL text carrying a field colon and no value — a label still
+ *  waiting for its value. (Words are in visual order here, so the colon's
+ *  position is not checked, only its presence.) */
+function isBareRtlColonLabel(segment: readonly Word[]): boolean {
+    if (segment.length === 0) return false;
+    const text = segment.map(w => w.text).join(' ').trim();
+    return RTL_CHAR_RE.test(text) && text.includes(':') &&
+        segment.every(w => !isLtrValueText(w.text.trim()));
+}
+
+function splitAtHardBreaks(words: readonly Word[]): Word[][] {
+    const segments: Word[][] = [];
+    for (const word of words) {
+        const current = segments.at(-1);
+        if (!current || word.hardBreak) {
+            segments.push([word]);
+        } else {
+            current.push(word);
+        }
+    }
+    return segments;
+}
+
+function lineFromSegment(segment: Word[], y: number, page: number): Line {
+    const dir = detectDirection(segment);
+    const words = toLogicalOrder(segment, dir);
+    return {
+        words,
+        x: Math.min(...segment.map(w => w.x)),
+        endX: Math.max(...segment.map(w => w.endX)),
+        y,
+        fontSize: dominantSegmentFontSize(segment),
+        dir,
+        page,
+    };
+}
+
+function dominantSegmentFontSize(words: readonly Word[]): number {
+    const weights = new Map<number, number>();
+    for (const word of words) {
+        const size = Math.round(word.fontSize * 2) / 2;
+        weights.set(size, (weights.get(size) ?? 0) + word.text.length);
+    }
+    let bestSize = words[0].fontSize;
+    let bestWeight = -1;
+    for (const [size, weight] of weights) {
+        if (weight > bestWeight) {
+            bestWeight = weight;
+            bestSize = size;
+        }
+    }
+    return bestSize;
+}

@@ -176,6 +176,7 @@ export default tseslint.config(
       'packages/components/ui/rich-text-editor/addons/images/rich-text-images-resizer.component.ts',
       'packages/components/ui/rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts',
       'packages/components/ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
+      'demo/src/app/demos/data-display/pdf-readable-compare-demo.component.ts',
     ],
     rules: {
       'sonarjs/no-angular-bypass-sanitization': 'off',

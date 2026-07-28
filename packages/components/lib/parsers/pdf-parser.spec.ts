@@ -10,6 +10,7 @@ import {
     buildImageDataUrl,
     type PdfObject,
 } from './pdf-parser';
+import { PdfBuilder } from './pdf-test-fixtures';
 
 function toBuffer(bytes: number[]): ArrayBuffer {
     return new Uint8Array(bytes).buffer;
@@ -75,144 +76,6 @@ function makeXrefEntryWriter(table: Uint8Array, entrySize: number) {
         table[base + 2] = f2 & 0xff;
         table[base + 3] = f3 & 0xff;
     };
-}
-
-/**
- * Minimal PDF builder for testing.
- * Produces a valid PDF 1.4 document with a single page and configurable
- * fonts, content stream, and optional structure tree.
- */
-class PdfBuilder {
-    private readonly objects: { num: number; content: string }[] = [];
-    private nextObj = 1;
-    private readonly fonts: { name: string; baseFont: string; descriptor?: string }[] = [];
-    private contentStream = '';
-    private structTreeObjNum = 0;
-    private readonly pageWidth: number;
-    private readonly pageHeight: number;
-
-    constructor(width = 612, height = 792) {
-        this.pageWidth = width;
-        this.pageHeight = height;
-    }
-
-    addFont(name: string, baseFont: string, opts?: {
-        flags?: number;
-        fontWeight?: number;
-        italicAngle?: number;
-    }): this {
-        let descriptor: string | undefined;
-        if (opts) {
-            const descriptorObj = this.nextObj++;
-            const parts: string[] = [
-                `/Type /FontDescriptor`,
-                `/FontName /${baseFont}`,
-            ];
-            if (opts.flags !== undefined) parts.push(`/Flags ${opts.flags}`);
-            if (opts.fontWeight !== undefined) parts.push(`/FontWeight ${opts.fontWeight}`);
-            if (opts.italicAngle !== undefined) parts.push(`/ItalicAngle ${opts.italicAngle}`);
-            this.objects.push({
-                num: descriptorObj,
-                content: `<< ${parts.join(' ')} >>`,
-            });
-            descriptor = `${descriptorObj} 0 R`;
-        }
-        this.fonts.push({ name, baseFont, descriptor });
-        return this;
-    }
-
-    setContent(stream: string): this {
-        this.contentStream = stream;
-        return this;
-    }
-
-    addStructureTree(structType: string, mcid: number): this {
-        const structElemObj = this.nextObj++;
-        this.objects.push({
-            num: structElemObj,
-            content: `<< /Type /StructElem /S /${structType} /K << /Type /MCR /MCID ${mcid} /Pg PAGE_REF >> >>`,
-        });
-
-        const structTreeObj = this.nextObj++;
-        this.objects.push({
-            num: structTreeObj,
-            content: `<< /Type /StructTreeRoot /K ${structElemObj} 0 R >>`,
-        });
-        this.structTreeObjNum = structTreeObj;
-        return this;
-    }
-
-    build(): ArrayBuffer {
-        const catalogObj = this.nextObj++;
-        const pagesObj = this.nextObj++;
-        const pageObj = this.nextObj++;
-        const contentObj = this.nextObj++;
-
-        const fontEntries: string[] = [];
-        const fontObjects: { num: number; content: string }[] = [];
-        for (const font of this.fonts) {
-            const fontObjNum = this.nextObj++;
-            const parts = [
-                `/Type /Font`,
-                `/Subtype /Type1`,
-                `/BaseFont /${font.baseFont}`,
-            ];
-            if (font.descriptor) {
-                parts.push(`/FontDescriptor ${font.descriptor}`);
-            }
-            fontObjects.push({
-                num: fontObjNum,
-                content: `<< ${parts.join(' ')} >>`,
-            });
-            fontEntries.push(`/${font.name} ${fontObjNum} 0 R`);
-        }
-
-        const resourcesDict = fontEntries.length > 0
-            ? `<< /Font << ${fontEntries.join(' ')} >> >>`
-            : `<< >>`;
-
-        const catalogParts = [`/Type /Catalog`, `/Pages ${pagesObj} 0 R`];
-        if (this.structTreeObjNum > 0) {
-            catalogParts.push(`/StructTreeRoot ${this.structTreeObjNum} 0 R`);
-        }
-
-        const allObjects: { num: number; content: string }[] = [
-            ...this.objects,
-            ...fontObjects,
-            { num: catalogObj, content: `<< ${catalogParts.join(' ')} >>` },
-            { num: pagesObj, content: `<< /Type /Pages /Kids [${pageObj} 0 R] /Count 1 >>` },
-            { num: pageObj, content: `<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${this.pageWidth} ${this.pageHeight}] /Resources ${resourcesDict} /Contents ${contentObj} 0 R >>` },
-            { num: contentObj, content: `<< /Length ${this.contentStream.length} >>\nstream\n${this.contentStream}\nendstream` },
-        ];
-
-        allObjects.sort((a, b) => a.num - b.num);
-
-        let body = '%PDF-1.4\n';
-        const offsets = new Map<number, number>();
-
-        for (const obj of allObjects) {
-            let content = obj.content;
-            if (content.includes('PAGE_REF')) {
-                content = content.replaceAll('PAGE_REF', `${pageObj} 0 R`);
-            }
-            offsets.set(obj.num, body.length);
-            body += `${obj.num} 0 obj\n${content}\nendobj\n`;
-        }
-
-        const xrefOffset = body.length;
-        const totalObjects = allObjects.length + 1;
-        let xref = `xref\n0 ${totalObjects}\n`;
-        xref += '0000000000 65535 f \n';
-        for (let i = 1; i < totalObjects; i++) {
-            const off = offsets.get(i) ?? 0;
-            xref += `${String(off).padStart(10, '0')} 00000 n \n`;
-        }
-
-        const trailer = `trailer\n<< /Size ${totalObjects} /Root ${catalogObj} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-
-        const fullPdf = body + xref + trailer;
-        return new TextEncoder().encode(fullPdf).buffer;
-    }
 }
 
 describe('parsePdf', () => {
@@ -1371,6 +1234,49 @@ describe('parsePdf - images', () => {
     });
 });
 
+describe('extractPageContent - tiling pattern image fills', () => {
+    function patternPdf(content: string): ArrayBuffer {
+        const img = makeFlatePngImageObj();
+        return scaffold({
+            content: strToBytes(content),
+            resources: '/Pattern << /P1 7 0 R >>',
+        })
+            .streamObj(5, img.dict, img.bytes)
+            .streamObj(7, '/PatternType 1 /Resources << /XObject << /PImg 5 0 R >> >>', strToBytes('/PImg Do'))
+            .build();
+    }
+
+    function imagesOf(pdf: ArrayBuffer) {
+        const reader = new PdfReader(pdf);
+        reader.parse();
+        return extractPageContent(reader, reader.getPages()[0], 0).imageItems;
+    }
+
+    it('emits the pattern image once at the filled path bounds', () => {
+        const images = imagesOf(patternPdf('/Pattern cs /P1 scn 100 600 80 40 re f'));
+        expect(images).toHaveLength(1);
+        expect(images[0].dataUrl).toContain('data:image/png;base64,');
+        expect(images[0].renderWidth).toBeCloseTo(80, 0);
+        expect(images[0].renderHeight).toBeCloseTo(40, 0);
+    });
+
+    it('deduplicates a logo over-painted at the same position', () => {
+        const images = imagesOf(patternPdf(
+            '/Pattern cs /P1 scn 100 600 80 40 re f /Pattern cs /P1 scn 100 600 80 40 re f'));
+        expect(images).toHaveLength(1);
+    });
+
+    it('ignores a pattern that has no image XObject', () => {
+        const pdf = scaffold({
+            content: strToBytes('/Pattern cs /P1 scn 100 600 80 40 re f'),
+            resources: '/Pattern << /P1 7 0 R >>',
+        })
+            .streamObj(7, '/PatternType 1 /Resources << >>', strToBytes(' '))
+            .build();
+        expect(imagesOf(pdf)).toHaveLength(0);
+    });
+});
+
 describe('parsePdf - inline images (BI/ID/EI)', () => {
     it('emits an inline image placeholder for a non-JPEG inline image', async () => {
         // BI ... ID <data> EI with abbreviated keys.
@@ -1418,6 +1324,29 @@ describe('parsePdf - per-fragment extraction mode', () => {
         const { textItems } = extractPageContent(reader, pages[0], 0, { perFragment: true });
         const chars = textItems.filter(t => t.text.trim().length > 0).map(t => t.text).join('');
         expect(chars).toBe('Hello');
+    });
+});
+
+describe('parsePdf - glyph displacement scales with the text matrix (ISO 32000 §9.4.4)', () => {
+    it('endX includes the text-matrix horizontal scale so width/fontSize is scale-invariant', () => {
+        // Same text shown at matrix scale 1 and scale 2. Because endX is a
+        // device-space coordinate, its advance must be scaled by the text
+        // matrix; then (endX - x) / effectiveFontSize is identical for both.
+        const pdf = scaffold({
+            content: strToBytes('BT /F1 10 Tf 1 0 0 1 50 700 Tm (AB) Tj 2 0 0 2 50 600 Tm (AB) Tj ET'),
+            resources: '/Font << /F1 5 0 R >>',
+        }).obj(5, '/Type /Font /Subtype /Type1 /BaseFont /Helvetica').build();
+        const reader = new PdfReader(pdf);
+        reader.parse();
+        const pages = reader.getPages();
+        const items = extractPageContent(reader, pages[0], 0).textItems
+            .filter(t => t.text === 'AB');
+        expect(items).toHaveLength(2);
+        const [scale1, scale2] = items;
+        expect(scale2.fontSize).toBeCloseTo(scale1.fontSize * 2, 4);
+        const widthPerEm1 = (scale1.endX - scale1.x) / scale1.fontSize;
+        const widthPerEm2 = (scale2.endX - scale2.x) / scale2.fontSize;
+        expect(widthPerEm2).toBeCloseTo(widthPerEm1, 5);
     });
 });
 

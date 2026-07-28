@@ -1,0 +1,289 @@
+import { describe, expect, it } from 'vitest';
+import { PdfBuilder } from '../pdf-test-fixtures';
+import { parsePdfReadable } from './pdf-readable';
+
+describe('parsePdfReadable', () => {
+    describe('input validation', () => {
+        it('rejects a non-PDF buffer', async () => {
+            const buffer = new TextEncoder().encode('const x = 1;').buffer;
+            await expect(parsePdfReadable(buffer)).rejects.toThrow('Not a valid PDF file.');
+        });
+
+        it('rejects a corrupted PDF body', async () => {
+            const buffer = new TextEncoder().encode('%PDF-1.7\nnot really a pdf').buffer;
+            await expect(parsePdfReadable(buffer)).rejects.toThrow(
+                'Unable to read this PDF. It may be corrupted or use an unsupported format.');
+        });
+    });
+
+    describe('paragraph structure', () => {
+        it('emits a single paragraph for one text line', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent('BT /F1 12 Tf 100 700 Td (Hello World) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<p');
+            expect(result.html).toContain('Hello World');
+            expect(result.text).toBe('Hello World');
+            expect(result.imageOnly).toBe(false);
+            expect(result.pageCount).toBe(1);
+        });
+
+        it('keeps consecutive lines with normal leading in one paragraph', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (First line of text) Tj ' +
+                    '0 -14 Td (second line continues) Tj ' +
+                    '0 -14 Td (third line ends here.) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            const paragraphs = result.html.match(/<p[\s>]/g) ?? [];
+            expect(paragraphs).toHaveLength(1);
+            expect(result.text).toBe('First line of text second line continues third line ends here.');
+        });
+
+        it('splits paragraphs at a vertical gap much larger than the leading', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (Paragraph one line one) Tj ' +
+                    '0 -14 Td (paragraph one line two) Tj ' +
+                    '0 -50 Td (Paragraph two starts here) Tj ' +
+                    '0 -14 Td (and continues on) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            const paragraphs = result.html.match(/<p[\s>]/g) ?? [];
+            expect(paragraphs).toHaveLength(2);
+        });
+
+        it('separates words shown as split Tj fragments with a space-sized gap', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (Alpha) Tj 40 0 Td (Beta) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.text).toBe('Alpha Beta');
+        });
+    });
+
+    describe('styling fidelity', () => {
+        it('carries non-black fill color into the output styles', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent('BT /F1 12 Tf 1 0 0 rg 100 700 Td (Red text) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('color:#ff0000');
+        });
+
+        it('emits font-size from the PDF text state', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent('BT /F1 24 Tf 100 700 Td (Big text) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('font-size:24pt');
+        });
+
+        it('marks bold text from a bold base font', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica-Bold', { fontWeight: 700 })
+                .setContent('BT /F1 12 Tf 100 700 Td (Bold words) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<strong>');
+        });
+
+        it('escapes HTML-special characters in text content', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent('BT /F1 12 Tf 100 700 Td (a<b&c>d) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('a&lt;b&amp;c&gt;d');
+            expect(result.html).not.toContain('a<b');
+        });
+    });
+
+    describe('links', () => {
+        it('wraps text covered by a URI link annotation in an anchor', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent('BT /F1 12 Tf 100 700 Td (Visit site) Tj ET')
+                .addLinkAnnotation(0, [95, 695, 200, 715], 'https://example.com')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<a href="https://example.com"');
+            expect(result.html).toContain('Visit site</');
+        });
+    });
+
+    describe('multi-page documents', () => {
+        it('emits pages in order with pageCount', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent('BT /F1 12 Tf 100 700 Td (Page one content) Tj ET')
+                .addPage('BT /F1 12 Tf 100 700 Td (Page two content) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.pageCount).toBe(2);
+            expect(result.text.indexOf('Page one content'))
+                .toBeLessThan(result.text.indexOf('Page two content'));
+        });
+
+        it('wraps pages and separates them with hr when pageWrappers is on', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent('BT /F1 12 Tf 100 700 Td (One.) Tj ET')
+                .addPage('BT /F1 12 Tf 100 700 Td (Two.) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf, { pageWrappers: true });
+            expect(result.html).toContain('max-width:612pt');
+            expect(result.html).toContain('<hr>');
+        });
+    });
+
+    describe('document structure (Phase 2)', () => {
+        it('classifies a large title line as a heading', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 24 Tf 100 720 Td (Document Title) Tj ET ' +
+                    'BT /F1 12 Tf 100 680 Td (Body text starts here with normal size) Tj ' +
+                    '0 -14 Td (and continues for a second line) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<h1');
+            expect(result.html).toContain('Document Title');
+        });
+
+        it('converts dash-marked lines into a list without the markers', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (- First item text) Tj ' +
+                    '0 -14 Td (- Second item text) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<ul');
+            expect(result.html).toContain('<li');
+            expect(result.html).not.toContain('- First');
+        });
+
+        it('suppresses repeating footers across three or more pages', async () => {
+            const pageContent = (n: number): string =>
+                `BT /F1 12 Tf 100 700 Td (Body content of page ${n}) Tj ET ` +
+                `BT /F1 9 Tf 280 30 Td (Confidential Draft) Tj ET`;
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(pageContent(1))
+                .addPage(pageContent(2))
+                .addPage(pageContent(3))
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).not.toContain('Confidential Draft');
+            expect(result.html).toContain('Body content of page 2');
+        });
+
+        it('merges a paragraph continuing across a page break', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 100 Td (This sentence continues without any) Tj ET')
+                .addPage('BT /F1 12 Tf 100 700 Td (terminal punctuation onto page two.) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            const paragraphs = result.html.match(/<p[\s>]/g) ?? [];
+            expect(paragraphs).toHaveLength(1);
+            expect(result.text).toBe(
+                'This sentence continues without any terminal punctuation onto page two.');
+        });
+
+        it('renders two-column pages in column reading order', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 60 700 Td (Left column first line) Tj 0 -14 Td (left column second line) Tj ET ' +
+                    'BT /F1 12 Tf 340 700 Td (Right column first line) Tj 0 -14 Td (right column second line) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            const leftIdx = result.text.indexOf('left column second line');
+            const rightIdx = result.text.indexOf('Right column first line');
+            expect(leftIdx).toBeGreaterThanOrEqual(0);
+            expect(rightIdx).toBeGreaterThan(leftIdx);
+        });
+    });
+
+    describe('tables (Phase 3)', () => {
+        it('reconstructs tab-aligned rows into a table', async () => {
+            const row = (y: number, a: string, b: string): string =>
+                `BT /F1 12 Tf 100 ${y} Td (${a}) Tj ET BT /F1 12 Tf 300 ${y} Td (${b}) Tj ET `;
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    row(700, 'Name', 'Qty') +
+                    row(680, 'Bolts', '12') +
+                    row(660, 'Nuts', '40'))
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<table');
+            const cells = result.html.match(/<td/g) ?? [];
+            expect(cells).toHaveLength(6);
+        });
+
+        it('renders a ruled grid as a bordered table without spurious rules', async () => {
+            const grid =
+                '50 710 400 1 re S 50 670 400 1 re S 50 630 400 1 re S ' +
+                '50 630 1 81 re S 250 630 1 81 re S 450 630 1 81 re S ';
+            const cellText =
+                'BT /F1 12 Tf 60 690 Td (Alpha) Tj ET BT /F1 12 Tf 260 690 Td (Beta) Tj ET ' +
+                'BT /F1 12 Tf 60 650 Td (Gamma) Tj ET BT /F1 12 Tf 260 650 Td (Delta) Tj ET';
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(grid + cellText)
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).toContain('<table');
+            expect(result.html).toContain('border');
+            expect(result.html).not.toContain('<hr');
+            expect(result.html).toContain('Alpha');
+            expect(result.html).toContain('Delta');
+        });
+
+        it('does not tabulate ordinary flowing paragraphs', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent(
+                    'BT /F1 12 Tf 100 700 Td (An ordinary paragraph of body text) Tj ' +
+                    '0 -14 Td (that flows across multiple lines without) Tj ' +
+                    '0 -14 Td (any tab-aligned column structure at all.) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).not.toContain('<table');
+        });
+    });
+
+    describe('options', () => {
+        it('returns empty fontFaceCss when embedFonts is off', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent('BT /F1 12 Tf 100 700 Td (Plain) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf, { embedFonts: false });
+            expect(result.fontFaceCss).toBe('');
+        });
+
+        it('produces sanitizer-safe markup: no style tags and no class attributes', async () => {
+            const pdf = new PdfBuilder()
+                .addFont('F1', 'Helvetica')
+                .setContent('BT /F1 12 Tf 100 700 Td (Safe output) Tj ET')
+                .build();
+            const result = await parsePdfReadable(pdf);
+            expect(result.html).not.toContain('<style');
+            expect(result.html).not.toContain('class=');
+        });
+    });
+});

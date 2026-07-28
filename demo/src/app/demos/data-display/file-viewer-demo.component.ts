@@ -27,8 +27,9 @@ import { FILE_VIEWER_DEMO_LOCALES } from './file-viewer-demo.locales';
         <div class="flex flex-wrap gap-2">
           <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('text')">{{ t().buttonTextFile }}</ui-button>
           <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('svg')">{{ t().buttonSvgImage }}</ui-button>
-          <ui-button variant="outline" size="sm" (click)="loadPdfFromUrl()">{{ t().buttonPdfHebrew }}</ui-button>
-          <ui-button variant="outline" size="sm" (click)="loadComplexPdfFromUrl()">{{ t().buttonPdfComplex }}</ui-button>
+          @for (example of examplePdfs; track example.file) {
+            <ui-button variant="outline" size="sm" (click)="loadExamplePdf(example.file)">{{ example.label }}</ui-button>
+          }
         </div>
       </div>
 
@@ -105,21 +106,20 @@ export class FileViewerDemoComponent {
     if (file) this.fileViewerFile.set(file);
   }
 
-  loadPdfFromUrl(): void {
-    fetch('/test2.pdf')
-      .then(r => r.blob())
-      .then(blob => {
-        const file = new File([blob], 'test2.pdf', { type: 'application/pdf' });
-        this.fileViewerFile.set(file);
-      });
-  }
+  /** Fictional example documents shipped with the demo under /examples. */
+  readonly examplePdfs = [
+    { file: 'invoice.pdf', label: 'Invoice (PDF)' },
+    { file: 'newsletter.pdf', label: 'Newsletter (PDF)' },
+    { file: 'quarterly-report.pdf', label: 'Report (PDF)' },
+    { file: 'hebrew-receipt.pdf', label: 'Hebrew receipt (PDF)' },
+    { file: 'registration-form.pdf', label: 'Form (PDF)' },
+  ];
 
-  loadComplexPdfFromUrl(): void {
-    fetch('/DW2-3-Viruses-www.underwar.co.il.pdf')
+  loadExamplePdf(name: string): void {
+    fetch(`/examples/${name}`)
       .then(r => r.blob())
       .then(blob => {
-        const file = new File([blob], 'DW2-3-Viruses-www.underwar.co.il.pdf', { type: 'application/pdf' });
-        this.fileViewerFile.set(file);
+        this.fileViewerFile.set(new File([blob], name, { type: 'application/pdf' }));
       });
   }
 

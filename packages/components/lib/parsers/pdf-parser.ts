@@ -633,6 +633,12 @@ export interface ImageItem {
     x: number;
     y: number;
     page: number;
+    /** For SVG vector items only: the stroke colour of an unfilled outline
+     *  (e.g. a button border), or '' when the shape is not a plain outline.
+     *  Undefined for raster images. */
+    svgStrokeColor?: string;
+    /** For SVG vector items only: stroke width in pt. */
+    svgStrokeWidth?: number;
 }
 
 export interface PathRect {
@@ -703,6 +709,19 @@ export class PdfReader {
     }
 
     private findXRef(): void {
+        try {
+            this.followStartxref();
+        } catch (error) {
+            this.reconstructXRef();
+            if (this.objects.size === 0 && this.compressedObjects.size === 0) throw error;
+            return;
+        }
+        if (this.objects.size === 0 && this.compressedObjects.size === 0) {
+            this.reconstructXRef();
+        }
+    }
+
+    private followStartxref(): void {
         let match = this.findLastStartxref(this.text.slice(-1024));
         match ??= this.findLastStartxref(this.text.slice(-8192));
         if (!match) throw new Error('Could not find startxref in PDF');
@@ -712,6 +731,91 @@ export class PdfReader {
             this.parseTraditionalXRef(xrefOffset);
         } else {
             this.parseXRefStream(xrefOffset);
+        }
+    }
+
+    /**
+     * Repair path for PDFs whose startxref offset or xref chain is broken
+     * (common in incremental saves): scan the raw file for `N G obj` headers
+     * and rebuild the object table directly. Later occurrences win, matching
+     * incremental-update semantics. The trailer is recovered from the last
+     * parsable `trailer` dict, or synthesized from a scanned /Type /Catalog.
+     */
+    private reconstructXRef(): void {
+        const re = /(\d{1,10})[ \t\r\n]{1,4}(\d{1,5})[ \t\r\n]{1,4}obj\b/g;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(this.text)) !== null) {
+            const gen = Number.parseInt(m[2], 10);
+            this.objects.set(`${m[1]} ${gen}`, { offset: m.index, gen });
+        }
+        this.recoverTrailer();
+        this.indexScannedObjectStreams();
+    }
+
+    private recoverTrailer(): void {
+        if (this.trailer?.['Root']) return;
+        let tPos = this.text.lastIndexOf('trailer');
+        while (tPos !== -1) {
+            if (this.tryAdoptTrailerAt(tPos)) return;
+            tPos = this.text.lastIndexOf('trailer', tPos - 1);
+        }
+        this.recoverRootFromCatalogScan();
+    }
+
+    private tryAdoptTrailerAt(tPos: number): boolean {
+        const dictStart = this.text.indexOf('<<', tPos);
+        if (dictStart === -1) return false;
+        try {
+            const result = this.parseObjectAt(dictStart);
+            const dict = result.obj.value as Record<string, PdfObject>;
+            if (result.obj.type === 'dict' && dict['Root']) {
+                this.trailer = dict;
+                return true;
+            }
+        } catch { /* try an earlier trailer */ }
+        return false;
+    }
+
+    private recoverRootFromCatalogScan(): void {
+        for (const [key, entry] of this.objects) {
+            const slice = this.text.substring(entry.offset, entry.offset + 256);
+            if (!slice.includes('/Type') || !slice.includes('/Catalog')) continue;
+            const num = Number.parseInt(key.split(' ')[0], 10);
+            this.trailer = {
+                Root: { type: 'ref', value: `${num} ${entry.gen}` },
+            };
+            return;
+        }
+    }
+
+    private indexScannedObjectStreams(): void {
+        for (const [key] of this.objects) {
+            try {
+                const obj = this.resolveRef({ type: 'ref', value: key });
+                if (obj.type !== 'stream') continue;
+                const dict = obj.value as Record<string, PdfObject>;
+                const typeName = dict['Type']?.type === 'name' ? dict['Type'].value : '';
+                if (typeName !== 'ObjStm') continue;
+                const num = Number.parseInt(key.split(' ')[0], 10);
+                this.indexObjectStreamContents(num, obj);
+            } catch { /* skip unreadable candidates */ }
+        }
+    }
+
+    private indexObjectStreamContents(streamObjNum: number, obj: PdfObject): void {
+        const dict = obj.value as Record<string, PdfObject>;
+        const count = dict['N']?.type === 'number' ? dict['N'].value as number : 0;
+        const decoded = this.getStreamData(obj);
+        if (count <= 0 || decoded.length === 0) return;
+        const header = new TextDecoder('latin1').decode(decoded.subarray(0, 10240));
+        const numbers = header.split(/\s+/, count * 2).map(n => Number.parseInt(n, 10));
+        for (let i = 0; i < count; i++) {
+            const objNum = numbers[i * 2];
+            if (!Number.isFinite(objNum)) break;
+            const key = `${objNum} 0`;
+            if (!this.objects.has(key) && !this.compressedObjects.has(key)) {
+                this.compressedObjects.set(key, { streamObjNum, index: i });
+            }
         }
     }
 
@@ -1296,22 +1400,43 @@ export class PdfReader {
         return this.collectPages(pagesRef);
     }
 
-    private collectPages(node: PdfObject): PdfObject[] {
+    private static readonly INHERITABLE_PAGE_KEYS = ['Resources', 'MediaBox', 'CropBox', 'Rotate'] as const;
+
+    private collectPages(node: PdfObject, inherited: Record<string, PdfObject> = {}): PdfObject[] {
         const dict = this.getDict(node);
         const typeObj = dict['Type'];
         const typeName = typeObj ? this.getString(typeObj) : '';
         const kids = dict['Kids'];
 
         if (typeName === 'Page' || (!kids && dict['Contents'])) {
+            this.applyInheritedPageKeys(dict, inherited);
             return [this.resolveDeep(node)];
         }
 
         if (!kids) return [];
+        const nextInherited = this.mergeInheritablePageKeys(dict, inherited);
         const pages: PdfObject[] = [];
         for (const kid of this.getArray(kids)) {
-            pages.push(...this.collectPages(kid));
+            pages.push(...this.collectPages(kid, nextInherited));
         }
         return pages;
+    }
+
+    private applyInheritedPageKeys(dict: Record<string, PdfObject>, inherited: Record<string, PdfObject>): void {
+        for (const key of PdfReader.INHERITABLE_PAGE_KEYS) {
+            if (!dict[key] && inherited[key]) dict[key] = inherited[key];
+        }
+    }
+
+    private mergeInheritablePageKeys(
+        dict: Record<string, PdfObject>,
+        inherited: Record<string, PdfObject>,
+    ): Record<string, PdfObject> {
+        const merged = { ...inherited };
+        for (const key of PdfReader.INHERITABLE_PAGE_KEYS) {
+            if (dict[key]) merged[key] = dict[key];
+        }
+        return merged;
     }
 
     isEncrypted(): boolean {
@@ -2359,10 +2484,10 @@ function calcTextAdvance(charCodes: number[], fontInfo: FontInfo | undefined, gs
         const w = fontInfo ? (fontInfo.widths.get(code) ?? fontInfo.defaultWidth) : 600;
         totalWidth += w;
     }
-    const advance = (totalWidth / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
-    const spacing = charCodes.length * gs.charSpacing
-        + charCodes.filter(c => c === 32).length * gs.wordSpacing;
-    return advance + spacing;
+    const glyphSpan = (totalWidth / 1000) * gs.fontSize;
+    const spaceCount = fontInfo?.isTwoByte ? 0 : charCodes.filter(c => c === 32).length;
+    const spacing = charCodes.length * gs.charSpacing + spaceCount * gs.wordSpacing;
+    return (glyphSpan + spacing) * (gs.horizontalScaling / 100);
 }
 
 function isInvisibleTextMode(mode: number): boolean {
@@ -2399,7 +2524,7 @@ function processTextShow(
         fontSize: effectiveFontSize,
         x: combined[4],
         y: combined[5],
-        endX: combined[4] + advance,
+        endX: combined[4] + advance * scaleX,
         page: pageIndex,
         color: gs.fillColor,
         bold: fontInfo?.isBold ?? false,
@@ -2755,11 +2880,16 @@ function processColorOperator(
         case 'scn':
         case 'sc': {
             const values: number[] = [];
+            let patternName = '';
             while (operandStack.length > 0) {
                 const v = operandStack.pop() ?? '';
-                if (v.startsWith('/')) continue;
+                if (v.startsWith('/')) { patternName = v.slice(1); continue; }
                 const num = Number.parseFloat(v);
                 if (!Number.isNaN(num)) values.unshift(num);
+            }
+            if (gs.fillColorSpace === 'Pattern' && patternName) {
+                ctx.patternFillImage = extractPatternImage(ctx.reader, patternName, ctx.resources);
+                return true;
             }
             const color = resolveScnFillColor(ctx, values);
             if (color) gs.fillColor = color;
@@ -2856,6 +2986,7 @@ function buildFormContext(
         formDepth: parentCtx.formDepth + 1, compatibilityMode: 0,
         mcidStack: [], ocgOffSet: parentCtx.ocgOffSet ?? new Set<string>(),
         ocgHiddenDepth: 0, perFragment: parentCtx.perFragment,
+        patternFillImage: null,
     };
 }
 
@@ -3072,6 +3203,7 @@ function pathOpsToSvg(ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext,
 
     const svgHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${(minX - 1).toFixed(1)} ${(minY - 1).toFixed(1)} ${width} ${height}" style="max-width:100%;height:auto"><path d="${d}" ${fillAttr} ${strokeAttr}${opacityAttr}/></svg>`;
 
+    const strokeWidth = Math.max(ctx.gs.lineWidth, 0.5);
     const avgY = (minY + maxY) / 2;
     ctx.imageItems.push({
         dataUrl: `data:image/svg+xml;base64,${btoa(svgHtml)}`,
@@ -3082,6 +3214,8 @@ function pathOpsToSvg(ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext,
         x: minX,
         y: avgY,
         page: ctx.pageIndex,
+        svgStrokeColor: stroked && !filled ? ctx.gs.strokeColor : '',
+        svgStrokeWidth: stroked ? strokeWidth : 0,
     });
 }
 
@@ -3118,6 +3252,13 @@ function extractPathOpPoints(
                 ],
                 newX: op.args[2], newY: op.args[3],
             };
+        case 're': {
+            const [x, y, w, h] = op.args;
+            return {
+                points: [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }],
+                newX: x, newY: y,
+            };
+        }
         default:
             return { points: [], newX: curX, newY: curY };
     }
@@ -3193,6 +3334,69 @@ function emitPathRects(ctx: ContentExtractionContext, stroked: boolean, filled: 
     }
 }
 
+/**
+ * Extracts the single Image XObject drawn by a Type-1 tiling pattern, as a data
+ * URL, or null when the pattern is not an image-backed tiling pattern. Mirrors
+ * the pixel-perfect renderer's pattern handling so logos painted via a
+ * `/Pattern cs` + `scn` fill (e.g. a letterhead logo) are recovered in the
+ * readable path too. No tiling repetition or general pattern rendering — only
+ * the one embedded image is emitted, positioned at the filled path's bounds.
+ */
+function extractPatternImage(
+    reader: PdfReader,
+    patternName: string,
+    resources: Record<string, PdfObject>,
+): string | null {
+    const patterns = resources['Pattern'] ? reader.getDict(resources['Pattern']) : {};
+    const patRef = patterns[patternName];
+    if (!patRef) return null;
+    const patDict = reader.getDict(patRef);
+    if (reader.getNumber(patDict['PatternType']) !== 1) return null;
+    const patRes = patDict['Resources'] ? reader.getDict(patDict['Resources']) : {};
+    const patXObj = patRes['XObject'] ? reader.getDict(patRes['XObject']) : {};
+    for (const imgRef of Object.values(patXObj)) {
+        const imgDict = reader.getDict(imgRef);
+        if (reader.getString(imgDict['Subtype']) !== 'Image') continue;
+        const w = reader.getNumber(imgDict['Width']);
+        const h = reader.getNumber(imgDict['Height']);
+        if (w <= 0 || h <= 0) continue;
+        const filterName = resolveImageFilterName(reader, imgDict);
+        const dataUrl = buildImageDataUrl(filterName, reader.resolveDeep(imgRef), reader, w, h, imgDict);
+        if (dataUrl) return dataUrl;
+    }
+    return null;
+}
+
+/** Emits a pending pattern-fill image at the current path's device bounds. */
+function emitPatternFillImage(ctx: ContentExtractionContext): boolean {
+    const dataUrl = ctx.patternFillImage;
+    ctx.patternFillImage = null;
+    if (!dataUrl) return false;
+    const { minX, minY, maxX, maxY, hasPoints } = computePathBounds(ctx.currentPath, ctx.gs.ctm);
+    if (!hasPoints) return false;
+    const width = maxX - minX;
+    const height = maxY - minY;
+    if (width <= 1 || height <= 1) return false;
+    const x = Math.round(minX * 100) / 100;
+    const y = Math.round(minY * 100) / 100;
+    // A logo is often over-painted (repeated fills at the same spot for opacity);
+    // absolute rendering overlaps them into one, so the flowing path must too.
+    const isDuplicate = ctx.imageItems.some(item =>
+        item.dataUrl === dataUrl && Math.abs(item.x - x) < 1 && Math.abs(item.y - y) < 1);
+    if (isDuplicate) return true;
+    ctx.imageItems.push({
+        dataUrl,
+        width: Math.round(width),
+        height: Math.round(height),
+        renderWidth: width,
+        renderHeight: height,
+        x,
+        y,
+        page: ctx.pageIndex,
+    });
+    return true;
+}
+
 function processPathPaintOperator(token: string, ctx: ContentExtractionContext): boolean {
     switch (token) {
         case 'S':
@@ -3204,6 +3408,7 @@ function processPathPaintOperator(token: string, ctx: ContentExtractionContext):
         case 'f':
         case 'F':
         case 'f*':
+            if (emitPatternFillImage(ctx)) { ctx.currentPath = []; return true; }
             pathOpsToSvg(ctx.currentPath, ctx, false, true);
             emitPathRects(ctx, false, true);
             ctx.currentPath = [];
@@ -3212,6 +3417,7 @@ function processPathPaintOperator(token: string, ctx: ContentExtractionContext):
         case 'B*':
         case 'b':
         case 'b*':
+            if (emitPatternFillImage(ctx)) { ctx.currentPath = []; return true; }
             pathOpsToSvg(ctx.currentPath, ctx, true, true);
             emitPathRects(ctx, true, true);
             ctx.currentPath = [];
@@ -3310,6 +3516,9 @@ interface ContentExtractionContext {
     ocgOffSet: Set<string>;
     ocgHiddenDepth: number;
     perFragment: boolean;
+    /** Data URL of the image a tiling-pattern fill will paint, set at `scn`,
+     *  consumed by the next path-paint. Null when no pattern fill is pending. */
+    patternFillImage: string | null;
 }
 
 function popNumber(ctx: ContentExtractionContext): number {
@@ -3718,6 +3927,7 @@ function buildExtractionContext(
         formDepth: 0, compatibilityMode: 0,
         mcidStack: [], ocgOffSet: new Set<string>(),
         ocgHiddenDepth: 0, perFragment: options?.perFragment ?? false,
+        patternFillImage: null,
     };
 }
 
@@ -4221,7 +4431,7 @@ function uint8ArrayToBase64(data: Uint8Array): string {
 
 // ── Text-to-HTML conversion ─────────────────────────────────────────────
 
-interface TextLine {
+export interface TextLine {
     items: TextItem[];
     y: number;
     minX: number;
@@ -4235,7 +4445,7 @@ function escapeHtml(str: string): string {
         .replaceAll('"', '&quot;');
 }
 
-function deduplicateTextItems(items: TextItem[]): TextItem[] {
+export function deduplicateTextItems(items: TextItem[]): TextItem[] {
     if (items.length <= 1) return items;
     const sorted = [...items].sort((a, b) => {
         if (a.page !== b.page) return a.page - b.page;
@@ -5863,7 +6073,7 @@ function fixRtlLineItem(item: TextItem): void {
     item.text = fixSplitRoundBrackets(item.text);
 }
 
-function applyRtlWordFixes(rawLines: TextLine[]): void {
+export function applyRtlWordFixes(rawLines: TextLine[]): void {
     const isRtlDoc = rawLines.some(line => isLineRTL(line));
     for (const line of rawLines) {
         if (!isLineRTL(line)) { applyLtrLineFixesIfRtlDoc(line, isRtlDoc); continue; }
@@ -5994,7 +6204,7 @@ interface StructureNode {
     readonly children: StructureNode[];
 }
 
-interface StructureMap {
+export interface StructureMap {
     readonly mcidToType: Map<string, string>;
     readonly hasStructure: boolean;
 }
@@ -6112,7 +6322,7 @@ function collectMcidTypesFromElement(
     if (node) collectMcidTypes(node, mcidToType);
 }
 
-function parseStructureTree(reader: PdfReader, pages: PdfObject[]): StructureMap {
+export function parseStructureTree(reader: PdfReader, pages: PdfObject[]): StructureMap {
     const emptyResult: StructureMap = { mcidToType: new Map(), hasStructure: false };
     try {
         const catalog = reader.getRoot();

@@ -6,8 +6,6 @@ export interface FileViewerDemoLocale extends LocaleMeta {
   quickDemosHeading: string;
   buttonTextFile: string;
   buttonSvgImage: string;
-  buttonPdfHebrew: string;
-  buttonPdfComplex: string;
   tryOwnFileHeading: string;
   dropzoneText: string;
   dropzoneBrowse: string;
@@ -25,8 +23,6 @@ export const FILE_VIEWER_DEMO_LOCALES: Record<string, FileViewerDemoLocale> = {
     quickDemosHeading: 'Quick Demos',
     buttonTextFile: 'Text File',
     buttonSvgImage: 'SVG Image',
-    buttonPdfHebrew: 'PDF (Hebrew)',
-    buttonPdfComplex: 'PDF (Complex Hebrew)',
     tryOwnFileHeading: 'Try Your Own File',
     dropzoneText: 'Drag & drop a file here, or',
     dropzoneBrowse: 'browse to select',
@@ -43,8 +39,6 @@ export const FILE_VIEWER_DEMO_LOCALES: Record<string, FileViewerDemoLocale> = {
     quickDemosHeading: 'הדגמות מהירות',
     buttonTextFile: 'קובץ טקסט',
     buttonSvgImage: 'תמונת SVG',
-    buttonPdfHebrew: 'PDF (עברית)',
-    buttonPdfComplex: 'PDF (עברית מורכבת)',
     tryOwnFileHeading: 'נסה את הקובץ שלך',
     dropzoneText: 'גרור & שחרר קובץ כאן, או',
     dropzoneBrowse: 'עיין ובחר',
@@ -61,8 +55,6 @@ export const FILE_VIEWER_DEMO_LOCALES: Record<string, FileViewerDemoLocale> = {
     quickDemosHeading: 'عروض توضيحية سريعة',
     buttonTextFile: 'ملف نصي',
     buttonSvgImage: 'صورة SVG',
-    buttonPdfHebrew: 'PDF (عبري)',
-    buttonPdfComplex: 'PDF (عبري معقد)',
     tryOwnFileHeading: 'جرب ملفك الخاص',
     dropzoneText: 'اسحب وأفلت ملفاً هنا، أو',
     dropzoneBrowse: 'تصفح للاختيار',
@@ -78,8 +70,6 @@ export const FILE_VIEWER_DEMO_LOCALES: Record<string, FileViewerDemoLocale> = {
     quickDemosHeading: 'Schnell-Demos',
     buttonTextFile: 'Textdatei',
     buttonSvgImage: 'SVG-Bild',
-    buttonPdfHebrew: 'PDF (Hebräisch)',
-    buttonPdfComplex: 'PDF (Komplexes Hebräisch)',
     tryOwnFileHeading: 'Eigene Datei ausprobieren',
     dropzoneText: 'Datei hierher ziehen & ablegen, oder',
     dropzoneBrowse: 'zum Auswählen durchsuchen',
@@ -95,8 +85,6 @@ export const FILE_VIEWER_DEMO_LOCALES: Record<string, FileViewerDemoLocale> = {
     quickDemosHeading: 'Démos rapides',
     buttonTextFile: 'Fichier texte',
     buttonSvgImage: 'Image SVG',
-    buttonPdfHebrew: 'PDF (hébreu)',
-    buttonPdfComplex: 'PDF (hébreu complexe)',
     tryOwnFileHeading: 'Essayez votre propre fichier',
     dropzoneText: 'Glissez & déposez un fichier ici, ou',
     dropzoneBrowse: 'parcourir pour sélectionner',
@@ -112,8 +100,6 @@ export const FILE_VIEWER_DEMO_LOCALES: Record<string, FileViewerDemoLocale> = {
     quickDemosHeading: 'Demos rápidas',
     buttonTextFile: 'Archivo de texto',
     buttonSvgImage: 'Imagen SVG',
-    buttonPdfHebrew: 'PDF (hebreo)',
-    buttonPdfComplex: 'PDF (hebreo complejo)',
     tryOwnFileHeading: 'Prueba tu propio archivo',
     dropzoneText: 'Arrastra & suelta un archivo aquí, o',
     dropzoneBrowse: 'explorar para seleccionar',
@@ -129,8 +115,6 @@ export const FILE_VIEWER_DEMO_LOCALES: Record<string, FileViewerDemoLocale> = {
     quickDemosHeading: 'クイックデモ',
     buttonTextFile: 'テキストファイル',
     buttonSvgImage: 'SVG画像',
-    buttonPdfHebrew: 'PDF（ヘブライ語）',
-    buttonPdfComplex: 'PDF（複雑なヘブライ語）',
     tryOwnFileHeading: '自分のファイルを試す',
     dropzoneText: 'ここにファイルをドラッグ＆ドロップ、または',
     dropzoneBrowse: '選択するには参照',
@@ -146,8 +130,6 @@ export const FILE_VIEWER_DEMO_LOCALES: Record<string, FileViewerDemoLocale> = {
     quickDemosHeading: '快速演示',
     buttonTextFile: '文本文件',
     buttonSvgImage: 'SVG 图片',
-    buttonPdfHebrew: 'PDF（希伯来语）',
-    buttonPdfComplex: 'PDF（复杂希伯来语）',
     tryOwnFileHeading: '试用您自己的文件',
     dropzoneText: '拖放文件到此处，或',
     dropzoneBrowse: '浏览选择',
@@ -163,8 +145,6 @@ export const FILE_VIEWER_DEMO_LOCALES: Record<string, FileViewerDemoLocale> = {
     quickDemosHeading: 'Быстрые демо',
     buttonTextFile: 'Текстовый файл',
     buttonSvgImage: 'SVG-изображение',
-    buttonPdfHebrew: 'PDF (иврит)',
-    buttonPdfComplex: 'PDF (сложный иврит)',
     tryOwnFileHeading: 'Попробуйте свой файл',
     dropzoneText: 'Перетащите файл сюда или',
     dropzoneBrowse: 'выберите файл',
@@ -180,8 +160,6 @@ export const FILE_VIEWER_DEMO_LOCALES: Record<string, FileViewerDemoLocale> = {
     quickDemosHeading: 'Demos rápidas',
     buttonTextFile: 'Arquivo de texto',
     buttonSvgImage: 'Imagem SVG',
-    buttonPdfHebrew: 'PDF (hebraico)',
-    buttonPdfComplex: 'PDF (hebraico complexo)',
     tryOwnFileHeading: 'Experimente seu próprio arquivo',
     dropzoneText: 'Arraste & solte um arquivo aqui, ou',
     dropzoneBrowse: 'navegar para selecionar',

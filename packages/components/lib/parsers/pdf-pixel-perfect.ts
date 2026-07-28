@@ -742,15 +742,32 @@ function buildFontBaseProps(entry: FontRegistryEntry): string {
         `-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;`;
 }
 
-function resolveFontFamily(entry: FontRegistryEntry, isSymbolFont: boolean): string {
+const FAMILY_SERIF_HINT = /times|serif|georgia|garamond|book|roman|minion|caslon|palatino|cambria/i;
+const FAMILY_MONO_HINT = /courier|mono|consolas|menlo/i;
+
+/** Per-glyph fallback chain behind the embedded font: a subsetted font whose
+ *  cmap does not cover the emitted Unicode text (Chromium-printed PDFs)
+ *  otherwise renders those glyphs as nothing at all. */
+function fallbackChainFor(entry: FontRegistryEntry): string {
+    const name = entry.familyName || entry.baseFontName || '';
+    let generic = 'sans-serif';
+    if (FAMILY_MONO_HINT.test(name)) generic = 'monospace';
+    else if (FAMILY_SERIF_HINT.test(name)) generic = 'serif';
+    const original = entry.familyName ? `'${entry.familyName.replaceAll(/['";]/g, '')}',` : '';
+    return `${original}${generic}`;
+}
+
+function resolveFontFamily(entry: FontRegistryEntry, isSymbolFont: boolean, familyPrefix = ''): string {
     if (isSymbolFont) return 'sans-serif';
-    const embeddedId = `'f${entry.id.toString(16)}'`;
+    const embeddedId = `'${familyPrefix}f${entry.id.toString(16)}'`;
     if (entry.reEncodedData && entry.fontData && fontFormatToMime(entry.fontData.format)) {
-        return embeddedId;
+        return `${embeddedId},${fallbackChainFor(entry)}`;
     }
     const systemFamily = getSystemFontFamily(entry.baseFontName);
     if (systemFamily && !entry.reEncodedData) return systemFamily;
-    if (entry.fontData && fontFormatToMime(entry.fontData.format)) return embeddedId;
+    if (entry.fontData && fontFormatToMime(entry.fontData.format)) {
+        return `${embeddedId},${fallbackChainFor(entry)}`;
+    }
     return entry.familyName || 'serif';
 }
 
@@ -758,6 +775,23 @@ export class FontRegistry {
     private readonly entriesByResourceName = new Map<string, FontRegistryEntry>();
     private readonly entriesByBaseFont = new Map<string, FontRegistryEntry>();
     private nextId = 0;
+
+    constructor(private readonly familyPrefix = '') {}
+
+    /**
+     * CSS font-family name and embeddability for a registered font resource.
+     * `embedded` mirrors the conditions under which {@link dumpFontFaceCss}
+     * emits an `@font-face` rule for the entry.
+     */
+    cssFamilyFor(fontName: string): { family: string; embedded: boolean } | undefined {
+        const entry = this.getEntry(fontName);
+        if (!entry) return undefined;
+        return { family: this.familyNameFor(entry), embedded: this.fontFaceRuleFor(entry) !== null };
+    }
+
+    private familyNameFor(entry: FontRegistryEntry): string {
+        return `${this.familyPrefix}f${entry.id.toString(16)}`;
+    }
 
     registerFont(reader: PdfReader, fontName: string, fontRef: PdfObject): FontRegistryEntry {
         const existingByResource = this.entriesByResourceName.get(fontName);
@@ -826,6 +860,22 @@ export class FontRegistry {
         return entry?.glyphFixupMap?.get(code);
     }
 
+    /**
+     * Advance for a Unicode code point in thousandths of an em, preferring the
+     * PDF-declared `/Widths` (the spec-authoritative positioning metric, ISO
+     * 32000 §9.2.4) that {@link buildUnicodeFallbackWidths} records, or null
+     * when the font declares none. Unlike {@link getGlyphAdvance} this never
+     * returns the embedded program's design advance, which can disagree with
+     * the width the generator actually laid text out with (e.g. an inflated
+     * space glyph).
+     */
+    getDeclaredAdvance(fontName: string, unicode: string): number | null {
+        const entry = this.getEntry(fontName);
+        const cp = unicode.codePointAt(0) ?? 0;
+        if (!entry?.unicodeFallbackWidths || cp <= 0) return null;
+        return entry.unicodeFallbackWidths.get(cp) ?? null;
+    }
+
     private allUniqueEntries(): FontRegistryEntry[] {
         const seen = new Set<number>();
         const result: FontRegistryEntry[] = [];
@@ -838,28 +888,72 @@ export class FontRegistry {
         return result;
     }
 
+    /**
+     * `@font-face` rules for re-encoded fonts only. Entries without
+     * re-encoded data are filtered by {@link usesSystemFallback}, so only the
+     * re-encoded branch of `fontFaceRuleFor` is reachable here — identical to
+     * the historical behavior where the raw-data branch was dead code.
+     */
     dumpFontFaceCss(): string {
         const rules: string[] = [];
         for (const entry of this.allUniqueEntries()) {
             if (usesSystemFallback(entry)) continue;
-            if (entry.reEncodedData) {
-                const b64 = uint8ToBase64(entry.reEncodedData);
-                rules.push(
-                    `@font-face{font-family:'f${entry.id.toString(16)}';` +
-                    `src:url('data:font/ttf;base64,${b64}') format('truetype');}`,
-                );
-                continue;
-            }
-            if (!entry.fontData) continue;
-            const fmt = fontFormatToMime(entry.fontData.format);
-            if (!fmt) continue;
-            const b64 = uint8ToBase64(entry.fontData.data);
-            rules.push(
-                `@font-face{font-family:'f${entry.id.toString(16)}';` +
-                `src:url('data:${fmt.mime};base64,${b64}') format('${fmt.cssFormat}');}`,
-            );
+            const rule = this.fontFaceRuleFor(entry);
+            if (rule) rules.push(rule);
         }
         return rules.join('\n');
+    }
+
+    /**
+     * `@font-face` rules for every embeddable font, including raw embedded
+     * TrueType/OpenType programs that {@link dumpFontFaceCss} skips (it only
+     * emits re-encoded fonts because the pixel-perfect renderer positions
+     * glyphs with system-font metrics otherwise).
+     */
+    dumpAllFontFaceCss(): string {
+        const rules: string[] = [];
+        for (const entry of this.allUniqueEntries()) {
+            const rule = this.fontFaceRuleFor(entry);
+            if (rule) rules.push(rule);
+        }
+        return rules.join('\n');
+    }
+
+    private fontFaceRuleFor(entry: FontRegistryEntry): string | null {
+        // Prefer the PDF's own font program: browsers rasterize it faithfully
+        // and per-glyph fallback covers whatever its cmap misses. The rebuilt
+        // program is a last resort — Chrome declines to paint some of its
+        // glyphs while still claiming them, which renders text invisibly.
+        if (this.rawIsLoadable(entry)) return this.rawFontFaceRule(entry);
+        if (entry.reEncodedData) {
+            const b64 = uint8ToBase64(entry.reEncodedData);
+            return `@font-face{font-family:'${this.familyNameFor(entry)}';` +
+                `src:url('data:font/ttf;base64,${b64}') format('truetype');}`;
+        }
+        if (!entry.fontData) return null;
+        if (entry.fontData.format !== 'truetype' && entry.fontData.format !== 'opentype') {
+            return null;
+        }
+        const fmt = fontFormatToMime(entry.fontData.format);
+        if (!fmt) return null;
+        const b64 = uint8ToBase64(entry.fontData.data);
+        return `@font-face{font-family:'${this.familyNameFor(entry)}';` +
+            `src:url('data:${fmt.mime};base64,${b64}') format('${fmt.cssFormat}');}`;
+    }
+
+    private rawIsLoadable(entry: FontRegistryEntry): boolean {
+        return !!entry.fontData &&
+            (entry.fontData.format === 'truetype' || entry.fontData.format === 'opentype') &&
+            fontFormatToMime(entry.fontData.format) !== null;
+    }
+
+    private rawFontFaceRule(entry: FontRegistryEntry): string | null {
+        if (!entry.fontData) return null;
+        const fmt = fontFormatToMime(entry.fontData.format);
+        if (!fmt) return null;
+        const b64 = uint8ToBase64(entry.fontData.data);
+        return `@font-face{font-family:'${this.familyNameFor(entry)}';` +
+            `src:url('data:${fmt.mime};base64,${b64}') format('${fmt.cssFormat}');}`;
     }
 
     dumpFontFamilyCss(): string {
@@ -870,7 +964,7 @@ export class FontRegistry {
                 s => entry.baseFontName.toLowerCase().includes(s),
             );
             const baseProps = buildFontBaseProps(entry);
-            const family = resolveFontFamily(entry, isSymbolFont);
+            const family = resolveFontFamily(entry, isSymbolFont, this.familyPrefix);
             const hexId = entry.id.toString(16);
             rules.push(`.ff${hexId}{font-family:${family};${baseProps}}`);
         }
