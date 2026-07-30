@@ -44,15 +44,30 @@ function run(command, args) {
   return result.status ?? 1;
 }
 
+/**
+ * Fallback for when no base ref resolves (detached HEAD, no remote): run every
+ * stage, still without the coverage ratchet — same policy as `--since`, just
+ * without a diff to scope by. `--skip test` drops preflight's instrumented
+ * suite; `test:ci` runs the same suite uninstrumented in its place.
+ */
+function runFullGate() {
+  return run('npm', ['run', 'preflight', '--', '--skip', 'test'])
+    || run('npm', ['run', 'test:ci'])
+    || run('npm', ['run', 'test-storybook:a11y']);
+}
+
 const base = resolveBase();
 
 if (base === null) {
   console.log('[pre-push] no base ref resolved — running the FULL gate.');
-  process.exit(run('npm', ['run', 'preflight']) || run('npm', ['run', 'test-storybook:a11y']));
+  process.exit(runFullGate());
 }
 
 console.log(`[pre-push] scoping to changes since ${base.slice(0, 8)}.`);
 
+// `preflight --since` handles both shapes itself: scoped when the diff is
+// ordinary, full-but-uninstrumented when it trips a tripwire. Either way it
+// never runs the coverage ratchet — that belongs to `npm run coverage`.
 const preflight = run('npm', ['run', 'preflight', '--', '--since', base]);
 if (preflight !== 0) process.exit(preflight);
 

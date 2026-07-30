@@ -242,6 +242,14 @@ describe('NumberTickerDigitComponent', () => {
         fixture = TestBed.createComponent(DigitHostComponent);
         host = fixture.componentInstance;
         fixture.detectChanges();
+        // The component animates only on a digit change AFTER its effect has run
+        // once (the first pass takes the `!_initialized` branch and just seeds
+        // prevDigit). If a test changes the digit before that first pass lands —
+        // which is what happens when `detectChanges()` is slow under a loaded
+        // coverage run — the effect initialises straight to the NEW digit and no
+        // animation is ever created, so the tests below fail deterministically
+        // rather than flakily. Wait for the seed before touching the input.
+        await vi.waitFor(() => expect(digitInstance().prevDigit()).toBe('5'));
     });
 
     afterEach(() => {

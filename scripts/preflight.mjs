@@ -78,6 +78,22 @@ function changedSince(base) {
 }
 
 /**
+ * The full stage list as `--since` runs it: everything, but with the component
+ * suite UNINSTRUMENTED. Coverage instrumentation inflates setup/import from
+ * seconds to minutes across ~370 files and pushes timing-sensitive specs past
+ * their timeouts, so the gate starts failing on the instrumentation rather than
+ * on the code. The ratchet needs a full `npm run coverage` to mean anything and
+ * gates releases; `--since` is the push-time gate and never instruments.
+ *
+ * @returns {Stage[]}
+ */
+function fullStagesUninstrumented() {
+  return STAGES.map((stage) => (stage.id === 'test'
+    ? { ...stage, label: 'Component unit tests (headless browser)', command: 'npm run test:ci' }
+    : stage));
+}
+
+/**
  * The stage list for an impacted run, or `null` when the diff trips a wire (or
  * is too large / too odd to scope safely) and the caller should run everything.
  *
@@ -160,7 +176,8 @@ function main() {
   if (base) {
     const impacted = impactedStages(base);
     if (impacted === null) {
-      console.log(`[preflight] diff vs ${base} touches shared/tooling files — running the FULL gate.`);
+      console.log(`[preflight] diff vs ${base} touches shared/tooling files — running the FULL gate (no coverage).`);
+      selected = fullStagesUninstrumented();
     } else if (impacted.length === 0) {
       console.log(`[preflight] no changes vs ${base} — nothing to verify.`);
       return;
