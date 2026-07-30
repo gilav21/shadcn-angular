@@ -10,7 +10,7 @@ import type { RichTextFileImportLocale } from './rich-text-file-import.locales';
 export interface RichTextFileImportButtonContext {
     /** Resolved locale strings. */
     readonly locale: Signal<RichTextFileImportLocale>;
-    /** `accept` attribute for the hidden file input (e.g. `.pdf,.docx`). */
+    /** `accept` attribute for the hidden file input (e.g. `.pdf,.docx,.png`). */
     readonly accept: Signal<string>;
     /** Parse and insert the chosen file's content into the editor. */
     onImport(file: File): void;

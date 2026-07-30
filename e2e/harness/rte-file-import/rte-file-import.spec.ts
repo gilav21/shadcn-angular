@@ -21,6 +21,8 @@ test('the addon contributes the import button to the base toolbar', async ({ pag
     await expect(plain.locator('[data-addon-slot="file-import.import"]')).toHaveCount(0);
 });
 
+// Without the images addon there is no image pipeline to route a picked image
+// into, so the picker offers documents only.
 test('the addon wires a hidden .pdf/.docx file picker behind the button', async ({ page }) => {
     await page.goto('/');
 

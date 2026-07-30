@@ -151,7 +151,7 @@ class NoFocusHostComponent {
 
 describe('Sidebar', () => {
   const fixtures: ComponentFixture<unknown>[] = [];
-  let originalInnerWidth: number;
+  let originalInnerWidth: PropertyDescriptor | undefined;
   let originalResizeObserver: typeof globalThis.ResizeObserver;
 
   function track<T>(fixture: ComponentFixture<T>): ComponentFixture<T> {
@@ -159,8 +159,24 @@ describe('Sidebar', () => {
     return fixture;
   }
 
+  // Defined rather than assigned: other suites stub `innerWidth` with
+  // `defineProperty(..., { value })`, which omits `writable` and so leaves the
+  // property read-only for the rest of the run — a plain assignment here then
+  // throws in strict mode, depending on which file ran first. Re-defining is
+  // order-independent. The original descriptor (an accessor with a setter) is
+  // put back in afterEach, so this suite leaves no trace of its own.
   function setInnerWidth(width: number): void {
-    (globalThis.window as unknown as { innerWidth: number }).innerWidth = width;
+    Object.defineProperty(globalThis.window, 'innerWidth', {
+      configurable: true,
+      writable: true,
+      value: width,
+    });
+  }
+
+  function restoreInnerWidth(): void {
+    if (originalInnerWidth) {
+      Object.defineProperty(globalThis.window, 'innerWidth', originalInnerWidth);
+    }
   }
 
   function getService(fixture: ComponentFixture<unknown>): SidebarService {
@@ -178,7 +194,7 @@ describe('Sidebar', () => {
   beforeEach(() => {
     originalResizeObserver = globalThis.ResizeObserver;
     (globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = ResizeObserverStub;
-    originalInnerWidth = globalThis.window.innerWidth;
+    originalInnerWidth = Object.getOwnPropertyDescriptor(globalThis.window, 'innerWidth');
     setInnerWidth(1024);
   });
 
@@ -188,7 +204,7 @@ describe('Sidebar', () => {
     }
     fixtures.length = 0;
     vi.useRealTimers();
-    setInnerWidth(originalInnerWidth);
+    restoreInnerWidth();
     (globalThis as unknown as { ResizeObserver: typeof globalThis.ResizeObserver }).ResizeObserver =
       originalResizeObserver;
   });

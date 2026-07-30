@@ -25,11 +25,14 @@ import {
 import { RichTextFileImportButtonComponent } from './rich-text-file-import-button.component';
 import { RichTextFileImportOverlayComponent } from './rich-text-file-import-overlay.component';
 import {
+    DOCUMENT_IMPORT_ACCEPT,
+    HEADER_BYTES,
+    IMAGE_IMPORT_ACCEPT,
+    classifyImport,
     dragHasSupportedDocument,
-    isPdfHeader,
     isSupportedDocumentFile,
-    isZipHeader,
     simpleHash,
+    type DocumentImportKind,
 } from './rich-text-file-import.utils';
 
 const FILE_IMPORT_SLOT_ID = 'file-import.import';
@@ -37,11 +40,19 @@ const ERROR_DISMISS_MS = 4000;
 
 /**
  * Opt-in file-import addon for `<ui-rich-text-editor>`. Attaches via DI to the
- * `RichTextEditorAddonHost` the base provides and owns the whole DOCX/PDF import
- * feature: the toolbar import button (a hidden `.pdf,.docx` picker), drag-and-drop
- * of a document onto the editor, the lazy-loaded `docx`/`pdf` parsers, and the
+ * `RichTextEditorAddonHost` the base provides and owns the whole document import
+ * feature: the toolbar import button (a hidden picker), drag-and-drop of a
+ * document onto the editor, the lazy-loaded `docx`/`pdf` parsers, and the
  * busy/error overlay. The base editor ships no import UI or parser code; every
  * import control is opt-in through this directive.
+ *
+ * When an addon owns image files (the images addon), the picker additionally
+ * offers PNG/JPEG/GIF/WEBP and hands a picked image straight to that addon's
+ * pipeline through the host's `insertImageFile` — this addon never inserts an
+ * image itself, so an image picked here behaves exactly like one pasted or
+ * dropped. Without that addon the picker offers documents only. Image
+ * drag-and-drop and paste are likewise not handled here; see
+ * {@link IMAGE_IMPORT_ACCEPT} for why the drop path differs.
  *
  * Parsed HTML lands at the saved caret through the host's `insertHtmlAtCaret`
  * (one history entry, re-sanitized) after `restoreSelection`, reproducing the
@@ -72,8 +83,13 @@ export class RichTextFileImportDirective {
     readonly uiRteFileImportOrder = input(340);
     /** Contribute the toolbar button (default true). */
     readonly uiRteFileImportToolbar = input(true);
-    /** `accept` attribute for the file picker and drop filter. */
-    readonly uiRteFileImportAccept = input('.pdf,.docx');
+    /**
+     * `accept` attribute for the toolbar file picker. Leave unset to accept the
+     * document formats plus, when an addon owns image files, the image formats
+     * too. Drag-and-drop stays documents-only regardless of this value — see
+     * {@link IMAGE_IMPORT_ACCEPT}.
+     */
+    readonly uiRteFileImportAccept = input<string>();
 
     /** Emits the `File` when an import begins. */
     readonly fileImportStart = output<File>();
@@ -83,6 +99,15 @@ export class RichTextFileImportDirective {
     readonly fileImportError = output<string>();
 
     private readonly i18n = createLocaleBindings(this.uiRteFileImportLocale, RICH_TEXT_FILE_IMPORT_LOCALES);
+
+    /**
+     * Image types appear only while an addon owns image files, so the picker
+     * can never offer an image the editor has no pipeline to insert.
+     */
+    private readonly accept = computed(() => this.uiRteFileImportAccept()
+        ?? (this.host.hasImageFileHandler()
+            ? `${DOCUMENT_IMPORT_ACCEPT},${IMAGE_IMPORT_ACCEPT}`
+            : DOCUMENT_IMPORT_ACCEPT));
     private readonly viewReady = signal(false);
 
     private readonly importing = signal(false);
@@ -104,7 +129,7 @@ export class RichTextFileImportDirective {
     private registerToolbarSlot(): void {
         const context: RichTextFileImportButtonContext = {
             locale: computed(() => this.i18n.t()),
-            accept: computed(() => this.uiRteFileImportAccept()),
+            accept: this.accept,
             onImport: (file) => void this.importFile(file),
         };
         const slotInjector = Injector.create({
@@ -152,21 +177,36 @@ export class RichTextFileImportDirective {
         if (!this.uiRteFileImport() || this.host.readonly() || this.host.disabled()) return;
         this.host.flushPendingHistoryPush();
 
-        const header = new Uint8Array(await file.slice(0, 5).arrayBuffer());
-        const isZip = isZipHeader(header);
-        const isPdf = isPdfHeader(header);
-        if (!isZip && !isPdf) {
+        const header = new Uint8Array(await file.slice(0, HEADER_BYTES).arrayBuffer());
+        const kind = classifyImport(header);
+        if (!kind) {
             this.reportError(this.i18n.t().importInvalidFile);
             return;
         }
-        await this.runImport(file, isZip);
+        if (kind.type === 'image') {
+            this.routeImage(file);
+            return;
+        }
+        await this.runImport(file, kind);
     }
 
-    private async runImport(file: File, isZip: boolean): Promise<void> {
+    /**
+     * An image is not parsed here at all: it goes to whichever addon owns image
+     * files, so a picked image takes the identical path to a pasted or dropped
+     * one — configured uploader, default width/height/alignment, resizer
+     * wiring, and the image upload outputs (this addon's own import outputs
+     * stay quiet, since no import happened).
+     */
+    private routeImage(file: File): void {
+        if (this.host.insertImageFile(file)) return;
+        this.reportError(this.i18n.t().importInvalidFile);
+    }
+
+    private async runImport(file: File, kind: DocumentImportKind): Promise<void> {
         this.importing.set(true);
         this.fileImportStart.emit(file);
         try {
-            if (isZip) {
+            if (kind.type === 'docx') {
                 await this.importDocx(file);
             } else {
                 await this.importPdf(file);

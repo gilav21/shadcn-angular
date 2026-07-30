@@ -20,9 +20,23 @@ function isWebp(b: Uint8Array): boolean {
         b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50;
 }
 
+/**
+ * The raster image MIME type the leading bytes identify, or `null` for anything
+ * else. Needs the first 12 bytes to recognize WEBP. SVG is deliberately not
+ * reported: it has no magic bytes and carries script, so callers that accept it
+ * must go through {@link isValidImageMagicBytes} and sanitize the content.
+ */
+export function sniffImageMime(bytes: Uint8Array): string | null {
+    if (isJpeg(bytes)) return 'image/jpeg';
+    if (isPng(bytes)) return 'image/png';
+    if (isGif(bytes)) return 'image/gif';
+    if (isWebp(bytes)) return 'image/webp';
+    return null;
+}
+
 export function isValidImageMagicBytes(bytes: Uint8Array): boolean {
     if (bytes.length < 3) return false;
-    return isJpeg(bytes) || isPng(bytes) || isGif(bytes) || isWebp(bytes) || isSvgContent(bytes);
+    return sniffImageMime(bytes) !== null || isSvgContent(bytes);
 }
 
 function isSvgContent(bytes: Uint8Array): boolean {

@@ -204,6 +204,30 @@ export abstract class RichTextEditorAddonHost {
      * these with its own (document-import) acceptance. Returns a teardown.
      */
     abstract registerDropZonePredicate(predicate: (event: DragEvent) => boolean): () => void;
+
+    // ── Image-file seam ───────────────────────────────────────────────
+
+    /**
+     * Register the addon that owns image files — the images addon, whose
+     * pipeline resolves the configured uploader vs a `data:` URL, applies the
+     * default width/height/alignment, and emits the image upload outputs.
+     * Only one addon owns images at a time; registering replaces the previous
+     * handler. Returns a teardown that only clears it if still the current one.
+     */
+    abstract registerImageFileHandler(handler: (file: File) => void): () => void;
+    /**
+     * Whether an addon currently owns image files. Other addons gate their
+     * image affordances on this so they never offer an image path the editor
+     * cannot route (e.g. the file-import picker hides image types).
+     */
+    abstract readonly hasImageFileHandler: Signal<boolean>;
+    /**
+     * Route an image file through the owning addon, so an image inserted from
+     * anywhere (paste, drop, the images toolbar, the file-import picker) takes
+     * one and the same path. Returns `false` when no addon owns images, in
+     * which case nothing was inserted and the caller must handle it.
+     */
+    abstract insertImageFile(file: File): boolean;
     /**
      * Register an observer of the editor's trigger-aware text and caret offset,
      * invoked on every input with the same values the base computes for its own
