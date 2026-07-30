@@ -279,8 +279,8 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
     let fixture: ComponentFixture<FixedHost>;
     let host: FixedHost;
     let addedShowPopover = false;
-    let originalInnerWidth: number;
-    let originalInnerHeight: number;
+    let originalInnerWidth: PropertyDescriptor | undefined;
+    let originalInnerHeight: PropertyDescriptor | undefined;
     let originalGbcr: PropertyDescriptor | undefined;
 
     function content(): PopoverContentComponent {
@@ -300,8 +300,12 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
 
     beforeEach(async () => {
         document.querySelectorAll('[data-popover-portal],[data-slot="popover-content"]').forEach((n) => n.remove());
-        originalInnerWidth = globalThis.innerWidth;
-        originalInnerHeight = globalThis.innerHeight;
+        // Descriptors, not values: `innerWidth` is an accessor, and restoring it
+        // as `defineProperty(..., { value })` would leave a data property with
+        // `writable: false` (the default), so any later plain assignment throws
+        // in strict mode — an order-dependent failure in whichever suite runs next.
+        originalInnerWidth = Object.getOwnPropertyDescriptor(globalThis, 'innerWidth');
+        originalInnerHeight = Object.getOwnPropertyDescriptor(globalThis, 'innerHeight');
         originalGbcr = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect');
         Object.defineProperty(Element.prototype, 'getBoundingClientRect', { configurable: true, value: () => stubRect });
         // Provide the native Popover API so the fixed strategy exercises the
@@ -332,8 +336,8 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
             delete proto.hidePopover;
             addedShowPopover = false;
         }
-        Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: originalInnerWidth });
-        Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: originalInnerHeight });
+        if (originalInnerWidth) Object.defineProperty(globalThis, 'innerWidth', originalInnerWidth);
+        if (originalInnerHeight) Object.defineProperty(globalThis, 'innerHeight', originalInnerHeight);
         if (originalGbcr) {
             Object.defineProperty(Element.prototype, 'getBoundingClientRect', originalGbcr);
         }

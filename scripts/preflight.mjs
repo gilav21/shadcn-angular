@@ -8,10 +8,16 @@
 // names the stage that failed.
 //
 // Usage:
-//   npm run preflight                 # all stages
-//   npm run preflight -- --skip lint  # skip a stage by id (repeatable)
-//   npm run preflight -- --list       # list stage ids
-import { spawnSync } from 'node:child_process';
+//   npm run preflight                     # all stages, full scope
+//   npm run preflight -- --since <ref>    # scope to what this branch adds
+//   npm run preflight -- --skip lint      # skip a stage by id (repeatable)
+//   npm run preflight -- --list           # list stage ids
+//
+// `--since` is what the pre-push hook uses. The full run stays the default so
+// `release:cli` and a deliberate `npm run preflight` keep their teeth — notably
+// the coverage ratchets, which only evaluate under `--coverage` on a full run
+// and are therefore a RELEASE gate, not a per-push one.
+import { execFileSync, spawnSync } from 'node:child_process';
 
 /** @typedef {{ id: string, label: string, command: string }} Stage */
 
@@ -35,6 +41,77 @@ const STAGES = [
   { id: 'test-cli', label: 'CLI unit tests + coverage ratchet', command: 'npm run coverage:cli' },
   { id: 'test', label: 'Component unit tests (headless browser) + coverage ratchet', command: 'npm run test:ci:coverage' },
 ];
+
+/**
+ * Files whose blast radius is the whole repo, so `--since` gives up on scoping
+ * and runs the full stages. Mirrors the spirit of e2e/orchestrator/impact.ts:
+ * shared lib and tooling can break anything, so a scoped pass there is a false
+ * green.
+ */
+const TRIPWIRES = [
+  /^packages\/components\/lib\//,
+  /^packages\/cli\//,
+  /^vitest\.config/,
+  /^tsconfig/,
+  /^eslint\.config\.mjs$/,
+  /^package(-lock)?\.json$/,
+  /^scripts\//,
+];
+
+/**
+ * Repo-relative paths are the only thing interpolated into a shell command
+ * here, so they are held to a conservative charset. Anything outside it (a
+ * quote, a space, a shell metacharacter) makes the caller fall back to the
+ * unscoped command rather than build a command line out of it.
+ */
+const SAFE_PATH = /^[\w./-]+$/;
+
+/** Cap on interpolated paths — Windows command lines die past ~8k chars. */
+const MAX_SCOPED_FILES = 60;
+
+/** @returns {string[]} paths this branch adds on top of `base`. */
+function changedSince(base) {
+  const out = execFileSync('git', ['diff', '--name-only', '--diff-filter=ACMR', `${base}...HEAD`], {
+    encoding: 'utf8',
+  });
+  return out.split('\n').map((l) => l.trim()).filter(Boolean);
+}
+
+/**
+ * The stage list for an impacted run, or `null` when the diff trips a wire (or
+ * is too large / too odd to scope safely) and the caller should run everything.
+ *
+ * @param {string} base
+ * @returns {Stage[] | null}
+ */
+function impactedStages(base) {
+  const changed = changedSince(base);
+  if (changed.length === 0) return [];
+  if (changed.some((f) => TRIPWIRES.some((t) => t.test(f)))) return null;
+  if (changed.some((f) => !SAFE_PATH.test(f))) return null;
+
+  const lintable = changed.filter((f) => /\.(ts|mts|cts|js|mjs|cjs)$/.test(f));
+  if (lintable.length > MAX_SCOPED_FILES) return null;
+
+  const stages = [];
+  if (lintable.length > 0) {
+    stages.push({
+      id: 'lint',
+      label: `ESLint (${lintable.length} changed file(s))`,
+      command: `npx eslint ${lintable.join(' ')}`,
+    });
+  }
+  // Whole-program by nature: a changed file can break a type anywhere, so these
+  // are NOT scoped. They are the floor on how fast this hook can get.
+  stages.push(
+    { id: 'typecheck', label: 'tsc + Angular template typecheck', command: 'npm run typecheck && npm run typecheck:templates' },
+    { id: 'registry', label: 'Registry drift (sync-registry, report mode)', command: 'npm run check:registry' },
+    { id: 'completeness', label: 'Story / demo-route / e2e completeness gate', command: 'npm run check:completeness' },
+    // No --coverage: the ratchet needs a full run to mean anything. See header.
+    { id: 'test', label: 'Component unit tests related to the diff', command: `npm run test:ci -- --changed ${base}` },
+  );
+  return stages;
+}
 
 function parseSkips(argv) {
   const skips = new Set();
@@ -76,7 +153,24 @@ function main() {
   }
 
   const skips = parseSkips(argv);
-  const stages = STAGES.filter((stage) => !skips.has(stage.id));
+  const sinceIndex = argv.indexOf('--since');
+  const base = sinceIndex === -1 ? null : argv[sinceIndex + 1];
+
+  let selected = STAGES;
+  if (base) {
+    const impacted = impactedStages(base);
+    if (impacted === null) {
+      console.log(`[preflight] diff vs ${base} touches shared/tooling files — running the FULL gate.`);
+    } else if (impacted.length === 0) {
+      console.log(`[preflight] no changes vs ${base} — nothing to verify.`);
+      return;
+    } else {
+      console.log(`[preflight] scoped to the diff vs ${base}.`);
+      selected = impacted;
+    }
+  }
+
+  const stages = selected.filter((stage) => !skips.has(stage.id));
   const results = [];
   const startedAt = Date.now();
 

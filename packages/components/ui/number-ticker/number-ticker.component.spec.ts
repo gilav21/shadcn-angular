@@ -268,31 +268,36 @@ describe('NumberTickerDigitComponent', () => {
         expect(animations).toHaveLength(0);
     });
 
-    it('animates a digit change and settles prevDigit when the animation finishes', () => {
+    // The animation is created inside a signal effect. Asserting immediately
+    // after `detectChanges()` assumes the effect has already flushed, which only
+    // holds while the machine is idle — under a loaded full-suite run the flush
+    // can land a tick later and the assertion sees zero animations. Waiting for
+    // the condition keeps the assertion identical but load-independent.
+    it('animates a digit change and settles prevDigit when the animation finishes', async () => {
         const el = digitInstance();
 
         host.digit.set('7');
         fixture.detectChanges();
 
-        expect(animations).toHaveLength(1);
+        await vi.waitFor(() => expect(animations).toHaveLength(1));
         expect(el.prevDigit()).toBe('5');
 
         animations[0].onfinish?.();
         expect(el.prevDigit()).toBe('7');
     });
 
-    it('finishes an in-flight animation before starting the next', () => {
+    it('finishes an in-flight animation before starting the next', async () => {
         host.digit.set('7');
         fixture.detectChanges();
-        expect(animations).toHaveLength(1);
+        await vi.waitFor(() => expect(animations).toHaveLength(1));
 
         const finishSpy = vi.spyOn(animations[0], 'finish');
 
         host.digit.set('3');
         fixture.detectChanges();
 
+        await vi.waitFor(() => expect(animations).toHaveLength(2));
         expect(finishSpy).toHaveBeenCalled();
-        expect(animations).toHaveLength(2);
     });
 
     it('falls back to setting prevDigit when the flex container is missing', () => {

@@ -133,8 +133,8 @@ describe('SpeedDial showAt + clampToContainer', () => {
     let fixture: ComponentFixture<ConfigHostComponent>;
     let host: ConfigHostComponent;
     let sd: SpeedDialComponent;
-    let originalInnerWidth: number;
-    let originalInnerHeight: number;
+    let originalInnerWidth: PropertyDescriptor | undefined;
+    let originalInnerHeight: PropertyDescriptor | undefined;
     let getBoundingClientRectSpy: ReturnType<typeof vi.spyOn> | undefined;
 
     beforeEach(async () => {
@@ -145,8 +145,12 @@ describe('SpeedDial showAt + clampToContainer', () => {
         sd = getSpeedDial(fixture);
         vi.useFakeTimers();
 
-        originalInnerWidth = globalThis.innerWidth;
-        originalInnerHeight = globalThis.innerHeight;
+        // Descriptors, not values: `innerWidth` is an accessor, and restoring it
+        // as `defineProperty(..., { value })` would leave a data property with
+        // `writable: false` (the default), so any later plain assignment throws
+        // in strict mode — an order-dependent failure in whichever suite runs next.
+        originalInnerWidth = Object.getOwnPropertyDescriptor(globalThis, 'innerWidth');
+        originalInnerHeight = Object.getOwnPropertyDescriptor(globalThis, 'innerHeight');
         Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: 1024 });
         Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: 768 });
 
@@ -169,8 +173,8 @@ describe('SpeedDial showAt + clampToContainer', () => {
 
     afterEach(() => {
         vi.useRealTimers();
-        Object.defineProperty(globalThis, 'innerWidth', { configurable: true, value: originalInnerWidth });
-        Object.defineProperty(globalThis, 'innerHeight', { configurable: true, value: originalInnerHeight });
+        if (originalInnerWidth) Object.defineProperty(globalThis, 'innerWidth', originalInnerWidth);
+        if (originalInnerHeight) Object.defineProperty(globalThis, 'innerHeight', originalInnerHeight);
         getBoundingClientRectSpy?.mockRestore();
     });
 

@@ -519,7 +519,17 @@ describe('TourComponent — positioning', () => {
         rectSpy.mockReturnValue(rect);
         host.active.set(true);
         await flush(fixture);
-        return getTour(fixture);
+        const tour = getTour(fixture);
+        // The card measures itself once rendered. `flush` above is a fixed two
+        // rounds of detectChanges/whenStable, which is enough on an idle machine
+        // but not under a loaded full-suite run — the measurement lands late and
+        // every assertion below then reads the pre-measurement position. Waiting
+        // for the measurement makes these tests load-independent.
+        await vi.waitFor(() => {
+            const pos = tour.cardPos();
+            expect(pos.top + pos.left).toBeGreaterThan(0);
+        });
+        return tour;
     }
 
     it('places the card below a top-anchored target (default rect)', async () => {
