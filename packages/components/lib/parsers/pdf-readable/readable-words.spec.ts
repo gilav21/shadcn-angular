@@ -258,6 +258,42 @@ describe('buildWords', () => {
         expect(text).toContain('INVOICE #2047');
     });
 
+    describe('tracking reconstruction', () => {
+        // PDFs letterspace either with the Tc operator, which survives in
+        // charSpacing, or with plain glyph positioning, which does not. Only
+        // the run that was really tracked may be widened.
+        function trackedRun(letterGap: number, fontSize = 9, charSpacing = 0): TextItem[] {
+            const items: TextItem[] = [];
+            let x = 0;
+            for (const ch of 'QUARTERLY') {
+                items.push(makeItem({ text: ch, x, endX: x + fontSize * 0.6, fontSize, charSpacing }));
+                x += fontSize * 0.6 + letterGap;
+            }
+            return items;
+        }
+
+        it('recovers tracking a PDF drew with glyph positioning instead of Tc', () => {
+            const words = buildWords(trackedRun(2.25), ctx);
+            expect(words[0].style.letterSpacing).toBeCloseTo(2.25, 1);
+        });
+
+        it('leaves normally set text unwidened', () => {
+            const words = buildWords(trackedRun(0), ctx);
+            expect(words[0].style.letterSpacing).toBe(0);
+        });
+
+        it('does not mistake a hair of advance rounding for tracking', () => {
+            // Under the 0.04em floor: real advances leave a little slack.
+            const words = buildWords(trackedRun(0.2), ctx);
+            expect(words[0].style.letterSpacing).toBe(0);
+        });
+
+        it('keeps the declared Tc value when the PDF states one', () => {
+            const words = buildWords(trackedRun(2.25, 9, 3), ctx);
+            expect(words[0].style.letterSpacing).toBeCloseTo(3, 1);
+        });
+    });
+
     it('returns no bimodal threshold for uniform gaps', () => {
         const items = [0, 10, 20, 30, 40].map(x => makeItem({ text: 'a', x, endX: x + 8 }));
         expect(bimodalGapThreshold(items)).toBeNull();

@@ -14,6 +14,12 @@ const LETTER_TIER_PERCENTILE = 0.2;
 const WORD_MARGIN_EM = 0.15;
 /** Minimum gap, in em, between the letter tier and the breaking gaps above it. */
 const MIN_VALLEY_EM = 0.08;
+/** Intra-word ceiling, in em, when a run shows no measured word-break valley. */
+const TRACKING_GAP_LIMIT_EM = 0.35;
+/** Clear space, in em, below which a run counts as normally set, not tracked. */
+const MIN_TRACKING_EM = 0.04;
+/** Gaps a run needs before its median is evidence of tracking rather than noise. */
+const MIN_TRACKING_GAPS = 3;
 const RTL_RE = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
 const STRONG_LTR_RE = /[A-Za-z\u00C0-\u024F]/u;
 /** A word with no letters and no digits \u2014 punctuation/symbols only (a
@@ -33,7 +39,7 @@ export interface WordBuildContext {
  */
 export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): Word[] {
     const words: Word[] = [];
-    const thresholds = segmentThresholds(items);
+    const metrics = segmentMetrics(items);
     let pendingSpace = false;
 
     for (let i = 0; i < items.length; i++) {
@@ -42,30 +48,65 @@ export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): W
             pendingSpace = true;
             continue;
         }
-        pendingSpace = appendItem(words, item, ctx, pendingSpace, thresholds[i], items[i + 1]);
+        pendingSpace = appendItem(words, item, ctx, pendingSpace, metrics[i], items[i + 1]);
     }
     return words;
 }
 
+/** What one hard-break-delimited run's own gaps say about how it was set. */
+interface RunMetrics {
+    /** Word-break threshold in em, or null when the gaps show no valley. */
+    readonly threshold: number | null;
+    /** Tracking the run was drawn with, in em (0 when set normally). */
+    readonly trackingEm: number;
+}
+
+const NO_METRICS: RunMetrics = { threshold: null, trackingEm: 0 };
+
 /**
- * The gap threshold for each item, measured within its own hard-break-delimited
- * run rather than across the whole baseline. A line often carries two
- * unrelated runs — an invoice's letterspaced tagline and, a hundred points
- * away, the tight display type of its number panel. Pooled, the tight run's
- * ~0 gaps sink the letter tier until no valley clears the minimum, the
- * threshold comes back null, and the fallback splits the tagline at every
- * letter. Measured per run, each finds its own valley.
+ * Measures each item's gap statistics within its own hard-break-delimited run
+ * rather than across the whole baseline. A line often carries two unrelated
+ * runs — an invoice's letterspaced tagline and, a hundred points away, the
+ * tight display type of its number panel. Pooled, the tight run's ~0 gaps sink
+ * the letter tier until no valley clears the minimum, the threshold comes back
+ * null, and the fallback splits the tagline at every letter. Measured per run,
+ * each finds its own valley and its own tracking.
  */
-function segmentThresholds(items: readonly TextItem[]): Array<number | null> {
-    const thresholds = new Array<number | null>(items.length).fill(null);
+function segmentMetrics(items: readonly TextItem[]): RunMetrics[] {
+    const metrics = new Array<RunMetrics>(items.length).fill(NO_METRICS);
     let start = 0;
     for (let i = 1; i <= items.length; i++) {
         if (i < items.length && !breaksRun(items[i - 1], items[i])) continue;
-        const threshold = bimodalGapThreshold(items.slice(start, i));
-        thresholds.fill(threshold, start, i);
+        const run = items.slice(start, i);
+        const threshold = bimodalGapThreshold(run);
+        metrics.fill({ threshold, trackingEm: measureTracking(run, threshold) }, start, i);
         start = i;
     }
-    return thresholds;
+    return metrics;
+}
+
+/**
+ * The tracking a run was drawn with, from the clear space its glyphs leave
+ * each other. PDFs letterspace two ways: the `Tc` operator, which survives in
+ * `charSpacing`, and plain glyph positioning, which does not — a masthead set
+ * the second way arrives as ordinary type and loses its whole character. The
+ * median intra-word gap recovers it. Normally-set text sits under 0.03em
+ * (advances leave no clear space), genuinely tracked text at 0.09em and up,
+ * with nothing between: the threshold falls in that empty band, so ordinary
+ * text is never widened. Measured relative to the type, so it holds whether
+ * or not the embedded font's advances were available to correct.
+ */
+function measureTracking(items: readonly TextItem[], threshold: number | null): number {
+    const limit = threshold ?? TRACKING_GAP_LIMIT_EM;
+    const gaps: number[] = [];
+    for (let i = 1; i < items.length; i++) {
+        const gap = gapEm(items[i - 1], items[i]);
+        if (gap < limit) gaps.push(gap);
+    }
+    if (gaps.length < MIN_TRACKING_GAPS) return 0;
+    gaps.sort((a, b) => a - b);
+    const median = gaps[gaps.length >> 1];
+    return median >= MIN_TRACKING_EM ? median : 0;
 }
 
 /** A gap too wide to be word spacing — the boundary between two runs. */
@@ -131,14 +172,14 @@ function appendItem(
     item: TextItem,
     ctx: WordBuildContext,
     pendingSpace: boolean,
-    bimodal: number | null,
+    metrics: RunMetrics,
     nextItem?: TextItem,
 ): boolean {
-    const style = itemRunStyle(item, findLinkUri(item, ctx.annotations));
+    const style = itemRunStyle(item, findLinkUri(item, ctx.annotations), metrics.trackingEm);
     const previous = words.at(-1);
     const gap = previous ? item.x - previous.endX : 0;
     const decision = previous
-        ? classifyGap(gap, previous, item, ctx, bimodal, nextItem)
+        ? classifyGap(gap, previous, item, ctx, metrics.threshold, nextItem)
         : 'break';
 
     if (previous && decision !== 'break' && sameStyle(previous.style, style)) {
@@ -270,7 +311,7 @@ function isSpaceMarker(item: TextItem): boolean {
     return item.isSpaceOffset || item.text.trim().length === 0;
 }
 
-function itemRunStyle(item: TextItem, link: string): RunStyle {
+function itemRunStyle(item: TextItem, link: string, trackingEm: number): RunStyle {
     return {
         fontName: item.fontName,
         fontFamily: item.fontFamily,
@@ -280,9 +321,15 @@ function itemRunStyle(item: TextItem, link: string): RunStyle {
         italic: item.italic,
         underline: false,
         baselineShift: baselineShiftOf(item),
-        letterSpacing: item.charSpacing > 0.25 ? Math.round(item.charSpacing * 100) / 100 : 0,
+        letterSpacing: letterSpacingOf(item, trackingEm),
         link,
     };
+}
+
+/** Declared `Tc` tracking wins; measured tracking covers the runs it misses. */
+function letterSpacingOf(item: TextItem, trackingEm: number): number {
+    const pt = item.charSpacing > 0.25 ? item.charSpacing : trackingEm * item.fontSize;
+    return pt > 0.25 ? Math.round(pt * 100) / 100 : 0;
 }
 
 function baselineShiftOf(item: TextItem): BaselineShift {
