@@ -4823,12 +4823,13 @@
     "type": "addon",
     "parent": "rich-text-editor",
     "category": "editor",
-    "description": "DOCX/PDF import for the rich text editor: toolbar import button, document drag-and-drop, lazy-loaded parsers, and a busy/error overlay.",
+    "description": "DOCX/PDF import for the rich text editor: toolbar picker (images route to the images addon), document drag-and-drop, and lazy parsers.",
     "tags": [
       "rich-text",
       "import",
       "docx",
       "pdf",
+      "image",
       "toolbar",
       "addon"
     ],

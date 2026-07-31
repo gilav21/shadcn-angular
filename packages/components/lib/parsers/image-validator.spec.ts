@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isValidImageMagicBytes, isValidImageDataUrl } from './image-validator';
+import { isValidImageMagicBytes, isValidImageDataUrl, sniffImageMime } from './image-validator';
 
 function toBytes(arr: number[]): Uint8Array {
     return new Uint8Array(arr);
@@ -9,6 +9,25 @@ function toBase64DataUrl(mime: string, bytes: number[]): string {
     const binary = String.fromCodePoint(...bytes);
     return `data:${mime};base64,${btoa(binary)}`;
 }
+
+describe('sniffImageMime', () => {
+    it('should report the MIME type for each raster format', () => {
+        expect(sniffImageMime(toBytes([0xFF, 0xD8, 0xFF, 0xE0]))).toBe('image/jpeg');
+        expect(sniffImageMime(toBytes([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))).toBe('image/png');
+        expect(sniffImageMime(toBytes([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]))).toBe('image/gif');
+        expect(sniffImageMime(toBytes([
+            0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50,
+        ]))).toBe('image/webp');
+    });
+
+    it('should not report SVG, which has no magic bytes', () => {
+        expect(sniffImageMime(new TextEncoder().encode('<svg></svg>'))).toBeNull();
+    });
+
+    it('should return null for a non-image', () => {
+        expect(sniffImageMime(toBytes([0x50, 0x4B, 0x03, 0x04]))).toBeNull();
+    });
+});
 
 describe('isValidImageMagicBytes', () => {
     it('should reject empty bytes', () => {

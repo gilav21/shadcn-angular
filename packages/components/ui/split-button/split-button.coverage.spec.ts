@@ -75,8 +75,19 @@ describe('SplitButtonComponent — coverage', () => {
         fixture.detectChanges();
     });
 
+    /**
+     * Undoes the geometry stubs a single test installs. Held here rather than
+     * at the end of that test so a failing assertion cannot leak them: they are
+     * `Object.defineProperty` overrides, which `vi.restoreAllMocks()` does NOT
+     * revert, and a stubbed `getBoundingClientRect` on `Element.prototype`
+     * silently rewrites the layout every later test in this file sees.
+     */
+    let restoreGeometry: (() => void) | null = null;
+
     afterEach(() => {
         vi.restoreAllMocks();
+        restoreGeometry?.();
+        restoreGeometry = null;
     });
 
     it('closes the menu when a document click lands outside the component', () => {
@@ -107,13 +118,18 @@ describe('SplitButtonComponent — coverage', () => {
     });
 
     it('opens the menu above when there is little space below', () => {
+        const originalGbcr = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect');
+        const originalHeight = Object.getOwnPropertyDescriptor(globalThis, 'innerHeight');
+        restoreGeometry = () => {
+            if (originalGbcr) Object.defineProperty(Element.prototype, 'getBoundingClientRect', originalGbcr);
+            if (originalHeight) Object.defineProperty(globalThis, 'innerHeight', originalHeight);
+        };
         Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
             configurable: true,
             value() {
                 return stubbedRect;
             },
         });
-        const originalHeight = globalThis.innerHeight;
         Object.defineProperty(globalThis, 'innerHeight', {
             configurable: true,
             value: 760,
@@ -128,11 +144,6 @@ describe('SplitButtonComponent — coverage', () => {
         expect(component.isOpen()).toBe(true);
         const menu = fixture.debugElement.query(By.css('[role="menu"]'));
         expect(menu.nativeElement.className).toContain('bottom-full');
-
-        Object.defineProperty(globalThis, 'innerHeight', {
-            configurable: true,
-            value: originalHeight,
-        });
     });
 
     it('does not act on a disabled item passed to onItemClick', () => {

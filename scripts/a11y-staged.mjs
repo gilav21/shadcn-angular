@@ -37,11 +37,22 @@ const GLOBAL_MATCHERS = [
   /^packages\/components\/ui\/[^/]+$/,
 ];
 
-/** @returns {string[]} staged paths, forward-slashed, relative to the repo root. */
-function stagedFiles() {
-  const out = execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR'], {
-    encoding: 'utf8',
-  });
+/**
+ * Changed paths, forward-slashed, relative to the repo root.
+ *
+ * Defaults to the staged set (pre-commit). `--since <ref>` switches to
+ * everything this branch adds on top of `<ref>` (pre-push), so the push-time
+ * gate audits the whole branch rather than just the last commit's staging area.
+ *
+ * @returns {string[]}
+ */
+function changedFiles() {
+  const sinceIndex = process.argv.indexOf('--since');
+  const since = sinceIndex === -1 ? null : process.argv[sinceIndex + 1];
+  const args = since
+    ? ['diff', '--name-only', '--diff-filter=ACMR', `${since}...HEAD`]
+    : ['diff', '--cached', '--name-only', '--diff-filter=ACMR'];
+  const out = execFileSync('git', args, { encoding: 'utf8' });
   return out.split('\n').map((line) => line.trim()).filter(Boolean);
 }
 
@@ -120,10 +131,10 @@ function runAxe(runnerArgs, label) {
   return result.status ?? 1;
 }
 
-const { global, components } = classify(stagedFiles());
+const { global, components } = classify(changedFiles());
 
 if (!global && components.length === 0) {
-  console.log('[a11y-staged] no component or shared UI files staged — axe skipped.');
+  console.log('[a11y-staged] no component or shared UI files changed — axe skipped.');
   process.exit(0);
 }
 

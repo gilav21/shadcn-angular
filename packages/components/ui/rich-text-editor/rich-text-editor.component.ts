@@ -403,6 +403,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private readonly pasteInterceptors = new Set<(event: ClipboardEvent) => boolean>();
     private readonly dropInterceptors = new Set<(event: DragEvent) => boolean>();
     private readonly dropZonePredicates = new Set<(event: DragEvent) => boolean>();
+    private readonly imageFileHandler = signal<((file: File) => void) | null>(null);
+    readonly hasImageFileHandler = computed(() => this.imageFileHandler() !== null);
     private readonly shortcutActions = new Map<string, { run: () => void; when?: () => boolean }>();
     private savedRange: Range | null = null;
     private linkEditorOpen: ((caretHint?: { x: number; y: number }) => void) | null = null;
@@ -1362,6 +1364,22 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     registerDropZonePredicate(predicate: (event: DragEvent) => boolean): () => void {
         this.dropZonePredicates.add(predicate);
         return () => this.dropZonePredicates.delete(predicate);
+    }
+
+    /** Register the addon that owns image files (addon host surface). */
+    registerImageFileHandler(handler: (file: File) => void): () => void {
+        this.imageFileHandler.set(handler);
+        return () => {
+            if (this.imageFileHandler() === handler) this.imageFileHandler.set(null);
+        };
+    }
+
+    /** Route an image file through the owning addon (addon host surface). */
+    insertImageFile(file: File): boolean {
+        const handler = this.imageFileHandler();
+        if (!handler) return false;
+        handler(file);
+        return true;
     }
 
     private dispatchKeydownInterceptors(event: KeyboardEvent): boolean {

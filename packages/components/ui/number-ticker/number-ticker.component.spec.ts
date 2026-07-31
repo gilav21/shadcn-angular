@@ -242,6 +242,14 @@ describe('NumberTickerDigitComponent', () => {
         fixture = TestBed.createComponent(DigitHostComponent);
         host = fixture.componentInstance;
         fixture.detectChanges();
+        // The component animates only on a digit change AFTER its effect has run
+        // once (the first pass takes the `!_initialized` branch and just seeds
+        // prevDigit). If a test changes the digit before that first pass lands —
+        // which is what happens when `detectChanges()` is slow under a loaded
+        // coverage run — the effect initialises straight to the NEW digit and no
+        // animation is ever created, so the tests below fail deterministically
+        // rather than flakily. Wait for the seed before touching the input.
+        await vi.waitFor(() => expect(digitInstance().prevDigit()).toBe('5'));
     });
 
     afterEach(() => {
@@ -268,31 +276,36 @@ describe('NumberTickerDigitComponent', () => {
         expect(animations).toHaveLength(0);
     });
 
-    it('animates a digit change and settles prevDigit when the animation finishes', () => {
+    // The animation is created inside a signal effect. Asserting immediately
+    // after `detectChanges()` assumes the effect has already flushed, which only
+    // holds while the machine is idle — under a loaded full-suite run the flush
+    // can land a tick later and the assertion sees zero animations. Waiting for
+    // the condition keeps the assertion identical but load-independent.
+    it('animates a digit change and settles prevDigit when the animation finishes', async () => {
         const el = digitInstance();
 
         host.digit.set('7');
         fixture.detectChanges();
 
-        expect(animations).toHaveLength(1);
+        await vi.waitFor(() => expect(animations).toHaveLength(1));
         expect(el.prevDigit()).toBe('5');
 
         animations[0].onfinish?.();
         expect(el.prevDigit()).toBe('7');
     });
 
-    it('finishes an in-flight animation before starting the next', () => {
+    it('finishes an in-flight animation before starting the next', async () => {
         host.digit.set('7');
         fixture.detectChanges();
-        expect(animations).toHaveLength(1);
+        await vi.waitFor(() => expect(animations).toHaveLength(1));
 
         const finishSpy = vi.spyOn(animations[0], 'finish');
 
         host.digit.set('3');
         fixture.detectChanges();
 
+        await vi.waitFor(() => expect(animations).toHaveLength(2));
         expect(finishSpy).toHaveBeenCalled();
-        expect(animations).toHaveLength(2);
     });
 
     it('falls back to setting prevDigit when the flex container is missing', () => {

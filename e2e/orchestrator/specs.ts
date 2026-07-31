@@ -353,6 +353,7 @@ export const CLI_SPECS: readonly CliSpecEntry[] = [
     { label: 'merge-update',            module: 'merge-update' },
     { label: 'stale-selector-build',    module: 'stale-selector-build' },
     { label: 'doctor-lib-drift',        module: 'doctor-lib-drift' },
+    { label: 'rte-image-seam-upgrade',  module: 'rte-image-seam-upgrade' },
     { label: 'cross-component-typecheck', module: 'cross-component-typecheck' },
     { label: 'page-builder-layout',     module: 'page-builder-layout' },
     { label: 'clean-reinstall',         module: 'clean-reinstall' },

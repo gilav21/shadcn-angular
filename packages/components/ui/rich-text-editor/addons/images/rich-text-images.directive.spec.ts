@@ -256,6 +256,52 @@ describe('RichTextImagesDirective', () => {
         expect(fixture.componentInstance.uploadComplete).toContain('https://cdn.example.com/clip.png');
     });
 
+    it('claims image files for the editor, so other addons route through the uploader', async () => {
+        const fixture = createFixture();
+        fixture.componentInstance.sources.set('upload');
+        fixture.componentInstance.uploader.set(() => of('https://cdn.example.com/picked.png'));
+        fixture.detectChanges();
+        const { el, cmp } = setContent(fixture, '<p>x</p>');
+        caretAtEnd(el.querySelector('p')!);
+
+        expect(cmp.hasImageFileHandler()).toBe(true);
+        expect(cmp.insertImageFile(new File(['img'], 'picked.png', { type: 'image/png' }))).toBe(true);
+        await wait();
+        fixture.detectChanges();
+
+        expect(el.innerHTML).toContain('https://cdn.example.com/picked.png');
+        expect(fixture.componentInstance.uploadComplete).toContain('https://cdn.example.com/picked.png');
+    });
+
+    it('applies the insert defaults to a routed image, as for any other source', async () => {
+        const fixture = createFixture();
+        fixture.componentInstance.defaultWidth.set(320);
+        fixture.componentInstance.defaultAlignment.set('center');
+        fixture.detectChanges();
+        const { el, cmp } = setContent(fixture, '<p>x</p>');
+        caretAtEnd(el.querySelector('p')!);
+
+        cmp.insertImageFile(new File(['img'], 'picked.png', { type: 'image/png' }));
+        await wait();
+        fixture.detectChanges();
+
+        const img = el.querySelector('img');
+        expect(img?.dataset['align']).toBe('center');
+        expect(img?.style.width).toBe('320px');
+    });
+
+    it('releases the image-file claim when the addon is disabled', () => {
+        const fixture = createFixture();
+        const { cmp } = editorOf(fixture);
+        expect(cmp.hasImageFileHandler()).toBe(true);
+
+        fixture.componentInstance.enabled.set(false);
+        fixture.detectChanges();
+
+        expect(cmp.hasImageFileHandler()).toBe(false);
+        expect(cmp.insertImageFile(new File(['img'], 'x.png', { type: 'image/png' }))).toBe(false);
+    });
+
     it('defers an Excel-sourced paste back to the base (no image insert)', async () => {
         const fixture = createFixture();
         const { el, cmp } = setContent(fixture, '<p>x</p>');

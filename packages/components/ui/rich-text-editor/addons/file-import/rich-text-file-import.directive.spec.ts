@@ -105,6 +105,17 @@ function docxFile(text = 'Imported DOCX text'): File {
     return new File([bytes], 'in.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 
+// A PNG header plus the start of its IHDR chunk: enough for both the addon's
+// sniffer and the sanitizer's magic-byte check on the inserted data: URL, which
+// only decodes the leading bytes. jsdom never decodes the pixels.
+function pngFile(name = 'photo.png'): File {
+    const bytes = new Uint8Array([
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+    ]);
+    return new File([bytes], name, { type: 'image/png' });
+}
+
 // Minimal single-page PDF (one Helvetica text run) the real pdf-parser accepts,
 // so the addon's PDF import path runs end-to-end and inserts the parsed HTML.
 function pdfFile(text = 'Imported PDF text'): File {
@@ -141,6 +152,7 @@ function pdfBytesWithStream(stream: string): Uint8Array {
     imports: [RichTextEditorComponent, RichTextFileImportDirective],
     template: `<ui-rich-text-editor mode="html" [disabled]="disabled()" [readonly]="readonly()"
         [uiRteFileImport]="enabled()" [uiRteFileImportToolbar]="toolbar()" [uiRteFileImportLocale]="locale()"
+        [uiRteFileImportAccept]="accept()"
         (fileImportStart)="starts.push($event)"
         (fileImportComplete)="completes.push($event)"
         (fileImportError)="errors.push($event)"></ui-rich-text-editor>`,
@@ -151,6 +163,7 @@ class HostCmp {
     readonly enabled = signal(true);
     readonly toolbar = signal(true);
     readonly locale = signal<string | undefined>(undefined);
+    readonly accept = signal<string | undefined>(undefined);
     starts: File[] = [];
     completes: string[] = [];
     errors: string[] = [];
@@ -249,13 +262,87 @@ describe('RichTextFileImportDirective', () => {
         expect(fixture.componentInstance.starts).toHaveLength(1);
     });
 
-    it('emits fileImportError and shows the overlay for a non-zip/non-pdf file', async () => {
+    it('routes a picked image to the image pipeline instead of inserting one', async () => {
+        const fixture = createFixture();
+        const { cmp } = editorOf(fixture);
+        const routed: File[] = [];
+        cmp.registerImageFileHandler((f) => routed.push(f));
+        fixture.detectChanges();
+
+        buttonContext(fixture).onImport(pngFile());
+        await waitUntil(() => routed.length > 0);
+        fixture.detectChanges();
+
+        expect(routed.map((f) => f.name)).toEqual(['photo.png']);
+        expect(fixture.componentInstance.starts).toHaveLength(0);
+        expect(fixture.componentInstance.completes).toHaveLength(0);
+        expect(editorOf(fixture).el.querySelector('img')).toBeNull();
+    });
+
+    it('routes by magic bytes, not the spoofable file type', async () => {
+        const fixture = createFixture();
+        const { cmp } = editorOf(fixture);
+        const routed: File[] = [];
+        cmp.registerImageFileHandler((f) => routed.push(f));
+        fixture.detectChanges();
+
+        const lying = new File([await pngFile().arrayBuffer()], 'note.txt', { type: 'text/plain' });
+        buttonContext(fixture).onImport(lying);
+        await waitUntil(() => routed.length > 0);
+
+        expect(routed).toHaveLength(1);
+    });
+
+    it('offers image types in the picker only while an image handler is registered', () => {
+        const fixture = createFixture();
+        const { cmp } = editorOf(fixture);
+        expect(buttonContext(fixture).accept()).toBe('.pdf,.docx');
+
+        const teardown = cmp.registerImageFileHandler(() => undefined);
+        fixture.detectChanges();
+        expect(buttonContext(fixture).accept()).toBe('.pdf,.docx,.png,.jpg,.jpeg,.gif,.webp');
+
+        teardown();
+        fixture.detectChanges();
+        expect(buttonContext(fixture).accept()).toBe('.pdf,.docx');
+    });
+
+    it('an explicit accept input still wins over the dynamic list', () => {
+        const fixture = createFixture();
+        const { cmp } = editorOf(fixture);
+        cmp.registerImageFileHandler(() => undefined);
+        fixture.componentInstance.accept.set('.pdf');
+        fixture.detectChanges();
+
+        expect(buttonContext(fixture).accept()).toBe('.pdf');
+    });
+
+    it('reports an error when an image is picked with no image pipeline', async () => {
+        const fixture = createFixture();
+        buttonContext(fixture).onImport(pngFile());
+        await waitUntil(() => fixture.componentInstance.errors.length > 0);
+
+        expect(fixture.componentInstance.errors).toHaveLength(1);
+        expect(fixture.componentInstance.starts).toHaveLength(0);
+    });
+
+    it('leaves a dropped image to the images addon rather than claiming it', async () => {
+        const fixture = createFixture();
+        const { cmp } = editorOf(fixture);
+        await cmp.onEditorDrop(dropEvent([pngFile()]));
+        await wait();
+
+        expect(fixture.componentInstance.starts).toHaveLength(0);
+        expect(fixture.componentInstance.errors).toHaveLength(0);
+    });
+
+    it('emits fileImportError and shows the overlay for an unrecognized file', async () => {
         const fixture = createFixture();
         buttonContext(fixture).onImport(new File([new Uint8Array([1, 2, 3, 4, 5])], 'note.txt', { type: 'text/plain' }));
         await waitUntil(() => fixture.componentInstance.errors.length > 0);
         fixture.detectChanges();
 
-        expect(fixture.componentInstance.errors).toContain('The selected file is not a valid PDF or DOCX.');
+        expect(fixture.componentInstance.errors).toContain('The selected file is not a supported document or image.');
         expect(fixture.nativeElement.querySelector('[data-slot="rte-file-import-error"]')).toBeTruthy();
     });
 

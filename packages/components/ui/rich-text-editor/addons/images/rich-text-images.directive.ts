@@ -199,6 +199,7 @@ export class RichTextImagesDirective {
         this.registerToolbarSlot();
         this.registerPasteSeam();
         this.registerDropSeams();
+        this.registerImageFileSeam();
         this.registerClickProbe();
         this.registerAutoUpload();
         this.mountOverlay();
@@ -264,6 +265,18 @@ export class RichTextImagesDirective {
         });
         effect((onCleanup) => {
             onCleanup(this.host.registerDropZonePredicate(() => this.canAcceptDrag()));
+        });
+    }
+
+    /**
+     * Claim image files for the whole editor, so other addons (the file-import
+     * picker) route theirs into this same upload/insert pipeline instead of
+     * inserting images of their own.
+     */
+    private registerImageFileSeam(): void {
+        effect((onCleanup) => {
+            if (!this.uiRteImages() || !this.canUseUpload()) return;
+            onCleanup(this.host.registerImageFileHandler((file) => void this.insertImageFile(file)));
         });
     }
 

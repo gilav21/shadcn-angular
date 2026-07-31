@@ -16,8 +16,11 @@ const meta: Meta = {
                     'Opt-in file-import addon: `apply rich-text-editor/file-import`, then add `uiRteFileImport` to ' +
                     'the editor element. Contributes the import toolbar button (a hidden `.pdf,.docx` picker), ' +
                     'document drag-and-drop, the lazy-loaded DOCX/PDF parsers, and a busy/error overlay. The parsed ' +
-                    'document lands at the caret as one history entry. The base editor ships no import UI or parser ' +
-                    'code, so a plain install no longer pulls the docx/pdf parser lib files.',
+                    'document lands at the caret as one history entry. Alongside the images addon the picker also ' +
+                    'offers PNG/JPEG/GIF/WEBP and hands a picked image to that addon\'s pipeline — same uploader, ' +
+                    'insert defaults and outputs as a pasted or dropped image — so there is never a second way an ' +
+                    'image can enter the document. The base editor ships no import UI or parser code, so a plain ' +
+                    'install no longer pulls the docx/pdf parser lib files.',
             },
         },
     },
