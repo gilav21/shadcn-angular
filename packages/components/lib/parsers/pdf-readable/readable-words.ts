@@ -33,7 +33,7 @@ export interface WordBuildContext {
  */
 export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): Word[] {
     const words: Word[] = [];
-    const bimodal = bimodalGapThreshold(items);
+    const thresholds = segmentThresholds(items);
     let pendingSpace = false;
 
     for (let i = 0; i < items.length; i++) {
@@ -42,9 +42,35 @@ export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): W
             pendingSpace = true;
             continue;
         }
-        pendingSpace = appendItem(words, item, ctx, pendingSpace, bimodal, items[i + 1]);
+        pendingSpace = appendItem(words, item, ctx, pendingSpace, thresholds[i], items[i + 1]);
     }
     return words;
+}
+
+/**
+ * The gap threshold for each item, measured within its own hard-break-delimited
+ * run rather than across the whole baseline. A line often carries two
+ * unrelated runs — an invoice's letterspaced tagline and, a hundred points
+ * away, the tight display type of its number panel. Pooled, the tight run's
+ * ~0 gaps sink the letter tier until no valley clears the minimum, the
+ * threshold comes back null, and the fallback splits the tagline at every
+ * letter. Measured per run, each finds its own valley.
+ */
+function segmentThresholds(items: readonly TextItem[]): Array<number | null> {
+    const thresholds = new Array<number | null>(items.length).fill(null);
+    let start = 0;
+    for (let i = 1; i <= items.length; i++) {
+        if (i < items.length && !breaksRun(items[i - 1], items[i])) continue;
+        const threshold = bimodalGapThreshold(items.slice(start, i));
+        thresholds.fill(threshold, start, i);
+        start = i;
+    }
+    return thresholds;
+}
+
+/** A gap too wide to be word spacing — the boundary between two runs. */
+function breaksRun(previous: TextItem, item: TextItem): boolean {
+    return gapEm(previous, item) > HARD_BREAK_EM;
 }
 
 /**
@@ -67,19 +93,29 @@ export function bimodalGapThreshold(items: readonly TextItem[]): number | null {
     const gaps: number[] = [];
     for (let i = 1; i < items.length; i++) {
         if (directionFlips(items[i - 1].text, items[i].text)) continue;
-        const gap = items[i].x - items[i - 1].endX;
-        if (gap <= Math.max(items[i].fontSize, 1) * HARD_BREAK_EM) gaps.push(gap);
+        const gap = gapEm(items[i - 1], items[i]);
+        if (gap <= HARD_BREAK_EM) gaps.push(gap);
     }
     if (gaps.length < 4) return null;
     gaps.sort((a, b) => a - b);
-    const fontSize = medianFontSize(items);
     const baseline = gaps[Math.floor(gaps.length * LETTER_TIER_PERCENTILE)];
-    const threshold = baseline + WORD_MARGIN_EM * fontSize;
-    return hasValleyAt(gaps, threshold, fontSize) ? threshold : null;
+    const threshold = baseline + WORD_MARGIN_EM;
+    return hasValleyAt(gaps, threshold) ? threshold : null;
+}
+
+/**
+ * A gap between two fragments as a fraction of the type it separates. Measuring
+ * in em rather than pt is what lets one threshold serve a line that mixes
+ * sizes: a masthead's 19pt title and the 9.5pt kicker beside it both break
+ * words at 0.28em, but at 5.3pt and 2.6pt respectively — an absolute threshold
+ * drawn between them merges every word of the smaller run.
+ */
+function gapEm(previous: TextItem, item: TextItem): number {
+    return (item.x - previous.endX) / Math.max(previous.fontSize, item.fontSize, 1);
 }
 
 /** True when some gaps fall below `threshold` and the rest sit a clear valley above it. */
-function hasValleyAt(sortedGaps: readonly number[], threshold: number, fontSize: number): boolean {
+function hasValleyAt(sortedGaps: readonly number[], threshold: number): boolean {
     let maxBelow = -Infinity;
     let minAbove = Infinity;
     for (const gap of sortedGaps) {
@@ -87,12 +123,7 @@ function hasValleyAt(sortedGaps: readonly number[], threshold: number, fontSize:
         else minAbove = Math.min(minAbove, gap);
     }
     if (maxBelow === -Infinity || minAbove === Infinity) return false;
-    return minAbove - maxBelow >= MIN_VALLEY_EM * fontSize;
-}
-
-function medianFontSize(items: readonly TextItem[]): number {
-    const sizes = items.map(item => Math.max(item.fontSize, 1)).sort((a, b) => a - b);
-    return sizes[sizes.length >> 1];
+    return minAbove - maxBelow >= MIN_VALLEY_EM;
 }
 
 function appendItem(
@@ -150,12 +181,19 @@ function classifyGap(
     if (gap < -fontSize * NEGATIVE_GAP_EM) return 'break';
     if (directionFlips(previous.text, item.text)) return 'break';
     if (neutralBelongsToRtl(previous, item, nextItem)) return 'break';
+    // A measured valley in this line's own gaps outranks the font's nominal
+    // space advance. Letterspacing is often applied through glyph positioning
+    // rather than Tc/Tw, so `knownSpaceWidth` cannot see it: on a tracked-out
+    // masthead the nominal width stays ~0.24em while every letter gap is wider,
+    // and each glyph becomes its own word ("A Q U A R T E R L Y"). The valley
+    // is only reported when the gaps genuinely separate into two tiers, so
+    // where it exists it is the stronger evidence.
+    if (bimodal !== null) return gap / fontSize >= bimodal ? 'space' : 'merge';
     const known = knownSpaceWidth(item, ctx);
     if (known !== null) {
         const spaceWidth = known + Math.max(0, item.wordSpacing) + Math.max(0, item.charSpacing);
         return gap >= spaceWidth * SPACE_GAP_FACTOR ? 'space' : 'merge';
     }
-    if (bimodal !== null) return gap >= bimodal ? 'space' : 'merge';
     const spaceWidth = estimateSpaceWidth(item, ctx) +
         Math.max(0, item.wordSpacing) + Math.max(0, item.charSpacing);
     return gap >= spaceWidth * SPACE_GAP_FACTOR ? 'space' : 'merge';

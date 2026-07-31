@@ -56,6 +56,18 @@ describe('RichTextSanitizerService', () => {
             expect(result.match(/<table/g) ?? []).toHaveLength(2);
             expect(result).toContain('<td>A</td>');
         });
+
+        it('keeps the pdf-readable `background` shorthand alongside its text colour', () => {
+            const html = '<p style="background:#4a86e8;color:#ffffff">Total</p>';
+            const result = service.sanitize(html).replaceAll(': ', ':');
+            expect(result).toContain('background:#4a86e8');
+            expect(result).toContain('color:#ffffff');
+        });
+
+        it('still rejects a url() payload in the `background` shorthand', () => {
+            const html = '<p style="background:url(javascript:alert(1))">x</p>';
+            expect(service.sanitize(html)).not.toContain('url(');
+        });
     });
 
     describe('XSS prevention - script injection', () => {

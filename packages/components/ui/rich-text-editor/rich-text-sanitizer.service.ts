@@ -76,6 +76,12 @@ export class RichTextSanitizerService {
     private readonly ALLOWED_STYLE_PROPERTIES = new Set([
         'color',
         'background-color',
+        // The `background` shorthand is what document importers actually emit
+        // (pdf-readable writes every fill as `background:<color>`). Without it
+        // the fill is dropped while the text colour survives, so light text
+        // that relied on a dark fill renders invisible. Values containing
+        // `url(` / `expression(` / `javascript:` are still rejected below.
+        'background',
         'text-align',
         'font-size',
         // Dimensions for images

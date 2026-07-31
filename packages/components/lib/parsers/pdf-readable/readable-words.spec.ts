@@ -189,6 +189,75 @@ describe('buildWords', () => {
         expect(joined).toBe('foobar baz');
     });
 
+    it('keeps words whole in tracked-out text the declared space width misreads', () => {
+        // A letterspaced masthead: the tracking is baked into glyph positions,
+        // not Tc, so the font's declared 0.24em space (2.17pt at 9pt) sits
+        // BELOW the 2.25pt letter gaps and would make every glyph its own word.
+        // The measured valley (letters 2.25 / words 6.67) has to win.
+        const tracked: WordBuildContext = { annotations: [], spaceAdvance: () => 241 };
+        let x = 0;
+        const items: TextItem[] = [];
+        for (const ch of 'ABC DEF GHI') {
+            if (ch === ' ') { x += 4.42; continue; }
+            items.push(makeItem({ text: ch, x, endX: x + 6, fontSize: 9 }));
+            x += 6 + 2.25;
+        }
+        // Same-style runs coalesce into one Word, so what matters is that the
+        // spaces land between the words and not between every letter.
+        expect(buildWords(items, tracked).map(w => w.text).join(' ')).toBe('ABC DEF GHI');
+    });
+
+    it('breaks words of both sizes on a line that mixes a title and a kicker', () => {
+        // quarterly-report.pdf's masthead: a 19pt title whose word gaps are
+        // 5.28pt beside a 9.49pt kicker whose word gaps are 2.64pt. Both are
+        // 0.28em; an absolute threshold drawn from the line's median font size
+        // lands between them and merges every word of the kicker.
+        const items: TextItem[] = [];
+        let x = 0;
+        const push = (text: string, fontSize: number, gapAfter: number) => {
+            for (const ch of text) {
+                items.push(makeItem({ text: ch, x, endX: x + fontSize * 0.5, fontSize }));
+                x += fontSize * 0.5;
+            }
+            x += gapAfter;
+        };
+        push('Lighthouse', 19, 5.28);
+        push('Library', 19, 5.28);
+        push('Network', 19, 138.92);
+        push('Quarterly', 9.49, 2.64);
+        push('Report', 9.49, 2.64);
+        push('Q1', 9.49, 2.64);
+        push('2026', 9.49, 0);
+        const text = buildWords(items, ctx).map(w => w.text).join(' ');
+        expect(text).toContain('Lighthouse Library Network');
+        expect(text).toContain('Quarterly Report');
+        expect(text).toContain('Q1 2026');
+    });
+
+    it('measures the valley per run, not across two runs sharing a baseline', () => {
+        // invoice.pdf: a 9pt letterspaced tagline (1.5pt letter gaps, 5.3pt
+        // word gaps) shares its baseline with the tight display type of the
+        // invoice-number panel 119pt away. Pooled, the panel's ~0 gaps sink the
+        // letter tier until no valley clears the minimum and the tagline splits
+        // at every letter.
+        const items: TextItem[] = [];
+        let x = 0;
+        const push = (text: string, fontSize: number, letterGap: number, gapAfter: number) => {
+            for (const ch of text) {
+                items.push(makeItem({ text: ch, x, endX: x + fontSize * 0.6, fontSize }));
+                x += fontSize * 0.6 + letterGap;
+            }
+            x += gapAfter - letterGap;
+        };
+        push('SPECIALTY', 9, 1.5, 5.34);
+        push('COFFEE', 9, 1.5, 119.4);
+        push('INVOICE', 16, 0, 4.45);
+        push('#2047', 16, 0, 0);
+        const text = buildWords(items, ctx).map(w => w.text).join(' ');
+        expect(text).toContain('SPECIALTY COFFEE');
+        expect(text).toContain('INVOICE #2047');
+    });
+
     it('returns no bimodal threshold for uniform gaps', () => {
         const items = [0, 10, 20, 30, 40].map(x => makeItem({ text: 'a', x, endX: x + 8 }));
         expect(bimodalGapThreshold(items)).toBeNull();

@@ -156,7 +156,11 @@ export function computeLineHeight(lines: readonly Line[]): number {
     return Math.min(3, Math.max(0.9, quantized));
 }
 
-function computeMarginTop(
+/**
+ * The whitespace the PDF left above a block, beyond one line's own leading,
+ * in pt. Pass `0` for `lineHeight` to assume normal leading.
+ */
+export function computeMarginTop(
     lines: readonly Line[],
     previousBaseline: number | null,
     lineHeight: number,

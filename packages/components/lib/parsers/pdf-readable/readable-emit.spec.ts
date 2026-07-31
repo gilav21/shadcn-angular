@@ -82,6 +82,35 @@ describe('inline image emission', () => {
     });
 });
 
+describe('stacked line breaks', () => {
+    const OPTS = { embedFonts: false, includeImages: true, pageWrappers: false, fontFamilyPrefix: 'p-' };
+
+    function stackDoc(): DocModel {
+        // Short lines that stop well short of the measure — preserveLineBreaks
+        // keeps their breaks, so they are emitted with <br> rather than joined.
+        const lines = [
+            lineOf('Name: Ada', 50, 160, 700),
+            lineOf('Email: ada@x.io', 50, 200, 686),
+            lineOf('Phone: 123', 50, 150, 672),
+            lineOf('City: Metropolis', 50, 210, 658),
+        ];
+        return {
+            pages: [{ index: 0, width: 612, height: 792, blocks: [
+                { kind: 'paragraph', lines, page: 0, style: { align: '', indentStart: 0, textIndent: 0, lineHeight: 0, marginTop: 0, dir: '', background: '', border: '' } },
+            ] }],
+            bodyFontSize: 12,
+        };
+    }
+
+    it('keeps the words separated in the text layer across a <br>', () => {
+        const { html } = emitDocument(stackDoc(), OPTS, new Map());
+        expect(html).toContain('<br>');
+        const text = new DOMParser().parseFromString(html, 'text/html').body.textContent ?? '';
+        expect(text).not.toContain('Adaemail');
+        expect(text.replaceAll(/\s+/g, ' ')).toContain('Name: Ada Email: ada@x.io');
+    });
+});
+
 describe('heading font weight', () => {
     const OPTS2 = { embedFonts: false, includeImages: true, pageWrappers: false, fontFamilyPrefix: 'p-' };
     const styleOf = (bold: boolean) => ({ ...wordAt('x', 0, 0, 0).style, bold });

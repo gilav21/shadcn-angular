@@ -8,6 +8,7 @@ import {
     buildPageBlocks,
     extractKeyValueRun,
     extractLeadingQuadrant,
+    splitFieldRows,
     splitJustifiedRows,
     xyCut,
 } from './readable-blocks';
@@ -446,6 +447,73 @@ describe('buildPageBlocks — side-by-side columns', () => {
         expect(bodyBlock).toBeDefined();
     });
 
+    it('column-wraps two prose columns sitting under a full-width heading', () => {
+        // The newsletter shape: a spanning heading vetoes the plain column
+        // valley, so only the spanner-tolerant split finds the two columns.
+        // Flattening its regions used to emit the right column as indented
+        // paragraphs below the left one.
+        const heading = lineOf('The Quiet Art of Urban Beekeeping Spans It All', 50, 550, 716);
+        const lines: Line[] = [heading];
+        let y = 700;
+        for (let i = 0; i < 5; i++) {
+            lines.push(
+                lineOf(`left prose row ${i} flowing text`, 50, 280, y),
+                lineOf(`right prose row ${i} flowing text`, 320, 550, y),
+            );
+            y -= 16;
+        }
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines), false, ctx);
+        const columns = blocks.find(b => b.kind === 'columns');
+        expect(columns?.kind).toBe('columns');
+        if (columns?.kind !== 'columns') return;
+        expect(columns.columns).toHaveLength(2);
+        const textOf = (i: number) => columns.columns[i].blocks
+            .flatMap(b => blockLines(b)).map(l => l.words[0].text).join(' ');
+        expect(textOf(0)).toContain('left');
+        expect(textOf(0)).not.toContain('right');
+        expect(textOf(1)).toContain('right');
+        // the spanning heading stays a sibling above, not folded into a cell
+        expect(blocks.some(b => b.kind !== 'columns' &&
+            blockLines(b).some(l => l.words[0].text.startsWith('The Quiet Art')))).toBe(true);
+    });
+
+    it('keeps a genuine double rule as two, and one rule painted in slices as one', () => {
+        const lines = [lineOf('body text under the rules', 50, 550, 600)];
+        // Two hairlines with clear whitespace between them: a masthead rule.
+        const doubleRule = [rectOf(45, 736.4, 506, 0.7), rectOf(45, 734.1, 506, 0.7)];
+        const doubled = buildPageBlocks(
+            [...lines], pageExtractOf(lines, { rects: doubleRule }), false, ctx);
+        expect(doubled.filter(b => b.kind === 'rule')).toHaveLength(2);
+
+        // One rule drawn as an overlapping fill and stroke: still one rule.
+        const slices = [rectOf(45, 700, 506, 1), rectOf(45, 699.6, 506, 1.2)];
+        const sliced = buildPageBlocks(
+            [...lines], pageExtractOf(lines, { rects: slices }), false, ctx);
+        expect(sliced.filter(b => b.kind === 'rule')).toHaveLength(1);
+    });
+
+    it('carries a drawn bar beside a quote onto the block as a start rule', () => {
+        const lines = [
+            lineOf('the honey changes flavour room by room', 69, 380, 480),
+            lineOf('across the calendar.', 69, 300, 466),
+        ];
+        const bar = rectOf(57, 455.1, 2.2, 41.2);
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects: [bar] }), false, ctx);
+        const marked = blocks.find(b => b.style.ruleStart);
+        expect(marked?.style.ruleStart?.widthPt).toBeCloseTo(2.2, 1);
+        // the gap is measured from the rect to the text, never assumed
+        expect(marked?.style.ruleStart?.gapPt).toBeCloseTo(69 - 59.2, 1);
+    });
+
+    it('leaves a quote with no drawn bar unmarked', () => {
+        const lines = [
+            lineOf('the honey changes flavour room by room', 69, 380, 480),
+            lineOf('across the calendar.', 69, 300, 466),
+        ];
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects: [] }), false, ctx);
+        expect(blocks.some(b => b.style.ruleStart)).toBe(false);
+    });
+
     it('does not column-wrap a single shared baseline (label/value line)', () => {
         const lines = [
             lineOf('Total', 50, 120, 700),
@@ -595,6 +663,20 @@ describe('splitJustifiedRows', () => {
             lineOf('ordinary line two', 50, 300, 686, { fontSize: 13 }),
         ];
         expect(splitJustifiedRows(prose, 0, ctxB)).toBeNull();
+    });
+
+    // quarterly-report.pdf: the masthead leads a ten-row region, so the
+    // short-band cap used to reject it and the kicker landed against the title.
+    it('splits a leading masthead even in a dense region', () => {
+        const dense = [
+            lineOf('Lighthouse Library Network', 50, 300, 700, { fontSize: 19 }),
+            lineOf('Quarterly Report · Q1 2026', 425, 500, 700, { fontSize: 9.5 }),
+            lineOf('body row one', 50, 400, 680, { fontSize: 13 }),
+            lineOf('body row two', 50, 400, 660, { fontSize: 13 }),
+            lineOf('body row three', 50, 400, 640, { fontSize: 13 }),
+        ];
+        const blocks = splitJustifiedRows(dense, 0, ctxB);
+        expect(blocks?.[0].kind).toBe('columns');
     });
 
     it('does not fire inside a dense region (more than a short header band)', () => {
@@ -893,6 +975,151 @@ describe('bold-to-plain paragraph boundary', () => {
         const blocks = buildPageBlocks([label, name], pageExtractOf([label, name]), true, ctx);
         const joined = blocks.some(b => blockLines(b).length === 2);
         expect(joined).toBe(true);
+    });
+});
+
+// Form slots: drawn rules and boxes are the structure, not the text.
+describe('form field slots', () => {
+    function slotRule(x: number, y: number, width: number): PathRect {
+        return {
+            x, y, width, height: 0.7, page: 0,
+            stroked: false, filled: true,
+            strokeColor: '#8e44ad', fillColor: '#8e44ad', lineWidth: 0,
+        };
+    }
+
+    // registration-form.pdf's real geometry: FULL NAME | DATE OF BIRTH and
+    // EMAIL | PHONE, each label over its own slot rule.
+    const fieldLines = (): Line[] => [
+        lineOf('FULL NAME', 45, 98.4, 677.1, { fontSize: 8 }),
+        lineOf('DATE OF BIRTH', 310.1, 383, 677.1, { fontSize: 8 }),
+        lineOf('EMAIL', 45, 73.5, 635.1, { fontSize: 8 }),
+        lineOf('PHONE', 310.1, 345, 635.1, { fontSize: 8 }),
+    ];
+    const fieldRects = (): PathRect[] => [
+        slotRule(45, 659.1, 241.5), slotRule(310.5, 659.1, 240.7),
+        slotRule(45, 617.1, 241.5), slotRule(310.5, 617.1, 240.7),
+    ];
+    const withRules = (rects: PathRect[]): ClassifyContext => ({
+        ...ctx, pageBounds: { x0: 45, x1: 551.2 }, fieldRules: rects, useRect: () => { },
+    });
+
+    it('splits two labels on one baseline into columns when each has its own rule', () => {
+        const split = splitFieldRows(fieldLines(), 0, withRules(fieldRects()));
+        expect(split).not.toBeNull();
+        if (!split) return;
+        expect(split.block.columns).toHaveLength(2);
+        const textOf = (i: number) => split.block.columns[i].blocks
+            .flatMap(b => blockLines(b)).map(l => l.words[0].text).join(' ');
+        expect(textOf(0)).toBe('FULL NAME EMAIL');
+        expect(textOf(1)).toBe('DATE OF BIRTH PHONE');
+    });
+
+    it('carries each slot rule onto its own label as a border', () => {
+        const split = splitFieldRows(fieldLines(), 0, withRules(fieldRects()));
+        const marked = split?.block.columns.flatMap(c => c.blocks).filter(b => b.style.ruleUnder);
+        expect(marked).toHaveLength(4);
+        expect(marked?.[0].style.ruleUnder?.color).toBe('#8e44ad');
+    });
+
+    it('leaves a label/value pair on one baseline joined when there is no rule', () => {
+        const lines = [
+            lineOf('Total', 45, 98.4, 677.1, { fontSize: 8 }),
+            lineOf('42', 310.1, 345, 677.1, { fontSize: 8 }),
+        ];
+        expect(splitFieldRows(lines, 0, withRules([]))).toBeNull();
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects: [] }), false, ctx);
+        expect(blocks.some(b => b.kind === 'columns')).toBe(false);
+    });
+
+    it('does not pull a section heading below the last slot into the grid', () => {
+        const lines = [
+            ...fieldLines(),
+            lineOf('Workshop selection', 45, 180, 595, { fontSize: 11 }),
+        ];
+        const split = splitFieldRows(lines, 0, withRules(fieldRects()));
+        expect(split).not.toBeNull();
+        const inGrid = split?.block.columns.flatMap(c => c.blocks)
+            .flatMap(b => blockLines(b)).map(l => l.words[0].text) ?? [];
+        expect(inGrid).not.toContain('Workshop selection');
+    });
+
+    it('turns drawn checkboxes into a task list carrying their ticked state', () => {
+        const box = (y: number, filled: boolean): PathRect => ({
+            x: 45.4, y, width: 9, height: 9, page: 0,
+            stroked: true, filled, strokeColor: '#333333', fillColor: '#333333', lineWidth: 1,
+        });
+        const lines = [
+            lineOf('Woodworking fundamentals', 62, 300, 560, { fontSize: 10 }),
+            lineOf('Ceramics: wheel throwing', 62, 300, 540, { fontSize: 10 }),
+            lineOf('Intro to letterpress', 62, 300, 520, { fontSize: 10 }),
+        ];
+        const rects = [box(559.8, false), box(539.5, true), box(519.9, false)];
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects }), false, ctx);
+        const list = blocks.find(b => b.kind === 'list');
+        expect(list?.kind).toBe('list');
+        if (list?.kind !== 'list') return;
+        expect(list.task).toBe(true);
+        expect(list.items.map(i => i.checked)).toEqual([false, true, false]);
+    });
+
+    // registration-form.pdf's consent paragraph sits at y=428.9 and its three
+    // signature slots at y=360.6 — nearly 58pt of deliberate whitespace that a
+    // columns row, assembled rather than flowed, used to throw away.
+    it('keeps the whitespace the PDF left above a signature row', () => {
+        const lines = [
+            lineOf('I confirm the details above are correct.', 45, 400, 428.9, { fontSize: 10.5 }),
+            lineOf('Participant signature', 45, 140, 360.6, { fontSize: 9 }),
+            lineOf('Date', 227.2, 260, 360.6, { fontSize: 9 }),
+            lineOf('Staff initials', 409.5, 480, 360.6, { fontSize: 9 }),
+        ];
+        const rects = [slotRule(45, 370.4, 141.7), slotRule(227.2, 370.4, 141.7),
+            slotRule(409.5, 370.4, 141.7)];
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects }), false, ctx);
+        const row = blocks.find(b => b.kind === 'columns');
+        expect(row?.kind).toBe('columns');
+        expect(row?.style.marginTop).toBeGreaterThan(12);
+    });
+
+    it('does not make a task list from text that has no drawn boxes', () => {
+        const lines = [
+            lineOf('Woodworking fundamentals', 62, 300, 560, { fontSize: 10 }),
+            lineOf('Ceramics: wheel throwing', 62, 300, 540, { fontSize: 10 }),
+        ];
+        const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects: [] }), false, ctx);
+        expect(blocks.some(b => b.kind === 'list' && b.task === true)).toBe(false);
+    });
+});
+
+// Indent-marked paragraphs whose leading is too tight for the gap test.
+describe('first-line-indent paragraph boundary', () => {
+    // The newsletter's right column: 15pt lines, 21.7pt paragraph gap (1.45x,
+    // under PARAGRAPH_GAP_FACTOR), paragraphs marked only by a 14pt indent.
+    function column(): Line[] {
+        return [
+            lineOf('City ordinances vary, and most registrars ask', 323.1, 551.2, 585.6, { fontSize: 10 }),
+            lineOf('that hives sit a polite distance from property', 309.1, 551.2, 570.6, { fontSize: 10 }),
+            lineOf('Neighbours, in the keepers experience, come', 309.1, 551.2, 555.6, { fontSize: 10 }),
+            lineOf('quickly usually at the first jar handed over', 309.1, 541.4, 540.6, { fontSize: 10 }),
+            lineOf('What surprises newcomers most is the sound', 323.1, 551.2, 518.9, { fontSize: 10 }),
+            lineOf('the buzz itself, but its weather: a contented', 309.1, 551.2, 503.9, { fontSize: 10 }),
+        ];
+    }
+
+    it('splits at the indent even though the gap is under the threshold', () => {
+        const lines = column();
+        const blocks = buildPageBlocks(lines, pageExtractOf(lines), false, ctx);
+        const texts = blocks.map(b => blockLines(b).map(l => l.words[0].text).join(' '));
+        expect(texts.some(t => t.includes('City ordinances') && t.includes('What surprises'))).toBe(false);
+        expect(texts.some(t => t.includes('What surprises') && t.includes('the buzz itself'))).toBe(true);
+    });
+
+    it('does not split a wrapped line that merely starts at the measure', () => {
+        // Every line flush to the start edge: no indent, so no split.
+        const lines = [0, 1, 2, 3].map(i =>
+            lineOf(`flush line ${i} of one flowing paragraph`, 309.1, 551.2, 585.6 - i * 15, { fontSize: 10 }));
+        const blocks = buildPageBlocks(lines, pageExtractOf(lines), false, ctx);
+        expect(blocks.filter(b => b.kind === 'paragraph')).toHaveLength(1);
     });
 });
 
