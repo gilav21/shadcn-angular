@@ -448,10 +448,8 @@ describe('buildPageBlocks — side-by-side columns', () => {
     });
 
     it('column-wraps two prose columns sitting under a full-width heading', () => {
-        // The newsletter shape: a spanning heading vetoes the plain column
-        // valley, so only the spanner-tolerant split finds the two columns.
-        // Flattening its regions used to emit the right column as indented
-        // paragraphs below the left one.
+        // A spanning heading vetoes the plain column valley, so only the
+        // spanner-tolerant split finds the two columns.
         const heading = lineOf('The Quiet Art of Urban Beekeeping Spans It All', 50, 550, 716);
         const lines: Line[] = [heading];
         let y = 700;
@@ -472,20 +470,17 @@ describe('buildPageBlocks — side-by-side columns', () => {
         expect(textOf(0)).toContain('left');
         expect(textOf(0)).not.toContain('right');
         expect(textOf(1)).toContain('right');
-        // the spanning heading stays a sibling above, not folded into a cell
         expect(blocks.some(b => b.kind !== 'columns' &&
             blockLines(b).some(l => l.words[0].text.startsWith('The Quiet Art')))).toBe(true);
     });
 
     it('keeps a genuine double rule as two, and one rule painted in slices as one', () => {
         const lines = [lineOf('body text under the rules', 50, 550, 600)];
-        // Two hairlines with clear whitespace between them: a masthead rule.
         const doubleRule = [rectOf(45, 736.4, 506, 0.7), rectOf(45, 734.1, 506, 0.7)];
         const doubled = buildPageBlocks(
             [...lines], pageExtractOf(lines, { rects: doubleRule }), false, ctx);
         expect(doubled.filter(b => b.kind === 'rule')).toHaveLength(2);
 
-        // One rule drawn as an overlapping fill and stroke: still one rule.
         const slices = [rectOf(45, 700, 506, 1), rectOf(45, 699.6, 506, 1.2)];
         const sliced = buildPageBlocks(
             [...lines], pageExtractOf(lines, { rects: slices }), false, ctx);
@@ -501,7 +496,6 @@ describe('buildPageBlocks — side-by-side columns', () => {
         const blocks = buildPageBlocks([...lines], pageExtractOf(lines, { rects: [bar] }), false, ctx);
         const marked = blocks.find(b => b.style.ruleStart);
         expect(marked?.style.ruleStart?.widthPt).toBeCloseTo(2.2, 1);
-        // the gap is measured from the rect to the text, never assumed
         expect(marked?.style.ruleStart?.gapPt).toBeCloseTo(69 - 59.2, 1);
     });
 
@@ -665,8 +659,6 @@ describe('splitJustifiedRows', () => {
         expect(splitJustifiedRows(prose, 0, ctxB)).toBeNull();
     });
 
-    // quarterly-report.pdf: the masthead leads a ten-row region, so the
-    // short-band cap used to reject it and the kicker landed against the title.
     it('splits a leading masthead even in a dense region', () => {
         const dense = [
             lineOf('Lighthouse Library Network', 50, 300, 700, { fontSize: 19 }),
@@ -978,7 +970,6 @@ describe('bold-to-plain paragraph boundary', () => {
     });
 });
 
-// Form slots: drawn rules and boxes are the structure, not the text.
 describe('form field slots', () => {
     function slotRule(x: number, y: number, width: number): PathRect {
         return {
@@ -988,8 +979,7 @@ describe('form field slots', () => {
         };
     }
 
-    // registration-form.pdf's real geometry: FULL NAME | DATE OF BIRTH and
-    // EMAIL | PHONE, each label over its own slot rule.
+    // Two field rows, each label over its own slot rule.
     const fieldLines = (): Line[] => [
         lineOf('FULL NAME', 45, 98.4, 677.1, { fontSize: 8 }),
         lineOf('DATE OF BIRTH', 310.1, 383, 677.1, { fontSize: 8 }),
@@ -1063,9 +1053,7 @@ describe('form field slots', () => {
         expect(list.items.map(i => i.checked)).toEqual([false, true, false]);
     });
 
-    // registration-form.pdf's consent paragraph sits at y=428.9 and its three
-    // signature slots at y=360.6 — nearly 58pt of deliberate whitespace that a
-    // columns row, assembled rather than flowed, used to throw away.
+    // ~58pt of deliberate whitespace between the paragraph and the slots.
     it('keeps the whitespace the PDF left above a signature row', () => {
         const lines = [
             lineOf('I confirm the details above are correct.', 45, 400, 428.9, { fontSize: 10.5 }),
@@ -1091,10 +1079,9 @@ describe('form field slots', () => {
     });
 });
 
-// Indent-marked paragraphs whose leading is too tight for the gap test.
 describe('first-line-indent paragraph boundary', () => {
-    // The newsletter's right column: 15pt lines, 21.7pt paragraph gap (1.45x,
-    // under PARAGRAPH_GAP_FACTOR), paragraphs marked only by a 14pt indent.
+    // 21.7pt gap on 15pt lines is under PARAGRAPH_GAP_FACTOR, so only the
+    // 14pt indent marks these paragraphs.
     function column(): Line[] {
         return [
             lineOf('City ordinances vary, and most registrars ask', 323.1, 551.2, 585.6, { fontSize: 10 }),
@@ -1115,7 +1102,6 @@ describe('first-line-indent paragraph boundary', () => {
     });
 
     it('does not split a wrapped line that merely starts at the measure', () => {
-        // Every line flush to the start edge: no indent, so no split.
         const lines = [0, 1, 2, 3].map(i =>
             lineOf(`flush line ${i} of one flowing paragraph`, 309.1, 551.2, 585.6 - i * 15, { fontSize: 10 }));
         const blocks = buildPageBlocks(lines, pageExtractOf(lines), false, ctx);

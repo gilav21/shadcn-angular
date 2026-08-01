@@ -190,10 +190,8 @@ describe('buildWords', () => {
     });
 
     it('keeps words whole in tracked-out text the declared space width misreads', () => {
-        // A letterspaced masthead: the tracking is baked into glyph positions,
-        // not Tc, so the font's declared 0.24em space (2.17pt at 9pt) sits
-        // BELOW the 2.25pt letter gaps and would make every glyph its own word.
-        // The measured valley (letters 2.25 / words 6.67) has to win.
+        // Declared space 2.17pt sits below the 2.25pt letter gaps, so the
+        // measured valley has to outrank it.
         const tracked: WordBuildContext = { annotations: [], spaceAdvance: () => 241 };
         let x = 0;
         const items: TextItem[] = [];
@@ -202,16 +200,11 @@ describe('buildWords', () => {
             items.push(makeItem({ text: ch, x, endX: x + 6, fontSize: 9 }));
             x += 6 + 2.25;
         }
-        // Same-style runs coalesce into one Word, so what matters is that the
-        // spaces land between the words and not between every letter.
         expect(buildWords(items, tracked).map(w => w.text).join(' ')).toBe('ABC DEF GHI');
     });
 
     it('breaks words of both sizes on a line that mixes a title and a kicker', () => {
-        // quarterly-report.pdf's masthead: a 19pt title whose word gaps are
-        // 5.28pt beside a 9.49pt kicker whose word gaps are 2.64pt. Both are
-        // 0.28em; an absolute threshold drawn from the line's median font size
-        // lands between them and merges every word of the kicker.
+        // Both runs break words at 0.28em, but at 5.28pt and 2.64pt.
         const items: TextItem[] = [];
         let x = 0;
         const push = (text: string, fontSize: number, gapAfter: number) => {
@@ -235,11 +228,8 @@ describe('buildWords', () => {
     });
 
     it('measures the valley per run, not across two runs sharing a baseline', () => {
-        // invoice.pdf: a 9pt letterspaced tagline (1.5pt letter gaps, 5.3pt
-        // word gaps) shares its baseline with the tight display type of the
-        // invoice-number panel 119pt away. Pooled, the panel's ~0 gaps sink the
-        // letter tier until no valley clears the minimum and the tagline splits
-        // at every letter.
+        // A letterspaced run sharing a baseline with tight display type: the
+        // tight run's ~0 gaps would sink the pooled letter tier.
         const items: TextItem[] = [];
         let x = 0;
         const push = (text: string, fontSize: number, letterGap: number, gapAfter: number) => {
@@ -259,9 +249,6 @@ describe('buildWords', () => {
     });
 
     describe('tracking reconstruction', () => {
-        // PDFs letterspace either with the Tc operator, which survives in
-        // charSpacing, or with plain glyph positioning, which does not. Only
-        // the run that was really tracked may be widened.
         function trackedRun(letterGap: number, fontSize = 9, charSpacing = 0): TextItem[] {
             const items: TextItem[] = [];
             let x = 0;
@@ -283,7 +270,6 @@ describe('buildWords', () => {
         });
 
         it('does not mistake a hair of advance rounding for tracking', () => {
-            // Under the 0.04em floor: real advances leave a little slack.
             const words = buildWords(trackedRun(0.2), ctx);
             expect(words[0].style.letterSpacing).toBe(0);
         });

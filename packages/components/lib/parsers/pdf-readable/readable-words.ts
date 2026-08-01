@@ -63,15 +63,8 @@ interface RunMetrics {
 
 const NO_METRICS: RunMetrics = { threshold: null, trackingEm: 0 };
 
-/**
- * Measures each item's gap statistics within its own hard-break-delimited run
- * rather than across the whole baseline. A line often carries two unrelated
- * runs — an invoice's letterspaced tagline and, a hundred points away, the
- * tight display type of its number panel. Pooled, the tight run's ~0 gaps sink
- * the letter tier until no valley clears the minimum, the threshold comes back
- * null, and the fallback splits the tagline at every letter. Measured per run,
- * each finds its own valley and its own tracking.
- */
+/** Gap statistics per item, measured within its own run: two unrelated runs
+ *  sharing a baseline would otherwise pool their gaps into one statistic. */
 function segmentMetrics(items: readonly TextItem[]): RunMetrics[] {
     const metrics = new Array<RunMetrics>(items.length).fill(NO_METRICS);
     let start = 0;
@@ -85,17 +78,8 @@ function segmentMetrics(items: readonly TextItem[]): RunMetrics[] {
     return metrics;
 }
 
-/**
- * The tracking a run was drawn with, from the clear space its glyphs leave
- * each other. PDFs letterspace two ways: the `Tc` operator, which survives in
- * `charSpacing`, and plain glyph positioning, which does not — a masthead set
- * the second way arrives as ordinary type and loses its whole character. The
- * median intra-word gap recovers it. Normally-set text sits under 0.03em
- * (advances leave no clear space), genuinely tracked text at 0.09em and up,
- * with nothing between: the threshold falls in that empty band, so ordinary
- * text is never widened. Measured relative to the type, so it holds whether
- * or not the embedded font's advances were available to correct.
- */
+/** Tracking a run was drawn with, in em, from the median clear space between
+ *  its glyphs — recovers letterspacing applied by positioning, not by `Tc`. */
 function measureTracking(items: readonly TextItem[], threshold: number | null): number {
     const limit = threshold ?? TRACKING_GAP_LIMIT_EM;
     const gaps: number[] = [];
@@ -144,13 +128,8 @@ export function bimodalGapThreshold(items: readonly TextItem[]): number | null {
     return hasValleyAt(gaps, threshold) ? threshold : null;
 }
 
-/**
- * A gap between two fragments as a fraction of the type it separates. Measuring
- * in em rather than pt is what lets one threshold serve a line that mixes
- * sizes: a masthead's 19pt title and the 9.5pt kicker beside it both break
- * words at 0.28em, but at 5.3pt and 2.6pt respectively — an absolute threshold
- * drawn between them merges every word of the smaller run.
- */
+/** A gap as a fraction of the type it separates, so one threshold serves a
+ *  line that mixes font sizes. */
 function gapEm(previous: TextItem, item: TextItem): number {
     return (item.x - previous.endX) / Math.max(previous.fontSize, item.fontSize, 1);
 }
@@ -222,13 +201,6 @@ function classifyGap(
     if (gap < -fontSize * NEGATIVE_GAP_EM) return 'break';
     if (directionFlips(previous.text, item.text)) return 'break';
     if (neutralBelongsToRtl(previous, item, nextItem)) return 'break';
-    // A measured valley in this line's own gaps outranks the font's nominal
-    // space advance. Letterspacing is often applied through glyph positioning
-    // rather than Tc/Tw, so `knownSpaceWidth` cannot see it: on a tracked-out
-    // masthead the nominal width stays ~0.24em while every letter gap is wider,
-    // and each glyph becomes its own word ("A Q U A R T E R L Y"). The valley
-    // is only reported when the gaps genuinely separate into two tiers, so
-    // where it exists it is the stronger evidence.
     if (bimodal !== null) return gap / fontSize >= bimodal ? 'space' : 'merge';
     const known = knownSpaceWidth(item, ctx);
     if (known !== null) {

@@ -207,8 +207,6 @@ function emitList(block: ListBlock, ctx: EmitContext): string {
         const dominant = dominantRunStyle(item.lines);
         const content = emitLineContents(item.lines, dominant, ctx);
         const attrs = attrString(styleAttr(baseFontPairs(dominant, ctx)), '');
-        // A drawn checkbox becomes the editor's own task-list markup, so an
-        // unticked PDF box arrives as an input the reader can actually tick.
         if (block.task) {
             return `<li data-task data-checked="${item.checked ? 'true' : 'false'}"${attrs}>` +
                 `<input type="checkbox"${item.checked ? ' checked' : ''}>${content}</li>`;
@@ -330,11 +328,6 @@ function emitLineContents(
     preserveBreaks = false,
 ): string {
     if (preserveBreaks) {
-        // The newline before each `<br>` is load-bearing: without it the two
-        // lines' text nodes abut and `textContent` fuses the words across the
-        // break ("four" + "wooden" reads as "fourwooden"), which corrupts
-        // copy-paste, Markdown output, and search while looking correct on
-        // screen. HTML collapses the newline, so the rendering is unchanged.
         return lines.map(line => {
             const lineRuns: RunModel[] = [];
             appendLineRuns(lineRuns, line.words);

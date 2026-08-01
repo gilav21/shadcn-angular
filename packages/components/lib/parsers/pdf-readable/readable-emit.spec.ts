@@ -86,8 +86,6 @@ describe('stacked line breaks', () => {
     const OPTS = { embedFonts: false, includeImages: true, pageWrappers: false, fontFamilyPrefix: 'p-' };
 
     function stackDoc(): DocModel {
-        // Short lines that stop well short of the measure — preserveLineBreaks
-        // keeps their breaks, so they are emitted with <br> rather than joined.
         const lines = [
             lineOf('Name: Ada', 50, 160, 700),
             lineOf('Email: ada@x.io', 50, 200, 686),

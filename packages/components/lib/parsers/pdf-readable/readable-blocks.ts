@@ -129,9 +129,6 @@ export function buildPageBlocks(
         ...docCtx,
         pageBounds: lines.length > 0 ? boundsOfLines(lines) : { x0: 0, x1: page.width },
         pageHeight: page.height,
-        // Deliberately not filtered by `usedRects`: a field slot's rule is
-        // often already claimed as an underline for the label sitting on it,
-        // and it is still the evidence that the label is its own column.
         fieldRules: page.rects.filter(rect =>
             rect.width > rect.height && rect.height <= UNDERLINE_MAX_HEIGHT),
         useRect: rect => usedRects.add(rect),
@@ -714,12 +711,8 @@ const CHECKBOX_ASPECT_TOLERANCE = 0.25;
 /** Furthest, in pt, a checkbox can sit from the text it labels. */
 const CHECKBOX_MAX_GAP = 20;
 
-/**
- * Flags lines the PDF drew a checkbox beside. A form's tick boxes are plain
- * stroked squares with no text marker, so nothing downstream would otherwise
- * see them and the options would flatten into a paragraph — losing both the
- * list structure and the boxes themselves.
- */
+/** Flags lines the PDF drew a checkbox beside: a tick box carries no text
+ *  marker, so nothing downstream would otherwise see it. */
 function applyCheckboxes(
     lines: readonly Line[],
     rects: readonly PathRect[],
@@ -757,13 +750,8 @@ const EDGE_RULE_COVERAGE = 0.6;
 /** Furthest a rule can sit from the text it marks, in pt. */
 const EDGE_RULE_MAX_GAP = 24;
 
-/**
- * Attaches a vertical rule the PDF drew beside a block's leading edge — the bar
- * alongside a pull-quote. The rule is reconstructed from its own rect (width,
- * colour, and distance to the text all measured, never assumed), so a quote
- * with no drawn bar stays plain. Blockquote classification is inset-based and
- * says nothing about rules, which is why this runs separately over the rects.
- */
+/** Attaches a vertical rule drawn beside a block's leading edge (a pull-quote
+ *  bar), reconstructed from its own rect so an undrawn one stays plain. */
 function applyEdgeRules(
     blocks: DocBlock[],
     rects: readonly PathRect[],
@@ -1082,14 +1070,8 @@ function distinctBaselineCount(lines: readonly Line[]): number {
     return count;
 }
 
-/**
- * Recovers the whitespace above a columns row. A row is assembled from its
- * cells rather than flowed, so it never measures the gap to what precedes it
- * the way {@link resolveBlockStyle} does — a form's signature slots ended up
- * touching a consent paragraph the PDF drew half a dozen lines higher. Runs
- * once the page's blocks are in final order, and only fills a gap that is
- * still unset.
- */
+/** Recovers the whitespace above a columns row, which is assembled from its
+ *  cells and so never measured the gap {@link resolveBlockStyle} would. */
 function applyColumnMargins(blocks: DocBlock[]): DocBlock[] {
     let previous: Line | null = null;
     for (const block of blocks) {
@@ -1358,13 +1340,9 @@ type SpannerChunk =
  * lines become their own vertical chunks; the flowing lines between them are
  * column-split using valleys computed from the flowing lines alone. Chunks
  * whose lines cross a valley stay unsplit — no content is ever reordered
- * across a boundary that the geometry does not support.
- *
- * The chunk grouping is part of the result, not an implementation detail: the
- * regions inside one chunk are genuinely parallel and must render side by
- * side, while consecutive chunks stack. Flattening the two together is what
- * made a two-column newsletter emit its right column as indented paragraphs
- * below the left one.
+ * across a boundary that the geometry does not support. The chunk grouping is
+ * part of the result: regions inside one chunk render side by side, while
+ * consecutive chunks stack.
  */
 function splitColumnsAroundSpanners(lines: Line[]): SpannerChunk[] {
     const whole: SpannerChunk[] = [{ kind: 'span', lines }];
@@ -1404,13 +1382,8 @@ function splitColumnsAroundSpanners(lines: Line[]): SpannerChunk[] {
     return didSplit ? result : whole;
 }
 
-/**
- * Renders one chunk of a spanner-tolerant split. A parallel chunk becomes a
- * side-by-side {@link ColumnsBlock}, but only when every region spans enough
- * rows to be a real column — otherwise it falls back to the stacked reading
- * order, which is what a one-row "column" (a right-aligned label beside its
- * value) actually wants.
- */
+/** Renders one chunk of a spanner-tolerant split: a {@link ColumnsBlock} when
+ *  every region spans enough rows to be a real column, else stacked. */
 function spannerChunkToBlocks(
     chunk: SpannerChunk,
     depth: number,
@@ -1633,16 +1606,10 @@ const FIELD_COLUMN_SLACK = 3;
 const FIELD_ROW_TOLERANCE = 1.5;
 
 /**
- * Builds side-by-side cells for a row of form field slots.
- *
- * Two labels on one baseline are normally one visual line that segmentation
- * happened to split, and {@link mergeSameBaselineLines} rejoins them — which is
- * right for a label and its value, and wrong for `FULL NAME` beside `DATE OF
- * BIRTH`. The rules the PDF draws under the fields are what tell the cases
- * apart: two rules on one baseline mean two fields, so the labels above them
- * belong in separate cells. Returns null unless every line in the region sits
- * in one of those columns, so a region that is merely near a rule flows
- * normally.
+ * Builds side-by-side cells for a row of form field slots. The drawn rules tell
+ * two fields apart from a label and its value, which
+ * {@link mergeSameBaselineLines} would otherwise rejoin. Returns null unless
+ * every line in the region sits in one of the rules' columns.
  */
 export function splitFieldRows(
     region: Line[],
@@ -1741,8 +1708,6 @@ function labelsForFieldColumn(region: readonly Line[], col: FieldColumn): Line[]
         nearest.fieldRule = {
             widthPt: Math.max(rect.height, 0.5),
             color: (rect.filled ? rect.fillColor : rect.strokeColor) ?? '#000000',
-            // Measured from the baseline, so the text's own descender comes off
-            // the gap or the rule would sit a hair too low.
             gapPt: Math.max(0, distance - Math.max(nearest.fontSize, 1) * 0.25),
             below,
         };
