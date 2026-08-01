@@ -63,6 +63,7 @@ let reduceMotion = false;
 let stubWidth = 200;
 let stubHeight = 200;
 let latestResizeCallback: ResizeObserverCallback | null = null;
+let savedMatchMedia: PropertyDescriptor | undefined;
 
 let savedGetContext: CanvasProto['getContext'];
 let savedResizeObserver: typeof globalThis.ResizeObserver | undefined;
@@ -99,6 +100,7 @@ function installDom(): void {
         disconnect(): void {}
     } as unknown as typeof globalThis.ResizeObserver;
 
+    savedMatchMedia = Object.getOwnPropertyDescriptor(globalThis.window, 'matchMedia');
     (globalThis.window as unknown as MatchMediaWindow).matchMedia = makeMediaQueryList;
 
     savedWidthDesc = Object.getOwnPropertyDescriptor(Element.prototype, 'clientWidth');
@@ -122,7 +124,11 @@ function restoreDom(): void {
     } else {
         delete (globalThis as { ResizeObserver?: unknown }).ResizeObserver;
     }
-    delete (globalThis.window as unknown as MatchMediaWindow).matchMedia;
+    if (savedMatchMedia) {
+        Object.defineProperty(globalThis.window, 'matchMedia', savedMatchMedia);
+    } else {
+        delete (globalThis.window as unknown as MatchMediaWindow).matchMedia;
+    }
     restoreDescriptor('clientWidth', savedWidthDesc);
     restoreDescriptor('clientHeight', savedHeightDesc);
     Element.prototype.getBoundingClientRect = savedGetBoundingClientRect;

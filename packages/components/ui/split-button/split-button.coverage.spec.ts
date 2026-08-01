@@ -118,13 +118,14 @@ describe('SplitButtonComponent — coverage', () => {
     });
 
     it('opens the menu above when there is little space below', () => {
-        const originalGbcr = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect');
         const originalHeight = Object.getOwnPropertyDescriptor(globalThis, 'innerHeight');
         restoreGeometry = () => {
-            if (originalGbcr) Object.defineProperty(Element.prototype, 'getBoundingClientRect', originalGbcr);
             if (originalHeight) Object.defineProperty(globalThis, 'innerHeight', originalHeight);
         };
-        Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
+        // The component measures its own host, so the stub goes on that
+        // element. On `Element.prototype` it would be shared with every spec
+        // file running concurrently in this window, and theirs with it.
+        Object.defineProperty(fixture.nativeElement, 'getBoundingClientRect', {
             configurable: true,
             value() {
                 return stubbedRect;

@@ -27,16 +27,9 @@ describe('ComparisonSliderComponent — pointer & resize interactions', () => {
     let component: ComparisonSliderComponent;
     let fixture: ComponentFixture<ComparisonSliderComponent>;
     let root: HTMLElement;
-    let savedRectDescriptor: PropertyDescriptor | undefined;
     let savedResizeObserver: PropertyDescriptor | undefined;
 
     beforeEach(async () => {
-        savedRectDescriptor = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect');
-        Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
-            configurable: true,
-            value: () => ({ ...RECT }),
-        });
-
         savedResizeObserver = Object.getOwnPropertyDescriptor(globalThis, 'ResizeObserver');
         MockResizeObserver.instances.length = 0;
         Object.defineProperty(globalThis, 'ResizeObserver', {
@@ -55,15 +48,17 @@ describe('ComparisonSliderComponent — pointer & resize interactions', () => {
         fixture.componentRef.setInput('afterSrc', 'b.png');
         fixture.detectChanges();
         root = fixture.nativeElement.querySelector('[data-slot="comparison-slider"]');
+        // Stubbed on the instance, not on Element.prototype: spec files share
+        // one window and run concurrently, so a prototype stub is visible to
+        // every other running file and theirs to this one.
+        Object.defineProperty(root, 'getBoundingClientRect', {
+            configurable: true,
+            value: () => ({ ...RECT }),
+        });
     });
 
     afterEach(() => {
         fixture.destroy();
-        if (savedRectDescriptor) {
-            Object.defineProperty(Element.prototype, 'getBoundingClientRect', savedRectDescriptor);
-        } else {
-            delete (Element.prototype as unknown as Record<string, unknown>)['getBoundingClientRect'];
-        }
         if (savedResizeObserver) {
             Object.defineProperty(globalThis, 'ResizeObserver', savedResizeObserver);
         } else {
