@@ -28,15 +28,10 @@ describe('WobbleCardComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
     let host: TestHostComponent;
     let reducedMotion = false;
-    const originalRect = Element.prototype.getBoundingClientRect;
     const originalMatchMedia = (globalThis.window as unknown as { matchMedia?: unknown }).matchMedia;
 
     beforeEach(async () => {
         reducedMotion = false;
-        Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
-            configurable: true,
-            value: () => RECT,
-        });
         Object.defineProperty(globalThis.window, 'matchMedia', {
             configurable: true,
             value: vi.fn((query: string) => ({
@@ -52,13 +47,16 @@ describe('WobbleCardComponent', () => {
         fixture = TestBed.createComponent(TestHostComponent);
         host = fixture.componentInstance;
         fixture.detectChanges();
+        // Stubbed on the card itself, which is the element the component
+        // measures. On `Element.prototype` the stub outlives this file in the
+        // worker's shared window and rewrites another spec's layout.
+        Object.defineProperty(nativeEl(), 'getBoundingClientRect', {
+            configurable: true,
+            value: () => RECT,
+        });
     });
 
     afterEach(() => {
-        Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
-            configurable: true,
-            value: originalRect,
-        });
         if (originalMatchMedia === undefined) {
             delete (globalThis.window as unknown as { matchMedia?: unknown }).matchMedia;
         } else {

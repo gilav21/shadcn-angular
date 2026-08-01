@@ -17,13 +17,23 @@ export default defineConfig(({ mode: _mode }) => ({
         include: ['packages/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}', 'demo/src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
         exclude: ['**/node_modules/**', '**/dist/**', 'packages/cli/**'],
         reporters: ['default'],
-        // Real browser, real timers, ~370 files in flight: when the machine is
-        // loaded, a starved rAF / effect flush can miss its window and drop an
-        // assertion that passes 8/8 in isolation. That is a scheduling artefact,
-        // not a product failure, and failing the gate on it teaches people to
-        // bypass the hook. Retried tests are still REPORTED as flaky, so this
-        // suppresses nothing — it just stops the noise from being fatal. Drive
-        // this number back down as the offending specs are made deterministic.
+        // Two classes of failure hid behind this number, and only one is gone.
+        //
+        // The first was not a scheduling artefact at all: files sharing a
+        // worker share its window, and a few specs tore down stubbed globals by
+        // deleting them (`matchMedia`) or never restoring them
+        // (`getBoundingClientRect`), so whichever file that worker picked up
+        // next inherited a broken window. Retrying could never help — the
+        // window stayed broken — which is why those tests burned every attempt.
+        // Those teardowns are fixed, and `packages/test-setup.ts` resets the
+        // globals at each file boundary so a leak cannot outlive its file.
+        //
+        // The second is real and remains: on a loaded machine a handful of
+        // geometry/animation specs (tour, hover-card, select, number-ticker)
+        // still miss a frame and measure the wrong layout. Measured over
+        // matched runs, the guard makes no difference to these — they need the
+        // retry. Fix them at the source and drive this back to 0; do not raise
+        // it to absorb anything new.
         retry: 2,
         // Coverage for SonarQube (sonar.javascript.lcov.reportPaths=coverage/lcov.info).
         coverage: {

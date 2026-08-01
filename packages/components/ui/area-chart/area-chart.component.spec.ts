@@ -75,6 +75,11 @@ describe('AreaChartComponent', () => {
     });
 
     afterEach(() => {
+        if (rectDescriptor) {
+            Object.defineProperty(Element.prototype, 'getBoundingClientRect', rectDescriptor);
+        } else {
+            delete (Element.prototype as unknown as Record<string, unknown>)['getBoundingClientRect'];
+        }
         if (bboxDescriptor) {
             Object.defineProperty(SVGElement.prototype, 'getBBox', bboxDescriptor);
         } else {

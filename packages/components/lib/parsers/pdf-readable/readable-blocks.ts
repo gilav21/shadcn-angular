@@ -1,6 +1,6 @@
 import type { ImageItem, PathRect } from '../pdf-parser';
 import { classifyGroup, hasListMarker, type ClassifyContext, type GroupKind } from './readable-classify';
-import { resolveBlockStyle, type ColumnBounds } from './readable-styles';
+import { computeMarginTop, resolveBlockStyle, type ColumnBounds } from './readable-styles';
 import { type BandTableSplit, findColumnZone, findTableInBand } from './readable-tables';
 import type {
     BlockAlign,
@@ -9,12 +9,14 @@ import type {
     DocBlock,
     HeadingBlock,
     ImageBlock,
+    ListBlock,
     Line,
     PageExtract,
     ParagraphBlock,
     RuleBlock,
     TableBlock,
     TableCellModel,
+    TextDirection,
     Word,
 } from './readable-types';
 
@@ -32,8 +34,6 @@ const MAX_CUT_DEPTH = 4;
 const MIN_COLUMN_LINES = 2;
 const UNDERLINE_MAX_HEIGHT = 2.5;
 const RULE_MAX_HEIGHT = 3;
-/** Rules within this vertical distance (pt) collapse to one separator. */
-const RULE_MERGE_GAP = 4;
 /** A rule candidate within this distance (pt) of a table's row band counts as
  *  the table's own grid, not a document rule. */
 const RULE_TABLE_MARGIN = 2;
@@ -122,13 +122,17 @@ export function buildPageBlocks(
     includeImages: boolean,
     docCtx: Omit<ClassifyContext, 'pageBounds'>,
 ): DocBlock[] {
+    const usedRects = applyUnderlines(lines, page.rects);
+    applySlotUnderlines(lines, page.rects, usedRects, page.width);
+    applyCheckboxes(lines, page.rects, usedRects);
     const ctx: ClassifyContext = {
         ...docCtx,
         pageBounds: lines.length > 0 ? boundsOfLines(lines) : { x0: 0, x1: page.width },
         pageHeight: page.height,
+        fieldRules: page.rects.filter(rect =>
+            rect.width > rect.height && rect.height <= UNDERLINE_MAX_HEIGHT),
+        useRect: rect => usedRects.add(rect),
     };
-    const usedRects = applyUnderlines(lines, page.rects);
-    applySlotUnderlines(lines, page.rects, usedRects, page.width);
     const inlined = includeImages
         ? attachInlineImages(lines, page.images)
         : new Set<ImageItem>();
@@ -137,8 +141,10 @@ export function buildPageBlocks(
         rejoinSplitBaselines(
             linesToBlocks(lines, tableRects, page.index, ctx, usedRects), ctx),
         page.rects, page.index, ctx.pageBounds);
-    const boxed = applyBlockBorders(blocks, page.rects, usedRects, page.index);
-    const withRules = interleaveByTop(boxed, detectRules(page, usedRects, lines, boxed));
+    const boxed = applyEdgeRules(
+        applyBlockBorders(blocks, page.rects, usedRects, page.index), page.rects, usedRects);
+    const withRules = applyColumnMargins(
+        interleaveByTop(boxed, detectRules(page, usedRects, lines, boxed)));
     if (!includeImages || page.images.length === inlined.size) return withRules;
     const images = page.images.filter(img =>
         !inlined.has(img) && !isBackgroundDecoration(img, page.width * page.height));
@@ -697,6 +703,107 @@ function applyBlockBorders(
     return result;
 }
 
+/** Size bounds, in pt, for a drawn checkbox. */
+const CHECKBOX_MIN_SIZE = 5;
+const CHECKBOX_MAX_SIZE = 18;
+/** How square a box must be to read as a checkbox rather than a panel. */
+const CHECKBOX_ASPECT_TOLERANCE = 0.25;
+/** Furthest, in pt, a checkbox can sit from the text it labels. */
+const CHECKBOX_MAX_GAP = 20;
+
+/** Flags lines the PDF drew a checkbox beside: a tick box carries no text
+ *  marker, so nothing downstream would otherwise see it. */
+function applyCheckboxes(
+    lines: readonly Line[],
+    rects: readonly PathRect[],
+    usedRects: Set<PathRect>,
+): void {
+    for (const rect of rects) {
+        if (usedRects.has(rect)) continue;
+        if (!isCheckboxRect(rect)) continue;
+        const line = lines.find(l => lineTakesCheckbox(l, rect));
+        if (!line) continue;
+        line.checkbox = { checked: rect.filled };
+        usedRects.add(rect);
+    }
+}
+
+function isCheckboxRect(rect: PathRect): boolean {
+    const { width, height } = rect;
+    if (width < CHECKBOX_MIN_SIZE || width > CHECKBOX_MAX_SIZE) return false;
+    if (height < CHECKBOX_MIN_SIZE || height > CHECKBOX_MAX_SIZE) return false;
+    return Math.abs(width - height) <= Math.max(width, height) * CHECKBOX_ASPECT_TOLERANCE;
+}
+
+/** Whether a line sits on the box's own row, just after it in reading order. */
+function lineTakesCheckbox(line: Line, rect: PathRect): boolean {
+    if (line.checkbox) return false;
+    if (line.y < rect.y - line.fontSize * 0.5 || line.y > rect.y + rect.height) return false;
+    const gap = line.dir === 'rtl' ? rect.x - line.endX : line.x - (rect.x + rect.width);
+    return gap >= 0 && gap <= CHECKBOX_MAX_GAP;
+}
+
+/** Widest a rect can be and still read as a rule rather than a filled panel. */
+const EDGE_RULE_MAX_WIDTH = 4;
+/** Share of a block's height the rule must cover to belong to it. */
+const EDGE_RULE_COVERAGE = 0.6;
+/** Furthest a rule can sit from the text it marks, in pt. */
+const EDGE_RULE_MAX_GAP = 24;
+
+/** Attaches a vertical rule drawn beside a block's leading edge (a pull-quote
+ *  bar), reconstructed from its own rect so an undrawn one stays plain. */
+function applyEdgeRules(
+    blocks: DocBlock[],
+    rects: readonly PathRect[],
+    usedRects: Set<PathRect>,
+): DocBlock[] {
+    const bars = rects.filter(rect => !usedRects.has(rect) &&
+        rect.width <= EDGE_RULE_MAX_WIDTH && rect.height > rect.width * 2 &&
+        (rect.filled || rect.stroked));
+    if (bars.length === 0) return blocks;
+    attachEdgeRules(blocks, bars, usedRects);
+    return blocks;
+}
+
+/** Walks into column cells, since a marked block is often inside one. */
+function attachEdgeRules(
+    blocks: readonly DocBlock[],
+    bars: readonly PathRect[],
+    usedRects: Set<PathRect>,
+): void {
+    for (const block of blocks) {
+        if (block.kind === 'columns') {
+            for (const column of block.columns) attachEdgeRules(column.blocks, bars, usedRects);
+            continue;
+        }
+        const box = blockContentBox(block);
+        if (!box) continue;
+        const bar = bars.find(rect => !usedRects.has(rect) && barMarks(rect, box, block.style.dir));
+        if (!bar) continue;
+        usedRects.add(bar);
+        block.style.ruleStart = {
+            widthPt: bar.width,
+            color: (bar.filled ? bar.fillColor : bar.strokeColor) ?? '#000000',
+            gapPt: block.style.dir === 'rtl'
+                ? Math.max(0, bar.x - box.right)
+                : Math.max(0, box.left - (bar.x + bar.width)),
+        };
+    }
+}
+
+/** Whether a bar runs alongside a block's leading edge for most of its height. */
+function barMarks(
+    bar: PathRect,
+    box: { top: number; bottom: number; left: number; right: number },
+    dir: TextDirection | '',
+): boolean {
+    const overlap = Math.min(bar.y + bar.height, box.top) - Math.max(bar.y, box.bottom);
+    const span = Math.max(box.top - box.bottom, 1);
+    if (overlap < span * EDGE_RULE_COVERAGE) return false;
+    const gap = dir === 'rtl' ? bar.x - box.right : box.left - (bar.x + bar.width);
+    return gap >= 0 && gap <= EDGE_RULE_MAX_GAP;
+}
+
 function wrapEnclosedRun(blocks: DocBlock[], box: RectBox, pageIndex: number): DocBlock[] | null {
     const enclosed = blocks
         .map((block, index) => ({ index, box: blockContentBox(block) }))
@@ -918,8 +1025,8 @@ function cutToBlocks(
             : columns.flatMap(column => cutToBlocks(column, depth + 1, pageIndex, ctx));
     }
     const aroundSpanners = splitColumnsAroundSpanners(lines);
-    if (aroundSpanners.length > 1) {
-        return aroundSpanners.flatMap(region => cutToBlocks(region, depth + 1, pageIndex, ctx));
+    if (aroundSpanners.length > 1 || aroundSpanners[0]?.kind === 'columns') {
+        return aroundSpanners.flatMap(chunk => spannerChunkToBlocks(chunk, depth, pageIndex, ctx));
     }
     const zone = findColumnZone(lines, ctx);
     if (zone) {
@@ -961,6 +1068,39 @@ function distinctBaselineCount(lines: readonly Line[]): number {
         }
     }
     return count;
+}
+
+/** Recovers the whitespace above a columns row, which is assembled from its
+ *  cells and so never measured the gap {@link resolveBlockStyle} would. */
+function applyColumnMargins(blocks: DocBlock[]): DocBlock[] {
+    let previous: Line | null = null;
+    for (const block of blocks) {
+        const first = firstLineOf(block);
+        if (block.kind === 'columns' && block.style.marginTop === 0 && previous && first) {
+            block.style.marginTop = computeMarginTop([first], previous.y, 0);
+        }
+        previous = lastLineOf(block) ?? previous;
+    }
+    return blocks;
+}
+
+/** Every text line a block holds, however nested. */
+function blockLines(block: DocBlock): readonly Line[] {
+    if ('lines' in block) return block.lines;
+    if (block.kind === 'list') return block.items.flatMap(item => item.lines);
+    if (block.kind === 'table') return block.rows.flat().flatMap(cell => cell.lines);
+    if (block.kind === 'columns') return block.columns.flatMap(col => col.blocks.flatMap(blockLines));
+    return [];
+}
+
+function firstLineOf(block: DocBlock): Line | null {
+    const lines = blockLines(block);
+    return lines.reduce<Line | null>((top, line) => (top && top.y >= line.y ? top : line), null);
+}
+
+function lastLineOf(block: DocBlock): Line | null {
+    const lines = blockLines(block);
+    return lines.reduce<Line | null>((low, line) => (low && low.y <= line.y ? low : line), null);
 }
 
 /** Wraps parallel column regions as one side-by-side row, widths from geometry. */
@@ -1172,13 +1312,27 @@ export function xyCut(lines: Line[], depth: number): Line[][] {
     if (bands.length > 1) return bands.flatMap(band => xyCut(band, depth + 1));
     const columns = splitColumns(lines);
     if (columns.length > 1) return columns.flatMap(column => xyCut(column, depth + 1));
-    const aroundSpanners = splitColumnsAroundSpanners(lines);
+    const aroundSpanners = flattenSpannerChunks(splitColumnsAroundSpanners(lines));
     if (aroundSpanners.length > 1) return aroundSpanners.flatMap(region => xyCut(region, depth + 1));
     return [lines];
 }
 
+/** The chunk grouping collapsed back to plain reading-ordered regions. */
+function flattenSpannerChunks(chunks: readonly SpannerChunk[]): Line[][] {
+    return chunks.flatMap(chunk => chunk.kind === 'span' ? [chunk.lines] : chunk.regions);
+}
+
 /** A line spanning most of the region width vetoes any column valley. */
 const SPANNER_WIDTH_RATIO = 0.7;
+
+/**
+ * One vertical chunk of a spanner-tolerant split: either a run of lines that
+ * crosses the gutter (a title, a section header) or a set of regions that sit
+ * side by side between two such spanners.
+ */
+type SpannerChunk =
+    | { readonly kind: 'span'; readonly lines: Line[] }
+    | { readonly kind: 'columns'; readonly regions: Line[][] };
 
 /**
  * Column split tolerant of full-width lines: a title or section header that
@@ -1186,40 +1340,61 @@ const SPANNER_WIDTH_RATIO = 0.7;
  * lines become their own vertical chunks; the flowing lines between them are
  * column-split using valleys computed from the flowing lines alone. Chunks
  * whose lines cross a valley stay unsplit — no content is ever reordered
- * across a boundary that the geometry does not support.
+ * across a boundary that the geometry does not support. The chunk grouping is
+ * part of the result: regions inside one chunk render side by side, while
+ * consecutive chunks stack.
  */
-function splitColumnsAroundSpanners(lines: Line[]): Line[][] {
-    if (lines.length < MIN_COLUMN_LINES * 2 + 1) return [lines];
+function splitColumnsAroundSpanners(lines: Line[]): SpannerChunk[] {
+    const whole: SpannerChunk[] = [{ kind: 'span', lines }];
+    if (lines.length < MIN_COLUMN_LINES * 2 + 1) return whole;
     const x0 = Math.min(...lines.map(l => l.x));
     const x1 = Math.max(...lines.map(l => l.endX));
     const width = x1 - x0;
-    if (width <= 0) return [lines];
+    if (width <= 0) return whole;
 
     const isWide = (line: Line): boolean => (line.endX - line.x) > width * SPANNER_WIDTH_RATIO;
     let flowing = lines.filter(line => !isWide(line));
-    if (flowing.length < MIN_COLUMN_LINES * 2) return [lines];
+    if (flowing.length < MIN_COLUMN_LINES * 2) return whole;
 
     let cuts = findColumnValleys(flowing).sort((a, b) => a - b);
     const crossers = new Set<Line>();
     if (cuts.length === 0) {
         const tolerant = findLowCoverageValley(flowing);
-        if (!tolerant) return [lines];
+        if (!tolerant) return whole;
         for (const line of tolerant.crossers) crossers.add(line);
         flowing = flowing.filter(line => !crossers.has(line));
-        if (flowing.length < MIN_COLUMN_LINES * 2) return [lines];
+        if (flowing.length < MIN_COLUMN_LINES * 2) return whole;
         cuts = [tolerant.cut];
     }
     const isSpanner = (line: Line): boolean => isWide(line) || crossers.has(line);
 
-    const chunks = chunkBySpanners(lines, isSpanner);
-    const regions: Line[][] = [];
+    const result: SpannerChunk[] = [];
     let didSplit = false;
-    for (const chunk of chunks) {
+    for (const chunk of chunkBySpanners(lines, isSpanner)) {
         const split = splitChunkAtCuts(chunk, cuts);
-        if (split.length > 1) didSplit = true;
-        regions.push(...split);
+        if (split.length > 1) {
+            didSplit = true;
+            result.push({ kind: 'columns', regions: split });
+        } else {
+            result.push({ kind: 'span', lines: chunk });
+        }
     }
-    return didSplit ? regions : [lines];
+    return didSplit ? result : whole;
+}
+
+/** Renders one chunk of a spanner-tolerant split: a {@link ColumnsBlock} when
+ *  every region spans enough rows to be a real column, else stacked. */
+function spannerChunkToBlocks(
+    chunk: SpannerChunk,
+    depth: number,
+    pageIndex: number,
+    ctx: ClassifyContext,
+): DocBlock[] {
+    if (chunk.kind === 'span') return cutToBlocks(chunk.lines, depth + 1, pageIndex, ctx);
+    if (columnsSpanMultipleRows(chunk.regions)) {
+        return [columnsBlockFrom(chunk.regions, depth, pageIndex, ctx)];
+    }
+    return chunk.regions.flatMap(region => cutToBlocks(region, depth + 1, pageIndex, ctx));
 }
 
 /** Fraction of flowing lines allowed to cross a tolerant valley. */
@@ -1412,7 +1587,137 @@ function regionToBlocks(rawRegion: Line[], pageIndex: number, ctx: ClassifyConte
         const justified = splitJustifiedRows(rawRegion, pageIndex, ctx);
         if (justified) return justified;
     }
+    const fields = splitFieldRows(rawRegion, pageIndex, ctx);
+    if (fields) {
+        return [
+            ...regionToBlocks(fields.before, pageIndex, ctx),
+            fields.block,
+            ...regionToBlocks(fields.after, pageIndex, ctx),
+        ];
+    }
     return flowRegionToBlocks(rawRegion, pageIndex, ctx);
+}
+
+/** Vertical reach, in ems, from a field rule to the label it belongs to. */
+const FIELD_LABEL_REACH_EM = 2.5;
+/** Slack, in pt, for a label overhanging its rule's x-range. */
+const FIELD_COLUMN_SLACK = 3;
+/** Rules within this many pt of each other count as one row. */
+const FIELD_ROW_TOLERANCE = 1.5;
+
+/**
+ * Builds side-by-side cells for a row of form field slots. The drawn rules tell
+ * two fields apart from a label and its value, which
+ * {@link mergeSameBaselineLines} would otherwise rejoin. Returns null unless
+ * every line in the region sits in one of the rules' columns.
+ */
+export function splitFieldRows(
+    region: Line[],
+    pageIndex: number,
+    ctx: ClassifyContext,
+): { before: Line[]; block: ColumnsBlock; after: Line[] } | null {
+    for (const level of fieldRuleLevels(region, ctx)) {
+        const split = fieldGridFrom(region, level, pageIndex, ctx);
+        if (split) return split;
+    }
+    return null;
+}
+
+/** Rows of two or more field rules sharing a baseline, widest row first. */
+function fieldRuleLevels(region: readonly Line[], ctx: ClassifyContext): PathRect[][] {
+    const rules = (ctx.fieldRules ?? []).filter(rect => ruleServesRegion(rect, region));
+    const levels: PathRect[][] = [];
+    for (const rect of [...rules].sort((a, b) => b.y - a.y)) {
+        const level = levels.at(-1);
+        if (level && Math.abs(level[0].y - rect.y) <= FIELD_ROW_TOLERANCE) level.push(rect);
+        else levels.push([rect]);
+    }
+    return levels.filter(level => level.length >= 2).sort((a, b) => b.length - a.length);
+}
+
+/**
+ * Grows one rule row into a grid: its x-columns pick up every other row with
+ * the same column signature (the second field row of a form), then the region's
+ * lines are bucketed into those columns. Bails unless the picked lines form a
+ * contiguous band — anything else means the columns are catching text that is
+ * not part of the grid.
+ */
+function fieldGridFrom(
+    region: readonly Line[],
+    level: readonly PathRect[],
+    pageIndex: number,
+    ctx: ClassifyContext,
+): { before: Line[]; block: ColumnsBlock; after: Line[] } | null {
+    const columns: FieldColumn[] = [...level]
+        .sort((a, b) => a.x - b.x)
+        .map(rect => ({ x0: rect.x, x1: rect.x + rect.width, rules: [rect] }));
+    for (const rect of ctx.fieldRules ?? []) {
+        const col = columns.find(c => sameFieldColumn(c, rect));
+        if (col && !col.rules.includes(rect)) col.rules.push(rect);
+    }
+    const buckets = columns.map(col => labelsForFieldColumn(region, col));
+    if (buckets.some(bucket => bucket.length === 0)) return null;
+    const picked = buckets.flat();
+    if (new Set(picked).size !== picked.length) return null;
+    const top = Math.max(...picked.map(l => l.y));
+    const bottom = Math.min(...picked.map(l => l.y));
+    if (region.some(l => !picked.includes(l) && l.y <= top && l.y >= bottom)) return null;
+    for (const col of columns) for (const rect of col.rules) ctx.useRect?.(rect);
+    return {
+        before: region.filter(l => l.y > top),
+        block: columnsBlockFrom(buckets, MAX_CUT_DEPTH - 1, pageIndex, ctx),
+        after: region.filter(l => l.y < bottom),
+    };
+}
+
+interface FieldColumn {
+    readonly x0: number;
+    readonly x1: number;
+    readonly rules: PathRect[];
+}
+
+function sameFieldColumn(col: FieldColumn, rect: PathRect): boolean {
+    return Math.abs(col.x0 - rect.x) <= FIELD_COLUMN_SLACK &&
+        Math.abs(col.x1 - (rect.x + rect.width)) <= FIELD_COLUMN_SLACK;
+}
+
+/** Whether a rule is close enough to the region's text to be its field slot. */
+function ruleServesRegion(rect: PathRect, region: readonly Line[]): boolean {
+    if (rect.height > UNDERLINE_MAX_HEIGHT) return false;
+    return region.some(line =>
+        Math.abs(line.y - rect.y) <= Math.max(line.fontSize, 1) * FIELD_LABEL_REACH_EM);
+}
+
+/**
+ * One label per slot: each of a column's rules claims only the single nearest
+ * line within reach, in row order. Taking every line in reach instead lets a
+ * section heading a couple of lines below the last slot fall into the grid.
+ */
+function labelsForFieldColumn(region: readonly Line[], col: FieldColumn): Line[] {
+    const labels: Line[] = [];
+    for (const rect of [...col.rules].sort((a, b) => b.y - a.y)) {
+        const candidates = region.filter(line => lineFitsFieldColumn(line, col) &&
+            Math.abs(line.y - rect.y) <= Math.max(line.fontSize, 1) * FIELD_LABEL_REACH_EM);
+        if (candidates.length === 0) return [];
+        const nearest = candidates.reduce((best, line) =>
+            Math.abs(line.y - rect.y) < Math.abs(best.y - rect.y) ? line : best, candidates[0]);
+        const below = rect.y < nearest.y;
+        const distance = below
+            ? nearest.y - (rect.y + rect.height)
+            : rect.y - nearest.y;
+        nearest.fieldRule = {
+            widthPt: Math.max(rect.height, 0.5),
+            color: (rect.filled ? rect.fillColor : rect.strokeColor) ?? '#000000',
+            gapPt: Math.max(0, distance - Math.max(nearest.fontSize, 1) * 0.25),
+            below,
+        };
+        labels.push(nearest);
+    }
+    return labels;
+}
+
+function lineFitsFieldColumn(line: Line, col: FieldColumn): boolean {
+    return line.x >= col.x0 - FIELD_COLUMN_SLACK && line.endX <= col.x1 + FIELD_COLUMN_SLACK;
 }
 
 /**
@@ -1436,6 +1741,41 @@ function flowRegionToBlocks(rawRegion: Line[], pageIndex: number, ctx: ClassifyC
     return blocks;
 }
 
+/**
+ * A group whose lines each carry a drawn checkbox becomes a task list, one item
+ * per box. Every line must have one: a paragraph that merely happens to sit
+ * beside a single boxed glyph is not a list.
+ */
+function taskListFrom(lines: readonly Line[], page: number, style: BlockStyle): ListBlock | null {
+    if (lines.length === 0 || !lines.every(line => line.checkbox)) return null;
+    return {
+        kind: 'list',
+        ordered: false,
+        task: true,
+        items: lines.map(line => ({
+            level: 0,
+            lines: [line],
+            checked: line.checkbox?.checked ?? false,
+        })),
+        page,
+        style,
+    };
+}
+
+/**
+ * Moves a field slot's rule from the label line onto its block, so the block
+ * draws the line the PDF drew under (or over) the label. Only a lone label
+ * carries one — a wrapped paragraph that happens to start on a slot does not.
+ */
+function withFieldRule(lines: readonly Line[], style: BlockStyle): BlockStyle {
+    const rule = lines.length === 1 ? lines[0].fieldRule : undefined;
+    if (!rule) return style;
+    const { widthPt, color, gapPt } = rule;
+    return rule.below
+        ? { ...style, ruleUnder: { widthPt, color, gapPt } }
+        : { ...style, ruleOver: { widthPt, color, gapPt } };
+}
+
 function blockFrom(
     kind: GroupKind,
     lines: Line[],
@@ -1443,6 +1783,9 @@ function blockFrom(
     style: BlockStyle,
     measure: ColumnBounds,
 ): DocBlock {
+    const tasks = taskListFrom(lines, page, style);
+    if (tasks) return tasks;
+    style = withFieldRule(lines, style);
     switch (kind.kind) {
         case 'heading':
             return { kind: 'heading', level: kind.level, lines: [...lines], page, style };
@@ -1608,8 +1951,8 @@ export function splitJustifiedRows(
     const width = bounds.x1 - bounds.x0;
     if (width <= 0) return null;
     const rows = groupByBaseline(rawRegion);
-    if (rows.length > JUSTIFIED_MAX_ROWS) return null;
-    if (!rows.some(row => asJustifiedRow(row, bounds, width, ctx))) return null;
+    const splittable = justifiableRows(rows, bounds, width, ctx);
+    if (!splittable) return null;
     const blocks: DocBlock[] = [];
     let buffer: Line[] = [];
     const flush = (): void => {
@@ -1619,7 +1962,7 @@ export function splitJustifiedRows(
         }
     };
     for (const row of rows) {
-        const justified = asJustifiedRow(row, bounds, width, ctx);
+        const justified = splittable.has(row) ? asJustifiedRow(row, bounds, width, ctx) : null;
         if (justified) {
             flush();
             const rowBlock = columnsBlockFrom(
@@ -1633,6 +1976,38 @@ export function splitJustifiedRows(
     }
     flush();
     return blocks;
+}
+
+/**
+ * The rows of a region that may split into an edge-pinned two-cell row, or
+ * null when none may. A short band (a header/footer strip cut out on its own)
+ * offers every row. A long region — a whole page of prose — offers only a
+ * leading masthead: a title with a kicker pinned to the far margin, set larger
+ * than the body. Without that exception a report's masthead flowed into one
+ * run and the kicker landed hard against the title; with the cap lifted
+ * wholesale, any two-segment prose row in the body could split instead.
+ */
+function justifiableRows(
+    rows: readonly Line[][],
+    bounds: ColumnBounds,
+    width: number,
+    ctx: ClassifyContext,
+): Set<Line[]> | null {
+    if (rows.length <= JUSTIFIED_MAX_ROWS) {
+        const any = rows.some(row => asJustifiedRow(row, bounds, width, ctx));
+        return any ? new Set(rows) : null;
+    }
+    const first = rows[0];
+    if (!first || !isMastheadRow(first, ctx)) return null;
+    return asJustifiedRow(first, bounds, width, ctx) ? new Set([first]) : null;
+}
+
+/** Type this much larger than the body marks a masthead rather than prose. */
+const MASTHEAD_FONT_RATIO = 1.3;
+
+function isMastheadRow(row: readonly Line[], ctx: ClassifyContext): boolean {
+    const fontSize = Math.max(...row.map(line => line.fontSize));
+    return fontSize >= ctx.bodyFontSize * MASTHEAD_FONT_RATIO;
 }
 
 /** A justified row's segments were pinned to opposite region edges, so their
@@ -1753,7 +2128,39 @@ function startsNewParagraph(
     if (isListSubheadingBoundary(previous, line, sizeRatio)) return true;
     if (dominantStyleChanges(previous, line)) return true;
     if (alignmentBreaks(previous, line, bounds)) return true;
-    return previous.dir !== line.dir;
+    if (previous.dir !== line.dir) return true;
+    return indentStartsParagraph(previous, line, bounds);
+}
+
+/** Smallest first-line indent, in em, that reads as a paragraph opener. */
+const MIN_PARAGRAPH_INDENT_EM = 0.5;
+/** Largest such indent — beyond this the line is a differently-placed block. */
+const MAX_PARAGRAPH_INDENT_EM = 4;
+/** How short of the measure the previous line must fall to have ended a paragraph. */
+const PARAGRAPH_END_SLACK_EM = 0.5;
+/** Tolerance, in pt, for a line sitting on the region's start edge. */
+const START_EDGE_TOLERANCE = 1;
+
+/**
+ * A first-line indent opening a new paragraph. Indent-style typesetting marks
+ * paragraphs with the indent alone, and its inter-paragraph leading can sit
+ * well under {@link PARAGRAPH_GAP_FACTOR} — a two-column newsletter runs 15pt
+ * lines with a 21.7pt paragraph gap (1.45x), so the gap test alone merges the
+ * paragraphs into one.
+ *
+ * Deliberately narrow: the previous line must sit on the region's start edge
+ * (so a list's hanging indent or a centered run cannot trip it) and must stop
+ * short of the measure (so it genuinely ended a paragraph rather than wrapped).
+ */
+function indentStartsParagraph(previous: Line, line: Line, bounds: ColumnBounds): boolean {
+    const em = Math.max(line.fontSize, 1);
+    const rtl = line.dir === 'rtl';
+    const indent = rtl ? bounds.x1 - line.endX : line.x - bounds.x0;
+    if (indent < em * MIN_PARAGRAPH_INDENT_EM || indent > em * MAX_PARAGRAPH_INDENT_EM) return false;
+    const previousStart = rtl ? bounds.x1 - previous.endX : previous.x - bounds.x0;
+    if (Math.abs(previousStart) > START_EDGE_TOLERANCE) return false;
+    const previousSlack = rtl ? previous.x - bounds.x0 : bounds.x1 - previous.endX;
+    return previousSlack > em * PARAGRAPH_END_SLACK_EM;
 }
 
 type LineAlignClass = 'full' | 'start' | 'end' | 'center' | 'other';
@@ -1939,8 +2346,8 @@ function detectRules(
             (rect.stroked || rect.filled) &&
             !isNearWhite(rect.filled ? rect.fillColor : rect.strokeColor) &&
             !hidesInTableGrid(rect, tableSpans, page.width))
-        .map(rect => rect.y)
-        .sort((a, b) => b - a);
+        .map(rect => ({ top: rect.y + rect.height, bottom: rect.y }))
+        .sort((a, b) => b.top - a.top);
     return dedupeCloseTops(candidates).map(top => ({
         kind: 'rule' as const,
         page: page.index,
@@ -2002,15 +2409,24 @@ function hidesInTableGrid(rect: PathRect, spans: readonly TableSpan[], pageWidth
     });
 }
 
-/** Collapses rules whose tops sit within {@link RULE_MERGE_GAP} — one drawn
- *  separator is often several overlapping sub-pixel rects. */
-function dedupeCloseTops(descendingTops: readonly number[]): number[] {
+/**
+ * Collapses the slices a PDF paints for one visual rule (a fill and a stroke
+ * of the same line) while keeping a genuine double rule as two.
+ *
+ * The distinction is whitespace, not distance: slices of one rule touch or
+ * overlap, so the merge runs against the previous slice's *bottom* edge. Two
+ * hairlines with a clear gap between them — a masthead's double rule — stay
+ * separate however close they are.
+ */
+function dedupeCloseTops(descending: readonly { top: number; bottom: number }[]): number[] {
     const result: number[] = [];
-    let last = Infinity;
-    for (const top of descendingTops) {
-        if (last - top > RULE_MERGE_GAP) {
-            result.push(top);
-            last = top;
+    let lastBottom = Infinity;
+    for (const rule of descending) {
+        if (rule.top < lastBottom) {
+            result.push(rule.bottom);
+            lastBottom = rule.bottom;
+        } else {
+            lastBottom = Math.min(lastBottom, rule.bottom);
         }
     }
     return result;

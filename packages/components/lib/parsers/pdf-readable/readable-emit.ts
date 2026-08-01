@@ -6,6 +6,7 @@ import type {
     ColumnsBlock,
     DocBlock,
     DocModel,
+    EdgeRule,
     FontMapping,
     HeadingBlock,
     ImageBlock,
@@ -205,10 +206,17 @@ function emitList(block: ListBlock, ctx: EmitContext): string {
     const items = block.items.map(item => {
         const dominant = dominantRunStyle(item.lines);
         const content = emitLineContents(item.lines, dominant, ctx);
-        return `<li${attrString(styleAttr(baseFontPairs(dominant, ctx)), '')}>${content}</li>`;
+        const attrs = attrString(styleAttr(baseFontPairs(dominant, ctx)), '');
+        if (block.task) {
+            return `<li data-task data-checked="${item.checked ? 'true' : 'false'}"${attrs}>` +
+                `<input type="checkbox"${item.checked ? ' checked' : ''}>${content}</li>`;
+        }
+        return `<li${attrs}>${content}</li>`;
     });
     const styleValue = styleAttr([['margin-top', ptOrEmpty(block.style.marginTop)]]);
-    return `<${tag}${attrString(styleValue, block.style.dir === 'rtl' ? 'rtl' : '')}>${items.join('')}</${tag}>`;
+    const listAttrs = block.task ? ' data-task-list' : '';
+    return `<${tag}${listAttrs}${attrString(styleValue, block.style.dir === 'rtl' ? 'rtl' : '')}>` +
+        `${items.join('')}</${tag}>`;
 }
 
 function emitTable(block: TableBlock, ctx: EmitContext): string {
@@ -324,7 +332,7 @@ function emitLineContents(
             const lineRuns: RunModel[] = [];
             appendLineRuns(lineRuns, line.words);
             return lineRuns.map(run => emitRun(run, dominant, ctx)).join('');
-        }).join('<br>');
+        }).join('\n<br>');
     }
     const runs: RunModel[] = [];
     for (let i = 0; i < lines.length; i++) {
@@ -474,12 +482,40 @@ function runDeltaPairs(
     return pairs;
 }
 
+/**
+ * The border/padding pairs for the rules a PDF drew around a block: the bar
+ * beside a pull-quote and the slot rules a form draws under (or over) a field
+ * label. The leading rule sits outside the text, so its width and gap come off
+ * the block's indent and go back on as padding — the text stays exactly where
+ * the PDF put it and the rule lands where the PDF drew it.
+ */
+function edgeRulePairs(style: BlockStyle, startSide: string): Array<[string, string]> {
+    const pairs: Array<[string, string]> = [];
+    const add = (side: string, rule: EdgeRule | undefined): void => {
+        if (!rule) return;
+        pairs.push(
+            [`border-${side}`, `${round(rule.widthPt)}pt solid ${rule.color}`],
+            [`padding-${side}`, `${round(rule.gapPt)}pt`],
+        );
+    };
+    add(startSide, style.ruleStart);
+    add('bottom', style.ruleUnder);
+    add('top', style.ruleOver);
+    return pairs;
+}
+
 function blockStylePairs(style: BlockStyle, inColumn = false): Array<[string, string]> {
     const marginTop = inColumn && style.marginTop <= 0 ? '0' : ptOrEmpty(style.marginTop);
     const boxed = style.background !== '' || style.border !== '';
+    const rule = style.ruleStart;
+    const startSide = style.dir === 'rtl' ? 'right' : 'left';
+    const indent = rule
+        ? Math.max(0, style.indentStart - rule.widthPt - rule.gapPt)
+        : style.indentStart;
     const pairs: Array<[string, string]> = [
         ['text-align', style.align],
-        [style.dir === 'rtl' ? 'margin-right' : 'margin-left', ptOrEmpty(style.indentStart)],
+        [`margin-${startSide}`, ptOrEmpty(indent)],
+        ...edgeRulePairs(style, startSide),
         ['text-indent', ptOrEmpty(style.textIndent)],
         ['line-height', style.lineHeight > 0 ? String(style.lineHeight) : ''],
         ['margin-top', marginTop],

@@ -22,8 +22,11 @@ function makeRect(x: number): DOMRect {
     } as unknown as DOMRect;
 }
 
+/** Two frames, not one: the component schedules its own frame while handling
+ *  the event, so a single `requestAnimationFrame` can resolve before it runs. */
 function nextFrame(): Promise<void> {
-    return new Promise(resolve => requestAnimationFrame(() => resolve()));
+    return new Promise(resolve =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 }
 
 function internals(dock: DockComponent): DockInternals {

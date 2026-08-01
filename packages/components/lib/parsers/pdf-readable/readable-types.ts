@@ -112,11 +112,27 @@ export interface Line {
     readonly fontSize: number;
     readonly dir: TextDirection;
     readonly page: number;
+    /** Set when the PDF drew a checkbox at the line's start; `checked` is
+     *  whether that box is filled in. */
+    checkbox?: { readonly checked: boolean };
+    /** Set when the line labels a form field slot, carrying the rule the PDF
+     *  drew for it and which side of the label it sits on. */
+    fieldRule?: EdgeRule & { readonly below: boolean };
 }
 
 export type BlockAlign = '' | 'left' | 'right' | 'center' | 'justify';
 
 export type HeadingLevel = 1 | 2 | 3 | 4;
+
+/** A rule drawn alongside a block, measured from the rect the PDF painted. */
+export interface EdgeRule {
+    /** Rule thickness in pt. */
+    readonly widthPt: number;
+    /** Rule colour as a CSS hex string. */
+    readonly color: string;
+    /** Clear space in pt between the rule and the text it sits beside. */
+    readonly gapPt: number;
+}
 
 export interface BlockStyle {
     align: BlockAlign;
@@ -135,6 +151,13 @@ export interface BlockStyle {
      *  block sits inside; '' when none. Renders the block as a bordered,
      *  shrink-wrapped inline box. */
     border: string;
+    /** A rule the PDF drew alongside the block's leading edge (the bar beside a
+     *  pull-quote), reconstructed from its own rect so the block keeps it
+     *  without the text moving. Absent when the PDF drew no such rule. */
+    ruleStart?: EdgeRule;
+    /** The rule a form field slot draws under (or over) its label. */
+    ruleUnder?: EdgeRule;
+    ruleOver?: EdgeRule;
     /** Source width cap in pt for a block much narrower than its measure, so
      *  the browser re-wraps it at the original's own width (0 = none). */
     maxWidth?: number;
@@ -163,6 +186,8 @@ export interface ListItemModel {
     /** Nesting level, 0-based. */
     readonly level: number;
     readonly lines: Line[];
+    /** For a task item: whether the PDF drew the box ticked. */
+    readonly checked?: boolean;
 }
 
 export interface ListBlock {
@@ -171,6 +196,9 @@ export interface ListBlock {
     readonly items: ListItemModel[];
     readonly page: number;
     readonly style: BlockStyle;
+    /** The markers are drawn checkboxes, not bullets — emitted as a task list
+     *  so the boxes survive as real, tickable inputs in an editor. */
+    readonly task?: boolean;
 }
 
 export interface BlockquoteBlock {

@@ -14,6 +14,12 @@ const LETTER_TIER_PERCENTILE = 0.2;
 const WORD_MARGIN_EM = 0.15;
 /** Minimum gap, in em, between the letter tier and the breaking gaps above it. */
 const MIN_VALLEY_EM = 0.08;
+/** Intra-word ceiling, in em, when a run shows no measured word-break valley. */
+const TRACKING_GAP_LIMIT_EM = 0.35;
+/** Clear space, in em, below which a run counts as normally set, not tracked. */
+const MIN_TRACKING_EM = 0.04;
+/** Gaps a run needs before its median is evidence of tracking rather than noise. */
+const MIN_TRACKING_GAPS = 3;
 const RTL_RE = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
 const STRONG_LTR_RE = /[A-Za-z\u00C0-\u024F]/u;
 /** A word with no letters and no digits \u2014 punctuation/symbols only (a
@@ -33,7 +39,7 @@ export interface WordBuildContext {
  */
 export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): Word[] {
     const words: Word[] = [];
-    const bimodal = bimodalGapThreshold(items);
+    const metrics = segmentMetrics(items);
     let pendingSpace = false;
 
     for (let i = 0; i < items.length; i++) {
@@ -42,9 +48,54 @@ export function buildWords(items: readonly TextItem[], ctx: WordBuildContext): W
             pendingSpace = true;
             continue;
         }
-        pendingSpace = appendItem(words, item, ctx, pendingSpace, bimodal, items[i + 1]);
+        pendingSpace = appendItem(words, item, ctx, pendingSpace, metrics[i], items[i + 1]);
     }
     return words;
+}
+
+/** What one hard-break-delimited run's own gaps say about how it was set. */
+interface RunMetrics {
+    /** Word-break threshold in em, or null when the gaps show no valley. */
+    readonly threshold: number | null;
+    /** Tracking the run was drawn with, in em (0 when set normally). */
+    readonly trackingEm: number;
+}
+
+const NO_METRICS: RunMetrics = { threshold: null, trackingEm: 0 };
+
+/** Gap statistics per item, measured within its own run: two unrelated runs
+ *  sharing a baseline would otherwise pool their gaps into one statistic. */
+function segmentMetrics(items: readonly TextItem[]): RunMetrics[] {
+    const metrics = new Array<RunMetrics>(items.length).fill(NO_METRICS);
+    let start = 0;
+    for (let i = 1; i <= items.length; i++) {
+        if (i < items.length && !breaksRun(items[i - 1], items[i])) continue;
+        const run = items.slice(start, i);
+        const threshold = bimodalGapThreshold(run);
+        metrics.fill({ threshold, trackingEm: measureTracking(run, threshold) }, start, i);
+        start = i;
+    }
+    return metrics;
+}
+
+/** Tracking a run was drawn with, in em, from the median clear space between
+ *  its glyphs — recovers letterspacing applied by positioning, not by `Tc`. */
+function measureTracking(items: readonly TextItem[], threshold: number | null): number {
+    const limit = threshold ?? TRACKING_GAP_LIMIT_EM;
+    const gaps: number[] = [];
+    for (let i = 1; i < items.length; i++) {
+        const gap = gapEm(items[i - 1], items[i]);
+        if (gap < limit) gaps.push(gap);
+    }
+    if (gaps.length < MIN_TRACKING_GAPS) return 0;
+    gaps.sort((a, b) => a - b);
+    const median = gaps[gaps.length >> 1];
+    return median >= MIN_TRACKING_EM ? median : 0;
+}
+
+/** A gap too wide to be word spacing — the boundary between two runs. */
+function breaksRun(previous: TextItem, item: TextItem): boolean {
+    return gapEm(previous, item) > HARD_BREAK_EM;
 }
 
 /**
@@ -67,19 +118,24 @@ export function bimodalGapThreshold(items: readonly TextItem[]): number | null {
     const gaps: number[] = [];
     for (let i = 1; i < items.length; i++) {
         if (directionFlips(items[i - 1].text, items[i].text)) continue;
-        const gap = items[i].x - items[i - 1].endX;
-        if (gap <= Math.max(items[i].fontSize, 1) * HARD_BREAK_EM) gaps.push(gap);
+        const gap = gapEm(items[i - 1], items[i]);
+        if (gap <= HARD_BREAK_EM) gaps.push(gap);
     }
     if (gaps.length < 4) return null;
     gaps.sort((a, b) => a - b);
-    const fontSize = medianFontSize(items);
     const baseline = gaps[Math.floor(gaps.length * LETTER_TIER_PERCENTILE)];
-    const threshold = baseline + WORD_MARGIN_EM * fontSize;
-    return hasValleyAt(gaps, threshold, fontSize) ? threshold : null;
+    const threshold = baseline + WORD_MARGIN_EM;
+    return hasValleyAt(gaps, threshold) ? threshold : null;
+}
+
+/** A gap as a fraction of the type it separates, so one threshold serves a
+ *  line that mixes font sizes. */
+function gapEm(previous: TextItem, item: TextItem): number {
+    return (item.x - previous.endX) / Math.max(previous.fontSize, item.fontSize, 1);
 }
 
 /** True when some gaps fall below `threshold` and the rest sit a clear valley above it. */
-function hasValleyAt(sortedGaps: readonly number[], threshold: number, fontSize: number): boolean {
+function hasValleyAt(sortedGaps: readonly number[], threshold: number): boolean {
     let maxBelow = -Infinity;
     let minAbove = Infinity;
     for (const gap of sortedGaps) {
@@ -87,12 +143,7 @@ function hasValleyAt(sortedGaps: readonly number[], threshold: number, fontSize:
         else minAbove = Math.min(minAbove, gap);
     }
     if (maxBelow === -Infinity || minAbove === Infinity) return false;
-    return minAbove - maxBelow >= MIN_VALLEY_EM * fontSize;
-}
-
-function medianFontSize(items: readonly TextItem[]): number {
-    const sizes = items.map(item => Math.max(item.fontSize, 1)).sort((a, b) => a - b);
-    return sizes[sizes.length >> 1];
+    return minAbove - maxBelow >= MIN_VALLEY_EM;
 }
 
 function appendItem(
@@ -100,14 +151,14 @@ function appendItem(
     item: TextItem,
     ctx: WordBuildContext,
     pendingSpace: boolean,
-    bimodal: number | null,
+    metrics: RunMetrics,
     nextItem?: TextItem,
 ): boolean {
-    const style = itemRunStyle(item, findLinkUri(item, ctx.annotations));
+    const style = itemRunStyle(item, findLinkUri(item, ctx.annotations), metrics.trackingEm);
     const previous = words.at(-1);
     const gap = previous ? item.x - previous.endX : 0;
     const decision = previous
-        ? classifyGap(gap, previous, item, ctx, bimodal, nextItem)
+        ? classifyGap(gap, previous, item, ctx, metrics.threshold, nextItem)
         : 'break';
 
     if (previous && decision !== 'break' && sameStyle(previous.style, style)) {
@@ -150,12 +201,12 @@ function classifyGap(
     if (gap < -fontSize * NEGATIVE_GAP_EM) return 'break';
     if (directionFlips(previous.text, item.text)) return 'break';
     if (neutralBelongsToRtl(previous, item, nextItem)) return 'break';
+    if (bimodal !== null) return gap / fontSize >= bimodal ? 'space' : 'merge';
     const known = knownSpaceWidth(item, ctx);
     if (known !== null) {
         const spaceWidth = known + Math.max(0, item.wordSpacing) + Math.max(0, item.charSpacing);
         return gap >= spaceWidth * SPACE_GAP_FACTOR ? 'space' : 'merge';
     }
-    if (bimodal !== null) return gap >= bimodal ? 'space' : 'merge';
     const spaceWidth = estimateSpaceWidth(item, ctx) +
         Math.max(0, item.wordSpacing) + Math.max(0, item.charSpacing);
     return gap >= spaceWidth * SPACE_GAP_FACTOR ? 'space' : 'merge';
@@ -232,7 +283,7 @@ function isSpaceMarker(item: TextItem): boolean {
     return item.isSpaceOffset || item.text.trim().length === 0;
 }
 
-function itemRunStyle(item: TextItem, link: string): RunStyle {
+function itemRunStyle(item: TextItem, link: string, trackingEm: number): RunStyle {
     return {
         fontName: item.fontName,
         fontFamily: item.fontFamily,
@@ -242,9 +293,15 @@ function itemRunStyle(item: TextItem, link: string): RunStyle {
         italic: item.italic,
         underline: false,
         baselineShift: baselineShiftOf(item),
-        letterSpacing: item.charSpacing > 0.25 ? Math.round(item.charSpacing * 100) / 100 : 0,
+        letterSpacing: letterSpacingOf(item, trackingEm),
         link,
     };
+}
+
+/** Declared `Tc` tracking wins; measured tracking covers the runs it misses. */
+function letterSpacingOf(item: TextItem, trackingEm: number): number {
+    const pt = item.charSpacing > 0.25 ? item.charSpacing : trackingEm * item.fontSize;
+    return pt > 0.25 ? Math.round(pt * 100) / 100 : 0;
 }
 
 function baselineShiftOf(item: TextItem): BaselineShift {

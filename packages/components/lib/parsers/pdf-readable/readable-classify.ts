@@ -1,6 +1,14 @@
-import type { StructureMap } from '../pdf-parser';
+import type { PathRect, StructureMap } from '../pdf-parser';
 import { detectAlignment, type ColumnBounds } from './readable-styles';
-import type { HeadingBlock, HeadingLevel, Line, ListItemModel, PageModel, Word } from './readable-types';
+import type {
+    DocBlock,
+    HeadingBlock,
+    HeadingLevel,
+    Line,
+    ListItemModel,
+    PageModel,
+    Word,
+} from './readable-types';
 
 const HEADING_SCORE_THRESHOLD = 1;
 const MAX_HEADING_LINES = 2;
@@ -17,6 +25,12 @@ export interface ClassifyContext {
     readonly pageBounds: ColumnBounds;
     /** Page height in pt; footer-band detection is off when absent. */
     readonly pageHeight?: number;
+    /** Thin horizontal rects still unclaimed — the rules under a form's field
+     *  slots, which are what tell two labels on one baseline apart. */
+    readonly fieldRules?: readonly PathRect[];
+    /** Marks a rule consumed by a field row so it does not also emit as an
+     *  `<hr>` separator. */
+    readonly useRect?: (rect: PathRect) => void;
 }
 
 export type GroupKind =
@@ -158,9 +172,7 @@ export function assignHeadingLevels(pages: readonly PageModel[], structureTagged
     if (structureTagged) return;
     const headings: HeadingBlock[] = [];
     for (const page of pages) {
-        for (const block of page.blocks) {
-            if (block.kind === 'heading') headings.push(block);
-        }
+        collectHeadings(page.blocks, headings);
     }
     if (headings.length === 0) return;
 
@@ -169,6 +181,20 @@ export function assignHeadingLevels(pages: readonly PageModel[], structureTagged
     for (const heading of headings) {
         const rank = signatures.indexOf(signatureOf(heading));
         heading.level = Math.min(rank + 1, 4) as HeadingLevel;
+    }
+}
+
+/**
+ * Gathers every heading, including those nested in a columns row — a document's
+ * biggest heading is often its masthead title, which sits in a column cell
+ * beside its kicker. Ranking without it demotes the whole document by a level.
+ */
+function collectHeadings(blocks: readonly DocBlock[], into: HeadingBlock[]): void {
+    for (const block of blocks) {
+        if (block.kind === 'heading') into.push(block);
+        else if (block.kind === 'columns') {
+            for (const column of block.columns) collectHeadings(column.blocks, into);
+        }
     }
 }
 

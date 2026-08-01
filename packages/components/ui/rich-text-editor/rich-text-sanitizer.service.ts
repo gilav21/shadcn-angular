@@ -76,6 +76,7 @@ export class RichTextSanitizerService {
     private readonly ALLOWED_STYLE_PROPERTIES = new Set([
         'color',
         'background-color',
+        'background',
         'text-align',
         'font-size',
         // Dimensions for images

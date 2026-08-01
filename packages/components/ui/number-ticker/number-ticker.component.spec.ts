@@ -87,6 +87,29 @@ function animationFrames(cmp: NumberTickerComponent): RafCb[] {
     return rafQueue.filter((cb) => cb === animate);
 }
 
+/**
+ * Waits for the component to have started `count` animations, driving the
+ * stubbed frame queue as it goes. `vi.waitFor` alone cannot get there: zoneless
+ * change detection schedules through the same stubbed `requestAnimationFrame`,
+ * so the effect that starts an animation only runs once a frame is flushed, and
+ * nothing else flushes one.
+ */
+async function waitForAnimations(
+    fixture: ComponentFixture<unknown>,
+    count: number,
+): Promise<void> {
+    for (let frame = 0; frame < 50 && animations.length < count; frame++) {
+        flushFrame(frame);
+        // Fake timers are installed, so the zoneless scheduler's own timers sit
+        // frozen until they are advanced; without this the effect that starts
+        // the animation never runs, however many frames are flushed.
+        vi.advanceTimersByTime(16);
+        fixture.detectChanges();
+        await Promise.resolve();
+    }
+    expect(animations).toHaveLength(count);
+}
+
 describe('NumberTickerComponent — animation (deterministic frames)', () => {
     beforeEach(() => {
         vi.useFakeTimers();
@@ -287,7 +310,7 @@ describe('NumberTickerDigitComponent', () => {
         host.digit.set('7');
         fixture.detectChanges();
 
-        await vi.waitFor(() => expect(animations).toHaveLength(1));
+        await waitForAnimations(fixture, 1);
         expect(el.prevDigit()).toBe('5');
 
         animations[0].onfinish?.();
@@ -297,14 +320,14 @@ describe('NumberTickerDigitComponent', () => {
     it('finishes an in-flight animation before starting the next', async () => {
         host.digit.set('7');
         fixture.detectChanges();
-        await vi.waitFor(() => expect(animations).toHaveLength(1));
+        await waitForAnimations(fixture, 1);
 
         const finishSpy = vi.spyOn(animations[0], 'finish');
 
         host.digit.set('3');
         fixture.detectChanges();
 
-        await vi.waitFor(() => expect(animations).toHaveLength(2));
+        await waitForAnimations(fixture, 2);
         expect(finishSpy).toHaveBeenCalled();
     });
 
