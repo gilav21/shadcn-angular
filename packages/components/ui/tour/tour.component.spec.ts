@@ -516,18 +516,37 @@ describe('TourComponent — positioning', () => {
     });
 
     async function activateWithRect(rect: DOMRect): Promise<TourComponent> {
-        rectSpy.mockReturnValue(rect);
+        // Stub the rect on the target element itself rather than through the
+        // file-level `Element.prototype` spy. The prototype spy is shared state:
+        // when it is not in effect the component measures the live element
+        // instead (a 414x24 box — 414 is the default viewport width), which
+        // silently turns these into assertions about real layout. That is the
+        // whole failure — with the spy bypassed these tests produce exactly the
+        // `36` and `57` seen in full-suite runs. An own property shadows the
+        // prototype, so this holds whether or not the spy is installed, and it
+        // dies with the fixture rather than leaking to another file.
+        const target = document.querySelector('#pt') as HTMLElement;
+        Object.defineProperty(target, 'getBoundingClientRect', {
+            configurable: true,
+            value: () => rect,
+        });
         host.active.set(true);
         await flush(fixture);
         const tour = getTour(fixture);
-        // The card measures itself once rendered. `flush` above is a fixed two
-        // rounds of detectChanges/whenStable, which is enough on an idle machine
-        // but not under a loaded full-suite run — the measurement lands late and
-        // every assertion below then reads the pre-measurement position. Waiting
-        // for the measurement makes these tests load-independent.
+        // The card measures itself once rendered, and `flush` above is a fixed
+        // number of detectChanges/whenStable rounds — enough on an idle machine,
+        // but under a loaded full-suite run the measurement lands later and the
+        // assertions below read the pre-measurement position.
+        //
+        // Waiting on `cardPos` cannot detect that: with the target rect still at
+        // its {0,0,0,0} default, `computeCardPos` already returns a clamped
+        // {top: 12, left: 8}, so a `top + left > 0` predicate passes before
+        // anything has been measured. `isReady` is the real signal — `goToStep`
+        // clears it and it is set only after the target rect and card size have
+        // both been read.
         await vi.waitFor(() => {
-            const pos = tour.cardPos();
-            expect(pos.top + pos.left).toBeGreaterThan(0);
+            fixture.detectChanges();
+            expect(tour.isReady()).toBe(true);
         });
         return tour;
     }

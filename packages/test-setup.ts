@@ -60,10 +60,42 @@ function resetGuardedGlobals(to: Array<PropertyDescriptor | undefined>): void {
     });
 }
 
+// The frame globals, reset only at the file boundary. They are deliberately
+// absent from GUARDED_GLOBALS above, whose snapshot/restore runs around every
+// test and would fight `vi.useFakeTimers` (which legitimately replaces rAF for
+// the duration of a test). Between files nothing owns them, so restoring the
+// pristine pair there is safe — and necessary: a spec that stubs rAF while fake
+// timers are installed can unstub the *fake* rAF back over the native one, and
+// that function queues into a clock that no longer exists. It never fires, so
+// every later file on this worker inherits an rAF that silently swallows
+// callbacks, and any spec awaiting a real frame hangs until its timeout.
+const GUARDED_FRAME_GLOBALS: ReadonlyArray<readonly [object, string]> = [
+    [globalThis, 'requestAnimationFrame'],
+    [globalThis, 'cancelAnimationFrame'],
+];
+
+const PRISTINE_FRAME_KEY = '__pristineFrameGlobals';
+globalStore[PRISTINE_FRAME_KEY] ??= GUARDED_FRAME_GLOBALS.map(([target, key]) =>
+    Object.getOwnPropertyDescriptor(target, key));
+const pristineFrameGlobals = globalStore[PRISTINE_FRAME_KEY] as Array<PropertyDescriptor | undefined>;
+
+function resetFrameGlobals(): void {
+    GUARDED_FRAME_GLOBALS.forEach(([target, key], i) => {
+        const want = pristineFrameGlobals[i];
+        if (want) Object.defineProperty(target, key, want);
+    });
+}
+
 // Isolate the file at both ends: it neither inherits a predecessor's stubs nor
 // leaves its own behind for whichever file this worker picks up next.
-beforeAll(() => resetGuardedGlobals(pristineGlobals));
-afterAll(() => resetGuardedGlobals(pristineGlobals));
+beforeAll(() => {
+    resetGuardedGlobals(pristineGlobals);
+    resetFrameGlobals();
+});
+afterAll(() => {
+    resetGuardedGlobals(pristineGlobals);
+    resetFrameGlobals();
+});
 
 let guardedSnapshot: Array<PropertyDescriptor | undefined> = [];
 

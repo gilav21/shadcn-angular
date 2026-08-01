@@ -98,14 +98,25 @@ async function waitForAnimations(
     fixture: ComponentFixture<unknown>,
     count: number,
 ): Promise<void> {
-    for (let frame = 0; frame < 50 && animations.length < count; frame++) {
+    // The only caller is the digit suite, which runs on real timers: the
+    // zoneless scheduler races the stubbed `requestAnimationFrame` against a
+    // timeout, so the effect that starts an animation lands on the timer leg
+    // and flushing frames alone never gets there. Pump a frame and yield a
+    // macrotask until the animations appear.
+    //
+    // The wait is a deadline rather than a fixed iteration budget, and it does
+    // not touch the timer mocks. A budget is a bet on how many turns the
+    // scheduler needs, which a loaded run loses; and `vi.advanceTimersByTime`
+    // throws outright here ("timers APIs are not mocked") — it only ever went
+    // unnoticed because the loop body is skipped whenever the animation has
+    // already started.
+    const deadline = Date.now() + 5000;
+    let frame = 0;
+    while (animations.length < count && Date.now() < deadline) {
+        frame += 16;
         flushFrame(frame);
-        // Fake timers are installed, so the zoneless scheduler's own timers sit
-        // frozen until they are advanced; without this the effect that starts
-        // the animation never runs, however many frames are flushed.
-        vi.advanceTimersByTime(16);
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
         fixture.detectChanges();
-        await Promise.resolve();
     }
     expect(animations).toHaveLength(count);
 }
@@ -116,10 +127,16 @@ describe('NumberTickerComponent — animation (deterministic frames)', () => {
         installStubs();
     });
 
+    // Teardown mirrors setup in reverse. `installStubs` runs while fake timers
+    // are installed, so `vi.stubGlobal` records the *fake* `requestAnimationFrame`
+    // as the original; unstubbing after `useRealTimers` therefore reinstalls that
+    // fake rAF over the native one, and it queues into a clock that no longer
+    // exists. Every later file on this worker then inherits an rAF that never
+    // fires — a spec awaiting a real frame hangs until its timeout.
     afterEach(() => {
         vi.clearAllTimers();
-        vi.useRealTimers();
         restoreStubs();
+        vi.useRealTimers();
     });
 
     async function makeTicker(inputs: Record<string, unknown>): Promise<ComponentFixture<NumberTickerComponent>> {
@@ -273,6 +290,17 @@ describe('NumberTickerDigitComponent', () => {
         // animation is ever created, so the tests below fail deterministically
         // rather than flakily. Wait for the seed before touching the input.
         await vi.waitFor(() => expect(digitInstance().prevDigit()).toBe('5'));
+        // Seeding prevDigit is not enough: the effect's first pass does it
+        // without touching the DOM, so it can land before the view has
+        // rendered. The animation the tests below wait for is only created when
+        // the component finds its `.flex` container — with the view still
+        // unrendered the digit change takes the silent fallback branch, sets
+        // prevDigit directly and creates no animation at all. Wait for the
+        // container the component actually looks for.
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(fixture.nativeElement.querySelector('.flex')).not.toBeNull();
+        });
     });
 
     afterEach(() => {

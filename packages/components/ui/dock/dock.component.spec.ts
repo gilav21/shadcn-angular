@@ -134,7 +134,13 @@ describe('DockComponent', () => {
         it('should magnify item under the pointer via a real mousemove event', async () => {
             dockEl.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
             dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 20, clientY: 0, bubbles: true }));
-            await nextFrame();
+            // Wait for the widths the mousemove produces rather than a fixed
+            // number of frames. The component applies them from its own
+            // animation frame, so any fixed count is a bet on how promptly the
+            // browser schedules it — under load the frame lands after the wait
+            // and the item is still at its 40px base width.
+            await vi.waitFor(() =>
+                expect(Number.parseFloat(itemEls[0].style.width)).toBeCloseTo(80, 5));
 
             expect(Number.parseFloat(itemEls[0].style.width)).toBeCloseTo(80, 5);
             const neighbour = Number.parseFloat(itemEls[1].style.width);
