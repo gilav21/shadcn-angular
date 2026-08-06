@@ -22,7 +22,7 @@ describe('PdfReadableCompareDemoComponent', () => {
         const input = fixture.nativeElement.querySelector('input[type="file"]') as HTMLInputElement;
         Object.defineProperty(input, 'files', { value: [file] });
         input.dispatchEvent(new Event('change'));
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await waitUntil(() => (fixture.nativeElement as HTMLElement).textContent?.includes('Not a valid PDF file.') ?? false);
         fixture.detectChanges();
 
         expect((fixture.nativeElement as HTMLElement).textContent).toContain('Not a valid PDF file.');

@@ -60,10 +60,59 @@ function resetGuardedGlobals(to: Array<PropertyDescriptor | undefined>): void {
     });
 }
 
+// The frame globals, reset only at the file boundary. They are deliberately
+// absent from GUARDED_GLOBALS above, whose snapshot/restore runs around every
+// test and would fight `vi.useFakeTimers` (which legitimately replaces rAF for
+// the duration of a test). Between files nothing owns them, so restoring the
+// pristine pair there is safe — and necessary: a spec that stubs rAF while fake
+// timers are installed can unstub the *fake* rAF back over the native one, and
+// that function queues into a clock that no longer exists. It never fires, so
+// every later file on this worker inherits an rAF that silently swallows
+// callbacks, and any spec awaiting a real frame hangs until its timeout.
+const GUARDED_FRAME_GLOBALS: ReadonlyArray<readonly [object, string]> = [
+    [globalThis, 'requestAnimationFrame'],
+    [globalThis, 'cancelAnimationFrame'],
+];
+
+const PRISTINE_FRAME_KEY = '__pristineFrameGlobals';
+globalStore[PRISTINE_FRAME_KEY] ??= GUARDED_FRAME_GLOBALS.map(([target, key]) =>
+    Object.getOwnPropertyDescriptor(target, key));
+const pristineFrameGlobals = globalStore[PRISTINE_FRAME_KEY] as Array<PropertyDescriptor | undefined>;
+
+function resetFrameGlobals(): void {
+    GUARDED_FRAME_GLOBALS.forEach(([target, key], i) => {
+        const want = pristineFrameGlobals[i];
+        if (want) Object.defineProperty(target, key, want);
+    });
+}
+
+// Nodes a spec appended to `document.body` and never removed. Measured before
+// this existed, 366 of 373 files left something behind and the worst left 36
+// nodes, so a file could inherit a body several screens tall. That is not just
+// untidy: components resolve targets with `document.querySelector`, so a stale
+// node can be found instead of the live one, and anything measuring real layout
+// sees geometry produced by a predecessor's leftovers.
+//
+// Everything here is garbage by construction. Vitest renders each test into a
+// fresh `#root<n>` container (the id increments per test), so once a file has
+// finished, every node still under `body` — its own roots included — belongs to
+// a test that is over. The next file's containers are created after this runs.
+function clearLeftoverDom(): void {
+    document.body.replaceChildren();
+}
+
 // Isolate the file at both ends: it neither inherits a predecessor's stubs nor
 // leaves its own behind for whichever file this worker picks up next.
-beforeAll(() => resetGuardedGlobals(pristineGlobals));
-afterAll(() => resetGuardedGlobals(pristineGlobals));
+beforeAll(() => {
+    resetGuardedGlobals(pristineGlobals);
+    resetFrameGlobals();
+    clearLeftoverDom();
+});
+afterAll(() => {
+    resetGuardedGlobals(pristineGlobals);
+    resetFrameGlobals();
+    clearLeftoverDom();
+});
 
 let guardedSnapshot: Array<PropertyDescriptor | undefined> = [];
 

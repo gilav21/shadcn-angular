@@ -335,6 +335,15 @@ describe('SelectContentComponent positioning & keyboard', () => {
         fixture.detectChanges();
         getSelect(fixture).open.set(true);
         fixture.detectChanges();
+        // The content schedules `calculatePosition` from a `setTimeout(0)` that
+        // an effect queues. Waiting a single macrotask assumes that effect has
+        // already run, which is a bet on scheduling: if it has not, its timeout
+        // is queued *after* this one and the position is applied only once the
+        // assertions have been made — the style attribute is still empty. That
+        // ordering is stable for a given run, so it burns every retry, and it
+        // depends on the scheduler state the file inherits, so it passes in
+        // isolation. Settle the effects first, then drain the timeout they queue.
+        await fixture.whenStable();
         await flushTimers();
         fixture.detectChanges();
     }

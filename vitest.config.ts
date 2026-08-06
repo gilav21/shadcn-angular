@@ -28,12 +28,39 @@ export default defineConfig(({ mode: _mode }) => ({
         // Those teardowns are fixed, and `packages/test-setup.ts` resets the
         // globals at each file boundary so a leak cannot outlive its file.
         //
-        // The second is real and remains: on a loaded machine a handful of
-        // geometry/animation specs (tour, hover-card, select, number-ticker)
-        // still miss a frame and measure the wrong layout. Measured over
-        // matched runs, the guard makes no difference to these — they need the
-        // retry. Fix them at the source and drive this back to 0; do not raise
-        // it to absorb anything new.
+        // The second is real and remains, though it is now much smaller and its
+        // shape is known. Four causes were found and fixed at source:
+        //
+        //   - `number-ticker` stubbed rAF *while fake timers were installed*,
+        //     so `vi.stubGlobal` recorded the fake rAF as the original and
+        //     unstubbing after `useRealTimers` put that back over the native
+        //     one. It queues into a clock that no longer exists, so it never
+        //     fires. A full-suite probe found 19 files inheriting it and
+        //     re-leaking it down the worker's chain; the popover positioning
+        //     suite awaits a real frame and hung, timing out all 13 of its
+        //     tests. `packages/test-setup.ts` now also resets the frame globals
+        //     at the file boundary so this cannot propagate again.
+        //   - `number-ticker`'s digit suite waited only for `prevDigit` to
+        //     seed, which the effect does without touching the DOM. With the
+        //     view unrendered the digit change takes the component's silent
+        //     "no .flex container" fallback and creates no animation at all.
+        //   - `tour` waited on `cardPos`, which already returns a clamped
+        //     non-zero position from the *un-measured* default rect, so the
+        //     wait passed before anything was measured.
+        //   - a demo spec slept a fixed 200ms for an async parse.
+        //
+        // What remains is one class, and it is NOT a frame race: a spec's
+        // `Element.prototype.getBoundingClientRect` stub is not in effect when
+        // the component measures, so it reads real layout. Verified by
+        // bypassing the stub deliberately and reproducing the exact failing
+        // numbers — `tour` gives 36/57, `hover-card` gives 101.578px. Seen in
+        // `hover-card`, `dock`, `select.coverage` and `rich-text-slash-commands`.
+        // Waiting harder cannot fix these; the measurement is already wrong.
+        // `tour` is fixed by stubbing the rect on the target element instance
+        // instead of the prototype — the same treatment should retire the rest,
+        // and then this can go to 0. Do not raise it to absorb anything new,
+        // and do not lower it on a lucky streak: failures are ~1 spec per 2-3
+        // full runs under load and can be 0 for three runs in a row.
         retry: 2,
         // Coverage for SonarQube (sonar.javascript.lcov.reportPaths=coverage/lcov.info).
         coverage: {
