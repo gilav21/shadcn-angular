@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TourComponent, TourStep } from './tour.component';
+import { TourComponent, TourStep, TourEndReason, TourSkippedEvent } from './tour.component';
 
 interface MutableRect {
     top: number;
@@ -98,6 +98,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    // Angular only destroys fixtures when the *next* test resets the module, so
+    // the file's last test would otherwise hand a live tour to whichever file
+    // this worker picks up next — window listeners, a pending target poll and
+    // its timer included. Destroy them here instead. (Hygiene, not a flake fix:
+    // measured over several full runs it did not move the failure rate.)
+    TestBed.resetTestingModule();
     restoreBrowserStubs();
 });
 
@@ -678,6 +684,490 @@ describe('TourComponent — missing target', () => {
 
         expect(host.active()).toBe(false);
         expect(host.doneCount).toBe(1);
+    });
+});
+
+@Component({
+    selector: 'app-test-host-gap',
+    imports: [TourComponent],
+    template: `
+        <div id="gap-first" style="position:fixed;top:100px;left:100px;width:200px;height:50px;">First</div>
+        @if (showMiddle()) {
+            <div id="gap-middle" style="position:fixed;top:200px;left:100px;width:200px;height:50px;">Middle</div>
+        }
+        <div id="gap-last" style="position:fixed;top:300px;left:100px;width:200px;height:50px;">Last</div>
+        <ui-tour
+            [steps]="steps"
+            [(active)]="active"
+            (done)="lastDone = $event"
+            (stepSkipped)="skipped.push($event)"
+        />
+    `,
+})
+class TestHostGapComponent {
+    readonly steps: TourStep[] = [
+        { target: '#gap-first', title: 'First' },
+        { target: '#gap-middle', title: 'Middle' },
+        { target: '#gap-last', title: 'Last' },
+    ];
+    readonly showMiddle = signal(false);
+    readonly active = signal(false);
+    readonly skipped: TourSkippedEvent[] = [];
+    lastDone: TourEndReason | null = null;
+}
+
+describe('TourComponent — skipping a missing step backwards', () => {
+    let fixture: ComponentFixture<TestHostGapComponent>;
+    let host: TestHostGapComponent;
+
+    beforeEach(async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        await TestBed.configureTestingModule({ imports: [TestHostGapComponent] }).compileComponents();
+        fixture = TestBed.createComponent(TestHostGapComponent);
+        host = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('reaches an earlier resolvable step instead of bouncing forward', async () => {
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+
+        tour.next();
+        await flush(fixture);
+        expect(tour.currentIndex()).toBe(2);
+
+        tour.previous();
+        await flush(fixture);
+
+        expect(tour.currentIndex()).toBe(0);
+        expect(host.active()).toBe(true);
+        expect(host.skipped).toContainEqual({ index: 1, reason: 'missing-target' });
+    });
+
+    it('does not end the tour when a backwards move finds nothing earlier', async () => {
+        host.steps.splice(0, 1);
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+        expect(tour.currentIndex()).toBe(1);
+
+        tour.previous();
+        await flush(fixture);
+
+        expect(host.active()).toBe(true);
+        expect(host.lastDone).toBeNull();
+        expect(tour.currentIndex()).toBe(1);
+    });
+
+    it('hides the Back button once every earlier step is known unreachable', async () => {
+        host.steps.splice(0, 1);
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+        expect(tour.currentIndex()).toBe(1);
+
+        expect(tour.canGoBack()).toBe(false);
+        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
+        expect(card.textContent).not.toContain('Previous');
+    });
+
+    it('leaves Back available when an earlier step is still reachable', async () => {
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+        tour.next();
+        await flush(fixture);
+
+        expect(tour.currentIndex()).toBe(2);
+        expect(tour.canGoBack()).toBe(true);
+        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
+        expect(card.textContent).toContain('Previous');
+    });
+
+    it('drops skipped steps from the counter instead of promising unreachable ones', async () => {
+        host.steps.splice(0, 1);
+        host.active.set(true);
+        await flush(fixture);
+
+        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
+        expect(card.textContent).toContain('1 / 1');
+        expect(card.textContent).not.toContain('2 / 2');
+    });
+
+    it('shows Done rather than Next when no later step is reachable', async () => {
+        host.steps.splice(0, 1);
+        host.active.set(true);
+        await flush(fixture);
+
+        const tour = getTour(fixture);
+        expect(tour.isLastStep()).toBe(true);
+        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
+        expect(card.textContent).toContain('Done');
+    });
+
+    it('shrinks the counter only once a step has actually been tried', async () => {
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+
+        // Nothing tried past step 0 yet, so all three are still on offer.
+        expect(tour.reachableCount()).toBe(3);
+        expect(tour.reachablePosition()).toBe(1);
+
+        tour.next();
+        await flush(fixture);
+
+        // Step 1 turned out to be missing — it stops counting.
+        expect(tour.currentIndex()).toBe(2);
+        expect(tour.reachableCount()).toBe(2);
+        expect(tour.reachablePosition()).toBe(2);
+    });
+
+    it('re-tests skipped steps on a fresh run', async () => {
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+        tour.next();
+        await flush(fixture);
+        expect(tour.reachableCount()).toBe(2);
+
+        host.active.set(false);
+        fixture.detectChanges();
+        host.showMiddle.set(true);
+        host.active.set(true);
+        await flush(fixture);
+
+        expect(tour.reachableCount()).toBe(3);
+        tour.next();
+        await flush(fixture);
+        expect(tour.currentIndex()).toBe(1);
+    });
+
+    it('reports the end reason on done', async () => {
+        host.showMiddle.set(true);
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+
+        tour.skip();
+        await flush(fixture);
+        expect(host.lastDone).toBe('skipped');
+
+        host.lastDone = null;
+        host.active.set(true);
+        await flush(fixture);
+        tour.goTo(2);
+        await flush(fixture);
+        tour.next();
+        await flush(fixture);
+        expect(host.lastDone).toBe('finished');
+    });
+});
+
+@Component({
+    selector: 'app-test-host-hidden',
+    imports: [TourComponent],
+    template: `
+        <div id="hidden-target" style="display:none;">Hidden</div>
+        <div id="visible-target" style="position:fixed;top:100px;left:100px;width:200px;height:50px;">Visible</div>
+        <ui-tour [steps]="steps" [(active)]="active" (stepSkipped)="skipped.push($event)" />
+    `,
+})
+class TestHostHiddenComponent {
+    readonly steps: TourStep[] = [
+        { target: '#hidden-target', title: 'Hidden' },
+        { target: '#visible-target', title: 'Visible' },
+    ];
+    readonly active = signal(false);
+    readonly skipped: TourSkippedEvent[] = [];
+}
+
+describe('TourComponent — unrendered target', () => {
+    it('skips a target that exists but is display:none', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        await TestBed.configureTestingModule({ imports: [TestHostHiddenComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostHiddenComponent);
+        const host = fixture.componentInstance;
+        fixture.detectChanges();
+
+        host.active.set(true);
+        await flush(fixture);
+
+        expect(getTour(fixture).currentIndex()).toBe(1);
+        expect(host.skipped).toContainEqual({ index: 0, reason: 'missing-target' });
+    });
+});
+
+@Component({
+    selector: 'app-test-host-hooks',
+    imports: [TourComponent],
+    template: `
+        <div id="hook-first" style="position:fixed;top:100px;left:100px;width:200px;height:50px;">First</div>
+        @if (panelOpen()) {
+            <div id="hook-panel" style="position:fixed;top:200px;left:100px;width:200px;height:50px;">Panel</div>
+        }
+        <ui-tour
+            [steps]="steps"
+            [(active)]="active"
+            [targetTimeout]="1000"
+            (stepSkipped)="skipped.push($event)"
+        />
+    `,
+})
+class TestHostHooksComponent {
+    readonly panelOpen = signal(false);
+    readonly active = signal(false);
+    readonly skipped: TourSkippedEvent[] = [];
+    readonly log: string[] = [];
+    includePanel = true;
+    holdHook = false;
+    hookError: Error | null = null;
+    private release: (() => void) | null = null;
+
+    releaseHook(): void {
+        this.release?.();
+        this.release = null;
+    }
+
+    readonly steps: TourStep[] = [
+        {
+            target: '#hook-first',
+            title: 'First',
+            afterDeactivate: ctx => {
+                this.log.push(`after:0:${ctx.direction}`);
+            },
+        },
+        {
+            target: '#hook-panel',
+            title: 'Panel',
+            when: () => this.includePanel,
+            beforeActivate: async ctx => {
+                this.log.push(`before:1:${ctx.direction}`);
+                if (this.hookError) throw this.hookError;
+                if (this.holdHook) await new Promise<void>(resolve => { this.release = resolve; });
+                await Promise.resolve();
+                this.panelOpen.set(true);
+            },
+            afterDeactivate: ctx => {
+                this.log.push(`after:1:${ctx.direction}`);
+                this.panelOpen.set(false);
+            },
+        },
+    ];
+}
+
+describe('TourComponent — async step hooks', () => {
+    let fixture: ComponentFixture<TestHostHooksComponent>;
+    let host: TestHostHooksComponent;
+
+    beforeEach(async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        await TestBed.configureTestingModule({ imports: [TestHostHooksComponent] }).compileComponents();
+        fixture = TestBed.createComponent(TestHostHooksComponent);
+        host = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    /**
+     * A tour with hooks resolves its steps asynchronously, so settling is not a
+     * fixed number of change-detection rounds — wait for the tour to stop
+     * being pending instead.
+     */
+    async function settle(tour: TourComponent): Promise<void> {
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(tour.isPending()).toBe(false);
+        });
+        await flush(fixture);
+    }
+
+    async function activate(): Promise<TourComponent> {
+        host.active.set(true);
+        fixture.detectChanges();
+        const tour = getTour(fixture);
+        await settle(tour);
+        return tour;
+    }
+
+    async function advance(tour: TourComponent): Promise<void> {
+        tour.next();
+        await settle(tour);
+    }
+
+    it('awaits beforeActivate and waits for the element it renders', async () => {
+        const tour = await activate();
+        expect(tour.currentIndex()).toBe(0);
+
+        await advance(tour);
+
+        expect(tour.currentIndex()).toBe(1);
+        expect(host.panelOpen()).toBe(true);
+        expect(document.getElementById('hook-panel')?.hasAttribute('data-ui-tour-highlight')).toBe(true);
+    });
+
+    it('runs afterDeactivate before the next step activates, with the travel direction', async () => {
+        const tour = await activate();
+
+        await advance(tour);
+
+        expect(host.log).toEqual(['after:0:forward', 'before:1:forward']);
+    });
+
+    it('marks itself pending while the hook runs', async () => {
+        const tour = await activate();
+
+        tour.next();
+        expect(tour.isPending()).toBe(true);
+        fixture.detectChanges();
+        const card = fixture.nativeElement.querySelector('[data-slot="tour-card"]');
+        expect(card.hasAttribute('data-pending')).toBe(true);
+
+        // The viewport stays dimmed by a full-screen scrim, so the page does
+        // not flash undimmed while the hook navigates.
+        expect(fixture.nativeElement.querySelector('[data-slot="tour-scrim"]')).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('[data-slot="tour-spotlight"]')).toBeNull();
+
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(tour.isPending()).toBe(false);
+        });
+    });
+
+    it('skips a step whose when() is falsy', async () => {
+        host.includePanel = false;
+        const tour = await activate();
+
+        tour.next();
+        await settle(tour);
+
+        expect(host.skipped).toContainEqual({ index: 1, reason: 'condition' });
+        expect(host.active()).toBe(false);
+    });
+
+    it('skips a step whose beforeActivate rejects instead of wedging the tour', async () => {
+        host.hookError = new Error('boom');
+        const tour = await activate();
+
+        tour.next();
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(host.skipped.length).toBeGreaterThan(0);
+        });
+
+        expect(host.skipped).toContainEqual({ index: 1, reason: 'hook-error' });
+        expect(host.active()).toBe(false);
+    });
+
+    it('discards a hook that resolves after the tour was closed', async () => {
+        const tour = await activate();
+        host.holdHook = true;
+
+        tour.next();
+        await vi.waitFor(() => {
+            expect(host.log).toContain('before:1:forward');
+        });
+        tour.skip();
+        host.releaseHook();
+
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(host.panelOpen()).toBe(true);
+        });
+        await flush(fixture);
+
+        expect(host.active()).toBe(false);
+        expect(tour.currentIndex()).toBe(0);
+        expect(document.getElementById('hook-panel')?.hasAttribute('data-ui-tour-highlight')).toBe(false);
+    });
+
+    it('aborts a queued step before its hook runs when the tour closes', async () => {
+        const tour = await activate();
+
+        tour.next();
+        tour.skip();
+        await flush(fixture);
+
+        expect(host.active()).toBe(false);
+        expect(host.log).not.toContain('before:1:forward');
+    });
+});
+
+@Component({
+    selector: 'app-test-host-shrink',
+    imports: [TourComponent],
+    template: `
+        <div id="shrink-a" style="position:fixed;top:100px;left:100px;width:200px;height:50px;">A</div>
+        <div id="shrink-b" style="position:fixed;top:200px;left:100px;width:200px;height:50px;">B</div>
+        <ui-tour [steps]="steps()" [(active)]="active" (done)="lastDone = $event" />
+    `,
+})
+class TestHostShrinkComponent {
+    readonly steps = signal<TourStep[]>([
+        { target: '#shrink-a', title: 'A' },
+        { target: '#shrink-b', title: 'B' },
+    ]);
+    readonly active = signal(false);
+    lastDone: TourEndReason | null = null;
+}
+
+describe('TourComponent — steps changing mid-tour', () => {
+    it('falls back to the last step when steps shrink past the current index', async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostShrinkComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostShrinkComponent);
+        const host = fixture.componentInstance;
+        fixture.detectChanges();
+
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+        tour.next();
+        await flush(fixture);
+        expect(tour.currentIndex()).toBe(1);
+
+        host.steps.set([{ target: '#shrink-a', title: 'A' }]);
+        await flush(fixture);
+
+        expect(tour.currentIndex()).toBe(0);
+        expect(host.active()).toBe(true);
+    });
+
+    it('ends the tour when steps empty out mid-tour', async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostShrinkComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostShrinkComponent);
+        const host = fixture.componentInstance;
+        fixture.detectChanges();
+
+        host.active.set(true);
+        await flush(fixture);
+
+        host.steps.set([]);
+        await flush(fixture);
+
+        expect(host.active()).toBe(false);
+        expect(host.lastDone).toBe('finished');
+    });
+});
+
+describe('TourComponent — target lost mid-step', () => {
+    it('advances when the highlighted element is removed from the DOM', async () => {
+        vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        await TestBed.configureTestingModule({ imports: [TestHostShrinkComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostShrinkComponent);
+        const host = fixture.componentInstance;
+        fixture.detectChanges();
+
+        host.active.set(true);
+        await flush(fixture);
+        const tour = getTour(fixture);
+        expect(tour.currentIndex()).toBe(0);
+
+        document.getElementById('shrink-a')?.remove();
+        globalThis.window.dispatchEvent(new Event('scroll'));
+        await flush(fixture);
+
+        expect(tour.currentIndex()).toBe(1);
+        expect(host.active()).toBe(true);
     });
 });
 

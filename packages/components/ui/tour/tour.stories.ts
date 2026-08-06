@@ -1,6 +1,6 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { Component, input, signal } from '@angular/core';
-import { TourComponent, TourStep } from './tour.component';
+import { TourComponent, TourStep, TourSkippedEvent } from './tour.component';
 import { ButtonComponent } from '../button';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent } from '../card';
 import { COMMON_LOCALES } from '../../lib/i18n/common.locales';
@@ -150,6 +150,75 @@ class TourNoSkipDemoComponent {
     }
 }
 
+@Component({
+    selector: 'tour-async-steps-demo',
+    imports: [TourComponent, ButtonComponent],
+    template: `
+        <div style="min-height:340px;padding:24px;">
+            <div style="display:flex;gap:8px;margin-bottom:16px;">
+                <div id="story-async-start" style="display:inline-block;">
+                    <ui-button (click)="showTour.set(true)">Start Tour</ui-button>
+                </div>
+                <ui-button variant="outline" (click)="items.set(items().length ? [] : ['First item'])">
+                    {{ items().length ? 'Empty the list' : 'Add an item' }}
+                </ui-button>
+            </div>
+
+            <div style="display:flex;gap:16px;">
+                @if (panelOpen()) {
+                    <aside id="story-async-panel" style="width:180px;padding:12px;border:1px solid hsl(var(--border));border-radius:8px;">
+                        Side panel
+                    </aside>
+                }
+                <div style="flex:1;padding:12px;border:1px solid hsl(var(--border));border-radius:8px;">
+                    @for (item of items(); track item) {
+                        <div id="story-async-row" style="padding:8px;">{{ item }}</div>
+                    } @empty {
+                        <p style="color:hsl(var(--muted-foreground));">The list is empty — the tour skips its step.</p>
+                    }
+                </div>
+            </div>
+
+            <p style="margin-top:16px;color:hsl(var(--muted-foreground));font-size:13px;">
+                Skipped steps: {{ skipped().join(', ') || 'none' }}
+            </p>
+
+            <ui-tour [steps]="steps" [(active)]="showTour" [targetTimeout]="2000" (stepSkipped)="onSkipped($event)" />
+        </div>
+    `,
+})
+class TourAsyncStepsDemoComponent {
+    readonly showTour = signal(false);
+    readonly panelOpen = signal(false);
+    readonly items = signal<string[]>([]);
+    readonly skipped = signal<string[]>([]);
+
+    readonly steps: TourStep[] = [
+        { target: '#story-async-start', title: 'Welcome', description: 'The next step opens the side panel first.' },
+        {
+            target: '#story-async-panel',
+            title: 'Side panel',
+            description: 'beforeActivate opened this panel and the tour waited for it to render.',
+            beforeActivate: () => {
+                this.panelOpen.set(true);
+            },
+            afterDeactivate: ({ direction }) => {
+                if (direction === 'backward') this.panelOpen.set(false);
+            },
+        },
+        {
+            target: '#story-async-row',
+            title: 'First row',
+            description: 'Only shown when the list has rows — otherwise the tour skips past it, forwards and backwards.',
+        },
+        { target: '#story-async-start', title: 'Done', description: 'Back where we started.' },
+    ];
+
+    onSkipped(event: TourSkippedEvent): void {
+        this.skipped.update(list => [...list, `#${event.index} (${event.reason})`]);
+    }
+}
+
 interface TourStoryProps {
     showSkip: boolean;
     nextLabel?: string;
@@ -170,6 +239,7 @@ const meta: Meta<TourStoryProps> = {
                 TourComponent, ButtonComponent,
                 CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent,
                 TourPlaygroundDemoComponent, TourBasicDemoComponent, TourCustomLabelsDemoComponent, TourNoSkipDemoComponent,
+                TourAsyncStepsDemoComponent,
             ],
         }),
     ],
@@ -233,6 +303,13 @@ export const CustomLabels: Story = {
 export const NoSkipButton: Story = {
     render: () => ({
         template: '<tour-no-skip-demo></tour-no-skip-demo>',
+    }),
+};
+
+/** Steps that drive the app before they highlight, and steps that gracefully disappear when their target does not exist. */
+export const AsyncStepsAndSkipping: Story = {
+    render: () => ({
+        template: '<tour-async-steps-demo></tour-async-steps-demo>',
     }),
 };
 
