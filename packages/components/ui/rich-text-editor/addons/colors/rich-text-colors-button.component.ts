@@ -18,13 +18,13 @@ import { ColorPickerComponent } from '../../../color-picker';
 import { RICH_TEXT_COLOR_BUTTON_CONTEXT } from './rich-text-colors.context';
 
 const FOREGROUND_ICON =
-    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" ' +
-    'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-    '<path d="M4 20h16"/><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/></svg>';
+    '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="4 2 16 16" fill="none" ' +
+    'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="m6 16 6-12 6 12"/><path d="M8 12h8"/></svg>';
 
 const BACKGROUND_ICON =
     '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" ' +
-    'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    'stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
     '<path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/>' +
     '<path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/></svg>';
 
@@ -63,6 +63,26 @@ export class RichTextColorsButtonComponent {
         () => this.host.disabled() || this.host.readonly(),
     );
 
+    /**
+     * Background of the underline swatch: the colour in effect at the caret, or
+     * `null` when there is none so {@link emptyIndicatorClass} shows through
+     * (an inline style would otherwise win over the fallback class).
+     */
+    protected readonly indicatorColor = computed(() => this.context.activeColor() || null);
+
+    /**
+     * With no colour in effect the swatch falls back per kind: text defaults to
+     * the editor's own foreground (what typing will actually produce), while a
+     * highlight genuinely has none and reads as a muted "no colour" bar.
+     */
+    private readonly emptyIndicatorClass =
+        this.context.kind === 'foreground' ? 'bg-foreground' : 'bg-muted-foreground/30';
+
+    protected readonly indicatorClasses = computed(() => cn(
+        'h-[3px] w-4 rounded-[1px] ring-1 ring-border',
+        this.context.activeColor() ? '' : this.emptyIndicatorClass,
+    ));
+
     protected readonly buttonClasses = computed(() => cn(
         'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors',
         'hover:bg-accent hover:text-accent-foreground',
@@ -76,6 +96,10 @@ export class RichTextColorsButtonComponent {
             this.context.onOpen();
         }
         this.open.set(next);
+        if (!next) {
+            // After `open()` is false, so the picker's teardown emissions are ignored.
+            this.context.onClose();
+        }
     }
 
     /**

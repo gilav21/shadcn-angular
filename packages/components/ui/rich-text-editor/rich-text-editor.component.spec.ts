@@ -1427,6 +1427,170 @@ describe('RichTextEditorComponent', () => {
             expect(editor.innerHTML).toContain('rgb(255, 0, 0)');
         });
 
+        /**
+         * A colour applied to a collapsed caret is a *pending typing style* the
+         * browser holds internally, not in the DOM, so computed style cannot see
+         * it. These pin the `queryCommandValue` fallback that surfaces it — the
+         * real-browser behaviour a stubbed `execCommand` cannot reproduce.
+         */
+        function withCommandValue(values: Record<string, string>, run: () => void): void {
+            const doc = document as Document & { queryCommandValue: (id: string) => string };
+            const original = doc.queryCommandValue;
+            doc.queryCommandValue = (id: string) => values[id] ?? original.call(document, id);
+            try {
+                run();
+            } finally {
+                doc.queryCommandValue = original;
+            }
+        }
+
+        function placeCaret(offset: number): void {
+            editor.innerHTML = '<p>hello</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            const text = editor.querySelector('p')!.firstChild!;
+            editor.focus();
+            const caret = document.createRange();
+            caret.setStart(text, offset);
+            caret.collapse(true);
+            const selection = window.getSelection()!;
+            selection.removeAllRanges();
+            selection.addRange(caret);
+        }
+
+        it('reflects a pending typing colour at a collapsed caret', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            placeCaret(5);
+
+            // Sentinel differs from the applied colour, so only the pending-style
+            // path can produce it — computed style would report the applied purple.
+            withCommandValue({ foreColor: 'rgb(1, 2, 3)' }, () => {
+                component.applyInlineStyle({ color: '#9333ea' });
+            });
+
+            expect(component.selectionInlineStyle().color).toBe('rgb(1, 2, 3)');
+        });
+
+        it('reflects a pending typing highlight at a collapsed caret', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            placeCaret(5);
+
+            withCommandValue({ backColor: 'rgb(4, 5, 6)' }, () => {
+                component.applyInlineStyle({ backgroundColor: '#ffff00' });
+            });
+
+            expect(component.selectionInlineStyle().backgroundColor).toBe('rgb(4, 5, 6)');
+        });
+
+        it('ignores a selection that has collapsed outside the editor', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<p><span style="color:#2563eb;background-color:#f97316">tinted</span></p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            selectAllOf(editor.querySelector('span') as HTMLElement);
+            component['updateActiveFormats']();
+            const reflected = component.selectionInlineStyle();
+
+            // Clicking inside the colour popover collapses the document selection
+            // into the overlay's own markup. Reading that element's computed style
+            // would report the popover's colours as the editor's.
+            const outside = document.createElement('p');
+            outside.textContent = 'Presets';
+            outside.style.color = 'rgb(1, 2, 3)';
+            outside.style.backgroundColor = 'rgb(4, 5, 6)';
+            document.body.appendChild(outside);
+            try {
+                const range = document.createRange();
+                range.setStart(outside.firstChild!, 3);
+                range.collapse(true);
+                const selection = window.getSelection()!;
+                selection.removeAllRanges();
+                selection.addRange(range);
+
+                component['updateActiveFormats']();
+
+                expect(component.selectionInlineStyle().color).toBe(reflected.color);
+                expect(component.selectionInlineStyle().backgroundColor).toBe(reflected.backgroundColor);
+            } finally {
+                outside.remove();
+            }
+        });
+
+        it('keeps the pending colour while the caret has not moved', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            placeCaret(5);
+
+            withCommandValue({ foreColor: 'rgb(1, 2, 3)' }, () => {
+                component.applyInlineStyle({ color: '#9333ea' });
+                // Merely closing the colour popover fires a selection change while
+                // the pending style is still live — it must not revert the toolbar
+                // to the DOM colour the next typed character will not have.
+                component.onSelectionChange();
+            });
+
+            expect(component.selectionInlineStyle().color).toBe('rgb(1, 2, 3)');
+        });
+
+        it('drops the pending colour once the caret moves', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            placeCaret(5);
+
+            withCommandValue({ foreColor: 'rgb(1, 2, 3)' }, () => {
+                component.applyInlineStyle({ color: '#9333ea' });
+
+                const text = editor.querySelector('p')!.firstChild!;
+                const moved = document.createRange();
+                moved.setStart(text, 1);
+                moved.collapse(true);
+                const selection = window.getSelection()!;
+                selection.removeAllRanges();
+                selection.addRange(moved);
+                component.onSelectionChange();
+            });
+
+            expect(component.selectionInlineStyle().color).not.toBe('rgb(1, 2, 3)');
+        });
+
+        it('falls back to computed style when the caret has no pending colour', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            placeCaret(5);
+
+            // With nothing pending the browser reports the theme's own specified
+            // colour (non-rgb), which must not be mistaken for a typing style —
+            // for backColor it is the editor's opaque background, not a highlight.
+            // These sentinel values could never come from computed style, so
+            // seeing them reflected would mean a non-rgb value slipped through.
+            withCommandValue({ foreColor: 'oklch(0.7 0.2 30)', backColor: 'oklch(0.6 0.1 200)' }, () => {
+                component['updateActiveFormats']();
+            });
+
+            expect(component.selectionInlineStyle().color).not.toBe('oklch(0.7 0.2 30)');
+            expect(component.selectionInlineStyle().backgroundColor).not.toBe('oklch(0.6 0.1 200)');
+        });
+
+        it('ignores a pending colour when the selection is not collapsed', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<p><span style="color:#2563eb">ranged</span></p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            selectAllOf(editor.querySelector('span') as HTMLElement);
+
+            withCommandValue({ foreColor: 'rgb(147, 51, 234)' }, () => {
+                component['updateActiveFormats']();
+            });
+
+            expect(component.selectionInlineStyle().color).toContain('37, 99, 235');
+        });
+
         it('ignores a color with no selection so it cannot clobber the model on init', () => {
             fixture.componentRef.setInput('mode', 'html');
             fixture.detectChanges();

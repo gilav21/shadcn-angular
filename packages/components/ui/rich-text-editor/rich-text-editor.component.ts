@@ -333,6 +333,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Emits when the editor loses focus. */
     blurred = output<void>();
 
+    /**
+     * Where a colour was last applied to a collapsed caret, while it is still
+     * only a pending typing style. Gates {@link pendingTypingColor}. Anchored to
+     * the caret position rather than a bare flag because merely closing the
+     * colour popover fires a selection change while the pending style is still
+     * live — the caret has to actually move (or take a typed character) before
+     * the DOM becomes the source of truth again.
+     */
+    private caretColorAnchor: { node: Node; offset: number } | null = null;
     private readonly htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
     currentFontSize = signal<string>('');
@@ -1447,7 +1456,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // keep it selected. Do NOT focus the editor here: the colour picker lives in an
         // open popover, and stealing focus back collapses the selection so the next pick
         // (or a drag) has no target — the reported "de-selects and stops changing" bug.
-        this.applyMutation({ focus: false });
+        //
+        // Re-detect the active formats so the reflected colour matches what the next
+        // typed character will actually be. Without this the reflection only refreshes
+        // on the editor's next mouseup/keyup, leaving the toolbar a step behind the
+        // caret. `updateActiveFormats` only reads the selection, so it is focus-safe.
+        this.caretColorAnchor = this.collapsedCaretAnchor();
+        this.applyMutation({ focus: false, updateActiveFormats: true });
     }
 
     /**
@@ -3207,6 +3222,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return doc.queryCommandState?.(commandId) ?? false;
     }
 
+    private queryEditorCommandValue(commandId: string): string {
+        const doc = this.document as unknown as { queryCommandValue?: (id: string) => string };
+        return doc.queryCommandValue?.(commandId) ?? '';
+    }
+
     private focusEditor(): void {
         this.editorDiv?.nativeElement?.focus();
     }
@@ -3391,6 +3411,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * The element the current selection sits in, or `null` when the selection is
+     * outside this editor. Clicking inside an overlay the editor owns — the
+     * colour picker's own labels, say — collapses the document selection into
+     * that overlay; without the containment check the format detectors would
+     * read the overlay's computed style and report the popover's colours as the
+     * editor's. Returning `null` makes them keep the last in-editor state.
+     */
     private selectedElement(): HTMLElement | null {
         const sel = this.document.getSelection();
         if (!sel || sel.rangeCount === 0) {
@@ -3399,6 +3427,9 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         let node: Node = sel.getRangeAt(0).commonAncestorContainer;
         if (node.nodeType === Node.TEXT_NODE) {
             node = node.parentElement ?? node;
+        }
+        if (!this.editorDiv?.nativeElement?.contains(node)) {
+            return null;
         }
         return node instanceof HTMLElement ? node : null;
     }
@@ -3442,8 +3473,50 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return;
         }
         const computedStyle = view.getComputedStyle(element);
-        this.currentFontColor.set(computedStyle.color);
-        this.currentBackgroundColor.set(computedStyle.backgroundColor);
+        this.currentFontColor.set(this.pendingTypingColor('foreColor') || computedStyle.color);
+        this.currentBackgroundColor.set(
+            this.pendingTypingColor('backColor') || computedStyle.backgroundColor,
+        );
+    }
+
+    /**
+     * The colour the next typed character will take at a collapsed caret, or
+     * `''` when there is none. A colour command applied to a caret records a
+     * *pending* typing style that the browser holds internally rather than in
+     * the DOM, so computed style cannot see it and the toolbar would otherwise
+     * reflect the old colour until the caret next moves.
+     *
+     * Only consulted while the caret still sits where a colour was applied to it
+     * ({@link caretColorAnchor}): with nothing pending, `queryCommandValue`
+     * reports the element's own colour — and for `backColor` that is the
+     * editor's opaque background, which would otherwise read as a white
+     * highlight on any theme whose background serializes as `rgb(...)`.
+     */
+    private pendingTypingColor(commandId: string): string {
+        const anchor = this.caretColorAnchor;
+        const caret = this.collapsedCaretAnchor();
+        // `anchor` is checked first so that "no colour applied yet" stays a miss
+        // even when there is also no caret — comparing two `undefined`s would
+        // otherwise read as a match.
+        if (!anchor || caret?.node !== anchor.node || caret?.offset !== anchor.offset) {
+            return '';
+        }
+        const value = this.queryEditorCommandValue(commandId);
+        return value.startsWith('rgb') ? value : '';
+    }
+
+    /**
+     * The current collapsed caret position, or `null` when the selection spans
+     * content or sits outside the editor (a click in the colour popover collapses
+     * it into the popover's own markup).
+     */
+    private collapsedCaretAnchor(): { node: Node; offset: number } | null {
+        const selection = this.document.getSelection();
+        const editor = this.editorDiv?.nativeElement;
+        if (!selection?.isCollapsed || !selection.anchorNode || !editor?.contains(selection.anchorNode)) {
+            return null;
+        }
+        return { node: selection.anchorNode, offset: selection.anchorOffset };
     }
 
     private updateFloatingToolbarPosition(): void {

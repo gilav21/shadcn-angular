@@ -102,6 +102,7 @@ export class RichTextColorsDirective {
             presets: this.uiRteColorsPalette,
             alpha: false,
             seededColor: this.seededForeground,
+            activeColor: this.currentForeground,
             order: () => this.uiRteColorsOrder(),
         });
         this.registerSlot({
@@ -112,6 +113,7 @@ export class RichTextColorsDirective {
             presets: this.uiRteColorsHighlightPalette,
             alpha: true,
             seededColor: this.seededBackground,
+            activeColor: this.currentBackground,
             order: () => this.uiRteColorsOrder() + 1,
         });
     }
@@ -124,9 +126,10 @@ export class RichTextColorsDirective {
         presets: Signal<string[]>;
         alpha: boolean;
         seededColor: Signal<string>;
+        activeColor: Signal<string>;
         order: () => number;
     }): void {
-        const { kind, id, tooltip, heading, presets, alpha, seededColor, order } = config;
+        const { kind, id, tooltip, heading, presets, alpha, seededColor, activeColor, order } = config;
         const context: RichTextColorButtonContext = {
             kind,
             tooltip,
@@ -134,7 +137,9 @@ export class RichTextColorsDirective {
             presets,
             alpha,
             seededColor,
+            activeColor,
             onOpen: () => this.seed(kind),
+            onClose: () => this.host.restoreSelection(),
             onSelect: (color) => this.applyColor(kind, color),
         };
         const slotInjector = Injector.create({
