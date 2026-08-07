@@ -2756,3 +2756,82 @@ describe('parsePdf - LTR fragment inside an RTL document', () => {
         expect(result.text).toContain('LTR text line here');
     });
 });
+
+/**
+ * Damaged files are the common case for a parser like this: an aborted
+ * incremental save leaves `startxref` pointing at nothing, and a truncated
+ * download loses the trailer altogether. The parser answers with a scan-based
+ * repair path, which until now was exercised only incidentally.
+ */
+describe('parsePdf - damaged file recovery', () => {
+    const asText = (buf: ArrayBuffer): string => new TextDecoder('latin1').decode(new Uint8Array(buf));
+
+    /** `Uint8Array.buffer` widens to `ArrayBufferLike`; copy into a plain one. */
+    function toBuffer(text: string): ArrayBuffer {
+        const bytes = strToBytes(text);
+        const out = new ArrayBuffer(bytes.length);
+        new Uint8Array(out).set(bytes);
+        return out;
+    }
+
+    /** Point `startxref` at an offset past EOF so the xref chain is unusable. */
+    function breakStartxref(buf: ArrayBuffer): ArrayBuffer {
+        return toBuffer(asText(buf).replace(/startxref\s+\d+/, 'startxref\n999999'));
+    }
+
+    /** Drop `/Root N 0 R` from every trailer dict, keeping byte length stable. */
+    function stripRoot(buf: ArrayBuffer): ArrayBuffer {
+        return toBuffer(asText(buf).replaceAll(/\/Root \d+ 0 R/g, m => ' '.repeat(m.length)));
+    }
+
+    it('rebuilds the object table by scanning when startxref is unusable', async () => {
+        const pdf = scaffold({ content: strToBytes('BT /F1 12 Tf 100 700 Td (Rebuilt) Tj ET') }).build();
+
+        const result = await parsePdf(breakStartxref(pdf));
+
+        expect(result.text).toContain('Rebuilt');
+    });
+
+    it('recovers the catalog by scanning objects when no trailer carries /Root', async () => {
+        const pdf = scaffold({ content: strToBytes('BT /F1 12 Tf 100 700 Td (Rootless) Tj ET') }).build();
+
+        // Both repairs at once: the scan finds the objects, and with every
+        // trailer rootless the catalog can only come from a /Type /Catalog scan.
+        const result = await parsePdf(stripRoot(breakStartxref(pdf)));
+
+        expect(result.text).toContain('Rootless');
+    });
+
+    it('adopts an earlier trailer when the last one has no /Root', async () => {
+        const pdf = scaffold({ content: strToBytes('BT /F1 12 Tf 100 700 Td (EarlierTrailer) Tj ET') }).build();
+        // An aborted incremental save: a second, rootless trailer appended after
+        // the original. The last one wins the search but cannot supply /Root, so
+        // the parser must keep walking back to the one that can.
+        const damaged = toBuffer(
+            `${asText(breakStartxref(pdf))}\ntrailer\n<< /Size 5 >>\nstartxref\n999999\n%%EOF`,
+        );
+
+        const result = await parsePdf(damaged);
+
+        expect(result.text).toContain('EarlierTrailer');
+    });
+
+    it('indexes an object stream discovered by the scan', async () => {
+        const header = '3 0 ';
+        const page = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] '
+            + '/Resources << /Font << >> >> /Contents 4 0 R >>';
+        const pdf = new RawPdf()
+            .setRoot(1)
+            .obj(1, '/Type /Catalog /Pages 2 0 R')
+            .obj(2, '/Type /Pages /Kids [3 0 R] /Count 1')
+            .streamObj(4, '', strToBytes('BT /F1 12 Tf 100 700 Td (ScannedObjStm) Tj ET'))
+            .streamObj(7, `/Type /ObjStm /N 1 /First ${header.length}`, strToBytes(header + page))
+            .build();
+
+        // Page 3 exists only inside the object stream, so it is reachable only
+        // if the scan recognises object 7 as an ObjStm and indexes its contents.
+        const result = await parsePdf(breakStartxref(pdf));
+
+        expect(result.text).toContain('ScannedObjStm');
+    });
+});
