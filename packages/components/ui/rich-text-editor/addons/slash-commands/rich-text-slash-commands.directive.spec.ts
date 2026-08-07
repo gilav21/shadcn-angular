@@ -7,8 +7,12 @@ import { RichTextCommandRegistry, RichTextEditorComponent, type RichTextSlashCom
 
 type RangeWithRect = { getBoundingClientRect?: () => DOMRect };
 
-/** jsdom leaves `Range.getBoundingClientRect` undefined; the directive positions
- *  its menu from the caret rect, so supply a stable non-degenerate rect. */
+/** The directive positions its menu from the caret rect, so supply a stable
+ *  non-degenerate one. Installed unconditionally: this suite runs in a real
+ *  browser where `Range.prototype.getBoundingClientRect` already exists, and the
+ *  old `if (!('getBoundingClientRect' in Range.prototype))` guard therefore
+ *  skipped it entirely — every menu position then came from live layout, which
+ *  is what made this file's placement assertions flaky under load. */
 function fixedCaretRect(): DOMRect {
     return {
         x: 120, y: 100, left: 120, top: 100, right: 130, bottom: 118, width: 10, height: 18,
@@ -82,17 +86,21 @@ describe('RichTextSlashCommandsDirective', () => {
         return Array.from(document.querySelectorAll('[data-slash-index]'));
     }
 
-    let hadRangeRect = false;
+    let savedRangeRect: PropertyDescriptor | undefined;
     beforeEach(() => {
-        hadRangeRect = 'getBoundingClientRect' in Range.prototype;
-        if (!hadRangeRect) {
-            (Range.prototype as RangeWithRect).getBoundingClientRect = fixedCaretRect;
-        }
+        savedRangeRect = Object.getOwnPropertyDescriptor(Range.prototype, 'getBoundingClientRect');
+        Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+            configurable: true,
+            writable: true,
+            value: fixedCaretRect,
+        });
     });
 
     afterEach(() => {
-        if (!hadRangeRect) {
-            delete (Range.prototype as RangeWithRect).getBoundingClientRect;
+        if (savedRangeRect) {
+            Object.defineProperty(Range.prototype, 'getBoundingClientRect', savedRangeRect);
+        } else {
+            Reflect.deleteProperty(Range.prototype, 'getBoundingClientRect');
         }
         window.getSelection()?.removeAllRanges();
         while (openFixtures.length > 0) {
