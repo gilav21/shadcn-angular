@@ -21,8 +21,21 @@ export interface RichTextColorButtonContext {
     readonly alpha: boolean;
     /** The hex value the picker is seeded with while the popover is open. */
     readonly seededColor: Signal<string>;
+    /**
+     * Hex value of the colour currently in effect at the caret, tracked live so
+     * the button can show it as an underline swatch. `''` when there is none
+     * (only reachable for a transparent highlight background).
+     */
+    readonly activeColor: Signal<string>;
     /** Seed the picker from the current selection when the popover opens. */
     onOpen(): void;
+    /**
+     * Put the caret back where it was before the popover opened. The picker stays
+     * open across picks so a colour can be refined, which means it is dismissed by
+     * clicking away — and that click would otherwise land in the editor and move
+     * the caret, or outside it and drop the selection entirely.
+     */
+    onClose(): void;
     /** Apply a picked colour to the current selection. */
     onSelect(color: string): void;
 }

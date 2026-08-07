@@ -91,7 +91,16 @@ function makeExecution(overrides: Partial<MigrationExecution> = {}): MigrationEx
 
 describe('migrate (command)', () => {
   const logs: string[] = [];
-  const output = (): string => logs.join('\n');
+  /**
+   * Captured output with ANSI styling removed. The assertions below match on
+   * label+value substrings ("Convert to folder layout: button"), but the command
+   * dims only the label — `chalk.dim('  Label: ') + value` emits a reset between
+   * the two, so the substring exists only when chalk happens to be colourless.
+   * Stripping here keeps the specs true whether or not the run has colour.
+   */
+  // Built from a char code so the source carries no control character.
+  const ANSI = new RegExp(`${String.fromCodePoint(27)}\\[[0-9;]*m`, 'g');
+  const output = (): string => logs.join('\n').replaceAll(ANSI, '');
 
   function mockOutcome(outcome: MigrateOutcome): void {
     vi.mocked(migrateCore).mockResolvedValue(outcome);

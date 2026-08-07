@@ -6,7 +6,14 @@
       [title]="context.tooltip()"
       [disabled]="interactionDisabled()"
     >
-      <span [innerHTML]="icon"></span>
+      <span class="flex size-4 flex-col items-center justify-between">
+        <span class="flex h-[13px] w-4 items-center justify-center [&>svg]:size-[13px]" [innerHTML]="icon"></span>
+        <span
+          data-slot="rte-color-indicator"
+          [class]="indicatorClasses()"
+          [style.background-color]="indicatorColor()"
+        ></span>
+      </span>
     </button>
   </ui-popover-trigger>
   <ui-popover-content class="w-72 max-w-[calc(100vw-2rem)] p-3" align="start" strategy="fixed">

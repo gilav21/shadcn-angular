@@ -22,7 +22,9 @@ interface ButtonProbe {
 }
 
 function buildContext(kind: RichTextColorKind): RichTextColorButtonContext & {
+    activeColor: WritableSignal<string>;
     onOpen: ReturnType<typeof vi.fn>;
+    onClose: ReturnType<typeof vi.fn>;
     onSelect: ReturnType<typeof vi.fn>;
 } {
     return {
@@ -32,7 +34,9 @@ function buildContext(kind: RichTextColorKind): RichTextColorButtonContext & {
         presets: signal(['#ff0000', '#00ff00']),
         alpha: kind === 'background',
         seededColor: signal('#123456'),
+        activeColor: signal(''),
         onOpen: vi.fn<() => void>(),
+        onClose: vi.fn<() => void>(),
         onSelect: vi.fn<(color: string) => void>(),
     };
 }
@@ -110,6 +114,69 @@ describe('RichTextColorsButtonComponent', () => {
         p.onOpenChange(false);
         p.onColorChange('#000000');
         expect(ctx.onSelect).toHaveBeenCalledTimes(1);
+    });
+
+    it('restores the pre-open caret when the popover is dismissed', () => {
+        render('foreground');
+        const p = probe();
+
+        p.onOpenChange(true);
+        expect(ctx.onClose).not.toHaveBeenCalled();
+
+        p.onOpenChange(false);
+        expect(ctx.onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores colour emissions that arrive as the popover tears down', () => {
+        render('foreground');
+        const p = probe();
+        p.onOpenChange(true);
+        ctx.onSelect.mockClear();
+
+        // The picker can emit while unmounting; `open()` is already false by the
+        // time onClose runs, so a teardown emission must not reach the editor.
+        p.onOpenChange(false);
+        p.onColorChange('#ff0000');
+
+        expect(ctx.onSelect).not.toHaveBeenCalled();
+    });
+
+    it('paints the underline indicator with the active colour', () => {
+        const el = render('foreground');
+        ctx.activeColor.set('#2563eb');
+        fixture.detectChanges();
+
+        const bar = el.querySelector('[data-slot="rte-color-indicator"]') as HTMLElement;
+        expect(bar.style.backgroundColor).toBe('rgb(37, 99, 235)');
+        expect(bar.className).not.toContain('bg-foreground');
+    });
+
+    it('keeps the tooltip stable as the active colour changes', () => {
+        const el = render('foreground');
+        ctx.activeColor.set('#2563eb');
+        fixture.detectChanges();
+        expect((el.querySelector('button') as HTMLButtonElement).title).toBe('Text Color');
+    });
+
+    it('falls back to a muted indicator when no highlight colour is in effect', () => {
+        const el = render('background');
+        const bar = el.querySelector('[data-slot="rte-color-indicator"]') as HTMLElement;
+        expect(bar.style.backgroundColor).toBe('');
+        expect(bar.className).toContain('bg-muted-foreground/30');
+    });
+
+    it('falls back to the editor foreground when no text colour is in effect', () => {
+        const el = render('foreground');
+        const bar = el.querySelector('[data-slot="rte-color-indicator"]') as HTMLElement;
+        expect(bar.style.backgroundColor).toBe('');
+        expect(bar.className).toContain('bg-foreground');
+    });
+
+    it('keeps the indicator inside the shared 16px icon box', () => {
+        const el = render('foreground');
+        const bar = el.querySelector('[data-slot="rte-color-indicator"]') as HTMLElement;
+        expect((bar.parentElement as HTMLElement).className).toContain('size-4');
+        expect(bar.className).toContain('h-[3px]');
     });
 
     it('renders the inline colour picker seeded from the context', async () => {

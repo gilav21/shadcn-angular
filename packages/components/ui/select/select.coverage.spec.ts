@@ -14,11 +14,29 @@ import {
 // positioning math in select-content has concrete numbers to reason about.
 // Installed/restored per test so it never leaks into other components' specs
 // (a shared jest process would otherwise inherit this stub).
+const stubRect = (): DOMRect => ({
+    top: 100, left: 100, right: 200, bottom: 140,
+    width: 100, height: 40, x: 100, y: 100,
+    toJSON() { },
+} as DOMRect);
+
+/**
+ * Pin a rect on the element itself. The prototype stub below is shared state:
+ * whenever it is not in effect at the moment `calculatePosition` measures, the
+ * placement math runs on live layout instead and the side resolution flips —
+ * which is the whole failure. An own property shadows the prototype regardless
+ * of ordering and dies with the element, so it cannot leak to another file.
+ */
+function pinRect(el: Element | null | undefined): void {
+    if (!el) return;
+    Object.defineProperty(el, 'getBoundingClientRect', { configurable: true, value: stubRect });
+}
+
 const originalGetBoundingClientRect = Object.getOwnPropertyDescriptor(Element.prototype, 'getBoundingClientRect');
 beforeEach(() => {
     Object.defineProperty(Element.prototype, 'getBoundingClientRect', {
         configurable: true,
-        value: () => ({ top: 100, left: 100, right: 200, bottom: 140, width: 100, height: 40, x: 100, y: 100, toJSON() { } }),
+        value: stubRect,
     });
 });
 afterEach(() => {
@@ -333,6 +351,12 @@ describe('SelectContentComponent positioning & keyboard', () => {
 
     async function openHost(fixture: ComponentFixture<unknown>): Promise<void> {
         fixture.detectChanges();
+        // Pin the trigger before opening: `calculatePosition` measures it as soon
+        // as the content renders, so the rect has to be on the instance by then.
+        // The wrapper goes too — with `clip` on it becomes the overflow ancestor
+        // `getClippingRect` measures, and that boundary decides the flip.
+        pinRect(getSelect(fixture).getTriggerElement());
+        pinRect(fixture.nativeElement.querySelector('div'));
         getSelect(fixture).open.set(true);
         fixture.detectChanges();
         // The content schedules `calculatePosition` from a `setTimeout(0)` that

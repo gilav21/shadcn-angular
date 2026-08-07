@@ -235,6 +235,46 @@ describe('RichTextColorsDirective', () => {
         expect(fg.context.seededColor()).toBe('#2563eb');
     });
 
+    it('tracks the selection colour in the button indicator without opening the popover', () => {
+        const fixture = createFixture();
+        selectContent(fixture, '<p><span style="color:#2563eb">Blue</span></p>');
+        fixture.detectChanges();
+
+        const fg = buttonByKind(fixture, 'foreground');
+        expect(fg.context.activeColor()).toBe('#2563eb');
+
+        const bar = fixture.nativeElement.querySelector(
+            '[data-addon-slot="colors.foreground"] [data-slot="rte-color-indicator"]',
+        ) as HTMLElement;
+        expect(bar.style.backgroundColor).toBe('rgb(37, 99, 235)');
+    });
+
+    it('reflects a just-applied colour immediately, with no further editor interaction', () => {
+        const fixture = createFixture();
+        selectContent(fixture, '<p>Plain</p>');
+        const fg = buttonByKind(fixture, 'foreground');
+        expect(fg.context.activeColor()).not.toBe('#ff0000');
+
+        pick(fixture, 'foreground', '#ff0000');
+
+        // No keyup/mouseup here on purpose: the toolbar must not lag a step
+        // behind the colour the next typed character will actually take.
+        expect(fg.context.activeColor()).toBe('#ff0000');
+        const bar = fixture.nativeElement.querySelector(
+            '[data-addon-slot="colors.foreground"] [data-slot="rte-color-indicator"]',
+        ) as HTMLElement;
+        expect(bar.style.backgroundColor).toBe('rgb(255, 0, 0)');
+    });
+
+    it('reflects a just-applied highlight colour immediately', () => {
+        const fixture = createFixture();
+        selectContent(fixture, '<p>Plain</p>');
+
+        pick(fixture, 'background', '#00ff00');
+
+        expect(buttonByKind(fixture, 'background').context.activeColor()).toBe('#00ff00');
+    });
+
     it('renders the inline color picker when a popover opens', async () => {
         const fixture = createFixture();
         selectContent(fixture, '<p>Colour</p>');

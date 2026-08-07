@@ -7,7 +7,6 @@ import { DockLabelComponent } from './sub/dock-label.component';
 import { Component, ViewChild, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 
-type RectProto = { getBoundingClientRect: () => DOMRect };
 type DockInternals = {
     _itemCenters: number[];
     _rafId: number | null;
@@ -69,19 +68,27 @@ class SimpleModeHostComponent {
 }
 
 describe('DockComponent', () => {
-    const originalRect = Element.prototype.getBoundingClientRect;
-
     afterEach(() => {
-        (Element.prototype as unknown as RectProto).getBoundingClientRect = originalRect;
         vi.restoreAllMocks();
     });
 
+    /**
+     * Give each item a fixed rect as an *own* property rather than through an
+     * `Element.prototype` stub. The prototype is shared state: whenever the stub
+     * is not in effect at the moment `DockItemComponent` measures, it reads live
+     * layout instead (every item at the same x), the magnified width never
+     * appears, and the wait below times out. An own property shadows the
+     * prototype regardless of ordering and dies with the element, so it cannot
+     * leak into another file.
+     */
     function layoutItems(items: HTMLElement[]): void {
-        const rects = new Map<Element, DOMRect>();
-        items.forEach((el, index) => rects.set(el, makeRect(index * 50)));
-        (Element.prototype as unknown as RectProto).getBoundingClientRect = function (this: Element): DOMRect {
-            return rects.get(this) ?? originalRect.call(this);
-        };
+        items.forEach((el, index) => {
+            const rect = makeRect(index * 50);
+            Object.defineProperty(el, 'getBoundingClientRect', {
+                configurable: true,
+                value: () => rect,
+            });
+        });
     }
 
     describe('Custom Mode (Content Projection)', () => {

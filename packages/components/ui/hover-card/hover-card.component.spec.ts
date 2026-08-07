@@ -252,6 +252,37 @@ function triggerEl(fixture: ComponentFixture<unknown>): HTMLElement {
     return fixture.nativeElement.querySelector('[data-slot="hover-card-trigger"]');
 }
 
+/**
+ * Pin the measured rect on the content element itself. `calculatePosition`
+ * reads it through the file-level `Element.prototype` stub, and whenever that
+ * stub is not in effect at measure time the positioning math runs on live
+ * layout instead — the documented cause of this file's flaky placements (a real
+ * 101.578px width leaking in). An own property shadows the prototype whatever
+ * the ordering, and dies with the element rather than leaking to another file.
+ */
+function pinContentRect(fixture: ComponentFixture<unknown>): void {
+    const el = contentEl(fixture);
+    if (!el) return;
+    Object.defineProperty(el, 'getBoundingClientRect', {
+        configurable: true,
+        value: () => new DOMRect(currentRect.x, currentRect.y, currentRect.w, currentRect.h),
+    });
+}
+
+/**
+ * Open the card and settle its position. The content renders on the first
+ * change-detection pass, and the effect's double `requestAnimationFrame` then
+ * measures it — so the rect is pinned in between, before the measurement the
+ * assertions actually read.
+ */
+function openAndPosition(fixture: ComponentFixture<unknown>): void {
+    hoverCardOf(fixture).open.set(true);
+    fixture.detectChanges();
+    pinContentRect(fixture);
+    flushFrames();
+    fixture.detectChanges();
+}
+
 describe('HoverCard integration', () => {
     let fixture: ComponentFixture<TestHostComponent>;
 
@@ -352,30 +383,21 @@ describe('HoverCard integration', () => {
 
     it('shifts left when the content overflows the right boundary', () => {
         currentRect = { x: 900, y: 100, w: 200, h: 50 };
-        hoverCardOf(fixture).open.set(true);
-        fixture.detectChanges();
-        flushFrames();
-        fixture.detectChanges();
+        openAndPosition(fixture);
         const style = contentEl(fixture)?.getAttribute('style') ?? '';
         expect(style).toContain('translateX(-84px)');
     });
 
     it('shifts right when the content overflows the left boundary', () => {
         currentRect = { x: -50, y: 100, w: 100, h: 50 };
-        hoverCardOf(fixture).open.set(true);
-        fixture.detectChanges();
-        flushFrames();
-        fixture.detectChanges();
+        openAndPosition(fixture);
         const style = contentEl(fixture)?.getAttribute('style') ?? '';
         expect(style).toContain('translateX(58px)');
     });
 
     it('flips a bottom card to top when it overflows the bottom boundary', () => {
         currentRect = { x: 100, y: 800, w: 200, h: 50 };
-        hoverCardOf(fixture).open.set(true);
-        fixture.detectChanges();
-        flushFrames();
-        fixture.detectChanges();
+        openAndPosition(fixture);
         expect(contentEl(fixture)?.className).toContain('bottom-full');
     });
 
@@ -383,10 +405,7 @@ describe('HoverCard integration', () => {
         fixture.componentInstance.side.set('top');
         fixture.detectChanges();
         currentRect = { x: 100, y: -10, w: 200, h: 50 };
-        hoverCardOf(fixture).open.set(true);
-        fixture.detectChanges();
-        flushFrames();
-        fixture.detectChanges();
+        openAndPosition(fixture);
         expect(contentEl(fixture)?.className).toContain('top-full');
     });
 
@@ -394,10 +413,7 @@ describe('HoverCard integration', () => {
         fixture.componentInstance.side.set('top');
         fixture.detectChanges();
         currentRect = { x: 100, y: 300, w: 200, h: 50 };
-        hoverCardOf(fixture).open.set(true);
-        fixture.detectChanges();
-        flushFrames();
-        fixture.detectChanges();
+        openAndPosition(fixture);
         expect(contentEl(fixture)?.className).toContain('bottom-full');
     });
 
@@ -425,6 +441,7 @@ describe('HoverCard integration', () => {
         fixture.detectChanges();
         const content = fixture.debugElement.query(By.directive(HoverCardContentComponent))
             .componentInstance as HoverCardContentComponent;
+        pinContentRect(fixture);
         content.ngAfterViewInit();
         fixture.detectChanges();
         const style = contentEl(fixture)?.getAttribute('style') ?? '';
