@@ -67,6 +67,13 @@ export default defineConfig(({ mode: _mode }) => ({
             provider: 'v8',
             reporter: ['text-summary', 'lcov'],
             reportsDirectory: './coverage',
+            // Emit the report even when a spec fails. This defaults to false,
+            // which means a single flaky failure writes NO lcov at all — and
+            // because `npm run coverage` chains with `&&`, the run then leaves
+            // the previous lcov stale (or absent) and the Sonar scan silently
+            // scores the whole library on the CLI report alone. That reads as a
+            // catastrophic coverage drop rather than as the flake it is.
+            reportOnFailure: true,
             include: ['packages/components/**/*.ts'],
             exclude: [
                 '**/*.spec.ts',

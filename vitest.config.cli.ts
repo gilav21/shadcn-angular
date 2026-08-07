@@ -19,6 +19,10 @@ export default defineConfig({
             provider: 'v8',
             reporter: ['text-summary', 'lcov'],
             reportsDirectory: './coverage-cli',
+            // See the same flag in vitest.config.ts: without it a failing spec
+            // emits no lcov, and the Sonar scan silently scores this package as
+            // uncovered instead of reporting the failure.
+            reportOnFailure: true,
             include: ['packages/cli/src/**/*.ts', 'packages/cli/scripts/**/*.ts'],
             exclude: [
                 '**/*.spec.ts',
