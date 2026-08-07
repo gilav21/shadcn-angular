@@ -1,6 +1,40 @@
 import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
 import type { TourStep } from '../../../../../packages/components/ui';
 
+/** Text of a single dynamic-tour step; the hooks are attached in the component. */
+export interface TourDemoStepText {
+  title: string;
+  description: string;
+}
+
+/** Copy for the "Dynamic steps" section — text only, never functions. */
+export interface TourDemoDynamicLocale {
+  heading: string;
+  description: string;
+  startButton: string;
+  panelTitle: string;
+  panelBody: string;
+  panelItemLabel: string;
+  listTitle: string;
+  listEmpty: string;
+  rowLabel: string;
+  addRow: string;
+  removeRow: string;
+  skippedTitle: string;
+  skippedEmpty: string;
+  stepPrefix: string;
+  reasonCondition: string;
+  reasonMissingTarget: string;
+  reasonHookError: string;
+  endLabel: string;
+  endFinished: string;
+  endSkipped: string;
+  stepIntro: TourDemoStepText;
+  stepPanel: TourDemoStepText;
+  stepRow: TourDemoStepText;
+  stepToggle: TourDemoStepText;
+}
+
 export interface TourDemoLocale extends LocaleMeta {
   title: string;
   description: string;
@@ -16,6 +50,7 @@ export interface TourDemoLocale extends LocaleMeta {
   offscreenDescription: string;
   offscreenContent: string;
   steps: TourStep[];
+  dynamic: TourDemoDynamicLocale;
 }
 
 export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
@@ -40,6 +75,32 @@ export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
       { target: '#tour-feature-2', title: 'Feature Two', description: 'And this is the secondary one.' },
       { target: '#tour-feature-3', title: 'Off-screen Section', description: 'See how the tour scrolls this into view before highlighting it.', side: 'top' },
     ],
+    dynamic: {
+      heading: 'Dynamic steps',
+      description: 'Steps can change the page before they run. beforeActivate opens the panel a step points at, afterDeactivate closes it again on the way back, and when drops a step whose target is not there.',
+      startButton: 'Start dynamic tour',
+      panelTitle: 'Settings panel',
+      panelBody: 'The tour opened this panel by itself before highlighting the item below.',
+      panelItemLabel: 'Notifications',
+      listTitle: 'Saved views',
+      listEmpty: 'No saved views yet — add one so the tour can stop here.',
+      rowLabel: 'Quarterly report',
+      addRow: 'Add saved view',
+      removeRow: 'Remove saved view',
+      skippedTitle: 'Skipped steps',
+      skippedEmpty: 'Nothing skipped yet.',
+      stepPrefix: 'Step',
+      reasonCondition: 'condition not met',
+      reasonMissingTarget: 'target not found',
+      reasonHookError: 'hook failed',
+      endLabel: 'Tour ended:',
+      endFinished: 'finished',
+      endSkipped: 'skipped',
+      stepIntro: { title: 'Dynamic tour', description: 'This tour rewrites the page as it goes. Keep an eye on the panel and the list.' },
+      stepPanel: { title: 'Opened for you', description: 'beforeActivate opened the settings panel and the tour waited for this item to render. Step back and it closes again.' },
+      stepRow: { title: 'Saved view', description: 'This step only runs while the list has a row. Empty the list and it is skipped in both directions.' },
+      stepToggle: { title: 'Toggle the list', description: 'Add or remove the saved view, then run the tour again to watch the step appear or be skipped.' },
+    },
   },
   he: {
     code: 'he', rtl: true,
@@ -62,6 +123,32 @@ export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
       { target: '#tour-feature-2', title: 'תכונה שנייה', description: 'וזהו הלוח המשני.' },
       { target: '#tour-feature-3', title: 'סעיף מחוץ לתצוגה', description: 'ראה כיצד הסיור גולל לפני ההדגשה.', side: 'top' },
     ],
+    dynamic: {
+      heading: 'שלבים דינמיים',
+      description: 'שלבים יכולים לשנות את הדף לפני שהם מוצגים. beforeActivate פותח את הפאנל שאליו השלב מכוון, afterDeactivate סוגר אותו בדרך חזרה, ו‑when מדלג על שלב שהיעד שלו אינו קיים.',
+      startButton: 'התחל סיור דינמי',
+      panelTitle: 'לוח הגדרות',
+      panelBody: 'הסיור פתח את הלוח הזה בעצמו לפני שהדגיש את הפריט שלמטה.',
+      panelItemLabel: 'התראות',
+      listTitle: 'תצוגות שמורות',
+      listEmpty: 'אין עדיין תצוגות שמורות — הוסף אחת כדי שהסיור יוכל לעצור כאן.',
+      rowLabel: 'דוח רבעוני',
+      addRow: 'הוסף תצוגה שמורה',
+      removeRow: 'הסר תצוגה שמורה',
+      skippedTitle: 'שלבים שדולגו',
+      skippedEmpty: 'עדיין לא דולג על אף שלב.',
+      stepPrefix: 'שלב',
+      reasonCondition: 'התנאי לא התקיים',
+      reasonMissingTarget: 'היעד לא נמצא',
+      reasonHookError: 'הפעולה נכשלה',
+      endLabel: 'הסיור הסתיים:',
+      endFinished: 'הושלם',
+      endSkipped: 'דולג',
+      stepIntro: { title: 'סיור דינמי', description: 'הסיור הזה משנה את הדף תוך כדי תנועה. עקוב אחר הלוח והרשימה.' },
+      stepPanel: { title: 'נפתח עבורך', description: 'beforeActivate פתח את לוח ההגדרות והסיור המתין שהפריט הזה ייווצר. חזור אחורה והוא ייסגר שוב.' },
+      stepRow: { title: 'תצוגה שמורה', description: 'השלב הזה רץ רק כשיש שורה ברשימה. רוקן את הרשימה והוא ידולג בשני הכיוונים.' },
+      stepToggle: { title: 'החלף את הרשימה', description: 'הוסף או הסר את התצוגה השמורה, ואז הפעל שוב את הסיור כדי לראות את השלב מופיע או מדולג.' },
+    },
   },
   ar: {
     code: 'ar', rtl: true,
@@ -84,6 +171,32 @@ export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
       { target: '#tour-feature-2', title: 'الميزة الثانية', description: 'وهذا هو اللوح الثانوي.' },
       { target: '#tour-feature-3', title: 'قسم خارج الشاشة', description: 'شاهد كيف تمرر الجولة إلى هذا القسم قبل تسليط الضوء عليه.', side: 'top' },
     ],
+    dynamic: {
+      heading: 'خطوات ديناميكية',
+      description: 'يمكن للخطوات أن تغيّر الصفحة قبل عرضها. يفتح beforeActivate اللوحة التي تشير إليها الخطوة، ويغلقها afterDeactivate عند الرجوع، ويتخطى when أي خطوة لا يوجد هدفها.',
+      startButton: 'ابدأ الجولة الديناميكية',
+      panelTitle: 'لوحة الإعدادات',
+      panelBody: 'فتحت الجولة هذه اللوحة بنفسها قبل تسليط الضوء على العنصر أدناه.',
+      panelItemLabel: 'الإشعارات',
+      listTitle: 'العروض المحفوظة',
+      listEmpty: 'لا توجد عروض محفوظة بعد — أضف واحداً كي تتمكن الجولة من التوقف هنا.',
+      rowLabel: 'التقرير الربع سنوي',
+      addRow: 'إضافة عرض محفوظ',
+      removeRow: 'إزالة العرض المحفوظ',
+      skippedTitle: 'الخطوات المتخطاة',
+      skippedEmpty: 'لم يتم تخطي أي خطوة بعد.',
+      stepPrefix: 'الخطوة',
+      reasonCondition: 'الشرط غير مستوفى',
+      reasonMissingTarget: 'الهدف غير موجود',
+      reasonHookError: 'فشل الخطّاف',
+      endLabel: 'انتهت الجولة:',
+      endFinished: 'اكتملت',
+      endSkipped: 'تم تخطيها',
+      stepIntro: { title: 'جولة ديناميكية', description: 'تعيد هذه الجولة تشكيل الصفحة أثناء سيرها. راقب اللوحة والقائمة.' },
+      stepPanel: { title: 'فُتحت من أجلك', description: 'فتح beforeActivate لوحة الإعدادات وانتظرت الجولة ظهور هذا العنصر. ارجع خطوة إلى الوراء وستُغلق مجدداً.' },
+      stepRow: { title: 'عرض محفوظ', description: 'تعمل هذه الخطوة فقط طالما أن القائمة تحتوي على صف. أفرغ القائمة وسيتم تخطيها في الاتجاهين.' },
+      stepToggle: { title: 'بدّل القائمة', description: 'أضف العرض المحفوظ أو أزله، ثم شغّل الجولة مرة أخرى لترى الخطوة تظهر أو تُتخطى.' },
+    },
   },
   de: {
     code: 'de',
@@ -106,6 +219,32 @@ export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
       { target: '#tour-feature-2', title: 'Funktion Zwei', description: 'Und dies ist das sekundäre.' },
       { target: '#tour-feature-3', title: 'Off-Screen-Abschnitt', description: 'Sehen Sie, wie die Tour vor dem Hervorheben dorthin scrollt.', side: 'top' },
     ],
+    dynamic: {
+      heading: 'Dynamische Schritte',
+      description: 'Schritte können die Seite verändern, bevor sie ausgeführt werden. beforeActivate öffnet das Panel, auf das ein Schritt zeigt, afterDeactivate schließt es auf dem Rückweg wieder, und when überspringt einen Schritt, dessen Ziel nicht vorhanden ist.',
+      startButton: 'Dynamische Tour starten',
+      panelTitle: 'Einstellungsbereich',
+      panelBody: 'Die Tour hat dieses Panel selbst geöffnet, bevor sie das Element darunter hervorgehoben hat.',
+      panelItemLabel: 'Benachrichtigungen',
+      listTitle: 'Gespeicherte Ansichten',
+      listEmpty: 'Noch keine gespeicherten Ansichten — fügen Sie eine hinzu, damit die Tour hier halten kann.',
+      rowLabel: 'Quartalsbericht',
+      addRow: 'Gespeicherte Ansicht hinzufügen',
+      removeRow: 'Gespeicherte Ansicht entfernen',
+      skippedTitle: 'Übersprungene Schritte',
+      skippedEmpty: 'Bisher nichts übersprungen.',
+      stepPrefix: 'Schritt',
+      reasonCondition: 'Bedingung nicht erfüllt',
+      reasonMissingTarget: 'Ziel nicht gefunden',
+      reasonHookError: 'Hook fehlgeschlagen',
+      endLabel: 'Tour beendet:',
+      endFinished: 'abgeschlossen',
+      endSkipped: 'übersprungen',
+      stepIntro: { title: 'Dynamische Tour', description: 'Diese Tour verändert die Seite im Verlauf. Behalten Sie das Panel und die Liste im Auge.' },
+      stepPanel: { title: 'Für Sie geöffnet', description: 'beforeActivate hat den Einstellungsbereich geöffnet und die Tour hat auf dieses Element gewartet. Gehen Sie zurück, und es schließt sich wieder.' },
+      stepRow: { title: 'Gespeicherte Ansicht', description: 'Dieser Schritt läuft nur, solange die Liste eine Zeile hat. Leeren Sie die Liste, und er wird in beide Richtungen übersprungen.' },
+      stepToggle: { title: 'Liste umschalten', description: 'Fügen Sie die gespeicherte Ansicht hinzu oder entfernen Sie sie und starten Sie die Tour erneut, um zu sehen, wie der Schritt erscheint oder übersprungen wird.' },
+    },
   },
   fr: {
     code: 'fr',
@@ -128,6 +267,32 @@ export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
       { target: '#tour-feature-2', title: 'Fonctionnalité Deux', description: 'Et celui-ci est le secondaire.' },
       { target: '#tour-feature-3', title: 'Section hors écran', description: 'Voyez comment la visite y fait défiler avant de le mettre en évidence.', side: 'top' },
     ],
+    dynamic: {
+      heading: 'Étapes dynamiques',
+      description: 'Les étapes peuvent modifier la page avant de s\'afficher. beforeActivate ouvre le panneau visé par une étape, afterDeactivate le referme au retour, et when écarte une étape dont la cible est absente.',
+      startButton: 'Démarrer la visite dynamique',
+      panelTitle: 'Panneau de réglages',
+      panelBody: 'La visite a ouvert ce panneau elle-même avant de mettre en évidence l\'élément ci-dessous.',
+      panelItemLabel: 'Notifications',
+      listTitle: 'Vues enregistrées',
+      listEmpty: 'Aucune vue enregistrée pour l\'instant — ajoutez-en une pour que la visite puisse s\'arrêter ici.',
+      rowLabel: 'Rapport trimestriel',
+      addRow: 'Ajouter une vue enregistrée',
+      removeRow: 'Supprimer la vue enregistrée',
+      skippedTitle: 'Étapes ignorées',
+      skippedEmpty: 'Rien d\'ignoré pour le moment.',
+      stepPrefix: 'Étape',
+      reasonCondition: 'condition non remplie',
+      reasonMissingTarget: 'cible introuvable',
+      reasonHookError: 'échec du hook',
+      endLabel: 'Visite terminée :',
+      endFinished: 'terminée',
+      endSkipped: 'ignorée',
+      stepIntro: { title: 'Visite dynamique', description: 'Cette visite remanie la page au fur et à mesure. Gardez un œil sur le panneau et la liste.' },
+      stepPanel: { title: 'Ouvert pour vous', description: 'beforeActivate a ouvert le panneau de réglages et la visite a attendu l\'affichage de cet élément. Revenez en arrière et il se referme.' },
+      stepRow: { title: 'Vue enregistrée', description: 'Cette étape ne s\'exécute que si la liste contient une ligne. Videz la liste et elle est ignorée dans les deux sens.' },
+      stepToggle: { title: 'Basculer la liste', description: 'Ajoutez ou supprimez la vue enregistrée, puis relancez la visite pour voir l\'étape apparaître ou être ignorée.' },
+    },
   },
   es: {
     code: 'es',
@@ -150,6 +315,32 @@ export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
       { target: '#tour-feature-2', title: 'Característica Dos', description: 'Y este es el secundario.' },
       { target: '#tour-feature-3', title: 'Sección fuera de pantalla', description: 'Vea cómo el tour se desplaza antes de resaltarlo.', side: 'top' },
     ],
+    dynamic: {
+      heading: 'Pasos dinámicos',
+      description: 'Los pasos pueden cambiar la página antes de mostrarse. beforeActivate abre el panel al que apunta un paso, afterDeactivate lo cierra al volver, y when descarta un paso cuyo objetivo no existe.',
+      startButton: 'Iniciar tour dinámico',
+      panelTitle: 'Panel de ajustes',
+      panelBody: 'El tour abrió este panel por su cuenta antes de resaltar el elemento de abajo.',
+      panelItemLabel: 'Notificaciones',
+      listTitle: 'Vistas guardadas',
+      listEmpty: 'Aún no hay vistas guardadas — agregue una para que el tour pueda detenerse aquí.',
+      rowLabel: 'Informe trimestral',
+      addRow: 'Agregar vista guardada',
+      removeRow: 'Quitar vista guardada',
+      skippedTitle: 'Pasos omitidos',
+      skippedEmpty: 'Todavía no se omitió nada.',
+      stepPrefix: 'Paso',
+      reasonCondition: 'condición no cumplida',
+      reasonMissingTarget: 'objetivo no encontrado',
+      reasonHookError: 'el hook falló',
+      endLabel: 'Tour finalizado:',
+      endFinished: 'completado',
+      endSkipped: 'omitido',
+      stepIntro: { title: 'Tour dinámico', description: 'Este tour reescribe la página sobre la marcha. Preste atención al panel y a la lista.' },
+      stepPanel: { title: 'Abierto para usted', description: 'beforeActivate abrió el panel de ajustes y el tour esperó a que apareciera este elemento. Retroceda un paso y se cierra de nuevo.' },
+      stepRow: { title: 'Vista guardada', description: 'Este paso solo se ejecuta mientras la lista tenga una fila. Vacíe la lista y se omite en ambas direcciones.' },
+      stepToggle: { title: 'Alternar la lista', description: 'Agregue o quite la vista guardada y vuelva a ejecutar el tour para ver cómo el paso aparece o se omite.' },
+    },
   },
   ja: {
     code: 'ja',
@@ -172,6 +363,32 @@ export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
       { target: '#tour-feature-2', title: '機能二', description: 'そしてこれは二次的なものです。' },
       { target: '#tour-feature-3', title: '画面外セクション', description: 'ハイライトする前にツアーがスクロールする様子をご覧ください。', side: 'top' },
     ],
+    dynamic: {
+      heading: '動的ステップ',
+      description: 'ステップは実行前にページを変更できます。beforeActivate はステップが指すパネルを開き、afterDeactivate は戻るときに閉じ、when は対象が存在しないステップを除外します。',
+      startButton: '動的ツアーを開始',
+      panelTitle: '設定パネル',
+      panelBody: 'ツアーが下の項目を強調する前に、このパネルを自動で開きました。',
+      panelItemLabel: '通知',
+      listTitle: '保存済みビュー',
+      listEmpty: '保存済みビューはまだありません — ツアーがここで止まれるように追加してください。',
+      rowLabel: '四半期レポート',
+      addRow: '保存済みビューを追加',
+      removeRow: '保存済みビューを削除',
+      skippedTitle: 'スキップされたステップ',
+      skippedEmpty: 'まだスキップはありません。',
+      stepPrefix: 'ステップ',
+      reasonCondition: '条件を満たしていません',
+      reasonMissingTarget: '対象が見つかりません',
+      reasonHookError: 'フックが失敗しました',
+      endLabel: 'ツアー終了:',
+      endFinished: '完了',
+      endSkipped: 'スキップ',
+      stepIntro: { title: '動的ツアー', description: 'このツアーは進行に合わせてページを書き換えます。パネルとリストに注目してください。' },
+      stepPanel: { title: '自動で開きました', description: 'beforeActivate が設定パネルを開き、ツアーはこの項目が描画されるのを待ちました。前のステップに戻ると再び閉じます。' },
+      stepRow: { title: '保存済みビュー', description: 'このステップはリストに行がある場合にのみ実行されます。リストを空にすると、前後どちらの方向でもスキップされます。' },
+      stepToggle: { title: 'リストを切り替える', description: '保存済みビューを追加または削除してからツアーを再実行し、ステップが表示されるかスキップされるかを確認してください。' },
+    },
   },
   zh: {
     code: 'zh',
@@ -194,6 +411,32 @@ export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
       { target: '#tour-feature-2', title: '功能二', description: '这是次要面板。' },
       { target: '#tour-feature-3', title: '屏幕外部分', description: '查看游览如何在高亮显示之前滚动到此处。', side: 'top' },
     ],
+    dynamic: {
+      heading: '动态步骤',
+      description: '步骤可以在运行前改变页面。beforeActivate 会打开该步骤指向的面板，afterDeactivate 在返回时再次关闭它，而 when 会跳过目标不存在的步骤。',
+      startButton: '开始动态游览',
+      panelTitle: '设置面板',
+      panelBody: '游览在高亮下方项目之前自行打开了这个面板。',
+      panelItemLabel: '通知',
+      listTitle: '已保存视图',
+      listEmpty: '还没有已保存视图 — 添加一个，让游览可以停在这里。',
+      rowLabel: '季度报告',
+      addRow: '添加已保存视图',
+      removeRow: '移除已保存视图',
+      skippedTitle: '被跳过的步骤',
+      skippedEmpty: '尚未跳过任何步骤。',
+      stepPrefix: '步骤',
+      reasonCondition: '条件不满足',
+      reasonMissingTarget: '未找到目标',
+      reasonHookError: '钩子执行失败',
+      endLabel: '游览结束：',
+      endFinished: '已完成',
+      endSkipped: '已跳过',
+      stepIntro: { title: '动态游览', description: '这个游览会一边进行一边改写页面。请留意面板和列表。' },
+      stepPanel: { title: '已为你打开', description: 'beforeActivate 打开了设置面板，游览等待该项目渲染完成。返回上一步时它会再次关闭。' },
+      stepRow: { title: '已保存视图', description: '此步骤只在列表中有行时才运行。清空列表后，它在前进和后退两个方向都会被跳过。' },
+      stepToggle: { title: '切换列表', description: '添加或移除已保存视图，然后重新运行游览，观察该步骤出现还是被跳过。' },
+    },
   },
   ru: {
     code: 'ru',
@@ -216,6 +459,32 @@ export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
       { target: '#tour-feature-2', title: 'Функция Два', description: 'А это вторичная.' },
       { target: '#tour-feature-3', title: 'Раздел вне экрана', description: 'Посмотрите, как экскурсия прокручивает перед выделением.', side: 'top' },
     ],
+    dynamic: {
+      heading: 'Динамические шаги',
+      description: 'Шаги могут менять страницу перед показом. beforeActivate открывает панель, на которую указывает шаг, afterDeactivate закрывает её на обратном пути, а when пропускает шаг, цели которого нет.',
+      startButton: 'Начать динамическую экскурсию',
+      panelTitle: 'Панель настроек',
+      panelBody: 'Экскурсия сама открыла эту панель, прежде чем выделить элемент ниже.',
+      panelItemLabel: 'Уведомления',
+      listTitle: 'Сохранённые представления',
+      listEmpty: 'Сохранённых представлений пока нет — добавьте одно, чтобы экскурсия могла остановиться здесь.',
+      rowLabel: 'Квартальный отчёт',
+      addRow: 'Добавить представление',
+      removeRow: 'Удалить представление',
+      skippedTitle: 'Пропущенные шаги',
+      skippedEmpty: 'Пока ничего не пропущено.',
+      stepPrefix: 'Шаг',
+      reasonCondition: 'условие не выполнено',
+      reasonMissingTarget: 'цель не найдена',
+      reasonHookError: 'обработчик завершился с ошибкой',
+      endLabel: 'Экскурсия завершена:',
+      endFinished: 'пройдена',
+      endSkipped: 'пропущена',
+      stepIntro: { title: 'Динамическая экскурсия', description: 'Эта экскурсия меняет страницу по ходу дела. Следите за панелью и списком.' },
+      stepPanel: { title: 'Открыто для вас', description: 'beforeActivate открыл панель настроек, и экскурсия дождалась появления этого элемента. Вернитесь назад — и панель снова закроется.' },
+      stepRow: { title: 'Сохранённое представление', description: 'Этот шаг выполняется, только пока в списке есть строка. Очистите список — и он будет пропущен в обоих направлениях.' },
+      stepToggle: { title: 'Переключить список', description: 'Добавьте или удалите сохранённое представление, затем пройдите экскурсию снова и посмотрите, появится шаг или будет пропущен.' },
+    },
   },
   pt: {
     code: 'pt',
@@ -238,5 +507,31 @@ export const TOUR_DEMO_LOCALES: Record<string, TourDemoLocale> = {
       { target: '#tour-feature-2', title: 'Funcionalidade Dois', description: 'E este é o secundário.' },
       { target: '#tour-feature-3', title: 'Seção fora da tela', description: 'Veja como o tour rola antes de destacar.', side: 'top' },
     ],
+    dynamic: {
+      heading: 'Passos dinâmicos',
+      description: 'Os passos podem alterar a página antes de serem exibidos. beforeActivate abre o painel para o qual um passo aponta, afterDeactivate o fecha na volta, e when descarta um passo cujo alvo não existe.',
+      startButton: 'Iniciar tour dinâmico',
+      panelTitle: 'Painel de configurações',
+      panelBody: 'O tour abriu este painel por conta própria antes de destacar o item abaixo.',
+      panelItemLabel: 'Notificações',
+      listTitle: 'Visualizações salvas',
+      listEmpty: 'Ainda não há visualizações salvas — adicione uma para que o tour possa parar aqui.',
+      rowLabel: 'Relatório trimestral',
+      addRow: 'Adicionar visualização salva',
+      removeRow: 'Remover visualização salva',
+      skippedTitle: 'Passos ignorados',
+      skippedEmpty: 'Nada foi ignorado ainda.',
+      stepPrefix: 'Passo',
+      reasonCondition: 'condição não atendida',
+      reasonMissingTarget: 'alvo não encontrado',
+      reasonHookError: 'o hook falhou',
+      endLabel: 'Tour encerrado:',
+      endFinished: 'concluído',
+      endSkipped: 'ignorado',
+      stepIntro: { title: 'Tour dinâmico', description: 'Este tour reescreve a página enquanto avança. Fique de olho no painel e na lista.' },
+      stepPanel: { title: 'Aberto para você', description: 'beforeActivate abriu o painel de configurações e o tour esperou este item ser renderizado. Volte um passo e ele fecha novamente.' },
+      stepRow: { title: 'Visualização salva', description: 'Este passo só é executado enquanto a lista tiver uma linha. Esvazie a lista e ele é ignorado nas duas direções.' },
+      stepToggle: { title: 'Alternar a lista', description: 'Adicione ou remova a visualização salva e execute o tour de novo para ver o passo aparecer ou ser ignorado.' },
+    },
   },
 };

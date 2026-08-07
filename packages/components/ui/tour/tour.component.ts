@@ -22,12 +22,42 @@ import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
 import { ButtonComponent } from '../button';
 
+type TourSide = 'top' | 'bottom' | 'left' | 'right';
+
+/** Which way the tour is travelling when a step's hooks run. */
+export type TourDirection = 'initial' | 'forward' | 'backward';
+
+/** Why the tour ended — payload of the `done` output. */
+export type TourEndReason = 'finished' | 'skipped';
+
+/** Why a step was passed over — payload of the `stepSkipped` output. */
+export type TourSkipReason = 'condition' | 'missing-target' | 'hook-error';
+
+/** Details of a step the tour passed over instead of showing. */
+export interface TourSkippedEvent {
+    readonly index: number;
+    readonly reason: TourSkipReason;
+}
+
+/**
+ * Passed to every step hook.
+ *
+ * `signal` aborts when the user moves on or closes the tour while the hook is
+ * still running — pass it to `fetch` and bail early from long work.
+ */
+export interface TourStepContext {
+    readonly index: number;
+    readonly direction: TourDirection;
+    readonly signal: AbortSignal;
+}
+
 /**
  * One step of a guided tour.
  *
  * - `target` is a CSS selector resolved at the moment the step activates.
- *   If no matching element exists, the tour logs a console warning and
- *   skips forward to the next step.
+ *   If no matching element exists (or it is not rendered), the tour logs a
+ *   console warning, emits `stepSkipped`, and moves on in the direction of
+ *   travel.
  * - `title` and `description` populate the tooltip card.
  * - `side` forces tooltip placement; when omitted, the tour picks the
  *   side with the most available viewport room.
@@ -36,10 +66,46 @@ export interface TourStep {
     target: string;
     title: string;
     description?: string;
-    side?: 'top' | 'bottom' | 'left' | 'right';
+    side?: TourSide;
+    /**
+     * Awaited before `target` is resolved and highlighted. Use it to put the
+     * app into the state the step describes — open a panel, navigate to a
+     * route, load a record. Pair it with `targetTimeout` so the tour waits for
+     * the element the navigation renders.
+     */
+    beforeActivate?: (ctx: TourStepContext) => void | Promise<void>;
+    /**
+     * Awaited when leaving this step, before the next step's `beforeActivate`.
+     * The undo of `beforeActivate` — close the panel, navigate back.
+     * `ctx.direction` says which way the user is going.
+     */
+    afterDeactivate?: (ctx: TourStepContext) => void | Promise<void>;
+    /** Include this step only when the predicate resolves truthy. */
+    when?: (ctx: TourStepContext) => boolean | Promise<boolean>;
+    /** Milliseconds to wait for `target` to appear. Overrides the component's `targetTimeout`. */
+    targetTimeout?: number;
 }
 
-type TourSide = 'top' | 'bottom' | 'left' | 'right';
+interface ResolvedStep {
+    readonly el: HTMLElement;
+    readonly index: number;
+}
+
+function hasHooks(step: TourStep): boolean {
+    return !!step.when || !!step.beforeActivate || !!step.afterDeactivate || (step.targetTimeout ?? 0) > 0;
+}
+
+function isRendered(el: HTMLElement): boolean {
+    const view = el.ownerDocument?.defaultView;
+    if (!view) return true;
+    let node: HTMLElement | null = el;
+    while (node) {
+        const style = view.getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+        node = node.parentElement;
+    }
+    return true;
+}
 
 interface Rect {
     readonly top: number;
@@ -134,10 +200,15 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
  * Declarative guided tour with a spotlight overlay and a positioned step card.
  *
  * Set `[steps]` and toggle `[(active)]` to start the tour. Each step's target
- * is resolved via `document.querySelector`; missing targets are skipped with
- * a console warning. The tour scrolls the target into view, places the card
- * on the side with the most room (overridable per step), and applies a
- * `.ui-tour-target-highlight` outline class to the active element.
+ * is resolved via `document.querySelector`; targets that are missing or not
+ * rendered are skipped in the direction of travel with a console warning and
+ * a `stepSkipped` emission. The tour scrolls the target into view, places the
+ * card on the side with the most room (overridable per step), and outlines the
+ * active element.
+ *
+ * Steps may carry async hooks (`beforeActivate`, `afterDeactivate`, `when`) to
+ * drive the app into the state they describe. Set `targetTimeout` so the tour
+ * waits for elements those hooks render.
  *
  * @example
  * ```html
@@ -149,6 +220,22 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
  *   [(active)]="showTour"
  *   (done)="showTour = false"
  * />
+ * ```
+ *
+ * @example Async step that opens a panel before highlighting inside it.
+ * ```ts
+ * steps: TourStep[] = [
+ *   {
+ *     target: '#panel-item',
+ *     title: 'Your items',
+ *     targetTimeout: 2000,
+ *     beforeActivate: () => this.panel.open(),
+ *     afterDeactivate: ({ direction }) => {
+ *       if (direction === 'backward') this.panel.close();
+ *     },
+ *     when: () => this.items().length > 0,
+ *   },
+ * ];
  * ```
  */
 export class TourComponent {
@@ -163,6 +250,13 @@ export class TourComponent {
     readonly active = model<boolean>(false);
     /** Whether the Skip button is shown on intermediate steps. */
     readonly showSkip = input<boolean>(true);
+    /**
+     * Milliseconds to wait for a step's target to appear in the DOM before
+     * giving up and skipping the step. `0` (the default) resolves targets
+     * once, synchronously. Raise it for steps whose `beforeActivate` navigates
+     * or loads data; per-step `targetTimeout` overrides this.
+     */
+    readonly targetTimeout = input<number>(0);
     /** Override for the forward button label on non-final steps. Falls back to `t().next`. */
     readonly nextLabel = input<string>();
     /** Override for the back button label on non-first steps. Falls back to `t().previous`. */
@@ -182,10 +276,15 @@ export class TourComponent {
     /** Extra CSS classes applied to the floating step card. */
     readonly class = input('');
 
-    /** Emitted when the tour finishes naturally or is skipped. Not emitted when the parent flips `active` off externally. */
-    readonly done = output<void>();
-    /** Emitted whenever the visible step index changes. */
+    /**
+     * Emitted when the tour finishes naturally or is skipped, with the reason.
+     * Not emitted when the parent flips `active` off externally.
+     */
+    readonly done = output<TourEndReason>();
+    /** Emitted whenever a step is activated, with its index. */
     readonly stepChange = output<number>();
+    /** Emitted for each step the tour passes over instead of showing. */
+    readonly stepSkipped = output<TourSkippedEvent>();
 
     private readonly cardElRef = viewChild<ElementRef<HTMLDivElement>>('cardEl');
 
@@ -197,13 +296,61 @@ export class TourComponent {
     private readonly _isReady = signal(false);
     readonly isReady = this._isReady.asReadonly();
 
+    private readonly _isPending = signal(false);
+    /** `true` while a step's async hooks run or its target is being waited for. */
+    readonly isPending = this._isPending.asReadonly();
+
+    /**
+     * Steps this run has already proven unreachable. A step only lands here
+     * after the tour actually tried it, so the UI can stop offering it —
+     * otherwise the user sees a Back button that does nothing and a counter
+     * that promises steps they can never reach.
+     */
+    private readonly _unreachable = signal<ReadonlySet<number>>(new Set());
+
     readonly currentStep = computed(() => {
         const s = this.steps();
         const i = this._currentIndex();
         return s[i] ?? null;
     });
 
-    readonly isLastStep = computed(() => this._currentIndex() === this.steps().length - 1);
+    /** `false` when every earlier step is known unreachable — hide the Back button. */
+    readonly canGoBack = computed(() => {
+        const unreachable = this._unreachable();
+        for (let i = this._currentIndex() - 1; i >= 0; i--) {
+            if (!unreachable.has(i)) return true;
+        }
+        return false;
+    });
+
+    readonly isLastStep = computed(() => {
+        const unreachable = this._unreachable();
+        const total = this.steps().length;
+        for (let i = this._currentIndex() + 1; i < total; i++) {
+            if (!unreachable.has(i)) return false;
+        }
+        return true;
+    });
+
+    /** Total steps the user can actually reach, excluding ones proven unreachable. */
+    readonly reachableCount = computed(() => this.steps().length - this._unreachable().size);
+
+    /** 1-based position of the current step among the reachable ones. */
+    readonly reachablePosition = computed(() => {
+        const unreachable = this._unreachable();
+        let position = 0;
+        for (let i = 0; i <= this._currentIndex(); i++) {
+            if (!unreachable.has(i)) position++;
+        }
+        return position;
+    });
+
+    /**
+     * Tours without hooks or a wait budget resolve their steps synchronously,
+     * so a click lands on the next step in the same tick — no microtask gap,
+     * no card flicker.
+     */
+    private readonly hasAsyncSteps = computed(() => this.targetTimeout() > 0 || this.steps().some(hasHooks));
 
     readonly spotlightRect = computed(() => {
         const r = this._targetRect();
@@ -232,6 +379,9 @@ export class TourComponent {
     private savedTargetStyles: HighlightSavedStyles | null = null;
 
     private wasActive = false;
+    private lastStepsLength = -1;
+    private runToken = 0;
+    private abortController: AbortController | null = null;
 
     constructor() {
         effect(() => {
@@ -239,12 +389,17 @@ export class TourComponent {
             untracked(() => {
                 if (isActive && !this.wasActive) {
                     this.wasActive = true;
-                    this.goToStep(0);
+                    this.transition(0, 'initial');
                 } else if (!isActive && this.wasActive) {
                     this.wasActive = false;
                     this.teardown();
                 }
             });
+        });
+
+        effect(() => {
+            const length = this.steps().length;
+            untracked(() => this.reconcileStepsLength(length));
         });
 
         this.destroyRef.onDestroy(() => {
@@ -254,21 +409,33 @@ export class TourComponent {
     }
 
     next(): void {
+        if (this._isPending()) return;
         if (this.isLastStep()) {
-            this.finish();
+            this.finish('finished');
             return;
         }
-        this.goToStep(this._currentIndex() + 1);
+        this.transition(this._currentIndex() + 1, 'forward');
     }
 
     previous(): void {
-        if (this._currentIndex() <= 0) return;
-        this.goToStep(this._currentIndex() - 1);
+        if (this._isPending() || !this.canGoBack()) return;
+        this.transition(this._currentIndex() - 1, 'backward');
     }
 
     skip(): void {
-        this.active.set(false);
-        this.done.emit();
+        this.finish('skipped');
+    }
+
+    /** Jump straight to a step, running its hooks. Out-of-range indices are ignored. */
+    goTo(index: number): void {
+        if (index < 0 || index >= this.steps().length) return;
+        const direction: TourDirection = index < this._currentIndex() ? 'backward' : 'forward';
+        this.transition(index, direction);
+    }
+
+    /** Restart from the first resolvable step without deactivating the tour. */
+    restart(): void {
+        this.transition(0, 'initial');
     }
 
     onKeydown(event: KeyboardEvent): void {
@@ -289,45 +456,248 @@ export class TourComponent {
         }
     }
 
-    private finish(): void {
+    private finish(reason: TourEndReason): void {
+        // Invalidate in-flight transitions here rather than leaning on the
+        // `active` effect: effects are scheduled, so a hook that resolves in
+        // between would otherwise commit a step onto a closed tour.
+        this.runToken++;
+        this.abortInFlight();
+        this._isPending.set(false);
         this.active.set(false);
-        this.done.emit();
+        this.done.emit(reason);
     }
 
-    private goToStep(index: number): void {
+    /** Keeps a live tour honest when `steps` shrinks out from under it. */
+    private reconcileStepsLength(length: number): void {
+        if (length !== this.lastStepsLength) {
+            // Indices shifted — what we learned about them no longer applies.
+            this.lastStepsLength = length;
+            this._unreachable.set(new Set());
+        }
+        if (!this.wasActive) return;
+        if (this._currentIndex() < length) return;
+        if (length === 0) {
+            this.finish('finished');
+            return;
+        }
+        this.transition(length - 1, 'backward');
+    }
+
+    private abortInFlight(): void {
+        this.abortController?.abort();
+        this.abortController = null;
+    }
+
+    private transition(to: number, direction: TourDirection): void {
         if (this.steps().length === 0) return;
 
-        this._isReady.set(false);
-        this.clearCurrentHighlight();
-        this.setupPositionForStep(index);
+        // A fresh run re-tests every step: a list that was empty last time may
+        // have rows now.
+        if (direction === 'initial') this._unreachable.set(new Set());
+
+        this.abortInFlight();
+        const token = ++this.runToken;
+
+        if (!this.hasAsyncSteps()) {
+            this.commitOrFinish(this.scanSync(to, direction), this._currentIndex(), direction);
+            return;
+        }
+
+        const controller = new AbortController();
+        this.abortController = controller;
+        this._isPending.set(true);
+        void this.runAsyncTransition(to, direction, token, controller.signal);
     }
 
-    private resolveTarget(startIndex: number): { targetEl: HTMLElement; finalIndex: number } | null {
+    private commitOrFinish(resolved: ResolvedStep | null, from: number, direction: TourDirection): void {
+        if (resolved) {
+            this.commitStep(resolved);
+            return;
+        }
+        const fallback = direction === 'backward' ? this.scanSync(from, 'forward') : null;
+        if (fallback) {
+            this.commitStep(fallback);
+            return;
+        }
+        this.finish('finished');
+    }
+
+    /** Walks the steps in the direction of travel looking for a rendered target. */
+    private scanSync(start: number, direction: TourDirection): ResolvedStep | null {
         const steps = this.steps();
-        let idx = startIndex;
-        while (idx < steps.length) {
-            const step = steps[idx];
-            if (step) {
-                const el = this.document.querySelector<HTMLElement>(step.target);
-                if (el) return { targetEl: el, finalIndex: idx };
-                globalThis.console?.warn(`[ui-tour] target not found: "${step.target}" — skipping step.`);
-            }
-            idx++;
+        const delta = direction === 'backward' ? -1 : 1;
+        for (let i = start; i >= 0 && i < steps.length; i += delta) {
+            const step = steps[i];
+            if (!step) continue;
+            const el = this.queryRendered(step.target);
+            if (el) return { el, index: i };
+            this.reportMissingTarget(i, step.target);
         }
         return null;
     }
 
-    private setupPositionForStep(index: number): void {
-        const resolved = this.resolveTarget(index);
-        if (!resolved) {
-            this.finish();
+    private async runAsyncTransition(
+        to: number,
+        direction: TourDirection,
+        token: number,
+        signal: AbortSignal
+    ): Promise<void> {
+        const from = this._currentIndex();
+        if (direction !== 'initial') await this.runExitHook(from, direction, signal);
+        if (token !== this.runToken) return;
+
+        let resolved = await this.scanAsync(to, direction, token, signal);
+        if (!resolved && direction === 'backward') {
+            resolved = await this.scanAsync(from, 'forward', token, signal);
+        }
+        if (token !== this.runToken) return;
+
+        if (resolved) {
+            this.commitStep(resolved);
             return;
         }
-        const { targetEl, finalIndex } = resolved;
-        this._currentIndex.set(finalIndex);
-        this.stepChange.emit(finalIndex);
+        this.finish('finished');
+    }
 
+    private async runExitHook(index: number, direction: TourDirection, signal: AbortSignal): Promise<void> {
+        const hook = this.steps()[index]?.afterDeactivate;
+        if (!hook) return;
+        try {
+            await hook({ index, direction, signal });
+        } catch (error) {
+            this.reportHookError(index, error);
+        }
+    }
+
+    /**
+     * Walks the steps in the direction of travel, running each candidate's
+     * hooks, until one resolves a rendered target.
+     */
+    private async scanAsync(
+        start: number,
+        direction: TourDirection,
+        token: number,
+        signal: AbortSignal
+    ): Promise<ResolvedStep | null> {
+        const steps = this.steps();
+        const delta = direction === 'backward' ? -1 : 1;
+        for (let i = start; i >= 0 && i < steps.length; i += delta) {
+            const step = steps[i];
+            if (!step) continue;
+            if (!(await this.prepareStep(step, { index: i, direction, signal }))) continue;
+            const el = await this.awaitTarget(step, signal);
+            if (token !== this.runToken) return null;
+            if (el) return { el, index: i };
+            this.reportMissingTarget(i, step.target);
+        }
+        return null;
+    }
+
+    private async prepareStep(step: TourStep, ctx: TourStepContext): Promise<boolean> {
+        try {
+            if (step.when && !(await step.when(ctx))) {
+                this.markUnreachable(ctx.index);
+                this.stepSkipped.emit({ index: ctx.index, reason: 'condition' });
+                return false;
+            }
+            await step.beforeActivate?.(ctx);
+            return true;
+        } catch (error) {
+            this.reportHookError(ctx.index, error);
+            this.markUnreachable(ctx.index);
+            this.stepSkipped.emit({ index: ctx.index, reason: 'hook-error' });
+            return false;
+        }
+    }
+
+    private reportMissingTarget(index: number, target: string): void {
+        globalThis.console?.warn(`[ui-tour] target not found: "${target}" — skipping step.`);
+        this.markUnreachable(index);
+        this.stepSkipped.emit({ index, reason: 'missing-target' });
+    }
+
+    private markUnreachable(index: number): void {
+        const next = new Set(this._unreachable());
+        next.add(index);
+        this._unreachable.set(next);
+    }
+
+    private markReachable(index: number): void {
+        if (!this._unreachable().has(index)) return;
+        const next = new Set(this._unreachable());
+        next.delete(index);
+        this._unreachable.set(next);
+    }
+
+    private reportHookError(index: number, error: unknown): void {
+        globalThis.console?.warn(`[ui-tour] step ${index} hook failed — skipping step.`, error);
+    }
+
+    /** Resolves a rendered target, optionally waiting for hooks to render it. */
+    private async awaitTarget(step: TourStep, signal: AbortSignal): Promise<HTMLElement | null> {
+        const immediate = this.queryRendered(step.target);
+        if (immediate) return immediate;
+        const timeout = step.targetTimeout ?? this.targetTimeout();
+        if (timeout <= 0 || signal.aborted) return null;
+        return this.pollForTarget(step.target, timeout, signal);
+    }
+
+    private pollForTarget(selector: string, timeout: number, signal: AbortSignal): Promise<HTMLElement | null> {
+        return new Promise<HTMLElement | null>(resolve => {
+            const cleanups: Array<() => void> = [];
+            let settled = false;
+            const settle = (el: HTMLElement | null): void => {
+                if (settled) return;
+                settled = true;
+                for (const cleanup of cleanups) cleanup();
+                resolve(el);
+            };
+            const check = (): void => {
+                const el = this.queryRendered(selector);
+                if (el) settle(el);
+            };
+
+            const observer = new MutationObserver(check);
+            observer.observe(this.document.documentElement, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['style', 'class', 'hidden'],
+            });
+            cleanups.push(() => observer.disconnect());
+
+            const timer = globalThis.setTimeout(() => settle(null), timeout);
+            cleanups.push(() => globalThis.clearTimeout(timer));
+
+            const onAbort = (): void => settle(null);
+            signal.addEventListener('abort', onAbort, { once: true });
+            cleanups.push(() => signal.removeEventListener('abort', onAbort));
+
+            check();
+        });
+    }
+
+    private queryRendered(selector: string): HTMLElement | null {
+        let el: HTMLElement | null;
+        try {
+            el = this.document.querySelector<HTMLElement>(selector);
+        } catch {
+            globalThis.console?.warn(`[ui-tour] invalid target selector: "${selector}" — skipping step.`);
+            return null;
+        }
+        if (!el?.isConnected) return null;
+        return isRendered(el) ? el : null;
+    }
+
+    private commitStep({ el: targetEl, index }: ResolvedStep): void {
+        this.markReachable(index);
         this.teardownObservers();
+        this.clearCurrentHighlight();
+        this._isPending.set(false);
+        this._isReady.set(false);
+        this._currentIndex.set(index);
+        this.stepChange.emit(index);
+
         this.applyHighlight(targetEl);
         this.currentTargetEl = targetEl;
 
@@ -347,6 +717,32 @@ export class TourComponent {
             },
             { injector: this.injector }
         );
+    }
+
+    /**
+     * A step's target can vanish mid-step — a list reloads, a panel closes.
+     * Re-resolve the selector when that happens, and move on if it is truly
+     * gone rather than tracking a detached node.
+     */
+    private reposition(targetEl: HTMLElement): void {
+        if (targetEl.isConnected) {
+            this.readAndSetRect(targetEl);
+            return;
+        }
+        const step = this.currentStep();
+        const replacement = step ? this.queryRendered(step.target) : null;
+        if (replacement) {
+            this.teardownObservers();
+            this.clearCurrentHighlight();
+            this.applyHighlight(replacement);
+            this.currentTargetEl = replacement;
+            this.readAndSetRect(replacement);
+            this.setupObservers(replacement);
+            return;
+        }
+        const index = this._currentIndex();
+        this.stepSkipped.emit({ index, reason: 'missing-target' });
+        this.transition(index + 1, 'forward');
     }
 
     private readAndSetRect(targetEl: HTMLElement): void {
@@ -378,7 +774,7 @@ export class TourComponent {
     private setupObservers(targetEl: HTMLElement): void {
         this.zone.runOutsideAngular(() => {
             const onReposition = (): void => {
-                this.zone.run(() => this.readAndSetRect(targetEl));
+                this.zone.run(() => this.reposition(targetEl));
             };
 
             this.resizeObserver = new ResizeObserver(onReposition);
@@ -402,8 +798,11 @@ export class TourComponent {
     }
 
     private teardown(): void {
+        this.runToken++;
+        this.abortInFlight();
         this.teardownObservers();
         this.clearCurrentHighlight();
+        this._isPending.set(false);
         this._isReady.set(false);
     }
 

@@ -1,5 +1,14 @@
 @if (active() && currentStep(); as step) {
-  @if (isReady()) {
+  @if (isPending()) {
+    <!-- The old target is usually already gone while a hook navigates, so dim
+         the whole viewport instead of spotlighting a stale rect — dropping the
+         overlay entirely would flash the page undimmed mid-step. -->
+    <div
+      class="fixed inset-0 pointer-events-none"
+      style="z-index:9999;background:rgba(0,0,0,0.55);"
+      [attr.data-slot]="'tour-scrim'"
+    ></div>
+  } @else if (isReady()) {
     <div
       class="fixed rounded-md pointer-events-none transition-all duration-150"
       [style.top.px]="spotlightRect().top"
@@ -15,26 +24,31 @@
     [class]="cardClasses()"
     [style.top.px]="cardPos().top"
     [style.left.px]="cardPos().left"
-    [style.visibility]="isReady() ? 'visible' : 'hidden'"
+    [style.visibility]="isReady() || isPending() ? 'visible' : 'hidden'"
     style="z-index:10000;"
     [attr.data-slot]="'tour-card'"
+    [attr.data-pending]="isPending() ? '' : null"
+    [attr.aria-busy]="isPending() ? 'true' : null"
     [attr.dir]="dir()"
     tabindex="-1"
     (keydown)="onKeydown($event)"
   >
-    <div class="text-xs text-muted-foreground mb-1">{{ currentIndex() + 1 }} / {{ steps().length }}</div>
+    <div class="text-xs text-muted-foreground mb-1">{{ reachablePosition() }} / {{ reachableCount() }}</div>
     <h3 class="font-semibold">{{ step.title }}</h3>
     @if (step.description) {
       <p class="text-sm text-muted-foreground mt-1">{{ step.description }}</p>
     }
-    <div class="flex flex-wrap gap-2 mt-4 justify-end">
+    <div class="flex flex-wrap items-center gap-2 mt-4 justify-end">
+      @if (isPending()) {
+        <span class="me-auto text-xs text-muted-foreground" [attr.data-slot]="'tour-pending'">{{ t().loading }}</span>
+      }
       @if (showSkip() && !isLastStep()) {
         <ui-button variant="ghost" size="sm" (click)="skip()" (keydown.enter)="skip()" (keydown.space)="skip()">{{ skipLabel() ?? t().skip }}</ui-button>
       }
-      @if (currentIndex() > 0) {
-        <ui-button variant="outline" size="sm" (click)="previous()" (keydown.enter)="previous()" (keydown.space)="previous()">{{ prevLabel() ?? t().previous }}</ui-button>
+      @if (canGoBack()) {
+        <ui-button variant="outline" size="sm" [disabled]="isPending()" (click)="previous()" (keydown.enter)="previous()" (keydown.space)="previous()">{{ prevLabel() ?? t().previous }}</ui-button>
       }
-      <ui-button size="sm" (click)="next()" (keydown.enter)="next()" (keydown.space)="next()">{{ isLastStep() ? (finishLabel() ?? t().finish) : (nextLabel() ?? t().next) }}</ui-button>
+      <ui-button size="sm" [disabled]="isPending()" (click)="next()" (keydown.enter)="next()" (keydown.space)="next()">{{ isLastStep() ? (finishLabel() ?? t().finish) : (nextLabel() ?? t().next) }}</ui-button>
     </div>
   </div>
 }
