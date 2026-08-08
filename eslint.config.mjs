@@ -20,8 +20,11 @@ export default tseslint.config(
       '**/.angular/**',
       '**/storybook-static/**',
       'documentation/**',
-      'coverage/**',
-      'coverage-cli/**',
+      // Matches `.gitignore`'s `coverage-*/`, not just the two directories the
+      // scripts write today: an lcov HTML report is a tree of `.ts.html` files
+      // that the Angular template parser chokes on, so a stray `coverage-x/`
+      // fails lint with hundreds of errors in files that aren't source.
+      'coverage*/**',
       '.storybook/**',
       'e2e/fixture-app/**',
       // Transient consumer install used by the jest-fixpoint — gitignored
