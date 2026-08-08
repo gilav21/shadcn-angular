@@ -556,3 +556,117 @@ describe('parseDocx — styles, inheritance, headers/footers', () => {
         expect((res.footers[0][0] as DocxParagraph).runs[0].text).toBe('FOOTER');
     });
 });
+
+/**
+ * Paths a document produced by Word takes routinely but the fixtures had not:
+ * the darkening half of theme-colour modification, image formats other than
+ * PNG, and the wrapper elements Word uses for content controls and for content
+ * that must degrade on older readers.
+ */
+describe('parseDocx — theme shade, image formats, and content wrappers', () => {
+    const theme = {
+        name: 'word/theme/theme1.xml',
+        content: '<?xml version="1.0"?><a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            + '<a:themeElements><a:clrScheme name="x">'
+            + '<a:dk1><a:sysClr val="windowText" lastClr="FFFFFF"/></a:dk1>'
+            + '</a:clrScheme></a:themeElements></a:theme>',
+    };
+
+    it('darkens a theme colour by the shade factor', () => {
+        // themeShade is a hex fraction of 255: 80 -> 128/255, so white halves.
+        const body = '<w:p><w:r><w:rPr><w:color w:themeColor="tx1" w:themeShade="80"/></w:rPr><w:t>x</w:t></w:r></w:p>';
+
+        const res = parseDocx(docx(body, [theme]));
+
+        expect(paragraphs(res)[0].runs[0].style.color).toBe('#808080');
+    });
+
+    /** Minimal image part plus the relationship and drawing that reference it. */
+    function imageDoc(bytes: Uint8Array): Uint8Array {
+        const rels = '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            + '<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"'
+            + ' Target="media/img.bin"/></Relationships>';
+        const body = '<w:p><w:r><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+            + '<wp:extent cx="952500" cy="476250"/>'
+            + '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData>'
+            + '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:blipFill>'
+            + '<a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="rId9"/>'
+            + '</pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+        return docx(body, [
+            { name: 'word/_rels/document.xml.rels', content: rels },
+            { name: 'word/media/img.bin', content: bytes },
+        ]);
+    }
+
+    function firstImage(zip: Uint8Array): DocxImage {
+        return parseDocx(zip).elements.find((e): e is DocxImage => e.type === 'image')!;
+    }
+
+    it('sniffs a JPEG by its magic bytes', () => {
+        const jpeg = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+        expect(firstImage(imageDoc(jpeg)).dataUrl.startsWith('data:image/jpeg;base64,')).toBe(true);
+    });
+
+    it('sniffs a GIF by its magic bytes', () => {
+        const gif = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+        expect(firstImage(imageDoc(gif)).dataUrl.startsWith('data:image/gif;base64,')).toBe(true);
+    });
+
+    it('sniffs a WebP by its RIFF/WEBP header', () => {
+        // 'RIFF' then four size bytes then 'WEBP' — the W at offset 8 is the tell.
+        const webp = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]);
+
+        expect(firstImage(imageDoc(webp)).dataUrl.startsWith('data:image/webp;base64,')).toBe(true);
+    });
+
+    it('drops an image whose bytes are not a recognisable format', () => {
+        // Rather than emit a data URL for arbitrary bytes — which would let a
+        // crafted part through as an image — the part is skipped entirely.
+        const unknown = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+
+        const res = parseDocx(imageDoc(unknown));
+
+        expect(res.elements.some(e => e.type === 'image')).toBe(false);
+    });
+
+    it('reads paragraphs out of a structured document tag', () => {
+        const body = '<w:sdt><w:sdtContent><w:p><w:r><w:t>Inside a content control</w:t></w:r></w:p></w:sdtContent></w:sdt>';
+
+        const res = parseDocx(docx(body));
+
+        expect(paragraphs(res)[0].runs[0].text).toBe('Inside a content control');
+    });
+
+    it('reads paragraphs out of a smartTag wrapper', () => {
+        const body = '<w:smartTag><w:p><w:r><w:t>Tagged</w:t></w:r></w:p></w:smartTag>';
+
+        const res = parseDocx(docx(body));
+
+        expect(paragraphs(res)[0].runs[0].text).toBe('Tagged');
+    });
+
+    it('prefers the Choice branch of AlternateContent at body level', () => {
+        const body = '<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">'
+            + '<mc:Choice Requires="wps"><w:p><w:r><w:t>Modern</w:t></w:r></w:p></mc:Choice>'
+            + '<mc:Fallback><w:p><w:r><w:t>Legacy</w:t></w:r></w:p></mc:Fallback>'
+            + '</mc:AlternateContent>';
+
+        const res = parseDocx(docx(body));
+
+        const texts = paragraphs(res).flatMap(p => p.runs.map(r => r.text));
+        expect(texts).toContain('Modern');
+        expect(texts).not.toContain('Legacy');
+    });
+
+    it('uses the Fallback branch when there is no Choice', () => {
+        const body = '<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">'
+            + '<mc:Fallback><w:p><w:r><w:t>Legacy only</w:t></w:r></w:p></mc:Fallback>'
+            + '</mc:AlternateContent>';
+
+        const res = parseDocx(docx(body));
+
+        expect(paragraphs(res)[0].runs[0].text).toBe('Legacy only');
+    });
+});
