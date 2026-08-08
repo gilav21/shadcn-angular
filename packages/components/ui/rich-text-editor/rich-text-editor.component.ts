@@ -3552,8 +3552,8 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     private releaseCaretColor(): void {
         if (!this.caretColorAnchor) return;
         const caret = this.collapsedCaretAnchor();
-        if (caret && caret.node === this.caretColorAnchor.node
-            && caret.offset === this.caretColorAnchor.offset) {
+        if (caret?.node === this.caretColorAnchor.node
+            && caret?.offset === this.caretColorAnchor.offset) {
             return;
         }
         this.caretColorAnchor = null;
