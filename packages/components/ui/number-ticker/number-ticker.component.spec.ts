@@ -284,11 +284,21 @@ describe('NumberTickerDigitComponent', () => {
         expect(fixture.nativeElement.querySelector('.flex')).not.toBeNull();
     });
 
-    /** Settle the effect that creates the animation, without pumping frames. */
-    async function applyDigit(value: string): Promise<void> {
+    /**
+     * Change the digit and wait for the animation the effect creates.
+     *
+     * `whenStable` is not enough: under a loaded run (coverage instrumentation,
+     * say) the effect that creates the animation can land after it resolves, and
+     * the assertion then sees none. Waiting on the animation itself is both
+     * deterministic and honest — it either appears or the test fails saying so,
+     * with no fixed frame or tick budget to lose.
+     */
+    async function applyDigit(value: string, expected: number): Promise<void> {
         host.digit.set(value);
-        await fixture.whenStable();
-        fixture.detectChanges();
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(animations).toHaveLength(expected);
+        });
     }
 
     afterEach(() => {
@@ -319,9 +329,8 @@ describe('NumberTickerDigitComponent', () => {
     it('animates a digit change and settles prevDigit when the animation finishes', async () => {
         const el = digitInstance();
 
-        await applyDigit('7');
+        await applyDigit('7', 1);
 
-        expect(animations).toHaveLength(1);
         // The old digit stays on screen until the animation reports finished.
         expect(el.prevDigit()).toBe('5');
 
@@ -330,13 +339,11 @@ describe('NumberTickerDigitComponent', () => {
     });
 
     it('finishes an in-flight animation before starting the next', async () => {
-        await applyDigit('7');
-        expect(animations).toHaveLength(1);
+        await applyDigit('7', 1);
         const finishSpy = vi.spyOn(animations[0], 'finish');
 
-        await applyDigit('3');
+        await applyDigit('3', 2);
 
-        expect(animations).toHaveLength(2);
         expect(finishSpy).toHaveBeenCalled();
     });
 

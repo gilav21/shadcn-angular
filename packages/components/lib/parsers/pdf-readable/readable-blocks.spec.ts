@@ -1232,3 +1232,91 @@ describe('right-aligned LTR stack', () => {
         expect(stacked).toBe(true);
     });
 });
+
+/**
+ * An image that sits beside a multi-line block is a float in the original
+ * layout, and reproducing that is what keeps the text wrapping around it
+ * instead of being pushed below. An image that overlaps the text horizontally
+ * is not a float at all — it belongs in the flow.
+ */
+describe('buildPageBlocks — image floats', () => {
+    const imageAt = (x: number, y: number, w = 80, h = 60): ImageItem => ({
+        dataUrl: 'data:image/png;base64,x',
+        width: w, height: h, renderWidth: w, renderHeight: h,
+        x, y, page: 0,
+    });
+
+    /** Three stacked lines occupying the right-hand side of the page. */
+    const rightColumnLines = (): Line[] => [
+        lineOf('The quick brown fox jumps', 200, 520, 700),
+        lineOf('over the lazy dog and then', 200, 520, 686),
+        lineOf('keeps running for a while', 200, 520, 672),
+    ];
+
+    function floatOf(blocks: readonly DocBlock[]): string | undefined {
+        const image = blocks.find(b => b.kind === 'image');
+        return image?.kind === 'image' ? image.float : undefined;
+    }
+
+    it('floats an image left of the paragraph it sits beside', () => {
+        const page = pageExtractOf([], { images: [imageAt(40, 660)] });
+
+        const blocks = buildPageBlocks(rightColumnLines(), page, true, ctx);
+
+        expect(floatOf(blocks)).toBe('left');
+        expect(blocks.some(b => b.kind === 'paragraph')).toBe(true);
+    });
+
+    it('floats an image right of the paragraph it sits beside', () => {
+        const lines = [
+            lineOf('The quick brown fox jumps', 40, 360, 700),
+            lineOf('over the lazy dog and then', 40, 360, 686),
+            lineOf('keeps running for a while', 40, 360, 672),
+        ];
+        const page = pageExtractOf([], { images: [imageAt(420, 660)] });
+
+        const blocks = buildPageBlocks(lines, page, true, ctx);
+
+        expect(floatOf(blocks)).toBe('right');
+    });
+
+    it('keeps an image that overlaps the text horizontally in the flow', () => {
+        // Neither fully left nor fully right of the block, so it cannot float.
+        const page = pageExtractOf([], { images: [imageAt(300, 660)] });
+
+        const blocks = buildPageBlocks(rightColumnLines(), page, true, ctx);
+
+        expect(floatOf(blocks)).toBe('');
+    });
+
+    it('does not float beside a single-line block', () => {
+        // One line gives no band to wrap around, so the image stays in flow.
+        const page = pageExtractOf([], { images: [imageAt(40, 690)] });
+
+        const blocks = buildPageBlocks([lineOf('Only one line here', 200, 520, 700)], page, true, ctx);
+
+        expect(floatOf(blocks)).toBe('');
+    });
+
+    it('anchors a centred standalone image to the centre on an RTL page', () => {
+        // Side anchoring only applies on RTL pages, where the container would
+        // otherwise right-anchor an image that was not on the right.
+        const lines = [lineOf('שלום עולם זהו טקסט', 300, 560, 500, { dir: 'rtl' })];
+        const page = pageExtractOf([], { images: [imageAt(266, 740)] });
+
+        const blocks = buildPageBlocks(lines, page, true, ctx);
+
+        const image = blocks.find(b => b.kind === 'image');
+        expect(image?.kind).toBe('image');
+        if (image?.kind === 'image') expect(image.style.align).toBe('center');
+    });
+
+    it('drops images entirely when they are not requested', () => {
+        const page = pageExtractOf([], { images: [imageAt(40, 660)] });
+
+        const blocks = buildPageBlocks(rightColumnLines(), page, false, ctx);
+
+        expect(blocks.some(b => b.kind === 'image')).toBe(false);
+        expect(blocks.some(b => b.kind === 'paragraph')).toBe(true);
+    });
+});
