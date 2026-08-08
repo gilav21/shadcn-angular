@@ -45,7 +45,15 @@ const BACKGROUND_ICON =
         ColorPickerComponent,
     ],
     templateUrl: './rich-text-colors-button.component.html',
-    host: { class: 'contents' },
+    // Listened for on the host rather than on the popover's container: the
+    // container is not a control, and giving it handlers would demand focus
+    // semantics it should not have. The popover content lives inside this
+    // component's template, so its events bubble here.
+    host: {
+        'class': 'contents',
+        '(pointerdown)': 'onUserInteract()',
+        '(keydown)': 'onUserInteract()',
+    },
 })
 export class RichTextColorsButtonComponent {
     private readonly host = inject(RichTextEditorAddonHost);
@@ -54,6 +62,17 @@ export class RichTextColorsButtonComponent {
     protected readonly context = inject(RICH_TEXT_COLOR_BUTTON_CONTEXT);
 
     protected readonly open = signal(false);
+    /**
+     * Whether the user has actually touched the picker since it opened.
+     *
+     * The picker emits its seeded value as it initialises, which is not a pick —
+     * applying it would colour the caret from merely opening the popover. A
+     * timing window cannot separate the two reliably (the emission lands
+     * whenever change detection runs the new content), but provenance can: a
+     * real pick is always preceded by a pointer or key event inside the popover,
+     * and a programmatic emission never is.
+     */
+    private userTouched = false;
 
     protected readonly icon: SafeHtml = this.domSanitizer.bypassSecurityTrustHtml(
         this.context.kind === 'foreground' ? FOREGROUND_ICON : BACKGROUND_ICON,
@@ -93,6 +112,7 @@ export class RichTextColorsButtonComponent {
 
     protected onOpenChange(next: boolean): void {
         if (next) {
+            this.userTouched = false;
             this.context.onOpen();
         }
         this.open.set(next);
@@ -102,13 +122,18 @@ export class RichTextColorsButtonComponent {
         }
     }
 
+    /** Record that what follows came from the user, not from initialisation. */
+    protected onUserInteract(): void {
+        this.userTouched = true;
+    }
+
     /**
-     * Forward a picked colour to the addon. Gated on `open()` because the inline
-     * picker emits a `colorChange` on init (and when re-seeded) that must not
-     * reach the editor while the popover is closed.
+     * Forward a picked colour to the addon. Gated on `open()` so emissions from a
+     * closing picker are ignored, and on {@link userTouched} so the picker's
+     * initialisation emission is not mistaken for a pick.
      */
     protected onColorChange(color: string): void {
-        if (!this.open() || this.interactionDisabled()) return;
+        if (!this.open() || this.interactionDisabled() || !this.userTouched) return;
         this.context.onSelect(color);
     }
 }

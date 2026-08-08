@@ -42,7 +42,7 @@ export const DEFAULT_COLOR_PALETTE: string[] = [
 
 /** Default highlight-color palette offered by the highlight-color picker. */
 export const DEFAULT_HIGHLIGHT_PALETTE: string[] = [
-    'transparent', '#ffffff', '#fef3c7', '#fef9c3', '#d9f99d', '#bbf7d0', '#a7f3d0', '#99f6e4',
+    '#ffffff', '#fef3c7', '#fef9c3', '#d9f99d', '#bbf7d0', '#a7f3d0', '#99f6e4',
     '#a5f3fc', '#bae6fd', '#c7d2fe', '#ddd6fe', '#f5d0fe', '#fce7f3', '#fed7aa', '#fecaca',
     '#fde68a', '#fef08a', '#86efac', '#4ade80', '#6ee7b7', '#5eead4', '#67e8f9', '#7dd3fc',
     '#a5b4fc', '#c4b5fd', '#e879f9', '#f472b6', '#fb923c', '#f87171', '#facc15', '#a3e635',

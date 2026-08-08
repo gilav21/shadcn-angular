@@ -19,14 +19,21 @@
   <ui-popover-content class="w-72 max-w-[calc(100vw-2rem)] p-3" align="start" strategy="fixed">
     <div class="space-y-2">
       <p class="text-sm font-medium block m-0">{{ context.heading() }}</p>
-      <ui-color-picker
-        [inline]="true"
-        [presets]="context.presets()"
-        [alpha]="context.alpha"
-        [ngModel]="context.seededColor()"
-        [disabled]="interactionDisabled()"
-        (colorChange)="onColorChange($event)"
-      />
+      <!-- Built fresh on each open. The popover reuses its content, so a picker
+           kept alive holds the colour from the previous session; seeding it with
+           the caret's colour then changes nothing, and re-picking that same
+           colour emits nothing at all — the pick is silently lost. -->
+      @if (open()) {
+        <ui-color-picker
+          [inline]="true"
+          [presets]="context.presets()"
+          [showRecent]="context.showRecent()"
+          [alpha]="context.alpha()"
+          [ngModel]="context.seededColor()"
+          [disabled]="interactionDisabled()"
+          (colorChange)="onColorChange($event)"
+        />
+      }
     </div>
   </ui-popover-content>
 </ui-popover>
