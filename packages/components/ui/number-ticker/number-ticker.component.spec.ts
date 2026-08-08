@@ -19,10 +19,19 @@ let reducedMotion = false;
 let animations: FakeAnimation[] = [];
 let originalAnimate: unknown;
 
-function installStubs(): void {
-    rafQueue = [];
-    rafIdSeq = 0;
-    cancelledIds = [];
+/**
+ * matchMedia plus a recording `Element.prototype.animate`, and deliberately
+ * NOT the frame globals.
+ *
+ * A suite that only needs to observe the animations a component creates should
+ * leave `requestAnimationFrame` alone. Stubbing it to merely enqueue means
+ * Angular's scheduler loses its frame leg, so change detection advances only
+ * when the test pumps a frame by hand — and every assertion then rides on how
+ * the scheduler interleaves that pumping with its timer leg. That is a bet a
+ * loaded run loses: the effect that creates the animation lands after the wait
+ * gives up, and the suite reports zero animations.
+ */
+function installAnimateStubs(): void {
     reducedMotion = false;
     animations = [];
 
@@ -37,15 +46,6 @@ function installStubs(): void {
         dispatchEvent: () => false,
     }));
 
-    vi.stubGlobal('requestAnimationFrame', (cb: RafCb): number => {
-        rafQueue.push(cb);
-        return ++rafIdSeq;
-    });
-
-    vi.stubGlobal('cancelAnimationFrame', (id: number): void => {
-        cancelledIds.push(id);
-    });
-
     const proto = Element.prototype as unknown as { animate?: unknown };
     originalAnimate = proto.animate;
     proto.animate = function (): FakeAnimation {
@@ -57,6 +57,27 @@ function installStubs(): void {
         animations.push(anim);
         return anim;
     };
+}
+
+/**
+ * The animate stubs plus hand-driven frames, for the suites that assert on
+ * frame *timing* (coalescing, cancellation) and therefore have to own the clock.
+ */
+function installStubs(): void {
+    rafQueue = [];
+    rafIdSeq = 0;
+    cancelledIds = [];
+
+    installAnimateStubs();
+
+    vi.stubGlobal('requestAnimationFrame', (cb: RafCb): number => {
+        rafQueue.push(cb);
+        return ++rafIdSeq;
+    });
+
+    vi.stubGlobal('cancelAnimationFrame', (id: number): void => {
+        cancelledIds.push(id);
+    });
 }
 
 function restoreStubs(): void {
@@ -87,39 +108,6 @@ function animationFrames(cmp: NumberTickerComponent): RafCb[] {
     return rafQueue.filter((cb) => cb === animate);
 }
 
-/**
- * Waits for the component to have started `count` animations, driving the
- * stubbed frame queue as it goes. `vi.waitFor` alone cannot get there: zoneless
- * change detection schedules through the same stubbed `requestAnimationFrame`,
- * so the effect that starts an animation only runs once a frame is flushed, and
- * nothing else flushes one.
- */
-async function waitForAnimations(
-    fixture: ComponentFixture<unknown>,
-    count: number,
-): Promise<void> {
-    // The only caller is the digit suite, which runs on real timers: the
-    // zoneless scheduler races the stubbed `requestAnimationFrame` against a
-    // timeout, so the effect that starts an animation lands on the timer leg
-    // and flushing frames alone never gets there. Pump a frame and yield a
-    // macrotask until the animations appear.
-    //
-    // The wait is a deadline rather than a fixed iteration budget, and it does
-    // not touch the timer mocks. A budget is a bet on how many turns the
-    // scheduler needs, which a loaded run loses; and `vi.advanceTimersByTime`
-    // throws outright here ("timers APIs are not mocked") — it only ever went
-    // unnoticed because the loop body is skipped whenever the animation has
-    // already started.
-    const deadline = Date.now() + 5000;
-    let frame = 0;
-    while (animations.length < count && Date.now() < deadline) {
-        frame += 16;
-        flushFrame(frame);
-        await new Promise<void>(resolve => setTimeout(resolve, 0));
-        fixture.detectChanges();
-    }
-    expect(animations).toHaveLength(count);
-}
 
 describe('NumberTickerComponent — animation (deterministic frames)', () => {
     beforeEach(() => {
@@ -274,7 +262,10 @@ describe('NumberTickerDigitComponent', () => {
     let host: DigitHostComponent;
 
     beforeEach(async () => {
-        installStubs();
+        // Animate stubs only. These tests observe the animations the component
+        // creates; they never assert on frame timing, so the scheduler keeps its
+        // real frame leg and change detection advances without being pumped.
+        installAnimateStubs();
         await TestBed.configureTestingModule({
             imports: [DigitHostComponent],
         }).compileComponents();
@@ -282,26 +273,23 @@ describe('NumberTickerDigitComponent', () => {
         fixture = TestBed.createComponent(DigitHostComponent);
         host = fixture.componentInstance;
         fixture.detectChanges();
-        // The component animates only on a digit change AFTER its effect has run
-        // once (the first pass takes the `!_initialized` branch and just seeds
-        // prevDigit). If a test changes the digit before that first pass lands —
-        // which is what happens when `detectChanges()` is slow under a loaded
-        // coverage run — the effect initialises straight to the NEW digit and no
-        // animation is ever created, so the tests below fail deterministically
-        // rather than flakily. Wait for the seed before touching the input.
-        await vi.waitFor(() => expect(digitInstance().prevDigit()).toBe('5'));
-        // Seeding prevDigit is not enough: the effect's first pass does it
-        // without touching the DOM, so it can land before the view has
-        // rendered. The animation the tests below wait for is only created when
-        // the component finds its `.flex` container — with the view still
-        // unrendered the digit change takes the silent fallback branch, sets
-        // prevDigit directly and creates no animation at all. Wait for the
-        // container the component actually looks for.
-        await vi.waitFor(() => {
-            fixture.detectChanges();
-            expect(fixture.nativeElement.querySelector('.flex')).not.toBeNull();
-        });
+        // Two preconditions must hold before a test may change the digit, and
+        // `whenStable` settles both: the effect's first pass has run (it takes
+        // the `!_initialized` branch and only seeds prevDigit, so a digit change
+        // that beats it initialises straight to the new value and never
+        // animates), and the view has rendered the `.flex` container the effect
+        // looks for (without it the change takes the silent fallback branch).
+        await fixture.whenStable();
+        expect(digitInstance().prevDigit()).toBe('5');
+        expect(fixture.nativeElement.querySelector('.flex')).not.toBeNull();
     });
+
+    /** Settle the effect that creates the animation, without pumping frames. */
+    async function applyDigit(value: string): Promise<void> {
+        host.digit.set(value);
+        await fixture.whenStable();
+        fixture.detectChanges();
+    }
 
     afterEach(() => {
         restoreStubs();
@@ -328,17 +316,13 @@ describe('NumberTickerDigitComponent', () => {
     });
 
     // The animation is created inside a signal effect. Asserting immediately
-    // after `detectChanges()` assumes the effect has already flushed, which only
-    // holds while the machine is idle — under a loaded full-suite run the flush
-    // can land a tick later and the assertion sees zero animations. Waiting for
-    // the condition keeps the assertion identical but load-independent.
     it('animates a digit change and settles prevDigit when the animation finishes', async () => {
         const el = digitInstance();
 
-        host.digit.set('7');
-        fixture.detectChanges();
+        await applyDigit('7');
 
-        await waitForAnimations(fixture, 1);
+        expect(animations).toHaveLength(1);
+        // The old digit stays on screen until the animation reports finished.
         expect(el.prevDigit()).toBe('5');
 
         animations[0].onfinish?.();
@@ -346,16 +330,13 @@ describe('NumberTickerDigitComponent', () => {
     });
 
     it('finishes an in-flight animation before starting the next', async () => {
-        host.digit.set('7');
-        fixture.detectChanges();
-        await waitForAnimations(fixture, 1);
-
+        await applyDigit('7');
+        expect(animations).toHaveLength(1);
         const finishSpy = vi.spyOn(animations[0], 'finish');
 
-        host.digit.set('3');
-        fixture.detectChanges();
+        await applyDigit('3');
 
-        await waitForAnimations(fixture, 2);
+        expect(animations).toHaveLength(2);
         expect(finishSpy).toHaveBeenCalled();
     });
 

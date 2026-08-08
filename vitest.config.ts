@@ -49,19 +49,42 @@ export default defineConfig(({ mode: _mode }) => ({
         //     wait passed before anything was measured.
         //   - a demo spec slept a fixed 200ms for an async parse.
         //
-        // What remains is one class, and it is NOT a frame race: a spec's
-        // `Element.prototype.getBoundingClientRect` stub is not in effect when
-        // the component measures, so it reads real layout. Verified by
-        // bypassing the stub deliberately and reproducing the exact failing
-        // numbers — `tour` gives 36/57, `hover-card` gives 101.578px. Seen in
-        // `hover-card`, `dock`, `select.coverage` and `rich-text-slash-commands`.
-        // Waiting harder cannot fix these; the measurement is already wrong.
-        // `tour` is fixed by stubbing the rect on the target element instance
-        // instead of the prototype — the same treatment should retire the rest,
-        // and then this can go to 0. Do not raise it to absorb anything new,
-        // and do not lower it on a lucky streak: failures are ~1 spec per 2-3
-        // full runs under load and can be 0 for three runs in a row.
-        retry: 2,
+        // The second class was NOT a frame race either: a spec's
+        // `Element.prototype.getBoundingClientRect` stub was not in effect when
+        // the component measured, so it read real layout. Verified by bypassing
+        // the stub deliberately and reproducing the exact failing numbers —
+        // `tour` gives 36/57, `hover-card` gives 101.578px. Waiting harder could
+        // never fix these; the measurement was already wrong.
+        //
+        // All of it is now fixed, by the treatment `tour` proved: pin the rect as
+        // an *own* property on the measured element. That shadows the prototype
+        // whatever the ordering and dies with the element, so it cannot leak.
+        // Each was verified by destroying the prototype stub outright and
+        // re-running: `dock` 48/48, `select.coverage` 79/79, `hover-card` 33/33.
+        // The `select` probe also surfaced a second measurement the fix had
+        // missed — `getClippingRect` measures the overflow *ancestor*, not just
+        // the trigger.
+        //
+        // `rich-text-slash-commands` was a different bug wearing the same
+        // costume: its caret rect was installed only `if (!('getBoundingClientRect'
+        // in Range.prototype))`, which is true in jsdom but false in the real
+        // browser this suite runs in — so it was never installed at all and every
+        // menu position came from live layout.
+        //
+        // `number-ticker`'s digit suite was the last, and also not something to
+        // wait out: it stubbed `requestAnimationFrame` to merely enqueue, which
+        // strips the zoneless scheduler of its frame leg, so change detection
+        // advanced only when the test pumped a frame by hand and every assertion
+        // rode on how that interleaved with the timer leg. It now installs the
+        // animate stubs alone and settles with `whenStable()` — verified by
+        // starving rAF completely (never firing, the throttled-iframe condition)
+        // and still passing 16/16.
+        //
+        // Retries are therefore off. Six consecutive full runs at `--retry=0`
+        // were clean (375 files / 7979 tests), against a previous rate of ~1 spec
+        // per 2-3 runs. If something flakes again, fix the measurement or the
+        // scheduling at source — do not raise this to absorb it.
+        retry: 0,
         // Coverage for SonarQube (sonar.javascript.lcov.reportPaths=coverage/lcov.info).
         coverage: {
             provider: 'v8',
