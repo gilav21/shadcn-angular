@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { ColorPickerComponent } from '../../../color-picker';
 import { RichTextColorsDirective, type RichTextColorChange } from './rich-text-colors.directive';
 import { RichTextColorsButtonComponent } from './rich-text-colors-button.component';
@@ -34,6 +34,7 @@ type ButtonProbe = {
     context: RichTextColorButtonContext;
     onColorChange(color: string): void;
     onOpenChange(next: boolean): void;
+    onUserInteract(): void;
 };
 
 /**
@@ -128,6 +129,7 @@ describe('RichTextColorsDirective', () => {
         const button = buttonByKind(fixture, kind);
         button.onOpenChange(true);
         fixture.detectChanges();
+        button.onUserInteract();
         button.onColorChange(color);
         fixture.detectChanges();
     }
@@ -273,6 +275,116 @@ describe('RichTextColorsDirective', () => {
         pick(fixture, 'background', '#00ff00');
 
         expect(buttonByKind(fixture, 'background').context.activeColor()).toBe('#00ff00');
+    });
+
+    /**
+     * A colour chosen at a collapsed caret lives only as the browser's pending
+     * typing style, and the click that dismisses the popover destroys it. The
+     * addon re-applies at the restored caret so the pick survives; without that
+     * it survived only if the user typed before dismissing.
+     */
+    function placeCaret(fixture: ComponentFixture<HostCmp>, html: string): RichTextEditorComponent {
+        const { el, cmp } = editorOf(fixture);
+        el.innerHTML = html;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+        const text = el.querySelector('p')!.firstChild!;
+        const caret = document.createRange();
+        caret.setStart(text, 3);
+        caret.collapse(true);
+        const selection = document.getSelection()!;
+        selection.removeAllRanges();
+        selection.addRange(caret);
+        return cmp;
+    }
+
+    /** Let the deferred restore-and-reapply run. */
+    const settle = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+
+    it('re-applies a caret colour when the popover closes', async () => {
+        const fixture = createFixture();
+        const cmp = placeCaret(fixture, '<p>hello world</p>');
+        const apply = vi.spyOn(cmp, 'applyInlineStyle');
+
+        const bg = buttonByKind(fixture, 'background');
+        bg.onOpenChange(true);
+        fixture.detectChanges();
+        bg.onUserInteract();
+        bg.onColorChange('#ff0000');
+        expect(apply).toHaveBeenCalledTimes(1);
+
+        bg.onOpenChange(false);
+        await settle();
+
+        expect(apply).toHaveBeenCalledTimes(2);
+        expect(apply).toHaveBeenLastCalledWith({ backgroundColor: '#ff0000' });
+    });
+
+    it('re-applies a caret text colour too', async () => {
+        const fixture = createFixture();
+        const cmp = placeCaret(fixture, '<p>hello world</p>');
+        const apply = vi.spyOn(cmp, 'applyInlineStyle');
+
+        const fg = buttonByKind(fixture, 'foreground');
+        fg.onOpenChange(true);
+        fixture.detectChanges();
+        fg.onUserInteract();
+        fg.onColorChange('#2563eb');
+        fg.onOpenChange(false);
+        await settle();
+
+        expect(apply).toHaveBeenLastCalledWith({ color: '#2563eb' });
+    });
+
+    it('does not re-apply over a selection, where the colour is already in the DOM', async () => {
+        const fixture = createFixture();
+        const { cmp } = selectContent(fixture, '<p>ranged text</p>');
+        const apply = vi.spyOn(cmp, 'applyInlineStyle');
+
+        const bg = buttonByKind(fixture, 'background');
+        bg.onOpenChange(true);
+        fixture.detectChanges();
+        bg.onUserInteract();
+        bg.onColorChange('#ff0000');
+        bg.onOpenChange(false);
+        await settle();
+
+        // A second identical apply would only add a duplicate history entry.
+        expect(apply).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not re-apply when the popover is closed without a pick', async () => {
+        const fixture = createFixture();
+        const cmp = placeCaret(fixture, '<p>hello world</p>');
+        const apply = vi.spyOn(cmp, 'applyInlineStyle');
+
+        const bg = buttonByKind(fixture, 'background');
+        bg.onOpenChange(true);
+        fixture.detectChanges();
+        bg.onOpenChange(false);
+        await settle();
+
+        expect(apply).not.toHaveBeenCalled();
+    });
+
+    it('forgets the previous pick when the popover is reopened', async () => {
+        const fixture = createFixture();
+        const cmp = placeCaret(fixture, '<p>hello world</p>');
+        const bg = buttonByKind(fixture, 'background');
+        bg.onOpenChange(true);
+        fixture.detectChanges();
+        bg.onUserInteract();
+        bg.onColorChange('#ff0000');
+        bg.onOpenChange(false);
+
+        await settle();
+        const apply = vi.spyOn(cmp, 'applyInlineStyle');
+        bg.onOpenChange(true);
+        fixture.detectChanges();
+        bg.onOpenChange(false);
+        await settle();
+
+        expect(apply).not.toHaveBeenCalled();
     });
 
     it('renders the inline color picker when a popover opens', async () => {

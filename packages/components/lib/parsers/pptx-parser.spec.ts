@@ -1226,3 +1226,238 @@ describe('parsePptx — additional branch coverage', () => {
         expect(parsePptx(zip).slides[0].backgroundColor).toBe('#778899');
     });
 });
+
+/**
+ * Fallback paths a well-formed deck from PowerPoint rarely takes, but that real
+ * decks hit constantly: East-Asian and complex-script typefaces, percentage
+ * paragraph spacing, list-level defaults, and a line that inherits its colour
+ * from the shape's style reference.
+ */
+describe('parsePptx — inherited and alternate property paths', () => {
+    it('falls back to the East Asian typeface when there is no latin one', () => {
+        const frame = firstTextFrame(buildSinglePptx(styledRunSlide('<a:ea typeface="MS Mincho"/>')));
+
+        expect(frame.paragraphs[0].runs[0].fontFamily).toBe('MS Mincho');
+    });
+
+    it('falls back to the complex-script typeface when latin and ea are absent', () => {
+        const frame = firstTextFrame(buildSinglePptx(styledRunSlide('<a:cs typeface="Arial Unicode"/>')));
+
+        expect(frame.paragraphs[0].runs[0].fontFamily).toBe('Arial Unicode');
+    });
+
+    it('ignores a theme-placeholder typeface and keeps looking', () => {
+        // `+mn-ea` is a theme reference, not a real face — taking it literally
+        // would put a placeholder token into the rendered font stack.
+        const frame = firstTextFrame(buildSinglePptx(
+            styledRunSlide('<a:ea typeface="+mn-ea"/><a:cs typeface="Tahoma"/>'),
+        ));
+
+        expect(frame.paragraphs[0].runs[0].fontFamily).toBe('Tahoma');
+    });
+
+    it('reads paragraph spacing given as a percentage of line height', () => {
+        const frame = firstTextFrame(buildSinglePptx(`
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="60" name="p"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="100" cy="100"/></a:xfrm></p:spPr>
+        <p:txBody><a:bodyPr/>
+          <a:p>
+            <a:pPr>
+              <a:spcBef><a:spcPct val="100000"/></a:spcBef>
+              <a:spcAft><a:spcPct val="50000"/></a:spcAft>
+            </a:pPr>
+            <a:r><a:t>Pct</a:t></a:r>
+          </a:p>
+        </p:txBody>
+      </p:sp>`));
+
+        // 100000 = 100% of a 12pt line; 50% is half of it.
+        expect(frame.paragraphs[0].spacingBefore).toBeCloseTo(12, 5);
+        expect(frame.paragraphs[0].spacingAfter).toBeCloseTo(6, 5);
+    });
+
+    it('inherits run properties from the list style for the paragraph level', () => {
+        const frame = firstTextFrame(buildSinglePptx(`
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="61" name="l"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="100" cy="100"/></a:xfrm></p:spPr>
+        <p:txBody>
+          <a:bodyPr/>
+          <a:lstStyle>
+            <a:lvl2pPr><a:defRPr sz="3200" b="1"><a:latin typeface="Georgia"/></a:defRPr></a:lvl2pPr>
+          </a:lstStyle>
+          <a:p><a:pPr lvl="1"/><a:r><a:t>Level two</a:t></a:r></a:p>
+        </p:txBody>
+      </p:sp>`));
+
+        // The run carries no rPr of its own, so everything comes from lvl2pPr.
+        const run = frame.paragraphs[0].runs[0];
+        expect(run.fontSize).toBe(32);
+        expect(run.bold).toBe(true);
+        expect(run.fontFamily).toBe('Georgia');
+    });
+
+    it('leaves the run untouched when the list style has no entry for its level', () => {
+        const frame = firstTextFrame(buildSinglePptx(`
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="62" name="l"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="100" cy="100"/></a:xfrm></p:spPr>
+        <p:txBody>
+          <a:bodyPr/>
+          <a:lstStyle><a:lvl2pPr><a:defRPr sz="3200"/></a:lvl2pPr></a:lstStyle>
+          <a:p><a:r><a:t>Level one</a:t></a:r></a:p>
+        </p:txBody>
+      </p:sp>`));
+
+        expect(frame.paragraphs[0].runs[0].fontSize).toBeUndefined();
+    });
+
+    it('takes the outline colour from the shape style reference when the line has none', () => {
+        // `a:ln` sets a width but no colour, so `lnRef` has to supply it.
+        const shape = firstShape(buildSinglePptx(`
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="63" name="s"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="952500" cy="952500"/></a:xfrm>
+          <a:prstGeom prst="rect"/>
+          <a:ln w="38100"/>
+        </p:spPr>
+        <p:style>
+          <a:lnRef idx="2"><a:srgbClr val="112233"/></a:lnRef>
+        </p:style>
+      </p:sp>`));
+
+        expect(shape.borderColor).toBe('#112233');
+    });
+
+    /** Connectors resolve their own colour, separately from shapes. */
+    function firstConnector(zip: Uint8Array): PptxConnectorElement {
+        const result = parsePptx(zip);
+        return result.slides[0].elements.find(e => e.type === 'connector') as PptxConnectorElement;
+    }
+
+    it('gives a line-shape connector its colour from the style reference', () => {
+        // A `p:sp` whose geometry is a connector type is routed to the connector
+        // path, where an `a:ln` without a colour must fall back to `lnRef`.
+        const conn = firstConnector(buildSinglePptx(`
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="64" name="c"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="476250" cy="190500"/></a:xfrm>
+          <a:prstGeom prst="straightConnector1"/>
+          <a:ln/>
+        </p:spPr>
+        <p:style>
+          <a:lnRef idx="2"><a:srgbClr val="112233"/></a:lnRef>
+        </p:style>
+      </p:sp>`));
+
+        expect(conn.color).toBe('#112233');
+    });
+
+    it('defaults a line shape to black when nothing names a colour', () => {
+        const conn = firstConnector(buildSinglePptx(`
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="65" name="c"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="476250" cy="190500"/></a:xfrm>
+          <a:prstGeom prst="bentConnector3"/>
+        </p:spPr>
+      </p:sp>`));
+
+        expect(conn.color).toBe('#000');
+        expect(conn.connectorType).toBe('bentConnector3');
+    });
+});
+
+describe('parsePptx — group flips and background fills', () => {
+    function slideWithBody(body: string): Uint8Array {
+        return buildZip([
+            { path: 'ppt/presentation.xml', content: presentationXml([{ id: 256, rId: 'rId1' }]) },
+            { path: 'ppt/_rels/presentation.xml.rels', content: presentationRels([{ id: 'rId1', target: 'slides/slide1.xml' }]) },
+            { path: 'ppt/theme/theme1.xml', content: THEME_XML },
+            { path: 'ppt/slides/slide1.xml', content: slideXml(body) },
+        ]);
+    }
+
+    /** A group whose transform mirrors its children on the given axes. */
+    function flippedGroup(flip: string, inner: string): string {
+        return `
+      <p:grpSp>
+        <p:nvGrpSpPr><p:cNvPr id="70" name="grp"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+        <p:grpSpPr>
+          <a:xfrm ${flip}>
+            <a:off x="0" y="0"/><a:ext cx="1905000" cy="1905000"/>
+            <a:chOff x="0" y="0"/><a:chExt cx="1905000" cy="1905000"/>
+          </a:xfrm>
+        </p:grpSpPr>
+        ${inner}
+      </p:grpSp>`;
+    }
+
+    const innerRect = `
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="71" name="inner"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm><a:off x="0" y="0"/><a:ext cx="476250" cy="476250"/></a:xfrm>
+          <a:prstGeom prst="rect"/>
+          <a:solidFill><a:srgbClr val="999999"/></a:solidFill>
+        </p:spPr>
+      </p:sp>`;
+
+    it('mirrors a child horizontally when the group is flipped', () => {
+        const result = parsePptx(slideWithBody(flippedGroup('flipH="1"', innerRect)));
+        const shape = result.slides[0].elements.find(e => e.type === 'shape') as PptxShapeElement;
+
+        // Group is 200px wide, child is 50px at x=0, so mirroring puts it at 150.
+        expect(shape.x).toBe(Math.round(1905000 / 9525) - Math.round(476250 / 9525));
+        expect(shape.y).toBe(0);
+    });
+
+    it('mirrors a child vertically when the group is flipped', () => {
+        const result = parsePptx(slideWithBody(flippedGroup('flipV="1"', innerRect)));
+        const shape = result.slides[0].elements.find(e => e.type === 'shape') as PptxShapeElement;
+
+        expect(shape.y).toBe(Math.round(1905000 / 9525) - Math.round(476250 / 9525));
+        expect(shape.x).toBe(0);
+    });
+
+    it('inverts a connector\u2019s own flip flags when its group is flipped', () => {
+        const connector = `
+      <p:sp>
+        <p:nvSpPr><p:cNvPr id="72" name="c"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr>
+          <a:xfrm flipH="1"><a:off x="0" y="0"/><a:ext cx="476250" cy="190500"/></a:xfrm>
+          <a:prstGeom prst="straightConnector1"/>
+        </p:spPr>
+      </p:sp>`;
+        const result = parsePptx(slideWithBody(flippedGroup('flipH="1"', connector)));
+        const conn = result.slides[0].elements.find(e => e.type === 'connector') as PptxConnectorElement;
+
+        // Its own flipH cancels against the group's, leaving it unflipped.
+        expect(conn.flipH).toBeFalsy();
+    });
+
+    it('takes the slide background from the first gradient stop', () => {
+        const body = `<p:sp>
+        <p:nvSpPr><p:cNvPr id="73" name="s"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr>
+        <p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="100" cy="100"/></a:xfrm></p:spPr>
+      </p:sp>`;
+        const slide = slideXml(body).replace(
+            '<p:cSld>',
+            `<p:cSld><p:bg><p:bgPr><a:gradFill><a:gsLst>`
+            + `<a:gs pos="0"><a:srgbClr val="AABBCC"/></a:gs>`
+            + `<a:gs pos="100000"><a:srgbClr val="DDEEFF"/></a:gs>`
+            + `</a:gsLst></a:gradFill></p:bgPr></p:bg>`,
+        );
+        const zip = buildZip([
+            { path: 'ppt/presentation.xml', content: presentationXml([{ id: 256, rId: 'rId1' }]) },
+            { path: 'ppt/_rels/presentation.xml.rels', content: presentationRels([{ id: 'rId1', target: 'slides/slide1.xml' }]) },
+            { path: 'ppt/theme/theme1.xml', content: THEME_XML },
+            { path: 'ppt/slides/slide1.xml', content: slide },
+        ]);
+
+        expect(parsePptx(zip).slides[0].backgroundColor).toBe('#aabbcc');
+    });
+});

@@ -19,6 +19,7 @@ interface MockHost {
 interface ButtonProbe {
     onOpenChange(next: boolean): void;
     onColorChange(color: string): void;
+    onUserInteract(): void;
 }
 
 function buildContext(kind: RichTextColorKind): RichTextColorButtonContext & {
@@ -32,7 +33,8 @@ function buildContext(kind: RichTextColorKind): RichTextColorButtonContext & {
         tooltip: signal(kind === 'foreground' ? 'Text Color' : 'Background Color'),
         heading: signal('Pick a colour'),
         presets: signal(['#ff0000', '#00ff00']),
-        alpha: kind === 'background',
+        alpha: signal(kind === 'background'),
+        showRecent: signal(false),
         seededColor: signal('#123456'),
         activeColor: signal(''),
         onOpen: vi.fn<() => void>(),
@@ -95,6 +97,7 @@ describe('RichTextColorsButtonComponent', () => {
         expect((el.querySelector('button') as HTMLButtonElement).disabled).toBe(true);
 
         probe().onOpenChange(true);
+        probe().onUserInteract();
         probe().onColorChange('#ff0000');
         expect(ctx.onSelect).not.toHaveBeenCalled();
     });
@@ -108,10 +111,12 @@ describe('RichTextColorsButtonComponent', () => {
 
         p.onOpenChange(true);
         expect(ctx.onOpen).toHaveBeenCalledTimes(1);
+        p.onUserInteract();
         p.onColorChange('#abcdef');
         expect(ctx.onSelect).toHaveBeenCalledWith('#abcdef');
 
         p.onOpenChange(false);
+        p.onUserInteract();
         p.onColorChange('#000000');
         expect(ctx.onSelect).toHaveBeenCalledTimes(1);
     });
@@ -136,7 +141,48 @@ describe('RichTextColorsButtonComponent', () => {
         // The picker can emit while unmounting; `open()` is already false by the
         // time onClose runs, so a teardown emission must not reach the editor.
         p.onOpenChange(false);
+        p.onUserInteract();
         p.onColorChange('#ff0000');
+
+        expect(ctx.onSelect).not.toHaveBeenCalled();
+    });
+
+    it('ignores the picker’s initialisation emission, so opening applies nothing', () => {
+        render('background');
+        const p = probe();
+
+        // The picker emits its seeded value as it is built. Without the
+        // interaction gate this reached the editor and coloured the caret from
+        // a mere popover open.
+        p.onOpenChange(true);
+        p.onColorChange('#000000');
+
+        expect(ctx.onSelect).not.toHaveBeenCalled();
+    });
+
+    it('forwards a pick that follows a user interaction', () => {
+        render('background');
+        const p = probe();
+
+        p.onOpenChange(true);
+        p.onUserInteract();
+        p.onColorChange('#bbf7d0');
+
+        expect(ctx.onSelect).toHaveBeenCalledWith('#bbf7d0');
+    });
+
+    it('requires a fresh interaction after each open', () => {
+        render('background');
+        const p = probe();
+        p.onOpenChange(true);
+        p.onUserInteract();
+        p.onColorChange('#bbf7d0');
+        p.onOpenChange(false);
+        ctx.onSelect.mockClear();
+
+        // Reopening must not inherit the previous session's interaction.
+        p.onOpenChange(true);
+        p.onColorChange('#bbf7d0');
 
         expect(ctx.onSelect).not.toHaveBeenCalled();
     });

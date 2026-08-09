@@ -104,6 +104,12 @@ export class ColorPickerComponent implements ControlValueAccessor {
     readonly class = input('');
     readonly alpha = input(false);
     readonly recentColors = input<string[] | null>(null);
+    /**
+     * Show the recently-used row. Turn off where recents have nowhere to live —
+     * a picker rebuilt on every open, with no `storageKey` — since the row would
+     * then only ever echo the colour just picked while taking up space.
+     */
+    readonly showRecent = input(true);
     readonly maxRecent = input(8);
     readonly storageKey = input<string | null>(null);
     readonly enableEyedropper = input(true);
@@ -167,7 +173,17 @@ export class ColorPickerComponent implements ControlValueAccessor {
     /** Current color as RGBA. */
     readonly currentRgba = this.rgba.asReadonly();
     /** Current color as hex (6-char by default; 8-char when alpha mode is on AND a < 1). */
-    readonly currentColor = computed(() => formatHex(this.rgba(), this.alpha()));
+    /**
+     * A fully transparent colour keeps its alpha channel even when the alpha
+     * control is hidden: "transparent" means no colour at all, not an opacity
+     * level. Without this, a `transparent` preset collapses to opaque black as
+     * soon as a consumer turns alpha off — silently turning "clear this" into
+     * "paint it black".
+     */
+    readonly currentColor = computed(() => {
+        const rgba = this.rgba();
+        return formatHex(rgba, this.alpha() || rgba.a === 0);
+    });
     /** RGB triple (no alpha) for the RGB tab. */
     readonly rgb = computed(() => {
         const { r, g, b } = this.rgba();
@@ -494,6 +510,7 @@ export class ColorPickerComponent implements ControlValueAccessor {
     }
 
     private pushRecent(color: string): void {
+        if (!this.showRecent()) return;
         const controlled = this.recentColors();
         if (controlled !== null) {
             this.recentColorsChange.emit(unshiftUniqueColor(controlled, color, this.maxRecent()));

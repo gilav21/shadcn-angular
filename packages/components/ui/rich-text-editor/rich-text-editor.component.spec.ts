@@ -1463,13 +1463,107 @@ describe('RichTextEditorComponent', () => {
             fixture.detectChanges();
             placeCaret(5);
 
-            // Sentinel differs from the applied colour, so only the pending-style
-            // path can produce it — computed style would report the applied purple.
-            withCommandValue({ foreColor: 'rgb(1, 2, 3)' }, () => {
-                component.applyInlineStyle({ color: '#9333ea' });
+            // Nothing reaches the DOM at a caret: the colour exists only as the
+            // style the next character will take, and the toolbar must show it.
+            component.applyInlineStyle({ color: '#9333ea' });
+
+            expect(component.selectionInlineStyle().color).toBe('#9333ea');
+        });
+
+        it('keeps a highlight when a text colour is chosen at the same caret', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            placeCaret(5);
+
+            component.applyInlineStyle({ backgroundColor: '#ffff00' });
+            component.applyInlineStyle({ color: '#9333ea' });
+
+            // Choosing one channel must not discard the other — both belong to
+            // the next character, as in any other editor.
+            expect(component.selectionInlineStyle().backgroundColor).toBe('#ffff00');
+            expect(component.selectionInlineStyle().color).toBe('#9333ea');
+        });
+
+        /**
+         * Restoring `styleWithCSS` to false disarms the pending *text* colour in
+         * Chrome while leaving the highlight armed — the next character came out
+         * uncoloured even though the toolbar showed the colour. So it stays on
+         * while a caret is holding a pending style. Asserted on the command
+         * stream because the effect itself only shows up when a real character is
+         * typed, which this harness cannot do.
+         */
+        function recordCommands(run: () => void): string[] {
+            const calls: string[] = [];
+            const doc = document as Document & { execCommand: (id: string, ui?: boolean, v?: string) => boolean };
+            const original = doc.execCommand;
+            doc.execCommand = (id: string, ui?: boolean, v?: string) => {
+                calls.push(`${id}=${v}`);
+                return original.call(document, id, ui, v);
+            };
+            try {
+                run();
+            } finally {
+                doc.execCommand = original;
+            }
+            return calls;
+        }
+
+        it('leaves styleWithCSS on while a caret holds a pending colour', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            placeCaret(5);
+
+            const calls = recordCommands(() => component.applyInlineStyle({ color: '#9333ea' }));
+
+            expect(calls).toContain('styleWithCSS=true');
+            expect(calls).not.toContain('styleWithCSS=false');
+        });
+
+        it('restores styleWithCSS once the caret leaves the pending colour', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            placeCaret(5);
+            component.applyInlineStyle({ color: '#9333ea' });
+
+            const calls = recordCommands(() => {
+                const text = editor.querySelector('p')!.firstChild!;
+                const moved = document.createRange();
+                moved.setStart(text, 1);
+                moved.collapse(true);
+                const selection = window.getSelection()!;
+                selection.removeAllRanges();
+                selection.addRange(moved);
+                component.onSelectionChange();
             });
 
-            expect(component.selectionInlineStyle().color).toBe('rgb(1, 2, 3)');
+            expect(calls).toContain('styleWithCSS=false');
+        });
+
+        it('restores styleWithCSS immediately when colouring a selection', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            editor.innerHTML = '<p><span>ranged</span></p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+            selectAllOf(editor.querySelector('span') as HTMLElement);
+
+            // Nothing is pending over a selection — the colour is written to the
+            // DOM — so the default is restored right away.
+            const calls = recordCommands(() => component.applyInlineStyle({ color: '#9333ea' }));
+
+            expect(calls).toContain('styleWithCSS=false');
+        });
+
+        it('keeps a text colour when a highlight is chosen at the same caret', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+            placeCaret(5);
+
+            component.applyInlineStyle({ color: '#9333ea' });
+            component.applyInlineStyle({ backgroundColor: '#ffff00' });
+
+            expect(component.selectionInlineStyle().color).toBe('#9333ea');
+            expect(component.selectionInlineStyle().backgroundColor).toBe('#ffff00');
         });
 
         it('reflects a pending typing highlight at a collapsed caret', () => {
@@ -1477,11 +1571,9 @@ describe('RichTextEditorComponent', () => {
             fixture.detectChanges();
             placeCaret(5);
 
-            withCommandValue({ backColor: 'rgb(4, 5, 6)' }, () => {
-                component.applyInlineStyle({ backgroundColor: '#ffff00' });
-            });
+            component.applyInlineStyle({ backgroundColor: '#ffff00' });
 
-            expect(component.selectionInlineStyle().backgroundColor).toBe('rgb(4, 5, 6)');
+            expect(component.selectionInlineStyle().backgroundColor).toBe('#ffff00');
         });
 
         it('ignores a selection that has collapsed outside the editor', () => {
@@ -1525,15 +1617,13 @@ describe('RichTextEditorComponent', () => {
             fixture.detectChanges();
             placeCaret(5);
 
-            withCommandValue({ foreColor: 'rgb(1, 2, 3)' }, () => {
-                component.applyInlineStyle({ color: '#9333ea' });
-                // Merely closing the colour popover fires a selection change while
-                // the pending style is still live — it must not revert the toolbar
-                // to the DOM colour the next typed character will not have.
-                component.onSelectionChange();
-            });
+            component.applyInlineStyle({ color: '#9333ea' });
+            // Merely closing the colour popover fires a selection change while the
+            // pending style is still live — it must not revert the toolbar to the
+            // DOM colour the next typed character will not have.
+            component.onSelectionChange();
 
-            expect(component.selectionInlineStyle().color).toBe('rgb(1, 2, 3)');
+            expect(component.selectionInlineStyle().color).toBe('#9333ea');
         });
 
         it('drops the pending colour once the caret moves', () => {
@@ -1541,20 +1631,18 @@ describe('RichTextEditorComponent', () => {
             fixture.detectChanges();
             placeCaret(5);
 
-            withCommandValue({ foreColor: 'rgb(1, 2, 3)' }, () => {
-                component.applyInlineStyle({ color: '#9333ea' });
+            component.applyInlineStyle({ color: '#9333ea' });
 
-                const text = editor.querySelector('p')!.firstChild!;
-                const moved = document.createRange();
-                moved.setStart(text, 1);
-                moved.collapse(true);
-                const selection = window.getSelection()!;
-                selection.removeAllRanges();
-                selection.addRange(moved);
-                component.onSelectionChange();
-            });
+            const text = editor.querySelector('p')!.firstChild!;
+            const moved = document.createRange();
+            moved.setStart(text, 1);
+            moved.collapse(true);
+            const selection = window.getSelection()!;
+            selection.removeAllRanges();
+            selection.addRange(moved);
+            component.onSelectionChange();
 
-            expect(component.selectionInlineStyle().color).not.toBe('rgb(1, 2, 3)');
+            expect(component.selectionInlineStyle().color).not.toBe('#9333ea');
         });
 
         it('falls back to computed style when the caret has no pending colour', () => {

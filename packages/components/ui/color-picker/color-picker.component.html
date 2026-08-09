@@ -92,7 +92,7 @@
         </div>
       }
 
-      @if (recents().length > 0) {
+      @if (showRecent() && recents().length > 0) {
         <fieldset class="space-y-1 border-0 p-0 m-0">
           <legend class="text-xs text-muted-foreground p-0">{{ t().recent }}</legend>
           <ul class="flex flex-wrap gap-1 list-none p-0 m-0" [attr.aria-label]="t().recentColors">

@@ -341,7 +341,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * live — the caret has to actually move (or take a typed character) before
      * the DOM becomes the source of truth again.
      */
-    private caretColorAnchor: { node: Node; offset: number } | null = null;
+    private caretColorAnchor: {
+        node: Node;
+        offset: number;
+        color?: string;
+        backgroundColor?: string;
+    } | null = null;
     private readonly htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
     currentFontSize = signal<string>('');
@@ -1067,6 +1072,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
     onSelectionChange(): void {
         this.updateActiveFormats();
+        this.releaseCaretColor();
         const selection = this.document.getSelection();
         this.selectedText.set(selection?.toString() ?? '');
         if (selection && !selection.isCollapsed && this.toolbar() === 'floating') {
@@ -1431,6 +1437,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (!this.hasColorTarget()) {
             return;
         }
+        // Merge with whatever was chosen at this same caret. Re-setting the
+        // selection (which `restoreColorTargetSelection` does next) disarms any
+        // pending typing style, so both channels are re-issued together below —
+        // otherwise choosing a text colour would silently discard a highlight
+        // picked moments earlier at the same caret.
+        const prior = this.caretPendingStyle();
+        const intent = {
+            color: color ?? prior.color,
+            backgroundColor: backgroundColor ?? prior.backgroundColor,
+        };
+
         this.flushPendingHistoryPush();
         this.restoreColorTargetSelection();
 
@@ -1440,17 +1457,31 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // of the deprecated `<font color>` tag `foreColor` produces by default, which the
         // sanitizer strips, so the colour would apply in the editor but vanish from the output.
         this.execEditorCommand('styleWithCSS', 'true');
-        if (color !== undefined) {
-            this.execEditorCommand('foreColor', color);
-            this.setMentionStyle(mentionTargets, 'color', color);
+        // Issued back to back, with nothing between them: anything that re-sets
+        // the selection in between disarms whichever was applied first.
+        if (intent.color !== undefined) {
+            this.execEditorCommand('foreColor', intent.color);
         }
+        if (intent.backgroundColor !== undefined
+            && !this.execEditorCommand('hiliteColor', intent.backgroundColor)) {
+            this.execEditorCommand('backColor', intent.backgroundColor);
+        }
+
+        const caret = this.collapsedCaretAnchor();
+        // Turning `styleWithCSS` back off disarms the pending *text* colour (the
+        // highlight survives it, the colour does not), so it stays on for as long
+        // as a pending style is waiting for the next character. It is restored in
+        // `releaseCaretColor` once the caret leaves and nothing is pending.
+        if (!caret) {
+            this.execEditorCommand('styleWithCSS', 'false');
+        }
+
+        // Mention chips take only the colour actually requested: a channel merely
+        // carried over was already applied to them when it was chosen.
+        if (color !== undefined) this.setMentionStyle(mentionTargets, 'color', color);
         if (backgroundColor !== undefined) {
-            if (!this.execEditorCommand('hiliteColor', backgroundColor)) {
-                this.execEditorCommand('backColor', backgroundColor);
-            }
             this.setMentionStyle(mentionTargets, 'backgroundColor', backgroundColor);
         }
-        this.execEditorCommand('styleWithCSS', 'false');
 
         // `foreColor`/`hiliteColor` apply to the range without needing editor focus and
         // keep it selected. Do NOT focus the editor here: the colour picker lives in an
@@ -1461,7 +1492,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         // typed character will actually be. Without this the reflection only refreshes
         // on the editor's next mouseup/keyup, leaving the toolbar a step behind the
         // caret. `updateActiveFormats` only reads the selection, so it is focus-safe.
-        this.caretColorAnchor = this.collapsedCaretAnchor();
+        this.caretColorAnchor = caret ? { ...caret, ...intent } : null;
         this.applyMutation({ focus: false, updateActiveFormats: true });
     }
 
@@ -3222,10 +3253,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return doc.queryCommandState?.(commandId) ?? false;
     }
 
-    private queryEditorCommandValue(commandId: string): string {
-        const doc = this.document as unknown as { queryCommandValue?: (id: string) => string };
-        return doc.queryCommandValue?.(commandId) ?? '';
-    }
 
     private focusEditor(): void {
         this.editorDiv?.nativeElement?.focus();
@@ -3493,16 +3520,44 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * highlight on any theme whose background serializes as `rgb(...)`.
      */
     private pendingTypingColor(commandId: string): string {
+        const pending = this.caretPendingStyle();
+        return (commandId === 'foreColor' ? pending.color : pending.backgroundColor) ?? '';
+    }
+
+    /**
+     * The colours the next typed character will take, or empty once the caret has
+     * moved away from where they were chosen.
+     *
+     * Tracked here rather than read back with `queryCommandValue`, which reports
+     * the last value handed to `execCommand` whether or not it is still armed —
+     * it claimed a text colour was pending when the character typed immediately
+     * after came out uncoloured. The editor knows what it applied.
+     */
+    private caretPendingStyle(): { color?: string; backgroundColor?: string } {
         const anchor = this.caretColorAnchor;
         const caret = this.collapsedCaretAnchor();
         // `anchor` is checked first so that "no colour applied yet" stays a miss
         // even when there is also no caret — comparing two `undefined`s would
         // otherwise read as a match.
         if (!anchor || caret?.node !== anchor.node || caret?.offset !== anchor.offset) {
-            return '';
+            return {};
         }
-        const value = this.queryEditorCommandValue(commandId);
-        return value.startsWith('rgb') ? value : '';
+        return { color: anchor.color, backgroundColor: anchor.backgroundColor };
+    }
+
+    /**
+     * Drop a pending colour once the caret has left it, and restore the default
+     * `styleWithCSS` that `applySelectionColor` deliberately left on.
+     */
+    private releaseCaretColor(): void {
+        if (!this.caretColorAnchor) return;
+        const caret = this.collapsedCaretAnchor();
+        if (caret?.node === this.caretColorAnchor.node
+            && caret?.offset === this.caretColorAnchor.offset) {
+            return;
+        }
+        this.caretColorAnchor = null;
+        this.execEditorCommand('styleWithCSS', 'false');
     }
 
     /**

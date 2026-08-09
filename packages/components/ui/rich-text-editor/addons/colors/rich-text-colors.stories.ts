@@ -56,7 +56,7 @@ export const CustomPalettesAndLocale: Story = {
     render: () => ({
         props: {
             palette: ['#0f172a', '#dc2626', '#ea580c', '#16a34a', '#2563eb', '#7c3aed'],
-            highlight: ['transparent', '#fee2e2', '#fef9c3', '#dcfce7', '#dbeafe', '#f3e8ff'],
+            highlight: ['#fee2e2', '#fef9c3', '#dcfce7', '#dbeafe', '#f3e8ff'],
         },
         template: `
             <ui-rich-text-editor

@@ -18,7 +18,9 @@ export interface RichTextColorButtonContext {
     /** Preset swatches offered by the inline colour picker. */
     readonly presets: Signal<string[]>;
     /** Whether the picker exposes an alpha channel (highlight colours only). */
-    readonly alpha: boolean;
+    readonly alpha: Signal<boolean>;
+    /** Whether the picker shows its recently-used row. */
+    readonly showRecent: Signal<boolean>;
     /** The hex value the picker is seeded with while the popover is open. */
     readonly seededColor: Signal<string>;
     /**
