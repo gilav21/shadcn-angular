@@ -55,8 +55,10 @@ export function matchSlashTriggerWithinCurrentBlock(doc: Document, root: HTMLEle
     return SLASH_TRIGGER_PATTERN.exec(blockRange.toString());
 }
 
-// Chromium may report the caret container as the contenteditable root; probe
-// nearby child blocks because startOffset can be unstable in that case.
+/**
+ * Chromium may report the caret container as the contenteditable root; probe
+ * nearby child blocks because startOffset can be unstable in that case.
+ */
 function matchSlashTriggerInRootChildBlocks(
     doc: Document, root: HTMLElement, block: HTMLElement, range: Range,
 ): RegExpExecArray | null {

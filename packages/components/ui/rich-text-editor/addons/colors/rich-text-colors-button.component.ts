@@ -45,10 +45,12 @@ const BACKGROUND_ICON =
         ColorPickerComponent,
     ],
     templateUrl: './rich-text-colors-button.component.html',
-    // Listened for on the host rather than on the popover's container: the
-    // container is not a control, and giving it handlers would demand focus
-    // semantics it should not have. The popover content lives inside this
-    // component's template, so its events bubble here.
+    /**
+     * Interaction is listened for on the host rather than the popover's
+     * container: the container is not a control, and giving it handlers would
+     * demand focus semantics it should not have. The popover content lives
+     * inside this component's template, so its events bubble here.
+     */
     host: {
         'class': 'contents',
         '(pointerdown)': 'onUserInteract()',
@@ -110,6 +112,11 @@ export class RichTextColorsButtonComponent {
         this.toolbarView?.compact() ? 'p-1' : 'p-1.5',
     ));
 
+    /**
+     * Track the popover's open state. `onClose` is notified only after
+     * `open()` has already gone false, so the picker's teardown emissions are
+     * ignored rather than mistaken for a user pick.
+     */
     protected onOpenChange(next: boolean): void {
         if (next) {
             this.userTouched = false;
@@ -117,7 +124,6 @@ export class RichTextColorsButtonComponent {
         }
         this.open.set(next);
         if (!next) {
-            // After `open()` is false, so the picker's teardown emissions are ignored.
             this.context.onClose();
         }
     }

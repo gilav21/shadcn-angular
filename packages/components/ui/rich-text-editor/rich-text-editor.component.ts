@@ -1,4 +1,4 @@
-﻿import {
+import {
     Component,
     ChangeDetectionStrategy,
     input,
@@ -64,26 +64,26 @@ const editorVariants = cva(
 /**
  * Visual style variant for the editor border and focus treatment.
  *
- * - `'default'` ג€” Standard bordered input with focus ring.
- * - `'ghost'` ג€” No visible border until focused, useful for inline editing.
+ * - `'default'` — Standard bordered input with focus ring.
+ * - `'ghost'` — No visible border until focused, useful for inline editing.
  */
 export type EditorVariant = VariantProps<typeof editorVariants>['variant'];
 
 /**
  * Text size preset for the editor content area.
  *
- * - `'default'` ג€” Base text size (`text-base`).
- * - `'sm'` ג€” Compact text (`text-sm`), good for comment boxes.
- * - `'lg'` ג€” Larger text (`text-lg`), good for article editing.
+ * - `'default'` — Base text size (`text-base`).
+ * - `'sm'` — Compact text (`text-sm`), good for comment boxes.
+ * - `'lg'` — Larger text (`text-lg`), good for article editing.
  */
 export type EditorSize = VariantProps<typeof editorVariants>['size'];
 
 /**
  * Determines the output format and internal handling of content.
  *
- * - `'markdown'` ג€” Editor accepts and emits Markdown. HTML is converted
+ * - `'markdown'` — Editor accepts and emits Markdown. HTML is converted
  *   to/from Markdown transparently using the built-in converter.
- * - `'html'` ג€” Editor works directly with raw HTML. No Markdown conversion.
+ * - `'html'` — Editor works directly with raw HTML. No Markdown conversion.
  *
  * @default 'markdown'
  */
@@ -92,9 +92,9 @@ export type EditorMode = 'markdown' | 'html';
 /**
  * Controls where (or whether) the formatting toolbar appears.
  *
- * - `'top'` ג€” Fixed toolbar above the editor area.
- * - `'floating'` ג€” Appears near the text selection, like Medium/Notion.
- * - `'none'` ג€” No toolbar rendered. Use keyboard shortcuts or slash commands instead.
+ * - `'top'` — Fixed toolbar above the editor area.
+ * - `'floating'` — Appears near the text selection, like Medium/Notion.
+ * - `'none'` — No toolbar rendered. Use keyboard shortcuts or slash commands instead.
  *
  * @default 'top'
  */
@@ -206,12 +206,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     @ViewChild('editorContainer') editorContainer?: ElementRef<HTMLElement>;
     @ViewChild('tableContextMenuRef') tableContextMenuRef?: ElementRef<HTMLDivElement>;
 
-    // ג”€ג”€ Content & mode ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Output format: `'markdown'` converts to/from Markdown; `'html'` works with raw HTML. */
     mode = input<EditorMode>('markdown');
 
-    // ג”€ג”€ Appearance ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Visual border/focus style. See {@link EditorVariant}. */
     variant = input<EditorVariant>('default');
@@ -219,7 +217,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** Text size preset for the editor content. See {@link EditorSize}. */
     size = input<EditorSize>('default');
 
-    // ג”€ג”€ Toolbar ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Where to render the formatting toolbar. See {@link ToolbarPosition}. */
     toolbar = input<ToolbarPosition>('top');
@@ -232,10 +229,28 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
 
+    /**
+     * Extra consumer-owned toolbar buttons, rendered in array order after the
+     * built-in {@link toolbarItems} and before any addon slot. Each entry's
+     * `isActive(formats)` is re-evaluated against the editor's detected active
+     * formats, so the button can light up like a built-in one. Clicking one does
+     * NOT format anything — it emits {@link customToolbarAction}, and the handler
+     * decides. Only the `'top'` toolbar renders these; the floating toolbar and
+     * `toolbar="none"` ignore them. Addons should contribute a
+     * {@link RichTextToolbarSlot} through the host instead.
+     */
     customToolbarItems = input<RichTextCustomToolbarItem[]>([]);
+
+    /**
+     * Emits when a {@link customToolbarItems} button is clicked, with that item's
+     * `id` and a {@link RichTextEditorRef} scoped to this editor. The ref is the
+     * whole public surface a custom button gets: insert text/HTML at the caret,
+     * focus, and read the selected text / current HTML. Note the ref's inserts
+     * update the model and emit the change outputs but record NO history entry of
+     * their own, so undo will not step over them cleanly.
+     */
     customToolbarAction = output<{ id: string; ref: RichTextEditorRef }>();
 
-    // ג”€ג”€ Editor content area ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Placeholder text shown when the editor is empty. Falls back to the locale default. */
     placeholder = input<string>('');
@@ -246,13 +261,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /** CSS `max-height` for the editable area (scrolls beyond this). Accepts any CSS length value. */
     maxHeight = input<string>('400px');
 
-    /** Disables the editor entirely ג€” no input, no toolbar, no interactions. */
+    /** Disables the editor entirely — no input, no toolbar, no interactions. */
     disabled = input<boolean>(false);
 
     /** Makes the editor non-editable but still selectable/copyable. Hides the toolbar. */
     readonly = input<boolean>(false);
 
-    // ג”€ג”€ Character & word count ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Show a character count below the editor. */
     showCount = input<boolean>(false);
@@ -263,11 +277,10 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
     /**
      * Maximum character limit. When set, the character counter turns red
      * and the editor emits warnings when approaching/exceeding the limit.
-     * Does **not** prevent typing ג€” it's advisory only.
+     * Does **not** prevent typing — it's advisory only.
      */
     maxLength = input<number | undefined>(undefined);
 
-    // ג”€ג”€ Revision history ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Maximum number of history snapshots to retain. Oldest entries are dropped when exceeded. */
     historyLimit = input<number>(100);
@@ -278,7 +291,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     historyDebounceMs = input<number>(450);
 
-    // ג”€ג”€ Localisation ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /**
      * Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`)
@@ -287,7 +299,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     locale = input<LocaleInput<RichTextLocale>>();
 
-    // ג”€ג”€ Styling & accessibility ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Additional CSS classes merged onto the editor's root container. */
     class = input<string>('');
@@ -312,14 +323,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      */
     readonly builtinCommands = computed<readonly RichTextSlashCommand[]>(() => []);
 
-    // ג”€ג”€ Outputs ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€ג”€
 
     /** Emits the current content as an HTML string after every change. */
     htmlChange = output<string>();
 
     /**
      * Emits the current content as a Markdown string after every change.
-     * Only meaningful when `mode` is `'markdown'` ג€” in `'html'` mode,
+     * Only meaningful when `mode` is `'markdown'` — in `'html'` mode,
      * the Markdown is reverse-converted from HTML and may not round-trip perfectly.
      */
     markdownChange = output<string>();
@@ -492,11 +502,27 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return text.split(/\s+/).length;
     });
 
+    /**
+     * Substitute `{name}` placeholders in a locale string with `values`. Exposed
+     * for the template, which uses it for the counter strings
+     * (`editor.characters` / `editor.words`, both `{count}`-parameterized).
+     * Unknown placeholders are left as-is by the shared `interpolate` helper.
+     */
     interpolateLocale(template: string, values: Record<string, string | number>): string {
         return interpolate(template, values);
     }
 
 
+    /**
+     * Template-bound `click` handler on the editable area. Two jobs: it tracks
+     * the clicked `<img>` as the selected image (cleared on any other click),
+     * which is what {@link selection} reports as `kind: 'image'` and what the
+     * images addon anchors its resizer to; and it takes over a click on a task
+     * list checkbox — the browser's own toggle is prevented so the checked state
+     * lives on the `<li data-checked>` attribute (the model's source of truth)
+     * rather than on the DOM-only `checked` property, and the toggle records a
+     * history entry.
+     */
     onEditorClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
         this.selectedImage.set(target.tagName === 'IMG' ? target as HTMLImageElement : null);
@@ -700,6 +726,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * `ControlValueAccessor` — accept a new value from the form. Interprets it
+     * per {@link mode}: Markdown is converted to HTML, HTML is sanitized. Writes
+     * straight through to the contenteditable DOM, so it replaces whatever the
+     * user was editing; task checkboxes in the incoming value are re-enabled and
+     * their `checked` state re-read from the owning `<li data-checked>`.
+     *
+     * Deliberately silent: it does NOT call back into the form
+     * ({@link registerOnChange}), does NOT emit {@link htmlChange} /
+     * {@link markdownChange}, and does NOT record a history entry — so a
+     * programmatic `setValue` cannot be undone, and undo will jump back to the
+     * state before it. `null`/`undefined` are treated as the empty string.
+     */
     writeValue(value: string): void {
         value ??= '';
 
@@ -715,14 +754,35 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * `ControlValueAccessor` — store the form's change callback. It is invoked
+     * with the {@link mode}-appropriate string (Markdown or HTML) on every model
+     * update: typing, formatting commands, addon mutations, undo/redo and history
+     * restore — but never from {@link writeValue}.
+     */
     registerOnChange(fn: (value: string) => void): void {
         this.onChange = fn;
     }
 
+    /**
+     * `ControlValueAccessor` — store the touched callback. Fired from
+     * {@link onBlur}, i.e. on every blur of the editable area, including one
+     * caused by moving focus to the toolbar or an addon overlay.
+     */
     registerOnTouched(fn: () => void): void {
         this.onTouched = fn;
     }
 
+    /**
+     * Template-bound `input` handler on the editable area — the typing path.
+     * Sanitizes the DOM into the model (stripping the zero-width joiners the
+     * floating toolbar leaves behind), publishes the trigger-aware text and caret
+     * offset to addon input observers (see `registerInputObserver`) BEFORE the
+     * model update so slash/mention triggers see the same values the base does,
+     * calls the form's `onChange`, and schedules the debounced history push —
+     * skipped for the one input event replaying an undo/redo, which must not
+     * become a new entry.
+     */
     onInput(event: Event): void {
         const div = event.target as HTMLDivElement;
         const html = this.sanitizer.sanitize(div.innerHTML).replaceAll('\u200B', '');
@@ -734,8 +794,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             ? this.getCaretOffset(div)
             : triggerTextContent.length;
 
-        // Addons (e.g. slash-commands, mentions) observe the trigger-aware text
-        // and run their own trigger detection.
         this.notifyInputObservers(triggerTextContent, caretOffset);
 
         this.htmlContent.set(html);
@@ -751,6 +809,27 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.isUndoRedo = false;
     }
 
+    /**
+     * Template-bound `keydown` handler on the editable area, in strict priority
+     * order:
+     *
+     * 1. Addon keydown interceptors (`registerKeydownInterceptor`) — the first
+     *    one to return `true` consumes the event and nothing below runs.
+     * 2. The registered shortcut bindings (`Mod+B/I/U`, `Mod+K`, `Mod+Z`,
+     *    `Mod+Shift+Z` / `Mod+Y`, `Mod+Shift+H`, `Mod+F`, `Mod+H`), dispatched
+     *    through `ShortcutBindingService` so the user's remappings apply. A
+     *    matched binding calls `preventDefault` for us; the editing ones are
+     *    gated on the editor being neither disabled nor readonly.
+     * 3. `Escape` — hides the floating toolbar (not prevented; other handlers
+     *    still see it).
+     * 4. `Tab` — always prevented: indents/outdents the list item under the
+     *    caret (`Shift+Tab` outdents), or inserts a literal tab outside a list,
+     *    so focus never leaves the editor.
+     * 5. `Enter` without Shift — the block-exit rules: continue or leave a task
+     *    list, step from a `<summary>` into its `<details>` body, break out of an
+     *    empty trailing `<details>` block, and newline-vs-exit inside a code
+     *    block. Plain paragraphs fall through to the browser.
+     */
     onKeydown(event: KeyboardEvent): void {
         if (this.dispatchKeydownInterceptors(event)) return;
         if (this.shortcutHandle?.dispatch(event)) return;
@@ -930,6 +1009,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         selection.addRange(newRange);
     }
 
+    /**
+     * Template-bound `beforeinput` handler — the only place {@link maxLength} is
+     * actually enforced on typing, by cancelling the insertion that would push
+     * the plain-text length past the limit (a replaced selection counts as freed
+     * budget). Inert when no `maxLength` is set, and never blocks deletions or
+     * formatting commands, so an over-limit document can always be edited back
+     * down. Pasting is budgeted separately inside {@link onPaste}.
+     */
     onBeforeInput(event: Event): void {
         const inputEvent = event as InputEvent;
         if (!this.maxLength() || inputEvent.inputType.startsWith('delete') || inputEvent.inputType.startsWith('format')) {
@@ -950,6 +1037,18 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Template-bound `paste` handler. The native paste is ALWAYS cancelled first
+     * — nothing reaches the DOM unfiltered — and any pending debounced history
+     * push is flushed so the paste lands as its own undo step. Then, in order:
+     * disabled/readonly swallow the paste; addon paste interceptors
+     * (`registerPasteInterceptor`, e.g. the images addon claiming image files)
+     * get a chance to consume it; {@link maxLength} truncates to the remaining
+     * budget (inserting the truncation as plain text) or drops the paste when
+     * there is none left; otherwise the `text/html` flavour — falling back to
+     * `text/plain` — goes through the paste normalizer (which strips Word/Docs
+     * cruft) and the sanitizer before insertion.
+     */
     onPaste(event: ClipboardEvent): void {
         event.preventDefault();
         this.flushPendingHistoryPush();
@@ -976,6 +1075,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
     }
 
+    /**
+     * Enforce `maxLength` on a paste, returning `true` when the paste was fully
+     * handled here. Measures against the plain-text (`text/plain`) clipboard
+     * value rather than parsing the untrusted HTML — the over-limit path inserts
+     * plain text anyway, so the HTML length would be the wrong budget.
+     */
     private handlePasteMaxLength(text: string): boolean {
         if (!this.maxLength()) {
             return false;
@@ -989,8 +1094,6 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
             return true;
         }
 
-        // Measure against the plain-text clipboard value (text/plain) — no need
-        // to parse the untrusted HTML; the over-limit path inserts plain text.
         if (text.length > remaining) {
             const truncated = text.substring(0, remaining);
             this.insertText(truncated);
@@ -999,6 +1102,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
         return false;
     }
+    /**
+     * Template-bound `dragover` handler. Only a file drag is considered, and only
+     * when some addon claims it via a registered drop-zone predicate
+     * (`registerDropZonePredicate`) — the base itself accepts nothing. Claiming
+     * the drag means calling `preventDefault` (without it the browser refuses the
+     * drop) and raising {@link dragOver}, which drives the drop-zone highlight.
+     */
     onEditorDragOver(event: DragEvent): void {
         if (this.disabled() || this.readonly()) return;
 
@@ -1021,6 +1131,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return false;
     }
 
+    /**
+     * Template-bound `dragleave` handler. Clears the {@link dragOver} highlight,
+     * but ignores the leave events fired while the pointer crosses between
+     * descendants of the editable area — only a `relatedTarget` outside it (or
+     * none at all) counts as really leaving.
+     */
     onEditorDragLeave(event: DragEvent): void {
         if (!event.currentTarget) {
             this.dragOver.set(false);
@@ -1033,6 +1149,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Template-bound `drop` handler. Drops the {@link dragOver} highlight and
+     * hands the event to the addon drop interceptors
+     * (`registerDropInterceptor`); the first to return `true` owns the drop,
+     * including its own `preventDefault` and insertion. The base inserts nothing
+     * itself, so with no interceptor registered the drop falls through to the
+     * browser's default handling.
+     */
     async onEditorDrop(event: DragEvent): Promise<void> {
         this.dragOver.set(false);
         if (this.disabled() || this.readonly()) return;
@@ -1042,10 +1166,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /** Template-bound `focus` handler; emits {@link focused}. Does not touch the selection. */
     onFocus(): void {
         this.focused.emit();
     }
 
+    /**
+     * Template-bound `blur` handler, and the reason a toolbar or overlay button
+     * can still act on "the selection": it saves the live range as the restore
+     * point {@link restoreSelection} (and every colour/font path) falls back to.
+     * Also flushes the pending debounced history push so a blur closes the undo
+     * step, marks the form control touched, and emits {@link blurred}.
+     *
+     * Focus moving to anything inside the component (toolbar button, addon
+     * popover) leaves the floating toolbar up; otherwise it is hidden after a
+     * short delay, re-checking `activeElement` so a click that lands back inside
+     * does not flicker it away.
+     */
     onBlur(event?: FocusEvent): void {
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
@@ -1070,6 +1207,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }, 200);
     }
 
+    /**
+     * Template-bound on both `mouseup` and `keyup` of the editable area — the
+     * editor's "the caret may have moved" notification, not the DOM
+     * `selectionchange` event. Re-detects the active formats the toolbar
+     * highlights, releases a pending caret colour once the caret has actually
+     * moved off its anchor (see `releaseCaretColor`), and republishes
+     * {@link selectedText}.
+     *
+     * With `toolbar="floating"` it also drives that toolbar: shown immediately
+     * for a non-empty selection, hidden on a delay for a collapsed one — the
+     * delay re-reads the selection, because a click that is about to become a
+     * drag reports collapsed for an instant.
+     */
     onSelectionChange(): void {
         this.updateActiveFormats();
         this.releaseCaretColor();
@@ -1116,6 +1266,26 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.bumpHistoryVersion();
     }
 
+    /**
+     * Apply one built-in toolbar command by id — the entry point the top toolbar
+     * and the `Mod+B`/`Mod+I`/`Mod+U` shortcuts both go through, and the closest
+     * thing to a programmatic formatting API.
+     *
+     * Accepts the inline (`bold`, `italic`, `underline`, `strikethrough`, `code`,
+     * `clear`), block (`paragraph`, `heading1`–`3`, `blockquote`, `codeBlock`,
+     * `horizontalRule`, `undo`, `redo`), alignment (`alignLeft`/`Center`/`Right`,
+     * mirrored in RTL) and list (`bulletList`, `orderedList`, `taskList`,
+     * `toggle`, `indent`, `outdent`) ids; an unknown id is silently ignored.
+     *
+     * No-op while disabled or readonly. Otherwise it restores the saved selection
+     * first (so a click on the toolbar, which blurred the editor, still formats
+     * the right text), flushes pending history so the command is its own undo
+     * step, applies the matching style to any mention chips in range —
+     * `execCommand` skips them — then syncs the model, refocuses the editor,
+     * re-detects active formats and records one history entry. In floating-
+     * toolbar mode it finally collapses the selection past the new formatting
+     * node so typing continues outside it.
+     */
     onFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
 
@@ -1242,6 +1412,23 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * The floating (bubble) toolbar's command entry point — a separate path from
+     * {@link onFormatCommand}, not a wrapper around it. It works on the LIVE
+     * selection only (there is one by definition when the bubble is up) and never
+     * restores a saved range.
+     *
+     * For `bold`/`italic`/`underline`/`strikethrough` over non-empty text it wraps
+     * the extracted range in a `<b>`/`<i>`/`<u>`/`<s>` element directly instead of
+     * calling `execCommand`, then parks the caret in a zero-width space after the
+     * wrapper so continued typing is unstyled (that `U+200B` is stripped from
+     * the model on the next sync). Everything else — `clear`, `heading1`–`3`,
+     * `bulletList`, `orderedList` — runs the browser command and collapses to the
+     * end; other ids do nothing but still close the toolbar.
+     *
+     * Either way the bubble hides, the model is synced and one history entry is
+     * recorded.
+     */
     onFloatingFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
         this.flushPendingHistoryPush();
@@ -1315,6 +1502,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Insert plain text at the saved caret on behalf of an overlay UI — an emoji
+     * or symbol picker, a menu (addon host surface). Use this rather than
+     * `insertTextAtCaret` whenever the click came from UI outside the editor: it
+     * restores the in-editor selection first, re-saves the caret afterwards so
+     * consecutive picks append instead of stacking at the same spot, and pins
+     * `inputMode = 'none'` for ~100ms while focus returns, which stops the mobile
+     * software keyboard from flashing open. Note it flushes pending history but
+     * records no entry of its own.
+     */
     insertTextFromOverlay(text: string): void {
         this.flushPendingHistoryPush();
         const editor = this.editorDiv?.nativeElement;
@@ -1415,12 +1612,31 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return false;
     }
 
+    /**
+     * Publish the trigger-aware text and caret offset to registered observers.
+     * Addons (slash-commands, mentions) subscribe here and run their own
+     * trigger detection off the same values the base computes for its own.
+     */
     private notifyInputObservers(text: string, caretOffset: number): void {
         for (const observer of this.inputObservers) {
             observer(text, caretOffset);
         }
     }
 
+    /**
+     * Apply a {@link RichTextInlineStyle} to the current (or last-saved)
+     * selection — the addon host's single entry point for colour and typography
+     * (addon host surface). Only the properties actually present are applied, and
+     * each takes its own path: `color`/`backgroundColor` go through the caret-
+     * aware colour routine (a no-op when there is no selection or caret in the
+     * editor, and it deliberately does NOT refocus the editor, so an open picker
+     * keeps its selection alive), while `fontSize` and `fontFamily` delegate to
+     * {@link onFontSizeSelect} / {@link onFontFamilySelect}, which DO restore the
+     * selection and refocus.
+     *
+     * Each applied property records its own history entry, so callers normally
+     * send one property per call.
+     */
     applyInlineStyle(style: RichTextInlineStyle): void {
         if (style.color !== undefined || style.backgroundColor !== undefined) {
             this.applySelectionColor(style.color, style.backgroundColor);
@@ -1433,15 +1649,42 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Apply a text colour and/or highlight to the current selection or caret.
+     *
+     * Every step below is load-bearing; the ordering is not incidental:
+     *
+     * - **Both channels are re-issued together.** Restoring the selection
+     *   disarms any pending typing style, so a colour picked moments earlier at
+     *   this same caret would be silently discarded if only one channel were
+     *   sent. The prior pending style is merged into `intent` first.
+     * - **`styleWithCSS` is on** so the browser emits inline
+     *   `color`/`background-color`, which the sanitizer keeps. Its default
+     *   `<font color>` tag is stripped, which would apply the colour in the
+     *   editor but lose it from the output.
+     * - **`foreColor`/`hiliteColor` are issued back to back**, with nothing in
+     *   between: anything that re-sets the selection disarms whichever landed
+     *   first.
+     * - **`styleWithCSS` stays on while a caret style is pending** — turning it
+     *   off disarms the pending *text* colour (the highlight survives, the
+     *   colour does not). {@link releaseCaretColor} restores it once the caret
+     *   leaves and nothing is pending.
+     * - **Mention chips take only the channel actually requested**; one merely
+     *   carried over was already applied to them when it was chosen.
+     * - **The editor is deliberately NOT focused.** `foreColor`/`hiliteColor`
+     *   work on the range without focus and keep it selected. The colour picker
+     *   lives in an open popover, so stealing focus back collapses the
+     *   selection and leaves the next pick (or a drag) with no target — the
+     *   reported "de-selects and stops changing" bug.
+     * - **Active formats are re-detected** so the reflected colour matches what
+     *   the next typed character will be; otherwise the toolbar lags a step
+     *   behind the caret until the next mouseup/keyup. Reading the selection is
+     *   focus-safe.
+     */
     private applySelectionColor(color: string | undefined, backgroundColor: string | undefined): void {
         if (!this.hasColorTarget()) {
             return;
         }
-        // Merge with whatever was chosen at this same caret. Re-setting the
-        // selection (which `restoreColorTargetSelection` does next) disarms any
-        // pending typing style, so both channels are re-issued together below —
-        // otherwise choosing a text colour would silently discard a highlight
-        // picked moments earlier at the same caret.
         const prior = this.caretPendingStyle();
         const intent = {
             color: color ?? prior.color,
@@ -1453,12 +1696,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
 
         const mentionTargets = this.getMentionElementsInSelection();
 
-        // Emit inline `color`/`background-color` styles — which the sanitizer keeps — instead
-        // of the deprecated `<font color>` tag `foreColor` produces by default, which the
-        // sanitizer strips, so the colour would apply in the editor but vanish from the output.
         this.execEditorCommand('styleWithCSS', 'true');
-        // Issued back to back, with nothing between them: anything that re-sets
-        // the selection in between disarms whichever was applied first.
         if (intent.color !== undefined) {
             this.execEditorCommand('foreColor', intent.color);
         }
@@ -1468,30 +1706,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
 
         const caret = this.collapsedCaretAnchor();
-        // Turning `styleWithCSS` back off disarms the pending *text* colour (the
-        // highlight survives it, the colour does not), so it stays on for as long
-        // as a pending style is waiting for the next character. It is restored in
-        // `releaseCaretColor` once the caret leaves and nothing is pending.
         if (!caret) {
             this.execEditorCommand('styleWithCSS', 'false');
         }
 
-        // Mention chips take only the colour actually requested: a channel merely
-        // carried over was already applied to them when it was chosen.
         if (color !== undefined) this.setMentionStyle(mentionTargets, 'color', color);
         if (backgroundColor !== undefined) {
             this.setMentionStyle(mentionTargets, 'backgroundColor', backgroundColor);
         }
 
-        // `foreColor`/`hiliteColor` apply to the range without needing editor focus and
-        // keep it selected. Do NOT focus the editor here: the colour picker lives in an
-        // open popover, and stealing focus back collapses the selection so the next pick
-        // (or a drag) has no target — the reported "de-selects and stops changing" bug.
-        //
-        // Re-detect the active formats so the reflected colour matches what the next
-        // typed character will actually be. Without this the reflection only refreshes
-        // on the editor's next mouseup/keyup, leaving the toolbar a step behind the
-        // caret. `updateActiveFormats` only reads the selection, so it is focus-safe.
         this.caretColorAnchor = caret ? { ...caret, ...intent } : null;
         this.applyMutation({ focus: false, updateActiveFormats: true });
     }
@@ -1533,6 +1756,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return !!sel && sel.rangeCount > 0 && editor.contains(sel.getRangeAt(0).startContainer);
     }
 
+    /**
+     * Set the font size of the current (or last-saved) selection. Accepts a bare
+     * number-like string or an explicit CSS length — a value without `px` gets
+     * `px` appended, so arbitrary sizes work, not just the seven `execCommand`
+     * steps: it applies the throwaway `fontSize=7`, then rewrites every
+     * `<font size="7">` it produced into a `<span style="font-size:…">` the
+     * sanitizer keeps. Mention chips in range are styled directly, since the
+     * browser command skips them.
+     *
+     * Restores the saved selection first (a size picker lives outside the editor)
+     * and refocuses the editor afterwards, recording one history entry. Reached
+     * from {@link applyInlineStyle} for typography addons.
+     */
     onFontSizeSelect(size: string): void {
         this.flushPendingHistoryPush();
         this.restoreSelection();
@@ -1564,6 +1800,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.pushHistory();
     }
 
+    /**
+     * Set the font family of the current (or last-saved) selection, `family`
+     * being a CSS font-family value (e.g. `Georgia`). Mirrors
+     * {@link onFontSizeSelect}: runs `fontName`, then rewrites the resulting
+     * `<font face="…">` elements into `<span style="font-family:…">` so the
+     * sanitizer keeps them, styles the mention chips the command skipped,
+     * restores the selection beforehand, refocuses after, and records one history
+     * entry. Reached from {@link applyInlineStyle}.
+     */
     onFontFamilySelect(family: string): void {
         this.flushPendingHistoryPush();
         this.restoreSelection();
@@ -1709,6 +1954,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         });
     }
 
+    /**
+     * Right-click handler bound on the open table context menu itself, so a
+     * second right-click while the menu is up re-targets instead of doing
+     * nothing. The menu is the topmost element at those coordinates, so it is
+     * momentarily made `pointer-events: none` to hit-test the cell underneath;
+     * landing on another cell in this editor moves the menu there, anything else
+     * closes it.
+     */
     onContextMenuOverlayContextMenu(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();
@@ -1731,6 +1984,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.closeTableContextMenu();
     }
 
+    /**
+     * Template-bound `contextmenu` handler. Suppresses the browser menu only
+     * inside a table in this editor and opens the table menu at the pointer,
+     * remembering the cell as the target every table operation below acts on
+     * ({@link mergeCells}, {@link addTableRowAbove}, …). Outside a table the
+     * native menu is left alone. The menu is repositioned to stay in the viewport
+     * and closes on the next click or contextmenu anywhere in the document.
+     */
     onEditorContextMenu(event: MouseEvent): void {
         const target = event.target as HTMLElement;
         const table = target.closest('table');
@@ -1754,6 +2015,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.setupTableContextMenuCloseHandlers();
     }
 
+    /**
+     * Template-bound `mousemove` handler; its only job is the column-resize
+     * affordance. Within 4px of a cell's right edge — or its left edge, for any
+     * column but the first — it switches the editable area's cursor to
+     * `col-resize` and arms the flag {@link onEditorMouseDown} checks to start a
+     * drag. Idle while a resize is already running, or when disabled/readonly.
+     */
     onEditorMouseMove(event: MouseEvent): void {
         if (this.tableResizeState || this.readonly() || this.disabled()) return;
         const target = event.target as HTMLElement;
@@ -1779,6 +2047,17 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Template-bound `mousedown` handler, arbitrating the two table gestures.
+     * A right-click only clears the cell selection when it lands outside it, so
+     * the context menu can still act on a multi-cell selection. A left press on
+     * an armed resize edge (see {@link onEditorMouseMove}) starts a column drag
+     * — which pins the table to `table-layout: fixed` with explicit pixel widths
+     * — and swallows the event. Otherwise it starts a cell-range selection from
+     * the pressed cell, tracked on document `mousemove`/`mouseup` so the drag
+     * survives leaving the table. See {@link onEditorTouchStart} for the touch
+     * equivalent.
+     */
     onEditorMouseDown(event: MouseEvent): void {
         if (this.readonly() || this.disabled()) return;
         const target = event.target as HTMLElement;
@@ -1897,6 +2176,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.document.removeEventListener('mouseup', this.onTableCellSelectUpBound);
     }
 
+    /**
+     * Template-bound `touchstart` handler — the touch counterpart of
+     * {@link onEditorMouseDown} for selecting a range of table cells by dragging.
+     * The tracking `touchmove` listener is registered non-passive so it can
+     * `preventDefault` and stop the page scrolling under the drag, but only once
+     * the finger is over another cell of the same table. Column resizing has no
+     * touch path.
+     */
     onEditorTouchStart(event: TouchEvent): void {
         if (this.readonly() || this.disabled()) return;
         const target = event.target as HTMLElement;
@@ -2127,6 +2414,16 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return cells;
     }
 
+    /**
+     * Merge the currently selected table cells into their top-left one, growing
+     * its `colspan`/`rowspan` to the selection's bounding rectangle and joining
+     * the non-empty cells' HTML with spaces (an all-empty merge keeps a `<br>`).
+     * The other cells are removed.
+     *
+     * Unlike the rest of the table methods this acts on the drag-selected cells,
+     * not the context-menu target, and is a no-op with fewer than two selected.
+     * The selection is cleared and one history entry recorded.
+     */
     mergeCells(): void {
         this.closeTableContextMenu();
         const selected = this.tableCellSelected();
@@ -2195,12 +2492,28 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return { contentParts, processedCells };
     }
 
+    /**
+     * Whether {@link splitCell} would do anything: true only while the table
+     * context menu has a target cell that actually spans more than one row or
+     * column. Bound in the template to disable the menu entry — read it before
+     * offering split in any custom menu.
+     */
     canSplitCell(): boolean {
         const target = this.tableContextMenuTarget;
         if (!target) return false;
         return (target.colSpan > 1 || target.rowSpan > 1);
     }
 
+    /**
+     * Undo a merge on the cell the table context menu targets: drop its
+     * `colspan`/`rowspan` and refill the rectangle it covered with fresh empty
+     * `<td>`/`<th>` cells (matching the row's section), inserted at the right
+     * position in each row. The original cell keeps its content in the top-left
+     * slot.
+     *
+     * No-op without a menu target or when {@link canSplitCell} is false. Clears
+     * the cell selection and records one history entry.
+     */
     splitCell(): void {
         this.closeTableContextMenu();
         const target = this.tableContextMenuTarget;
@@ -2278,6 +2591,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return { cell, row, table, colIndex, rowIndex };
     }
 
+    /**
+     * Insert an empty row directly above the row holding the table context
+     * menu's target cell (above the whole span, for a row-spanning cell). Cells
+     * that span across the insertion point are stretched by one row rather than
+     * split. No-op without a menu target; closes the menu and records one history
+     * entry. The new row inherits `<th>` cells only when it becomes row 0 of a
+     * table that has a `<thead>`.
+     */
     addTableRowAbove(): void {
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
@@ -2289,6 +2610,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.applyMutation({ focus: true });
     }
 
+    /**
+     * Insert an empty row directly below the target cell's row — below the last
+     * row it spans. Same rules as {@link addTableRowAbove}: spanning cells grow
+     * instead of splitting, no-op without a context-menu target, one history
+     * entry. A row appended past the end lands inside `<tbody>` when there is one.
+     */
     addTableRowBelow(): void {
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
@@ -2384,6 +2711,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return !!refCell && processed.has(refCell);
     }
 
+    /**
+     * Insert an empty column on the visual left of the target cell's column.
+     * "Left" is visual, not logical: in an RTL locale this inserts AFTER the
+     * column in document order, so the menu item matches what the user sees.
+     * Cells spanning the insertion point widen by one instead of splitting.
+     * No-op without a context-menu target; one history entry.
+     */
     addTableColumnLeft(): void {
         if (this.isRtl()) {
             this.insertTableColumn('after');
@@ -2392,6 +2726,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Insert an empty column on the visual right of the target cell's column —
+     * the RTL mirror of {@link addTableColumnLeft}, inserting BEFORE it in
+     * document order when the locale is RTL. Same spanning, no-op and history
+     * behaviour.
+     */
     addTableColumnRight(): void {
         if (this.isRtl()) {
             this.insertTableColumn('before');
@@ -2513,6 +2853,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return null;
     }
 
+    /**
+     * Delete the row containing the table context menu's target cell. Deleting
+     * the last remaining row removes the whole table instead. Cells that span
+     * into the deleted row shrink by one and, when the deleted row was their
+     * first, are re-homed into the following row at the right position so the
+     * grid stays rectangular. Clears the menu target and records one history
+     * entry; no-op without a target.
+     */
     deleteTableRow(): void {
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
@@ -2589,6 +2937,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         return false;
     }
 
+    /**
+     * Delete the column containing the table context menu's target cell —
+     * removing the whole table when it was the only column. A cell straddling
+     * the column loses one from its `colspan` instead of being removed. Clears
+     * the menu target and records one history entry; no-op without a target.
+     */
     deleteTableColumn(): void {
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
@@ -2619,6 +2973,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.applyMutation({ focus: true });
     }
 
+    /**
+     * Remove the entire table the context menu's target cell belongs to. Not
+     * confirmed — a single history entry is the only way back. No-op without a
+     * menu target.
+     */
     deleteTable(): void {
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
@@ -2628,6 +2987,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.applyMutation({ focus: true });
     }
 
+    /**
+     * Toggle the target cell's table between having a header row and not.
+     * Promoting retags the first row's cells as `<th>` and moves the row into a
+     * new `<thead>`; demoting retags them as `<td>` and moves the row back to the
+     * top of `<tbody>` (creating one if the table had none), dropping the now
+     * empty `<thead>`. Cell content is preserved, cell attributes are not — the
+     * cells are replaced, not renamed. No-op without a context-menu target or on
+     * an empty table; one history entry.
+     */
     toggleTableHeaderRow(): void {
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
@@ -2663,6 +3031,19 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.applyMutation({ focus: true });
     }
 
+    /**
+     * Set the border style of the target cell's whole table (not just the cell):
+     *
+     * - `'all'` — clear every inline border override and fall back to the
+     *   editor's default grid styling.
+     * - `'none'` — `border: none` on every cell.
+     * - `'outer'` — border only around the table's outer edge.
+     * - `'horizontal'` — row separators only, no vertical rules.
+     *
+     * Written as inline styles (so they survive in the exported HTML), sampled
+     * from the first cell's computed border colour to match the theme. No-op
+     * without a context-menu target; one history entry.
+     */
     setTableBorders(style: 'all' | 'none' | 'outer' | 'horizontal'): void {
         this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
@@ -2736,6 +3117,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Set `text-align` on the single cell the table context menu targets — not
+     * the row, column, or a multi-cell drag selection. The value is written
+     * literally, so `'left'`/`'right'` are physical directions and do not mirror
+     * in RTL. No-op without a menu target; one history entry.
+     */
     setCellAlignment(align: 'left' | 'center' | 'right'): void {
         this.closeTableContextMenu();
         if (this.tableContextMenuTarget) {
@@ -2745,6 +3132,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Set the background colour of the single cell the table context menu
+     * targets. `'transparent'` is special-cased to clear the inline style
+     * altogether, restoring the theme's own cell background (a `<th>` keeps its
+     * muted fill) rather than punching a transparent hole. Any CSS colour is
+     * accepted; {@link tableCellColors} is only the swatch list the menu offers.
+     * No-op without a menu target; one history entry.
+     */
     setCellColor(color: string): void {
         this.closeTableContextMenu();
         if (this.tableContextMenuTarget) {
@@ -2905,6 +3300,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         }
     }
 
+    /**
+     * Bridges a {@link customToolbarItems} button click to the
+     * {@link customToolbarAction} output, building the {@link RichTextEditorRef}
+     * it carries. The ref's methods close over this instance and stay valid after
+     * the emit, so a consumer may hold it for an async flow (a dialog, a fetch)
+     * and insert later — the insertion goes to wherever the caret is at that
+     * point, since nothing here saves or restores the selection.
+     */
     onCustomToolbarAction(id: string): void {
         this.customToolbarAction.emit({
             id,
@@ -2918,6 +3321,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         });
     }
 
+    /**
+     * Open the find panel and focus its query field, with the replace row shown
+     * when `showReplace` is true. Bound to `Mod+F` (find) and `Mod+H` (find and
+     * replace) — `Mod+H` is gated on the editor being editable, `Mod+F` is not,
+     * so find works in a readonly editor. Calling it while the panel is already
+     * open just switches replace on or off and re-focuses; it does not re-run or
+     * clear the current search.
+     */
     openFindReplace(showReplace: boolean): void {
         this.findShowReplace.set(showReplace);
         this.findReplaceVisible.set(true);
@@ -2927,6 +3338,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         });
     }
 
+    /**
+     * Close the find panel, unwrapping the `<mark>` elements the search injected
+     * into the content (and normalizing the split text nodes back together) and
+     * resetting the query, replacement text and match list, then returning focus
+     * to the editable area. Bound to the panel's Escape key and its close button. The
+     * case-sensitivity toggle is deliberately NOT reset.
+     */
     closeFindReplace(): void {
         this.clearFindHighlights();
         this.findReplaceVisible.set(false);
@@ -2937,11 +3355,24 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.editorDiv?.nativeElement?.focus();
     }
 
+    /**
+     * Update the search query and re-run the search immediately — bound to the
+     * query field's `input`, so it runs on every keystroke with no debounce, and
+     * each run re-walks all the editor's text nodes. Matches are plain
+     * case-folded substring matches within a single text node: a phrase broken by
+     * inline markup will not be found. Resets the current match to the first hit
+     * and scrolls it into view; an empty query just clears the highlights.
+     */
     onFindQueryChange(query: string): void {
         this.findQuery.set(query);
         this.performFind();
     }
 
+    /**
+     * Flip case sensitivity (default off) and re-run the search against the
+     * current query, resetting to the first match. The setting persists across
+     * {@link closeFindReplace} for the lifetime of the component.
+     */
     toggleFindCaseSensitive(): void {
         this.findCaseSensitive.set(!this.findCaseSensitive());
         this.performFind();
@@ -3031,6 +3462,12 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         if (current) current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
+    /**
+     * Advance to the next match, wrapping around at the end, and scroll it into
+     * view. Re-runs the search to rebuild the highlights but keeps the index, so
+     * it stays correct after the content changed underneath. No-op with no
+     * matches.
+     */
     findNext(): void {
         const matches = this.findMatches();
         if (matches.length === 0) return;
@@ -3038,6 +3475,11 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.performFind(true);
     }
 
+    /**
+     * Step back to the previous match, wrapping around to the last one at the
+     * start. Otherwise identical to {@link findNext}; reached from the panel's up
+     * arrow and from `Shift+Enter` in the query field.
+     */
     findPrevious(): void {
         const matches = this.findMatches();
         if (matches.length === 0) return;
@@ -3046,6 +3488,15 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.performFind(true);
     }
 
+    /**
+     * Replace the currently highlighted match with the replacement text, then
+     * re-run the search so the counter and highlights reflect the new content.
+     * The replacement is inserted as plain text and inherits the formatting
+     * around it. Because the search re-runs from the top, the current match falls
+     * back to the first hit — repeated calls walk forward only while the
+     * replacement itself does not match the query. No-op with no current match.
+     * Records one history entry.
+     */
     replaceSingle(): void {
         const matches = this.findMatches();
         const idx = this.findCurrentIndex();
@@ -3071,6 +3522,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.performFind();
     }
 
+    /**
+     * Replace every match of the current query in one pass, walking the
+     * highlights back to front so earlier replacements cannot invalidate the
+     * later positions. Replacements are plain text keeping each match's
+     * surrounding formatting. The whole sweep is a single history entry, so one
+     * undo restores the document. The search is re-run afterwards, which will
+     * find the replacements again if they contain the query.
+     */
     replaceAll(): void {
         this.clearFindHighlights();
         this.performFind();
@@ -3092,6 +3551,13 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         this.performFind();
     }
 
+    /**
+     * Keydown handler bound on the find panel container. Turns `Enter` into
+     * {@link findNext} and `Shift+Enter` into {@link findPrevious}, preventing the
+     * default so Enter in either text field never submits a surrounding form.
+     * Every other key falls through — Escape is closed separately by the
+     * template's `keydown.escape` binding.
+     */
     onFindReplaceKeydown(event: KeyboardEvent): void {
         if (event.key === 'Enter') {
             event.preventDefault();
@@ -3379,25 +3845,30 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         payload.slot.onClick?.(payload.event);
     }
 
+    /**
+     * Restore the in-editor selection, trying three sources in order:
+     *
+     * 1. An explicitly saved range, if it still lives in the editor.
+     * 2. The current selection, if it is already inside the editor.
+     * 3. Otherwise the end of the editor content — covering an editor that was
+     *    never focused, or a caret sitting in the toolbar or overlay UI (an
+     *    addon picker's search field, say), so insertions always land in the
+     *    text rather than nowhere.
+     */
     restoreSelection(): void {
         const editor = this.editorDiv?.nativeElement;
         if (!editor) return;
         const selection = this.document.getSelection();
         if (!selection) return;
-        // 1. Prefer an explicitly saved range that still lives in the editor.
         if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
             this.focusEditor();
             selection.removeAllRanges();
             selection.addRange(this.savedRange);
             return;
         }
-        // 2. Keep the current selection if it is already inside the editor.
         if (selection.rangeCount > 0 && editor.contains(selection.getRangeAt(0).startContainer)) {
             return;
         }
-        // 3. Otherwise (editor never focused, or the caret is in the toolbar /
-        //    overlay UI, e.g. an addon picker's search field) drop the caret at the end of the editor content
-        //    so insertions always land in the text.
         this.focusEditor();
         const range = this.document.createRange();
         range.selectNodeContents(editor);
@@ -3532,13 +4003,14 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
      * the last value handed to `execCommand` whether or not it is still armed —
      * it claimed a text colour was pending when the character typed immediately
      * after came out uncoloured. The editor knows what it applied.
+     *
+     * `anchor` is tested before the caret comparison so that "no colour applied
+     * yet" stays a miss even when there is also no caret — comparing two
+     * `undefined`s would otherwise read as a match.
      */
     private caretPendingStyle(): { color?: string; backgroundColor?: string } {
         const anchor = this.caretColorAnchor;
         const caret = this.collapsedCaretAnchor();
-        // `anchor` is checked first so that "no colour applied yet" stays a miss
-        // even when there is also no caret — comparing two `undefined`s would
-        // otherwise read as a match.
         if (!anchor || caret?.node !== anchor.node || caret?.offset !== anchor.offset) {
             return {};
         }
@@ -4088,7 +4560,7 @@ export class RichTextEditorComponent extends RichTextEditorAddonHost implements 
         const blockAware = html
             .replaceAll(/<br\s*\/?>/gi, '\n')
             .replaceAll(/<\/(p|div|li|h[1-6]|blockquote|pre|tr)>/gi, '\n')
-            .replaceAll(/<li[^>]*>/gi, 'ג€¢ ');
+            .replaceAll(/<li[^>]*>/gi, '• ');
         const plain = this.sanitizer.stripTags(blockAware);
         const lines = plain
             .split('\n')

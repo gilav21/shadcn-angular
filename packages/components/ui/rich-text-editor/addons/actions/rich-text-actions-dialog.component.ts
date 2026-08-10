@@ -50,16 +50,50 @@ export interface ActionsDialogConfirm {
     host: { '[attr.data-slot]': "'rich-text-actions-dialog'" },
 })
 export class RichTextActionsDialogComponent {
+    /**
+     * The full catalogue of registered actions. The picker shows only those
+     * whose `targets` include the context's `targetKind` and that match the
+     * search box, so passing every definition is correct — the dialog filters.
+     */
     readonly definitions = input<RichTextActionDefinition[]>([]);
+    /**
+     * What the dialog is being opened for: create vs edit, the target kind, the
+     * selected text (used in the title), which triggers are already taken (they
+     * get a "replaces existing" hint and flip the confirm button to *Replace*),
+     * and an optional `prefill` for edit mode. The prefill is applied ONCE — a
+     * later change to it is ignored, so open a fresh dialog per edit.
+     */
     readonly context = input.required<ActionsDialogContext>();
+    /**
+     * Translation bundle for every string the dialog renders, and the source of
+     * the `dir="rtl"` flip on the dialog content. Defaults to English.
+     */
     readonly locale = input<RichTextActionsLocale>(RICH_TEXT_ACTIONS_LOCALES['en']);
 
     readonly dir = computed<'rtl' | null>(() => (this.locale().rtl ? 'rtl' : null));
     readonly attachTitle = computed(() =>
         interpolate(this.locale().dialog.attachToText, { text: this.context().selectionText }));
 
+    /**
+     * The user accepted the form. Fires only while {@link canConfirm} holds, so
+     * the payload's params are already valid. For a combined action it carries
+     * `combinedParams` (both triggers) and `trigger: 'click'`; the caller must
+     * branch on `combinedParams` rather than on `trigger`. The dialog does NOT
+     * close itself — the host tears it down once the action actually applied.
+     */
     readonly confirm = output<ActionsDialogConfirm>();
+    /**
+     * The user cancelled — Cancel button, or the dialog closing itself via
+     * {@link onOpenChange}. The host owns the teardown.
+     */
     readonly dismiss = output<void>();
+    /**
+     * A definition was selected in the picker, before any params are gathered.
+     * The host uses this to validate the definition and to run a tier-3
+     * `resolveParams` flow (driving the dialog through {@link setBusy}). Also
+     * fires for the selection restored from `context.prefill`, since that goes
+     * through {@link pickAction} exactly like a user click.
+     */
     readonly pick = output<RichTextActionDefinition>();
 
     readonly formHost = viewChild('formHost', { read: ViewContainerRef });
@@ -146,6 +180,14 @@ export class RichTextActionsDialogComponent {
         return !!trigger && occupied.has(trigger);
     }
 
+    /**
+     * Select the definition with `id` and reset the form around it: pick the
+     * initial trigger (the only one, `click` for a combined action, otherwise
+     * none — forcing an explicit choice), seed the params from `context.prefill`
+     * when the prefill is for this same action and clear them otherwise, and
+     * reset validity to "already valid" unless the action needs a form. Emits
+     * {@link pick}. An unknown `id` clears the selection without emitting.
+     */
     pickAction(id: string): void {
         const def = this.definitions().find((d) => d.id === id) ?? null;
         this.selectedDef.set(def);
@@ -182,6 +224,12 @@ export class RichTextActionsDialogComponent {
         return !def.fields || def.fields.length === 0;
     }
 
+    /**
+     * Freeze the picker list (pointer-events off + dimmed) while the host runs
+     * an async tier-3 `resolveParams` flow it started from {@link pick}. Cancel
+     * and the confirm button stay live; the host normally destroys the dialog
+     * when the promise settles rather than clearing this.
+     */
     setBusy(value: boolean): void {
         this.busy.set(value);
     }
@@ -209,6 +257,12 @@ export class RichTextActionsDialogComponent {
         this.customForm.set(null);
     }
 
+    /**
+     * Choose which trigger the action attaches to. Bound to the radio group the
+     * template shows only for a non-combined action with more than one trigger;
+     * a combined action stays on `click` and writes both attributes instead.
+     * Leaves the gathered params alone.
+     */
     selectTrigger(trigger: RichTextActionTrigger): void {
         this.selectedTrigger.set(trigger);
     }
@@ -223,22 +277,50 @@ export class RichTextActionsDialogComponent {
         return triggers.map((t) => this.triggerLabel(t)).join(' / ');
     }
 
+    /**
+     * Template-only handler for the generated tier-1 form's `paramsChange`.
+     * These are the params emitted on {@link confirm} — and in combined +
+     * `separate` mode specifically the *click* group; hover goes through
+     * {@link onHoverParamsChange}.
+     */
     onParamsChange(params: ActionParams): void {
         this.currentParams.set(params);
     }
 
+    /**
+     * Template-only handler for the generated form's `validChange`; gates the
+     * confirm button. A tier-2 `formComponent` does not call this — its
+     * validity is mirrored from the component instance's `valid()` signal.
+     */
     onValidChange(valid: boolean): void {
         this.formValid.set(valid);
     }
 
+    /**
+     * Template-only handler for the second field group, rendered only for a
+     * combined action in `paramsMode: 'separate'`. Feeds `combinedParams.hover`
+     * on {@link confirm}; in `shared` mode this bucket is never touched and the
+     * click params are cloned onto hover instead.
+     */
     onHoverParamsChange(params: ActionParams): void {
         this.hoverParams.set(params);
     }
 
+    /**
+     * Template-only handler for the hover group's validity. Defaults to `true`
+     * and only participates in the confirm gate under combined + `separate`, so
+     * every other mode is unaffected by it.
+     */
     onHoverValidChange(valid: boolean): void {
         this.hoverValid.set(valid);
     }
 
+    /**
+     * Build and emit the {@link confirm} payload. Re-checks `canConfirm` itself,
+     * so calling it while the form is incomplete (or with no trigger chosen) is
+     * a silent no-op rather than an invalid emit. Combined actions take the
+     * `combinedParams` path; everything else emits the single selected trigger.
+     */
     onConfirm(): void {
         const def = this.selectedDef();
         if (!def || !this.canConfirm()) return;
@@ -259,6 +341,13 @@ export class RichTextActionsDialogComponent {
         this.confirm.emit({ def, trigger: 'click', params: shared, combinedParams });
     }
 
+    /**
+     * Bridges the inner `ui-dialog`'s own close paths (backdrop click, Escape,
+     * close button) onto {@link dismiss}. The dialog's `open` is bound to a
+     * constant `true`, so opening is never signalled here — only `false`
+     * matters, and it is forwarded rather than acted on: the host destroys the
+     * component.
+     */
     onOpenChange(open: boolean): void {
         if (!open) this.dismiss.emit();
     }

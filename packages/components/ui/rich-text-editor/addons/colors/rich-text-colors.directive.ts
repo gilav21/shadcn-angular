@@ -201,10 +201,12 @@ export class RichTextColorsDirective {
     private close(kind: RichTextColorKind): void {
         const color = this.pickedWhileOpen.get(kind);
         this.pickedWhileOpen.delete(kind);
-        // Deferred because the dismissing click is still being processed: the
-        // caret it places lands only after this handler returns. Restoring and
-        // re-applying now would run against a selection that is still outside
-        // the editor, where `selection()` reports no range at all.
+        /**
+         * Deferred because the dismissing click is still being processed: the
+         * caret it places lands only after this handler returns. Restoring and
+         * re-applying now would run against a selection that is still outside
+         * the editor, where `selection()` reports no range at all.
+         */
         const timer = setTimeout(() => {
             this.host.restoreSelection();
             if (color === undefined || this.host.selection().range?.collapsed !== true) return;

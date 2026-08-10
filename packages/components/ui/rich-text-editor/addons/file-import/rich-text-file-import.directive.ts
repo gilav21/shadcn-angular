@@ -124,7 +124,6 @@ export class RichTextFileImportDirective {
         inject(DestroyRef).onDestroy(() => this.teardown());
     }
 
-    // ── Toolbar slot ──────────────────────────────────────────────────
 
     private registerToolbarSlot(): void {
         const context: RichTextFileImportButtonContext = {
@@ -147,7 +146,6 @@ export class RichTextFileImportDirective {
         });
     }
 
-    // ── Drop seams ────────────────────────────────────────────────────
 
     private registerDropSeams(): void {
         effect((onCleanup) => {
@@ -171,7 +169,6 @@ export class RichTextFileImportDirective {
         return this.uiRteFileImport() && dragHasSupportedDocument(event.dataTransfer);
     }
 
-    // ── Import pipeline ───────────────────────────────────────────────
 
     private async importFile(file: File): Promise<void> {
         if (!this.uiRteFileImport() || this.host.readonly() || this.host.disabled()) return;
@@ -281,7 +278,6 @@ export class RichTextFileImportDirective {
         this.errorTimer = setTimeout(() => this.errorMessage.set(''), ERROR_DISMISS_MS);
     }
 
-    // ── Overlay mount ─────────────────────────────────────────────────
 
     private mountOverlay(): void {
         effect(() => {

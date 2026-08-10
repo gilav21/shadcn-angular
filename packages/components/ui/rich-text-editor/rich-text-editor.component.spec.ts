@@ -646,6 +646,15 @@ describe('RichTextEditorComponent', () => {
         expect(latest.previewLines).toEqual(['Line one', 'Line two', 'Line three']);
     });
 
+    it('marks list items in history previews with a real bullet character', () => {
+        component.writeValue('<ul><li>First item</li><li>Second item</li></ul>');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+
+        const latest = (component as any).history.at(-1);
+        expect(latest.previewLines).toEqual(['• First item', '• Second item']);
+    });
+
     it('prefers local component shortcut over later global dispatch for same event', () => {
         const globalHandler = vi.fn();
         const cleanup = shortcutBindings.registerShortcut('test-global', {

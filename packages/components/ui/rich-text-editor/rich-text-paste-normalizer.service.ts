@@ -84,10 +84,6 @@ export class RichTextPasteNormalizerService {
         return 'html';
     }
 
-    // =========================================================================
-    // SOURCE DETECTION
-    // =========================================================================
-
     private isMsWordHtml(html: string): boolean {
         return /class="?Mso/i.test(html) ||
             /urn:schemas-microsoft-com:office/i.test(html) ||
@@ -148,10 +144,6 @@ export class RichTextPasteNormalizerService {
 
         return score >= 2;
     }
-
-    // =========================================================================
-    // OFFICE NORMALIZER (Word & Outlook)
-    // =========================================================================
 
     private normalizeOffice(html: string, source: 'msword' | 'outlook'): string {
         let cleaned = html;
@@ -664,10 +656,6 @@ export class RichTextPasteNormalizerService {
         });
     }
 
-    // =========================================================================
-    // GOOGLE DOCS NORMALIZER
-    // =========================================================================
-
     private normalizeGoogleDocs(html: string): string {
         const container = this.parseToContainer(html);
 
@@ -785,10 +773,6 @@ export class RichTextPasteNormalizerService {
         }
     }
 
-    // =========================================================================
-    // GENERIC OFFICE NORMALIZER (Apple Pages & LibreOffice)
-    // =========================================================================
-
     private normalizeGenericOffice(html: string): string {
         const container = this.parseToContainer(html);
 
@@ -856,10 +840,6 @@ export class RichTextPasteNormalizerService {
             font.parentNode?.replaceChild(span, font);
         }
     }
-
-    // =========================================================================
-    // GENERIC HTML NORMALIZER
-    // =========================================================================
 
     private applyExcelColumnWidths(table: HTMLTableElement): void {
         const cols = table.querySelectorAll('col');
@@ -991,10 +971,6 @@ export class RichTextPasteNormalizerService {
             }
         });
     }
-
-    // =========================================================================
-    // PLAIN TEXT NORMALIZER
-    // =========================================================================
 
     private normalizePlainText(text: string): string {
         if (!text) return '';
@@ -1177,10 +1153,6 @@ export class RichTextPasteNormalizerService {
             '<a href="$1">$1</a>'
         );
     }
-
-    // =========================================================================
-    // SHARED UTILITIES
-    // =========================================================================
 
     private parseToContainer(html: string): HTMLElement {
         const parser = new DOMParser();

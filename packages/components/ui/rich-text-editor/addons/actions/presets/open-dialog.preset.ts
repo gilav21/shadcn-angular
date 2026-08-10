@@ -78,14 +78,27 @@ export function openDialogAction(o: OpenDialogPresetOptions = {}): RichTextActio
     host: { '[attr.data-slot]': "'preset-dialog'" },
 })
 export class PresetDialogComponent {
+    /** Dialog heading; the `<h2>` is omitted entirely when empty. Fed from the action's required `title` param. */
     readonly title = input('');
+    /** Body text, rendered only when {@link contentComponent} is null. Fed from the action's `body` param. */
     readonly body = input('');
+    /** Label of the confirm button; falls back to `'OK'` when empty. The Close button's label is fixed. */
     readonly confirmLabel = input('');
+    /**
+     * Custom component rendered in the dialog body instead of {@link body}.
+     * Set by {@link openDialogHandlers} from `OpenDialogPresetOptions.component`.
+     */
     readonly contentComponent = input<Type<unknown> | null>(null);
+    /**
+     * Injector for {@link contentComponent} — the handlers pass one providing
+     * {@link ACTION_PARAMS} so the custom component can read the action params.
+     */
     readonly contentInjector = input<Injector | undefined>(undefined);
     /** Text direction, so RTL content aligns correctly in the detached top layer. */
     readonly dir = input<'ltr' | 'rtl'>('ltr');
+    /** Confirm button pressed. {@link openDialogHandlers} calls `onConfirm` with the params, then dismisses. */
     readonly confirm = output<void>();
+    /** Close button, backdrop click or `Escape`. The handlers tear the overlay down on this — nothing else does. */
     readonly dismiss = output<void>();
 }
 

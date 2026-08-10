@@ -130,17 +130,41 @@ export interface RichTextSlashCommand {
     run: (context: RichTextSlashCommandContext) => void | Promise<void>;
 }
 
+/**
+ * Keyed store of {@link RichTextSlashCommand}s, keyed by `id` so re-registering
+ * an id replaces rather than duplicates it.
+ *
+ * The token resolves at two levels: the root instance is app-wide (its commands
+ * appear in every editor), and `RichTextEditorComponent` provides its own
+ * instance so a command registered through an addon directive is scoped to that
+ * one editor. The slash-commands menu merges both, with instance commands
+ * winning on id collisions.
+ */
 @Injectable({ providedIn: 'root' })
 export class RichTextCommandRegistry {
     private readonly commands = new Map<string, RichTextSlashCommand>();
     private readonly version = signal(0);
 
+    /**
+     * Add (or replace, by `id`) a single command and notify readers.
+     *
+     * @returns A teardown that unregisters this command — call it from the
+     *   registering directive's/component's `DestroyRef`. Note it removes
+     *   whatever now holds that `id`, so a later registration of the same id
+     *   wins and this teardown then removes *that* one.
+     */
     registerCommand(command: RichTextSlashCommand): () => void {
         this.commands.set(command.id, command);
         this.bumpVersion();
         return () => this.unregisterCommand(command.id);
     }
 
+    /**
+     * Register a batch of commands as one update — readers recompute once
+     * rather than once per command.
+     *
+     * @returns A teardown removing exactly these ids in a single update.
+     */
     registerCommands(commands: RichTextSlashCommand[]): () => void {
         commands.forEach(command => this.commands.set(command.id, command));
         this.bumpVersion();
@@ -150,12 +174,22 @@ export class RichTextCommandRegistry {
         };
     }
 
+    /**
+     * Remove the command with this `id`. A no-op — including no notification
+     * to readers — when nothing is registered under it.
+     */
     unregisterCommand(id: string): void {
         if (this.commands.delete(id)) {
             this.bumpVersion();
         }
     }
 
+    /**
+     * Drop every command in this registry, notifying readers once (and not at
+     * all if it was already empty). Only affects the registry instance it is
+     * called on — clearing an editor's own registry leaves the root/global
+     * commands, and every other editor's, untouched.
+     */
     clear(): void {
         if (this.commands.size === 0) {
             return;
@@ -164,6 +198,16 @@ export class RichTextCommandRegistry {
         this.bumpVersion();
     }
 
+    /**
+     * A snapshot of the registered commands in registration order — *not*
+     * sorted by `order`, and not filtered by `when`; the slash-commands menu
+     * merges the global and instance registries and applies both itself.
+     *
+     * Reads an internal version signal, so calling it inside a `computed` or
+     * effect makes that consumer re-run whenever commands are registered or
+     * removed. The array is a fresh copy, but the command objects are the
+     * registered ones — do not mutate them.
+     */
     listCommands(): RichTextSlashCommand[] {
         this.version();
         return Array.from(this.commands.values());

@@ -129,28 +129,22 @@ export class RichTextMarkdownService {
         };
     }
 
-    // =========================================================================
-    // MARKDOWN → HTML
-    // =========================================================================
-
     /**
-     * Convert Markdown to sanitized HTML.
+     * Convert Markdown to sanitized HTML. Block constructs are parsed before
+     * inline ones — the order of the passes below is load-bearing.
      */
     toHtml(markdown: string): string {
         if (!markdown) return '';
 
         let html = markdown;
 
-        // Normalize line endings
         html = html.replaceAll('\r\n', '\n');
 
         const protectedTags: string[] = [];
         html = this.protectRawTags(html, protectedTags);
 
-        // Escape HTML entities in content (before processing)
         html = this.escapeHtmlInContent(html);
 
-        // Process blocks first (order matters)
         html = this.parseCodeBlocks(html);
         html = this.parseToggleBlocks(html);
         html = this.parseBlockquotes(html);
@@ -159,7 +153,6 @@ export class RichTextMarkdownService {
         html = this.parseHorizontalRules(html);
         html = this.parseParagraphs(html);
 
-        // Process inline elements
         html = this.parseImages(html);
         html = this.parseLinks(html);
         html = this.parseBoldItalic(html);
@@ -169,7 +162,6 @@ export class RichTextMarkdownService {
 
         html = this.restoreRawTags(html, protectedTags);
 
-        // Final sanitization pass
         return this.sanitizer.sanitize(html);
     }
 
@@ -200,11 +192,10 @@ export class RichTextMarkdownService {
     }
 
     /**
-     * Escape HTML entities but preserve Markdown syntax.
+     * Escape HTML entities but preserve Markdown syntax. Only `<`/`>` that look
+     * like HTML tags are escaped, so characters carrying Markdown meaning survive.
      */
     private escapeHtmlInContent(text: string): string {
-        // We need to be careful not to escape characters that are part of Markdown syntax
-        // Only escape < and > that look like HTML tags
         return text
             .replaceAll(/<(?![\s\w*`~[\]!#-])/g, '&lt;')
             .replaceAll(/(?<![\s\w*`~[\]!#-])>/g, '&gt;');
@@ -214,7 +205,7 @@ export class RichTextMarkdownService {
      * Parse fenced code blocks (``` or ~~~).
      */
     private parseCodeBlocks(html: string): string {
-        // Fenced code blocks with optional language
+        /** Fenced code blocks with optional language */
         const fencedPattern = /```(\w*)\n([\s\S]*?)```/g;
         html = html.replaceAll(fencedPattern, (_, lang, code) => {
             const langAttr = lang ? ` data-language="${lang}" class="language-${lang}"` : '';
@@ -222,7 +213,7 @@ export class RichTextMarkdownService {
             return `<pre><code${langAttr}>${escapedCode}</code></pre>`;
         });
 
-        // Also support ~~~ fences
+        /** Also support ~~~ fences */
         const tildeFencedPattern = /~~~(\w*)\n([\s\S]*?)~~~/g;
         html = html.replaceAll(tildeFencedPattern, (_, lang, code) => {
             const langAttr = lang ? ` data-language="${lang}" class="language-${lang}"` : '';
@@ -263,7 +254,6 @@ export class RichTextMarkdownService {
             }
         }
 
-        // Handle trailing blockquote
         if (inBlockquote) {
             result.push(`<blockquote>${blockquoteContent.join('<br>')}</blockquote>`);
         }
@@ -332,18 +322,16 @@ export class RichTextMarkdownService {
      * Wrap remaining text in paragraphs.
      */
     private parseParagraphs(html: string): string {
-        // Split by double newlines (paragraph breaks)
+        /** Split by double newlines (paragraph breaks) */
         const blocks = html.split(/\n\n+/);
 
         return blocks.map(block => {
             const trimmed = block.trim();
 
-            // Skip if already wrapped in block element
             if (/^<(h[1-6]|ul|ol|li|blockquote|pre|div|p|hr|table)/i.test(trimmed)) {
                 return trimmed;
             }
 
-            // Skip empty blocks
             if (!trimmed) {
                 return '';
             }
@@ -375,17 +363,17 @@ export class RichTextMarkdownService {
     }
 
     /**
-     * Parse bold and italic.
-     * Order matters: process bold first to avoid conflicts.
+     * Parse bold and italic, in this order so the longer delimiters win:
+     *
+     * 1. Bold + italic — `***text***` / `___text___`
+     * 2. Bold — `**text**` / `__text__`
+     * 3. Italic — `*text*` / `_text_`, ignoring mid-word underscores
      */
     private parseBoldItalic(html: string): string {
-        // Bold + Italic: ***text*** or ___text___
         html = html.replaceAll(/(\*\*\*|___)(.+?)\1/g, '<strong><em>$2</em></strong>');
 
-        // Bold: **text** or __text__
         html = html.replaceAll(/(\*\*|__)(.+?)\1/g, '<strong>$2</strong>');
 
-        // Italic: *text* or _text_ (but not mid-word underscores)
         html = html.replaceAll(/(?<!\w)\*([^*]+)\*(?!\w)/g, '<em>$1</em>');
         html = html.replaceAll(/(?<!\w)_([^_]+)_(?!\w)/g, '<em>$1</em>');
 
@@ -410,7 +398,6 @@ export class RichTextMarkdownService {
      * Parse line breaks (two spaces + newline or explicit \n).
      */
     private parseLineBreaks(html: string): string {
-        // Two spaces at end of line = <br>
         return html.replaceAll('  \n', '<br>\n');
     }
 
@@ -426,10 +413,6 @@ export class RichTextMarkdownService {
             .replaceAll("'", '&#39;');
     }
 
-    // =========================================================================
-    // HTML → MARKDOWN
-    // =========================================================================
-
     /**
      * Convert HTML to Markdown.
      * Used for paste handling and output conversion.
@@ -437,14 +420,13 @@ export class RichTextMarkdownService {
     toMarkdown(html: string): string {
         if (!html) return '';
 
-        // First sanitize the HTML
+        /** First sanitize the HTML */
         const cleanHtml = this.sanitizer.sanitize(html);
 
-        // Parse into DOM
+        /** Parse into DOM */
         const parser = new DOMParser();
         const doc = parser.parseFromString(cleanHtml, 'text/html');
 
-        // Walk the DOM and convert
         return this.nodeToMarkdown(doc.body).trim();
     }
 
@@ -625,7 +607,6 @@ export class RichTextMarkdownService {
 
             lines.push('| ' + cellContents.join(' | ') + ' |');
 
-            // Add header separator after first row of th cells
             if (!headerProcessed && row.querySelector('th')) {
                 const separator = cells.map(() => '---').join(' | ');
                 lines.push('| ' + separator + ' |');
@@ -683,10 +664,6 @@ export class RichTextMarkdownService {
         return 'ul';
     }
 
-    // =========================================================================
-    // UTILITY METHODS
-    // =========================================================================
-
     /**
      * Check if text contains Markdown syntax.
      */
@@ -731,9 +708,8 @@ export class RichTextMarkdownService {
 
         const marker = markers[format];
 
-        // Check if selection is already formatted
         if (selected.startsWith(marker) && selected.endsWith(marker) && selected.length > marker.length * 2) {
-            // Remove formatting
+            /** Remove formatting */
             const unformatted = selected.slice(marker.length, -marker.length);
             return {
                 text: before + unformatted + after,
@@ -742,9 +718,8 @@ export class RichTextMarkdownService {
             };
         }
 
-        // Check if surrounding text has formatting
         if (before.endsWith(marker) && after.startsWith(marker)) {
-            // Remove formatting
+            /** Remove formatting */
             const newBefore = before.slice(0, -marker.length);
             const newAfter = after.slice(marker.length);
             return {
@@ -754,7 +729,7 @@ export class RichTextMarkdownService {
             };
         }
 
-        // Add formatting
+        /** Add formatting */
         const formatted = marker + selected + marker;
         return {
             text: before + formatted + after,
@@ -822,10 +797,10 @@ export class RichTextMarkdownService {
         const before = text.substring(0, lineStart);
         const afterStart = text.substring(lineStart);
 
-        // Remove existing heading markers if present
+        /** Remove existing heading markers if present */
         const withoutHeading = afterStart.replace(/^#{1,6}\s*/, '');
 
-        // Add new heading
+        /** Add new heading */
         const hashes = '#'.repeat(level);
         return before + hashes + ' ' + withoutHeading;
     }

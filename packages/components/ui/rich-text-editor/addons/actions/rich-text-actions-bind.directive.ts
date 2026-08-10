@@ -19,8 +19,25 @@ export class RichTextActionsBindDirective {
 
     /** Map of action id → handler, plus an optional `'*'` catch-all. */
     readonly uiRichTextActions = input<Record<string, RichTextActionHandler>>({});
+    /**
+     * How hover actions behave on touch. `'tap-to-hover'` (default) makes the
+     * first tap on a hover element open it (suppressing the synthetic click)
+     * and the next tap elsewhere close it; `'off'` delivers no hover on touch,
+     * leaving taps to fire click actions only.
+     */
     readonly touchHoverBehavior = input<'tap-to-hover' | 'off'>('tap-to-hover');
+    /**
+     * Add `tabindex="0"` to every actioned element (and `role="button"` to
+     * click ones) so keyboard users can reach and `Enter`/`Space` them.
+     * Default true — turn it off only if the markup already provides them.
+     */
     readonly a11yAffordances = input(true);
+    /**
+     * Class added to each actioned element as a styling hook, plus a
+     * `-click`/`-hover` suffixed variant per trigger. `null` adds none.
+     * Applied and reverted on every re-bind, so it must not clash with
+     * classes the content itself carries.
+     */
     readonly decorateClass = input<string | null>('rte-action');
 
     private unbind: (() => void) | null = null;

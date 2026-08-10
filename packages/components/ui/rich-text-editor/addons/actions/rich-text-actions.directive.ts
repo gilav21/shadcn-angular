@@ -59,9 +59,20 @@ export class RichTextActionsDirective {
 
     private readonly i18n = createLocaleBindings(this.uiRteActionsLocale, RICH_TEXT_ACTIONS_LOCALES);
 
+    /**
+     * An action was written to the document (attach or edit). A combined
+     * action emits twice — once for `'click'`, once for `'hover'` — with the
+     * params each trigger received. Not emitted when the flow aborts because
+     * the target selection was lost.
+     */
     readonly actionAttached = output<{
         actionId: string; trigger: RichTextActionTrigger; params: ActionParams; targetKind: ActionTargetKind;
     }>();
+    /**
+     * An action was removed from its element via the popover. A combined
+     * action emits twice (`'click'` then `'hover'`). `actionId` is read off the
+     * DOM before removal, so it is `''` if the attribute was already gone.
+     */
     readonly actionRemoved = output<{
         actionId: string; trigger: RichTextActionTrigger; targetKind: ActionTargetKind;
     }>();
@@ -296,6 +307,11 @@ export class RichTextActionsDirective {
         });
     }
 
+    /**
+     * Position the popover under its anchor. It renders in the native top layer
+     * so it sits above any modal the editor lives inside, falling back to a high
+     * z-index on engines without the Popover API.
+     */
     private positionPopover(ref: ComponentRef<RichTextActionsPopoverComponent>, el: HTMLElement): void {
         const host = ref.location.nativeElement as HTMLElement & { showPopover?: () => void };
         const rect = el.getBoundingClientRect();
@@ -304,8 +320,6 @@ export class RichTextActionsDirective {
         host.style.margin = '0';
         host.style.left = `${Math.round(rect.left)}px`;
         host.style.top = `${Math.round(rect.bottom + 4)}px`;
-        // Render in the native top layer so the popover sits above any modal
-        // the editor lives inside; fall back to a high z-index otherwise.
         if (typeof host.showPopover === 'function') {
             host.setAttribute('popover', 'manual');
             host.showPopover();
@@ -407,6 +421,15 @@ export class RichTextActionsDirective {
         return { ...this.uiRteActionsStyle(), ...def.style };
     }
 
+    /**
+     * Inject the ref-counted stylesheet that marks actioned runs.
+     *
+     * The affordance is a dotted **bottom border**, deliberately not
+     * `text-decoration`: with `text-decoration` the browser reports the run as
+     * already underlined, so the editor's underline command toggles off and
+     * never applies. The marker must not collide with the user's own underline
+     * formatting.
+     */
     private injectVisualizationStyles(): () => void {
         const doc = this.host.contentRoot.ownerDocument;
         const existing = doc.querySelector('style[data-rte-actions-style]') as HTMLStyleElement | null;
@@ -418,10 +441,6 @@ export class RichTextActionsDirective {
         style.dataset['rteActionsStyle'] = '';
         style.dataset['refcount'] = '1';
         style.textContent =
-            // A dotted BOTTOM BORDER (not text-decoration) marks actioned runs — using
-            // text-decoration here makes the browser report the run as already underlined,
-            // so the editor's underline command toggles off and never applies (issue: the
-            // affordance must not collide with the user's own underline formatting).
             'ui-rich-text-editor [data-action-click],ui-rich-text-editor [data-action-hover]{' +
             'border-bottom:1px dotted currentColor;' +
             'background:color-mix(in srgb,currentColor 6%,transparent);}' +

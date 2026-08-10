@@ -126,7 +126,6 @@ export class RichTextOutlineDirective {
         inject(DestroyRef).onDestroy(() => this.teardown());
     }
 
-    // ── Toolbar button ────────────────────────────────────────────────
 
     private registerToolbarButton(): void {
         effect((onCleanup) => {
@@ -143,7 +142,6 @@ export class RichTextOutlineDirective {
         });
     }
 
-    // ── Slash command ─────────────────────────────────────────────────
 
     private registerSlashCommand(): void {
         effect((onCleanup) => {
@@ -160,7 +158,6 @@ export class RichTextOutlineDirective {
         });
     }
 
-    // ── Panel state ───────────────────────────────────────────────────
 
     private togglePanel(): void {
         this.panelOpen.update((open) => !open);
@@ -191,7 +188,6 @@ export class RichTextOutlineDirective {
         }
     }
 
-    // ── Content tracking (read-only) ──────────────────────────────────
 
     private trackContentWhileOpen(): void {
         effect((onCleanup) => {
@@ -209,7 +205,6 @@ export class RichTextOutlineDirective {
         });
     }
 
-    // ── Editable inset while open ─────────────────────────────────────
 
     private insetEditableWhileOpen(): void {
         effect(() => {
@@ -223,7 +218,6 @@ export class RichTextOutlineDirective {
         });
     }
 
-    // ── Panel mounting ────────────────────────────────────────────────
 
     private mountPanel(): void {
         effect((onCleanup) => {

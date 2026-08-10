@@ -34,7 +34,7 @@ export interface SanitizerAttributeRule {
 export class RichTextSanitizerService {
     private readonly document = inject(DOCUMENT);
 
-    // Allowlisted elements - only these can appear in sanitized output
+    /** Allowlisted elements - only these can appear in sanitized output */
     private readonly ALLOWED_TAGS = new Set([
         // Block elements
         'p', 'div', 'br', 'hr',
@@ -56,7 +56,7 @@ export class RichTextSanitizerService {
         'details', 'summary',
     ]);
 
-    // Allowlisted attributes per element
+    /** Allowlisted attributes per element */
     private readonly ALLOWED_ATTRS: Record<string, Set<string>> = {
         'a': new Set(['href', 'title', 'target', 'rel']),
         'img': new Set(['src', 'alt', 'width', 'height', 'title', 'data-align', 'data-auto-upload-id', 'data-auto-upload-status']),
@@ -72,7 +72,7 @@ export class RichTextSanitizerService {
         '*': new Set(['data-mention', 'data-mention-id', 'data-tag', 'data-tag-id', 'style', 'dir']),
     };
 
-    // Allowed CSS properties for inline styles
+    /** Allowed CSS properties for inline styles */
     private readonly ALLOWED_STYLE_PROPERTIES = new Set([
         'color',
         'background-color',
@@ -128,24 +128,24 @@ export class RichTextSanitizerService {
         'padding-right',
     ]);
 
-    // Allowed class patterns (for syntax highlighting)
+    /** Allowed class patterns (for syntax highlighting) */
     private readonly ALLOWED_CLASS_PATTERNS = [
         /^language-\w+$/,      // language-javascript, language-python, etc.
         /^hljs(-\w+)?$/,       // hljs, hljs-keyword, etc.
         /^token(-\w+)?$/,      // Prism.js tokens
     ];
 
-    // Dangerous URL protocols to block
+    /** Dangerous URL protocols to block */
     private readonly DANGEROUS_PROTOCOLS = new Set([
         'javascript:',
         'vbscript:',
         'data:',  // Block data: except for images
     ]);
 
-    // Event handler attributes pattern
+    /** Event handler attributes pattern */
     private readonly EVENT_HANDLER_PATTERN = /^on\w+$/i;
 
-    // Attributes an addon rule may never target — the security boundary stays here.
+    /** Attributes an addon rule may never target — the security boundary stays here. */
     private readonly LOCKED_ATTRS = new Set(['href', 'src', 'style', 'class']);
     private readonly contributedRules = new Map<string, { rule: SanitizerAttributeRule; count: number }>();
 
@@ -202,9 +202,11 @@ export class RichTextSanitizerService {
         }
     }
 
-    // Control, whitespace, and zero-width / bidi / format characters that
-    // browsers ignore or normalize inside URLs; stripped before a URL scheme
-    // is inspected so they cannot mask a dangerous protocol.
+    /**
+     * Control, whitespace, and zero-width / bidi / format characters that
+     * browsers ignore or normalize inside URLs; stripped before a URL scheme
+     * is inspected so they cannot mask a dangerous protocol.
+     */
     // eslint-disable-next-line no-control-regex
     private readonly URL_STRIP_PATTERN = /[\u0000-\u0020\u007f-\u00a0\u00ad\u1680\u2000-\u200f\u2028-\u202f\u205f\u2060-\u206f\u3000\ufeff\ufff9-\ufffb]/g;
 
@@ -217,14 +219,13 @@ export class RichTextSanitizerService {
             return '';
         }
 
-        // Parse HTML into DOM
+        /** Parse HTML into DOM */
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
 
-        // Create a clean container
+        /** Create a clean container */
         const cleanContainer = this.document.createElement('div');
 
-        // Process all child nodes of body
         this.processNodes(doc.body, cleanContainer);
         this.dropOrphanCompanionAttributes(cleanContainer);
 
@@ -281,7 +282,8 @@ export class RichTextSanitizerService {
 
     /**
      * Sanitize image source URL.
-     * More restrictive: only allows https, relative, or safe data:image/*.
+     * More restrictive: only allows https, relative, or safe data:image/* —
+     * plus http when the host is localhost, so local development still works.
      * Protocol-relative URLs (`//host`) are rejected — they look relative but
      * load an arbitrary external host. Prefix checks run on a control-char
      * stripped copy so obfuscated forms are caught, while the original input
@@ -295,17 +297,14 @@ export class RichTextSanitizerService {
         const trimmed = src.trim();
         const probe = trimmed.replace(this.URL_STRIP_PATTERN, '');
 
-        // Reject protocol-relative URLs that load an arbitrary external host
         if (probe.startsWith('//') || probe.startsWith('/\\')) {
             return null;
         }
 
-        // Allow relative URLs
         if (probe.startsWith('/') || probe.startsWith('./') || probe.startsWith('../')) {
             return trimmed;
         }
 
-        // Allow safe data:image/* URLs
         if (trimmed.toLowerCase().startsWith('data:image/')) {
             if (!this.isAllowedDataUrl(trimmed)) return null;
             if (trimmed.toLowerCase().startsWith('data:image/svg+xml')) {
@@ -314,23 +313,19 @@ export class RichTextSanitizerService {
             return trimmed;
         }
 
-        // Try to parse as URL
         try {
             const url = new URL(trimmed);
 
-            // Only allow https (and http for localhost during development)
             if (url.protocol === 'https:') {
                 return url.href;
             }
 
-            // Allow http only for localhost (development)
             if (url.protocol === 'http:' && this.isLocalhostUrl(url)) {
                 return url.href;
             }
 
             return null;
         } catch {
-            // If URL parsing fails, reject
             return null;
         }
     }
@@ -349,7 +344,7 @@ export class RichTextSanitizerService {
         return doc.body.textContent ?? '';
     }
 
-    // Tags that should be removed entirely (including content)
+    /** Tags that should be removed entirely (including content) */
     private readonly TAGS_TO_REMOVE = new Set([
         'script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template'
     ]);
@@ -375,7 +370,6 @@ export class RichTextSanitizerService {
     private processNodes(source: Node, target: HTMLElement): void {
         for (const node of Array.from(source.childNodes)) {
             if (node.nodeType === Node.TEXT_NODE) {
-                // Text nodes are always safe
                 target.appendChild(this.document.createTextNode(node.textContent ?? ''));
             } else if (node.nodeType === Node.ELEMENT_NODE) {
                 this.processElementNode(node as HTMLElement, target);
@@ -559,7 +553,7 @@ export class RichTextSanitizerService {
 
         const safeStyles: string[] = [];
 
-        // Parse the style string
+        /** Parse the style string */
         const declarations = styleValue.split(';').filter(Boolean);
         for (const declaration of declarations) {
             const colonIndex = declaration.indexOf(':');
@@ -568,9 +562,8 @@ export class RichTextSanitizerService {
             const property = declaration.substring(0, colonIndex).trim().toLowerCase();
             const value = declaration.substring(colonIndex + 1).trim();
 
-            // Only allow whitelisted properties
             if (this.ALLOWED_STYLE_PROPERTIES.has(property) && value) {
-                // Basic value sanitization - no url(), expression(), etc.
+                /** Basic value sanitization - no url(), expression(), etc. */
                 const lowerValue = value.toLowerCase();
                 if (!lowerValue.includes('url(') &&
                     !lowerValue.includes('expression(') &&

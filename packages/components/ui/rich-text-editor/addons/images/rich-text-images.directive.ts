@@ -206,7 +206,6 @@ export class RichTextImagesDirective {
         inject(DestroyRef).onDestroy(() => this.teardown());
     }
 
-    // ── Source gating ─────────────────────────────────────────────────
 
     private canUseUpload(): boolean {
         const s = this.uiRteImagesSources();
@@ -226,7 +225,6 @@ export class RichTextImagesDirective {
         };
     }
 
-    // ── Toolbar slot ──────────────────────────────────────────────────
 
     private registerToolbarSlot(): void {
         const context: RichTextImagesButtonContext = {
@@ -251,7 +249,6 @@ export class RichTextImagesDirective {
         });
     }
 
-    // ── Paste / drop seams ────────────────────────────────────────────
 
     private registerPasteSeam(): void {
         effect((onCleanup) => {
@@ -306,7 +303,6 @@ export class RichTextImagesDirective {
         return this.uiRteImages() && (this.canUseUpload() || this.canUseUrl());
     }
 
-    // ── Insert / upload ───────────────────────────────────────────────
 
     private insertFromUrl(url: string, alt: string): void {
         const safe = this.sanitizer.sanitizeImageSrc(url);
@@ -375,7 +371,6 @@ export class RichTextImagesDirective {
         }
     }
 
-    // ── Selected-image tracking ───────────────────────────────────────
 
     private registerClickProbe(): void {
         effect((onCleanup) => {
@@ -408,7 +403,6 @@ export class RichTextImagesDirective {
         this.selectedImage.set(null);
     }
 
-    // ── Auto-upload pipeline ──────────────────────────────────────────
 
     private registerAutoUpload(): void {
         effect((onCleanup) => {
@@ -570,7 +564,6 @@ export class RichTextImagesDirective {
         this.host.mutateContent(() => { /* element already removed */ });
     }
 
-    // ── Overlay mount ─────────────────────────────────────────────────
 
     private mountOverlay(): void {
         effect(() => {
