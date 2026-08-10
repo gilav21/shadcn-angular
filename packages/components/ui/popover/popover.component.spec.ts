@@ -397,6 +397,48 @@ describe('PopoverContent inside a modal dialog (top layer)', () => {
 
         dlg.close();
     });
+
+    it('retries the top layer instead of portaling when the content is not yet attached', async () => {
+        const probe = document.createElement('div');
+        if (typeof (probe as { showPopover?: unknown }).showPopover !== 'function') return;
+
+        const dlg = fixture.nativeElement.querySelector('dialog') as HTMLDialogElement;
+        dlg.showModal();
+        component.open.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const contentCmp = fixture.debugElement
+            .query(By.directive(PopoverContentComponent))
+            .componentInstance as PopoverContentComponent;
+        const internals = contentCmp as unknown as {
+            placeContent(): boolean;
+            usedPopoverApi: boolean;
+            contentEl?: { nativeElement: HTMLElement };
+        };
+        const el = internals.contentEl?.nativeElement as HTMLElement;
+        const parent = el.parentElement as HTMLElement;
+
+        internals.usedPopoverApi = false;
+        try {
+            el.hidePopover();
+        } catch {
+            // Not in the top layer yet — nothing to hide.
+        }
+        el.removeAttribute('popover');
+        el.remove();
+
+        expect(internals.placeContent()).toBe(false);
+        expect(document.querySelector('[data-popover-portal]')).toBeNull();
+
+        parent.appendChild(el);
+
+        expect(internals.placeContent()).toBe(true);
+        expect(el.matches(':popover-open')).toBe(true);
+        expect(document.querySelector('[data-popover-portal]')).toBeNull();
+
+        dlg.close();
+    });
 });
 
 describe('Popover RTL Support', () => {

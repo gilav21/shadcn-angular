@@ -39,10 +39,16 @@ export class PopoverCloseComponent {
         });
     }
 
+    /** Closes the popover. Fires for a click anywhere inside this wrapper, including on projected buttons, so it also swallows their own click intent — put a close button here only when closing is all it does. */
     onClick(): void {
         this.popover?.hide();
     }
 
+    /**
+     * Handles Enter/Space only when the wrapper itself is focused. Focusable
+     * projected content already turns those keys into a click that bubbles to
+     * {@link onClick}, and handling the keydown too would close twice.
+     */
     onKeydown(event: Event): void {
         if (event.target !== event.currentTarget) return;
         event.preventDefault();
