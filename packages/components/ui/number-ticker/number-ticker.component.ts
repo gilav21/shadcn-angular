@@ -22,11 +22,25 @@ export { NumberTickerDigitComponent };
 export class NumberTickerComponent implements OnDestroy {
     private readonly _el = inject(ElementRef);
 
+    /**
+     * Target number. Every change restarts the tween from whatever value is
+     * currently on screen, so rapid updates chase the latest value rather than
+     * queueing. The first run counts up from 0.
+     */
     value = input.required<number>();
+    /** Intended count direction. The tween always eases from the current value to {@link value}, so this only matters for presentation — a lower target counts down regardless. */
     direction = input<'up' | 'down'>('up');
+    /** Seconds to wait before the tween starts, applied on every {@link value} change. Useful for staggering a row of tickers. */
     delay = input<number>(0);
+    /** Tween length in seconds, eased with `easeOutCubic` so most of the movement happens up front. Ignored when the user prefers reduced motion — the value then snaps. */
     duration = input<number>(1);
+    /** Fixed number of decimals shown, passed to `Intl.NumberFormat` as both the min and max fraction digits so the width never jitters mid-count. */
     decimalPlaces = input<number>(0);
+    /**
+     * Extra classes merged onto the host. The default includes literal
+     * `text-black dark:text-white` rather than a theme token, so pass a
+     * `text-*` utility here when the ticker must follow the theme.
+     */
     class = input<string>('');
     /**
      * BCP-47 locale tag passed straight to `Intl.NumberFormat` for the
