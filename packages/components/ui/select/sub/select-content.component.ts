@@ -39,8 +39,21 @@ export class SelectContentComponent implements AfterViewInit {
     private readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
 
+    /** Extra classes merged onto the popup panel, after the positioning classes so they can override them. */
     class = input('');
+    /**
+     * Fallback anchoring strategy, used only when there is no parent
+     * `<ui-select>` — the parent's own `position` input wins. `item-aligned`
+     * overlays the popup so the selected row sits on the trigger, `popper`
+     * drops it beside the trigger; item-aligned silently degrades to popper
+     * when it would clip the scroll boundary.
+     */
     position = input<'popper' | 'item-aligned'>('item-aligned');
+    /**
+     * Preferred popper side. Only a preference: the side flips when the
+     * opposite one has more room for the content, so a popup can still open
+     * downward with `side="top"`. Ignored while positioning stays item-aligned.
+     */
     side = input<'top' | 'bottom'>('bottom');
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
@@ -156,6 +169,11 @@ export class SelectContentComponent implements AfterViewInit {
         }
     }
 
+    /**
+     * Roving-focus key handler over the projected `<ui-select-item>` elements:
+     * arrows move focus and wrap around the ends, Enter/Space click the focused
+     * item. Items marked `data-disabled` are excluded from the ring.
+     */
     onKeydown(event: KeyboardEvent): void {
         if (!this.contentEl?.nativeElement) return;
 

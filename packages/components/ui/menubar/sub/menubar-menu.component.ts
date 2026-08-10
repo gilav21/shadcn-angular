@@ -28,6 +28,11 @@ export class MenubarMenuComponent {
   readonly service = inject(MenubarService);
   isOpen = computed(() => this.service.isActive(this.id));
 
+  /**
+   * Flips this menu open or closed. Opening closes whichever sibling menu was
+   * open, since the menubar allows only one at a time. Bound to the trigger's
+   * click.
+   */
   toggle(): void {
     if (this.isOpen()) {
       this.service.setActive(null);
@@ -36,10 +41,20 @@ export class MenubarMenuComponent {
     }
   }
 
+  /**
+   * Opens this menu and closes any sibling that was open. Used by the trigger's
+   * hover-to-switch behaviour and by ArrowDown/Enter on the trigger; unlike
+   * {@link toggle} it is idempotent.
+   */
   open(): void {
     this.service.setActive(this.id);
   }
 
+  /**
+   * Closes this menu, but only if it is the currently open one — calling it on
+   * an inactive menu will not close a sibling. Invoked on Escape and after a
+   * `ui-menubar-item` is selected.
+   */
   close(): void {
     if (this.isOpen()) {
       this.service.setActive(null);

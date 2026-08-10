@@ -40,9 +40,23 @@ export type AlertVariant = VariantProps<typeof alertVariants>['variant'];
     },
 })
 export class AlertComponent {
+    /**
+     * Severity treatment. Also drives the announcement semantics: `'default'`
+     * renders as `role="status"` / `aria-live="polite"`, `'destructive'` as
+     * `role="alert"` / `aria-live="assertive"`, which interrupts a screen reader
+     * — so reserve it for genuine errors.
+     */
     variant = input<AlertVariant>('default');
+    /** Extra classes merged onto the host. The variants set colour and layout only; note the built-in `[&>svg]` rules already absolutely position a leading icon and indent the text past it. */
     class = input('');
+    /**
+     * Simple-mode heading. Supplying it switches the alert to the generated
+     * layout — title, optional {@link description}, then any projected content —
+     * instead of pure projection. Leave it empty to compose
+     * `ui-alert-title` / `ui-alert-description` yourself.
+     */
     title = input('');
+    /** Simple-mode body text under the title. Only rendered when {@link title} is also set; on its own it is ignored. */
     description = input('');
 
     classes = computed(() =>

@@ -38,8 +38,20 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
     private readonly select = inject(SELECT, { optional: true });
     private readonly el = inject(ElementRef);
 
+    /**
+     * Value committed to the parent select when this row is chosen, and
+     * compared against the current selection to show the checkmark. Also the
+     * key the item registers itself under for item-aligned positioning, so it
+     * must be unique within one content.
+     */
     value = input.required<string>();
+    /**
+     * Dims the row and makes {@link onClick} a no-op. Note this only marks the
+     * host `pointer-events-none` via classes — it does not set the
+     * `data-disabled` attribute the content's arrow-key ring filters on.
+     */
     disabled = input(false);
+    /** Extra classes merged onto the host row, after the defaults so they can override them. */
     class = input('');
 
     isSelected = computed(() => this.select?.internalValue() === this.value());
@@ -67,6 +79,10 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
         this.select?.unregisterItem(this.value());
     }
 
+    /**
+     * Host click handler — commits {@link value} to the parent select and
+     * closes it. Skipped when {@link disabled}.
+     */
     onClick(): void {
         if (!this.disabled()) {
             this.select?.select(this.value());

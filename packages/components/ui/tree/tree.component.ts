@@ -45,9 +45,28 @@ export const TREE = new InjectionToken<TreeComponent>('TREE');
     ],
 })
 export class TreeComponent {
+    /** Extra classes merged onto the `role="tree"` root, after the base sizing/focus-ring classes. */
     class = input('');
+    /**
+     * Selection mode. `'none'` (default) makes {@link toggleSelected} a no-op and
+     * omits `aria-selected` from every item; `'single'` clears the previous key
+     * before adding the new one; `'multiple'` accumulates keys and sets
+     * `aria-multiselectable` on the root.
+     */
     selectable = input<'single' | 'multiple' | 'none'>('none');
+    /**
+     * Data-driven nodes. When non-empty the component renders the whole tree itself
+     * and any projected content is ignored; pass `[]` (the default) to hand-author
+     * `<ui-tree-item>` children instead. Nodes are matched by `key`, which is what
+     * {@link selectionChange} and {@link expandChange} emit.
+     */
     data = input<TreeNode[]>([]);
+    /**
+     * Levels of {@link data} expanded on load: `0` (default) leaves everything collapsed,
+     * `n` expands parents down to depth `n`, `-1` expands every level. Re-applied — and
+     * re-emitted through {@link expandChange} — whenever `data` changes, discarding the
+     * user's current expansion.
+     */
     initialExpandDepth = input<number>(0);
 
     readonly nodeContent = contentChild(TreeNodeContentDirective);
@@ -57,7 +76,18 @@ export class TreeComponent {
     selectedKeys = signal<Set<string>>(new Set());
     focusedKey = signal<string | null>(null);
 
+    /**
+     * Emits the full set of selected node keys after every selection change — not just
+     * the key that changed — so a `'single'` tree emits a 0- or 1-element array. Never
+     * emits while {@link selectable} is `'none'`.
+     */
     selectionChange = output<string[]>();
+    /**
+     * Emits the full set of expanded node keys after every expand/collapse, including the
+     * initial expansion driven by {@link initialExpandDepth} and the `*` keyboard shortcut.
+     * Expansion state is owned by the component; this output is a notification, not a
+     * two-way binding — drive it back only through {@link expandAll} / {@link collapseAll}.
+     */
     expandChange = output<string[]>();
 
     treeRoot = viewChild<ElementRef<HTMLElement>>('treeRoot');
@@ -103,6 +133,11 @@ export class TreeComponent {
         return this.items().find(item => item.value() === focused)?.id() ?? null;
     });
 
+    /**
+     * Whether the tree's host element resolves to a right-to-left direction. Read by
+     * {@link onKeydown} to swap the expand/collapse arrow keys and by each item to flip
+     * the collapsed chevron.
+     */
     isRtl(): boolean {
         return isRtl(this.el.nativeElement);
     }
@@ -114,6 +149,11 @@ export class TreeComponent {
         )
     );
 
+    /**
+     * Expands the node if collapsed, collapses it otherwise, then emits {@link expandChange}.
+     * Collapsing a node keeps its descendants' own expanded flags — they are merely hidden,
+     * and reappear expanded when the ancestor is re-opened. Does not affect selection or focus.
+     */
     toggleExpanded(key: string): void {
         const current = this.expandedKeys();
         const next = new Set(current);
@@ -126,10 +166,20 @@ export class TreeComponent {
         this.expandChange.emit(Array.from(next));
     }
 
+    /**
+     * Whether this node's own expanded flag is set. Reports `true` even when an ancestor is
+     * collapsed and the node is therefore off-screen — it is not a visibility check.
+     */
     isExpanded(key: string): boolean {
         return this.expandedKeys().has(key);
     }
 
+    /**
+     * Adds the key to the selection, or removes it if already selected, then emits
+     * {@link selectionChange}. Does nothing while {@link selectable} is `'none'`. In
+     * `'single'` mode any previously selected key is dropped. Parent nodes are selectable
+     * like any other node — selecting one does not cascade to its children.
+     */
     toggleSelected(key: string): void {
         if (this.selectable() === 'none') return;
 
@@ -145,24 +195,46 @@ export class TreeComponent {
         this.selectionChange.emit(Array.from(next));
     }
 
+    /** Whether the node is in the current selection; always `false` while {@link selectable} is `'none'`. */
     isSelected(key: string): boolean {
         return this.selectedKeys().has(key);
     }
 
+    /**
+     * Whether the node is the tree's roving `aria-activedescendant` target. At most one node
+     * is focused, and it is independent of selection — arrowing moves focus without selecting.
+     */
     isFocused(key: string): boolean {
         return this.focusedKey() === key;
     }
 
+    /**
+     * Replaces the expanded set with exactly `keys` and emits {@link expandChange}. Despite the
+     * name it does not walk {@link data} — any key you omit ends up collapsed, so pass every
+     * parent key you want open.
+     */
     expandAll(keys: string[]): void {
         this.expandedKeys.set(new Set(keys));
         this.expandChange.emit(keys);
     }
 
+    /**
+     * Collapses every expanded node, including ones currently scrolled or hidden out of view,
+     * and emits an empty {@link expandChange}. Leaves selection and the focused key untouched,
+     * so focus can remain on a node that is no longer visible.
+     */
     collapseAll(): void {
         this.expandedKeys.set(new Set());
         this.expandChange.emit([]);
     }
 
+    /**
+     * Moves DOM focus to the tree root so it starts receiving {@link onKeydown}, and points the
+     * roving `aria-activedescendant` at `key`. Called with no key it keeps an existing focused
+     * node, or falls back to the first registered item. The key is not validated against
+     * {@link data} and does not scroll or expand ancestors, so passing a hidden node's key
+     * leaves nothing visibly focused. Does not select anything — see {@link toggleSelected}.
+     */
     focus(key?: string | null): void {
         if (key) {
             this.focusedKey.set(key);
@@ -173,11 +245,23 @@ export class TreeComponent {
         this.treeRoot()?.nativeElement.focus();
     }
 
+    /**
+     * Internal parent/child contract: each `<ui-tree-item>` calls this on itself from its own
+     * constructor effect to join the keyboard-navigation order. Consumers should never call it —
+     * registration is automatic for both projected and {@link data}-rendered items. The registry
+     * is re-sorted into document/`data` order in a microtask, so {@link items} lags a newly added
+     * item by one tick. Pair with {@link unregisterItem}.
+     */
     registerItem(item: TreeItemComponent): void {
         this._itemRegistry.add(item);
         this.scheduleItemsUpdate();
     }
 
+    /**
+     * Counterpart to {@link registerItem}, invoked automatically when an item is destroyed.
+     * Not for consumer use. Removing an item does not clear its key from the expanded,
+     * selected, or focused state — that state survives until the key is toggled again.
+     */
     unregisterItem(item: TreeItemComponent): void {
         this._itemRegistry.delete(item);
         this.scheduleItemsUpdate();
@@ -293,6 +377,18 @@ export class TreeComponent {
         return this.items().filter(item => this.isItemVisible(item.value()));
     }
 
+    /**
+     * Bound to the tree root's `keydown`; the whole tree is one tab stop and navigation is
+     * roving via `aria-activedescendant`. Up/Down move focus through *visible* nodes only
+     * (descendants of collapsed parents are skipped), wrapping nowhere — Up from nothing
+     * focused jumps to the last node. Home/End go to the first/last visible node.
+     * Enter and Space run {@link toggleSelected} on the focused node. `*` expands every
+     * visible node that has children. The expand/collapse arrows are direction-aware
+     * ({@link isRtl}): in LTR, Right expands a collapsed parent then steps into its first
+     * child, and Left collapses an open node or otherwise walks up to the parent; RTL swaps
+     * the two. There is no typeahead. Note it calls `preventDefault()` on every keydown it
+     * receives, including keys it does not handle.
+     */
     onKeydown(event: KeyboardEvent): void {
         const items = this.getVisibleItems();
         if (items.length === 0) return;

@@ -19,6 +19,7 @@ import { SidebarService } from '../sidebar.service';
   host: { class: 'contents' },
 })
 export class SidebarGroupLabelComponent {
+  /** Extra classes merged onto the group heading. On a collapsed desktop rail the label becomes `sr-only` — still announced, but taking no space — so groups are distinguishable to screen readers even when the rail is icon-only. */
   class = input('');
   readonly service = inject(SidebarService);
 

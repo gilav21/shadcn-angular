@@ -20,6 +20,7 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class EmptyHeaderComponent {
+    /** Extra classes merged onto the header group. Its `max-w-sm` is what keeps the title and description from stretching across a wide panel — raise it here for long copy. */
     class = input('');
 
     classes = computed(() => cn(

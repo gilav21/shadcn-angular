@@ -29,6 +29,7 @@ import { cn } from '../../../lib/utils';
 export class BreadcrumbSeparatorComponent {
   private readonly contentWrapper = viewChild<ElementRef>('contentWrapper');
 
+  /** Extra classes merged onto the separator host. Any projected content replaces the default chevron; the built-in `[&>svg]:size-3.5` rule sizes a custom icon to match. */
   class = input('');
   hasContent = computed(() => {
     const wrapper = this.contentWrapper();

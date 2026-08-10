@@ -24,10 +24,21 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
 
     @ViewChild('bar') barRef!: ElementRef<HTMLElement>;
 
+    /** Extra classes merged onto the fixed full-width track — override `z-50` here if the bar is covered by (or covers) another overlay. */
     class = input('');
+    /** Which viewport edge the bar is pinned to. Purely visual; it does not change which element is tracked. */
     position = input<'top' | 'bottom'>('top');
+    /** Fill colour of the bar, applied as an inline `background-color`. Any CSS colour works, including `var(--…)` theme tokens (the default). Read once in `ngAfterViewInit`. */
     color = input('var(--primary)');
+    /** Bar thickness in pixels, set inline on the fill element. Read once in `ngAfterViewInit` — later changes are not applied. */
     height = input(3);
+    /**
+     * Scroll source to track: an element, a CSS selector for one, or `null` to
+     * auto-detect. Auto-detection walks up from the host looking for the first
+     * ancestor with `overflow-y: auto | scroll` and falls back to the window.
+     * An invalid or unmatched selector falls back the same way rather than
+     * throwing. Resolved once in `ngAfterViewInit`.
+     */
     container = input<string | HTMLElement | null>(null);
 
     classes = computed(() => cn(

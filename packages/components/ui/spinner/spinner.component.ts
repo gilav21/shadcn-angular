@@ -75,9 +75,23 @@ const RING_SIZE_MAP: Record<SpinnerSize, string> = {
   host: { class: 'contents' },
 })
 export class SpinnerComponent implements AfterViewInit {
+  /** Extra classes merged onto the spinner element — `text-*` is the usual one, since every variant paints itself in `currentColor`. */
   readonly class = input('');
+  /**
+   * Preset scale. Each {@link variant} has its own size table, so `'lg'` means
+   * a bigger ring, fatter bars or larger dots as appropriate. `'page'` is the
+   * oversized step intended for a full-screen overlay (see
+   * {@link PageSpinnerComponent}). Overridden by {@link customSize}.
+   */
   readonly size = input<SpinnerSize>('default');
+  /** Exact pixel size, applied inline and taking precedence over {@link size}. Use it when the spinner must match a specific control's height. `null` keeps the preset. */
   readonly customSize = input<number | null>(null);
+  /**
+   * Animation style: `'ring'` a spinning arc, `'dots'` three bouncing dots,
+   * `'bars'` five staggered bars, `'pulse'` a single pulsing disc. Ignored
+   * entirely when custom content is projected — the projected loader is then
+   * rendered instead.
+   */
   readonly variant = input<SpinnerVariant>('ring');
 
   readonly contentWrapper = viewChild<ElementRef>('contentWrapper');

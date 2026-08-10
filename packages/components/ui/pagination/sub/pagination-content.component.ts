@@ -16,6 +16,7 @@ import { cn } from '../../../lib/utils';
   },
 })
 export class PaginationContentComponent {
+  /** Extra classes merged onto the row of pagination items. Only needed in template mode; the built-in bar renders its own row (and, unlike this one, lets it wrap). */
   class = input('');
 
   classes = computed(() => cn('flex flex-row items-center gap-1', this.class()));

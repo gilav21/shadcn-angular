@@ -39,10 +39,17 @@ export class SheetTriggerComponent {
         });
     }
 
+    /** Toggles the owning `ui-sheet`; a no-op when rendered outside one. */
     onClick(): void {
         this.sheet?.toggle();
     }
 
+    /**
+     * Only toggles from the wrapper's own keyboard activation. When the
+     * projected content is itself focusable (e.g. a native `<button>`), its
+     * Enter/Space already fires a click that bubbles here — handling the keydown
+     * too would toggle twice (open then immediately close).
+     */
     onKeydown(event: Event): void {
         if (event.target !== event.currentTarget) return;
         event.preventDefault();

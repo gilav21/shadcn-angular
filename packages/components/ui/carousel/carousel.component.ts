@@ -38,7 +38,14 @@ export const CAROUSEL = new InjectionToken<CarouselComponent>('CAROUSEL');
     host: { class: 'contents' },
 })
 export class CarouselComponent implements AfterContentInit, OnDestroy {
+    /** Extra classes merged onto the `relative` root. Keep it positioned — the previous/next buttons are absolutely placed against it, and on desktop they sit just outside its edges. */
     class = input('');
+    /**
+     * Scroll axis. Also decides which arrow keys page the carousel and where the
+     * previous/next buttons are placed (sides when horizontal, above and below —
+     * rotated — when vertical). The horizontal form is RTL-aware: direction is
+     * detected from the document and the buttons swap behaviour accordingly.
+     */
     orientation = input<CarouselOrientation>('horizontal');
     private readonly rootEl = inject(ElementRef<HTMLElement>);
 
@@ -102,6 +109,13 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         this.dirObserver?.disconnect();
     }
 
+    /**
+     * Recomputes `canScrollPrev`, `canScrollNext` and `currentIndex` from the
+     * content element's live scroll metrics. Wired to the content's scroll and
+     * resize events; call it manually after adding or removing slides outside
+     * those triggers. `currentIndex` assumes uniformly sized slides, since it is
+     * derived from the first slide's dimensions.
+     */
     updateScrollState(): void {
         if (!this.scrollContainer) return;
 
@@ -146,6 +160,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         }
     }
 
+    /** Smooth-scrolls back by one full viewport of the content, flipping sign in RTL. A no-op before the content element has been located (one tick after content init). */
     scrollPrev(): void {
         if (!this.scrollContainer) return;
 
@@ -159,6 +174,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         });
     }
 
+    /** Smooth-scrolls forward by one full viewport of the content, flipping sign in RTL. Pages by viewport, not by slide, so it moves several slides at once when they are narrower than the viewport. */
     scrollNext(): void {
         if (!this.scrollContainer) return;
 
@@ -172,6 +188,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         });
     }
 
+    /** Smooth-scrolls a specific slide into view by its position in the DOM. Out-of-range indices are ignored. Use it to wire up dot indicators. */
     scrollTo(index: number): void {
         if (!this.scrollContainer) return;
 
@@ -182,6 +199,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         }
     }
 
+    /** Keyboard paging on the carousel region: Left/Right when horizontal, Up/Down when vertical. The default is prevented so the keys page the carousel instead of scrolling the page. */
     onKeydown(event: KeyboardEvent): void {
         const isHorizontal = this.orientation() === 'horizontal';
 

@@ -18,7 +18,17 @@ import { cn } from '../../lib/utils';
     },
 })
 export class SeparatorComponent {
+    /**
+     * Direction of the rule. `'horizontal'` renders a 1px-tall full-width line;
+     * `'vertical'` renders a 1px-wide full-height line, which only shows up if
+     * the parent gives the host a height (e.g. a flex row with `h-*` or
+     * `items-stretch`). Also mirrored to `aria-orientation`.
+     */
     orientation = input<'horizontal' | 'vertical'>('horizontal');
+    /**
+     * Extra classes merged onto the host — the usual place to override the
+     * `bg-border` colour, thickness, or add margins between sections.
+     */
     class = input('');
 
     classes = computed(() =>

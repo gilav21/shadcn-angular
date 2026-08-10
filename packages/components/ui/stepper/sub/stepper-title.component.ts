@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class StepperTitleComponent {
+  /** Extra classes merged onto the title `<span>` (via `cn()`, so utilities here beat the default `text-sm font-medium`). */
   class = input('');
 
   classes = computed(() =>

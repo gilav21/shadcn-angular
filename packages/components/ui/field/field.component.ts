@@ -76,7 +76,13 @@ export const FIELD_CONTEXT = new InjectionToken<FieldContext>('FIELD_CONTEXT');
   exportAs: 'uiField',
 })
 export class FieldComponent implements AfterContentInit {
+  /** Extra classes merged onto the field wrapper — the element that also carries `data-orientation` for CSS hooks. */
   class = input('');
+  /**
+   * `'vertical'` stacks label, control and helper text in a grid; `'horizontal'`
+   * switches to a centred flex row, for checkbox/switch rows where the label sits
+   * beside the control. Also mirrored to `data-orientation`.
+   */
   orientation = input<'vertical' | 'horizontal'>('vertical');
 
   /** The projected form control directive (formControl / formControlName / ngModel). */

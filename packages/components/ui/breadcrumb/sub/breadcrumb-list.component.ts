@@ -61,12 +61,20 @@ import { SkeletonComponent } from '../../skeleton';
   },
 })
 export class BreadcrumbListComponent {
+  /** Extra classes merged onto the list. It already wraps onto multiple lines and tightens its gap below the `sm` breakpoint, so deep trails degrade gracefully on phones. */
   class = input('');
 
-  // Data-driven mode: items array (takes priority over projection)
+  /**
+   * Data-driven mode: the whole trail as an array, with separators inserted
+   * automatically and the entry flagged `isCurrentPage` rendered as the
+   * non-clickable end of the trail. A non-empty array takes priority over any
+   * projected content, which is then ignored entirely.
+   */
   items = input<BreadcrumbItem[]>([]);
 
+  /** Renders {@link skeletonCount} placeholder crumbs instead of the real trail. Outranks both {@link items} and projected content while set. */
   readonly skeleton = input(false);
+  /** How many placeholder crumbs the skeleton shows — pick the depth you expect so the layout does not jump when the real trail arrives. */
   readonly skeletonCount = input(3);
 
   readonly skeletonItems = computed(() =>

@@ -39,12 +39,32 @@ import { COMMAND_GROUP } from './command-group.component';
   host: { class: 'contents' },
 })
 export class CommandItemComponent implements OnInit, OnDestroy {
+  /** Merged onto the row. The keyboard-highlighted row already gets `bg-accent text-accent-foreground`, so an accent background here will fight that state. */
   class = input('');
+  /**
+   * Greys the row (50% opacity) and blocks pointer events, and suppresses
+   * {@link selectItem} on both click and Enter. It is *not* skipped by arrow-key
+   * navigation: a disabled row can still become the highlighted item, where
+   * Enter silently does nothing.
+   */
   disabled = input(false);
+  /**
+   * Sets `aria-selected` on the row. Purely an ARIA hint for persistent
+   * selection — it is independent of the keyboard highlight and applies no
+   * styling of its own.
+   */
   selected = input(false);
+  /**
+   * The text filtering matches (case-insensitive substring of the query) and the
+   * payload emitted by {@link selectItem}. Read once at registration, so it must
+   * be static — and an item left with the default empty value disappears as soon
+   * as the user types anything.
+   */
   value = input('');
+  /** Key hint rendered right-aligned on the row, e.g. `⌘P`. Display only — it binds no key handler and is not matched by the search. */
   shortcut = input('');
 
+  /** Emits {@link value} when the row is activated by click, Enter on the focused row, or Enter while it is the highlighted item. Never emits while {@link disabled}. */
   selectItem = output<string>();
 
   readonly id = generateId();
@@ -84,6 +104,12 @@ export class CommandItemComponent implements OnInit, OnDestroy {
     this.cmdService.unregister(this.id);
   }
 
+  /**
+   * Single activation path for the row — the click handler, the Enter-on-focus
+   * handler, and the `onSelect` callback registered with the palette all funnel
+   * here — so {@link selectItem} fires exactly once per activation and the
+   * {@link disabled} guard cannot be bypassed by any of them.
+   */
   onClick(): void {
     if (!this.disabled()) {
       this.selectItem.emit(this.value());

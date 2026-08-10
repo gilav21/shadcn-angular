@@ -18,6 +18,7 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class FieldSeparatorComponent {
+  /** Extra classes merged onto the `<hr>`. It ships its own vertical margin, so override `my-4` rather than adding padding around it. */
   class = input('');
 
   classes = computed(() => cn(

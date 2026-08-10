@@ -28,7 +28,14 @@ import { ScrollAreaComponent } from '../../scroll-area';
   `,
 })
 export class ChatListComponent implements AfterViewInit, OnDestroy {
+  /**
+   * Keeps the list pinned to the newest message: a `MutationObserver` watches the
+   * projected content and scrolls to the bottom on any change, including text
+   * edits (so a streaming reply keeps following). It scrolls unconditionally, so
+   * a user who has scrolled up will be yanked back down.
+   */
   autoScroll = input(false);
+  /** Extra classes merged onto the scroll viewport. The host is already a flex child that fills and clips, so overriding the height here is rarely needed. */
   class = input('');
   classes = computed(() => cn('h-full w-full', this.class()));
 
@@ -65,6 +72,7 @@ export class ChatListComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** Jumps to the newest message. Called automatically while {@link autoScroll} is on, and available for a "jump to latest" button when it is off. */
   scrollToBottom(): void {
     this.scrollArea?.scrollToBottom();
   }

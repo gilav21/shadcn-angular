@@ -34,8 +34,11 @@ import { TableCellComponent } from './table-cell.component';
     },
 })
 export class TableBodyComponent {
+    /** Extra classes merged onto the body row group. */
     class = input('');
+    /** Replaces the projected rows with {@link skeletonRows} single-cell placeholder rows while data loads. The header and footer keep rendering, so the table's chrome stays put. */
     readonly skeleton = input(false);
+    /** How many placeholder rows the skeleton shows — match your usual page size so the table does not resize when the data lands. */
     readonly skeletonRows = input(5);
 
     readonly skeletonRowItems = computed(() =>

@@ -15,6 +15,7 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class SidebarSeparatorComponent {
+  /** Extra classes merged onto the `<hr>`. Uses a real rule rather than a styled div, so it is exposed as a separator without any ARIA. */
   class = input('');
 
   classes = computed(() => cn(

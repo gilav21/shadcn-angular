@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class CardHeaderComponent {
+    /** Extra classes merged onto the header grid. It reflows to two columns automatically when a `data-slot="card-action"` element is present, and adding `border-b` also adds the matching bottom padding. */
     class = input('');
 
     readonly classes = computed(() =>

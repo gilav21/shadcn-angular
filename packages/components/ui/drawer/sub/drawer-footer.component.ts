@@ -16,6 +16,11 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class DrawerFooterComponent {
+    /**
+     * Extra classes merged onto the host. The default `mt-auto` pins the footer
+     * to the bottom of the drawer's flex column and children stack vertically —
+     * pass `flex-row` for side-by-side action buttons.
+     */
     class = input('');
 
     classes = computed(() => cn('mt-auto flex flex-col gap-2 p-4', this.class()));

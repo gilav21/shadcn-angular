@@ -16,6 +16,7 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class AlertDescriptionComponent {
+    /** Extra classes merged onto the description host. Any nested `<p>` already gets relaxed leading, so multi-paragraph bodies need no extra styling. */
     class = input('');
 
     classes = computed(() => cn('text-sm [&_p]:leading-relaxed', this.class()));

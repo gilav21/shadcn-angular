@@ -87,11 +87,30 @@ import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales'
   host: { class: 'contents' },
 })
 export class PaginationComponent {
+  /** Extra classes merged onto the `<nav>`. The bar centres itself and wraps its rows, so it survives narrow viewports without help. */
   readonly class = input('');
 
   // Simple mode inputs
+  /**
+   * The active page, **1-based**. Purely presentational input — the component
+   * holds no state and re-renders only when you feed the value from
+   * {@link pageChange} back in. Values outside 1..{@link totalPages} simply mean
+   * no page is highlighted.
+   */
   readonly currentPage = input(0);
+  /**
+   * Total number of pages, and the switch between the component's two modes:
+   * greater than 0 renders the built-in bar from these inputs, and 0 (the
+   * default) renders projected content instead. Also the upper bound
+   * {@link onPageChange} validates against.
+   */
   readonly totalPages = input(0);
+  /**
+   * How many pages to show on each side of {@link currentPage} between the
+   * ellipses. The bar shows at most `siblingCount * 2 + 5` numbers (siblings,
+   * first, last, current and two ellipsis slots) before it starts collapsing;
+   * below that threshold every page is listed and no ellipsis appears.
+   */
   readonly siblingCount = input(1);
 
   /**
@@ -101,6 +120,7 @@ export class PaginationComponent {
   readonly locale = input<LocaleInput<PaginationLocale>>();
 
   // Output for page changes
+  /** The 1-based page the user asked for. Nothing moves until you write it back into {@link currentPage}. Already filtered: never out of range and never the page already shown. */
   readonly pageChange = output<number>();
 
   private readonly i18n = createLocaleBindings(this.locale, PAGINATION_LOCALES);
@@ -159,6 +179,7 @@ export class PaginationComponent {
     return [1, -1, ...range(leftSiblingIndex, rightSiblingIndex), -1, total];
   });
 
+  /** Requests a page. Emits {@link pageChange} only for an in-range page that differs from {@link currentPage}, so it is safe to call from prev/next arithmetic that may run off either end. */
   onPageChange(page: number): void {
     if (page >= 1 && page <= this.totalPages() && page !== this.currentPage()) {
       this.pageChange.emit(page);

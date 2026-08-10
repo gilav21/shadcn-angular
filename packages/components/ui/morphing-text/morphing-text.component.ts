@@ -17,8 +17,21 @@ import { cn, prefersReducedMotion } from '../../lib/utils';
     host: { class: 'contents' },
 })
 export class MorphingTextComponent implements OnInit, OnDestroy {
+    /** Extra classes merged onto the `relative inline-block` wrapper — use it to set the font size/weight the morphing text inherits. */
     class = input('');
+    /**
+     * Phrases cycled through, in order, looping back to the first. The wrapper
+     * is sized to the longest entry so the surrounding layout never reflows
+     * mid-cycle. With 0 or 1 entries no timer is started and the single value
+     * (or nothing) is shown statically.
+     */
     texts = input<string[]>([]);
+    /**
+     * Milliseconds for a full swap cycle. The internal timer actually fires
+     * every `interval / 2` — one tick fades out, the next advances and fades in
+     * — and the CSS transition is `min(interval / 3, 500)ms`. Read once in
+     * `ngOnInit`; later changes do not restart the timer.
+     */
     interval = input(3000);
 
     private readonly textIndex = signal(0);

@@ -53,9 +53,21 @@ import { SkeletonComponent } from '../../skeleton';
 })
 export class SelectTriggerComponent {
     readonly select = inject(SELECT, { optional: true });
+    /** Extra classes merged onto the trigger button, after the defaults so they can override them. */
     class = input('');
+    /** Explicit accessible name; overrides the placeholder fallback in {@link resolvedAriaLabel}. */
     ariaLabel = input<string | undefined>(undefined);
+    /**
+     * Swaps the chevron for a spinner and disables the button, e.g. while
+     * options are being fetched. The popup can still be opened
+     * programmatically — only the trigger is blocked.
+     */
     readonly loading = input(false);
+    /**
+     * Replaces the whole trigger with a fixed-height skeleton placeholder. Wins
+     * over {@link loading}: nothing interactive is rendered at all, so use it
+     * for initial page load and {@link loading} for a refresh.
+     */
     readonly skeleton = input(false);
 
     /**
@@ -82,11 +94,21 @@ export class SelectTriggerComponent {
         )
     );
 
+    /**
+     * Toggles the parent select and stops propagation, so the select's
+     * document-level outside-click listener does not immediately close what
+     * this click just opened.
+     */
     onClick(event: MouseEvent): void {
         event.stopPropagation();
         this.select?.toggle();
     }
 
+    /**
+     * Enter, Space and ArrowDown open the parent select — they never close it,
+     * so the popup's own handler owns Escape/Tab. Ignored while the select is
+     * disabled.
+     */
     onKeyDown(event: KeyboardEvent): void {
         if (this.select?.isDisabled()) return;
 

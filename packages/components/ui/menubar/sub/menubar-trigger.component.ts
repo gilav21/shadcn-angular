@@ -36,6 +36,10 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
   host: { class: 'contents' },
 })
 export class MenubarTriggerComponent {
+  /**
+   * Extra classes merged onto the trigger `<button>`, after the hover/focus and
+   * `data-[state=open]` accent classes.
+   */
   class = input('');
   readonly menu = inject(MENUBAR_MENU) as MenubarMenuComponent;
   readonly service = inject(MenubarService);
@@ -57,10 +61,21 @@ export class MenubarTriggerComponent {
     this.class()
   ));
 
+  /**
+   * Click handler: toggles this menu open or closed. Because only one menubar
+   * menu may be open at a time, opening this one closes whichever sibling was
+   * open. Clicking the trigger of the already-open menu closes it.
+   */
   onClick(): void {
     this.menu.toggle();
   }
 
+  /**
+   * Hover-to-switch: once *any* menu in the bar is open, moving the pointer over
+   * another trigger switches to that menu immediately (no grace period). With
+   * every menu closed, hover does nothing — the bar must first be opened with a
+   * click. No-op on touch devices, where {@link onClick} is the only way in.
+   */
   onMouseEnter(): void {
     if (isTouchDevice()) return;
     if (this.service.activeMenuId()) {
@@ -68,6 +83,15 @@ export class MenubarTriggerComponent {
     }
   }
 
+  /**
+   * Keyboard map for a focused trigger: ArrowLeft/ArrowRight walk the trigger
+   * row (mirrored under RTL) via {@link focusPrevTrigger} /
+   * {@link focusNextTrigger}, and ArrowDown or Enter opens this menu and moves
+   * focus to its first item on the next macrotask, once the panel has rendered.
+   * That first-item lookup does not filter on `data-disabled`, so it can land on
+   * a disabled item that the subsequent arrow keys then skip over. Escape is
+   * handled by the open content, not here; Space and typeahead are not handled.
+   */
   onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
@@ -96,10 +120,21 @@ export class MenubarTriggerComponent {
     }
   }
 
+  /**
+   * Moves DOM focus to this trigger's `<button>` without opening the menu. Used
+   * by the open content on Escape to hand focus back.
+   */
   focus(): void {
     this.triggerEl?.nativeElement.focus();
   }
 
+  /**
+   * Focuses the next trigger in the bar, wrapping from the last back to the
+   * first. If a menu is currently open the new trigger is also clicked, so the
+   * open menu follows focus. The lookup is a document-wide
+   * `[data-slot="menubar-trigger"]` query, so two menubars on one page share a
+   * single wrap-around ring.
+   */
   focusNextTrigger(): void {
     const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
     const index = triggers.indexOf(this.triggerEl.nativeElement);
@@ -110,6 +145,10 @@ export class MenubarTriggerComponent {
     }
   }
 
+  /**
+   * Mirror of {@link focusNextTrigger} — focuses the previous trigger, wrapping
+   * from the first around to the last, and carries the open menu with it.
+   */
   focusPrevTrigger(): void {
     const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
     const index = triggers.indexOf(this.triggerEl.nativeElement);

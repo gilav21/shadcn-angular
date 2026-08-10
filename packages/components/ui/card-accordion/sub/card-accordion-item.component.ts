@@ -24,7 +24,9 @@ import { SkeletonComponent } from '../../skeleton';
 export class CardAccordionItemComponent {
   /** Unique identifier shared with the parent accordion's open-state map. */
   readonly value = input.required<string>();
+  /** Extra classes merged onto the card surface. The card already gains a deeper shadow while open, so override `shadow-sm`/`shadow-md` together if you restyle it. */
   readonly class = input('');
+  /** Renders skeleton placeholders in place of the header and body, keeping the card's shape while data loads. The panel is still togglable. */
   readonly skeleton = input(false);
 
   /** Simple mode: header title text. */
@@ -55,6 +57,11 @@ export class CardAccordionItemComponent {
     )
   );
 
+  /**
+   * Opens or closes this card through the parent accordion, which decides
+   * whether opening it closes the others (single vs multiple mode). A no-op when
+   * the item is used outside a `ui-accordion` context.
+   */
   toggle(): void {
     this.accordion?.toggle(this.value());
   }

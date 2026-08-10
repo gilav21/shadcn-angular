@@ -36,8 +36,19 @@ import { DropdownMenuSubComponent } from './dropdown-menu-sub.component';
     host: { class: 'contents' }
 })
 export class DropdownMenuSubTriggerComponent {
+    /** Extra classes merged onto the trigger row, after the defaults so they can override them. */
     class = input('');
+    /**
+     * Intended to dim and neutralise the row. Note it only feeds the
+     * `data-[disabled]:` classes — the element never gets a `data-disabled`
+     * attribute, so today it neither dims the row nor blocks opening the
+     * submenu.
+     */
     disabled = input(false, { transform: booleanAttribute });
+    /**
+     * Adds leading indentation so the label aligns with sibling items that
+     * carry an icon or checkmark.
+     */
     inset = input(false, { transform: booleanAttribute });
 
     readonly sub = inject(DropdownMenuSubComponent);
@@ -58,16 +69,26 @@ export class DropdownMenuSubTriggerComponent {
         this.class()
     ));
 
+    /** Opens the submenu on hover, cancelling any pending close. Skipped on touch devices, which use {@link onClick}. */
     onMouseEnter(): void {
         if (isTouchDevice()) return;
         this.sub.enter();
     }
 
+    /**
+     * Starts the grace-period close when the pointer leaves; moving onto the
+     * submenu panel cancels it. Skipped on touch devices.
+     */
     onMouseLeave(): void {
         if (isTouchDevice()) return;
         this.sub.leave();
     }
 
+    /**
+     * Tap-to-toggle for touch devices, where hover never fires. Deliberately a
+     * no-op with a mouse, so a click does not immediately close a submenu hover
+     * has just opened.
+     */
     onClick(): void {
         if (!isTouchDevice()) return;
         if (this.sub.isOpen()) {
@@ -77,10 +98,20 @@ export class DropdownMenuSubTriggerComponent {
         }
     }
 
+    /**
+     * Focuses the inner `role="menuitem"` row (not the `contents` host).
+     * Invoked by the parent `<ui-dropdown-menu-sub>` when the submenu closes
+     * from the keyboard.
+     */
     focus(): void {
         this.triggerEl?.nativeElement.focus();
     }
 
+    /**
+     * Opens the submenu and moves focus into it on Enter or the "forward" arrow
+     * (ArrowRight, or ArrowLeft in RTL). Propagation is stopped for the arrows
+     * so the root menu does not treat them as its own navigation.
+     */
     onKeydown(event: KeyboardEvent): void {
         if (event.key === 'ArrowRight') {
             if (this.service.isRtl()) return;

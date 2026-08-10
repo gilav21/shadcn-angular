@@ -16,6 +16,7 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class CardDescriptionComponent {
+    /** Extra classes merged onto the muted subtitle. Belongs inside `ui-card-header`, where the header grid places it on the row below the title. */
     class = input('');
 
     classes = computed(() => cn('text-muted-foreground text-sm', this.class()));

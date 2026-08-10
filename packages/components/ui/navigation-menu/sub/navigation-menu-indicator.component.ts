@@ -22,6 +22,15 @@ import { NavigationMenuService } from '../navigation-menu.service';
   host: { class: 'contents' },
 })
 export class NavigationMenuIndicatorComponent {
+  /**
+   * Extra classes merged onto the arrow wrapper. The base classes give it
+   * `top-full z-[1] flex h-1.5 items-end justify-center overflow-hidden` plus fade
+   * in/out variants keyed on `data-[state=visible|hidden]`; the rotated square inside is the
+   * arrow itself. The wrapper is not positioned (no `absolute` and no horizontal offset) and
+   * the component renders unconditionally without writing a `data-state` attribute, so it
+   * neither follows the open item nor hides itself — pass positioning/visibility classes
+   * driven by your own state (e.g. off {@link NavigationMenuService.activeItem}) if you use it.
+   */
   class = input('');
   readonly service = inject(NavigationMenuService);
 

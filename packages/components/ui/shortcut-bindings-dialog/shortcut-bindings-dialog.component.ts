@@ -51,10 +51,34 @@ interface ShortcutDialogGroup {
     templateUrl: './shortcut-bindings-dialog.component.html',
 })
 export class ShortcutBindingsDialogComponent {
+    /**
+     * Two-way visibility of the underlying `ui-dialog`. The catalog is read from the
+     * global {@link ShortcutBindingService} on every change-detection pass, so it is
+     * already current when the dialog opens — no refresh call is needed.
+     */
     readonly open = model(false);
+    /**
+     * Shows the "Save Changes" button that emits {@link mappingSave}. Off by default,
+     * because rebinds are applied to the service immediately and only need exporting
+     * if the host persists them.
+     */
     readonly allowSaveMapping = input(false);
+    /**
+     * Overrides to import into {@link ShortcutBindingService} — applied by an effect
+     * whenever the JSON serialization differs from the last import, so a schema
+     * rebuilt with identical contents is a no-op and does not clobber live rebinds.
+     */
     readonly mappingSchema = input<ShortcutOverrideSchema | null>(null);
+    /**
+     * How {@link mappingSchema} is imported: `true` (default) discards existing
+     * overrides and installs the schema wholesale, `false` merges it over them.
+     */
     readonly replaceOnSchemaLoad = input(true);
+    /**
+     * Emits the full exported override schema when the user presses "Save Changes"
+     * (requires {@link allowSaveMapping}). Nothing is persisted by the component —
+     * store the payload and feed it back through {@link mappingSchema} on startup.
+     */
     readonly mappingSave = output<ShortcutOverrideSchema>();
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -207,24 +231,52 @@ export class ShortcutBindingsDialogComponent {
         return ids;
     });
 
+    /**
+     * `(input)` handler for the filter box. Matching is case-insensitive across
+     * description, action id, component name, category and both formatted shortcuts;
+     * while a query is present every matching group and action is force-expanded.
+     */
     onSearchInput(event: Event): void {
         this.search.set((event.target as HTMLInputElement).value ?? '');
     }
 
+    /**
+     * Exports the service's current overrides and emits them on {@link mappingSave}.
+     * Only overrides travel — actions still on their defaults are omitted.
+     */
     saveMappingSchema(): void {
         this.mappingSave.emit(this.shortcutBindings.exportOverrideSchema());
     }
 
+    /**
+     * Arms key capture for every instance of `componentName` and focuses `button` so
+     * the next keystroke lands on {@link onComponentCaptureKeydown}. Only one capture
+     * can be armed at a time — arming this one cancels any pending instance capture.
+     */
     startCaptureForComponent(actionId: string, componentName: string, button: HTMLButtonElement): void {
         this.capturingActionKey.set(this.captureComponentKey(actionId, componentName));
         button.focus();
     }
 
+    /**
+     * Arms key capture for a single live instance (`componentId`, e.g. `data-table-2`)
+     * and focuses `button`; the next keystroke is handled by
+     * {@link onInstanceCaptureKeydown}. Counterpart of
+     * {@link startCaptureForComponent}, and mutually exclusive with it.
+     */
     startCaptureForInstance(actionId: string, componentId: string, button: HTMLButtonElement): void {
         this.capturingActionKey.set(this.captureInstanceKey(actionId, componentId));
         button.focus();
     }
 
+    /**
+     * Consumes the captured keystroke and rebinds `actionId` across all instances of
+     * `componentName`. Ignored unless this button armed the capture; `Escape` cancels;
+     * bare modifier presses are skipped so the user can build a chord. A successful
+     * capture is applied immediately — it does not wait for {@link saveMappingSchema} —
+     * and may produce a conflict badge (see {@link isConflicting}) rather than being
+     * rejected.
+     */
     onComponentCaptureKeydown(event: KeyboardEvent, actionId: string, componentName: string): void {
         if (this.capturingActionKey() !== this.captureComponentKey(actionId, componentName)) {
             return;
@@ -249,6 +301,11 @@ export class ShortcutBindingsDialogComponent {
         this.bumpVersion();
     }
 
+    /**
+     * Per-instance twin of {@link onComponentCaptureKeydown}: applies the captured
+     * chord to `componentId` alone, leaving sibling instances on the component-wide
+     * binding. `Escape` cancels, bare modifiers are ignored.
+     */
     onInstanceCaptureKeydown(event: KeyboardEvent, actionId: string, componentId: string): void {
         if (this.capturingActionKey() !== this.captureInstanceKey(actionId, componentId)) {
             return;
@@ -273,56 +330,109 @@ export class ShortcutBindingsDialogComponent {
         this.bumpVersion();
     }
 
+    /**
+     * Drops the component-wide override for `actionId`, returning every instance of
+     * `componentName` to its declared default, and cancels any armed capture. The
+     * "Reset all" button is disabled unless {@link isComponentOverridden} is `true`.
+     */
     resetComponent(actionId: string, componentName: string): void {
         this.shortcutBindings.clearShortcutOverrideForAllInstances(actionId, componentName);
         this.capturingActionKey.set(null);
         this.bumpVersion();
     }
 
+    /**
+     * Drops the override for one instance only; the instance then falls back to the
+     * component-wide binding if one exists, otherwise to its default. See
+     * {@link resetComponent} to clear the component-wide layer as well.
+     */
     resetInstance(actionId: string, componentId: string): void {
         this.shortcutBindings.clearShortcutOverrideForInstance(actionId, componentId);
         this.capturingActionKey.set(null);
         this.bumpVersion();
     }
 
+    /**
+     * Whether a component-wide override is in force for `actionId` — drives the
+     * enabled state of "Reset all". Instance-level overrides do not count; use
+     * {@link isInstanceOverridden} for those.
+     */
     isComponentOverridden(actionId: string, componentName: string): boolean {
         this.overrideVersion();
         return this.shortcutBindings.hasShortcutOverrideForAllInstances(actionId, componentName);
     }
 
+    /**
+     * Whether this specific instance carries its own override — drives the per-row
+     * "Reset" button. An instance inheriting a component-wide override reports `false`.
+     */
     isInstanceOverridden(actionId: string, componentId: string): boolean {
         this.overrideVersion();
         return this.shortcutBindings.hasShortcutOverrideForInstance(actionId, componentId);
     }
 
+    /**
+     * Whether `actionId` currently shares its effective chord with another action —
+     * renders the destructive "conflict" badge. Conflicts are reported, never blocked,
+     * so a rebind that collides still takes effect.
+     */
     isConflicting(actionId: string): boolean {
         return this.conflictActionIds().has(actionId);
     }
 
+    /**
+     * Renders a stored chord (e.g. `mod+k`) as platform-appropriate display text —
+     * `Cmd+K` on macOS, `Ctrl+K` elsewhere — returning the raw string unchanged if it
+     * cannot be parsed. The search index matches on this text too.
+     */
     format(shortcut: string): string {
         return this.shortcutBindings.formatShortcutForDisplay(shortcut);
     }
 
+    /**
+     * `componentName::actionId` — the identity used to `track` action rows and to
+     * bucket binding views by action. Not a DOM value; see {@link actionValue}.
+     */
     actionKey(actionId: string, componentName: string): string {
         return `${componentName}::${actionId}`;
     }
 
+    /**
+     * Accordion `value` for a component group (`group::<componentName>`), namespaced so
+     * it can never collide with an {@link actionValue} in the nested accordion.
+     */
     groupValue(componentName: string): string {
         return `group::${componentName}`;
     }
 
+    /**
+     * Accordion `value` for one action row — {@link actionKey} prefixed with `action::`.
+     */
     actionValue(actionId: string, componentName: string): string {
         return `action::${this.actionKey(actionId, componentName)}`;
     }
 
+    /**
+     * Action rows to force open inside one group while a search is active. Returns an
+     * empty array with no query, which lets the nested accordion fall back to
+     * user-controlled expansion.
+     */
     openActionValuesForGroup(componentName: string): string[] {
         return this.searchOpenActionValuesByGroup().get(componentName) ?? [];
     }
 
+    /**
+     * Token identifying an armed component-wide capture; compare against
+     * `capturingActionKey()` to know whether a given "All" button is listening.
+     */
     captureComponentKey(actionId: string, componentName: string): string {
         return `component::${componentName}::${actionId}`;
     }
 
+    /**
+     * Instance-scoped counterpart of {@link captureComponentKey}; the distinct
+     * `instance::` prefix is what keeps the two capture modes from matching each other.
+     */
     captureInstanceKey(actionId: string, componentId: string): string {
         return `instance::${componentId}::${actionId}`;
     }

@@ -24,10 +24,23 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly ngZone = inject(NgZone);
 
+    /**
+     * Extra classes merged onto the `block` host. Note only the host's *direct*
+     * element children are animated, so a layout wrapper added inside would
+     * collapse the whole group into a single animated item.
+     */
     class = input('');
+    /** Milliseconds to wait, after the group scrolls into view, before the first child starts. Later children add {@link staggerDelay} on top of this. */
     delay = input(0);
+    /** Duration of each individual child's fade/slide/deblur, in milliseconds. Independent of the stagger — the overall reveal lasts `delay + n * staggerDelay + duration`. */
     duration = input(400);
+    /**
+     * Direction the children travel *towards*: `'up'` starts them 20px low and
+     * lifts them into place, `'left'` starts them 20px to the right, and so on.
+     * Fixed 20px offset, not RTL-aware.
+     */
     direction = input<'up' | 'down' | 'left' | 'right'>('up');
+    /** Milliseconds added between consecutive children, producing the cascade. Set to 0 to reveal every child at once. */
     staggerDelay = input(80);
 
     classes = computed(() => cn('block', this.class()));
@@ -61,6 +74,14 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
         this.animations.forEach(a => a.cancel());
     }
 
+    /**
+     * Replays the cascade on demand: hides the children again, cancels any
+     * in-flight animations and restarts from the top. The automatic run is
+     * one-shot (its IntersectionObserver disconnects after firing), so this is
+     * how you re-trigger it — e.g. after the child list changes. Unlike the
+     * automatic run it does not check the reduced-motion preference, so gate the
+     * call yourself if that matters.
+     */
     playAnimation(): void {
         this.hideChildren();
         this.animations.forEach(a => a.cancel());

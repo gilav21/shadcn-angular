@@ -36,7 +36,9 @@ export const COMMAND_GROUP = new InjectionToken<CommandGroupComponent>('COMMAND_
   host: { class: 'contents' },
 })
 export class CommandGroupComponent {
+  /** Section label rendered above the items; omit it and no heading row is emitted at all. It is not matched against the search query — only item values are. */
   heading = input('');
+  /** Merged onto the group wrapper. Note the group hides itself (via `hidden`) whenever every one of its items is filtered out, so display utilities here can be overridden. */
   class = input('');
 
   readonly id = generateId();

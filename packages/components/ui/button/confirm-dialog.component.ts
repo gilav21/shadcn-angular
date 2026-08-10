@@ -25,15 +25,25 @@ export class ConfirmDialogComponent {
     readonly confirmLabel = signal('Confirm');
     readonly cancelLabel = signal('Cancel');
 
+    /** Emits when the user accepts. Always followed by the dialog closing. */
     readonly confirmed = output<void>();
+    /**
+     * Emits on every non-accepting close — the Cancel button, Escape, or a
+     * backdrop dismiss — so a caller can rely on exactly one of
+     * {@link confirmed} / {@link cancelled} firing per open.
+     */
     readonly cancelled = output<void>();
 
     private wasOpen = false;
 
+    /**
+     * Bridges dismissals that bypass the buttons. Escape (and any other route
+     * that calls the alert dialog's own `hide()`) flips `open` to false without
+     * going through {@link onCancel}, so a true → false transition is treated as
+     * a cancel. {@link onConfirm} and {@link onCancel} clear `wasOpen` first, so
+     * they never double-emit through this path.
+     */
     constructor() {
-        // Watch for Escape key closing the dialog via alertDialog.hide() directly,
-        // which flips open to false without going through our onCancel/onConfirm paths.
-        // We only react when open transitions from true → false externally.
         effect(() => {
             const isOpen = this.open();
             if (this.wasOpen && !isOpen) {
@@ -43,20 +53,24 @@ export class ConfirmDialogComponent {
         });
     }
 
+    /** Open the dialog. */
     show(): void {
         this.open.set(true);
     }
 
+    /** Close the dialog without emitting an outcome. */
     hide(): void {
         this.open.set(false);
     }
 
+    /** Accept: close and emit {@link confirmed}. */
     onConfirm(): void {
         this.wasOpen = false;
         this.open.set(false);
         this.confirmed.emit();
     }
 
+    /** Reject: close and emit {@link cancelled}. */
     onCancel(): void {
         this.wasOpen = false;
         this.open.set(false);

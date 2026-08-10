@@ -43,11 +43,21 @@ export type ToggleSize = VariantProps<typeof toggleVariants>['size'];
     host: { class: 'contents' },
 })
 export class ToggleComponent implements OnInit {
+    /** `'default'` is a borderless button that only shows a background when pressed or hovered; `'outline'` keeps a visible border at rest. */
     variant = input<ToggleVariant>('default');
+    /** Size preset. The variant table carries no utilities for it — the actual dimensions come from the component's density CSS, keyed on this value. */
     size = input<ToggleSize>('default');
+    /** Blocks pointer interaction and dims the control. It does not freeze the state: {@link setPressed} still applies while disabled. */
     disabled = input(false);
+    /**
+     * Initial pressed state, applied once in `ngOnInit`. This is an
+     * *uncontrolled* seed — later changes are ignored, and the component owns the
+     * state from then on. Use {@link setPressed} to drive it externally.
+     */
     defaultPressed = input(false);
+    /** Extra classes merged onto the button. The pressed look is driven by `data-[state=on]:*` utilities, so restyle it through that selector. */
     class = input('');
+    /** Emitted with the new state on every user toggle (click or tap). Not emitted when the state is changed programmatically via {@link setPressed}. */
     pressedChange = output<boolean>();
 
     pressed = signal(false);
@@ -69,6 +79,12 @@ export class ToggleComponent implements OnInit {
 
     private touchToggled = false;
 
+    /**
+     * Touch handler that toggles immediately on release, avoiding the ~300ms
+     * delay before a synthesised click. The default is prevented and a flag set
+     * so the click that follows the tap is swallowed by {@link onClick} rather
+     * than toggling a second time.
+     */
     onTouchEnd(event: TouchEvent): void {
         if (!this.disabled()) {
             event.preventDefault();
@@ -79,6 +95,11 @@ export class ToggleComponent implements OnInit {
         }
     }
 
+    /**
+     * Click/keyboard-activation handler. Skips exactly one click after a touch
+     * already toggled the control (see {@link onTouchEnd}), so mouse, keyboard
+     * and touch all produce a single state change.
+     */
     onClick(): void {
         if (this.touchToggled) {
             this.touchToggled = false;
@@ -91,6 +112,13 @@ export class ToggleComponent implements OnInit {
         }
     }
 
+    /**
+     * Sets the pressed state from outside — the way to drive the toggle as a
+     * controlled component, since {@link defaultPressed} is only read once.
+     * Deliberately silent: it does not emit {@link pressedChange}, so writing
+     * back from a `pressedChange` handler cannot loop. Ignores
+     * {@link disabled}.
+     */
     setPressed(value: boolean): void {
         this.pressed.set(value);
     }

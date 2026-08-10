@@ -72,17 +72,39 @@ export class VirtualItemDirective {
   host: { class: 'contents' },
 })
 export class VirtualScrollComponent<T extends object = VirtualItem> implements AfterViewInit, OnDestroy {
+  /**
+   * The full backing list. Only the visible window is rendered, so the array may
+   * be very large; rows are keyed by an `id` property when present, so give items
+   * stable ids to avoid re-creating DOM as the window moves.
+   */
   items = input<T[]>([]);
+  /**
+   * Assumed height in pixels for rows that have not been measured yet. Rows are
+   * measured once rendered and the estimate corrected, so this only needs to be
+   * roughly right — but a badly wrong value makes the scrollbar jump as real
+   * heights land.
+   */
   minItemHeight = input<number>(50);
+  /** Extra rows rendered beyond each edge of the viewport. Higher values trade memory for fewer blank frames during fast scrolling. */
   buffer = input<number>(5);
+  /** Shows the loading indicator at the bottom and suppresses further {@link scrollEnd} emissions, so a slow page load cannot trigger a second fetch. */
   loading = input<boolean>(false);
+  /** Whether more pages exist. Set it to `false` at the end of the data and {@link scrollEnd} stops firing, along with the loading row. */
   hasMore = input<boolean>(true);
 
   @ContentChild(VirtualItemDirective, { read: TemplateRef }) itemTemplateRef?: TemplateRef<{ $implicit: T; index: number }>;
   @ContentChild('loading', { read: TemplateRef }) customLoadingTemplate?: TemplateRef<unknown>;
 
+  /** Emitted whenever the rendered index window moves. The range includes the {@link buffer} rows, so it is wider than what is actually on screen. */
   windowChange = output<{ start: number; end: number }>();
+  /**
+   * Infinite-scroll trigger: emitted when the viewport reaches within two rows
+   * of the end, and only while {@link hasMore} is true and {@link loading} is
+   * false. Set `loading` synchronously in the handler, or it will fire again on
+   * the next scroll frame.
+   */
   scrollEnd = output<void>();
+  /** Richer counterpart to {@link windowChange}: the same window plus its size, the total item count and scroll progress from 0 to 1 — enough to drive a custom scrollbar or position readout. */
   scrollState = output<VirtualScrollState>();
 
   containerRef = viewChild<ElementRef<HTMLElement>>('container');
@@ -167,6 +189,7 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     this.containerObserver?.disconnect();
   }
 
+  /** Viewport scroll handler; records the offset that drives which window is rendered. Bound in the template — it is the single input to the virtualization maths. */
   onScroll(event: Event): void {
     const target = event.target as HTMLElement;
     this.scrollTop.set(target.scrollTop);
@@ -322,6 +345,12 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     this.measurementVersion.update(v => v + 1);
   }
 
+  /**
+   * Jumps to an item by index, instantly and without smooth scrolling. The offset
+   * is computed from measured heights where available and {@link minItemHeight}
+   * elsewhere, so a jump far into unmeasured territory lands approximately and
+   * settles once the rows there are measured.
+   */
   scrollToIndex(index: number): void {
     const offset = this.getOffsetForIndex(index);
     const container = this.containerRef()?.nativeElement;
@@ -331,10 +360,12 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     }
   }
 
+  /** Jumps to the first item. Exact, since offset zero needs no height estimates. */
   scrollToTop(): void {
     this.scrollToIndex(0);
   }
 
+  /** Jumps to the end of the currently known content. Because unrendered rows are still estimated, this lands on the estimated end rather than a guaranteed final row. */
   scrollToBottom(): void {
     const container = this.containerRef()?.nativeElement;
     if (container) {
@@ -342,6 +373,11 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     }
   }
 
+  /**
+   * Row identity for `@for`/`ngFor`. Prefers the item's own `id`, then the
+   * internal `_virtualIndex`, and finally `0` — items with neither all collapse
+   * onto the same key, so give large lists stable ids.
+   */
   trackByFn(item: T & { id?: string | number; _virtualIndex?: number }): string | number {
     return item.id ?? item._virtualIndex ?? 0;
   }

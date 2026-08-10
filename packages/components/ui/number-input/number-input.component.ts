@@ -56,13 +56,24 @@ export type NumberInputVariant = 'outline' | 'underline' | 'ghost';
     host: { class: 'contents' },
 })
 export class NumberInputComponent implements ControlValueAccessor {
+    /** One-way value. Any change overwrites the current value, so it acts as a controlled value rather than just an initial one; `null` shows the placeholder. */
     readonly value = input<number | null>(null);
+    /** Lower bound applied by the steppers, arrow keys and wheel, and enforced on blur. Typing below it is allowed until the field loses focus. */
     readonly min = input<number | undefined>(undefined);
+    /** Upper bound applied by the steppers, arrow keys and wheel, and enforced on blur. Typing above it is allowed until the field loses focus. */
     readonly max = input<number | undefined>(undefined);
+    /** Increment used by {@link increment}/{@link decrement}; its decimal count also sets the rounding precision, avoiding float drift like `0.30000000000000004`. */
     readonly step = input<number>(1);
+    /**
+     * Disables the control. OR-ed with the state pushed by
+     * {@link setDisabledState}, so a reactive-forms `disable()` also wins.
+     */
     readonly disabled = input<boolean>(false);
+    /** Placeholder shown while the value is `null`. */
     readonly placeholder = input<string>('0');
+    /** Extra classes merged onto the wrapper that frames the field and the stepper buttons, not onto the inner `<input>`. */
     readonly class = input('');
+    /** Border/shape treatment of the wrapper. The inner `ui-input` renders borderless because this component itself provides `UI_INPUT_GROUP`. */
     readonly variant = input<NumberInputVariant>('outline');
     /**
      * BCP-47 locale tag used by the input's `lang` attribute so browsers
@@ -76,6 +87,7 @@ export class NumberInputComponent implements ControlValueAccessor {
     /** Effective locale tag — explicit input wins; otherwise UI_LOCALE_ID. */
     readonly resolvedLocale = computed(() => this.locale() ?? this.globalLocale());
 
+    /** Emits on every user-driven change — typing, stepper buttons, arrow keys, wheel, and the clamp applied on blur. Not emitted for {@link writeValue} or {@link value} input changes. */
     readonly valueChange = output<number | null>();
 
     readonly inputRef = viewChild.required<InputComponent>('inputRef');
@@ -116,6 +128,7 @@ export class NumberInputComponent implements ControlValueAccessor {
         });
     }
 
+    /** Parses raw typed text (empty or unparsable becomes `null`) and publishes it. Deliberately does not clamp — {@link onBlur} does that once editing ends. */
     onInputChange(raw: string): void {
         const parsed = this.parseValue(raw);
         this._currentValue.set(parsed);
@@ -123,6 +136,7 @@ export class NumberInputComponent implements ControlValueAccessor {
         this.valueChange.emit(parsed);
     }
 
+    /** Clamps the typed value into {@link min}/{@link max}, emitting only if that actually changed it, then marks the control touched. */
     onBlur(): void {
         const clamped = this.clamp(this._currentValue());
         if (clamped !== this._currentValue()) {
@@ -133,6 +147,7 @@ export class NumberInputComponent implements ControlValueAccessor {
         this.onTouched();
     }
 
+    /** Maps ArrowUp/ArrowDown to {@link increment}/{@link decrement}, suppressing the browser's own caret movement. */
     onKeydown(event: KeyboardEvent): void {
         if (event.key === 'ArrowUp') {
             event.preventDefault();
@@ -143,34 +158,41 @@ export class NumberInputComponent implements ControlValueAccessor {
         }
     }
 
+    /** Adds one {@link step}, treating a `null` value as `0`, then rounds to the step's precision and clamps to {@link max}. Also bound to the wheel and ArrowUp. */
     increment(): void {
         const current = this._currentValue() ?? 0;
         const next = this.clamp(this.roundStep(current + this.step()));
         this.updateValue(next);
     }
 
+    /** Subtracts one {@link step}, treating a `null` value as `0`, then rounds to the step's precision and clamps to {@link min}. Also bound to the wheel and ArrowDown. */
     decrement(): void {
         const current = this._currentValue() ?? 0;
         const next = this.clamp(this.roundStep(current - this.step()));
         this.updateValue(next);
     }
 
+    /** Pushes a form value in as-is — `null` empties the field — without clamping to {@link min}/{@link max} and without emitting {@link valueChange}. */
     writeValue(value: number | null): void {
         this._currentValue.set(value);
     }
 
+    /** Stores the form's change callback, invoked alongside {@link valueChange} on every user-driven change. */
     registerOnChange(fn: (value: number | null) => void): void {
         this.onChange = fn;
     }
 
+    /** Stores the form's touched callback, raised by {@link onBlur}. */
     registerOnTouched(fn: () => void): void {
         this.onTouched = fn;
     }
 
+    /** Records the form's disabled state separately from the {@link disabled} input; either one disables the field and its steppers. */
     setDisabledState(isDisabled: boolean): void {
         this._formDisabled.set(isDisabled);
     }
 
+    /** Moves focus to the inner text field (not the stepper buttons). */
     focus(): void {
         this.inputRef().focus();
     }

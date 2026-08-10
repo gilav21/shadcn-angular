@@ -44,13 +44,25 @@ import { TimelineContentComponent } from './timeline-content.component';
     host: { class: 'contents' },
 })
 export class TimelineItemComponent implements AfterContentInit {
+    /** Extra utilities for the item's row wrapper, merged through `cn()` so they override the built-in `relative flex gap-4 pb-8 last:pb-0` — this is where you change the gap between dot and content, or the spacing to the next item. */
     class = input('');
 
-    // Simple mode inputs
+    /**
+     * Simple-mode heading, rendered as an `h4`.
+     *
+     * Ignored — along with {@link description}, {@link time}, {@link variant} and
+     * {@link showConnector} — as soon as a `ui-timeline-header` or
+     * `ui-timeline-content` is projected, because {@link hasCustomContent} then
+     * swaps the whole default structure for the projected content.
+     */
     title = input<string>();
+    /** Simple-mode body text under the {@link title}, rendered as a muted `p`. Omitted entirely when empty, and ignored in custom mode (see {@link title}). */
     description = input<string>();
+    /** Simple-mode timestamp rendered as a plain `time` element below the {@link description}; pass an already-formatted string — no date parsing or `datetime` attribute is applied. Ignored in custom mode (see {@link title}). */
     time = input<string>();
+    /** Colour scheme of the simple-mode dot: `'default'` is a hollow bordered circle, `'filled'`/`'outline'` follow the primary colour, and `'success'`/`'error'`/`'warning'` are status colours. Mirrors {@link TimelineDotComponent}'s variant, and is ignored in custom mode (see {@link title}) — project a `ui-timeline-dot` and set its own `variant` instead. */
     variant = input<'default' | 'filled' | 'outline' | 'success' | 'error' | 'warning'>('default');
+    /** Whether the simple-mode vertical line to the next item is drawn (default `true`). Set it to `false` on the last item, since the line is absolutely positioned from the dot to the bottom of this item and does not stop itself. Ignored in custom mode (see {@link title}). */
     showConnector = input(true);
 
     // Content detection - use forwardRef since components are declared after

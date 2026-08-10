@@ -28,7 +28,19 @@ import { SPLIT_BUTTON } from '../split-button.component';
 export class SplitButtonItemComponent {
     private readonly splitButton = inject(SPLIT_BUTTON);
 
+    /**
+     * Greys the entry, blocks pointer events, and disables the underlying
+     * native button — which also removes it from the parent's ArrowUp/ArrowDown
+     * ring, since that query excludes `[disabled]`. Independent of the parent
+     * `ui-split-button`'s own `disabled`, which only gates the two button
+     * halves.
+     */
     disabled = input(false, { transform: booleanAttribute });
+    /**
+     * Identifier carried on the `itemClick` payload the parent emits. It is the
+     * only distinguishing field there — {@link onClick} sends `label: ''` — so
+     * set it whenever the consumer needs to tell projected entries apart.
+     */
     value = input<string>('');
 
     classes = computed(() => cn(
@@ -38,6 +50,13 @@ export class SplitButtonItemComponent {
         this.disabled() && 'pointer-events-none opacity-50'
     ));
 
+    /**
+     * Activates the entry: emits the parent's `itemClick` with
+     * `{ label: '', value }` — the projected text is never read back, so
+     * {@link value} is the only payload — and closes the parent's menu. Does
+     * nothing while {@link disabled}. The event is not consumed, but the menu
+     * closes here regardless.
+     */
     onClick(_event: MouseEvent): void {
         if (!this.disabled()) {
             this.splitButton.itemClick.emit({

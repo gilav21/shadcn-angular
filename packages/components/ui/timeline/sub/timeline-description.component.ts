@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class TimelineDescriptionComponent {
+    /** Extra utilities for the description `p`, merged through `cn()` so they override its `mt-1 text-sm text-muted-foreground` — use it to change the gap to the {@link TimelineTitleComponent} above or to lift the muted colour. */
     class = input('');
 
     classes = computed(() =>

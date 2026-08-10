@@ -17,6 +17,12 @@ import { AccordionItemComponent } from './accordion-item.component';
   host: { '[class]': '"contents"' },
 })
 export class AccordionTriggerComponent {
+  /**
+   * Extra classes merged onto the trigger button. The base classes include the
+   * `[&[data-state=open]>svg]:rotate-180` rule that flips the chevron, so keep any override
+   * additive rather than replacing the selector-based styling. Vertical padding is not in the
+   * base set — add your own (e.g. `py-4`) to match simple-mode items.
+   */
   class = input('');
 
   private readonly accordion = inject(ACCORDION, { optional: true });
@@ -44,6 +50,11 @@ export class AccordionTriggerComponent {
     )
   );
 
+  /**
+   * Toggles the enclosing `<ui-accordion-item>` via the accordion, applying its `type` and
+   * `collapsible` rules. Already bound to the button's `click`; does nothing unless the trigger
+   * is nested inside both a `<ui-accordion-item>` and a `<ui-accordion>`.
+   */
   toggle(): void {
     const val = this.item?.value();
     if (val && this.accordion) {

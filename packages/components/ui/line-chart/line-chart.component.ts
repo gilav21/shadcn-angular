@@ -64,20 +64,70 @@ export class LineChartComponent implements AfterViewInit {
     private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
     private readonly _svg = viewChild<ElementRef<SVGSVGElement>>('chartSvg');
 
+    /**
+     * One poly-line per series. Points are matched across series **by position**,
+     * not by name: the x axis categories are taken from the *first* series'
+     * `data[].name`, so every series should carry the same number of points in
+     * the same order. Each entry's `color` overrides the palette colour picked
+     * from the series index; `id` (falling back to `name`) is the key used by
+     * the legend and {@link toggleSeries}, so give series unique names when they
+     * have no `id`. The y domain is nice-rounded over the *visible* series and
+     * always includes 0, so hiding a series via the legend rescales the axis.
+     */
     readonly series = input.required<ChartSeries[]>();
+    /**
+     * Fallback width of the SVG user-space coordinate system, in px, used until
+     * the host has been measured — from then on the `viewBox` tracks the host's
+     * real width, so user space maps 1:1 to CSS px and the line never stretches.
+     * The measurement needs a block-level box: an inline-block container
+     * collapses the `width:100%` SVG, which is why the host is `class: 'block'`
+     * and the container `w-full`.
+     */
     readonly width = input(500);
+    /**
+     * Height of the SVG in px, applied literally (not scaled). It is also the
+     * y-axis extent: {@link series} values are mapped between `height - 28` and
+     * `12` in user space, leaving the bottom band for the category labels.
+     */
     readonly height = input(300);
+    /**
+     * Interpolation between points. `'linear'` (default) joins them with
+     * straight segments, `'monotone'` fits an overshoot-free cubic spline
+     * (degrading to linear for a two-point series), and `'step'` holds each
+     * value until the next x. Purely visual — hit-testing and
+     * {@link showPoints} markers stay on the raw points.
+     */
     readonly curve = input<CurveType>('linear');
+    /**
+     * Draw a circle marker on every data point. The markers are also the only
+     * focusable, clickable elements in the SVG, so turning this off removes
+     * keyboard access to the series and stops {@link pointClick} from firing —
+     * hover/crosshair/tooltip keep working, as they hit-test the whole plot.
+     */
     readonly showPoints = input(true);
+    /** Draw the dashed horizontal gridline behind each y tick. The tick *labels* are drawn either way. */
     readonly showGrid = input(true);
+    /** Show the shared tooltip listing every visible series at the hovered category. Hover still emits {@link pointHover} when disabled. */
     readonly showTooltip = input(true);
+    /** Render the legend below the chart. It is interactive: clicking an entry calls {@link toggleSeries}, so hiding it also removes the only built-in way to unhide a series. */
     readonly showLegend = input(true);
+    /** Draw the vertical line marking the hovered category, spanning the plot area. */
     readonly showCrosshair = input(true);
+    /** Extra classes merged onto the chart container, which already carries `relative w-full`. */
     readonly class = input('');
+    /** Human-readable chart name, used only to prefix the container's accessible summary ("<title>. Line chart with N data points."). */
     readonly title = input<string | undefined>(undefined);
+    /**
+     * Layout direction. `'auto'` (default) resolves from the host element's
+     * inherited DOM direction after view init; `'ltr'`/`'rtl'` force it. RTL
+     * reverses the x range (first category on the right) and moves the y tick
+     * labels to the opposite edge. See {@link isRtl}.
+     */
     readonly dir = input<ChartDirection>('auto');
 
+    /** Emitted when a point marker is clicked or activated with Enter. Requires {@link showPoints}; the payload's `event` is always undefined. */
     readonly pointClick = output<ChartClickEvent>();
+    /** Emitted with the nearest category's point from the first *visible* series on pointer move, and with `null` on pointer-leave. `index` is the category index, so consumers can mirror the highlight across their own series. */
     readonly pointHover = output<ChartClickEvent | null>();
 
     private readonly _hidden = signal<string[]>([]);
@@ -209,6 +259,12 @@ export class LineChartComponent implements AfterViewInit {
         this._domRtl.set(isRtl(this.el.nativeElement));
     }
 
+    /**
+     * Toggles a series between hidden and shown, keyed by its `id ?? name`.
+     * Bound to the legend's item clicks. Hiding a series drops it from the y
+     * domain, the tooltip rows and the rendered paths, so the axis rescales to
+     * what is left.
+     */
     toggleSeries(key: string): void {
         const hidden = this._hidden();
         this._hidden.set(
@@ -216,6 +272,13 @@ export class LineChartComponent implements AfterViewInit {
         );
     }
 
+    /**
+     * Sets the active *category* index — which drives the crosshair, the marker
+     * enlargement and the tooltip rows — and emits {@link pointHover} with that
+     * category's point from the first visible series (or `null` to clear).
+     * Exposed so a host can sync the highlight with another chart; pass an index
+     * into {@link categories}, not into a series' points.
+     */
     setHover(index: number | null): void {
         this._hover.set(index);
         if (index === null) {
@@ -228,6 +291,13 @@ export class LineChartComponent implements AfterViewInit {
         }
     }
 
+    /**
+     * Maps a mouse or touch position into SVG user space, snaps it to the
+     * nearest category tick on x, parks the tooltip just past that tick, and
+     * calls {@link setHover}. Bound to `mousemove`, `touchstart` and `touchmove`
+     * so touch devices get the same crosshair and tooltip as a mouse (the SVG
+     * sets `touch-action: none` to keep the gesture from scrolling the page).
+     */
     onPointerMove(evt: MouseEvent | TouchEvent): void {
         const svg = this._svg()?.nativeElement;
         if (!svg) return;
@@ -239,10 +309,18 @@ export class LineChartComponent implements AfterViewInit {
         this.setHover(nearest.index);
     }
 
+    /** Clears the hover — hiding the crosshair and tooltip and emitting `null` on {@link pointHover}. Bound to `mouseleave`; touch has no matching event, so the last touched category stays highlighted. */
     onPointerLeave(): void {
         this.setHover(null);
     }
 
+    /**
+     * Emits {@link pointClick} for an activated marker. `seriesIndex` is the
+     * position in the *rendered* (visible) series list and is resolved against
+     * {@link series} by that position, so it only agrees with the source array
+     * while no series is hidden; `pointIndex` is the category index. Nothing is
+     * emitted if the lookup finds no point.
+     */
     onPointClick(seriesIndex: number, pointIndex: number): void {
         const data = this.series()[seriesIndex]?.data[pointIndex];
         if (data) this.pointClick.emit({ point: data, index: pointIndex });

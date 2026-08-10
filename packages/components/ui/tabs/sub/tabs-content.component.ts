@@ -28,7 +28,17 @@ import { TABS } from '../tabs.component';
   host: { '[class]': '"contents"' },
 })
 export class TabsContentComponent {
+  /**
+   * Value tying this panel to the `<ui-tabs-trigger>` with the same value. Required; the panel
+   * shows only while it matches the parent tabs' active value, and stays hidden forever if no
+   * trigger uses it.
+   */
   value = input.required<string>();
+  /**
+   * Extra classes merged onto the panel, after the base `mt-2` spacing and focus ring. The panel
+   * is destroyed while inactive, so its content re-initialises on every switch back — persist
+   * state outside it, and don't rely on enter animations from a mounted-but-hidden state.
+   */
   class = input('');
 
   private readonly tabs = inject(TABS, { optional: true });

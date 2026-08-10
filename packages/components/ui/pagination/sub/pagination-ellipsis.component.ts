@@ -24,6 +24,7 @@ import { PAGINATION_LOCALES, type PaginationLocale } from '../pagination.locales
   host: { class: 'contents' },
 })
 export class PaginationEllipsisComponent {
+  /** Extra classes merged onto the gap marker. It matches a page link's 36×36 box so the row stays evenly spaced, is `aria-hidden`, and carries a localized "more pages" label for screen readers. */
   readonly class = input('');
 
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */

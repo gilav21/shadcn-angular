@@ -50,6 +50,16 @@ export class ToastService {
   private readonly timeoutIds = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly intervalIds = new Map<string, ReturnType<typeof setInterval>>();
 
+  /**
+   * Queues a toast and returns its generated id (usable with {@link dismiss}).
+   * Every call stacks a new entry — identical toasts are **not** coalesced, so
+   * de-duplicate at the call site if a repeated event can fire in a loop. Auto-dismiss
+   * runs after `duration` ms (default 5000); pass `duration: 0` (or a negative value)
+   * for a sticky toast that only a close click or {@link dismiss} removes. With
+   * `showCountdown`, a 1s interval ticks `countdownSeconds` down from
+   * `ceil(duration / 1000)` and drives the progress bar. Nothing is capped or evicted:
+   * the visible stack grows with the queue.
+   */
   toast(options: Omit<ToastData, 'id'>): string {
     const id = `toast-${++this.counter}`;
     const duration = options.duration ?? 5000;
@@ -82,14 +92,26 @@ export class ToastService {
     return id;
   }
 
+  /** {@link toast} shorthand for the green `success` variant. Returns the new toast's id. */
   success(title: string, description?: string, duration = 5000): string {
     return this.toast({ title, description, variant: 'success', duration });
   }
 
+  /**
+   * {@link toast} shorthand for the `destructive` variant, which also upgrades the
+   * rendered toast to `role="alert"` / `aria-live="assertive"` so screen readers
+   * interrupt. Still auto-dismisses after `duration` — pass `0` for errors that must
+   * be acknowledged.
+   */
   error(title: string, description?: string, duration = 5000): string {
     return this.toast({ title, description, variant: 'destructive', duration });
   }
 
+  /**
+   * Removes one toast immediately and clears its auto-dismiss timer and countdown
+   * interval. Also what the close button and the auto-dismiss timeout call. Unknown
+   * ids are ignored; there is no exit animation, the toast leaves the DOM at once.
+   */
   dismiss(id: string): void {
     const timeoutId = this.timeoutIds.get(id);
     if (timeoutId) {
@@ -104,6 +126,11 @@ export class ToastService {
     this.toastsSignal.update(toasts => toasts.filter(t => t.id !== id));
   }
 
+  /**
+   * Clears the whole queue and every pending timer — the service is app-wide
+   * (`providedIn: 'root'`), so this drops toasts raised by other features too. Useful
+   * on route changes.
+   */
   dismissAll(): void {
     this.timeoutIds.forEach(timeoutId => clearTimeout(timeoutId));
     this.timeoutIds.clear();
@@ -123,18 +150,41 @@ export class ToastService {
   },
 })
 export class ToastComponent {
+  /**
+   * Visual style, which also sets the announcement politeness: `destructive` renders
+   * `role="alert"` / `aria-live="assertive"`, while `default` and `success` use
+   * `status` / `polite`.
+   */
   readonly variant = input<ToastVariant>('default');
+  /** Bold first line. Omit it for a description-only toast — the row is simply not rendered. */
   readonly title = input<string>();
+  /** Secondary line under the title, rendered at 90% opacity. Plain text only — no markup is interpreted. */
   readonly description = input<string>();
+  /**
+   * Optional action button. `onClick` is invoked as-is and does **not** dismiss the
+   * toast — call `ToastService.dismiss(id)` yourself if the action should close it.
+   */
   readonly action = input<{ label: string; onClick: () => void }>();
+  /** Shows the remaining seconds beside the action label and a draining progress bar. Requires {@link duration}. */
   readonly showCountdown = input<boolean | undefined>(false);
+  /** Seconds left, ticked once per second by `ToastService`; this component only displays the value. */
   readonly countdownSeconds = input<number | undefined>(undefined);
+  /**
+   * Total lifetime in ms. Purely presentational here — it is the denominator of the
+   * progress bar; the actual dismissal timer lives in `ToastService`.
+   */
   readonly duration = input<number | undefined>(undefined);
+  /** Epoch ms when the toast was raised. Supplied by `ToastService` for elapsed-time maths. */
   readonly createdAt = input<number | undefined>(undefined);
 
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
   readonly locale = input<LocaleInput<CommonLocale>>();
 
+  /**
+   * Emitted when the user clicks the close button or presses `Escape` on the toast.
+   * `ui-toaster` responds by calling `ToastService.dismiss` — a standalone `ui-toast`
+   * must remove itself, since the component never hides itself.
+   */
   readonly closed = output<void>();
 
   private readonly i18n = createLocaleBindings(this.locale, COMMON_LOCALES);

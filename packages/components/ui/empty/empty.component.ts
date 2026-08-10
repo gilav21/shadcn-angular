@@ -34,6 +34,13 @@ import { cn } from '../../lib/utils';
     host: { class: 'contents' },
 })
 export class EmptyComponent {
+    /**
+     * Extra classes merged onto the placeholder panel. The defaults make it a
+     * dashed-border flex child that grows to fill its parent (`flex-1`), with
+     * padding that already scales from mobile to desktop — override
+     * `border-dashed` for a solid card, or `flex-1` when it should size to its
+     * content instead.
+     */
     class = input('');
 
     classes = computed(() => cn(

@@ -171,50 +171,164 @@ export class DataTableComponent<T>
   protected readonly EMPTY_RECORD = EMPTY_RECORD;
   private readonly _document = inject(DOCUMENT);
   private readonly _el = inject(ElementRef);
+  /**
+   * True when the host element's resolved writing direction is RTL. Read from
+   * the live DOM (not the {@link locale} input), and used to mirror
+   * direction-sensitive gestures such as column-resize deltas.
+   */
   isRtl(): boolean {
     return isRtl(this._el.nativeElement);
   }
   private _isRtlResize = false;
 
+  /**
+   * The row array. A `model`, and the table *does* write back to it: inline
+   * edits committed through a column `valueSetter`, fill-handle, paste and
+   * undo/redo all emit a new array here. Filtering, sorting and pagination
+   * never mutate it — they derive views. Row drag does not write back either;
+   * see {@link reorderData}.
+   */
   readonly data = model.required<T[]>();
   /** @see columnHelper for a type-safe fluent builder API */
   readonly columns = input.required<ColumnDef<T>[]>();
 
+  /** Hides the whole toolbar row (global filter, advanced filter, columns menu) when false. */
   readonly showToolbar = input(true);
+  /** Hides the columns popover in the toolbar; only shown when at least one column is hideable. */
   readonly showColumnVisibilityToggle = input(true);
+  /**
+   * Renders the pagination footer. Also acts as a mode switch: with
+   * {@link localPagination} on, `enableVirtualScroll: "auto"` declines to
+   * virtualize while pagination is showing.
+   */
   readonly showPagination = input(true);
+  /** Adds the horizontal rule under each row/header cell. Purely cosmetic. */
   readonly showRowBorders = input(true);
+  /** Adds the vertical rule between cells. Purely cosmetic. */
   readonly showColumnBorders = input(true);
 
+  /**
+   * Sort the rows in the browser. Set false for server-side sorting: the header
+   * still cycles and {@link sortChange} / {@link multiSortChange} still fire, but
+   * the row order is left exactly as you supply it in {@link data}.
+   */
   readonly localSorting = input(true);
+  /**
+   * Slice the rows in the browser. Set false for server-side paging: supply only
+   * the current page in {@link data}, set {@link total} to the full row count,
+   * and re-fetch from {@link pageChange}.
+   */
   readonly localPagination = input(true);
+  /**
+   * Filter the rows in the browser — global filter, per-column filters and the
+   * advanced filter tree all become no-ops when false. {@link filterChange} still
+   * fires so you can filter server-side.
+   */
   readonly localFiltering = input(true);
+  /**
+   * Shows the busy overlay above the (still rendered) table. Which triggers
+   * actually surface it is filtered by {@link loadingVisibility}, so setting
+   * this alone does not guarantee an overlay. Also blocks row drag.
+   */
   readonly loading = input(false);
+  /**
+   * Replaces the entire table — toolbar, grid and footer — with placeholder
+   * bars. This is the first-paint state, distinct from {@link loading}, which
+   * overlays the real table.
+   */
   readonly skeleton = input(false);
+  /** Number of placeholder row bars drawn while {@link skeleton} is true. */
   readonly skeletonRows = input(5);
+  /**
+   * Per-trigger opt-out for the {@link loading} overlay: set a key to `false`
+   * to keep the table quiet during e.g. sorting round-trips while still
+   * showing the overlay on the initial load. Unset keys default to visible.
+   */
   readonly loadingVisibility = input<DataTableLoadingVisibility>({
     initial: true,
     pagination: true,
     sorting: true,
     filtering: true,
   });
+  /**
+   * Custom content for the loading overlay. Receives the active
+   * {@link DataTableLoadingTrigger} as both `$implicit` and `trigger`. Takes
+   * precedence over {@link loaderComponent}; with neither, a default spinner
+   * is rendered.
+   */
   readonly loaderTemplate = input<TemplateRef<unknown>>();
+  /**
+   * Component rendered inside the loading overlay. Used only when
+   * {@link loaderTemplate} is unset.
+   */
   readonly loaderComponent = input<Type<unknown>>();
+  /**
+   * Inputs bound onto {@link loaderComponent}. The table always adds a
+   * `trigger` input carrying the current {@link DataTableLoadingTrigger},
+   * overwriting any `trigger` you pass here.
+   */
   readonly loaderComponentInputs = input<Record<string, unknown>>({});
+  /**
+   * Replaces the built-in global-filter matcher (which lowercases each visible
+   * cell's string value and tests `includes`). Receives the already-lowercased
+   * filter text and the resolved columns. Only consulted while
+   * {@link localFiltering} is true.
+   */
   readonly globalFilterFn = input<
     | ((row: T, filterValue: string, columns: ColumnDef<T>[]) => boolean)
     | undefined
   >(undefined);
+  /**
+   * Lets shift-click stack multiple sort columns. While on, {@link sortState}
+   * is no longer authoritative — read {@link multiSortState} /
+   * {@link multiSortChange} instead.
+   */
   readonly enableMultiSort = input(false);
+  /**
+   * Cap on the multi-sort chain; adding beyond it drops the oldest column.
+   * Values below 1 are clamped to 1. Ignored unless {@link enableMultiSort}.
+   */
   readonly maxMultiSortColumns = input(3);
+  /**
+   * Full row count on the server. Required — and only used — when
+   * {@link localPagination} is false, where it drives the page count and the
+   * "N of M" readouts; ignored otherwise, since the local row count is known.
+   */
   readonly total = input(0);
 
+  /**
+   * The new single-sort state after a header activation (direction `null` means
+   * the sort was cleared). Fires regardless of {@link localSorting} — handle it
+   * to sort server-side.
+   */
   readonly sortChange = output<SortState>();
+  /**
+   * The whole ordered sort chain, highest priority first, after a multi-sort
+   * change. Only meaningful with {@link enableMultiSort}.
+   */
   readonly multiSortChange = output<SortState[]>();
+  /**
+   * The requested page index/size. Fires for both local and server paging; with
+   * {@link localPagination} false this is your cue to fetch the page.
+   */
   readonly pageChange = output<PaginationState>();
+  /**
+   * The raw global-filter text, after {@link filterDebounce}. Fires even when
+   * {@link localFiltering} is false, which is how you drive a server-side search.
+   */
   readonly filterChange = output<string>();
 
+  /**
+   * A committed inline cell edit: row, column key, and old/new value. The table
+   * has already written the value through the column's `valueSetter` into a new
+   * {@link data} array by the time this fires — persist it, and revert `data`
+   * yourself if the server rejects it.
+   */
   readonly cellEdit = output<CellEditEvent<T>>();
+  /**
+   * A rejected inline edit (a column `validate` returned an error). The value is
+   * *not* written and the editor stays open with the message shown inline.
+   */
   readonly editError = output<CellEditErrorEvent<T>>();
   readonly editingCell = signal<EditingCell | null>(null);
   readonly editValue = signal<unknown>(null);
@@ -222,31 +336,110 @@ export class DataTableComponent<T>
   /** Stable id for the inline edit-error message, linked via `aria-describedby`. */
   readonly cellEditErrorId = `ui-data-table-cell-edit-error-${dataTableUid++}`;
 
+  /** Adds the leading checkbox column and the header select-all checkbox. */
   readonly enableRowSelection = input(false);
+  /**
+   * Selection as an id → true map keyed by {@link getRowId}. Two-way: the table
+   * writes a *new* object on every change. Ids of rows that are filtered out (or
+   * no longer in {@link data}) are kept, so selection survives a filter — read it
+   * back against your data rather than treating its size as "visible selected".
+   */
   readonly rowSelection = model<Record<string, boolean>>({});
+  /**
+   * Stable identity for a row, used as the key of {@link rowSelection},
+   * {@link expandedRows} and {@link subRowExpandedRows}. Defaults to the row's
+   * `id` property, falling back to `JSON.stringify(row)` when absent — which
+   * means edits change a row's identity and drop its selection. Supply a real
+   * key whenever rows are editable.
+   */
   readonly getRowId = input<(row: T) => string>(DEFAULT_GET_ROW_ID);
+  /**
+   * Enables the clipboard paths: `Ctrl/Cmd+C` and the
+   * `copy*ToClipboard` methods, all of which return early when false. The
+   * selection, expander and actions columns are never copied.
+   */
   readonly enableCopy = input(true);
+  /**
+   * Marks rows non-interactive (no selection, no drag, no inline edit). Combined
+   * with {@link disabledRowIds} — a row is disabled if either says so.
+   */
   readonly isRowDisabled = input<((row: T) => boolean) | undefined>(undefined);
+  /**
+   * Disabled rows addressed by {@link getRowId}. Accepts a `Set` (used directly)
+   * or an array (copied into a `Set`). See {@link isRowDisabled}.
+   */
   readonly disabledRowIds = input<ReadonlySet<string> | readonly string[]>([]);
+  /**
+   * Adds the leading chevron column that reveals a detail row beneath each row.
+   * This is master/detail — unrelated to {@link enableSubRows}, which renders a
+   * hierarchy in the grid itself.
+   */
   readonly enableRowExpansion = input(false);
+  /** Which detail rows are open, keyed by {@link getRowId}. Two-way. */
   readonly expandedRows = model<Record<string, boolean>>({});
+  /**
+   * Detail-row content, receiving the row as `$implicit`/`row`. Takes precedence
+   * over {@link rowDetailComponent}.
+   */
   readonly rowDetailTemplate = input<TemplateRef<unknown>>();
+  /** Component rendered in the detail row when {@link rowDetailTemplate} is unset. */
   readonly rowDetailComponent = input<Type<unknown>>();
+  /**
+   * Per-row inputs for {@link rowDetailComponent}. Called for each expanded row;
+   * without it the component receives only a `row` input.
+   */
   readonly rowDetailComponentInputs = input<
     ((row: T) => Record<string, unknown>) | undefined
   >(undefined);
 
+  /**
+   * Renders hierarchical data: rows are flattened into an indented tree with
+   * expanders. Mutually exclusive with {@link groupBy}. Changes what most
+   * row-level APIs operate on — the visible rows become tree rows.
+   */
   readonly enableSubRows = input(false);
+  /** Reads a row's children. Defaults to the row's `children` property. */
   readonly getChildren = input<(row: T) => T[] | undefined>((row: T) => (row as Record<string, unknown>)['children'] as T[] | undefined);
+  /**
+   * Returns a *new* row with the given children — the table never mutates a row
+   * in place. Used when tree row-drag re-parents nodes; the default spreads the
+   * row and replaces `children`.
+   */
   readonly setChildren = input<(row: T, children: T[]) => T>(
     (row: T, children: T[]) => ({ ...row, children }),
   );
+  /**
+   * Depth expanded on first render (0 = only roots, 1 = roots plus their
+   * children, …). It seeds {@link subRowExpandedRows}; explicit entries there win.
+   */
   readonly subRowDefaultExpanded = input(0);
+  /**
+   * How a checkbox click propagates through the tree: `"self"` (default) touches
+   * only the clicked row; the cascading modes also select descendants and derive
+   * an indeterminate parent state.
+   */
   readonly subRowSelectionMode = input<SubRowSelectionMode>("self");
+  /**
+   * What a filter match does to the hierarchy — by default a matching child
+   * keeps its ancestors visible so it can still be reached.
+   */
   readonly subRowFilterMode = input<SubRowFilterMode>("includeParentOnChildMatch");
+  /**
+   * Sorts children within their parent instead of leaving them in source order.
+   * Requires {@link localSorting}; the tree shape is always preserved.
+   */
   readonly enableSubRowSorting = input(true);
+  /** Pixels of indent added per tree depth level in the first data column. */
   readonly subRowIndentSize = input(20);
+  /**
+   * Paginate over *visible* (flattened) tree rows rather than over root rows, so
+   * expanding a node can push its siblings onto the next page.
+   */
   readonly subRowsPaginated = input(false);
+  /**
+   * Which tree nodes are expanded, keyed by {@link getRowId}. Two-way, and
+   * separate from {@link expandedRows} (which is master/detail).
+   */
   readonly subRowExpandedRows = model<Record<string, boolean>>({});
 
   /**
@@ -262,17 +455,76 @@ export class DataTableComponent<T>
   /** When true, group header rows display per-column aggregate values. */
   readonly groupAggregates = input<boolean>(true);
 
+  /**
+   * Adds a drag handle to each header's trailing edge (mouse and touch). Widths
+   * are stored in the two-way {@link columnWidths} map keyed by accessor key and
+   * override the column's declared width; {@link columnResize} reports each drop.
+   */
   readonly enableColumnResize = input(false);
+  /**
+   * Lets headers be dragged to reorder columns, writing the new order into the
+   * two-way {@link columnOrder}. Pinned/sticky columns keep their side
+   * regardless of order.
+   */
   readonly enableColumnReorder = input(false);
+  /**
+   * Footer row visibility. `"auto"` (default) shows it only when some column
+   * declares a `footer`, `aggregateFn`, `footerTemplate` or `footerComponent`;
+   * `true` forces an (otherwise empty) footer.
+   */
   readonly showFooter = input<boolean | "auto">("auto");
+  /**
+   * Adds a second header row of per-column filter inputs. A column opts in with
+   * `enableFiltering` or a floating filter template/component; if no column
+   * does, the table warns and renders nothing. Values flow into
+   * {@link columnFilters}.
+   */
   readonly enableFloatingFilters = input(false);
+  /**
+   * Makes rows draggable (HTML5 drag-and-drop). Disabled rows and rows under a
+   * {@link loading} overlay cannot be dragged.
+   */
   readonly enableRowDrag = input(false);
+  /**
+   * Intended as "apply the reorder to {@link data} automatically", but the
+   * component currently never reads it: a drop only emits {@link rowReorder},
+   * and the rows move only once you write `data` yourself — typically
+   * `data.set(table.reorderData(data(), event))`. Treat reordering as manual
+   * regardless of this flag.
+   */
   readonly localReorder = input(true);
+  /**
+   * `"flat"` (default) allows only above/below drops, and — in tree mode —
+   * blocks drops across differing depths. `"tree"` adds an `"on"` position over
+   * the middle of a row, which re-parents the dragged node via
+   * {@link setChildren}.
+   */
   readonly rowDragMode = input<'flat' | 'tree'>('flat');
+  /**
+   * Vetoes individual drops. Returning false suppresses the drop indicator and
+   * the drop entirely for that target/position combination.
+   */
   readonly rowDragAllowDrop = input<((dragRow: T, targetRow: T, position: RowDragPosition) => boolean) | undefined>(undefined);
+  /**
+   * A completed row drag: the moved row plus its source and target indices, in
+   * the *rendered* (filtered/sorted/paged) order — map back to your source
+   * collection before persisting.
+   */
   readonly rowReorder = output<RowReorderEvent<T>>();
+  /**
+   * Briefly highlights cells whose value changed between two {@link data}
+   * emissions — for live/streaming feeds. Requires a stable {@link getRowId};
+   * with the default id function the table warns and skips flashing.
+   */
   readonly enableCellFlash = input(false);
+  /** Milliseconds a changed cell stays highlighted. See {@link enableCellFlash}. */
   readonly cellFlashDuration = input(500);
+  /**
+   * Enables Excel-style rectangular cell-range selection by dragging across
+   * cells (also disables text selection in the grid). Prerequisite for
+   * {@link enableRangeActions} and {@link enableFillHandle}, and it widens
+   * `Ctrl/Cmd+C` to copy the whole range as TSV.
+   */
   readonly enableCellRangeSelection = input(false);
   readonly cellRange = signal<CellRange | null>(null);
   /**
@@ -304,19 +556,46 @@ export class DataTableComponent<T>
    * inverse value through each column's `valueSetter` and re-emits `cellEdit`.
    */
   readonly enableEditHistory = input(false);
+  /**
+   * Fired after an undo has been applied (the inverse values are already written
+   * to {@link data} and re-emitted as {@link cellEdit}). Requires
+   * {@link enableEditHistory}.
+   */
   readonly editUndo = output<void>();
+  /** Fired after a redo has been applied. See {@link editUndo}. */
   readonly editRedo = output<void>();
   private readonly _undoStack = signal<EditChange[][]>([]);
   private readonly _redoStack = signal<EditChange[][]>([]);
   private _recordingChanges: EditChange[] | null = null;
   readonly canUndo = computed(() => this._undoStack().length > 0);
   readonly canRedo = computed(() => this._redoStack().length > 0);
+  /**
+   * A finished column resize: the column key and its new pixel width. The width
+   * is already in {@link columnWidths}, so handle this only to persist it.
+   */
   readonly columnResize = output<ColumnResizeEvent>();
 
+  /**
+   * Replaces the "No results found." placeholder shown when the *filtered* row
+   * set is empty. It is not shown while {@link skeleton} or the loading overlay
+   * is up.
+   */
   readonly emptyStateComponent = input<Type<unknown>>();
+  /** Inputs bound onto {@link emptyStateComponent}. */
   readonly emptyStateComponentInputs = input<Record<string, unknown>>({});
+  /**
+   * Marks rows that render as a single cell spanning the full table width
+   * (section banners, ad slots, "load more" rows) instead of the normal column
+   * grid. Such rows still occupy a row slot in selection and pagination.
+   */
   readonly fullWidthRow = input<((row: T) => boolean) | undefined>(undefined);
+  /**
+   * Content for a {@link fullWidthRow}, receiving the row as `$implicit` and its
+   * rendered `index`. Takes precedence over {@link fullWidthRowComponent}; with
+   * neither, the full-width cell renders empty.
+   */
   readonly fullWidthRowTemplate = input<TemplateRef<unknown>>();
+  /** Component for a {@link fullWidthRow}; bound `row` and `index` inputs. */
   readonly fullWidthRowComponent = input<Type<unknown>>();
 
   /**
@@ -327,6 +606,11 @@ export class DataTableComponent<T>
    * `CalendarLocale` separately.
    */
   readonly locale = input<LocaleInput<DataTableLocale>>();
+  /**
+   * Milliseconds to wait after typing before the global filter is applied and
+   * {@link filterChange} emitted. 0 (default) applies on every keystroke. Only
+   * the toolbar's global filter is debounced — column filters apply immediately.
+   */
   readonly filterDebounce = input(0);
 
   /**
@@ -342,11 +626,33 @@ export class DataTableComponent<T>
    * @default false
    */
   readonly enableVirtualScroll = input<boolean | "auto">(false);
+  /**
+   * Row height in pixels assumed by the virtual-scroll maths, and the fallback
+   * for unmeasured rows under {@link virtualVariableRowHeight}. If your CSS row
+   * height differs, the scrollbar and the rows drift apart.
+   */
   readonly virtualRowHeight = input(40);
+  /** Extra rows rendered above and below the viewport to hide scroll tearing. */
   readonly virtualRowBuffer = input(5);
+  /** Extra columns rendered either side of the viewport during horizontal virtualization. */
   readonly virtualColumnBuffer = input(3);
+  /**
+   * Measures each rendered row and uses prefix sums instead of a fixed row
+   * height — needed for wrapping content, at the cost of a `ResizeObserver` per
+   * row and re-measurement as rows scroll in.
+   */
   readonly virtualVariableRowHeight = input(false);
+  /**
+   * Reuses cell component instances from a pool as rows scroll instead of
+   * destroying and recreating them. Only safe for cell components with no
+   * per-instance state outside their inputs. See {@link recycleStats}.
+   */
   readonly virtualRecycleComponents = input(false);
+  /**
+   * The row/column counts above which `enableVirtualScroll: "auto"` switches
+   * virtualization on. Ignored when {@link enableVirtualScroll} is an explicit
+   * boolean.
+   */
   readonly virtualAutoThreshold = input<VirtualAutoThreshold>({
     rows: 500,
     columns: 20,
@@ -582,7 +888,19 @@ export class DataTableComponent<T>
   private readonly _busyLabel = signal<string | null>(null);
   /** Visually-hidden live-region text announcing sort/filter changes to AT. */
   readonly srAnnouncement = signal("");
+  /**
+   * The toolbar's search text. Two-way, so setting it filters programmatically —
+   * but writing it directly bypasses {@link filterDebounce}, the page-index
+   * reset and the {@link filterChange} emission that {@link onFilterChange} does.
+   */
   readonly globalFilter = model("");
+  /**
+   * Per-column filter values keyed by accessor key. A value is applied only if
+   * the column declares `enableFiltering`; it then runs the column's `filterFn`,
+   * or a case-insensitive substring match on the cell's string value. Empty
+   * values (null/''/[]) are skipped, so clearing a filter means writing one of
+   * those, not deleting the key.
+   */
   readonly columnFilters = model<Record<string, unknown>>({});
   /**
    * Bring-your-own AI hook. Enables natural-language filtering
@@ -642,20 +960,56 @@ export class DataTableComponent<T>
     );
   }
 
+  /**
+   * Stores a tree edited in the builder popover. Unlike the global filter this
+   * does not reset the page index, so a narrowing edit can leave you on a page
+   * past the end until you page back.
+   */
   onAdvancedFilterChange(group: FilterGroup): void {
     this.advancedFilter.set(group);
   }
 
+  /** Drops the advanced filter entirely; the global and column filters are untouched. */
   clearAdvancedFilter(): void {
     this.advancedFilter.set(null);
   }
+  /**
+   * Current single-column sort. Two-way, so writing it sorts programmatically
+   * (locally, when {@link localSorting}) — but unlike {@link onSortChange} it
+   * emits no {@link sortChange} and does not touch {@link multiSortState}.
+   */
   readonly sortState = model<SortState>({ column: "", direction: null });
+  /**
+   * The ordered multi-sort chain, highest priority first. Only consulted while
+   * {@link enableMultiSort} is on; capped at {@link maxMultiSortColumns}.
+   */
   readonly multiSortState = model<SortState[]>([]);
+  /**
+   * Current page index and size. Two-way: the table resets `pageIndex` to 0
+   * whenever a filter changes, so don't assume it stays where you put it.
+   */
   readonly paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  /** Choices offered in the footer's page-size select. */
   readonly pageSizeOptions = input<number[]>([10, 20, 30, 40, 50]);
+  /** Hides the page-size select while keeping the page buttons. */
   readonly showPageSizeSelector = input(true);
+  /**
+   * Runtime column widths (CSS length strings) keyed by accessor key,
+   * overriding each column's declared `width`. Written by
+   * {@link enableColumnResize}; a good thing to persist and restore — see
+   * {@link getColumnState} / {@link applyColumnState}.
+   */
   readonly columnWidths = model<Record<string, string>>({});
+  /**
+   * Column visibility keyed by accessor key. Only `false` hides — a missing key
+   * counts as visible, so hiding requires writing `false`, not deleting.
+   */
   readonly columnVisibility = model<Record<string, boolean>>({});
+  /**
+   * Accessor keys in display order. Keys absent from this array keep their
+   * declaration order after the listed ones, so a partial order is legal.
+   * Pinned/sticky columns are still grouped to their side.
+   */
   readonly columnOrder = model<string[]>([]);
   readonly loadingTrigger = signal<DataTableLoadingTrigger>("initial");
   readonly focusedCell = signal<{ rowIndex: number; columnKey: string } | null>(null);
@@ -1177,6 +1531,11 @@ export class DataTableComponent<T>
   );
   private readonly flashTimers: ReturnType<typeof setTimeout>[] = [];
 
+  /**
+   * Animation classes for a cell that just changed — green for a numeric
+   * increase, red for a decrease, yellow for any other change — or `''` when the
+   * cell is not flashing. Requires {@link enableCellFlash}.
+   */
   getCellFlashClass(rowId: string, columnKey: string): string {
     const flash = this.flashingCells().get(`${rowId}:${columnKey}`);
     if (!flash) return "";
@@ -1559,6 +1918,12 @@ export class DataTableComponent<T>
     this.viewportObserver.observe(container);
   }
 
+  /**
+   * Scroll handler for the virtualized viewport. Coalesces to one
+   * `requestAnimationFrame` per frame, and ignores events raised by the table's
+   * own compensating scrolls (variable row heights, {@link scrollToRow}).
+   * Bound by the template only while virtualization is active.
+   */
   onVirtualScroll(event: Event): void {
     if (this.suppressScrollEvents) return;
     const el = event.target as HTMLElement;
@@ -1608,6 +1973,11 @@ export class DataTableComponent<T>
     this.measurementVersion.update((v) => v + 1);
   }
 
+  /**
+   * Maps an index within the rendered window to the index in the full row set,
+   * by adding the window's start offset. Use it whenever a template callback
+   * hands you a `$index` under virtualization — raw `$index` is window-relative.
+   */
   getVirtualRowIndex(localIndex: number): number {
     return this.virtualRowRange().start + localIndex;
   }
@@ -1641,6 +2011,11 @@ export class DataTableComponent<T>
     return map;
   });
 
+  /**
+   * The active direction for a column, or `null` when unsorted. Reads the
+   * multi-sort chain when {@link enableMultiSort} is on and {@link sortState}
+   * otherwise, so it is the right accessor in both modes.
+   */
   getSortDirection(columnKey: string | keyof T): SortDirection {
     return this._sortLookup().get(String(columnKey))?.direction ?? null;
   }
@@ -1697,6 +2072,11 @@ export class DataTableComponent<T>
     }, 500);
   }
 
+  /**
+   * Zero-based position of a column in the multi-sort chain, used to render the
+   * priority badge. Always `null` when {@link enableMultiSort} is off, even if
+   * the column is sorted.
+   */
   getSortIndex(columnKey: string | keyof T): number | null {
     if (!this.enableMultiSort()) {
       return null;
@@ -1704,6 +2084,16 @@ export class DataTableComponent<T>
     return this._sortLookup().get(String(columnKey))?.index ?? null;
   }
 
+  /**
+   * Applies a sort and emits it — the programmatic equivalent of clicking a
+   * header, and the entry point addons use. `multi` (shift-click) appends to
+   * the chain instead of replacing it, but only while {@link enableMultiSort}
+   * is on; the chain is then trimmed to the newest {@link maxMultiSortColumns}.
+   *
+   * Always emits {@link sortChange} (and {@link multiSortChange} in multi mode)
+   * and, if you were past page 0, resets the page and emits {@link pageChange}.
+   * With {@link localSorting} false the rows are left untouched.
+   */
   onSortChange(
     columnKey: string | keyof T,
     direction: SortDirection,
@@ -1920,11 +2310,18 @@ export class DataTableComponent<T>
     return !!col.enableFiltering;
   }
 
+  /**
+   * Builds the change callback handed to a column's floating-filter
+   * template/component. Calling it is equivalent to
+   * {@link onColumnFilterChange} for that column — a new function identity per
+   * call, so bind it in the template rather than comparing references.
+   */
   getFloatingFilterChange(col: ColumnDef<T>): (value: unknown) => void {
     return (value: unknown) =>
       this.onColumnFilterChange(col.accessorKey, value);
   }
 
+  /** Whether {@link fullWidthRow} claims this row; false when no predicate is set. */
   isFullWidthRow(row: T): boolean {
     const fn = this.fullWidthRow();
     return fn ? fn(row) : false;
@@ -1944,6 +2341,12 @@ export class DataTableComponent<T>
     };
   });
 
+  /**
+   * Whether a cell falls inside the selected rectangle (drives its highlight).
+   * `rowIndex` is the index in the rendered rows, and columns are compared by
+   * position among the navigable (non-`_selection`/`_expander`/`_actions`)
+   * columns, so a hidden or reordered column changes the answer.
+   */
   isCellInRange(rowIndex: number, columnKey: string): boolean {
     const range = this.normalizedCellRange();
     if (!range) return false;
@@ -2200,6 +2603,11 @@ export class DataTableComponent<T>
   private _fillSource: { minRow: number; maxRow: number; minCol: number; maxCol: number } | null = null;
   private readonly _fillPreviewEndRow = signal<number | null>(null);
 
+  /**
+   * Whether a cell is in the dashed preview band below the source range during
+   * a fill-handle drag. Only rows *after* the source are ever previewed —
+   * dragging upwards previews nothing.
+   */
   isCellInFillPreview(rowIndex: number, columnKey: string): boolean {
     const source = this._fillSource;
     const end = this._fillPreviewEndRow();
@@ -2213,6 +2621,13 @@ export class DataTableComponent<T>
     );
   }
 
+  /**
+   * Begins a fill-handle drag (mouse or touch) from the current range or focused
+   * cell, attaching document-level move/end listeners that track the pointer by
+   * hit-testing rows. The values are written on release, through each column's
+   * `valueSetter` only — columns without one are skipped. See
+   * {@link enableFillHandle} and {@link fillSeries}.
+   */
   onFillHandleStart(event: Event): void {
     this._fillSource = this.fillSourceRange();
     if (!this._fillSource) return;
@@ -2333,6 +2748,11 @@ export class DataTableComponent<T>
     ),
   );
 
+  /**
+   * Classes for a header cell (stickiness, pin shadow, borders), served from a
+   * precomputed per-column map. A column not in the resolved set — the trailing
+   * filler head — falls back to a generic sticky header class.
+   */
   getHeaderClass(col: CellStyleColumn): string {
     return (
       this._headerClassMap().get(String(col.accessorKey)) ??
@@ -2340,6 +2760,12 @@ export class DataTableComponent<T>
     );
   }
 
+  /**
+   * Classes for a body cell. Pass `rowIndex` (in rendered order) to get the
+   * focus ring / range tint / fill-preview outline — omit it and you get only
+   * the static base. Passing `treeDepth` selects the tree variant of that base;
+   * the depth indent itself comes from {@link getTreeCellStyle}.
+   */
   getCellClass(col: CellStyleColumn, rowIndex?: number, treeDepth?: number): string {
     const base =
       treeDepth === undefined
@@ -2437,6 +2863,11 @@ export class DataTableComponent<T>
     return style;
   }
 
+  /**
+   * Inline style object for a header cell — width/flex plus the `left`/`right`
+   * offset that stacks pinned columns. Cached per column; an unknown column is
+   * computed on the fly.
+   */
   getHeaderCellStyle(col: CellStyleColumn): Record<string, string> {
     return (
       this._headerCellStyleMap().get(String(col.accessorKey)) ??
@@ -2444,6 +2875,11 @@ export class DataTableComponent<T>
     );
   }
 
+  /**
+   * Inline style object for a body cell — the {@link getHeaderCellStyle}
+   * counterpart, reflecting the live {@link columnWidths} entry when the column
+   * has been resized.
+   */
   getCellStyle(col: CellStyleColumn): Record<string, string> {
     return (
       this._cellStyleMap().get(String(col.accessorKey)) ??
@@ -2451,6 +2887,11 @@ export class DataTableComponent<T>
     );
   }
 
+  /**
+   * {@link getCellStyle} plus the depth-shaded background used in tree mode.
+   * Shading saturates at depth 10 (the cache bound) and at 80% blend, so deeper
+   * levels are visually identical.
+   */
   getTreeCellStyle(col: CellStyleColumn, depth: number): Record<string, string> {
     const clampedDepth = Math.min(depth, 10);
     return (
@@ -2478,6 +2919,11 @@ export class DataTableComponent<T>
     return new Set(ids);
   });
 
+  /**
+   * Whether a row is non-interactive — true if either {@link isRowDisabled}
+   * says so or its id is in {@link disabledRowIds}. Blocks selection, drag and
+   * inline editing, and greys the row.
+   */
   isDisabled(row: T): boolean {
     const fn = this.isRowDisabled();
     if (fn?.(row)) return true;
@@ -2485,11 +2931,17 @@ export class DataTableComponent<T>
     return this.disabledRowIdSet().has(id);
   }
 
+  /** Whether the row's {@link getRowId} is flagged in {@link rowSelection}. */
   isRowSelected(row: T): boolean {
     const id = this.getRowId()(row);
     return !!this.rowSelection()[id];
   }
 
+  /**
+   * Flips one row's selection, writing a new {@link rowSelection} object
+   * (deselecting deletes the key rather than storing `false`). A disabled row is
+   * ignored. Does not cascade to children — see {@link toggleRowWithCascade}.
+   */
   toggleRow(row: T): void {
     if (this.isDisabled(row)) return;
     const id = this.getRowId()(row);
@@ -2505,11 +2957,17 @@ export class DataTableComponent<T>
     this.rowSelection.set(newSelection);
   }
 
+  /** Whether the row's master/detail panel is open ({@link enableRowExpansion}, not tree mode). */
   isRowExpanded(row: T): boolean {
     const id = this.getRowId()(row);
     return !!this.expandedRows()[id];
   }
 
+  /**
+   * Opens or closes a row's detail panel and stops propagation of the given
+   * event so the chevron click does not also select or focus the row. Unlike
+   * selection, this ignores {@link isDisabled}.
+   */
   toggleRowExpanded(row: T, event?: Event): void {
     event?.stopPropagation();
     const id = this.getRowId()(row);
@@ -2537,6 +2995,11 @@ export class DataTableComponent<T>
     return count > 0 && count < ids.length;
   });
 
+  /**
+   * Expands every currently *filtered* row's detail panel, or collapses them all
+   * when they are already open. Rows hidden by the active filter are left as
+   * they are, so the header checkbox reflects only the filtered set.
+   */
   toggleAllExpanded(): void {
     const ids = this.filteredRowIds();
     if (this.isAllExpanded()) {
@@ -2550,6 +3013,11 @@ export class DataTableComponent<T>
     }
   }
 
+  /**
+   * Resolves the inputs for a row's {@link rowDetailComponent} via
+   * {@link rowDetailComponentInputs}, or `{}` when no resolver is set (the
+   * template then binds just the row).
+   */
   getRowDetailComponentInputs(row: T): Record<string, unknown> {
     const resolver = this.rowDetailComponentInputs();
     return resolver ? resolver(row) : {};
@@ -2577,6 +3045,12 @@ export class DataTableComponent<T>
     });
   });
 
+  /**
+   * The header checkbox action: selects every selectable row in the *filtered*
+   * set, or clears just those when all are already selected. Disabled rows and
+   * rows hidden by the filter are never touched, so selections made under a
+   * previous filter survive.
+   */
   toggleAll(): void {
     const selected = this.rowSelection();
     const selectableIds = this.selectableRowIds();
@@ -2611,6 +3085,11 @@ export class DataTableComponent<T>
     return count > 0 && count < visibleCount;
   });
 
+  /**
+   * Adds rows to the selection by {@link getRowId}, leaving existing entries
+   * alone. Bypasses {@link isDisabled} — unlike {@link toggleRow}, this selects
+   * disabled rows too.
+   */
   selectRows(rows: T[]): void {
     const getId = this.getRowId();
     const next = { ...this.rowSelection() };
@@ -2618,6 +3097,7 @@ export class DataTableComponent<T>
     this.rowSelection.set(next);
   }
 
+  /** Removes the given rows' ids from the selection; ids not present are ignored. */
   unselectRows(rows: T[]): void {
     const getId = this.getRowId();
     const next = { ...this.rowSelection() };
@@ -2625,10 +3105,18 @@ export class DataTableComponent<T>
     this.rowSelection.set(next);
   }
 
+  /**
+   * Empties {@link rowSelection} outright — including ids of rows currently
+   * filtered out, which {@link toggleAll} would have preserved.
+   */
   clearSelection(): void {
     this.rowSelection.set({});
   }
 
+  /**
+   * Selects every selectable row in the filtered set without toggling: calling
+   * it twice leaves the selection selected. Disabled rows are skipped.
+   */
   selectAll(): void {
     const nextSelection = { ...this.rowSelection() };
     this.selectableRowIds().forEach((id) => {
@@ -2637,6 +3125,12 @@ export class DataTableComponent<T>
     this.rowSelection.set(nextSelection);
   }
 
+  /**
+   * Applies a requested page state and emits {@link pageChange}. The index is
+   * clamped to the last page — computed from the filtered row count locally, or
+   * from {@link total} when {@link localPagination} is false — and a
+   * non-positive page size is rejected in favour of the current one.
+   */
   onPaginationChange(state: PaginationState): void {
     this.loadingTrigger.set("pagination");
     const totalItems = this.localPagination()
@@ -2654,6 +3148,11 @@ export class DataTableComponent<T>
     this.pageChange.emit(nextState);
   }
 
+  /**
+   * The global-filter input handler: waits out {@link filterDebounce}, then sets
+   * {@link globalFilter}, resets to page 0, emits {@link filterChange} and
+   * announces the result count to screen readers.
+   */
   onFilterChange(value: string): void {
     this.loadingTrigger.set("filtering");
     const debounceMs = this.filterDebounce();
@@ -2675,6 +3174,11 @@ export class DataTableComponent<T>
     this.announceFilterChange(value);
   }
 
+  /**
+   * Sets one column's filter value and returns to page 0. Not debounced, and it
+   * emits no output — {@link filterChange} carries the global filter only, so
+   * for server-side filtering read {@link columnFilters} instead.
+   */
   onColumnFilterChange(columnKey: string | keyof T, value: unknown): void {
     this.loadingTrigger.set("filtering");
     this.columnFilters.update((filters) => ({
@@ -2684,10 +3188,16 @@ export class DataTableComponent<T>
     this.paginationState.update((state) => ({ ...state, pageIndex: 0 }));
   }
 
+  /** Whether a column renders — true unless {@link columnVisibility} holds an explicit `false`. */
   isColumnVisible(columnKey: string | keyof T): boolean {
     return this.columnVisibility()[String(columnKey)] !== false;
   }
 
+  /**
+   * Shows or hides a column, writing into {@link columnVisibility}. Accepts any
+   * key — an unknown one is simply stored and never consulted. Hidden columns
+   * are still excluded from copy/export and from cell navigation.
+   */
   setColumnVisibility(columnKey: string | keyof T, visible: boolean): void {
     this.columnVisibility.update((current) => ({
       ...current,
@@ -2695,6 +3205,12 @@ export class DataTableComponent<T>
     }));
   }
 
+  /**
+   * Moves a column to `targetIndex` in the current order and rewrites
+   * {@link columnOrder} as a complete key list. The index is clamped to the
+   * range, and an unknown key is a no-op. Works regardless of
+   * {@link enableColumnReorder}, which only gates the drag UI.
+   */
   moveColumn(columnKey: string | keyof T, targetIndex: number): void {
     const key = String(columnKey);
     const currentOrder = this.applyKeyOrder(
@@ -2715,18 +3231,30 @@ export class DataTableComponent<T>
     this.columnOrder.set(nextOrder);
   }
 
+  /**
+   * Whether this header can start a drag: {@link enableColumnReorder} must be on
+   * and the column must be reorderable (the built-in `_selection`/`_expander`/
+   * `_actions` columns and `enableReorder: false` columns are not).
+   */
   isColumnDraggable(col: ColumnDef<T>): boolean {
     return this.enableColumnReorder() && this.isColumnReorderable(col);
   }
 
+  /** Whether this column is the one currently being dragged (drives its ghost styling). */
   isDraggingColumn(col: ColumnDef<T>): boolean {
     return this.draggedColumnKey() === String(col.accessorKey);
   }
 
+  /** Whether this column is the current drop target (drives the insertion indicator). */
   isDropTargetColumn(col: ColumnDef<T>): boolean {
     return this.dropTargetColumnKey() === String(col.accessorKey);
   }
 
+  /**
+   * Starts a header drag, recording the source key both in component state and
+   * on the `dataTransfer` payload (some browsers only expose the latter on
+   * drop). Silently ignored for a non-draggable column.
+   */
   onColumnDragStart(event: DragEvent, col: ColumnDef<T>): void {
     if (!this.isColumnDraggable(col)) {
       return;
@@ -2742,6 +3270,11 @@ export class DataTableComponent<T>
     }
   }
 
+  /**
+   * Marks a header as the drop target while a column drag hovers it. Declines
+   * (leaving the browser's "no drop" cursor) for a non-draggable target or when
+   * the source and target are the same column.
+   */
   onColumnDragOver(event: DragEvent, col: ColumnDef<T>): void {
     if (!this.isColumnDraggable(col)) {
       return;
@@ -2765,6 +3298,12 @@ export class DataTableComponent<T>
     }
   }
 
+  /**
+   * Completes a header drag by moving the source column to the target's
+   * position and updating {@link columnOrder}; drag state is cleared on every
+   * path, including the rejected ones. No output is emitted — observe
+   * `columnOrder` to persist the new order.
+   */
   onColumnDrop(event: DragEvent, col: ColumnDef<T>): void {
     if (!this.isColumnDraggable(col)) {
       this.clearColumnDragState();
@@ -2788,10 +3327,18 @@ export class DataTableComponent<T>
     this.clearColumnDragState();
   }
 
+  /** Clears the drag/drop-target highlight when a header drag ends anywhere, including a cancel. */
   onColumnDragEnd(): void {
     this.clearColumnDragState();
   }
 
+  /**
+   * Snapshots per-column width, visibility, pin and order — the shape to persist
+   * for a "my table layout" feature and replay through {@link applyColumnState}.
+   * Widths and visibility fall back to each column's declaration when no runtime
+   * override exists; `pin` reflects the column's declared pin, not a runtime
+   * {@link pinColumn} override.
+   */
   getColumnState(): DataTableColumnState[] {
     const widths = this.columnWidths();
     const visibility = this.columnVisibility();
@@ -2812,6 +3359,13 @@ export class DataTableComponent<T>
     });
   }
 
+  /**
+   * Restores a {@link getColumnState} snapshot into {@link columnVisibility},
+   * {@link columnWidths} and {@link columnOrder}. Merges rather than replaces:
+   * columns missing from `states`, and fields left `undefined`, keep their
+   * current value, and an empty array is ignored entirely. `pin` is *not*
+   * restored — re-apply pins with {@link pinColumn}.
+   */
   applyColumnState(states: DataTableColumnState[]): void {
     if (!states || states.length === 0) {
       return;
@@ -2845,10 +3399,22 @@ export class DataTableComponent<T>
     this.columnWidths.set(nextWidths);
   }
 
+  /**
+   * Declares what the current {@link loading} spell is for, so
+   * {@link loadingVisibility} can suppress the overlay and the loader
+   * template/component can react. The table sets it itself for sorting,
+   * filtering and pagination; call it before flipping `loading` for your own
+   * fetches.
+   */
   setLoadingTrigger(trigger: DataTableLoadingTrigger): void {
     this.loadingTrigger.set(trigger);
   }
 
+  /**
+   * Resolves the inputs for a column's custom filter component, calling
+   * `filterComponentInputs` when it is a factory so the values can be computed
+   * per render. `{}` when the column declares none.
+   */
   getFilterInputs(col: ColumnDef<T>): Record<string, unknown> {
     if (typeof col.filterComponentInputs === "function") {
       return col.filterComponentInputs();
@@ -2856,6 +3422,12 @@ export class DataTableComponent<T>
     return col.filterComponentInputs ?? {};
   }
 
+  /**
+   * Output handlers bound onto a column's custom filter component. The table's
+   * own `filterChange` handler is appended last and therefore overrides any
+   * `filterChange` in `filterComponentOutputs` — that is the wire that makes a
+   * custom filter actually filter.
+   */
   getFilterOutputs(col: ColumnDef<T>): Record<string, (event: unknown) => void> {
     return {
       ...col.filterComponentOutputs,
@@ -2864,11 +3436,17 @@ export class DataTableComponent<T>
     };
   }
 
+  /** Whether this column holds a non-empty filter value — drives the "filtered" header indicator. */
   isColumnFilterActive(col: ColumnDef<T>): boolean {
     const value = this.columnFilters()[col.accessorKey as string];
     return !this.isFilterValueEmpty(value);
   }
 
+  /**
+   * The "no filter" test used to skip column filters: `undefined`, `null`, `''`,
+   * and a date range whose `start` and `end` are both null. Note an empty array
+   * is *not* empty by this rule — a multiselect must clear to `null`.
+   */
   isFilterValueEmpty(value: unknown): boolean {
     if (value === undefined || value === null || value === "") return true;
     if (typeof value === "object" && "start" in value && "end" in value) {
@@ -2908,6 +3486,12 @@ export class DataTableComponent<T>
 
   protected readonly String = String;
 
+  /**
+   * The raw (unformatted) value behind a cell — what sorting, filtering and
+   * export all compare against. A column `accessorFn` wins outright; otherwise a
+   * dotted `key` is walked as a path (`'user.name'`), returning `undefined` at
+   * the first null/undefined link rather than throwing.
+   */
   getCellValue(row: T, key: string | keyof T, column?: ColumnDef<T>): unknown {
     if (column?.accessorFn) {
       return column.accessorFn(row);
@@ -3021,6 +3605,13 @@ export class DataTableComponent<T>
     return Math.max(0, Math.min(100, pct));
   }
 
+  /**
+   * The text form of a cell used for copy and export: the column's `cell`
+   * formatter when present, else the raw value stringified (null/undefined
+   * become `''`, objects via a custom `toString` or JSON). A column rendered by
+   * a `cellTemplate`/`cellComponent` has no `cell` formatter, so it exports its
+   * raw value, not what you see.
+   */
   getCellStringValue(row: T, column: ColumnDef<T>): string {
     if (column.cell) {
       return column.cell(row);
@@ -3037,6 +3628,13 @@ export class DataTableComponent<T>
     return stringifyValue(value);
   }
 
+  /**
+   * Shapes the table into a `string[][]` grid (header row first) for copy and
+   * for the export addon. Defaults to visible columns and filtered + sorted rows
+   * across *all* pages — not just the current page — and always drops the
+   * `_selection`/`_expander`/`_actions` columns. `customRows` overrides the row
+   * source entirely (e.g. selection-only export), ignoring `onlyFiltered`.
+   */
   getExportData(
     options?: DataTableExportOptions,
     customRows?: readonly T[],
@@ -3104,6 +3702,11 @@ export class DataTableComponent<T>
     return this._busyLabel();
   }
 
+  /**
+   * Writes the focused cell's text to the system clipboard. A no-op without
+   * {@link enableCopy} or when no cell is focused. Uses the async Clipboard API,
+   * so it needs a secure context and can reject if permission is denied.
+   */
   async copyCellToClipboard(): Promise<void> {
     if (!this.enableCopy()) return;
     const focused = this.focusedCell();
@@ -3117,6 +3720,10 @@ export class DataTableComponent<T>
     }
   }
 
+  /**
+   * Copies one row as a tab-separated line of its visible data columns, with no
+   * header line. Requires {@link enableCopy}.
+   */
   async copyRowToClipboard(row: T): Promise<void> {
     if (!this.enableCopy()) return;
     const columns = this.enhancedColumns().filter(
@@ -3129,6 +3736,11 @@ export class DataTableComponent<T>
     await navigator.clipboard.writeText(values.join("\t"));
   }
 
+  /**
+   * Copies the selected rows as TSV with a header line. Draws from the filtered
+   * + sorted rows across all pages, so selections on other pages are included;
+   * writes nothing when the selection is empty.
+   */
   async copySelectedToClipboard(): Promise<void> {
     if (!this.enableCopy()) return;
     const columns = this.enhancedColumns().filter(
@@ -3150,6 +3762,10 @@ export class DataTableComponent<T>
     await navigator.clipboard.writeText([headerLine, ...dataLines].join("\n"));
   }
 
+  /**
+   * Copies the whole table as TSV via {@link getExportData} — header row plus
+   * every filtered row, ignoring both pagination and the current selection.
+   */
   async copyAllToClipboard(): Promise<void> {
     if (!this.enableCopy()) return;
     const data = this.getExportData();
@@ -3157,10 +3773,21 @@ export class DataTableComponent<T>
     await navigator.clipboard.writeText(text);
   }
 
+  /**
+   * Clears the focused cell when a click lands on the table but outside any
+   * data cell — cell clicks stop propagation before reaching it.
+   */
   onTableClick(): void {
     this.focusedCell.set(null);
   }
 
+  /**
+   * Focuses a data cell (the anchor for keyboard nav, copy and the fill handle).
+   * Clicks on the `_selection`/`_expander`/`_actions` columns are ignored so
+   * their controls keep working. With {@link enableCellRangeSelection} the
+   * pointer-drag handler owns focus and range, and this only backstops keyboard
+   * focus.
+   */
   onCellClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
     const key = String(col.accessorKey);
     if (key === "_selection" || key === "_expander" || key === "_actions")
@@ -3247,6 +3874,11 @@ export class DataTableComponent<T>
     }
   }
 
+  /**
+   * Opens the inline editor for a cell (the mouse gesture; {@link onCellTouchEnd}
+   * is the touch equivalent). Whether editing actually starts is decided by
+   * {@link startEditing} — the column must be editable and the row enabled.
+   */
   onCellDblClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
     const key = String(col.accessorKey);
     if (key === "_selection" || key === "_expander" || key === "_actions")
@@ -3260,6 +3892,11 @@ export class DataTableComponent<T>
   private _lastTapRowIndex = -1;
   private _lastTapColumnKey = "";
 
+  /**
+   * Touch counterpart of {@link onCellDblClick}: two taps on the *same* cell
+   * within 300ms open the inline editor. Tapping a different cell restarts the
+   * sequence, so a fast tap across two cells never edits.
+   */
   onCellTouchEnd(
     event: TouchEvent,
     rowIndex: number,
@@ -3328,6 +3965,13 @@ export class DataTableComponent<T>
     return false;
   }
 
+  /**
+   * The grid's single keydown entry point, tried in order: copy
+   * (`Ctrl/Cmd+C` — range, else focused cell, else selected rows), paste
+   * (`Ctrl/Cmd+V`), undo/redo (`Ctrl/Cmd+Z`/`Y`), then arrow/Home/End/Enter cell
+   * navigation. Each stage is gated by its feature input, and the first one to
+   * handle the event stops the chain.
+   */
   onTableKeydown(event: KeyboardEvent): void {
     if (this.handleCopyKeydown(event)) return;
     if (this.handlePasteKeydown(event)) return;
@@ -3369,6 +4013,12 @@ export class DataTableComponent<T>
     return false;
   }
 
+  /**
+   * Copies the selected rectangle as TSV — no header line, cells in rendered
+   * column order, one line per row — which is the shape Excel and Sheets paste
+   * back. No-op without a range. Unlike the other copy helpers this does not
+   * check {@link enableCopy}; the keyboard path that reaches it already has.
+   */
   async copyCellRangeToClipboard(): Promise<void> {
     const range = this.normalizedCellRange();
     if (!range) return;
@@ -3509,6 +4159,7 @@ export class DataTableComponent<T>
     this.scrollToRow(focused.rowIndex);
   }
 
+  /** Whether this exact cell is the one open in the inline editor (only ever one at a time). */
   isEditing(rowIndex: number, columnKey: string): boolean {
     const editing = this.editingCell();
     return (
@@ -3518,6 +4169,13 @@ export class DataTableComponent<T>
     );
   }
 
+  /**
+   * Opens the inline editor on a cell, seeding it with the cell's current value
+   * and focusing the input on the next frame. Silently declines when the column
+   * is not `editable`, the row index is out of range, or the row is
+   * {@link isDisabled}. Any pending edit on another cell is replaced without
+   * being committed.
+   */
   startEditing(rowIndex: number, columnKey: string): void {
     const col = this.enhancedColumns().find(
       (c) => String(c.accessorKey) === columnKey,
@@ -3545,6 +4203,14 @@ export class DataTableComponent<T>
     });
   }
 
+  /**
+   * Validates and applies the pending edit. A value equal to the original just
+   * cancels; a column `editValidator` rejection keeps the editor open, shows the
+   * message and emits {@link editError} instead. On success {@link cellEdit} is
+   * emitted and the column's `valueSetter` writes a new row into {@link data} —
+   * a column without a `valueSetter` emits the event but changes nothing.
+   * Recorded as one undo command when {@link enableEditHistory} is on.
+   */
   commitEdit(): void {
     const editing = this.editingCell();
     if (!editing) return;
@@ -3756,6 +4422,11 @@ export class DataTableComponent<T>
     this.aiFillComplete.emit({ columnKey, count: rows.length });
   }
 
+  /**
+   * Abandons the pending edit, clears any validation message and returns focus
+   * to the grid so keyboard navigation resumes. The row keeps its original
+   * value and no output is emitted.
+   */
   cancelEdit(): void {
     this.editingCell.set(null);
     this.editValue.set(null);
@@ -3781,11 +4452,22 @@ export class DataTableComponent<T>
     });
   }
 
+  /**
+   * Stores the editor's in-progress value and clears any visible validation
+   * message, so the error disappears as soon as the user types. Nothing is
+   * written to the row until {@link commitEdit}.
+   */
   onEditValueChange(value: unknown): void {
     this.editValue.set(value);
     this.cellEditError.set(null);
   }
 
+  /**
+   * Editor key handling: Escape cancels, Enter commits, and Tab commits then
+   * moves to the next (Shift+Tab: previous) navigable cell, reopening the editor
+   * there if that column is editable — the Excel-style "tab across a row" flow.
+   * All three stop propagation so the grid's own navigation does not also run.
+   */
   onEditKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -3825,6 +4507,12 @@ export class DataTableComponent<T>
     }
   }
 
+  /**
+   * Expands or collapses a tree node, stopping the event so the chevron does not
+   * also focus or select the row. Writes an explicit `true`/`false` into
+   * {@link subRowExpandedRows}, which pins the node against
+   * {@link subRowDefaultExpanded}.
+   */
   toggleSubRowExpanded(row: T, event?: Event): void {
     event?.stopPropagation();
     const id = this.getRowId()(row);
@@ -3834,11 +4522,18 @@ export class DataTableComponent<T>
     this.subRowExpandedRows.set(next);
   }
 
+  /** Expands one tree node, leaving its descendants' own state untouched. */
   expandSubRow(row: T): void {
     const id = this.getRowId()(row);
     this.subRowExpandedRows.update((current) => ({ ...current, [id]: true }));
   }
 
+  /**
+   * Collapses one tree node by *deleting* its entry rather than storing `false`,
+   * so the node falls back to {@link subRowDefaultExpanded} — under a non-zero
+   * default it may therefore re-render expanded. Use
+   * {@link toggleSubRowExpanded} to pin it closed.
+   */
   collapseSubRow(row: T): void {
     const id = this.getRowId()(row);
     const current = this.subRowExpandedRows();
@@ -3847,6 +4542,11 @@ export class DataTableComponent<T>
     this.subRowExpandedRows.set(next);
   }
 
+  /**
+   * Whether a tree node shows its children: an explicit
+   * {@link subRowExpandedRows} entry if there is one, otherwise the
+   * {@link subRowDefaultExpanded} depth rule (`-1` means every level).
+   */
   isSubRowExpanded(row: T): boolean {
     const id = this.getRowId()(row);
     const expanded = this.subRowExpandedRows();
@@ -3857,6 +4557,12 @@ export class DataTableComponent<T>
     return depth < defaultExpanded;
   }
 
+  /**
+   * Expands every node with children, or only those above `toDepth` (0-based,
+   * exclusive) when given. Walks the *unfiltered* {@link data} and **replaces**
+   * {@link subRowExpandedRows} wholesale, discarding any node you had explicitly
+   * collapsed.
+   */
   expandAllSubRows(toDepth?: number): void {
     const getId = this.getRowId();
     const getChildrenFn = this.getChildren();
@@ -3878,6 +4584,11 @@ export class DataTableComponent<T>
     this.subRowExpandedRows.set(next);
   }
 
+  /**
+   * Clears every explicit expansion entry. Nodes then follow
+   * {@link subRowDefaultExpanded}, so with a non-zero default this does not
+   * collapse the tree to its roots.
+   */
   collapseAllSubRows(): void {
     this.subRowExpandedRows.set({});
   }
@@ -3907,6 +4618,10 @@ export class DataTableComponent<T>
     return check(this.data(), 0);
   });
 
+  /**
+   * A row's nesting level (0 for a root), resolved from the parent index built
+   * over {@link data}. Returns 0 for a row that is not part of the tree.
+   */
   getRowDepth(row: T): number {
     const id = this.getRowId()(row);
     const index = this.treeIndex();
@@ -3919,6 +4634,11 @@ export class DataTableComponent<T>
     return depth;
   }
 
+  /**
+   * The chain of {@link getRowId} values from the root down to `rowId`
+   * (inclusive) — useful for breadcrumbs or for expanding a node's ancestors. A
+   * root or unknown id yields just `[rowId]`.
+   */
   getRowPath(rowId: string): string[] {
     const index = this.treeIndex();
     const path: string[] = [rowId];
@@ -3930,6 +4650,7 @@ export class DataTableComponent<T>
     return path;
   }
 
+  /** The row's parent in the tree, or `null` for a root (or a row outside the tree). */
   getParentRow(row: T): T | null {
     const id = this.getRowId()(row);
     const index = this.treeIndex();
@@ -3938,11 +4659,20 @@ export class DataTableComponent<T>
     return this.findRowById(parentId);
   }
 
+  /**
+   * A row's direct children via {@link getChildren} (never grandchildren), or an
+   * empty array. Unaffected by filtering and expansion state.
+   */
   getChildRows(row: T): T[] {
     const getChildrenFn = this.getChildren();
     return getChildrenFn(row) ?? [];
   }
 
+  /**
+   * Selects every descendant of a row — the whole subtree, not just direct
+   * children — without selecting the parent itself, and ignoring
+   * {@link isDisabled} and the active filter.
+   */
   selectChildren(parentRow: T): void {
     const id = this.getRowId()(parentRow);
     const index = this.treeIndex();
@@ -3952,6 +4682,7 @@ export class DataTableComponent<T>
     this.rowSelection.set(next);
   }
 
+  /** The inverse of {@link selectChildren}: clears the whole subtree, leaving the parent as-is. */
   deselectChildren(parentRow: T): void {
     const id = this.getRowId()(parentRow);
     const index = this.treeIndex();
@@ -3961,6 +4692,13 @@ export class DataTableComponent<T>
     this.rowSelection.set(next);
   }
 
+  /**
+   * The tree checkbox action. Under {@link subRowSelectionMode} `"self"` it is
+   * just {@link toggleRow}; `"descendants"` mirrors the new state onto the whole
+   * subtree, and `"filteredDescendants"` onto the visible part of it only.
+   * Either way, ancestors are then recomputed so a fully-selected parent becomes
+   * selected and a partly-selected one indeterminate. Disabled rows are ignored.
+   */
   toggleRowWithCascade(row: T): void {
     if (this.isDisabled(row)) return;
     const mode = this.subRowSelectionMode();
@@ -4025,10 +4763,21 @@ export class DataTableComponent<T>
     return result;
   });
 
+  /**
+   * Whether a node's checkbox should render indeterminate — some but not all of
+   * its descendants are selected. Always false under
+   * {@link subRowSelectionMode} `"self"`, where selection does not cascade.
+   */
   isSubRowSelectionIndeterminate(row: T): boolean {
     return this._indeterminateRows().has(this.getRowId()(row));
   }
 
+  /**
+   * Inputs for a column's `cellComponent` in tree mode: the column's own
+   * `componentInputs` plus a `_subRowContext` carrying depth, path, parent, leaf
+   * flag and child count — so a cell component can draw its own indentation or
+   * expander. The context key always wins over a same-named entry.
+   */
   getSubRowComponentInputs(
     col: ColumnDef<T>,
     treeRow: FlattenedTreeRow<T>,
@@ -4242,6 +4991,12 @@ export class DataTableComponent<T>
     return visibility.initial !== false;
   }
 
+  /**
+   * The row at a *rendered* index — after filtering, sorting and paging — or
+   * `undefined` when out of range. This is the index every cell/row callback
+   * and event payload uses, so map through here rather than indexing
+   * {@link data} directly.
+   */
   getRenderedRowAt(index: number): T | undefined {
     return this.processedData()[index];
   }
@@ -4253,34 +5008,60 @@ export class DataTableComponent<T>
   private readonly _cellActions = new AddonSlotRegistry<CellActionSlot<T>>();
   private readonly _headerActions = new AddonSlotRegistry<HeaderActionSlot<T>>();
 
+  /**
+   * Adds an addon's ⋮ button to every row's action cell and returns a teardown
+   * an addon directive should call on destroy. The base renders the button and
+   * calls back with the row context; it never learns which addon registered it.
+   */
   registerCellAction(slot: CellActionSlot<T>): () => void {
     return this._cellActions.register(slot);
   }
 
+  /** The header-cell counterpart of {@link registerCellAction}; also returns a teardown. */
   registerHeaderAction(slot: HeaderActionSlot<T>): () => void {
     return this._headerActions.register(slot);
   }
 
+  /** The registered row-action slots, in registration order — read by the base template. */
   cellActionSlots(): readonly CellActionSlot<T>[] {
     return this._cellActions.slots();
   }
 
+  /** The registered header-action slots — read by the base template. */
   headerActionSlots(): readonly HeaderActionSlot<T>[] {
     return this._headerActions.slots();
   }
 
+  /**
+   * The runtime pin override for a column set via {@link pinColumn}, or
+   * `undefined`. Deliberately *not* the column's declared `pin` — an unpinned
+   * and a never-overridden column look the same here.
+   */
   getColumnPin(columnKey: string): ColumnPin {
     return this.columnPinOverrides()[columnKey];
   }
 
+  /**
+   * Row metadata for an action callback: the row, its rendered index and
+   * selection, plus depth/leaf/parent/expanded when {@link enableSubRows} is on.
+   */
   getRowContext(row: T, index: number): RowActionContext<T> {
     return this.buildRowActionContext(row, index);
   }
 
+  /**
+   * The resolved locale dictionary, so an addon can label its own UI from the
+   * table's {@link locale} instead of shipping its own strings.
+   */
   getLocale(): DataTableLocale {
     return this.t();
   }
 
+  /**
+   * The flattened tree row at a rendered index — the tree-mode counterpart of
+   * {@link getRenderedRowAt}, carrying depth, path and expansion alongside the
+   * row. `undefined` outside tree mode or out of range.
+   */
   getRenderedTreeRowAt(index: number): FlattenedTreeRow<T> | undefined {
     return this.processedTreeRows()[index];
   }
@@ -4302,6 +5083,12 @@ export class DataTableComponent<T>
     return context;
   }
 
+  /**
+   * Pins a column to a side at runtime (`undefined` unpins), overriding the
+   * column's declared `pin`/`sticky`. Pinned columns are grouped to their edge
+   * regardless of {@link columnOrder}, and the override is not captured by
+   * {@link getColumnState}.
+   */
   pinColumn(columnKey: string, pin: "left" | "right" | undefined): void {
     this.columnPinOverrides.update((overrides) => ({
       ...overrides,
@@ -4318,6 +5105,11 @@ export class DataTableComponent<T>
     return computeAggregateValue(values, fn);
   }
 
+  /**
+   * Makes every column visible by writing an explicit `true` for each — it
+   * **replaces** {@link columnVisibility} rather than merging, so previous
+   * entries (including for keys no longer in `columns`) are dropped.
+   */
   showAllColumns(): void {
     const next: Record<string, boolean> = {};
     for (const col of this.columns()) {
@@ -4415,6 +5207,13 @@ export class DataTableComponent<T>
     this.handleDragAutoScroll(e.clientY);
   };
 
+  /**
+   * Starts a row drag, stamping the row id on the `dataTransfer` payload and
+   * attaching document-level wheel/drag listeners so the grid keeps
+   * auto-scrolling while a drag is in flight (browsers suppress normal scrolling
+   * then). Declines when {@link enableRowDrag} is off, the row is disabled, or
+   * the table is {@link loading}.
+   */
   onRowDragStart(event: DragEvent, row: T): void {
     if (!this.enableRowDrag() || this.isDisabled(row) || this.loading()) return;
     const id = this.getRowId()(row);
@@ -4465,6 +5264,13 @@ export class DataTableComponent<T>
     return { blocked: false, position: position === 'on' ? 'below' : position };
   }
 
+  /**
+   * Tracks the hovered row during a row drag and decides the drop position from
+   * the pointer's position within the row: above/below at the halves in `"flat"`
+   * mode, above/on/below at the quarters in `"tree"` mode. Rejects the target
+   * when the row is disabled, when a flat drag would cross tree depths, or when
+   * {@link rowDragAllowDrop} vetoes it, and auto-scrolls near the edges.
+   */
   onRowDragOver(event: DragEvent, index: number): void {
     const draggedId = this.draggedRowId();
     if (!this.enableRowDrag() || !draggedId) return;
@@ -4494,6 +5300,11 @@ export class DataTableComponent<T>
     this.handleDragAutoScroll(event.clientY);
   }
 
+  /**
+   * Catches a row drag hovering the scroll container's empty space below the
+   * last row and retargets it to a drop *after* that row, so dragging to the
+   * bottom of a short table still lands. Ignored unless a drag is in flight.
+   */
   onContainerDragOver(event: DragEvent): void {
     if (!this.enableRowDrag() || !this.draggedRowId()) return;
     event.preventDefault();
@@ -4541,6 +5352,12 @@ export class DataTableComponent<T>
     }
   }
 
+  /**
+   * Completes a row drag by emitting {@link rowReorder} with the moved row, the
+   * target row, the drop position and the neighbouring row ids — then clearing
+   * the drag state. **It does not move anything**: apply the event through
+   * {@link reorderData} and write the result back to {@link data}.
+   */
   onRowDrop(event: DragEvent): void {
     if (!this.enableRowDrag()) {
       this.clearRowDragState();
@@ -4560,6 +5377,15 @@ export class DataTableComponent<T>
     this.clearRowDragState();
   }
 
+  /**
+   * Pure helper that returns a **new** array with a {@link rowReorder} event
+   * applied — the intended handler body, since the table never reorders
+   * {@link data} itself. Flat mode re-inserts next to `previousId`/`nextId`
+   * (falling back to the end); tree mode removes the node from its parent and
+   * re-inserts it above/below/inside the target via {@link setChildren}. Rows
+   * are matched by {@link getRowId}, and an unknown moved row returns the input
+   * array unchanged.
+   */
   reorderData(data: T[], event: RowReorderEvent<T>): T[] {
     if (this.enableSubRows()) {
       return this.reorderTreeData(data, event);
@@ -4703,6 +5529,10 @@ export class DataTableComponent<T>
     };
   }
 
+  /**
+   * Clears row-drag state and detaches the auto-scroll listeners when a drag
+   * ends, including a cancelled one that never reached {@link onRowDrop}.
+   */
   onRowDragEnd(): void {
     this.clearRowDragState();
   }
@@ -4715,10 +5545,16 @@ export class DataTableComponent<T>
     this._document.removeEventListener('drag', this.dragEventHandler);
   }
 
+  /** Whether this row is the one being dragged (drives its ghosted styling). */
   isRowBeingDragged(row: T): boolean {
     return this.draggedRowId() === this.getRowId()(row);
   }
 
+  /**
+   * Which drop indicator a rendered row should show: `'top'`/`'bottom'` for an
+   * insertion line, `'on'` for a re-parent highlight in `"tree"`
+   * {@link rowDragMode}, or `null` when this row is not the current target.
+   */
   getDropEdge(index: number): 'top' | 'bottom' | 'on' | null {
     const overIdx = this.dragOverIndex();
     if (overIdx === null || !this.draggedRowId()) return null;
@@ -4733,12 +5569,22 @@ export class DataTableComponent<T>
   private resizeStartWidth = 0;
   private resizeOldWidth = "auto";
 
+  /**
+   * Begins a mouse column resize from the header's drag handle, capturing the
+   * start width and attaching document move/up listeners. The RTL delta is
+   * inverted from the host's live direction, so the handle drags the way the
+   * column visually grows.
+   */
   onResizeStart(event: MouseEvent, col: CellStyleColumn): void {
     event.preventDefault();
     event.stopPropagation();
     this.startResize(event.clientX, col);
   }
 
+  /**
+   * Touch counterpart of {@link onResizeStart}. Single-finger only, so a
+   * pinch-zoom over the header is left to the browser.
+   */
   onResizeTouchStart(event: TouchEvent, col: CellStyleColumn): void {
     if (event.touches.length === 1) {
       event.preventDefault();
@@ -4925,6 +5771,14 @@ export class DataTableComponent<T>
     this.autoSizeColumn(String(col.accessorKey));
   }
 
+  /**
+   * Scrolls a rendered row index to the top of the viewport, using the measured
+   * prefix sums under {@link virtualVariableRowHeight} and
+   * {@link virtualRowHeight} otherwise. Because the offset is computed rather
+   * than looked up in the DOM, it is only accurate while virtualization is
+   * active and the real row height matches `virtualRowHeight`. The index is not
+   * clamped — an out-of-range value just pins the scroll at the end.
+   */
   scrollToRow(index: number): void {
     const container = this.scrollContainerRef()?.nativeElement;
     if (!container) return;
@@ -4940,6 +5794,12 @@ export class DataTableComponent<T>
     container.scrollTop = index * this.virtualRowHeight();
   }
 
+  /**
+   * Scrolls a column to the leading edge of the viewport by summing the widths
+   * before it. Only scrollable columns count — a pinned or hidden column is not
+   * found and the call is a no-op — and the offset ignores any pinned overlay,
+   * so the target can sit partly beneath it.
+   */
   scrollToColumn(columnKey: string): void {
     const container = this.scrollContainerRef()?.nativeElement;
     if (!container) return;
@@ -4957,6 +5817,11 @@ export class DataTableComponent<T>
     container.scrollLeft = offset;
   }
 
+  /**
+   * {@link scrollToRow} plus {@link scrollToColumn} in one call, bringing a cell
+   * to the top-leading corner of the viewport. It does not focus the cell — set
+   * {@link focusedCell} for that.
+   */
   scrollToCell(rowIndex: number, columnKey: string): void {
     this.scrollToRow(rowIndex);
     this.scrollToColumn(columnKey);

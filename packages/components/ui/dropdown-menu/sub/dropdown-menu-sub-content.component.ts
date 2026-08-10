@@ -31,6 +31,7 @@ import { DropdownMenuSubComponent } from './dropdown-menu-sub.component';
     host: { class: 'contents' }
 })
 export class DropdownMenuSubContentComponent {
+    /** Extra classes merged onto the submenu panel, after the side/animation classes so they can override them. */
     class = input('');
     readonly sub = inject(DropdownMenuSubComponent);
     readonly service = inject(DropdownMenuService);
@@ -40,11 +41,17 @@ export class DropdownMenuSubContentComponent {
         this.sub.registerContent(this);
     }
 
+    /**
+     * Cancels the trigger's pending close while the pointer is over the panel,
+     * keeping the submenu open. Skipped on touch devices, where the trigger's
+     * tap-to-toggle owns the state.
+     */
     onMouseEnter(): void {
         if (isTouchDevice()) return;
         this.sub.enter();
     }
 
+    /** Starts the grace-period close when the pointer leaves the panel. Skipped on touch devices. */
     onMouseLeave(): void {
         if (isTouchDevice()) return;
         this.sub.leave();
@@ -57,11 +64,22 @@ export class DropdownMenuSubContentComponent {
         this.class()
     ));
 
+    /**
+     * Moves focus to the submenu's first enabled item. Invoked by the parent
+     * `<ui-dropdown-menu-sub>` when the submenu is opened from the keyboard.
+     */
     focusFirst(): void {
         const items = Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         items[0]?.focus();
     }
 
+    /**
+     * Submenu key handler: arrows move focus with wraparound; Escape, and the
+     * "back" arrow (ArrowLeft, or ArrowRight in RTL), close the submenu and
+     * return focus to its trigger. Propagation is stopped so the root menu's
+     * handler does not also act on the key — notably so Escape closes only the
+     * submenu.
+     */
     onKeydown(event: KeyboardEvent): void {
         event.stopPropagation();
 
@@ -90,6 +108,11 @@ export class DropdownMenuSubContentComponent {
         }
     }
 
+    /**
+     * Focuses the item after `currentItem`, wrapping around. The ring is scoped
+     * to the `role="menu"` that owns `currentItem`, so navigation stays inside
+     * whichever submenu level has focus.
+     */
     focusNextItem(currentItem: HTMLElement): void {
         const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
         const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
@@ -98,6 +121,10 @@ export class DropdownMenuSubContentComponent {
         items[nextIndex]?.focus();
     }
 
+    /**
+     * Focuses the item before `currentItem`, wrapping around, scoped to that
+     * item's own `role="menu"` — see {@link focusNextItem}.
+     */
     focusPrevItem(currentItem: HTMLElement): void {
         const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
         const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));

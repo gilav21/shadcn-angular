@@ -31,6 +31,11 @@ export class SplitButtonPrimaryComponent {
 
     classes = computed(() => cn('rounded-e-none border-e-0'));
 
+    /**
+     * Forwards the click to the parent `ui-split-button` as its `primaryClick`
+     * output — this component has no output of its own, so bind the handler on
+     * the parent. It leaves the menu's open state untouched.
+     */
     onClick(event: MouseEvent): void {
         this.splitButton.primaryClick.emit(event);
     }

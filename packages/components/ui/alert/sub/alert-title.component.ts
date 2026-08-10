@@ -16,6 +16,7 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class AlertTitleComponent {
+    /** Extra classes merged onto the title host. Renders as a plain styled `<div>`, not a heading element — add your own `<h2>`/`<h3>` inside if the alert needs to appear in the document outline. */
     class = input('');
 
     classes = computed(() =>

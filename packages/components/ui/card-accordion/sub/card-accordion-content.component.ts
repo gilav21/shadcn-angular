@@ -22,6 +22,11 @@ import { CardAccordionItemComponent } from './card-accordion-item.component';
   host: { '[class]': '"contents"' },
 })
 export class CardAccordionContentComponent {
+  /**
+   * Extra classes merged onto the animating grid wrapper. Padding belongs on the
+   * content you project, not here — the wrapper's height collapses to zero when
+   * closed, and padding on it would leak a sliver of the closed panel.
+   */
   readonly class = input('');
 
   private readonly accordion = inject(ACCORDION, { optional: true });

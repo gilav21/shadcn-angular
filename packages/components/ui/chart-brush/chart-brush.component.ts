@@ -37,11 +37,39 @@ type BrushMode = 'idle' | 'create' | 'move' | 'resize-start' | 'resize-end';
     },
 })
 export class ChartBrushComponent {
+    /**
+     * Width of the SVG user-space coordinate system, in px, and simultaneously
+     * the clamp ceiling for every selection coordinate (`0…width`). Set it to
+     * the *plot* width of the chart being brushed so a `start`/`end` can be fed
+     * straight into that chart's x-scale `invert()` with no rescaling. The SVG
+     * itself is `w-full` with `preserveAspectRatio="none"`, so it stretches to
+     * the container regardless — this value is the domain, not the render size.
+     */
     readonly width = input(400);
+    /**
+     * Rendered height of the brush strip, in px, used for both the `height`
+     * attribute and the viewBox, so it is a literal size and does not scale
+     * with the container. It also fixes the hit height of the track and of the
+     * two drag handles.
+     */
     readonly height = input(40);
+    /**
+     * Initial/controlled selection in the same pixel space as {@link width};
+     * `null` means nothing brushed. It seeds {@link current} only until the
+     * first interaction — once the user drags, the component's internal state
+     * takes over and later changes to this input no longer move the brush.
+     * Call {@link reset} to hand control back.
+     */
     readonly selection = input<BrushSelection | null>(null);
+    /** Extra classes merged onto the SVG, which already carries `block w-full select-none`. */
     readonly class = input('');
 
+    /**
+     * Fires on every pointer move during a drag (live filtering of the host
+     * chart), again on release, and with `null` when the Reset button calls
+     * {@link reset}. The payload is always normalized so `start <= end`, even
+     * while dragging leftwards.
+     */
     readonly selectionChange = output<BrushSelection | null>();
 
     private readonly _svg = viewChild<ElementRef<SVGSVGElement>>('brushSvg');
@@ -79,12 +107,26 @@ export class ChartBrushComponent {
         this.selectionChange.emit(sel ? this.normalize(sel) : null);
     }
 
+    /**
+     * Starts a fresh selection, discarding any existing one: it collapses the
+     * brush to a zero-width range anchored at `x` (clamped to `0…`
+     * {@link width}) and enters create mode, so the following
+     * {@link pointerMoveTo} calls sweep the other edge out from that anchor.
+     * `x` is in SVG user space — {@link onCreateDown} is the DOM adapter that
+     * converts a mouse/touch event for you.
+     */
     beginCreate(x: number): void {
         this.mode = 'create';
         this.createAnchor = this.clamp(x);
         this._internal.set({ start: this.createAnchor, end: this.createAnchor });
     }
 
+    /**
+     * Begins panning the whole selection, remembering `x` as the grab anchor so
+     * the range slides by the pointer delta and keeps its width. No-op when
+     * nothing is selected. Both edges are clamped to `0…`{@link width}, so
+     * dragging into a wall squashes the range rather than pushing it off.
+     */
     beginMove(x: number): void {
         const sel = this.current();
         if (!sel) return;
@@ -94,6 +136,13 @@ export class ChartBrushComponent {
         this._internal.set({ ...sel });
     }
 
+    /**
+     * Begins dragging one edge of the selection, pinning the other. The named
+     * edge jumps to `x` immediately (clamped to `0…`{@link width}) rather than
+     * waiting for the first move. Dragging an edge past its partner is allowed
+     * — the range is only re-sorted on emit, see {@link selectionChange}.
+     * No-op when nothing is selected.
+     */
     beginResize(edge: 'start' | 'end', x: number): void {
         const sel = this.current();
         if (!sel) return;
@@ -104,6 +153,12 @@ export class ChartBrushComponent {
         this._internal.set(seeded);
     }
 
+    /**
+     * Advances the in-progress gesture to `x` (SVG user space), applying
+     * whichever of create/move/resize was started, and emits the updated range
+     * on {@link selectionChange}. Silently ignored when no gesture is active,
+     * which is what makes it safe to wire to a window-level move listener.
+     */
     pointerMoveTo(x: number): void {
         if (this.mode === 'idle') return;
         const sel = this._internal() ?? { start: 0, end: 0 };
@@ -128,6 +183,12 @@ export class ChartBrushComponent {
         return { start: sel.start, end: this.clamp(x) };
     }
 
+    /**
+     * Ends the gesture: sorts the stored range so `start <= end` (undoing an
+     * edge that was dragged past its partner) and emits a final
+     * {@link selectionChange}. Idempotent — a no-op when no gesture is active,
+     * so the window `mouseup`/`touchend` listener can fire freely.
+     */
     end(): void {
         if (this.mode === 'idle') return;
         const sel = this._internal();
@@ -136,6 +197,13 @@ export class ChartBrushComponent {
         this.emitNormalized();
     }
 
+    /**
+     * Clears the brush and emits `null` on {@link selectionChange} so the host
+     * chart can drop back to its full range. Bound to the "Reset zoom" button
+     * that appears while a selection exists. This clears the *internal* state
+     * to an explicit empty value, so the {@link selection} input still does not
+     * regain control.
+     */
     reset(): void {
         this.mode = 'idle';
         this._internal.set(null);
@@ -147,29 +215,52 @@ export class ChartBrushComponent {
         return svg ? pointerToSvg(evt, svg).x : 0;
     }
 
+    /**
+     * `mousedown`/`touchstart` handler on the background track: converts the
+     * event to SVG user space and calls {@link beginCreate}. Prevents the
+     * default so a touch-drag scrolls the brush, not the page (the track also
+     * sets `touch-action: none`).
+     */
     onCreateDown(evt: MouseEvent | TouchEvent): void {
         evt.preventDefault();
         this.beginCreate(this.localX(evt));
     }
 
+    /**
+     * `mousedown`/`touchstart` handler on the selected band, delegating to
+     * {@link beginMove}. Stops propagation so the press does not also reach the
+     * track underneath and start a new selection via {@link onCreateDown}.
+     */
     onMoveDown(evt: MouseEvent | TouchEvent): void {
         evt.preventDefault();
         evt.stopPropagation();
         this.beginMove(this.localX(evt));
     }
 
+    /**
+     * `mousedown`/`touchstart` handler on one of the 6px edge handles,
+     * delegating to {@link beginResize}. Stops propagation so the press is not
+     * also read as a band move or a new selection.
+     */
     onResizeDown(evt: MouseEvent | TouchEvent, edge: 'start' | 'end'): void {
         evt.preventDefault();
         evt.stopPropagation();
         this.beginResize(edge, this.localX(evt));
     }
 
+    /**
+     * Window-level `mousemove`/`touchmove` handler — listening on the window
+     * rather than the SVG keeps a drag alive when the pointer leaves the strip.
+     * Returns immediately unless a gesture is active; for touch it also
+     * suppresses the default so the drag does not scroll the page.
+     */
     onWindowMove(evt: MouseEvent | TouchEvent): void {
         if (this.mode === 'idle') return;
         if ('touches' in evt) evt.preventDefault();
         this.pointerMoveTo(this.localX(evt));
     }
 
+    /** Window-level `mouseup`/`touchend` handler; finishes any active drag via {@link end}, wherever the pointer was released. */
     onWindowUp(): void {
         this.end();
     }

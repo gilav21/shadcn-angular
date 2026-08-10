@@ -20,18 +20,51 @@ import { readableForeground } from '../../lib/color';
   },
 })
 export class OrgChartComponent {
+  /**
+   * Flat node list linked by `parentId`; the tree is rebuilt and re-laid out on every
+   * change. Exactly one node must have a null/undefined `parentId` — it becomes the
+   * root, the **last** such node wins if there are several, and nodes whose `parentId`
+   * does not resolve to the root's subtree are silently dropped from the render.
+   */
   data = input.required<OrgNode[]>();
+  /**
+   * Growth direction: `'vertical'` (default) stacks generations top-to-bottom,
+   * `'horizontal'` runs them left-to-right. Also decides which padding is the
+   * sibling gap — see {@link nodePaddingX} / {@link nodePaddingY}.
+   */
   layout = input<OrgLayoutDirection>('vertical');
+  /** Card width in px (default 180). Feeds the layout maths, so the SVG canvas grows with it. */
   nodeWidth = input(180);
+  /** Card height in px (default 80). Long titles are not measured, so raise it if text clips. */
   nodeHeight = input(80);
+  /** Horizontal gap in px: between siblings in a vertical layout, between generations in a horizontal one. */
   nodePaddingX = input(40);
+  /** Vertical gap in px: between generations in a vertical layout, between siblings in a horizontal one. */
   nodePaddingY = input(60);
+  /**
+   * Renders the avatar slot. When on, a node without an `image` falls back to
+   * {@link getInitials} on a disc tinted with {@link getNodeColor}; when off, the
+   * avatar is omitted entirely and the text gets the full card width.
+   */
   showImages = input(true);
+  /** Connector shape — `'curved'` bezier (default) or `'straight'` elbow polyline. */
   lineType = input<OrgLineType>('curved');
+  /** Extra classes merged onto the chart wrapper (`relative block w-full max-w-full`). */
   class = input('');
+  /** Prefixed onto the SVG's `aria-label` (which always states the member count). Not rendered visually. */
   title = input<string | undefined>(undefined);
 
+  /**
+   * Emitted on click or keyboard activation of a node card. `event` is present only for
+   * a real mouse click — it is `undefined` for `Enter`/`Space`, so guard before
+   * reading coordinates.
+   */
   nodeClick = output<{ node: OrgNode; event?: MouseEvent }>();
+  /**
+   * Emitted with the hovered node and again with `null` when the pointer leaves. Bound
+   * to `mouseenter`/`mouseleave` only, so keyboard users never trigger it — do not put
+   * information behind hover alone.
+   */
   nodeHover = output<OrgNode | null>();
 
   hoveredId = signal<string | null>(null);
@@ -229,6 +262,11 @@ export class OrgChartComponent {
 
   containerClasses = computed(() => cn('relative block w-full max-w-full', this.class()));
 
+  /**
+   * Accent colour for a node: its own `color` when set, otherwise the palette entry for
+   * its depth — so a whole generation shares one colour and the palette cycles once the
+   * tree is deeper than the palette.
+   */
   getNodeColor(pos: OrgNodePosition): string {
     if (pos.node.color) return pos.node.color;
     return getChartColor(pos.level);
@@ -243,6 +281,10 @@ export class OrgChartComponent {
     return readableForeground(this.getNodeColor(pos));
   }
 
+  /**
+   * Avatar fallback: the first character of each space-separated word, uppercased and
+   * capped at two. Splits on spaces only, so hyphenated names yield one letter.
+   */
   getInitials(name: string): string {
     return name
       .split(' ')
@@ -252,22 +294,33 @@ export class OrgChartComponent {
       .slice(0, 2);
   }
 
+  /**
+   * Accessible name for one node card — `"name, title"`, or just the name when the node
+   * has no title. `description` is deliberately left out to keep the label short.
+   */
   getNodeAriaLabel(node: OrgNode): string {
     let label = node.name;
     if (node.title) label += `, ${node.title}`;
     return label;
   }
 
+  /** `(mouseenter)` handler: records the hovered id for the card's highlight and emits {@link nodeHover}. */
   onNodeHover(node: OrgNode): void {
     this.hoveredId.set(node.id);
     this.nodeHover.emit(node);
   }
 
+  /** `(mouseleave)` handler: clears the highlight and emits `null` on {@link nodeHover}. */
   onNodeLeave(): void {
     this.hoveredId.set(null);
     this.nodeHover.emit(null);
   }
 
+  /**
+   * Activation handler shared by click, `Enter` and `Space`. Forwards the DOM event on
+   * {@link nodeClick} only when it is a `MouseEvent`, so keyboard activations arrive
+   * with `event: undefined`.
+   */
   onNodeClick(event: Event, node: OrgNode): void {
     this.nodeClick.emit({
       node,

@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class CardContentComponent {
+    /** Extra classes merged onto the body. It contributes no utilities of its own — spacing comes from the card's density CSS keyed on `data-slot="card-content"`. */
     class = input('');
 
     readonly classes = computed(() => cn(this.class()));

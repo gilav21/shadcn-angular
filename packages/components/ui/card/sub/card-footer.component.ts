@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class CardFooterComponent {
+    /** Extra classes merged onto the footer row. Add `border-t` to get a divider — the built-in `[.border-t]:pt-6` rule then supplies the matching top padding. */
     class = input('');
 
     readonly classes = computed(() =>

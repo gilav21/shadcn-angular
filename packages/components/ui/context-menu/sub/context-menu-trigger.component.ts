@@ -46,6 +46,15 @@ export class ContextMenuTriggerComponent implements AfterViewInit, OnDestroy {
         this.cleanupLongPress?.();
     }
 
+    /**
+     * Suppresses the browser's native context menu and opens the enclosing
+     * `<ui-context-menu>` at the pointer. Touch users get the same result from
+     * a 500ms long-press (cancelled if the finger moves more than 10px), wired
+     * up in `ngAfterViewInit`. Bound on the wrapper `<span class="contents">`,
+     * so the event must originate from projected content; the menu also needs
+     * to be an ancestor — without one this is a no-op. Use
+     * `[uiContextMenuTrigger]` instead to trigger a menu declared elsewhere.
+     */
     onContextMenu(event: MouseEvent): void {
         event.preventDefault();
         this.contextMenu?.show(event.clientX, event.clientY);

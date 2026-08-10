@@ -22,6 +22,7 @@ import { STEPPER_ITEM } from './stepper-item.component';
   host: { class: 'contents' },
 })
 export class StepperContentComponent {
+  /** Extra classes merged onto the content panel wrapper (via `cn()`, so utilities here override the default `mt-4` spacing). Only applied while the panel is rendered — the panel is removed from the DOM unless its {@link StepperItemComponent} is the current step. */
   class = input('');
 
   readonly stepper = inject(STEPPER, { optional: true });

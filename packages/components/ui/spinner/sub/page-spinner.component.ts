@@ -22,7 +22,13 @@ import { SpinnerComponent } from '../spinner.component';
   host: { class: 'contents' },
 })
 export class PageSpinnerComponent {
+  /**
+   * Extra classes merged onto the fixed backdrop. Override `z-50` here when the
+   * overlay must sit above (or below) dialogs, and the `bg-background/80
+   * backdrop-blur-sm` utilities to change how much of the page shows through.
+   */
   class = input('');
+  /** Optional caption shown under the spinner. Omit it for a bare spinner — no empty line is reserved when it is blank. */
   message = input('');
 
   classes = computed(() => cn(

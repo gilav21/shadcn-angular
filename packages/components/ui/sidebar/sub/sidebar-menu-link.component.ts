@@ -25,8 +25,11 @@ import { SidebarService } from '../sidebar.service';
   host: { class: 'contents' },
 })
 export class SidebarMenuLinkComponent {
+  /** Extra classes merged onto the `<a>`. */
   class = input('');
+  /** Plain `href`. This is a real anchor, not a router link — for in-app routing use {@link SidebarMenuButtonComponent} and navigate from its click, or add `routerLink` to your own copy of this file. */
   href = input('#');
+  /** Marks the link as current — accent background plus `data-active`. Presentational only; nothing compares it against the active route. */
   isActive = input(false);
   readonly service = inject(SidebarService);
 

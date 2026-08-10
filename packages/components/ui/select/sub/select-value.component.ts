@@ -31,6 +31,12 @@ export class SelectValueComponent {
      * the locale's `selectPlaceholder` string).
      */
     placeholder = input<string>();
+    /**
+     * Renders this text instead of the parent select's raw value — use it to
+     * show a label for a value that stringifies badly (an id, an object).
+     * Overrides the value but not the empty state: when nothing is selected the
+     * placeholder still shows.
+     */
     displayValue = input<string | undefined>(undefined);
 
     /** Effective placeholder text: explicit input → parent select's placeholder/locale. */

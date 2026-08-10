@@ -24,7 +24,9 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class FieldLabelComponent {
+  /** Extra classes merged onto the `<label>`. The built-in `peer-disabled:*` rules only apply when the control is a preceding sibling marked `peer`. */
   class = input('');
+  /** `id` of the control this labels, forwarded to the native `for` attribute so clicking the text focuses it. The field does not wire this automatically — set the same id on your input. */
   for = input('');
 
   classes = computed(() => cn(

@@ -19,6 +19,7 @@ import { ScrollAreaComponent } from '../../scroll-area';
   host: { class: 'contents' },
 })
 export class SidebarContentComponent {
+  /** Extra classes merged onto the scroll area. This is the flex-1 middle region between header and footer, so it is the part that scrolls when the nav outgrows the viewport — keep it as the sidebar's only scrolling child. */
   class = input('');
 
   classes = computed(() => cn(

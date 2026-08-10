@@ -34,7 +34,14 @@ export class DropdownMenuContentComponent {
     readonly service = inject(DropdownMenuService);
     readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
+    /** Extra classes merged onto the popup panel, after the alignment classes so they can override them. */
     class = input('');
+    /**
+     * Which edge of the panel lines up with the trigger — `start`/`end` flip
+     * with text direction, `center` does not. Pure CSS anchoring with no
+     * collision detection, so an `end`-aligned menu near the viewport edge can
+     * still overflow.
+     */
     align = input<'start' | 'center' | 'end'>('start');
 
     classes = computed(() => {
@@ -60,11 +67,21 @@ export class DropdownMenuContentComponent {
         });
     }
 
+    /**
+     * Moves focus to the first enabled item. Called automatically one tick
+     * after the menu opens; call it manually only after changing the items
+     * while open.
+     */
     focusFirstItem(): void {
         const item = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="menuitem"]:not([data-disabled])');
         item?.focus();
     }
 
+    /**
+     * Menu key handler: arrows move focus with wraparound, Escape closes and
+     * returns focus to the trigger, and Tab is trapped — it cycles within the
+     * menu instead of leaving it, so the menu must be closed to tab onwards.
+     */
     onKeydown(event: KeyboardEvent): void {
         if (event.key === 'ArrowDown') {
             event.preventDefault();
@@ -99,6 +116,10 @@ export class DropdownMenuContentComponent {
         }
     }
 
+    /**
+     * Focuses the item after `currentItem`, wrapping to the first. Passing an
+     * element that is not in {@link getFocusableItems} focuses the first item.
+     */
     focusNextItem(currentItem: HTMLElement): void {
         const items = this.getFocusableItems();
         const index = items.indexOf(currentItem);
@@ -106,6 +127,10 @@ export class DropdownMenuContentComponent {
         items[nextIndex]?.focus();
     }
 
+    /**
+     * Focuses the item before `currentItem`, wrapping to the last. Passing an
+     * element that is not in {@link getFocusableItems} focuses the last item.
+     */
     focusPrevItem(currentItem: HTMLElement): void {
         const items = this.getFocusableItems();
         const index = items.indexOf(currentItem);
@@ -113,6 +138,11 @@ export class DropdownMenuContentComponent {
         items[prevIndex]?.focus();
     }
 
+    /**
+     * The menu's focus ring in DOM order: every `role="menuitem"` without
+     * `data-disabled`. Queried live, and unscoped — items inside an open
+     * submenu are included too.
+     */
     getFocusableItems(): HTMLElement[] {
         return Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
     }

@@ -50,12 +50,18 @@ import { UI_INPUT_GROUP } from '../../lib/input-group.token';
     },
 })
 export class TextareaComponent implements ControlValueAccessor {
+    /** Placeholder text for the native `<textarea>`. */
     placeholder = input<string>('');
+    /** Disables the native `<textarea>`. This input is the only source of the disabled state — {@link setDisabledState} is deliberately a no-op. */
     disabled = input(false);
+    /** Initial visible height in text rows (native `rows`); the user can still resize unless the {@link variant} disables resizing. */
     rows = input(3);
+    /** Extra classes merged onto the `<textarea>` itself, appended after the variant classes so they win. */
     class = input('');
+    /** Renders a placeholder block instead of the `<textarea>`. */
     readonly skeleton = input(false);
 
+    /** Visual style. `underline` and `ghost` also drop the resize handle. Inside a `ui-input-group`, `outline` is downgraded to `ghost` so the group draws the border. */
     variant = input<TextareaVariant>('outline');
 
     private readonly group = inject(UI_INPUT_GROUP, { optional: true });
@@ -74,25 +80,31 @@ export class TextareaComponent implements ControlValueAccessor {
         cn(textareaVariants({ variant: this.effectiveVariant() }), this.class())
     );
 
+    /** Handles each keystroke from the template's `ngModel`: stores the text and notifies the form. Touched is raised separately on blur. */
     onValueChange(value: string): void {
         this.value.set(value);
         this.onChange(value);
     }
 
+    /** Pushes a form value into the textarea, coercing `null`/`undefined` to `''` so the control never renders "null". */
     writeValue(value: string): void {
         this.value.set(value ?? '');
     }
 
+    /** Stores the form's change callback, invoked from {@link onValueChange}. */
     registerOnChange(fn: (value: string) => void): void {
         this.onChange = fn;
     }
 
+    /** Stores the form's touched callback, which the template invokes on blur. */
     registerOnTouched(fn: () => void): void {
         this.onTouched = fn;
     }
 
+    /** Intentionally ignores the form's disabled state — use the {@link disabled} input instead. */
     setDisabledState(_isDisabled: boolean): void { /* ControlValueAccessor - no-op: disabled state managed by input */ }
 
+    /** Current text, so the component can be interpolated directly in a template or asserted on in tests. */
     toString(): string {
         return this.value();
     }

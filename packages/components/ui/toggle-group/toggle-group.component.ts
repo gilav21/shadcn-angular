@@ -57,13 +57,21 @@ export const TOGGLE_GROUP = new InjectionToken<ToggleGroupComponent>('TOGGLE_GRO
     providers: [{ provide: TOGGLE_GROUP, useExisting: forwardRef(() => ToggleGroupComponent) }],
 })
 export class ToggleGroupComponent implements OnInit {
+    /** `single` keeps at most one item on (and re-pressing it clears the selection); `multiple` accumulates. Also decides whether {@link valueChange} carries a string or a string array. */
     type = input<ToggleGroupType>('single');
+    /** Item styling, read by each item through the group: `outline` adds borders plus a shared shadow on the group. */
     variant = input<ToggleGroupVariant>('default');
+    /** Item height/min-width preset, read by each item through the group and mirrored to `data-size`. */
     size = input<ToggleGroupSize>('default');
+    /** Disables every item in the group; an item may also disable itself independently. */
     disabled = input(false);
+    /** Initially pressed value(s), read once in `ngOnInit` — a bare string is wrapped into an array. Later changes are ignored. */
     defaultValue = input<string | string[] | undefined>(undefined);
+    /** Extra classes merged onto the `<fieldset>` that wraps the items. */
     class = input('');
+    /** Data-driven mode: a non-empty array renders one item per entry and makes projected content be ignored. */
     items = input<ToggleGroupItem[]>([]);
+    /** Emits after each {@link toggle}: the single selected value (`''` when cleared) in `single` mode, or the full array in `multiple` mode. */
     valueChange = output<string | string[]>();
 
     readonly isDataDriven = computed(() => this.items().length > 0);
@@ -85,10 +93,12 @@ export class ToggleGroupComponent implements OnInit {
         )
     );
 
+    /** Whether the given item value is currently pressed; items call this to derive their `data-state` and `aria-pressed`. */
     isSelected(itemValue: string): boolean {
         return this.value().includes(itemValue);
     }
 
+    /** Flips an item's pressed state honouring {@link type} — replacing the selection in `single` mode, adding/removing in `multiple` — then emits {@link valueChange}. No-op while the group is disabled. */
     toggle(itemValue: string): void {
         if (this.disabled()) return;
 

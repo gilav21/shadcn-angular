@@ -19,6 +19,7 @@ import { SidebarService } from '../sidebar.service';
   host: { class: 'contents' },
 })
 export class SidebarHeaderComponent {
+  /** Extra classes merged onto the header. On a collapsed desktop rail every direct child is pushed to `sr-only`, so a logo placed here disappears rather than shrinking — put a rail-safe icon inside the sidebar body if you need one visible. */
   class = input('');
   readonly service = inject(SidebarService);
 

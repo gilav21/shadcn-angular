@@ -40,13 +40,33 @@ import { ButtonComponent } from '../../button';
   host: { class: 'contents' },
 })
 export class DataTableMultiselectFilterComponent<T = unknown> {
+  /** Extra classes merged onto the panel wrapper (the command palette keeps its own). */
   readonly class = input('');
+  /**
+   * The full option list. Every option is rendered — the search box filters the
+   * DOM via `ui-command`, it does not narrow this array, so {@link selectAll}
+   * still selects everything regardless of the current search text.
+   */
   readonly options = input<T[]>([]);
+  /** Maps an option to its visible label, also used as the command item's search text. */
   readonly displayWith = input<(option: T) => string>(String);
+  /**
+   * Maps an option to the value emitted on {@link filterChange} and compared
+   * against the cell value by {@link multiselectFilterFn}. Comparison is by
+   * `Set`/`includes` identity, so object values must be referentially stable —
+   * project to a primitive key here for object options.
+   */
   readonly valueWith = input<(option: T) => unknown>((o: T) => o);
   /** Override for the command-input placeholder. Falls back to the locale's `searchPlaceholder`. */
   readonly placeholder = input<string>();
+  /** Optional heading above the palette; when set, a badge shows the selected count. */
   readonly title = input<string | undefined>(undefined);
+  /**
+   * Externally-held selection, expressed as {@link valueWith} values (not
+   * options). It is resolved back to options by scanning {@link options}, so a
+   * value with no matching option is silently dropped — set `options` before or
+   * together with `selected`.
+   */
   readonly selected = input<unknown[]>([]);
 
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -60,6 +80,11 @@ export class DataTableMultiselectFilterComponent<T = unknown> {
   readonly clearAllLabel = computed(() => this.t().clearAll ?? 'Clear');
   readonly noResultsLabel = computed(() => this.t().noResultsLabel ?? 'No results.');
 
+  /**
+   * The selected {@link valueWith} values after each toggle, or `null` when the
+   * selection becomes empty — `null` means "no filter" to
+   * {@link multiselectFilterFn}, so an empty array is never emitted.
+   */
   readonly filterChange = output<unknown[] | null>();
 
   protected readonly String = String;
@@ -95,18 +120,26 @@ export class DataTableMultiselectFilterComponent<T = unknown> {
     this.class()
   ));
 
+  /** Applies {@link displayWith} to an option (label, checkbox aria-label and search text). */
   getDisplayLabel(option: T): string {
     return this.displayWith()(option);
   }
 
+  /** `@for` track key — the option's {@link valueWith} value, so it must be unique per option. */
   trackOption(option: T): unknown {
     return this.valueWith()(option);
   }
 
+  /** Whether the option's value is in the current selection (by {@link valueWith} identity). */
   isSelected(option: T): boolean {
     return this.selectedValues().has(this.valueWith()(option));
   }
 
+  /**
+   * Adds or removes an option and emits the new selection. Newly selected
+   * options are appended, so emission order is selection order, not
+   * {@link options} order.
+   */
   toggleOption(option: T): void {
     const vw = this.valueWith();
     const val = vw(option);
@@ -123,12 +156,17 @@ export class DataTableMultiselectFilterComponent<T = unknown> {
     }
   }
 
+  /**
+   * Selects every entry of {@link options} — including ones hidden by the
+   * current search text — and emits them. With no options this emits `null`.
+   */
   selectAll(): void {
     const all = this.options();
     this._selected.set(all);
     this.emitChange(all);
   }
 
+  /** Empties the selection and emits `null` ("no filter"), leaving the search text alone. */
   clearAll(): void {
     this._selected.set([]);
     this.filterChange.emit(null);

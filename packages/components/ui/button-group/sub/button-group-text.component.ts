@@ -30,6 +30,11 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class ButtonGroupTextComponent {
+    /**
+     * Extra classes merged onto the text chip. The defaults already size any
+     * unstyled projected `<svg>` to `size-4` and make it click-through, so
+     * icons need no extra markup.
+     */
     class = input('');
 
     classes = computed(() => cn(

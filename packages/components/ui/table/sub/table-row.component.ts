@@ -19,7 +19,9 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class TableRowComponent {
+    /** Extra classes merged onto the row. It is `min-w-max`, so a row wider than the table drives the wrapper's horizontal scroll rather than squashing its cells. */
     class = input('');
+    /** Marks the row as selected, applying `data-state="selected"` and its muted background. Purely visual — it does not manage a selection model or set `aria-selected`. */
     selected = input(false);
 
     classes = computed(() => cn(

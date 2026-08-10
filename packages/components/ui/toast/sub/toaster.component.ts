@@ -18,7 +18,17 @@ import { ToastService, ToastComponent } from '../toast.component';
 export class ToasterComponent {
   readonly toastService = inject(ToastService);
 
+  /**
+   * Vertical anchor of the fixed stack (default `'bottom'`). Toasts are always appended
+   * in arrival order, so `'bottom'` grows downward — newest at the bottom — rather than
+   * pushing older ones up.
+   */
   vertical = input<'top' | 'center' | 'bottom'>('bottom');
+  /**
+   * Horizontal anchor of the stack (default `'end'`). `'start'`/`'end'` are
+   * direction-aware and flip under RTL. The stack is capped at `420px` wide and shrinks
+   * to the viewport on small screens.
+   */
   horizontal = input<'start' | 'center' | 'end'>('end');
 
   containerClasses = computed(() => {

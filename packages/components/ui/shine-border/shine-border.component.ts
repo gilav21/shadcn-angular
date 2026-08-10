@@ -21,10 +21,23 @@ export class ShineBorderComponent implements AfterViewInit, OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly ngZone = inject(NgZone);
 
+    /** Extra classes merged onto the `relative inline-block` wrapper — set the width here, since the wrapper otherwise shrinks to the projected content. */
     class = input('');
+    /**
+     * Stops of the conic gradient that forms the glowing rim. Because the
+     * gradient is conic, the first and last colours meet, so repeating the first
+     * colour at the end avoids a visible seam.
+     */
     colors = input<string[]>(['#A07CFE', '#FE8FB5', '#FFBE7B']);
+    /**
+     * Seconds for the gradient to complete one full rotation. Read on every
+     * frame, so it can be retimed live. When the user prefers reduced motion the
+     * gradient is painted once at 0° and never animates.
+     */
     duration = input(3);
+    /** Rim thickness in pixels. Implemented as padding on the gradient wrapper, so it eats into the wrapper's box rather than growing it outward. */
     borderWidth = input(2);
+    /** Outer corner radius in pixels. The inner content surface inherits it, so both corners stay concentric — set it to match the card you are wrapping. */
     borderRadius = input(8);
 
     private animationFrameId: number | null = null;

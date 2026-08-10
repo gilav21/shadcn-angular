@@ -19,6 +19,11 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class TableHeadComponent {
+    /**
+     * Extra classes merged onto the header cell. Must match the width utilities
+     * on the corresponding {@link TableCellComponent}, since the flex layout does
+     * not align columns for you.
+     */
     class = input('');
 
     /**

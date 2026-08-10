@@ -117,12 +117,24 @@ export class SortableHandleDirective {
     private readonly parent = inject(SortableComponent, { optional: true }) as SortableComponent<unknown> | null;
     private readonly item = inject(SortableItemComponent, { optional: true });
 
+    /**
+     * Host `mousedown` handler — begins a pointer drag of the enclosing row.
+     * Stops propagation so the row's own `mousedown` doesn't also start a
+     * drag, which is what makes `[handleOnly]` restrict dragging to the
+     * handle. No-ops outside a `ui-sortable` / `ui-sortable-item` pair.
+     */
     onMouseDown(event: MouseEvent): void {
         if (!this.parent || !this.item) return;
         event.stopPropagation();
         this.parent.startDrag(this.item.index(), event.clientX, event.clientY);
     }
 
+    /**
+     * Host `touchstart` counterpart to {@link onMouseDown} — the handle is
+     * fully usable on touch-only devices. Calls `preventDefault()` (paired
+     * with the host's `touch-none` class) so the gesture drags the row
+     * instead of scrolling the page; tracks the first touch point only.
+     */
     onTouchStart(event: TouchEvent): void {
         if (!this.parent || !this.item || event.touches.length === 0) return;
         event.stopPropagation();
@@ -256,24 +268,133 @@ function playBuiltInLandEffect(el: HTMLElement, effect: BuiltInLandEffect): void
     host: { class: 'contents' },
 })
 export class SortableComponent<T> {
+    /**
+     * The list being ordered. Required, and a two-way `model` — the component
+     * applies every reorder itself by writing a NEW array back through
+     * `[(items)]`; it never mutates the array you passed in, so bind with
+     * `[(items)]` (or handle `(itemsChange)`) rather than expecting your
+     * original array to change. Cross-list drops write to both lists: the
+     * source removes the item, the receiver splices it in.
+     *
+     * Replacing the array length mid-drag aborts the drag and emits
+     * {@link dropRejected} with reason `'list-changed'`.
+     */
     readonly items = model.required<T[]>();
+    /**
+     * Axis the items flow along. `'vertical'` stacks them (`flex-col`) and
+     * uses ArrowUp/ArrowDown plus the pointer's Y position to pick the drop
+     * gap; `'horizontal'` wraps them in a row and switches to
+     * ArrowLeft/ArrowRight and the X position.
+     */
     readonly orientation = input<SortableOrientation>('vertical');
+    /**
+     * When true, only an element carrying `uiSortableHandle` starts a drag —
+     * pressing the row body does nothing (and the row loses its `cursor-grab`
+     * affordance). Keyboard reordering is unaffected. Defaults to false, i.e.
+     * the whole row is draggable.
+     */
     readonly handleOnly = input<boolean>(false);
+    /**
+     * Blocks all reordering: pointer drags, keyboard lift, and incoming
+     * foreign drops (which are rejected with reason `'disabled'`). Items lose
+     * their tabindex and the container gets `aria-disabled="true"`. Setting it
+     * during a drag aborts that drag and emits {@link dropRejected}.
+     */
     readonly disabled = input<boolean>(false);
+    /** Extra classes merged onto the list container, after the flex/orientation defaults. */
     readonly class = input('');
+    /**
+     * Stable id for this list, reported in {@link reorder} / {@link dropRejected}
+     * payloads and announced when an item crosses lists. Blank (the default)
+     * falls back to an auto-generated `sortable-N` id — see {@link resolvedListId}.
+     * Set it explicitly whenever you use {@link group}, so payloads identify
+     * which list is which.
+     */
     readonly listId = input<string>('');
+    /**
+     * Opting into cross-list dragging: lists sharing a non-empty group name
+     * can exchange items with each other. Blank (the default) keeps the list
+     * isolated and skips registry registration entirely. Receivers gate the
+     * drop through {@link accepts} and fire {@link itemEnter} / {@link itemLeave}.
+     */
     readonly group = input<string>('');
+    /**
+     * Scrolls the nearest scrollable ancestor while the pointer is dragged
+     * near its edge. Defaults to true; set false when the surrounding page
+     * drives its own scrolling. Keyboard reordering never auto-scrolls.
+     */
     readonly autoScroll = input<boolean>(true);
+    /**
+     * Gate for items arriving from a peer list in the same {@link group} —
+     * evaluated on THIS (the receiving) list. Accepts a plain boolean or a
+     * predicate; returning `{ ok: false, reason }` surfaces the reason as a
+     * `data-reject` attribute on the container while hovering, and in the
+     * {@link dropRejected} payload. A disabled list rejects regardless.
+     */
     readonly accepts = input<SortableAccepts<T>>(true);
+    /**
+     * Language for the screen-reader announcements (picked up, moved, dropped,
+     * rejected, cancelled). Accepts a locale code or a full
+     * {@link SortableLocale} object; unset falls back to the app-wide locale
+     * then English. RTL locales also flip the container's `dir` attribute.
+     */
     readonly locale = input<LocaleInput<SortableLocale>>();
+    /**
+     * Human-readable name for the list. Note it is not currently rendered onto
+     * the container — per-item announcements come from {@link ariaItemLabel},
+     * and cross-list announcements name the peer by its {@link listId}.
+     */
     readonly ariaLabel = input<string>('list');
+    /**
+     * Builds the spoken name of an item for the "picked up" announcement —
+     * override it to say something meaningful (e.g. `(task) => task.title`)
+     * instead of the default `item 1`, `item 2`, …
+     */
     readonly ariaItemLabel = input<(item: T, index: number) => string>((_, i) => `item ${i + 1}`);
+    /**
+     * Per-position class recomputed whenever {@link items} changes and merged
+     * into each row's wrapper — for styling that depends on where an item sits
+     * (first/last, rank, capacity). Receives the item, its index, the list
+     * length and {@link resolvedListId}. You supply the CSS.
+     */
     readonly positionClass = input<SortablePositionClassFn<T>>(() => '');
+    /**
+     * Chooses a one-shot "landed" animation per successful reorder. Return a
+     * key of {@link SORTABLE_LAND_EFFECTS} to play a built-in Web Animations
+     * effect, any other class name to have that class added and removed ~700ms
+     * later, or `null` (the default) for no effect. Built-ins are skipped
+     * under `prefers-reduced-motion`. Not fired for a keyboard Escape revert.
+     */
     readonly landEffect = input<SortableLandEffectFn<T>>(() => null);
+    /**
+     * Track key for the `@for` over {@link items}; defaults to the item
+     * reference itself. Supply an id accessor when items are recreated on each
+     * change-detection pass — otherwise rows are destroyed and the FLIP
+     * reorder animation is lost.
+     */
     readonly trackBy = input<SortableTrackByFn<T>>((item) => item);
+    /**
+     * Fires AFTER the move has been applied to {@link items} — for pointer
+     * drops, keyboard moves, and Tab hand-offs to a peer, but not for an
+     * Escape revert. The payload's `from`/`to` carry both list id and index,
+     * which differ for a cross-list move. Use it to persist the new order, not
+     * to apply it.
+     */
     readonly reorder = output<SortableReorderEvent<T>>();
+    /**
+     * Fires on the SOURCE list when a drop did not happen: {@link accepts}
+     * refused it, or the drag was aborted because the list became
+     * {@link disabled} (`reason: 'disabled'`) or {@link items} changed length
+     * mid-drag (`reason: 'list-changed'`). No reorder is applied.
+     */
     readonly dropRejected = output<SortableDropRejectedEvent<T>>();
+    /**
+     * Fires on the RECEIVING list when an item from a peer starts hovering it,
+     * before any drop is committed — hook for highlighting the drop zone.
+     * Always balanced by {@link itemLeave}, including on a rejected drop.
+     */
     readonly itemEnter = output<SortableForeignHoverEvent<T>>();
+    /** Fires on the receiving list when the hovering foreign item leaves or is dropped — the teardown half of {@link itemEnter}. */
     readonly itemLeave = output<SortableForeignHoverEvent<T>>();
 
     private static sortableIdCounter = 0;
@@ -586,6 +707,12 @@ export class SortableComponent<T> {
         }, 0);
     }
 
+    /**
+     * Template hook: true when the drop ghost belongs in the gap immediately
+     * before the item at `index`. Returns false while no drag is active and
+     * for the two gaps that would leave the item where it already is, so a
+     * no-op hover shows no indicator.
+     */
     shouldShowIndicatorBefore(index: number): boolean {
         const target = this._dragTarget();
         const source = this._dragSource();
@@ -593,6 +720,7 @@ export class SortableComponent<T> {
         return index === target;
     }
 
+    /** Companion to {@link shouldShowIndicatorBefore} for the trailing gap after the last item, which has no item to sit before. */
     shouldShowIndicatorAfterLast(): boolean {
         const target = this._dragTarget();
         const source = this._dragSource();
@@ -604,6 +732,17 @@ export class SortableComponent<T> {
         return gap === source || gap === source + 1;
     }
 
+    /**
+     * Begins a pointer drag of the item at `fromIndex` from the pointer's
+     * current viewport coordinates. Called by {@link SortableItemComponent}
+     * and {@link SortableHandleDirective}; call it directly only to drive a
+     * drag from a custom pointer source. Subsequent move/end tracking is
+     * bound at the window level for BOTH mouse and touch, so the caller only
+     * needs to supply the initial press. No-ops while {@link disabled}.
+     *
+     * @param startX Pointer clientX at press time — deltas are measured from it.
+     * @param startY Pointer clientY at press time.
+     */
     startDrag(fromIndex: number, startX: number, startY: number): void {
         if (this.disabled()) return;
         this.dragCleanup?.();
@@ -776,6 +915,17 @@ export class SortableComponent<T> {
         this.autoScroller = null;
     }
 
+    /**
+     * Keyboard reordering for the focused row at `index`, forwarded by
+     * {@link SortableItemComponent}. Space/Enter lifts the item and, once
+     * lifted, drops it; Escape cancels and reverts it to where it was lifted
+     * from (no {@link reorder} emitted). The remaining keys only act while
+     * THIS row is the lifted one: Arrow keys move it one slot along
+     * {@link orientation}, Home/End send it to either end, and Tab /
+     * Shift+Tab hand it to the next / previous peer in the {@link group}.
+     * Every handled key calls `preventDefault()`, and each move is announced
+     * through the shared aria-live region.
+     */
     handleItemKeyDown(index: number, event: KeyboardEvent): void {
         if (this.disabled()) return;
 

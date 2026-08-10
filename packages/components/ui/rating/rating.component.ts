@@ -29,13 +29,31 @@ import { isTouchDevice } from '../../lib/touch';
   host: { class: 'inline-flex' },
 })
 export class RatingComponent implements ControlValueAccessor {
+  /** Number of stars rendered, and the ceiling for the value (`End` sets it). Defaults to 5. */
   readonly max = input(5);
+  /**
+   * Smallest step the user can pick: `1` (default) whole stars, or `0.5` half stars.
+   * With `0.5` the half is chosen from the pointer's position within the star —
+   * mirrored under RTL — and arrow keys move in half steps.
+   */
   readonly precision = input<0.5 | 1>(1);
+  /** Display-only mode: keeps full opacity but drops pointer events and key handling, unlike {@link disabled}. */
   readonly readonly = input(false);
+  /**
+   * Blocks interaction and dims the group. OR-ed with the state pushed by a
+   * `FormControl` through `setDisabledState`, so a form-disabled control stays
+   * disabled even with this `false`.
+   */
   readonly disabled = input(false);
+  /** Extra classes merged onto the star row (`inline-flex items-center gap-0.5`). */
   readonly class = input('');
   /** Override for the group `aria-label`. Falls back to the locale's `rating`. */
   readonly ariaLabel = input<string>();
+  /**
+   * Size of each star button box — `sm` 16px, `md` 20px (default), `lg` 24px. The
+   * star SVG itself is fixed at 20px in the template, so only `sm` visibly changes
+   * the glyph (by clipping the box).
+   */
   readonly size = input<'sm' | 'md' | 'lg'>('md');
 
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -53,6 +71,11 @@ export class RatingComponent implements ControlValueAccessor {
     });
   }
 
+  /**
+   * Emits the committed rating on click, touch-end or key press — never on hover.
+   * Re-picking the current value emits `0` (the clear gesture), and the same
+   * value is pushed to the `ControlValueAccessor` at the same time.
+   */
   ratingChange = output<number>();
 
   value = signal(0);
@@ -64,6 +87,11 @@ export class RatingComponent implements ControlValueAccessor {
 
   private readonly el = inject(ElementRef);
 
+  /**
+   * Resolves text direction from the host's computed style rather than an input, so
+   * an ancestor `dir="rtl"` is honoured. Drives half-star hit-testing and swaps the
+   * arrow keys in {@link onKeydown}.
+   */
   isRtl(): boolean {
     return isRtl(this.el.nativeElement);
   }
@@ -87,6 +115,11 @@ export class RatingComponent implements ControlValueAccessor {
     )
   );
 
+  /**
+   * Classes for one star button — {@link size} box dimensions plus the amber/muted colour
+   * chosen from {@link getStarFill}. The hover-grow affordance is dropped while
+   * disabled or readonly.
+   */
   starClasses(star: { index: number; value: number }): string {
     const fill = this.getStarFill(star);
     return cn(
@@ -101,6 +134,12 @@ export class RatingComponent implements ControlValueAccessor {
     );
   }
 
+  /**
+   * Fill state to render for one star, computed against the hover preview when the
+   * pointer is over the group and the committed value otherwise. `'half'` is only
+   * ever returned when {@link precision} is `0.5`, so a fractional model value on a
+   * whole-star rating rounds *down* to `'empty'`.
+   */
   getStarFill(star: { index: number; value: number }): 'full' | 'half' | 'empty' {
     const current = this.displayValue();
     if (current >= star.value) {
@@ -112,12 +151,23 @@ export class RatingComponent implements ControlValueAccessor {
     return 'empty';
   }
 
+  /**
+   * Starts a touch drag on a star: previews the whole-star value under the finger and
+   * calls `preventDefault()` to suppress the synthetic mouse events that would
+   * otherwise double-fire {@link onStarClick}. Half stars are not reachable on the
+   * initial touch — drag first, since {@link onTouchMove} does the fine hit-testing.
+   */
   onStarTouchStart(event: TouchEvent, index: number): void {
     if (this.isDisabled() || this.readonly()) return;
     event.preventDefault();
     this.hoverValue.set(index + 1);
   }
 
+  /**
+   * Updates the hover preview only — the committed value is untouched until a click.
+   * Skipped entirely on touch devices so a tap's synthetic mousemove cannot leave a
+   * stale preview behind.
+   */
   onStarHover(event: MouseEvent, index: number): void {
     if (isTouchDevice()) return;
     if (this.isDisabled() || this.readonly()) return;
@@ -134,11 +184,18 @@ export class RatingComponent implements ControlValueAccessor {
     }
   }
 
+  /** Clears the hover preview so the stars fall back to the committed value. No-op on touch devices. */
   onMouseLeave(): void {
     if (isTouchDevice()) return;
     this.hoverValue.set(null);
   }
 
+  /**
+   * Tracks a finger sliding across the row, previewing the star nearest the touch X
+   * (and its half, when {@link precision} is `0.5`). Bound on the container rather
+   * than each star, so the drag keeps working past the star it started on. Scrolling
+   * is suppressed for the duration.
+   */
   onTouchMove(event: TouchEvent): void {
     if (this.isDisabled() || this.readonly()) return;
     event.preventDefault();
@@ -150,6 +207,11 @@ export class RatingComponent implements ControlValueAccessor {
     }
   }
 
+  /**
+   * Commits the previewed value when the finger lifts and clears the preview.
+   * Lifting on the already-selected value clears the rating to `0`, matching the
+   * click gesture in {@link onStarClick}.
+   */
   onTouchEnd(event: TouchEvent): void {
     if (this.isDisabled() || this.readonly()) return;
     event.preventDefault();
@@ -163,6 +225,11 @@ export class RatingComponent implements ControlValueAccessor {
     }
   }
 
+  /**
+   * Commits the clicked value, taking the half from the click's offset inside the star
+   * when {@link precision} is `0.5` (mirrored under RTL). Clicking the current value
+   * clears the rating to `0`, so there is a mouse-only path back to "unrated".
+   */
   onStarClick(event: MouseEvent, index: number): void {
     if (this.isDisabled() || this.readonly()) return;
 
@@ -182,6 +249,13 @@ export class RatingComponent implements ControlValueAccessor {
     this.setValue(finalValue);
   }
 
+  /**
+   * Keyboard control, bound to the visually-hidden `<input type="range">` that carries
+   * the group's focus and `aria-label`: arrows step by {@link precision} (left/right are
+   * swapped under RTL, up/down never are), `Home` clears to `0` and `End` jumps to
+   * {@link max}. Values are clamped to `0…max`, every accepted key commits
+   * immediately, and unhandled keys bubble untouched.
+   */
   onKeydown(event: KeyboardEvent): void {
     if (this.isDisabled() || this.readonly()) return;
 
@@ -255,22 +329,36 @@ export class RatingComponent implements ControlValueAccessor {
     this.ratingChange.emit(val);
   }
 
+  /**
+   * `ControlValueAccessor` — adopts the form value, coercing `null`/`undefined` to `0`.
+   * Values above {@link max} are not clamped and simply light every star.
+   */
   writeValue(value: number): void {
     this.value.set(value ?? 0);
   }
 
+  /** `ControlValueAccessor` — registers the change callback, invoked alongside {@link ratingChange}. */
   registerOnChange(fn: (value: number) => void): void {
     this.onChange = fn;
   }
 
+  /**
+   * `ControlValueAccessor` — registers the touched callback. It fires on value commit
+   * rather than on blur, so the control is marked touched only once a rating is picked.
+   */
   registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
   }
 
+  /**
+   * `ControlValueAccessor` — records the form's disabled state in a separate signal so
+   * it cannot be undone by the {@link disabled} input; either source disables the group.
+   */
   setDisabledState(isDisabled: boolean): void {
     this.formDisabled.set(isDisabled);
   }
 
+  /** Current rating as a string, so a template reference can be interpolated directly. */
   toString(): string {
     return String(this.value());
   }

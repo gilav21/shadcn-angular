@@ -25,6 +25,11 @@ import { ALERT_DIALOG } from '../alert-dialog.component';
 })
 export class AlertDialogCancelComponent {
     private readonly alertDialog = inject(ALERT_DIALOG, { optional: true });
+    /**
+     * Extra classes merged onto the inner `<button>`, after the outline-button
+     * defaults (which include the `mt-2 sm:mt-0` offset for the footer's
+     * stacked-on-mobile layout).
+     */
     class = input('');
 
     classes = computed(() =>
@@ -34,6 +39,11 @@ export class AlertDialogCancelComponent {
         )
     );
 
+    /**
+     * Closes the owning `ui-alert-dialog` without confirming; a no-op when
+     * rendered outside one. Bind your own `(click)` for any extra dismissal
+     * side effect.
+     */
     onClick(): void {
         this.alertDialog?.hide();
     }

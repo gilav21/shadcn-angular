@@ -30,6 +30,13 @@ import { SPEED_DIAL_MENU } from './speed-dial-menu.component';
 export class SpeedDialItemComponent implements OnInit, OnDestroy {
     protected readonly speedDial = inject(SPEED_DIAL, { optional: true });
     private readonly menu = inject(SPEED_DIAL_MENU, { optional: true });
+    /**
+     * Extra classes for the item wrapper, merged after the state classes — so it
+     * can override the closed/open `opacity-0 scale-0` / `opacity-100 scale-100`
+     * pair or the `absolute` positioning the circular layouts apply. Note the
+     * inline `transform`, `transition` and `left`/`top` are set as styles and
+     * cannot be overridden from here.
+     */
     class = input('');
 
     itemIndex = signal(0);

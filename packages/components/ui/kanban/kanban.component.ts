@@ -266,27 +266,49 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
 export class KanbanComponent implements AfterContentInit, OnDestroy {
     private readonly shortcuts = inject(ShortcutBindingService);
 
+    /** Extra classes merged onto the horizontally scrolling board strip (which already carries `flex gap-3 sm:gap-4 overflow-x-auto p-2 sm:p-4`). */
     class = input('');
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
     locale = input<LocaleInput<KanbanLocale>>();
+    /**
+     * Text direction of the board. Two-way, but the component overwrites it from
+     * {@link locale}'s `rtl` flag whenever the resolved locale changes — set a
+     * locale rather than fighting this input if you need a fixed direction.
+     */
     rtl = model<boolean>(false);
+    /** Shows the label chip editor in the card dialog. `false` hides the field entirely; labels already on a {@link cards} entry still render on the card. */
     haveLabels = input(true);
+    /** Shows the assignee editor in the card dialog. `false` hides the field entirely; assignees already on a {@link cards} entry still render as avatars. */
     haveAssignees = input(true);
+    /** Known assignees offered in the card dialog. When non-empty the dialog uses a multi-select autocomplete (so avatars are preserved); when empty it falls back to a free-text chip list where typed names get no avatar. */
     assigneeOptions = input<{ name: string; avatar?: string }[]>([]);
 
+    /** Columns to render, in any order — the board sorts them by `order`. Ignored when `<ui-kanban-column>` children are projected. */
     columns = input<KanbanColumn[]>([]);
+    /** All cards on the board; each is placed by its `columnId` and sorted by `order` within the column. The component never mutates this array — apply the emitted changes yourself. */
     cards = input<KanbanCard[]>([]);
+    /** Case-insensitive filter over each card's title, description and label texts. Hidden cards stay in {@link cards} but drop out of the column count badge and therefore out of the WIP-limit check, so leave it empty when the badge must be accurate. */
     searchTerm = input('');
 
+    /** Emits the full next `columns` array (a new array — never the input mutated) after a reorder, undo or redo. Assign it back to {@link columns} or the board will not change. */
     columnsChange = output<KanbanColumn[]>();
+    /** Emits the full next `cards` array after a move, delete, undo or redo. The board is fully controlled: nothing changes until you assign this back to {@link cards}. Card creation/edits come through {@link cardAdded}/{@link cardUpdated} instead. */
     cardsChange = output<KanbanCard[]>();
+    /** Fires alongside {@link cardsChange} when a card changes position, via drag-and-drop or the "Move to" context-menu item. Informational — the move is already reflected in the {@link cardsChange} payload; use it for logging or persistence. `newOrder` is the target index within the destination column. */
     cardMoved = output<KanbanCardMoveEvent>();
+    /** Fires when a card is created from the dialog or duplicated (title suffixed `" (copy)"`). The payload has no `id` — mint one and append the card to {@link cards} yourself; no {@link cardsChange} accompanies this. */
     cardAdded = output<KanbanCardAddEvent>();
+    /** Fires with the complete edited card after a dialog save or a priority change from the context menu. Replace the matching entry in {@link cards} — no {@link cardsChange} accompanies this. */
     cardUpdated = output<KanbanCard>();
+    /** Emits the deleted card's id only once the 6s undo toast expires or is dismissed, so it is safe to use for irreversible cleanup. {@link cardsChange} already removed the card optimistically when the delete was requested. */
     cardDeleted = output<string>();
+    /** Fires when a column is added from the board context menu. No `id` — mint one and append to {@link columns} yourself. `order` is set to the current column count. */
     columnAdded = output<Omit<KanbanColumn, 'id'>>();
+    /** Fires with the complete column after a rename or a WIP-limit change. A cleared WIP limit arrives as `wipLimit: undefined`. Replace the matching entry in {@link columns}. */
     columnUpdated = output<KanbanColumn>();
+    /** Fires after the delete-column dialog is confirmed. Perform the deletion yourself: `moveCardsTo` names the column to reparent the cards into, or is `undefined` when the user chose to delete them. */
     columnDeleted = output<KanbanColumnDeleteEvent>();
+    /** Fires whenever the undo/redo stacks change — bind it to enable/disable your own toolbar buttons for {@link undo}/{@link redo}. */
     historyChange = output<KanbanHistoryState>();
 
     @ContentChildren(KanbanColumnComponent) customColumnChildren!: QueryList<KanbanColumnComponent>;
@@ -401,6 +423,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         });
     });
 
+    /** The column's cards after {@link searchTerm} filtering, sorted by `order`. Called by every `<ui-kanban-column>` on each change detection pass — keep it cheap. */
     getCardsForColumn(columnId: string): KanbanCard[] {
         return this.filteredCards()
             .filter(c => c.columnId === columnId)
@@ -409,16 +432,30 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     // ── Drag & Drop ──────────────────────────────────────────────
 
+    /**
+     * Marks a card as being dragged so columns accept drops and the source card
+     * dims. Called by `<ui-kanban-card>` from the HTML5 `dragstart` handler —
+     * there is no touch equivalent, so drag-and-drop is mouse/pointer only;
+     * touch users move cards through the card context menu's "Move to" submenu.
+     */
     startDrag(cardId: string, columnId: string): void {
         this.draggedCardId.set(cardId);
         this.dragSourceColumnId.set(columnId);
     }
 
+    /** Clears the drag state set by {@link startDrag}. Runs on `dragend` and after a successful {@link moveCard}, so a cancelled drag leaves no state behind. */
     endDrag(): void {
         this.draggedCardId.set(null);
         this.dragSourceColumnId.set(null);
     }
 
+    /**
+     * Places a card at `newOrder` within `toColumnId`, pushing the cards at or
+     * after that index down by one. Emits {@link cardsChange} with the next array
+     * plus {@link cardMoved}, records an undo snapshot, and ends the drag — but
+     * does not mutate {@link cards}, so nothing moves until you apply the change.
+     * A `cardId` not present in {@link cards} is a no-op.
+     */
     moveCard(cardId: string, toColumnId: string, newOrder: number): void {
         const currentCards = this.cards();
         const card = currentCards.find(c => c.id === cardId);
@@ -445,14 +482,17 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     // ── Context Menu ─────────────────────────────────────────────
 
+    /** Opens the card context menu (edit / duplicate / move / priority / delete) at viewport coordinates `x`,`y`. Called by `<ui-kanban-card>` on right-click; call it yourself to expose the same menu from a custom trigger such as a long-press or a kebab button. */
     showCardContextMenu(x: number, y: number, card: KanbanCard): void {
         this.cardMenuRef()?.show(x, y, card);
     }
 
+    /** Opens the column context menu (add card / rename / WIP limit / move / delete) at viewport coordinates `x`,`y`. Called by the column header on right-click; the move entries disable themselves via {@link isFirstColumn}/{@link isLastColumnCheck}. */
     showColumnContextMenu(x: number, y: number, column: KanbanColumn): void {
         this.columnMenuRef()?.show(x, y, column);
     }
 
+    /** Host `contextmenu` handler that opens the board menu ("Add column") only on empty board space — right-clicks inside a column bubble up but are ignored here so the column menu wins. */
     onBoardContextMenu(event: MouseEvent): void {
         const target = event.target as HTMLElement;
         if (target.closest('[data-slot="kanban-column"]')) return;
@@ -460,12 +500,14 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.boardMenuRef()?.show(event.clientX, event.clientY);
     }
 
+    /** Whether `column` is leftmost in `order` and so cannot move further left. Returns `true` for `undefined` (the menu's data before it is populated) so the action stays disabled. */
     isFirstColumn(column: KanbanColumn | undefined): boolean {
         if (!column) return true;
         const sorted = this.sortedColumns();
         return sorted.length === 0 || sorted[0].id === column.id;
     }
 
+    /** Whether `column` is rightmost in `order` and so cannot move further right. Returns `true` for `undefined`, mirroring {@link isFirstColumn}. */
     isLastColumnCheck(column: KanbanColumn | undefined): boolean {
         if (!column) return true;
         const sorted = this.sortedColumns();
@@ -474,6 +516,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     // ── Card Actions ─────────────────────────────────────────────
 
+    /** Opens the card dialog in "add" mode targeting `columnId`; a missing id is a no-op. Submitting emits {@link cardAdded}, not {@link cardsChange}. */
     onAddCard(columnId?: string): void {
         if (!columnId) return;
         this.cardDialogRef()?.open('add', columnId);
@@ -489,11 +532,13 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         return data as KanbanColumn | undefined;
     }
 
+    /** Opens the card dialog prefilled from `card`; submitting emits {@link cardUpdated} with the merged card. `undefined` is a no-op, since the context menu may fire before its data is set. */
     onEditCard(card: KanbanCard | undefined): void {
         if (!card) return;
         this.cardDialogRef()?.open('edit', card.columnId, card);
     }
 
+    /** Emits {@link cardAdded} for a copy of `card` in the same column, titled `"… (copy)"`, with labels and assignees shallow-copied. You mint the id and append it — the board shows nothing until you do. */
     onDuplicateCard(card: KanbanCard | undefined): void {
         if (!card) return;
         this.captureSnapshot();
@@ -507,6 +552,13 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         });
     }
 
+    /**
+     * Context-menu move: appends `card` to the end of `targetColumnId` and emits
+     * {@link cardsChange} plus {@link cardMoved}. Unlike {@link moveCard} it does
+     * not shift sibling orders, since the target index is the column length.
+     * A no-op when the card is already in that column. This is the touch-friendly
+     * path to moving a card — HTML5 drag-and-drop does not fire on touch.
+     */
     onMoveCardToColumn(card: KanbanCard | undefined, targetColumnId: string): void {
         if (!card || card.columnId === targetColumnId) return;
         this.captureSnapshot();
@@ -530,6 +582,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         });
     }
 
+    /** Emits {@link cardUpdated} with the new priority, which paints the card's coloured start border. Pass `'none'` to clear it — that is emitted as `priority: undefined`. */
     onSetCardPriority(card: KanbanCard | undefined, priority: KanbanCard['priority'] | 'none'): void {
         if (!card) return;
         this.captureSnapshot();
@@ -539,6 +592,14 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         });
     }
 
+    /**
+     * Soft-deletes a card: emits {@link cardsChange} without it immediately and
+     * shows a 6-second undo toast. {@link cardDeleted} — the signal to delete for
+     * real — is withheld until the countdown expires or the toast is dismissed,
+     * so treat {@link cardsChange} as provisional and do not persist the removal
+     * before {@link cardDeleted} arrives. Only one delete can be pending; a second
+     * delete finalizes the first.
+     */
     onDeleteCard(card: KanbanCard | undefined): void {
         if (!card) return;
         this.captureSnapshot();
@@ -571,6 +632,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.pendingDeletes.set(card.id, { card, timeoutId, countdownIntervalId });
     }
 
+    /** Toast "Undo" action: cancels the pending delete and emits {@link cardsChange} with the card appended back (at the end of {@link cards}, so its position within the column depends on its retained `order`). {@link cardDeleted} never fires, and the delete's undo snapshot is dropped so {@link undo} skips it. */
     undoCardDelete(): void {
         const entry = Array.from(this.pendingDeletes.entries()).pop();
         if (!entry) return;
@@ -588,6 +650,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.emitHistoryState();
     }
 
+    /** Toast close button: forfeits the undo window and finalizes every pending delete immediately, emitting {@link cardDeleted} for each. */
     dismissDeleteToast(): void {
         this.deleteToastVisible.set(false);
         for (const [cardId, pending] of this.pendingDeletes.entries()) {
@@ -600,20 +663,24 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     // ── Column Actions ───────────────────────────────────────────
 
+    /** Opens the column dialog in "add" mode (name + optional WIP limit); submitting emits {@link columnAdded}. Also reachable by right-clicking empty board space. */
     onAddColumn(): void {
         this.columnDialogRef()?.openAddColumn();
     }
 
+    /** Opens the column dialog prefilled with `column.title`; submitting emits {@link columnUpdated} with only the title replaced. */
     onRenameColumn(column: KanbanColumn | undefined): void {
         if (!column) return;
         this.columnDialogRef()?.openRenameColumn(column);
     }
 
+    /** Opens the WIP-limit dialog for `column`. Submitting emits {@link columnUpdated}; a blank or non-positive entry clears the limit (`wipLimit: undefined`). Exceeding the limit only restyles the column — it never blocks a drop. */
     onSetWipLimit(column: KanbanColumn | undefined): void {
         if (!column) return;
         this.columnDialogRef()?.openSetWip(column);
     }
 
+    /** Swaps `column`'s `order` with its left neighbour and emits {@link columnsChange}. "Left" is board order, not visual side — in RTL the column appears to move right. No-op for the first column. */
     onMoveColumnLeft(column: KanbanColumn | undefined): void {
         if (!column) return;
         const sorted = this.sortedColumns();
@@ -630,6 +697,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.columnsChange.emit(updated);
     }
 
+    /** Swaps `column`'s `order` with its right neighbour and emits {@link columnsChange}. Mirror of {@link onMoveColumnLeft}; no-op for the last column. */
     onMoveColumnRight(column: KanbanColumn | undefined): void {
         if (!column) return;
         const sorted = this.sortedColumns();
@@ -646,6 +714,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.columnsChange.emit(updated);
     }
 
+    /** Opens the confirmation dialog, which asks where to send the column's cards when it holds any. Nothing is emitted until the user confirms — see {@link onDeleteColumnConfirmed}. */
     onDeleteColumn(column: KanbanColumn | undefined): void {
         if (!column) return;
         const cardCount = this.cards().filter(c => c.columnId === column.id).length;
@@ -654,6 +723,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     // ── Dialog Handlers ──────────────────────────────────────────
 
+    /** Card-dialog `submitted` handler: records an undo snapshot, then re-emits as {@link cardAdded} (add mode) or {@link cardUpdated} merged onto `event.card` (edit mode). Wired in the template; call it only when driving the dialog yourself. */
     onCardDialogSubmitted(event: {
         mode: 'add' | 'edit';
         columnId: string;
@@ -675,6 +745,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         }
     }
 
+    /** Column-dialog `submitted` handler: records an undo snapshot, then emits {@link columnAdded} for `'add-column'` or {@link columnUpdated} for `'rename-column'`/`'set-wip'`. Rename and WIP modes silently do nothing if the id is no longer in {@link columns}. */
     onColumnDialogSubmitted(event: {
         mode: KanbanColumnDialogMode;
         name?: string;
@@ -701,6 +772,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         }
     }
 
+    /** Delete-confirmation handler: records an undo snapshot and re-emits the choice as {@link columnDeleted}. It does not emit {@link columnsChange} or {@link cardsChange} — you remove the column and reparent or drop its cards. */
     onDeleteColumnConfirmed(event: KanbanColumnDeleteEvent): void {
         this.captureSnapshot();
         this.columnDeleted.emit(event);
@@ -720,6 +792,15 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.emitHistoryState();
     }
 
+    /**
+     * Restores the previous board snapshot, emitting both {@link cardsChange} and
+     * {@link columnsChange} — apply both or the board desynchronizes. Bound to
+     * `Mod+Z` globally while the component is alive. History holds 50 steps and
+     * snapshots the state *before* each action; since add/update actions only
+     * emit events, undoing them relies on you having applied those events. A
+     * pending delete is abandoned rather than finalized — its toast closes and
+     * {@link cardDeleted} never fires, the restored snapshot being authoritative.
+     */
     undo(): void {
         const snapshot = this.undoStack.pop();
         if (!snapshot) return;
@@ -736,6 +817,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.emitHistoryState();
     }
 
+    /** Reapplies the last undone snapshot, emitting {@link cardsChange} and {@link columnsChange}. Bound to `Mod+Shift+Z`. The redo stack is cleared by any new board action, so redo is only available immediately after {@link undo}. */
     redo(): void {
         const snapshot = this.redoStack.pop();
         if (!snapshot) return;

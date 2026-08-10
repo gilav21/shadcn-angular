@@ -43,10 +43,15 @@ import { SidebarService } from './sidebar.service';
   host: { class: 'contents' },
 })
 export class SidebarComponent implements AfterViewInit {
+  /** Extra classes merged onto the `<aside>`. They land last, so a `w-*` utility here overrides the built-in 280px / collapsed width. */
   class = input('');
+  /** Which edge the sidebar sits on. Also decides which way it slides off-screen on mobile. Note the border is always drawn with the logical `border-e`, so in RTL a `side="right"` sidebar draws its border on the outer edge. */
   side = input<'left' | 'right'>('left');
+  /** Reserved styling variant. Currently inert — the rendered classes are the same for all three values. */
   variant = input<'sidebar' | 'floating' | 'inset'>('sidebar');
+  /** Reserved flag for suppressing collapse. Currently inert — collapsing is driven entirely by {@link SidebarService.toggle}, which this does not gate. */
   collapsible = input(true);
+  /** What collapsing looks like on desktop: `'icon'` keeps a 60px rail (labels go to `sr-only`, menu buttons show tooltips), `'hidden'` shrinks to zero width with no border. Ignored on mobile, where the sidebar slides out instead. */
   collapseMode = input<'icon' | 'hidden'>('icon');
 
   isMobile = signal(false);
@@ -75,6 +80,7 @@ export class SidebarComponent implements AfterViewInit {
     }
   }
 
+  /** Closes the mobile scrim on Space, swallowing the default so the page behind does not scroll. Enter is handled by a separate binding. */
   onOverlayKeydown(event: Event): void {
     event.preventDefault();
     this.service.close();
@@ -95,6 +101,12 @@ export class SidebarComponent implements AfterViewInit {
     }
   }
 
+  /**
+   * Modal keyboard behaviour for the **mobile** drawer only: Escape closes it and
+   * Tab/Shift+Tab is cycled inside it. On desktop it returns immediately, so the
+   * sidebar stays part of the normal tab order there. The focus trap re-queries
+   * the DOM on each Tab, so items added while open are picked up.
+   */
   onKeydown(event: KeyboardEvent): void {
     if (!this.service.isMobile() || !this.service.isOpen()) return;
 

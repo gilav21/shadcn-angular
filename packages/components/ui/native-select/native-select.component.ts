@@ -42,6 +42,7 @@ import { cn } from '../../lib/utils';
 export class NativeSelectComponent implements ControlValueAccessor {
   @ViewChild('select') selectEl!: ElementRef<HTMLSelectElement>;
 
+  /** Extra classes merged onto the inner `<select>`, not onto the positioning wrapper that holds the chevron. */
   class = input('');
   /** Accessible name, camelCase form: `[ariaLabel]="'Country'"`. */
   readonly ariaLabel = input<string | undefined>(undefined);
@@ -55,8 +56,15 @@ export class NativeSelectComponent implements ControlValueAccessor {
     inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.getAttribute('aria-label') ?? undefined;
   /** The name actually applied to the inner `<select>`, from either spelling. */
   readonly resolvedAriaLabel = computed(() => this.ariaLabel() ?? this.hostAriaLabel);
+  /** Control height, applied as `data-size` on the `<select>` and styled from the component stylesheet. */
   size = input<'sm' | 'default'>('default');
+  /**
+   * Disables the select. OR-ed with the state pushed by
+   * {@link setDisabledState}, so a reactive-forms `disable()` also wins; the
+   * wrapper is dimmed either way.
+   */
   disabled = input(false);
+  /** Marks the control invalid: adds the destructive ring/border and sets `aria-invalid` (omitted entirely when `false`). */
   invalid = input(false);
 
   protected innerValue = signal('');
@@ -76,24 +84,29 @@ export class NativeSelectComponent implements ControlValueAccessor {
     this.class()
   ));
 
+  /** Reads the newly picked option's value off the native `change` event, stores it and notifies the form. Touched is raised separately on blur. */
   onSelectChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
     this.innerValue.set(value);
     this.onChange(value);
   }
 
+  /** Pushes a form value into the `<select>`, coercing `null`/`undefined` to `''` so it falls back to the empty/placeholder option. */
   writeValue(value: string): void {
     this.innerValue.set(value ?? '');
   }
 
+  /** Stores the form's change callback, invoked from {@link onSelectChange}. */
   registerOnChange(fn: (value: string) => void): void {
     this.onChange = fn;
   }
 
+  /** Stores the form's touched callback, which the template invokes on the `<select>`'s blur. */
   registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
   }
 
+  /** Records the form's disabled state separately from the {@link disabled} input; either one disables the select. */
   setDisabledState(isDisabled: boolean): void {
     this.formDisabled.set(isDisabled);
   }

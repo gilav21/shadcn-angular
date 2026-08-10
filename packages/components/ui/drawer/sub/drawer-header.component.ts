@@ -16,6 +16,11 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class DrawerHeaderComponent {
+    /**
+     * Extra classes merged onto the host. Defaults centre the text on mobile and
+     * align it to the inline start from `sm:` up — pass a `text-*` utility to
+     * override that.
+     */
     class = input('');
 
     classes = computed(() => cn(

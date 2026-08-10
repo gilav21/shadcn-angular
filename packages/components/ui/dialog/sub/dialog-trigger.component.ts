@@ -39,6 +39,7 @@ export class DialogTriggerComponent {
         });
     }
 
+    /** Toggles the owning `ui-dialog`; a no-op when rendered outside one. */
     onClick(): void {
         this.dialog?.toggle();
     }

@@ -39,11 +39,21 @@ export class EmojiPickerTriggerComponent {
         });
     }
 
+    /**
+     * Toggles the parent picker and stops propagation, so the picker's own
+     * document-click dismissal does not immediately undo the open.
+     */
     onClick(event: Event): void {
         event.stopPropagation();
         this.picker?.toggle();
     }
 
+    /**
+     * `Enter`/`Space` activation for the synthesized button. Ignores keys that bubbled
+     * from projected content — when {@link wrapsInteractive} is true that inner control
+     * fires its own click, and handling both would toggle twice. `preventDefault()`
+     * keeps `Space` from scrolling the page.
+     */
     onKeydown(event: Event): void {
         if (event.target !== event.currentTarget) return;
         event.preventDefault();

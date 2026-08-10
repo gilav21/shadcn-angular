@@ -125,6 +125,10 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
     readonly picker = inject(EMOJI_PICKER, { optional: true });
     private readonly el = inject(ElementRef);
 
+    /**
+     * Extra classes merged onto the floating panel — after the positioning utilities, so
+     * a width or `max-w-` here overrides the default `w-80`.
+     */
     class = input('');
 
     categories: EmojiCategory[] = EMOJI_CATEGORIES;
@@ -148,6 +152,13 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
     private scrollRemoveListener: (() => void) | null = null;
     private isScrollingProgrammatically = false;
 
+    /**
+     * Positioning mode. `'absolute'` (default) anchors the panel under the trigger and
+     * is clipped by any scrolling/`overflow:hidden` ancestor; `'fixed'` measures the
+     * trigger on open and pins the panel to the viewport instead — flipping it up and
+     * clamping it inside the edges — which escapes such ancestors but does **not**
+     * follow the trigger while scrolling (pair it with the picker's `closeOnScroll`).
+     */
     strategy = input<'absolute' | 'fixed'>('absolute');
     private readonly fixedPosition = signal({ top: 0, left: 0 });
     /** Gates visibility until the fixed position is measured, so the panel never
@@ -223,6 +234,10 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
             .filter(category => category.emojis.length > 0);
     });
 
+    /**
+     * Classes for a category tab, highlighting the one tracked as active — which follows
+     * the grid's scroll position, not only explicit clicks.
+     */
     categoryButtonClasses(categoryId: string): string {
         const isActive = this.activeCategory() === categoryId;
         return cn(
@@ -232,6 +247,12 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         );
     }
 
+    /**
+     * Jumps the grid to a category section, clearing the search box first so every
+     * category is present to scroll to. The scroll is smooth and the scroll-spy that
+     * normally tracks the active tab is suppressed for ~800ms so it cannot fight the
+     * animation.
+     */
     scrollToCategory(categoryId: string): void {
         this.searchQuery.set('');
         this.activeCategory.set(categoryId);
@@ -293,6 +314,10 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         }
     }
 
+    /**
+     * Forwards a grid click to the parent picker, which emits `emojiSelect` and applies
+     * `closeOnSelect`. A no-op when this content is used outside a `ui-emoji-picker`.
+     */
     selectEmoji(emoji: string): void {
         this.picker?.selectEmoji(emoji);
     }

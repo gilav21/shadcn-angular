@@ -36,8 +36,17 @@ import { CONTEXT_MENU_SUB, type ContextMenuSubComponent } from './context-menu-s
     host: { class: 'contents' },
 })
 export class ContextMenuSubTriggerComponent {
+    /** Extra classes for the inner trigger row, merged after the defaults (the host itself is `display: contents`, so styling the host has no effect). */
     class = input('');
+    /**
+     * Intended to disable the branch, but currently inert: the value is never
+     * written to `data-disabled` nor to `aria-disabled`, so the
+     * `data-[disabled]:` styling never matches, hover/keyboard still open the
+     * flyout, and the row stays in the arrow-key ring. Accepts a bare attribute
+     * (`disabled`) via `booleanAttribute`.
+     */
     disabled = input(false, { transform: booleanAttribute });
+    /** Adds `pl-8` (LTR) / `pr-8` (RTL) so the branch label aligns with inset siblings. */
     inset = input(false, { transform: booleanAttribute });
 
     readonly sub = inject(CONTEXT_MENU_SUB) as ContextMenuSubComponent;
@@ -58,10 +67,26 @@ export class ContextMenuSubTriggerComponent {
         this.class()
     ));
 
+    /**
+     * Focuses the inner trigger row (`tabindex="0"`, `role="menuitem"`).
+     * Called by {@link ContextMenuSubComponent.focusTrigger} when the flyout
+     * closes via Escape or the inline-start arrow, so focus returns to the
+     * branch rather than being lost with the destroyed portal.
+     */
     focus(): void {
         this.triggerEl?.nativeElement.focus();
     }
 
+    /**
+     * Opens the flyout and moves focus into it on Enter, and on the
+     * inline-forward arrow — ArrowRight in LTR, ArrowLeft in RTL (the opposite
+     * arrow is left unhandled so it can close a parent flyout). Space does not
+     * open the branch. The event is stopped so the parent menu does not act on
+     * the same key; the reverse direction is handled by
+     * {@link ContextMenuSubContentComponent.onKeydown}. Mouse users get the
+     * same result by hovering: `mouseenter` opens immediately, `mouseleave`
+     * closes after a 100ms grace period so the pointer can cross the gap.
+     */
     onKeydown(event: KeyboardEvent): void {
         const rtl = this.contextMenu?.isRtl() ?? false;
         if (event.key === 'ArrowRight') {

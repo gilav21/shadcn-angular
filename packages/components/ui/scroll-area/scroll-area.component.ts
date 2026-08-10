@@ -19,7 +19,17 @@ import { onPointerDrag } from '../../lib/touch';
   host: { class: 'contents' },
 })
 export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
+  /**
+   * Extra classes merged onto the `relative overflow-hidden` root. Because the
+   * viewport is `size-full`, the root is what must be given a bounded height
+   * (or `max-h-*`) — without one there is nothing to scroll.
+   */
   class = input('');
+  /**
+   * Which custom scrollbars may appear. The native scrollbars are always hidden
+   * and the viewport always scrolls in both axes; this only gates the styled
+   * thumbs, and each is shown only when its content actually overflows.
+   */
   orientation = input<'vertical' | 'horizontal' | 'both'>('vertical');
 
   @ViewChild('viewport') viewportRef?: ElementRef<HTMLElement>;
@@ -122,6 +132,12 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
     this.dragCleanup?.();
   }
 
+  /**
+   * Viewport `scroll` handler — re-reads the scroll/client metrics that position
+   * and size the custom thumbs. Since the metrics are only sampled here and on
+   * resize, content that changes height without a resize needs an external
+   * nudge (e.g. {@link scrollToBottom}) to refresh them.
+   */
   onScroll(): void {
     this.updateScrollMetrics();
   }
@@ -138,6 +154,13 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Starts a thumb drag from either a `mousedown` or a `touchstart` — pointer
+   * tracking and teardown are delegated to `onPointerDrag`, so the same handler
+   * covers mouse and touch. Movement is scaled by the content/viewport ratio so
+   * the thumb tracks the cursor, and the default action is prevented to stop
+   * text selection or page panning mid-drag.
+   */
   onThumbDragStart(event: MouseEvent | TouchEvent, orientation: 'vertical' | 'horizontal'): void {
     event.preventDefault();
     const viewport = this.viewportRef?.nativeElement;
@@ -173,6 +196,13 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
     return { clientX: mouseEvent.clientX, clientY: mouseEvent.clientY };
   }
 
+  /**
+   * Jumps the viewport to the end of its content and refreshes the thumb
+   * position. The scroll is deferred to the next animation frame so it happens
+   * after layout, which is what makes it safe to call immediately after
+   * appending content (the chat/log "stick to bottom" case). Instant, never
+   * smooth-scrolled.
+   */
   scrollToBottom(): void {
     const viewport = this.viewportRef?.nativeElement;
     if (viewport) {

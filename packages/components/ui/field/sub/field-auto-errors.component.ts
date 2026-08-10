@@ -53,7 +53,13 @@ import { FieldErrorComponent } from './field-error.component';
   host: { class: 'contents' },
 })
 export class FieldAutoErrorsComponent {
+  /**
+   * Locale dictionary or registry key used to turn Angular validation error keys
+   * into messages. Falls back to `UI_LOCALE_ID`. Per-instance {@link messages}
+   * entries win over it.
+   */
   readonly locale = input<LocaleInput<FieldErrorsLocale>>();
+  /** Extra classes forwarded to the `ui-field-error` this renders — nothing is rendered at all while the control has no active error. */
   readonly class = input('');
   /** Explicit control — overrides the one detected from the surrounding ui-field. */
   readonly control = input<AbstractControl | null>(null);

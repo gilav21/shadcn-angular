@@ -42,6 +42,15 @@ export class ContextMenuContentComponent implements OnDestroy {
     readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
     private readonly document = inject(DOCUMENT);
 
+    /**
+     * Extra classes for the floating panel, merged after the defaults
+     * (`min-w-[8rem]`, popover colours, `max-w-[calc(100vw-16px)]` /
+     * `max-h-[calc(100vh-16px)]` scroll clamps, enter animation). The panel is
+     * portalled to `document.body` with `position: fixed` and `z-index: 9999`,
+     * so it inherits nothing from the host — width, padding and colours must be
+     * set here rather than on an ancestor. Avoid overriding `position`/`left`/
+     * `top`: they are re-applied from the clamped coordinates on every open.
+     */
     class = input('');
 
     @ViewChild('contentTemplate', { static: true }) contentTemplate!: TemplateRef<unknown>;

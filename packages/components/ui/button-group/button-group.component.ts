@@ -28,7 +28,15 @@ import { cn } from '../../lib/utils';
     host: { class: 'contents' },
 })
 export class ButtonGroupComponent {
+    /** Extra classes merged onto the group wrapper — e.g. `w-full` to stretch it, since the group is `w-fit` by default. */
     class = input('');
+    /**
+     * Stacking axis. Drives which corner radii and adjoining borders are
+     * stripped from the children so they read as one control: the horizontal
+     * form uses logical `-s`/`-e` sides and therefore flips correctly in RTL.
+     * Set the matching `orientation` on any
+     * {@link ButtonGroupSeparatorComponent} inside.
+     */
     orientation = input<'horizontal' | 'vertical'>('horizontal');
 
     classes = computed(() => {

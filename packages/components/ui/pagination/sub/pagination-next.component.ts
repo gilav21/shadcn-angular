@@ -22,7 +22,9 @@ import { PAGINATION_LOCALES, type PaginationLocale } from '../pagination.locales
   host: { class: 'contents' },
 })
 export class PaginationNextComponent {
+  /** Extra classes merged onto the "next" button. Its chevron is flipped automatically in RTL. */
   readonly class = input('');
+  /** Disables the button — set it on the last page. Nothing computes this for you in template mode, and the component emits no event of its own; bind your own click handler. */
   readonly disabled = input(false);
 
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */

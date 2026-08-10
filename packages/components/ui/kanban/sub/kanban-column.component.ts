@@ -140,11 +140,17 @@ export class KanbanColumnComponent implements AfterContentInit {
 
     @ViewChild('cardContainer') cardContainerRef?: ElementRef<HTMLElement>;
 
+    /** Extra classes merged onto the column shell, after the fixed track width (`w-[260px] sm:w-[300px]`) and the over-limit / drag-over border states so they can be overridden. */
     class = input('');
+    /** Links this column to the board: cards are pulled by matching `KanbanCard.columnId`, and drops are reported against it. Without it the column renders permanently empty. */
     columnId = input('');
+    /** Heading text in the default header. Ignored when a `<ui-kanban-column-header>` is projected. */
     title = input('');
+    /** Soft work-in-progress cap shown as `/ n` beside the count. Exceeding it turns the count badge destructive and the border red — it never blocks a drop or an add. Counts only cards visible under the board's search filter. */
     wipLimit = input<number | undefined>(undefined);
+    /** Shows the chevron that collapses the card list to just the header. Collapse state is local to the column and resets when the column is re-created. */
     collapsible = input(true);
+    /** Locale dictionary for the empty-state text. The board passes its own resolved locale down; set it only on a hand-placed `<ui-kanban-column>` outside a `<ui-kanban>`. */
     locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
 
     collapsed = signal(false);
@@ -191,14 +197,17 @@ export class KanbanColumnComponent implements AfterContentInit {
         this.class()
     ));
 
+    /** Collapses or expands the card list, leaving the header and its counts visible. A collapsed column removes the card container from the DOM, so it can no longer be dropped into. */
     toggleCollapse(): void {
         this.collapsed.update(v => !v);
     }
 
+    /** Asks the board to open its card dialog targeting this column — backing both the header `+` button and the empty-state link. Does nothing outside a `<ui-kanban>`. */
     onAddCard(): void {
         this.kanban?.onAddCard(this.columnId());
     }
 
+    /** Opens the board's column menu at the pointer, stopping propagation so the board's own "Add column" menu does not also open. Silently does nothing if {@link columnId} matches no entry in the board's `columns`. Right-click only — no long-press fallback. */
     onHeaderContextMenu(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();
@@ -206,6 +215,7 @@ export class KanbanColumnComponent implements AfterContentInit {
         if (col) this.kanban?.showColumnContextMenu(event.clientX, event.clientY, col);
     }
 
+    /** Marks the column as a drop target, but only while the board reports a card being dragged — so files and outside content dragged over the board are left to the page. Enter/leave are ref-counted, because moving between child cards fires `dragleave` on the column. */
     onDragEnter(event: DragEvent): void {
         if (!this.kanban?.draggedCardId()) return;
         event.preventDefault();
@@ -213,6 +223,13 @@ export class KanbanColumnComponent implements AfterContentInit {
         this.isDragOver.set(true);
     }
 
+    /**
+     * Keeps the drop allowed and positions the insertion indicator at the gap
+     * nearest the pointer, computed by comparing `clientY` against each card's
+     * vertical midpoint. Throttled to one measurement per 50ms since `dragover`
+     * fires continuously, so the indicator can trail the cursor slightly. The
+     * index it settles on is what {@link onDrop} passes to the board.
+     */
     onDragOver(event: DragEvent): void {
         if (!this.kanban?.draggedCardId()) return;
         event.preventDefault();
@@ -263,6 +280,7 @@ export class KanbanColumnComponent implements AfterContentInit {
         this.dropIndicatorTop.set(topPx);
     }
 
+    /** Decrements the enter/leave ref count and hides the indicator and highlight only once the pointer has truly left the column, not merely crossed between cards inside it. */
     onDragLeave(): void {
         this.dragEnterCount--;
         if (this.dragEnterCount <= 0) {
@@ -273,6 +291,12 @@ export class KanbanColumnComponent implements AfterContentInit {
         }
     }
 
+    /**
+     * Reads the dragged card id from the `text/plain` transfer data and asks the
+     * board to move it here at the indicator's index — the board emits the change
+     * rather than mutating anything, so nothing moves until the consumer applies
+     * `cardsChange`. Drag visuals are reset regardless of the outcome.
+     */
     onDrop(event: DragEvent): void {
         event.preventDefault();
         const cardId = event.dataTransfer?.getData('text/plain');

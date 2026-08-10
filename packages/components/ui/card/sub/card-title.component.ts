@@ -16,6 +16,7 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class CardTitleComponent {
+    /** Extra classes merged onto the title. Renders as a styled `<div>`, not a heading element — project your own `<h2>`/`<h3>` inside if the card must appear in the document outline. */
     class = input('');
 
     classes = computed(() => cn('leading-none font-semibold', this.class()));

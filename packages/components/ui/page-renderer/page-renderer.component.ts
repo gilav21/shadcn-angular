@@ -24,9 +24,27 @@ import { cn } from '../../lib/utils';
     host: { class: 'block' }
 })
 export class PageRendererComponent implements OnDestroy {
+    /**
+     * Saved page document to render: the grid configuration plus the placed
+     * items. This is the read-only runtime counterpart of what the page builder
+     * produces — nothing here is editable or draggable.
+     */
     data = input.required<PageData>();
+    /**
+     * Catalogue used to resolve each item's `componentId` to an actual Angular
+     * component class. Items whose id is missing from this list are silently
+     * dropped, so an incomplete catalogue shows a partial page rather than
+     * throwing.
+     */
     components = input<ComponentMeta[]>([]);
+    /**
+     * Data source for item `bindings`: each binding maps a component input name
+     * to a dot-path looked up in this object, and a resolved value overrides the
+     * item's static input. Paths that resolve to `undefined` leave the static
+     * value untouched.
+     */
     context = input<Record<string, unknown>>({});
+    /** Extra classes merged onto the `w-full h-full` grid wrapper — usually where you constrain the rendered page's size. */
     class = input('');
 
     private readonly instanceMap = new Map<string, Record<string, unknown>>();
@@ -80,6 +98,12 @@ export class PageRendererComponent implements OnDestroy {
         });
     }
 
+    /**
+     * Handler for the grid's per-item instantiation event. Caches the created
+     * component instance against its item id so later {@link context} or
+     * {@link data} changes can be pushed into an already-rendered item without
+     * recreating it.
+     */
     onComponentInit(event: { id: string, ref: ComponentRef<unknown> }): void {
         const instance = event.ref.instance as Record<string, unknown>;
         this.instanceMap.set(event.id, instance);

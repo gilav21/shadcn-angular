@@ -25,14 +25,27 @@ export type ComparisonSliderOrientation = 'horizontal' | 'vertical';
     host: { class: 'contents' },
 })
 export class ComparisonSliderComponent implements AfterViewInit {
+    /** Source of the "before" image — the clipped layer on the start side of the divider. Both images should share the same dimensions, or they will not line up under the reveal. */
     readonly beforeSrc = input.required<string>();
+    /** Source of the "after" image, drawn underneath and revealed as the divider moves. */
     readonly afterSrc = input.required<string>();
+    /** Alt text for the before image. Leave empty only when the pair is purely decorative — the two images are separate elements to assistive tech. */
     readonly beforeAlt = input<string>('');
+    /** Alt text for the after image. */
     readonly afterAlt = input<string>('');
+    /** Caption badge pinned to the top-start corner (e.g. "Original"). Omitted entirely when unset — there is no default text. */
     readonly beforeLabel = input<string>();
+    /** Caption badge pinned to the top-end corner (e.g. "Edited"). Omitted entirely when unset; it truncates rather than wrapping on narrow screens. */
     readonly afterLabel = input<string>();
+    /**
+     * Divider position as a percentage from the start edge (left, or top when
+     * vertical), 0–100. Two-way: dragging, tapping the track and the arrow keys
+     * all write back to it, and it is always clamped into range.
+     */
     readonly position = model<number>(50);
+    /** Split axis: `'horizontal'` wipes left-to-right, `'vertical'` top-to-bottom. Also swaps which arrow keys nudge the divider. */
     readonly orientation = input<ComparisonSliderOrientation>('horizontal');
+    /** Extra classes merged onto the root. It is `aspect-video` by default — override that to match your images' ratio, since both layers are absolutely positioned inside it. */
     readonly class = input('');
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -118,10 +131,16 @@ export class ComparisonSliderComponent implements AfterViewInit {
         });
     }
 
+    /** Mouse handler on the whole track: jumps the divider to the click point, then follows the pointer until release — so a click anywhere is also the start of a drag. */
     onTrackMouseDown(event: MouseEvent): void {
         this.startDrag(event.clientX, event.clientY);
     }
 
+    /**
+     * Touch equivalent of {@link onTrackMouseDown}, tracking the first touch
+     * point. The default is prevented so dragging the divider does not scroll the
+     * page; additional simultaneous touches are ignored.
+     */
     onTrackTouchStart(event: TouchEvent): void {
         if (event.touches.length === 0) return;
         event.preventDefault();
@@ -129,6 +148,14 @@ export class ComparisonSliderComponent implements AfterViewInit {
         this.startDrag(touch.clientX, touch.clientY);
     }
 
+    /**
+     * Keyboard control from the handle: arrows nudge by 1%, Home and End jump to
+     * the extremes. Which arrows move the divider follows {@link orientation} —
+     * Left/Right always decrease/increase it, while Up/Down are inverted between
+     * the two orientations, so Up moves towards the top when vertical and acts
+     * like Right when horizontal. Every handled key is `preventDefault`ed to stop
+     * the page scrolling.
+     */
     onKeydown(event: KeyboardEvent): void {
         const delta = this.keyDelta(event.key);
         if (delta !== undefined) {

@@ -31,15 +31,26 @@ import { SkeletonComponent } from '../skeleton';
 export class SwitchComponent implements ControlValueAccessor {
     private static idCounter = 0;
 
+    /**
+     * Disables the switch. OR-ed with the state pushed by
+     * {@link setDisabledState}, so a reactive-forms `disable()` also wins even
+     * when this input stays `false`.
+     */
     disabled = input(false);
+    /** Extra classes merged onto the track button (see {@link trackClasses}); the thumb is not affected. */
     class = input('');
+    /** Renders placeholder blocks instead of the control; the label slot gets its own placeholder when {@link label} is set. */
     readonly skeleton = input(false);
+    /** `id` for the track button. Ignored when {@link label} is set — the auto-generated {@link computedId} is used so the label's `for` can bind. */
     elementId = input<string | undefined>(undefined);
+    /** `aria-label` for the track button. Only applied when {@link label} is unset, since the rendered label already names the control. */
     ariaLabel = input<string | undefined>(undefined);
+    /** `aria-labelledby` for the track button. Only applied when {@link label} is unset. */
     ariaLabelledby = input<string | undefined>(undefined);
+    /** Two-way on/off state, mirrored to `aria-checked` and driving the thumb position. Also written by {@link writeValue}. */
     checked = model(false);
 
-    // Simple mode: inline label
+    /** Simple mode: renders an associated `<label>` next to the track, wired to {@link computedId}. */
     label = input<string | undefined>(undefined);
 
     // Auto-generate ID when label is used
@@ -67,6 +78,7 @@ export class SwitchComponent implements ControlValueAccessor {
         )
     );
 
+    /** Flips {@link checked} and notifies the form (change + touched). No-op while disabled; this is also the only place touched is raised. */
     toggle(): void {
         if (this.isDisabled()) return;
         const newValue = !this.checked();
@@ -75,22 +87,27 @@ export class SwitchComponent implements ControlValueAccessor {
         this.onTouched();
     }
 
+    /** Pushes a form value into {@link checked}, coercing `null`/`undefined` to `false`. Does not emit back to the form. */
     writeValue(value: boolean): void {
         this.checked.set(value ?? false);
     }
 
+    /** Stores the form's change callback, invoked by {@link toggle}. */
     registerOnChange(fn: (value: boolean) => void): void {
         this.onChange = fn;
     }
 
+    /** Stores the form's touched callback; the switch raises it on toggle rather than on blur. */
     registerOnTouched(fn: () => void): void {
         this.onTouched = fn;
     }
 
+    /** Records the form's disabled state separately from the {@link disabled} input; either one disables the control. */
     setDisabledState(isDisabled: boolean): void {
         this._disabled.set(isDisabled);
     }
 
+    /** String form of the current {@link checked} value (`"true"`/`"false"`), handy in templates and test assertions. */
     toString(): string {
         return String(this.checked());
     }

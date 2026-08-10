@@ -44,6 +44,14 @@ import { CONTEXT_MENU_SUB, type ContextMenuSubComponent } from './context-menu-s
     host: { class: 'contents' },
 })
 export class ContextMenuSubContentComponent implements OnDestroy {
+    /**
+     * Extra classes for the flyout panel, merged after the defaults. Like the
+     * root content this is portalled to `document.body` (`position: fixed`,
+     * `z-index: 10000` so it stacks above the root menu), positioned 4px to the
+     * inline-end of its trigger — flipping to the other side, then clamping 8px
+     * inside the viewport, when it would overflow. Overriding `position`/
+     * `left`/`top` fights that logic.
+     */
     class = input('');
     readonly sub = inject(CONTEXT_MENU_SUB) as ContextMenuSubComponent;
     private readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
@@ -159,12 +167,31 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         this.class()
     ));
 
+    /**
+     * Moves focus to the first enabled entry of the open flyout — called by
+     * {@link ContextMenuSubComponent.focusContent} one tick after the sub opens
+     * from the keyboard. A no-op while the portal is unmounted. Only elements
+     * matching `[role="menuitem"]:not([data-disabled])` qualify, which today
+     * means nested `<ui-context-menu-sub-trigger>`s; plain
+     * `<ui-context-menu-item>`s carry no such role and are skipped.
+     */
     focusFirst(): void {
         if (!this.portalHost) return;
         const items = Array.from(this.portalHost.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         items[0]?.focus();
     }
 
+    /**
+     * Keyboard handling for the open flyout. ArrowDown/ArrowUp walk the
+     * enabled entries with wrap-around ({@link focusNextItem} /
+     * {@link focusPrevItem}); the closing key is direction-aware — ArrowLeft in
+     * LTR, ArrowRight in RTL — and Escape always closes; all three close the
+     * flyout and return focus to its trigger. Every key event is stopped from
+     * propagating, so the document-level Escape listener on the root menu never
+     * sees it: Escape inside a sub closes only that sub, leaving the root menu
+     * open. Keys other than these bubble no further but are not
+     * `preventDefault`ed.
+     */
     onKeydown(event: KeyboardEvent): void {
         event.stopPropagation();
         const rtl = this.contextMenu?.isRtl() ?? false;
@@ -194,6 +221,13 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         }
     }
 
+    /**
+     * Focuses the entry after `currentItem` within the same `[role="menu"]`
+     * container, wrapping from the last back to the first. Disabled entries
+     * (`[data-disabled]`) are excluded from the ring, not merely skipped over.
+     * If `currentItem` is not itself in the ring (index `-1`) the walk starts
+     * at the first entry. Counterpart of {@link focusPrevItem}.
+     */
     focusNextItem(currentItem: HTMLElement): void {
         const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
         const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
@@ -202,6 +236,13 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         items[nextIndex]?.focus();
     }
 
+    /**
+     * Focuses the entry before `currentItem` within the same `[role="menu"]`
+     * container, wrapping from the first around to the last. Disabled entries
+     * (`[data-disabled]`) are excluded from the ring; an element that is not in
+     * the ring (index `-1`) lands on the second-to-last entry. Counterpart of
+     * {@link focusNextItem}.
+     */
     focusPrevItem(currentItem: HTMLElement): void {
         const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
         const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));

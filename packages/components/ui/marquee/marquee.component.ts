@@ -21,10 +21,31 @@ import { cn, prefersReducedMotion } from '../../lib/utils';
 export class MarqueeComponent implements AfterViewInit, OnDestroy {
     private readonly ngZone = inject(NgZone);
 
+    /** Extra classes merged onto the clipping viewport. For a vertical {@link direction} give it a bounded height here, otherwise there is nothing to scroll within. */
     class = input('');
+    /**
+     * Travel direction. `'up'`/`'down'` also switch the track and its content to
+     * a column layout. The values are physical, not logical, so `'left'` does
+     * not flip in RTL. Read once when the animation is built.
+     */
     direction = input<'left' | 'right' | 'up' | 'down'>('left');
+    /**
+     * Seconds for one full loop — i.e. the time to scroll past a single copy of
+     * the content, not a fixed pixel rate. More content therefore moves faster
+     * at the same value. Read once at setup.
+     */
     speed = input(20);
+    /**
+     * Pauses the scroll while the pointer is over the marquee. Also wired to
+     * `touchstart`/`touchend`, so on touch devices — which have no hover state —
+     * it pauses for the duration of a press instead.
+     */
     pauseOnHover = input(false);
+    /**
+     * Pixel gap between items, and between the content and its duplicate. It is
+     * folded into the loop distance, so the seam stays invisible; changing it
+     * after setup would desynchronise the loop.
+     */
     gap = input(16);
 
     @ViewChild('track') trackRef!: ElementRef<HTMLElement>;
@@ -46,12 +67,14 @@ export class MarqueeComponent implements AfterViewInit, OnDestroy {
         this.animation?.cancel();
     }
 
+    /** Pointer-enter / touch-start handler — pauses the loop when {@link pauseOnHover} is set, and is a no-op otherwise. */
     onMouseEnter(): void {
         if (this.pauseOnHover() && this.animation) {
             this.animation.pause();
         }
     }
 
+    /** Pointer-leave / touch-end handler — resumes from where {@link onMouseEnter} paused, so the loop never jumps. */
     onMouseLeave(): void {
         if (this.pauseOnHover() && this.animation) {
             this.animation.play();

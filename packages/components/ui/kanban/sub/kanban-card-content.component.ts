@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class KanbanCardContentComponent {
+    /** Extra classes merged onto the projected content wrapper, which supplies only the card's `p-3` padding. Pass a padding utility here to override it. */
     class = input('');
     classes = computed(() => cn('p-3', this.class()));
 }

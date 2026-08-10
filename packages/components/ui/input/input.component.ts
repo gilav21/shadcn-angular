@@ -57,9 +57,20 @@ let nextInputId = 0;
     },
 })
 export class InputComponent implements ControlValueAccessor {
+    /** Native `type` of the inner `<input>` (`'text'`, `'email'`, `'password'`, …). */
     readonly type = input<string>('text');
+    /**
+     * Placeholder text. Not a substitute for a label — it disappears on typing
+     * and does not name the control for assistive tech; use `label`,
+     * `ariaLabel`, or an external `<label for>` via `elementId`.
+     */
     readonly placeholder = input<string>('');
+    /** Disables the control. OR-ed with the form's disabled state and any enclosing input group's. */
     readonly disabled = input(false);
+    /**
+     * Extra classes. Applied to the inner `<input>` normally, or to the wrapping
+     * container when one is rendered (see {@link needsContainer}).
+     */
     readonly class = input('');
 
     /**
@@ -98,18 +109,30 @@ export class InputComponent implements ControlValueAccessor {
     /** Forwarded to the inner <input>'s aria-describedby. */
     readonly ariaDescribedby = input<string | undefined>(undefined);
 
+    /**
+     * Border treatment. Inside a `ui-input-group` an `outline` input is
+     * automatically downgraded to `ghost` so the group draws the single border.
+     */
     readonly variant = input<InputVariant>('outline');
+    /** Show a trailing spinner (e.g. while validating or fetching suggestions). */
     readonly loading = input(false);
+    /** Replace the control with a skeleton placeholder while content loads. */
     readonly skeleton = input(false);
 
+    /** Focus the inner `<input>` on first render. */
     readonly autofocus = input(false);
+    /** Show a clear (✕) button once the field has a value. */
     readonly clearable = input(false);
+    /** Float {@link label} above the field on focus/value. Requires `label`; ignored without it. */
     readonly floating = input(false);
+    /** Label text. Rendered as a floating label when {@link floating} is set. */
     readonly label = input<string>();
     /** Extra classes for the floating label, e.g. `text-base font-semibold
      * text-foreground` — merged last so they override the defaults. */
     readonly labelClass = input('');
+    /** Icon name shown before the field. Presence forces the bordered container layout. */
     readonly prefix = input<string>();
+    /** Icon name shown after the field. Presence forces the bordered container layout. */
     readonly suffix = input<string>();
 
     private readonly group = inject(UI_INPUT_GROUP, { optional: true });
@@ -171,47 +194,62 @@ export class InputComponent implements ControlValueAccessor {
         this.labelIsActive() ? cn('text-xs', this.labelClass()) : 'text-sm'
     ));
 
+    /** Commit a new value from the inner `<input>` and notify the form. */
     onValueChange(value: string): void {
         this.value.set(value);
         this.onChange(value);
     }
 
+    /** Track focus so the floating label can rise. */
     onFocus(): void {
         this.isFocused.set(true);
     }
 
+    /** Drop focus state and mark the control touched. */
     onBlur(): void {
         this.isFocused.set(false);
         this.onTouched();
     }
 
+    /** Clear the value and return focus to the field, so typing can continue immediately. */
     clearValue(): void {
         this.onValueChange('');
         this.focus();
     }
 
+    /** `ControlValueAccessor`: adopt a value from the form. Null/undefined become `''`. */
     writeValue(value: string): void {
         this.value.set(value ?? '');
     }
 
+    /** `ControlValueAccessor`: register the form's change callback. */
     registerOnChange(fn: (value: string) => void): void {
         this.onChange = fn;
     }
 
+    /** `ControlValueAccessor`: register the form's touched callback. */
     registerOnTouched(fn: () => void): void {
         this.onTouched = fn;
     }
 
+    /**
+     * `ControlValueAccessor`: adopt the form's disabled state. Kept separate
+     * from the {@link disabled} input so neither overrides the other — see
+     * {@link isDisabled}.
+     */
     setDisabledState(isDisabled: boolean): void {
         this.formDisabled.set(isDisabled);
     }
 
+    /** The inner `<input>` element. */
     readonly inputRef = viewChild<ElementRef<HTMLInputElement>>('inputRef');
 
+    /** Focus the inner `<input>`. */
     focus(): void {
         this.inputRef()?.nativeElement.focus();
     }
 
+    /** The current value, so the component interpolates as its text in a template. */
     toString(): string {
         return this.value();
     }

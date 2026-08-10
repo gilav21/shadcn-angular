@@ -17,7 +17,9 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class TimelineDotComponent {
+    /** Extra utilities for the dot, merged through `cn()` after the {@link variant} colours so they beat them — also the place to change its fixed `h-6 w-6` size, though {@link TimelineConnectorComponent}'s `top-6` offset assumes the 24px default. */
     class = input('');
+    /** Colour scheme of the dot: `'default'` is a hollow bordered circle, `'filled'` and `'outline'` follow the primary colour, and `'success'`/`'error'`/`'warning'` are status colours. Only the border/background/text colours change — geometry is fixed. Any projected content (an icon, for example) is centred inside and inherits the variant's text colour. */
     variant = input<'default' | 'filled' | 'outline' | 'success' | 'error' | 'warning'>('default');
 
     classes = computed(() =>

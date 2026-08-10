@@ -19,8 +19,23 @@ import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales
 	},
 })
 export class CopyToDirective implements OnDestroy {
+	/**
+	 * Text written to the system clipboard when the host element is clicked.
+	 * Evaluated at click time, so a signal/binding here can supply a value that
+	 * changes between clicks.
+	 */
 	readonly uiCopyTo = input.required<string>();
+	/**
+	 * Locale used for the floating "Copied" confirmation label. Accepts a
+	 * built-in locale key or a partial override object; falls back to the
+	 * library default when omitted.
+	 */
 	readonly locale = input<LocaleInput<CommonLocale>>();
+	/**
+	 * Emitted after the clipboard write succeeds, just before the confirmation
+	 * badge appears. Never emits if the write is rejected (e.g. no permission or
+	 * a non-secure origin).
+	 */
 	readonly copied = output<void>();
 
 	private readonly t = createLocaleSelector(this.locale, COMMON_LOCALES);
@@ -31,6 +46,12 @@ export class CopyToDirective implements OnDestroy {
 	private indicatorEl: HTMLElement | null = null;
 	private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
+	/**
+	 * Host `click` handler — copies {@link uiCopyTo}, emits {@link copied}, then
+	 * shows a "Copied" badge above the element for 1.5s. The badge is appended
+	 * to `document.body` with inline styles (not `ViewEncapsulation.None`) so it
+	 * escapes any clipping ancestor; it is removed on destroy.
+	 */
 	onClick(): void {
 		navigator.clipboard.writeText(this.uiCopyTo()).then(() => {
 			this.copied.emit();

@@ -65,12 +65,18 @@ import { cn } from '../../lib/utils';
 export class InputOTPComponent {
   @ViewChild('hiddenInput') hiddenInput!: ElementRef<HTMLInputElement>;
 
+  /** Extra classes merged onto the row that holds the slots, not onto an individual slot. */
   class = input('');
+  /** `aria-label` for the visually hidden input that actually receives typing — without it or {@link ariaLabelledby} the field is unnamed. */
   ariaLabel = input<string | undefined>(undefined);
+  /** `aria-labelledby` for the visually hidden input, when an external element already labels the field. */
   ariaLabelledby = input<string | undefined>(undefined);
+  /** Number of slots rendered, and the hard cap on {@link value}'s length. */
   maxLength = input(6);
+  /** Zero-based slot indices after which a separator dot is drawn; the flanking slots get rounded outer corners. Default `[2]` splits a 6-digit code into 3+3. */
   separator = input<number[]>([2]);
 
+  /** Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed. */
   value = model<string>('');
   focusedIndex = signal(-1);
 
@@ -91,15 +97,18 @@ export class InputOTPComponent {
     this.focusedIndex() === idx && 'z-10 ring-2 ring-ring',
   );
 
+  /** Character shown in the slot at `idx`, or `''` when the code is not that long yet. */
   getValue(idx: number): string {
     return this.value()[idx] || '';
   }
 
+  /** Click/Enter handler for a slot: focuses the hidden input and moves the caret there, clamped to the end of the code so gaps can't be created. */
   focusSlot(idx: number): void {
     this.hiddenInput?.nativeElement?.focus();
     this.focusedIndex.set(Math.min(idx, this.value().length));
   }
 
+  /** Sanitizes typed or pasted text (alphanumerics only, upper-cased, truncated to {@link maxLength}), publishes it, advances the caret and writes the cleaned text back to the hidden input. */
   onInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const newValue = input.value.replaceAll(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, this.maxLength());
@@ -109,6 +118,7 @@ export class InputOTPComponent {
   }
 
 
+  /** Arrow keys move the caret between slots; Backspace drops the last character regardless of caret position. All three suppress the browser default. */
   onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
@@ -131,14 +141,17 @@ export class InputOTPComponent {
   }
 
 
+  /** Puts the blinking caret on the first empty slot when the hidden input gains focus. */
   onFocus(): void {
     this.focusedIndex.set(this.value().length);
   }
 
+  /** Clears the caret highlight on blur so no slot appears active. */
   onBlur(): void {
     this.focusedIndex.set(-1);
   }
 
+  /** Focuses the field programmatically by focusing the hidden input behind the slots. */
   focus(): void {
     this.hiddenInput?.nativeElement?.focus();
   }

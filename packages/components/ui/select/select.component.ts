@@ -111,6 +111,12 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     private readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
 
+    /**
+     * Disables the trigger and blocks {@link toggle}. OR-ed with the disabled
+     * state pushed by a reactive form via {@link setDisabledState} — see
+     * {@link isDisabled}; clearing this input will not re-enable a control the
+     * form has disabled.
+     */
     readonly disabled = input(false);
     /** Override for the placeholder. Falls back to the locale's `selectPlaceholder`. */
     readonly placeholder = input<string>();
@@ -121,6 +127,11 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
      * combobox with an external visible label (e.g. a `<span id>` caption).
      */
     readonly ariaLabelledby = input<string | undefined>(undefined);
+    /**
+     * Initial selection, applied once while the value is still `undefined` — a
+     * later change is ignored, and it never overwrites a user pick. Use
+     * {@link value} instead to keep the selection driven from the outside.
+     */
     readonly defaultValue = input<T | undefined>(undefined);
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -149,17 +160,57 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         if (this.resolvedAriaLabelledby()) return undefined;
         return this.resolvedPlaceholder();
     });
+    /**
+     * How a projected `<ui-select-content>` anchors itself: `item-aligned`
+     * overlays the popup so the selected row sits on the trigger, `popper`
+     * drops it below (or flips above when there is no room). Read by the
+     * content, which falls back to its own `position` input when no select is
+     * present, and downgrades to `popper` anyway if item-aligned would clip.
+     * Has no effect in data-driven mode, which always renders below.
+     */
     readonly position = input<'popper' | 'item-aligned'>('item-aligned');
+    /**
+     * Options for data-driven mode. Passing a non-empty array switches the
+     * component to render its own trigger and listbox instead of projected
+     * `<ui-select-trigger>` / `<ui-select-content>` content — see
+     * {@link isDataDriven}. Pair with {@link displayWith},
+     * {@link valueAttribute} and {@link disabledWith}.
+     */
     readonly options = input<T[]>([]);
+    /**
+     * Maps an option to its visible label in data-driven mode. Defaults to
+     * `String`, so object options need this to avoid rendering `[object
+     * Object]`.
+     */
     readonly displayWith = input<(option: T) => string>(String);
+    /**
+     * Controlled selection. Any defined value is pushed into the internal
+     * signal on every change; `undefined` is ignored, so it cannot be used to
+     * clear the selection. Setting it does not emit {@link valueChange}.
+     */
     readonly value = input<T | undefined>(undefined);
+    /**
+     * Property name to read the option's value from when options are objects
+     * (e.g. `'id'`). When unset the whole option object is the value, and
+     * matching relies on referential equality.
+     */
     readonly valueAttribute = input<string | undefined>(undefined);
+    /**
+     * Predicate marking individual data-driven options unselectable. Disabled
+     * options are dimmed, skipped by arrow-key navigation and ignored by
+     * {@link selectOption}.
+     */
     readonly disabledWith = input<(option: T) => boolean>(() => false);
 
     internalValue = signal<T | undefined>(undefined);
     open = signal(false);
     focusedIndex = signal(0);
 
+    /**
+     * Emits the newly picked value on user selection only — writes through
+     * {@link value}, {@link defaultValue} or {@link writeValue} stay silent, so
+     * a two-way `[(value)]` binding will not loop.
+     */
     readonly valueChange = output<T>();
 
     private static nextId = 0;
@@ -272,10 +323,15 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         this.document.removeEventListener('keydown', this.keydownListener);
     }
 
+    /** Label shown for an option, via {@link displayWith}. */
     getDisplayValue(option: T): string {
         return this.displayWith()(option);
     }
 
+    /**
+     * Value an option contributes to the selection: the option's
+     * {@link valueAttribute} property, or the option itself when unset.
+     */
     getValue(option: T): unknown {
         const attr = this.valueAttribute();
         if (attr) {
@@ -284,18 +340,33 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         return option;
     }
 
+    /**
+     * `@for` track key for the option list — the stringified
+     * {@link getValue}, so object options must have a {@link valueAttribute}
+     * that is unique across the list.
+     */
     getTrackBy(option: T): string {
         return String(this.getValue(option));
     }
 
+    /**
+     * Whether an option's {@link getValue} strictly equals the current
+     * selection. Object values without a {@link valueAttribute} therefore only
+     * match by reference.
+     */
     isSelected(option: T): boolean {
         return this.getValue(option) === this.internalValue();
     }
 
+    /** Whether {@link disabledWith} rejects this option. */
     isOptionDisabled(option: T): boolean {
         return this.disabledWith()(option);
     }
 
+    /**
+     * Classes for one data-driven option row, folding in its disabled state and
+     * whether it is the keyboard/hover-focused row.
+     */
     itemClasses(option: T): string {
         const index = this.options().indexOf(option);
         const isDisabled = this.isOptionDisabled(option);
@@ -309,6 +380,11 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         );
     }
 
+    /**
+     * Commits a data-driven option: stores its {@link getValue}, emits
+     * {@link valueChange}, notifies the form, and closes the popup. A no-op for
+     * options rejected by {@link disabledWith}.
+     */
     selectOption(option: T): void {
         if (this.isOptionDisabled(option)) return;
         const val = this.getValue(option) as T;
@@ -318,17 +394,28 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         this.close();
     }
 
+    /** Opens or closes the popup; ignored while {@link isDisabled}. */
     toggle(): void {
         if (!this.isDisabled()) {
             this.open.update(v => !v);
         }
     }
 
+    /**
+     * Closes the popup and marks the control touched — so calling it also
+     * triggers a reactive form's touched-state validation display.
+     */
     close(): void {
         this.open.set(false);
         this._onTouched();
     }
 
+    /**
+     * Commits a raw value (used by projected `<ui-select-item>`, which has no
+     * option object): stores it, emits {@link valueChange}, notifies the form
+     * and closes. Unlike {@link selectOption} it applies no disabled check —
+     * the caller is responsible for that.
+     */
     select(val: T): void {
         this.internalValue.set(val);
         this.valueChange.emit(val);
@@ -336,14 +423,25 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         this.close();
     }
 
+    /**
+     * Called by a projected `<ui-select-item>` on init so item-aligned
+     * positioning can measure it. Keyed by value, so duplicate values overwrite
+     * each other.
+     */
     registerItem(value: string, element: HTMLElement): void {
         this.itemElements.set(value, element);
     }
 
+    /** Undoes {@link registerItem} when a projected item is destroyed. */
     unregisterItem(value: string): void {
         this.itemElements.delete(value);
     }
 
+    /**
+     * `offsetTop` of the selected item inside the content, used to shift an
+     * item-aligned popup so that row lands on the trigger. Falls back to the
+     * first registered item, then `0`.
+     */
     getSelectedItemOffset(): number {
         const currentValue = this.internalValue();
         if (currentValue !== undefined) {
@@ -356,15 +454,29 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         return firstItem ? firstItem.offsetTop : 0;
     }
 
+    /**
+     * The trigger button, whether rendered internally or projected as
+     * `<ui-select-trigger>`; `null` before it exists. Used as the positioning
+     * anchor for the content.
+     */
     getTriggerElement(): HTMLElement | null {
         return this.el.nativeElement.querySelector('[data-slot="select-trigger"]')
             ?? this.el.nativeElement.querySelector('button[role="combobox"]');
     }
 
+    /**
+     * Resolved text direction from the computed style of the host, so it
+     * reflects an inherited `dir` rather than only the {@link locale} input.
+     */
     isRtl(): boolean {
         return isRtl(this.el.nativeElement);
     }
 
+    /**
+     * Trigger key handler: Enter, Space, ArrowUp and ArrowDown open the popup
+     * (never close it — use {@link toggle} or Escape for that). Ignored while
+     * {@link isDisabled}.
+     */
     onTriggerKeyDown(event: KeyboardEvent): void {
         if (this.isDisabled()) return;
 
@@ -393,6 +505,12 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         return startIndex; // No enabled option found, stay at current
     }
 
+    /**
+     * Listbox key handler for data-driven mode: arrows move the focused row
+     * (skipping {@link disabledWith} options and stopping at the ends rather
+     * than wrapping), Enter/Space commit it, Escape and Tab close. A no-op when
+     * {@link options} is empty.
+     */
     onContentKeydown(event: KeyboardEvent): void {
         const opts = this.options();
         if (!opts.length) return;
@@ -425,18 +543,29 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         }
     }
 
+    /**
+     * `ControlValueAccessor` — accepts the form's value without emitting
+     * {@link valueChange}. Note a non-`undefined` {@link value} input keeps
+     * winning, since its effect re-applies on every change detection.
+     */
     writeValue(value: T): void {
         this.internalValue.set(value);
     }
 
+    /** `ControlValueAccessor` — stores the form's change callback. */
     registerOnChange(fn: (value: T) => void): void {
         this._onChange = fn;
     }
 
+    /** `ControlValueAccessor` — stores the touched callback, fired by {@link close}. */
     registerOnTouched(fn: () => void): void {
         this._onTouched = fn;
     }
 
+    /**
+     * `ControlValueAccessor` — the form's disabled state, kept separate from
+     * the {@link disabled} input and OR-ed with it in {@link isDisabled}.
+     */
     setDisabledState(isDisabled: boolean): void {
         this._disabled.set(isDisabled);
     }

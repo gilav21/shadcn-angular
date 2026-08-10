@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class SidebarGroupComponent {
+  /** Extra classes merged onto the group wrapper — one titled section of the nav, normally a `ui-sidebar-group-label` plus a `ui-sidebar-group-content`. */
   class = input('');
 
   classes = computed(() => cn(

@@ -57,12 +57,25 @@ import { cn } from '../../../lib/utils';
 export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   private readonly el = inject(ElementRef);
 
+  /** Extra classes merged onto the divider. Its width/height comes from {@link handleSize} as an inline style, so use that rather than a `w-*` utility. */
   class = input('');
+  /** Draws the dotted grip pill in the middle of the divider. Off by default: the bare divider is a 4px line, which is easy to miss — turn this on wherever discoverability matters. */
   withHandle = input(false);
+  /** Thickness of the divider in px, along the group's axis. Doubles as the hit area, so anything under ~24 is hard to grab on touch; the grip pill does not enlarge it. */
   handleSize = input(4);
+  /** Removes the divider entirely (it is `@if`-ed out, not just inert), freezing the panels at their current sizes and collapsing the gap between them. */
   disabled = input(false);
+  /** Accessible name for the `separator`. Give each handle a distinct one in a multi-panel group. Note the divider is focusable but has no key handling, so it cannot actually be resized from the keyboard, and its `aria-valuenow` is a fixed 50. */
   ariaLabel = input('Resize Handle');
 
+  /**
+   * Fires continuously during a drag with the pixel `delta` and the two adjacent
+   * panels' new percentages. The handle has **already** written those sizes to
+   * the DOM — this is a notification, not a request, and there is nothing to
+   * feed back. Sizes are written as inline `flex-basis`, bypassing the panels'
+   * own `size` signals, so they will not survive a re-render that resets style.
+   * Nothing is emitted at drag end, and nothing is persisted.
+   */
   resized = output<{ delta: number; sizes: number[] }>();
 
 
@@ -128,6 +141,7 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     );
   });
 
+  /** Begins a resize from a single-finger touch, cancelling the default so the page does not scroll under the drag. Multi-touch is ignored, so a pinch never starts a resize. */
   onTouchStart(event: TouchEvent): void {
     if (event.touches.length === 1) {
       event.preventDefault();
@@ -135,6 +149,15 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  /**
+   * Begins a mouse resize of the nearest panel on each side, which need not be
+   * immediate siblings. Both panels are clamped to 10–90% of the group — the
+   * panels' own `minSize`/`maxSize` are ignored — and the move is dropped
+   * outright when either would leave that range, so a fast drag stops dead at
+   * the limit. Direction is read from the group's `data-direction`, and the
+   * delta is mirrored in RTL. Listeners are on `document`, so the drag survives
+   * the pointer leaving the handle and ends on mouseup anywhere.
+   */
   onMouseDown(event: MouseEvent): void {
     event.preventDefault();
     this.startDrag(event.clientX, event.clientY, false);

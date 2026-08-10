@@ -31,6 +31,7 @@ import { CAROUSEL } from '../carousel.component';
     host: { class: 'contents' },
 })
 export class CarouselNextComponent {
+    /** Extra classes merged onto the button. Its position is orientation-dependent (inset on mobile, outside the carousel from `sm` up), so override the inset utilities as a set. */
     readonly class = input('');
     readonly carousel = inject(CAROUSEL);
 
@@ -44,6 +45,7 @@ export class CarouselNextComponent {
         this.isRtl() ? !this.carousel.canScrollPrev() : !this.carousel.canScrollNext()
     );
 
+    /** Advances the carousel, calling the parent's `scrollPrev` instead when the layout is horizontal RTL — so "next" always means the next slide, not a fixed direction. */
     onClick(): void {
         if (this.isRtl()) {
             this.carousel.scrollPrev();

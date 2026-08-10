@@ -13,5 +13,10 @@ import {
   host: { class: 'contents' },
 })
 export class TreeSelectTriggerComponent {
+  /**
+   * Extra classes for the trigger slot. The host renders as `contents` and
+   * projects its content verbatim, so style the element you project instead —
+   * this input exists for API symmetry and is not applied to any element.
+   */
   class = input('');
 }

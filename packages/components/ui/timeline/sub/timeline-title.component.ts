@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class TimelineTitleComponent {
+    /** Extra utilities for the heading, merged through `cn()` so they override its `text-sm font-semibold leading-none`. The element is always an `h4`; wrap or replace this component if the surrounding document needs a different heading level. */
     class = input('');
 
     classes = computed(() =>

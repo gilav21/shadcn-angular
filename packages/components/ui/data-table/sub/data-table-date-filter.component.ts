@@ -22,7 +22,9 @@ import { toDate, toDateOnlyTimestamp } from './data-table-date-utils';
   host: { class: 'contents' },
 })
 export class DataTableDateFilterComponent {
+  /** Extra classes merged onto the panel wrapper (the calendar keeps its own). */
   readonly class = input('');
+  /** Optional heading above the Today/Clear row; omitted entirely when unset. */
   readonly title = input<string | undefined>(undefined);
   /**
    * Locale dictionary or registry key (BCP-47). Falls back to `UI_LOCALE_ID`
@@ -30,8 +32,19 @@ export class DataTableDateFilterComponent {
    * locale="he">` is automatically Hebrew without per-column wiring.
    */
   readonly locale = input<LocaleInput<CalendarLocale>>();
+  /**
+   * The externally-held selected date. An effect mirrors it into the internal
+   * signal the calendar reads, so pushing a new value (or `null`) resets the
+   * panel — but the component also updates that signal itself on interaction,
+   * so it works uncontrolled if you never write back.
+   */
   readonly selected = input<Date | null>(null);
 
+  /**
+   * The newly picked date, or `null` when cleared. The component filters
+   * nothing itself — pair it with {@link dateFilterFn} as the column's filter
+   * function and feed this value in as the column filter value.
+   */
   readonly filterChange = output<Date | null>();
 
   private readonly _selected = signal<Date | null>(null);
@@ -57,6 +70,10 @@ export class DataTableDateFilterComponent {
     this.class()
   ));
 
+  /**
+   * Calendar `selectedChange` handler. Non-`Date` payloads (the range/multiple
+   * calendar modes) are ignored, so nothing is emitted for them.
+   */
   onDateSelect(value: unknown): void {
     if (value instanceof Date) {
       this._selected.set(value);
@@ -64,6 +81,11 @@ export class DataTableDateFilterComponent {
     }
   }
 
+  /**
+   * Selects the current local date with the time truncated to midnight, and
+   * emits it — matching the day-granularity comparison {@link dateFilterFn}
+   * performs.
+   */
   selectToday(): void {
     const today = new Date();
     const dateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -71,6 +93,7 @@ export class DataTableDateFilterComponent {
     this.filterChange.emit(dateOnly);
   }
 
+  /** Drops the selection and emits `null`, which {@link dateFilterFn} treats as "no filter". */
   clear(): void {
     this._selected.set(null);
     this.filterChange.emit(null);

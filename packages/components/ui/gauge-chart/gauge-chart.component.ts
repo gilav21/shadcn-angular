@@ -20,17 +20,34 @@ const SWEEP = Math.PI;       // semicircle over the top
     },
 })
 export class GaugeChartComponent {
+    /** Value the needle fills to. Clamped to the {@link min}–{@link max} span for drawing, but reported unclamped in the readout and the accessible label. */
     readonly value = input.required<number>();
+    /** Start of the scale, mapped to the left end of the arc. */
     readonly min = input(0);
+    /** End of the scale, mapped to the right end of the arc. A span of zero or less renders an empty gauge rather than dividing by zero. */
     readonly max = input(100);
+    /** Width of the SVG in pixels; the height is derived from it (a semicircle plus room for the readout). Rendered at this fixed size, so wrap it if you need it to scale with its container. */
     readonly size = input(220);
+    /** Arc thickness as a fraction of the outer radius — `0.2` is a fifth of the radius, `1` a full pie wedge. Not a pixel value, so it scales with {@link size}. */
     readonly thickness = input(0.2);
+    /**
+     * Colour bands keyed by value. The arc takes the colour of the highest
+     * threshold whose `value` the current {@link value} has reached; below the
+     * lowest one it falls back to the first theme chart colour. Order does not
+     * matter — the list is sorted internally.
+     */
     readonly thresholds = input<GaugeThreshold[]>([]);
+    /** Caption under the readout, describing what is being measured. Also folded into the gauge's accessible label. */
     readonly label = input('');
+    /** Unit suffix appended to the displayed value and to the accessible label (e.g. `'%'`, `' GB'`). Purely cosmetic — it does not affect the scale. */
     readonly unit = input('');
+    /** Shows the numeric readout in the middle of the arc. Turning it off leaves the gauge purely graphical; the value is still announced via the accessible label. */
     readonly showValue = input(true);
+    /** Extra classes merged onto the `block` host — typically `text-*` for the readout, or margins. The SVG's own size comes from {@link size}. */
     readonly class = input('');
+    /** Chart title, prefixed to the accessible label. Supply it when the gauge has no visible heading beside it. */
     readonly title = input<string | undefined>(undefined);
+    /** Text direction for the labels: `'auto'` inherits from the document. The arc itself always sweeps left-to-right and does not mirror in RTL. */
     readonly dir = input<ChartDirection>('auto');
 
     readonly classes = computed(() => cn('block', this.class()));

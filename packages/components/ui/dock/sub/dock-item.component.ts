@@ -23,7 +23,9 @@ export class DockItemComponent {
     private readonly el = inject(ElementRef);
     private readonly _renderer = inject(Renderer2);
 
+    /** Extra classes merged onto the item host. Avoid `w-*` here — width is owned by the dock's hover magnification and written as an inline style. Add `group` if you project a `ui-dock-label`, which reveals itself on `group-hover`. */
     class = input('');
+    /** Shows the small "running" dot under the icon. Presentational only — it neither highlights the item nor is tracked by the dock. */
     active = input<boolean>(false);
 
     isBouncing = signal(false);
@@ -34,16 +36,19 @@ export class DockItemComponent {
         this.class()
     ));
 
+    /** Plays the 750ms macOS-style bounce, e.g. to acknowledge a launch. Ignored while a bounce is already running, so repeated calls do not stack or restart it. */
     startBounce(): void {
         if (this.isBouncing()) return;
         this.isBouncing.set(true);
         setTimeout(() => this.isBouncing.set(false), 750);
     }
 
+    /** Sets the item's width in px. Called by the parent dock on every animation frame of a hover; it writes the style directly, outside change detection, so nothing here is signal-backed. */
     updateWidth(width: number): void {
         this._renderer.setStyle(this.el.nativeElement, 'width', `${width}px`);
     }
 
+    /** The item's centre X in viewport coordinates, which the dock caches to measure cursor distance. Live layout read — it reflects the item's *current* magnified width, so it must be sampled at rest. */
     getCenter(): number {
         const bounds = this.el.nativeElement.getBoundingClientRect();
         return bounds.x + bounds.width / 2;

@@ -51,16 +51,58 @@ export interface TimeRange {
   host: { class: 'contents' },
 })
 export class CalendarComponent {
+  /** Extra classes merged onto the calendar's bordered container (`p-3 … inline-block`). */
   class = input('');
+  /**
+   * Selection behaviour, which also dictates the shape carried by {@link selected}:
+   * `'single'` → `Date`, `'range'` → {@link DateRange}, `'multi'` → `Date[]`.
+   * Changing it at runtime does not convert an already-set value, so reset
+   * {@link selected} alongside it.
+   */
   mode = input<CalendarMode>('single');
+  /** Replaces the static month caption with a `ui-select` month picker. Off by default. */
   showMonthSelect = input(false);
+  /**
+   * Replaces the static year caption with a `ui-select` year picker listing the
+   * current year back 100 years — years beyond that range are unreachable from
+   * the UI (navigate with {@link previousMonth} or set {@link selected} instead).
+   */
   showYearSelect = input(false);
+  /** Renders the `<input type="time">` footer below the day grid; see {@link timeMode}. */
   showTimeSelect = input(false);
+  /**
+   * Shape of the time footer when {@link showTimeSelect} is on: `'single'` shows one
+   * time field bound to {@link updateTime}, `'range'` shows start/end fields whose
+   * values are mirrored into {@link selectedTimeRange}. Ignored while
+   * {@link showTimeSelect} is `false`.
+   */
   timeMode = input<CalendarTimeMode>('single');
-  weekStartsOn = input<0 | 1 | 2 | 3 | 4 | 5 | 6>(0); // 0 = Sunday, 1 = Monday, etc.
+  /**
+   * First column of the week as a `Date.getDay()` index — `0` = Sunday (default),
+   * `1` = Monday, … `6` = Saturday. Rotates both the weekday header and the
+   * leading blank cells of the grid.
+   */
+  weekStartsOn = input<0 | 1 | 2 | 3 | 4 | 5 | 6>(0);
+  /**
+   * Mirrors the direction of the arrow icons. Set automatically from the active
+   * {@link locale} whenever that locale declares `rtl`, so an explicit binding is
+   * overwritten on locale change.
+   */
   rtl = model<boolean>(false);
+  /** Locale id or inline {@link CalendarLocale} overrides for day/month names and control labels. */
   locale = input<LocaleInput<CalendarLocale>>();
+  /**
+   * Two-way selection. Accepts `Date`s, `'YYYY-MM-DD'` strings, or arrays of either
+   * on the way in; always emits parsed `Date`s (or a {@link DateRange}) on the way
+   * out. The first non-null value also scrolls the calendar to that month — later
+   * changes do not move the view.
+   */
   selected = model<Date | DateRange | Date[] | string | string[] | null>(null);
+  /**
+   * Two-way `HH:mm` pair backing the `timeMode: 'range'` footer. Acts as the
+   * time-of-day applied to days picked afterwards; days already in
+   * {@link selected} keep the time they were stored with.
+   */
   selectedTimeRange = model<TimeRange>({ start: '', end: '' });
 
   private readonly viewDate = signal(new Date());
@@ -192,6 +234,11 @@ export class CalendarComponent {
     return this.selectedTimeRange().end;
   });
 
+  /**
+   * Class list for one day button — merges today/selected/in-range states plus the
+   * squared-off corners that make a range read as one bar. Called per cell on every
+   * change detection pass, so keep it side-effect free.
+   */
   getDayClasses(day: Date): string {
     const isToday = this.isSameDay(day, new Date());
     const isSelected = this.isSelected(day);
@@ -224,6 +271,11 @@ export class CalendarComponent {
     return Number.isNaN(d.getTime()) ? null : d;
   }
 
+  /**
+   * Whether `day` is a selected date — compared by calendar day only, so the
+   * time-of-day carried by {@link selected} is ignored. In `'range'` mode only the
+   * two endpoints count; interior days report through {@link isInRange}.
+   */
   isSelected(day: Date): boolean {
     const val = this.selected();
     const mode = this.mode();
@@ -253,6 +305,11 @@ export class CalendarComponent {
     return false;
   }
 
+  /**
+   * Whether `day` falls strictly between the range endpoints (endpoints themselves
+   * return `false` — see {@link isSelected}). Always `false` outside `'range'` mode
+   * or while the range is half-open. Endpoints stored out of order are tolerated.
+   */
   isInRange(day: Date): boolean {
     if (this.mode() !== 'range') return false;
     const val = this.selected() as DateRange | null;
@@ -265,12 +322,21 @@ export class CalendarComponent {
     return time > Math.min(start, end) && time < Math.max(start, end);
   }
 
+  /**
+   * Whether `day` is the opening endpoint of a *complete* range — used only to flatten
+   * the trailing corners. Stays `false` while the user has picked a start but no end,
+   * so a half-open range still renders as a lone rounded pill.
+   */
   isRangeStart(day: Date): boolean {
     if (this.mode() !== 'range') return false;
     const val = this.selected() as DateRange | null;
     return !!(val?.start && this.isSameDay(day, val.start) && val.end);
   }
 
+  /**
+   * Mirror of {@link isRangeStart} for the closing endpoint — flattens the leading
+   * corners, and likewise requires both endpoints to be set.
+   */
   isRangeEnd(day: Date): boolean {
     if (this.mode() !== 'range') return false;
     const val = this.selected() as DateRange | null;
@@ -283,6 +349,13 @@ export class CalendarComponent {
       a.getDate() === b.getDate();
   }
 
+  /**
+   * Applies a day click for the active {@link mode} and writes the result to
+   * {@link selected}: single replaces, multi toggles, range fills start → end and
+   * restarts once both ends are set (a click before the current start swaps the two).
+   * The `day` instance is mutated in place to carry the chosen time-of-day — pass a
+   * copy if you call this with a `Date` you still hold a reference to.
+   */
   selectDay(day: Date): void {
     const mode = this.mode();
     const isTimeRange = this.showTimeSelect() && this.timeMode() === 'range';
@@ -352,6 +425,11 @@ export class CalendarComponent {
     return { start: current.start, end: day };
   }
 
+  /**
+   * `(change)` handler for the single time field. Stamps the `HH:mm` value onto the
+   * currently selected date — or onto the month being viewed when nothing is selected
+   * yet, which turns a bare time edit into a selection. A cleared field is ignored.
+   */
   updateTime(event: Event): void {
     const input = event.target as HTMLInputElement;
     const val = input.value;
@@ -379,6 +457,12 @@ export class CalendarComponent {
     this.selected.set(new Date(date));
   }
 
+  /**
+   * `(change)` handler for the start field of the range time footer. Always records the
+   * raw `HH:mm` in {@link selectedTimeRange}, then stamps it onto the range start in
+   * `'range'` mode or onto the selected date in `'single'` mode; in `'multi'` mode it
+   * only affects days picked afterwards. A cleared field is ignored.
+   */
   updateStartTime(event: Event): void {
     const input = event.target as HTMLInputElement;
     const val = input.value;
@@ -410,6 +494,11 @@ export class CalendarComponent {
     }
   }
 
+  /**
+   * `(change)` handler for the end field of the range time footer. Counterpart to
+   * {@link updateStartTime}: records the `HH:mm` in {@link selectedTimeRange}, and
+   * stamps it onto the range end only in `'range'` mode with an end already picked.
+   */
   updateEndTime(event: Event): void {
     const input = event.target as HTMLInputElement;
     const val = input.value;
@@ -446,22 +535,33 @@ export class CalendarComponent {
     date.setHours(hours, minutes);
   }
 
+  /** Moves the visible month back one, without touching {@link selected}. */
   previousMonth(): void {
     const current = this.viewDate();
     this.viewDate.set(new Date(current.getFullYear(), current.getMonth() - 1, 1));
   }
 
+  /** Moves the visible month forward one, without touching {@link selected}. */
   nextMonth(): void {
     const current = this.viewDate();
     this.viewDate.set(new Date(current.getFullYear(), current.getMonth() + 1, 1));
   }
 
+  /**
+   * `(valueChange)` handler for the {@link showMonthSelect} picker; `month` is the
+   * zero-based month index as a string. Jumps the view to the 1st of that month in
+   * the current year.
+   */
   onMonthChange(month: string): void {
     const monthNum = Number.parseInt(month, 10);
     const current = this.viewDate();
     this.viewDate.set(new Date(current.getFullYear(), monthNum, 1));
   }
 
+  /**
+   * `(valueChange)` handler for the {@link showYearSelect} picker; `year` is the
+   * four-digit year as a string. Keeps the visible month and jumps to its 1st.
+   */
   onYearChange(year: string): void {
     const yearNum = Number.parseInt(year, 10);
     const current = this.viewDate();

@@ -25,10 +25,21 @@ import { AvatarComponent, AvatarFallbackComponent, AvatarImageComponent } from '
   },
 })
 export class ChatMessageComponent implements AfterContentInit {
+  /**
+   * Who sent the message. Drives the whole layout: `'user'` aligns to the end
+   * with a primary-coloured bubble and the avatar last, `'assistant'` aligns to
+   * the start, `'system'` renders as centred italic meta text with no avatar.
+   * This is a domain concept, not an ARIA role — the attribute is deliberately
+   * stripped from the DOM.
+   */
   role = input<'user' | 'assistant' | 'system'>('user');
+  /** Message text for simple mode. Ignored once anything is projected into the bubble, which is how you render markdown, tool calls or attachments instead. */
   content = input<string>();
+  /** Avatar image URL. When it fails to load — or is omitted — {@link avatarFallback} shows instead. Not rendered at all for `'system'` messages. */
   avatarSrc = input<string | undefined>(undefined);
+  /** Initials shown when there is no usable {@link avatarSrc}. Keep it to one or two characters; the avatar is small. */
   avatarFallback = input('?');
+  /** Extra classes merged onto the message row (the flex line holding avatar and bubble), not onto the bubble itself. */
   class = input('');
 
   @ViewChild('projected', { static: true }) projectedRef?: ElementRef<HTMLElement>;

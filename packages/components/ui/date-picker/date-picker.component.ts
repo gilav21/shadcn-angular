@@ -92,12 +92,29 @@ export function computePopupStyles(position: PopupPosition): string {
   },
 })
 export class DatePickerComponent implements ControlValueAccessor {
+  /** Merged onto the trigger button, whose default width is `w-full sm:w-[240px]` — use it to widen/narrow the field or restyle the border. The popup is unaffected. */
   readonly class = input('');
+  /** Muted text shown on the trigger while no date is selected; replaced by {@link formatDate} output once there is one. */
   readonly placeholder = input('Pick a date');
+  /** Disables the trigger button and makes {@link toggleOpen} a no-op. Driven only by this input — {@link setDisabledState} ignores `control.disable()`. */
   readonly disabled = input(false);
+  /**
+   * Adds the calendar's time-of-day selector and includes 2-digit hours and
+   * minutes in the trigger label. Also changes dismissal: with time on, picking
+   * a day keeps the popup open so the time can still be set, instead of closing
+   * on selection (see {@link onDateSelect}).
+   */
   readonly showTime = input(false);
+  /** BCP 47 tag passed to the calendar and to `toLocaleDateString` for the trigger label — it selects month/day names and field order, not a timezone. */
   readonly locale = input('en');
+  /**
+   * Initial/externally-set date, for `[(date)]` two-way binding with
+   * {@link dateChange}. Only non-null values are applied, so pushing `null`
+   * here will not clear a date the user already picked — use a form control, or
+   * {@link writeValue}, for that.
+   */
   readonly date = input<Date | null>(null);
+  /** Emits on every calendar selection (the `[(date)]` half). Fires alongside the `ControlValueAccessor` change callback, so forms and two-way binding stay in sync. */
   readonly dateChange = output<Date | null>();
 
   readonly isOpen = signal(false);
@@ -145,12 +162,19 @@ export class DatePickerComponent implements ControlValueAccessor {
     this.adjustedPosition.set(calculatePopupPosition(this.popupEl.nativeElement));
   }
 
+  /** Opens or closes the calendar popup (the trigger's click handler); ignored while {@link disabled}. Opening re-runs the flip/shift positioning against the viewport. */
   toggleOpen(): void {
     if (!this.disabled()) {
       this.isOpen.update(v => !v);
     }
   }
 
+  /**
+   * Calendar `selectedChange` handler: stores the date, emits
+   * {@link dateChange}, notifies the form control, and marks it touched.
+   * Anything that is not a `Date` is normalised to `null` (a cleared
+   * selection). The popup closes here unless {@link showTime} is set.
+   */
   onDateSelect(value: unknown): void {
     let selectedDate: Date | null = null;
     if (value instanceof Date) {
@@ -165,6 +189,12 @@ export class DatePickerComponent implements ControlValueAccessor {
     }
   }
 
+  /**
+   * Document-level click-outside dismissal, bound on the host. Any click whose
+   * target is not inside `[data-slot="date-picker"]` closes the popup; clicks
+   * within the calendar stop propagating before they reach here. Closing this
+   * way does not touch the selected value.
+   */
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (!target.closest('[data-slot="date-picker"]')) {
@@ -172,6 +202,11 @@ export class DatePickerComponent implements ControlValueAccessor {
     }
   }
 
+  /**
+   * Renders the trigger label: long month, numeric day and year in
+   * {@link locale}, plus 2-digit hour and minute when {@link showTime} is on.
+   * Exposed so a host template can reuse the exact same label formatting.
+   */
   formatDate(date: Date): string {
     const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
@@ -182,18 +217,22 @@ export class DatePickerComponent implements ControlValueAccessor {
     return date.toLocaleDateString(this.locale(), options);
   }
 
+  /** `ControlValueAccessor`: sets the displayed date. Unlike the {@link date} input this *does* accept `null`, which clears the selection back to the {@link placeholder}. */
   writeValue(value: Date | null): void {
     this.internalValue.set(value);
   }
 
+  /** `ControlValueAccessor`: the callback fires on each calendar selection, with the same value as {@link dateChange}. */
   registerOnChange(fn: (value: Date | null) => void): void {
     this.onChange = fn;
   }
 
+  /** `ControlValueAccessor`: marked touched on the first selection, not on opening or blurring the trigger. */
   registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
   }
 
+  /** `ControlValueAccessor` no-op — bind the {@link disabled} input instead; `control.disable()` alone will not disable the trigger. */
   setDisabledState(_isDisabled: boolean): void {
     // Disabled state is managed via the disabled input binding
   }

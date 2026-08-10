@@ -25,7 +25,13 @@ import { registerFieldDescribedBy, unregisterFieldDescribedBy } from '../field.u
   host: { class: 'contents' },
 })
 export class FieldDescriptionComponent implements OnInit, OnDestroy {
+  /** Extra classes merged onto the helper `<p>`. */
   class = input('');
+  /**
+   * Explicit element id. Leave it empty and one is generated: either way the id
+   * is registered with the surrounding `ui-field` and shows up in its
+   * `describedBy`, which you bind to the control's `aria-describedby`.
+   */
   id = input<string>('');
 
   private readonly context = inject(FIELD_CONTEXT, { optional: true });

@@ -29,10 +29,32 @@ import { CommandInputComponent } from './command-input.component';
   host: { class: 'contents' },
 })
 export class CommandDialogComponent implements OnDestroy {
+  /**
+   * Two-way open state of the underlying `ui-dialog`. Toggled by the global
+   * {@link shortcut}, and each transition to open focuses the projected
+   * `ui-command-input` on the next tick.
+   */
   open = model(false);
+  /**
+   * Set `false` to drop the global key binding entirely (the handle is
+   * unregistered) and drive {@link open} yourself. A blank {@link shortcut} or
+   * {@link shortcutActionId} has the same effect.
+   */
   shortcutEnabled = input(true);
+  /**
+   * Global key combo that toggles {@link open}, in `ShortcutBindingService`
+   * syntax — `Mod` resolves to Cmd on macOS and Ctrl elsewhere. Defaults to
+   * `Mod+K`. Registered with `scope: 'global'`, so it fires regardless of focus.
+   */
   shortcut = input('Mod+K');
+  /**
+   * Identity of the binding in `ShortcutBindingService`, which is what a
+   * shortcut-settings UI persists user remappings against. Defaults to
+   * `command-dialog.toggle`; give each dialog instance a distinct id when a
+   * page hosts more than one, or they overwrite each other's binding.
+   */
   shortcutActionId = input('command-dialog.toggle');
+  /** Grouping label the binding is filed under in a shortcuts cheat-sheet or settings screen. Defaults to `Navigation`. */
   shortcutCategory = input('Navigation');
 
   commandInput = contentChild(CommandInputComponent);

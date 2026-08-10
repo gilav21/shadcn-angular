@@ -264,9 +264,26 @@ export class EmojiPickerComponent {
     private readonly el = inject(ElementRef);
     private readonly destroyRef = inject(DestroyRef);
 
+    /**
+     * Two-way open state of the panel, also driven by the trigger and by the
+     * outside-click listener. Bind it to open the picker programmatically instead of
+     * calling {@link show}/{@link hide} when the host owns the state.
+     */
     open = model(false);
+    /** Closes the panel after a pick (default). Turn off to let the user choose several emoji in one visit. */
     closeOnSelect = input(true);
+    /**
+     * Closes the panel when anything outside it scrolls — the panel is
+     * absolutely positioned and would otherwise drift away from its trigger. The
+     * capture-phase listener is attached one tick after opening, so the scroll that
+     * opened the picker cannot immediately close it.
+     */
     closeOnScroll = input(false);
+    /**
+     * Emits the picked emoji as a string (which may be a multi-code-point sequence such
+     * as a flag or a skin-tone variant, so use `[...emoji]`/`Intl.Segmenter` rather than
+     * `.length` on it). Fires before the panel closes.
+     */
     emojiSelect = output<string>();
 
     private scrollCleanup: (() => void) | null = null;
@@ -301,18 +318,30 @@ export class EmojiPickerComponent {
         }
     }
 
+    /** Flips {@link open}. Called by `ui-emoji-picker-trigger`; safe to call from your own control. */
     toggle(): void {
         this.open.update(v => !v);
     }
 
+    /**
+     * Opens the panel. Calling it from a click handler outside the picker's own DOM is
+     * fine — the document listener runs on the same click and would close it again, so
+     * stop propagation there.
+     */
     show(): void {
         this.open.set(true);
     }
 
+    /** Closes the panel. Also the target of the outside-click and {@link closeOnScroll} listeners. */
     hide(): void {
         this.open.set(false);
     }
 
+    /**
+     * Commits a pick: emits {@link emojiSelect}, then closes unless
+     * {@link closeOnSelect} is `false`. Called by the content grid, and usable directly
+     * to inject a pick from your own UI. No recent/frequently-used list is kept.
+     */
     selectEmoji(emoji: string): void {
         this.emojiSelect.emit(emoji);
         if (this.closeOnSelect()) {
@@ -320,6 +349,12 @@ export class EmojiPickerComponent {
         }
     }
 
+    /**
+     * Document-level dismissal: closes whenever the click lands outside any
+     * `[data-slot="emoji-picker"]` subtree. Bound unconditionally, so it also runs while
+     * the picker is closed, and a click inside *another* picker instance's markup will
+     * not close this one.
+     */
     onDocumentClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
         if (!target.closest('[data-slot="emoji-picker"]')) {

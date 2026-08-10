@@ -42,6 +42,11 @@ export class CommandInputComponent implements OnInit {
   readonly placeholder = input<string>();
   /** Override for the aria-label. Falls back to the locale's `search`. */
   readonly ariaLabel = input<string>();
+  /**
+   * Seed query, applied to the shared search state once in `ngOnInit` and only
+   * when non-empty — later changes to this input are ignored. Bind
+   * `search` on the parent `ui-command` for a genuinely controlled query.
+   */
   readonly value = input<string>('');
 
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -61,6 +66,12 @@ export class CommandInputComponent implements OnInit {
     'placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50'
   ));
 
+  /**
+   * Native `input` handler: publishes the typed text as the palette's search
+   * query and resets the highlight to the first surviving item (or clears it
+   * when nothing matches), so Enter never fires a result the user scrolled past
+   * before refining the query.
+   */
   onInput(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     this.cmdService.search.set(value);
@@ -71,6 +82,13 @@ export class CommandInputComponent implements OnInit {
     }
   }
 
+  /**
+   * Keyboard driver for the palette: ArrowDown/ArrowUp move the highlight
+   * through the filtered items (wrapping at both ends) and Enter activates the
+   * highlighted one. All three call `preventDefault()`, so the caret never
+   * jumps within the text and Enter never submits a surrounding form. Every
+   * other key falls through to normal typing.
+   */
   onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
@@ -84,6 +102,7 @@ export class CommandInputComponent implements OnInit {
     }
   }
 
+  /** Focuses the text field; safe to call before the view exists (it no-ops). `ui-command-dialog` calls this on every open so typing starts immediately. */
   focus(): void {
     this.inputEl?.nativeElement?.focus();
   }
