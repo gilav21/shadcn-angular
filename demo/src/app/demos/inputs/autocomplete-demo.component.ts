@@ -35,6 +35,15 @@ import { AUTOCOMPLETE_DEMO_LOCALES } from './autocomplete-demo.locales';
           <ui-autocomplete [options]="frameworks" [displayWith]="displayFn" [placeholder]="t().placeholders.disabled"
             [disabled]="true" />
         </div>
+
+        <div class="space-y-2">
+          <p class="text-sm font-medium">{{ t().sections.clippedOverlay }}</p>
+          <div class="h-28 overflow-hidden rounded-lg border bg-card p-4">
+            <ui-autocomplete [options]="frameworks" [displayWith]="displayFn"
+              [placeholder]="t().placeholders.single" />
+          </div>
+          <p class="text-sm text-muted-foreground">{{ t().clippedCaption }}</p>
+        </div>
       </div>
     </section>
   `,

@@ -1,7 +1,7 @@
 // demo/src/app/demos/inputs/calendar-demo.component.ts
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
-import { CalendarComponent } from '../../../../../packages/components/ui';
+import { CalendarComponent, type DateRange } from '../../../../../packages/components/ui';
 import { CALENDAR_DEMO_LOCALES } from './calendar-demo.locales';
 
 @Component({
@@ -46,6 +46,18 @@ import { CALENDAR_DEMO_LOCALES } from './calendar-demo.locales';
           <h3 class="font-medium">{{ t().modes.startMonString }}</h3>
           <ui-calendar mode="single" [weekStartsOn]="1" selected="2024-01-01" class="rounded-md border shadow" />
         </div>
+        <div class="space-y-2">
+          <h3 class="font-medium">{{ t().modes.timeApplied }}</h3>
+          <ui-calendar
+            mode="single"
+            [showTimeSelect]="true"
+            [selected]="timedSelection()"
+            (selectedChange)="timedSelection.set($event)"
+            class="rounded-md border shadow"
+          />
+          <p class="text-sm text-muted-foreground max-w-full sm:max-w-[18rem]">{{ t().captions.timeApplied }}</p>
+          <code class="text-sm font-mono">{{ t().selectedValueLabel }} {{ timedSelectionLabel() }}</code>
+        </div>
       </div>
       <div class="flex flex-wrap gap-6">
         <div class="space-y-2">
@@ -69,4 +81,13 @@ export class CalendarDemoComponent {
   protected readonly t = computed(
     () => CALENDAR_DEMO_LOCALES[this.localeId()] ?? CALENDAR_DEMO_LOCALES['en'],
   );
+
+  /** Selection of the single-mode calendar that carries a time of day. */
+  readonly timedSelection = signal<Date | DateRange | Date[] | string | string[] | null>(null);
+
+  /** Full date-and-time rendering of {@link timedSelection}, so the applied time is visible. */
+  protected readonly timedSelectionLabel = computed(() => {
+    const value = this.timedSelection();
+    return value instanceof Date ? value.toLocaleString(this.localeId()) : 'null';
+  });
 }

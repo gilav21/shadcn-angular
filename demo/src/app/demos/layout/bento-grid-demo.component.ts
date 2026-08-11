@@ -55,6 +55,14 @@ import { BENTO_GRID_DEMO_LOCALES } from './bento-grid-demo.locales';
             (itemsChange)="onDashboardItemsChange($event)" (externalDrop)="onExternalDrop($event)" />
         </div>
       </div>
+
+      <h3 class="text-lg font-medium mt-8">{{ t().fixedTrackHeading }}</h3>
+      <p class="text-muted-foreground text-sm">{{ t().fixedTrackCaption }}</p>
+      <p class="text-muted-foreground text-sm">{{ t().touchHint }}</p>
+      <div class="p-4 sm:p-6 border rounded-lg bg-zinc-50/50 dark:bg-zinc-900/50 overflow-x-auto">
+        <ui-bento-grid [items]="fixedTrackItems()" [editable]="true" [cols]="6" [columnWidth]="88"
+          [rowHeight]="88" gap="0.5rem" (itemsChange)="onFixedTrackItemsChange($event)" />
+      </div>
     </section>
   `,
 })
@@ -66,6 +74,7 @@ export class BentoGridDemoComponent {
   readonly isEditMode = signal(false);
   readonly widgets = signal<{ id: string; title: string; component: DashboardItem['content']; icon: string }[]>([]);
   readonly dashboardItems = signal<DashboardItem[]>([]);
+  readonly fixedTrackItems = signal<DashboardItem[]>([]);
 
   constructor() {
     effect(() => {
@@ -84,6 +93,11 @@ export class BentoGridDemoComponent {
         { id: '5', x: 9, y: 3, cols: 4, rows: 4, content: TeamWidgetComponent },
         { id: '6', x: 1, y: 7, cols: 4, rows: 4, content: CalendarWidgetComponent },
         { id: '7', x: 5, y: 7, cols: 4, rows: 3, content: ActionWidgetComponent, outputs: { action: (event: unknown) => this.onWidgetAction(event as string) } },
+      ]);
+      this.fixedTrackItems.set([
+        { id: 'f1', x: 1, y: 1, cols: 2, rows: 2, content: MetricWidgetComponent, inputs: { title: loc.metricSales, value: '+12,234', trend: 19 } },
+        { id: 'f2', x: 3, y: 1, cols: 2, rows: 2, content: CalendarWidgetComponent },
+        { id: 'f3', x: 5, y: 1, cols: 2, rows: 2, content: TeamWidgetComponent },
       ]);
     });
   }
@@ -108,6 +122,10 @@ export class BentoGridDemoComponent {
 
   onDashboardItemsChange(items: DashboardItem[]) {
     this.dashboardItems.set(items);
+  }
+
+  onFixedTrackItemsChange(items: DashboardItem[]) {
+    this.fixedTrackItems.set(items);
   }
 
   toggleEditMode() {

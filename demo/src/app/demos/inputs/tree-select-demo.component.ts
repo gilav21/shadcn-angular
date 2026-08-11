@@ -24,6 +24,14 @@ import { TREE_SELECT_DEMO_LOCALES } from './tree-select-demo.locales';
           <ui-label>{{ t().disabledLabel }}</ui-label>
           <ui-tree-select [nodes]="treeSelectNodes()" [placeholder]="t().selectPlaceholder" [disabled]="true" />
         </div>
+
+        <div class="space-y-2">
+          <ui-label>{{ t().clippedLabel }}</ui-label>
+          <div class="h-28 overflow-hidden rounded-lg border bg-card p-4">
+            <ui-tree-select [nodes]="treeSelectNodes()" [placeholder]="t().browsePlaceholder" />
+          </div>
+          <p class="text-sm text-muted-foreground">{{ t().clippedCaption }}</p>
+        </div>
       </div>
     </section>
   `,

@@ -98,6 +98,39 @@ import { MENUBAR_DEMO_LOCALES } from './menubar-demo.locales';
           </ui-menubar-content>
         </ui-menubar-menu>
       </ui-menubar>
+
+      <div class="space-y-2">
+        <h3 class="text-sm font-medium">{{ t().secondBarHeading }}</h3>
+        <p class="text-xs text-muted-foreground">{{ t().disabledSubHint }}</p>
+        <p class="text-xs text-muted-foreground">{{ t().firstItemDisabledHint }}</p>
+        <p class="text-xs text-muted-foreground">{{ t().wrapAroundHint }}</p>
+        <ui-menubar>
+          <ui-menubar-menu>
+            <ui-menubar-trigger>{{ t().menuExport }}</ui-menubar-trigger>
+            <ui-menubar-content>
+              <ui-menubar-item>{{ t().exportPdf }}</ui-menubar-item>
+              <ui-menubar-item>{{ t().exportImage }}</ui-menubar-item>
+              <ui-menubar-separator />
+              <ui-menubar-sub>
+                <ui-menubar-sub-trigger disabled>{{ t().exportCloud }}</ui-menubar-sub-trigger>
+                <ui-menubar-sub-content>
+                  <ui-menubar-item>{{ t().exportCloudDrive }}</ui-menubar-item>
+                  <ui-menubar-item>{{ t().exportCloudDropbox }}</ui-menubar-item>
+                </ui-menubar-sub-content>
+              </ui-menubar-sub>
+            </ui-menubar-content>
+          </ui-menubar-menu>
+          <ui-menubar-menu>
+            <ui-menubar-trigger>{{ t().menuHistory }}</ui-menubar-trigger>
+            <ui-menubar-content>
+              <ui-menubar-item disabled>{{ t().historyRestore }}</ui-menubar-item>
+              <ui-menubar-item>{{ t().historyRecent }}</ui-menubar-item>
+              <ui-menubar-separator />
+              <ui-menubar-item>{{ t().historyClear }}</ui-menubar-item>
+            </ui-menubar-content>
+          </ui-menubar-menu>
+        </ui-menubar>
+      </div>
     </section>
   `,
 })

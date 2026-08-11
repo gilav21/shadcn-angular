@@ -56,6 +56,29 @@ import { POPOVER_DEMO_LOCALES } from './popover-demo.locales';
           </div>
         </ui-popover-content>
       </ui-popover>
+
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">{{ t().restoreFocusHeading }}</h3>
+        <p class="text-sm text-muted-foreground">{{ t().restoreFocusCaption }}</p>
+        <ui-popover>
+          <ui-popover-trigger>
+            <ui-button variant="outline">{{ t().restoreFocusOpenLabel }}</ui-button>
+          </ui-popover-trigger>
+          <ui-popover-content class="w-72" [restoreFocus]="true">
+            <div class="grid gap-4">
+              <div class="space-y-2">
+                <h4 class="font-medium leading-none">{{ t().restoreFocusHeading }}</h4>
+                <p class="text-sm text-muted-foreground">{{ t().restoreFocusBody }}</p>
+              </div>
+              <div class="flex justify-end">
+                <ui-popover-close>
+                  <ui-button size="sm">{{ t().closeLabel }}</ui-button>
+                </ui-popover-close>
+              </div>
+            </div>
+          </ui-popover-content>
+        </ui-popover>
+      </div>
     </section>
   `,
 })

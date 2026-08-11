@@ -3,11 +3,20 @@ import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
 export interface RatingDemoLocale extends LocaleMeta {
   title: string;
   description: string;
+  sections: {
+    sizes: string;
+  };
+  captions: {
+    sizes: string;
+  };
   labels: {
     defaultStars: string;
     halfPrecisionStars: string;
     readonly: string;
     largeSize: string;
+    sizeSm: string;
+    sizeMd: string;
+    sizeLg: string;
   };
 }
 
@@ -21,7 +30,12 @@ export const RATING_DEMO_LOCALES: Record<string, RatingDemoLocale> = {
       halfPrecisionStars: 'Half Precision ({{value}} stars)',
       readonly: 'Readonly',
       largeSize: 'Large Size (10 stars)',
+      sizeSm: 'sm',
+      sizeMd: 'md',
+      sizeLg: 'lg',
     },
+    sections: { sizes: 'Sizes' },
+    captions: { sizes: 'Try it: all three share one value — only the [size] input changes, scaling the star glyphs.' },
   },
   he: {
     code: 'he', rtl: true,
@@ -32,7 +46,12 @@ export const RATING_DEMO_LOCALES: Record<string, RatingDemoLocale> = {
       halfPrecisionStars: 'חצי דיוק ({{value}} כוכבים)',
       readonly: 'לקריאה בלבד',
       largeSize: 'גודל גדול (10 כוכבים)',
+      sizeSm: 'sm',
+      sizeMd: 'md',
+      sizeLg: 'lg',
     },
+    sections: { sizes: 'גדלים' },
+    captions: { sizes: 'נסה: לשלושתם אותו ערך — רק הקלט [size] משתנה ומשנה את גודל הכוכבים.' },
   },
   ar: {
     code: 'ar', rtl: true,
@@ -43,7 +62,12 @@ export const RATING_DEMO_LOCALES: Record<string, RatingDemoLocale> = {
       halfPrecisionStars: 'نصف دقيق ({{value}} نجوم)',
       readonly: 'للقراءة فقط',
       largeSize: 'حجم كبير (10 نجوم)',
+      sizeSm: 'sm',
+      sizeMd: 'md',
+      sizeLg: 'lg',
     },
+    sections: { sizes: 'الأحجام' },
+    captions: { sizes: 'جرّب: الثلاثة تشترك في القيمة نفسها — يتغيّر الإدخال [size] فقط فيتغيّر حجم النجوم.' },
   },
   de: {
     code: 'de',
@@ -54,7 +78,12 @@ export const RATING_DEMO_LOCALES: Record<string, RatingDemoLocale> = {
       halfPrecisionStars: 'Halbgenau ({{value}} Sterne)',
       readonly: 'Schreibgeschützt',
       largeSize: 'Groß (10 Sterne)',
+      sizeSm: 'sm',
+      sizeMd: 'md',
+      sizeLg: 'lg',
     },
+    sections: { sizes: 'Größen' },
+    captions: { sizes: 'Ausprobieren: alle drei teilen einen Wert — nur der [size]-Input ändert sich und skaliert die Sterne.' },
   },
   fr: {
     code: 'fr',
@@ -65,7 +94,12 @@ export const RATING_DEMO_LOCALES: Record<string, RatingDemoLocale> = {
       halfPrecisionStars: 'Demi-précision ({{value}} étoiles)',
       readonly: 'Lecture seule',
       largeSize: 'Grande taille (10 étoiles)',
+      sizeSm: 'sm',
+      sizeMd: 'md',
+      sizeLg: 'lg',
     },
+    sections: { sizes: 'Tailles' },
+    captions: { sizes: 'Essayez : les trois partagent une valeur — seul l\'input [size] change et met les étoiles à l\'échelle.' },
   },
   es: {
     code: 'es',
@@ -76,7 +110,12 @@ export const RATING_DEMO_LOCALES: Record<string, RatingDemoLocale> = {
       halfPrecisionStars: 'Media precisión ({{value}} estrellas)',
       readonly: 'Solo lectura',
       largeSize: 'Tamaño grande (10 estrellas)',
+      sizeSm: 'sm',
+      sizeMd: 'md',
+      sizeLg: 'lg',
     },
+    sections: { sizes: 'Tamaños' },
+    captions: { sizes: 'Pruébalo: los tres comparten un valor — solo cambia el input [size], que escala las estrellas.' },
   },
   ja: {
     code: 'ja',
@@ -87,7 +126,12 @@ export const RATING_DEMO_LOCALES: Record<string, RatingDemoLocale> = {
       halfPrecisionStars: '半精度（{{value}} 星）',
       readonly: '読み取り専用',
       largeSize: '大サイズ（10 星）',
+      sizeSm: 'sm',
+      sizeMd: 'md',
+      sizeLg: 'lg',
     },
+    sections: { sizes: 'サイズ' },
+    captions: { sizes: 'お試しください: 3つは同じ値を共有し、変わるのは [size] 入力だけで星の大きさが変化します。' },
   },
   zh: {
     code: 'zh',
@@ -98,7 +142,12 @@ export const RATING_DEMO_LOCALES: Record<string, RatingDemoLocale> = {
       halfPrecisionStars: '半精度（{{value}} 颗星）',
       readonly: '只读',
       largeSize: '大尺寸（10 颗星）',
+      sizeSm: 'sm',
+      sizeMd: 'md',
+      sizeLg: 'lg',
     },
+    sections: { sizes: '尺寸' },
+    captions: { sizes: '试一试：三者共用同一个值——只有 [size] 输入不同，星形随之缩放。' },
   },
   ru: {
     code: 'ru',
@@ -109,7 +158,12 @@ export const RATING_DEMO_LOCALES: Record<string, RatingDemoLocale> = {
       halfPrecisionStars: 'Полузвёздная точность ({{value}} звёзд)',
       readonly: 'Только чтение',
       largeSize: 'Большой размер (10 звёзд)',
+      sizeSm: 'sm',
+      sizeMd: 'md',
+      sizeLg: 'lg',
     },
+    sections: { sizes: 'Размеры' },
+    captions: { sizes: 'Попробуйте: у всех трёх одно значение — меняется только вход [size], масштабирующий звёзды.' },
   },
   pt: {
     code: 'pt',
@@ -120,6 +174,11 @@ export const RATING_DEMO_LOCALES: Record<string, RatingDemoLocale> = {
       halfPrecisionStars: 'Meia precisão ({{value}} estrelas)',
       readonly: 'Somente leitura',
       largeSize: 'Tamanho grande (10 estrelas)',
+      sizeSm: 'sm',
+      sizeMd: 'md',
+      sizeLg: 'lg',
     },
+    sections: { sizes: 'Tamanhos' },
+    captions: { sizes: 'Experimente: os três partilham um valor — só o input [size] muda, escalando as estrelas.' },
   },
 };

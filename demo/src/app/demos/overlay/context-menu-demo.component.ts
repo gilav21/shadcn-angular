@@ -5,6 +5,9 @@ import {
   ContextMenuItemComponent,
   ContextMenuSeparatorComponent,
   ContextMenuShortcutComponent,
+  ContextMenuSubComponent,
+  ContextMenuSubContentComponent,
+  ContextMenuSubTriggerComponent,
   ContextMenuTriggerComponent,
   ContextMenuTriggerDirective,
   IconComponent,
@@ -21,6 +24,9 @@ import { CONTEXT_MENU_DEMO_LOCALES } from './context-menu-demo.locales';
     ContextMenuItemComponent,
     ContextMenuSeparatorComponent,
     ContextMenuShortcutComponent,
+    ContextMenuSubComponent,
+    ContextMenuSubContentComponent,
+    ContextMenuSubTriggerComponent,
     ContextMenuTriggerComponent,
     ContextMenuTriggerDirective,
     IconComponent,
@@ -87,6 +93,35 @@ import { CONTEXT_MENU_DEMO_LOCALES } from './context-menu-demo.locales';
         class="h-[300px] w-full flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground">
         {{ t().rightClickAreaHint }}
       </div>
+
+      <h3 class="text-sm font-medium">{{ t().disabledSubHeading }}</h3>
+      <p class="text-xs text-muted-foreground">{{ t().disabledSubHint }}</p>
+      <ui-context-menu>
+        <ui-context-menu-trigger>
+          <div class="flex h-[150px] w-full max-w-[300px] items-center justify-center rounded-md border border-dashed p-4 text-center text-sm">
+            {{ t().disabledSubAreaHint }}
+          </div>
+        </ui-context-menu-trigger>
+        <ui-context-menu-content class="w-56">
+          <ui-context-menu-item>
+            {{ t().editLabel }}
+            <ui-context-menu-shortcut>&#8984;E</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-item>
+            {{ t().copyLabel }}
+            <ui-context-menu-shortcut>&#8984;C</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-sub>
+            <ui-context-menu-sub-trigger disabled>{{ t().sendToLabel }}</ui-context-menu-sub-trigger>
+            <ui-context-menu-sub-content>
+              <ui-context-menu-item>{{ t().sendToPhoneLabel }}</ui-context-menu-item>
+              <ui-context-menu-item>{{ t().sendToTabletLabel }}</ui-context-menu-item>
+            </ui-context-menu-sub-content>
+          </ui-context-menu-sub>
+          <ui-context-menu-separator />
+          <ui-context-menu-item variant="destructive">{{ t().deleteLabel }}</ui-context-menu-item>
+        </ui-context-menu-content>
+      </ui-context-menu>
     </section>
   `,
 })

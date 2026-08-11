@@ -236,6 +236,15 @@ const BRUSH_WIDTH = 560;
         </div>
 
         <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().orgChartDualHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().orgChartDualDescription }}</p>
+          <div class="w-full overflow-x-auto">
+            <ui-org-chart [data]="t().orgChartDualData" layout="vertical" lineType="curved"
+              [nodeWidth]="170" [nodeHeight]="76" [title]="t().orgChartDualTitle" />
+          </div>
+        </div>
+
+        <div class="space-y-4">
           <h3 class="text-lg font-semibold">{{ t().chartTooltipHeading }}</h3>
           <p class="text-sm text-muted-foreground">{{ t().chartTooltipDescription }}</p>
           <div class="relative h-[220px] sm:h-[260px] w-full rounded-md border bg-muted/30">

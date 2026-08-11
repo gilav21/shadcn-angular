@@ -8,6 +8,9 @@ export interface PaginationDemoLocale extends LocaleMeta {
   secondaryDescription: string;
   simpleHeading: string;
   simpleDescription: string;
+  ellipsisHeading: string;
+  ellipsisDescription: string;
+  currentPageLabel: string;
 }
 
 export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
@@ -18,6 +21,9 @@ export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
     secondaryDescription: 'Pagination with page navigation, next and previous links.',
     simpleHeading: 'Simple Mode (Data-driven)',
     simpleDescription: 'Using totalPages and currentPage inputs.',
+    ellipsisHeading: 'Both ellipses (20 pages)',
+    ellipsisDescription: 'Try it: jump to a middle page — with the current page in the middle, an ellipsis appears on each side.',
+    currentPageLabel: 'Current page',
   },
   he: { code: 'he', rtl: true,
     title: 'דפדוף',
@@ -26,6 +32,9 @@ export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
     secondaryDescription: 'דפדוף עם ניווט בין דפים, קישורי הבא והקודם.',
     simpleHeading: 'מצב פשוט (מבוסס נתונים)',
     simpleDescription: 'שימוש בקלטי totalPages ו-currentPage.',
+    ellipsisHeading: 'שני סימני השמטה (20 עמודים)',
+    ellipsisDescription: 'נסו: עברו לעמוד באמצע — כשהעמוד הנוכחי נמצא באמצע, מופיע סימן השמטה בכל צד.',
+    currentPageLabel: 'עמוד נוכחי',
   },
   ar: { code: 'ar', rtl: true,
     title: 'الترقيم',
@@ -34,6 +43,9 @@ export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
     secondaryDescription: 'ترقيم مع التنقل بين الصفحات وروابط التالي والسابق.',
     simpleHeading: 'الوضع البسيط (مدفوع بالبيانات)',
     simpleDescription: 'باستخدام مدخلَي totalPages و currentPage.',
+    ellipsisHeading: 'علامتا الحذف معًا (20 صفحة)',
+    ellipsisDescription: 'جرّب: انتقل إلى صفحة في المنتصف — عندما تكون الصفحة الحالية في المنتصف تظهر علامة حذف على كل جانب.',
+    currentPageLabel: 'الصفحة الحالية',
   },
   de: { code: 'de',
     title: 'Paginierung',
@@ -42,6 +54,9 @@ export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
     secondaryDescription: 'Paginierung mit Seitennavigation, Weiter- und Zurück-Links.',
     simpleHeading: 'Einfacher Modus (datengesteuert)',
     simpleDescription: 'Nutzt die Inputs totalPages und currentPage.',
+    ellipsisHeading: 'Beide Auslassungspunkte (20 Seiten)',
+    ellipsisDescription: 'Ausprobieren: Springen Sie auf eine mittlere Seite — steht die aktuelle Seite in der Mitte, erscheint auf jeder Seite ein Auslassungszeichen.',
+    currentPageLabel: 'Aktuelle Seite',
   },
   fr: { code: 'fr',
     title: 'Pagination',
@@ -50,6 +65,9 @@ export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
     secondaryDescription: 'Pagination avec navigation de pages, liens suivant et précédent.',
     simpleHeading: 'Mode simple (basé sur les données)',
     simpleDescription: 'Utilise les entrées totalPages et currentPage.',
+    ellipsisHeading: 'Les deux points de suspension (20 pages)',
+    ellipsisDescription: 'À essayer : allez sur une page du milieu — quand la page courante est au centre, des points de suspension apparaissent de chaque côté.',
+    currentPageLabel: 'Page courante',
   },
   es: { code: 'es',
     title: 'Paginación',
@@ -58,6 +76,9 @@ export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
     secondaryDescription: 'Paginación con navegación de páginas y enlaces siguiente y anterior.',
     simpleHeading: 'Modo simple (basado en datos)',
     simpleDescription: 'Usa las entradas totalPages y currentPage.',
+    ellipsisHeading: 'Ambas elipsis (20 páginas)',
+    ellipsisDescription: 'Pruébalo: ve a una página intermedia — con la página actual en el centro aparece una elipsis a cada lado.',
+    currentPageLabel: 'Página actual',
   },
   ja: { code: 'ja',
     title: 'ページネーション',
@@ -66,6 +87,9 @@ export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
     secondaryDescription: 'ページ移動・前後リンク付きのページネーション。',
     simpleHeading: 'シンプルモード（データ駆動）',
     simpleDescription: 'totalPages と currentPage の入力を使用します。',
+    ellipsisHeading: '両側の省略記号（20 ページ）',
+    ellipsisDescription: '試してみる: 中ほどのページに移動します。現在のページが中央にあると、左右それぞれに省略記号が表示されます。',
+    currentPageLabel: '現在のページ',
   },
   zh: { code: 'zh',
     title: '分页',
@@ -74,6 +98,9 @@ export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
     secondaryDescription: '带页面导航以及上一页/下一页链接的分页。',
     simpleHeading: '简单模式（数据驱动）',
     simpleDescription: '使用 totalPages 和 currentPage 输入。',
+    ellipsisHeading: '两侧省略号（20 页）',
+    ellipsisDescription: '试一试：跳到中间的某一页——当前页位于中间时，两侧都会出现省略号。',
+    currentPageLabel: '当前页',
   },
   ru: { code: 'ru',
     title: 'Пагинация',
@@ -82,6 +109,9 @@ export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
     secondaryDescription: 'Пагинация с навигацией по страницам и ссылками «следующая»/«предыдущая».',
     simpleHeading: 'Простой режим (управляемый данными)',
     simpleDescription: 'Использует входы totalPages и currentPage.',
+    ellipsisHeading: 'Обе группы многоточий (20 страниц)',
+    ellipsisDescription: 'Попробуйте: перейдите на страницу в середине — когда текущая страница по центру, многоточие появляется с обеих сторон.',
+    currentPageLabel: 'Текущая страница',
   },
   pt: { code: 'pt',
     title: 'Paginação',
@@ -90,5 +120,8 @@ export const PAGINATION_DEMO_LOCALES: Record<string, PaginationDemoLocale> = {
     secondaryDescription: 'Paginação com navegação de páginas e links anterior/próximo.',
     simpleHeading: 'Modo simples (orientado a dados)',
     simpleDescription: 'Usa as entradas totalPages e currentPage.',
+    ellipsisHeading: 'As duas reticências (20 páginas)',
+    ellipsisDescription: 'Experimente: vá para uma página do meio — com a página atual ao centro, aparecem reticências de cada lado.',
+    currentPageLabel: 'Página atual',
   },
 };

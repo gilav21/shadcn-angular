@@ -13,6 +13,14 @@ export interface DockDemoLocale extends LocaleMeta {
   distanceLabel: string;
   simpleModeHeading: string;
   simpleModeDescription: string;
+  verticalHeading: string;
+  verticalCaption: string;
+  verticalItemHome: string;
+  verticalItemFiles: string;
+  verticalItemSearch: string;
+  verticalItemTrash: string;
+  lastActivatedLabel: string;
+  noneLabel: string;
   dockItems: ReadonlyArray<DockItem>;
 }
 
@@ -25,6 +33,14 @@ export const DOCK_DEMO_LOCALES: Record<string, DockDemoLocale> = {
     distanceLabel: 'Distance',
     simpleModeHeading: 'Simple Mode (Data-driven)',
     simpleModeDescription: 'Using the items input array.',
+    verticalHeading: 'Vertical dock (data-driven items)',
+    verticalCaption: 'Try it: move the pointer down the column — the magnification follows it along the vertical axis. The first two items are links, the last two run an onClick.',
+    verticalItemHome: 'Home',
+    verticalItemFiles: 'Files',
+    verticalItemSearch: 'Search',
+    verticalItemTrash: 'Trash',
+    lastActivatedLabel: 'Last activated',
+    noneLabel: 'none',
     dockItems: [
       { label: 'Home', icon: '🏠', active: true },
       { label: 'Profile', icon: '👤', active: false },
@@ -41,6 +57,14 @@ export const DOCK_DEMO_LOCALES: Record<string, DockDemoLocale> = {
     distanceLabel: 'מרחק',
     simpleModeHeading: 'מצב פשוט (מבוסס נתונים)',
     simpleModeDescription: 'שימוש במערך קלט פריטים.',
+    verticalHeading: 'מזח אנכי (פריטים מבוססי נתונים)',
+    verticalCaption: 'נסו: הזיזו את הסמן לאורך העמודה — ההגדלה עוקבת אחריו בציר האנכי. שני הפריטים הראשונים הם קישורים, ושני האחרונים מריצים onClick.',
+    verticalItemHome: 'בית',
+    verticalItemFiles: 'קבצים',
+    verticalItemSearch: 'חיפוש',
+    verticalItemTrash: 'אשפה',
+    lastActivatedLabel: 'הופעל לאחרונה',
+    noneLabel: 'אין',
     dockItems: [
       { label: 'בית', icon: '🏠', active: true },
       { label: 'פרופיל', icon: '👤', active: false },
@@ -57,6 +81,14 @@ export const DOCK_DEMO_LOCALES: Record<string, DockDemoLocale> = {
     distanceLabel: 'المسافة',
     simpleModeHeading: 'الوضع البسيط (مدفوع بالبيانات)',
     simpleModeDescription: 'باستخدام مصفوفة إدخال العناصر.',
+    verticalHeading: 'رصيف عمودي (عناصر مدفوعة بالبيانات)',
+    verticalCaption: 'جرّب: حرّك المؤشر على طول العمود — يتبعه التكبير على المحور الرأسي. العنصران الأولان روابط، والأخيران ينفّذان onClick.',
+    verticalItemHome: 'الرئيسية',
+    verticalItemFiles: 'الملفات',
+    verticalItemSearch: 'البحث',
+    verticalItemTrash: 'المهملات',
+    lastActivatedLabel: 'آخر تفعيل',
+    noneLabel: 'لا شيء',
     dockItems: [
       { label: 'الرئيسية', icon: '🏠', active: true },
       { label: 'الملف الشخصي', icon: '👤', active: false },
@@ -73,6 +105,14 @@ export const DOCK_DEMO_LOCALES: Record<string, DockDemoLocale> = {
     distanceLabel: 'Abstand',
     simpleModeHeading: 'Einfacher Modus (datengesteuert)',
     simpleModeDescription: 'Nutzt das Elemente-Eingabe-Array.',
+    verticalHeading: 'Vertikales Dock (datengesteuerte Elemente)',
+    verticalCaption: 'Ausprobieren: Bewegen Sie den Zeiger die Spalte entlang — die Vergrößerung folgt ihm auf der vertikalen Achse. Die ersten beiden Elemente sind Links, die letzten beiden führen ein onClick aus.',
+    verticalItemHome: 'Startseite',
+    verticalItemFiles: 'Dateien',
+    verticalItemSearch: 'Suche',
+    verticalItemTrash: 'Papierkorb',
+    lastActivatedLabel: 'Zuletzt aktiviert',
+    noneLabel: 'keines',
     dockItems: [
       { label: 'Startseite', icon: '🏠', active: true },
       { label: 'Profil', icon: '👤', active: false },
@@ -89,6 +129,14 @@ export const DOCK_DEMO_LOCALES: Record<string, DockDemoLocale> = {
     distanceLabel: 'Distance',
     simpleModeHeading: 'Mode simple (basé sur les données)',
     simpleModeDescription: 'Utilise le tableau d\'entrée d\'éléments.',
+    verticalHeading: 'Dock vertical (éléments basés sur les données)',
+    verticalCaption: 'À essayer : déplacez le pointeur le long de la colonne — le grossissement le suit sur l\'axe vertical. Les deux premiers éléments sont des liens, les deux derniers exécutent un onClick.',
+    verticalItemHome: 'Accueil',
+    verticalItemFiles: 'Fichiers',
+    verticalItemSearch: 'Recherche',
+    verticalItemTrash: 'Corbeille',
+    lastActivatedLabel: 'Dernier activé',
+    noneLabel: 'aucun',
     dockItems: [
       { label: 'Accueil', icon: '🏠', active: true },
       { label: 'Profil', icon: '👤', active: false },
@@ -105,6 +153,14 @@ export const DOCK_DEMO_LOCALES: Record<string, DockDemoLocale> = {
     distanceLabel: 'Distancia',
     simpleModeHeading: 'Modo simple (basado en datos)',
     simpleModeDescription: 'Usa el array de entrada de elementos.',
+    verticalHeading: 'Dock vertical (elementos basados en datos)',
+    verticalCaption: 'Pruébalo: mueve el puntero por la columna — la ampliación lo sigue en el eje vertical. Los dos primeros elementos son enlaces y los dos últimos ejecutan un onClick.',
+    verticalItemHome: 'Inicio',
+    verticalItemFiles: 'Archivos',
+    verticalItemSearch: 'Buscar',
+    verticalItemTrash: 'Papelera',
+    lastActivatedLabel: 'Último activado',
+    noneLabel: 'ninguno',
     dockItems: [
       { label: 'Inicio', icon: '🏠', active: true },
       { label: 'Perfil', icon: '👤', active: false },
@@ -121,6 +177,14 @@ export const DOCK_DEMO_LOCALES: Record<string, DockDemoLocale> = {
     distanceLabel: '距離',
     simpleModeHeading: 'シンプルモード（データ駆動）',
     simpleModeDescription: 'アイテム入力配列を使用します。',
+    verticalHeading: '縦型ドック（データ駆動のアイテム）',
+    verticalCaption: '試してみる: ポインターを列に沿って動かすと、拡大が縦軸に沿って追従します。上の 2 つはリンク、下の 2 つは onClick を実行します。',
+    verticalItemHome: 'ホーム',
+    verticalItemFiles: 'ファイル',
+    verticalItemSearch: '検索',
+    verticalItemTrash: 'ゴミ箱',
+    lastActivatedLabel: '最後に実行した項目',
+    noneLabel: 'なし',
     dockItems: [
       { label: 'ホーム', icon: '🏠', active: true },
       { label: 'プロフィール', icon: '👤', active: false },
@@ -137,6 +201,14 @@ export const DOCK_DEMO_LOCALES: Record<string, DockDemoLocale> = {
     distanceLabel: '距离',
     simpleModeHeading: '简单模式（数据驱动）',
     simpleModeDescription: '使用项目输入数组。',
+    verticalHeading: '垂直 Dock 栏（数据驱动的项目）',
+    verticalCaption: '试一试：沿着这一列移动指针——放大效果会在垂直轴上跟随指针。前两个项目是链接，后两个会执行 onClick。',
+    verticalItemHome: '主页',
+    verticalItemFiles: '文件',
+    verticalItemSearch: '搜索',
+    verticalItemTrash: '回收站',
+    lastActivatedLabel: '最近激活',
+    noneLabel: '无',
     dockItems: [
       { label: '主页', icon: '🏠', active: true },
       { label: '个人资料', icon: '👤', active: false },
@@ -153,6 +225,14 @@ export const DOCK_DEMO_LOCALES: Record<string, DockDemoLocale> = {
     distanceLabel: 'Расстояние',
     simpleModeHeading: 'Простой режим (управляемый данными)',
     simpleModeDescription: 'Использует входной массив элементов.',
+    verticalHeading: 'Вертикальный dock (элементы из данных)',
+    verticalCaption: 'Попробуйте: проведите указателем вдоль колонки — увеличение следует за ним по вертикальной оси. Первые два элемента — ссылки, последние два выполняют onClick.',
+    verticalItemHome: 'Главная',
+    verticalItemFiles: 'Файлы',
+    verticalItemSearch: 'Поиск',
+    verticalItemTrash: 'Корзина',
+    lastActivatedLabel: 'Последнее действие',
+    noneLabel: 'нет',
     dockItems: [
       { label: 'Главная', icon: '🏠', active: true },
       { label: 'Профиль', icon: '👤', active: false },
@@ -169,6 +249,14 @@ export const DOCK_DEMO_LOCALES: Record<string, DockDemoLocale> = {
     distanceLabel: 'Distância',
     simpleModeHeading: 'Modo simples (orientado a dados)',
     simpleModeDescription: 'Usa o array de entrada de itens.',
+    verticalHeading: 'Dock vertical (itens orientados a dados)',
+    verticalCaption: 'Experimente: mova o ponteiro ao longo da coluna — a ampliação o acompanha no eixo vertical. Os dois primeiros itens são links e os dois últimos executam um onClick.',
+    verticalItemHome: 'Início',
+    verticalItemFiles: 'Arquivos',
+    verticalItemSearch: 'Buscar',
+    verticalItemTrash: 'Lixeira',
+    lastActivatedLabel: 'Último ativado',
+    noneLabel: 'nenhum',
     dockItems: [
       { label: 'Início', icon: '🏠', active: true },
       { label: 'Perfil', icon: '👤', active: false },

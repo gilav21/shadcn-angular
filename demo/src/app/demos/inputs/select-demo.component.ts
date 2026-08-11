@@ -74,6 +74,26 @@ import { SELECT_DEMO_LOCALES } from './select-demo.locales';
             </ui-select-content>
           </ui-select>
         </div>
+
+        <div class="space-y-2">
+          <h3 class="text-sm font-medium">{{ t().disabledItemHeading }}</h3>
+          <p class="text-xs text-muted-foreground">{{ t().disabledItemDescription }}</p>
+          <ui-select class="w-[200px]">
+            <ui-select-trigger>
+              <ui-select-value [placeholder]="t().selectFruitPlaceholder" />
+            </ui-select-trigger>
+            <ui-select-content>
+              <ui-select-group>
+                <ui-select-label>{{ t().fruitsLabel }}</ui-select-label>
+                <ui-select-item value="apple">{{ t().apple }}</ui-select-item>
+                <ui-select-item value="banana" [disabled]="true">{{ t().banana }}</ui-select-item>
+                <ui-select-item value="blueberry">{{ t().blueberry }}</ui-select-item>
+                <ui-select-item value="grapes">{{ t().grapes }}</ui-select-item>
+                <ui-select-item value="pineapple">{{ t().pineapple }}</ui-select-item>
+              </ui-select-group>
+            </ui-select-content>
+          </ui-select>
+        </div>
       </div>
     </section>
   `,

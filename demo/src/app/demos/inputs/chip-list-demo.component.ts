@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { JsonPipe } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
-import { ChipListComponent, LabelComponent } from '../../../../../packages/components/ui';
+import { ButtonComponent, ChipListComponent, LabelComponent } from '../../../../../packages/components/ui';
 import { CHIP_LIST_DEMO_LOCALES } from './chip-list-demo.locales';
 
 @Component({
   selector: 'app-chip-list-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [JsonPipe, FormsModule, ChipListComponent, LabelComponent],
+  imports: [JsonPipe, FormsModule, ReactiveFormsModule, ButtonComponent, ChipListComponent, LabelComponent],
   template: `
     <section class="space-y-4">
       <h2 id="chip-list" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
@@ -67,6 +67,16 @@ import { CHIP_LIST_DEMO_LOCALES } from './chip-list-demo.locales';
           <ui-label>{{ t().labels.disabled }}</ui-label>
           <ui-chip-list [(ngModel)]="chipListTags" [disabled]="true" />
         </div>
+
+        <h3 class="text-lg font-medium">{{ t().sections.reactiveForm }}</h3>
+        <div class="space-y-2">
+          <ui-label>{{ t().labels.formControl }}</ui-label>
+          <ui-chip-list [formControl]="skillsControl" [placeholder]="t().placeholders.addTag" />
+          <p class="text-sm text-muted-foreground">{{ t().captions.formControl }}</p>
+          <ui-button variant="outline" size="sm" (clicked)="toggleSkillsDisabled()">
+            {{ skillsDisabled() ? t().actions.enable : t().actions.disable }}
+          </ui-button>
+        </div>
       </div>
     </section>
   `,
@@ -80,11 +90,28 @@ export class ChipListDemoComponent {
     'Apple', 'Banana', 'Cherry', 'Date', 'Elderberry', 'Fig', 'Grape',
   ]);
 
+  /** Reactive control backing the disable/enable example. */
+  readonly skillsControl = new FormControl<string[]>([], { nonNullable: true });
+  /** Mirrors the control's disabled state so the toggle button can label itself. */
+  readonly skillsDisabled = signal(false);
+
   constructor() {
     effect(() => {
       const locale = this.t();
       this.chipListTags.set([...locale.tags]);
       this.chipListFruits.set([...locale.fruits]);
+      this.skillsControl.setValue([...locale.tags]);
     });
+  }
+
+  /** Flips the control between `disable()` and `enable()`. */
+  protected toggleSkillsDisabled(): void {
+    const next = !this.skillsDisabled();
+    this.skillsDisabled.set(next);
+    if (next) {
+      this.skillsControl.disable();
+    } else {
+      this.skillsControl.enable();
+    }
   }
 }
