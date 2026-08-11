@@ -20,6 +20,7 @@ import { COMMAND_GROUP } from './command-group.component';
   template: `
     <div
       [class]="classes()"
+      [attr.id]="id"
       [attr.data-slot]="'command-item'"
       [attr.data-disabled]="disabled() || null"
       [attr.aria-selected]="selected()"
@@ -67,6 +68,12 @@ export class CommandItemComponent implements OnInit, OnDestroy {
   /** Emits {@link value} when the row is activated by click, Enter on the focused row, or Enter while it is the highlighted item. Never emits while {@link disabled}. */
   selectItem = output<string>();
 
+  /**
+   * Stable per-row id. Registered with {@link CommandService} for highlight
+   * tracking AND rendered onto the `role="option"` element, because a combobox
+   * points its `aria-activedescendant` at this value — an id that exists only in
+   * the service is a dangling reference that announces nothing.
+   */
   readonly id = generateId();
   readonly cmdService = inject(CommandService);
   readonly group = inject(COMMAND_GROUP, { optional: true });

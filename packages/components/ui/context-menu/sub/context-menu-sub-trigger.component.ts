@@ -20,7 +20,7 @@ import { CONTEXT_MENU_SUB, type ContextMenuSubComponent } from './context-menu-s
       #trigger
       [class]="classes()"
       role="menuitem"
-      tabindex="0"
+      tabindex="-1"
       [attr.aria-haspopup]="true"
       [attr.aria-expanded]="sub.isOpen()"
       [attr.data-slot]="'context-menu-sub-trigger'"
@@ -71,12 +71,15 @@ export class ContextMenuSubTriggerComponent {
     ));
 
     /**
-     * Focuses the inner trigger row (`tabindex="0"`, `role="menuitem"`).
+     * Focuses the inner trigger row. It carries `tabindex="-1"` per the
+     * WAI-ARIA menu pattern — Tab leaves the menu, arrow keys move within it —
+     * so focus here is always moved programmatically.
      * Called by {@link ContextMenuSubComponent.focusTrigger} when the flyout
      * closes via Escape or the inline-start arrow, so focus returns to the
      * branch rather than being lost with the destroyed portal.
      */
     focus(): void {
+        if (this.disabled()) return;
         this.triggerEl?.nativeElement.focus();
     }
 

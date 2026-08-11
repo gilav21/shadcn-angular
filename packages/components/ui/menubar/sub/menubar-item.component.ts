@@ -19,7 +19,7 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
       [attr.data-slot]="'menubar-item'"
       [attr.data-disabled]="disabled() || null"
       role="menuitem"
-      tabindex="0"
+      tabindex="-1"
       (click)="onClick()"
       (keydown.enter)="onClick()"
     >
@@ -39,8 +39,9 @@ export class MenubarItemComponent {
    * Greys the item to 50% opacity, sets `pointer-events-none` so clicks pass
    * through, suppresses {@link selected}, and — via the `data-disabled`
    * attribute — removes the item from the menu's arrow-key ring entirely
-   * (see `MenubarContentComponent.getFocusableItems`). The item keeps
-   * `tabindex="0"`, so it is still reachable with Tab.
+   * (see `MenubarContentComponent.getFocusableItems`). The item is not
+   * reachable with Tab either: every menu item carries `tabindex="-1"` per the
+   * WAI-ARIA menu pattern, so Tab leaves the menu rather than walking it.
    */
   disabled = input(false, { transform: booleanAttribute });
   /**

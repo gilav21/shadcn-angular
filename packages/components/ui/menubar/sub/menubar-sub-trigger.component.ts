@@ -26,7 +26,7 @@ import { MENUBAR_SUB, type MenubarSubComponent } from './menubar-sub.component';
       [attr.aria-expanded]="sub.isOpen()"
       [attr.data-disabled]="disabled() || null"
       [attr.aria-disabled]="disabled() || null"
-      tabindex="0"
+      tabindex="-1"
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
       (keydown)="onKeydown($event)"
@@ -113,6 +113,7 @@ export class MenubarSubTriggerComponent {
 
   /** Focuses the trigger row. Called when the submenu is closed with the back arrow key so focus does not fall to the document. */
   focus(): void {
+      if (this.disabled()) return;
     this.triggerEl?.nativeElement.focus();
   }
 

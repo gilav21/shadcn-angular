@@ -570,6 +570,10 @@ describe('ContextMenu disabled sub-trigger', () => {
         expect(triggerRow().getAttribute('aria-disabled')).toBe('true');
     });
 
+    it('keeps the row out of the tab order', () => {
+        expect(triggerRow().getAttribute('tabindex')).toBe('-1');
+    });
+
     it('does not open the flyout on hover', () => {
         triggerRow().dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
         fixture.detectChanges();

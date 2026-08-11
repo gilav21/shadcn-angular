@@ -24,7 +24,7 @@ import { DROPDOWN_MENU } from '../dropdown-menu.component';
         '[attr.data-slot]': '"dropdown-item"',
         '[attr.data-disabled]': 'disabled() || null',
         '[attr.role]': '"menuitem"',
-        '[attr.tabindex]': '"0"',
+        '[attr.tabindex]': '"-1"',
         '(click)': 'onClick()',
         '(keydown.enter)': 'onClick()',
         '(keydown.space)': 'onKeydownSpace($event)',

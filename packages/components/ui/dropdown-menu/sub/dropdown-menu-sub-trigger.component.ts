@@ -21,7 +21,7 @@ import { DropdownMenuSubComponent } from './dropdown-menu-sub.component';
       #trigger
       [class]="classes()"
       role="menuitem"
-      tabindex="0"
+      tabindex="-1"
       [attr.aria-haspopup]="true"
       [attr.aria-expanded]="sub.isOpen()"
       [attr.data-disabled]="disabled() || null"
@@ -106,6 +106,7 @@ export class DropdownMenuSubTriggerComponent {
      * from the keyboard.
      */
     focus(): void {
+        if (this.disabled()) return;
         this.triggerEl?.nativeElement.focus();
     }
 

@@ -42,8 +42,14 @@ function installStubs(): void {
     stubMatchMedia(false);
     Element.prototype.getBoundingClientRect = () =>
         ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
-    proto.showPopover = () => undefined;
-    proto.hidePopover = () => undefined;
+    // Only fill the API in when the engine genuinely lacks it. Overwriting a
+    // working native `showPopover` with a no-op replaces it on the SHARED
+    // HTMLElement.prototype: this suite does not run in its own realm, so for
+    // the whole window between install and restore any other spec file that
+    // promotes an element to the top layer silently gets nothing, and fails on
+    // an assertion that has nothing to do with it.
+    proto.showPopover ??= () => undefined;
+    proto.hidePopover ??= () => undefined;
 }
 
 function restoreStubs(): void {
