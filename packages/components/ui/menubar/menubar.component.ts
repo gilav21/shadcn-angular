@@ -27,6 +27,15 @@ export class MenubarService {
   }
 
   /**
+   * The `<ui-menubar>` host element passed to {@link registerRoot}, or `null`
+   * before it has run. Used to scope DOM queries to this menubar so two
+   * menubars on one page keep separate trigger rings.
+   */
+  getRoot(): HTMLElement | null {
+    return this.rootEl;
+  }
+
+  /**
    * Records a menu's trigger under its generated id so keyboard handlers in the
    * open content can reach back to it (Escape restores focus to the trigger,
    * ArrowLeft/ArrowRight move along the trigger row). Called from the
@@ -37,9 +46,8 @@ export class MenubarService {
   }
 
   /**
-   * Drops a menu from {@link menus}. Nothing calls this today — a destroyed
-   * trigger leaves a stale entry behind, so re-creating menus in a long-lived
-   * page grows the map.
+   * Drops a menu from {@link menus}. Called from the `MenubarTriggerComponent`
+   * destroy hook, so a torn-down trigger leaves no stale entry behind.
    */
   unregister(id: string): void {
     this.menus.delete(id);

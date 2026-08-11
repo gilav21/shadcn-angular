@@ -12,7 +12,7 @@ import {
     MenubarSubTriggerComponent,
     MenubarSubContentComponent,
 } from './';
-import { Component, Type } from '@angular/core';
+import { Component, signal, Type } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -135,6 +135,72 @@ class LooseItemHostComponent { }
     imports: [MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSubComponent, MenubarSubTriggerComponent, MenubarSubContentComponent],
 })
 class SubmenuTestHostComponent { }
+
+@Component({
+    template: `
+        <ui-menubar>
+            <ui-menubar-menu>
+                <ui-menubar-trigger>File</ui-menubar-trigger>
+                <ui-menubar-content>
+                    <ui-menubar-item [disabled]="true">Disabled First</ui-menubar-item>
+                    <ui-menubar-item>Enabled</ui-menubar-item>
+                    <ui-menubar-sub>
+                        <ui-menubar-sub-trigger [disabled]="true">Share</ui-menubar-sub-trigger>
+                        <ui-menubar-sub-content>
+                            <ui-menubar-item>Email</ui-menubar-item>
+                        </ui-menubar-sub-content>
+                    </ui-menubar-sub>
+                </ui-menubar-content>
+            </ui-menubar-menu>
+        </ui-menubar>
+    `,
+    imports: [MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSubComponent, MenubarSubTriggerComponent, MenubarSubContentComponent],
+})
+class DisabledMenubarHostComponent { }
+
+@Component({
+    template: `
+        <ui-menubar>
+            <ui-menubar-menu>
+                <ui-menubar-trigger>A1</ui-menubar-trigger>
+                <ui-menubar-content><ui-menubar-item>a1</ui-menubar-item></ui-menubar-content>
+            </ui-menubar-menu>
+            <ui-menubar-menu>
+                <ui-menubar-trigger>A2</ui-menubar-trigger>
+                <ui-menubar-content><ui-menubar-item>a2</ui-menubar-item></ui-menubar-content>
+            </ui-menubar-menu>
+        </ui-menubar>
+        <ui-menubar>
+            <ui-menubar-menu>
+                <ui-menubar-trigger>B1</ui-menubar-trigger>
+                <ui-menubar-content><ui-menubar-item>b1</ui-menubar-item></ui-menubar-content>
+            </ui-menubar-menu>
+        </ui-menubar>
+    `,
+    imports: [MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent],
+})
+class TwoMenubarsHostComponent { }
+
+@Component({
+    template: `
+        <ui-menubar>
+            <ui-menubar-menu>
+                <ui-menubar-trigger>One</ui-menubar-trigger>
+                <ui-menubar-content><ui-menubar-item>one</ui-menubar-item></ui-menubar-content>
+            </ui-menubar-menu>
+            @if (showSecond()) {
+                <ui-menubar-menu>
+                    <ui-menubar-trigger>Two</ui-menubar-trigger>
+                    <ui-menubar-content><ui-menubar-item>two</ui-menubar-item></ui-menubar-content>
+                </ui-menubar-menu>
+            }
+        </ui-menubar>
+    `,
+    imports: [MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent],
+})
+class RemovableMenuHostComponent {
+    readonly showSecond = signal(true);
+}
 
 function createFixture<T>(type: Type<T>): ComponentFixture<T> {
     TestBed.configureTestingModule({ imports: [type] });
@@ -654,5 +720,120 @@ describe('Menubar submenu', () => {
         const triggerEl = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent)).nativeElement.querySelector('[data-slot="menubar-sub-trigger"]') as HTMLElement;
         expect(triggerEl.className).toContain('bg-accent');
         expect(triggerEl.className).toContain('rtl:pr-8');
+    });
+});
+
+describe('Menubar disabled sub-trigger', () => {
+    let fixture: ComponentFixture<DisabledMenubarHostComponent>;
+    let sub: MenubarSubComponent;
+    let subTrigger: MenubarSubTriggerComponent;
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        installStubs();
+        fixture = createFixture(DisabledMenubarHostComponent);
+        openFirstMenu(fixture);
+        sub = fixture.debugElement.query(By.directive(MenubarSubComponent)).componentInstance as MenubarSubComponent;
+        subTrigger = fixture.debugElement.query(By.directive(MenubarSubTriggerComponent)).componentInstance as MenubarSubTriggerComponent;
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        vi.clearAllTimers();
+        vi.useRealTimers();
+        restoreStubs();
+    });
+
+    function subTriggerRow(): HTMLElement {
+        return fixture.debugElement.query(By.directive(MenubarSubTriggerComponent)).nativeElement.querySelector('[data-slot="menubar-sub-trigger"]') as HTMLElement;
+    }
+
+    it('marks the disabled sub-trigger with data-disabled and drops it from the ring', () => {
+        expect(subTriggerRow().hasAttribute('data-disabled')).toBe(true);
+        expect(subTriggerRow().getAttribute('aria-disabled')).toBe('true');
+        const content = fixture.debugElement.query(By.directive(MenubarContentComponent)).componentInstance as MenubarContentComponent;
+        expect(content.getFocusableItems()).toHaveLength(1);
+    });
+
+    it('does not open the submenu on hover, tap or keyboard while disabled', () => {
+        subTrigger.onMouseEnter();
+        expect(sub.isOpen()).toBe(false);
+
+        stubMatchMedia(true);
+        subTrigger.onClick();
+        expect(sub.isOpen()).toBe(false);
+        stubMatchMedia(false);
+
+        keydown(subTriggerRow(), 'Enter');
+        expect(sub.isOpen()).toBe(false);
+        keydown(subTriggerRow(), 'ArrowRight');
+        expect(sub.isOpen()).toBe(false);
+    });
+
+    it('skips a disabled first item when the menu is opened from the trigger', () => {
+        menuInstance(fixture).close();
+        fixture.detectChanges();
+        const trigger = fixture.debugElement.query(By.css('[data-slot="menubar-trigger"]')).nativeElement as HTMLElement;
+        keydown(trigger, 'Enter');
+        fixture.detectChanges();
+        vi.advanceTimersByTime(1);
+        const enabledItem = fixture.nativeElement.querySelector('[data-menubar-content] [role="menuitem"]:not([data-disabled])') as HTMLElement;
+        expect(document.activeElement).toBe(enabledItem);
+        expect((document.activeElement as HTMLElement).textContent).toContain('Enabled');
+    });
+});
+
+describe('Menubar trigger ring scoping and teardown', () => {
+    afterEach(() => {
+        restoreStubs();
+    });
+
+    it('wraps around within the owning menubar only', () => {
+        installStubs();
+        const fixture = createFixture(TwoMenubarsHostComponent);
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="menubar-trigger"]'));
+        expect(triggers).toHaveLength(3);
+        triggers[1].nativeElement.focus();
+        keydown(triggers[1].nativeElement, 'ArrowRight');
+        expect(document.activeElement).toBe(triggers[0].nativeElement);
+        fixture.destroy();
+    });
+
+    it('unregisters a menu from the service when its trigger is destroyed', () => {
+        installStubs();
+        const fixture = createFixture(RemovableMenuHostComponent);
+        const service = serviceInstance(fixture);
+        expect(service.menus.size).toBe(2);
+        fixture.componentInstance.showSecond.set(false);
+        fixture.detectChanges();
+        expect(service.menus.size).toBe(1);
+        fixture.destroy();
+    });
+});
+
+describe('Menubar submenu timer teardown', () => {
+    let fixture: ComponentFixture<SubmenuTestHostComponent>;
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        installStubs();
+        fixture = createFixture(SubmenuTestHostComponent);
+        openFirstMenu(fixture);
+    });
+
+    afterEach(() => {
+        vi.clearAllTimers();
+        vi.useRealTimers();
+        restoreStubs();
+    });
+
+    it('cancels a pending close when the submenu is destroyed inside the grace period', () => {
+        const sub = fixture.debugElement.query(By.directive(MenubarSubComponent)).componentInstance as MenubarSubComponent;
+        sub.enter();
+        fixture.detectChanges();
+        sub.leave();
+        fixture.destroy();
+        vi.advanceTimersByTime(200);
+        expect(sub.isOpen()).toBe(true);
     });
 });

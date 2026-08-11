@@ -61,8 +61,8 @@ export class ChipListComponent implements ControlValueAccessor {
   /**
    * Disables the whole control: the field is inert, the per-chip remove buttons
    * are removed from the DOM entirely (not just hidden), and {@link focusInput}
-   * becomes a no-op. Note {@link setDisabledState} deliberately ignores the
-   * forms API — a reactive `control.disable()` does *not* drive this input.
+   * becomes a no-op. A reactive `control.disable()` disables the control too —
+   * both sources are OR-ed together by {@link isDisabled}.
    */
   disabled = input(false);
   /** Shell styling of the chip container: bordered box (`outline`), a single bottom rule (`underline`), or no chrome at all (`ghost`). Only `outline`/`underline` render a focus ring. */
@@ -118,9 +118,14 @@ export class ChipListComponent implements ControlValueAccessor {
   private onChange: (value: string[]) => void = () => { };
   private onTouched: () => void = () => { };
 
+  private readonly formDisabled = signal(false);
+
+  /** Effective disabled state: the {@link disabled} input OR a reactive `control.disable()` relayed through {@link setDisabledState}. */
+  readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
+
   containerClasses = computed(() => cn(
     chipListVariants({ variant: this.variant() }),
-    this.disabled() && 'opacity-50 cursor-not-allowed',
+    this.isDisabled() && 'opacity-50 cursor-not-allowed',
     this.maxRows() > 0 && 'overflow-y-auto',
     this.class()
   ));
@@ -132,9 +137,9 @@ export class ChipListComponent implements ControlValueAccessor {
     return `${heightPx}px`;
   });
 
-  /** Moves focus into the inline text field. Also bound to a click/Enter/Space anywhere on the container so the whole chip area behaves like one input. No-op while {@link disabled}. */
+  /** Moves focus into the inline text field. Also bound to a click/Enter/Space anywhere on the container so the whole chip area behaves like one input. No-op while {@link isDisabled}. */
   focusInput(): void {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     this.inputComponent().focus();
   }
 
@@ -231,6 +236,8 @@ export class ChipListComponent implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
-  /** `ControlValueAccessor` no-op: disabling is driven only by the {@link disabled} input, so `control.disable()` alone will not grey the chip list out. */
-  setDisabledState(_isDisabled: boolean): void { /* ControlValueAccessor - no-op: disabled state managed by input */ }
+  /** `ControlValueAccessor`: relays `control.disable()`/`enable()` into {@link isDisabled}, which is OR-ed with the {@link disabled} input — so either source alone disables the chip list. */
+  setDisabledState(isDisabled: boolean): void {
+    this.formDisabled.set(isDisabled);
+  }
 }

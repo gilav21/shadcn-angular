@@ -39,7 +39,7 @@ import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales'
           </li>
 
           <!-- Page numbers -->
-          @for (page of pageNumbers(); track page) {
+          @for (page of pageNumbers(); track $index) {
             <li>
               @if (page === -1) {
                 <span class="flex h-9 w-9 items-center justify-center" data-slot="pagination-ellipsis" aria-hidden="true">
@@ -144,6 +144,12 @@ export class PaginationComponent {
       : 'hover:bg-accent hover:text-accent-foreground'
   );
 
+  /**
+   * The page buttons to render, in order, with `-1` standing in for an ellipsis.
+   * A collapsed bar contains two of those, so the template tracks this list by
+   * index rather than by value — tracking by value would give the two ellipses
+   * the same key and trip Angular's duplicate-key check (NG0955).
+   */
   readonly pageNumbers = computed(() => {
     const total = this.totalPages();
     const current = this.currentPage();

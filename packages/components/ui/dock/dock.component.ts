@@ -63,19 +63,27 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
     distance = input<number>(100);
     /**
      * Where the dock is anchored, which sets its axis and alignment (`left`/`right`
-     * stack the items in a column). Note the magnification maths only ever measures
-     * the cursor's **horizontal** distance, so in the two vertical positions the
-     * whole column magnifies together instead of following the cursor down it.
+     * stack the items in a column). The magnification follows the same axis, so a
+     * vertical dock magnifies the item the cursor is beside rather than the whole
+     * column.
      */
     position = input<'bottom' | 'top' | 'left' | 'right'>('bottom');
     /**
      * Simple mode: renders one item per entry. Ignored entirely once any
-     * `ui-dock-item` is projected — custom content wins. Only `label`, `icon`,
-     * `class` and `active` are rendered; `href` and `onClick` are **not** wired
-     * up, so data-driven items are decorative. Project your own items to make
-     * them interactive.
+     * `ui-dock-item` is projected — custom content wins. An entry with an `href`
+     * renders a link filling the item, one with only an `onClick` renders a
+     * button, and an entry with neither stays decorative. Both are labelled from
+     * `label` for screen readers.
      */
     items = input<DockItemData[]>([]);
+
+    /** Whether the dock stacks its items in a column, which is also the axis the magnification measures along. */
+    readonly isVertical = computed(() => this.position() === 'left' || this.position() === 'right');
+
+    /** Runs a simple-mode entry's `onClick`, if it has one. Called from both the link and the button form, so an entry with an `href` and an `onClick` gets both. */
+    activateItem(item: DockItemData): void {
+        item.onClick?.();
+    }
 
     @ContentChildren(DockItemComponent) private readonly projectedItems!: QueryList<DockItemComponent>;
     @ViewChildren(DockItemComponent) private readonly viewItems!: QueryList<DockItemComponent>;
@@ -124,26 +132,28 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
     }
 
     private _rafId: number | null = null;
-    private _mouseX: number = Infinity;
+    private _pointerOffset: number = Infinity;
 
     /** Re-measures on entry so the dock magnifies correctly after the page has scrolled or reflowed since the last measurement. Runs outside Angular — it triggers no change detection. */
     onMouseEnter(): void {
         this.recalculateItemCenters();
     }
 
-    /** Caches each item's viewport-centre X, the baseline the hover maths measures against. Call it after adding or removing items outside a mouse-enter, otherwise the magnification stays keyed to the old positions. */
+    /** Caches each item's viewport centre along the dock's axis (Y for `left`/`right`, X otherwise), the baseline the hover maths measures against. Call it after adding or removing items outside a mouse-enter, otherwise the magnification stays keyed to the old positions. */
     recalculateItemCenters(): void {
-        this._itemCenters = this.allItems.map(item => item.getCenter());
+        const axis = this.isVertical() ? 'y' : 'x';
+        this._itemCenters = this.allItems.map(item => item.getCenter(axis));
     }
 
     /**
-     * Tracks the cursor and schedules one width update per animation frame.
+     * Tracks the cursor along the dock's axis — `clientY` for `left`/`right`,
+     * `clientX` otherwise — and schedules one width update per animation frame.
      * Bound outside Angular and it writes widths through `Renderer2` rather than
      * signals, so the magnification never triggers change detection. Mouse only —
      * there is no touch equivalent, so on a phone the dock simply stays at rest.
      */
     onMouseMove(e: MouseEvent): void {
-        this._mouseX = e.clientX;
+        this._pointerOffset = this.isVertical() ? e.clientY : e.clientX;
 
         if (this._rafId) return;
 
@@ -155,7 +165,7 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
 
     /** Drops the cursor position and settles every item back to the 40px base immediately, cancelling any frame still pending so a stale one cannot re-magnify after the pointer has gone. */
     onMouseLeave(): void {
-        this._mouseX = Infinity;
+        this._pointerOffset = Infinity;
         if (this._rafId) {
             cancelAnimationFrame(this._rafId);
             this._rafId = null;
@@ -180,12 +190,12 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
 
         items.forEach((item, index) => {
             if (index >= this._itemCenters.length) return;
-            const centerX = this._itemCenters[index];
+            const center = this._itemCenters[index];
 
-            const dist = this._mouseX - centerX;
+            const dist = this._pointerOffset - center;
             let width = baseWidth;
 
-            if (this._mouseX !== Infinity && Math.abs(dist) < distance) {
+            if (this._pointerOffset !== Infinity && Math.abs(dist) < distance) {
                 const val = Math.abs(dist);
                 const weights = Math.cos((val / distance) * (Math.PI / 2));
                 width = baseWidth + (magnification - baseWidth) * weights;

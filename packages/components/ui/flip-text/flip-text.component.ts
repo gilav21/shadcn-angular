@@ -6,7 +6,7 @@ import {
     ElementRef,
     inject,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 @Component({
     selector: 'ui-flip-text',
@@ -46,15 +46,20 @@ export class FlipTextComponent {
     /**
      * Replays the flip on demand. The CSS animation only runs once on insert, so
      * this cancels any running animations and re-drives the same keyframes
-     * imperatively via the Web Animations API. Unlike the CSS path it is not
-     * suppressed by `prefers-reduced-motion`, so gate the call yourself if that
-     * matters.
+     * imperatively via the Web Animations API. Honours `prefers-reduced-motion`
+     * exactly as the CSS path does: under that preference the characters are
+     * simply left visible and nothing animates.
      */
     playAnimation(): void {
         const host = this.el.nativeElement as HTMLElement;
         const chars = host.querySelectorAll<HTMLElement>('.animate-flip-in');
+        const reducedMotion = prefersReducedMotion();
         chars.forEach((el, i) => {
             el.getAnimations().forEach(a => a.cancel());
+            if (reducedMotion) {
+                el.style.opacity = '1';
+                return;
+            }
             el.style.opacity = '0';
             el.animate(
                 [

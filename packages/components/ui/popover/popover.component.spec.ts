@@ -152,6 +152,92 @@ describe('Popover Integration', () => {
         const content = fixture.debugElement.query(By.css('[data-slot="popover-content"]'));
         expect(content).toBeNull();
     });
+
+});
+
+@Component({
+    template: `
+        <ui-popover>
+            <ui-popover-trigger><button type="button" class="trigger-btn">Open</button></ui-popover-trigger>
+            <ui-popover-content [restoreFocus]="restoreFocus()">
+                <button type="button" class="inside">Inside</button>
+                <ui-popover-close><button type="button" class="close-btn">Close</button></ui-popover-close>
+            </ui-popover-content>
+        </ui-popover>
+        <button type="button" class="outside">Outside</button>
+    `,
+    imports: [PopoverComponent, PopoverTriggerComponent, PopoverContentComponent, PopoverCloseComponent]
+})
+class RestoreFocusHostComponent {
+    readonly restoreFocus = signal(true);
+}
+
+describe('PopoverContent focus restoration', () => {
+    let fixture: ComponentFixture<RestoreFocusHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [RestoreFocusHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(RestoreFocusHostComponent);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+    });
+
+    function query(selector: string): HTMLElement {
+        return fixture.nativeElement.querySelector(selector) as HTMLElement;
+    }
+
+    async function openAndFocusInside(): Promise<HTMLElement> {
+        query('.trigger-btn').click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const inside = query('.inside');
+        inside.focus();
+        expect(document.activeElement).toBe(inside);
+        return inside;
+    }
+
+    it('returns focus to the trigger when the content closes', async () => {
+        await openAndFocusInside();
+
+        query('.close-btn').click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(fixture.nativeElement.querySelector('[data-slot="popover-content"]')).toBeNull();
+        expect(document.activeElement).toBe(query('.trigger-btn'));
+    });
+
+    it('leaves focus alone when restoreFocus is false', async () => {
+        fixture.componentInstance.restoreFocus.set(false);
+        fixture.detectChanges();
+
+        await openAndFocusInside();
+
+        query('.close-btn').click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.activeElement).not.toBe(query('.trigger-btn'));
+    });
+
+    it('does not steal focus the user has moved elsewhere', async () => {
+        await openAndFocusInside();
+
+        const outside = query('.outside');
+        outside.focus();
+        outside.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.activeElement).toBe(outside);
+    });
 });
 
 @Component({

@@ -50,9 +50,9 @@ export class RatingComponent implements ControlValueAccessor {
   /** Override for the group `aria-label`. Falls back to the locale's `rating`. */
   readonly ariaLabel = input<string>();
   /**
-   * Size of each star button box — `sm` 16px, `md` 20px (default), `lg` 24px. The
-   * star SVG itself is fixed at 20px in the template, so only `sm` visibly changes
-   * the glyph (by clipping the box).
+   * Size of each star — `sm` 16px, `md` 20px (default), `lg` 24px. Scales the
+   * button box and the star glyph inside it together, so the glyph is never
+   * clipped by a smaller box nor adrift in a larger one.
    */
   readonly size = input<'sm' | 'md' | 'lg'>('md');
 
@@ -116,6 +116,17 @@ export class RatingComponent implements ControlValueAccessor {
   );
 
   /**
+   * Box dimensions for one star, from {@link size}. Applied to both the button
+   * and the SVG inside it so the glyph always fills its box exactly.
+   */
+  readonly glyphClasses = computed(() => {
+    const size = this.size();
+    if (size === 'sm') return 'h-4 w-4';
+    if (size === 'lg') return 'h-6 w-6';
+    return 'h-5 w-5';
+  });
+
+  /**
    * Classes for one star button — {@link size} box dimensions plus the amber/muted colour
    * chosen from {@link getStarFill}. The hover-grow affordance is dropped while
    * disabled or readonly.
@@ -124,11 +135,7 @@ export class RatingComponent implements ControlValueAccessor {
     const fill = this.getStarFill(star);
     return cn(
       'transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm',
-      {
-        'h-4 w-4': this.size() === 'sm',
-        'h-5 w-5': this.size() === 'md',
-        'h-6 w-6': this.size() === 'lg',
-      },
+      this.glyphClasses(),
       fill === 'empty' ? 'text-muted-foreground/30' : 'text-yellow-400',
       !this.isDisabled() && !this.readonly() && 'cursor-pointer hover:scale-110'
     );

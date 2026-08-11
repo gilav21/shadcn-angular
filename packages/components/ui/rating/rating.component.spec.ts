@@ -182,6 +182,40 @@ describe('RatingComponent', () => {
             expect(lgClass).toContain('h-6');
             expect(lgClass).toContain('w-6');
         });
+
+        it('scales the star glyph with the button box', async () => {
+            const glyphClass = (): string =>
+                buttons()[0].querySelector('svg')?.getAttribute('class') ?? '';
+
+            component.size.set('sm');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(glyphClass()).toBe('h-4 w-4');
+
+            component.size.set('md');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(glyphClass()).toBe('h-5 w-5');
+
+            component.size.set('lg');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(glyphClass()).toBe('h-6 w-6');
+        });
+
+        it('scales half and empty star glyphs too', async () => {
+            component.precision.set(0.5);
+            component.value.set(1.5);
+            component.size.set('lg');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const glyphs = buttons().map(b => b.querySelector('svg')?.getAttribute('class') ?? '');
+            expect(glyphs.length).toBeGreaterThanOrEqual(3);
+            for (const glyph of glyphs) {
+                expect(glyph).toBe('h-6 w-6');
+            }
+        });
     });
 
     describe('Value Handling', () => {

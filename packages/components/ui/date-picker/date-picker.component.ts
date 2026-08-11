@@ -109,9 +109,9 @@ export class DatePickerComponent implements ControlValueAccessor {
   readonly locale = input('en');
   /**
    * Initial/externally-set date, for `[(date)]` two-way binding with
-   * {@link dateChange}. Only non-null values are applied, so pushing `null`
-   * here will not clear a date the user already picked — use a form control, or
-   * {@link writeValue}, for that.
+   * {@link dateChange}. Pushing `null` clears the selection back to the
+   * {@link placeholder}; only the initial `null` default is ignored, so a
+   * date written through a form control is not clobbered on first render.
    */
   readonly date = input<Date | null>(null);
   /** Emits on every calendar selection (the `[(date)]` half). Fires alongside the `ControlValueAccessor` change callback, so forms and two-way binding stay in sync. */
@@ -126,12 +126,15 @@ export class DatePickerComponent implements ControlValueAccessor {
 
   private readonly adjustedPosition = signal<PopupPosition>({ ...DEFAULT_POPUP_POSITION });
 
+  private isFirstDateInput = true;
+
   constructor() {
     effect(() => {
       const dateInput = this.date();
-      if (dateInput) {
-        this.internalValue.set(dateInput);
-      }
+      const isInitialRun = this.isFirstDateInput;
+      this.isFirstDateInput = false;
+      if (dateInput === null && isInitialRun) return;
+      this.internalValue.set(dateInput);
     });
     effect(() => {
       if (this.isOpen()) {

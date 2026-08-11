@@ -4,6 +4,7 @@ import {
   signal,
   InjectionToken,
   forwardRef,
+  OnDestroy,
 } from '@angular/core';
 import type { MenubarSubTriggerComponent } from './menubar-sub-trigger.component';
 import type { MenubarSubContentComponent } from './menubar-sub-content.component';
@@ -17,9 +18,14 @@ export const MENUBAR_SUB = new InjectionToken<MenubarSubComponent>('MENUBAR_SUB'
   template: `<ng-content />`,
   host: { class: 'relative block w-full' },
 })
-export class MenubarSubComponent {
+export class MenubarSubComponent implements OnDestroy {
   isOpen = signal(false);
   private timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  /** Cancels a close still pending from {@link leave}, so a submenu destroyed inside the grace period leaves no timer behind. */
+  ngOnDestroy(): void {
+    clearTimeout(this.timeoutId);
+  }
 
   private trigger: MenubarSubTriggerComponent | null = null;
   private content: MenubarSubContentComponent | null = null;
@@ -42,8 +48,8 @@ export class MenubarSubComponent {
   /**
    * Schedules the submenu to close after a 100ms grace period, so moving the
    * pointer off the trigger and onto the panel does not dismiss it. Calling
-   * {@link enter} within that window cancels the close. The timer is not cleared
-   * on destroy.
+   * {@link enter} within that window cancels the close, as does destroying the
+   * component.
    */
   leave(): void {
     this.timeoutId = setTimeout(() => {

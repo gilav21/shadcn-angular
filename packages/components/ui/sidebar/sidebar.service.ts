@@ -8,14 +8,17 @@ export class SidebarService {
   isOpen = signal(true);
   isCollapsed = signal(false);
   isMobile = signal(false);
+  /** Mirrors `SidebarComponent.collapsible`. While `false` the desktop rail never collapses — {@link toggle} leaves it expanded — so labels and tooltips never switch to their collapsed presentation. */
+  collapsible = signal(true);
 
-  /** The one action bound to the trigger: on mobile it opens/closes the drawer, on desktop it collapses/expands the rail. The two states are independent, so a drawer left open stays open when the viewport grows back to desktop. */
+  /** The one action bound to the trigger: on mobile it opens/closes the drawer, on desktop it collapses/expands the rail unless {@link collapsible} is `false`. The two states are independent, so a drawer left open stays open when the viewport grows back to desktop. */
   toggle(): void {
     if (this.isMobile()) {
       this.isOpen.update(v => !v);
-    } else {
-      this.isCollapsed.update(v => !v);
+      return;
     }
+    if (!this.collapsible()) return;
+    this.isCollapsed.update(v => !v);
   }
 
   /** Opens the drawer. Only observable on mobile — on desktop the sidebar is always rendered and `isCollapsed` is what controls its width. */

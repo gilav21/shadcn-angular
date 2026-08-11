@@ -180,6 +180,41 @@ describe('OrgChartComponent', () => {
         expect(component.svgHeight()).toBe(300);
     });
 
+    it('renders every parentless subtree instead of keeping only the last root', () => {
+        const forest: OrgNode[] = [
+            { id: 'a', name: 'Root A', parentId: null },
+            { id: 'a1', name: 'A child', parentId: 'a' },
+            { id: 'b', name: 'Root B', parentId: null },
+            { id: 'b1', name: 'B child', parentId: 'b' },
+        ];
+        fixture.componentRef.setInput('data', forest);
+        fixture.detectChanges();
+
+        expect(component.trees().map(t => t.node.id)).toEqual(['a', 'b']);
+        expect(component.flatNodes().map(n => n.node.id)).toEqual(['a', 'a1', 'b', 'b1']);
+        expect(component.connections().map(c => c.id)).toEqual(['a-a1', 'b-b1']);
+        expect(component.tree()!.node.id).toBe('a');
+    });
+
+    it('lays the second root out clear of the first, in both layouts', () => {
+        const forest: OrgNode[] = [
+            { id: 'a', name: 'Root A', parentId: null },
+            { id: 'a1', name: 'A child', parentId: 'a' },
+            { id: 'b', name: 'Root B', parentId: null },
+        ];
+        fixture.componentRef.setInput('data', forest);
+        fixture.detectChanges();
+
+        const [first, second] = component.trees();
+        expect(second.x).toBeGreaterThanOrEqual(first.x + first.width);
+
+        fixture.componentRef.setInput('layout', 'horizontal');
+        fixture.detectChanges();
+
+        const [firstH, secondH] = component.trees();
+        expect(secondH.y).toBeGreaterThanOrEqual(firstH.y + firstH.height);
+    });
+
     it('should generate straight (L-command) connection paths in vertical layout', () => {
         fixture.componentRef.setInput('lineType', 'straight');
         fixture.detectChanges();

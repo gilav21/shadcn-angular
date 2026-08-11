@@ -170,6 +170,29 @@ describe('FlipTextComponent playAnimation', () => {
         expect(firstOptions.fill).toBe('forwards');
     });
 
+    it('leaves the characters visible without animating under reduced motion', () => {
+        const win = globalThis.window as unknown as { matchMedia: unknown };
+        const originalMatchMedia = win.matchMedia;
+        win.matchMedia = vi.fn((query: string) => ({ matches: query.includes('reduce') }));
+
+        try {
+            host.text.set('Hi');
+            fixture.detectChanges();
+
+            const comp = fixture.debugElement.query(By.directive(FlipTextComponent))
+                .componentInstance as FlipTextComponent;
+
+            comp.playAnimation();
+
+            const charSpans = fixture.debugElement.queryAll(By.css('[data-slot="flip-text"] span'));
+            expect(animateSpy).not.toHaveBeenCalled();
+            expect(charSpans[0].nativeElement.style.opacity).toBe('1');
+            expect(charSpans[1].nativeElement.style.opacity).toBe('1');
+        } finally {
+            win.matchMedia = originalMatchMedia;
+        }
+    });
+
     it('does nothing when there are no character spans', () => {
         host.text.set('');
         fixture.detectChanges();

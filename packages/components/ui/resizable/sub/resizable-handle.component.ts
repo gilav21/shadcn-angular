@@ -11,6 +11,23 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { ResizablePanelComponent } from './resizable-panel.component';
+
+const DEFAULT_MIN_SIZE = 10;
+const DEFAULT_MAX_SIZE = 90;
+const KEYBOARD_STEP = 5;
+
+interface PanelLimits {
+  min: number;
+  max: number;
+}
+
+interface AdjacentPanels {
+  beforeEl: HTMLElement;
+  afterEl: HTMLElement;
+  before?: ResizablePanelComponent;
+  after?: ResizablePanelComponent;
+}
 
 @Component({
   selector: 'ui-resizable-handle',
@@ -24,11 +41,13 @@ import { cn } from '../../../lib/utils';
         [attr.data-slot]="'resizable-handle'"
         (mousedown)="onMouseDown($event)"
         (touchstart)="onTouchStart($event)"
+        (keydown)="onKeydown($event)"
         tabindex="0"
         role="separator"
-        aria-valuenow="50"
-        aria-valuemin="0"
-        aria-valuemax="100"
+        [attr.aria-orientation]="ariaOrientation()"
+        [attr.aria-valuenow]="ariaValueNow()"
+        [attr.aria-valuemin]="ariaValueMin()"
+        [attr.aria-valuemax]="ariaValueMax()"
         [attr.aria-label]="ariaLabel()"
       >
         @if (withHandle()) {
@@ -65,22 +84,23 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   handleSize = input(4);
   /** Removes the divider entirely (it is `@if`-ed out, not just inert), freezing the panels at their current sizes and collapsing the gap between them. */
   disabled = input(false);
-  /** Accessible name for the `separator`. Give each handle a distinct one in a multi-panel group. Note the divider is focusable but has no key handling, so it cannot actually be resized from the keyboard, and its `aria-valuenow` is a fixed 50. */
+  /** Accessible name for the `separator`. Give each handle a distinct one in a multi-panel group — it is what a screen-reader user hears before the arrow keys resize the pair. */
   ariaLabel = input('Resize Handle');
 
   /**
-   * Fires continuously during a drag with the pixel `delta` and the two adjacent
-   * panels' new percentages. The handle has **already** written those sizes to
-   * the DOM — this is a notification, not a request, and there is nothing to
-   * feed back. Sizes are written as inline `flex-basis`, bypassing the panels'
-   * own `size` signals, so they will not survive a re-render that resets style.
-   * Nothing is emitted at drag end, and nothing is persisted.
+   * Fires continuously during a drag, and once per arrow-key press, with the two
+   * adjacent panels' new percentages. `delta` is the pixel offset from where the
+   * drag started, and is `0` for a keyboard resize. The handle has **already**
+   * applied those sizes through the panels' own `setSize()`, so this is a
+   * notification, not a request — the panels' `size` signals and their
+   * `sizeChange` outputs are equally up to date. Nothing is persisted.
    */
   resized = output<{ delta: number; sizes: number[] }>();
 
 
   private readonly isDragging = signal(false);
   private readonly detectedDirection = signal<'horizontal' | 'vertical'>('horizontal');
+  private readonly adjacent = signal<AdjacentPanels | null>(null);
 
   // Store cleanup functions
   private listeners: (() => void)[] = [];
@@ -102,6 +122,7 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     const groupEl = handleEl.closest('[data-slot="resizable-panel-group"]');
     const dir = ((groupEl as HTMLElement | null)?.dataset['direction'] as 'horizontal' | 'vertical') ?? 'horizontal';
     this.detectedDirection.set(dir);
+    this.adjacent.set(this.resolveAdjacentPanels());
   }
 
   handleStyles = computed(() => {
@@ -112,6 +133,22 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     }
     return `height: ${size}px; min-height: ${size}px; touch-action: none;`;
   });
+
+  /** `'vertical'` for a divider in a horizontal group and vice versa — the separator's own orientation, which is the axis it moves along inverted. */
+  readonly ariaOrientation = computed(() =>
+    this.detectedDirection() === 'horizontal' ? 'vertical' : 'horizontal');
+
+  /** The panel-before-the-handle's current size in percent, rounded — kept in step with drags and arrow keys because it reads the panel's `size` signal. */
+  readonly ariaValueNow = computed(() =>
+    Math.round(this.adjacent()?.before?.size() ?? 50));
+
+  /** The panel-before-the-handle's `minSize`, or 10 when that panel cannot be resolved. */
+  readonly ariaValueMin = computed(() =>
+    this.adjacent()?.before?.minSize() ?? DEFAULT_MIN_SIZE);
+
+  /** The panel-before-the-handle's `maxSize`, or 90 when that panel cannot be resolved. */
+  readonly ariaValueMax = computed(() =>
+    this.adjacent()?.before?.maxSize() ?? DEFAULT_MAX_SIZE);
 
   classes = computed(() => {
     const isHorizontal = this.detectedDirection() === 'horizontal';
@@ -151,16 +188,62 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
 
   /**
    * Begins a mouse resize of the nearest panel on each side, which need not be
-   * immediate siblings. Both panels are clamped to 10–90% of the group — the
-   * panels' own `minSize`/`maxSize` are ignored — and the move is dropped
-   * outright when either would leave that range, so a fast drag stops dead at
-   * the limit. Direction is read from the group's `data-direction`, and the
-   * delta is mirrored in RTL. Listeners are on `document`, so the drag survives
-   * the pointer leaving the handle and ends on mouseup anywhere.
+   * immediate siblings. Each panel is clamped to its own `minSize`/`maxSize`
+   * (10–90% by default) and the move is dropped outright when either would leave
+   * its range, so a fast drag stops dead at the limit. Direction is read from the
+   * group's `data-direction`, and the delta is mirrored in RTL. Listeners are on
+   * `document`, so the drag survives the pointer leaving the handle and ends on
+   * mouseup anywhere.
    */
   onMouseDown(event: MouseEvent): void {
     event.preventDefault();
     this.startDrag(event.clientX, event.clientY, false);
+  }
+
+  /**
+   * Resizes the pair from the keyboard: the arrow keys along the group's axis
+   * move the divider 5% per press, mirrored in RTL exactly as the drag is. Both
+   * panels are clamped to their own `minSize`/`maxSize`, so a press at the limit
+   * settles on the limit rather than being ignored. Every other key is left alone
+   * so the divider stays a normal tab stop.
+   */
+  onKeydown(event: KeyboardEvent): void {
+    const step = this.keyboardStepFor(event.key);
+    if (step === 0) return;
+    event.preventDefault();
+    this.nudge(step);
+  }
+
+  private keyboardStepFor(key: string): number {
+    if (this.detectedDirection() === 'vertical') {
+      if (key === 'ArrowUp') return -KEYBOARD_STEP;
+      if (key === 'ArrowDown') return KEYBOARD_STEP;
+      return 0;
+    }
+    const sign = this.isRtl() ? -1 : 1;
+    if (key === 'ArrowLeft') return -KEYBOARD_STEP * sign;
+    if (key === 'ArrowRight') return KEYBOARD_STEP * sign;
+    return 0;
+  }
+
+  private nudge(step: number): void {
+    const panels = this.adjacent() ?? this.resolveAdjacentPanels();
+    this.adjacent.set(panels);
+    const before = panels?.before;
+    const after = panels?.after;
+    if (!before || !after) return;
+
+    const total = before.size() + after.size();
+    const afterSize = after.clampSize(total - before.clampSize(before.size() + step));
+    const beforeSize = total - afterSize;
+
+    before.setSize(beforeSize);
+    after.setSize(afterSize);
+    this.resized.emit({ delta: 0, sizes: [Math.round(beforeSize), Math.round(afterSize)] });
+  }
+
+  private isRtl(): boolean {
+    return getComputedStyle(document.documentElement).direction === 'rtl';
   }
 
   private findAdjacentPanels(
@@ -184,21 +267,61 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     return { before, after };
   }
 
+  private resolveAdjacentPanels(): AdjacentPanels | null {
+    const handleEl = this.el.nativeElement as HTMLElement;
+    const groupEl = handleEl.closest<HTMLElement>('[data-slot="resizable-panel-group"]');
+    if (!groupEl) return null;
+
+    const children = Array.from(groupEl.children);
+    const handleIndex = children.findIndex(el =>
+      el === handleEl || el.querySelector('[data-slot="resizable-handle"]') !== null || el.contains(handleEl)
+    );
+
+    const { before, after } = this.findAdjacentPanels(children, handleIndex);
+    if (!before || !after) return null;
+
+    return {
+      beforeEl: before,
+      afterEl: after,
+      before: ResizablePanelComponent.forElement(before),
+      after: ResizablePanelComponent.forElement(after),
+    };
+  }
+
+  private limitsOf(el: HTMLElement): PanelLimits {
+    const panel = ResizablePanelComponent.forElement(el);
+    return {
+      min: panel?.minSize() ?? DEFAULT_MIN_SIZE,
+      max: panel?.maxSize() ?? DEFAULT_MAX_SIZE,
+    };
+  }
+
+  private writeSize(el: HTMLElement, size: number): void {
+    const panel = ResizablePanelComponent.forElement(el);
+    if (panel) {
+      panel.setSize(size);
+      return;
+    }
+    el.style.flexBasis = `${size}%`;
+  }
+
   private buildMoveHandler(
     ctx: { isHorizontal: boolean; isRtl: boolean; containerSize: number; startX: number; startY: number },
     beforeEl: HTMLElement, afterEl: HTMLElement,
     startSizeBefore: number, startSizeAfter: number
   ): (clientX: number, clientY: number) => void {
     const { isHorizontal, isRtl, containerSize, startX, startY } = ctx;
+    const beforeLimits = this.limitsOf(beforeEl);
+    const afterLimits = this.limitsOf(afterEl);
     return (clientX: number, clientY: number): void => {
       let delta = isHorizontal ? clientX - startX : clientY - startY;
       if (isHorizontal && isRtl) delta = -delta;
       const newPercentBefore = ((startSizeBefore + delta) / containerSize) * 100;
       const newPercentAfter = ((startSizeAfter - delta) / containerSize) * 100;
-      if (newPercentBefore >= 10 && newPercentAfter >= 10 &&
-        newPercentBefore <= 90 && newPercentAfter <= 90) {
-        beforeEl.style.flexBasis = `${newPercentBefore}%`;
-        afterEl.style.flexBasis = `${newPercentAfter}%`;
+      if (newPercentBefore >= beforeLimits.min && newPercentAfter >= afterLimits.min &&
+        newPercentBefore <= beforeLimits.max && newPercentAfter <= afterLimits.max) {
+        this.writeSize(beforeEl, newPercentBefore);
+        this.writeSize(afterEl, newPercentAfter);
         this.resized.emit({ delta, sizes: [Math.round(newPercentBefore), Math.round(newPercentAfter)] });
       }
     };
@@ -238,21 +361,17 @@ export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
     const groupDirection = (groupEl.dataset['direction'] as 'horizontal' | 'vertical') ?? 'horizontal';
     const isHorizontal = groupDirection === 'horizontal';
     const containerSize = isHorizontal ? groupEl.offsetWidth : groupEl.offsetHeight;
-    const isRtl = getComputedStyle(document.documentElement).direction === 'rtl';
 
-    const children = Array.from(groupEl.children);
-    const handleIndex = children.findIndex(el =>
-      el === handleEl || el.querySelector('[data-slot="resizable-handle"]') !== null || el.contains(handleEl)
-    );
+    const panels = this.resolveAdjacentPanels();
+    if (!panels) return;
+    this.adjacent.set(panels);
 
-    const { before: panelBefore, after: panelAfter } = this.findAdjacentPanels(children, handleIndex);
-    if (!panelBefore || !panelAfter) return;
-
-    const startSizeBefore = isHorizontal ? panelBefore.offsetWidth : panelBefore.offsetHeight;
-    const startSizeAfter = isHorizontal ? panelAfter.offsetWidth : panelAfter.offsetHeight;
+    const { beforeEl, afterEl } = panels;
+    const startSizeBefore = isHorizontal ? beforeEl.offsetWidth : beforeEl.offsetHeight;
+    const startSizeAfter = isHorizontal ? afterEl.offsetWidth : afterEl.offsetHeight;
     const onMove = this.buildMoveHandler(
-      { isHorizontal, isRtl, containerSize, startX, startY },
-      panelBefore, panelAfter, startSizeBefore, startSizeAfter);
+      { isHorizontal, isRtl: this.isRtl(), containerSize, startX, startY },
+      beforeEl, afterEl, startSizeBefore, startSizeAfter);
     this.attachListeners(isTouch, isHorizontal, onMove);
   }
 }

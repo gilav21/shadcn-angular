@@ -300,8 +300,31 @@ describe('ChipListComponent (standalone unit)', () => {
         expect(component.chips()).toEqual([]);
     });
 
-    it('setDisabledState is a no-op that does not throw', () => {
-        expect(() => component.setDisabledState(true)).not.toThrow();
+    it('setDisabledState disables the control without the disabled input', () => {
+        component.writeValue(['React']);
+        fixture.detectChanges();
+        expect(component.isDisabled()).toBe(false);
+        expect(fixture.nativeElement.querySelector('[data-slot="chip-remove"]')).not.toBeNull();
+
+        component.setDisabledState(true);
+        fixture.detectChanges();
+
+        expect(component.isDisabled()).toBe(true);
+        const fieldset = fixture.nativeElement.querySelector('fieldset') as HTMLFieldSetElement;
+        expect(fieldset.disabled).toBe(true);
+        expect(fieldset.dataset['disabled']).toBe('true');
+        expect(fixture.nativeElement.querySelector('[data-slot="chip-remove"]')).toBeNull();
+
+        component.setDisabledState(false);
+        fixture.detectChanges();
+        expect(component.isDisabled()).toBe(false);
+    });
+
+    it('keeps the disabled input authoritative while the form re-enables', () => {
+        fixture.componentRef.setInput('disabled', true);
+        component.setDisabledState(false);
+        fixture.detectChanges();
+        expect(component.isDisabled()).toBe(true);
     });
 
     it('default onChange/onTouched are safe before registration', () => {

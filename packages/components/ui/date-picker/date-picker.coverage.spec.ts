@@ -187,13 +187,21 @@ describe('DatePickerComponent', () => {
     expect(component.internalValue()).toBe(d);
   });
 
-  it('does not overwrite the internal value when the date input is null', () => {
+  it('clears the internal value when the date input is set to null', () => {
     const d = new Date(2023, 5, 10);
     fixture.componentRef.setInput('date', d);
     fixture.detectChanges();
     fixture.componentRef.setInput('date', null);
     fixture.detectChanges();
-    expect(component.internalValue()).toBe(d);
+    expect(component.internalValue()).toBeNull();
+  });
+
+  it('leaves a form-written value alone when the date input keeps its null default', () => {
+    const fresh = TestBed.createComponent(DatePickerComponent);
+    const written = new Date(2024, 0, 15);
+    fresh.componentInstance.writeValue(written);
+    fresh.detectChanges();
+    expect(fresh.componentInstance.internalValue()).toBe(written);
   });
 
   it('renders the placeholder when no value is selected', () => {

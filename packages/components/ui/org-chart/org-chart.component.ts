@@ -21,10 +21,12 @@ import { readableForeground } from '../../lib/color';
 })
 export class OrgChartComponent {
   /**
-   * Flat node list linked by `parentId`; the tree is rebuilt and re-laid out on every
-   * change. Exactly one node must have a null/undefined `parentId` — it becomes the
-   * root, the **last** such node wins if there are several, and nodes whose `parentId`
-   * does not resolve to the root's subtree are silently dropped from the render.
+   * Flat node list linked by `parentId`; the forest is rebuilt and re-laid out on every
+   * change. **Every** node with a null/undefined `parentId` is a root and gets its own
+   * subtree, laid out after the previous one (to its right in a `'vertical'` layout,
+   * below it in a `'horizontal'` one) — see {@link trees}. Nodes whose `parentId`
+   * resolves to no root's subtree (a dangling or cyclic link) are silently dropped
+   * from the render.
    */
   data = input.required<OrgNode[]>();
   /**
@@ -69,22 +71,56 @@ export class OrgChartComponent {
 
   hoveredId = signal<string | null>(null);
 
-  tree = computed((): OrgNodePosition | null => {
+  /**
+   * Every parentless node's subtree, positioned and laid out end to end so no
+   * subtree is lost when the data has several roots. Empty when `data` is empty
+   * or every node claims a parent.
+   */
+  trees = computed((): OrgNodePosition[] => {
     const nodes = this.data();
-    if (nodes.length === 0) return null;
+    if (nodes.length === 0) return [];
 
+    const { roots, childrenMap } = this.groupByParent(nodes);
+    if (roots.length === 0) return [];
+
+    const isVertical = this.layout() === 'vertical';
+    const positioned: OrgNodePosition[] = [];
+    let offsetX = 0;
+    let offsetY = 0;
+
+    for (const root of roots) {
+      const positionedRoot = this.buildPositionedTree(root, 0, childrenMap);
+      this.calculatePositions(positionedRoot, offsetX, offsetY);
+      positioned.push(positionedRoot);
+
+      if (isVertical) {
+        offsetX = this.subtreeExtent(positionedRoot).maxX + this.nodePaddingX();
+      } else {
+        offsetY = this.subtreeExtent(positionedRoot).maxY + this.nodePaddingY();
+      }
+    }
+
+    return positioned;
+  });
+
+  /** The first root's positioned subtree, or `null` when there is none. @see trees */
+  tree = computed((): OrgNodePosition | null => this.trees()[0] ?? null);
+
+  private groupByParent(nodes: OrgNode[]): {
+    roots: OrgNode[];
+    childrenMap: Map<string, OrgNode[]>;
+  } {
     const childrenMap = new Map<string, OrgNode[]>();
-
     for (const node of nodes) {
       if (!childrenMap.has(node.id)) {
         childrenMap.set(node.id, []);
       }
     }
 
-    let root: OrgNode | null = null;
+    const roots: OrgNode[] = [];
     for (const node of nodes) {
       if (node.parentId === null || node.parentId === undefined) {
-        root = node;
+        roots.push(node);
       } else {
         const siblings = childrenMap.get(node.parentId) ?? [];
         siblings.push(node);
@@ -92,34 +128,40 @@ export class OrgChartComponent {
       }
     }
 
-    if (!root) return null;
+    return { roots, childrenMap };
+  }
 
-    const buildPositionedTree = (
-      node: OrgNode,
-      level: number
-    ): OrgNodePosition => {
-      const children = childrenMap.get(node.id) ?? [];
-      const childPositions = children.map(child =>
-        buildPositionedTree(child, level + 1)
-      );
-
-      return {
-        node,
-        x: 0,
-        y: 0,
-        width: this.nodeWidth(),
-        height: this.nodeHeight(),
-        level,
-        children: childPositions,
-      };
+  private buildPositionedTree(
+    node: OrgNode,
+    level: number,
+    childrenMap: Map<string, OrgNode[]>
+  ): OrgNodePosition {
+    const children = childrenMap.get(node.id) ?? [];
+    return {
+      node,
+      x: 0,
+      y: 0,
+      width: this.nodeWidth(),
+      height: this.nodeHeight(),
+      level,
+      children: children.map(child =>
+        this.buildPositionedTree(child, level + 1, childrenMap)
+      ),
     };
+  }
 
-    const positionedRoot = buildPositionedTree(root, 0);
-    this.calculatePositions(positionedRoot);
-    return positionedRoot;
-  });
+  private subtreeExtent(root: OrgNodePosition): { maxX: number; maxY: number } {
+    let maxX = root.x + root.width;
+    let maxY = root.y + root.height;
+    for (const child of root.children) {
+      const childExtent = this.subtreeExtent(child);
+      maxX = Math.max(maxX, childExtent.maxX);
+      maxY = Math.max(maxY, childExtent.maxY);
+    }
+    return { maxX, maxY };
+  }
 
-  private calculatePositions(root: OrgNodePosition): void {
+  private calculatePositions(root: OrgNodePosition, originX = 0, originY = 0): void {
     const isVertical = this.layout() === 'vertical';
     const nWidth = this.nodeWidth();
     const nHeight = this.nodeHeight();
@@ -165,25 +207,22 @@ export class OrgChartComponent {
       }
     };
 
-    positionNode(root, 0, 0);
+    positionNode(root, originX, originY);
   }
 
   flatNodes = computed((): OrgNodePosition[] => {
-    const root = this.tree();
-    if (!root) return [];
-
     const result: OrgNodePosition[] = [];
     const flatten = (node: OrgNodePosition): void => {
       result.push(node);
       node.children.forEach(flatten);
     };
-    flatten(root);
+    this.trees().forEach(flatten);
     return result;
   });
 
   connections = computed(() => {
-    const root = this.tree();
-    if (!root) return [];
+    const roots = this.trees();
+    if (roots.length === 0) return [];
 
     const result: { id: string; path: string }[] = [];
     const isVertical = this.layout() === 'vertical';
@@ -234,7 +273,7 @@ export class OrgChartComponent {
       }
     };
 
-    generateConnections(root);
+    roots.forEach(generateConnections);
     return result;
   });
 

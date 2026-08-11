@@ -24,6 +24,8 @@ import { MENUBAR_SUB, type MenubarSubComponent } from './menubar-sub.component';
       role="menuitem"
       [attr.aria-haspopup]="true"
       [attr.aria-expanded]="sub.isOpen()"
+      [attr.data-disabled]="disabled() || null"
+      [attr.aria-disabled]="disabled() || null"
       tabindex="0"
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
@@ -41,11 +43,11 @@ export class MenubarSubTriggerComponent {
   /** Extra classes merged onto the trigger row, after the hover/focus/open-state classes. */
   class = input('');
   /**
-   * Intended to disable the sub-trigger, but currently has no effect: the value
-   * is never bound to `data-disabled` and never checked in
-   * {@link onClick} / {@link onMouseEnter} / {@link onKeydown}, so a "disabled"
-   * sub-trigger still opens its submenu, is not dimmed, and stays in the
-   * arrow-key ring. Unlike `ui-menubar-item`'s `disabled`, which does all three.
+   * Disables the sub-trigger, exactly like `ui-menubar-item`'s `disabled`: the
+   * row is dimmed and `pointer-events-none` via `data-disabled`, drops out of
+   * the menu's arrow-key ring (which filters `:not([data-disabled])`), and
+   * {@link onClick} / {@link onMouseEnter} / {@link onKeydown} all refuse to
+   * open the submenu.
    */
   disabled = input(false, { transform: booleanAttribute });
   /**
@@ -76,11 +78,11 @@ export class MenubarSubTriggerComponent {
 
   /**
    * Opens the submenu immediately on hover — there is no open delay, only a
-   * close delay. No-op on touch devices, where {@link onClick} drives the
-   * submenu instead.
+   * close delay. No-op while {@link disabled}, and on touch devices, where
+   * {@link onClick} drives the submenu instead.
    */
   onMouseEnter(): void {
-    if (isTouchDevice()) return;
+    if (this.disabled() || isTouchDevice()) return;
     this.sub.enter();
   }
 
@@ -97,10 +99,11 @@ export class MenubarSubTriggerComponent {
   /**
    * Touch-only toggle: on a touch device a tap opens or closes the submenu,
    * closing it through the same 100ms-delayed path as hover. Ignored entirely
-   * with a mouse, where hover already drives the submenu.
+   * while {@link disabled}, and with a mouse, where hover already drives the
+   * submenu.
    */
   onClick(): void {
-    if (!isTouchDevice()) return;
+    if (this.disabled() || !isTouchDevice()) return;
     if (this.sub.isOpen()) {
       this.sub.leave();
     } else {
@@ -119,9 +122,10 @@ export class MenubarSubTriggerComponent {
    * so the parent menu does not also act on the arrow. Every other key is left
    * to bubble — ArrowUp/ArrowDown are handled by the parent
    * `ui-menubar-content`, which walks the trigger together with the rest of the
-   * items.
+   * items. Every key is ignored while {@link disabled}.
    */
   onKeydown(event: KeyboardEvent): void {
+    if (this.disabled()) return;
     if (event.key === 'ArrowRight') {
       if (this.service.isRtl()) {
         return;

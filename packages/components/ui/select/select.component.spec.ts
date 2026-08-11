@@ -395,6 +395,69 @@ describe('Select Keyboard Navigation', () => {
     });
 });
 
+@Component({
+    template: `
+        <ui-select>
+            <ui-select-trigger>
+                <ui-select-value placeholder="Select option" />
+            </ui-select-trigger>
+            <ui-select-content>
+                <ui-select-item value="option1">Option 1</ui-select-item>
+                <ui-select-item value="option2" [disabled]="true">Option 2</ui-select-item>
+                <ui-select-item value="option3">Option 3</ui-select-item>
+            </ui-select-content>
+        </ui-select>
+    `,
+    imports: [SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent]
+})
+class DisabledItemTestHostComponent { }
+
+describe('Select disabled items', () => {
+    let fixture: ComponentFixture<DisabledItemTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DisabledItemTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DisabledItemTestHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+    });
+
+    it('marks a disabled item with data-disabled and aria-disabled', () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="select-item"]'));
+        expect(items[1].nativeElement.hasAttribute('data-disabled')).toBe(true);
+        expect(items[1].nativeElement.getAttribute('aria-disabled')).toBe('true');
+        expect(items[0].nativeElement.hasAttribute('data-disabled')).toBe(false);
+    });
+
+    it('skips the disabled item when navigating with ArrowDown', () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="select-content"]'));
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="select-item"]'));
+
+        content.triggerEventHandler('keydown', { key: 'ArrowDown', preventDefault: () => { } });
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(items[0].nativeElement);
+
+        content.triggerEventHandler('keydown', { key: 'ArrowDown', preventDefault: () => { } });
+        fixture.detectChanges();
+        expect(document.activeElement).toBe(items[2].nativeElement);
+    });
+});
+
 // ============================================
 // DATA-DRIVEN MODE TESTS
 // ============================================

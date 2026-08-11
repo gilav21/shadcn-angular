@@ -91,7 +91,7 @@ interface ClipboardLike {
   readText: () => Promise<string>;
 }
 type NavigatorWithClipboard = { clipboard?: ClipboardLike };
-let definedClipboard = false;
+let originalClipboard: PropertyDescriptor | undefined;
 let clipboardText = '';
 
 /** Private-member accessor for the handful of guards only reachable internally. */
@@ -110,25 +110,25 @@ beforeEach(() => {
   doc.elementFromPoint = () => null;
 
   clipboardText = '';
-  const nav = navigator as unknown as NavigatorWithClipboard;
-  definedClipboard = false;
-  if (!nav.clipboard) {
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText: () => Promise.resolve(), readText: () => Promise.resolve('') },
-      configurable: true,
-      writable: true,
-    });
-    definedClipboard = true;
-  }
-  vi.spyOn(navigator.clipboard, 'writeText').mockImplementation(
-    (text: string) => {
-      clipboardText = String(text);
-      return Promise.resolve();
+  // Install the whole clipboard unconditionally rather than spying on whatever
+  // `navigator.clipboard` happens to be. Real Chromium exposes `writeText` but
+  // not `readText`, so the previous "stub only when absent, then spy" approach
+  // threw `The property "readText" is not defined on the object` in beforeEach
+  // — which fails every test in the file at once. Whether the real clipboard was
+  // present depended on which spec ran first (this file deletes it on teardown),
+  // making the failure intermittent and, from the outside, look like flakiness.
+  originalClipboard = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+  Object.defineProperty(navigator, 'clipboard', {
+    value: {
+      writeText: (text: string) => {
+        clipboardText = String(text);
+        return Promise.resolve();
+      },
+      readText: () => Promise.resolve(clipboardText),
     },
-  );
-  vi.spyOn(navigator.clipboard, 'readText').mockImplementation(() =>
-    Promise.resolve(clipboardText),
-  );
+    configurable: true,
+    writable: true,
+  });
 });
 
 afterEach(() => {
@@ -148,10 +148,12 @@ afterEach(() => {
     delete doc.elementFromPoint;
   }
 
-  if (definedClipboard) {
+  if (originalClipboard) {
+    Object.defineProperty(navigator, 'clipboard', originalClipboard);
+  } else {
     delete (navigator as unknown as NavigatorWithClipboard).clipboard;
-    definedClipboard = false;
   }
+  originalClipboard = undefined;
 });
 
 async function makeFixture(

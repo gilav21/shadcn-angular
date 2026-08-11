@@ -353,10 +353,12 @@ export class CalendarComponent {
    * Applies a day click for the active {@link mode} and writes the result to
    * {@link selected}: single replaces, multi toggles, range fills start → end and
    * restarts once both ends are set (a click before the current start swaps the two).
-   * The `day` instance is mutated in place to carry the chosen time-of-day — pass a
-   * copy if you call this with a `Date` you still hold a reference to.
+   * The argument is never mutated: the stored value is a copy carrying the chosen
+   * time-of-day, so passing a `Date` you still hold a reference to — such as a cell
+   * of the `calendarDays()` grid — is safe.
    */
-  selectDay(day: Date): void {
+  selectDay(date: Date): void {
+    const day = new Date(date);
     const mode = this.mode();
     const isTimeRange = this.showTimeSelect() && this.timeMode() === 'range';
     let newVal: Date | DateRange | Date[];
@@ -498,6 +500,13 @@ export class CalendarComponent {
    * `(change)` handler for the end field of the range time footer. Counterpart to
    * {@link updateStartTime}: records the `HH:mm` in {@link selectedTimeRange}, and
    * stamps it onto the range end only in `'range'` mode with an end already picked.
+   *
+   * In `'single'` and `'multi'` mode it deliberately leaves {@link selected}
+   * alone: those selections are single `Date`s, which carry one time-of-day each
+   * — already claimed by the start field — so writing the end time onto them
+   * would overwrite the start time rather than record an end. The end of a
+   * single-day span lives in `selectedTimeRange().end`, which is what
+   * {@link endTimeString} reads back outside `'range'` mode.
    */
   updateEndTime(event: Event): void {
     const input = event.target as HTMLInputElement;

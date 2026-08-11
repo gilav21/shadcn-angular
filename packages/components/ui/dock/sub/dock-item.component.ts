@@ -48,9 +48,16 @@ export class DockItemComponent {
         this._renderer.setStyle(this.el.nativeElement, 'width', `${width}px`);
     }
 
-    /** The item's centre X in viewport coordinates, which the dock caches to measure cursor distance. Live layout read — it reflects the item's *current* magnified width, so it must be sampled at rest. */
-    getCenter(): number {
+    /**
+     * The item's centre in viewport coordinates along `axis`, which the dock
+     * caches to measure cursor distance — `'x'` for a horizontal dock, `'y'` for
+     * a vertical one. Live layout read: it reflects the item's *current*
+     * magnified size, so it must be sampled at rest.
+     */
+    getCenter(axis: 'x' | 'y' = 'x'): number {
         const bounds = this.el.nativeElement.getBoundingClientRect();
-        return bounds.x + bounds.width / 2;
+        return axis === 'y'
+            ? bounds.y + bounds.height / 2
+            : bounds.x + bounds.width / 2;
     }
 }

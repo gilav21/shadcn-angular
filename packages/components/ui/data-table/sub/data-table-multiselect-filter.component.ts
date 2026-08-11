@@ -63,9 +63,9 @@ export class DataTableMultiselectFilterComponent<T = unknown> {
   readonly title = input<string | undefined>(undefined);
   /**
    * Externally-held selection, expressed as {@link valueWith} values (not
-   * options). It is resolved back to options by scanning {@link options}, so a
-   * value with no matching option is silently dropped — set `options` before or
-   * together with `selected`.
+   * options). Values are kept as given — one with no matching option yet (or
+   * ever) stays selected and is re-emitted with the rest, so `selected` may be
+   * set before {@link options} arrives.
    */
   readonly selected = input<unknown[]>([]);
 
@@ -89,29 +89,16 @@ export class DataTableMultiselectFilterComponent<T = unknown> {
 
   protected readonly String = String;
 
-  private readonly _selected = signal<T[]>([]);
+  private readonly _selected = signal<unknown[]>([]);
 
-  readonly selectedValues = computed(() => {
-    const vw = this.valueWith();
-    return new Set(this._selected().map(o => vw(o)));
-  });
+  readonly selectedValues = computed(() => new Set(this._selected()));
 
   readonly selectedCount = computed(() => this._selected().length);
 
   constructor() {
     effect(() => {
       const selectedInput = this.selected();
-      const opts = this.options();
-      const vw = this.valueWith();
-
-      if (selectedInput.length === 0) {
-        this._selected.set([]);
-        return;
-      }
-
-      const inputSet = new Set(selectedInput);
-      const restored = opts.filter(o => inputSet.has(vw(o)));
-      this._selected.set(restored);
+      this._selected.set([...new Set(selectedInput)]);
     });
   }
 
@@ -141,27 +128,25 @@ export class DataTableMultiselectFilterComponent<T = unknown> {
    * {@link options} order.
    */
   toggleOption(option: T): void {
-    const vw = this.valueWith();
-    const val = vw(option);
+    const val = this.valueWith()(option);
     const current = this._selected();
+    const next = this.selectedValues().has(val)
+      ? current.filter(v => v !== val)
+      : [...current, val];
 
-    if (this.selectedValues().has(val)) {
-      const next = current.filter(o => vw(o) !== val);
-      this._selected.set(next);
-      this.emitChange(next);
-    } else {
-      const next = [...current, option];
-      this._selected.set(next);
-      this.emitChange(next);
-    }
+    this._selected.set(next);
+    this.emitChange(next);
   }
 
   /**
    * Selects every entry of {@link options} — including ones hidden by the
-   * current search text — and emits them. With no options this emits `null`.
+   * current search text — keeping any already-selected value that has no
+   * option, and emits the result. With no options and nothing already selected
+   * this emits `null`.
    */
   selectAll(): void {
-    const all = this.options();
+    const vw = this.valueWith();
+    const all = [...new Set([...this._selected(), ...this.options().map(o => vw(o))])];
     this._selected.set(all);
     this.emitChange(all);
   }
@@ -172,13 +157,12 @@ export class DataTableMultiselectFilterComponent<T = unknown> {
     this.filterChange.emit(null);
   }
 
-  private emitChange(selected: T[]): void {
+  private emitChange(selected: unknown[]): void {
     if (selected.length === 0) {
       this.filterChange.emit(null);
       return;
     }
-    const vw = this.valueWith();
-    this.filterChange.emit(selected.map(o => vw(o)));
+    this.filterChange.emit([...selected]);
   }
 }
 

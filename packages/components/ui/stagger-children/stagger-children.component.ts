@@ -78,14 +78,20 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
      * Replays the cascade on demand: hides the children again, cancels any
      * in-flight animations and restarts from the top. The automatic run is
      * one-shot (its IntersectionObserver disconnects after firing), so this is
-     * how you re-trigger it — e.g. after the child list changes. Unlike the
-     * automatic run it does not check the reduced-motion preference, so gate the
-     * call yourself if that matters.
+     * how you re-trigger it — e.g. after the child list changes. Honours
+     * `prefers-reduced-motion` exactly as the automatic run does: under that
+     * preference every child is revealed at once and nothing animates.
      */
     playAnimation(): void {
-        this.hideChildren();
         this.animations.forEach(a => a.cancel());
         this.animations = [];
+
+        if (prefersReducedMotion()) {
+            this.showChildren();
+            return;
+        }
+
+        this.hideChildren();
         this.animateChildren();
     }
 
@@ -101,6 +107,13 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
         const children = (this.el.nativeElement as HTMLElement).children;
         for (const child of Array.from(children)) {
             (child as HTMLElement).style.opacity = '0';
+        }
+    }
+
+    private showChildren(): void {
+        const children = (this.el.nativeElement as HTMLElement).children;
+        for (const child of Array.from(children)) {
+            (child as HTMLElement).style.opacity = '1';
         }
     }
 

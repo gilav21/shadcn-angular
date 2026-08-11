@@ -10,6 +10,9 @@ import {
     ElementRef,
     effect,
     ComponentRef,
+    viewChild,
+    AfterViewInit,
+    OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { cn, isRtl } from '../../lib/utils';
@@ -19,7 +22,7 @@ import {
     ContextMenuItemComponent,
 } from '../context-menu';
 import { UiComponentOutletDirective } from '../component-outlet.directive';
-import { onPointerDrag } from '../../lib/touch';
+import { onLongPress, onPointerDrag } from '../../lib/touch';
 
 
 
@@ -56,7 +59,7 @@ export type BentoContextMenuData =
     templateUrl: './bento-grid.component.html',
     styleUrl: './bento-grid.component.css',
 })
-export class BentoGridComponent {
+export class BentoGridComponent implements AfterViewInit, OnDestroy {
     /** Extra classes merged onto the grid container, after the built-in `grid w-full relative` utilities. */
     readonly class = input<string>('');
     // Inputs
@@ -83,11 +86,10 @@ export class BentoGridComponent {
         }
     });
     /**
-     * Width of one column used when converting pointer position to a cell.
-     * Keep the default `'1fr'` for a fluid grid; a fixed value (px/rem) is only
-     * needed when the tracks are not equal fractions. Note the rendered
-     * `grid-template-columns` is always `repeat(cols, minmax(0,1fr))`, so a
-     * non-`1fr` value here only changes hit-testing maths, not the layout.
+     * Width of one column. Keep the default `'1fr'` for a fluid grid, which
+     * renders as `minmax(0, 1fr)` tracks; any other value (px/rem/%) is used
+     * verbatim as the track size. The same value drives the pointer-to-cell
+     * maths, so the rendered grid and drop targeting always agree.
      */
     readonly columnWidth = input<string, string | number>('1fr', {
         transform: v => {
@@ -152,6 +154,44 @@ export class BentoGridComponent {
     readonly componentInit = output<{ id: string, ref: ComponentRef<unknown> }>();
 
     private readonly el = inject(ElementRef);
+    private readonly menu = viewChild(ContextMenuComponent);
+    private longPressCleanup: (() => void) | null = null;
+
+    ngAfterViewInit(): void {
+        const container = this.el.nativeElement.querySelector('.grid') as HTMLElement | null;
+        if (!container) return;
+        this.longPressCleanup = onLongPress(container, event => this.onLongPress(event));
+    }
+
+    ngOnDestroy(): void {
+        this.longPressCleanup?.();
+        this.longPressCleanup = null;
+    }
+
+    /**
+     * Touch equivalent of the two `contextmenu` handlers: a 500 ms hold opens the
+     * widget menu when the finger is on a widget, and the "add here" menu when it
+     * is on a free cell — the same menus, at the finger, with the same
+     * {@link editable} and occupied-cell rules. Moving more than 10px cancels the
+     * hold, so it never fires in the middle of a drag.
+     */
+    onLongPress(event: TouchEvent): void {
+        const menu = this.menu();
+        const touch = event.touches[0];
+        if (!this.editable() || !menu || !touch) return;
+
+        const itemEl = (event.target as HTMLElement | null)?.closest<HTMLElement>('.bento-item');
+        const item = itemEl ? this.items().find(i => i.id === itemEl.dataset['itemId']) : undefined;
+        if (item) {
+            menu.show(touch.clientX, touch.clientY, item);
+            return;
+        }
+
+        const container = this.el.nativeElement.querySelector('.grid') as HTMLElement | null;
+        if (container) {
+            this.showEmptyCellMenu(touch.clientX, touch.clientY, container, menu);
+        }
+    }
 
     readonly gridPattern = computed(() => {
         const color = 'currentColor';
@@ -348,9 +388,9 @@ export class BentoGridComponent {
 
     /**
      * Template handler for right-click on a widget: suppresses the browser menu
-     * and opens `menu` at the pointer with the item as its data. Right-click only —
-     * there is no long-press equivalent, so the per-item menu is unreachable on
-     * touch. No-op while {@link editable} is false.
+     * and opens `menu` at the pointer with the item as its data. Touch users get
+     * the same menu by holding the widget — see {@link onLongPress}.
+     * No-op while {@link editable} is false.
      */
     onContextMenu(event: MouseEvent, item: DashboardItem, menu: ContextMenuComponent): void {
         if (!this.editable()) return;
@@ -436,7 +476,12 @@ export class BentoGridComponent {
         'gap': this.gap()
     }));
 
-    readonly gridTemplateColumns = computed(() => `repeat(${this.cols()}, minmax(0, 1fr))`);
+    /** The rendered `grid-template-columns`: {@link cols} tracks of {@link columnWidth}, with the fluid default expanded to `minmax(0, 1fr)` so tracks may shrink below their content. */
+    readonly gridTemplateColumns = computed(() => {
+        const width = this.columnWidth();
+        const track = width === '1fr' ? 'minmax(0, 1fr)' : width;
+        return `repeat(${this.cols()}, ${track})`;
+    });
 
     readonly gridGradient = computed(() => 'none');
 
@@ -583,9 +628,9 @@ export class BentoGridComponent {
 
     /**
      * Template handler for a drop on empty canvas. An internal drag moves the
-     * widget to that cell, but **only if the new rectangle overlaps nothing** —
-     * an overlapping drop is silently discarded and the widget stays put (unlike
-     * {@link onDrop}, which shrinks the neighbours). An external drag emits
+     * widget to that cell and emits {@link itemsChange}; neighbours the new
+     * rectangle lands on are shrunk (or dropped when they cannot shrink), exactly
+     * as {@link onDrop} does for a drop onto a widget. An external drag emits
      * {@link externalDrop} with `targetId: null` plus the target `x`/`y`;
      * malformed JSON is ignored.
      */
@@ -597,17 +642,12 @@ export class BentoGridComponent {
         const draggedId = this.draggedItemId();
         if (draggedId) {
             const { x, y } = this.getGridCoordinates(event);
+            const item = this.items().find(i => i.id === draggedId);
 
-            const currentItems = [...this.items()];
-            const itemIndex = currentItems.findIndex(i => i.id === draggedId);
-            if (itemIndex > -1) {
-                const item = currentItems[itemIndex];
-                const newRect = { ...item, x, y };
-                const overlapping = currentItems.some(i => i.id !== draggedId && this.isOverlapping(newRect, i));
-
-                if (!overlapping) {
-                    currentItems[itemIndex] = { ...item, x, y };
-                    this.itemsChange.emit(currentItems);
+            if (item) {
+                const nextItems = this.applyDropPreview(draggedId, { x, y, cols: item.cols, rows: item.rows });
+                if (nextItems) {
+                    this.itemsChange.emit(nextItems);
                 }
             }
 
@@ -1083,8 +1123,8 @@ export class BentoGridComponent {
      * `{ type: 'empty', x, y }` so an "add here" action can call
      * {@link addItemAt}. Bails out when the click landed on a widget (that is
      * {@link onContextMenu}'s job) or on an occupied cell, in which case the
-     * native browser menu is left to appear. Right-click only — no long-press
-     * fallback, so this menu is unreachable on touch.
+     * native browser menu is left to appear. Touch users reach the same menu by
+     * holding the cell — see {@link onLongPress}.
      */
     onContainerContextMenu(event: MouseEvent, menu: ContextMenuComponent): void {
         if (!this.editable()) return;
@@ -1093,25 +1133,23 @@ export class BentoGridComponent {
 
         event.preventDefault();
 
-        const container = (event.currentTarget as HTMLElement);
-        const rect = container.getBoundingClientRect();
+        this.showEmptyCellMenu(event.clientX, event.clientY, event.currentTarget as HTMLElement, menu);
+    }
 
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+    private showEmptyCellMenu(clientX: number, clientY: number, container: HTMLElement, menu: ContextMenuComponent): void {
+        const rect = container.getBoundingClientRect();
 
         const gapNum = this.parseCssDimension(this.gap(), rect.width);
         const rowHeightNum = this.parseCssDimension(this.rowHeight(), rect.height);
         const colWidth = this.getColWidth(rect.width);
 
-        const gridX = Math.floor(x / (colWidth + gapNum)) + 1;
-        const gridY = Math.floor(y / (rowHeightNum + gapNum)) + 1;
+        const gridX = Math.floor((clientX - rect.left) / (colWidth + gapNum)) + 1;
+        const gridY = Math.floor((clientY - rect.top) / (rowHeightNum + gapNum)) + 1;
 
         const tempItem: DashboardItem = { x: gridX, y: gridY, cols: 1, rows: 1, id: 'temp', content: '' };
-        const isOccupied = this.items().some(i => this.isOverlapping(tempItem, i));
+        if (this.items().some(i => this.isOverlapping(tempItem, i))) return;
 
-        if (!isOccupied) {
-            menu.show(event.clientX, event.clientY, { type: 'empty', x: gridX, y: gridY });
-        }
+        menu.show(clientX, clientY, { type: 'empty', x: gridX, y: gridY });
     }
 
     /**

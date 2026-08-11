@@ -1138,6 +1138,8 @@ describe('BentoGridComponent', () => {
             deltaY: number,
         ): { cols: number; rows: number; x: number; y: number };
         getColWidth(containerWidth: number): number;
+        getGridCoordinates(event: DragEvent | MouseEvent): { x: number; y: number };
+        menu(): { show(x: number, y: number, data?: unknown): void } | undefined;
         handleTouchDragMove(clientX: number, clientY: number, item: DashboardItem): void;
         handleTouchDragEnd(): void;
         handleResizeEnd(): void;
@@ -1421,6 +1423,112 @@ describe('BentoGridComponent', () => {
         });
     });
 
+    describe('columnWidth drives the rendered tracks', () => {
+        it('renders the fixed track width it hit-tests against', () => {
+            const f = TestBed.createComponent(BentoGridComponent);
+            f.componentRef.setInput('cols', 4);
+            f.componentRef.setInput('columnWidth', '100px');
+            f.componentRef.setInput('gap', '0px');
+            f.detectChanges();
+
+            expect(f.componentInstance.gridTemplateColumns()).toBe('repeat(4, 100px)');
+            expect(f.componentInstance.gridStyles()['grid-template-columns']).toBe('repeat(4, 100px)');
+            expect(priv(f.componentInstance).getColWidth(1000)).toBe(100);
+
+            const gridEl = f.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            expect(gridEl.style.gridTemplateColumns).toBe('repeat(4, 100px)');
+        });
+
+        it('keeps shrinkable fraction tracks for the fluid default', () => {
+            const f = TestBed.createComponent(BentoGridComponent);
+            f.componentRef.setInput('cols', 6);
+            f.detectChanges();
+            expect(f.componentInstance.gridTemplateColumns()).toBe('repeat(6, minmax(0, 1fr))');
+        });
+    });
+
+    describe('internal drop on empty canvas', () => {
+        it('shrinks the neighbour the move overlaps instead of discarding it', () => {
+            component.editable.set(true);
+            component.items.set([
+                { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'a' },
+                { id: '2', x: 2, y: 1, cols: 2, rows: 1, content: 'b' },
+            ]);
+            fixture.detectChanges();
+
+            const grid = getGrid();
+            vi.spyOn(priv(grid), 'getGridCoordinates').mockReturnValue({ x: 2, y: 1 });
+            grid.draggedItemId.set('1');
+
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            grid.onContainerDrop(makeDrop(10, 10, containerEl));
+
+            expect(component.lastItemsChange).toBeTruthy();
+            const moved = component.lastItemsChange!.find(i => i.id === '1')!;
+            expect(moved.x).toBe(2);
+            const neighbour = component.lastItemsChange!.find(i => i.id === '2')!;
+            expect(neighbour.x).toBe(3);
+            expect(neighbour.cols).toBe(1);
+        });
+    });
+
+    describe('long-press context menus (touch)', () => {
+        const longPress = async (target: HTMLElement, clientX: number, clientY: number): Promise<void> => {
+            target.dispatchEvent(makeTouchEvent('touchstart', [{ clientX, clientY }]));
+            await new Promise(resolve => setTimeout(resolve, 600));
+            globalThis.window.dispatchEvent(makeTouchEvent('touchend', []));
+            target.dispatchEvent(makeTouchEvent('touchend', []));
+        };
+
+        it('opens the widget menu when a widget is held', async () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+
+            const grid = getGrid();
+            const menu = priv(grid).menu()!;
+            const show = vi.spyOn(menu, 'show').mockImplementation(() => undefined);
+
+            const itemEl = fixture.debugElement.queryAll(By.css('.bento-item'))[1].nativeElement as HTMLElement;
+            const rect = itemEl.getBoundingClientRect();
+            await longPress(itemEl, rect.left + 3, rect.top + 3);
+
+            expect(show).toHaveBeenCalledTimes(1);
+            expect((show.mock.calls[0][2] as DashboardItem).id).toBe('2');
+        });
+
+        it('opens the add-here menu when a free cell is held', async () => {
+            component.editable.set(true);
+            component.items.set([]);
+            fixture.detectChanges();
+
+            const grid = getGrid();
+            const menu = priv(grid).menu()!;
+            const show = vi.spyOn(menu, 'show').mockImplementation(() => undefined);
+
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const rect = containerEl.getBoundingClientRect();
+            await longPress(containerEl, rect.left + 2, rect.top + 2);
+
+            expect(show).toHaveBeenCalledTimes(1);
+            expect((show.mock.calls[0][2] as { type: string }).type).toBe('empty');
+        });
+
+        it('does not open a menu while not editable', async () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+
+            const grid = getGrid();
+            const menu = priv(grid).menu()!;
+            const show = vi.spyOn(menu, 'show').mockImplementation(() => undefined);
+
+            const itemEl = fixture.debugElement.queryAll(By.css('.bento-item'))[0].nativeElement as HTMLElement;
+            const rect = itemEl.getBoundingClientRect();
+            await longPress(itemEl, rect.left + 3, rect.top + 3);
+
+            expect(show).not.toHaveBeenCalled();
+        });
+    });
+
     describe('getColWidth with fixed columns', () => {
         it('parses a fixed column width', () => {
             const f = TestBed.createComponent(BentoGridComponent);
@@ -1530,7 +1638,7 @@ describe('BentoGridComponent', () => {
     });
 
     describe('onContainerDrop overlap handling', () => {
-        it('blocks the move when the target cell is occupied by another item', () => {
+        it('commits the move and evicts a neighbour that cannot shrink', () => {
             component.editable.set(true);
             component.items.set([
                 { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'a' },
@@ -1548,7 +1656,9 @@ describe('BentoGridComponent', () => {
             const ev = makeDrop(100 + 5, 5, containerEl);
             grid.onContainerDrop(ev);
             spy.mockRestore();
-            expect(component.lastItemsChange).toBeNull();
+            expect(component.lastItemsChange).toEqual([
+                { id: '1', x: 2, y: 1, cols: 1, rows: 1, content: 'a' },
+            ]);
             expect(grid.draggedItemId()).toBeNull();
         });
 

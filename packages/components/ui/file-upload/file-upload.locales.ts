@@ -14,6 +14,12 @@ export interface FileUploadLocale extends LocaleMeta {
     uploadFiles: string;
     fileTypeNotAccepted: string;
     fileTooLarge: string;
+    /**
+     * Rejection message for files past the `maxFiles` cap; carries a `{count}`
+     * placeholder for the cap. Optional so a hand-written dictionary predating
+     * it still type-checks — the component falls back to English.
+     */
+    tooManyFiles?: string;
 }
 
 export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
@@ -27,6 +33,7 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         uploadFiles: 'Upload files',
         fileTypeNotAccepted: 'File type not accepted',
         fileTooLarge: 'File exceeds maximum size of {size}',
+        tooManyFiles: 'Maximum of {count} files allowed',
     },
     he: {
         code: 'he',
@@ -39,6 +46,7 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         uploadFiles: 'העלה קבצים',
         fileTypeNotAccepted: 'סוג הקובץ אינו מתקבל',
         fileTooLarge: 'הקובץ חורג מהגודל המרבי של {size}',
+        tooManyFiles: 'ניתן להעלות עד {count} קבצים',
     },
     ar: {
         code: 'ar',
@@ -51,6 +59,7 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         uploadFiles: 'تحميل الملفات',
         fileTypeNotAccepted: 'نوع الملف غير مقبول',
         fileTooLarge: 'الملف يتجاوز الحجم الأقصى البالغ {size}',
+        tooManyFiles: 'الحد الأقصى {count} ملفات',
     },
     de: {
         code: 'de',
@@ -62,6 +71,7 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         uploadFiles: 'Dateien hochladen',
         fileTypeNotAccepted: 'Dateityp nicht akzeptiert',
         fileTooLarge: 'Datei überschreitet die maximale Größe von {size}',
+        tooManyFiles: 'Maximal {count} Dateien erlaubt',
     },
     fr: {
         code: 'fr',
@@ -73,6 +83,7 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         uploadFiles: 'Téléverser des fichiers',
         fileTypeNotAccepted: 'Type de fichier non accepté',
         fileTooLarge: 'Le fichier dépasse la taille maximale de {size}',
+        tooManyFiles: 'Maximum de {count} fichiers autorisés',
     },
     es: {
         code: 'es',
@@ -84,6 +95,7 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         uploadFiles: 'Subir archivos',
         fileTypeNotAccepted: 'Tipo de archivo no aceptado',
         fileTooLarge: 'El archivo supera el tamaño máximo de {size}',
+        tooManyFiles: 'Máximo de {count} archivos permitidos',
     },
     ja: {
         code: 'ja',
@@ -95,6 +107,7 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         uploadFiles: 'ファイルをアップロード',
         fileTypeNotAccepted: 'ファイル形式は受け付けられません',
         fileTooLarge: 'ファイルは最大サイズ {size} を超えています',
+        tooManyFiles: 'ファイルは最大 {count} 件までです',
     },
     zh: {
         code: 'zh',
@@ -106,6 +119,7 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         uploadFiles: '上传文件',
         fileTypeNotAccepted: '不接受的文件类型',
         fileTooLarge: '文件超过最大大小 {size}',
+        tooManyFiles: '最多允许 {count} 个文件',
     },
     ru: {
         code: 'ru',
@@ -117,6 +131,7 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         uploadFiles: 'Загрузить файлы',
         fileTypeNotAccepted: 'Тип файла не принимается',
         fileTooLarge: 'Файл превышает максимальный размер {size}',
+        tooManyFiles: 'Максимум {count} файлов',
     },
     pt: {
         code: 'pt',
@@ -128,5 +143,6 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         uploadFiles: 'Enviar arquivos',
         fileTypeNotAccepted: 'Tipo de arquivo não aceito',
         fileTooLarge: 'O arquivo excede o tamanho máximo de {size}',
+        tooManyFiles: 'Máximo de {count} arquivos permitidos',
     },
 };

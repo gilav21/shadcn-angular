@@ -4,6 +4,7 @@ import {
     signal,
     InjectionToken,
     forwardRef,
+    OnDestroy,
 } from '@angular/core';
 import type { ContextMenuSubTriggerComponent } from './context-menu-sub-trigger.component';
 import type { ContextMenuSubContentComponent } from './context-menu-sub-content.component';
@@ -20,9 +21,14 @@ export const CONTEXT_MENU_SUB = new InjectionToken<ContextMenuSubComponent>('CON
         '[attr.data-slot]': '"context-menu-sub"',
     },
 })
-export class ContextMenuSubComponent {
+export class ContextMenuSubComponent implements OnDestroy {
     isOpen = signal(false);
     private timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    /** Cancels a close still pending from {@link leave}, so a sub destroyed inside the grace period leaves no timer behind. */
+    ngOnDestroy(): void {
+        clearTimeout(this.timeoutId);
+    }
 
     private trigger: ContextMenuSubTriggerComponent | null = null;
     private content: ContextMenuSubContentComponent | null = null;
@@ -57,7 +63,8 @@ export class ContextMenuSubComponent {
      * Schedules the flyout to close after a 100ms grace period, so a pointer
      * moving off the trigger and onto the flyout (or back) can cancel it via
      * {@link enter}. Keyboard closes go through the same method and therefore
-     * also wait out the delay. The pending timer is not cleared on destroy.
+     * also wait out the delay. Destroying the component cancels a pending
+     * timer.
      */
     leave(): void {
         this.timeoutId = setTimeout(() => {

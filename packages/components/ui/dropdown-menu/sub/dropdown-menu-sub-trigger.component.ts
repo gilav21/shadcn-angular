@@ -24,6 +24,8 @@ import { DropdownMenuSubComponent } from './dropdown-menu-sub.component';
       tabindex="0"
       [attr.aria-haspopup]="true"
       [attr.aria-expanded]="sub.isOpen()"
+      [attr.data-disabled]="disabled() || null"
+      [attr.aria-disabled]="disabled() || null"
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
       (keydown)="onKeydown($event)"
@@ -39,10 +41,10 @@ export class DropdownMenuSubTriggerComponent {
     /** Extra classes merged onto the trigger row, after the defaults so they can override them. */
     class = input('');
     /**
-     * Intended to dim and neutralise the row. Note it only feeds the
-     * `data-[disabled]:` classes — the element never gets a `data-disabled`
-     * attribute, so today it neither dims the row nor blocks opening the
-     * submenu.
+     * Dims the row and neutralises it: the element carries `data-disabled` (and
+     * `aria-disabled`), which drives the `data-[disabled]:` classes, removes it
+     * from the parent menu's arrow-key ring, and blocks hover, tap and keyboard
+     * from opening the submenu.
      */
     disabled = input(false, { transform: booleanAttribute });
     /**
@@ -69,9 +71,9 @@ export class DropdownMenuSubTriggerComponent {
         this.class()
     ));
 
-    /** Opens the submenu on hover, cancelling any pending close. Skipped on touch devices, which use {@link onClick}. */
+    /** Opens the submenu on hover, cancelling any pending close. Skipped while {@link disabled}, and on touch devices, which use {@link onClick}. */
     onMouseEnter(): void {
-        if (isTouchDevice()) return;
+        if (this.disabled() || isTouchDevice()) return;
         this.sub.enter();
     }
 
@@ -87,10 +89,10 @@ export class DropdownMenuSubTriggerComponent {
     /**
      * Tap-to-toggle for touch devices, where hover never fires. Deliberately a
      * no-op with a mouse, so a click does not immediately close a submenu hover
-     * has just opened.
+     * has just opened, and a no-op while {@link disabled}.
      */
     onClick(): void {
-        if (!isTouchDevice()) return;
+        if (this.disabled() || !isTouchDevice()) return;
         if (this.sub.isOpen()) {
             this.sub.leave();
         } else {
@@ -110,9 +112,11 @@ export class DropdownMenuSubTriggerComponent {
     /**
      * Opens the submenu and moves focus into it on Enter or the "forward" arrow
      * (ArrowRight, or ArrowLeft in RTL). Propagation is stopped for the arrows
-     * so the root menu does not treat them as its own navigation.
+     * so the root menu does not treat them as its own navigation. Every key is
+     * ignored while {@link disabled}.
      */
     onKeydown(event: KeyboardEvent): void {
+        if (this.disabled()) return;
         if (event.key === 'ArrowRight') {
             if (this.service.isRtl()) return;
             event.preventDefault();

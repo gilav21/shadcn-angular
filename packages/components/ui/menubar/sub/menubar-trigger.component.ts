@@ -6,6 +6,7 @@ import {
   inject,
   ElementRef,
   ViewChild,
+  OnDestroy,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { isTouchDevice } from '../../../lib/touch';
@@ -35,7 +36,7 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
   styleUrl: './menubar-trigger.component.css',
   host: { class: 'contents' },
 })
-export class MenubarTriggerComponent {
+export class MenubarTriggerComponent implements OnDestroy {
   /**
    * Extra classes merged onto the trigger `<button>`, after the hover/focus and
    * `data-[state=open]` accent classes.
@@ -51,6 +52,11 @@ export class MenubarTriggerComponent {
 
   constructor() {
     this.service.register(this.menu.id, this);
+  }
+
+  /** Drops this menu's entry from the service so a destroyed trigger leaves no stale registration behind. */
+  ngOnDestroy(): void {
+    this.service.unregister(this.menu.id);
   }
 
   classes = computed(() => cn(
@@ -88,9 +94,9 @@ export class MenubarTriggerComponent {
    * row (mirrored under RTL) via {@link focusPrevTrigger} /
    * {@link focusNextTrigger}, and ArrowDown or Enter opens this menu and moves
    * focus to its first item on the next macrotask, once the panel has rendered.
-   * That first-item lookup does not filter on `data-disabled`, so it can land on
-   * a disabled item that the subsequent arrow keys then skip over. Escape is
-   * handled by the open content, not here; Space and typeahead are not handled.
+   * That first-item lookup skips `data-disabled` rows, so it lands on the same
+   * first item the arrow keys would. Escape is handled by the open content, not
+   * here; Space and typeahead are not handled.
    */
   onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowLeft') {
@@ -113,7 +119,7 @@ export class MenubarTriggerComponent {
       setTimeout(() => {
         const content = document.querySelector(`[data-menubar-content="${this.menu.id}"]`);
         if (content) {
-          const firstItem = content.querySelector<HTMLElement>('[role="menuitem"]');
+          const firstItem = content.querySelector<HTMLElement>('[role="menuitem"]:not([data-disabled])');
           firstItem?.focus();
         }
       }, 0);
@@ -131,12 +137,11 @@ export class MenubarTriggerComponent {
   /**
    * Focuses the next trigger in the bar, wrapping from the last back to the
    * first. If a menu is currently open the new trigger is also clicked, so the
-   * open menu follows focus. The lookup is a document-wide
-   * `[data-slot="menubar-trigger"]` query, so two menubars on one page share a
-   * single wrap-around ring.
+   * open menu follows focus. The lookup is scoped to the owning `<ui-menubar>`,
+   * so two menubars on one page keep separate wrap-around rings.
    */
   focusNextTrigger(): void {
-    const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
+    const triggers = this.siblingTriggers();
     const index = triggers.indexOf(this.triggerEl.nativeElement);
     const nextIndex = (index + 1) % triggers.length;
     triggers[nextIndex]?.focus();
@@ -150,12 +155,17 @@ export class MenubarTriggerComponent {
    * from the first around to the last, and carries the open menu with it.
    */
   focusPrevTrigger(): void {
-    const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
+    const triggers = this.siblingTriggers();
     const index = triggers.indexOf(this.triggerEl.nativeElement);
     const prevIndex = (index - 1 + triggers.length) % triggers.length;
     triggers[prevIndex]?.focus();
     if (this.service.activeMenuId()) {
       triggers[prevIndex].click();
     }
+  }
+
+  private siblingTriggers(): HTMLElement[] {
+    const root: ParentNode = this.service.getRoot() ?? document;
+    return Array.from(root.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
   }
 }

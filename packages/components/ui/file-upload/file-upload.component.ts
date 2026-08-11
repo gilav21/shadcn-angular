@@ -47,8 +47,8 @@ export class FileUploadComponent {
   readonly multiple = input(true);
   /**
    * Cap on total queued files (`null` = unlimited). Extra files in a batch are
-   * discarded once the cap is reached — with no {@link fileError} for the overflow —
-   * and the dropzone disables itself while the list is full.
+   * discarded once the cap is reached, each reported on {@link fileError}, and the
+   * dropzone disables itself while the list is full.
    */
   readonly maxFiles = input<number | null>(null);
   /**
@@ -86,8 +86,8 @@ export class FileUploadComponent {
   /**
    * The only signal that a file was refused — rejected files never enter the queue and
    * nothing is rendered for them, so surface this yourself. `error` is a localised
-   * message for a MIME/extension mismatch ({@link accept}) or an oversized file
-   * ({@link maxSize}); files dropped for exceeding {@link maxFiles} are silent.
+   * message for a MIME/extension mismatch ({@link accept}), an oversized file
+   * ({@link maxSize}) or a file past the {@link maxFiles} cap.
    */
   readonly fileError = output<{ file: File; error: string }>();
 
@@ -190,8 +190,9 @@ export class FileUploadComponent {
    * programmatically. Each file is checked against {@link accept} then {@link maxSize}
    * (first failure wins, emitting one {@link fileError}); survivors are appended with
    * `status: 'pending'`, a fresh `crypto.randomUUID()` id and — for `image/*` — an
-   * object-URL `preview` that this component revokes on remove/clear. The batch stops
-   * once {@link maxFiles} is reached, and {@link filesChange} is emitted once at the end.
+   * object-URL `preview` that this component revokes on remove/clear. Once
+   * {@link maxFiles} is reached every remaining file is refused with its own
+   * {@link fileError}, and {@link filesChange} is emitted once at the end.
    */
   addFiles(newFiles: File[]): void {
     const currentFiles = this.files();
@@ -202,7 +203,10 @@ export class FileUploadComponent {
     let available = maxFiles === null ? newFiles.length : maxFiles - currentFiles.length;
 
     for (const file of newFiles) {
-      if (available <= 0) break;
+      if (available <= 0) {
+        this.fileError.emit({ file, error: this.tooManyFilesMessage(maxFiles) });
+        continue;
+      }
 
       if (accept && !this.isAccepted(file, accept)) {
         this.fileError.emit({ file, error: this.t().fileTypeNotAccepted });
@@ -230,6 +234,11 @@ export class FileUploadComponent {
     }
 
     this.filesChange.emit(this.files());
+  }
+
+  private tooManyFilesMessage(maxFiles: number | null): string {
+    const template = this.t().tooManyFiles ?? 'Maximum of {count} files allowed';
+    return interpolate(template, { count: maxFiles ?? 0 });
   }
 
   /**

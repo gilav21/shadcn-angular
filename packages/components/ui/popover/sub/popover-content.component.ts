@@ -53,10 +53,11 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     /** Lets the panel flip and shift to stay inside the nearest clipping rectangle. Turn it off to pin it strictly to {@link side} / {@link align}, accepting clipping. */
     avoidCollisions = input(true);
     /**
-     * Declares the intent that focus returns to the trigger when the popover
-     * closes. The content component does not currently move focus itself, so
-     * this presently has no runtime effect — handle focus restoration in your
-     * own trigger if you depend on it.
+     * Returns focus to the trigger when the popover closes, so a keyboard user
+     * carries on from where they opened it. Only applies when focus was still
+     * inside the panel (or nowhere) at close time — dismissing the popover by
+     * clicking or tabbing to something else leaves that new focus alone. Set
+     * `false` to never move focus.
      */
     restoreFocus = input(true);
     /**
@@ -73,6 +74,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
 
     private portalHost: HTMLElement | null = null;
     private usedPopoverApi = false;
+    private wasOpen = false;
     public readonly portalReady = signal(false);
 
     /**
@@ -104,11 +106,31 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
                     offsetY: 0,
                 });
                 requestAnimationFrame(() => this.portalAndPosition(0));
+                this.wasOpen = true;
             } else {
+                const shouldRestoreFocus = this.wasOpen && this.restoreFocus() && this.isFocusRestorable();
+                this.wasOpen = false;
                 this.portalReady.set(false);
                 this.removeContent();
+                if (shouldRestoreFocus) {
+                    this.popover?.getTriggerFocusTarget()?.focus();
+                }
             }
         });
+    }
+
+    /**
+     * Whether closing should move focus back to the trigger. Restoring is only
+     * right while focus is still inside the panel — or already lost to the body,
+     * which is where it lands when the panel element is torn down. Focus that
+     * has moved to another control belongs to the user, and stealing it back
+     * would fight them.
+     */
+    private isFocusRestorable(): boolean {
+        const active = this.document.activeElement;
+        if (!active || active === this.document.body) return true;
+        const el = this.contentEl?.nativeElement;
+        return !!el && el.contains(active);
     }
 
     ngAfterViewInit(): void {

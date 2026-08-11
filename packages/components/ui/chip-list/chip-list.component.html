@@ -2,8 +2,8 @@
   [class]="containerClasses() + ' min-w-0'"
   [style.max-height]="maxHeightStyle()"
   [attr.data-slot]="'chip-list'"
-  [disabled]="disabled()"
-  [attr.data-disabled]="disabled() || null"
+  [disabled]="isDisabled()"
+  [attr.data-disabled]="isDisabled() || null"
   (click)="focusInput()"
   (keydown.enter)="focusInput()"
   (keydown.space)="focusInput()"
@@ -12,14 +12,14 @@
   @for (chip of chips(); track chip; let i = $index) {
     <ui-badge
       [variant]="chipColors()[chip] ? 'default' : badgeVariant()"
-      [class]="'shrink-0 gap-1' + (disabled() ? '' : ' ltr:pr-1 rtl:pl-1')"
+      [class]="'shrink-0 gap-1' + (isDisabled() ? '' : ' ltr:pr-1 rtl:pl-1')"
       [style.backgroundColor]="chipColors()[chip] || null"
       [style.color]="chipForeground(chip)"
       [style.borderColor]="chipColors()[chip] || null"
       [attr.data-slot]="'chip'"
     >
       <span class="max-w-[120px] sm:max-w-[200px] truncate">{{ chip }}</span>
-      @if (!disabled()) {
+      @if (!isDisabled()) {
         <button
           type="button"
           class="inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 hover:bg-black/10 dark:hover:bg-white/10"
@@ -49,7 +49,7 @@
     #inputRef
     [ariaLabel]="placeholder()"
     [placeholder]="chips().length === 0 ? placeholder() : ''"
-    [disabled]="disabled()"
+    [disabled]="isDisabled()"
     [ngModel]="inputValue()"
     (ngModelChange)="onInputChange($event)"
     (keydown)="onKeyDown($event)"

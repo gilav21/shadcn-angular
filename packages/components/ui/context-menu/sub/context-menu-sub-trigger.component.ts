@@ -24,7 +24,9 @@ import { CONTEXT_MENU_SUB, type ContextMenuSubComponent } from './context-menu-s
       [attr.aria-haspopup]="true"
       [attr.aria-expanded]="sub.isOpen()"
       [attr.data-slot]="'context-menu-sub-trigger'"
-      (mouseenter)="sub.enter()"
+      [attr.data-disabled]="disabled() || null"
+      [attr.aria-disabled]="disabled() || null"
+      (mouseenter)="onMouseEnter()"
       (mouseleave)="sub.leave()"
       (keydown)="onKeydown($event)"
       (click)="$event.stopPropagation()"
@@ -39,11 +41,12 @@ export class ContextMenuSubTriggerComponent {
     /** Extra classes for the inner trigger row, merged after the defaults (the host itself is `display: contents`, so styling the host has no effect). */
     class = input('');
     /**
-     * Intended to disable the branch, but currently inert: the value is never
-     * written to `data-disabled` nor to `aria-disabled`, so the
-     * `data-[disabled]:` styling never matches, hover/keyboard still open the
-     * flyout, and the row stays in the arrow-key ring. Accepts a bare attribute
-     * (`disabled`) via `booleanAttribute`.
+     * Disables the branch: the value is written to `data-disabled` and
+     * `aria-disabled`, so the `data-[disabled]:` styling dims the row and makes
+     * it `pointer-events-none`, the row drops out of the arrow-key ring (which
+     * walks `[role="menuitem"]:not([data-disabled])`), and neither hover nor
+     * the keyboard opens the flyout. Accepts a bare attribute (`disabled`) via
+     * `booleanAttribute`.
      */
     disabled = input(false, { transform: booleanAttribute });
     /** Adds `pl-8` (LTR) / `pr-8` (RTL) so the branch label aligns with inset siblings. */
@@ -78,6 +81,16 @@ export class ContextMenuSubTriggerComponent {
     }
 
     /**
+     * Opens the flyout on hover, unless {@link disabled}. The matching
+     * `mouseleave` closes it after the sub's 100ms grace period, which needs no
+     * guard — closing an already-closed flyout is a no-op.
+     */
+    onMouseEnter(): void {
+        if (this.disabled()) return;
+        this.sub.enter();
+    }
+
+    /**
      * Opens the flyout and moves focus into it on Enter, and on the
      * inline-forward arrow — ArrowRight in LTR, ArrowLeft in RTL (the opposite
      * arrow is left unhandled so it can close a parent flyout). Space does not
@@ -85,9 +98,11 @@ export class ContextMenuSubTriggerComponent {
      * the same key; the reverse direction is handled by
      * {@link ContextMenuSubContentComponent.onKeydown}. Mouse users get the
      * same result by hovering: `mouseenter` opens immediately, `mouseleave`
-     * closes after a 100ms grace period so the pointer can cross the gap.
+     * closes after a 100ms grace period so the pointer can cross the gap. Every
+     * key is ignored while {@link disabled}.
      */
     onKeydown(event: KeyboardEvent): void {
+        if (this.disabled()) return;
         const rtl = this.contextMenu?.isRtl() ?? false;
         if (event.key === 'ArrowRight') {
             if (rtl) return;

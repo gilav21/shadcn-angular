@@ -158,11 +158,11 @@ export class ColorPickerComponent implements ControlValueAccessor {
     readonly formats = input<readonly ColorFormat[]>(['hex', 'rgb', 'hsl']);
 
     /**
-     * The current colour as hex, emitted on **every** change of the canonical
-     * colour — including once at init and, crucially, when {@link writeValue}
-     * pushes a value in. Two-way binding `[(value)]`-style against the same state
-     * you feed the picker therefore loops; guard the consumer by ignoring an echo
-     * equal to the value you just wrote.
+     * The current colour as hex, emitted on every **user-driven** change of the
+     * canonical colour. Programmatic writes stay silent: neither the initial
+     * colour nor a value pushed in through {@link writeValue} is echoed back, so
+     * binding this output into the same state the picker is written from does
+     * not loop and does not mark a form control dirty.
      */
     readonly colorChange = output<string>();
     /** The next recents list, emitted only while {@link recentColors} is controlled (non-null). Uncontrolled pickers keep recents internally and stay silent here. */
@@ -204,6 +204,8 @@ export class ColorPickerComponent implements ControlValueAccessor {
     private isDragging = false;
     private dragCleanup: (() => void) | null = null;
     private copyTimer: ReturnType<typeof setTimeout> | null = null;
+    private suppressedColor: string | null = null;
+    private hasEmittedInitialColor = false;
 
     readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
 
@@ -326,6 +328,7 @@ export class ColorPickerComponent implements ControlValueAccessor {
     constructor() {
         effect(() => {
             const color = this.currentColor();
+            if (this.isProgrammatic(color)) return;
             this.onChange(color);
             this.colorChange.emit(color);
         });
@@ -596,6 +599,21 @@ export class ColorPickerComponent implements ControlValueAccessor {
         this.alphaValue.set(rgba.a);
     }
 
+    /**
+     * True while `color` is the result of a programmatic write rather than a
+     * user pick — the initial colour, or the value {@link writeValue} just
+     * applied. Consuming the marker here (rather than clearing a flag around the
+     * write) is what makes it correct: the colour effect is asynchronous, so it
+     * runs long after `writeValue` has returned.
+     */
+    private isProgrammatic(color: string): boolean {
+        const isInitial = !this.hasEmittedInitialColor;
+        this.hasEmittedInitialColor = true;
+        const suppressed = this.suppressedColor;
+        this.suppressedColor = null;
+        return isInitial || suppressed === color;
+    }
+
     private commitHsv(): void {
         const rgb = hsvToRgb({ h: this.hue(), s: this.saturation(), v: this.value() });
         this.rgba.set({ ...rgb, a: this.alphaValue() });
@@ -616,18 +634,21 @@ export class ColorPickerComponent implements ControlValueAccessor {
      * empty string and unparseable values are ignored, so a form cannot reset
      * the picker back to a blank state, only to another colour.
      *
-     * Note it **echoes**: applying the value re-runs the colour effect, which
-     * emits {@link colorChange} and calls the registered `onChange`. Binding the
-     * picker's output back into the same state it is written from therefore
-     * loops — guard the consumer against an echo equal to the value just written.
+     * The applied value is **not** echoed: it is marked programmatic, so the
+     * colour effect skips {@link colorChange} and the registered `onChange` for
+     * it and the control is not marked dirty by a write.
      */
     writeValue(value: string | null): void {
         if (!value) return;
         const parsed = parseColor(value);
-        if (parsed) this.applyRgba(parsed);
+        if (!parsed) return;
+        const previous = this.currentColor();
+        this.applyRgba(parsed);
+        const next = this.currentColor();
+        if (next !== previous) this.suppressedColor = next;
     }
 
-    /** `ControlValueAccessor` hook. The registered callback receives the same hex string as {@link colorChange} and fires just as eagerly — including on {@link writeValue}, which marks the form dirty. */
+    /** `ControlValueAccessor` hook. The registered callback receives the same hex string as {@link colorChange}, and on the same terms — user picks only, never the initial colour or a {@link writeValue}. */
     registerOnChange(fn: (value: string) => void): void {
         this.onChange = fn;
     }

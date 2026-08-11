@@ -1299,4 +1299,92 @@ describe('DropdownMenu submenu content arrow navigation', () => {
         const subDe = fixture.debugElement.query(By.directive(DropdownMenuSubComponent));
         expect(subDe.injector.get(DROPDOWN_MENU_SUB)).toBe(subDe.componentInstance);
     });
+
+    it('keeps open submenu items out of the root menu focus ring', () => {
+        const content = fixture.debugElement.query(By.directive(DropdownMenuContentComponent))
+            .componentInstance as DropdownMenuContentComponent;
+        const items = content.getFocusableItems();
+        expect(items).toHaveLength(2);
+        expect(items[0].textContent).toContain('Regular Item');
+        expect(items[1].textContent).toContain('Level 1 Sub');
+    });
+});
+
+@Component({
+    template: `
+        <ui-dropdown-menu>
+            <ui-dropdown-menu-trigger>Menu</ui-dropdown-menu-trigger>
+            <ui-dropdown-menu-content>
+                <ui-dropdown-menu-item>Regular Item</ui-dropdown-menu-item>
+                <ui-dropdown-menu-sub>
+                    <ui-dropdown-menu-sub-trigger [disabled]="true">Disabled Sub</ui-dropdown-menu-sub-trigger>
+                    <ui-dropdown-menu-sub-content>
+                        <ui-dropdown-menu-item>Hidden Item</ui-dropdown-menu-item>
+                    </ui-dropdown-menu-sub-content>
+                </ui-dropdown-menu-sub>
+            </ui-dropdown-menu-content>
+        </ui-dropdown-menu>
+    `,
+    imports: [DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent, DropdownMenuSubComponent, DropdownMenuSubTriggerComponent, DropdownMenuSubContentComponent]
+})
+class DisabledSubTriggerHostComponent { }
+
+describe('DropdownMenu disabled sub-trigger', () => {
+    let fixture: ComponentFixture<DisabledSubTriggerHostComponent>;
+    let restoreMedia: (() => void) | undefined;
+
+    async function setup(coarse = false): Promise<void> {
+        restoreMedia = installMatchMedia(coarse);
+        await TestBed.configureTestingModule({ imports: [DisabledSubTriggerHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DisabledSubTriggerHostComponent);
+        fixture.detectChanges();
+        fixture.debugElement.query(By.directive(DropdownMenuComponent)).componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+    }
+
+    afterEach(() => restoreMedia?.());
+
+    function sub(): DropdownMenuSubComponent {
+        return fixture.debugElement.query(By.directive(DropdownMenuSubComponent))
+            .componentInstance as DropdownMenuSubComponent;
+    }
+
+    function triggerRow(): HTMLElement {
+        return fixture.debugElement.query(By.directive(DropdownMenuSubTriggerComponent))
+            .nativeElement.querySelector('[role="menuitem"]') as HTMLElement;
+    }
+
+    it('marks the row data-disabled and drops it from the menu focus ring', async () => {
+        await setup();
+        expect(triggerRow().hasAttribute('data-disabled')).toBe(true);
+        expect(triggerRow().getAttribute('aria-disabled')).toBe('true');
+        const content = fixture.debugElement.query(By.directive(DropdownMenuContentComponent))
+            .componentInstance as DropdownMenuContentComponent;
+        expect(content.getFocusableItems()).toHaveLength(1);
+    });
+
+    it('does not open the submenu on hover', async () => {
+        await setup();
+        triggerRow().dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        fixture.detectChanges();
+        expect(sub().isOpen()).toBe(false);
+    });
+
+    it('does not open the submenu from the keyboard', async () => {
+        await setup();
+        triggerRow().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        fixture.detectChanges();
+        expect(sub().isOpen()).toBe(false);
+        triggerRow().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        fixture.detectChanges();
+        expect(sub().isOpen()).toBe(false);
+    });
+
+    it('does not open the submenu on tap for touch devices', async () => {
+        await setup(true);
+        triggerRow().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        fixture.detectChanges();
+        expect(sub().isOpen()).toBe(false);
+    });
 });

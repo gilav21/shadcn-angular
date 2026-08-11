@@ -140,10 +140,14 @@ export class DropdownMenuContentComponent {
 
     /**
      * The menu's focus ring in DOM order: every `role="menuitem"` without
-     * `data-disabled`. Queried live, and unscoped — items inside an open
-     * submenu are included too.
+     * `data-disabled` that belongs to this panel directly. Queried live, and
+     * scoped — items inside an open submenu belong to that submenu's own
+     * `role="menu"` and stay out of the root ring.
      */
     getFocusableItems(): HTMLElement[] {
-        return Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
+        const content = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-slot="dropdown-content"]');
+        if (!content) return [];
+        return Array.from(content.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'))
+            .filter((item) => item.closest('[role="menu"]') === content);
     }
 }

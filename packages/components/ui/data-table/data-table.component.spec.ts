@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, input } from '@angular/core';
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext } from './data-table.types';
@@ -978,6 +978,75 @@ describe('DataTableComponent', () => {
         const keys = component.enhancedColumns().map(col => String(col.accessorKey));
         expect(keys[0]).toBe('role');
         expect(keys).not.toContain('id');
+    });
+
+    it('round-trips a runtime pin through getColumnState / applyColumnState', () => {
+        fixture.detectChanges();
+        component.pinColumn('name', 'left');
+        fixture.detectChanges();
+
+        const saved = component.getColumnState();
+        expect(saved.find(s => s.columnKey === 'name')?.pin).toBe('left');
+
+        component.pinColumn('name', undefined);
+        fixture.detectChanges();
+        expect(component.getColumnPin('name')).toBeUndefined();
+
+        component.applyColumnState(saved);
+        fixture.detectChanges();
+        expect(component.getColumnPin('name')).toBe('left');
+        expect(component.enhancedColumns().find(c => c.accessorKey === 'name')?._pin).toBe('left');
+    });
+
+    it('applyColumnState clears a pin when the saved state says the column was unpinned', () => {
+        fixture.detectChanges();
+        const unpinned = component.getColumnState();
+
+        component.pinColumn('name', 'right');
+        fixture.detectChanges();
+        expect(component.getColumnPin('name')).toBe('right');
+
+        component.applyColumnState(unpinned);
+        fixture.detectChanges();
+        expect(component.getColumnPin('name')).toBeUndefined();
+    });
+
+    it('showAllColumns merges, keeping visibility entries for keys that are no longer columns', () => {
+        fixture.detectChanges();
+        component.setColumnVisibility('retired', false);
+        component.setColumnVisibility('id', false);
+
+        component.showAllColumns();
+        fixture.detectChanges();
+
+        expect(component.columnVisibility()['retired']).toBe(false);
+        expect(component.columnVisibility()['id']).toBe(true);
+    });
+
+    it('treats an emptied array column filter as "no filter"', () => {
+        const roleColumn: ColumnDef<TestData> = {
+            accessorKey: 'role',
+            header: 'Role',
+            enableFiltering: true,
+            filterFn: (row, value) => (value as string[]).includes(row.role),
+        };
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name' },
+            roleColumn,
+        ]);
+        fixture.detectChanges();
+
+        expect(component.isFilterValueEmpty([])).toBe(true);
+
+        component.onColumnFilterChange('role', ['Admin']);
+        fixture.detectChanges();
+        expect(component.filteredData()).toHaveLength(2);
+
+        component.onColumnFilterChange('role', []);
+        fixture.detectChanges();
+        expect(component.filteredData()).toHaveLength(TEST_DATA.length);
+        expect(component.isColumnFilterActive(roleColumn)).toBe(false);
     });
 
     it('should apply sticky classes correctly', () => {
@@ -2558,6 +2627,18 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             expect(rows.map(r => r.row.id)).not.toContain('1-1');
             expect(rows.map(r => r.row.id)).not.toContain('1-1-1');
         });
+
+        it('collapseSubRow pins the node closed against a non-zero subRowDefaultExpanded', () => {
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            fixture.detectChanges();
+            expect(component.isSubRowExpanded(TREE_DATA[0])).toBe(true);
+
+            component.collapseSubRow(TREE_DATA[0]);
+            fixture.detectChanges();
+
+            expect(component.isSubRowExpanded(TREE_DATA[0])).toBe(false);
+            expect(component.processedTreeRows().map(r => r.row.id)).not.toContain('1-1');
+        });
     });
 
     describe('expandAllSubRows / collapseAllSubRows', () => {
@@ -2578,6 +2659,18 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
 
             const rows = component.processedTreeRows();
             expect(rows).toHaveLength(3);
+        });
+
+        it('collapseAllSubRows pins nodes closed against a non-zero subRowDefaultExpanded', () => {
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            fixture.detectChanges();
+            expect(component.processedTreeRows()).toHaveLength(9);
+
+            component.collapseAllSubRows();
+            fixture.detectChanges();
+
+            expect(component.processedTreeRows()).toHaveLength(3);
+            expect(component.isAllSubRowsExpanded()).toBe(false);
         });
 
         it('should report isAllSubRowsExpanded correctly', () => {
@@ -4012,11 +4105,47 @@ describe('DataTableComponent - Export & Clipboard', () => {
     });
 });
 
+@Component({
+    selector: 'test-score-badge',
+    template: '<span>{{ score() }} pts</span>',
+})
+class ScoreBadgeComponent {
+    readonly score = input(0);
+}
+
 describe('DataTableComponent - getCellStringValue', () => {
+    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
     let component: DataTableComponent<NumRow>;
 
     beforeEach(async () => {
-        ({ component } = await makeNumTable());
+        ({ fixture, component } = await makeNumTable());
+    });
+
+    it('exports the rendered text of a component-rendered column, not its raw value', () => {
+        const col: ColumnDef<NumRow> = {
+            accessorKey: 'score',
+            header: 'Score',
+            component: ScoreBadgeComponent,
+            componentInputs: (row) => ({ score: row.score }),
+        };
+        fixture.componentRef.setInput('columns', [NUM_COLUMNS[0], col]);
+        fixture.detectChanges();
+
+        expect(component.getCellStringValue(NUM_DATA[0], col)).toBe('30 pts');
+        expect(component.getExportData()[1]).toEqual(['1', '30 pts']);
+    });
+
+    it('falls back to the raw value for a row that is not rendered', () => {
+        const col: ColumnDef<NumRow> = {
+            accessorKey: 'score',
+            header: 'Score',
+            component: ScoreBadgeComponent,
+            componentInputs: (row) => ({ score: row.score }),
+        };
+        fixture.componentRef.setInput('columns', [NUM_COLUMNS[0], col]);
+        fixture.detectChanges();
+
+        expect(component.getCellStringValue({ id: '99', name: 'Ghost', score: 7 }, col)).toBe('7');
     });
 
     it('uses the cell renderer when provided', () => {
@@ -4601,6 +4730,44 @@ describe('DataTableComponent - Row drag reorder', () => {
 
         expect(reorderSpy).toHaveBeenCalledWith(expect.objectContaining({ fromIndex: 0, toIndex: 2 }));
         expect(component.draggedRowId()).toBeNull();
+    });
+
+    function dragFirstRowBelowIndexTwo(): void {
+        const setData = vi.fn();
+        component.onRowDragStart({ dataTransfer: { effectAllowed: '', setData } } as unknown as DragEvent, NUM_DATA[0]);
+        component.onRowDragOver({
+            currentTarget: makeRowEl(100, 40),
+            clientY: 135,
+            dataTransfer: { dropEffect: '' },
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent, 2);
+        component.onRowDrop({ preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as DragEvent);
+    }
+
+    it('localReorder (default) applies the move to data before rowReorder is emitted', () => {
+        let dataAtEmit: string[] = [];
+        component.rowReorder.subscribe(() => {
+            dataAtEmit = component.data().map((r) => r.name);
+        });
+
+        dragFirstRowBelowIndexTwo();
+
+        expect(component.data().map((r) => r.name)).toEqual(['Bob', 'Charlie', 'Alice', 'David', 'Eve']);
+        expect(dataAtEmit).toEqual(['Bob', 'Charlie', 'Alice', 'David', 'Eve']);
+    });
+
+    it('localReorder=false leaves data to the consumer, still emitting rowReorder', () => {
+        fixture.componentRef.setInput('localReorder', false);
+        fixture.detectChanges();
+
+        const reorderSpy = vi.fn();
+        component.rowReorder.subscribe(reorderSpy);
+
+        dragFirstRowBelowIndexTwo();
+
+        expect(component.data().map((r) => r.name)).toEqual(['Alice', 'Bob', 'Charlie', 'David', 'Eve']);
+        expect(reorderSpy).toHaveBeenCalledTimes(1);
     });
 
     it('onRowDrop does not emit when the dragged row has left the data or the drop target index is out of range', () => {

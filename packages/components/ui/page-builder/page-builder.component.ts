@@ -8,7 +8,8 @@ import {
     effect,
     WritableSignal,
     reflectComponentType,
-    ComponentRef
+    ComponentRef,
+    OnDestroy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
@@ -41,7 +42,7 @@ import { IconComponent } from '../icon';
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './page-builder.component.html',
 })
-export class PageBuilderComponent {
+export class PageBuilderComponent implements OnDestroy {
     /** Extra classes merged onto the builder shell, after the built-in `flex h-full w-full overflow-hidden` utilities. The shell fills its parent, so give that parent a height. */
     class = input('');
     /**
@@ -167,8 +168,8 @@ export class PageBuilderComponent {
      * items' inputs, so those changed values are included by
      * {@link exportJson} / {@link save} if you export while it runs.
      *
-     * The component has no `ngOnDestroy`, so a running feed keeps ticking after
-     * the builder is destroyed — turn it off before tearing the builder down.
+     * A running feed is stopped when the builder is destroyed, so leaving it on
+     * does not leak a timer.
      */
     toggleSimulatedData(): void {
         this.simulatingData.update(v => !v);
@@ -191,6 +192,12 @@ export class PageBuilderComponent {
                 return item;
             }));
         }, 1000);
+    }
+
+    /** Stops the preview data feed started by {@link toggleSimulatedData} so its interval cannot outlive the component. */
+    ngOnDestroy(): void {
+        this.stopSimulation();
+        this.simulatingData.set(false);
     }
 
     private stopSimulation(): void {

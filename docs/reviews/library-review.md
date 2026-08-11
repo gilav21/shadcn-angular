@@ -127,7 +127,15 @@ by hand first, since a rule that fails 1,358 times gets disabled.
 
 ---
 
-## 🔴 Finding 1b — Twenty-one defects found *by writing the documentation*
+## 🔴 Finding 1b — Thirty-eight defects found *by writing the documentation*
+
+> **Count correction.** Earlier revisions of this document, and the commit
+> message and PR body for the documentation work, said "21 defects / 19
+> unfixed". That was wrong — it was written mid-campaign and never revised as
+> later passes reported more. The accurate figure is **38 unfixed defects**,
+> enumerated in full below. Two further defects (the rich-text-editor history
+> bullet and the popover top-layer downgrade) were fixed and are recorded in
+> Findings 2 and 2b, for **40 found in total**.
 
 None of these are doc gaps; they are behavioural bugs, and **not one is covered by
 a test**. All were found by reading members closely enough to describe them —
@@ -206,6 +214,53 @@ list reacts to a `data-disabled` attribute that nothing ever sets:
   are **unreachable on touch** — a violation of CLAUDE.md §6.
 - `pagination` emits duplicate `@for` track keys (both ellipses are `-1`),
   producing `NG0955` at runtime. Visible in the test output today as a warning.
+
+**Further inert members (completing the nine-plus pattern)**
+
+| Member | Reality |
+|---|---|
+| `DataTableComponent.localReorder` (`data-table.component.ts:495`) | **Defaults to `true`, and its Storybook description claims it reorders the local array.** It appears only at its own declaration across all of `ui/` — rows never move unless the consumer handles `rowReorder` and writes `data` back. |
+| `PopoverContentComponent.restoreFocus` (`popover-content.component.ts:61`) | Nothing in the component moves focus — no `.focus(` call in the file. |
+| `BlurFadeComponent.replay` (`blur-fade.component.ts:50`) | An `output()` that is never emitted; only `playAnimation()` restarts the animation. |
+
+**Rendering / data correctness**
+
+- `rating.size` does not scale the glyph — `starClasses()` sizes the `<button>`
+  (`h-4/h-5/h-6`) but every star SVG hardcodes `h-5 w-5`
+  (`rating.component.html:45,55,88`). `size="lg"` renders a 20px star in a 24px
+  box; `size="sm"` clips it.
+- `calendar.selectDay` **mutates its argument** — `setHours()` is called on a
+  `Date` that, in template use, is an element of the `calendarDays()` computed
+  array, so a computed's cached value is mutated in place.
+- `calendar.updateEndTime` is a no-op in `single` mode — the end field updates
+  `selectedTimeRange` but never the selected `Date`.
+- `org-chart` **silently drops subtrees** — the `tree()` builder assigns `root` in
+  a loop without breaking, so with several parentless nodes the last wins.
+- `file-upload` overflow past `maxFiles` is **silent** — `accept`/`maxSize`
+  rejections emit `fileError`, but `maxFiles` breaks out of the loop with no
+  event, so the host cannot say why files vanished.
+- `stagger-children.playAnimation()` and `flip-text.playAnimation()` bypass the
+  `prefers-reduced-motion` check that their automatic paths honour.
+
+**`data-table` state handling (7)**
+
+- `collapseSubRow` / `collapseAllSubRows` **delete rather than pin**, so with a
+  non-zero `subRowDefaultExpanded` the node immediately re-renders expanded.
+- `getColumnState` / `applyColumnState` are **asymmetric on pin** — the getter
+  reports the *declared* pin, not the runtime `columnPinOverrides`, and the setter
+  ignores `pin` entirely, so a save/restore round-trip silently loses pins.
+- `showAllColumns` **replaces** `columnVisibility` rather than merging, dropping
+  entries for keys no longer in `columns`.
+- `isFilterValueEmpty` treats `[]` as non-empty, so a multiselect filter must
+  clear to `null` or it filters everything out.
+- `onAdvancedFilterChange` **does not reset the page index** (the global and
+  column filter paths do), so narrowing can strand the view past the end.
+- `getCellStringValue` exports raw values for template/component-rendered columns
+  — only a `cell` formatter is honoured, so **copy/export can differ from what is
+  on screen**.
+- `DataTableMultiselectFilterComponent.selected` resolves by scanning `options`,
+  silently dropping values with no matching option — a selection set before the
+  options arrive is lost.
 
 ## 🔴 Finding 2 — Mojibake: one file, one live bug
 

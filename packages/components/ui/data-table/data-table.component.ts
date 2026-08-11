@@ -184,9 +184,9 @@ export class DataTableComponent<T>
   /**
    * The row array. A `model`, and the table *does* write back to it: inline
    * edits committed through a column `valueSetter`, fill-handle, paste and
-   * undo/redo all emit a new array here. Filtering, sorting and pagination
-   * never mutate it — they derive views. Row drag does not write back either;
-   * see {@link reorderData}.
+   * undo/redo all emit a new array here, as does a row drag while
+   * {@link localReorder} is on. Filtering, sorting and pagination never mutate
+   * it — they derive views.
    */
   readonly data = model.required<T[]>();
   /** @see columnHelper for a type-safe fluent builder API */
@@ -486,11 +486,11 @@ export class DataTableComponent<T>
    */
   readonly enableRowDrag = input(false);
   /**
-   * Intended as "apply the reorder to {@link data} automatically", but the
-   * component currently never reads it: a drop only emits {@link rowReorder},
-   * and the rows move only once you write `data` yourself — typically
-   * `data.set(table.reorderData(data(), event))`. Treat reordering as manual
-   * regardless of this flag.
+   * Applies a completed drag to {@link data} automatically (the default): the
+   * drop runs {@link reorderData} and writes the new array back before
+   * {@link rowReorder} is emitted, so a handler reading `data()` already sees
+   * the moved row. Set it to `false` for server-side or otherwise custom
+   * reordering — the table then only emits the event and leaves `data` alone.
    */
   readonly localReorder = input(true);
   /**
@@ -961,12 +961,13 @@ export class DataTableComponent<T>
   }
 
   /**
-   * Stores a tree edited in the builder popover. Unlike the global filter this
-   * does not reset the page index, so a narrowing edit can leave you on a page
-   * past the end until you page back.
+   * Stores a tree edited in the builder popover and returns to page 0, so a
+   * narrowing edit cannot strand the view on a page past the end — the same
+   * reset the global and column filter paths perform.
    */
   onAdvancedFilterChange(group: FilterGroup): void {
     this.advancedFilter.set(group);
+    this.paginationState.update((state) => ({ ...state, pageIndex: 0 }));
   }
 
   /** Drops the advanced filter entirely; the global and column filters are untouched. */
@@ -3335,13 +3336,14 @@ export class DataTableComponent<T>
   /**
    * Snapshots per-column width, visibility, pin and order — the shape to persist
    * for a "my table layout" feature and replay through {@link applyColumnState}.
-   * Widths and visibility fall back to each column's declaration when no runtime
-   * override exists; `pin` reflects the column's declared pin, not a runtime
-   * {@link pinColumn} override.
+   * Widths, visibility and pin all fall back to each column's declaration when
+   * no runtime override exists, so a {@link pinColumn} override round-trips
+   * through {@link applyColumnState}.
    */
   getColumnState(): DataTableColumnState[] {
     const widths = this.columnWidths();
     const visibility = this.columnVisibility();
+    const pins = this.columnPinOverrides();
     const order = this.applyKeyOrder(
       this.columns().map((col) => String(col.accessorKey)),
     );
@@ -3353,7 +3355,7 @@ export class DataTableComponent<T>
         columnKey: key,
         width: widths[key] ?? col.width,
         visible: visibility[key] !== false,
-        pin: col.pin,
+        pin: key in pins ? pins[key] : col.pin,
         order: orderIndex.get(key),
       };
     });
@@ -3361,10 +3363,11 @@ export class DataTableComponent<T>
 
   /**
    * Restores a {@link getColumnState} snapshot into {@link columnVisibility},
-   * {@link columnWidths} and {@link columnOrder}. Merges rather than replaces:
-   * columns missing from `states`, and fields left `undefined`, keep their
-   * current value, and an empty array is ignored entirely. `pin` is *not*
-   * restored — re-apply pins with {@link pinColumn}.
+   * {@link columnWidths}, {@link columnPinOverrides} and {@link columnOrder}.
+   * Merges rather than replaces: columns missing from `states`, and fields left
+   * out entirely, keep their current value, and an empty array is ignored. A
+   * state carrying a `pin` key of `undefined` — as {@link getColumnState}
+   * always does for an unpinned column — clears that column's pin.
    */
   applyColumnState(states: DataTableColumnState[]): void {
     if (!states || states.length === 0) {
@@ -3373,6 +3376,7 @@ export class DataTableComponent<T>
 
     const nextVisibility = { ...this.columnVisibility() };
     const nextWidths = { ...this.columnWidths() };
+    const nextPins = { ...this.columnPinOverrides() };
     const orderEntries: Array<{ key: string; order: number }> = [];
 
     states.forEach((state) => {
@@ -3383,10 +3387,15 @@ export class DataTableComponent<T>
       if (state.width) {
         nextWidths[key] = state.width;
       }
+      if ('pin' in state) {
+        nextPins[key] = state.pin;
+      }
       if (state.order !== undefined) {
         orderEntries.push({ key, order: state.order });
       }
     });
+
+    this.columnPinOverrides.set(nextPins);
 
     if (orderEntries.length > 0) {
       const sortedOrder = [...orderEntries]
@@ -3444,11 +3453,12 @@ export class DataTableComponent<T>
 
   /**
    * The "no filter" test used to skip column filters: `undefined`, `null`, `''`,
-   * and a date range whose `start` and `end` are both null. Note an empty array
-   * is *not* empty by this rule — a multiselect must clear to `null`.
+   * an empty array (an emptied multiselect), and a date range whose `start` and
+   * `end` are both null.
    */
   isFilterValueEmpty(value: unknown): boolean {
     if (value === undefined || value === null || value === "") return true;
+    if (Array.isArray(value)) return value.length === 0;
     if (typeof value === "object" && "start" in value && "end" in value) {
       return value.start === null && value.end === null;
     }
@@ -3607,14 +3617,20 @@ export class DataTableComponent<T>
 
   /**
    * The text form of a cell used for copy and export: the column's `cell`
-   * formatter when present, else the raw value stringified (null/undefined
-   * become `''`, objects via a custom `toString` or JSON). A column rendered by
-   * a `cellTemplate`/`cellComponent` has no `cell` formatter, so it exports its
-   * raw value, not what you see.
+   * formatter when present, else — for a column rendered by a `template` or
+   * `component` — the text currently rendered in that cell, else the raw value
+   * stringified (null/undefined become `''`, objects via a custom `toString` or
+   * JSON). A templated row that is not in the DOM (another page, or scrolled out
+   * of a virtualised viewport) has no rendered text to read and falls back to
+   * the raw value.
    */
   getCellStringValue(row: T, column: ColumnDef<T>): string {
     if (column.cell) {
       return column.cell(row);
+    }
+    if (column.template || column.component) {
+      const rendered = this.getRenderedCellText(row, column);
+      if (rendered !== null) return rendered;
     }
     const value = this.getCellValue(row, column.accessorKey, column);
     if (value === null || value === undefined) return "";
@@ -3626,6 +3642,28 @@ export class DataTableComponent<T>
       return JSON.stringify(value);
     }
     return stringifyValue(value);
+  }
+
+  private getRenderedCellText(row: T, column: ColumnDef<T>): string | null {
+    const host = this._el.nativeElement as HTMLElement | undefined;
+    if (typeof host?.querySelector !== "function") return null;
+
+    const rowId = this.escapeAttrValue(String(this.getRowId()(row)));
+    const key = this.escapeAttrValue(String(column.accessorKey));
+
+    let cell: Element | null;
+    try {
+      cell = host.querySelector(`[data-row-id="${rowId}"] [data-column="${key}"]`);
+    } catch {
+      return null;
+    }
+    if (!cell) return null;
+
+    return (cell.textContent ?? "").trim();
+  }
+
+  private escapeAttrValue(value: string): string {
+    return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
   }
 
   /**
@@ -4529,17 +4567,13 @@ export class DataTableComponent<T>
   }
 
   /**
-   * Collapses one tree node by *deleting* its entry rather than storing `false`,
-   * so the node falls back to {@link subRowDefaultExpanded} — under a non-zero
-   * default it may therefore re-render expanded. Use
-   * {@link toggleSubRowExpanded} to pin it closed.
+   * Collapses one tree node by storing an explicit `false`, which pins it closed
+   * against {@link subRowDefaultExpanded}. Delete the node's
+   * {@link subRowExpandedRows} entry yourself to hand it back to the default.
    */
   collapseSubRow(row: T): void {
     const id = this.getRowId()(row);
-    const current = this.subRowExpandedRows();
-    const next = { ...current };
-    delete next[id];
-    this.subRowExpandedRows.set(next);
+    this.subRowExpandedRows.update((current) => ({ ...current, [id]: false }));
   }
 
   /**
@@ -4585,12 +4619,35 @@ export class DataTableComponent<T>
   }
 
   /**
-   * Clears every explicit expansion entry. Nodes then follow
-   * {@link subRowDefaultExpanded}, so with a non-zero default this does not
-   * collapse the tree to its roots.
+   * Collapses the whole tree by pinning an explicit `false` on every node that
+   * has children, so it wins over {@link subRowDefaultExpanded} (including
+   * `-1`). Set {@link subRowExpandedRows} to `{}` yourself to hand every node
+   * back to the default instead.
    */
   collapseAllSubRows(): void {
-    this.subRowExpandedRows.set({});
+    const next: Record<string, boolean> = {};
+    for (const id of this.parentRowIds()) {
+      next[id] = false;
+    }
+    this.subRowExpandedRows.set(next);
+  }
+
+  private parentRowIds(): string[] {
+    const getId = this.getRowId();
+    const getChildrenFn = this.getChildren();
+    const ids: string[] = [];
+
+    const walk = (rows: T[]): void => {
+      for (const row of rows) {
+        const children = getChildrenFn(row);
+        if (children && children.length > 0) {
+          ids.push(getId(row));
+          walk(children);
+        }
+      }
+    };
+    walk(this.data());
+    return ids;
   }
 
   readonly isAllSubRowsExpanded = computed(() => {
@@ -5106,16 +5163,18 @@ export class DataTableComponent<T>
   }
 
   /**
-   * Makes every column visible by writing an explicit `true` for each — it
-   * **replaces** {@link columnVisibility} rather than merging, so previous
-   * entries (including for keys no longer in `columns`) are dropped.
+   * Makes every column visible by writing an explicit `true` for each. Merges
+   * into {@link columnVisibility}, so entries for keys no longer in
+   * {@link columns} are preserved untouched.
    */
   showAllColumns(): void {
-    const next: Record<string, boolean> = {};
-    for (const col of this.columns()) {
-      next[String(col.accessorKey)] = true;
-    }
-    this.columnVisibility.set(next);
+    this.columnVisibility.update((current) => {
+      const next = { ...current };
+      for (const col of this.columns()) {
+        next[String(col.accessorKey)] = true;
+      }
+      return next;
+    });
   }
 
   /** Expands every group, clearing all collapsed-group state. */
@@ -5353,10 +5412,11 @@ export class DataTableComponent<T>
   }
 
   /**
-   * Completes a row drag by emitting {@link rowReorder} with the moved row, the
-   * target row, the drop position and the neighbouring row ids — then clearing
-   * the drag state. **It does not move anything**: apply the event through
-   * {@link reorderData} and write the result back to {@link data}.
+   * Completes a row drag: while {@link localReorder} is on it applies the move
+   * to {@link data} through {@link reorderData}, then emits {@link rowReorder}
+   * with the moved row, the target row, the drop position and the neighbouring
+   * row ids, and finally clears the drag state. With `localReorder` off nothing
+   * moves — apply the event yourself through {@link reorderData}.
    */
   onRowDrop(event: DragEvent): void {
     if (!this.enableRowDrag()) {
@@ -5373,14 +5433,18 @@ export class DataTableComponent<T>
       return;
     }
 
+    if (this.localReorder()) {
+      this.data.set(this.reorderData(this.data(), reorderEvent));
+    }
+
     this.rowReorder.emit(reorderEvent);
     this.clearRowDragState();
   }
 
   /**
    * Pure helper that returns a **new** array with a {@link rowReorder} event
-   * applied — the intended handler body, since the table never reorders
-   * {@link data} itself. Flat mode re-inserts next to `previousId`/`nextId`
+   * applied — run for you on drop while {@link localReorder} is on, and the
+   * intended handler body when it is off. Flat mode re-inserts next to `previousId`/`nextId`
    * (falling back to the end); tree mode removes the node from its parent and
    * re-inserts it above/below/inside the target via {@link setChildren}. Rows
    * are matched by {@link getRowId}, and an unknown moved row returns the input

@@ -43,9 +43,9 @@ export class BlurFadeComponent implements AfterViewInit, OnDestroy {
     inView = input(true);
 
     /**
-     * Declared for consumers that want to request a replay from the template.
-     * Nothing inside the component emits it — call {@link playAnimation} to
-     * actually restart the reveal.
+     * Emitted whenever {@link playAnimation} restarts a reveal that has already
+     * run once. The first reveal — automatic or manual — is not a replay and
+     * stays silent, so a counter bound here reports repeats only.
      */
     replay = output<void>();
 
@@ -90,11 +90,13 @@ export class BlurFadeComponent implements AfterViewInit, OnDestroy {
     /**
      * Runs the reveal from the start, cancelling any in-flight animation. This
      * is the only way to replay it, since the automatic in-view trigger
-     * disconnects its observer after the first run. Unlike that automatic path
-     * it does not check the reduced-motion preference, so gate the call yourself
-     * if that matters.
+     * disconnects its observer after the first run. Emits {@link replay} when it
+     * restarts an already-revealed element. Unlike that automatic path it does
+     * not check the reduced-motion preference, so gate the call yourself if that
+     * matters.
      */
     playAnimation(): void {
+        const isReplay = this.isVisible();
         const host = this.el.nativeElement as HTMLElement;
         const translate = this.getTranslateFrom();
 
@@ -115,6 +117,10 @@ export class BlurFadeComponent implements AfterViewInit, OnDestroy {
         );
 
         this.isVisible.set(true);
+
+        if (isReplay) {
+            this.replay.emit();
+        }
     }
 
     private getTranslateFrom(): string {

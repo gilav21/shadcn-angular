@@ -29,6 +29,8 @@ import { SELECT } from '../select.component';
         '[attr.role]': '"option"',
         '[attr.aria-selected]': 'isSelected()',
         '[attr.data-state]': 'isSelected() ? "checked" : "unchecked"',
+        '[attr.data-disabled]': 'disabled() || null',
+        '[attr.aria-disabled]': 'disabled() || null',
         '[attr.data-slot]': '"select-item"',
         '[attr.tabindex]': '"-1"',
         '(click)': 'onClick()',
@@ -46,9 +48,10 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
      */
     value = input.required<string>();
     /**
-     * Dims the row and makes {@link onClick} a no-op. Note this only marks the
-     * host `pointer-events-none` via classes — it does not set the
-     * `data-disabled` attribute the content's arrow-key ring filters on.
+     * Dims the row, marks it `pointer-events-none` and makes {@link onClick} a
+     * no-op. It also sets the `data-disabled` and `aria-disabled` attributes, so
+     * the row drops out of the content's arrow-key ring (which filters on
+     * `:not([data-disabled])`) and is announced as disabled.
      */
     disabled = input(false);
     /** Extra classes merged onto the host row, after the defaults so they can override them. */

@@ -228,6 +228,30 @@ describe('StaggerChildrenComponent', () => {
         });
     });
 
+    it('should not animate from playAnimation when reduced motion is preferred', () => {
+        const animateSpy = vi
+            .spyOn(HTMLElement.prototype, 'animate')
+            .mockReturnValue(makeAnimation());
+
+        const comp = getComponent(fixture);
+        comp.playAnimation();
+        expect(animateSpy).toHaveBeenCalledTimes(3);
+
+        animateSpy.mockClear();
+        reducedMotion = true;
+        comp.playAnimation();
+
+        const hostEl = fixture.debugElement.query(By.directive(StaggerChildrenComponent));
+        const children = hostEl.nativeElement.querySelectorAll(
+            ':scope > div',
+        ) as NodeListOf<HTMLElement>;
+
+        expect(animateSpy).not.toHaveBeenCalled();
+        children.forEach((child: HTMLElement) => {
+            expect(child.style.opacity).toBe('1');
+        });
+    });
+
     it('should disconnect observer and cancel animations on destroy', () => {
         const cancelFn = vi.fn();
         vi.spyOn(HTMLElement.prototype, 'animate').mockReturnValue(makeAnimation(cancelFn));

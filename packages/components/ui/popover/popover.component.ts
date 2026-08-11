@@ -125,8 +125,27 @@ export class PopoverComponent implements OnDestroy {
      * element is present — the content then has nothing to anchor to.
      */
     getTriggerRect(): DOMRect | null {
-        const trigger = this.el.nativeElement.querySelector('[data-slot="popover-trigger"]');
-        return trigger?.getBoundingClientRect() ?? null;
+        return this.queryTrigger()?.getBoundingClientRect() ?? null;
+    }
+
+    /**
+     * The element focus returns to when the content closes with `restoreFocus`
+     * on: the trigger's first focusable descendant — a projected `<ui-button>`
+     * or `<button>` — or the trigger wrapper itself, which carries `tabindex="0"`
+     * only while it wraps non-interactive content. `null` when there is no
+     * trigger to return to.
+     */
+    getTriggerFocusTarget(): HTMLElement | null {
+        const trigger = this.queryTrigger();
+        if (!trigger) return null;
+        const focusable = trigger.querySelector<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        return focusable ?? trigger;
+    }
+
+    private queryTrigger(): HTMLElement | null {
+        return this.el.nativeElement.querySelector('[data-slot="popover-trigger"]');
     }
 }
 
