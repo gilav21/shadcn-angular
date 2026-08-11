@@ -299,7 +299,10 @@ describe('RichTextActionsDirective', () => {
         const proto = HTMLElement.prototype as { showPopover?: () => void };
         const had = 'showPopover' in proto;
         const original = proto.showPopover;
-        proto.showPopover = function noop(): void { /* jsdom lacks the top layer */ };
+        // Only when the engine lacks it — `HTMLElement.prototype` is shared with
+        // every other spec file in the run, so replacing a working native
+        // implementation makes their top-layer assertions fail.
+        proto.showPopover ??= function noop(): void { /* jsdom lacks the top layer */ };
         try {
             const fixture = createFixture();
             caretInside(fixture, '<p><span data-action-click="open-dialog">t</span></p>');

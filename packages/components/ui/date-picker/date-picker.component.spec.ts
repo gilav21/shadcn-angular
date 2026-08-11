@@ -91,3 +91,83 @@ describe('DatePickerComponent', () => {
         expect(btn.nativeElement.textContent).toContain('January 15, 2023');
     });
 });
+
+@Component({
+    template: `
+    <div style="overflow: hidden; width: 200px; height: 40px">
+        <ui-date-picker />
+        <ui-date-range-picker />
+    </div>
+  `,
+    imports: [DatePickerComponent, DateRangePickerComponent]
+})
+class ClippedHostComponent { }
+
+function nextFrames(count: number): Promise<void> {
+    return new Promise<void>(resolve => {
+        const step = (left: number) => {
+            if (left === 0) {
+                resolve();
+                return;
+            }
+            requestAnimationFrame(() => step(left - 1));
+        };
+        step(count);
+    });
+}
+
+describe('DatePicker top-layer escape', () => {
+    let fixture: ComponentFixture<ClippedHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [ClippedHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(ClippedHostComponent);
+        fixture.detectChanges();
+    });
+
+    async function openAndGetPanel(directive: typeof DatePickerComponent | typeof DateRangePickerComponent) {
+        const picker = fixture.debugElement.query(By.directive(directive));
+        const btn = picker.query(By.css('button'));
+        btn.nativeElement.click();
+        fixture.detectChanges();
+        await nextFrames(4);
+        const panel: HTMLElement = picker.query(By.directive(CalendarComponent)).nativeElement.parentElement;
+        return { btn, panel };
+    }
+
+    it('promotes the date picker panel out of an overflow-hidden ancestor', async () => {
+        const { panel } = await openAndGetPanel(DatePickerComponent);
+        expect(panel.matches(':popover-open')).toBe(true);
+    });
+
+    it('releases the date picker panel from the top layer on close', async () => {
+        const { btn, panel } = await openAndGetPanel(DatePickerComponent);
+        expect(panel.hasAttribute('popover')).toBe(true);
+
+        btn.nativeElement.click();
+        fixture.detectChanges();
+        await nextFrames(2);
+
+        expect(panel.hasAttribute('popover')).toBe(false);
+        expect(panel.matches(':popover-open')).toBe(false);
+    });
+
+    it('promotes the range picker panel out of an overflow-hidden ancestor', async () => {
+        const { panel } = await openAndGetPanel(DateRangePickerComponent);
+        expect(panel.matches(':popover-open')).toBe(true);
+    });
+
+    it('releases the range picker panel from the top layer on close', async () => {
+        const { btn, panel } = await openAndGetPanel(DateRangePickerComponent);
+        expect(panel.hasAttribute('popover')).toBe(true);
+
+        btn.nativeElement.click();
+        fixture.detectChanges();
+        await nextFrames(2);
+
+        expect(panel.hasAttribute('popover')).toBe(false);
+    });
+});

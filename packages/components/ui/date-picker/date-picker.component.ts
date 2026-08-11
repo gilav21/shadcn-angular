@@ -9,9 +9,11 @@ import {
   effect,
   ElementRef,
   ViewChild,
+  OnDestroy,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, getClippingRect } from '../../lib/utils';
+import { anchorToTopLayer, type TopLayerAlign, type TopLayerHandle } from '../../lib/top-layer';
 import { CalendarComponent } from '../calendar';
 export { DateRangePickerComponent } from './sub/date-range-picker.component';
 
@@ -64,6 +66,26 @@ export function computePopupStyles(position: PopupPosition): string {
 }
 
 /**
+ * Which edge of the trigger the popup lines up with, honouring the writing
+ * direction: the panel is start-aligned, which is the trigger's right edge in
+ * RTL — the same thing the `ltr:left-0 rtl:right-0` fallback classes do.
+ */
+export function popupAlign(anchor: HTMLElement): TopLayerAlign {
+  return getComputedStyle(anchor).direction === 'rtl' ? 'end' : 'start';
+}
+
+/**
+ * Promote the calendar panel into the top layer so it escapes any
+ * `overflow: hidden` ancestor (a card, an accordion panel, a scroll area).
+ * A `z-index` cannot do this. The returned handle's `release()` must be called
+ * when the popup closes; a handle with `promoted: false` means the panel was
+ * left alone and the `absolute` fallback positioning still applies.
+ */
+export function promotePopup(panel: HTMLElement, anchor: HTMLElement): TopLayerHandle {
+  return anchorToTopLayer(panel, anchor, { gap: 4, side: 'bottom', align: popupAlign(anchor) });
+}
+
+/**
  * DatePickerComponent - A date selection component combining Popover and Calendar
  * 
  * Usage:
@@ -91,7 +113,7 @@ export function computePopupStyles(position: PopupPosition): string {
     '(document:click)': 'onDocumentClick($event)',
   },
 })
-export class DatePickerComponent implements ControlValueAccessor {
+export class DatePickerComponent implements ControlValueAccessor, OnDestroy {
   /** Merged onto the trigger button, whose default width is `w-full sm:w-[240px]` — use it to widen/narrow the field or restyle the border. The popup is unaffected. */
   readonly class = input('');
   /** Muted text shown on the trigger while no date is selected; replaced by {@link formatDate} output once there is one. */
@@ -123,8 +145,11 @@ export class DatePickerComponent implements ControlValueAccessor {
   private onTouched: () => void = () => { };
 
   @ViewChild('popupEl') popupEl?: ElementRef<HTMLElement>;
+  @ViewChild('triggerEl') triggerEl?: ElementRef<HTMLElement>;
 
   private readonly adjustedPosition = signal<PopupPosition>({ ...DEFAULT_POPUP_POSITION });
+
+  private topLayer: TopLayerHandle | null = null;
 
   private isFirstDateInput = true;
 
@@ -137,15 +162,22 @@ export class DatePickerComponent implements ControlValueAccessor {
       this.internalValue.set(dateInput);
     });
     effect(() => {
-      if (this.isOpen()) {
-        this.adjustedPosition.set({ offsetX: 0, actualSide: 'bottom' });
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            this.calculatePosition();
-          });
-        });
+      if (!this.isOpen()) {
+        this.releasePopup();
+        return;
       }
+      this.adjustedPosition.set({ offsetX: 0, actualSide: 'bottom' });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          this.positionPopup();
+        });
+      });
     });
+  }
+
+  /** Releases the top-layer promotion when the component is torn down while open. */
+  ngOnDestroy(): void {
+    this.releasePopup();
   }
 
   readonly buttonClasses = computed(() => cn(
@@ -160,9 +192,29 @@ export class DatePickerComponent implements ControlValueAccessor {
 
   readonly popupStyles = computed(() => computePopupStyles(this.adjustedPosition()));
 
-  private calculatePosition(): void {
-    if (!this.popupEl?.nativeElement) return;
-    this.adjustedPosition.set(calculatePopupPosition(this.popupEl.nativeElement));
+  /**
+   * Promotes the open panel into the top layer, where the helper's own
+   * flip/clamp logic positions it, and only falls back to
+   * {@link calculatePopupPosition} when the promotion did not happen.
+   */
+  private positionPopup(): void {
+    const panel = this.popupEl?.nativeElement;
+    const anchor = this.triggerEl?.nativeElement;
+    if (!panel) return;
+    this.releasePopup();
+    if (anchor) {
+      const handle = promotePopup(panel, anchor);
+      if (handle.promoted) {
+        this.topLayer = handle;
+        return;
+      }
+    }
+    this.adjustedPosition.set(calculatePopupPosition(panel));
+  }
+
+  private releasePopup(): void {
+    this.topLayer?.release();
+    this.topLayer = null;
   }
 
   /** Opens or closes the calendar popup (the trigger's click handler); ignored while {@link disabled}. Opening re-runs the flip/shift positioning against the viewport. */

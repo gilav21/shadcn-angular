@@ -67,7 +67,7 @@
       }
     </div>
   </ui-popover-trigger>
-  <ui-popover-content [side]="dropdownSide()" class="w-[--radix-popover-trigger-width] p-0" align="start" [restoreFocus]="false">
+  <ui-popover-content [side]="dropdownSide()" class="w-[--radix-popover-trigger-width] p-0" align="start" [restoreFocus]="false" [avoidCollisions]="avoidPopoverCollisions()">
      <ui-command [shouldFilter]="filter()" [search]="searchTerm()" [attr.dir]="dir()">
         <ui-command-list [attr.id]="listId" role="listbox">
           <ui-command-empty>{{ t().noResults }}</ui-command-empty>

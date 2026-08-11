@@ -9,11 +9,13 @@ import {
   effect,
   ElementRef,
   ViewChild,
+  OnDestroy,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../../lib/utils';
+import type { TopLayerHandle } from '../../../lib/top-layer';
 import { CalendarComponent, DateRange, TimeRange } from '../../calendar';
-import { DEFAULT_POPUP_POSITION, calculatePopupPosition, computePopupClasses, computePopupStyles, PopupPosition } from '../date-picker.component';
+import { DEFAULT_POPUP_POSITION, calculatePopupPosition, computePopupClasses, computePopupStyles, promotePopup, PopupPosition } from '../date-picker.component';
 
 /**
  * DateRangePickerComponent - For selecting a date range
@@ -39,7 +41,7 @@ import { DEFAULT_POPUP_POSITION, calculatePopupPosition, computePopupClasses, co
     '(document:click)': 'onDocumentClick($event)',
   },
 })
-export class DateRangePickerComponent implements ControlValueAccessor {
+export class DateRangePickerComponent implements ControlValueAccessor, OnDestroy {
   /** Merged onto the trigger button, whose default width is `w-full sm:w-[300px]` (wider than the single picker, to fit two formatted dates). The popup is unaffected. */
   readonly class = input('');
   /** Muted text on the trigger while no start date is chosen. Once only a start exists the label becomes `<start> - ...`; with both it is `<start> - <end>`. */
@@ -73,20 +75,30 @@ export class DateRangePickerComponent implements ControlValueAccessor {
   private onTouched: () => void = () => { };
 
   @ViewChild('popupEl') popupEl?: ElementRef<HTMLElement>;
+  @ViewChild('triggerEl') triggerEl?: ElementRef<HTMLElement>;
 
   private readonly adjustedPosition = signal<PopupPosition>({ ...DEFAULT_POPUP_POSITION });
 
+  private topLayer: TopLayerHandle | null = null;
+
   constructor() {
     effect(() => {
-      if (this.isOpen()) {
-        this.adjustedPosition.set({ offsetX: 0, actualSide: 'bottom' });
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            this.calculatePosition();
-          });
-        });
+      if (!this.isOpen()) {
+        this.releasePopup();
+        return;
       }
+      this.adjustedPosition.set({ offsetX: 0, actualSide: 'bottom' });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          this.positionPopup();
+        });
+      });
     });
+  }
+
+  /** Releases the top-layer promotion when the component is torn down while open. */
+  ngOnDestroy(): void {
+    this.releasePopup();
   }
 
   readonly buttonClasses = computed(() => cn(
@@ -101,9 +113,29 @@ export class DateRangePickerComponent implements ControlValueAccessor {
 
   readonly popupStyles = computed(() => computePopupStyles(this.adjustedPosition()));
 
-  private calculatePosition(): void {
-    if (!this.popupEl?.nativeElement) return;
-    this.adjustedPosition.set(calculatePopupPosition(this.popupEl.nativeElement));
+  /**
+   * Promotes the open panel into the top layer, where the helper's own
+   * flip/clamp logic positions it, and only falls back to
+   * {@link calculatePopupPosition} when the promotion did not happen.
+   */
+  private positionPopup(): void {
+    const panel = this.popupEl?.nativeElement;
+    const anchor = this.triggerEl?.nativeElement;
+    if (!panel) return;
+    this.releasePopup();
+    if (anchor) {
+      const handle = promotePopup(panel, anchor);
+      if (handle.promoted) {
+        this.topLayer = handle;
+        return;
+      }
+    }
+    this.adjustedPosition.set(calculatePopupPosition(panel));
+  }
+
+  private releasePopup(): void {
+    this.topLayer?.release();
+    this.topLayer = null;
   }
 
   /** Opens or closes the calendar popup (the trigger's click handler); ignored while {@link disabled}. Opening re-runs the flip/shift positioning against the viewport. */

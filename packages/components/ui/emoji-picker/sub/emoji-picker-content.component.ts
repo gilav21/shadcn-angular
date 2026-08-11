@@ -15,6 +15,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { cn } from '../../../lib/utils';
+import { anchorToTopLayer, type TopLayerHandle } from '../../../lib/top-layer';
 import { InputComponent } from '../../input';
 import { InputGroupComponent, InputGroupAddonComponent } from '../../input-group';
 import { ScrollAreaComponent } from '../../scroll-area';
@@ -151,6 +152,7 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
 
     private scrollRemoveListener: (() => void) | null = null;
     private isScrollingProgrammatically = false;
+    private topLayer: TopLayerHandle | null = null;
 
     /**
      * Positioning mode. `'absolute'` (default) anchors the panel under the trigger and
@@ -177,6 +179,14 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
                 this.fixedReady.set(false);
             }
         });
+
+        effect(() => {
+            if (this.picker?.open() && this.strategy() === 'absolute') {
+                requestAnimationFrame(() => this.promotePanel());
+            } else {
+                this.releasePanel();
+            }
+        });
     }
 
     ngAfterViewInit(): void {
@@ -187,6 +197,37 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
 
     ngOnDestroy(): void {
         this.scrollRemoveListener?.();
+        this.releasePanel();
+    }
+
+    /**
+     * Lift the panel into the top layer so the default `absolute` strategy is no
+     * longer chopped off by a card, an accordion panel or a scroll area around
+     * the trigger. Deferred by a frame because the panel is only rendered once
+     * the picker has opened. The `fixed` strategy pins its own viewport
+     * coordinates and is left alone.
+     */
+    private promotePanel(): void {
+        if (this.topLayer || !this.picker?.open()) return;
+
+        const root = this.el.nativeElement as HTMLElement;
+        const trigger = root
+            .closest('[data-slot="emoji-picker"]')
+            ?.querySelector<HTMLElement>('[data-slot="emoji-picker-trigger"]');
+        const panel = root.querySelector<HTMLElement>('[data-slot="emoji-picker-content"]');
+        if (!trigger || !panel) return;
+
+        const rtl = globalThis.getComputedStyle(panel).direction === 'rtl';
+        const handle = anchorToTopLayer(panel, trigger, { align: rtl ? 'end' : 'start' });
+        if (handle.promoted) {
+            this.topLayer = handle;
+        }
+    }
+
+    /** Return the panel to normal flow; skipping this leaks the top-layer listeners. */
+    private releasePanel(): void {
+        this.topLayer?.release();
+        this.topLayer = null;
     }
 
     private updateFixedPosition(): void {

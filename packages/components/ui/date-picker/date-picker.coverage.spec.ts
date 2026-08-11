@@ -223,20 +223,23 @@ describe('DatePickerComponent', () => {
     expect(component.isOpen()).toBe(false);
   });
 
-  it('positions the popup through the rAF effect once opened', () => {
+  it('positions the popup through the rAF effect once opened, without the top layer', () => {
     component.toggleOpen();
     fixture.detectChanges();
     expect(rafSpy).toHaveBeenCalled();
     const popup = fixture.debugElement.query(By.css('[tabindex="-1"]'))
       .nativeElement as HTMLElement;
+    // Hide the Popover API from this element so the panel takes the
+    // absolute-positioning fallback the offsetX transform belongs to.
+    Object.defineProperty(popup, 'showPopover', { value: undefined });
     setRect(popup, { left: -100, right: 200, top: 10, bottom: 100 });
     flushRaf(rafQueue);
     expect(component.popupStyles()).toContain('translateX');
   });
 
-  it('does nothing in calculatePosition when the popup element is absent', () => {
-    const internal = component as unknown as { calculatePosition(): void };
-    expect(() => internal.calculatePosition()).not.toThrow();
+  it('does nothing in positionPopup when the popup element is absent', () => {
+    const internal = component as unknown as { positionPopup(): void };
+    expect(() => internal.positionPopup()).not.toThrow();
     expect(component.popupStyles()).toBe('');
   });
 
@@ -400,19 +403,22 @@ describe('DateRangePickerComponent', () => {
     expect(component.isOpen()).toBe(false);
   });
 
-  it('positions the popup through the rAF effect once opened', () => {
+  it('positions the popup through the rAF effect once opened, without the top layer', () => {
     component.toggleOpen();
     fixture.detectChanges();
     const popup = fixture.debugElement.query(By.css('[tabindex="-1"]'))
       .nativeElement as HTMLElement;
+    // Hide the Popover API from this element so the panel takes the
+    // absolute-positioning fallback the offsetX transform belongs to.
+    Object.defineProperty(popup, 'showPopover', { value: undefined });
     setRect(popup, { left: -100, right: 200, top: 10, bottom: 100 });
     flushRaf(rafQueue);
     expect(component.popupStyles()).toContain('translateX');
   });
 
-  it('does nothing in calculatePosition when the popup element is absent', () => {
-    const internal = component as unknown as { calculatePosition(): void };
-    expect(() => internal.calculatePosition()).not.toThrow();
+  it('does nothing in positionPopup when the popup element is absent', () => {
+    const internal = component as unknown as { positionPopup(): void };
+    expect(() => internal.positionPopup()).not.toThrow();
   });
 
   it('selects a full range, emits, and closes when time is hidden', () => {

@@ -17,6 +17,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { Subject, debounceTime as rxDebounceTime } from 'rxjs';
 import { cn, getClippingRect } from '../../lib/utils';
+import { anchorToTopLayer, type TopLayerHandle } from '../../lib/top-layer';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
 import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from '../popover';
@@ -25,6 +26,16 @@ import { HighlightPipe } from './highlight.pipe';
 import { BadgeComponent } from '../badge';
 
 let autocompleteIdCounter = 0;
+
+/**
+ * Whether this engine can promote the dropdown into the top layer. Read once at
+ * module load so the popover's own collision handling can be turned off *before*
+ * the first open, rather than racing the promotion — engines without the API
+ * keep that handling and the previous `absolute` behaviour untouched.
+ */
+const POPOVER_API_SUPPORTED =
+    typeof globalThis.HTMLElement !== 'undefined' &&
+    typeof globalThis.HTMLElement.prototype.showPopover === 'function';
 
 export type AutocompleteValue<T> = T | T[] | null;
 
@@ -183,12 +194,42 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
 
     private readonly formDisabled = signal(false);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly commandService = inject(CommandService, { optional: true });
+
+    /**
+     * The child `ui-command`'s service, read from that component's own injector.
+     *
+     * It cannot be obtained with `inject(CommandService)`: the service is
+     * provided by `CommandComponent` itself (`providers: [CommandService]`),
+     * which is a descendant, and an element injector never sees a child's
+     * providers. Injecting it here resolved `null` on every render, so
+     * {@link activeItemId} was always null and `aria-activedescendant` was
+     * never emitted — the combobox announced no active option to screen
+     * readers. Resolves once the panel opens and the command renders.
+     */
+    private readonly commandService = viewChild(CommandComponent, { read: CommandService });
     private readonly searchSubject = new Subject<string>();
 
-    activeItemId = computed(() => {
-        return this.commandService?.activeItemId() ?? null;
-    });
+    /**
+     * Cleared only when a promotion attempt fails, which restores the popover's
+     * own collision handling for the untouched `absolute` fallback.
+     */
+    private readonly topLayerAvailable = signal(POPOVER_API_SUPPORTED);
+    private topLayer: TopLayerHandle | null = null;
+
+    /**
+     * The popover only flips and shifts the panel while it positions it itself.
+     * Once the panel is promoted, the top layer helper owns the geometry — and
+     * the popover's boundary is still measured from the clipping ancestor the
+     * panel has just escaped, so letting it run would shift the panel back.
+     */
+    protected readonly avoidPopoverCollisions = computed(() => !this.topLayerAvailable());
+
+    /**
+     * Id of the option the command has highlighted, mirrored to the input's
+     * `aria-activedescendant`. Null while the panel is closed, or before the
+     * child command has rendered.
+     */
+    activeItemId = computed(() => this.commandService()?.activeItemId() ?? null);
 
     isDisabled = computed(() => this.disabled() || this.formDisabled());
 
@@ -235,6 +276,49 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
                 }
             }
         });
+
+        effect(() => {
+            if (this.open()) {
+                requestAnimationFrame(() => this.promoteDropdown());
+            } else {
+                this.releaseDropdown();
+            }
+        });
+
+        this.destroyRef.onDestroy(() => this.releaseDropdown());
+    }
+
+    /**
+     * Lift the listbox into the top layer so it is not clipped by a card, an
+     * accordion panel or a scroll area around the input. The panel keeps its DOM
+     * position, so `aria-controls` / `aria-activedescendant` and the popover's
+     * own outside-click detection continue to resolve. Deferred by a frame
+     * because the panel is only rendered once the popover has opened.
+     */
+    private promoteDropdown(): void {
+        if (this.topLayer || !this.open()) return;
+
+        const root = this.el.nativeElement as HTMLElement;
+        const anchor = root.querySelector<HTMLElement>('[data-slot="autocomplete-container"]');
+        const panel = root.querySelector<HTMLElement>('[data-slot="popover-content"]');
+        if (!anchor || !panel) return;
+
+        const handle = anchorToTopLayer(panel, anchor, {
+            side: this.dropdownSide(),
+            align: this.dir() === 'rtl' ? 'end' : 'start',
+        });
+
+        if (handle.promoted) {
+            this.topLayer = handle;
+        } else {
+            this.topLayerAvailable.set(false);
+        }
+    }
+
+    /** Return the panel to normal flow; skipping this leaks the top-layer listeners. */
+    private releaseDropdown(): void {
+        this.topLayer?.release();
+        this.topLayer = null;
     }
 
     private resolveDropdownSide(): void {
