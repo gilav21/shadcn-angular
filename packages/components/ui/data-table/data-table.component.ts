@@ -3648,22 +3648,18 @@ export class DataTableComponent<T>
     const host = this._el.nativeElement as HTMLElement | undefined;
     if (typeof host?.querySelector !== "function") return null;
 
-    const rowId = this.escapeAttrValue(String(this.getRowId()(row)));
-    const key = this.escapeAttrValue(String(column.accessorKey));
+    const rowId = CSS.escape(String(this.getRowId()(row)));
+    const key = CSS.escape(String(column.accessorKey));
 
     let cell: Element | null;
     try {
-      cell = host.querySelector(`[data-row-id="${rowId}"] [data-column="${key}"]`);
+      cell = host.querySelector(`[data-row-id=${rowId}] [data-column=${key}]`);
     } catch {
       return null;
     }
     if (!cell) return null;
 
     return (cell.textContent ?? "").trim();
-  }
-
-  private escapeAttrValue(value: string): string {
-    return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
   }
 
   /**

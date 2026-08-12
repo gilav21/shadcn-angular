@@ -34,7 +34,7 @@ let autocompleteIdCounter = 0;
  * keep that handling and the previous `absolute` behaviour untouched.
  */
 const POPOVER_API_SUPPORTED =
-    typeof globalThis.HTMLElement !== 'undefined' &&
+    globalThis.HTMLElement !== undefined &&
     typeof globalThis.HTMLElement.prototype.showPopover === 'function';
 
 export type AutocompleteValue<T> = T | T[] | null;
