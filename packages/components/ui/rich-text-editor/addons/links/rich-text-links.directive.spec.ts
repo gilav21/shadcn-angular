@@ -34,20 +34,30 @@ function stubRangeRects(): Restore {
     };
 }
 
-/** jsdom implements neither showPopover nor hidePopover on HTMLElement. */
+/**
+ * jsdom implements neither showPopover nor hidePopover on HTMLElement, so fill
+ * them in — but ONLY when they are genuinely missing.
+ *
+ * `HTMLElement.prototype` is shared with every other spec file in the run, and
+ * this browser suite does not give each file its own realm. Installing a no-op
+ * over a working native implementation — even with a faithful save/restore —
+ * means any file executing during that window sees a `showPopover()` that
+ * silently promotes nothing, and fails on an assertion unrelated to the code it
+ * is testing. Under Chromium the API exists, so nothing is installed here at all.
+ */
 function stubPopoverApi(): Restore {
     const proto = HTMLElement.prototype as unknown as Record<string, unknown>;
-    const hadShow = 'showPopover' in proto;
-    const hadHide = 'hidePopover' in proto;
-    const originalShow = Object.getOwnPropertyDescriptor(proto, 'showPopover');
-    const originalHide = Object.getOwnPropertyDescriptor(proto, 'hidePopover');
-    Object.defineProperty(proto, 'showPopover', { value: () => {}, configurable: true, writable: true });
-    Object.defineProperty(proto, 'hidePopover', { value: () => {}, configurable: true, writable: true });
+    const addedShow = !('showPopover' in proto);
+    const addedHide = !('hidePopover' in proto);
+    if (addedShow) {
+        Object.defineProperty(proto, 'showPopover', { value: () => {}, configurable: true, writable: true });
+    }
+    if (addedHide) {
+        Object.defineProperty(proto, 'hidePopover', { value: () => {}, configurable: true, writable: true });
+    }
     return () => {
-        if (hadShow && originalShow) Object.defineProperty(proto, 'showPopover', originalShow);
-        else delete proto['showPopover'];
-        if (hadHide && originalHide) Object.defineProperty(proto, 'hidePopover', originalHide);
-        else delete proto['hidePopover'];
+        if (addedShow) delete proto['showPopover'];
+        if (addedHide) delete proto['hidePopover'];
     };
 }
 

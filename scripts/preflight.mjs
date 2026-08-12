@@ -18,6 +18,8 @@
 // the coverage ratchets, which only evaluate under `--coverage` on a full run
 // and are therefore a RELEASE gate, not a per-push one.
 import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 /** @typedef {{ id: string, label: string, command: string }} Stage */
 
@@ -143,13 +145,48 @@ function formatDuration(ms) {
   return `${Math.floor(seconds / 60)}m ${(seconds % 60).toFixed(0)}s`;
 }
 
+/** Where a failing stage's full output is kept so it survives the run. */
+const LOG_DIR = join(process.cwd(), 'node_modules', '.cache', 'preflight');
+
+/**
+ * Run one stage, keeping its output.
+ *
+ * Previously this used `stdio: 'inherit'`, which streams but retains nothing —
+ * so when preflight runs as a pre-push hook and git truncates the hook's
+ * output, a failure reduced to `FAIL test 48.5s` with no indication of WHICH
+ * test failed. For an intermittent failure that is the difference between
+ * diagnosing it and re-running the whole gate to try to catch it again.
+ *
+ * Output is now captured and, on failure, written to a log file whose path is
+ * printed. The tail is echoed inline so the common case still needs no
+ * detective work.
+ */
 function runStage(stage, index, total) {
   console.log(`\n──── [${index}/${total}] ${stage.id} — ${stage.label}\n`);
   const startedAt = Date.now();
-  const result = spawnSync(stage.command, { stdio: 'inherit', shell: true });
+  const result = spawnSync(stage.command, {
+    shell: true,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
   const elapsed = Date.now() - startedAt;
   const failed = result.status !== 0 || result.error !== undefined;
+  const output = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+
+  process.stdout.write(output);
   if (result.error) console.error(result.error.message);
+
+  if (failed) {
+    try {
+      mkdirSync(LOG_DIR, { recursive: true });
+      const logPath = join(LOG_DIR, `${stage.id}.log`);
+      writeFileSync(logPath, output, 'utf8');
+      console.error(`\n[preflight] full "${stage.id}" output saved to ${logPath}`);
+    } catch (err) {
+      console.error(`[preflight] could not save the "${stage.id}" log: ${err.message}`);
+    }
+  }
+
   return { stage, elapsed, failed };
 }
 

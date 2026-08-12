@@ -30,14 +30,27 @@ describe('anchorToTopLayer', () => {
         made.splice(0).forEach(el => el.remove());
     });
 
+    /**
+     * Reports the live `showPopover` implementation alongside the result, so a
+     * failure caused by another suite stubbing the shared prototype identifies
+     * itself instead of looking like a defect in this helper.
+     */
+    function snapshot(panel: HTMLElement, handle: { promoted: boolean }): Record<string, unknown> {
+        const impl = String(Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'showPopover')?.value);
+        return {
+            promoted: handle.promoted,
+            open: panel.matches(':popover-open'),
+            nativeShowPopover: impl.includes('[native code]') ? true : impl.slice(0, 60),
+        };
+    }
+
     it('promotes a connected panel into the top layer', () => {
         const anchor = make();
         const panel = make();
 
         const handle = anchorToTopLayer(panel, anchor);
 
-        expect(handle.promoted).toBe(true);
-        expect(panel.matches(':popover-open')).toBe(true);
+        expect(snapshot(panel, handle)).toEqual({ promoted: true, open: true, nativeShowPopover: true });
         handle.release();
     });
 
@@ -68,8 +81,7 @@ describe('anchorToTopLayer', () => {
 
         // In the top layer the panel is rendered by the browser outside the
         // clipping ancestor's box, which is what `:popover-open` reflects.
-        expect(handle.promoted).toBe(true);
-        expect(panel.matches(':popover-open')).toBe(true);
+        expect(snapshot(panel, handle)).toEqual({ promoted: true, open: true, nativeShowPopover: true });
         handle.release();
     });
 

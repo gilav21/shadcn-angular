@@ -20,10 +20,18 @@ type ProtoWithPopover = { showPopover?: () => void; hidePopover?: () => void };
 
 const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
 const proto = HTMLElement.prototype as unknown as ProtoWithPopover;
-const hadShowPopover = 'showPopover' in proto;
-const hadHidePopover = 'hidePopover' in proto;
-const originalShowPopover = proto.showPopover;
-const originalHidePopover = proto.hidePopover;
+
+/**
+ * Whether THIS suite added the Popover API, decided at install time.
+ *
+ * It must not be captured at module load. `HTMLElement.prototype` is shared
+ * with every other spec file in the run, and module evaluation can happen while
+ * another suite has the API temporarily removed — recording "it was absent" and
+ * then `delete`-ing on teardown, which destroys the native implementation for
+ * everything that follows. Only ever remove what this suite itself added.
+ */
+let addedShowPopover = false;
+let addedHidePopover = false;
 
 function stubMatchMedia(coarse: boolean): void {
     vi.stubGlobal('matchMedia', (query: string) => ({
@@ -48,6 +56,8 @@ function installStubs(): void {
     // the whole window between install and restore any other spec file that
     // promotes an element to the top layer silently gets nothing, and fails on
     // an assertion that has nothing to do with it.
+    addedShowPopover = !('showPopover' in proto);
+    addedHidePopover = !('hidePopover' in proto);
     proto.showPopover ??= () => undefined;
     proto.hidePopover ??= () => undefined;
 }
@@ -55,15 +65,13 @@ function installStubs(): void {
 function restoreStubs(): void {
     vi.unstubAllGlobals();
     Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
-    if (hadShowPopover) {
-        proto.showPopover = originalShowPopover;
-    } else {
+    if (addedShowPopover) {
         delete proto.showPopover;
+        addedShowPopover = false;
     }
-    if (hadHidePopover) {
-        proto.hidePopover = originalHidePopover;
-    } else {
+    if (addedHidePopover) {
         delete proto.hidePopover;
+        addedHidePopover = false;
     }
 }
 
