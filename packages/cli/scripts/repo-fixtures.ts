@@ -81,6 +81,7 @@ export function runScript(script: string, args: readonly string[] = []): Run {
     const result = spawnSync('npx', ['tsx', script, ...args], {
         cwd: REPO_ROOT,
         encoding: 'utf-8',
+        env: fixtureGitEnv(),
         shell: true,
         stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -89,8 +90,29 @@ export function runScript(script: string, args: readonly string[] = []): Run {
     return { status: result.status ?? -1, stdout, stderr, output: stdout + stderr };
 }
 
+/**
+ * The environment for a fixture `git` call, with every ambient `GIT_*` variable
+ * stripped.
+ *
+ * Git exports `GIT_DIR`, `GIT_WORK_TREE` and friends to the processes it runs,
+ * so under a hook — `pre-push` runs the whole preflight gate — a child `git -C
+ * <fixture>` inherits them and silently targets the REAL repository instead of
+ * the fixture: `git config` tries to lock the real `.git/config` and `git add`
+ * fails with "this operation must be run in a work tree". Scrubbing the prefix
+ * is what makes a fixture independent of its caller, exactly as
+ * {@link gitInitCommit} forces identity and signing locally.
+ */
+function fixtureGitEnv(): NodeJS.ProcessEnv {
+    return Object.fromEntries(
+        Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_'))
+    );
+}
+
 export function git(root: string, ...args: string[]): string {
-    return execFileSync('git', ['-C', root, ...args], { encoding: 'utf-8' }).trim();
+    return execFileSync('git', ['-C', root, ...args], {
+        encoding: 'utf-8',
+        env: fixtureGitEnv(),
+    }).trim();
 }
 
 export function commitAll(root: string, message: string): void {
