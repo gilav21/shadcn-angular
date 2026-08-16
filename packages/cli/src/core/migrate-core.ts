@@ -148,12 +148,34 @@ export async function deleteLegacyFiles(
     return deleted;
 }
 
-/** Is the project's git working tree clean? False when git is unavailable / not a repo. */
+/**
+ * The current environment with every `GIT_*` variable removed, so a spawned git
+ * resolves its repository from `cwd` alone.
+ */
+export function envWithoutGitVars(): NodeJS.ProcessEnv {
+    return Object.fromEntries(
+        Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_'))
+    );
+}
+
+/**
+ * Is the project's git working tree clean? False when git is unavailable / not
+ * a repo.
+ *
+ * `GIT_DIR` and friends are dropped from the child's environment. Git gives
+ * those precedence over `cwd`, so when the CLI runs from inside a git hook —
+ * where git exports them — the question silently becomes "is the HOOK's
+ * repository clean?" and the answer is about the wrong repository.
+ */
 export function gitTreeClean(cwd: string): boolean {
     try {
         // Scope to the project dir (`-- .`) so an unrelated dirty file elsewhere
         // in a monorepo doesn't refuse a clean app subdir.
-        return execSync('git status --porcelain -- .', { cwd, encoding: 'utf-8' }).trim() === '';
+        return execSync('git status --porcelain -- .', {
+            cwd,
+            encoding: 'utf-8',
+            env: envWithoutGitVars(),
+        }).trim() === '';
     } catch {
         // Not a git repo, or git is unavailable — treat as "not clean".
         return false;
