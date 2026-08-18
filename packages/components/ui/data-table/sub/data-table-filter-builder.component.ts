@@ -129,21 +129,50 @@ const VALUELESS: ReadonlySet<FilterOperator> = new Set(['isEmpty', 'isNotEmpty']
     host: { class: 'block' },
 })
 export class DataTableFilterBuilderComponent {
+    /**
+     * The filter tree to render. Fully controlled: every edit emits a brand-new
+     * tree on {@link groupChange} and mutates nothing here, so the builder shows
+     * no change until you feed the emitted value back in.
+     */
     readonly group = input.required<FilterGroup>();
+    /**
+     * The columns offered in each condition's first dropdown. A condition whose
+     * `column` is not in this list renders with no option selected — the tree is
+     * never rewritten to match. {@link addCondition} seeds new conditions with
+     * the first entry, so an empty array produces conditions with an empty key.
+     */
     readonly columns = input.required<FilterBuilderColumn[]>();
+    /** Localized strings; defaults to the English {@link DEFAULT_FILTER_BUILDER_LABELS}. */
     readonly labels = input<FilterBuilderLabels>(DEFAULT_FILTER_BUILDER_LABELS);
+    /**
+     * A complete replacement tree emitted on every edit (combinator toggle,
+     * add/remove, or any field change), including edits bubbled up from nested
+     * groups. The builder evaluates nothing — pass the tree to the data-table's
+     * advanced filter to actually filter rows.
+     */
     readonly groupChange = output<FilterGroup>();
 
     readonly operatorOrder = OPERATOR_ORDER;
 
+    /**
+     * False for the unary operators (`isEmpty` / `isNotEmpty`), which hide the
+     * value input. Note the rule keeps whatever `value` it already had while the
+     * input is hidden — switching back reveals the old text.
+     */
     needsValue(operator: FilterOperator): boolean {
         return !VALUELESS.has(operator);
     }
 
+    /**
+     * Renders a rule's `value` for the text input — a non-string value (number,
+     * date) is stringified for display, and typing replaces it with a plain
+     * string, so a numeric rule becomes a string rule after any edit.
+     */
     asText(value: unknown): string {
         return stringifyValue(value);
     }
 
+    /** Template helper: the `value` of the `<input>`/`<select>` that raised the event. */
     selectValue(event: Event): string {
         return (event.target as HTMLInputElement | HTMLSelectElement).value;
     }
@@ -152,10 +181,15 @@ export class DataTableFilterBuilderComponent {
         this.groupChange.emit({ type: 'group', combinator, rules });
     }
 
+    /** Switches this group between AND and OR, keeping its rules, and emits the new tree. */
     setCombinator(combinator: 'and' | 'or'): void {
         this.emit(this.group().rules, combinator);
     }
 
+    /**
+     * Appends a `contains ''` condition on the first entry of {@link columns}
+     * (empty key if there are none) and emits the new tree.
+     */
     addCondition(): void {
         const column = this.columns()[0]?.key ?? '';
         this.emit([
@@ -164,18 +198,38 @@ export class DataTableFilterBuilderComponent {
         ]);
     }
 
+    /**
+     * Appends an empty nested AND group, rendered by a recursive instance of
+     * this component. Nesting is unbounded; an empty group contributes no
+     * conditions until the user adds some.
+     */
     addGroup(): void {
         this.emit([...this.group().rules, { type: 'group', combinator: 'and', rules: [] }]);
     }
 
+    /**
+     * Drops the rule at `index` — a condition or a whole nested group with all
+     * its descendants — and emits the new tree. Rules are addressed positionally
+     * (`track $index`), so an out-of-range index is a no-op replacement.
+     */
     removeRule(index: number): void {
         this.emit(this.group().rules.filter((_, i) => i !== index));
     }
 
+    /**
+     * Replaces the rule at `index` wholesale and emits the new tree. Also the
+     * bubble-up point for nested groups: a child group's `groupChange` lands
+     * here, so one edit deep in the tree re-emits the whole tree at every level.
+     */
     updateRule(index: number, rule: FilterRule): void {
         this.emit(this.group().rules.map((r, i) => (i === index ? rule : r)));
     }
 
+    /**
+     * Merges `partial` into the condition at `index` (used for the column select
+     * and the value input). Silently does nothing when that slot holds a nested
+     * group rather than a condition.
+     */
     patch(index: number, partial: { column?: string; value?: unknown }): void {
         const rule = this.group().rules[index];
         if (rule.type === 'condition') {
@@ -183,6 +237,11 @@ export class DataTableFilterBuilderComponent {
         }
     }
 
+    /**
+     * Sets the condition's operator from the `<select>` that raised `event`. The
+     * existing `value` is preserved even when moving to a unary operator that
+     * hides the input (see {@link needsValue}); a group at `index` is ignored.
+     */
     patchOperator(index: number, event: Event): void {
         const rule = this.group().rules[index];
         if (rule.type === 'condition') {

@@ -19,7 +19,7 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
       [attr.data-slot]="'menubar-item'"
       [attr.data-disabled]="disabled() || null"
       role="menuitem"
-      tabindex="0"
+      tabindex="-1"
       (click)="onClick()"
       (keydown.enter)="onClick()"
     >
@@ -33,11 +33,32 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
   host: { class: 'contents' },
 })
 export class MenubarItemComponent {
+  /** Extra classes merged onto the item row, after the hover/focus/disabled state classes. */
   class = input('');
+  /**
+   * Greys the item to 50% opacity, sets `pointer-events-none` so clicks pass
+   * through, suppresses {@link selected}, and — via the `data-disabled`
+   * attribute — removes the item from the menu's arrow-key ring entirely
+   * (see `MenubarContentComponent.getFocusableItems`). The item is not
+   * reachable with Tab either: every menu item carries `tabindex="-1"` per the
+   * WAI-ARIA menu pattern, so Tab leaves the menu rather than walking it.
+   */
   disabled = input(false, { transform: booleanAttribute });
+  /**
+   * Indents the label by 2rem (direction-aware) so items without an icon or
+   * checkmark line up with the ones that have one.
+   */
   inset = input(false, { transform: booleanAttribute });
+  /**
+   * Hint text rendered right-aligned in muted type (e.g. `⌘T`). Purely a label —
+   * no key handler is registered, so the shortcut must be wired up by the app.
+   */
   shortcut = input('');
 
+  /**
+   * Fires when the item is activated by click or Enter, just before the menu is
+   * closed. Never fires while {@link disabled}.
+   */
   selected = output<void>();
   readonly menu = inject(MENUBAR_MENU, { optional: true }) as MenubarMenuComponent | null;
 
@@ -50,6 +71,12 @@ export class MenubarItemComponent {
     this.class()
   ));
 
+  /**
+   * Activation handler for both click and Enter: emits {@link selected} and then
+   * closes the owning menu, which also tears down any open submenu. Does nothing
+   * when {@link disabled}. Items used outside a `ui-menubar-menu` still emit but
+   * have no menu to close.
+   */
   onClick(): void {
     if (!this.disabled()) {
       this.selected.emit();

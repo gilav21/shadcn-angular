@@ -35,16 +35,43 @@ export const SPEED_DIAL_MENU = new InjectionToken<SpeedDialMenuComponent>('SPEED
 })
 export class SpeedDialMenuComponent {
     readonly speedDial = inject(SPEED_DIAL, { optional: true });
+    /**
+     * Extra classes merged onto the inner `role="group"` element, after the
+     * layout classes the parent's `type`/`direction` produce — so a utility here
+     * wins over the defaults (e.g. `gap-4` overriding the built-in `gap-2`).
+     * The host itself is `display: contents` and is never styled.
+     */
     class = input('');
+    /**
+     * `aria-label` for the item group. Undefined by default, which leaves the
+     * group unlabelled; set it when several speed dials share a page. While the
+     * parent is closed the group is `aria-hidden` and `inert`, so items are out
+     * of the tab order and the label is not announced.
+     */
     ariaLabel = input<string | undefined>(undefined);
 
     private readonly registeredItems: SpeedDialItemComponent[] = [];
 
+    /**
+     * Called by each `ui-speed-dial-item` from its own `ngOnInit`. Registration
+     * order is DOM order and it is what every item's position derives from: the
+     * assigned index drives the animation stagger and, for the circular types,
+     * the angle along the arc; the running total decides the angular step. Items
+     * added later are appended, so a `@for` that reorders its items will not
+     * re-order their angles — re-create them instead. Pair with
+     * {@link unregisterItem}.
+     */
     registerItem(item: SpeedDialItemComponent): void {
         this.registeredItems.push(item);
         this.updateItemIndices();
     }
 
+    /**
+     * Called by each `ui-speed-dial-item` from its `ngOnDestroy`. Removing an
+     * item re-indexes the survivors, so the remaining items immediately re-space
+     * themselves along the arc. Ignores items that were never registered via
+     * {@link registerItem}.
+     */
     unregisterItem(item: SpeedDialItemComponent): void {
         const index = this.registeredItems.indexOf(item);
         if (index > -1) {

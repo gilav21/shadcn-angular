@@ -37,14 +37,65 @@ interface AxisSpoke {
     },
 })
 export class RadarChartComponent {
+    /**
+     * One filled polygon per series, coloured by its index in this array unless
+     * the series carries its own `color`. Every series must repeat the same
+     * `data[].name` values in the same order: the axis ring comes from the
+     * **first** series alone (see {@link axes}) and each later series' points
+     * are matched to axes positionally, so a shorter or re-ordered series is
+     * plotted against the wrong spokes. Series with an `id` use it as their
+     * legend/visibility key, otherwise `name` is the key — give duplicate names
+     * distinct `id`s or toggling one hides both. All series share one radial
+     * scale (see {@link maxValue}).
+     */
     readonly series = input.required<ChartSeries[]>();
+    /**
+     * Edge length of the square SVG, in px, written to both `width` and
+     * `height` — the radar is drawn at a fixed pixel size and does **not**
+     * scale with its container (unlike the cartesian charts here, it uses no
+     * `ResizeObserver`). The plot radius is `size / 2 - 36`, the 36px reserving
+     * room for the axis labels, so very small sizes squeeze the polygon before
+     * they squeeze the text. For a responsive layout, drive this input from
+     * your own breakpoint logic.
+     */
     readonly size = input(320);
+    /**
+     * Number of concentric background rings, evenly spaced from the centre out
+     * to the full radius. The outermost ring sits at {@link maxValue}; the rings
+     * are decoration only and carry no printed tick values.
+     */
     readonly levels = input(4);
+    /**
+     * Radial upper bound — the value that reaches the outer ring. Omit to
+     * auto-scale from the largest value across *all* series (see
+     * {@link maxValue}); set it to keep several radars on a shared scale, or to
+     * pin a natural ceiling such as 100 for percentage data. Note the auto scale
+     * adds no headroom, so the peak point lands exactly on the outer ring.
+     */
     readonly maxValueInput = input<number | undefined>(undefined);
+    /**
+     * `fill-opacity` of each series polygon, `0`–`1`. The stroke stays fully
+     * opaque, so `0` yields outline-only radars — useful once several
+     * overlapping series make the stacked fills muddy.
+     */
     readonly fillOpacity = input(0.2);
+    /**
+     * Render the {@link ChartLegendComponent} strip under the chart. The legend
+     * is the only built-in way to toggle series visibility, so hiding it also
+     * removes that affordance — drive {@link toggleSeries} yourself if you still
+     * need it.
+     */
     readonly showLegend = input(true);
+    /** Extra classes merged onto the chart container, which already carries `inline-flex flex-col items-center`. */
     readonly class = input('');
+    /** Human-readable chart name, used only to prefix the SVG group's accessible summary (see {@link ariaLabel}). */
     readonly title = input<string | undefined>(undefined);
+    /**
+     * Layout direction, accepted for parity with the cartesian charts in this
+     * family. The radar is radially symmetric and its labels are placed from
+     * the polar geometry, so no part of the current rendering reads this value;
+     * inherited DOM direction still governs the axis label text itself.
+     */
     readonly dir = input<ChartDirection>('auto');
 
     private readonly _hidden = signal<string[]>([]);
@@ -128,6 +179,13 @@ export class RadarChartComponent {
         });
     });
 
+    /**
+     * Flips one series between shown and hidden, keyed by its `id` (or `name`
+     * when no `id` is given) — the same key the legend emits. Hidden series drop
+     * out of {@link seriesPolygons} but still count towards {@link maxValue}, so
+     * the rings keep their scale while series are toggled. Toggling is
+     * cumulative: call it again with the same key to restore the series.
+     */
     toggleSeries(key: string): void {
         const hidden = this._hidden();
         this._hidden.set(

@@ -17,7 +17,9 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class ContextMenuLabelComponent {
+    /** Extra classes merged after the defaults on the host element; use it to re-colour or re-space a section heading. */
     class = input('');
+    /** Adds `ps-8` start padding so the heading aligns with inset items below it; also reflected as `data-inset`. */
     inset = input(false);
 
     classes = computed(() => cn(

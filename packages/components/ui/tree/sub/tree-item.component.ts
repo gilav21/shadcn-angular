@@ -24,8 +24,15 @@ let nextId = 0;
 export class TreeItemComponent {
     private readonly _autoId = `ui-tree-item-${++nextId}`;
 
+    /** DOM id of the `role="treeitem"` element, defaulting to a generated unique id. The tree points `aria-activedescendant` at this id, so override it only with a value unique in the document. */
     id = input<string>(this._autoId);
+    /** Extra classes merged onto the item wrapper, after the base `select-none`. Styling the row itself (hover, selected, focused) is driven by the item's `data-expanded` / `data-selected` / `data-focused` attributes. */
     class = input('');
+    /**
+     * The node's key — required, and the identity used for expansion, selection, focus and every
+     * emitted key array. Must be unique across the tree; a duplicate makes both items expand and
+     * select together.
+     */
     value = input.required<string>();
 
     headerElement = viewChild<ElementRef<HTMLElement>>('header');
@@ -36,6 +43,12 @@ export class TreeItemComponent {
     readonly tree = inject(TREE, { optional: true });
     children = contentChildren(forwardRef(() => TreeItemComponent));
 
+    /**
+     * Overrides child detection. Left `undefined` (the default) the item counts its projected
+     * `<ui-tree-item>` children, which reports `false` for a collapsed node whose children are
+     * not rendered yet — set this to `true` for lazily loaded branches so the expand chevron and
+     * `aria-expanded` still appear. Set `false` to force a leaf.
+     */
     hasNested = input<boolean | undefined>(undefined);
 
     hasChildren = computed(() => this.hasNested() ?? this.children().length > 0);
@@ -83,11 +96,23 @@ export class TreeItemComponent {
         )
     );
 
+    /**
+     * Chevron-button handler. Stops propagation so expanding a parent does not also run
+     * {@link onHeaderClick} and select it, then delegates to the tree's `toggleExpanded`.
+     * The button is `aria-hidden` / `tabindex="-1"` — keyboard users expand via the arrow keys
+     * on the tree root instead.
+     */
     onExpandClick(event: MouseEvent): void {
         event.stopPropagation();
         this.tree?.toggleExpanded(this.value());
     }
 
+    /**
+     * Header row handler, bound to click as well as Enter/Space on the row. Moves the tree's
+     * focused key to this item and toggles its selection — a no-op for selection when the tree's
+     * `selectable` is `'none'`, in which case it only moves focus. Clicking a parent's label does
+     * not expand it; that is the chevron's job ({@link onExpandClick}).
+     */
     onHeaderClick(_event: Event): void {
         this.tree?.focusedKey.set(this.value());
         this.tree?.toggleSelected(this.value());

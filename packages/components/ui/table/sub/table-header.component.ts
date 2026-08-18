@@ -18,6 +18,7 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class TableHeaderComponent {
+    /** Extra classes merged onto the header row group. It is `sticky top-0` with an opaque background, so it stays visible while the body scrolls — raise `z-20` if it is overlapped by other layers. */
     class = input('');
 
     classes = computed(() => cn('', this.class()));

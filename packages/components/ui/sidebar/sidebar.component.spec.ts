@@ -313,6 +313,63 @@ describe('Sidebar', () => {
       expect(aside.nativeElement.getAttribute('class') ?? '').toContain('w-0');
     });
 
+    it('renders a distinct desktop chrome per variant', async () => {
+      const fixture = await createMainHost();
+      const aside = fixture.debugElement.query(By.css('[data-slot="sidebar"]'));
+
+      const classesFor = (variant: Variant): string => {
+        fixture.componentInstance.variant.set(variant);
+        fixture.detectChanges();
+        return aside.nativeElement.getAttribute('class') ?? '';
+      };
+
+      const sidebar = classesFor('sidebar');
+      const floating = classesFor('floating');
+      const inset = classesFor('inset');
+
+      expect(sidebar).toContain('border-e');
+      expect(sidebar).not.toContain('rounded-lg');
+
+      expect(floating).toContain('rounded-lg');
+      expect(floating).toContain('shadow-lg');
+
+      expect(inset).toContain('rounded-lg');
+      expect(inset).toContain('border-none');
+      expect(inset).not.toContain('shadow-lg');
+
+      expect(new Set([sidebar, floating, inset]).size).toBe(3);
+      expect(aside.nativeElement.getAttribute('data-variant')).toBe('inset');
+    });
+
+    it('does not collapse while collapsible is false', async () => {
+      const fixture = await createMainHost();
+      const service = getService(fixture);
+      fixture.componentInstance.collapsible.set(false);
+      fixture.detectChanges();
+
+      const trigger = fixture.debugElement.query(By.css('[data-slot="sidebar-trigger"]'));
+      trigger.nativeElement.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      fixture.detectChanges();
+
+      expect(service.isCollapsed()).toBe(false);
+      const aside = fixture.debugElement.query(By.css('[data-slot="sidebar"]'));
+      expect(aside.nativeElement.getAttribute('class') ?? '').toContain('w-[280px]');
+      expect(aside.nativeElement.getAttribute('data-collapsible')).toBe('none');
+    });
+
+    it('expands an already-collapsed rail when collapsible turns false', async () => {
+      const fixture = await createMainHost();
+      const service = getService(fixture);
+      service.isCollapsed.set(true);
+      fixture.detectChanges();
+      expect(service.isCollapsed()).toBe(true);
+
+      fixture.componentInstance.collapsible.set(false);
+      fixture.detectChanges();
+
+      expect(service.isCollapsed()).toBe(false);
+    });
+
     it('renders on the right side', async () => {
       const fixture = await createMainHost();
       fixture.componentInstance.side.set('right');

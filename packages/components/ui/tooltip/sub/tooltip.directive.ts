@@ -19,8 +19,24 @@ import { TOUCH_AUTO_DISMISS_MS } from '../tooltip.component';
     },
 })
 export class TooltipDirective implements OnDestroy {
+    /**
+     * Plain-text tooltip label, and the directive's own selector. The bubble is
+     * created as a detached `div` appended to `document.body`, so it escapes
+     * `overflow: hidden` ancestors — text only, no markup. Read once per open,
+     * so changing it while the tooltip is showing has no effect until it
+     * reopens.
+     */
     uiTooltip = input.required<string>();
+    /**
+     * Preferred side. Unlike `ui-tooltip`, this is only a preference: the
+     * bubble flips to the opposite side and is then clamped 8px inside the
+     * viewport when it would otherwise overflow.
+     */
     tooltipSide = input<'top' | 'bottom' | 'left' | 'right'>('top');
+    /**
+     * Suppresses opening (hover and touch alike) — use it for a conditional
+     * hint. Does not close a tooltip that is already open.
+     */
     tooltipDisabled = input(false);
 
     private readonly el = inject(ElementRef);
@@ -31,6 +47,11 @@ export class TooltipDirective implements OnDestroy {
     private dismissTimeoutId: ReturnType<typeof setTimeout> | null = null;
     private removeDismissListener: (() => void) | null = null;
 
+    /**
+     * Opens the bubble after a fixed 200ms hover dwell. Ignored when
+     * {@link tooltipDisabled} is set, and on touch devices where
+     * {@link onTouchStart} owns the interaction.
+     */
     onMouseEnter(): void {
         if (this.tooltipDisabled() || isTouchDevice()) return;
 
@@ -39,12 +60,22 @@ export class TooltipDirective implements OnDestroy {
         }, 200);
     }
 
+    /**
+     * Cancels a pending open and removes the bubble from the body. Ignored on
+     * touch devices.
+     */
     onMouseLeave(): void {
         if (isTouchDevice()) return;
         this.clearDelayTimeout();
         this.hideTooltip();
     }
 
+    /**
+     * Touch alternative to hover: taps toggle the bubble, which then
+     * auto-dismisses after `TOUCH_AUTO_DISMISS_MS` or on the next touch
+     * anywhere in the document. The host's own click/tap behaviour is left
+     * intact.
+     */
     onTouchStart(): void {
         if (this.tooltipDisabled() || !isTouchDevice()) return;
         this.toggleTouch();

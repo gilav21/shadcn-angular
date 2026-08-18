@@ -42,18 +42,39 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     readonly popover = inject(POPOVER, { optional: true });
     private readonly document = inject(DOCUMENT);
 
+    /** Extra classes merged onto the panel. Keep a width constraint viewport-aware (`max-w-[calc(100vw-2rem)]`), since the panel is positioned, not laid out by its parent. */
     class = input('');
+    /** Alignment along the chosen {@link side}'s edge: `'start'`, `'center'` or `'end'`. May be flipped at runtime when {@link avoidCollisions} is on. */
     align = input<PopoverAlign>('center');
+    /** Preferred edge of the trigger to open from. Treated as a preference — collision handling can move the panel to the opposite side when there is no room. */
     side = input<PopoverSide>('bottom');
+    /** Gap in pixels between the trigger and the panel, measured along {@link side}. */
     sideOffset = input(4);
+    /** Lets the panel flip and shift to stay inside the nearest clipping rectangle. Turn it off to pin it strictly to {@link side} / {@link align}, accepting clipping. */
     avoidCollisions = input(true);
+    /**
+     * Returns focus to the trigger when the popover closes, so a keyboard user
+     * carries on from where they opened it. Only applies when focus was still
+     * inside the panel (or nowhere) at close time — dismissing the popover by
+     * clicking or tabbing to something else leaves that new focus alone. Set
+     * `false` to never move focus.
+     */
     restoreFocus = input(true);
+    /**
+     * Positioning mode. `'absolute'` keeps the panel inside the popover's own
+     * subtree — simplest, but it can be clipped by an `overflow: hidden`
+     * ancestor. `'fixed'` portals the panel out and promotes it to the browser's
+     * top layer via the native Popover API, so it renders above dialogs and any
+     * z-index; the panel is kept hidden for the frame it takes to portal, to
+     * avoid a flash at the wrong position.
+     */
     strategy = input<'absolute' | 'fixed'>('absolute');
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
     private portalHost: HTMLElement | null = null;
     private usedPopoverApi = false;
+    private wasOpen = false;
     public readonly portalReady = signal(false);
 
     /**
@@ -85,11 +106,31 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
                     offsetY: 0,
                 });
                 requestAnimationFrame(() => this.portalAndPosition(0));
+                this.wasOpen = true;
             } else {
+                const shouldRestoreFocus = this.wasOpen && this.restoreFocus() && this.isFocusRestorable();
+                this.wasOpen = false;
                 this.portalReady.set(false);
                 this.removeContent();
+                if (shouldRestoreFocus) {
+                    this.popover?.getTriggerFocusTarget()?.focus();
+                }
             }
         });
+    }
+
+    /**
+     * Whether closing should move focus back to the trigger. Restoring is only
+     * right while focus is still inside the panel — or already lost to the body,
+     * which is where it lands when the panel element is torn down. Focus that
+     * has moved to another control belongs to the user, and stealing it back
+     * would fight them.
+     */
+    private isFocusRestorable(): boolean {
+        const active = this.document.activeElement;
+        if (!active || active === this.document.body) return true;
+        const el = this.contentEl?.nativeElement;
+        return !!el && el.contains(active);
     }
 
     ngAfterViewInit(): void {
@@ -110,6 +151,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         }
         if (this.strategy() === 'fixed') {
             if (placed) this.finalizeFixedPosition();
+            else this.fallbackToPortal();
             return;
         }
         this.calculatePosition();
@@ -149,22 +191,39 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
      * stay correct even inside transformed/overflow ancestors. `showPopover`
      * throws on engines without the Popover API, so we fall back to a
      * `document.body` portal there.
+     *
+     * Returns `false` while the API exists but the element is not yet attached,
+     * so the caller retries on the next frame. `showPopover` throws
+     * `InvalidStateError` on a disconnected element, and treating that like an
+     * unsupported engine would permanently downgrade a top-layer popover to the
+     * portal whenever the open raced the element's attachment — silently losing
+     * the above-any-modal guarantee. Only a genuine lack of the API falls back.
      */
     private placeContent(): boolean {
         if (this.strategy() !== 'fixed') return false;
         const el = this.contentEl?.nativeElement;
         if (!el) return false;
         if (this.usedPopoverApi) return true;
+        if (typeof el.showPopover === 'function' && !el.isConnected) return false;
         try {
             el.setAttribute('popover', 'manual');
             el.showPopover();
             this.usedPopoverApi = true;
             return true;
         } catch {
-            // No Popover API (or the element is not connected) — use the portal.
             el.removeAttribute('popover');
         }
         return this.portalToBody();
+    }
+
+    /**
+     * Last-resort placement once the retry budget is spent: the element never
+     * attached, or the engine has no Popover API. Portals to `document.body` so
+     * a fixed popover still escapes `overflow`/stacking ancestors, then runs the
+     * normal fixed-position finalisation.
+     */
+    private fallbackToPortal(): void {
+        if (this.portalToBody()) this.finalizeFixedPosition();
     }
 
     private removeContent(): void {

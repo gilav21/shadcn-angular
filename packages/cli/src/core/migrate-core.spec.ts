@@ -12,6 +12,7 @@ import {
   runMigration,
   buildMigrationPlan,
   gitTreeClean,
+  envWithoutGitVars,
   detectCustomizedLegacy,
 } from './migrate-core.js';
 import { getDefaultConfig } from '../utils/config.js';
@@ -264,7 +265,10 @@ describe('gitTreeClean', () => {
   it('is true on a committed tree and false once a file is added', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'git-'));
     try {
-      execSync('git init -q', { cwd: dir });
+      // Without a scrubbed env this `git init` follows the caller's GIT_DIR —
+      // under the pre-push hook that is the real repository, which it then
+      // re-initialises as bare and breaks for every later git command.
+      execSync('git init -q', { cwd: dir, env: envWithoutGitVars() });
       expect(gitTreeClean(dir)).toBe(true);
       fs.outputFileSync(path.join(dir, 'src/a.ts'), 'x');
       expect(gitTreeClean(dir)).toBe(false);

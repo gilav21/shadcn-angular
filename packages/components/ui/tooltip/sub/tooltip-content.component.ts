@@ -16,6 +16,11 @@ import { TOOLTIP } from '../tooltip.component';
 })
 export class TooltipContentComponent {
     readonly tooltip = inject(TOOLTIP, { optional: true });
+    /**
+     * Extra classes merged onto the bubble, after the placement classes derived
+     * from the parent's `side` — pass positioning utilities here only if you
+     * mean to override that placement.
+     */
     class = input('');
 
     classes = computed(() => {

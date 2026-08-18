@@ -33,6 +33,25 @@ import { RATING_DEMO_LOCALES } from './rating-demo.locales';
           <ui-label class="text-sm font-medium">{{ t().labels.largeSize }}</ui-label>
           <ui-rating [ngModel]="7" [max]="10" size="lg" [readonly]="true" />
         </div>
+
+        <div class="space-y-2">
+          <h3 class="text-lg font-medium">{{ t().sections.sizes }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().captions.sizes }}</p>
+          <div class="flex flex-wrap items-center gap-6">
+            <div class="flex items-center gap-2">
+              <ui-label class="text-sm font-medium">{{ t().labels.sizeSm }}</ui-label>
+              <ui-rating [ngModel]="sizeRating()" (ngModelChange)="sizeRating.set($event)" size="sm" />
+            </div>
+            <div class="flex items-center gap-2">
+              <ui-label class="text-sm font-medium">{{ t().labels.sizeMd }}</ui-label>
+              <ui-rating [ngModel]="sizeRating()" (ngModelChange)="sizeRating.set($event)" size="md" />
+            </div>
+            <div class="flex items-center gap-2">
+              <ui-label class="text-sm font-medium">{{ t().labels.sizeLg }}</ui-label>
+              <ui-rating [ngModel]="sizeRating()" (ngModelChange)="sizeRating.set($event)" size="lg" />
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   `,
@@ -43,6 +62,8 @@ export class RatingDemoComponent {
 
   readonly demoRating = signal(3);
   readonly demoRatingHalf = signal(2.5);
+  /** Shared value for the three size examples, so only the glyph scale differs. */
+  readonly sizeRating = signal(3);
 
   protected readonly defaultLabel = computed(() =>
     this.t().labels.defaultStars.replace('{{value}}', String(this.demoRating())),

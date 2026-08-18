@@ -29,6 +29,8 @@ import { SELECT } from '../select.component';
         '[attr.role]': '"option"',
         '[attr.aria-selected]': 'isSelected()',
         '[attr.data-state]': 'isSelected() ? "checked" : "unchecked"',
+        '[attr.data-disabled]': 'disabled() || null',
+        '[attr.aria-disabled]': 'disabled() || null',
         '[attr.data-slot]': '"select-item"',
         '[attr.tabindex]': '"-1"',
         '(click)': 'onClick()',
@@ -38,8 +40,21 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
     private readonly select = inject(SELECT, { optional: true });
     private readonly el = inject(ElementRef);
 
+    /**
+     * Value committed to the parent select when this row is chosen, and
+     * compared against the current selection to show the checkmark. Also the
+     * key the item registers itself under for item-aligned positioning, so it
+     * must be unique within one content.
+     */
     value = input.required<string>();
+    /**
+     * Dims the row, marks it `pointer-events-none` and makes {@link onClick} a
+     * no-op. It also sets the `data-disabled` and `aria-disabled` attributes, so
+     * the row drops out of the content's arrow-key ring (which filters on
+     * `:not([data-disabled])`) and is announced as disabled.
+     */
     disabled = input(false);
+    /** Extra classes merged onto the host row, after the defaults so they can override them. */
     class = input('');
 
     isSelected = computed(() => this.select?.internalValue() === this.value());
@@ -67,6 +82,10 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
         this.select?.unregisterItem(this.value());
     }
 
+    /**
+     * Host click handler — commits {@link value} to the parent select and
+     * closes it. Skipped when {@link disabled}.
+     */
     onClick(): void {
         if (!this.disabled()) {
             this.select?.select(this.value());

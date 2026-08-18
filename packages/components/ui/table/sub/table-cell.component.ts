@@ -19,6 +19,12 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class TableCellComponent {
+    /**
+     * Extra classes merged onto the cell. Cells are `flex-1` by default, so all
+     * columns share the width evenly — set an explicit `w-*`/`basis-*` here (and
+     * the same on the matching `ui-table-head`) to size a column. A projected
+     * `role="checkbox"` control already gets its padding and alignment trimmed.
+     */
     class = input('');
 
     classes = computed(() => cn(

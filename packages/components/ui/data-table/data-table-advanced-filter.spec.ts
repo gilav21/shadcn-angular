@@ -208,6 +208,19 @@ describe('DataTableComponent advanced filter integration (A5)', () => {
     expect(component.advancedFilter()).toEqual(group);
   });
 
+  it('onAdvancedFilterChange returns to page 0 so a narrowing edit cannot strand the view', () => {
+    component.paginationState.set({ pageIndex: 2, pageSize: 1 });
+
+    component.onAdvancedFilterChange({
+      type: 'group',
+      combinator: 'and',
+      rules: [{ type: 'condition', column: 'amount', operator: 'gt', value: 1000 }],
+    });
+
+    expect(component.paginationState().pageIndex).toBe(0);
+    expect(component.paginationState().pageSize).toBe(1);
+  });
+
   it('resolvedLoaderComponentInputs merges the loading trigger into the custom loader inputs', () => {
     fixture.componentRef.setInput('loaderComponentInputs', { color: 'blue' });
     component.setLoadingTrigger('sorting');

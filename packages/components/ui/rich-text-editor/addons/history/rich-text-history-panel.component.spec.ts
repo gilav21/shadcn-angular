@@ -16,11 +16,20 @@ class ResizeObserverStub {
 type Globals = { ResizeObserver?: typeof ResizeObserver };
 type PopoverProto = { showPopover?: () => void; hidePopover?: () => void; togglePopover?: () => void };
 const proto = HTMLElement.prototype as unknown as PopoverProto;
-const hadShow = 'showPopover' in HTMLElement.prototype;
+
+/**
+ * Whether THIS suite added the Popover API, decided at install time rather than
+ * at module load. `HTMLElement.prototype` is shared with every other spec file
+ * in the run, so a module-load reading can record "absent" while another suite
+ * has it temporarily removed — and the teardown would then delete the native
+ * implementation for everything that follows. Only remove what we added.
+ */
+let addedPopoverApi = false;
 const originalResizeObserver = (globalThis as Globals).ResizeObserver;
 
 beforeEach(() => {
     (globalThis as Globals).ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
+    addedPopoverApi = !('showPopover' in proto);
     proto.showPopover ??= (): void => { /* no-op */ };
     proto.hidePopover ??= (): void => { /* no-op */ };
     proto.togglePopover ??= (): void => { /* no-op */ };
@@ -32,10 +41,11 @@ afterEach(() => {
     } else {
         delete (globalThis as Globals).ResizeObserver;
     }
-    if (!hadShow) {
+    if (addedPopoverApi) {
         delete proto.showPopover;
         delete proto.hidePopover;
         delete proto.togglePopover;
+        addedPopoverApi = false;
     }
 });
 

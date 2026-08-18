@@ -174,6 +174,27 @@ describe('FileUploadComponent', () => {
             expect(component.files).toHaveLength(2);
         });
 
+        it('should report every file dropped for exceeding maxFiles on fileError', async () => {
+            component.maxFiles.set(2);
+            fixture.detectChanges();
+
+            const uploadComponent = fixture.debugElement.query(By.directive(FileUploadComponent)).componentInstance as FileUploadComponent;
+            const errors: { file: File; error: string }[] = [];
+            uploadComponent.fileError.subscribe((e) => errors.push(e));
+
+            uploadComponent.addFiles([
+                createMockFile('file1.pdf', 100, 'application/pdf'),
+                createMockFile('file2.pdf', 100, 'application/pdf'),
+                createMockFile('file3.pdf', 100, 'application/pdf'),
+                createMockFile('file4.pdf', 100, 'application/pdf'),
+            ]);
+            fixture.detectChanges();
+
+            expect(component.files).toHaveLength(2);
+            expect(errors.map((e) => e.file.name)).toEqual(['file3.pdf', 'file4.pdf']);
+            expect(errors[0].error).toBe('Maximum of 2 files allowed');
+        });
+
         it('should validate file type with accept', async () => {
             component.accept.set('image/*');
             fixture.detectChanges();

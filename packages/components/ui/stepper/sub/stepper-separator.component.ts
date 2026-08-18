@@ -22,6 +22,7 @@ import { STEPPER_ITEM } from './stepper-item.component';
   host: { class: 'contents' },
 })
 export class StepperSeparatorComponent {
+  /** Extra classes merged onto the separator bar (via `cn()`, so utilities here override the orientation-derived size and the `bg-primary`/`bg-border` colour that tracks the owning item's completion). */
   class = input('');
 
   readonly stepper = inject(STEPPER, { optional: true });

@@ -78,6 +78,29 @@ import { DROPDOWN_MENU_DEMO_LOCALES } from './dropdown-menu-demo.locales';
             </ui-dropdown-menu-content>
           </ui-dropdown-menu>
         </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-medium">{{ t().disabledSubHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().disabledSubHint }}</p>
+          <ui-dropdown-menu>
+            <ui-dropdown-menu-trigger>
+              <ui-button variant="outline">{{ t().openDisabledSubLabel }}</ui-button>
+            </ui-dropdown-menu-trigger>
+            <ui-dropdown-menu-content class="w-56">
+              <ui-dropdown-menu-label>{{ t().teamLabel }}</ui-dropdown-menu-label>
+              <ui-dropdown-menu-separator />
+              <ui-dropdown-menu-item>{{ t().settingsLabel }}</ui-dropdown-menu-item>
+              <ui-dropdown-menu-sub>
+                <ui-dropdown-menu-sub-trigger disabled>{{ t().inviteUsersLabel }}</ui-dropdown-menu-sub-trigger>
+                <ui-dropdown-menu-sub-content>
+                  <ui-dropdown-menu-item>{{ t().emailLabel }}</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-item>{{ t().messageLabel }}</ui-dropdown-menu-item>
+                </ui-dropdown-menu-sub-content>
+              </ui-dropdown-menu-sub>
+              <ui-dropdown-menu-item>{{ t().newTeamLabel }}</ui-dropdown-menu-item>
+            </ui-dropdown-menu-content>
+          </ui-dropdown-menu>
+        </div>
       </div>
     </section>
   `,

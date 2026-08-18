@@ -76,9 +76,26 @@ export class SheetContentComponent implements AfterViewInit {
     readonly sheet = inject(SHEET, { optional: true });
     private readonly el = inject(ElementRef);
 
+    /**
+     * Edge the panel is docked to. `left`/`right` give a full-height panel
+     * (75% wide, capped at `sm:max-w-sm`); `top`/`bottom` span the full width
+     * and are sized by their content. The horizontal sides are mirrored
+     * automatically in RTL.
+     */
     readonly side = input<SheetSide>('right');
+    /**
+     * Extra classes merged onto the panel (not the backdrop), after the
+     * {@link side} variant — pass width/height utilities here to override the
+     * default `w-3/4 sm:max-w-sm` sizing.
+     */
     readonly class = input('');
+    /**
+     * Simple mode: renders a `ui-sheet-header`/`ui-sheet-title` above the
+     * projected content. Leave unset and project your own header instead;
+     * {@link description} is only rendered when this is set.
+     */
     readonly title = input<string>();
+    /** Simple-mode sub-heading. Only rendered when {@link title} is also set. */
     readonly description = input<string>();
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -123,6 +140,11 @@ export class SheetContentComponent implements AfterViewInit {
         }
     }
 
+    /**
+     * Key handler on the modal wrapper: Escape closes the sheet, Tab/Shift+Tab
+     * wrap focus so it stays trapped inside the panel. The panel renders inline
+     * at `z-50`, not in the native top layer, so higher-z UI can cover it.
+     */
     onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
             event.preventDefault();
@@ -153,10 +175,19 @@ export class SheetContentComponent implements AfterViewInit {
         cn(sheetVariants({ side: this.side() }), this.class())
     );
 
+    /**
+     * Backdrop click handler — the sheet is dismissible by clicking outside.
+     * Bound to the overlay element only, so panel clicks never reach it.
+     */
     onOverlayClick(): void {
         this.sheet?.hide();
     }
 
+    /**
+     * Closes the owning `ui-sheet` (restoring focus to the element that opened
+     * it). Bound to the built-in corner close button; a no-op when this content
+     * is used outside a `ui-sheet`.
+     */
     close(): void {
         this.sheet?.hide();
     }

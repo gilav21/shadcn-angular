@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class StepperDescriptionComponent {
+  /** Extra classes merged onto the description `<span>` (via `cn()`, so utilities here beat the default `text-xs text-muted-foreground`). */
   class = input('');
 
   classes = computed(() =>

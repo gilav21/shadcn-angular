@@ -28,6 +28,7 @@ import { BREADCRUMB_LOCALES, type BreadcrumbLocale } from '../breadcrumb.locales
   },
 })
 export class BreadcrumbEllipsisComponent {
+  /** Extra classes merged onto the ellipsis marker. The dots are decorative (`aria-hidden`); a localized "more" label is exposed to screen readers behind them. */
   readonly class = input('');
 
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` (which is broadcast by the parent `<ui-breadcrumb>`). */

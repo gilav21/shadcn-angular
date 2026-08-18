@@ -41,8 +41,25 @@ export class MeteorsComponent implements OnInit, OnDestroy {
     private readonly ngZone = inject(NgZone);
     private readonly renderer = inject(Renderer2);
 
+    /**
+     * Number of meteors kept alive on the canvas. Each one that leaves the
+     * viewport is immediately respawned, so this is a constant population, not
+     * a total. Read once during init — changing it later has no effect.
+     */
     count = input(20);
+    /**
+     * Velocity multiplier applied at spawn time: `'slow'` = 0.5x,
+     * `'medium'` = 1x, `'fast'` = 2x. Only affects meteors created after the
+     * change, and since meteors are created during init this is effectively
+     * an init-time setting.
+     */
     speed = input<'slow' | 'medium' | 'fast'>('medium');
+    /**
+     * Meteor colour. Any CSS colour string is accepted — non-`'white'` values
+     * are resolved to RGB once at init by probing a throwaway element's computed
+     * style, so CSS variables resolve against the document, not the host.
+     * The trail and glow are drawn as alpha gradients of this colour.
+     */
     color = input('white');
 
     private canvas: HTMLCanvasElement | null = null;

@@ -37,8 +37,10 @@ import {
 const SLASH_MENU_KEYS = new Set(['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab', ' ', 'Spacebar']);
 const MAX_SLASH_COMMANDS = 10;
 const MENU_CARET_GAP = 4;
-// Approximate menu box size (component `w-72` = 288px; `max-h-56` = 224px plus
-// padding/border) used only to clamp/flip the fixed position within the viewport.
+/**
+ * Approximate menu box size (component `w-72` = 288px; `max-h-56` = 224px plus
+ * padding/border) used only to clamp/flip the fixed position within the viewport.
+ */
 const MENU_WIDTH = 288;
 const MENU_MAX_HEIGHT = 240;
 
@@ -110,12 +112,15 @@ export class RichTextSlashCommandsDirective {
     private readonly outsidePointerBound = (event: Event): void => this.onOutsidePointer(event);
     private readonly dismissBound = (event: Event): void => this.onScrollDismiss(event);
 
+    /**
+     * Wires the host seams and an effect that re-filters the live menu when the
+     * command registry, locale, or custom input changes while it is open.
+     * Typing and keyboard navigation refresh the menu imperatively; the effect
+     * covers only reactive, signal-driven changes.
+     */
     constructor() {
         const offKeydown = this.host.registerKeydownInterceptor((event) => this.handleKeydown(event));
         const offInput = this.host.registerInputObserver((text, caret) => this.onInputObserved(text, caret));
-        // Re-filter the live menu when the command registry, locale, or custom
-        // input changes while it is open. Typing / keyboard nav refresh the menu
-        // imperatively; this only covers reactive (signal-driven) changes.
         effect(() => {
             if (!this.slashEnabled()) {
                 this.close();
@@ -137,7 +142,6 @@ export class RichTextSlashCommandsDirective {
         return this.host.contentRoot.ownerDocument;
     }
 
-    // ── Trigger detection ─────────────────────────────────────────────
 
     private onInputObserved(text: string, caret: number): void {
         if (!this.slashEnabled() || this.host.disabled() || this.host.readonly()) {
@@ -161,7 +165,6 @@ export class RichTextSlashCommandsDirective {
         this.applyMenuInputs(this.computeFilteredCommands());
     }
 
-    // ── Filtering ─────────────────────────────────────────────────────
 
     private computeFilteredCommands(): RichTextSlashCommand[] {
         const availability: RichTextSlashCommandAvailabilityContext = {
@@ -194,7 +197,6 @@ export class RichTextSlashCommandsDirective {
             .slice(0, MAX_SLASH_COMMANDS);
     }
 
-    // ── Keyboard ──────────────────────────────────────────────────────
 
     private handleKeydown(event: KeyboardEvent): boolean {
         if (!this.open || !SLASH_MENU_KEYS.has(event.key)) {
@@ -233,8 +235,12 @@ export class RichTextSlashCommandsDirective {
         this.applyMenuInputs(this.computeFilteredCommands());
     }
 
-    // ── Selection / execution ─────────────────────────────────────────
 
+    /**
+     * Run the chosen command. The trigger-removal DOM edits are committed to the
+     * model first — snapshotting them as a discrete history entry — so the
+     * command's own mutation lands as a separate, independently undoable step.
+     */
     private async select(command: RichTextSlashCommand | undefined): Promise<void> {
         if (!command || this.host.disabled() || this.host.readonly()) {
             return;
@@ -252,8 +258,6 @@ export class RichTextSlashCommandsDirective {
             placeCaretAtEndOfBlock(this.doc, slashBlock);
             removeCaretSentinelAtSelection(this.doc);
         }
-        // Commit the trigger-removal DOM edits to the model (and snapshot them as
-        // a discrete history entry) before the command runs its own mutation.
         this.host.commitContent();
         this.close();
         await Promise.resolve(command.run(this.buildContext(query, slashBlock, linkHint)));
@@ -276,11 +280,13 @@ export class RichTextSlashCommandsDirective {
         };
     }
 
-    // ── Menu overlay ──────────────────────────────────────────────────
 
+    /**
+     * Push the filtered command list onto the live menu. The highlighted index
+     * is clamped first: re-filtering (registry, locale or custom-input changes)
+     * can shrink the list below it, and Enter must always have a target.
+     */
     private applyMenuInputs(commands: RichTextSlashCommand[]): void {
-        // Re-filtering (registry/locale/custom changes) can shrink the list below
-        // the highlighted index; keep it in range so Enter always has a target.
         this.selectedIndex = commands.length === 0 ? 0 : Math.min(this.selectedIndex, commands.length - 1);
         const menu = this.menuRef ?? this.createMenu();
         const locale = this.i18n.t();
@@ -301,6 +307,11 @@ export class RichTextSlashCommandsDirective {
         return ref;
     }
 
+    /**
+     * Position the menu at the caret. It renders in the native top layer so it
+     * sits above any modal the editor lives inside, falling back to a high
+     * z-index on engines without the Popover API.
+     */
     private positionMenu(ref: ComponentRef<RichTextSlashCommandsMenuComponent>): void {
         const el = ref.location.nativeElement as HTMLElement & { showPopover?: () => void };
         el.style.position = 'fixed';
@@ -308,8 +319,6 @@ export class RichTextSlashCommandsDirective {
         el.style.margin = '0';
         el.style.left = `${Math.round(this.position.x)}px`;
         el.style.top = `${Math.round(this.position.y)}px`;
-        // Render in the native top layer so the menu sits above any modal the
-        // editor lives inside; fall back to a high z-index otherwise.
         if (typeof el.showPopover === 'function') {
             if (!el.hasAttribute('popover')) {
                 el.setAttribute('popover', 'manual');
@@ -331,8 +340,10 @@ export class RichTextSlashCommandsDirective {
         }
         const view = globalThis.window;
         const x = Math.max(8, Math.min(rect.left, view.innerWidth - MENU_WIDTH - 8));
-        // Drop below the caret, or flip above when the menu would overflow the
-        // viewport bottom (fixed-positioned, so it can't scroll into view).
+        /**
+         * Drop below the caret, or flip above when the menu would overflow the
+         * viewport bottom (fixed-positioned, so it can't scroll into view).
+         */
         const below = rect.bottom + MENU_CARET_GAP;
         const y = below + MENU_MAX_HEIGHT > view.innerHeight
             ? Math.max(8, rect.top - MENU_MAX_HEIGHT - MENU_CARET_GAP)
@@ -356,8 +367,10 @@ export class RichTextSlashCommandsDirective {
     }
 
     private onScrollDismiss(event: Event): void {
-        // Scrolling the menu's own option list must not dismiss it; only close
-        // when the surrounding page/editor scrolls out from under the caret.
+        /**
+         * Scrolling the menu's own option list must not dismiss it; only close
+         * when the surrounding page/editor scrolls out from under the caret.
+         */
         const menuEl = this.menuRef?.location.nativeElement as HTMLElement | undefined;
         const target = event.target;
         if (menuEl && target instanceof Node && menuEl.contains(target)) {

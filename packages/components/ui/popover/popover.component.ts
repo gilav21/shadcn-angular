@@ -29,11 +29,28 @@ export class PopoverComponent implements OnDestroy {
     private readonly document = inject(DOCUMENT);
     private readonly destroyRef = inject(DestroyRef);
 
+    /**
+     * Two-way open state, shared with the trigger and content through DI. Clicking
+     * outside the popover (and outside its portal) closes it and writes `false`
+     * back, so a consumer binding stays in sync with user dismissals.
+     */
     open = model<boolean>(false);
+    /**
+     * Dismisses the popover when anything outside it scrolls, in any ancestor
+     * (the listener is registered in the capture phase). Off by default because
+     * the content follows the trigger anyway; turn it on inside long scrolling
+     * pages where a detached panel would look wrong.
+     */
     closeOnScroll = input(false);
 
     private portalEl: HTMLElement | null = null;
 
+    /**
+     * Called by the content component to declare the element it renders into when
+     * it escapes the host's DOM subtree. Clicks and scrolls inside that element
+     * are then treated as "inside" the popover and do not dismiss it. Pass `null`
+     * to unregister.
+     */
     registerPortal(el: HTMLElement | null): void {
         this.portalEl = el;
     }
@@ -86,22 +103,49 @@ export class PopoverComponent implements OnDestroy {
         this.removeScrollListener();
     }
 
+    /** Flips the open state. This is what the trigger calls, and the usual entry point for a custom trigger of your own. */
     toggle(): void {
         const newState = !this.open();
         this.open.set(newState);
     }
 
+    /** Opens the popover programmatically — e.g. on focus or after an async action. Idempotent. */
     show(): void {
         this.open.set(true);
     }
 
+    /** Closes the popover. Also called internally on an outside click, on Escape, and by `ui-popover-close`. */
     hide(): void {
         this.open.set(false);
     }
 
+    /**
+     * Live viewport rectangle of the trigger element, which the content uses as
+     * its positioning anchor. Returns `null` when no `data-slot="popover-trigger"`
+     * element is present — the content then has nothing to anchor to.
+     */
     getTriggerRect(): DOMRect | null {
-        const trigger = this.el.nativeElement.querySelector('[data-slot="popover-trigger"]');
-        return trigger?.getBoundingClientRect() ?? null;
+        return this.queryTrigger()?.getBoundingClientRect() ?? null;
+    }
+
+    /**
+     * The element focus returns to when the content closes with `restoreFocus`
+     * on: the trigger's first focusable descendant — a projected `<ui-button>`
+     * or `<button>` — or the trigger wrapper itself, which carries `tabindex="0"`
+     * only while it wraps non-interactive content. `null` when there is no
+     * trigger to return to.
+     */
+    getTriggerFocusTarget(): HTMLElement | null {
+        const trigger = this.queryTrigger();
+        if (!trigger) return null;
+        const focusable = trigger.querySelector<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        return focusable ?? trigger;
+    }
+
+    private queryTrigger(): HTMLElement | null {
+        return this.el.nativeElement.querySelector('[data-slot="popover-trigger"]');
     }
 }
 

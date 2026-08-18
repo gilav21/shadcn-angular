@@ -25,9 +25,13 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class PaginationLinkComponent {
+  /** Marks this as the current page: applies the outlined style and sets `aria-current="page"`, which is what assistive tech reads. Set it on exactly one link in the row. */
   isActive = input(false);
+  /** Size token, published as `data-size` and resolved by the component's density CSS into height and inline padding (`icon`, the default, is the square 36×36 page box). It scales with `--density-button`/`--density`. */
   size = input<'default' | 'sm' | 'lg' | 'icon'>('icon');
+  /** Extra classes merged onto the button. Because the size rules live in a `@layer components` block, a `h-*`/`w-*` utility passed here wins over them. */
   class = input('');
+  /** Disables the button, dimming it and removing it from the tab order. Note it is a `<button>`, not an anchor, so there is no href to fall back to; wire navigation to its click. */
   disabled = input(false);
 
   classes = computed(() => {

@@ -37,18 +37,37 @@ export class DropdownMenuService {
     private triggerRef: HTMLElement | null = null;
     private rootEl: HTMLElement | null = null;
 
+    /**
+     * Called by `<ui-dropdown-menu>` on construction; the element it passes is
+     * the direction probe for {@link isRtl}.
+     */
     registerRoot(el: HTMLElement): void {
         this.rootEl = el;
     }
 
+    /**
+     * Called by `<ui-dropdown-menu-trigger>` once rendered, so focus can be
+     * restored to it later. Only one trigger per menu — a second registration
+     * replaces the first.
+     */
     registerTrigger(el: HTMLElement): void {
         this.triggerRef = el;
     }
 
+    /**
+     * Returns focus to the registered trigger — used when the menu closes via
+     * Escape so keyboard users are not dropped at the top of the document.
+     * A no-op until the trigger has registered.
+     */
     focusTrigger(): void {
         this.triggerRef?.focus();
     }
 
+    /**
+     * Whether the menu's root renders right-to-left, read from computed style
+     * so an inherited `dir` counts. Drives the ArrowLeft/ArrowRight swap for
+     * submenus. `false` until {@link registerRoot} has run.
+     */
     isRtl(): boolean {
         if (!this.rootEl) return false;
         return isRtl(this.rootEl);
@@ -118,7 +137,19 @@ export class DropdownMenuComponent implements OnDestroy {
     private readonly document = inject(DOCUMENT);
     private readonly service = inject(DropdownMenuService);
 
+    /**
+     * Data-driven menu body. A non-empty array renders a whole
+     * `<ui-dropdown-menu-content>` from the descriptors — including nested
+     * `type: 'sub'` children — *in addition to* any projected content, so
+     * supply one or the other, not both. Still needs a projected
+     * `<ui-dropdown-menu-trigger>`.
+     */
     items = input<DropdownItem[]>([]);
+    /**
+     * Open state, two-way bindable as `[(open)]`. Also written by the
+     * document-level outside-click listener and by Escape in the content, so a
+     * consumer binding sees closes it did not request.
+     */
     open = model(false);
 
     constructor() {
@@ -136,14 +167,24 @@ export class DropdownMenuComponent implements OnDestroy {
         this.document.removeEventListener('click', this.clickListener);
     }
 
+    /** Flips {@link open}. Ignores any disabled state — the trigger guards that. */
     toggle(): void {
         this.open.update(v => !v);
     }
 
+    /**
+     * Opens the menu; the content then moves focus to its first enabled item on
+     * the next tick.
+     */
     show(): void {
         this.open.set(true);
     }
 
+    /**
+     * Closes the menu without restoring focus — call
+     * {@link DropdownMenuService.focusTrigger} too when closing in response to a
+     * keyboard action.
+     */
     hide(): void {
         this.open.set(false);
     }

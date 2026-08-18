@@ -31,11 +31,35 @@ export interface FileUploadItem {
   host: { class: 'block' },
 })
 export class FileUploadComponent {
+  /**
+   * Comma-separated filter in native `accept` syntax — extensions (`.pdf`), wildcard
+   * MIME (`image/*`) and exact MIME (`application/pdf`) are all honoured, and it is
+   * re-checked in JS on drop (where the browser cannot enforce it). Empty (default)
+   * accepts everything. A rejected file is dropped silently from the list and reported
+   * on {@link fileError} only.
+   */
   readonly accept = input('');
+  /**
+   * Sets the native input's `multiple` flag — it only limits what one picker
+   * *selection* can contain. Drag-and-drop is not gated by it, and repeated picks
+   * append, so use {@link maxFiles} to actually cap the list at one.
+   */
   readonly multiple = input(true);
+  /**
+   * Cap on total queued files (`null` = unlimited). Extra files in a batch are
+   * discarded once the cap is reached, each reported on {@link fileError}, and the
+   * dropzone disables itself while the list is full.
+   */
   readonly maxFiles = input<number | null>(null);
-  readonly maxSize = input<number | null>(null); // bytes
+  /**
+   * Per-file size ceiling **in bytes** (`null` = unlimited). Oversized files are
+   * rejected with a localised message on {@link fileError}; the limit is also
+   * surfaced in the dropzone caption.
+   */
+  readonly maxSize = input<number | null>(null);
+  /** Blocks picking, dropping and the dimmed dropzone. Already-queued files stay listed and removable. */
   readonly disabled = input(false);
+  /** Extra classes merged onto the `w-full` wrapper (not the dropzone itself). */
   readonly class = input('');
 
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -44,9 +68,27 @@ export class FileUploadComponent {
   protected readonly t = this.i18n.t;
   protected readonly dir = this.i18n.dir;
 
+  /**
+   * The whole queue after any add, remove or clear — emitted once per batch, not per
+   * file, and also when a batch added nothing. Progress and status changes made via
+   * {@link updateFileProgress} / {@link setFileError} do **not** re-emit it.
+   */
   readonly filesChange = output<FileUploadItem[]>();
+  /**
+   * Emitted per accepted file, carrying the wrapper whose `id` you need to report
+   * progress back. Nothing is transferred anywhere — the component only queues files;
+   * perform the actual upload here and feed results back through
+   * {@link updateFileProgress} / {@link setFileError}.
+   */
   readonly fileAdded = output<FileUploadItem>();
+  /** Emitted with the removed item after its object-URL preview has already been revoked. */
   readonly fileRemoved = output<FileUploadItem>();
+  /**
+   * The only signal that a file was refused — rejected files never enter the queue and
+   * nothing is rendered for them, so surface this yourself. `error` is a localised
+   * message for a MIME/extension mismatch ({@link accept}), an oversized file
+   * ({@link maxSize}) or a file past the {@link maxFiles} cap.
+   */
   readonly fileError = output<{ file: File; error: string }>();
 
   readonly files = signal<FileUploadItem[]>([]);
@@ -78,6 +120,11 @@ export class FileUploadComponent {
     )
   );
 
+  /**
+   * Marks the dropzone as an active drop target and cancels the event so the browser
+   * does not navigate to the dragged file. The highlight is suppressed while disabled,
+   * but the default is still prevented.
+   */
   onDragOver(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
@@ -86,12 +133,21 @@ export class FileUploadComponent {
     }
   }
 
+  /**
+   * Clears the drag highlight. Bound on the dropzone itself, so dragging across a
+   * queued-file row inside it can flicker the highlight off and on.
+   */
   onDragLeave(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
     this.isDragging.set(false);
   }
 
+  /**
+   * Takes the dropped `DataTransfer` files through {@link addFiles}, where
+   * {@link accept} and {@link maxSize} are enforced in JS — the browser applies neither
+   * to a drop. Only `dataTransfer.files` is read, so dropped folders are not walked.
+   */
   onDrop(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
@@ -105,12 +161,22 @@ export class FileUploadComponent {
     }
   }
 
+  /**
+   * Opens the OS file dialog by clicking the hidden `<input type="file">`. Safe to call
+   * from your own trigger, but browsers only honour it inside a user-gesture handler.
+   * No-op while disabled or at the {@link maxFiles} cap.
+   */
   openFilePicker(): void {
     if (!this.isDisabled()) {
       this.fileInput()?.nativeElement.click();
     }
   }
 
+  /**
+   * `(change)` handler for the hidden input. Queues the picked files and then resets
+   * the input's value, so re-picking the exact same file still fires a change and
+   * re-adds it — the component does not de-duplicate by name or content.
+   */
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files) {
@@ -119,6 +185,15 @@ export class FileUploadComponent {
     }
   }
 
+  /**
+   * Validation + queueing entry point, also callable directly to seed files
+   * programmatically. Each file is checked against {@link accept} then {@link maxSize}
+   * (first failure wins, emitting one {@link fileError}); survivors are appended with
+   * `status: 'pending'`, a fresh `crypto.randomUUID()` id and — for `image/*` — an
+   * object-URL `preview` that this component revokes on remove/clear. Once
+   * {@link maxFiles} is reached every remaining file is refused with its own
+   * {@link fileError}, and {@link filesChange} is emitted once at the end.
+   */
   addFiles(newFiles: File[]): void {
     const currentFiles = this.files();
     const maxFiles = this.maxFiles();
@@ -128,7 +203,10 @@ export class FileUploadComponent {
     let available = maxFiles === null ? newFiles.length : maxFiles - currentFiles.length;
 
     for (const file of newFiles) {
-      if (available <= 0) break;
+      if (available <= 0) {
+        this.fileError.emit({ file, error: this.tooManyFilesMessage(maxFiles) });
+        continue;
+      }
 
       if (accept && !this.isAccepted(file, accept)) {
         this.fileError.emit({ file, error: this.t().fileTypeNotAccepted });
@@ -158,6 +236,18 @@ export class FileUploadComponent {
     this.filesChange.emit(this.files());
   }
 
+  private tooManyFilesMessage(maxFiles: number | null): string {
+    const template = this.t().tooManyFiles ?? 'Maximum of {count} files allowed';
+    return interpolate(template, { count: maxFiles ?? 0 });
+  }
+
+  /**
+   * Drops one queued file by `id`, revoking its preview URL and emitting
+   * {@link fileRemoved} then {@link filesChange}. Pass the DOM `event` when calling from
+   * a control inside the dropzone so the click does not bubble up and reopen the file
+   * picker. Unknown ids are ignored. Removal only forgets the file — an upload already
+   * in flight is yours to abort.
+   */
   removeFile(id: string, event?: Event): void {
     event?.stopPropagation();
     const file = this.files().find((f) => f.id === id);
@@ -171,6 +261,12 @@ export class FileUploadComponent {
     }
   }
 
+  /**
+   * Reports upload progress for one queued file from your transfer code: `0…99` shows
+   * the progress bar and sets `status: 'uploading'`, `>= 100` flips it to `'complete'`
+   * and hides the bar. Does not re-emit {@link filesChange}, and will resurrect a file
+   * previously marked via {@link setFileError}.
+   */
   updateFileProgress(id: string, progress: number): void {
     const newStatus: FileUploadItem['status'] = progress >= 100 ? 'complete' : 'uploading';
     this.files.update((files) =>
@@ -180,12 +276,21 @@ export class FileUploadComponent {
     );
   }
 
+  /**
+   * Marks a queued file as failed and renders `error` under its name — for *your*
+   * upload failures. Pass an already-localised string; unlike the validation path it
+   * does not emit {@link fileError}, and the file stays in the queue until removed.
+   */
   setFileError(id: string, error: string): void {
     this.files.update((files) =>
       files.map((f) => (f.id === id ? { ...f, status: 'error', error } : f))
     );
   }
 
+  /**
+   * Empties the queue, revoking every preview URL and emitting a single
+   * {@link filesChange} with `[]`. No per-file {@link fileRemoved} is emitted.
+   */
   clearFiles(): void {
     this.files().forEach((f) => {
       if (f.preview) URL.revokeObjectURL(f.preview);
@@ -207,6 +312,11 @@ export class FileUploadComponent {
     });
   }
 
+  /**
+   * Human-readable byte count using binary (1024) steps up to `GB`, one decimal place
+   * with trailing zeros trimmed (`1.5 MB`, `10 KB`). `null` → `''`, `0` → `'0 B'`.
+   * Units are not localised.
+   */
   formatSize(bytes: number | null): string {
     if (bytes === null) return '';
     if (bytes === 0) return '0 B';

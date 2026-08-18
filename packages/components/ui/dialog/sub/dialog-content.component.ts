@@ -31,8 +31,19 @@ import { DialogDescriptionComponent } from './dialog-description.component';
 export class DialogContentComponent implements AfterViewInit {
     readonly dialog = inject(DIALOG, { optional: true });
     private readonly el = inject(ElementRef);
+    /**
+     * Extra classes merged onto the centred panel (not the backdrop). Overrides
+     * the default `max-w-[calc(100vw-2rem)] sm:max-w-lg` sizing when you pass a
+     * width utility.
+     */
     readonly class = input('');
+    /**
+     * Simple mode: renders a `ui-dialog-header`/`ui-dialog-title` above the
+     * projected content. Leave unset and project your own header for full
+     * control — {@link description} is only rendered when this is set too.
+     */
     readonly title = input<string>();
+    /** Simple-mode sub-heading. Only rendered when {@link title} is also set. */
     readonly description = input<string>();
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -92,14 +103,29 @@ export class DialogContentComponent implements AfterViewInit {
         }
     }
 
+    /**
+     * Backdrop click handler — the dialog is dismissible by clicking outside.
+     * Bound to the overlay button, so it never fires for clicks landing on the
+     * panel itself.
+     */
     onOverlayClick(): void {
         this.dialog?.hide();
     }
 
+    /**
+     * Closes the owning `ui-dialog`. Bound to the built-in corner close button
+     * and reused by the Escape branch of {@link onKeydown}; a no-op when this
+     * content is used outside a `ui-dialog`.
+     */
     close(): void {
         this.dialog?.hide();
     }
 
+    /**
+     * Panel key handler: Escape closes, Tab/Shift+Tab wrap focus so it stays
+     * trapped inside the panel. The panel renders in normal stacking context at
+     * `z-50`, not the native top layer, so it can be covered by higher-z UI.
+     */
     onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
             event.preventDefault();

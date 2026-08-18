@@ -49,6 +49,14 @@ export interface NavigationMenuItem {
   },
 })
 export class NavigationMenuComponent implements AfterContentInit {
+  /**
+   * Extra classes merged onto the `<nav>` element. The base classes already make it a
+   * `relative z-10 flex` row that centers its content and is capped at `max-w-full` below
+   * the `sm` breakpoint / `max-w-max` above it — override those if the menu should stretch
+   * or stack. The `relative` is the positioning context every open
+   * {@link NavigationMenuContentComponent} panel is absolutely placed against, so replacing
+   * it with `static` will make dropdowns escape the menu.
+   */
   class = input('');
   /** Data-driven items for simple mode. When provided (and no content is projected), renders the menu automatically. */
   items = input<NavigationMenuItem[]>([]);
@@ -70,6 +78,15 @@ export class NavigationMenuComponent implements AfterContentInit {
     this.class()
   ));
 
+  /**
+   * Outside-click dismissal, bound to `document:click` on the host. Closes the open item
+   * immediately (via {@link NavigationMenuService.setActive} with `null`, which also cancels
+   * any pending hover close) whenever the click lands outside this menu's DOM subtree; clicks
+   * on a trigger or inside a dropdown panel are ignored so they can do their own thing.
+   * Note this is the only dismissal path besides hover-out and the trigger toggle — there is
+   * no Escape handling, and activating a {@link NavigationMenuLinkComponent} does not close
+   * the panel on its own (an in-page `#` link leaves the menu open).
+   */
   onClick(event: MouseEvent): void {
     if (this.service.activeItem() && !this.el.nativeElement.contains(event.target)) {
       this.service.setActive(null);

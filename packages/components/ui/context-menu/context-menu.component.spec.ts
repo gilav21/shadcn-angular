@@ -514,3 +514,109 @@ describe('ContextMenu close on stopPropagation clicks', () => {
         expect(contextMenuComp.componentInstance.open()).toBe(true);
     });
 });
+
+@Component({
+    template: `
+        <ui-context-menu>
+            <ui-context-menu-trigger>
+                <div>Right-click here</div>
+            </ui-context-menu-trigger>
+            <ui-context-menu-content>
+                <ui-context-menu-item>Custom Item</ui-context-menu-item>
+                <ui-context-menu-sub>
+                    <ui-context-menu-sub-trigger [disabled]="true">More Options</ui-context-menu-sub-trigger>
+                    <ui-context-menu-sub-content>
+                        <ui-context-menu-item>Sub Action 1</ui-context-menu-item>
+                    </ui-context-menu-sub-content>
+                </ui-context-menu-sub>
+            </ui-context-menu-content>
+        </ui-context-menu>
+    `,
+    imports: [ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuSubComponent, ContextMenuSubTriggerComponent, ContextMenuSubContentComponent]
+})
+class DisabledSubTriggerHostComponent { }
+
+describe('ContextMenu disabled sub-trigger', () => {
+    let fixture: ComponentFixture<DisabledSubTriggerHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DisabledSubTriggerHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DisabledSubTriggerHostComponent);
+        fixture.detectChanges();
+        fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        document.querySelectorAll('[data-context-menu-portal]').forEach(el => el.remove());
+    });
+
+    function sub(): ContextMenuSubComponent {
+        return fixture.debugElement.query(By.directive(ContextMenuSubComponent)).componentInstance as ContextMenuSubComponent;
+    }
+
+    function triggerRow(): HTMLElement {
+        return document.querySelector('[data-slot="context-menu-sub-trigger"]') as HTMLElement;
+    }
+
+    it('marks the row with data-disabled and aria-disabled', () => {
+        expect(triggerRow().hasAttribute('data-disabled')).toBe(true);
+        expect(triggerRow().getAttribute('aria-disabled')).toBe('true');
+    });
+
+    it('keeps the row out of the tab order', () => {
+        expect(triggerRow().getAttribute('tabindex')).toBe('-1');
+    });
+
+    it('does not open the flyout on hover', () => {
+        triggerRow().dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+        fixture.detectChanges();
+        expect(sub().isOpen()).toBe(false);
+    });
+
+    it('does not open the flyout from the keyboard', () => {
+        triggerRow().dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        fixture.detectChanges();
+        expect(sub().isOpen()).toBe(false);
+        triggerRow().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        fixture.detectChanges();
+        expect(sub().isOpen()).toBe(false);
+    });
+});
+
+describe('ContextMenu sub timer teardown', () => {
+    let fixture: ComponentFixture<SubMenuTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SubMenuTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SubMenuTestHostComponent);
+        fixture.detectChanges();
+        fixture.debugElement.query(By.directive(ContextMenuComponent)).componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+    });
+
+    afterEach(() => {
+        document.querySelectorAll('[data-context-menu-portal]').forEach(el => el.remove());
+    });
+
+    it('cancels a pending close when the sub is destroyed inside the grace period', async () => {
+        const sub = fixture.debugElement.query(By.directive(ContextMenuSubComponent)).componentInstance as ContextMenuSubComponent;
+        sub.enter();
+        fixture.detectChanges();
+        sub.leave();
+        fixture.destroy();
+        await new Promise(resolve => setTimeout(resolve, 150));
+        expect(sub.isOpen()).toBe(true);
+    });
+});

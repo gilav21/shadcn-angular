@@ -214,6 +214,41 @@ describe('CalendarComponent', () => {
         });
     });
 
+    describe('selectDay argument immutability', () => {
+        it('does not mutate the Date it is given when carrying a time over', () => {
+            fixture.componentRef.setInput('mode', 'single');
+            fixture.componentRef.setInput('selected', new Date(2023, 0, 5, 14, 30));
+            fixture.detectChanges();
+
+            const gridDay = new Date(2023, 0, 20);
+            component.selectDay(gridDay);
+            fixture.detectChanges();
+
+            expect(gridDay.getHours()).toBe(0);
+            expect(gridDay.getMinutes()).toBe(0);
+            expect(component.selected()).not.toBe(gridDay);
+            expect((component.selected() as Date).getHours()).toBe(14);
+        });
+
+        it('does not mutate a calendarDays() cell picked from the grid', () => {
+            fixture.componentRef.setInput('mode', 'single');
+            fixture.componentRef.setInput('showTimeSelect', true);
+            fixture.componentRef.setInput('timeMode', 'range');
+            fixture.componentRef.setInput('selectedTimeRange', { start: '08:00', end: '16:00' });
+            fixture.detectChanges();
+
+            const cell = component.calendarDays().find(d => d !== null) as Date;
+            const cellTime = cell.getTime();
+
+            component.selectDay(cell);
+            fixture.detectChanges();
+
+            expect(cell.getTime()).toBe(cellTime);
+            expect(component.calendarDays().find(d => d !== null)?.getTime()).toBe(cellTime);
+            expect((component.selected() as Date).getHours()).toBe(8);
+        });
+    });
+
     describe('updateTime without prior selection', () => {
         it('applies time onto the viewed date when nothing is selected', () => {
             fixture.componentRef.setInput('showTimeSelect', true);
@@ -297,6 +332,25 @@ describe('CalendarComponent', () => {
             const range = component.selected() as DateRange;
             expect(range.end?.getHours()).toBe(18);
             expect(range.end?.getMinutes()).toBe(45);
+        });
+
+        it('records the end time without touching the single-mode date, which carries the start time', () => {
+            fixture.componentRef.setInput('mode', 'single');
+            fixture.componentRef.setInput('showTimeSelect', true);
+            fixture.componentRef.setInput('timeMode', 'range');
+            fixture.componentRef.setInput('selected', new Date(2023, 0, 10, 9, 0));
+            fixture.detectChanges();
+
+            const endInput = fixture.debugElement.query(By.css('input#end-time')).nativeElement as HTMLInputElement;
+            endInput.value = '18:45';
+            endInput.dispatchEvent(new Event('change'));
+            fixture.detectChanges();
+
+            expect(component.selectedTimeRange().end).toBe('18:45');
+            expect(component.endTimeString()).toBe('18:45');
+            const selected = component.selected() as Date;
+            expect(selected.getHours()).toBe(9);
+            expect(selected.getMinutes()).toBe(0);
         });
     });
 

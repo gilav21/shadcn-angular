@@ -31,7 +31,14 @@ import { TABS } from '../tabs.component';
   host: { '[class]': '"contents"' },
 })
 export class TabsTriggerComponent {
+  /** Value activated when this trigger is clicked, and the key linking it to the `<ui-tabs-content>` with the same value. Required and must be unique within the `<ui-tabs>`. */
   value = input.required<string>();
+  /**
+   * Extra classes merged onto the trigger button, after the base styling and the
+   * active/inactive pair (`bg-background text-foreground shadow` vs `hover:bg-background/50`).
+   * The base set has no padding — add your own (e.g. `px-3 py-1`) to match the simple-mode
+   * `[tabs]` buttons.
+   */
   class = input('');
 
   private readonly tabs = inject(TABS, { optional: true });
@@ -50,6 +57,10 @@ export class TabsTriggerComponent {
     )
   );
 
+  /**
+   * Activates this trigger's tab through the parent `<ui-tabs>`, which emits `tabChange`.
+   * Already bound to the button's click; no-op when the trigger is used outside a `<ui-tabs>`.
+   */
   select(): void {
     if (this.tabs) {
       this.tabs.selectTab(this.value());

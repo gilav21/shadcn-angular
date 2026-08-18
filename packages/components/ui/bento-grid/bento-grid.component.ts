@@ -10,6 +10,9 @@ import {
     ElementRef,
     effect,
     ComponentRef,
+    viewChild,
+    AfterViewInit,
+    OnDestroy,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { cn, isRtl } from '../../lib/utils';
@@ -19,7 +22,7 @@ import {
     ContextMenuItemComponent,
 } from '../context-menu';
 import { UiComponentOutletDirective } from '../component-outlet.directive';
-import { onPointerDrag } from '../../lib/touch';
+import { onLongPress, onPointerDrag } from '../../lib/touch';
 
 
 
@@ -56,11 +59,25 @@ export type BentoContextMenuData =
     templateUrl: './bento-grid.component.html',
     styleUrl: './bento-grid.component.css',
 })
-export class BentoGridComponent {
+export class BentoGridComponent implements AfterViewInit, OnDestroy {
+    /** Extra classes merged onto the grid container, after the built-in `grid w-full relative` utilities. */
     readonly class = input<string>('');
     // Inputs
+    /**
+     * The widgets to lay out. **The grid never mutates this array** — every drag,
+     * resize, merge, split, add and delete emits the next array through
+     * {@link itemsChange} and the consumer must store it and feed it back here.
+     * Coordinates are 1-based CSS-grid line numbers, not zero-based indices.
+     */
     readonly items = input<DashboardItem[]>([]);
+    /**
+     * Number of columns in the track. Also the divisor used to convert pointer
+     * coordinates into grid cells, so changing it re-interprets existing
+     * {@link DashboardItem.x} values rather than rescaling them. Fixed at all
+     * viewport widths — the grid does not collapse to fewer columns on mobile.
+     */
     readonly cols = input<number>(12);
+    /** Height of one row, as `grid-auto-rows`. A bare number or numeric string is taken as px. Feeds the drag/resize snap step together with {@link gap}. */
     readonly rowHeight = input<string, string | number>('120px', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
@@ -68,6 +85,12 @@ export class BentoGridComponent {
             return v;
         }
     });
+    /**
+     * Width of one column. Keep the default `'1fr'` for a fluid grid, which
+     * renders as `minmax(0, 1fr)` tracks; any other value (px/rem/%) is used
+     * verbatim as the track size. The same value drives the pointer-to-cell
+     * maths, so the rendered grid and drop targeting always agree.
+     */
     readonly columnWidth = input<string, string | number>('1fr', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
@@ -75,6 +98,7 @@ export class BentoGridComponent {
             return v;
         }
     });
+    /** Gutter between cells. Counted into the drag/resize snap step, so a wrong value here makes items land one cell off. Bare numbers are taken as px. */
     readonly gap = input<string, string | number>('1.5rem', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
@@ -82,7 +106,9 @@ export class BentoGridComponent {
             return v;
         }
     });
+    /** Draws the outline around each widget. Purely cosmetic — hit-testing and the drop preview are unaffected. */
     readonly showBorders = input<boolean>(true);
+    /** Corner radius applied to every widget. Bare numbers are taken as px. */
     readonly borderRadius = input<string, string | number>('0.75rem', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
@@ -90,6 +116,7 @@ export class BentoGridComponent {
             return v;
         }
     });
+    /** Inner padding of each widget. It eats into the cell, it does not grow it — set `0` when a projected component paints edge to edge. */
     readonly itemPadding = input<string, string | number>('1rem', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
@@ -97,15 +124,74 @@ export class BentoGridComponent {
             return v;
         }
     });
+    /**
+     * Master switch for every edit affordance: drag, resize handles, selection,
+     * context menus and drops. Turning it off also clears the current selection
+     * (and emits an empty {@link selectionChange}) and hides the cell grid overlay.
+     */
     readonly editable = input<boolean>(true);
 
     // Outputs
+    /**
+     * The complete next layout after a drag, resize, merge, split, delete or add.
+     * The grid does **not** persist it — store it and feed it back through
+     * {@link items}, or the widget snaps back on the next change detection.
+     * Neighbours overlapped by the moved item are shrunk (or dropped entirely when
+     * they cannot shrink), so the array may be shorter than the one you passed in.
+     */
     readonly itemsChange = output<DashboardItem[]>();
+    /** The ids currently selected, after every {@link toggleSelection} / {@link clearSelection} and whenever {@link editable} goes false. */
     readonly selectionChange = output<string[]>();
+    /**
+     * A widget dragged in from outside was dropped. `x`/`y` carry the target cell
+     * only when the drop landed on empty canvas; when it landed on an existing
+     * widget you get `targetId` and no coordinates. The payload comes from the
+     * drag source's `application/json` data (`{ type: 'widget', id }`) — the grid
+     * adds nothing to {@link items} itself, the consumer must.
+     */
     readonly externalDrop = output<{ widgetId: string, targetId: string | null, x?: number, y?: number }>();
+    /** Fires once per dynamically rendered widget whose `content` is a component type, handing over its `ComponentRef` for imperative wiring the `inputs`/`outputs` maps cannot express. */
     readonly componentInit = output<{ id: string, ref: ComponentRef<unknown> }>();
 
     private readonly el = inject(ElementRef);
+    private readonly menu = viewChild(ContextMenuComponent);
+    private longPressCleanup: (() => void) | null = null;
+
+    ngAfterViewInit(): void {
+        const container = this.el.nativeElement.querySelector('.grid') as HTMLElement | null;
+        if (!container) return;
+        this.longPressCleanup = onLongPress(container, event => this.onLongPress(event));
+    }
+
+    ngOnDestroy(): void {
+        this.longPressCleanup?.();
+        this.longPressCleanup = null;
+    }
+
+    /**
+     * Touch equivalent of the two `contextmenu` handlers: a 500 ms hold opens the
+     * widget menu when the finger is on a widget, and the "add here" menu when it
+     * is on a free cell — the same menus, at the finger, with the same
+     * {@link editable} and occupied-cell rules. Moving more than 10px cancels the
+     * hold, so it never fires in the middle of a drag.
+     */
+    onLongPress(event: TouchEvent): void {
+        const menu = this.menu();
+        const touch = event.touches[0];
+        if (!this.editable() || !menu || !touch) return;
+
+        const itemEl = (event.target as HTMLElement | null)?.closest<HTMLElement>('.bento-item');
+        const item = itemEl ? this.items().find(i => i.id === itemEl.dataset['itemId']) : undefined;
+        if (item) {
+            menu.show(touch.clientX, touch.clientY, item);
+            return;
+        }
+
+        const container = this.el.nativeElement.querySelector('.grid') as HTMLElement | null;
+        if (container) {
+            this.showEmptyCellMenu(touch.clientX, touch.clientY, container, menu);
+        }
+    }
 
     readonly gridPattern = computed(() => {
         const color = 'currentColor';
@@ -171,6 +257,12 @@ export class BentoGridComponent {
 
     readonly selectedIds = computed(() => new Set(this.selectedItemIds()));
 
+    /**
+     * Adds or removes a widget from the selection and emits {@link selectionChange}.
+     * No-op while {@link editable} is false.
+     * @param multi When true (default) the id is appended to the existing selection;
+     * when false it replaces it. Either way, clicking an already-selected id deselects it.
+     */
     toggleSelection(id: string, multi: boolean = true): void {
         if (!this.editable()) return;
 
@@ -188,11 +280,13 @@ export class BentoGridComponent {
         this.selectionChange.emit(this.selectedItemIds());
     }
 
+    /** Drops the whole selection and emits an empty {@link selectionChange}. Unlike {@link toggleSelection} this runs even when {@link editable} is false. */
     clearSelection(): void {
         this.selectedItemIds.set([]);
         this.selectionChange.emit([]);
     }
 
+    /** Whether the widget is in the current selection. Template helper — O(1), backed by a `Set`. */
     isSelected(id: string): boolean {
         return this.selectedIds().has(id);
     }
@@ -227,6 +321,11 @@ export class BentoGridComponent {
         return visited.size === items.length;
     });
 
+    /**
+     * Whether two widgets share an edge — they must touch along a side *and*
+     * overlap on the perpendicular axis. Corner-to-corner contact is not
+     * adjacency. Used to decide whether a selection can be merged.
+     */
     areAdjacent(a: DashboardItem, b: DashboardItem): boolean {
         const aX1 = a.x, aX2 = a.x + a.cols;
         const aY1 = a.y, aY2 = a.y + a.rows;
@@ -239,6 +338,13 @@ export class BentoGridComponent {
         return horizontalTouch || verticalTouch;
     }
 
+    /**
+     * Replaces the selected widgets with a single one covering their bounding box,
+     * then clears the selection. Requires the selection to be edge-connected
+     * (see {@link areAdjacent}) — otherwise it is a no-op. The survivor keeps the
+     * id and content of the top-left member; the other widgets' content is lost.
+     * Emits {@link itemsChange}; nothing is persisted.
+     */
     mergeSelected(): void {
         if (!this.canMerge()) return;
 
@@ -280,6 +386,12 @@ export class BentoGridComponent {
         this.selectionChange.emit([]);
     }
 
+    /**
+     * Template handler for right-click on a widget: suppresses the browser menu
+     * and opens `menu` at the pointer with the item as its data. Touch users get
+     * the same menu by holding the widget — see {@link onLongPress}.
+     * No-op while {@link editable} is false.
+     */
     onContextMenu(event: MouseEvent, item: DashboardItem, menu: ContextMenuComponent): void {
         if (!this.editable()) return;
         event.preventDefault();
@@ -287,11 +399,20 @@ export class BentoGridComponent {
         menu.show(event.clientX, event.clientY, item);
     }
 
+    /** Emits {@link itemsChange} without the given widget, leaving a hole — surviving widgets are not reflowed. Ignores an undefined id so it can be bound straight to context-menu data. */
     deleteItem(id: string | undefined): void {
         if (!id) return;
         this.itemsChange.emit(this.items().filter(i => i.id !== id));
     }
 
+    /**
+     * Halves a widget along `direction` and emits {@link itemsChange} with both
+     * pieces. The first half keeps the original id and content; the second gets a
+     * fresh `crypto.randomUUID()` and the placeholder content `'New Item'`, so a
+     * component-backed widget is *not* duplicated. No-op when the widget is only
+     * one cell across the axis being split (`cols`/`rows` < 2).
+     * @param direction `'vertical'` splits the columns (side by side), `'horizontal'` the rows (stacked).
+     */
     splitItem(id: string | undefined, direction: 'vertical' | 'horizontal'): void {
         const item = id ? this.items().find(i => i.id === id) : undefined;
         if (!item) return;
@@ -355,7 +476,12 @@ export class BentoGridComponent {
         'gap': this.gap()
     }));
 
-    readonly gridTemplateColumns = computed(() => `repeat(${this.cols()}, minmax(0, 1fr))`);
+    /** The rendered `grid-template-columns`: {@link cols} tracks of {@link columnWidth}, with the fluid default expanded to `minmax(0, 1fr)` so tracks may shrink below their content. */
+    readonly gridTemplateColumns = computed(() => {
+        const width = this.columnWidth();
+        const track = width === '1fr' ? 'minmax(0, 1fr)' : width;
+        return `repeat(${this.cols()}, ${track})`;
+    });
 
     readonly gridGradient = computed(() => 'none');
 
@@ -374,24 +500,29 @@ export class BentoGridComponent {
         }));
     });
 
+    /** Whether this widget is the one currently being dragged, for the drag-ghost styling in the template. */
     isDragging(id: string): boolean {
         return this.draggedItemId() === id;
     }
 
+    /** Whether a widget's `content` should be rendered through the component outlet rather than as text. */
     isComponent(content: string | Type<unknown>): boolean {
         return typeof content !== 'string';
     }
 
+    /** Narrows `content` to a component type for the outlet binding. Only call after {@link isComponent} — it asserts, it does not check. */
     asComponent(content: string | Type<unknown>): Type<unknown> {
         return content as Type<unknown>;
     }
 
+    /** Narrows the context menu's untyped payload to {@link BentoContextMenuData} so the template can branch on `type === 'empty'`. Returns null before the menu has ever been opened. */
     castMenuData(data: unknown): BentoContextMenuData | null {
         return (data as BentoContextMenuData) ?? null;
     }
 
 
 
+    /** Template handler that marks a widget as a valid HTML5 drop target (`dropEffect = 'move'`). The drop preview itself is computed by {@link onContainerDragOver}. */
     onDragOver(event: DragEvent, _targetItem: DashboardItem): void {
         if (!this.editable()) return;
         event.preventDefault();
@@ -403,6 +534,12 @@ export class BentoGridComponent {
         }
     }
 
+    /**
+     * Template handler that accepts the drag over the canvas and, for an internal
+     * drag, moves the drop-preview ghost to the cell under the pointer (RTL aware,
+     * corrected by the grab offset). External drags — recognised by an
+     * `application/json` payload — get `dropEffect = 'copy'` and no preview.
+     */
     onContainerDragOver(event: DragEvent): void {
         if (!this.editable()) return;
         event.preventDefault();
@@ -421,9 +558,17 @@ export class BentoGridComponent {
         }
     }
 
+    /** Template hook for the canvas `dragleave`. Deliberately empty: the preview is kept while the pointer crosses child elements, and is cleared on drop or drag-end instead. */
     onContainerDragLeave(_event: DragEvent): void {
     }
 
+    /**
+     * Template handler for a drop **onto an existing widget**. An internal drag
+     * commits the previewed position and emits {@link itemsChange} (overlapped
+     * neighbours are shrunk); an external drag instead emits {@link externalDrop}
+     * with `targetId` set to the widget under the pointer and no coordinates.
+     * Widgets are never swapped — the drag always wins the cells.
+     */
     onDrop(event: DragEvent, targetItem: DashboardItem): void {
         if (!this.editable()) return;
         event.preventDefault();
@@ -481,6 +626,14 @@ export class BentoGridComponent {
         }
     }
 
+    /**
+     * Template handler for a drop on empty canvas. An internal drag moves the
+     * widget to that cell and emits {@link itemsChange}; neighbours the new
+     * rectangle lands on are shrunk (or dropped when they cannot shrink), exactly
+     * as {@link onDrop} does for a drop onto a widget. An external drag emits
+     * {@link externalDrop} with `targetId: null` plus the target `x`/`y`;
+     * malformed JSON is ignored.
+     */
     onContainerDrop(event: DragEvent): void {
         if (!this.editable()) return;
         event.preventDefault();
@@ -489,17 +642,12 @@ export class BentoGridComponent {
         const draggedId = this.draggedItemId();
         if (draggedId) {
             const { x, y } = this.getGridCoordinates(event);
+            const item = this.items().find(i => i.id === draggedId);
 
-            const currentItems = [...this.items()];
-            const itemIndex = currentItems.findIndex(i => i.id === draggedId);
-            if (itemIndex > -1) {
-                const item = currentItems[itemIndex];
-                const newRect = { ...item, x, y };
-                const overlapping = currentItems.some(i => i.id !== draggedId && this.isOverlapping(newRect, i));
-
-                if (!overlapping) {
-                    currentItems[itemIndex] = { ...item, x, y };
-                    this.itemsChange.emit(currentItems);
+            if (item) {
+                const nextItems = this.applyDropPreview(draggedId, { x, y, cols: item.cols, rows: item.rows });
+                if (nextItems) {
+                    this.itemsChange.emit(nextItems);
                 }
             }
 
@@ -620,6 +768,7 @@ export class BentoGridComponent {
 
 
     readonly resizingItemId = signal<string | null>(null);
+    /** Which resize grips a selected widget shows: the four corners, the four edges, or (default) both. Only affects the handles rendered — {@link onResizeStart} still supports all eight directions. */
     readonly resizeHandleType = input<'corners' | 'edges' | 'both'>('both');
     readonly resizeDirection = signal<ResizeDirection | null>(null);
     private initialResizeState: {
@@ -767,6 +916,15 @@ export class BentoGridComponent {
         return this.parseCssDimension(this.columnWidth(), containerWidth);
     }
 
+    /**
+     * Begins a resize from a grip. Works with both mouse and touch — it reads the
+     * first touch point and then tracks the pointer through the shared
+     * `onPointerDrag` helper, so no separate touch handler is needed. Directions
+     * are mirrored automatically in RTL. While dragging only a preview moves;
+     * {@link itemsChange} is emitted once on release, after shrinking any
+     * neighbours the new rectangle swallowed. Widgets cannot go below 1×1.
+     * No-op while {@link editable} is false.
+     */
     onResizeStart(event: MouseEvent | TouchEvent, item: DashboardItem, direction: ResizeDirection): void {
         if (!this.editable()) return;
         event.preventDefault();
@@ -814,6 +972,12 @@ export class BentoGridComponent {
 
     private resizeDragCleanup: (() => void) | null = null;
 
+    /**
+     * Starts an HTML5 drag of a widget, recording where inside the card it was
+     * grabbed so the drop lands under the card's top-left corner rather than the
+     * cursor. HTML5 drag events do not fire on touch — {@link onTouchDragStart}
+     * covers that. No-op while {@link editable} is false.
+     */
     onDragStart(event: DragEvent, item: DashboardItem): void {
         if (!this.editable()) return;
 
@@ -833,6 +997,7 @@ export class BentoGridComponent {
         }
     }
 
+    /** Clears the drag state and preview when a mouse drag ends, including a drag cancelled outside the grid — no {@link itemsChange} is emitted in that case. */
     onDragEnd(_event: DragEvent): void {
         this.draggedItemId.set(null);
         this.dropPreview.set(null);
@@ -841,6 +1006,14 @@ export class BentoGridComponent {
 
     private touchDragCleanup: (() => void) | null = null;
 
+    /**
+     * Touch equivalent of {@link onDragStart}: tracks the finger, moves the drop
+     * preview and, on release, commits the move via {@link itemsChange} — the
+     * HTML5 `drop` handlers never run on touch. Yields to an in-progress resize
+     * ({@link onResizeStart}) and is a no-op while {@link editable} is false.
+     * Only internal moves are supported this way; dragging a widget in from
+     * outside remains mouse-only.
+     */
     onTouchDragStart(event: TouchEvent, item: DashboardItem): void {
         if (!this.editable()) return;
         if (this.resizingItemId()) return;
@@ -945,6 +1118,14 @@ export class BentoGridComponent {
         this.resizeDirection.set(null);
     }
 
+    /**
+     * Template handler for right-click on empty canvas: opens `menu` with
+     * `{ type: 'empty', x, y }` so an "add here" action can call
+     * {@link addItemAt}. Bails out when the click landed on a widget (that is
+     * {@link onContextMenu}'s job) or on an occupied cell, in which case the
+     * native browser menu is left to appear. Touch users reach the same menu by
+     * holding the cell — see {@link onLongPress}.
+     */
     onContainerContextMenu(event: MouseEvent, menu: ContextMenuComponent): void {
         if (!this.editable()) return;
 
@@ -952,27 +1133,32 @@ export class BentoGridComponent {
 
         event.preventDefault();
 
-        const container = (event.currentTarget as HTMLElement);
-        const rect = container.getBoundingClientRect();
+        this.showEmptyCellMenu(event.clientX, event.clientY, event.currentTarget as HTMLElement, menu);
+    }
 
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+    private showEmptyCellMenu(clientX: number, clientY: number, container: HTMLElement, menu: ContextMenuComponent): void {
+        const rect = container.getBoundingClientRect();
 
         const gapNum = this.parseCssDimension(this.gap(), rect.width);
         const rowHeightNum = this.parseCssDimension(this.rowHeight(), rect.height);
         const colWidth = this.getColWidth(rect.width);
 
-        const gridX = Math.floor(x / (colWidth + gapNum)) + 1;
-        const gridY = Math.floor(y / (rowHeightNum + gapNum)) + 1;
+        const gridX = Math.floor((clientX - rect.left) / (colWidth + gapNum)) + 1;
+        const gridY = Math.floor((clientY - rect.top) / (rowHeightNum + gapNum)) + 1;
 
         const tempItem: DashboardItem = { x: gridX, y: gridY, cols: 1, rows: 1, id: 'temp', content: '' };
-        const isOccupied = this.items().some(i => this.isOverlapping(tempItem, i));
+        if (this.items().some(i => this.isOverlapping(tempItem, i))) return;
 
-        if (!isOccupied) {
-            menu.show(event.clientX, event.clientY, { type: 'empty', x: gridX, y: gridY });
-        }
+        menu.show(clientX, clientY, { type: 'empty', x: gridX, y: gridY });
     }
 
+    /**
+     * Appends a placeholder widget (`content: 'New Item'`, `crypto.randomUUID()` id)
+     * at the given 1-based cell and emits {@link itemsChange}. Silently does
+     * nothing if the rectangle would overlap an existing widget — it never pushes
+     * anything aside. Replace the emitted item's `content` yourself to render a
+     * real component.
+     */
     addItemAt(x: number, y: number, cols: number = 1, rows: number = 1): void {
         const newItem: DashboardItem = {
             id: crypto.randomUUID(),

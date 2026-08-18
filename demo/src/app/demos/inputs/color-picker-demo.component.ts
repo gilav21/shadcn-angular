@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
-import { ColorPickerComponent } from '../../../../../packages/components/ui';
+import { ButtonComponent, ColorPickerComponent } from '../../../../../packages/components/ui';
 import { COLOR_PICKER_DEMO_LOCALES } from './color-picker-demo.locales';
 
 @Component({
   selector: 'app-color-picker-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, ColorPickerComponent],
+  imports: [FormsModule, ReactiveFormsModule, ButtonComponent, ColorPickerComponent],
   template: `
     <section class="space-y-6">
       <h2 id="color-picker" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
@@ -104,6 +104,27 @@ import { COLOR_PICKER_DEMO_LOCALES } from './color-picker-demo.locales';
           </div>
         </div>
       </article>
+
+      <article class="space-y-2">
+        <h3 class="text-lg font-semibold">{{ t().sections.programmaticWrite }}</h3>
+        <p class="text-sm text-muted-foreground">{{ t().sections.programmaticWriteDesc }}</p>
+        <div class="flex flex-wrap items-center gap-4">
+          <ui-color-picker
+            [formControl]="programmaticColor"
+            (colorChange)="syncProgrammaticDirty()"
+            class="w-48"
+          />
+          <ui-button variant="outline" size="sm" (clicked)="setColorProgrammatically()">
+            {{ t().actions.setProgrammatically }}
+          </ui-button>
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-muted-foreground">{{ t().selected }}</span>
+            <span class="h-8 w-8 rounded border" [style.backgroundColor]="programmaticValue()"></span>
+            <code class="text-sm font-mono">{{ programmaticValue() }}</code>
+          </div>
+          <code class="text-sm font-mono">{{ t().dirtyLabel }} {{ programmaticDirty() ? t().yes : t().no }}</code>
+        </div>
+      </article>
     </section>
   `,
 })
@@ -117,4 +138,27 @@ export class ColorPickerDemoComponent {
   readonly harmonyColor = signal('#fbbf24');
   readonly oklchColor = signal('#ec4899');
   readonly presets = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+  /** Control written to from code, to show that the write neither dirties the form nor echoes back. */
+  readonly programmaticColor = new FormControl<string>('#0ea5e9', { nonNullable: true });
+  /** Mirrors `programmaticColor.dirty` into a signal so the template reflects it. */
+  readonly programmaticDirty = signal(false);
+  /** Mirrors `programmaticColor.value` into a signal so the swatch reflects it. */
+  readonly programmaticValue = signal('#0ea5e9');
+
+  /** Writes a value through the control — no `colorChange`, and the control stays pristine. */
+  protected setColorProgrammatically(): void {
+    this.programmaticColor.setValue('#8b5cf6');
+    this.readProgrammaticState();
+  }
+
+  /** Re-reads the control after a user pick, which does mark it dirty. */
+  protected syncProgrammaticDirty(): void {
+    this.readProgrammaticState();
+  }
+
+  private readProgrammaticState(): void {
+    this.programmaticDirty.set(this.programmaticColor.dirty);
+    this.programmaticValue.set(this.programmaticColor.value);
+  }
 }

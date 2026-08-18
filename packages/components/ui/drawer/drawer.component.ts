@@ -46,7 +46,18 @@ export const DRAWER = new InjectionToken<DrawerComponent>('DRAWER');
 export class DrawerComponent implements OnDestroy {
     private readonly document = inject(DOCUMENT);
 
+    /**
+     * Two-way bound visibility. While `true` the body is scroll-locked (with
+     * padding compensating for the hidden scrollbar) and `ui-drawer-content`
+     * renders; nothing inside the drawer exists in the DOM when closed.
+     */
     open = model(false);
+    /**
+     * Edge the drawer slides in from, read by `ui-drawer-content` (set it here,
+     * not on the content). `bottom`/`top` cap at `max-h-[80vh]` and get the
+     * drag-handle bar; `left`/`right` are full-height, 75% wide capped at
+     * `sm:max-w-sm`, and mirror automatically in RTL.
+     */
     direction = input<DrawerDirection>('bottom');
 
     private readonly scrollbarWidth: number = 0;
@@ -79,14 +90,21 @@ export class DrawerComponent implements OnDestroy {
         body.style.paddingRight = '';
     }
 
+    /** Opens the drawer and locks body scroll. Equivalent to setting {@link open} to `true`. */
     show(): void {
         this.open.set(true);
     }
 
+    /**
+     * Closes the drawer and releases the body scroll lock. Same path taken by
+     * Escape, a backdrop click and `ui-drawer-close`; focus returns to whatever
+     * was focused before opening.
+     */
     hide(): void {
         this.open.set(false);
     }
 
+    /** Flips {@link open}. This is what `ui-drawer-trigger` calls on activation. */
     toggle(): void {
         const newState = !this.open();
         this.open.set(newState);

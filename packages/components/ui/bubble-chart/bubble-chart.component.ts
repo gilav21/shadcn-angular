@@ -60,18 +60,66 @@ export class BubbleChartComponent implements AfterViewInit {
     private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
     private readonly _svg = viewChild<ElementRef<SVGSVGElement>>('chartSvg');
 
+    /**
+     * One cloud of bubbles per series. Every `points` entry needs numeric `x`
+     * and `y` (continuous position) plus `z`, the magnitude mapped to the
+     * bubble radius between {@link minRadius} and {@link maxRadius}. All three
+     * domains are derived from the *visible* points, so hiding a series through
+     * the legend rescales the axes **and** re-sizes every remaining bubble.
+     * `color` overrides the palette colour otherwise derived from the series
+     * index, and `id` (falling back to `name`) is the legend toggle key.
+     */
     readonly series = input.required<XYZSeries[]>();
+    /**
+     * Design width of the SVG user-space coordinate system, in px, used as the
+     * `viewBox` width until the host has been measured. The rendered `<svg>` is
+     * `width="100%"`, so the chart tracks its container and this value only
+     * fixes the initial/fallback coordinate space. The container must be a
+     * block-level box — an inline-block parent collapses a `width:100%` SVG,
+     * which is why the host is `block` and the container carries `w-full`.
+     */
     readonly width = input(540);
+    /**
+     * Height in px, applied verbatim to the SVG's `height` attribute and its
+     * `viewBox`, so — unlike {@link width} — it is never measured or scaled.
+     * The plot area is this minus 16px of top and 28px of bottom padding.
+     */
     readonly height = input(340);
+    /** Radius in px given to the smallest `z` in the data. Raise it so low-magnitude bubbles stay clickable. */
     readonly minRadius = input(6);
+    /**
+     * Radius in px given to the largest `z`. Radii interpolate by the square
+     * root of the normalized `z`, so bubble *area* — not diameter — is
+     * proportional to magnitude, which is what readers judge. Bubbles are not
+     * de-overlapped, so a wide {@link minRadius}–`maxRadius` span on clustered
+     * points will occlude; the plot area does not grow to accommodate it.
+     */
     readonly maxRadius = input(28);
+    /** Draw the dashed horizontal gridlines behind the bubbles, one per y tick. There are no vertical gridlines. */
     readonly showGrid = input(true);
+    /** Show the floating tooltip (series name plus the point's x, y and z) for the bubble nearest the pointer. */
     readonly showTooltip = input(true);
+    /** Render the legend under the chart. It is interactive: clicking an entry calls {@link toggleSeries}, which rescales the axes and the radius scale. */
     readonly showLegend = input(true);
+    /** Extra classes merged onto the chart container, which already carries `relative w-full`. */
     readonly class = input('');
+    /** Human-readable chart name, used only to prefix the container's accessible summary. */
     readonly title = input<string | undefined>(undefined);
+    /**
+     * Layout direction. `'auto'` (default) resolves from the host element's
+     * inherited DOM direction once, after view init; `'ltr'`/`'rtl'` force it.
+     * RTL reverses the x scale's pixel range and moves the y tick labels to the
+     * right-hand edge. See {@link isRtl}.
+     */
     readonly dir = input<ChartDirection>('auto');
 
+    /**
+     * Emitted when a bubble is clicked or activated with Enter while focused.
+     * `index` is the point's position **within its own series**, not a flat
+     * index across the chart, and the payload carries no series identifier —
+     * track the series yourself if you need it. The originating event is not
+     * forwarded.
+     */
     readonly pointClick = output<ChartClickEvent<XYZDataPoint>>();
 
     protected readonly hovered = signal<{ s: number; p: number } | null>(null);
@@ -205,6 +253,12 @@ export class BubbleChartComponent implements AfterViewInit {
         this._domRtl.set(isRtl(this.el.nativeElement));
     }
 
+    /**
+     * Shows or hides one series, keyed by its `id` (or `name` when no `id` is
+     * set). Hidden series drop out of the x, y **and** `z` domains, so the
+     * remaining bubbles both re-spread and re-size. Bound to the legend's
+     * toggle output.
+     */
     toggleSeries(key: string): void {
         const hidden = this._hidden();
         this._hidden.set(
@@ -212,10 +266,26 @@ export class BubbleChartComponent implements AfterViewInit {
         );
     }
 
+    /**
+     * Highlights a bubble programmatically — raising its fill opacity and
+     * filling the tooltip — or clears the highlight when `seriesIndex` is
+     * `null`. Indices address {@link series} as supplied, including hidden
+     * series (whose bubbles are not drawn, so the highlight would be
+     * invisible). Does not move the tooltip: its position is only updated by
+     * {@link onPointerMove}.
+     */
     setHover(seriesIndex: number | null, pointIndex = 0): void {
         this.hovered.set(seriesIndex === null ? null : { s: seriesIndex, p: pointIndex });
     }
 
+    /**
+     * Tracks the pointer over the whole SVG and highlights the bubble whose
+     * *centre* is euclidean-nearest, placing the tooltip clear of its right
+     * edge. Matching is on centres only and has no proximity threshold, so a
+     * pointer inside a large bubble can still select a smaller neighbour whose
+     * centre is closer. Bound to `mousemove`, `touchstart` and `touchmove` so
+     * touch devices get the same read-out as mouse users.
+     */
     onPointerMove(evt: MouseEvent | TouchEvent): void {
         const svg = this._svg()?.nativeElement;
         if (!svg) return;
@@ -231,10 +301,16 @@ export class BubbleChartComponent implements AfterViewInit {
         this.hovered.set({ s: b.seriesIndex, p: b.pointIndex });
     }
 
+    /** Clears the highlight and hides the tooltip when the pointer leaves the SVG. Bound to `mouseleave`. */
     onPointerLeave(): void {
         this.hovered.set(null);
     }
 
+    /**
+     * Emits {@link pointClick} for the addressed point, silently doing nothing
+     * if the indices don't resolve. Bound to each bubble's `click` and
+     * `keydown.enter` so keyboard users can activate a focused bubble.
+     */
     onPointClick(seriesIndex: number, pointIndex: number): void {
         const point = this.series()[seriesIndex]?.points[pointIndex];
         if (point) this.pointClick.emit({ point, index: pointIndex });

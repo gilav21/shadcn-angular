@@ -17,7 +17,9 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class CommandListComponent {
+  /** Merged onto the scroll container; override the default `max-h-[200px] sm:max-h-[300px]` here to change how tall the results area grows before it scrolls. */
   class = input('');
+  /** Accessible name for the `role="listbox"` wrapper. Unset leaves it unnamed, so provide one whenever the list has no visible label near it. */
   ariaLabel = input<string | undefined>(undefined);
 
   classes = computed(() => cn(

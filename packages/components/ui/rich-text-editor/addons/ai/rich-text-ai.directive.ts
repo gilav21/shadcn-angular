@@ -32,8 +32,10 @@ import { RichTextAiPanelComponent } from './rich-text-ai-panel.component';
 const CHIP_OFFSET_Y = 40;
 const PANEL_OFFSET_Y = 8;
 const PANEL_MIN_X = 8;
-// Approximate panel box size (component `w-72` = 288px; tallest `menu` phase is
-// ~240px) used only to clamp/flip the fixed position within the viewport.
+/**
+ * Approximate panel box size (component `w-72` = 288px; tallest `menu` phase is
+ * ~240px) used only to clamp/flip the fixed position within the viewport.
+ */
 const PANEL_WIDTH = 288;
 const PANEL_MAX_HEIGHT = 240;
 
@@ -133,7 +135,6 @@ export class RichTextAiDirective {
         inject(DestroyRef).onDestroy(() => this.teardown());
     }
 
-    // ── Slash command ─────────────────────────────────────────────────
 
     private registerSlashCommand(): void {
         effect((onCleanup) => {
@@ -150,7 +151,6 @@ export class RichTextAiDirective {
         });
     }
 
-    // ── Selection chip ────────────────────────────────────────────────
 
     private registerSelectionListener(): void {
         effect((onCleanup) => {
@@ -179,7 +179,6 @@ export class RichTextAiDirective {
         return this.host.contentRoot.contains(selection.anchorNode);
     }
 
-    // ── Panel lifecycle ───────────────────────────────────────────────
 
     /** Open the task menu, capturing the current selection (or caret for continue). */
     openPanel(): void {
@@ -257,7 +256,6 @@ export class RichTextAiDirective {
         }
     }
 
-    // ── Task execution ────────────────────────────────────────────────
 
     /** Run a built-in AI task on the captured selection. */
     runTask(task: AiTask, prompt?: string): void {
@@ -342,7 +340,6 @@ export class RichTextAiDirective {
         if (this.draftEl) this.draftEl.textContent = text;
     }
 
-    // ── Review ────────────────────────────────────────────────────────
 
     /** Keep the generated text, unwrapping the draft marker as one history entry. */
     accept(): void {
@@ -391,7 +388,6 @@ export class RichTextAiDirective {
         this.phase.set('menu');
     }
 
-    // ── Overlay mounting ──────────────────────────────────────────────
 
     private mountOverlays(): void {
         effect(() => {

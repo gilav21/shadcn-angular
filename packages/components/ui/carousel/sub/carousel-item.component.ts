@@ -24,6 +24,12 @@ import { CAROUSEL } from '../carousel.component';
     host: { class: 'contents' },
 })
 export class CarouselItemComponent {
+    /**
+     * Extra classes merged onto the slide. It is `basis-full` — one slide per
+     * view — so override the basis to show several at once (e.g.
+     * `basis-1/2 lg:basis-1/3`). The `ps-4`/`pt-4` gutter pairs with the track's
+     * negative margin, so keep it when restyling.
+     */
     class = input('');
     readonly carousel = inject(CAROUSEL);
 

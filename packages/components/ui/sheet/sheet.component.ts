@@ -46,6 +46,12 @@ export class SheetComponent implements OnDestroy {
     private readonly document = inject(DOCUMENT);
 
     open = signal(false);
+    /**
+     * Emits the new visibility whenever {@link show}, {@link hide} or
+     * {@link toggle} runs. It is **not** emitted when `open` is set directly,
+     * so drive the sheet through those methods (or a `ui-sheet-trigger`) if you
+     * rely on this event.
+     */
     openChange = output<boolean>();
 
     private scrollbarWidth = 0;
@@ -79,16 +85,27 @@ export class SheetComponent implements OnDestroy {
         body.style.paddingRight = '';
     }
 
+    /**
+     * Opens the sheet and emits {@link openChange}. Locks body scroll and
+     * compensates for the removed scrollbar with matching body padding, so the
+     * page behind does not shift.
+     */
     show(): void {
         this.open.set(true);
         this.openChange.emit(true);
     }
 
+    /**
+     * Closes the sheet, emits {@link openChange} and releases the body scroll
+     * lock. Same path taken by Escape, a backdrop click, the corner close button
+     * and `ui-sheet-close`.
+     */
     hide(): void {
         this.open.set(false);
         this.openChange.emit(false);
     }
 
+    /** Flips visibility and emits {@link openChange}. Used by `ui-sheet-trigger`. */
     toggle(): void {
         const newState = !this.open();
         this.open.set(newState);

@@ -16,11 +16,30 @@ import { cn, prefersReducedMotion } from '../../lib/utils';
     templateUrl: './streaming-text.component.html',
 })
 export class StreamingTextComponent implements OnDestroy {
+    /**
+     * Target text. Designed for streaming: as long as each new value still
+     * starts with the previous one, typing simply continues from where it was.
+     * A value that diverges from the previous prefix is treated as a new message
+     * and restarts the animation from an empty string.
+     */
     text = input('');
-    speed = input(30); // ms per char
+    /**
+     * Milliseconds between characters. Read when a typing run starts, so
+     * changing it mid-run only takes effect after the current run finishes and
+     * a new one begins.
+     */
+    speed = input(30);
+    /** Extra classes merged onto the `whitespace-pre-wrap` text container — newlines and runs of spaces in {@link text} are preserved by default. */
     class = input('');
+    /** Shows the blinking caret after the typed text. Purely decorative; it does not affect {@link complete} or the typing timing. */
     showCursor = input(true);
 
+    /**
+     * Emitted when the displayed text has caught up with {@link text}. Fires
+     * once per typing run, so a stream that keeps appending emits repeatedly as
+     * it drains — and it fires immediately (with the full text shown) when the
+     * user prefers reduced motion.
+     */
     complete = output<void>();
 
     displayedText = signal('');

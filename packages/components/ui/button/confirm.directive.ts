@@ -19,12 +19,25 @@ import { ConfirmDialogComponent } from './confirm-dialog.component';
     standalone: true,
 })
 export class ConfirmDirective {
+    /** Locale for the default dialog strings: a registry key (`'en'`/`'he'`/…) or a full dictionary. */
     readonly locale = input<LocaleInput<CommonLocale>>();
+    /**
+     * The confirmation prompt, and the directive's own selector — applying
+     * `uiConfirm="Delete this file?"` is what enables the guard. The text
+     * becomes the dialog's description; an empty value shows title only.
+     */
     readonly uiConfirm = input<string>();
+    /** Dialog heading. Defaults to the locale's "Confirm". */
     readonly confirmTitle = input<string>();
+    /** Confirm button text. Defaults to the locale's "Confirm". */
     readonly confirmLabel = input<string>();
+    /** Cancel button text. Defaults to the locale's "Cancel". */
     readonly cancelLabel = input<string>();
 
+    /**
+     * Emits only after the user confirms. The host's own click is stopped, so
+     * this — not `(click)` — is where the guarded action belongs.
+     */
     readonly confirmed = output<void>();
 
     private readonly t = createLocaleSelector(this.locale, COMMON_LOCALES);
@@ -37,6 +50,11 @@ export class ConfirmDirective {
     private readonly injector = inject(EnvironmentInjector);
     private readonly elementInjector = inject(Injector);
 
+    /**
+     * Intercept the host click and open the confirmation dialog instead.
+     * Propagation is stopped so the host's own `(click)` never runs unguarded;
+     * the dialog is created outside the view and torn down on either outcome.
+     */
     @HostListener('click', ['$event'])
     onClick(event: MouseEvent): void {
         event.stopPropagation();

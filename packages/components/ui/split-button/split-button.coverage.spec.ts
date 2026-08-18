@@ -48,6 +48,8 @@ const stubbedRect = {
 };
 
 describe('SplitButtonComponent — coverage', () => {
+    /** Whether THIS suite added the Popover API, so teardown removes only that. */
+    let addedPopoverApi = false;
     let fixture: ComponentFixture<SplitButtonComponent>;
     let component: SplitButtonComponent;
 
@@ -56,14 +58,27 @@ describe('SplitButtonComponent — coverage', () => {
             imports: [SplitButtonComponent, ButtonComponent, ProjectionHostComponent],
         }).compileComponents();
 
-        Object.defineProperty(HTMLElement.prototype, 'showPopover', {
-            configurable: true,
-            value: () => {},
-        });
-        Object.defineProperty(HTMLElement.prototype, 'hidePopover', {
-            configurable: true,
-            value: () => {},
-        });
+        // Fill the Popover API in only when the engine lacks it, and take back
+        // exactly what we added.
+        //
+        // This used to overwrite `HTMLElement.prototype.showPopover` with a
+        // no-op on every run and never restore it. That prototype is shared with
+        // every other spec file — this browser suite gives no file its own realm
+        // — so from the first test here onwards, any suite that promoted an
+        // element to the top layer silently got nothing and failed on an
+        // assertion unrelated to its own code. It was the last source of the
+        // intermittent `:popover-open` failures across the suite.
+        addedPopoverApi = !('showPopover' in HTMLElement.prototype);
+        if (addedPopoverApi) {
+            Object.defineProperty(HTMLElement.prototype, 'showPopover', {
+                configurable: true,
+                value: () => {},
+            });
+            Object.defineProperty(HTMLElement.prototype, 'hidePopover', {
+                configurable: true,
+                value: () => {},
+            });
+        }
 
         fixture = TestBed.createComponent(SplitButtonComponent);
         component = fixture.componentInstance;
@@ -88,6 +103,11 @@ describe('SplitButtonComponent — coverage', () => {
         vi.restoreAllMocks();
         restoreGeometry?.();
         restoreGeometry = null;
+        if (addedPopoverApi) {
+            delete (HTMLElement.prototype as Partial<HTMLElement>).showPopover;
+            delete (HTMLElement.prototype as Partial<HTMLElement>).hidePopover;
+            addedPopoverApi = false;
+        }
     });
 
     it('closes the menu when a document click lands outside the component', () => {

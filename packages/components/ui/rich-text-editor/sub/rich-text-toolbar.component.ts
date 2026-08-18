@@ -156,6 +156,12 @@ const ICONS: Record<string, string> = {
 export class RichTextToolbarComponent {
   private readonly sanitizer = inject(DomSanitizer);
 
+  /**
+   * The built-in buttons to render, in order. `'separator'` entries render a
+   * vertical rule instead of a button, so the same array controls both the
+   * buttons and their grouping. The editor forwards its `[toolbarItems]` here
+   * for the docked toolbar; the floating toolbar hardcodes a short list.
+   */
   items = input<ToolbarItem[]>([
     'bold', 'italic', 'underline',
     'separator',
@@ -164,17 +170,72 @@ export class RichTextToolbarComponent {
     'bulletList', 'orderedList',
   ]);
 
+  /**
+   * Format names currently active at the caret (`'bold'`, `'italic'`,
+   * `'underline'`, `'strikethrough'`, `'code'`, `'taskList'`), used to render
+   * buttons pressed. Only those names are honoured — see {@link isActive}.
+   * Also passed to each custom item's `isActive` predicate.
+   */
   activeFormats = input<Set<string>>(new Set());
+
+  /**
+   * Compact rendering for the floating/bubble toolbar: tighter button padding,
+   * no border or background on the container. The editor sets this only on the
+   * floating instance. Also published to component slots through
+   * {@link RichTextToolbarViewContext} so they can size themselves to match.
+   */
   compact = input<boolean>(false);
+
+  /** Extra classes merged onto the toolbar container (after the compact rules, so they win). */
   class = input<string>('');
+
+  /** Disables every button and suppresses the click outputs. See {@link interactionDisabled}. */
   disabled = input<boolean>(false);
+
+  /**
+   * Same effect as {@link disabled} on this component — buttons render disabled
+   * and no output fires. The editor normally hides the toolbar entirely in
+   * read-only mode, so this is the belt-and-braces guard for direct use.
+   */
   readonly = input<boolean>(false);
+
+  /**
+   * Locale supplying the button tooltips and the toolbar's `aria-label`. Its
+   * `rtl` flag also mirrors the alignment/indent icons and tooltips, so
+   * `'alignLeft'` shows the right-aligned glyph in an RTL locale.
+   */
   locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
 
+  /**
+   * Emits the clicked {@link ToolbarItem} id. The toolbar owns no editor state:
+   * the host is responsible for executing the command and feeding the result
+   * back through {@link activeFormats}.
+   */
   formatCommand = output<string>();
+
+  /**
+   * Consumer-defined buttons rendered after the built-in {@link items} and
+   * before the addon slots. Each supplies its own inline SVG `icon`, which is
+   * trusted as-is — see {@link getSafeIcon}.
+   */
   customItems = input<RichTextCustomToolbarItem[]>([]);
+
+  /** Emits the `id` of the clicked {@link customItems} entry. */
   customItemClick = output<string>();
+
+  /**
+   * Addon-contributed slots, normally passed straight from the editor's
+   * `AddonSlotRegistry`. Rendered last, after built-ins and custom items, and
+   * sorted by {@link orderedAddonSlots}. A slot with a `component` is rendered
+   * through a component outlet; one with an `icon` renders as a button.
+   */
   addonSlots = input<readonly RichTextToolbarSlot[]>([]);
+
+  /**
+   * Emits when an addon *button* slot is clicked, with the slot and the raw
+   * DOM event (addons position popovers off the event target). Component slots
+   * handle their own clicks and never emit this.
+   */
   addonSlotClick = output<{ slot: RichTextToolbarSlot; event: Event }>();
 
   readonly orderedAddonSlots = computed(() =>
@@ -191,6 +252,12 @@ export class RichTextToolbarComponent {
    */
   private readonly slotInjectorCache = new WeakMap<RichTextToolbarSlot, Injector>();
 
+  /**
+   * The injector used to render a component slot: the slot's own `injector`
+   * (or the toolbar's) plus a {@link RichTextToolbarViewContext} provider.
+   * Memoized per slot object, so re-rendering the `@for` over the slots never
+   * destroys and recreates a slot component that did not itself change.
+   */
   slotInjector(slot: RichTextToolbarSlot): Injector {
     let slotInjector = this.slotInjectorCache.get(slot);
     if (!slotInjector) {
@@ -214,6 +281,11 @@ export class RichTextToolbarComponent {
     )
   );
 
+  /**
+   * Classes for a built-in button, including the pressed styling when
+   * {@link isActive} reports the item active and the compact padding. Called
+   * from the template for every item on each change detection pass.
+   */
   buttonClasses(item: ToolbarItem): string {
     const active = this.isActive(item);
     return cn(
@@ -226,6 +298,11 @@ export class RichTextToolbarComponent {
     );
   }
 
+  /**
+   * Classes for an addon button slot — the same look as a built-in button, but
+   * the pressed state comes from the slot's own {@link addonSlotActive}
+   * predicate rather than from {@link activeFormats}.
+   */
   addonButtonClasses(slot: RichTextToolbarSlot): string {
     return cn(
       'inline-flex items-center justify-center rounded-md p-1.5 text-sm font-medium transition-colors',
@@ -237,14 +314,31 @@ export class RichTextToolbarComponent {
     );
   }
 
+  /**
+   * Whether an addon button slot is enabled — the slot's optional `isEnabled`
+   * predicate, defaulting to `true` when it omits one. Invoked from the
+   * template on every change detection pass, so the predicate must stay cheap
+   * (it is expected to be a signal read, which also makes it reactive).
+   */
   addonSlotEnabled(slot: RichTextToolbarSlot): boolean {
     return slot.isEnabled ? slot.isEnabled() : true;
   }
 
+  /**
+   * Whether an addon button slot renders pressed — the slot's optional
+   * `isActive` predicate, defaulting to `false`. Like {@link addonSlotEnabled}
+   * it runs on every change detection pass and must stay cheap.
+   */
   addonSlotActive(slot: RichTextToolbarSlot): boolean {
     return slot.isActive ? slot.isActive() : false;
   }
 
+  /**
+   * Whether a built-in button renders pressed (`aria-pressed`/`data-state`).
+   * Only the inline toggles the host reports in {@link activeFormats} —
+   * bold, italic, underline, strikethrough, code, taskList — can be active;
+   * block, alignment, history and utility items always report `false`.
+   */
   isActive(item: ToolbarItem): boolean {
     const formatMap: Record<string, string> = {
       bold: 'bold',
@@ -258,6 +352,13 @@ export class RichTextToolbarComponent {
     return format ? this.activeFormats().has(format) : false;
   }
 
+  /**
+   * The built-in glyph for an item, as `SafeHtml` for `[innerHTML]`. Icons come
+   * from this file's own literal table (never from consumer input), so they are
+   * trusted directly. Under an RTL {@link locale} the alignment and indent
+   * glyphs are swapped so the icon points the way the command actually moves
+   * the text; the command emitted is unchanged. Unknown items render nothing.
+   */
   getIcon(item: ToolbarItem): SafeHtml {
     let key = item as string;
     if (this.locale().rtl) {
@@ -270,6 +371,12 @@ export class RichTextToolbarComponent {
     return this.sanitizer.bypassSecurityTrustHtml(svg);
   }
 
+  /**
+   * The button's `title` — the localized label plus its keyboard shortcut in
+   * parentheses where one exists. Mirrors the RTL label swap {@link getIcon}
+   * does for alignment (indent/outdent keep their own labels). Falls back to
+   * the raw item id for an item with no entry in the button table.
+   */
   getTooltip(item: ToolbarItem): string {
     let lookupItem = item;
     if (this.locale().rtl) {
@@ -283,16 +390,31 @@ export class RichTextToolbarComponent {
     return button.shortcut ? `${label} (${button.shortcut})` : label;
   }
 
+  /**
+   * Emits {@link formatCommand} for a built-in button, unless
+   * {@link interactionDisabled}. The buttons are already `[disabled]`; this
+   * guard also covers a programmatic call.
+   */
   onFormatClick(item: ToolbarItem): void {
     if (this.interactionDisabled()) return;
     this.formatCommand.emit(item);
   }
 
+  /**
+   * Emits {@link customItemClick} with the item's `id`, unless
+   * {@link interactionDisabled}. The counterpart of {@link onFormatClick} for
+   * {@link customItems}.
+   */
   onCustomItemClick(id: string): void {
     if (this.interactionDisabled()) return;
     this.customItemClick.emit(id);
   }
 
+  /**
+   * Classes for a {@link customItems} button. The pressed state comes from the
+   * item's optional `isActive(formats)` predicate, called with the current
+   * {@link activeFormats} on every change detection pass, so keep it cheap.
+   */
   customButtonClasses(item: RichTextCustomToolbarItem): string {
     const active = item.isActive ? item.isActive(this.activeFormats()) : false;
     return cn(
@@ -305,6 +427,13 @@ export class RichTextToolbarComponent {
     );
   }
 
+  /**
+   * Marks caller-supplied icon markup safe for `[innerHTML]`, used for both
+   * {@link customItems} and addon button slots. This **bypasses** Angular's
+   * sanitizer rather than cleaning the markup: the trust boundary is the
+   * application, which controls the custom items and the addons it installs.
+   * Never feed it markup that came from editor content or a remote source.
+   */
   getSafeIcon(svgHtml: string): SafeHtml {
     return this.sanitizer.bypassSecurityTrustHtml(svgHtml);
   }

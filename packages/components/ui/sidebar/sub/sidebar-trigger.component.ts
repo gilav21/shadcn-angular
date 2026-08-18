@@ -30,6 +30,7 @@ import { SidebarService } from '../sidebar.service';
   host: { class: 'contents' },
 })
 export class SidebarTriggerComponent {
+  /** Extra classes merged onto the toggle button. The button drives {@link SidebarService.toggle}, so it collapses the rail on desktop and opens/closes the drawer on mobile — place it in your page header, outside `ui-sidebar`, or it becomes unreachable once the sidebar is hidden. */
   class = input('');
   readonly service = inject(SidebarService);
 

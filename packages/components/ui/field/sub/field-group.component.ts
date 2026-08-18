@@ -20,6 +20,7 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class FieldGroupComponent {
+  /** Extra classes merged onto the group grid, which spaces sibling fields evenly. Purely visual — use `ui-field-set` when the grouping is also semantic. */
   class = input('');
 
   classes = computed(() => cn(

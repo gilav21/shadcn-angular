@@ -38,10 +38,22 @@ const INTERACTIVE_SELECTOR = [
 ].join(',');
 
 /**
- * True when `host` contains at least one interactive descendant — i.e. the
- * projected content is itself operable and the wrapper must not add a competing
+ * True when the *projected* content contains at least one interactive element —
+ * i.e. it is already operable and the wrapper must not add a competing
  * `role="button"` / `tabindex` of its own.
+ *
+ * Pass the wrapper component's HOST element. The search starts from the host's
+ * first element child — the wrapper's own `<span>` — and therefore looks only at
+ * what the consumer projected inside it.
+ *
+ * Searching from the host itself would match the wrapper's own `<span>`, which
+ * carries `role="button"` and `tabindex="0"` on the first render: every wrapper
+ * would detect itself as "wrapping interactive content" and strip the very
+ * semantics it had just applied, leaving a text-only trigger unfocusable
+ * (WCAG 2.1.1). `querySelector` never matches the element it is called on, so
+ * descending one level first is what makes the check see only projected content.
  */
 export function hasInteractiveContent(host: Element | null | undefined): boolean {
-    return !!host?.querySelector(INTERACTIVE_SELECTOR);
+    const projectionRoot = host?.firstElementChild ?? host;
+    return !!projectionRoot?.querySelector(INTERACTIVE_SELECTOR);
 }

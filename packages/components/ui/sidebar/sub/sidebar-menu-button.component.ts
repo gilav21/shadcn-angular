@@ -33,9 +33,18 @@ import { SidebarService } from '../sidebar.service';
   host: { class: 'contents' },
 })
 export class SidebarMenuButtonComponent {
+  /** Extra classes merged onto the `<button>`, after the active-state and collapsed-rail utilities. */
   class = input('');
+  /** Marks this item as the current one — applies the accent background and sets `data-active`. Purely presentational: the component tracks nothing, the consumer decides which item is active. */
   isActive = input(false);
+  /**
+   * Label used both as the button's `aria-label` and as the tooltip shown when
+   * the desktop rail is collapsed (the tooltip is suppressed while expanded, and
+   * on mobile). Worth setting on every item, since collapsing hides all text
+   * except the first child.
+   */
   tooltip = input('');
+  /** The raw click. The button does nothing else — navigation, selection and closing the mobile drawer are all the consumer's job. */
   clicked = output<MouseEvent>();
   readonly service = inject(SidebarService);
 

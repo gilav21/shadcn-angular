@@ -74,10 +74,26 @@ import { type KanbanColumn, type KanbanColumnDeleteEvent } from '../kanban.compo
     host: { class: 'contents' },
 })
 export class KanbanDeleteColumnDialogComponent {
+    /** Accepted for API symmetry with the other kanban parts; the dialog renders into the alert-dialog overlay and does not apply these classes to any element. */
     class = input('');
+    /**
+     * Every column on the board, including the one being deleted. Drives the
+     * "move the cards to…" choices (the column being deleted is filtered out).
+     * When it holds a single column there is nowhere to move cards to, so the
+     * picker is replaced by a warning that the cards will be permanently
+     * deleted — the deletion itself is still allowed.
+     */
     columns = input<KanbanColumn[]>([]);
+    /** Translated strings for the title, the three description variants and the move/delete options. Set by `<ui-kanban>` from its own `locale`; only override when using the dialog standalone. */
     locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
 
+    /**
+     * Emits once the user confirms, with `columnId` plus `moveCardsTo` — the
+     * column the orphaned cards should go to, or `undefined` meaning "delete
+     * the cards with the column". Nothing is deleted by this component: you own
+     * the board arrays and must apply both the column removal and the card move
+     * yourself. Cancelling emits nothing.
+     */
     confirmed = output<KanbanColumnDeleteEvent>();
 
     private readonly columnToDelete = signal<KanbanColumn | undefined>(undefined);
@@ -107,6 +123,7 @@ export class KanbanDeleteColumnDialogComponent {
             || this.moveOptions().some(o => o.value === undefined);
     });
 
+    /** Classes for one "move cards to" option button, highlighting it as primary while it is the selected target. `undefined` is the "delete the cards too" option, not "nothing selected". */
     optionButtonClass(value: string | undefined): string {
         const isSelected = this.selectedTarget() === value;
         return cn(
@@ -117,6 +134,12 @@ export class KanbanDeleteColumnDialogComponent {
         );
     }
 
+    /**
+     * Opens the confirmation for `column`, resetting any previously chosen move
+     * target. `cardCount` is passed in rather than derived — it decides whether
+     * the card-destination picker is shown at all, so pass the count *after*
+     * any board filtering you consider authoritative.
+     */
     open(column: KanbanColumn, cardCount: number): void {
         this.columnToDelete.set(column);
         this.cardsInColumn.set(cardCount);
@@ -124,6 +147,7 @@ export class KanbanDeleteColumnDialogComponent {
         this.alertDialogRef()?.show();
     }
 
+    /** Destructive-button handler: emits {@link confirmed} for the column passed to {@link open} and closes the dialog. No-op if the dialog was never opened. */
     onConfirm(): void {
         const col = this.columnToDelete();
         if (!col) return;

@@ -51,7 +51,9 @@ export function hoverCardAction(o: HoverCardPresetOptions = {}): RichTextActionD
     host: { '[attr.data-slot]': "'preset-hover-card'" },
 })
 export class PresetHoverCardComponent {
+    /** Bold heading line; omitted entirely when empty. Fed from the action's `title` param. */
     readonly title = input('');
+    /** Muted card text, always rendered. Fed from the action's required `body` param. */
     readonly body = input('');
     /** Text direction, so RTL content (title + body) aligns correctly. */
     readonly dir = input<'ltr' | 'rtl'>('ltr');

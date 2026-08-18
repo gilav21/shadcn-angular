@@ -3,6 +3,7 @@ import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import {
   DockComponent,
   DockIconComponent,
+  DockItemData,
   DockItemComponent,
   DockLabelComponent,
   IconComponent,
@@ -145,6 +146,17 @@ import { DOCK_DEMO_LOCALES } from './dock-demo.locales';
           </ui-dock>
         </div>
       </div>
+
+      <h3 class="text-lg font-medium mt-8">{{ t().verticalHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().verticalCaption }}</p>
+      <div class="relative h-[280px] sm:h-[340px] w-full border rounded-lg overflow-hidden bg-muted/20">
+        <div class="absolute inset-y-0 start-4 flex items-center">
+          <ui-dock position="left" [items]="verticalItems()" [magnification]="72" [distance]="120" />
+        </div>
+        <div class="absolute inset-x-0 bottom-4 flex flex-wrap justify-center gap-2 px-4 text-sm text-muted-foreground">
+          <span>{{ t().lastActivatedLabel }}: {{ lastActivated() ?? t().noneLabel }}</span>
+        </div>
+      </div>
     </section>
   `,
 })
@@ -157,6 +169,17 @@ export class DockDemoComponent {
   readonly dockMagnification = signal(60);
   readonly dockDistance = signal(100);
   readonly dockItems = signal([...this.t().dockItems]);
+  readonly lastActivated = signal<string | null>(null);
+
+  readonly verticalItems = computed<DockItemData[]>(() => {
+    const loc = this.t();
+    return [
+      { label: loc.verticalItemHome, icon: '🏠', href: '#dock', active: true },
+      { label: loc.verticalItemFiles, icon: '📁', href: '#dock' },
+      { label: loc.verticalItemSearch, icon: '🔍', onClick: () => this.lastActivated.set(loc.verticalItemSearch) },
+      { label: loc.verticalItemTrash, icon: '🗑️', onClick: () => this.lastActivated.set(loc.verticalItemTrash) },
+    ];
+  });
 
   constructor() {
     let prev = this.t();

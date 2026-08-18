@@ -20,6 +20,7 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class EmptyDescriptionComponent {
+    /** Extra classes merged onto the `<p>`. Any anchor projected inside is already underlined and turns `text-primary` on hover, so links need no extra classes. */
     class = input('');
 
     classes = computed(() => cn(

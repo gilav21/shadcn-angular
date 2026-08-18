@@ -17,6 +17,7 @@ import { cn } from '../../lib/utils';
     host: { class: 'contents' },
 })
 export class TableComponent {
+    /** Extra classes merged onto the table wrapper. It is a flex column that scrolls horizontally, so give it a bounded height here when the body should scroll rather than the page. */
     class = input('');
 
     /**

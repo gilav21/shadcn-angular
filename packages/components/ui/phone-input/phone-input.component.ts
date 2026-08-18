@@ -180,6 +180,7 @@ export class PhoneInputComponent implements ControlValueAccessor {
         });
     }
 
+    /** Classes for one row of the country dropdown, highlighting the row that matches the current selection so the active country is obvious on open. */
     countryRowClasses(country: PhoneCountry): string {
         return cn(
             'flex w-full items-center gap-2 px-3 py-2 text-start transition-colors',
@@ -188,6 +189,12 @@ export class PhoneInputComponent implements ControlValueAccessor {
         );
     }
 
+    /**
+     * Picks a country from the dropdown. Clears the national number — a number
+     * entered under the old dial code is not valid under the new one — resets the
+     * search box, and emits the (now empty) value. It also pins the selection, so
+     * later {@link defaultCountry} changes no longer override the user's choice.
+     */
     selectCountry(country: PhoneCountry): void {
         this._userPickedCountry.set(true);
         this._selectedCountry.set(country);
@@ -196,31 +203,42 @@ export class PhoneInputComponent implements ControlValueAccessor {
         this.emitValue();
     }
 
+    /** Updates the dropdown filter from the search box; matching is case-insensitive against both country name and dial code. */
     onSearchInput(event: Event): void {
         this._searchQuery.set((event.target as HTMLInputElement).value);
     }
 
+    /** Handles edits to the number field and re-emits the combined E.164 value. Receives the raw (unmasked) digits from the mask directive, not the displayed text. */
     onNationalChange(raw: string): void {
         this._nationalNumber.set(raw);
         this.emitValue();
     }
 
+    /** Marks the control as touched when the number field loses focus, so a `required` validation message appears at the usual time. */
     onBlur(): void {
         this.onTouched();
     }
 
+    /**
+     * `ControlValueAccessor` write — accepts an E.164 string and splits it into a
+     * country and a national part, switching the selected country to match the
+     * dial code. `null` or `''` clears the number but keeps the current country.
+     */
     writeValue(value: string | null): void {
         this.applyExternalValue(value ?? '');
     }
 
+    /** `ControlValueAccessor` hook. The registered callback receives the E.164 string (`''` when empty), the same payload as {@link valueChange}. */
     registerOnChange(fn: (value: string) => void): void {
         this.onChange = fn;
     }
 
+    /** `ControlValueAccessor` hook; the registered callback fires on blur of the number field — see {@link onBlur}. */
     registerOnTouched(fn: () => void): void {
         this.onTouched = fn;
     }
 
+    /** `ControlValueAccessor` hook for `FormControl.disable()`. Tracked separately from the {@link disabled} input — either one disables the control. */
     setDisabledState(isDisabled: boolean): void {
         this._formDisabled.set(isDisabled);
     }

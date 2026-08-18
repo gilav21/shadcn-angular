@@ -52,8 +52,20 @@ export type InputGroupVariant = VariantProps<typeof inputGroupVariants>['variant
   host: { class: 'contents' },
 })
 export class InputGroupComponent {
+  /** Extra classes merged onto the group shell — the element that owns the border, radius and focus ring, not the inner input. */
   class = input('');
+  /**
+   * Dims the whole group and blocks pointer events on it. Purely visual: it does
+   * not disable the nested control, so also disable the input itself (or its
+   * `FormControl`) to actually stop input.
+   */
   disabled = input(false);
+  /**
+   * Shell style: `'outline'` a full bordered box, `'underline'` a single bottom
+   * rule with no horizontal padding, `'ghost'` no chrome at all. Each carries
+   * its own `has-[input:focus-visible]` rules, so the focus ring follows the
+   * nested input automatically.
+   */
   variant = input<InputGroupVariant>('outline');
 
   classes = computed(() => cn(

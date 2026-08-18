@@ -125,7 +125,6 @@ export class RichTextMentionsDirective {
         return this.host.contentRoot.ownerDocument;
     }
 
-    // ── Search pipeline ───────────────────────────────────────────────
 
     private setupSearch(): void {
         this.search$.pipe(
@@ -144,7 +143,6 @@ export class RichTextMentionsDirective {
         ).subscribe((items) => this.loadedItems.set(items));
     }
 
-    // ── Trigger detection ─────────────────────────────────────────────
 
     private onInput(): void {
         if (this.host.disabled() || this.host.readonly()) {
@@ -164,7 +162,6 @@ export class RichTextMentionsDirective {
         this.search$.next({ type: match.type, query: match.query });
     }
 
-    // ── Keyboard ──────────────────────────────────────────────────────
 
     private onKeydown(event: KeyboardEvent): boolean {
         if (!this.open || !this.popoverRef || !POPOVER_KEYS.has(event.key)) {
@@ -175,7 +172,6 @@ export class RichTextMentionsDirective {
         return true;
     }
 
-    // ── Insertion ─────────────────────────────────────────────────────
 
     private onSelect(item: MentionItem | TagItem): void {
         const type = this.triggerType();
@@ -230,7 +226,6 @@ export class RichTextMentionsDirective {
         selection.addRange(after);
     }
 
-    // ── Overlay ───────────────────────────────────────────────────────
 
     private applyPopoverInputs(items: (MentionItem | TagItem)[]): void {
         const ref = this.popoverRef ?? this.createPopover();

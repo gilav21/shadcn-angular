@@ -25,7 +25,9 @@ import { registerFieldDescribedBy, unregisterFieldDescribedBy } from '../field.u
   host: { class: 'contents' },
 })
 export class FieldErrorComponent implements OnInit, OnDestroy {
+  /** Extra classes merged onto the error `<p>`, which already renders as `role="alert"` with `aria-live="polite"` so a newly shown message is announced. */
   class = input('');
+  /** Explicit element id; generated when empty. Registered with the surrounding `ui-field` so it joins that field's `describedBy` list alongside any description. */
   id = input<string>('');
 
   private readonly context = inject(FIELD_CONTEXT, { optional: true });

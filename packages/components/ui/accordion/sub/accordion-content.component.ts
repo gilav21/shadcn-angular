@@ -16,6 +16,10 @@ import { AccordionItemComponent } from './accordion-item.component';
   host: { '[class]': '"contents"' },
 })
 export class AccordionContentComponent {
+  /**
+   * Extra classes merged onto the panel, after the base `overflow-hidden text-sm`. The inner
+   * `pb-4 pt-0` padding wrapper is not affected — override spacing on the projected content itself.
+   */
   class = input('');
 
   private readonly accordion = inject(ACCORDION, { optional: true });

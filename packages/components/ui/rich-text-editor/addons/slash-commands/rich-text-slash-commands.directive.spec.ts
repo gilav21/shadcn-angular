@@ -581,8 +581,15 @@ describe('RichTextSlashCommandsDirective', () => {
         type WithPopover = { showPopover?: () => void; hidePopover?: () => void };
         const proto = HTMLElement.prototype as WithPopover;
         const hadShow = 'showPopover' in HTMLElement.prototype;
-        proto.showPopover = function showPopover(this: HTMLElement) { this.setAttribute('data-open', ''); };
-        proto.hidePopover = () => undefined;
+        // Fill the API in only when the engine lacks it. This used to overwrite
+        // the native implementation unconditionally while the `finally` below
+        // restored only in the `!hadShow` branch — so under Chromium, where the
+        // API does exist, the fake was installed and NEVER removed. Every later
+        // spec file in the run then got a `showPopover` that set an attribute
+        // instead of promoting to the top layer, and any assertion on
+        // `:popover-open` failed for reasons unrelated to the code under test.
+        proto.showPopover ??= function showPopover(this: HTMLElement) { this.setAttribute('data-open', ''); };
+        proto.hidePopover ??= () => undefined;
         try {
             const { fixture, editor, editorCmp } = create();
             typeSlash(editor, editorCmp, '/');

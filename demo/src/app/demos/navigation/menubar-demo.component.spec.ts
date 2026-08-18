@@ -29,4 +29,15 @@ describe('MenubarDemoComponent', () => {
     expect(el.querySelector('h2')?.textContent?.trim()).toBe(MENUBAR_DEMO_LOCALES['he'].heading);
     expect(el.textContent).toContain(MENUBAR_DEMO_LOCALES['he'].menuFile);
   });
+
+  it('renders a second menubar exercising the disabled sub-trigger and disabled first item', async () => {
+    await setup('en');
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('ui-menubar')).toHaveLength(2);
+    expect(el.textContent).toContain(MENUBAR_DEMO_LOCALES['en'].menuExport);
+    expect(el.textContent).toContain(MENUBAR_DEMO_LOCALES['en'].menuHistory);
+    expect(el.textContent).toContain(MENUBAR_DEMO_LOCALES['en'].disabledSubHint);
+    expect(el.textContent).toContain(MENUBAR_DEMO_LOCALES['en'].firstItemDisabledHint);
+    expect(el.textContent).toContain(MENUBAR_DEMO_LOCALES['en'].wrapAroundHint);
+  });
 });

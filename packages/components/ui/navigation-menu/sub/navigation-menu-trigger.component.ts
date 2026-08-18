@@ -45,6 +45,14 @@ import { NAVIGATION_MENU_ITEM } from './navigation-menu-item.component';
   host: { class: 'contents' },
 })
 export class NavigationMenuTriggerComponent {
+  /**
+   * Extra classes merged onto the `<button>`. The base classes make it a `w-max shrink-0`
+   * inline-flex row (label plus the chevron that rotates 180° while open) with `rounded-md`,
+   * `bg-background`, `text-sm font-medium`, `hover:`/`focus:` accent colouring, disabled
+   * styling, and a `bg-accent/50` tint while the item is open. Height and inline/block padding
+   * come from the density CSS variables (`--density-menu` / `--density`), so `h-*` / `p-*`
+   * classes here opt out of density scaling.
+   */
   class = input('');
   readonly item = inject(NAVIGATION_MENU_ITEM);
 
@@ -58,6 +66,13 @@ export class NavigationMenuTriggerComponent {
     this.class()
   ));
 
+  /**
+   * Click/tap toggle for the parent item's dropdown — the touch-device open path, since the
+   * item's hover handlers no-op there. With a mouse it fires on top of hover: clicking an
+   * already hover-opened trigger closes the panel, and it reopens on the next click (leaving and
+   * re-entering with the pointer also reopens it). Toggling updates `aria-expanded` and the
+   * `data-state` attribute via {@link NavigationMenuItemComponent.isOpen}.
+   */
   onClick(): void {
     if (this.item.isOpen()) {
       this.item.close();

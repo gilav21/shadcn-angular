@@ -43,19 +43,70 @@ export class HeatmapComponent {
     private readonly destroyRef = inject(DestroyRef);
     private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
 
+    /**
+     * Flat list of `{ row, col, value }` cells — not a 2-D array. The axes are
+     * derived from the data itself: {@link rows} and {@link cols} are the
+     * distinct `row`/`col` strings in **first-appearance order**, never sorted,
+     * so the array order is what controls the grid layout. A `(row, col)` pair
+     * that is absent simply leaves a blank gap — cells are not back-filled.
+     * `value` is mapped onto the {@link fromColor}→{@link toColor} ramp across
+     * the data's own min/max (see {@link valueDomain}), so the colours are
+     * relative to this chart, not to any absolute scale.
+     */
     readonly data = input.required<HeatmapCell[]>();
+    /**
+     * Fallback width budget, in px, that {@link cellSize} is fitted into — used
+     * only until the host element has actually been measured by
+     * {@link observeChartWidth}, after which the measured width wins and the
+     * grid re-fits on every resize. Measurement requires a block-level host
+     * (the component sets `class: 'block'`); dropping it into an inline-block
+     * parent yields a collapsed measurement and the grid falls back to this.
+     */
     readonly width = input(480);
+    /**
+     * Upper bound on a cell's square edge, in px. Cells never stretch past it,
+     * so a small grid in a wide container stays compact and start-aligned
+     * instead of filling the box. Pair with {@link minCellSize}.
+     */
     readonly maxCellSize = input(52);
+    /**
+     * Lower bound on a cell's square edge, in px. Once the fit hits this floor
+     * the grid stops shrinking in user space and the whole SVG is scaled down
+     * instead by its `max-w-full`, so a wide grid stays readable-ish rather
+     * than collapsing to slivers.
+     */
     readonly minCellSize = input(18);
+    /**
+     * Colour of the lowest value in {@link valueDomain}. Must be an
+     * `hsl(h, s%, l%)` string — {@link sequentialColorScale} parses and
+     * interpolates the H/S/L channels, so hex/rgb/`var(--…)` values will not
+     * interpolate.
+     */
     readonly fromColor = input('hsl(214, 95%, 93%)');
+    /** Colour of the highest value in {@link valueDomain}; same `hsl(...)` requirement as {@link fromColor}. */
     readonly toColor = input('hsl(221, 83%, 40%)');
+    /**
+     * Print each cell's raw `value` in the middle of the cell. Unlike the
+     * tooltip this is not run through `formatChartValue`, so long or
+     * high-precision numbers will overflow small cells — round them yourself.
+     */
     readonly showValues = input(false);
+    /** Show the Low→High strip of five swatches under the grid, sampled at even steps across {@link valueDomain}. */
     readonly showLegend = input(true);
+    /** Render the floating tooltip for the hovered/focused cell. Hover still emits {@link cellHover} when disabled. */
     readonly showTooltip = input(true);
+    /** Extra classes merged onto the container, which already carries `relative w-fit max-w-full mr-auto`. */
     readonly class = input('');
+    /** Human-readable chart name; used only to prefix the group's accessible summary ({@link ariaLabel}). */
     readonly title = input<string | undefined>(undefined);
+    /**
+     * Accepted for API parity with the cartesian charts, but the grid does not
+     * read it: row/column order comes from {@link data} and the labels follow
+     * the ambient DOM direction. Wrap the host in `dir="rtl"` to flip it.
+     */
     readonly dir = input<ChartDirection>('auto');
 
+    /** Emits the cell on hover/focus and `null` on mouse-leave/blur, so a consumer can mirror the highlight elsewhere. */
     readonly cellHover = output<HeatmapCell | null>();
 
     private readonly _hover = signal<HeatmapCell | null>(null);
@@ -93,6 +144,12 @@ export class HeatmapComponent {
         sequentialColorScale(this.valueDomain(), [this.fromColor(), this.toColor()]),
     );
 
+    /**
+     * Ramp colour for a value, interpolated between {@link fromColor} and
+     * {@link toColor} across {@link valueDomain}; values outside the domain
+     * clamp to the endpoints. Shared by the cell fills, the legend swatches and
+     * the tooltip dot so all three stay on one scale.
+     */
     colorFor(value: number): string {
         return this.colorScale()(value);
     }
@@ -168,16 +225,28 @@ export class HeatmapComponent {
         return `${base}Heatmap with ${this.rows().length} rows and ${this.cols().length} columns.`;
     });
 
+    /**
+     * Sets the active cell and emits {@link cellHover}. `x`/`y` are the tooltip
+     * anchor in **SVG user-space** units (the same coordinate system as
+     * {@link viewBox}), not client pixels. Pass `null` to clear the highlight —
+     * the position arguments are then irrelevant.
+     */
     setHover(cell: HeatmapCell | null, x = 0, y = 0): void {
         this._hover.set(cell);
         this._tooltipPos.set({ x, y });
         this.cellHover.emit(cell);
     }
 
+    /**
+     * Highlights a cell, anchoring the tooltip above its top-centre (kept at
+     * least 8 units inside the top edge). Bound to both `mouseenter` and
+     * `focus` on the cell rects, so keyboard tabbing gets the same tooltip.
+     */
     onCellEnter(placed: PlacedCell): void {
         this.setHover(placed.cell, placed.x + placed.w / 2, Math.max(8, placed.y - 8));
     }
 
+    /** Clears the highlight and emits `null` on {@link cellHover}. Bound to `mouseleave` and `blur`. */
     onLeave(): void {
         this.setHover(null);
     }

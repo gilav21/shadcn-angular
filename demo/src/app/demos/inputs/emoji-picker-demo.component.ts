@@ -44,6 +44,19 @@ import { EMOJI_PICKER_DEMO_LOCALES } from './emoji-picker-demo.locales';
           </label>
         </div>
       </div>
+
+      <div class="space-y-2 max-w-md">
+        <p class="text-sm font-medium">{{ t().clippedLabel }}</p>
+        <div class="h-24 overflow-hidden rounded-lg border bg-card p-4">
+          <ui-emoji-picker (emojiSelect)="onEmojiSelect($event)">
+            <ui-emoji-picker-trigger>
+              <ui-button variant="outline">{{ t().triggerLabel }}</ui-button>
+            </ui-emoji-picker-trigger>
+            <ui-emoji-picker-content />
+          </ui-emoji-picker>
+        </div>
+        <p class="text-sm text-muted-foreground">{{ t().clippedCaption }}</p>
+      </div>
     </section>
   `,
 })

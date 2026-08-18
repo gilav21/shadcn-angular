@@ -17,6 +17,12 @@ import { AvatarComponent } from '../avatar.component';
 export class AvatarFallbackComponent {
     readonly avatar = inject(AvatarComponent, { optional: true });
 
+    /**
+     * Extra classes merged onto the fallback disc (`bg-muted`, centred, full-size) —
+     * where you set the initials' text size or a custom background. The element renders
+     * only while the parent avatar's image has not loaded, and always when there is no
+     * `ui-avatar-image` at all.
+     */
     class = input('');
 
     classes = computed(() =>

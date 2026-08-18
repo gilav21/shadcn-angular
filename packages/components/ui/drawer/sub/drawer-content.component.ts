@@ -28,8 +28,20 @@ import { DrawerDescriptionComponent } from './drawer-description.component';
 export class DrawerContentComponent implements AfterViewInit {
     readonly drawer = inject(DRAWER, { optional: true });
     private readonly el = inject(ElementRef);
+    /**
+     * Extra classes merged onto the panel (not the backdrop), after the
+     * direction variant — pass sizing utilities here to override the default
+     * `max-h-[80vh]` / `w-3/4 sm:max-w-sm`. The slide-in edge is not settable
+     * here; set `[direction]` on the parent `ui-drawer`.
+     */
     class = input('');
+    /**
+     * Simple mode: renders a `ui-drawer-header`/`ui-drawer-title` above the
+     * projected content. Leave unset and project your own header instead;
+     * {@link description} is only rendered when this is set.
+     */
     title = input<string>();
+    /** Simple-mode sub-heading. Only rendered when {@link title} is also set. */
     description = input<string>();
 
     private contentEl?: HTMLElement;
@@ -74,10 +86,19 @@ export class DrawerContentComponent implements AfterViewInit {
         this.class()
     ));
 
+    /**
+     * Backdrop click handler — the drawer is dismissible by clicking outside.
+     * Bound to the overlay button only, so panel clicks never reach it.
+     */
     onOverlayClick(): void {
         this.drawer?.hide();
     }
 
+    /**
+     * Key handler on the modal wrapper: Escape closes the drawer, Tab/Shift+Tab
+     * wrap focus so it stays trapped inside the panel. The panel renders inline
+     * at `z-50`, not in the native top layer, so higher-z UI can cover it.
+     */
     onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
             event.preventDefault();

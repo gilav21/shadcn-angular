@@ -20,6 +20,7 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class FieldLegendComponent {
+  /** Extra classes merged onto the native `<legend>`. Only meaningful as the first child of `ui-field-set`, where it names the group for assistive tech. */
   class = input('');
 
   classes = computed(() => cn(

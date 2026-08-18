@@ -1220,12 +1220,28 @@ const SIZE_MAP: Record<string, string> = {
     styleUrl: './icon.component.css',
 })
 export class IconComponent {
+    /**
+     * Icon key, looked up in the built-in set merged with anything registered
+     * through the `UI_CUSTOM_ICONS` token (custom entries win on a name clash).
+     * An unknown name renders an empty `<svg>` rather than throwing, so typos
+     * fail silently.
+     */
     readonly name = input<IconName>('');
+    /** Extra classes merged onto the `<svg>`, which already carries `ui-icon` and a per-name `ui-icon-<name>` hook for targeting a single icon from outside. */
     readonly class = input('');
+    /** Preset key (`xs` 12px … `xl` 48px) or any raw SVG length passed straight through. Sets both width and height; the `viewBox` is fixed at 24, so the glyph scales. */
     readonly size = input<IconSize>('md');
+    /**
+     * Visual weight. `'light'`/`'regular'`/`'thick'` map to stroke widths;
+     * `'solid'` switches to a filled glyph with no stroke, but only for icons
+     * that have a solid form — the rest silently fall back to `'regular'`.
+     */
     readonly weight = input<IconWeight>('regular');
+    /** Explicit SVG `stroke-width`, overriding whatever {@link weight} would imply. Ignored in practice for `'solid'` glyphs, which have no visible stroke. */
     readonly strokeWidth = input<number | undefined>(undefined);
+    /** Inline `color` on the `<svg>`. Since strokes and solid fills use `currentColor`, this tints the whole glyph; leave it unset to inherit from the surrounding text. */
     readonly color = input<string>();
+    /** Explicit SVG `fill`, independent of {@link color}. Use it to fill an outline icon — otherwise the fill is `currentColor` for `'solid'` and `none` for every other {@link weight}. */
     readonly fillColor = input<string>();
 
     private readonly sanitizer = inject(DomSanitizer);

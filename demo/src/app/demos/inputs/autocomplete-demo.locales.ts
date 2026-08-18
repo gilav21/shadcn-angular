@@ -7,6 +7,7 @@ export interface AutocompleteDemoLocale extends LocaleMeta {
     singleSelection: string;
     multipleSelection: string;
     disabled: string;
+    clippedOverlay: string;
   };
   placeholders: {
     single: string;
@@ -14,6 +15,7 @@ export interface AutocompleteDemoLocale extends LocaleMeta {
     disabled: string;
   };
   selected: string;
+  clippedCaption: string;
 }
 
 export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> = {
@@ -25,6 +27,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       singleSelection: 'Single Selection',
       multipleSelection: 'Multiple Selection',
       disabled: 'Disabled',
+      clippedOverlay: 'Inside a Clipped Card',
     },
     placeholders: {
       single: 'Select framework...',
@@ -32,6 +35,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       disabled: 'Disabled...',
     },
     selected: 'Selected:',
+    clippedCaption: 'Try it: open the list inside this overflow-hidden card — the popup renders in the browser top layer, so it is never clipped.',
   },
   he: {
     code: 'he', rtl: true,
@@ -41,6 +45,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       singleSelection: 'בחירה יחידה',
       multipleSelection: 'בחירה מרובה',
       disabled: 'מושבת',
+      clippedOverlay: 'בתוך כרטיס חתוך',
     },
     placeholders: {
       single: 'בחר מסגרת...',
@@ -48,6 +53,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       disabled: 'מושבת...',
     },
     selected: 'נבחר:',
+    clippedCaption: 'נסו: פתחו את הרשימה בתוך הכרטיס עם overflow-hidden — החלונית מוצגת בשכבה העליונה של הדפדפן ולכן אינה נחתכת.',
   },
   ar: {
     code: 'ar', rtl: true,
@@ -57,6 +63,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       singleSelection: 'اختيار فردي',
       multipleSelection: 'اختيار متعدد',
       disabled: 'معطّل',
+      clippedOverlay: 'داخل بطاقة مقصوصة',
     },
     placeholders: {
       single: 'اختر إطار عمل...',
@@ -64,6 +71,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       disabled: 'معطّل...',
     },
     selected: 'المحدد:',
+    clippedCaption: 'جرّب: افتح القائمة داخل هذه البطاقة ذات overflow-hidden — تُعرض النافذة المنبثقة في الطبقة العليا للمتصفح فلا تُقتطع أبدًا.',
   },
   de: {
     code: 'de',
@@ -73,6 +81,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       singleSelection: 'Einzelauswahl',
       multipleSelection: 'Mehrfachauswahl',
       disabled: 'Deaktiviert',
+      clippedOverlay: 'In einer beschnittenen Karte',
     },
     placeholders: {
       single: 'Framework auswählen...',
@@ -80,6 +89,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       disabled: 'Deaktiviert...',
     },
     selected: 'Ausgewählt:',
+    clippedCaption: 'Zum Ausprobieren: Liste in dieser Karte mit overflow-hidden öffnen — das Popup wird in der obersten Browser-Ebene gerendert und daher nie abgeschnitten.',
   },
   fr: {
     code: 'fr',
@@ -89,6 +99,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       singleSelection: 'Sélection simple',
       multipleSelection: 'Sélection multiple',
       disabled: 'Désactivé',
+      clippedOverlay: 'Dans une carte rognée',
     },
     placeholders: {
       single: 'Sélectionner un framework...',
@@ -96,6 +107,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       disabled: 'Désactivé...',
     },
     selected: 'Sélectionné :',
+    clippedCaption: 'À essayer : ouvrez la liste dans cette carte en overflow-hidden — la fenêtre s’affiche dans la couche supérieure du navigateur et n’est jamais rognée.',
   },
   es: {
     code: 'es',
@@ -105,6 +117,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       singleSelection: 'Selección simple',
       multipleSelection: 'Selección múltiple',
       disabled: 'Desactivado',
+      clippedOverlay: 'Dentro de una tarjeta recortada',
     },
     placeholders: {
       single: 'Seleccionar framework...',
@@ -112,6 +125,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       disabled: 'Desactivado...',
     },
     selected: 'Seleccionado:',
+    clippedCaption: 'Pruébalo: abre la lista dentro de esta tarjeta con overflow-hidden; el desplegable se dibuja en la capa superior del navegador, así que nunca se recorta.',
   },
   ja: {
     code: 'ja',
@@ -121,6 +135,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       singleSelection: '単一選択',
       multipleSelection: '複数選択',
       disabled: '無効',
+      clippedOverlay: '切り取られたカードの中',
     },
     placeholders: {
       single: 'フレームワークを選択...',
@@ -128,6 +143,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       disabled: '無効...',
     },
     selected: '選択中:',
+    clippedCaption: 'お試し: overflow-hidden のカード内で一覧を開いてください。ポップアップはブラウザーの最前面レイヤーに描画されるため、切り取られません。',
   },
   zh: {
     code: 'zh',
@@ -137,6 +153,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       singleSelection: '单选',
       multipleSelection: '多选',
       disabled: '禁用',
+      clippedOverlay: '在被裁剪的卡片内',
     },
     placeholders: {
       single: '选择框架...',
@@ -144,6 +161,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       disabled: '禁用...',
     },
     selected: '已选择:',
+    clippedCaption: '试试看：在这个 overflow-hidden 卡片内打开列表——弹出层渲染在浏览器顶层，不会被裁剪。',
   },
   ru: {
     code: 'ru',
@@ -153,6 +171,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       singleSelection: 'Одиночный выбор',
       multipleSelection: 'Множественный выбор',
       disabled: 'Отключено',
+      clippedOverlay: 'Внутри обрезанной карточки',
     },
     placeholders: {
       single: 'Выберите фреймворк...',
@@ -160,6 +179,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       disabled: 'Отключено...',
     },
     selected: 'Выбрано:',
+    clippedCaption: 'Попробуйте: откройте список внутри карточки с overflow-hidden — всплывающее окно отрисовывается в верхнем слое браузера и не обрезается.',
   },
   pt: {
     code: 'pt',
@@ -169,6 +189,7 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       singleSelection: 'Seleção simples',
       multipleSelection: 'Seleção múltipla',
       disabled: 'Desativado',
+      clippedOverlay: 'Dentro de um cartão recortado',
     },
     placeholders: {
       single: 'Selecionar framework...',
@@ -176,5 +197,6 @@ export const AUTOCOMPLETE_DEMO_LOCALES: Record<string, AutocompleteDemoLocale> =
       disabled: 'Desativado...',
     },
     selected: 'Selecionado:',
+    clippedCaption: 'Experimente: abra a lista dentro deste cartão com overflow-hidden — o pop-up é renderizado na camada superior do navegador e nunca é cortado.',
   },
 };

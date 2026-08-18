@@ -305,10 +305,12 @@ export class RichTextLinksDirective {
         this.closeOverlay();
     }
 
+    /**
+     * Close the overlay on scroll. It is fixed-positioned, so a page or editor
+     * scroll leaves it stranded away from its anchor. Scrolling within the
+     * overlay's own fields is exempt and must not dismiss it.
+     */
     private onScrollDismiss(event: Event): void {
-        // The overlay is fixed-positioned; a page/editor scroll leaves it
-        // stranded away from its anchor, so close it. Scrolling within the
-        // overlay's own fields must not dismiss it.
         if (!this.overlayRef) return;
         const overlayEl = this.overlayRef.location.nativeElement as HTMLElement;
         const target = event.target;

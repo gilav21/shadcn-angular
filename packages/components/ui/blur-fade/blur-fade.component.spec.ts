@@ -26,6 +26,14 @@ class TestHostComponent {
 })
 class InViewFalseHostComponent {}
 
+@Component({
+    template: `<ui-blur-fade [inView]="false" (replay)="replays = replays + 1" />`,
+    imports: [BlurFadeComponent],
+})
+class ReplayHostComponent {
+    replays = 0;
+}
+
 interface FakeEntry {
     isIntersecting: boolean;
 }
@@ -365,6 +373,24 @@ describe('BlurFadeComponent', () => {
             comp.playAnimation();
 
             expect(opacityValues[0]).toBe('0');
+        });
+
+        it('should emit replay for every restart but not for the first reveal', async () => {
+            await TestBed.configureTestingModule({
+                imports: [ReplayHostComponent],
+            }).compileComponents();
+
+            const fixture = TestBed.createComponent(ReplayHostComponent);
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.replays).toBe(0);
+
+            const comp = fixture.debugElement.query(By.directive(BlurFadeComponent)).componentInstance as BlurFadeComponent;
+            comp.playAnimation();
+            expect(fixture.componentInstance.replays).toBe(1);
+
+            comp.playAnimation();
+            expect(fixture.componentInstance.replays).toBe(2);
         });
     });
 

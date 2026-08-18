@@ -20,13 +20,31 @@ type TypingState = 'typing' | 'pausing' | 'deleting' | 'waiting';
     host: { class: 'contents' },
 })
 export class TypingAnimationComponent implements OnInit, OnDestroy {
+    /** Extra classes merged onto the inline wrapper. Because the text length changes constantly, give the surrounding layout a fixed width if you need to avoid reflow. */
     class = input('');
+    /**
+     * Phrases typed one after another, each deleted before the next. Read fresh
+     * on every tick, so the list may change mid-run. All of them are also
+     * exposed to assistive tech at once via `accessibleText` — the animation
+     * itself is `aria-hidden` decoration.
+     */
     strings = input<string[]>([]);
+    /** Milliseconds between characters while typing forwards. Read per character, so it can be changed live. */
     typeSpeed = input(50);
+    /** Milliseconds between characters while deleting — usually set lower than {@link typeSpeed}, since erasing reads better fast. */
     deleteSpeed = input(30);
+    /** Milliseconds a finished phrase stays on screen before it starts deleting. A further fixed 300ms gap follows deletion, before the next phrase begins. */
     pauseDuration = input(1500);
+    /** Cycles back to the first phrase forever. When `false`, the run stops with the last phrase left on screen and {@link complete} is emitted. */
     loop = input(true);
+    /** Shows the caret after the text. It blinks only while paused between phrases and stays solid while characters are moving. */
     cursor = input(true);
+    /**
+     * Emitted once the final phrase has been typed, which only ever happens when
+     * {@link loop} is `false`. Never emitted for a looping animation, nor when
+     * the user prefers reduced motion (the first phrase is then shown at once,
+     * with no run at all).
+     */
     complete = output<void>();
 
     displayText = signal('');
@@ -47,6 +65,11 @@ export class TypingAnimationComponent implements OnInit, OnDestroy {
      */
     readonly accessibleText = computed(() => this.strings().join(', '));
 
+    /**
+     * Class applied to the caret: it blinks only while the animation is idle
+     * between phrases, and stays solid while characters are being typed or
+     * deleted — which is how a real caret behaves.
+     */
     blinkClass(): string {
         const s = this.state();
         return s === 'pausing' || s === 'waiting' ? 'cursor-blink' : '';

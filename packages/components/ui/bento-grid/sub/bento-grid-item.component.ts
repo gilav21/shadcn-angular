@@ -18,8 +18,11 @@ import { cn } from '../../../lib/utils';
     }
 })
 export class BentoGridItemComponent {
+    /** Extra classes merged onto the card, after the built-in border/padding/hover utilities. */
     readonly class = input<string>('');
+    /** How many grid columns the card spans (`grid-column: span N`). Static markup only — this item is not the one `ui-bento-grid` drags and resizes; that one is driven by {@link BentoGridComponent.items}. */
     readonly span = input<number>(1);
+    /** How many grid rows the card spans (`grid-row: span N`). */
     readonly rowSpan = input<number>(1);
 
     readonly classes = computed(() => cn(

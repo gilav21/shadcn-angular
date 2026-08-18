@@ -43,10 +43,18 @@ export type EyedropperVariant = 'icon' | 'button';
     host: { class: 'inline-block' },
 })
 export class EyedropperComponent {
+    /** Extra classes merged onto the trigger button. Sizing comes from {@link variant}, so override `h-9`/`w-9` here if the button must line up with taller controls. */
     readonly class = input('');
+    /**
+     * Disables the trigger. The button is also disabled automatically when
+     * neither the native EyeDropper API nor a {@link fallbackTarget} is
+     * available, so `false` here does not guarantee an enabled control — see
+     * `isDisabled`.
+     */
     readonly disabled = input(false);
     /** Override for the button label / `aria-label`. Falls back to the locale's `pickColor`. */
     readonly label = input<string>();
+    /** `'icon'` renders a square icon-only button; `'button'` a wider one that also shows the resolved label beside the icon. The `aria-label` is set either way. */
     readonly variant = input<EyedropperVariant>('icon');
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -64,8 +72,19 @@ export class EyedropperComponent {
      */
     readonly fallbackTarget = input<FallbackTarget>(null);
 
+    /**
+     * The picked colour as a hex string. The native API reports the sRGB hex it
+     * sampled; the canvas fallback formats the sampled RGBA itself, so it can
+     * include an alpha component for partially transparent pixels.
+     */
     readonly colorPick = output<string>();
+    /** Fired when picking mode begins — the native overlay opened, or the fallback crosshair was armed. Exactly one of {@link colorPick} or {@link pickCancel} follows. */
     readonly pickStart = output<void>();
+    /**
+     * Fired when picking ends without a colour: the user dismissed the native
+     * overlay, pressed Escape during fallback sampling, or committed on a point
+     * outside the target.
+     */
     readonly pickCancel = output<void>();
 
     private readonly platformId = inject(PLATFORM_ID);
@@ -98,6 +117,14 @@ export class EyedropperComponent {
         ),
     );
 
+    /**
+     * Starts picking. Prefers the native EyeDropper overlay (whole-screen
+     * sampling) and otherwise arms crosshair sampling over
+     * {@link fallbackTarget}. Safe to call programmatically as well as from the
+     * button; re-entrant calls while already picking, or while disabled, are
+     * ignored. Fallback sampling on a cross-origin `<img>` without
+     * `crossorigin` taints the canvas and silently yields nothing.
+     */
     async pick(): Promise<void> {
         if (this.isDisabled() || this.picking()) return;
         if (this.hasNativeApi()) {

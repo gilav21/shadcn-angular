@@ -10,7 +10,7 @@ import { By } from '@angular/platform-browser';
 type DockInternals = {
     _itemCenters: number[];
     _rafId: number | null;
-    _mouseX: number;
+    _pointerOffset: number;
 };
 
 function makeRect(x: number): DOMRect {
@@ -23,6 +23,14 @@ function makeRect(x: number): DOMRect {
 
 /** Two frames, not one: the component schedules its own frame while handling
  *  the event, so a single `requestAnimationFrame` can resolve before it runs. */
+function makeVerticalRect(y: number): DOMRect {
+    return {
+        x: 0, y, width: 40, height: 40,
+        top: y, left: 0, right: 40, bottom: y + 40,
+        toJSON: () => undefined,
+    } as unknown as DOMRect;
+}
+
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -167,7 +175,7 @@ describe('DockComponent', () => {
             dockComponent.onMouseMove(new MouseEvent('mousemove', { clientX: 20 }));
             expect(internals(dockComponent)._rafId).not.toBeNull();
             dockComponent.onMouseMove(new MouseEvent('mousemove', { clientX: 70 }));
-            expect(internals(dockComponent)._mouseX).toBe(70);
+            expect(internals(dockComponent)._pointerOffset).toBe(70);
             await nextFrame();
             expect(internals(dockComponent)._rafId).toBeNull();
         });
@@ -194,7 +202,7 @@ describe('DockComponent', () => {
 
         it('should skip items without a matching center', () => {
             internals(dockComponent)._itemCenters = [];
-            internals(dockComponent)._mouseX = 20;
+            internals(dockComponent)._pointerOffset = 20;
             dockComponent.updateItems();
             expect(itemEls[0].style.width).toBe('40px');
         });
@@ -279,6 +287,66 @@ describe('DockComponent', () => {
             fixture.detectChanges();
             dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]'));
             expect(dockEl.nativeElement.className).toContain('flex-col');
+        });
+
+        it('should magnify along the column in a vertical dock', async () => {
+            component.position.set('left');
+            fixture.detectChanges();
+
+            const itemEls = fixture.debugElement
+                .queryAll(By.directive(DockItemComponent))
+                .map(d => d.nativeElement as HTMLElement);
+            itemEls.forEach((el, index) => {
+                const rect = makeVerticalRect(index * 50);
+                Object.defineProperty(el, 'getBoundingClientRect', { configurable: true, value: () => rect });
+            });
+            dockComponent.recalculateItemCenters();
+
+            const dockEl = fixture.debugElement.query(By.css('[data-slot="dock"]')).nativeElement as HTMLElement;
+            dockEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 0, clientY: 120, bubbles: true }));
+
+            await vi.waitFor(() =>
+                expect(Number.parseFloat(itemEls[2].style.width)).toBeCloseTo(60, 5));
+            expect(Number.parseFloat(itemEls[0].style.width)).toBe(40);
+        });
+
+        it('should render a link for an item with an href', () => {
+            component.items.set([{ label: 'Docs', icon: 'D', href: '/docs' }]);
+            fixture.detectChanges();
+
+            const link = fixture.debugElement.query(By.css('[data-slot="dock-item-link"]'));
+            expect(link).toBeTruthy();
+            expect((link.nativeElement as HTMLAnchorElement).getAttribute('href')).toBe('/docs');
+            expect((link.nativeElement as HTMLAnchorElement).getAttribute('aria-label')).toBe('Docs');
+        });
+
+        it('should render a button that runs onClick for an item without an href', () => {
+            let clicked = 0;
+            component.items.set([{ label: 'Launch', icon: 'L', onClick: () => clicked++ }]);
+            fixture.detectChanges();
+
+            const button = fixture.debugElement.query(By.css('[data-slot="dock-item-button"]'));
+            expect(button).toBeTruthy();
+            (button.nativeElement as HTMLButtonElement).click();
+            expect(clicked).toBe(1);
+        });
+
+        it('should run onClick from a link as well as navigating', () => {
+            let clicked = 0;
+            component.items.set([{ label: 'Both', icon: 'B', href: '#dock-target', onClick: () => clicked++ }]);
+            fixture.detectChanges();
+
+            const link = fixture.debugElement.query(By.css('[data-slot="dock-item-link"]'));
+            link.triggerEventHandler('click', new MouseEvent('click'));
+            expect(clicked).toBe(1);
+        });
+
+        it('should stay decorative for an item with neither href nor onClick', () => {
+            component.items.set([{ label: 'Plain', icon: 'P' }]);
+            fixture.detectChanges();
+
+            expect(fixture.debugElement.query(By.css('[data-slot="dock-item-link"]'))).toBeNull();
+            expect(fixture.debugElement.query(By.css('[data-slot="dock-item-button"]'))).toBeNull();
         });
 
         it('should no-op updateItems when there are no items', () => {

@@ -25,6 +25,11 @@ import { CollapsibleComponent } from '../collapsible.component';
 export class CollapsibleTriggerComponent {
     readonly collapsible = inject(CollapsibleComponent, { optional: true });
 
+    /**
+     * Toggles the enclosing `<ui-collapsible>`. Already bound to the trigger's click, Enter and
+     * Space; does nothing when the trigger is used outside a collapsible. Respects the parent's
+     * `disabled` input, since it delegates to its `toggle()`.
+     */
     onClick(): void {
         this.collapsible?.toggle();
     }

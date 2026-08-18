@@ -10,6 +10,10 @@ export interface PopoverDemoLocale extends LocaleMeta {
   widthLabel: string;
   maxWidthLabel: string;
   closeLabel: string;
+  restoreFocusHeading: string;
+  restoreFocusCaption: string;
+  restoreFocusBody: string;
+  restoreFocusOpenLabel: string;
 }
 
 export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
@@ -23,6 +27,10 @@ export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
     widthLabel: 'Width',
     maxWidthLabel: 'Max. width',
     closeLabel: 'Close',
+    restoreFocusHeading: 'Focus restore',
+    restoreFocusCaption: 'Try it: Tab to the button, press Enter to open, then close with Escape or Close — focus lands back on the trigger, so Tab continues where you left off.',
+    restoreFocusBody: 'With restoreFocus on, closing hands focus back to the element that opened this panel.',
+    restoreFocusOpenLabel: 'Open with focus restore',
   },
   he: {
     code: 'he', rtl: true,
@@ -34,6 +42,10 @@ export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
     widthLabel: 'רוחב',
     maxWidthLabel: 'רוחב מקסימלי',
     closeLabel: 'סגור',
+    restoreFocusHeading: 'שחזור מיקוד',
+    restoreFocusCaption: 'נסה: הגע לכפתור עם Tab, פתח עם Enter, וסגור עם Escape או "סגור" — המיקוד חוזר לכפתור ו-Tab ממשיך מאותה נקודה.',
+    restoreFocusBody: 'כאשר restoreFocus פעיל, הסגירה מחזירה את המיקוד לאלמנט שפתח את החלון.',
+    restoreFocusOpenLabel: 'פתח עם שחזור מיקוד',
   },
   ar: {
     code: 'ar', rtl: true,
@@ -45,6 +57,10 @@ export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
     widthLabel: 'العرض',
     maxWidthLabel: 'الحد الأقصى للعرض',
     closeLabel: 'إغلاق',
+    restoreFocusHeading: 'استعادة التركيز',
+    restoreFocusCaption: 'جرّب: انتقل بـ Tab إلى الزر، افتح بـ Enter، ثم أغلق بـ Escape أو «إغلاق» — يعود التركيز إلى الزر ويكمل Tab من حيث توقفت.',
+    restoreFocusBody: 'مع تفعيل restoreFocus يعيد الإغلاق التركيز إلى العنصر الذي فتح هذه اللوحة.',
+    restoreFocusOpenLabel: 'افتح مع استعادة التركيز',
   },
   de: {
     code: 'de',
@@ -56,6 +72,10 @@ export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
     widthLabel: 'Breite',
     maxWidthLabel: 'Max. Breite',
     closeLabel: 'Schließen',
+    restoreFocusHeading: 'Fokus-Wiederherstellung',
+    restoreFocusCaption: 'Ausprobieren: mit Tab zur Schaltfläche, mit Enter öffnen, dann mit Escape oder „Schließen“ schließen — der Fokus liegt wieder auf dem Auslöser, Tab macht dort weiter.',
+    restoreFocusBody: 'Mit aktivem restoreFocus gibt das Schließen den Fokus an das Element zurück, das dieses Panel geöffnet hat.',
+    restoreFocusOpenLabel: 'Mit Fokus-Wiederherstellung öffnen',
   },
   fr: {
     code: 'fr',
@@ -67,6 +87,10 @@ export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
     widthLabel: 'Largeur',
     maxWidthLabel: 'Largeur max.',
     closeLabel: 'Fermer',
+    restoreFocusHeading: 'Restauration du focus',
+    restoreFocusCaption: 'Essayez : atteignez le bouton avec Tab, ouvrez avec Entrée, puis fermez avec Échap ou « Fermer » — le focus revient sur le déclencheur et Tab reprend au même endroit.',
+    restoreFocusBody: 'Avec restoreFocus activé, la fermeture rend le focus à l\'élément qui a ouvert ce panneau.',
+    restoreFocusOpenLabel: 'Ouvrir avec restauration du focus',
   },
   es: {
     code: 'es',
@@ -78,6 +102,10 @@ export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
     widthLabel: 'Ancho',
     maxWidthLabel: 'Ancho máx.',
     closeLabel: 'Cerrar',
+    restoreFocusHeading: 'Restauración del foco',
+    restoreFocusCaption: 'Pruébalo: llega al botón con Tab, abre con Intro y cierra con Escape o «Cerrar» — el foco vuelve al disparador y Tab continúa donde lo dejaste.',
+    restoreFocusBody: 'Con restoreFocus activado, al cerrar el foco vuelve al elemento que abrió este panel.',
+    restoreFocusOpenLabel: 'Abrir con restauración del foco',
   },
   ja: {
     code: 'ja',
@@ -89,6 +117,10 @@ export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
     widthLabel: '幅',
     maxWidthLabel: '最大幅',
     closeLabel: '閉じる',
+    restoreFocusHeading: 'フォーカスの復帰',
+    restoreFocusCaption: 'お試しください: Tab でボタンに移動し Enter で開き、Escape か「閉じる」で閉じると、フォーカスはトリガーに戻り Tab は続きから進みます。',
+    restoreFocusBody: 'restoreFocus が有効なとき、閉じるとフォーカスはこのパネルを開いた要素へ戻ります。',
+    restoreFocusOpenLabel: 'フォーカス復帰付きで開く',
   },
   zh: {
     code: 'zh',
@@ -100,6 +132,10 @@ export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
     widthLabel: '宽度',
     maxWidthLabel: '最大宽度',
     closeLabel: '关闭',
+    restoreFocusHeading: '焦点恢复',
+    restoreFocusCaption: '试一试：用 Tab 移到按钮，按 Enter 打开，再用 Escape 或“关闭”关闭——焦点会回到触发器，Tab 从原处继续。',
+    restoreFocusBody: '启用 restoreFocus 后，关闭时焦点会交还给打开该面板的元素。',
+    restoreFocusOpenLabel: '打开并恢复焦点',
   },
   ru: {
     code: 'ru',
@@ -111,6 +147,10 @@ export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
     widthLabel: 'Ширина',
     maxWidthLabel: 'Макс. ширина',
     closeLabel: 'Закрыть',
+    restoreFocusHeading: 'Возврат фокуса',
+    restoreFocusCaption: 'Попробуйте: доберитесь до кнопки по Tab, откройте по Enter, закройте Escape или «Закрыть» — фокус вернётся на триггер, и Tab продолжит с того же места.',
+    restoreFocusBody: 'При включённом restoreFocus закрытие возвращает фокус элементу, который открыл эту панель.',
+    restoreFocusOpenLabel: 'Открыть с возвратом фокуса',
   },
   pt: {
     code: 'pt',
@@ -122,5 +162,9 @@ export const POPOVER_DEMO_LOCALES: Record<string, PopoverDemoLocale> = {
     widthLabel: 'Largura',
     maxWidthLabel: 'Largura máx.',
     closeLabel: 'Fechar',
+    restoreFocusHeading: 'Restauração do foco',
+    restoreFocusCaption: 'Experimente: chegue ao botão com Tab, abra com Enter e feche com Escape ou «Fechar» — o foco volta ao gatilho e o Tab continua de onde parou.',
+    restoreFocusBody: 'Com restoreFocus ativo, fechar devolve o foco ao elemento que abriu este painel.',
+    restoreFocusOpenLabel: 'Abrir com restauração do foco',
   },
 };

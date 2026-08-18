@@ -17,6 +17,13 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class NavigationMenuListComponent {
+  /**
+   * Extra classes merged onto the `<ul>`. The base classes lay the items out as a centered,
+   * `flex-wrap` row with `gap-1` and no list markers, and add the `group` marker other slots can
+   * target. Do not add an `overflow-*` class: any non-visible overflow on one axis forces the
+   * other to `auto`, turning the list into a scroll container that clips the dropdowns hanging
+   * below it — narrow viewports are meant to wrap, not scroll.
+   */
   class = input('');
 
   // No `overflow-x-auto` here: setting one overflow axis to a non-visible value

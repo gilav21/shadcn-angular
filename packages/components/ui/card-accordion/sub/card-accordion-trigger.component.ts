@@ -23,6 +23,7 @@ import { CardAccordionItemComponent } from './card-accordion-item.component';
   host: { '[class]': '"contents"' },
 })
 export class CardAccordionTriggerComponent {
+  /** Extra classes merged onto the header button. It is `flex-1 min-w-0`, so long titles truncate rather than pushing the chevron and actions off the card. */
   readonly class = input('');
 
   private readonly accordion = inject(ACCORDION, { optional: true });
@@ -50,6 +51,10 @@ export class CardAccordionTriggerComponent {
     )
   );
 
+  /**
+   * Toggles the card this trigger belongs to, resolving the item from DI. A
+   * no-op outside a `ui-card-accordion-item` inside a `ui-accordion`.
+   */
   toggle(): void {
     const val = this.item?.value();
     if (val && this.accordion) {

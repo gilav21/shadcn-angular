@@ -8,6 +8,7 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class DockIconComponent {
+    /** Extra classes merged onto the icon box. It fills the item, so the icon scales with the dock's hover magnification for free — leave the sizing to the parent. */
     class = input('');
     classes = computed(() => cn('size-full flex items-center justify-center', this.class()));
 }

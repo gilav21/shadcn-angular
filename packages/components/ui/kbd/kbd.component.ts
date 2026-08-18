@@ -26,6 +26,11 @@ import { cn } from '../../lib/utils';
     host: { class: 'contents' },
 })
 export class KbdComponent {
+    /**
+     * Extra classes merged onto the rendered `<kbd>` element. Merged with `cn`,
+     * so a conflicting Tailwind utility here overrides the built-in one
+     * (e.g. `text-xs` replaces the default `text-[10px]`).
+     */
     class = input('');
 
     classes = computed(() => cn(

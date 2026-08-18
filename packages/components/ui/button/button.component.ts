@@ -69,11 +69,19 @@ export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
  * focus / hit target.
  */
 export class ButtonComponent {
-    variant = input<ButtonVariant>('default');
-    size = input<ButtonSize>('default');
-    disabled = input(false);
-    type = input<'button' | 'submit' | 'reset'>('button');
-    class = input('');
+    /** Visual style. `link` renders as inline text; `destructive` is tinted, not solid. */
+    readonly variant = input<ButtonVariant>('default');
+    /**
+     * Size preset. The three `icon*` sizes drop the horizontal padding for a
+     * square button holding a single glyph.
+     */
+    readonly size = input<ButtonSize>('default');
+    /** Disables the inner `<button>`. Also forced while {@link loading} is true. */
+    readonly disabled = input(false);
+    /** Native `type` of the inner `<button>`. Defaults to `'button'` so it never submits a form by accident. */
+    readonly type = input<'button' | 'submit' | 'reset'>('button');
+    /** Extra classes merged onto the inner `<button>` (not the host). */
+    readonly class = input('');
     /** Accessible name, camelCase form: `[ariaLabel]="'Copy'"`. */
     ariaLabel = input<string | undefined>(undefined);
     /**
@@ -86,13 +94,25 @@ export class ButtonComponent {
         inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.getAttribute('aria-label') ?? undefined;
     /** The name actually applied to the inner `<button>`, from either spelling. */
     readonly resolvedAriaLabel = computed(() => this.ariaLabel() ?? this.hostAriaLabel);
-    label = input<string>('');
-    ripple = input(false);
-    rippleColor = input('color-mix(in srgb, currentColor 35%, transparent)');
+    /**
+     * Convenience text label. When set it replaces projected content — pass
+     * either this or `<ng-content>`, not both.
+     */
+    readonly label = input<string>('');
+    /** Enable the material-style ripple on press. */
+    readonly ripple = input(false);
+    /** Ripple colour, any CSS colour. Defaults to a translucent tint of the current text colour. */
+    readonly rippleColor = input('color-mix(in srgb, currentColor 35%, transparent)');
+    /**
+     * Show a centred spinner over the button's content and disable it. The label
+     * stays in the DOM, so the button keeps its width and the layout doesn't jump.
+     */
     readonly loading = input(false);
+    /** Replace the button entirely with a skeleton placeholder while content loads. */
     readonly skeleton = input(false);
 
-    clicked = output<MouseEvent>();
+    /** Emits the native click. Never fires while disabled, loading, or in skeleton mode. */
+    readonly clicked = output<MouseEvent>();
 
     readonly classes = computed(() =>
         cn(buttonVariants({ variant: this.variant(), size: this.size() }), this.loading() && 'relative', this.class())

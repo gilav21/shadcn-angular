@@ -103,13 +103,27 @@ const CSHARP_KEYWORDS = ['public', 'private', 'protected', 'internal', 'class', 
     templateUrl: './code-block.component.html',
 })
 export class CodeBlockComponent {
+    /** Source text to display. Split on newlines and tokenized line by line, so highlighting never spans lines — a multi-line string or block comment is coloured per line. */
     readonly code = input('');
+    /** Language key for the highlighter, matched case-insensitively against the built-in set plus {@link customLanguages}. An unknown key silently falls back to TypeScript rules. */
     readonly language = input('typescript');
+    /** Extra classes merged onto the block. The surface is deliberately dark in both themes (`bg-zinc-950`), so override it here if you need a light code block. */
     readonly class = input('');
+    /** Per-token-type class overrides. Any token type missing from the object falls back to the built-in palette, so a partial theme is fine. `null` uses the defaults throughout. */
     readonly theme = input<CodeBlockTheme | null>(null);
+    /**
+     * Extra or replacement language definitions keyed by lowercase language name.
+     * A bare pattern array registers highlighting only; a full config may also
+     * supply a scope detector for folding. An entry here shadows the built-in
+     * language of the same name, but still inherits that language's built-in
+     * fold detector when it does not provide one.
+     */
     readonly customLanguages = input<Record<string, LanguagePattern | LanguageConfig> | null>(null);
+    /** Enables collapsible code folding on brace/indent scopes. Requires a scope detector for the resolved language — languages without one simply render flat. */
     readonly collapseScope = input(false);
+    /** Folds every scope at this nesting depth or deeper on load (`0` collapses everything). `undefined` starts fully expanded. Only applies while {@link collapseScope} is on. */
     readonly defaultCollapsed = input<number | undefined>(undefined);
+    /** Shows the line-number gutter, sized to the digit count of the last line so it never shifts as you scroll. */
     readonly lineNumbers = input(true);
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -193,6 +207,11 @@ export class CodeBlockComponent {
         });
     }
 
+    /**
+     * Copies the full {@link code} — not just the visible lines, so folded scopes
+     * are included — and flips the button to its "copied" state for two seconds.
+     * A no-op where the Clipboard API is unavailable (non-secure origins).
+     */
     copyToClipboard(): void {
         if (!navigator?.clipboard) { return; }
         navigator.clipboard.writeText(this.code()).then(() => {
@@ -201,6 +220,7 @@ export class CodeBlockComponent {
         });
     }
 
+    /** Folds or unfolds the scope beginning at the given line index. Folding hides every line up to the scope's end, keeping the header line visible. */
     toggleScope(startLine: number): void {
         const next = new Set(this.collapsed());
         if (next.has(startLine)) {
@@ -211,14 +231,17 @@ export class CodeBlockComponent {
         this.collapsed.set(next);
     }
 
+    /** Whether the scope starting at this line is currently folded; drives the chevron's direction in the gutter. */
     isCollapsed(startLine: number): boolean {
         return this.collapsed().has(startLine);
     }
 
+    /** Gutter chevron handler. Tolerates `undefined` because the template renders a chevron slot on every line, including those that start no scope. */
     onChevronClick(startLine: number | undefined): void {
         if (startLine !== undefined) { this.toggleScope(startLine); }
     }
 
+    /** Resolves a token to its colour classes, preferring the matching entry in {@link theme} and otherwise using the built-in palette. Unrecognised token types render as plain text. */
     getTokenClass(token: Token): string {
         const theme = this.theme();
         if (theme?.[token.type]) { return theme[token.type]; }

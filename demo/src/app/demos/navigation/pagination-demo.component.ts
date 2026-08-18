@@ -1,5 +1,5 @@
 // demo/src/app/demos/navigation/pagination-demo.component.ts
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import {
   PaginationComponent,
@@ -57,6 +57,13 @@ import { PAGINATION_DEMO_LOCALES } from './pagination-demo.locales';
       <h3 class="text-lg font-medium mt-8">{{ t().simpleHeading }}</h3>
       <p class="text-muted-foreground text-sm mb-4">{{ t().simpleDescription }}</p>
       <ui-pagination [totalPages]="10" [currentPage]="1" />
+
+      <h3 class="text-lg font-medium mt-8">{{ t().ellipsisHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().ellipsisDescription }}</p>
+      <ui-pagination [totalPages]="20" [currentPage]="ellipsisPage()" (pageChange)="ellipsisPage.set($event)" />
+      <p class="text-center text-sm text-muted-foreground">
+        {{ t().currentPageLabel }}: {{ ellipsisPage() }} / 20
+      </p>
     </section>
   `,
 })
@@ -65,4 +72,6 @@ export class PaginationDemoComponent {
   protected readonly t = computed(
     () => PAGINATION_DEMO_LOCALES[this.localeId()] ?? PAGINATION_DEMO_LOCALES['en'],
   );
+
+  readonly ellipsisPage = signal(10);
 }

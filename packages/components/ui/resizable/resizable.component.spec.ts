@@ -356,6 +356,183 @@ describe('Resizable drag guards', () => {
     });
 });
 
+@Component({
+    template: `
+    <ui-resizable-panel-group direction="horizontal">
+      <ui-resizable-panel [defaultSize]="50" [minSize]="40" [maxSize]="70" class="panel-a">A</ui-resizable-panel>
+      <ui-resizable-handle></ui-resizable-handle>
+      <ui-resizable-panel [defaultSize]="50" class="panel-b">B</ui-resizable-panel>
+    </ui-resizable-panel-group>
+  `,
+    imports: [ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent]
+})
+class LimitsHostComponent { }
+
+describe('Resizable panel limits and state', () => {
+    const mockLayout = (element: HTMLElement, size: number) => {
+        Object.defineProperty(element, 'offsetWidth', { configurable: true, value: size });
+        Object.defineProperty(element, 'offsetHeight', { configurable: true, value: size });
+    };
+
+    const setupLimitsFixture = async (): Promise<ComponentFixture<LimitsHostComponent>> => {
+        await TestBed.configureTestingModule({ imports: [LimitsHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(LimitsHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        return fixture;
+    };
+
+    const startHorizontalDrag = (fixture: ComponentFixture<unknown>) => {
+        const group = fixture.debugElement.query(By.css('[data-slot="resizable-panel-group"]')).nativeElement;
+        mockLayout(group, 1000);
+        const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
+        mockLayout(panels[0].nativeElement, 500);
+        mockLayout(panels[1].nativeElement, 500);
+
+        const handleEl = fixture.debugElement.query(By.css('[data-slot="resizable-handle"]'));
+        handleEl.triggerEventHandler('mousedown', { preventDefault: () => { }, clientX: 500, clientY: 0 });
+        return panels;
+    };
+
+    it('refuses a drag that would take a panel past its own minSize', async () => {
+        const fixture = await setupLimitsFixture();
+        const panels = startHorizontalDrag(fixture);
+
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 450, clientY: 0 }));
+        fixture.detectChanges();
+        expect(panels[0].nativeElement.style.flexBasis).toBe('45%');
+
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 350, clientY: 0 }));
+        fixture.detectChanges();
+        expect(panels[0].nativeElement.style.flexBasis).toBe('45%');
+
+        document.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('refuses a drag that would take a panel past its own maxSize', async () => {
+        const fixture = await setupLimitsFixture();
+        const panels = startHorizontalDrag(fixture);
+
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 750, clientY: 0 }));
+        fixture.detectChanges();
+        expect(panels[0].nativeElement.style.flexBasis).toBe('50%');
+
+        document.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('routes a drag through the panels so size and sizeChange stay in step', async () => {
+        const fixture = await setupLimitsFixture();
+        const panels = startHorizontalDrag(fixture);
+        const panelA = panels[0].componentInstance as ResizablePanelComponent;
+        const panelB = panels[1].componentInstance as ResizablePanelComponent;
+
+        const emitted: number[] = [];
+        panelA.sizeChange.subscribe((v: number) => emitted.push(v));
+
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 600, clientY: 0 }));
+        fixture.detectChanges();
+
+        expect(panelA.size()).toBe(60);
+        expect(panelB.size()).toBe(40);
+        expect(emitted).toEqual([60]);
+
+        document.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('resizes with the arrow keys along the group axis', async () => {
+        const fixture = await setupLimitsFixture();
+        const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
+        const panelA = panels[0].componentInstance as ResizablePanelComponent;
+        const panelB = panels[1].componentInstance as ResizablePanelComponent;
+        const handleEl = fixture.debugElement.query(By.css('[data-slot="resizable-handle"]'));
+
+        const resizedEvents: { delta: number; sizes: number[] }[] = [];
+        (fixture.debugElement.query(By.directive(ResizableHandleComponent))
+            .componentInstance as ResizableHandleComponent)
+            .resized.subscribe(e => resizedEvents.push(e));
+
+        handleEl.triggerEventHandler('keydown', { key: 'ArrowRight', preventDefault: () => { } });
+        fixture.detectChanges();
+
+        expect(panelA.size()).toBe(55);
+        expect(panelB.size()).toBe(45);
+        expect(panels[0].nativeElement.style.flexBasis).toBe('55%');
+        expect(resizedEvents).toEqual([{ delta: 0, sizes: [55, 45] }]);
+
+        handleEl.triggerEventHandler('keydown', { key: 'ArrowLeft', preventDefault: () => { } });
+        fixture.detectChanges();
+        expect(panelA.size()).toBe(50);
+    });
+
+    it('mirrors the arrow keys in RTL', async () => {
+        const originalGetComputedStyle = globalThis.getComputedStyle;
+        globalThis.getComputedStyle = ((el: Element, pseudo?: string | null) => {
+            const real = originalGetComputedStyle(el, pseudo ?? undefined);
+            return new Proxy(real, {
+                get: (target, prop) => (prop === 'direction' ? 'rtl' : Reflect.get(target, prop)),
+            });
+        }) as typeof getComputedStyle;
+
+        try {
+            const fixture = await setupLimitsFixture();
+            const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
+            const panelA = panels[0].componentInstance as ResizablePanelComponent;
+            const handleEl = fixture.debugElement.query(By.css('[data-slot="resizable-handle"]'));
+
+            handleEl.triggerEventHandler('keydown', { key: 'ArrowLeft', preventDefault: () => { } });
+            fixture.detectChanges();
+
+            expect(panelA.size()).toBe(55);
+        } finally {
+            globalThis.getComputedStyle = originalGetComputedStyle;
+        }
+    });
+
+    it('ignores keys that are not on the group axis', async () => {
+        const fixture = await setupLimitsFixture();
+        const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
+        const panelA = panels[0].componentInstance as ResizablePanelComponent;
+        const handleEl = fixture.debugElement.query(By.css('[data-slot="resizable-handle"]'));
+
+        handleEl.triggerEventHandler('keydown', { key: 'ArrowUp', preventDefault: () => { } });
+        handleEl.triggerEventHandler('keydown', { key: 'a', preventDefault: () => { } });
+        fixture.detectChanges();
+
+        expect(panelA.size()).toBe(50);
+    });
+
+    it('publishes the real panel values on the separator', async () => {
+        const fixture = await setupLimitsFixture();
+        const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
+        const panelA = panels[0].componentInstance as ResizablePanelComponent;
+        const handleEl = fixture.debugElement.query(By.css('[data-slot="resizable-handle"]'))
+            .nativeElement as HTMLElement;
+
+        expect(handleEl.getAttribute('aria-valuemin')).toBe('40');
+        expect(handleEl.getAttribute('aria-valuemax')).toBe('70');
+
+        panelA.updateSize(65);
+        fixture.detectChanges();
+
+        expect(handleEl.getAttribute('aria-valuenow')).toBe('65');
+    });
+
+    it('clamps updateSize and takes the difference out of the sibling', async () => {
+        const fixture = await setupLimitsFixture();
+        const panels = fixture.debugElement.queryAll(By.directive(ResizablePanelComponent));
+        const panelA = panels[0].componentInstance as ResizablePanelComponent;
+        const panelB = panels[1].componentInstance as ResizablePanelComponent;
+
+        panelA.updateSize(95);
+        fixture.detectChanges();
+
+        expect(panelA.size()).toBe(70);
+        expect(panelB.size()).toBe(30);
+        expect(panelA.size() + panelB.size()).toBe(100);
+    });
+});
+
 describe('ResizablePanel updateSize', () => {
     it('updates its size and emits the change', async () => {
         await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();

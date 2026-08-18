@@ -89,6 +89,10 @@ export interface ChartsDemoLocale extends LocaleMeta {
   orgChartHeading: string;
   orgChartDescription: string;
   orgChartTitle: string;
+  // Org Chart (two roots)
+  orgChartDualHeading: string;
+  orgChartDualDescription: string;
+  orgChartDualTitle: string;
   // Chart Tooltip
   chartTooltipHeading: string;
   chartTooltipDescription: string;
@@ -118,6 +122,7 @@ export interface ChartsDemoLocale extends LocaleMeta {
   barRaceFrames: ChartDataPoint[][];
   barRaceLabels: string[];
   orgChartData: OrgNode[];
+  orgChartDualData: OrgNode[];
   chartTooltipRows: ChartTooltipRow[];
   rangeDialogPayload: RangeChartData;
 }
@@ -222,6 +227,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     orgChartHeading: 'Org Chart',
     orgChartDescription: 'Hierarchy tree with curved connectors, avatar initials, and hover highlighting.',
     orgChartTitle: 'Engineering Organization',
+    orgChartDualHeading: 'Org Chart (Two Roots)',
+    orgChartDualDescription: 'Two parentless nodes, so both reporting lines are laid out side by side.',
+    orgChartDualTitle: 'Technology and Operations',
     chartTooltipHeading: 'Chart Tooltip',
     chartTooltipDescription: 'The shared tooltip primitive charts use. Position it in the plot area and feed it rows.',
     chartTooltipTitle: 'March 2026',
@@ -243,6 +251,14 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       { id: '4', name: 'Linus Chen', title: 'Platform Lead', parentId: '2' },
       { id: '5', name: 'Maya Patel', title: 'Frontend Lead', parentId: '2' },
       { id: '6', name: 'Omar Haddad', title: 'Data Scientist', parentId: '3' },
+    ],
+    orgChartDualData: [
+      { id: 't1', name: 'Ada Lovelace', title: 'CTO' },
+      { id: 't2', name: 'Grace Hopper', title: 'VP Engineering', parentId: 't1' },
+      { id: 't3', name: 'Alan Turing', title: 'VP Research', parentId: 't1' },
+      { id: 'o1', name: 'Nadia Rossi', title: 'COO' },
+      { id: 'o2', name: 'Diego Marín', title: 'Head of Sales', parentId: 'o1' },
+      { id: 'o3', name: 'Yuki Tanaka', title: 'Head of Support', parentId: 'o1' },
     ],
     chartTooltipRows: [
       { label: 'Desktop', value: '1,204', color: 'var(--chart-1)' },
@@ -351,6 +367,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     orgChartHeading: 'תרשים ארגוני',
     orgChartDescription: 'עץ היררכיה עם מחברים מעוגלים, ראשי תיבות באווטאר והדגשה בריחוף.',
     orgChartTitle: 'ארגון ההנדסה',
+    orgChartDualHeading: 'תרשים ארגוני (שני שורשים)',
+    orgChartDualDescription: 'שני צמתים ללא הורה, ולכן שני קווי הדיווח מסודרים זה לצד זה.',
+    orgChartDualTitle: 'טכנולוגיה ותפעול',
     chartTooltipHeading: 'תיאור גרף',
     chartTooltipDescription: 'רכיב התיאור המשותף שהגרפים משתמשים בו. מקמו אותו באזור השרטוט והזינו לו שורות.',
     chartTooltipTitle: 'מרץ 2026',
@@ -372,6 +391,14 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       { id: '4', name: 'יואב שגיא', title: 'ראש צוות פלטפורמה', parentId: '2' },
       { id: '5', name: 'מאיה גל', title: 'ראש צוות פרונטאנד', parentId: '2' },
       { id: '6', name: 'עומר חדד', title: 'מדען נתונים', parentId: '3' },
+    ],
+    orgChartDualData: [
+      { id: 't1', name: 'Ada Lovelace', title: 'מנהלת טכנולוגיות ראשית' },
+      { id: 't2', name: 'Grace Hopper', title: 'סמנכ״לית הנדסה', parentId: 't1' },
+      { id: 't3', name: 'Alan Turing', title: 'סמנכ״ל מחקר', parentId: 't1' },
+      { id: 'o1', name: 'Nadia Rossi', title: 'מנהלת תפעול ראשית' },
+      { id: 'o2', name: 'Diego Marín', title: 'ראש מכירות', parentId: 'o1' },
+      { id: 'o3', name: 'Yuki Tanaka', title: 'ראש תמיכה', parentId: 'o1' },
     ],
     chartTooltipRows: [
       { label: 'שולחן עבודה', value: '1,204', color: 'var(--chart-1)' },
@@ -480,6 +507,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     orgChartHeading: 'الهيكل التنظيمي',
     orgChartDescription: 'شجرة هرمية بوصلات منحنية وأحرف أولى في الصورة الرمزية وإبراز عند التمرير.',
     orgChartTitle: 'قسم الهندسة',
+    orgChartDualHeading: 'الهيكل التنظيمي (جذران)',
+    orgChartDualDescription: 'عقدتان بلا أصل، لذلك يُعرض خطّا التبعية جنبًا إلى جنب.',
+    orgChartDualTitle: 'التقنية والعمليات',
     chartTooltipHeading: 'تلميح المخطط',
     chartTooltipDescription: 'عنصر التلميح المشترك الذي تستخدمه المخططات. ضعه داخل منطقة الرسم وزوّده بالصفوف.',
     chartTooltipTitle: 'مارس 2026',
@@ -501,6 +531,14 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       { id: '4', name: 'يوسف كريم', title: 'قائد فريق المنصة', parentId: '2' },
       { id: '5', name: 'مايا حسن', title: 'قائدة فريق الواجهة', parentId: '2' },
       { id: '6', name: 'عمر حداد', title: 'عالم بيانات', parentId: '3' },
+    ],
+    orgChartDualData: [
+      { id: 't1', name: 'Ada Lovelace', title: 'المديرة التقنية' },
+      { id: 't2', name: 'Grace Hopper', title: 'نائبة رئيس الهندسة', parentId: 't1' },
+      { id: 't3', name: 'Alan Turing', title: 'نائب رئيس البحث', parentId: 't1' },
+      { id: 'o1', name: 'Nadia Rossi', title: 'مديرة العمليات' },
+      { id: 'o2', name: 'Diego Marín', title: 'رئيس المبيعات', parentId: 'o1' },
+      { id: 'o3', name: 'Yuki Tanaka', title: 'رئيسة الدعم', parentId: 'o1' },
     ],
     chartTooltipRows: [
       { label: 'سطح المكتب', value: '1,204', color: 'var(--chart-1)' },
@@ -609,6 +647,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     orgChartHeading: 'Organigramm',
     orgChartDescription: 'Hierarchiebaum mit geschwungenen Verbindungen, Avatar-Initialen und Hover-Hervorhebung.',
     orgChartTitle: 'Engineering-Organisation',
+    orgChartDualHeading: 'Organigramm (zwei Wurzeln)',
+    orgChartDualDescription: 'Zwei Knoten ohne Elternknoten – beide Berichtslinien werden nebeneinander angeordnet.',
+    orgChartDualTitle: 'Technologie und Betrieb',
     chartTooltipHeading: 'Diagramm-Tooltip',
     chartTooltipDescription: 'Der gemeinsame Tooltip-Baustein der Diagramme. Im Plotbereich positionieren und mit Zeilen füttern.',
     chartTooltipTitle: 'März 2026',
@@ -630,6 +671,14 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       { id: '4', name: 'Lisa Krüger', title: 'Plattform-Leitung', parentId: '2' },
       { id: '5', name: 'Sabine Roth', title: 'Frontend-Leitung', parentId: '2' },
       { id: '6', name: 'Omar Haddad', title: 'Data Scientist', parentId: '3' },
+    ],
+    orgChartDualData: [
+      { id: 't1', name: 'Ada Lovelace', title: 'CTO' },
+      { id: 't2', name: 'Grace Hopper', title: 'VP Engineering', parentId: 't1' },
+      { id: 't3', name: 'Alan Turing', title: 'VP Forschung', parentId: 't1' },
+      { id: 'o1', name: 'Nadia Rossi', title: 'COO' },
+      { id: 'o2', name: 'Diego Marín', title: 'Leiter Vertrieb', parentId: 'o1' },
+      { id: 'o3', name: 'Yuki Tanaka', title: 'Leiterin Support', parentId: 'o1' },
     ],
     chartTooltipRows: [
       { label: 'Desktop', value: '1.204', color: 'var(--chart-1)' },
@@ -738,6 +787,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     orgChartHeading: 'Organigramme',
     orgChartDescription: 'Arbre hiérarchique avec connecteurs courbes, initiales d’avatar et surbrillance au survol.',
     orgChartTitle: 'Organisation Ingénierie',
+    orgChartDualHeading: 'Organigramme (deux racines)',
+    orgChartDualDescription: 'Deux nœuds sans parent : les deux lignes hiérarchiques sont disposées côte à côte.',
+    orgChartDualTitle: 'Technologie et opérations',
     chartTooltipHeading: 'Info-bulle de graphique',
     chartTooltipDescription: 'La brique d’info-bulle partagée par les graphiques. Positionnez-la dans la zone de tracé et fournissez-lui des lignes.',
     chartTooltipTitle: 'Mars 2026',
@@ -759,6 +811,14 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       { id: '4', name: 'Paul Girard', title: 'Responsable plateforme', parentId: '2' },
       { id: '5', name: 'Sophie Petit', title: 'Responsable frontend', parentId: '2' },
       { id: '6', name: 'Omar Haddad', title: 'Data scientist', parentId: '3' },
+    ],
+    orgChartDualData: [
+      { id: 't1', name: 'Ada Lovelace', title: 'Directrice technique' },
+      { id: 't2', name: 'Grace Hopper', title: 'VP Ingénierie', parentId: 't1' },
+      { id: 't3', name: 'Alan Turing', title: 'VP Recherche', parentId: 't1' },
+      { id: 'o1', name: 'Nadia Rossi', title: 'Directrice des opérations' },
+      { id: 'o2', name: 'Diego Marín', title: 'Responsable des ventes', parentId: 'o1' },
+      { id: 'o3', name: 'Yuki Tanaka', title: 'Responsable du support', parentId: 'o1' },
     ],
     chartTooltipRows: [
       { label: 'Bureau', value: '1 204', color: 'var(--chart-1)' },
@@ -867,6 +927,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     orgChartHeading: 'Organigrama',
     orgChartDescription: 'Árbol jerárquico con conectores curvos, iniciales en el avatar y resaltado al pasar el ratón.',
     orgChartTitle: 'Organización de Ingeniería',
+    orgChartDualHeading: 'Organigrama (dos raíces)',
+    orgChartDualDescription: 'Dos nodos sin padre, por lo que ambas líneas de reporte se disponen una junto a otra.',
+    orgChartDualTitle: 'Tecnología y Operaciones',
     chartTooltipHeading: 'Información sobre herramientas del gráfico',
     chartTooltipDescription: 'La pieza compartida que usan los gráficos. Colóquela en el área de trazado y aliméntela con filas.',
     chartTooltipTitle: 'Marzo de 2026',
@@ -888,6 +951,14 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       { id: '4', name: 'Laura Gil', title: 'Líder de Plataforma', parentId: '2' },
       { id: '5', name: 'Sofía Nieto', title: 'Líder de Frontend', parentId: '2' },
       { id: '6', name: 'Omar Haddad', title: 'Científico de datos', parentId: '3' },
+    ],
+    orgChartDualData: [
+      { id: 't1', name: 'Ada Lovelace', title: 'Directora de Tecnología' },
+      { id: 't2', name: 'Grace Hopper', title: 'VP de Ingeniería', parentId: 't1' },
+      { id: 't3', name: 'Alan Turing', title: 'VP de Investigación', parentId: 't1' },
+      { id: 'o1', name: 'Nadia Rossi', title: 'Directora de Operaciones' },
+      { id: 'o2', name: 'Diego Marín', title: 'Jefe de Ventas', parentId: 'o1' },
+      { id: 'o3', name: 'Yuki Tanaka', title: 'Jefa de Soporte', parentId: 'o1' },
     ],
     chartTooltipRows: [
       { label: 'Escritorio', value: '1.204', color: 'var(--chart-1)' },
@@ -996,6 +1067,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     orgChartHeading: '組織図',
     orgChartDescription: '曲線コネクタ、アバターのイニシャル、ホバー時のハイライトを備えた階層ツリー。',
     orgChartTitle: 'エンジニアリング組織',
+    orgChartDualHeading: '組織図（ルートが 2 つ）',
+    orgChartDualDescription: '親を持たないノードが 2 つあるため、2 つの指揮系統が並べて配置されます。',
+    orgChartDualTitle: 'テクノロジーとオペレーション',
     chartTooltipHeading: 'チャートツールチップ',
     chartTooltipDescription: '各チャートが使う共通のツールチップ部品。プロット領域に配置して行データを渡します。',
     chartTooltipTitle: '2026年3月',
@@ -1017,6 +1091,14 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       { id: '4', name: '高橋 美咲', title: 'プラットフォームリード', parentId: '2' },
       { id: '5', name: '佐藤 涼', title: 'フロントエンドリード', parentId: '2' },
       { id: '6', name: '伊藤 大輔', title: 'データサイエンティスト', parentId: '3' },
+    ],
+    orgChartDualData: [
+      { id: 't1', name: 'Ada Lovelace', title: '最高技術責任者' },
+      { id: 't2', name: 'Grace Hopper', title: 'エンジニアリング担当VP', parentId: 't1' },
+      { id: 't3', name: 'Alan Turing', title: 'リサーチ担当VP', parentId: 't1' },
+      { id: 'o1', name: 'Nadia Rossi', title: '最高執行責任者' },
+      { id: 'o2', name: 'Diego Marín', title: '営業責任者', parentId: 'o1' },
+      { id: 'o3', name: 'Yuki Tanaka', title: 'サポート責任者', parentId: 'o1' },
     ],
     chartTooltipRows: [
       { label: 'デスクトップ', value: '1,204', color: 'var(--chart-1)' },
@@ -1125,6 +1207,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     orgChartHeading: '组织结构图',
     orgChartDescription: '层级树，带曲线连接线、头像首字母和悬停高亮。',
     orgChartTitle: '工程组织',
+    orgChartDualHeading: '组织结构图（两个根节点）',
+    orgChartDualDescription: '两个没有父节点的节点，因此两条汇报线并排布局。',
+    orgChartDualTitle: '技术与运营',
     chartTooltipHeading: '图表提示框',
     chartTooltipDescription: '各图表共用的提示框基础组件。将其定位在绘图区并传入行数据。',
     chartTooltipTitle: '2026年3月',
@@ -1146,6 +1231,14 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       { id: '4', name: '刘洋', title: '平台负责人', parentId: '2' },
       { id: '5', name: '陈静', title: '前端负责人', parentId: '2' },
       { id: '6', name: '杨光', title: '数据科学家', parentId: '3' },
+    ],
+    orgChartDualData: [
+      { id: 't1', name: 'Ada Lovelace', title: '首席技术官' },
+      { id: 't2', name: 'Grace Hopper', title: '工程副总裁', parentId: 't1' },
+      { id: 't3', name: 'Alan Turing', title: '研究副总裁', parentId: 't1' },
+      { id: 'o1', name: 'Nadia Rossi', title: '首席运营官' },
+      { id: 'o2', name: 'Diego Marín', title: '销售主管', parentId: 'o1' },
+      { id: 'o3', name: 'Yuki Tanaka', title: '支持主管', parentId: 'o1' },
     ],
     chartTooltipRows: [
       { label: '桌面', value: '1,204', color: 'var(--chart-1)' },
@@ -1254,6 +1347,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     orgChartHeading: 'Организационная диаграмма',
     orgChartDescription: 'Дерево иерархии с изогнутыми соединителями, инициалами в аватаре и подсветкой при наведении.',
     orgChartTitle: 'Инженерная организация',
+    orgChartDualHeading: 'Организационная диаграмма (два корня)',
+    orgChartDualDescription: 'Два узла без родителя, поэтому обе линии подчинения располагаются рядом.',
+    orgChartDualTitle: 'Технологии и операции',
     chartTooltipHeading: 'Подсказка диаграммы',
     chartTooltipDescription: 'Общий элемент подсказки, который используют диаграммы. Разместите его в области построения и передайте строки.',
     chartTooltipTitle: 'Март 2026',
@@ -1275,6 +1371,14 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       { id: '4', name: 'Мария Волкова', title: 'Руководитель платформы', parentId: '2' },
       { id: '5', name: 'Дмитрий Козлов', title: 'Руководитель фронтенда', parentId: '2' },
       { id: '6', name: 'Ольга Титова', title: 'Специалист по данным', parentId: '3' },
+    ],
+    orgChartDualData: [
+      { id: 't1', name: 'Ada Lovelace', title: 'Технический директор' },
+      { id: 't2', name: 'Grace Hopper', title: 'Вице-президент по инженерии', parentId: 't1' },
+      { id: 't3', name: 'Alan Turing', title: 'Вице-президент по исследованиям', parentId: 't1' },
+      { id: 'o1', name: 'Nadia Rossi', title: 'Операционный директор' },
+      { id: 'o2', name: 'Diego Marín', title: 'Руководитель продаж', parentId: 'o1' },
+      { id: 'o3', name: 'Yuki Tanaka', title: 'Руководитель поддержки', parentId: 'o1' },
     ],
     chartTooltipRows: [
       { label: 'Рабочий стол', value: '1 204', color: 'var(--chart-1)' },
@@ -1383,6 +1487,9 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
     orgChartHeading: 'Organograma',
     orgChartDescription: 'Árvore hierárquica com conectores curvos, iniciais no avatar e destaque ao passar o mouse.',
     orgChartTitle: 'Organização de Engenharia',
+    orgChartDualHeading: 'Organograma (duas raízes)',
+    orgChartDualDescription: 'Dois nós sem pai, portanto ambas as linhas de reporte são dispostas lado a lado.',
+    orgChartDualTitle: 'Tecnologia e Operações',
     chartTooltipHeading: 'Dica de ferramenta do gráfico',
     chartTooltipDescription: 'A peça de dica compartilhada usada pelos gráficos. Posicione-a na área de plotagem e forneça as linhas.',
     chartTooltipTitle: 'Março de 2026',
@@ -1404,6 +1511,14 @@ export const CHARTS_DEMO_LOCALES: Record<string, ChartsDemoLocale> = {
       { id: '4', name: 'Maria Lima', title: 'Líder de Plataforma', parentId: '2' },
       { id: '5', name: 'Sofia Rocha', title: 'Líder de Frontend', parentId: '2' },
       { id: '6', name: 'Carlos Menezes', title: 'Cientista de dados', parentId: '3' },
+    ],
+    orgChartDualData: [
+      { id: 't1', name: 'Ada Lovelace', title: 'Diretora de Tecnologia' },
+      { id: 't2', name: 'Grace Hopper', title: 'VP de Engenharia', parentId: 't1' },
+      { id: 't3', name: 'Alan Turing', title: 'VP de Pesquisa', parentId: 't1' },
+      { id: 'o1', name: 'Nadia Rossi', title: 'Diretora de Operações' },
+      { id: 'o2', name: 'Diego Marín', title: 'Chefe de Vendas', parentId: 'o1' },
+      { id: 'o3', name: 'Yuki Tanaka', title: 'Chefe de Suporte', parentId: 'o1' },
     ],
     chartTooltipRows: [
       { label: 'Desktop', value: '1.204', color: 'var(--chart-1)' },

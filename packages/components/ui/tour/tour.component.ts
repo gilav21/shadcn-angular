@@ -408,6 +408,12 @@ export class TourComponent {
         });
     }
 
+    /**
+     * Advances to the next resolvable step, or ends the tour with
+     * `done('finished')` when already on the last one. Ignored while a step's
+     * async hooks are still running (`isPending`), so double-clicking the button
+     * cannot skip a step.
+     */
     next(): void {
         if (this._isPending()) return;
         if (this.isLastStep()) {
@@ -417,11 +423,13 @@ export class TourComponent {
         this.transition(this._currentIndex() + 1, 'forward');
     }
 
+    /** Steps backwards, running the target step's hooks. A no-op on the first step, or while a transition is pending — see {@link canGoBack}. */
     previous(): void {
         if (this._isPending() || !this.canGoBack()) return;
         this.transition(this._currentIndex() - 1, 'backward');
     }
 
+    /** Ends the tour immediately with `done('skipped')`, aborting any in-flight transition. Unlike {@link next} it is not blocked while pending, so the user can always get out. */
     skip(): void {
         this.finish('skipped');
     }
@@ -438,6 +446,11 @@ export class TourComponent {
         this.transition(0, 'initial');
     }
 
+    /**
+     * Keyboard shortcuts while the tour is active: Enter / ArrowRight advance,
+     * ArrowLeft goes back, Escape skips. Each is `preventDefault`ed so the
+     * arrows do not also scroll the page behind the highlighted target.
+     */
     onKeydown(event: KeyboardEvent): void {
         switch (event.key) {
             case 'ArrowRight':

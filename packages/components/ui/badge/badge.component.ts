@@ -39,9 +39,26 @@ export type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
     },
 })
 export class BadgeComponent {
+    /**
+     * Colour treatment from {@link badgeVariants}. `'outline'` is the only one
+     * without a filled background — it keeps the inherited surface and just
+     * draws the border and `text-foreground`. Ignored while {@link skeleton} is
+     * true.
+     */
     variant = input<BadgeVariant>('default');
+    /**
+     * Convenience text content. When non-empty it is rendered *instead of* any
+     * projected content, so use one or the other — projection is the escape
+     * hatch for icons or markup inside the badge.
+     */
     label = input<string>('');
+    /** Extra classes merged onto the host; padding/size utilities go here since the variants set colour only. */
     class = input('');
+    /**
+     * Renders a fixed-size {@link SkeletonComponent} placeholder in place of the
+     * badge and drops all variant styling, for loading states that must not
+     * shift layout.
+     */
     readonly skeleton = input(false);
 
     readonly classes = computed(() => {
@@ -49,6 +66,11 @@ export class BadgeComponent {
         return cn(badgeVariants({ variant: this.variant() }), this.class());
     });
 
+    /**
+     * String form of the badge — its {@link label}, or `''` when the content was
+     * projected instead. Lets a badge instance be interpolated directly in a
+     * template or used as a filter/sort key.
+     */
     toString(): string {
         return this.label() ?? '';
     }

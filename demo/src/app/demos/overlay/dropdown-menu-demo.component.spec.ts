@@ -22,4 +22,15 @@ describe('DropdownMenuDemoComponent', () => {
     expect(fixture.nativeElement.textContent).toContain(DROPDOWN_MENU_DEMO_LOCALES['he'].title);
     expect(fixture.nativeElement.textContent).not.toContain(DROPDOWN_MENU_DEMO_LOCALES['en'].title);
   });
+
+  it('renders the disabled submenu branch example', () => {
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
+    const fixture = TestBed.createComponent(DropdownMenuDemoComponent);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('ui-dropdown-menu')).toHaveLength(3);
+    expect(el.textContent).toContain(DROPDOWN_MENU_DEMO_LOCALES['en'].disabledSubHeading);
+    expect(el.textContent).toContain(DROPDOWN_MENU_DEMO_LOCALES['en'].disabledSubHint);
+    expect(el.textContent).toContain(DROPDOWN_MENU_DEMO_LOCALES['en'].openDisabledSubLabel);
+  });
 });

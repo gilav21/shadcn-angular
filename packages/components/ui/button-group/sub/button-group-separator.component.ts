@@ -23,7 +23,14 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class ButtonGroupSeparatorComponent {
+    /** Extra classes merged onto the rule — override `bg-border` here for a stronger or coloured divider. */
     class = input('');
+    /**
+     * Orientation of the rule itself, not of the group: `'vertical'` (the
+     * default) is a 1px-wide column for a horizontal button group, `'horizontal'`
+     * a 1px-tall row for a vertical one. It stretches to the group's cross-axis
+     * size via `self-stretch`.
+     */
     orientation = input<'horizontal' | 'vertical'>('vertical');
 
     classes = computed(() => {

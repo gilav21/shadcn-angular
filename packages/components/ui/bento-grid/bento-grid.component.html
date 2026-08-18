@@ -1,6 +1,6 @@
 <div [class]="classes()"
      [ngStyle]="gridStyles()"
-     [style.grid-template-columns]="columnWidth() === '1fr' ? gridTemplateColumns() : 'repeat(' + cols() + ', ' + columnWidth() + ')'"
+     [style.grid-template-columns]="gridTemplateColumns()"
      [style.grid-auto-rows]="rowHeight()"
      [style.grid-auto-columns]="columnWidth() === '1fr' ? 'auto' : columnWidth()"
      (contextmenu)="onContainerContextMenu($event, menu)"
@@ -75,6 +75,7 @@
   @for (item of items(); track item.id) {
      <div
         class="bento-item relative group bg-card text-card-foreground transition-all duration-200 overflow-hidden min-h-0"
+        [attr.data-item-id]="item.id"
         [class.border]="editable() || showBorders()"
         [class.shadow]="showBorders()"
         [style.border-radius]="borderRadius()"

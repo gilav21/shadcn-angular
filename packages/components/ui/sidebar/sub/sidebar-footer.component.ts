@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class SidebarFooterComponent {
+  /** Extra classes merged onto the footer. It is pinned to the bottom with `mt-auto`, so it stays put while the content region scrolls. Unlike the header it is *not* hidden when the rail collapses — give collapse-unfriendly content its own handling. */
   class = input('');
 
   classes = computed(() => cn(

@@ -11,6 +11,23 @@
       <ui-dock-item [class]="item.class || ''" [active]="item.active || false">
         @if (item.label) { <ui-dock-label>{{ item.label }}</ui-dock-label> }
         @if (item.icon) { <ui-dock-icon>{{ item.icon }}</ui-dock-icon> }
+        @if (item.href) {
+          <a
+            class="absolute inset-0 rounded-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            data-slot="dock-item-link"
+            [href]="item.href"
+            [attr.aria-label]="item.label || null"
+            (click)="activateItem(item)"
+          ></a>
+        } @else if (item.onClick) {
+          <button
+            type="button"
+            class="absolute inset-0 rounded-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            data-slot="dock-item-button"
+            [attr.aria-label]="item.label || null"
+            (click)="activateItem(item)"
+          ></button>
+        }
       </ui-dock-item>
     }
   }

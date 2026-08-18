@@ -15,6 +15,12 @@ export interface ContextMenuDemoLocale extends LocaleMeta {
   shareLabel: string;
   deleteLabel: string;
   rightClickAreaHint: string;
+  disabledSubHeading: string;
+  disabledSubHint: string;
+  disabledSubAreaHint: string;
+  sendToLabel: string;
+  sendToPhoneLabel: string;
+  sendToTabletLabel: string;
 }
 
 export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = {
@@ -33,6 +39,12 @@ export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = 
     shareLabel: 'Share',
     deleteLabel: 'Delete',
     rightClickAreaHint: 'Right-click anywhere in this area to open the context menu',
+    disabledSubHeading: 'Disabled Submenu Branch',
+    disabledSubHint: 'The dimmed branch refuses to open — hover, click and Enter/ArrowRight all do nothing.',
+    disabledSubAreaHint: 'Right-click here to open a menu with a disabled submenu branch',
+    sendToLabel: 'Send to',
+    sendToPhoneLabel: 'Phone',
+    sendToTabletLabel: 'Tablet',
   },
   he: {
     code: 'he', rtl: true,
@@ -49,6 +61,12 @@ export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = 
     shareLabel: 'שתף',
     deleteLabel: 'מחק',
     rightClickAreaHint: 'לחץ לחיצה ימנית בכל מקום באזור זה לפתיחת תפריט ההקשר',
+    disabledSubHeading: 'ענף תפריט משנה מושבת',
+    disabledSubHint: 'הענף המעומעם מסרב להיפתח — ריחוף, לחיצה ו-Enter/חץ שמאלה אינם עושים דבר.',
+    disabledSubAreaHint: 'לחץ לחיצה ימנית כאן לפתיחת תפריט עם ענף משנה מושבת',
+    sendToLabel: 'שלח אל',
+    sendToPhoneLabel: 'טלפון',
+    sendToTabletLabel: 'טאבלט',
   },
   ar: {
     code: 'ar', rtl: true,
@@ -65,6 +83,12 @@ export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = 
     shareLabel: 'مشاركة',
     deleteLabel: 'حذف',
     rightClickAreaHint: 'انقر بزر الماوس الأيمن في أي مكان في هذه المنطقة لفتح قائمة السياق',
+    disabledSubHeading: 'فرع قائمة فرعية معطَّل',
+    disabledSubHint: 'الفرع الباهت يرفض الفتح — التمرير والنقر وEnter/السهم الأيسر لا تفعل شيئًا.',
+    disabledSubAreaHint: 'انقر بزر الماوس الأيمن هنا لفتح قائمة تحتوي على فرع فرعي معطَّل',
+    sendToLabel: 'إرسال إلى',
+    sendToPhoneLabel: 'الهاتف',
+    sendToTabletLabel: 'الجهاز اللوحي',
   },
   de: {
     code: 'de',
@@ -81,6 +105,12 @@ export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = 
     shareLabel: 'Teilen',
     deleteLabel: 'Löschen',
     rightClickAreaHint: 'Rechtsklick überall in diesem Bereich, um das Kontextmenü zu öffnen',
+    disabledSubHeading: 'Deaktivierter Untermenü-Zweig',
+    disabledSubHint: 'Der abgeblendete Zweig lässt sich nicht öffnen — Hover, Klick und Enter/Pfeil-rechts bleiben wirkungslos.',
+    disabledSubAreaHint: 'Hier rechtsklicken, um ein Menü mit deaktiviertem Untermenü-Zweig zu öffnen',
+    sendToLabel: 'Senden an',
+    sendToPhoneLabel: 'Telefon',
+    sendToTabletLabel: 'Tablet',
   },
   fr: {
     code: 'fr',
@@ -97,6 +127,12 @@ export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = 
     shareLabel: 'Partager',
     deleteLabel: 'Supprimer',
     rightClickAreaHint: 'Clic droit n\'importe où dans cette zone pour ouvrir le menu contextuel',
+    disabledSubHeading: 'Branche de sous-menu désactivée',
+    disabledSubHint: 'La branche grisée refuse de s\'ouvrir — survol, clic et Entrée/Flèche droite ne font rien.',
+    disabledSubAreaHint: 'Clic droit ici pour ouvrir un menu avec une branche de sous-menu désactivée',
+    sendToLabel: 'Envoyer vers',
+    sendToPhoneLabel: 'Téléphone',
+    sendToTabletLabel: 'Tablette',
   },
   es: {
     code: 'es',
@@ -113,6 +149,12 @@ export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = 
     shareLabel: 'Compartir',
     deleteLabel: 'Eliminar',
     rightClickAreaHint: 'Clic derecho en cualquier lugar de esta área para abrir el menú contextual',
+    disabledSubHeading: 'Rama de submenú deshabilitada',
+    disabledSubHint: 'La rama atenuada no se abre — pasar el ratón, hacer clic y Enter/Flecha derecha no hacen nada.',
+    disabledSubAreaHint: 'Clic derecho aquí para abrir un menú con una rama de submenú deshabilitada',
+    sendToLabel: 'Enviar a',
+    sendToPhoneLabel: 'Teléfono',
+    sendToTabletLabel: 'Tableta',
   },
   ja: {
     code: 'ja',
@@ -129,6 +171,12 @@ export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = 
     shareLabel: '共有',
     deleteLabel: '削除',
     rightClickAreaHint: 'この領域のどこかを右クリックしてコンテキストメニューを開く',
+    disabledSubHeading: '無効なサブメニュー',
+    disabledSubHint: '淡色表示の項目は開きません — ホバー、クリック、Enter / 右矢印のいずれも効きません。',
+    disabledSubAreaHint: 'ここを右クリックすると、無効なサブメニューを含むメニューが開きます',
+    sendToLabel: '送信先',
+    sendToPhoneLabel: 'スマートフォン',
+    sendToTabletLabel: 'タブレット',
   },
   zh: {
     code: 'zh',
@@ -145,6 +193,12 @@ export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = 
     shareLabel: '分享',
     deleteLabel: '删除',
     rightClickAreaHint: '在此区域任意位置右键单击以打开右键菜单',
+    disabledSubHeading: '禁用的子菜单分支',
+    disabledSubHint: '变暗的分支无法展开 — 悬停、点击以及 Enter/右箭头都不起作用。',
+    disabledSubAreaHint: '在此右键单击可打开带有禁用子菜单分支的菜单',
+    sendToLabel: '发送到',
+    sendToPhoneLabel: '手机',
+    sendToTabletLabel: '平板电脑',
   },
   ru: {
     code: 'ru',
@@ -161,6 +215,12 @@ export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = 
     shareLabel: 'Поделиться',
     deleteLabel: 'Удалить',
     rightClickAreaHint: 'Нажмите правой кнопкой в любом месте этой области, чтобы открыть меню',
+    disabledSubHeading: 'Отключённая ветка подменю',
+    disabledSubHint: 'Приглушённая ветка не открывается — наведение, клик и Enter/стрелка вправо не действуют.',
+    disabledSubAreaHint: 'Нажмите правой кнопкой здесь, чтобы открыть меню с отключённой веткой подменю',
+    sendToLabel: 'Отправить на',
+    sendToPhoneLabel: 'Телефон',
+    sendToTabletLabel: 'Планшет',
   },
   pt: {
     code: 'pt',
@@ -177,5 +237,11 @@ export const CONTEXT_MENU_DEMO_LOCALES: Record<string, ContextMenuDemoLocale> = 
     shareLabel: 'Compartilhar',
     deleteLabel: 'Excluir',
     rightClickAreaHint: 'Clique com o botão direito em qualquer lugar desta área para abrir o menu de contexto',
+    disabledSubHeading: 'Ramo de submenu desativado',
+    disabledSubHint: 'O ramo esmaecido não abre — passar o mouse, clicar e Enter/Seta direita não fazem nada.',
+    disabledSubAreaHint: 'Clique com o botão direito aqui para abrir um menu com um ramo de submenu desativado',
+    sendToLabel: 'Enviar para',
+    sendToPhoneLabel: 'Telefone',
+    sendToTabletLabel: 'Tablet',
   },
 };

@@ -381,6 +381,37 @@ describe('Pagination Simple Mode (Data-Driven)', () => {
         const ellipsis = fixture.debugElement.queryAll(By.css('[data-slot="pagination-ellipsis"]'));
         expect(ellipsis.length).toBeGreaterThan(0);
     });
+
+    it('should render both ellipses without a duplicate-key error', () => {
+        const messages: unknown[][] = [];
+        const consoleRef = globalThis.console as unknown as Record<string, (...args: unknown[]) => void>;
+        const capturedMethods = ['warn', 'error'];
+        const originals = capturedMethods.map(name => consoleRef[name]);
+        capturedMethods.forEach(name => {
+            consoleRef[name] = (...args: unknown[]) => { messages.push(args); };
+        });
+
+        try {
+            component.currentPage.set(5);
+            fixture.detectChanges();
+
+            const pagination = fixture.debugElement.query(By.directive(PaginationComponent))
+                .componentInstance as PaginationComponent;
+            expect(pagination.pageNumbers().filter(p => p === -1)).toHaveLength(2);
+
+            const ellipsis = fixture.debugElement.queryAll(By.css('[data-slot="pagination-ellipsis"]'));
+            expect(ellipsis).toHaveLength(2);
+        } finally {
+            capturedMethods.forEach((name, index) => {
+                consoleRef[name] = originals[index];
+            });
+        }
+
+        const duplicateKeyReports = messages
+            .map(args => args.map(a => String(a)).join(' '))
+            .filter(text => text.includes('NG0955'));
+        expect(duplicateKeyReports).toEqual([]);
+    });
 });
 
 describe('PaginationComponent — i18n integration', () => {

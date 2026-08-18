@@ -747,3 +747,110 @@ describe('AutocompleteComponent — i18n integration', () => {
         expect(container.getAttribute('dir')).toBe('rtl');
     });
 });
+
+@Component({
+    template: `
+        <div data-testid="clipper" style="overflow: hidden; width: 220px; height: 60px;">
+            <ui-autocomplete [options]="options" [displayWith]="displayWith" valueAttribute="value" />
+        </div>
+    `,
+    imports: [AutocompleteComponent],
+})
+class ClippedHostComponent {
+    readonly options: Fruit[] = fruits;
+    readonly displayWith = (opt: Fruit): string => opt?.name ?? '';
+}
+
+describe('AutocompleteComponent — top layer', () => {
+    let fixture: ComponentFixture<ClippedHostComponent>;
+    let autocomplete: AutocompleteComponent<Fruit>;
+
+    const twoFrames = (): Promise<void> =>
+        new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+
+    const openDropdown = async (): Promise<HTMLElement> => {
+        autocomplete.open.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await twoFrames();
+        fixture.detectChanges();
+        return fixture.nativeElement.querySelector('[data-slot="popover-content"]') as HTMLElement;
+    };
+
+    beforeEach(async () => {
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({ imports: [ClippedHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(ClippedHostComponent);
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+        autocomplete = fixture.debugElement.query(By.directive(AutocompleteComponent))
+            .componentInstance as AutocompleteComponent<Fruit>;
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+        fixture.nativeElement.remove();
+    });
+
+    it('escapes an overflow:hidden ancestor and leaves nothing behind on close', async () => {
+        const panel = await openDropdown();
+
+        expect(panel).toBeTruthy();
+        expect(panel.matches(':popover-open')).toBe(true);
+        expect(panel.style.position).toBe('fixed');
+
+        autocomplete.open.set(false);
+        fixture.detectChanges();
+
+        expect(panel.hasAttribute('popover')).toBe(false);
+        expect(panel.matches(':popover-open')).toBe(false);
+    });
+
+    it('keeps the combobox wired to the promoted listbox', async () => {
+        const panel = await openDropdown();
+        const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+
+        expect(panel.matches(':popover-open')).toBe(true);
+        expect(input.getAttribute('aria-expanded')).toBe('true');
+        const listId = input.getAttribute('aria-controls');
+        expect(listId).toBe(autocomplete.listId);
+
+        const list = document.getElementById(listId as string);
+        expect(list).toBeTruthy();
+        expect(panel.contains(list)).toBe(true);
+
+        autocomplete.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        fixture.detectChanges();
+
+        const highlighted = panel.querySelector('[data-slot="command-item"].bg-accent');
+        expect(highlighted).toBeTruthy();
+
+        autocomplete.onKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+        fixture.detectChanges();
+
+        expect(autocomplete.open()).toBe(false);
+        expect(fruits.map(f => f.name)).toContain(input.value);
+    });
+
+    it('announces the highlighted option through aria-activedescendant', async () => {
+        const panel = await openDropdown();
+
+        autocomplete.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        // Re-query: the panel re-renders on the keypress, so a reference taken
+        // before the interaction can be a detached element.
+        const combobox = fixture.nativeElement.querySelector('input[role="combobox"]') as HTMLInputElement;
+        const activeId = combobox.getAttribute('aria-activedescendant');
+        expect(activeId).toBeTruthy();
+
+        // The id must resolve to the row the command actually highlighted, not
+        // merely be non-empty — the point of the attribute is that a screen
+        // reader can find that element.
+        const active = panel.querySelector(`#${CSS.escape(activeId as string)}`);
+        expect(active).toBeTruthy();
+        expect(active?.getAttribute('data-slot')).toBe('command-item');
+        expect(active?.classList.contains('bg-accent')).toBe(true);
+    });
+});

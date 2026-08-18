@@ -60,19 +60,64 @@ export class ScatterChartComponent implements AfterViewInit {
     private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
     private readonly _svg = viewChild<ElementRef<SVGSVGElement>>('chartSvg');
 
+    /**
+     * One cloud of points per series. Every `points` entry needs numeric `x`
+     * and `y` in continuous data space — unlike the categorical charts there is
+     * no name-keyed axis, and point order is irrelevant since nothing is
+     * connected. Both axes auto-scale to nice bounds covering all *visible*
+     * points, so hiding a series through the legend rescales the chart. `color`
+     * overrides the palette colour otherwise derived from the series index, and
+     * `id` (falling back to `name`) is the key used for legend toggling — give
+     * two series the same name and they toggle together.
+     */
     readonly series = input.required<XYSeries[]>();
+    /**
+     * Design width of the SVG user-space coordinate system, in px, used as the
+     * `viewBox` width until the host has been measured. The rendered `<svg>` is
+     * `width="100%"`, so the chart tracks its container and this value only
+     * fixes the initial/fallback coordinate space. The container must be a
+     * block-level box — an inline-block parent collapses a `width:100%` SVG,
+     * which is why the host is `block` and the container carries `w-full`.
+     */
     readonly width = input(520);
+    /**
+     * Height in px, applied verbatim to the SVG's `height` attribute and its
+     * `viewBox`, so — unlike {@link width} — it is never measured or scaled.
+     * The plot area is this minus 12px of top and 28px of bottom padding for
+     * the x tick labels.
+     */
     readonly height = input(320);
+    /** Radius of each point circle, in px of user space. The hovered/focused point is drawn 2px larger. */
     readonly pointRadius = input(5);
+    /** Draw the dashed horizontal gridlines behind the points, one per y tick. There are no vertical gridlines. */
     readonly showGrid = input(true);
+    /** Show the floating tooltip for the point nearest the pointer. Disabling it keeps the hover highlight and {@link setHover} behaviour. */
     readonly showTooltip = input(true);
+    /** Render the legend under the chart. It is interactive: clicking an entry calls {@link toggleSeries}, which also rescales both axes. */
     readonly showLegend = input(true);
+    /** Reserved x-axis caption. The current template renders no axis titles, so setting this has no visual effect. */
     readonly xAxisLabel = input('');
+    /** Reserved y-axis caption. The current template renders no axis titles, so setting this has no visual effect. */
     readonly yAxisLabel = input('');
+    /** Extra classes merged onto the chart container, which already carries `relative w-full`. */
     readonly class = input('');
+    /** Human-readable chart name, used only to prefix the container's accessible summary. */
     readonly title = input<string | undefined>(undefined);
+    /**
+     * Layout direction. `'auto'` (default) resolves from the host element's
+     * inherited DOM direction once, after view init; `'ltr'`/`'rtl'` force it.
+     * RTL reverses the x scale's pixel range and moves the y tick labels to the
+     * right-hand edge. See {@link isRtl}.
+     */
     readonly dir = input<ChartDirection>('auto');
 
+    /**
+     * Emitted when a point is clicked or activated with Enter while focused.
+     * `index` is the point's position **within its own series**, not a flat
+     * index across the chart, and the payload carries no series identifier —
+     * track the series yourself if you need it. The originating event is not
+     * forwarded.
+     */
     readonly pointClick = output<ChartClickEvent<XYDataPoint>>();
 
     protected readonly hovered = signal<{ s: number; p: number } | null>(null);
@@ -197,6 +242,12 @@ export class ScatterChartComponent implements AfterViewInit {
         this._domRtl.set(isRtl(this.el.nativeElement));
     }
 
+    /**
+     * Shows or hides one series, keyed by its `id` (or `name` when no `id` is
+     * set). Hidden series drop out of {@link xDomain} and {@link yDomain}, so
+     * the remaining points re-spread over the full plot area. Bound to the
+     * legend's toggle output.
+     */
     toggleSeries(key: string): void {
         const hidden = this._hidden();
         this._hidden.set(
@@ -204,10 +255,24 @@ export class ScatterChartComponent implements AfterViewInit {
         );
     }
 
+    /**
+     * Highlights a point programmatically — enlarging it and filling the
+     * tooltip — or clears the highlight when `seriesIndex` is `null`. Indices
+     * address {@link series} as supplied, including hidden series (whose points
+     * are not drawn, so the highlight would be invisible). Does not move the
+     * tooltip: its position is only updated by {@link onPointerMove}.
+     */
     setHover(seriesIndex: number | null, pointIndex = 0): void {
         this.hovered.set(seriesIndex === null ? null : { s: seriesIndex, p: pointIndex });
     }
 
+    /**
+     * Tracks the pointer over the whole SVG and highlights the euclidean-
+     * nearest visible point, placing the tooltip just above and after it. There
+     * is no proximity threshold, so some point is always selected while the
+     * pointer is inside the plot. Bound to `mousemove`, `touchstart` and
+     * `touchmove` so touch devices get the same read-out as mouse users.
+     */
     onPointerMove(evt: MouseEvent | TouchEvent): void {
         const svg = this._svg()?.nativeElement;
         if (!svg) return;
@@ -223,10 +288,16 @@ export class ScatterChartComponent implements AfterViewInit {
         this.hovered.set({ s: point.seriesIndex, p: point.pointIndex });
     }
 
+    /** Clears the highlight and hides the tooltip when the pointer leaves the SVG. Bound to `mouseleave`. */
     onPointerLeave(): void {
         this.hovered.set(null);
     }
 
+    /**
+     * Emits {@link pointClick} for the addressed point, silently doing nothing
+     * if the indices don't resolve. Bound to each circle's `click` and
+     * `keydown.enter` so keyboard users can activate a focused point.
+     */
     onPointClick(seriesIndex: number, pointIndex: number): void {
         const point = this.series()[seriesIndex]?.points[pointIndex];
         if (point) this.pointClick.emit({ point, index: pointIndex });

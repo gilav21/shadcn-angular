@@ -130,12 +130,18 @@ const LABEL_PRESETS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#
     host: { class: 'contents' },
 })
 export class KanbanCardDialogComponent {
+    /** Accepted for API symmetry with the other kanban parts; the dialog renders its own overlay and does not apply this to any element. */
     class = input('');
+    /** Locale dictionary for every string in the dialog. The board passes its resolved locale down automatically. */
     locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
+    /** Shows the label chip editor plus its preset colour swatches. */
     haveLabels = input(true);
+    /** Shows the assignee editor. */
     haveAssignees = input(true);
+    /** Assignees to offer. Non-empty switches the field to a multi-select autocomplete and preserves each option's `avatar`; empty falls back to a free-text chip list whose typed names get no avatar. */
     assigneeOptions = input<{ name: string; avatar?: string }[]>([]);
 
+    /** Emits the form contents when the user saves; the dialog closes itself but performs no state change. `card` carries the original in `'edit'` mode (`undefined` in `'add'`), and `data` holds the new values — merge the two yourself. Cancelling emits nothing. */
     submitted = output<{
         mode: 'add' | 'edit';
         columnId: string;
@@ -182,6 +188,7 @@ export class KanbanCardDialogComponent {
 
     assigneeOptionNames = computed(() => this.assigneeOptions().map(a => a.name));
 
+    /** Resets the form — prefilled from `card` in `'edit'` mode, blank otherwise — and opens the dialog. Labels and assignees are copied, so edits here never touch the original card. `columnId` is the column a new card lands in and is echoed back on {@link submitted}. */
     open(mode: 'add' | 'edit', columnId: string, card?: KanbanCard): void {
         this.mode.set(mode);
         this.targetColumnId.set(columnId);
@@ -195,6 +202,7 @@ export class KanbanCardDialogComponent {
         this.dialogOpen.set(true);
     }
 
+    /** Classes for one priority toggle, highlighting it when selected. `'none'` reads as selected while no priority is set, so the row always shows exactly one active option. */
     priorityButtonClass(value: KanbanCard['priority'] | 'none'): string {
         const isSelected = (value === 'none' && !this.formPriority())
             || value === this.formPriority();
@@ -206,23 +214,28 @@ export class KanbanCardDialogComponent {
         );
     }
 
+    /** Adds a label carrying whichever preset swatch is currently selected — so pick the colour before typing the text. Duplicate texts are not rejected here, but they collide in the chip colour map. */
     onLabelChipAdded(text: string): void {
         this.formLabels.update(labels => [...labels, { text, color: this.newLabelColor() }]);
     }
 
+    /** Drops every label with this text, since labels are keyed by text rather than by index. */
     onLabelChipRemoved(text: string): void {
         this.formLabels.update(labels => labels.filter(l => l.text !== text));
     }
 
+    /** Adds an assignee from the free-text chip list, reusing the matching {@link assigneeOptions} entry (and its avatar) when the typed name matches one exactly. */
     onAssigneeChipAdded(name: string): void {
         const option = this.assigneeOptions().find(a => a.name === name);
         this.formAssignees.update(assignees => [...assignees, option ?? { name }]);
     }
 
+    /** Drops every assignee with this name — names are the identity here, so duplicates cannot be removed individually. */
     onAssigneeChipRemoved(name: string): void {
         this.formAssignees.update(assignees => assignees.filter(a => a.name !== name));
     }
 
+    /** Rebuilds the assignee list from the autocomplete's full selection, preserving the avatar of anyone already chosen or listed in {@link assigneeOptions}. Selection order becomes avatar order on the card. */
     onAssigneeSelectionChange(names: string[]): void {
         const newAssignees = names.map(name => {
             const existing = this.formAssignees().find(a => a.name === name);
@@ -233,6 +246,7 @@ export class KanbanCardDialogComponent {
         this.formAssignees.set(newAssignees);
     }
 
+    /** Emits {@link submitted} and closes. Refuses a blank or whitespace-only title (the save button is disabled for it too); a blank description and empty label/assignee lists are normalized to `undefined` rather than empty values. */
     onSubmit(): void {
         const title = this.formTitle().trim();
         if (!title) return;

@@ -45,10 +45,29 @@ import { HoverCardComponent } from '../hover-card.component';
 export class HoverCardContentComponent implements AfterViewInit {
     readonly hoverCard = inject(HoverCardComponent, { optional: true });
 
+    /**
+     * Extra classes merged onto the card. Applied last, so a `w-*` utility
+     * overrides the default `w-64`; avoid positioning utilities, which fight the
+     * {@link side}/{@link align} classes and the overflow nudge.
+     */
     class = input('');
+    /**
+     * Horizontal anchoring against the trigger. Only a starting point: if the
+     * card would overflow its clipping ancestor it is nudged back in by a
+     * `translateX` after render.
+     */
     align = input<'start' | 'center' | 'end'>('center');
+    /**
+     * Preferred vertical side. Flipped automatically to the opposite side when
+     * the card would overflow — the resolved side drives the slide-in animation.
+     */
     side = input<'top' | 'bottom'>('bottom');
+    /**
+     * Simple mode: renders a heading (plus {@link description}) above any
+     * projected content. Leave unset to supply the whole card body yourself.
+     */
     title = input<string>();
+    /** Simple-mode body text. Only rendered when {@link title} is also set. */
     description = input<string>();
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
@@ -108,10 +127,15 @@ export class HoverCardContentComponent implements AfterViewInit {
         this.adjustedPosition.set({ offsetX, offsetY, actualSide });
     }
 
+    /**
+     * Keeps the card open when the pointer moves from the trigger onto it, by
+     * cancelling the close scheduled on the trigger's mouseleave.
+     */
     onMouseEnter(): void {
         this.hoverCard?.cancelClose();
     }
 
+    /** Re-arms the delayed close when the pointer leaves the card itself. */
     onMouseLeave(): void {
         this.hoverCard?.hide();
     }

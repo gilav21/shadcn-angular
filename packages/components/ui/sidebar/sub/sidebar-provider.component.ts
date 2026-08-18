@@ -31,6 +31,7 @@ import { SidebarService } from '../sidebar.service';
   },
 })
 export class SidebarProviderComponent {
+  /** Extra classes merged onto the flex row that holds the sidebar and the inset. It is `min-h-screen w-full overflow-hidden`, so it wants to be the page-level wrapper. */
   class = input('');
   readonly service = inject(SidebarService);
 
@@ -43,6 +44,13 @@ export class SidebarProviderComponent {
     this.class()
   ));
 
+  /**
+   * Re-evaluates the 768px mobile breakpoint on every window resize and pushes
+   * it into the shared service. Unthrottled, and crossing into mobile
+   * force-closes the drawer — so dragging a window narrow dismisses an open
+   * sidebar. Also runs once at construction, which under SSR resolves to
+   * desktop since there is no `window`.
+   */
   onResize(): void {
     this.checkMobile();
   }

@@ -616,6 +616,51 @@ describe('ColorPickerComponent', () => {
             expect(() => picker.writeValue(null)).not.toThrow();
         });
 
+        it('does not emit its initial colour before any interaction', async () => {
+            const solo = TestBed.createComponent(ColorPickerComponent);
+            const emitted: string[] = [];
+            const changes: string[] = [];
+            solo.componentInstance.colorChange.subscribe((value: string) => { emitted.push(value); });
+            solo.componentInstance.registerOnChange((value: string) => { changes.push(value); });
+            solo.detectChanges();
+            await solo.whenStable();
+            expect(emitted).toEqual([]);
+            expect(changes).toEqual([]);
+        });
+
+        it('does not echo a written value back through onChange or colorChange', async () => {
+            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
+                .componentInstance as ColorPickerComponent;
+            const changes: string[] = [];
+            const emitted: string[] = [];
+            picker.registerOnChange((value: string) => { changes.push(value); });
+            picker.colorChange.subscribe((value: string) => { emitted.push(value); });
+
+            picker.writeValue('#00ff00');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(picker.currentColor()).toBe('#00ff00');
+            expect(changes).toEqual([]);
+            expect(emitted).toEqual([]);
+        });
+
+        it('still emits a user pick made after a write', async () => {
+            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
+                .componentInstance as ColorPickerComponent;
+            picker.writeValue('#00ff00');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const changes: string[] = [];
+            picker.registerOnChange((value: string) => { changes.push(value); });
+            picker.selectPreset('#ff0000');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(changes).toEqual(['#ff0000']);
+        });
+
         it('emits via onChange when color changes', async () => {
             const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
                 .componentInstance as ColorPickerComponent;

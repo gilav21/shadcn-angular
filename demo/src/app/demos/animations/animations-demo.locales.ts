@@ -17,6 +17,8 @@ export interface AnimationsDemoLocale extends LocaleMeta {
   blurFadeHeading: string;
   blurFadeDescription: string;
   blurFadeReplay: string;
+  blurFadeReplayCaption: string;
+  blurFadeReplayCount: string;
   blurFadeItem1: string;
   blurFadeItem2: string;
   blurFadeItem3: string;
@@ -115,6 +117,8 @@ export const ANIMATIONS_DEMO_LOCALES: Record<string, AnimationsDemoLocale> = {
     blurFadeHeading: 'Blur Fade',
     blurFadeDescription: 'Elements fade in with a blur effect.',
     blurFadeReplay: 'Replay',
+    blurFadeReplayCaption: 'Try it: press Replay — the counter reads the first block\'s (replay) output, which stays silent on the initial reveal.',
+    blurFadeReplayCount: 'Replays:',
     blurFadeItem1: 'First item fades in from below',
     blurFadeItem2: 'Second item follows with a delay',
     blurFadeItem3: 'Third item slides in from the left',
@@ -195,6 +199,8 @@ export const ANIMATIONS_DEMO_LOCALES: Record<string, AnimationsDemoLocale> = {
     blurFadeHeading: 'דהיית ערפל',
     blurFadeDescription: 'אלמנטים נכנסים עם אפקט ערפל.',
     blurFadeReplay: 'הפעל שוב',
+    blurFadeReplayCaption: 'נסה: לחץ על "הפעל שוב" — המונה קורא את הפלט (replay) של הבלוק הראשון, ששותק בהופעה הראשונה.',
+    blurFadeReplayCount: 'הפעלות חוזרות:',
     blurFadeItem1: 'הפריט הראשון נכנס מלמטה',
     blurFadeItem2: 'הפריט השני מגיע עם עיכוב',
     blurFadeItem3: 'הפריט השלישי נכנס מימין',
@@ -275,6 +281,8 @@ export const ANIMATIONS_DEMO_LOCALES: Record<string, AnimationsDemoLocale> = {
     blurFadeHeading: 'تلاشٍ ضبابي',
     blurFadeDescription: 'تظهر العناصر بتأثير الضبابية.',
     blurFadeReplay: 'إعادة التشغيل',
+    blurFadeReplayCaption: 'جرّب: اضغط «إعادة التشغيل» — يقرأ العدّاد المخرج (replay) للكتلة الأولى، وهو صامت في الظهور الأول.',
+    blurFadeReplayCount: 'مرات الإعادة:',
     blurFadeItem1: 'يظهر العنصر الأول من الأسفل',
     blurFadeItem2: 'يتبعه العنصر الثاني بتأخير',
     blurFadeItem3: 'يدخل العنصر الثالث من اليسار',
@@ -355,6 +363,8 @@ export const ANIMATIONS_DEMO_LOCALES: Record<string, AnimationsDemoLocale> = {
     blurFadeHeading: 'Unschärfe-Einblendung',
     blurFadeDescription: 'Elemente erscheinen mit Unschärfeeffekt.',
     blurFadeReplay: 'Wiederholen',
+    blurFadeReplayCaption: 'Ausprobieren: „Wiederholen“ drücken — der Zähler liest das (replay)-Output des ersten Blocks, das beim ersten Erscheinen stumm bleibt.',
+    blurFadeReplayCount: 'Wiederholungen:',
     blurFadeItem1: 'Erstes Element blendet von unten ein',
     blurFadeItem2: 'Zweites Element folgt mit Verzögerung',
     blurFadeItem3: 'Drittes Element gleitet von links herein',
@@ -435,6 +445,8 @@ export const ANIMATIONS_DEMO_LOCALES: Record<string, AnimationsDemoLocale> = {
     blurFadeHeading: 'Fondu flou',
     blurFadeDescription: 'Les éléments apparaissent avec un effet de flou.',
     blurFadeReplay: 'Rejouer',
+    blurFadeReplayCaption: 'Essayez : cliquez sur « Rejouer » — le compteur lit la sortie (replay) du premier bloc, muette lors de la première apparition.',
+    blurFadeReplayCount: 'Relectures :',
     blurFadeItem1: 'Le premier élément monte depuis le bas',
     blurFadeItem2: 'Le deuxième suit avec un délai',
     blurFadeItem3: 'Le troisième glisse depuis la gauche',
@@ -515,6 +527,8 @@ export const ANIMATIONS_DEMO_LOCALES: Record<string, AnimationsDemoLocale> = {
     blurFadeHeading: 'Fundido borroso',
     blurFadeDescription: 'Los elementos aparecen con efecto de desenfoque.',
     blurFadeReplay: 'Reproducir',
+    blurFadeReplayCaption: 'Pruébalo: pulsa «Reproducir» — el contador lee la salida (replay) del primer bloque, que calla en la aparición inicial.',
+    blurFadeReplayCount: 'Repeticiones:',
     blurFadeItem1: 'El primer elemento sube desde abajo',
     blurFadeItem2: 'El segundo sigue con un retraso',
     blurFadeItem3: 'El tercero desliza desde la izquierda',
@@ -595,6 +609,8 @@ export const ANIMATIONS_DEMO_LOCALES: Record<string, AnimationsDemoLocale> = {
     blurFadeHeading: 'ブラーフェード',
     blurFadeDescription: 'ぼかし効果でフェードインします。',
     blurFadeReplay: '再生',
+    blurFadeReplayCaption: 'お試しください:「再生」を押すと、カウンターが最初のブロックの (replay) 出力を読み取ります。初回の表示では発火しません。',
+    blurFadeReplayCount: '再生回数:',
     blurFadeItem1: '最初の要素が下からフェードイン',
     blurFadeItem2: '2番目の要素が遅れて続く',
     blurFadeItem3: '3番目の要素が左からスライドイン',
@@ -675,6 +691,8 @@ export const ANIMATIONS_DEMO_LOCALES: Record<string, AnimationsDemoLocale> = {
     blurFadeHeading: '模糊淡入',
     blurFadeDescription: '元素以模糊效果淡入。',
     blurFadeReplay: '重播',
+    blurFadeReplayCaption: '试一试：点击“重播”——计数器读取第一个区块的 (replay) 输出，首次显示时不会触发。',
+    blurFadeReplayCount: '重播次数:',
     blurFadeItem1: '第一个元素从下方淡入',
     blurFadeItem2: '第二个元素延迟跟进',
     blurFadeItem3: '第三个元素从左侧滑入',
@@ -755,6 +773,8 @@ export const ANIMATIONS_DEMO_LOCALES: Record<string, AnimationsDemoLocale> = {
     blurFadeHeading: 'Размытое появление',
     blurFadeDescription: 'Элементы появляются с эффектом размытия.',
     blurFadeReplay: 'Повторить',
+    blurFadeReplayCaption: 'Попробуйте: нажмите «Повторить» — счётчик читает вывод (replay) первого блока, который молчит при первом появлении.',
+    blurFadeReplayCount: 'Повторов:',
     blurFadeItem1: 'Первый элемент появляется снизу',
     blurFadeItem2: 'Второй следует с задержкой',
     blurFadeItem3: 'Третий скользит слева',
@@ -835,6 +855,8 @@ export const ANIMATIONS_DEMO_LOCALES: Record<string, AnimationsDemoLocale> = {
     blurFadeHeading: 'Desfoque e aparecimento',
     blurFadeDescription: 'Elementos aparecem com efeito de desfoque.',
     blurFadeReplay: 'Reproduzir',
+    blurFadeReplayCaption: 'Experimente: clique em «Reproduzir» — o contador lê a saída (replay) do primeiro bloco, que fica em silêncio na primeira aparição.',
+    blurFadeReplayCount: 'Repetições:',
     blurFadeItem1: 'O primeiro item aparece de baixo',
     blurFadeItem2: 'O segundo segue com um atraso',
     blurFadeItem3: 'O terceiro desliza da esquerda',

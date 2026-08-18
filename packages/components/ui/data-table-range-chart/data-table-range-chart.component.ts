@@ -57,6 +57,7 @@ export type RangeChartType = 'bar' | 'pie' | 'stacked';
   host: { class: 'contents' },
 })
 export class DataTableRangeChartComponent {
+  /** Extra classes merged onto the chart body wrapper inside the dialog (not the dialog surface itself). */
   readonly class = input('');
   /** The range payload to chart; the dialog shows nothing useful when null. */
   readonly payload = input<RangeChartData | null>(null);
@@ -94,6 +95,11 @@ export class DataTableRangeChartComponent {
 
   readonly chartTypes: readonly RangeChartType[] = ['bar', 'pie', 'stacked'];
 
+  /**
+   * Switches the visualisation by writing {@link chartType}, which propagates
+   * out through the two-way binding. Bound to the type-picker buttons; `'stacked'`
+   * only renders meaningfully when {@link hasMultipleSeries} is true.
+   */
   selectChartType(type: RangeChartType): void {
     this.chartType.set(type);
   }

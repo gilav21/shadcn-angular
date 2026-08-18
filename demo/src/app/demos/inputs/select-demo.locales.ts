@@ -9,6 +9,8 @@ export interface SelectDemoLocale extends LocaleMeta {
     simpleModeDescription: string;
     popperHeading: string;
     popperDescription: string;
+    disabledItemHeading: string;
+    disabledItemDescription: string;
     selectFruitPlaceholder: string;
     fruitsLabel: string;
     apple: string;
@@ -29,6 +31,8 @@ export const SELECT_DEMO_LOCALES: Record<string, SelectDemoLocale> = {
         simpleModeDescription: 'Uses [options] input.',
         popperHeading: 'Popper',
         popperDescription: 'Always opens below the trigger.',
+        disabledItemHeading: 'Disabled Item',
+        disabledItemDescription: 'Open it and press ArrowDown — the dimmed option is skipped and cannot be chosen.',
         selectFruitPlaceholder: 'Select a fruit',
         fruitsLabel: 'Fruits',
         apple: 'Apple',
@@ -48,6 +52,8 @@ export const SELECT_DEMO_LOCALES: Record<string, SelectDemoLocale> = {
         simpleModeDescription: 'משתמש בקלט [options].',
         popperHeading: 'קופץ',
         popperDescription: 'תמיד נפתח מתחת לטריגר.',
+        disabledItemHeading: 'פריט מושבת',
+        disabledItemDescription: 'פתחו את הרשימה ולחצו על חץ למטה — האפשרות המעומעמת מדולגת ולא ניתן לבחור בה.',
         selectFruitPlaceholder: 'בחר פרי',
         fruitsLabel: 'פירות',
         apple: 'תפוח',
@@ -67,6 +73,8 @@ export const SELECT_DEMO_LOCALES: Record<string, SelectDemoLocale> = {
         simpleModeDescription: 'يستخدم مدخل [options].',
         popperHeading: 'منبثق',
         popperDescription: 'يفتح دائماً أسفل الزناد.',
+        disabledItemHeading: 'عنصر معطَّل',
+        disabledItemDescription: 'افتح القائمة واضغط السهم لأسفل — يتم تخطي الخيار الباهت ولا يمكن اختياره.',
         selectFruitPlaceholder: 'اختر فاكهة',
         fruitsLabel: 'فواكه',
         apple: 'تفاح',
@@ -85,6 +93,8 @@ export const SELECT_DEMO_LOCALES: Record<string, SelectDemoLocale> = {
         simpleModeDescription: 'Verwendet die [options]-Eingabe.',
         popperHeading: 'Popper',
         popperDescription: 'Öffnet sich immer unter dem Auslöser.',
+        disabledItemHeading: 'Deaktiviertes Element',
+        disabledItemDescription: 'Öffnen und Pfeil-nach-unten drücken — die abgeblendete Option wird übersprungen und kann nicht gewählt werden.',
         selectFruitPlaceholder: 'Frucht auswählen',
         fruitsLabel: 'Früchte',
         apple: 'Apfel',
@@ -103,6 +113,8 @@ export const SELECT_DEMO_LOCALES: Record<string, SelectDemoLocale> = {
         simpleModeDescription: 'Utilise l\'entrée [options].',
         popperHeading: 'Popper',
         popperDescription: 'S\'ouvre toujours sous le déclencheur.',
+        disabledItemHeading: 'Élément désactivé',
+        disabledItemDescription: 'Ouvrez-le et appuyez sur Flèche bas — l\'option grisée est ignorée et ne peut pas être choisie.',
         selectFruitPlaceholder: 'Sélectionner un fruit',
         fruitsLabel: 'Fruits',
         apple: 'Pomme',
@@ -121,6 +133,8 @@ export const SELECT_DEMO_LOCALES: Record<string, SelectDemoLocale> = {
         simpleModeDescription: 'Usa la entrada [options].',
         popperHeading: 'Popper',
         popperDescription: 'Siempre se abre debajo del disparador.',
+        disabledItemHeading: 'Elemento deshabilitado',
+        disabledItemDescription: 'Ábrelo y pulsa Flecha abajo — la opción atenuada se omite y no se puede elegir.',
         selectFruitPlaceholder: 'Seleccionar una fruta',
         fruitsLabel: 'Frutas',
         apple: 'Manzana',
@@ -139,6 +153,8 @@ export const SELECT_DEMO_LOCALES: Record<string, SelectDemoLocale> = {
         simpleModeDescription: '[options] 入力を使用します。',
         popperHeading: 'ポッパー',
         popperDescription: '常にトリガーの下に開きます。',
+        disabledItemHeading: '無効な項目',
+        disabledItemDescription: '開いて下矢印キーを押してください — 淡色表示の項目はスキップされ、選択できません。',
         selectFruitPlaceholder: '果物を選択',
         fruitsLabel: '果物',
         apple: 'リンゴ',
@@ -157,6 +173,8 @@ export const SELECT_DEMO_LOCALES: Record<string, SelectDemoLocale> = {
         simpleModeDescription: '使用 [options] 输入。',
         popperHeading: '弹出',
         popperDescription: '始终在触发器下方打开。',
+        disabledItemHeading: '禁用项',
+        disabledItemDescription: '打开后按向下箭头键 — 变暗的选项会被跳过，无法选中。',
         selectFruitPlaceholder: '选择水果',
         fruitsLabel: '水果',
         apple: '苹果',
@@ -175,6 +193,8 @@ export const SELECT_DEMO_LOCALES: Record<string, SelectDemoLocale> = {
         simpleModeDescription: 'Использует вход [options].',
         popperHeading: 'Поппер',
         popperDescription: 'Всегда открывается под триггером.',
+        disabledItemHeading: 'Отключённый пункт',
+        disabledItemDescription: 'Откройте список и нажмите стрелку вниз — приглушённый пункт пропускается, выбрать его нельзя.',
         selectFruitPlaceholder: 'Выберите фрукт',
         fruitsLabel: 'Фрукты',
         apple: 'Яблоко',
@@ -193,6 +213,8 @@ export const SELECT_DEMO_LOCALES: Record<string, SelectDemoLocale> = {
         simpleModeDescription: 'Usa a entrada [options].',
         popperHeading: 'Popper',
         popperDescription: 'Sempre abre abaixo do gatilho.',
+        disabledItemHeading: 'Item desativado',
+        disabledItemDescription: 'Abra e pressione a seta para baixo — a opção esmaecida é ignorada e não pode ser escolhida.',
         selectFruitPlaceholder: 'Selecionar uma fruta',
         fruitsLabel: 'Frutas',
         apple: 'Maçã',

@@ -21,9 +21,13 @@ import { TOGGLE_GROUP, toggleVariants } from '../toggle-group.component';
 export class ToggleGroupItemComponent {
     readonly group = inject(TOGGLE_GROUP, { optional: true });
 
+    /** Identifier this item contributes to the parent group's selection, and what the pressed state is derived from. */
     value = input.required<string>();
+    /** Disables this item only. The parent group's `disabled` disables it regardless of this input. */
     disabled = input(false);
+    /** Extra classes merged onto the item's `<button>`, appended after the group-derived variant/size classes so they win. */
     class = input('');
+    /** Accessible name for the button — required when the item only projects an icon. Applied to the inner button, since the `display: contents` host strips its own `aria-label`. */
     ariaLabel = input<string | undefined>(undefined);
 
     isSelected = computed(() => this.group?.isSelected(this.value()) ?? false);
@@ -41,6 +45,7 @@ export class ToggleGroupItemComponent {
         );
     });
 
+    /** Asks the parent group to toggle {@link value}. No-op when this item is disabled or when used outside a `ui-toggle-group`. */
     onClick(): void {
         if (!this.disabled()) {
             this.group?.toggle(this.value());

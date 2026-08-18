@@ -35,6 +35,12 @@ export class HoverCardComponent {
         });
     }
 
+    /**
+     * Schedules the card to open after a 200ms hover dwell, cancelling any
+     * pending close first so moving between trigger and card does not flicker.
+     * Pointer/keyboard path only — it does not arm the click-outside listener,
+     * so use {@link toggle} for touch.
+     */
     show(): void {
         if (this.closeTimeout) {
             clearTimeout(this.closeTimeout);
@@ -45,6 +51,11 @@ export class HoverCardComponent {
         }, this.openDelay);
     }
 
+    /**
+     * Schedules the card to close after a 300ms grace period — the window in
+     * which the pointer can travel from the trigger onto the card, whose
+     * mouseenter calls {@link cancelClose}. Cancels a pending open.
+     */
     hide(): void {
         if (this.openTimeout) {
             clearTimeout(this.openTimeout);
@@ -55,6 +66,12 @@ export class HoverCardComponent {
         }, this.closeDelay);
     }
 
+    /**
+     * Touch path: opens or closes immediately, with no delay. Opening also sets
+     * `touchOpen` and registers a capture-phase click/touchend listener that
+     * closes the card on the first interaction outside the host. The card never
+     * traps focus and Escape is not handled.
+     */
     toggle(): void {
         if (this.open()) {
             this.close();
@@ -63,6 +80,11 @@ export class HoverCardComponent {
         }
     }
 
+    /**
+     * Aborts a pending {@link hide} so the card stays open. Called by
+     * `ui-hover-card-content` on mouseenter — that is what lets the pointer move
+     * onto the card without dismissing it.
+     */
     cancelClose(): void {
         if (this.closeTimeout) {
             clearTimeout(this.closeTimeout);

@@ -44,6 +44,7 @@ export class PopoverTriggerComponent {
         });
     }
 
+    /** Toggles the popover and stops the click propagating, which is what keeps the document-level outside-click listener from immediately closing what this click just opened. */
     onClick(event: MouseEvent): void {
         event.stopPropagation();
         this.popover?.toggle();

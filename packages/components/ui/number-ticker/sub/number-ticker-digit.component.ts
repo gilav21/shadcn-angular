@@ -14,6 +14,12 @@ import {
     templateUrl: './number-ticker-digit.component.html',
 })
 export class NumberTickerDigitComponent {
+    /**
+     * One character of the formatted number. Digits `0-9` roll over with a
+     * vertical slide from the previous character; anything else (group
+     * separators, decimal point, minus sign) is swapped instantly. The first
+     * value sets the initial state without animating.
+     */
     digit = input.required<string>();
 
     private readonly el = inject(ElementRef);

@@ -35,7 +35,9 @@ export const STEPPER_ITEM = new InjectionToken<StepperItemComponent>('STEPPER_IT
   host: { class: 'contents', role: 'listitem' },
 })
 export class StepperItemComponent {
+  /** Extra classes merged onto the item's inner wrapper (via `cn()`, so utilities here override the orientation-derived flex direction and gap). Does not reach the trailing horizontal connector, which is a sibling of that wrapper. */
   class = input('');
+  /** Stable identifier for this step. Its position among the parent's projected items is what determines the step number and status, so it must be unique within one stepper — {@link StepperComponent.getStepIndex} matches on it. */
   value = input.required<string>();
 
   readonly stepper = inject(STEPPER, { optional: true });

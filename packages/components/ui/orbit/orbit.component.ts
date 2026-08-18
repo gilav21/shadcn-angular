@@ -24,10 +24,19 @@ export class OrbitComponent implements AfterViewInit, OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly ngZone = inject(NgZone);
 
+    /**
+     * Extra classes merged onto the host ring. The host is `absolute inset-0`
+     * and click-through, so its positioning parent must be `relative`; projected
+     * items re-enable pointer events themselves.
+     */
     class = input('');
+    /** Orbit radius in pixels, applied as a horizontal offset from the ring's centre before rotation. Not responsive — pick a value that fits the smallest container you support. */
     radius = input(100);
+    /** Seconds for one full revolution. Read once when the Web Animation is created in `ngAfterViewInit`; changing it later does not retime the orbit. No animation is created at all when the user prefers reduced motion — items then rest at their starting angle. */
     duration = input(10);
+    /** Seconds to wait before the orbit starts — give sibling orbits different values to spread items around the same ring. Also read only at init. */
     delay = input(0);
+    /** Reverses the direction of travel (counter-clockwise). Handy for making concentric rings counter-rotate. Read only at init. */
     reverse = input(false);
 
     private animationRef?: Animation;

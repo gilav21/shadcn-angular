@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class TableCaptionComponent {
+    /** Extra classes merged onto the caption. It is a flex sibling of the row groups, not a native `<caption>`, so its position in the markup is where it renders. */
     class = input('');
 
     classes = computed(() => cn('text-muted-foreground mt-4 text-sm', this.class()));

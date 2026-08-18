@@ -20,6 +20,7 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class FieldSetComponent {
+  /** Extra classes merged onto the native `<fieldset>`. The browser's default border and padding are stripped and replaced with a grid, so it groups semantically without looking boxed. */
   class = input('');
 
   classes = computed(() => cn(

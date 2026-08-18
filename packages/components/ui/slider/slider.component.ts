@@ -23,13 +23,21 @@ import { UI_LOCALE_ID, formatNumber } from '../../lib/i18n';
 export class SliderComponent {
     private readonly el = inject(ElementRef);
 
+    /** Lower bound of the range. Must be less than {@link max}, otherwise the fill percentage logs an error and falls back to 0. */
     min = input(0);
+    /** Upper bound of the range. Must be greater than {@link min}. */
     max = input(100);
+    /** Granularity that pointer, arrow-key and Page-key changes snap to; Page Up/Down move ten steps at once. */
     step = input(1);
+    /** Dims the slider and blocks pointer events, and short-circuits every keyboard and drag handler. */
     disabled = input(false);
+    /** Starting value, read once in the constructor — later changes to this input do not move the thumb. */
     defaultValue = input(0);
+    /** Extra classes merged onto the outer track wrapper, not onto the fill or the thumb. */
     class = input('');
+    /** `aria-label` for the visually hidden `<input type="range">` that carries the slider's accessibility semantics. */
     ariaLabel = input<string | undefined>(undefined);
+    /** `aria-labelledby` for the visually hidden range input, when an external element already labels the slider. */
     ariaLabelledby = input<string | undefined>(undefined);
     /**
      * BCP-47 locale tag used to format `aria-valuetext` (the screen-reader
@@ -41,10 +49,12 @@ export class SliderComponent {
     private readonly globalLocale = inject(UI_LOCALE_ID);
     /** Locale-formatted value text, e.g. `'1,234.5'` in en or `'1.234,5'` in de. */
     readonly valueText = computed(() => formatNumber(this.value(), this.locale() ?? this.globalLocale()));
+    /** Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. */
     valueChange = output<number>();
 
     value = signal(0);
 
+    /** Whether the host resolves to a right-to-left direction; flips the fill/thumb positioning and the arrow-key direction. */
     rtl(): boolean {
         return isRtl(this.el.nativeElement);
     }
@@ -76,6 +86,7 @@ export class SliderComponent {
         )
     );
 
+    /** Jumps the value to the clicked position, begins a document-level drag and focuses the hidden range input so the keyboard keeps working. */
     onTrackMouseDown(event: MouseEvent): void {
         if (this.disabled()) return;
 
@@ -87,6 +98,7 @@ export class SliderComponent {
         input?.focus();
     }
 
+    /** Starts a drag from the thumb, stopping propagation so {@link onTrackMouseDown} does not also jump the value on grab. */
     onThumbMouseDown(event: MouseEvent): void {
         if (this.disabled()) return;
 
@@ -95,6 +107,7 @@ export class SliderComponent {
         this.startDragging();
     }
 
+    /** Touch counterpart of {@link onTrackMouseDown}: seeks to the first touch point and tracks `touchmove` on the document until `touchend`. */
     onTouchStart(event: TouchEvent): void {
         if (this.disabled()) return;
 
@@ -132,6 +145,12 @@ export class SliderComponent {
         document.addEventListener('mouseup', onMouseUp);
     }
 
+    /**
+     * Keyboard interaction on the hidden range input: arrows move one
+     * {@link step} (horizontal arrows are mirrored in RTL), Page Up/Down move
+     * ten, Home/End jump to {@link min}/{@link max}. Other keys pass through
+     * untouched, and {@link valueChange} fires only when the value really moved.
+     */
     onKeyDown(event: KeyboardEvent): void {
         if (this.disabled()) return;
 
@@ -210,6 +229,7 @@ export class SliderComponent {
         this.valueChange.emit(newValue);
     }
 
+    /** Current value as a string, handy for template interpolation and test assertions. */
     toString(): string {
         return String(this.value());
     }

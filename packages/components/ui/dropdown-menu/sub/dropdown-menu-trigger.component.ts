@@ -49,6 +49,11 @@ export class DropdownMenuTriggerComponent {
         });
     }
 
+    /**
+     * Toggles the menu and stops propagation, so the menu's document-level
+     * outside-click listener does not immediately close what this click just
+     * opened.
+     */
     onClick(event: MouseEvent): void {
         event.stopPropagation();
         this.menu?.toggle();

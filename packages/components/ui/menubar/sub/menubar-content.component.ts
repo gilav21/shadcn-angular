@@ -30,6 +30,12 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
   host: { class: 'contents' },
 })
 export class MenubarContentComponent {
+  /**
+   * Extra classes for the dropdown panel. The panel is absolutely positioned
+   * under the trigger and edge-aligned per direction (`ltr:left-0 rtl:right-0`)
+   * with `min-w-[12rem] max-w-[calc(100vw-2rem)]` — override the width here,
+   * and the alignment classes if you need it flipped.
+   */
   class = input('');
   readonly menu = inject<MenubarMenuComponent>(MENUBAR_MENU);
   readonly service = inject(MenubarService);
@@ -42,6 +48,13 @@ export class MenubarContentComponent {
     this.class()
   ));
 
+  /**
+   * Keyboard map for an open menu: ArrowDown/ArrowUp move through the items
+   * ({@link focusNextItem} / {@link focusPrevItem}, wrapping at both ends),
+   * Escape closes the menu and returns focus to its trigger, and
+   * ArrowLeft/ArrowRight step to the adjacent menu in the bar (mirrored under
+   * RTL) which opens it in place. Typeahead and Home/End are not handled.
+   */
   onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
@@ -75,6 +88,12 @@ export class MenubarContentComponent {
     }
   }
 
+  /**
+   * Moves focus to the item after `currentItem`, wrapping from the last back to
+   * the first. Disabled items are skipped — see {@link getFocusableItems}. If
+   * `currentItem` is not itself a focusable item the search starts at index -1,
+   * so focus lands on the first item.
+   */
   focusNextItem(currentItem: HTMLElement): void {
     const items = this.getFocusableItems();
     const index = items.indexOf(currentItem);
@@ -82,6 +101,10 @@ export class MenubarContentComponent {
     items[nextIndex]?.focus();
   }
 
+  /**
+   * Mirror of {@link focusNextItem} — moves focus to the previous item, wrapping
+   * from the first around to the last.
+   */
   focusPrevItem(currentItem: HTMLElement): void {
     const items = this.getFocusableItems();
     const index = items.indexOf(currentItem);
@@ -89,6 +112,14 @@ export class MenubarContentComponent {
     items[prevIndex]?.focus();
   }
 
+  /**
+   * The arrow-key ring for this menu: every `[role="menuitem"]` inside the open
+   * panel that does not carry `data-disabled`, so a disabled `ui-menubar-item`
+   * is genuinely removed from keyboard navigation rather than just dimmed. The
+   * lookup is a document-wide query keyed on the menu's generated id, and it
+   * descends into any open `ui-menubar-sub-content`, so nested items join the
+   * parent ring while a submenu is open.
+   */
   getFocusableItems(): HTMLElement[] {
     const contentDiv = document.querySelector(`[data-menubar-content="${this.menu.id}"]`);
     if (!contentDiv) return [];

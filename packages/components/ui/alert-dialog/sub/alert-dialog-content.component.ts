@@ -76,8 +76,22 @@ import { AlertDialogCancelComponent } from './alert-dialog-cancel.component';
 export class AlertDialogContentComponent implements AfterViewInit {
     readonly alertDialog = inject(ALERT_DIALOG, { optional: true });
     private readonly el = inject(ElementRef);
+    /**
+     * Extra classes merged onto the centred panel (not the backdrop). Overrides
+     * the default `max-w-[calc(100vw-2rem)] sm:max-w-lg` sizing when you pass a
+     * width utility.
+     */
     readonly class = input('');
+    /**
+     * Simple mode: renders the header **and** a footer with ready-made cancel /
+     * action buttons wired to {@link cancelClick} and {@link actionClick}.
+     * Leave it unset to project your own header and footer — with no title
+     * neither the header nor the default buttons are rendered, and
+     * {@link description}, {@link actionText} and {@link cancelText} have no
+     * effect.
+     */
     readonly title = input<string>();
+    /** Simple-mode sub-heading. Only rendered when {@link title} is also set. */
     readonly description = input<string>();
 
     /**
@@ -101,7 +115,14 @@ export class AlertDialogContentComponent implements AfterViewInit {
     protected readonly t = this.i18n.t;
     protected readonly dir = this.i18n.dir;
 
+    /**
+     * The confirm button was pressed. Only emitted by the simple-mode footer
+     * (i.e. when {@link title} is set) — project your own
+     * `ui-alert-dialog-action` and you handle its click yourself. The dialog
+     * closes itself either way, so do not also call `hide()`.
+     */
     readonly actionClick = output<void>();
+    /** The cancel button was pressed. Same simple-mode-only rules as {@link actionClick}. */
     readonly cancelClick = output<void>();
 
     readonly classes = computed(() =>
@@ -157,6 +178,12 @@ export class AlertDialogContentComponent implements AfterViewInit {
         }
     }
 
+    /**
+     * Key handler on the modal wrapper: Escape closes the dialog, Tab/Shift+Tab
+     * wrap focus so it stays trapped inside the panel. There is deliberately no
+     * backdrop-click dismissal — an alert dialog demands an explicit choice. The
+     * panel renders inline at `z-50`, not in the native top layer.
+     */
     onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
             event.preventDefault();

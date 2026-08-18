@@ -60,6 +60,33 @@ function installAnimateStubs(): void {
 }
 
 /**
+ * Record the animations the digit component creates by spying on the container
+ * element itself, rather than relying on the `Element.prototype.animate` patch.
+ *
+ * A prototype patch is process-wide shared state: any other spec file that
+ * patches or restores `Element.prototype.animate` while this suite is mid-test
+ * silently removes the recorder, and the suite then waits for an animation that
+ * is created but never recorded — reported as "expected [] to have a length of
+ * 1". An own-property spy on the single element under test cannot be clobbered
+ * by another file.
+ *
+ * Safe because `.flex` lives inside `@if (isDigit())`: it survives every
+ * digit → digit change, which is all these tests perform.
+ */
+function recordContainerAnimations(fixture: ComponentFixture<unknown>): void {
+    const container = fixture.nativeElement.querySelector('.flex') as HTMLElement;
+    vi.spyOn(container, 'animate').mockImplementation((() => {
+        const anim: FakeAnimation = {
+            onfinish: null,
+            finish: () => undefined,
+            cancel: () => undefined,
+        };
+        animations.push(anim);
+        return anim;
+    }) as unknown as HTMLElement['animate']);
+}
+
+/**
  * The animate stubs plus hand-driven frames, for the suites that assert on
  * frame *timing* (coalescing, cancellation) and therefore have to own the clock.
  */
@@ -282,6 +309,7 @@ describe('NumberTickerDigitComponent', () => {
         await fixture.whenStable();
         expect(digitInstance().prevDigit()).toBe('5');
         expect(fixture.nativeElement.querySelector('.flex')).not.toBeNull();
+        recordContainerAnimations(fixture);
     });
 
     /**
@@ -295,10 +323,17 @@ describe('NumberTickerDigitComponent', () => {
      */
     async function applyDigit(value: string, expected: number): Promise<void> {
         host.digit.set(value);
-        await vi.waitFor(() => {
-            fixture.detectChanges();
-            expect(animations).toHaveLength(expected);
-        });
+        await vi.waitFor(
+            () => {
+                fixture.detectChanges();
+                expect(animations).toHaveLength(expected);
+            },
+            // The recorder is an own-property spy, so the animation is certain to
+            // be recorded once the effect runs — the only thing being waited on
+            // is the scheduler getting to it. The default 1s can expire on a
+            // loaded full-suite run before that happens.
+            { timeout: 5000 },
+        );
     }
 
     afterEach(() => {

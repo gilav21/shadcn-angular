@@ -64,20 +64,85 @@ export class ComboChartComponent implements AfterViewInit {
     private readonly _measuredWidth = observeChartWidth(this.el, this.destroyRef);
     private readonly _svg = viewChild<ElementRef<SVGSVGElement>>('chartSvg');
 
+    /**
+     * The bar half of the chart, read against the **primary** (left) axis,
+     * which is anchored at 0 and auto-scaled to the largest value across all
+     * bar series — so negative values fall outside the plot. The **first**
+     * series is privileged: its `data[].name`s define the category axis
+     * ({@link categories}) and its values feed {@link cumulativePercents}.
+     * Further series are grouped side by side inside each category band and are
+     * indexed positionally, so every series must list its values in the same
+     * category order; a missing slot is drawn as 0.
+     */
     readonly barSeries = input.required<ChartSeries[]>();
+    /**
+     * Overlaid lines read against the **secondary** axis, whose scale is
+     * independent of the bars — that is the point of a combo chart, and the
+     * reason a line can sit above a taller bar. Points are placed at the
+     * category band centres by array position, so `data` must align with
+     * {@link barSeries}[0]. Palette colours continue after the bar series so
+     * lines never collide with bar colours. The secondary axis is drawn without
+     * tick labels, so put its unit in {@link cumulativeLabel} or the series
+     * name.
+     */
     readonly lineSeries = input<ChartSeries[]>([]);
+    /**
+     * Design width of the SVG user-space coordinate system, in px, used as the
+     * `viewBox` width until the host has been measured. The rendered `<svg>` is
+     * `width="100%"`, so the chart tracks its container and this value only
+     * fixes the initial/fallback coordinate space. The container must be a
+     * block-level box — an inline-block parent collapses a `width:100%` SVG,
+     * which is why the host is `block` and the container carries `w-full`.
+     */
     readonly width = input(540);
+    /**
+     * Height in px, applied verbatim to the SVG's `height` attribute and its
+     * `viewBox`, so — unlike {@link width} — it is never measured or scaled.
+     * The plot area is this minus 12px of top and 28px of bottom padding for
+     * the category labels.
+     */
     readonly height = input(320);
+    /**
+     * Prepend a Pareto-style running-total line, computed from
+     * {@link barSeries}[0] only and expressed as a percentage of that series'
+     * total. Turning it on pins the secondary axis to a fixed 0–100 range,
+     * which also rescales any {@link lineSeries} drawn alongside it.
+     */
     readonly showCumulative = input(false);
+    /** Name given to the {@link showCumulative} line in the legend and its tooltip row. Ignored while `showCumulative` is false. */
     readonly cumulativeLabel = input('Cumulative');
+    /** Corner rounding of each bar rect, in px (SVG `rx`). Use `0` for square corners; keep it small since grouped bars are narrow. */
     readonly barRadius = input(2);
+    /** Draw the dashed horizontal gridlines behind the plot, one per primary-axis tick. The secondary axis contributes none. */
     readonly showGrid = input(true);
+    /**
+     * Show the shared tooltip for the hovered category — one row per bar
+     * series, per line series, and for the cumulative line when enabled.
+     * Disabling it keeps the crosshair and the bar dimming.
+     */
     readonly showTooltip = input(true);
+    /** Render the legend (bar series, then lines) under the chart. Unlike the scatter/bubble charts this legend is non-interactive — series cannot be toggled off. */
     readonly showLegend = input(true);
+    /** Extra classes merged onto the chart container, which already carries `relative w-full`. */
     readonly class = input('');
+    /** Human-readable chart name, used only to prefix the container's accessible summary. */
     readonly title = input<string | undefined>(undefined);
+    /**
+     * Layout direction. `'auto'` (default) resolves from the host element's
+     * inherited DOM direction once, after view init; `'ltr'`/`'rtl'` force it.
+     * RTL reverses the category band order (and with it the bars, lines and
+     * crosshair); the primary tick labels stay on the left. See {@link isRtl}.
+     */
     readonly dir = input<ChartDirection>('auto');
 
+    /**
+     * Emitted when any bar is clicked. `index` is the category index and
+     * `point` the matching {@link barSeries} datum — but the template wires
+     * every rect to bar series 0, so with several bar series the payload
+     * reports the first series' value for that category regardless of which
+     * grouped bar was hit. Call {@link onBarClick} directly if you need the
+     * exact series.
+     */
     readonly barClick = output<ChartClickEvent>();
 
     private readonly _hover = signal<number | null>(null);
@@ -260,10 +325,24 @@ export class ComboChartComponent implements AfterViewInit {
         this._domRtl.set(isRtl(this.el.nativeElement));
     }
 
+    /**
+     * Selects a whole **category** by index — not a single bar — moving the
+     * crosshair to its band centre, dimming the bars of every other category
+     * and filling the tooltip. Pass `null` to clear. Does not move the tooltip
+     * box: its position is only updated by {@link onPointerMove}.
+     */
     setHover(index: number | null): void {
         this._hover.set(index);
     }
 
+    /**
+     * Tracks the pointer across the SVG and snaps to the category whose band
+     * centre is nearest on the **x axis alone**, so the crosshair follows even
+     * when the pointer is above the bars or off the plot vertically. The
+     * tooltip is offset to the right of that centre and follows the pointer's
+     * y. Bound to `mousemove`, `touchstart` and `touchmove` so touch devices
+     * get the same read-out as mouse users.
+     */
     onPointerMove(evt: MouseEvent | TouchEvent): void {
         const svg = this._svg()?.nativeElement;
         if (!svg) return;
@@ -275,10 +354,17 @@ export class ComboChartComponent implements AfterViewInit {
         this.setHover(nearest.index);
     }
 
+    /** Clears the hovered category, hiding the crosshair and tooltip, when the pointer leaves the SVG. Bound to `mouseleave`. */
     onPointerLeave(): void {
         this.setHover(null);
     }
 
+    /**
+     * Emits {@link barClick} for the datum at `barSeries()[seriesIndex]
+     * .data[pointIndex]`, silently doing nothing if the indices don't resolve.
+     * The template always passes `0` as `seriesIndex` — see {@link barClick} —
+     * so call this yourself to report a specific bar series.
+     */
     onBarClick(seriesIndex: number, pointIndex: number): void {
         const data = this.barSeries()[seriesIndex]?.data[pointIndex];
         if (data) this.barClick.emit({ point: data, index: pointIndex });

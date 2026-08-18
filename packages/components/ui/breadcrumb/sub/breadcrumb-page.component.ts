@@ -19,6 +19,7 @@ import { cn } from '../../../lib/utils';
   },
 })
 export class BreadcrumbPageComponent {
+  /** Extra classes merged onto the current-page crumb. It renders as a disabled `role="link"` carrying `aria-current="page"` — the trail's endpoint, deliberately not clickable. */
   class = input('');
 
   classes = computed(() => cn('text-foreground font-normal', this.class()));

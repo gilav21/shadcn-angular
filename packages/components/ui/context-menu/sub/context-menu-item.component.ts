@@ -28,10 +28,22 @@ import { CONTEXT_MENU } from '../context-menu.component';
 export class ContextMenuItemComponent {
     private readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
 
+    /** Extra classes merged after the defaults on the host element (the item is its own host, there is no inner wrapper). */
     class = input('');
+    /** Adds `ps-8` start padding so a label-less item lines up with siblings that carry a leading icon; also reflected as `data-inset` for styling. */
     inset = input(false);
+    /** `'destructive'` paints the label and its focus/hover background in the destructive palette; reflected as `data-variant` for custom styling. */
     variant = input<'default' | 'destructive'>('default');
+    /**
+     * Greys the item to 50% and sets `pointer-events: none`, so neither hover
+     * nor a click reaches it and {@link onClick} never runs. Note it emits no
+     * `aria-disabled`/`data-disabled` attribute and the item carries no
+     * `role="menuitem"`, so a disabled item is invisible to assistive tech —
+     * and no item participates in the sub-menu arrow-key ring, which only
+     * walks `[role="menuitem"]:not([data-disabled])`.
+     */
     disabled = input(false);
+    /** Accelerator hint rendered end-aligned in muted small caps (e.g. `'⌘C'`). Display only — it binds no key handler; wire the shortcut yourself. */
     shortcut = input('');
 
     classes = computed(() => cn(
@@ -45,6 +57,11 @@ export class ContextMenuItemComponent {
         this.class()
     ));
 
+    /**
+     * Host click handler: dismisses the enclosing menu unless
+     * {@link disabled}. It does not emit anything — bind your own `(click)` on
+     * the element for the action; yours runs first, then the menu closes.
+     */
     onClick(): void {
         if (!this.disabled()) {
             this.contextMenu?.close();

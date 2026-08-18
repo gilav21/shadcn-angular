@@ -73,8 +73,24 @@ const DELETE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="
 export class RichTextImageResizerComponent implements OnDestroy {
     private readonly document = inject(DOCUMENT);
     private readonly sanitizer = inject(DomSanitizer);
+    /**
+     * The image to decorate. Setting it starts tracking (a `ResizeObserver` on
+     * the image and {@link container}, plus scroll/window-resize listeners);
+     * clearing it to `null` tears all of that down and hides the overlay. The
+     * image is mutated in place — inline `width`/`height` while dragging,
+     * `data-align` plus float/margin styles on alignment.
+     */
     readonly target = input<HTMLImageElement | null>(null);
+    /**
+     * The positioned element the overlay box is laid out inside. All handle
+     * coordinates are the target's rect minus this element's rect, and the
+     * overlay hides itself when the image scrolls fully out of this box.
+     */
     readonly container = input<HTMLElement | null>(null);
+    /**
+     * Button titles for the four alignment buttons and delete. Defaults to
+     * English; the images addon feeds the translated set.
+     */
     readonly labels = input<RichTextImageResizerLabels>(DEFAULT_RESIZER_LABELS);
     /** Show the corner resize handles. */
     readonly resizable = input<boolean>(true);
@@ -86,8 +102,22 @@ export class RichTextImageResizerComponent implements OnDestroy {
     readonly maxWidth = input<number>();
     /** When false, corners resize axes independently and edge handles appear. */
     readonly lockAspectRatio = input<boolean>(true);
+    /**
+     * A drag ended (pointer released). Fires once per drag, not per move — the
+     * size was already written to the image live, so this is the signal to
+     * record one undo entry for the whole gesture.
+     */
     readonly resizeEnd = output<void>();
+    /**
+     * An alignment button was pressed, after {@link applyImageAlignment} has
+     * already restyled the image and stamped `data-align`. Emits the new value
+     * for history/persistence, not as a request to apply it.
+     */
     readonly alignmentChange = output<ImageAlignment>();
+    /**
+     * The delete button was pressed. Emits the target image without removing
+     * it — the owner detaches it so the deletion is captured in undo history.
+     */
     readonly imageRemove = output<HTMLImageElement>();
 
     readonly alignments: ImageAlignment[] = ['inline', 'left', 'center', 'right'];
@@ -136,10 +166,21 @@ export class RichTextImageResizerComponent implements OnDestroy {
         });
     }
 
+    /**
+     * The inline SVG glyph for one alignment, pre-trusted for `[innerHTML]`.
+     * The markup is a module-level constant, never consumer input, so the
+     * sanitizer bypass carries no untrusted content.
+     */
     getAlignIcon(align: ImageAlignment): SafeHtml {
         return this.sanitizer.bypassSecurityTrustHtml(ALIGNMENT_ICONS[align]);
     }
 
+    /**
+     * Applies `align` to the target immediately (styles + `data-align`), then
+     * emits {@link alignmentChange} and re-measures the overlay, since floating
+     * the image moves it. Bound to `mousedown` rather than `click` and swallows
+     * the event so the editor's selection survives the press.
+     */
     onAlignClick(event: MouseEvent, align: ImageAlignment): void {
         event.preventDefault();
         event.stopPropagation();
@@ -152,6 +193,11 @@ export class RichTextImageResizerComponent implements OnDestroy {
         this.scheduleUpdate();
     }
 
+    /**
+     * Emits {@link imageRemove} with the current target and leaves the DOM
+     * untouched — removal is the owner's job. Also `mousedown`-bound and
+     * event-swallowing so the press doesn't collapse the editor selection.
+     */
     onDeleteClick(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();
@@ -226,6 +272,15 @@ export class RichTextImageResizerComponent implements OnDestroy {
         this.visible.set(true);
     }
 
+    /**
+     * Begins a drag from one handle. Serves both `mousedown` and `touchstart`
+     * (the handles carry `touch-action: none`), snapshots the image's starting
+     * rect, and attaches document-level move/up listeners for both pointer
+     * kinds until release. Sizes are written straight onto the image as it
+     * moves; only the release emits {@link resizeEnd}. Clamped by
+     * {@link minWidth} / {@link maxWidth}, and constrained to the starting
+     * aspect ratio while {@link lockAspectRatio} is true.
+     */
     startResize(event: MouseEvent | TouchEvent, handle: ResizeHandle): void {
         event.preventDefault();
         event.stopPropagation();

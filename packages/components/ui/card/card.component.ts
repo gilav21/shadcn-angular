@@ -47,11 +47,22 @@ import { SkeletonComponent } from '../skeleton';
     },
 })
 export class CardComponent {
+    /** Extra classes merged onto the card surface. Padding comes from the card's density CSS rather than inline utilities, so prefer a density variable over hard-coded `p-*` here. */
     class = input('');
+    /**
+     * Simple-mode heading. Supplying it switches the card to the generated
+     * layout — header, optional {@link description} and {@link content}, then any
+     * projected content underneath. Leave it empty to compose `ui-card-header`
+     * and friends yourself.
+     */
     title = input('');
+    /** Simple-mode muted subtitle under the title. Only rendered when {@link title} is also set. */
     description = input('');
+    /** Simple-mode body text. Plain text only and, like {@link description}, only rendered when {@link title} is set — project `ui-card-content` for rich bodies. */
     content = input('');
+    /** Overlays a translucent scrim and a spinner across the card while keeping the content visible underneath, for in-place refreshes. Use {@link skeleton} instead for a first load with no content yet. */
     readonly loading = input(false);
+    /** Replaces the whole card with a fixed-height placeholder block, and strips the card's own surface styling. Takes precedence over every other input, including {@link loading}. */
     readonly skeleton = input(false);
 
     readonly classes = computed(() => {

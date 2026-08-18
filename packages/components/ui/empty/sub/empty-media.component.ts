@@ -20,7 +20,13 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class EmptyMediaComponent {
+    /** Extra classes merged onto the media slot. Any projected `<svg>` is already click-through and prevented from shrinking. */
     class = input('');
+    /**
+     * `'default'` is a bare centring wrapper for an illustration at its own
+     * size. `'icon'` adds the muted rounded square badge and sizes an unstyled
+     * projected `<svg>` to `size-6` — an explicit `size-*` on the svg still wins.
+     */
     variant = input<'default' | 'icon'>('default');
 
     classes = computed(() => cn(

@@ -35,10 +35,34 @@ export class ParticlesComponent implements OnInit, OnDestroy {
     private readonly ngZone = inject(NgZone);
     private readonly renderer = inject(Renderer2);
 
+    /**
+     * Number of particles seeded across the canvas. Cost is roughly quadratic
+     * because every pair is tested for a connecting line each frame, so keep it
+     * modest on large surfaces. Read when the field is created (init, or the
+     * first resize that gives the host a non-zero size).
+     */
     count = input(50);
+    /**
+     * Colour of both dots and connecting lines. `'currentColor'` (the default)
+     * and any `var(...)` expression are resolved once against the host's
+     * computed `color`, so the field picks up the surrounding theme; a literal
+     * CSS colour is used verbatim.
+     */
     color = input('currentColor');
+    /** Maximum initial velocity, in pixels per frame, of each axis; each particle gets a random value in `±speed / 2`. Applied at seed time only. */
     speed = input(0.5);
+    /**
+     * Maximum distance, in pixels, at which two particles are joined by a line;
+     * the line fades out as the pair approaches this distance. Set to 0 to draw
+     * dots with no web.
+     */
     connectDistance = input(120);
+    /**
+     * Lets the pointer repel nearby particles. Enabling it makes the host
+     * capture pointer events (it is otherwise click-through), which can block
+     * clicks on content behind the field. Has no effect on touch-only devices,
+     * where there is no hover position. Read once during setup.
+     */
     mouseInteraction = input(true);
 
     private canvas: HTMLCanvasElement | null = null;

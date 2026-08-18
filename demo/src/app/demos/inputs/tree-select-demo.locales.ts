@@ -8,6 +8,8 @@ export interface TreeSelectDemoLocale extends LocaleMeta {
     selectedValueLabel: string;
     disabledLabel: string;
     selectPlaceholder: string;
+    clippedLabel: string;
+    clippedCaption: string;
     nodeDocuments: string;
     nodeWork: string;
     nodeReport: string;
@@ -30,6 +32,8 @@ export const TREE_SELECT_DEMO_LOCALES: Record<string, TreeSelectDemoLocale> = {
         selectedValueLabel: 'Selected Value:',
         disabledLabel: 'Disabled',
         selectPlaceholder: 'Select...',
+        clippedLabel: 'Inside a Clipped Card',
+        clippedCaption: 'Try it: open the tree inside this overflow-hidden card — the popup renders in the browser top layer, so it is never clipped.',
         nodeDocuments: 'Documents',
         nodeWork: 'Work',
         nodeReport: 'Report.docx',
@@ -51,6 +55,8 @@ export const TREE_SELECT_DEMO_LOCALES: Record<string, TreeSelectDemoLocale> = {
         selectedValueLabel: 'ערך נבחר:',
         disabledLabel: 'מושבת',
         selectPlaceholder: 'בחר...',
+        clippedLabel: 'בתוך כרטיס חתוך',
+        clippedCaption: 'נסו: פתחו את העץ בתוך הכרטיס עם overflow-hidden — החלונית מוצגת בשכבה העליונה של הדפדפן ולכן אינה נחתכת.',
         nodeDocuments: 'מסמכים',
         nodeWork: 'עבודה',
         nodeReport: 'דוח.docx',
@@ -72,6 +78,8 @@ export const TREE_SELECT_DEMO_LOCALES: Record<string, TreeSelectDemoLocale> = {
         selectedValueLabel: 'القيمة المحددة:',
         disabledLabel: 'معطّل',
         selectPlaceholder: 'اختر...',
+        clippedLabel: 'داخل بطاقة مقصوصة',
+        clippedCaption: 'جرّب: افتح الشجرة داخل هذه البطاقة ذات overflow-hidden — تُعرض النافذة المنبثقة في الطبقة العليا للمتصفح فلا تُقتطع أبدًا.',
         nodeDocuments: 'المستندات',
         nodeWork: 'العمل',
         nodeReport: 'تقرير.docx',
@@ -92,6 +100,8 @@ export const TREE_SELECT_DEMO_LOCALES: Record<string, TreeSelectDemoLocale> = {
         selectedValueLabel: 'Ausgewählter Wert:',
         disabledLabel: 'Deaktiviert',
         selectPlaceholder: 'Auswählen...',
+        clippedLabel: 'In einer beschnittenen Karte',
+        clippedCaption: 'Zum Ausprobieren: Baum in dieser Karte mit overflow-hidden öffnen — das Popup wird in der obersten Browser-Ebene gerendert und daher nie abgeschnitten.',
         nodeDocuments: 'Dokumente',
         nodeWork: 'Arbeit',
         nodeReport: 'Bericht.docx',
@@ -112,6 +122,8 @@ export const TREE_SELECT_DEMO_LOCALES: Record<string, TreeSelectDemoLocale> = {
         selectedValueLabel: 'Valeur sélectionnée :',
         disabledLabel: 'Désactivé',
         selectPlaceholder: 'Sélectionner...',
+        clippedLabel: 'Dans une carte rognée',
+        clippedCaption: 'À essayer : ouvrez l’arborescence dans cette carte en overflow-hidden — la fenêtre s’affiche dans la couche supérieure du navigateur et n’est jamais rognée.',
         nodeDocuments: 'Documents',
         nodeWork: 'Travail',
         nodeReport: 'Rapport.docx',
@@ -132,6 +144,8 @@ export const TREE_SELECT_DEMO_LOCALES: Record<string, TreeSelectDemoLocale> = {
         selectedValueLabel: 'Valor seleccionado:',
         disabledLabel: 'Desactivado',
         selectPlaceholder: 'Seleccionar...',
+        clippedLabel: 'Dentro de una tarjeta recortada',
+        clippedCaption: 'Pruébalo: abre el árbol dentro de esta tarjeta con overflow-hidden; el desplegable se dibuja en la capa superior del navegador, así que nunca se recorta.',
         nodeDocuments: 'Documentos',
         nodeWork: 'Trabajo',
         nodeReport: 'Informe.docx',
@@ -152,6 +166,8 @@ export const TREE_SELECT_DEMO_LOCALES: Record<string, TreeSelectDemoLocale> = {
         selectedValueLabel: '選択された値:',
         disabledLabel: '無効',
         selectPlaceholder: '選択...',
+        clippedLabel: '切り取られたカードの中',
+        clippedCaption: 'お試し: overflow-hidden のカード内でツリーを開いてください。ポップアップはブラウザーの最前面レイヤーに描画されるため、切り取られません。',
         nodeDocuments: 'ドキュメント',
         nodeWork: '仕事',
         nodeReport: 'レポート.docx',
@@ -172,6 +188,8 @@ export const TREE_SELECT_DEMO_LOCALES: Record<string, TreeSelectDemoLocale> = {
         selectedValueLabel: '选定值:',
         disabledLabel: '已禁用',
         selectPlaceholder: '选择...',
+        clippedLabel: '在被裁剪的卡片内',
+        clippedCaption: '试试看：在这个 overflow-hidden 卡片内打开树——弹出层渲染在浏览器顶层，不会被裁剪。',
         nodeDocuments: '文档',
         nodeWork: '工作',
         nodeReport: '报告.docx',
@@ -192,6 +210,8 @@ export const TREE_SELECT_DEMO_LOCALES: Record<string, TreeSelectDemoLocale> = {
         selectedValueLabel: 'Выбранное значение:',
         disabledLabel: 'Отключено',
         selectPlaceholder: 'Выбрать...',
+        clippedLabel: 'Внутри обрезанной карточки',
+        clippedCaption: 'Попробуйте: откройте дерево внутри карточки с overflow-hidden — всплывающее окно отрисовывается в верхнем слое браузера и не обрезается.',
         nodeDocuments: 'Документы',
         nodeWork: 'Работа',
         nodeReport: 'Отчёт.docx',
@@ -212,6 +232,8 @@ export const TREE_SELECT_DEMO_LOCALES: Record<string, TreeSelectDemoLocale> = {
         selectedValueLabel: 'Valor selecionado:',
         disabledLabel: 'Desativado',
         selectPlaceholder: 'Selecionar...',
+        clippedLabel: 'Dentro de um cartão recortado',
+        clippedCaption: 'Experimente: abra a árvore dentro deste cartão com overflow-hidden — o pop-up é renderizado na camada superior do navegador e nunca é cortado.',
         nodeDocuments: 'Documentos',
         nodeWork: 'Trabalho',
         nodeReport: 'Relatório.docx',

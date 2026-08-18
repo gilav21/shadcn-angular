@@ -311,13 +311,15 @@ describe('PopoverContent fixed strategy (Popover API path)', () => {
         // Provide the native Popover API so the fixed strategy exercises the
         // showPopover / hidePopover top-layer branch instead of the body portal.
         const proto = HTMLElement.prototype as unknown as { showPopover?: () => void; hidePopover?: () => void };
+        // Fill the API in only when the engine lacks it, and never replace a
+        // working one. `HTMLElement.prototype` is shared across every spec file
+        // in the run — this suite does not get its own realm — so spying the
+        // native implementation into a no-op made any file that promoted an
+        // element to the top layer during the same window silently get nothing.
         if (typeof proto.showPopover !== 'function') {
             proto.showPopover = function () { /* stub */ };
             proto.hidePopover = function () { /* stub */ };
             addedShowPopover = true;
-        } else {
-            vi.spyOn(HTMLElement.prototype, 'showPopover').mockImplementation(() => { /* stub */ });
-            vi.spyOn(HTMLElement.prototype, 'hidePopover').mockImplementation(() => { /* stub */ });
         }
 
         await TestBed.configureTestingModule({ imports: [FixedHost] }).compileComponents();

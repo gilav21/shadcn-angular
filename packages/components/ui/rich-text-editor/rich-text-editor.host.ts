@@ -156,7 +156,6 @@ export abstract class RichTextEditorAddonHost {
     /** The contenteditable content root (for popover anchoring + scoped styles). */
     abstract readonly contentRoot: HTMLElement;
 
-    // ── Inline text-styling seam (colors, typography) ─────────────────
 
     /**
      * Apply an inline text style to the current (or last-saved) selection: for
@@ -174,7 +173,6 @@ export abstract class RichTextEditorAddonHost {
      */
     abstract readonly selectionInlineStyle: Signal<RichTextSelectionInlineStyle>;
 
-    // ── Slash-command / block seam ────────────────────────────────────
 
     /**
      * Register a keydown interceptor, invoked before the base handles the
@@ -205,7 +203,6 @@ export abstract class RichTextEditorAddonHost {
      */
     abstract registerDropZonePredicate(predicate: (event: DragEvent) => boolean): () => void;
 
-    // ── Image-file seam ───────────────────────────────────────────────
 
     /**
      * Register the addon that owns image files — the images addon, whose
@@ -276,7 +273,6 @@ export abstract class RichTextEditorAddonHost {
      */
     abstract readonly builtinCommands: Signal<readonly RichTextSlashCommand[]>;
 
-    // ── Revision-history seam ─────────────────────────────────────────
 
     /**
      * Bumps on every change to the history stack (push, undo, redo, restore).

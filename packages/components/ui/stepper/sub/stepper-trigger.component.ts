@@ -64,6 +64,7 @@ import { STEPPER_ITEM } from './stepper-item.component';
   host: { class: 'contents' },
 })
 export class StepperTriggerComponent {
+  /** Extra classes merged onto the trigger `<button>` (via `cn()`, so utilities here override the default layout, focus ring, and the `cursor-not-allowed opacity-50` applied while the step is unreachable). The indicator circle inside it is styled separately. */
   class = input('');
 
   readonly stepper = inject(STEPPER, { optional: true });
@@ -92,6 +93,7 @@ export class StepperTriggerComponent {
     )
   );
 
+  /** Click handler: asks the parent to jump to this item's step via {@link StepperComponent.goToStep}. Unreachable steps under a linear stepper never get here — the `<button>` is already `disabled` — and it is a no-op when the trigger sits outside a {@link StepperItemComponent}. */
   onClick(): void {
     const index = this.item?.index();
     if (index !== undefined) {

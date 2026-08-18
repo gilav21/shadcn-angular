@@ -46,11 +46,32 @@ export const TREE_SELECT = new InjectionToken<TreeSelectComponent>('TREE_SELECT'
   styleUrl: './tree-select.component.css',
 })
 export class TreeSelectComponent implements ControlValueAccessor {
+  /**
+   * Tree data for the built-in popover. Passing a non-empty array switches the
+   * component into data-driven mode: it renders its own combobox trigger and a
+   * single-select `ui-tree` in the popover. Leave it empty to fall back to
+   * projected content ({@link TreeSelectTriggerComponent} /
+   * {@link TreeSelectContentComponent}), in which case you drive the selection
+   * yourself via {@link select}.
+   */
   nodes = input<TreeNode[]>([]);
   /** Override for the placeholder. Falls back to the locale's `selectPlaceholder`. */
   placeholder = input<string>();
+  /**
+   * Disables the built-in trigger. OR-ed with the forms-driven disabled flag
+   * from {@link setDisabledState}, so a reactive-forms `disable()` still wins
+   * when this is `false` — see {@link isDisabled}.
+   */
   disabled = input(false);
+  /** Extra classes merged onto the built-in combobox trigger button (data-driven mode only). */
   class = input('');
+  /**
+   * Selected node key for uncontrolled/standalone use. Any value other than
+   * `undefined` (including `null`, which clears the selection) is pushed into
+   * the internal state whenever it changes. It does not re-assert itself after
+   * a user pick, so a static value will not block selection. Prefer
+   * `ngModel`/`formControl` over this input — do not use both.
+   */
   value = input<string | null | undefined>(undefined);
 
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
@@ -59,6 +80,14 @@ export class TreeSelectComponent implements ControlValueAccessor {
   protected readonly t = this.i18n.t;
   protected readonly dir = this.i18n.dir;
 
+  /**
+   * Emits the selected node keys after every pick. Selection is single, so the
+   * array holds at most one key and is empty when the selection is cleared —
+   * it is an array only to mirror `ui-tree`'s output. Emitted by both
+   * {@link onSelectionChange} and {@link select}, each of which also closes the
+   * popover. Not emitted for values arriving via {@link value} or
+   * {@link writeValue}.
+   */
   selectionChange = output<string[]>();
 
   customTrigger = contentChild(TreeSelectTriggerComponent);
@@ -109,22 +138,43 @@ export class TreeSelectComponent implements ControlValueAccessor {
     });
   }
 
+  /**
+   * Called by Angular forms, not by consumers. The control value is a node
+   * `key` (a `string`), never the {@link TreeNode} object — the node is looked
+   * up in {@link nodes} by key to render the trigger label, so a key with no
+   * matching node shows the placeholder. Does not emit
+   * {@link selectionChange}.
+   */
   writeValue(value: string | null): void {
     this.internalValue.set(value);
   }
 
+  /** Called by Angular forms, not by consumers. The registered callback receives the node key, or `null` when cleared. */
   registerOnChange(fn: (value: string | null) => void): void {
     this.onChange = fn;
   }
 
+  /** Called by Angular forms, not by consumers. Registers the touched callback. */
   registerOnTouched(fn: () => void): void {
     this.onTouched = fn;
   }
 
+  /**
+   * Called by Angular forms, not by consumers. Only disables the built-in
+   * trigger button (OR-ed with the {@link disabled} input); it does not close
+   * an already-open popover, and it does not disable a projected custom
+   * trigger.
+   */
   setDisabledState(isDisabled: boolean): void {
     this.formDisabled.set(isDisabled);
   }
 
+  /**
+   * Template handler for the inner `ui-tree`'s selection output. Takes the
+   * first key as the new value (empty selection clears it), notifies the form
+   * control, re-emits {@link selectionChange}, and closes the popover. Call
+   * {@link select} instead from custom-content mode.
+   */
   onSelectionChange(selection: string[]): void {
     const newVal = selection[0] ?? null;
     this.internalValue.set(newVal);
@@ -133,6 +183,13 @@ export class TreeSelectComponent implements ControlValueAccessor {
     this.isOpen.set(false);
   }
 
+  /**
+   * Selects a node by key from projected custom content — inject
+   * {@link TREE_SELECT} in your own trigger/content to reach it. Updates the
+   * form control, emits {@link selectionChange} (`[value]`, or `[]` when
+   * `null`), and closes the popover. Bypasses {@link disabled}: guard the call
+   * yourself if the control may be disabled.
+   */
   select(value: string | null): void {
     this.internalValue.set(value);
     this.onChange(value);

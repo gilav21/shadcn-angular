@@ -991,6 +991,109 @@
   }
 </section>
 
+<!-- Local Reorder Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-local-reorder" class="text-2xl font-semibold scroll-m-20">{{ t().sectionLocalReorder }}</h2>
+  <div class="grid gap-6 lg:grid-cols-2">
+    <div class="space-y-2">
+      <p class="text-sm font-medium">{{ t().localReorderOnHeading }}</p>
+      <div class="h-[240px] sm:h-[280px]">
+        <ui-data-table
+          [(data)]="localReorderData"
+          [columns]="reorderColumns()"
+          [enableRowDrag]="true"
+          [showPagination]="false"
+          [showToolbar]="false"
+        />
+      </div>
+      <p class="text-sm text-muted-foreground">{{ t().localReorderOnCaption }}</p>
+      <p class="text-xs font-medium">{{ t().localReorderDataLabel }}</p>
+      <ol class="space-y-0.5 text-xs font-mono text-muted-foreground">
+        @for (row of localReorderData(); track row.id) {
+          <li>{{ row.id }} &mdash; {{ row.clientName }}</li>
+        }
+      </ol>
+    </div>
+
+    <div class="space-y-2">
+      <p class="text-sm font-medium">{{ t().localReorderOffHeading }}</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <ui-switch [checked]="manualReorderApply()" (checkedChange)="manualReorderApply.set($event)" />
+        <span class="text-sm">{{ t().localReorderApplyLabel }}</span>
+      </div>
+      <div class="h-[240px] sm:h-[280px]">
+        <ui-data-table
+          #manualReorderTable
+          [data]="manualReorderData()"
+          [columns]="reorderColumns()"
+          [enableRowDrag]="true"
+          [localReorder]="false"
+          [showPagination]="false"
+          [showToolbar]="false"
+          (rowReorder)="onManualReorder($event)"
+        />
+      </div>
+      <p class="text-sm text-muted-foreground">{{ t().localReorderOffCaption }}</p>
+      <p class="text-xs font-medium">{{ t().localReorderLastEvent }}</p>
+      <p class="text-xs font-mono text-muted-foreground">{{ manualReorderEvent() ?? t().localReorderNoEvent }}</p>
+      <p class="text-xs font-medium">{{ t().localReorderDataLabel }}</p>
+      <ol class="space-y-0.5 text-xs font-mono text-muted-foreground">
+        @for (row of manualReorderData(); track row.id) {
+          <li>{{ row.id }} &mdash; {{ row.clientName }}</li>
+        }
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- Sub-Row Collapse Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-subrow-collapse" class="text-2xl font-semibold scroll-m-20">{{ t().sectionSubRowCollapse }}</h2>
+  <p class="text-muted-foreground">{{ t().subRowCollapseCaption }}</p>
+  <div class="rounded-md border h-[300px] sm:h-[400px] overflow-auto relative">
+    <ui-data-table
+      [data]="orgTreeData()"
+      [columns]="orgTreeColumns()"
+      [enableSubRows]="true"
+      [getRowId]="orgNodeRowId"
+      [subRowDefaultExpanded]="2"
+      [showPagination]="false"
+      [showToolbar]="false"
+    />
+  </div>
+</section>
+
+<!-- Column State Save & Restore Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-column-state" class="text-2xl font-semibold scroll-m-20">{{ t().sectionColumnState }}</h2>
+  <p class="text-muted-foreground">{{ t().columnStateCaption }}</p>
+  <div class="flex flex-wrap items-center gap-2">
+    <ui-button size="sm" variant="outline" (click)="saveColumnState()" (keydown.enter)="saveColumnState()" (keydown.space)="saveColumnState()">{{ t().columnStateSave }}</ui-button>
+    <ui-button size="sm" variant="outline" (click)="restoreColumnState()" (keydown.enter)="restoreColumnState()" (keydown.space)="restoreColumnState()">{{ t().columnStateRestore }}</ui-button>
+  </div>
+  <div class="h-[300px] sm:h-[400px]">
+    <ui-data-table
+      #columnStateTable
+      [data]="payments()"
+      [columns]="columnStateColumns()"
+      [enableColumnResize]="true"
+      [showToolbar]="false"
+    />
+  </div>
+  <div class="space-y-1">
+    <p class="text-xs font-medium">{{ t().columnStateSnapshotLabel }}</p>
+    @if (columnStateSummary().length) {
+      <ul class="space-y-0.5 text-xs font-mono text-muted-foreground">
+        @for (line of columnStateSummary(); track line) {
+          <li>{{ line }}</li>
+        }
+      </ul>
+    } @else {
+      <p class="text-xs text-muted-foreground">{{ t().columnStateNoSnapshot }}</p>
+    }
+  </div>
+</section>
+
 <!-- Cell Range Selection Demo -->
 <section class="space-y-4">
   <h2 id="data-table-range" class="text-2xl font-semibold scroll-m-20">{{ t().sectionCellRange }}</h2>

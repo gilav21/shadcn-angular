@@ -114,6 +114,31 @@ describe('DataTableMultiselectFilterComponent', () => {
     expect(component.isSelected('failed')).toBe(true);
     expect(component.isSelected('success')).toBe(false);
   });
+
+  it('keeps a selected value that has no matching option and re-emits it alongside a later toggle', async () => {
+    fixture.componentRef.setInput('options', []);
+    fixture.componentRef.setInput('selected', ['archived']);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(component.selectedCount()).toBe(1);
+
+    fixture.componentRef.setInput('options', STRING_OPTIONS);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.toggleOption('pending');
+    expect(emitted).toEqual(['archived', 'pending']);
+  });
+
+  it('selectAll keeps an option-less selected value', async () => {
+    fixture.componentRef.setInput('selected', ['archived']);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    component.selectAll();
+    expect(emitted).toEqual(['archived', ...STRING_OPTIONS]);
+  });
 });
 
 interface Priority {

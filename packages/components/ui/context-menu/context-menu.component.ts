@@ -91,6 +91,16 @@ export class ContextMenuComponent implements OnDestroy {
     private readonly document = inject(DOCUMENT);
     private readonly el = inject(ElementRef);
 
+    /**
+     * Data-driven menu contents. When non-empty the component renders its own
+     * `<ui-context-menu-content>` from this array (separators, labels, nested
+     * `sub` branches and items, recursively), so you only project a trigger.
+     * Leave it empty (the default) to hand-author the content with
+     * `<ui-context-menu-content>` and friends — both forms may not be combined,
+     * as a non-empty array appends a second content block after your projected
+     * one. Each entry's `click` callback fires before the menu closes; see
+     * {@link ContextMenuItem}.
+     */
     items = input<ContextMenuItem[]>([]);
     open = signal(false);
     position = signal({ x: 0, y: 0 });
@@ -126,16 +136,36 @@ export class ContextMenuComponent implements OnDestroy {
         this.document.removeEventListener('scroll', this.scrollListener, true);
     }
 
+    /**
+     * Opens the menu with its top-left corner at viewport coordinates
+     * (`x`, `y`) — pass `clientX`/`clientY`, not page coordinates, since the
+     * content is `position: fixed`. The content clamps itself 8px inside the
+     * viewport on the next-but-one animation frame if it would overflow.
+     * Calling this while already open just repositions it. `data` is stashed
+     * on the `data` signal for the duration, so a shared menu can read which
+     * row was right-clicked. Closed again by {@link close}, an outside click,
+     * Escape, a scroll anywhere on the page, or selecting an item.
+     */
     show(x: number, y: number, data?: unknown): void {
         this.position.set({ x, y });
         this.data.set(data);
         this.open.set(true);
     }
 
+    /**
+     * Closes the menu, tearing down its body portal. Safe to call when already
+     * closed. The `data` passed to {@link show} is deliberately kept, so a
+     * handler running after the close can still read it.
+     */
     close(): void {
         this.open.set(false);
     }
 
+    /**
+     * True when this menu sits in a right-to-left subtree, resolved live from
+     * the host element's computed direction (not cached). Sub-menus consult it
+     * to flip their flyout side and to swap the ArrowLeft/ArrowRight roles.
+     */
     isRtl(): boolean {
         return isRtl(this.el.nativeElement);
     }

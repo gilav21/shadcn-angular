@@ -25,6 +25,7 @@ import { cn } from '../../../lib/utils';
   },
 })
 export class SidebarMenuItemComponent {
+  /** Extra classes merged onto the host, which is the `listitem` inside `ui-sidebar-menu`'s list. Wrap exactly one button or link per item so the list semantics stay intact. */
   class = input('');
 
   classes = computed(() => cn(

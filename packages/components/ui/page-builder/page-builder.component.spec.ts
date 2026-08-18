@@ -426,6 +426,27 @@ describe('PageBuilderComponent — editor behavior', () => {
                 vi.useRealTimers();
             }
         });
+
+        it('stops the feed when the builder is destroyed', () => {
+            vi.useFakeTimers();
+            try {
+                component.addItem(progressMeta);
+                const id = component.items()[0].id;
+                component.onItemChange({ id, prop: 'value', value: 0 });
+
+                component.toggleSimulatedData();
+                vi.advanceTimersByTime(1000);
+                expect(component.items()[0].inputs?.['value']).toBe(5);
+
+                fixture.destroy();
+                vi.advanceTimersByTime(3000);
+
+                expect(component.items()[0].inputs?.['value']).toBe(5);
+                expect(component.simulatingData()).toBe(false);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
     });
 
     describe('getComponentMeta + input introspection', () => {

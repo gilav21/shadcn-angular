@@ -21,9 +21,11 @@ import { DropdownMenuSubComponent } from './dropdown-menu-sub.component';
       #trigger
       [class]="classes()"
       role="menuitem"
-      tabindex="0"
+      tabindex="-1"
       [attr.aria-haspopup]="true"
       [attr.aria-expanded]="sub.isOpen()"
+      [attr.data-disabled]="disabled() || null"
+      [attr.aria-disabled]="disabled() || null"
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
       (keydown)="onKeydown($event)"
@@ -36,8 +38,19 @@ import { DropdownMenuSubComponent } from './dropdown-menu-sub.component';
     host: { class: 'contents' }
 })
 export class DropdownMenuSubTriggerComponent {
+    /** Extra classes merged onto the trigger row, after the defaults so they can override them. */
     class = input('');
+    /**
+     * Dims the row and neutralises it: the element carries `data-disabled` (and
+     * `aria-disabled`), which drives the `data-[disabled]:` classes, removes it
+     * from the parent menu's arrow-key ring, and blocks hover, tap and keyboard
+     * from opening the submenu.
+     */
     disabled = input(false, { transform: booleanAttribute });
+    /**
+     * Adds leading indentation so the label aligns with sibling items that
+     * carry an icon or checkmark.
+     */
     inset = input(false, { transform: booleanAttribute });
 
     readonly sub = inject(DropdownMenuSubComponent);
@@ -58,18 +71,28 @@ export class DropdownMenuSubTriggerComponent {
         this.class()
     ));
 
+    /** Opens the submenu on hover, cancelling any pending close. Skipped while {@link disabled}, and on touch devices, which use {@link onClick}. */
     onMouseEnter(): void {
-        if (isTouchDevice()) return;
+        if (this.disabled() || isTouchDevice()) return;
         this.sub.enter();
     }
 
+    /**
+     * Starts the grace-period close when the pointer leaves; moving onto the
+     * submenu panel cancels it. Skipped on touch devices.
+     */
     onMouseLeave(): void {
         if (isTouchDevice()) return;
         this.sub.leave();
     }
 
+    /**
+     * Tap-to-toggle for touch devices, where hover never fires. Deliberately a
+     * no-op with a mouse, so a click does not immediately close a submenu hover
+     * has just opened, and a no-op while {@link disabled}.
+     */
     onClick(): void {
-        if (!isTouchDevice()) return;
+        if (this.disabled() || !isTouchDevice()) return;
         if (this.sub.isOpen()) {
             this.sub.leave();
         } else {
@@ -77,11 +100,24 @@ export class DropdownMenuSubTriggerComponent {
         }
     }
 
+    /**
+     * Focuses the inner `role="menuitem"` row (not the `contents` host).
+     * Invoked by the parent `<ui-dropdown-menu-sub>` when the submenu closes
+     * from the keyboard.
+     */
     focus(): void {
+        if (this.disabled()) return;
         this.triggerEl?.nativeElement.focus();
     }
 
+    /**
+     * Opens the submenu and moves focus into it on Enter or the "forward" arrow
+     * (ArrowRight, or ArrowLeft in RTL). Propagation is stopped for the arrows
+     * so the root menu does not treat them as its own navigation. Every key is
+     * ignored while {@link disabled}.
+     */
     onKeydown(event: KeyboardEvent): void {
+        if (this.disabled()) return;
         if (event.key === 'ArrowRight') {
             if (this.service.isRtl()) return;
             event.preventDefault();

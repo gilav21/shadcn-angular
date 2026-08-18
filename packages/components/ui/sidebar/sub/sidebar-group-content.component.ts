@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
   host: { class: 'contents' },
 })
 export class SidebarGroupContentComponent {
+  /** Extra classes merged onto the group body — the column that holds a group's menu. Unlike the label it stays visible on a collapsed rail. */
   class = input('');
 
   classes = computed(() => cn(

@@ -20,6 +20,7 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class EmptyContentComponent {
+    /** Extra classes merged onto the action area — it stacks its children vertically, so add `flex-row` here for a side-by-side pair of buttons. */
     class = input('');
 
     classes = computed(() => cn(

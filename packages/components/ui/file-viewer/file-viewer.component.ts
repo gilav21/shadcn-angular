@@ -65,18 +65,58 @@ const HEADING_CLASSES: Record<number, string> = {
     host: { class: 'contents' },
 })
 export class FileViewerComponent implements AfterContentInit, OnDestroy {
+    /** Extra classes merged onto the bordered viewer frame; the height comes from {@link height}, not from here. */
     readonly class = input('');
+    /**
+     * File to render, read fully into memory (`arrayBuffer()`) and parsed in-browser —
+     * nothing is uploaded. Takes precedence over {@link src}; setting it back to `null`
+     * with no `src` returns the viewer to its idle placeholder. Every new value
+     * re-parses from scratch.
+     */
     readonly file = input<File | Blob | null>(null);
+    /**
+     * URL fetched with `fetch()` and then treated exactly like {@link file} — subject to
+     * the server's CORS policy, and the filename is taken from the URL path unless
+     * {@link filename} is set. Ignored while `file` is non-null.
+     */
     readonly src = input('');
+    /**
+     * Forces a viewer kind instead of sniffing the bytes with the file-type detector.
+     * Use it when magic-byte detection guesses wrong; an unsupported value renders the
+     * unknown-type placeholder rather than erroring.
+     */
     readonly type = input<FileViewerType | ''>('');
+    /** CSS height of the viewer frame (default `'600px'`); content scrolls inside it. Any CSS length works. */
     readonly height = input('600px');
+    /**
+     * Initial zoom factor (`1` = 100%). Only a seed — the toolbar's own +/- buttons
+     * clamp to `0.25…3` in 0.25 steps and report through {@link zoomChange}; pushing a
+     * new value here overwrites whatever the user picked.
+     */
     readonly zoom = input(1);
+    /**
+     * Initial 1-based page/slide for paginated types (PDF, PPT/PPTX). Same
+     * seed-not-binding semantics as {@link zoom} — read {@link pageChange} for the live
+     * value. Ignored by non-paginated types.
+     */
     readonly page = input(1);
+    /** Overrides the title-bar name. Falls back to `File.name`, the URL's last segment, or `'File'`. */
     readonly filename = input('');
 
+    /**
+     * Emitted once a file has been parsed and rendered, carrying the *resolved* type —
+     * the cheapest way to learn what the detector decided when {@link type} was left empty.
+     */
     readonly loaded = output<FileViewerLoadedEvent>();
+    /**
+     * Emitted for a failed fetch, an unreadable/corrupt file, or a media element that
+     * refuses the codec. The viewer shows its own error state, so handle this only to
+     * log or to swap in your own UI.
+     */
     readonly loadError = output<FileViewerErrorEvent>();
+    /** Emitted with the new 1-based page after {@link prevPage}/{@link nextPage}; not emitted for the initial page. */
     readonly pageChange = output<number>();
+    /** Emitted with the new clamped zoom factor after {@link zoomIn}/{@link zoomOut}. */
     readonly zoomChange = output<number>();
 
     @ContentChild(FileViewerToolbarDirective) readonly customToolbar?: FileViewerToolbarDirective;
@@ -232,6 +272,10 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         }
     }
 
+    /**
+     * Steps back one page/slide (clamped at 1), emits {@link pageChange} and scrolls the
+     * content pane back to the top. Emits even when already on page 1.
+     */
     prevPage(): void {
         const p = Math.max(1, this.currentPage() - 1);
         this.currentPage.set(p);
@@ -239,6 +283,11 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         this.scrollContentToTop();
     }
 
+    /**
+     * Steps forward one page/slide (clamped at the parsed total), emits
+     * {@link pageChange} and scrolls the content pane to the top. Only PDF and
+     * PPT/PPTX are paginated — for every other type the total is 1.
+     */
     nextPage(): void {
         const p = Math.min(this.totalPages(), this.currentPage() + 1);
         this.currentPage.set(p);
@@ -253,22 +302,34 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (pdfScroll) pdfScroll.scrollTop = 0;
     }
 
+    /** Zooms in one 0.25 step, capped at 3× (300%), and emits {@link zoomChange}. */
     zoomIn(): void {
         const z = Math.min(3, Math.round((this.currentZoom() + 0.25) * 100) / 100);
         this.currentZoom.set(z);
         this.zoomChange.emit(z);
     }
 
+    /** Zooms out one 0.25 step, floored at 0.25× (25%), and emits {@link zoomChange}. */
     zoomOut(): void {
         const z = Math.max(0.25, Math.round((this.currentZoom() - 0.25) * 100) / 100);
         this.currentZoom.set(z);
         this.zoomChange.emit(z);
     }
 
+    /**
+     * Switches the visible spreadsheet tab by zero-based index (XLSX only). Sheets are
+     * not pages — this does not emit {@link pageChange}, and an out-of-range index
+     * simply renders an empty grid.
+     */
     setActiveSheet(index: number): void {
         this.activeSheetIndex.set(index);
     }
 
+    /**
+     * `(error)` handler for the `<img>` / `<video>` / `<audio>` elements — parsing
+     * succeeded but the browser refused the codec or data. Switches the viewer to its
+     * error state and emits {@link loadError} with `message`.
+     */
     onMediaError(message: string): void {
         this.handleError(message);
     }

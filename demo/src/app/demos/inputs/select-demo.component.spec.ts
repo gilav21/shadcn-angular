@@ -18,6 +18,22 @@ describe('SelectDemoComponent', () => {
             const el: HTMLElement = fixture.nativeElement;
             expect(el.querySelector('h2')?.textContent?.trim()).toBe(SELECT_DEMO_LOCALES['en'].heading);
         });
+
+        it('renders the disabled-item example and marks the disabled option when opened', () => {
+            const fixture = TestBed.createComponent(SelectDemoComponent);
+            fixture.detectChanges();
+            const el: HTMLElement = fixture.nativeElement;
+            expect(el.textContent).toContain(SELECT_DEMO_LOCALES['en'].disabledItemHeading);
+            expect(el.textContent).toContain(SELECT_DEMO_LOCALES['en'].disabledItemDescription);
+
+            const triggers = el.querySelectorAll<HTMLElement>('ui-select-trigger button[role="combobox"]');
+            triggers[triggers.length - 1].click();
+            fixture.detectChanges();
+
+            const disabled = el.querySelectorAll('ui-select-content [data-disabled]');
+            expect(disabled).toHaveLength(1);
+            expect(disabled[0].textContent?.trim()).toBe(SELECT_DEMO_LOCALES['en'].banana);
+        });
     });
 
     describe('Hebrew locale', () => {

@@ -17,6 +17,7 @@ import { cn } from '../../../lib/utils';
     host: { class: 'contents' },
 })
 export class TimelineContentComponent {
+    /** Extra utilities for the wrapper around the projected body (title, description, time, or anything custom), merged through `cn()` so they override the built-in `flex-1 pt-0.5` — the `flex-1` is what makes the content fill the row beside the dot, so replace it deliberately. */
     class = input('');
 
     classes = computed(() =>

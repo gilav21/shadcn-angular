@@ -1692,6 +1692,82 @@ export class DataTableDemoComponent {
     this.dragLog.update(log => [`"${moved.clientName}" → after ${afterLabel}, before ${beforeLabel} (${event.position})`, ...log.slice(0, 2)]);
   }
 
+  // ── Sub-Row Collapse Demo ──
+  /** Stable tree ids, without which an expand/collapse cannot survive a re-render. */
+  readonly orgNodeRowId = (row: OrgNode): string => row.id;
+
+  // ── Local Reorder Demo ──
+  private readonly reorderSeed: Payment[] = [
+    { id: 'LR-1', amount: 120, status: 'success', email: 'ada@acme.test', clientName: 'Acme Corp' },
+    { id: 'LR-2', amount: 340, status: 'pending', email: 'grace@bitwise.test', clientName: 'Bitwise Ltd' },
+    { id: 'LR-3', amount: 90, status: 'processing', email: 'linus@cobalt.test', clientName: 'Cobalt Group' },
+    { id: 'LR-4', amount: 610, status: 'success', email: 'maya@delta.test', clientName: 'Delta Systems' },
+    { id: 'LR-5', amount: 275, status: 'pending', email: 'omar@evergreen.test', clientName: 'Evergreen Inc' },
+  ];
+
+  /** Bound with `[(data)]`, so the table's own reorder is visible in the list under it. */
+  readonly localReorderData = signal<Payment[]>([...this.reorderSeed]);
+  /** Only ever changed by {@link onManualReorder} — the table has `localReorder` off. */
+  readonly manualReorderData = signal<Payment[]>([...this.reorderSeed]);
+  readonly manualReorderApply = signal(false);
+  readonly manualReorderEvent = signal<string | null>(null);
+  private readonly manualReorderTableRef = viewChild<DataTableComponent<Payment>>('manualReorderTable');
+
+  readonly reorderColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '90px' },
+      { accessorKey: 'clientName', header: locale.colClientName, width: 'auto' },
+      { accessorKey: 'amount', header: locale.colAmount, width: '110px', cell: (row) => `$${row.amount.toFixed(2)}` },
+    ];
+  });
+
+  /** Handler for the `[localReorder]="false"` table: the drop only lands if the consumer applies it. */
+  onManualReorder(event: RowReorderEvent<Payment>): void {
+    this.manualReorderEvent.set(
+      `${event.row.clientName} → ${event.position} "${event.targetRow.clientName}" (${event.fromIndex} → ${event.toIndex})`,
+    );
+    const table = this.manualReorderTableRef();
+    if (this.manualReorderApply() && table) {
+      this.manualReorderData.set(table.reorderData(this.manualReorderData(), event));
+    }
+  }
+
+  // ── Column State Save & Restore Demo ──
+  private readonly columnStateTableRef = viewChild<DataTableComponent<Payment>>('columnStateTable');
+  readonly columnStateSnapshot = signal<DataTableColumnState[] | null>(null);
+
+  readonly columnStateColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '110px', pin: 'left', enableSorting: true },
+      { accessorKey: 'clientName', header: locale.colClientName, width: '200px' },
+      { accessorKey: 'email', header: locale.colEmail, width: 'auto' },
+      { accessorKey: 'amount', header: locale.colAmount, width: '120px', cell: (row) => `$${row.amount.toFixed(2)}` },
+      { accessorKey: 'status', header: locale.colStatus, width: '130px' },
+    ];
+  });
+
+  /** One readable line per column of the saved snapshot, so the stored pin is visible. */
+  readonly columnStateSummary = computed(() =>
+    (this.columnStateSnapshot() ?? []).map(
+      (state) => `${state.columnKey}: pin=${state.pin ?? 'none'}, visible=${state.visible}, width=${state.width ?? 'auto'}`,
+    ),
+  );
+
+  saveColumnState(): void {
+    const table = this.columnStateTableRef();
+    if (!table) return;
+    this.columnStateSnapshot.set(table.getColumnState());
+  }
+
+  restoreColumnState(): void {
+    const table = this.columnStateTableRef();
+    const snapshot = this.columnStateSnapshot();
+    if (!table || !snapshot) return;
+    table.applyColumnState(snapshot);
+  }
+
   // ── Floating Filters Demo ──
   readonly floatingFilterColumns = computed<ColumnDef<Payment>[]>(() => {
     const locale = this.t();

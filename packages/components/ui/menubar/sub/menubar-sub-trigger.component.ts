@@ -24,7 +24,9 @@ import { MENUBAR_SUB, type MenubarSubComponent } from './menubar-sub.component';
       role="menuitem"
       [attr.aria-haspopup]="true"
       [attr.aria-expanded]="sub.isOpen()"
-      tabindex="0"
+      [attr.data-disabled]="disabled() || null"
+      [attr.aria-disabled]="disabled() || null"
+      tabindex="-1"
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
       (keydown)="onKeydown($event)"
@@ -38,8 +40,20 @@ import { MENUBAR_SUB, type MenubarSubComponent } from './menubar-sub.component';
   host: { class: 'contents' }
 })
 export class MenubarSubTriggerComponent {
+  /** Extra classes merged onto the trigger row, after the hover/focus/open-state classes. */
   class = input('');
+  /**
+   * Disables the sub-trigger, exactly like `ui-menubar-item`'s `disabled`: the
+   * row is dimmed and `pointer-events-none` via `data-disabled`, drops out of
+   * the menu's arrow-key ring (which filters `:not([data-disabled])`), and
+   * {@link onClick} / {@link onMouseEnter} / {@link onKeydown} all refuse to
+   * open the submenu.
+   */
   disabled = input(false, { transform: booleanAttribute });
+  /**
+   * Indents the label by 2rem (direction-aware) so the trigger lines up with
+   * inset `ui-menubar-item`s in the same menu.
+   */
   inset = input(false, { transform: booleanAttribute });
 
   readonly sub = inject(MENUBAR_SUB) as MenubarSubComponent;
@@ -62,18 +76,34 @@ export class MenubarSubTriggerComponent {
     this.class()
   ));
 
+  /**
+   * Opens the submenu immediately on hover — there is no open delay, only a
+   * close delay. No-op while {@link disabled}, and on touch devices, where
+   * {@link onClick} drives the submenu instead.
+   */
   onMouseEnter(): void {
-    if (isTouchDevice()) return;
+    if (this.disabled() || isTouchDevice()) return;
     this.sub.enter();
   }
 
+  /**
+   * Starts the submenu's 100ms close timer when the pointer leaves the trigger,
+   * giving the user time to reach the panel (which cancels it by calling
+   * `enter()` on its own mouseenter). No-op on touch devices.
+   */
   onMouseLeave(): void {
     if (isTouchDevice()) return;
     this.sub.leave();
   }
 
+  /**
+   * Touch-only toggle: on a touch device a tap opens or closes the submenu,
+   * closing it through the same 100ms-delayed path as hover. Ignored entirely
+   * while {@link disabled}, and with a mouse, where hover already drives the
+   * submenu.
+   */
   onClick(): void {
-    if (!isTouchDevice()) return;
+    if (this.disabled() || !isTouchDevice()) return;
     if (this.sub.isOpen()) {
       this.sub.leave();
     } else {
@@ -81,11 +111,22 @@ export class MenubarSubTriggerComponent {
     }
   }
 
+  /** Focuses the trigger row. Called when the submenu is closed with the back arrow key so focus does not fall to the document. */
   focus(): void {
+      if (this.disabled()) return;
     this.triggerEl?.nativeElement.focus();
   }
 
+  /**
+   * Enter, or the "forward" arrow (ArrowRight under LTR, ArrowLeft under RTL),
+   * opens the submenu and moves focus to its first item; propagation is stopped
+   * so the parent menu does not also act on the arrow. Every other key is left
+   * to bubble — ArrowUp/ArrowDown are handled by the parent
+   * `ui-menubar-content`, which walks the trigger together with the rest of the
+   * items. Every key is ignored while {@link disabled}.
+   */
   onKeydown(event: KeyboardEvent): void {
+    if (this.disabled()) return;
     if (event.key === 'ArrowRight') {
       if (this.service.isRtl()) {
         return;

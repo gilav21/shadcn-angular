@@ -76,8 +76,17 @@ export class KanbanCardComponent implements AfterContentInit {
     private readonly kanban = inject(KANBAN, { optional: true });
     private readonly column = inject(KANBAN_COLUMN, { optional: true });
 
+    /** Extra classes merged onto the card surface, after the priority border and drag-dim classes so they can override them. */
     class = input('');
+    /**
+     * Card data rendered in simple mode — labels, title, description and
+     * assignee avatars, plus the coloured start border from `priority`.
+     * Ignored for rendering when a `<ui-kanban-card-content>` is projected, but
+     * still required then: it identifies the card for dragging and supplies the
+     * payload of the right-click menu.
+     */
     card = input<KanbanCard>();
+    /** Overrides the drag/menu identity that otherwise comes from `card().id` — set it only in custom mode when no {@link card} is bound. With neither, the card renders but cannot be dragged. */
     cardId = input('');
 
     @ContentChildren(KanbanCardContentComponent) customContentChildren!: QueryList<KanbanCardContentComponent>;
@@ -121,6 +130,12 @@ export class KanbanCardComponent implements AfterContentInit {
         return this.cardId() || this.card()?.id || '';
     }
 
+    /**
+     * HTML5 `dragstart` handler: puts the card id on the `dataTransfer` as
+     * `text/plain` and tells the board a drag is in progress. Mouse/pointer only
+     * — `dragstart` never fires on touch, so touch users must use the card
+     * context menu's "Move to" submenu instead.
+     */
     onDragStart(event: DragEvent): void {
         const id = this.resolvedCardId();
         const colId = this.column?.columnId() || this.card()?.columnId || '';
@@ -131,10 +146,12 @@ export class KanbanCardComponent implements AfterContentInit {
         this.kanban?.startDrag(id, colId);
     }
 
+    /** Clears the board's drag state on `dragend`, so a drag cancelled outside any column still restores the card's opacity. */
     onDragEnd(): void {
         this.kanban?.endDrag();
     }
 
+    /** Opens the board's card context menu at the pointer and stops propagation so the column and board menus do not also fire. Requires {@link card} — a card rendering only projected content shows no menu. Right-click only; there is no long-press fallback. */
     onContextMenu(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();

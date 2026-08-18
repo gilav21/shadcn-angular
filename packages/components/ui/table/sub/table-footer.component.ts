@@ -18,6 +18,7 @@ import { cn } from '../../../lib/utils';
     },
 })
 export class TableFooterComponent {
+    /** Extra classes merged onto the footer row group, which already carries a muted background and top border for totals rows. */
     class = input('');
 
     classes = computed(() => cn('', this.class()));

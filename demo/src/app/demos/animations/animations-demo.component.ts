@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { ANIMATIONS_DEMO_LOCALES } from './animations-demo.locales';
 import {
@@ -94,11 +94,15 @@ import {
           <div>
             <h3 class="text-lg font-medium">{{ t().blurFadeHeading }}</h3>
             <p class="text-muted-foreground text-sm">{{ t().blurFadeDescription }}</p>
+            <p class="text-muted-foreground text-sm">{{ t().blurFadeReplayCaption }}</p>
           </div>
-          <ui-button variant="outline" size="sm" (clicked)="replayBlurFade()" [label]="t().blurFadeReplay" />
+          <div class="flex flex-wrap items-center gap-2">
+            <code class="text-sm font-mono">{{ t().blurFadeReplayCount }} {{ blurFadeReplays() }}</code>
+            <ui-button variant="outline" size="sm" (clicked)="replayBlurFade()" [label]="t().blurFadeReplay" />
+          </div>
         </div>
         <div class="space-y-4">
-          <ui-blur-fade #blurFadeRef1 [delay]="0" direction="up">
+          <ui-blur-fade #blurFadeRef1 [delay]="0" direction="up" (replay)="onBlurFadeReplay()">
             <div class="p-6 rounded-xl border bg-card">{{ t().blurFadeItem1 }}</div>
           </ui-blur-fade>
           <ui-blur-fade #blurFadeRef2 [delay]="200" direction="up">
@@ -382,6 +386,14 @@ export class AnimationsDemoComponent {
 
   replayFlipText() {
     this.flipTextRef()?.playAnimation();
+  }
+
+  /** Counts `(replay)` emissions from the first blur-fade block. */
+  readonly blurFadeReplays = signal(0);
+
+  /** Bumps the visible replay counter. */
+  onBlurFadeReplay() {
+    this.blurFadeReplays.update((count) => count + 1);
   }
 
   replayBlurFade() {

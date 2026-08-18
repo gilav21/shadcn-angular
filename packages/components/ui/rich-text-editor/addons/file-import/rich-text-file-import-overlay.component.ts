@@ -16,7 +16,24 @@ import type { RichTextFileImportLocale } from './rich-text-file-import.locales';
     host: { class: 'contents' },
 })
 export class RichTextFileImportOverlayComponent {
+    /**
+     * Renders the full-editor busy layer (`data-slot="rte-file-import-busy"`)
+     * showing {@link locale}`.importing`. The directive holds this true for the
+     * whole parse, so the editor stays visually blocked until the imported
+     * content lands.
+     */
     readonly importing = input(false);
+    /**
+     * Already-localized failure text. Any non-empty value renders the error
+     * layer (`data-slot="rte-file-import-error"`); `''` hides it. The directive
+     * clears it on a timer, so treat this as transient — it is not a sticky
+     * error state the consumer has to dismiss.
+     */
     readonly errorMessage = input('');
+    /**
+     * Resolved file-import dictionary. Only `importing` is read here — the
+     * failure string arrives pre-resolved through {@link errorMessage} — but the
+     * whole locale is passed so the overlay can grow strings without a new input.
+     */
     readonly locale = input.required<RichTextFileImportLocale>();
 }

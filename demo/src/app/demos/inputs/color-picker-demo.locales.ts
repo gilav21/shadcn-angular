@@ -11,8 +11,16 @@ export interface ColorPickerDemoLocale extends LocaleMeta {
     harmoniesContrast: string;
     oklchRecents: string;
     oklchRecentsDesc: string;
+    programmaticWrite: string;
+    programmaticWriteDesc: string;
+  };
+  actions: {
+    setProgrammatically: string;
   };
   selected: string;
+  dirtyLabel: string;
+  yes: string;
+  no: string;
 }
 
 export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = {
@@ -28,8 +36,14 @@ export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = 
       harmoniesContrast: 'Harmonies + contrast checker',
       oklchRecents: 'OKLCH tab + persisted recents',
       oklchRecentsDesc: 'Recents persist across reloads via localStorage. The OKLCH tab exposes the perceptually-uniform color space (CSS Color 4).',
+      programmaticWrite: 'Programmatic write through a FormControl',
+      programmaticWriteDesc: 'Try it: press "Set programmatically" — the swatch updates, no colorChange is emitted, and dirty stays no. Pick a colour by hand and dirty flips to yes.',
     },
+    actions: { setProgrammatically: 'Set programmatically' },
     selected: 'Selected:',
+    dirtyLabel: 'dirty:',
+    yes: 'yes',
+    no: 'no',
   },
   he: {
     code: 'he', rtl: true,
@@ -43,8 +57,14 @@ export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = 
       harmoniesContrast: 'הרמוניות + בדיקת ניגודיות',
       oklchRecents: 'כרטיסיית OKLCH + אחרונים שמורים',
       oklchRecentsDesc: 'הצבעים האחרונים נשמרים דרך localStorage. כרטיסיית OKLCH חושפת את מרחב הצבע האחיד תפיסתית (CSS Color 4).',
+      programmaticWrite: 'כתיבה תכנותית דרך FormControl',
+      programmaticWriteDesc: 'נסה: לחץ על "הגדר תכנותית" — הדגימה מתעדכנת, לא נפלט colorChange, ו-dirty נשאר "לא". בחר צבע ידנית ו-dirty יהפוך ל"כן".',
     },
+    actions: { setProgrammatically: 'הגדר תכנותית' },
     selected: 'נבחר:',
+    dirtyLabel: 'dirty:',
+    yes: 'כן',
+    no: 'לא',
   },
   ar: {
     code: 'ar', rtl: true,
@@ -58,8 +78,14 @@ export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = 
       harmoniesContrast: 'تناسق الألوان + مدقق التباين',
       oklchRecents: 'علامة تبويب OKLCH + الألوان الحديثة المحفوظة',
       oklchRecentsDesc: 'تُحفظ الألوان الحديثة عبر localStorage. تعرض علامة OKLCH فضاء الألوان المنتظم إدراكيًا (CSS Color 4).',
+      programmaticWrite: 'كتابة برمجية عبر FormControl',
+      programmaticWriteDesc: 'جرّب: اضغط «تعيين برمجيًا» — تتحدّث العيّنة، ولا يُطلق colorChange، ويبقى dirty على «لا». اختر لونًا يدويًا فينقلب dirty إلى «نعم».',
     },
+    actions: { setProgrammatically: 'تعيين برمجيًا' },
     selected: 'المحدد:',
+    dirtyLabel: 'dirty:',
+    yes: 'نعم',
+    no: 'لا',
   },
   de: {
     code: 'de',
@@ -73,8 +99,14 @@ export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = 
       harmoniesContrast: 'Harmonien + Kontrastprüfer',
       oklchRecents: 'OKLCH-Tab + gespeicherte Letzte',
       oklchRecentsDesc: 'Die letzten Farben werden per localStorage gespeichert. Der OKLCH-Tab zeigt den wahrnehmungsgleichmäßigen Farbraum (CSS Color 4).',
+      programmaticWrite: 'Programmatisches Schreiben über ein FormControl',
+      programmaticWriteDesc: 'Ausprobieren: „Programmatisch setzen“ drücken — das Farbfeld ändert sich, es wird kein colorChange gesendet und dirty bleibt „nein“. Von Hand gewählt, springt dirty auf „ja“.',
     },
+    actions: { setProgrammatically: 'Programmatisch setzen' },
     selected: 'Ausgewählt:',
+    dirtyLabel: 'dirty:',
+    yes: 'ja',
+    no: 'nein',
   },
   fr: {
     code: 'fr',
@@ -88,8 +120,14 @@ export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = 
       harmoniesContrast: 'Harmonies + vérificateur de contraste',
       oklchRecents: 'Onglet OKLCH + récents persistants',
       oklchRecentsDesc: 'Les récents persistent entre les rechargements via localStorage. L\'onglet OKLCH expose l\'espace colorimétrique perceptuellement uniforme (CSS Color 4).',
+      programmaticWrite: 'Écriture programmatique via un FormControl',
+      programmaticWriteDesc: 'Essayez : cliquez sur « Définir par le code » — l\'échantillon change, aucun colorChange n\'est émis et dirty reste « non ». Choisissez une couleur à la main et dirty passe à « oui ».',
     },
+    actions: { setProgrammatically: 'Définir par le code' },
     selected: 'Sélectionné :',
+    dirtyLabel: 'dirty :',
+    yes: 'oui',
+    no: 'non',
   },
   es: {
     code: 'es',
@@ -103,8 +141,14 @@ export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = 
       harmoniesContrast: 'Armonías + verificador de contraste',
       oklchRecents: 'Pestaña OKLCH + recientes persistentes',
       oklchRecentsDesc: 'Los recientes persisten entre recargas mediante localStorage. La pestaña OKLCH expone el espacio de color perceptualmente uniforme (CSS Color 4).',
+      programmaticWrite: 'Escritura programática a través de un FormControl',
+      programmaticWriteDesc: 'Pruébalo: pulsa «Establecer por código» — la muestra cambia, no se emite colorChange y dirty sigue en «no». Elige un color a mano y dirty pasa a «sí».',
     },
+    actions: { setProgrammatically: 'Establecer por código' },
     selected: 'Seleccionado:',
+    dirtyLabel: 'dirty:',
+    yes: 'sí',
+    no: 'no',
   },
   ja: {
     code: 'ja',
@@ -118,8 +162,14 @@ export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = 
       harmoniesContrast: 'ハーモニー + コントラストチェッカー',
       oklchRecents: 'OKLCHタブ + 永続的な最近使用した色',
       oklchRecentsDesc: '最近使用した色はlocalStorageを通じて維持されます。OKLCHタブは知覚的に均一なカラースペース（CSS Color 4）を公開します。',
+      programmaticWrite: 'FormControl 経由のプログラム的な書き込み',
+      programmaticWriteDesc: 'お試しください:「プログラムから設定」を押すと、見本は更新されますが colorChange は発火せず、dirty は「いいえ」のままです。手動で色を選ぶと dirty は「はい」に変わります。',
     },
+    actions: { setProgrammatically: 'プログラムから設定' },
     selected: '選択中:',
+    dirtyLabel: 'dirty:',
+    yes: 'はい',
+    no: 'いいえ',
   },
   zh: {
     code: 'zh',
@@ -133,8 +183,14 @@ export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = 
       harmoniesContrast: '色彩和谐 + 对比度检查器',
       oklchRecents: 'OKLCH选项卡 + 持久化最近颜色',
       oklchRecentsDesc: '最近颜色通过localStorage持久化。OKLCH选项卡提供感知均匀的颜色空间（CSS Color 4）。',
+      programmaticWrite: '通过 FormControl 以代码写入',
+      programmaticWriteDesc: '试一试：点击“以代码设置”——色块会更新，但不会触发 colorChange，dirty 仍为“否”。手动选色后 dirty 变为“是”。',
     },
+    actions: { setProgrammatically: '以代码设置' },
     selected: '已选择:',
+    dirtyLabel: 'dirty:',
+    yes: '是',
+    no: '否',
   },
   ru: {
     code: 'ru',
@@ -148,8 +204,14 @@ export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = 
       harmoniesContrast: 'Гармонии + проверка контраста',
       oklchRecents: 'Вкладка OKLCH + сохранённые недавние',
       oklchRecentsDesc: 'Недавние цвета сохраняются через localStorage. Вкладка OKLCH предоставляет перцептивно равномерное цветовое пространство (CSS Color 4).',
+      programmaticWrite: 'Программная запись через FormControl',
+      programmaticWriteDesc: 'Попробуйте: нажмите «Задать программно» — образец обновится, colorChange не сработает, а dirty останется «нет». Выберите цвет вручную — и dirty станет «да».',
     },
+    actions: { setProgrammatically: 'Задать программно' },
     selected: 'Выбрано:',
+    dirtyLabel: 'dirty:',
+    yes: 'да',
+    no: 'нет',
   },
   pt: {
     code: 'pt',
@@ -163,7 +225,13 @@ export const COLOR_PICKER_DEMO_LOCALES: Record<string, ColorPickerDemoLocale> = 
       harmoniesContrast: 'Harmonias + verificador de contraste',
       oklchRecents: 'Aba OKLCH + recentes persistidos',
       oklchRecentsDesc: 'Os recentes persistem entre recarregamentos via localStorage. A aba OKLCH expõe o espaço de cor perceptualmente uniforme (CSS Color 4).',
+      programmaticWrite: 'Escrita programática através de um FormControl',
+      programmaticWriteDesc: 'Experimente: clique em «Definir por código» — a amostra muda, nenhum colorChange é emitido e dirty continua «não». Escolha uma cor à mão e dirty passa a «sim».',
     },
+    actions: { setProgrammatically: 'Definir por código' },
     selected: 'Selecionado:',
+    dirtyLabel: 'dirty:',
+    yes: 'sim',
+    no: 'não',
   },
 };
