@@ -104,13 +104,19 @@ jobs:
       # whole job and the workflow reports success (the diff didn't
       # touch anything that needs e2e coverage). ALL runs the full
       # suite. Anything else is a space-separated list of spec labels.
+      #
+      # --workers is set explicitly rather than left to the orchestrator's
+      # default, which scales as cores/2 and would pick 1 on a 2-core runner.
+      # That default assumes a developer machine also running an editor and a
+      # browser; a runner is dedicated, and much of a spec's cost is waiting on
+      # `ng serve` rather than burning CPU, so it can oversubscribe.
       - name: Run e2e suite
         if: steps.impact.outputs.specs != 'NONE'
         run: |
           if [ "${{ steps.impact.outputs.specs }}" = "ALL" ]; then
-            npm run e2e
+            npm run e2e -- --workers 4
           else
-            npm run e2e -- ${{ steps.impact.outputs.specs }}
+            npm run e2e -- ${{ steps.impact.outputs.specs }} --workers 4
           fi
         env:
           CI: '1'
