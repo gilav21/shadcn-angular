@@ -32,9 +32,9 @@ function walkMtimes(dir: string): number[] {
     return out;
 }
 
-/** Runs the local CLI inside the fixture-app with the given args. */
-export async function runCli(args: readonly string[]): Promise<void> {
-    await run('node', [CLI_DIST, ...args], { cwd: FIXTURE_APP });
+/** Runs the local CLI inside a fixture-app with the given args. */
+export async function runCli(args: readonly string[], cwd: string = FIXTURE_APP): Promise<void> {
+    await run('node', [CLI_DIST, ...args], { cwd });
 }
 
 /**
@@ -46,11 +46,12 @@ export async function runCli(args: readonly string[]): Promise<void> {
  */
 export async function captureCli(
     args: readonly string[],
+    cwd: string = FIXTURE_APP,
 ): Promise<{ stdout: string; code: number }> {
-    return captureBoth('node', [CLI_DIST, ...args], { cwd: FIXTURE_APP });
+    return captureBoth('node', [CLI_DIST, ...args], { cwd });
 }
 
-/** Runs `npm install` inside the fixture-app. Cached after first cold run. */
-export async function npmInstall(): Promise<void> {
-    await run('npm', ['install', '--no-audit', '--no-fund'], { cwd: FIXTURE_APP });
+/** Runs `npm install` inside a fixture-app. Cached after the first cold run. */
+export async function npmInstall(cwd: string = FIXTURE_APP): Promise<void> {
+    await run('npm', ['install', '--no-audit', '--no-fund'], { cwd });
 }

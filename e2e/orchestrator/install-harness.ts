@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+    FIXTURE_APP,
     FIXTURE_APP_ROUTES,
     FIXTURE_TEST_PAGES,
     harnessDir,
@@ -15,8 +16,15 @@ import {
  * one we route to. We don't try to be clever about multiple components —
  * one page per test is plenty.
  */
-export function installHarness(name: string): void {
-    fs.mkdirSync(FIXTURE_TEST_PAGES, { recursive: true });
+export function installHarness(name: string, fixtureApp: string = FIXTURE_APP): void {
+    const testPages = fixtureApp === FIXTURE_APP
+        ? FIXTURE_TEST_PAGES
+        : path.join(fixtureApp, 'src/app/test-pages');
+    const routesFile = fixtureApp === FIXTURE_APP
+        ? FIXTURE_APP_ROUTES
+        : path.join(fixtureApp, 'src/app/app.routes.ts');
+
+    fs.mkdirSync(testPages, { recursive: true });
 
     const srcDir = harnessDir(name);
     const demoFile = `${name}-demo.component.ts`;
@@ -29,7 +37,7 @@ export function installHarness(name: string): void {
     // that need a few small helper components alongside the main demo).
     for (const file of fs.readdirSync(srcDir)) {
         if (file.endsWith('.component.ts')) {
-            fs.copyFileSync(path.join(srcDir, file), path.join(FIXTURE_TEST_PAGES, file));
+            fs.copyFileSync(path.join(srcDir, file), path.join(testPages, file));
         }
     }
 
@@ -43,7 +51,7 @@ export function installHarness(name: string): void {
         `  { path: '', component: ${className} },\n` +
         `];\n`;
 
-    fs.writeFileSync(FIXTURE_APP_ROUTES, routesContent);
+    fs.writeFileSync(routesFile, routesContent);
 }
 
 function toPascalCase(kebab: string): string {
