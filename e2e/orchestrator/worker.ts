@@ -3,6 +3,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { DEV_SERVER_PORT, FIXTURE_APP, WORKERS_ROOT } from './paths.js';
 import { resetFixtureApp } from './reset-app.js';
+import { npmInstall } from './run-cli.js';
 
 /**
  * Directories inside a fixture that must SURVIVE a reset. `node_modules` is
@@ -173,11 +174,12 @@ export async function createWorkers(count: number): Promise<Worker[]> {
     await ensurePristine();
     // node_modules is what makes a clone worth having; without it every clone
     // would cold-install on its first spec and give back the time we came for.
+    // A fresh checkout — every CI run — has none yet, because the install
+    // normally happens inside the first spec, which is after this point. Prime
+    // it once here so the clones have something to link against.
     if (!fs.existsSync(path.join(FIXTURE_APP, 'node_modules'))) {
-        throw new Error(
-            'e2e/fixture-app/node_modules is missing — run a single-worker pass first ' +
-            '(`npm run e2e -- button`) so the clones have something to copy.',
-        );
+        console.log('[e2e] priming the fixture install (first run in this checkout)…');
+        await npmInstall(FIXTURE_APP);
     }
     let next = port0 + 1;
     for (let i = 1; i < count; i++) {
