@@ -1,7 +1,7 @@
 import net from 'node:net';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { run } from './spawn.js';
-import { DEV_SERVER_PORT, DEV_SERVER_URL, FIXTURE_APP } from './paths.js';
+import { DEV_SERVER_PORT, FIXTURE_APP } from './paths.js';
 
 const SERVE_TIMEOUT_MS = 120_000;
 const READY_POLL_MS = 500;
@@ -20,8 +20,11 @@ export interface ServerHandle {
  * server from a previous run. Easier to fix the leak than to chase moving
  * ports through Playwright config.
  */
-export async function serve(): Promise<ServerHandle> {
-    await assertPortFree();
+export async function serve(
+    cwd: string = FIXTURE_APP,
+    port: number = DEV_SERVER_PORT,
+): Promise<ServerHandle> {
+    await assertPortFree(port);
 
     // shell: true is required on Windows so the `.cmd` shim for npx can
     // be launched. Args are static — no injection surface.
@@ -34,9 +37,9 @@ export async function serve(): Promise<ServerHandle> {
     // `taskkill /F /T /PID`.
     const child = spawn(
         'npx',
-        ['ng', 'serve', '--port', String(DEV_SERVER_PORT), '--no-open'],
+        ['ng', 'serve', '--port', String(port), '--no-open'],
         {
-            cwd: FIXTURE_APP,
+            cwd,
             shell: true,
             stdio: ['ignore', 'pipe', 'pipe'],
             detached: !isWindows,
@@ -53,27 +56,27 @@ export async function serve(): Promise<ServerHandle> {
         }
     });
 
-    await waitForReady(() => crashed);
+    await waitForReady(port, () => crashed);
 
     return {
-        stop: () => stopChild(child),
+        stop: () => stopChild(child, port),
     };
 }
 
-async function waitForReady(getCrashed: () => Error | null): Promise<void> {
+async function waitForReady(port: number, getCrashed: () => Error | null): Promise<void> {
     const deadline = Date.now() + SERVE_TIMEOUT_MS;
     while (Date.now() < deadline) {
         const crashed = getCrashed();
         if (crashed) throw crashed;
-        if (await pingOk()) return;
+        if (await pingOk(port)) return;
         await sleep(READY_POLL_MS);
     }
     throw new Error(`ng serve did not become ready within ${SERVE_TIMEOUT_MS}ms`);
 }
 
-async function pingOk(): Promise<boolean> {
+async function pingOk(port: number): Promise<boolean> {
     try {
-        const res = await fetch(DEV_SERVER_URL);
+        const res = await fetch(`http://localhost:${port}`);
         // 200 OK or any 3xx/4xx still means the server is listening. We
         // only treat 5xx and network errors as "not ready yet".
         return res.status < 500;
@@ -82,15 +85,15 @@ async function pingOk(): Promise<boolean> {
     }
 }
 
-async function assertPortFree(): Promise<void> {
-    const inUse = await isPortInUse(DEV_SERVER_PORT);
+async function assertPortFree(port: number): Promise<void> {
+    const inUse = await isPortInUse(port);
     if (inUse) {
         throw new Error(
-            `Port ${DEV_SERVER_PORT} is already in use. ` +
+            `Port ${port} is already in use. ` +
             `Likely a leaked ng-serve from a previous run. ` +
             (isWindows
-                ? `Run: netstat -ano | findstr :${DEV_SERVER_PORT}  then  taskkill /F /PID <pid>`
-                : `Run: lsof -i :${DEV_SERVER_PORT}  then  kill -9 <pid>`),
+                ? `Run: netstat -ano | findstr :${port}  then  taskkill /F /PID <pid>`
+                : `Run: lsof -i :${port}  then  kill -9 <pid>`),
         );
     }
 }
@@ -125,7 +128,7 @@ function isPortInUse(port: number): Promise<boolean> {
  * watching the fixture, recompiling on reset, and emitting Vite error
  * overlays that intercept Playwright clicks for the next spec.
  */
-async function stopChild(child: ChildProcess): Promise<void> {
+async function stopChild(child: ChildProcess, port: number): Promise<void> {
     if (child.exitCode !== null || child.pid === undefined) return;
 
     if (isWindows) {
@@ -164,13 +167,13 @@ async function stopChild(child: ChildProcess): Promise<void> {
     // Wait until the port is observably free. The OS keeps a socket in
     // TIME_WAIT briefly after close; without SO_REUSEADDR the next
     // bind() will fail. Poll for up to 10s with a 100ms cadence.
-    await waitForPortFree(10_000);
+    await waitForPortFree(port, 10_000);
 }
 
-async function waitForPortFree(timeoutMs: number): Promise<void> {
+async function waitForPortFree(port: number, timeoutMs: number): Promise<void> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-        if (!(await isPortInUse(DEV_SERVER_PORT))) return;
+        if (!(await isPortInUse(port))) return;
         await sleep(100);
     }
     // We'd rather let the next spec hit the explicit "port in use"

@@ -1,9 +1,6 @@
 import fs from 'node:fs';
 import { run } from './spawn.js';
-import {
-    assertFixtureClean,
-    resetFixtureApp,
-} from './reset-app.js';
+import { assertFixtureClean } from './reset-app.js';
 import {
     captureCli,
     ensureCliBuilt,
@@ -12,7 +9,9 @@ import {
 } from './run-cli.js';
 import { installHarness } from './install-harness.js';
 import { serve } from './serve.js';
-import { FIXTURE_APP, REPO_ROOT, harnessDir } from './paths.js';
+import { REPO_ROOT, WORKERS_ROOT, harnessDir } from './paths.js';
+import { createWorkers, type Worker } from './worker.js';
+import { parseRawArgs } from './parse-args.js';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { CliSpec } from '../cli-specs/_types.js';
@@ -56,9 +55,13 @@ interface CliFlags {
      * Use to validate a pushed feature branch end-to-end before merge.
      */
     readonly branch?: string;
+    /**
+     * `--workers <n>` — how many specs to run at once, each in its own fixture
+     * clone on its own port. Defaults to 4, capped at the number of specs.
+     * `--workers 1` is the historical sequential behaviour.
+     */
+    readonly workers: number;
 }
-
-const VALUELESS_FLAGS = new Set(['--headed', '--ui', '--debug', '--remote']);
 
 /** Extra `init`/`add` args that force the CLI to fetch from a remote branch. */
 function remoteCliArgs(flags: CliFlags): string[] {
@@ -67,26 +70,26 @@ function remoteCliArgs(flags: CliFlags): string[] {
     return [];
 }
 
-async function runOne(spec: ComponentSpec, flags: CliFlags): Promise<RunResult> {
+async function runOne(spec: ComponentSpec, flags: CliFlags, worker: Worker): Promise<RunResult> {
     const label = specLabel(spec);
     const started = Date.now();
 
-    console.log(`\n[e2e] === ${label} ===`);
+    console.log(`\n[e2e] === ${label} === (w${worker.index})`);
 
     let server: { stop(): Promise<void> } | null = null;
     try {
-        await resetFixtureApp();
-        await assertFixtureClean('after reset');
+        await worker.reset();
+        if (worker.index === 0) await assertFixtureClean('after reset');
 
         const remoteArgs = remoteCliArgs(flags);
-        await runCli([...(spec.initArgs ?? ['init', '--yes']), ...remoteArgs]);
-        await runCli(['add', ...spec.names, '--yes', ...remoteArgs]);
-        await npmInstall();
+        await runCli([...(spec.initArgs ?? ['init', '--yes']), ...remoteArgs], worker.fixtureApp);
+        await runCli(['add', ...spec.names, '--yes', ...remoteArgs], worker.fixtureApp);
+        await npmInstall(worker.fixtureApp);
 
-        installHarness(specHarness(spec));
+        installHarness(specHarness(spec), worker.fixtureApp);
 
-        server = await serve();
-        await runPlaywrightSpec(specHarness(spec), flags);
+        server = await serve(worker.fixtureApp, worker.port);
+        await runPlaywrightSpec(specHarness(spec), flags, worker);
 
         return { label, passed: true, durationMs: Date.now() - started };
     } catch (err: unknown) {
@@ -97,19 +100,19 @@ async function runOne(spec: ComponentSpec, flags: CliFlags): Promise<RunResult> 
     }
 }
 
-async function runCliSpec(label: string, moduleName: string): Promise<RunResult> {
+async function runCliSpec(label: string, moduleName: string, worker: Worker): Promise<RunResult> {
     const started = Date.now();
-    console.log(`\n[e2e] === ${label} (cli) ===`);
+    console.log(`\n[e2e] === ${label} (cli) === (w${worker.index})`);
     try {
-        await resetFixtureApp();
-        await assertFixtureClean('after reset');
+        await worker.reset();
+        if (worker.index === 0) await assertFixtureClean('after reset');
 
         const modulePath = path.join(REPO_ROOT, 'e2e/cli-specs', moduleName + '.ts');
         const imported = await import(pathToFileURL(modulePath).href) as { default: CliSpec };
         await imported.default({
-            runCli,
-            captureCli,
-            fixtureApp: FIXTURE_APP,
+            runCli: (args: readonly string[]) => runCli(args, worker.fixtureApp),
+            captureCli: (args: readonly string[]) => captureCli(args, worker.fixtureApp),
+            fixtureApp: worker.fixtureApp,
         });
 
         return { label, passed: true, durationMs: Date.now() - started };
@@ -119,7 +122,7 @@ async function runCliSpec(label: string, moduleName: string): Promise<RunResult>
     }
 }
 
-async function runPlaywrightSpec(specFolder: string, flags: CliFlags): Promise<void> {
+async function runPlaywrightSpec(specFolder: string, flags: CliFlags, worker: Worker): Promise<void> {
     const specFile = path.join(harnessDir(specFolder), `${specFolder}.spec.ts`);
     if (!fs.existsSync(specFile)) {
         throw new Error(`Spec file not found: ${specFile}`);
@@ -138,7 +141,17 @@ async function runPlaywrightSpec(specFolder: string, flags: CliFlags): Promise<v
     if (flags.debug) args.push('--debug');
     if (flags.headed && !flags.ui && !flags.debug) args.push('--headed');
 
-    await run('npx', args, { cwd: REPO_ROOT });
+    // Each concurrent Playwright process needs its own baseURL (its worker's
+    // dev server) and its own output directory, or they overwrite each other's
+    // traces and screenshots on failure.
+    await run('npx', args, {
+        cwd: REPO_ROOT,
+        env: {
+            ...process.env,
+            E2E_BASE_URL: worker.baseUrl,
+            E2E_OUTPUT_DIR: path.join(WORKERS_ROOT, `w${worker.index}`, 'test-results'),
+        },
+    });
 }
 
 interface ParsedArgs {
@@ -147,39 +160,9 @@ interface ParsedArgs {
     readonly flags: CliFlags;
 }
 
-function parseRawArgs(raw: readonly string[]): { flags: CliFlags; names: string[] } {
-    let headed = false, ui = false, debug = false, remote = false;
-    let branch: string | undefined;
-    const names: string[] = [];
-    const unknownFlags: string[] = [];
-
-    for (let i = 0; i < raw.length; i++) {
-        const arg = raw[i];
-        if (arg === '--branch') {
-            branch = raw[++i];
-            if (!branch || branch.startsWith('--')) {
-                console.error('[e2e] --branch requires a branch name (e.g. --branch feat/x)');
-                process.exit(2);
-            }
-        } else if (arg === '--headed') headed = true;
-        else if (arg === '--ui') ui = true;
-        else if (arg === '--debug') debug = true;
-        else if (arg === '--remote') remote = true;
-        else if (arg.startsWith('--')) unknownFlags.push(arg);
-        else names.push(arg);
-    }
-
-    if (unknownFlags.length > 0) {
-        console.error(`[e2e] Unknown flag(s): ${unknownFlags.join(', ')}`);
-        console.error(`[e2e] Available flags: ${[...VALUELESS_FLAGS].join(', ')}, --branch <name>`);
-        process.exit(2);
-    }
-
-    return { flags: { headed, ui, debug, remote: remote || !!branch, branch }, names };
-}
-
 function parseArgs(): ParsedArgs {
-    const { flags, names } = parseRawArgs(process.argv.slice(2));
+    const { state, names } = parseRawArgs(process.argv.slice(2));
+    const flags: CliFlags = { ...state };
 
     if (names.length === 0) {
         // Remote runs validate the install/fetch path; the CLI-mechanics specs
@@ -205,6 +188,30 @@ function parseArgs(): ParsedArgs {
     return { components, cliSpecs, flags };
 }
 
+/**
+ * Runs `jobs` across `workers`, each worker pulling the next job as it frees
+ * up rather than taking a fixed slice — spec durations vary by an order of
+ * magnitude (1.6s to 50s), so a static split would leave workers idle.
+ */
+async function runPool<T>(
+    jobs: readonly T[],
+    workers: readonly Worker[],
+    task: (job: T, worker: Worker) => Promise<RunResult>,
+): Promise<RunResult[]> {
+    const results: RunResult[] = [];
+    let next = 0;
+
+    await Promise.all(workers.map(async worker => {
+        for (;;) {
+            const index = next++;
+            if (index >= jobs.length) return;
+            results.push(await task(jobs[index], worker));
+        }
+    }));
+
+    return results;
+}
+
 async function main(): Promise<void> {
     const { components, cliSpecs, flags } = parseArgs();
     const mode = describeMode(flags);
@@ -216,13 +223,21 @@ async function main(): Promise<void> {
 
     await ensureCliBuilt();
 
-    const results: RunResult[] = [];
-    for (const spec of components) {
-        results.push(await runOne(spec, flags));
+    const workerCount = Math.max(1, Math.min(flags.workers, labels.length));
+    const workers = await createWorkers(workerCount);
+    if (workerCount > 1) {
+        console.log(`[e2e] ${workerCount} workers, ports ${workers[0].port}-${workers[workerCount - 1].port}`);
     }
-    for (const spec of cliSpecs) {
-        results.push(await runCliSpec(spec.label, spec.module));
-    }
+
+    const started = Date.now();
+    const results = [
+        ...await runPool(components, workers, (spec, w) => runOne(spec, flags, w)),
+        // The CLI specs assert on a pristine fixture's git state, so they stay
+        // on worker 0 — the only fixture git actually tracks.
+        ...await runPool(cliSpecs, [workers[0]], (spec, w) => runCliSpec(spec.label, spec.module, w)),
+    ];
+    console.log(`
+[e2e] wall clock: ${((Date.now() - started) / 1000 / 60).toFixed(1)} min`);
 
     printSummary(results);
     const failed = results.filter(r => !r.passed).length;

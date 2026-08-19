@@ -92,25 +92,51 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
+      # Both of these shell out to apt. A step with no timeout that waits on
+      # an apt lock — or on a prompt, with no TTY to answer it — hangs until
+      # the job's 60-minute limit, which is what happened on 2026-08-19: the
+      # cache-hit path burned 57 minutes in install-deps and the suite never
+      # ran. A short cap turns that into a fast, legible failure, and
+      # DEBIAN_FRONTEND removes the prompt class of hang entirely.
       - name: Install Playwright Chromium
         if: steps.impact.outputs.specs != 'NONE' && steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: npx playwright install chromium --with-deps
 
       - name: Install Playwright system deps (always needed on Linux)
         if: steps.impact.outputs.specs != 'NONE' && steps.playwright-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 5
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: npx playwright install-deps chromium
 
       # Run the subset the impact step selected. NONE short-circuits the
       # whole job and the workflow reports success (the diff didn't
       # touch anything that needs e2e coverage). ALL runs the full
       # suite. Anything else is a space-separated list of spec labels.
+      #
+      # --workers is set explicitly rather than left to the orchestrator's
+      # default, which scales as cores/2 and would pick 1 on a 2-core runner.
+      # That default assumes a developer machine also running an editor and a
+      # browser; a runner is dedicated, and much of a spec's cost is waiting on
+      # `ng serve` rather than burning CPU, so it can oversubscribe.
+      #
+      # Measured on ubuntu-latest, full 178-spec suite, 178/178 each time:
+      #   sequential 30.6min   4 workers 25.2min   8 workers 27.2min
+      #
+      # 8 is slower than 4: the runner is CPU-bound, not waiting on `ng serve`,
+      # so oversubscribing past 4 only adds contention. Do not re-raise this
+      # without measuring — the same change is worth 8x on a 32-core machine,
+      # which makes it tempting to assume it scales here. It does not.
       - name: Run e2e suite
         if: steps.impact.outputs.specs != 'NONE'
         run: |
           if [ "${{ steps.impact.outputs.specs }}" = "ALL" ]; then
-            npm run e2e
+            npm run e2e -- --workers 4
           else
-            npm run e2e -- ${{ steps.impact.outputs.specs }}
+            npm run e2e -- ${{ steps.impact.outputs.specs }} --workers 4
           fi
         env:
           CI: '1'
