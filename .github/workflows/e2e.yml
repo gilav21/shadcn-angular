@@ -110,13 +110,16 @@ jobs:
       # That default assumes a developer machine also running an editor and a
       # browser; a runner is dedicated, and much of a spec's cost is waiting on
       # `ng serve` rather than burning CPU, so it can oversubscribe.
+      #
+      # Measured on ubuntu-latest, full 178-spec suite:
+      #   sequential 30.6min   4 workers 25.2min
       - name: Run e2e suite
         if: steps.impact.outputs.specs != 'NONE'
         run: |
           if [ "${{ steps.impact.outputs.specs }}" = "ALL" ]; then
-            npm run e2e -- --workers 4
+            npm run e2e -- --workers 8
           else
-            npm run e2e -- ${{ steps.impact.outputs.specs }} --workers 4
+            npm run e2e -- ${{ steps.impact.outputs.specs }} --workers 8
           fi
         env:
           CI: '1'
