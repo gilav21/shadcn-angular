@@ -92,12 +92,24 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
+      # Both of these shell out to apt. A step with no timeout that waits on
+      # an apt lock — or on a prompt, with no TTY to answer it — hangs until
+      # the job's 60-minute limit, which is what happened on 2026-08-19: the
+      # cache-hit path burned 57 minutes in install-deps and the suite never
+      # ran. A short cap turns that into a fast, legible failure, and
+      # DEBIAN_FRONTEND removes the prompt class of hang entirely.
       - name: Install Playwright Chromium
         if: steps.impact.outputs.specs != 'NONE' && steps.playwright-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 10
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: npx playwright install chromium --with-deps
 
       - name: Install Playwright system deps (always needed on Linux)
         if: steps.impact.outputs.specs != 'NONE' && steps.playwright-cache.outputs.cache-hit == 'true'
+        timeout-minutes: 5
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: npx playwright install-deps chromium
 
       # Run the subset the impact step selected. NONE short-circuits the
