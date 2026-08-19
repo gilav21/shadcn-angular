@@ -111,15 +111,20 @@ jobs:
       # browser; a runner is dedicated, and much of a spec's cost is waiting on
       # `ng serve` rather than burning CPU, so it can oversubscribe.
       #
-      # Measured on ubuntu-latest, full 178-spec suite:
-      #   sequential 30.6min   4 workers 25.2min
+      # Measured on ubuntu-latest, full 178-spec suite, 178/178 each time:
+      #   sequential 30.6min   4 workers 25.2min   8 workers 27.2min
+      #
+      # 8 is slower than 4: the runner is CPU-bound, not waiting on `ng serve`,
+      # so oversubscribing past 4 only adds contention. Do not re-raise this
+      # without measuring — the same change is worth 8x on a 32-core machine,
+      # which makes it tempting to assume it scales here. It does not.
       - name: Run e2e suite
         if: steps.impact.outputs.specs != 'NONE'
         run: |
           if [ "${{ steps.impact.outputs.specs }}" = "ALL" ]; then
-            npm run e2e -- --workers 8
+            npm run e2e -- --workers 4
           else
-            npm run e2e -- ${{ steps.impact.outputs.specs }} --workers 8
+            npm run e2e -- ${{ steps.impact.outputs.specs }} --workers 4
           fi
         env:
           CI: '1'
