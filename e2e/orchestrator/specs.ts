@@ -355,6 +355,9 @@ export const CLI_SPECS: readonly CliSpecEntry[] = [
     { label: 'doctor-lib-drift',        module: 'doctor-lib-drift' },
     { label: 'rte-image-seam-upgrade',  module: 'rte-image-seam-upgrade' },
     { label: 'cross-component-typecheck', module: 'cross-component-typecheck' },
+    // Compiles three components' usage taken verbatim from `demo/public/llms.txt`.
+    // The corpus is only worth publishing if the code it teaches builds.
+    { label: 'llms-snippets',           module: 'llms-snippets' },
     { label: 'page-builder-layout',     module: 'page-builder-layout' },
     { label: 'clean-reinstall',         module: 'clean-reinstall' },
     { label: 'migrate',                 module: 'migrate' },

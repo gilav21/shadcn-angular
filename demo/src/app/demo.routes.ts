@@ -135,6 +135,15 @@ export const DEMO_ROUTES: Routes = [
   { path: 'features', loadComponent: () => import('./demos/blocks/features-block-demo.component').then(m => m.FeaturesBlockDemoComponent) },
   { path: 'faq', loadComponent: () => import('./demos/blocks/faq-block-demo.component').then(m => m.FaqBlockDemoComponent) },
 
+  // Generated documentation — one page for EVERY registry component, including
+  // the 62 that share a demo route (all charts on /charts, all text effects on
+  // /animations, the rich-text addons on the editor page) and therefore have no
+  // page of their own. Driven entirely by `component-docs.json`.
+  {
+    path: 'docs/:name',
+    loadComponent: () => import('./docs/docs-page.component').then(m => m.DocsPageComponent),
+  },
+
   // Wildcard
   { path: '**', redirectTo: '' },
 ];

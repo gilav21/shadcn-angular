@@ -9,6 +9,7 @@ import { UI_LOCALE_ID } from '../../../packages/components/lib/i18n';
 import { CALENDAR_LOCALES } from '../../../packages/components/lib/i18n/calendar.locales';
 import { APP_LOCALES } from './app.locales';
 import { CssSettingsComponent } from './css-settings.component';
+import { DocsHeaderComponent } from './docs/docs-header.component';
 import {
   ButtonComponent,
   SeparatorComponent,
@@ -103,6 +104,7 @@ export interface ComponentNavItem {
     DropdownMenuLabelComponent,
     DropdownMenuSeparatorComponent,
     CssSettingsComponent,
+    DocsHeaderComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
