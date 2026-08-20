@@ -1815,7 +1815,7 @@ export const registry = defineRegistry({
     category: 'data-display',
     description: 'KPI tile with label, value, trend-coloured delta badge and a projected chart slot.',
     tags: ['stat-card', 'kpi', 'metric', 'dashboard', 'sparkline'],
-    files: ['stat-card/stat-card.component.html', 'stat-card/stat-card.component.ts'],
+    files: ['stat-card/index.ts', 'stat-card/stat-card.component.html', 'stat-card/stat-card.component.ts'],
     dependencies: ['badge', 'card'],
   },
 });

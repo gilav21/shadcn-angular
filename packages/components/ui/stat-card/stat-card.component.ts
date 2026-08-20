@@ -70,8 +70,13 @@ export class StatCardComponent {
     readonly label = input('');
     /**
      * The headline figure, pre-formatted. It is rendered verbatim, so apply any
-     * currency, percentage or locale formatting before binding it. Truncates
-     * rather than wrapping.
+     * currency, percentage or locale formatting before binding it.
+     *
+     * Truncates rather than wrapping. Truncation needs `overflow: hidden`, and
+     * the card title it sits in is `leading-none`, so a *textual* value whose
+     * glyphs have descenders can clip. Figures — digits, currency, percentages,
+     * which is what a KPI value is — are unaffected. Pass
+     * `[class]="'leading-tight'"` if you really are putting prose here.
      */
     readonly value = input('');
     /**
@@ -98,6 +103,10 @@ export class StatCardComponent {
     /**
      * Extra classes merged onto the card surface — not onto the
      * `display: contents` host, which styles nothing.
+     *
+     * Both spellings work: a bound `[class]="'ring-2'"` sets only the input,
+     * while a static `class="ring-2"` is written to the input *and* left as an
+     * inert literal class on the transparent host.
      */
     readonly class = input('');
 

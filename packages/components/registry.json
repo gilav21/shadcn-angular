@@ -5045,6 +5045,7 @@
       "sparkline"
     ],
     "files": [
+      "stat-card/index.ts",
       "stat-card/stat-card.component.html",
       "stat-card/stat-card.component.ts"
     ],

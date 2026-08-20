@@ -19,6 +19,11 @@ const meta: Meta<StatCardComponent> = {
             description:
                 "Direction of the change — drives the badge colour and the arrow. `'up'` means *favourable*, not arithmetically positive: a falling churn rate is `'up'`.",
         },
+        trendIcon: {
+            control: 'boolean',
+            description:
+                'Draw the direction arrow beside the delta. Turn it off to keep the trend colour without the glyph — the dashboard block does this, because its tiles encode favourability but not direction.',
+        },
         class: { control: 'text', description: 'Extra classes merged onto the card surface (not the `display: contents` host).' },
     },
     args: {
@@ -26,6 +31,7 @@ const meta: Meta<StatCardComponent> = {
         value: '$45,231.89',
         delta: '+20.1%',
         trend: 'up',
+        trendIcon: true,
         class: '',
     },
 };
@@ -44,6 +50,7 @@ export const Playground: Story = {
                     [value]="value"
                     [delta]="delta"
                     [trend]="trend"
+                    [trendIcon]="trendIcon"
                     [class]="class"
                 />
             </div>
@@ -132,6 +139,37 @@ export const InAGrid: Story = {
                 <ui-stat-card label="Active users" value="2,340" delta="+8.1%" trend="up" />
                 <ui-stat-card label="Orders" value="1,210" delta="-3.2%" trend="down" />
                 <ui-stat-card label="Churn rate" value="1.8%" delta="-0.4%" trend="up" />
+            </div>
+        `,
+    }),
+};
+
+/**
+ * The same three trends with the arrow suppressed: colour survives, glyph does
+ * not. This is the shape the `dashboard` block uses, so extracting the tile
+ * left the block pixel-identical.
+ */
+export const WithoutTrendIcons: Story = {
+    render: () => ({
+        template: `
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <ui-stat-card label="Revenue" value="$45,231" delta="+12.5%" trend="up" [trendIcon]="false" />
+                <ui-stat-card label="Orders" value="1,210" delta="-3.2%" trend="down" [trendIcon]="false" />
+                <ui-stat-card label="Churn rate" value="1.8%" delta="-0.4%" trend="up" [trendIcon]="false" />
+            </div>
+        `,
+    }),
+};
+
+/** Restyling the tile. `class` lands on the card surface, and must be bound. */
+export const Restyled: Story = {
+    render: () => ({
+        template: `
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <ui-stat-card label="Revenue" value="$45,231" delta="+12.5%" trend="up"
+                              [class]="'ring-2 ring-primary/40'" />
+                <ui-stat-card label="Orders" value="1,210" delta="-3.2%" trend="down"
+                              [class]="'border-dashed bg-muted/40 shadow-none'" />
             </div>
         `,
     }),

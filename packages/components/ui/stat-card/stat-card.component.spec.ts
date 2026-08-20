@@ -309,3 +309,65 @@ describe('StatCardComponent', () => {
         });
     });
 });
+
+
+/**
+ * How `class` actually resolves on a `display: contents` host — measured, not
+ * assumed, because it was reported as broken and is not.
+ *
+ * A static `class="ring-2"` on `<ui-stat-card>` does two things at once:
+ * Angular writes it to the `class` **input** (so it reaches the card surface,
+ * which is what a consumer wants) and *also* leaves it as a literal class on
+ * the host element. The stranded copy is inert — the host is
+ * `display: contents`, so it paints nothing and boxes nothing. A bound
+ * `[class]="'ring-2'"` sets only the input, leaving the host clean.
+ *
+ * Both spellings therefore work. These tests pin that, so a future reader does
+ * not "fix" the demo page on the theory that the static form is a no-op.
+ */
+@Component({
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
+        <ui-stat-card label="Revenue" value="$1" class="static-class" />
+        <ui-stat-card label="Revenue" value="$1" [class]="'bound-class'" />
+    `,
+    imports: [StatCardComponent],
+})
+class ClassInputHostComponent {}
+
+describe('StatCardComponent class input', () => {
+    let fixture: ComponentFixture<ClassInputHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [ClassInputHostComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(ClassInputHostComponent);
+        fixture.detectChanges();
+    });
+
+    const root = () => fixture.nativeElement as HTMLElement;
+
+    const cards = () =>
+        Array.from(root().querySelectorAll<HTMLElement>('[data-slot="card"]'));
+
+    const hosts = () =>
+        Array.from(root().querySelectorAll<HTMLElement>('ui-stat-card'));
+
+    it('applies a static class attribute to the card surface', () => {
+        expect(cards()[0].classList.contains('static-class')).toBe(true);
+    });
+
+    it('applies a bound class to the card surface', () => {
+        expect(cards()[1].classList.contains('bound-class')).toBe(true);
+    });
+
+    it('leaves the static spelling duplicated on the host, where it is inert', () => {
+        expect(hosts()[0].classList.contains('static-class')).toBe(true);
+        expect(getComputedStyle(hosts()[0]).display).toBe('contents');
+    });
+
+    it('does not copy a bound class onto the host', () => {
+        expect(hosts()[1].classList.contains('bound-class')).toBe(false);
+    });
+});
