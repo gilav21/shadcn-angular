@@ -44,6 +44,35 @@ regenerated, never merged.
 
 ---
 
+## Step 0 — The orchestrator runs in the MAIN checkout. Never in a worktree.
+
+> ## 🔴 STOP IF YOU ARE IN A WORKTREE
+>
+> Check first: if `.git` is a **file** (not a directory), you are in a worktree
+> and **cannot run this skill**.
+>
+> ```bash
+> test -f .git && echo "IN A WORKTREE — cannot orchestrate from here"
+> ```
+>
+> This is structural, not stylistic:
+>
+> - A worktree-isolated session is **blocked from git operations targeting any
+>   other worktree** (`git -C <other>` is refused). Step 5 merges N agent
+>   branches — impossible from inside a worktree.
+> - Git refuses to remove the worktree you are standing in, so Step 7 cannot
+>   clean up either.
+> - `ExitWorktree` is a **no-op** unless this same session created the worktree
+>   via `EnterWorktree` — a pre-assigned worktree cannot be escaped mid-session.
+>
+> **If you are in a worktree:** commit and push whatever you have, then tell the
+> user the session must be restarted from the main checkout. Do not attempt a
+> workaround.
+>
+> **Correct setup:** the orchestrator sits in the main checkout on a branch cut
+> from `master` (`git switch -c wave-<n>-integration master`). Only the spawned
+> agents get worktrees, via `isolation: "worktree"`.
+
 ## Step 1 — Read the index and pick the wave
 
 The index (e.g. `specs/<plan>-index.md`) provides:
