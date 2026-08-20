@@ -1816,6 +1816,10 @@ export const registry = defineRegistry({
     libFiles: ['i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
+  'page-header': {
+    name: 'page-header',
+    files: ['page-header/page-header.component.html', 'page-header/page-header.component.ts'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

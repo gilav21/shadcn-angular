@@ -1,0 +1,44 @@
+<!-- `empty:hidden` collapses the slot (and its bottom margin) when no
+     breadcrumb is projected, so the spacing is correct either way. -->
+<div class="mb-2 flex flex-wrap items-center gap-2 empty:hidden" data-slot="page-header-breadcrumb">
+    <ng-content select="ui-breadcrumb, nav[data-slot=breadcrumb], [slot=breadcrumb]" />
+</div>
+
+<div
+    class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+    data-slot="page-header-row"
+>
+    <div class="min-w-0 space-y-1" data-slot="page-header-heading-block">
+        @if (title()) {
+            @switch (headingLevel()) {
+                @case (1) {
+                    <h1 [class]="headingClasses" data-slot="page-header-title">{{ title() }}</h1>
+                }
+                @case (2) {
+                    <h2 [class]="headingClasses" data-slot="page-header-title">{{ title() }}</h2>
+                }
+                @case (3) {
+                    <h3 [class]="headingClasses" data-slot="page-header-title">{{ title() }}</h3>
+                }
+                @case (4) {
+                    <h4 [class]="headingClasses" data-slot="page-header-title">{{ title() }}</h4>
+                }
+                @case (5) {
+                    <h5 [class]="headingClasses" data-slot="page-header-title">{{ title() }}</h5>
+                }
+                @default {
+                    <h6 [class]="headingClasses" data-slot="page-header-title">{{ title() }}</h6>
+                }
+            }
+        }
+        @if (description()) {
+            <p class="break-words text-sm text-muted-foreground" data-slot="page-header-description">
+                {{ description() }}
+            </p>
+        }
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2 sm:shrink-0" data-slot="page-header-actions">
+        <ng-content />
+    </div>
+</div>

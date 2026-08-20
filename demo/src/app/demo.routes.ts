@@ -74,6 +74,7 @@ export const DEMO_ROUTES: Routes = [
 
   // Layout
   { path: 'scroll-area', loadComponent: () => import('./demos/layout/scroll-area-demo.component').then(m => m.ScrollAreaDemoComponent) },
+  { path: 'page-header', loadComponent: () => import('./demos/layout/page-header-demo.component').then(m => m.PageHeaderDemoComponent) },
   { path: 'aspect-ratio', loadComponent: () => import('./demos/layout/aspect-ratio-demo.component').then(m => m.AspectRatioDemoComponent) },
   { path: 'resizable', loadComponent: () => import('./demos/layout/resizable-demo.component').then(m => m.ResizableDemoComponent) },
   { path: 'sidebar', loadComponent: () => import('./demos/layout/sidebar-demo.component').then(m => m.SidebarDemoComponent) },

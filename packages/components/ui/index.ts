@@ -34,6 +34,7 @@ export * from './scroll-area';
 export * from './table';
 export * from './breadcrumb';
 export * from './banner';
+export * from './page-header';
 export * from './hover-card';
 export * from './context-menu';
 export * from './drawer';

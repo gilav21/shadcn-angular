@@ -230,8 +230,8 @@ Then update the task row with **Completed**, **Score**, **Retrospective**.
 |---|------|--------|--------|-----------|-------|---------------|
 | 1 | Write failing tests T-1…T-5 for `banner` | UC-1…UC-5 | ✅ Done | 2026-08-20 | 95 | Tests written first and observed red (module not found, 0 tests collected) before any implementation existed. Covering T-1…T-5 plus the §2.2 edge cases up front pinned the API — notably that projection must override `message` — before a line of the component was written. |
 | 2 | Implement `banner` + stories + demo page | UC-1…UC-5 | ✅ Done | 2026-08-20 | 95 | Angular's native `<ng-content>` fallback content gave UC-4 (projection overrides `message`) with no `@ContentChild` timing games. Review nit fixed: a dismissed banner now drops `role`/`aria-live` so an emptied live region stops being announced. |
-| 3 | Write failing tests T-6…T-9 for `page-header` | UC-6…UC-9 | ⬜ Not started | — | — | — |
-| 4 | Implement `page-header` + stories + demo page | UC-6…UC-9 | ⬜ Not started | — | — | — |
+| 3 | Write failing tests T-6…T-9 for `page-header` | UC-6…UC-9 | ✅ Done | 2026-08-20 | 94 | Written first and observed red before the component existed. Two rounds of review feedback turned class-string assertions into real evidence: the empty breadcrumb slot is now proven to collapse (`display:none`, zero height, title flush at top), and a bogus element-width "breakpoint" test was replaced with a matchMedia-driven computed-style check plus a CSSOM probe for the 640px rule. |
+| 4 | Implement `page-header` + stories + demo page | UC-6…UC-9 | ✅ Done | 2026-08-20 | 94 | `flex-col` → `sm:flex-row sm:justify-between` gives UC-7 with no JS; `empty:hidden` on the breadcrumb slot keeps UC-8 spacing correct whether or not a breadcrumb is projected. `headingLevel` drives an `@switch` over `h1`…`h6` that shares one class string, so R-3 changes the semantics without changing the look. |
 | 5 | Write failing tests T-10…T-12 for `data-list` | UC-10…UC-13 | ⬜ Not started | — | — | — |
 | 6 | Implement `data-list` (dual mode) + stories + demo page | UC-10…UC-13 | ⬜ Not started | — | — | — |
 | 7 | Write failing tests T-13…T-16 for `masonry` | UC-14…UC-17 | ⬜ Not started | — | — | — |
@@ -246,6 +246,8 @@ Then update the task row with **Completed**, **Score**, **Retrospective**.
 |---|---|---|---|
 | 1 — banner tests | 2026-08-20 | 95 | Tests assert real DOM/behavioural outcomes rather than mere creation, and cover the R-2 a11y contract explicitly. |
 | 2 — banner impl | 2026-08-20 | 95 | Faithfully covers UC-1…UC-5 with cva theme tokens, the exact R-2 role/aria-live split, and demo/locale/stories/routing wiring mirroring the sibling `alert`. No placeholder code, no `any`, members readonly. |
+| 3 — page-header tests | 2026-08-20 | 94 | Assertions carry real evidence — computed styles and CSSOM probes — rather than tautological class-string checks. |
+| 4 — page-header impl | 2026-08-20 | 94 | Correctly satisfies UC-6…UC-9; `empty:hidden` costs zero space with no breadcrumb, the row switches at the 640px breakpoint, and `headingLevel` changes the element without changing the visual size. Demo/locale/routes/barrel wiring mirrors the `banner` sibling across ten locales including RTL. |
 
 > **Gate cadence note.** Per the orchestrator's mid-bundle direction, each task
 > is gated on targeted tests + `npm run lint` + review-gate ≥ 91; the full

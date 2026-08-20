@@ -5049,5 +5049,12 @@
     "dependencies": [
       "button"
     ]
+  },
+  "page-header": {
+    "name": "page-header",
+    "files": [
+      "page-header/page-header.component.html",
+      "page-header/page-header.component.ts"
+    ]
   }
 }
