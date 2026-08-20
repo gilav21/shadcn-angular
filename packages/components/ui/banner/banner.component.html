@@ -1,0 +1,32 @@
+@if (visible()) {
+    <div class="mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-wrap items-center gap-x-3 gap-y-2">
+        <div class="min-w-0 flex-1 break-words" data-slot="banner-message">
+            <ng-content>{{ message() }}</ng-content>
+        </div>
+        @if (dismissible()) {
+            <ui-button
+                variant="ghost"
+                size="icon-sm"
+                class="-me-2 shrink-0"
+                data-slot="banner-dismiss"
+                [ariaLabel]="t().close"
+                (clicked)="dismiss()"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="size-4"
+                    aria-hidden="true"
+                >
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                </svg>
+            </ui-button>
+        }
+    </div>
+}

@@ -8,7 +8,7 @@
 > All four components are **new files**. This bundle edits no existing
 > component, so it cannot conflict with any parallel bundle.
 
-**Status:** not started
+**Status:** in progress
 **Scope:** `banner`, `page-header`, `data-list`, `masonry`
 **Source plan:** `specs/ideas-backlog-2026-08-19.md` §1 Tier B items 6, 8, 11, 12
 
@@ -228,8 +228,8 @@ Then update the task row with **Completed**, **Score**, **Retrospective**.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Write failing tests T-1…T-5 for `banner` | UC-1…UC-5 | ⬜ Not started | — | — | — |
-| 2 | Implement `banner` + stories + demo page | UC-1…UC-5 | ⬜ Not started | — | — | — |
+| 1 | Write failing tests T-1…T-5 for `banner` | UC-1…UC-5 | ✅ Done | 2026-08-20 | 95 | Tests written first and observed red (module not found, 0 tests collected) before any implementation existed. Covering T-1…T-5 plus the §2.2 edge cases up front pinned the API — notably that projection must override `message` — before a line of the component was written. |
+| 2 | Implement `banner` + stories + demo page | UC-1…UC-5 | ✅ Done | 2026-08-20 | 95 | Angular's native `<ng-content>` fallback content gave UC-4 (projection overrides `message`) with no `@ContentChild` timing games. Review nit fixed: a dismissed banner now drops `role`/`aria-live` so an emptied live region stops being announced. |
 | 3 | Write failing tests T-6…T-9 for `page-header` | UC-6…UC-9 | ⬜ Not started | — | — | — |
 | 4 | Implement `page-header` + stories + demo page | UC-6…UC-9 | ⬜ Not started | — | — | — |
 | 5 | Write failing tests T-10…T-12 for `data-list` | UC-10…UC-13 | ⬜ Not started | — | — | — |
@@ -242,4 +242,14 @@ Then update the task row with **Completed**, **Score**, **Retrospective**.
 
 ## 6. Completion log
 
-_(empty — no tasks complete yet)_
+| Task | Completed | Score | Reviewer rationale (compressed) |
+|---|---|---|---|
+| 1 — banner tests | 2026-08-20 | 95 | Tests assert real DOM/behavioural outcomes rather than mere creation, and cover the R-2 a11y contract explicitly. |
+| 2 — banner impl | 2026-08-20 | 95 | Faithfully covers UC-1…UC-5 with cva theme tokens, the exact R-2 role/aria-live split, and demo/locale/stories/routing wiring mirroring the sibling `alert`. No placeholder code, no `any`, members readonly. |
+
+> **Gate cadence note.** Per the orchestrator's mid-bundle direction, each task
+> is gated on targeted tests + `npm run lint` + review-gate ≥ 91; the full
+> `npm run coverage` and SonarQube server scan run once for the whole bundle
+> after the last task, against project key `shadcn-angular-layout-primitives`.
+> Test-writing tasks (1, 3, 5, 7) are scored together with the implementation
+> task they precede, since DoD criterion 1 cannot hold while they are red.

@@ -264,6 +264,7 @@ export class AppComponent {
 
     // Feedback
     { id: 'alert', name: 'Alert', category: 'Feedback', icon: '⚠️' },
+    { id: 'banner', name: 'Banner', category: 'Feedback', icon: '📣' },
     { id: 'progress', name: 'Progress', category: 'Feedback', icon: '📈' },
     { id: 'skeleton', name: 'Skeleton', category: 'Feedback', icon: '💀' },
     { id: 'spinner', name: 'Spinner', category: 'Feedback', icon: '🔄' },

@@ -6,6 +6,7 @@ export const DEMO_ROUTES: Routes = [
 
   // Feedback
   { path: 'alert', loadComponent: () => import('./demos/feedback/alert-demo.component').then(m => m.AlertDemoComponent) },
+  { path: 'banner', loadComponent: () => import('./demos/feedback/banner-demo.component').then(m => m.BannerDemoComponent) },
   { path: 'progress', loadComponent: () => import('./demos/feedback/progress-demo.component').then(m => m.ProgressDemoComponent) },
   { path: 'skeleton', loadComponent: () => import('./demos/feedback/skeleton-demo.component').then(m => m.SkeletonDemoComponent) },
   { path: 'spinner', loadComponent: () => import('./demos/feedback/spinner-demo.component').then(m => m.SpinnerDemoComponent) },

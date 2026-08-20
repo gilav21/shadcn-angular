@@ -1810,6 +1810,12 @@ export const registry = defineRegistry({
       selector: 'uiRteFull',
     },
   },
+  banner: {
+    name: 'banner',
+    files: ['banner/banner.component.html', 'banner/banner.component.ts'],
+    libFiles: ['i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['button'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;
