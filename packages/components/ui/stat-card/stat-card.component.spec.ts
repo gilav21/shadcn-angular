@@ -127,6 +127,23 @@ describe('StatCardComponent', () => {
             expect(q('[data-slot="badge"]')).toBeNull();
         });
 
+        it('collapses the content region when there is neither delta nor content', () => {
+            host.delta.set(undefined);
+            fixture.detectChanges();
+            const content = need('[data-slot="card-content"]');
+            // `empty:hidden` — CSS `:empty` ignores Angular's comment anchors, so
+            // the region really is empty here and must not leave a padded gap.
+            expect(getComputedStyle(content).display).toBe('none');
+        });
+
+        it('keeps the content region when only projected content is present', () => {
+            host.delta.set(undefined);
+            host.showChart.set(true);
+            fixture.detectChanges();
+            const content = need('[data-slot="card-content"]');
+            expect(getComputedStyle(content).display).not.toBe('none');
+        });
+
         it('merges the class input onto the card surface, not the host', () => {
             host.cls.set('ring-2');
             fixture.detectChanges();
@@ -241,16 +258,28 @@ describe('StatCardComponent', () => {
         const long = 'Extraordinarily-long-single-token-that-cannot-wrap'.repeat(4);
 
         /**
-         * `truncate` is `overflow: hidden; text-overflow: ellipsis;
-         * white-space: nowrap`. Asserting the resolved style proves the rule is
-         * really in effect (a class-name check alone would pass even if the
-         * utility never reached the element), and the `scrollWidth` check proves
-         * the fixture actually overflows, so the ellipsis path is exercised
-         * rather than asserted in the abstract.
+         * Truncation is `overflow-x: clip; text-overflow: ellipsis;
+         * white-space: nowrap` - deliberately NOT Tailwind's `truncate`.
+         *
+         * `truncate` is `overflow: hidden` on both axes, and the card title is
+         * `leading-none`, so its content box is exactly the font size with no
+         * room for ink below the baseline. Measured on the dashboard block's own
+         * value `$45,231` at 16px: the baseline sits at 14.5px, the comma's ink
+         * reaches 16.5px, and the box ends at 16px - the tail was being clipped
+         * by half a pixel. `overflow-x: clip` is the one form that leaves
+         * `overflow-y` computing to `visible` (a `visible`/`hidden` pair would
+         * force the visible axis to `auto` and create a scroll container), so
+         * the descender is painted while the horizontal ellipsis is unchanged.
+         *
+         * Asserting the resolved style proves the rule really is in effect - a
+         * class-name check would pass even if the utility never reached the
+         * element - and `scrollWidth` proves the fixture actually overflows, so
+         * the ellipsis path is exercised rather than asserted in the abstract.
          */
         const expectTruncating = (el: HTMLElement) => {
             const style = getComputedStyle(el);
-            expect(style.overflowX).toBe('hidden');
+            expect(style.overflowX).toBe('clip');
+            expect(style.overflowY).toBe('visible');
             expect(style.textOverflow).toBe('ellipsis');
             expect(style.whiteSpace).toBe('nowrap');
             expect(el.scrollWidth).toBeGreaterThan(el.clientWidth);

@@ -1,7 +1,7 @@
 <ui-card [class]="class()">
   <ui-card-header>
-    <ui-card-description class="min-w-0 truncate">{{ label() }}</ui-card-description>
-    <ui-card-title class="min-w-0 truncate">{{ value() }}</ui-card-title>
+    <ui-card-description class="min-w-0 overflow-x-clip text-ellipsis whitespace-nowrap">{{ label() }}</ui-card-description>
+    <ui-card-title class="min-w-0 overflow-x-clip text-ellipsis whitespace-nowrap">{{ value() }}</ui-card-title>
   </ui-card-header>
   <ui-card-content class="empty:hidden">
     @if (delta()) {

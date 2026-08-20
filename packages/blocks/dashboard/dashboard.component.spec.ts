@@ -119,6 +119,9 @@ describe('DashboardBlockComponent', () => {
         const isLayoutUtility = (cls: string) => /(^|:)(grid-cols|gap)-/.test(cls);
         const actual = Array.from(statGrid().classList).filter(isLayoutUtility);
         const expected = EXPECTED_GRID_CLASSES.filter(isLayoutUtility);
+        // Copy-then-sort, not `toSorted`: this repo's TS lib target predates
+        // ES2023, so `toSorted` does not typecheck. The explicit comparator is
+        // sonarjs/no-alphabetical-sort.
         const byName = (a: string, b: string) => a.localeCompare(b);
         expect([...actual].sort(byName)).toEqual([...expected].sort(byName));
     });

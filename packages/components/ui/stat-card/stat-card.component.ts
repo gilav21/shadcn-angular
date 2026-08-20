@@ -72,11 +72,13 @@ export class StatCardComponent {
      * The headline figure, pre-formatted. It is rendered verbatim, so apply any
      * currency, percentage or locale formatting before binding it.
      *
-     * Truncates rather than wrapping. Truncation needs `overflow: hidden`, and
-     * the card title it sits in is `leading-none`, so a *textual* value whose
-     * glyphs have descenders can clip. Figures — digits, currency, percentages,
-     * which is what a KPI value is — are unaffected. Pass
-     * `[class]="'leading-tight'"` if you really are putting prose here.
+     * Truncates rather than wrapping, via `overflow-x: clip` rather than
+     * Tailwind's `truncate`. The card title is `leading-none`, so its content
+     * box is exactly the font size, and `truncate`'s `overflow: hidden` on the
+     * vertical axis shaves any ink below the baseline - measured at 16px, the
+     * comma in `$45,231` was losing half a pixel of its tail. Clipping only the
+     * horizontal axis keeps `overflow-y` visible, so descenders paint while the
+     * ellipsis behaves identically.
      */
     readonly value = input('');
     /**

@@ -161,7 +161,7 @@ export const WithoutTrendIcons: Story = {
     }),
 };
 
-/** Restyling the tile. `class` lands on the card surface, and must be bound. */
+/** Restyling the tile. `class` lands on the card surface, in either spelling. */
 export const Restyled: Story = {
     render: () => ({
         template: `
