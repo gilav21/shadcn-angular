@@ -247,6 +247,7 @@ export class AppComponent {
     { id: 'code-block', name: 'Code Block', category: 'Data Display', icon: '💻' },
     { id: 'data-table', name: 'Data Table', category: 'Data Display', icon: '📊' },
     { id: 'empty', name: 'Empty', category: 'Data Display', icon: '📭' },
+    { id: 'stat-card', name: 'Stat Card', category: 'Data Display', icon: '📈' },
     { id: 'file-viewer', name: 'File Viewer', category: 'Data Display', icon: '👁' },
     { id: 'icon', name: 'Icon', category: 'Data Display', icon: '🎯' },
     { id: 'kbd', name: 'Kbd', category: 'Data Display', icon: '⌨️' },

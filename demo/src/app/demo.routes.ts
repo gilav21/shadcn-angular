@@ -97,6 +97,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'tree-view', loadComponent: () => import('./demos/data-display/tree-view-demo.component').then(m => m.TreeViewDemoComponent) },
   { path: 'timeline', loadComponent: () => import('./demos/data-display/timeline-demo.component').then(m => m.TimelineDemoComponent) },
   { path: 'empty', loadComponent: () => import('./demos/data-display/empty-demo.component').then(m => m.EmptyDemoComponent) },
+  { path: 'stat-card', loadComponent: () => import('./demos/data-display/stat-card-demo.component').then(m => m.StatCardDemoComponent) },
   { path: 'kbd', loadComponent: () => import('./demos/data-display/kbd-demo.component').then(m => m.KbdDemoComponent) },
   { path: 'separator', loadComponent: () => import('./demos/data-display/separator-demo.component').then(m => m.SeparatorDemoComponent) },
   { path: 'number-ticker', loadComponent: () => import('./demos/data-display/number-ticker-demo.component').then(m => m.NumberTickerDemoComponent) },

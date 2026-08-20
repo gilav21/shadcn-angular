@@ -1810,6 +1810,14 @@ export const registry = defineRegistry({
       selector: 'uiRteFull',
     },
   },
+  'stat-card': {
+    name: 'stat-card',
+    category: 'data-display',
+    description: 'KPI tile with label, value, trend-coloured delta badge and a projected chart slot.',
+    tags: ['stat-card', 'kpi', 'metric', 'dashboard', 'sparkline'],
+    files: ['stat-card/stat-card.component.html', 'stat-card/stat-card.component.ts'],
+    dependencies: ['badge', 'card'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

@@ -1,0 +1,30 @@
+<ui-card [class]="class()">
+  <ui-card-header>
+    <ui-card-description class="min-w-0 truncate">{{ label() }}</ui-card-description>
+    <ui-card-title class="min-w-0 truncate">{{ value() }}</ui-card-title>
+  </ui-card-header>
+  <ui-card-content class="empty:hidden">
+    @if (delta()) {
+      <ui-badge [variant]="deltaVariant()" [class]="badgeClass()">
+        @if (trendPath(); as path) {
+          <svg
+            data-slot="stat-card-trend"
+            [attr.data-trend]="trend()"
+            aria-hidden="true"
+            class="size-3 shrink-0"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path [attr.d]="path" />
+          </svg>
+        }
+        {{ delta() }}
+      </ui-badge>
+    }
+    <ng-content />
+  </ui-card-content>
+</ui-card>

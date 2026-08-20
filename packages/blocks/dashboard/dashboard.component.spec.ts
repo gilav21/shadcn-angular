@@ -18,11 +18,18 @@ import { DashboardBlockComponent } from './index';
  * while still missing a genuine colour or ordering regression.
  */
 
+/**
+ * `'missing'` is not a badge treatment the block can render — it is what
+ * {@link badgeTreatment} reports when a tile has no badge at all, so that case
+ * surfaces as a legible diff against the expected table instead of a TypeError.
+ */
+type BadgeTreatment = 'primary' | 'destructive' | 'secondary' | 'outline' | 'missing';
+
 interface TileSnapshot {
     readonly label: string;
     readonly value: string;
     readonly delta: string;
-    readonly badge: 'primary' | 'destructive' | 'secondary' | 'outline';
+    readonly badge: BadgeTreatment;
 }
 
 const EXPECTED_GRID_CLASSES = [
@@ -52,7 +59,7 @@ const EXPECTED_TILES: readonly TileSnapshot[] = [
     { label: 'Churn rate', value: '1.8%', delta: '-0.4%', badge: 'primary' },
 ];
 
-function badgeTreatment(badge: HTMLElement | null): TileSnapshot['badge'] | 'missing' {
+function badgeTreatment(badge: HTMLElement | null): BadgeTreatment {
     if (!badge) return 'missing';
     if (badge.classList.contains('bg-primary')) return 'primary';
     if (badge.classList.contains('bg-destructive')) return 'destructive';
@@ -113,7 +120,7 @@ describe('DashboardBlockComponent', () => {
         const actual = Array.from(statGrid().classList).filter(isLayoutUtility);
         const expected = EXPECTED_GRID_CLASSES.filter(isLayoutUtility);
         const byName = (a: string, b: string) => a.localeCompare(b);
-        expect(actual.toSorted(byName)).toEqual(expected.toSorted(byName));
+        expect([...actual].sort(byName)).toEqual([...expected].sort(byName));
     });
 
     it('renders exactly four stat tiles', () => {

@@ -38,6 +38,7 @@ import { StatCardComponent, type StatCardTrend } from './index';
                 [value]="value()"
                 [delta]="delta()"
                 [trend]="trend()"
+                [trendIcon]="trendIcon()"
                 [class]="cls()"
             >
                 @if (showChart()) {
@@ -53,6 +54,7 @@ class HostComponent {
     readonly value = signal('$45,231.89');
     readonly delta = signal<string | undefined>('+20.1%');
     readonly trend = signal<StatCardTrend>('neutral');
+    readonly trendIcon = signal(true);
     readonly cls = signal('');
     readonly showChart = signal(false);
     readonly dir = signal<'ltr' | 'rtl'>('ltr');
@@ -172,6 +174,23 @@ describe('StatCardComponent', () => {
                 'true',
             );
             expect(need('[data-slot="badge"]').textContent?.trim()).toBe('+20.1%');
+        });
+
+        it('keeps the trend colour but drops the arrow when the icon is suppressed', () => {
+            host.trend.set('down');
+            host.trendIcon.set(false);
+            fixture.detectChanges();
+            expect(
+                need('[data-slot="badge"]').classList.contains('bg-destructive'),
+            ).toBe(true);
+            expect(q('[data-slot="stat-card-trend"]')).toBeNull();
+        });
+
+        it('leaves the badge unspaced when no arrow is drawn', () => {
+            host.trend.set('up');
+            host.trendIcon.set(false);
+            fixture.detectChanges();
+            expect(need('[data-slot="badge"]').classList.contains('gap-1')).toBe(false);
         });
 
         it('keeps the delta text intact for zero and negative values', () => {

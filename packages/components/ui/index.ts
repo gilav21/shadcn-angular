@@ -51,6 +51,7 @@ export * from './date-picker';
 export * from './sidebar';
 export * from './spinner';
 export * from './empty';
+export * from './stat-card';
 export * from './kbd';
 export * from './button-group';
 export * from './input-group';
