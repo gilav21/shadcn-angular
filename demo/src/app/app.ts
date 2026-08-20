@@ -168,6 +168,7 @@ export class AppComponent {
   );
 
   readonly componentLinks: readonly ComponentNavItem[] = [
+    { id: 'theme-playground', name: 'Theme Playground', category: 'Patterns', icon: '🎨' },
     // Inputs
     { id: 'autocomplete', name: 'Autocomplete', category: 'Inputs', icon: '🔍' },
     { id: 'buttons', name: 'Buttons', category: 'Inputs', icon: '🔘' },

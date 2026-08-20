@@ -135,6 +135,14 @@ export const DEMO_ROUTES: Routes = [
   { path: 'features', loadComponent: () => import('./demos/blocks/features-block-demo.component').then(m => m.FeaturesBlockDemoComponent) },
   { path: 'faq', loadComponent: () => import('./demos/blocks/faq-block-demo.component').then(m => m.FaqBlockDemoComponent) },
 
+  // Visual front end for the four theming CLI commands. The CSS it emits is
+  // byte-identical to what they write — see packages/cli/scripts/theme-parity.spec.ts.
+  {
+    path: 'theme-playground',
+    loadComponent: () =>
+      import('./docs/theme-playground.component').then(m => m.ThemePlaygroundComponent),
+  },
+
   // Generated documentation — one page for EVERY registry component, including
   // the 62 that share a demo route (all charts on /charts, all text effects on
   // /animations, the rich-text addons on the editor page) and therefore have no
