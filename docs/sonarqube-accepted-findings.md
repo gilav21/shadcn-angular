@@ -179,15 +179,36 @@ Scoped in `sonar-project.properties` to `*chart*`, `heatmap`, `calendar-heatmap`
 `histogram`, `boxplot`, `candlestick` and `treemap` component HTMLs only (raw
 non-chart elements stay checked).
 
-The last four are listed individually for a purely mechanical reason: the family
-glob is `packages/components/ui/*chart*/`, and **none of `histogram`, `boxplot`,
-`candlestick` or `treemap` contains the substring `chart`** — so without their own
-entries they would raise the already-accepted `role="group"` finding as new
-issues. `heatmap` and `calendar-heatmap` are in the list for exactly the same
-reason. Confirmed against a real scan: the identical finding fires on
+### The `*chart*` glob is a pattern-level defect, not a four-name gap
+
+The last four are listed individually for a purely mechanical reason, and it is
+worth stating plainly because it will keep recurring:
+
+> **`packages/components/ui/*chart*/` silently fails to match any chart whose
+> folder name does not literally contain the substring `chart`.**
+
+`histogram`, `boxplot`, `candlestick` and `treemap` are all charts, all render the
+same inline-SVG-under-`role="group"` pattern, and **none of them contains
+`chart`** — so the family glob skips all four. `heatmap` and `calendar-heatmap`
+were already in this list for exactly the same reason, which means the workaround
+has now been applied three separate times.
+
+Confirmed against a real scan rather than assumed: the identical finding fires on
 `tree/sub/tree-item.component.html` ("Use `<address>` or `<details>` or
-`<fieldset>` or `<optgroup>` instead of the group role"), which is what these four
-charts' container would otherwise report.
+`<fieldset>` or `<optgroup>` instead of the group role"), which is precisely what
+these four charts' containers would otherwise report.
+
+**Do not fix this by appending a fifth, sixth and seventh name.** The glob is
+matching on a naming coincidence rather than on what the files actually are. The
+next person to touch this should replace the name-matching with something that
+tracks the real property — for example an explicit chart-family list generated
+from the registry's `category: 'charts'`, or a marker the chart components
+themselves carry. Until then, every new chart not named `*chart*` needs a manual
+entry here and will otherwise fail the Sonar gate for a reason that has nothing
+to do with its code.
+
+The same glob shape is used for the CPD exclusions further down
+(`sonar.cpd.exclusions`), so it has the identical blind spot there.
 
 Which role: charts whose data points are keyboard-focusable (`tabindex="0"` on
 `<rect>`/`<circle>`) use **`role="group"`**, not `role="img"`. `role="img"` makes the
