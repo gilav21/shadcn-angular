@@ -19,6 +19,7 @@ import {
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { ButtonComponent } from '../button';
+import { BadgeComponent } from '../badge';
 import {
     ContextMenuComponent,
     ContextMenuContentComponent,
@@ -68,6 +69,31 @@ export interface KanbanCardMoveEvent {
     fromColumnId: string;
     toColumnId: string;
     newOrder: number;
+    /** Swimlane the card came from. Present only while `swimlaneBy` is set. */
+    fromSwimlaneId?: string;
+    /** Swimlane the card landed in. Present only while `swimlaneBy` is set. */
+    toSwimlaneId?: string;
+}
+
+/**
+ * How cards are bucketed into swimlanes — the board's optional second axis.
+ *
+ * A **string** names a property on `KanbanCard`; that is the form that lets the
+ * board reassign the lane on a cross-lane drop, since it knows which field to
+ * write. A **function** derives a lane from anything (a joined record, a date
+ * bucket), but the board cannot invert it, so a cross-lane drop keeps the card
+ * in its original lane and it is yours to move via `cardUpdated`.
+ */
+export type KanbanSwimlaneBy = string | ((card: KanbanCard) => string) | null;
+
+/** One horizontal band of the board, derived from {@link KanbanSwimlaneBy}. */
+export interface KanbanSwimlane {
+    /** The lane's grouping value. Cards with no value land in the `''` lane. */
+    id: string;
+    /** Heading text — the `id`, unless `swimlaneLabel` supplies something friendlier. */
+    label: string;
+    /** Cards in this lane across every column, after the search filter. */
+    count: number;
 }
 
 export interface KanbanCardAddEvent {
@@ -117,6 +143,7 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
         ContextMenuSeparatorComponent, ContextMenuSubComponent,
         ContextMenuSubTriggerComponent, ContextMenuSubContentComponent,
         ButtonComponent,
+        BadgeComponent,
     ],
     providers: [
         { provide: KANBAN, useExisting: forwardRef(() => KanbanComponent) },
@@ -124,10 +151,54 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
     ],
     template: `
         <div [dir]="isRtl() ? 'rtl' : 'ltr'">
-            <div [class]="classes()" [attr.data-slot]="'kanban'" (contextmenu)="onBoardContextMenu($event)">
-                @if (hasCustomColumns()) {
+            @if (hasCustomColumns()) {
+                <div [class]="classes()" [attr.data-slot]="'kanban'" (contextmenu)="onBoardContextMenu($event)">
                     <ng-content />
-                } @else {
+                </div>
+            } @else if (hasSwimlanes()) {
+                <div class="flex flex-col" [attr.data-slot]="'kanban-swimlanes'" (contextmenu)="onBoardContextMenu($event)">
+                    @for (lane of swimlanes(); track lane.id) {
+                        <section
+                            class="border-b last:border-b-0"
+                            [attr.data-slot]="'kanban-swimlane'"
+                            [attr.data-swimlane-id]="lane.id"
+                            [attr.data-collapsed]="isSwimlaneCollapsed(lane.id) || null"
+                        >
+                            <button
+                                type="button"
+                                class="flex w-full flex-wrap items-center gap-2 px-2 sm:px-4 py-2 text-start hover:bg-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                data-slot="kanban-swimlane-header"
+                                [attr.aria-expanded]="!isSwimlaneCollapsed(lane.id)"
+                                (click)="toggleSwimlane(lane.id)"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                     stroke-linejoin="round" class="transition-transform shrink-0"
+                                     [class.-rotate-90]="isSwimlaneCollapsed(lane.id)">
+                                    <path d="m6 9 6 6 6-6" />
+                                </svg>
+                                <span class="text-sm font-semibold truncate max-w-[160px] sm:max-w-[280px]">{{ lane.label }}</span>
+                                <ui-badge [label]="lane.count + ''" variant="secondary" class="text-xs" />
+                            </button>
+                            @if (!isSwimlaneCollapsed(lane.id)) {
+                                <div [class]="classes()" [attr.data-slot]="'kanban'">
+                                    @for (col of sortedColumns(); track col.id) {
+                                        <ui-kanban-column
+                                            [columnId]="col.id"
+                                            [swimlaneId]="lane.id"
+                                            [title]="col.title"
+                                            [wipLimit]="col.wipLimit"
+                                            [collapsible]="true"
+                                            [locale]="resolvedLocale()"
+                                        />
+                                    }
+                                </div>
+                            }
+                        </section>
+                    }
+                </div>
+            } @else {
+                <div [class]="classes()" [attr.data-slot]="'kanban'" (contextmenu)="onBoardContextMenu($event)">
                     @for (col of sortedColumns(); track col.id) {
                         <ui-kanban-column
                             [columnId]="col.id"
@@ -137,8 +208,8 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
                             [locale]="resolvedLocale()"
                         />
                     }
-                }
-            </div>
+                </div>
+            }
 
             <!-- Delete Toast (top center) -->
             @if (deleteToastVisible()) {
@@ -290,6 +361,25 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     /** Case-insensitive filter over each card's title, description and label texts. Hidden cards stay in {@link cards} but drop out of the column count badge and therefore out of the WIP-limit check, so leave it empty when the badge must be accurate. */
     searchTerm = input('');
 
+    /**
+     * Groups cards into horizontal swimlanes — the board's second axis, on top
+     * of columns. `null` (the default) renders exactly one implicit lane and the
+     * board looks and behaves as it always did.
+     *
+     * Pass a **property name** (`'assignee'`, `'epic'`) and a drag across lanes
+     * reassigns that field for you. Pass a **function** and the lane is derived
+     * but not invertible, so a cross-lane drop moves the card between columns
+     * only — reassign it yourself from {@link cardMoved}'s `toSwimlaneId`.
+     *
+     * Cards whose value is missing or empty collect in a single unnamed lane,
+     * rendered last, so nothing silently disappears from the board.
+     */
+    swimlaneBy = input<KanbanSwimlaneBy>(null);
+    /** Maps a lane id to its heading. Defaults to the id itself, with the empty lane falling back to the locale's "Unassigned". */
+    swimlaneLabel = input<((id: string) => string) | null>(null);
+    /** Lanes collapsed on first render. After that each lane's state is the board's to own — toggle it with {@link toggleSwimlane}. */
+    initiallyCollapsedSwimlanes = input<readonly string[]>([]);
+
     /** Emits the full next `columns` array (a new array — never the input mutated) after a reorder, undo or redo. Assign it back to {@link columns} or the board will not change. */
     columnsChange = output<KanbanColumn[]>();
     /** Emits the full next `cards` array after a move, delete, undo or redo. The board is fully controlled: nothing changes until you assign this back to {@link cards}. Card creation/edits come through {@link cardAdded}/{@link cardUpdated} instead. */
@@ -389,6 +479,19 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
                 this.rtl.set(loc.rtl ?? false);
             });
         });
+
+        // Seeds the initial collapse state once. Re-applying it on every change
+        // would fight the user: a lane they expanded would snap shut again the
+        // next time `cards` changed.
+        let seeded = false;
+        effect(() => {
+            const initial = this.initiallyCollapsedSwimlanes();
+            untracked(() => {
+                if (seeded || initial.length === 0) return;
+                seeded = true;
+                this._collapsedSwimlanes.set(new Set(initial));
+            });
+        });
     }
 
     ngAfterContentInit(): void {
@@ -423,11 +526,81 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         });
     });
 
-    /** The column's cards after {@link searchTerm} filtering, sorted by `order`. Called by every `<ui-kanban-column>` on each change detection pass — keep it cheap. */
-    getCardsForColumn(columnId: string): KanbanCard[] {
-        return this.filteredCards()
-            .filter(c => c.columnId === columnId)
-            .sort((a, b) => a.order - b.order);
+    /** `true` when {@link swimlaneBy} is set and the board renders lane bands. */
+    readonly hasSwimlanes = computed(() => this.swimlaneBy() !== null);
+
+    /** Reads one card's lane id. `''` for cards with no value, or when swimlanes are off. */
+    swimlaneIdOf(card: KanbanCard): string {
+        const by = this.swimlaneBy();
+        if (by === null) return '';
+        if (typeof by === 'function') return by(card) || '';
+        const value: unknown = Reflect.get(card, by);
+        return typeof value === 'string' ? value : '';
+    }
+
+    /**
+     * The lanes to render, in first-seen order with the unnamed lane pushed
+     * last. Derived from the *filtered* cards, so a lane whose every card is
+     * filtered out disappears with them.
+     */
+    readonly swimlanes = computed((): KanbanSwimlane[] => {
+        if (!this.hasSwimlanes()) return [];
+
+        const counts = new Map<string, number>();
+        for (const card of this.filteredCards()) {
+            const id = this.swimlaneIdOf(card);
+            counts.set(id, (counts.get(id) ?? 0) + 1);
+        }
+
+        const named: KanbanSwimlane[] = [];
+        let unnamed: KanbanSwimlane | null = null;
+        for (const [id, count] of counts) {
+            const lane = { id, label: this.swimlaneLabelFor(id), count };
+            if (id === '') unnamed = lane;
+            else named.push(lane);
+        }
+        return unnamed === null ? named : [...named, unnamed];
+    });
+
+    private swimlaneLabelFor(id: string): string {
+        const custom = this.swimlaneLabel();
+        if (custom !== null) return custom(id);
+        return id === '' ? this.resolvedLocale().unassigned ?? 'Unassigned' : id;
+    }
+
+    private readonly _collapsedSwimlanes = signal<ReadonlySet<string>>(new Set());
+
+    /** Ids of the lanes currently collapsed. */
+    readonly collapsedSwimlanes = this._collapsedSwimlanes.asReadonly();
+
+    /** Whether one lane is collapsed. Each lane collapses independently of the others and of column collapse. */
+    isSwimlaneCollapsed(id: string): boolean {
+        return this._collapsedSwimlanes().has(id);
+    }
+
+    /** Collapses or expands one lane, leaving every other lane alone. */
+    toggleSwimlane(id: string): void {
+        this._collapsedSwimlanes.update(current => {
+            const next = new Set(current);
+            if (!next.delete(id)) next.add(id);
+            return next;
+        });
+    }
+
+    /**
+     * The column's cards after {@link searchTerm} filtering, sorted by `order`.
+     * Called by every `<ui-kanban-column>` on each change detection pass — keep
+     * it cheap.
+     *
+     * `swimlaneId` narrows the result to one lane. It is optional, so the
+     * pre-swimlane call `getCardsForColumn(id)` still returns the whole column.
+     */
+    getCardsForColumn(columnId: string, swimlaneId?: string): KanbanCard[] {
+        const inColumn = this.filteredCards().filter(c => c.columnId === columnId);
+        const scoped = swimlaneId === undefined
+            ? inColumn
+            : inColumn.filter(c => this.swimlaneIdOf(c) === swimlaneId);
+        return scoped.sort((a, b) => a.order - b.order);
     }
 
     // ── Drag & Drop ──────────────────────────────────────────────
@@ -456,7 +629,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
      * does not mutate {@link cards}, so nothing moves until you apply the change.
      * A `cardId` not present in {@link cards} is a no-op.
      */
-    moveCard(cardId: string, toColumnId: string, newOrder: number): void {
+    moveCard(cardId: string, toColumnId: string, newOrder: number, toSwimlaneId?: string): void {
         const currentCards = this.cards();
         const card = currentCards.find(c => c.id === cardId);
         if (!card) return;
@@ -464,10 +637,11 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         this.captureSnapshot();
 
         const fromColumnId = card.columnId;
+        const fromSwimlaneId = this.swimlaneIdOf(card);
 
         const updated = currentCards.map(c => {
             if (c.id === cardId) {
-                return { ...c, columnId: toColumnId, order: newOrder };
+                return this.relocate(c, toColumnId, newOrder, toSwimlaneId);
             }
             if (c.columnId === toColumnId && c.id !== cardId && c.order >= newOrder) {
                 return { ...c, order: c.order + 1 };
@@ -476,8 +650,25 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         });
 
         this.cardsChange.emit(updated);
-        this.cardMoved.emit({ cardId, fromColumnId, toColumnId, newOrder });
+        this.cardMoved.emit(
+            this.hasSwimlanes()
+                ? { cardId, fromColumnId, toColumnId, newOrder, fromSwimlaneId, toSwimlaneId: toSwimlaneId ?? fromSwimlaneId }
+                : { cardId, fromColumnId, toColumnId, newOrder }
+        );
         this.endDrag();
+    }
+
+    /**
+     * Applies a move to one card. The lane field is rewritten only when
+     * {@link swimlaneBy} is a property name — a derived lane cannot be inverted,
+     * so the card keeps its own value and the consumer reassigns it from
+     * {@link cardMoved}.
+     */
+    private relocate(card: KanbanCard, toColumnId: string, newOrder: number, toSwimlaneId?: string): KanbanCard {
+        const moved: KanbanCard = { ...card, columnId: toColumnId, order: newOrder };
+        const by = this.swimlaneBy();
+        if (toSwimlaneId === undefined || typeof by !== 'string') return moved;
+        return Object.assign(moved, { [by]: toSwimlaneId });
     }
 
     // ── Context Menu ─────────────────────────────────────────────

@@ -3338,7 +3338,8 @@
       "textarea"
     ],
     "testFiles": [
-      "kanban/kanban.component.spec.ts"
+      "kanban/kanban.component.spec.ts",
+      "kanban/kanban.swimlanes.spec.ts"
     ]
   },
   "shortcut-bindings-dialog": {
