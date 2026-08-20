@@ -21,6 +21,7 @@ import { cn } from '../../lib/utils';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { COMMON_LOCALES, type CommonLocale } from '../../lib/i18n/common.locales';
 import { ButtonComponent } from '../button';
+import { readTourCompleted, writeTourCompleted } from './tour.utils';
 
 type TourSide = 'top' | 'bottom' | 'left' | 'right';
 
@@ -84,11 +85,36 @@ export interface TourStep {
     when?: (ctx: TourStepContext) => boolean | Promise<boolean>;
     /** Milliseconds to wait for `target` to appear. Overrides the component's `targetTimeout`. */
     targetTimeout?: number;
+    /**
+     * Branch instead of falling through to the next step. Consulted by
+     * `next()` only — see {@link TourBranch}.
+     */
+    next?: TourBranch;
 }
+
+/**
+ * Per-step branching predicate. Return the **index** of the step to go to
+ * next, or `null` to end the tour there. Returning an out-of-range index — or
+ * throwing — falls back to the default "advance by one" behaviour, so a broken
+ * predicate cannot strand the user.
+ *
+ * It runs synchronously, before any of the target step's async hooks.
+ *
+ * @example
+ * ```ts
+ * { target: '#plan', title: 'Your plan', next: () => this.isPro() ? 4 : 2 }
+ * ```
+ */
+export type TourBranch = (ctx: TourStepContext) => number | null;
 
 interface ResolvedStep {
     readonly el: HTMLElement;
     readonly index: number;
+}
+
+/** Branch predicates never see a live abort signal — they are consulted synchronously and return at once. */
+function branchContext(index: number): TourStepContext {
+    return { index, direction: 'forward', signal: new AbortController().signal };
 }
 
 function hasHooks(step: TourStep): boolean {
@@ -277,6 +303,26 @@ export class TourComponent {
     readonly class = input('');
 
     /**
+     * Persist "this tour is done" under this key so it does not replay on every
+     * visit. `null` (the default) keeps the component stateless — flip `active`
+     * yourself and persist however you like; the `done` output still fires either
+     * way, so an existing consumer's own store keeps working unchanged.
+     *
+     * When set, the flag is written on **both** endings (`finished` and
+     * `skipped`) — a user who dismissed the tour does not want it again either —
+     * and a tour whose flag is already set refuses to start: setting `active` to
+     * `true` immediately flips it back to `false` without emitting `done`.
+     *
+     * Storage is best-effort. In private modes or sandboxed frames where
+     * `localStorage` throws, reads return `false` and writes are swallowed, so
+     * the tour simply behaves as if it had no key.
+     *
+     * Call {@link resetCompletion} to let it run again, and bump the key
+     * (`'onboarding-v2'`) when the tour's content changes.
+     */
+    readonly storageKey = input<string | null>(null);
+
+    /**
      * Emitted when the tour finishes naturally or is skipped, with the reason.
      * Not emitted when the parent flips `active` off externally.
      */
@@ -388,6 +434,10 @@ export class TourComponent {
             const isActive = this.active();
             untracked(() => {
                 if (isActive && !this.wasActive) {
+                    if (this.isCompleted()) {
+                        this.active.set(false);
+                        return;
+                    }
                     this.wasActive = true;
                     this.transition(0, 'initial');
                 } else if (!isActive && this.wasActive) {
@@ -416,11 +466,58 @@ export class TourComponent {
      */
     next(): void {
         if (this._isPending()) return;
+
+        const branched = this.resolveBranch();
+        if (branched !== undefined) {
+            if (branched === null) {
+                this.finish('finished');
+                return;
+            }
+            this.transition(branched, branched < this._currentIndex() ? 'backward' : 'forward');
+            return;
+        }
+
         if (this.isLastStep()) {
             this.finish('finished');
             return;
         }
         this.transition(this._currentIndex() + 1, 'forward');
+    }
+
+    /**
+     * Ask the current step's `next` predicate where to go. `undefined` means
+     * "no branch — use the default", `null` means "end here", a number is the
+     * target index. An out-of-range answer or a throw degrades to `undefined`.
+     */
+    private resolveBranch(): number | null | undefined {
+        const branch = this.currentStep()?.next;
+        if (!branch) return undefined;
+
+        const index = this._currentIndex();
+        let target: number | null;
+        try {
+            target = branch(branchContext(index));
+        } catch (error) {
+            this.reportHookError(index, error);
+            return undefined;
+        }
+
+        if (target === null) return null;
+        if (!Number.isInteger(target) || target < 0 || target >= this.steps().length) {
+            this.reportHookError(index, new Error(`tour: step ${index} branched to out-of-range index ${target}`));
+            return undefined;
+        }
+        return target;
+    }
+
+    /** Whether {@link storageKey}'s tour has already run to an end. Always `false` without a key. */
+    isCompleted(): boolean {
+        return readTourCompleted(this.storageKey());
+    }
+
+    /** Clears the {@link storageKey} completion flag so the tour may run again. No-op without a key. */
+    resetCompletion(): void {
+        writeTourCompleted(this.storageKey(), false);
     }
 
     /** Steps backwards, running the target step's hooks. A no-op on the first step, or while a transition is pending — see {@link canGoBack}. */
@@ -477,6 +574,7 @@ export class TourComponent {
         this.abortInFlight();
         this._isPending.set(false);
         this.active.set(false);
+        writeTourCompleted(this.storageKey(), true);
         this.done.emit(reason);
     }
 

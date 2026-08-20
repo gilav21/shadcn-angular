@@ -19,6 +19,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { cn } from '../../lib/utils';
+import { VirtualAxis } from './virtual-scroll.axis';
 
 /**
  * Minimal shape virtual-scroll needs from a row. `id` is optional and used only
@@ -36,6 +37,36 @@ export interface VirtualScrollState {
   windowSize: number;
   totalItems: number;
   scrollProgress: number;
+}
+
+/**
+ * Which axis (or axes) are virtualized.
+ *
+ * - `'vertical'` (default) — the original behaviour: `items` is a column of
+ *   rows, windowed on Y.
+ * - `'horizontal'` — `items` is a row of cells, windowed on X using
+ *   {@link VirtualScrollComponent.minItemWidth}.
+ * - `'both'` — `items` is a **flat row-major grid**; set
+ *   {@link VirtualScrollComponent.columnCount} and both axes are windowed at
+ *   once. The item template receives the cell, and `index` is the item's index
+ *   in the flat array.
+ */
+export type VirtualScrollOrientation = 'vertical' | 'horizontal' | 'both';
+
+/** One cell of the 2D window, with its place in the flat `items` array and in the grid. */
+export interface VirtualCell<T> {
+  readonly item: T;
+  readonly index: number;
+  readonly row: number;
+  readonly column: number;
+}
+
+/** The rendered window on both axes — payload of `(cellWindowChange)`. */
+export interface VirtualScrollWindow2D {
+  readonly rowStart: number;
+  readonly rowEnd: number;
+  readonly columnStart: number;
+  readonly columnEnd: number;
 }
 
 @Directive({
@@ -85,6 +116,25 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
    * heights land.
    */
   minItemHeight = input<number>(50);
+  /**
+   * Assumed **width** in pixels for cells that have not been measured yet — the
+   * horizontal counterpart of {@link minItemHeight}, and used only when
+   * {@link orientation} is `'horizontal'` or `'both'`.
+   */
+  minItemWidth = input<number>(100);
+  /**
+   * Which axis (or axes) to virtualize. Defaults to `'vertical'`, which is
+   * exactly the original behaviour. See {@link VirtualScrollOrientation}.
+   */
+  orientation = input<VirtualScrollOrientation>('vertical');
+  /**
+   * Number of columns when {@link orientation} is `'both'`: `items` is then read
+   * as a flat row-major grid `rowCount = ceil(items.length / columnCount)`.
+   * Ignored on the single-axis orientations. A value `< 1` collapses the grid to
+   * a single column, so a forgotten binding degrades to a plain vertical list
+   * rather than dividing by zero.
+   */
+  columnCount = input<number>(1);
   /** Extra rows rendered beyond each edge of the viewport. Higher values trade memory for fewer blank frames during fast scrolling. */
   buffer = input<number>(5);
   /** Shows the loading indicator at the bottom and suppresses further {@link scrollEnd} emissions, so a slow page load cannot trigger a second fetch. */
@@ -106,17 +156,21 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
   scrollEnd = output<void>();
   /** Richer counterpart to {@link windowChange}: the same window plus its size, the total item count and scroll progress from 0 to 1 — enough to drive a custom scrollbar or position readout. */
   scrollState = output<VirtualScrollState>();
+  /** Emitted in `'both'` mode whenever the 2D window moves. Never fires on the single-axis orientations. */
+  readonly cellWindowChange = output<VirtualScrollWindow2D>();
 
   containerRef = viewChild<ElementRef<HTMLElement>>('container');
   itemElements = viewChildren('itemEl', { read: ElementRef });
 
   containerHeight = signal(0);
+  containerWidth = signal(0);
   scrollTop = signal(0);
+  scrollLeft = signal(0);
   measurementVersion = signal(0);
 
   private readonly CHUNK_SIZE = 500;
-  private readonly chunkCorrections = new Map<number, number>();
-  private readonly itemHeights = new Map<number, number>();
+  private readonly rowAxis = new VirtualAxis(this.CHUNK_SIZE);
+  private readonly columnAxis = new VirtualAxis(this.CHUNK_SIZE);
 
   private readonly resizeObserver: ResizeObserver;
   private containerObserver?: ResizeObserver;
@@ -126,12 +180,25 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
   itemTemplate = computed(() => this.itemTemplateRef);
   loadingTemplate = computed(() => this.customLoadingTemplate);
 
-  containerClasses = computed(() =>
-    cn(
-      'overflow-y-auto overflow-x-hidden relative h-full w-full contain-strict',
-      'will-change-scroll'
-    )
+  /** `true` when both axes are windowed and `items` is read as a flat row-major grid. */
+  readonly isGrid = computed(() => this.orientation() === 'both');
+  /** `true` when the main axis is X — either `'horizontal'`, or the column axis of a grid. */
+  readonly isHorizontal = computed(() => this.orientation() === 'horizontal');
+
+  /** Columns in the grid; always `1` outside `'both'` mode, and never less than `1`. */
+  readonly gridColumns = computed(() => (this.isGrid() ? Math.max(1, Math.trunc(this.columnCount())) : 1));
+  /** Rows in the grid; equals the item count on the vertical axis outside `'both'` mode. */
+  readonly gridRows = computed(() =>
+    this.isGrid() ? Math.ceil(this.totalItems() / this.gridColumns()) : this.totalItems()
   );
+
+  containerClasses = computed(() => {
+    const base = 'relative h-full w-full contain-strict';
+    const axis = this.orientation();
+    if (axis === 'horizontal') return cn(`overflow-x-auto overflow-y-hidden ${base}`, 'will-change-scroll');
+    if (axis === 'both') return cn(`overflow-auto ${base}`, 'will-change-scroll');
+    return cn(`overflow-y-auto overflow-x-hidden ${base}`, 'will-change-scroll');
+  });
 
   loadingClasses = computed(() =>
     cn('py-4 flex justify-center absolute bottom-0 left-0 right-0')
@@ -144,7 +211,7 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
 
     effect(() => {
       const { end } = this.viewportRange();
-      const total = this.totalItems();
+      const total = this.mainAxisCount();
       if (end >= total - 2 && !this.loading() && this.hasMore()) {
         this.scrollEnd.emit();
       }
@@ -163,6 +230,18 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
       });
     });
 
+    effect(() => {
+      if (!this.isGrid()) return;
+      const rows = this.renderRange();
+      const columns = this.columnRenderRange();
+      this.cellWindowChange.emit({
+        rowStart: rows.start,
+        rowEnd: rows.end,
+        columnStart: columns.start,
+        columnEnd: columns.end,
+      });
+    });
+
     effect((onCleanup) => {
       const els = this.itemElements();
       els.forEach(el => this.resizeObserver.observe(el.nativeElement));
@@ -176,8 +255,10 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     const container = this.containerRef()?.nativeElement;
     if (container) {
       this.containerHeight.set(container.clientHeight);
+      this.containerWidth.set(container.clientWidth);
       const onResize = (): void => {
         this.containerHeight.set(container.clientHeight);
+        this.containerWidth.set(container.clientWidth);
       };
       this.containerObserver = new ResizeObserver(onResize);
       this.containerObserver.observe(container);
@@ -193,92 +274,73 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
   onScroll(event: Event): void {
     const target = event.target as HTMLElement;
     this.scrollTop.set(target.scrollTop);
+    this.scrollLeft.set(target.scrollLeft);
   }
 
-  private getChunkHeight(chunkIndex: number, lastChunkSize: number = this.CHUNK_SIZE): number {
-    const correction = this.chunkCorrections.get(chunkIndex) ?? 0;
-    return (lastChunkSize * this.minItemHeight()) + correction;
+  /** The axis the main `viewportRange` / `renderRange` / padding computeds run on. */
+  private mainAxis(): VirtualAxis {
+    return this.isHorizontal() ? this.columnAxis : this.rowAxis;
+  }
+
+  private mainEstimate(): number {
+    return this.isHorizontal() ? this.minItemWidth() : this.minItemHeight();
+  }
+
+  private mainAxisCount(): number {
+    return this.isHorizontal() ? this.totalItems() : this.gridRows();
+  }
+
+  private mainScroll(): number {
+    return this.isHorizontal() ? this.scrollLeft() : this.scrollTop();
+  }
+
+  private mainViewport(): number {
+    return this.isHorizontal() ? this.containerWidth() : this.containerHeight();
   }
 
   private getOffsetForIndex(index: number): number {
-    const chunkIndex = Math.floor(index / this.CHUNK_SIZE);
-    let offset = 0;
-
-    for (let c = 0; c < chunkIndex; c++) {
-      offset += this.getChunkHeight(c);
-    }
-
-    const startInChunk = chunkIndex * this.CHUNK_SIZE;
-    for (let i = startInChunk; i < index; i++) {
-      offset += this.itemHeights.get(i) ?? this.minItemHeight();
-    }
-
-    return offset;
+    return this.mainAxis().offsetForIndex(index, this.mainEstimate());
   }
 
   private getIndexForOffset(scrollY: number): number {
-    let offset = 0;
-    let chunkIndex = 0;
-    const total = this.totalItems();
-    const maxChunks = Math.ceil(total / this.CHUNK_SIZE);
-
-    while (chunkIndex < maxChunks) {
-      const size = (chunkIndex === maxChunks - 1)
-        ? total - (chunkIndex * this.CHUNK_SIZE)
-        : this.CHUNK_SIZE;
-
-      const chunkH = this.getChunkHeight(chunkIndex, size);
-      if (offset + chunkH > scrollY) {
-        break;
-      }
-      offset += chunkH;
-      chunkIndex++;
-    }
-
-    let index = chunkIndex * this.CHUNK_SIZE;
-    while (index < total) {
-      const h = this.itemHeights.get(index) ?? this.minItemHeight();
-      if (offset + h > scrollY) {
-        return index;
-      }
-      offset += h;
-      index++;
-    }
-
-    return Math.min(index, total - 1);
+    return this.mainAxis().indexForOffset(scrollY, this.mainEstimate(), this.mainAxisCount());
   }
 
   viewportRange = computed(() => {
-    const sTop = this.scrollTop();
-    const cHeight = this.containerHeight();
-
     this.measurementVersion();
-    const total = this.totalItems();
-    if (total === 0) return { start: 0, end: 0 };
-
-    const start = this.getIndexForOffset(sTop);
-    const endOffset = sTop + cHeight;
-    let end = start;
-    let currOffset = this.getOffsetForIndex(start);
-
-    while (end < total && currOffset < endOffset) {
-      const h = this.itemHeights.get(end) ?? this.minItemHeight();
-      currOffset += h;
-      end++;
-    }
-
-    return { start, end };
+    return this.mainAxis().window(
+      this.mainScroll(),
+      this.mainViewport(),
+      this.mainEstimate(),
+      this.mainAxisCount()
+    );
   });
 
   renderRange = computed(() => {
     const { start, end } = this.viewportRange();
-    const total = this.totalItems();
+    const total = this.mainAxisCount();
     const buf = this.buffer();
 
     const renderStart = Math.max(0, start - buf);
     const renderEnd = Math.min(total, end + buf);
 
     return { start: renderStart, end: renderEnd };
+  });
+
+  /** Window of columns rendered in `'both'` mode. Collapses to `{ start: 0, end: 1 }` on the single-axis orientations. */
+  readonly columnRenderRange = computed(() => {
+    if (!this.isGrid()) return { start: 0, end: 1 };
+
+    this.measurementVersion();
+    const columns = this.gridColumns();
+    const { start, end } = this.columnAxis.window(
+      this.scrollLeft(),
+      this.containerWidth(),
+      this.minItemWidth(),
+      columns
+    );
+    const buf = this.buffer();
+    return { start: Math.max(0, start - buf), end: Math.min(columns, end + buf) };
   });
 
   visibleItems = computed(() => {
@@ -290,59 +352,121 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     }));
   });
 
+  /**
+   * The 2D window as `VirtualCell` rows — one entry per rendered row, each
+   * carrying only the rendered columns. Empty outside `'both'` mode. Trailing
+   * cells of a ragged final row are omitted rather than padded with holes.
+   */
+  readonly visibleCellRows = computed((): { readonly row: number; readonly cells: VirtualCell<T>[] }[] => {
+    if (!this.isGrid()) return [];
+
+    const items = this.items();
+    const columns = this.gridColumns();
+    const rows = this.renderRange();
+    const cols = this.columnRenderRange();
+    const out: { row: number; cells: VirtualCell<T>[] }[] = [];
+
+    for (let row = rows.start; row < rows.end; row++) {
+      const cells: VirtualCell<T>[] = [];
+      for (let column = cols.start; column < cols.end; column++) {
+        const index = row * columns + column;
+        const item = items[index];
+        if (item === undefined) continue;
+        cells.push({ item, index, row, column });
+      }
+      out.push({ row, cells });
+    }
+    return out;
+  });
+
   paddingTop = computed(() => {
-    return this.getOffsetForIndex(this.renderRange().start);
+    if (this.isHorizontal()) return 0;
+    this.measurementVersion();
+    return this.rowAxis.offsetForIndex(this.renderRange().start, this.minItemHeight());
   });
 
   paddingBottom = computed(() => {
-    const total = this.totalItems();
-    const end = this.renderRange().end;
+    if (this.isHorizontal()) return 0;
+    this.measurementVersion();
+    const estimate = this.minItemHeight();
+    const total = this.rowAxis.totalSize(this.gridRows(), estimate);
+    return Math.max(0, total - this.rowAxis.offsetForIndex(this.renderRange().end, estimate));
+  });
 
-    const totalMin = total * this.minItemHeight();
-    let totalCorrection = 0;
-    this.chunkCorrections.forEach(c => totalCorrection += c);
+  /** Leading spacer on the X axis. Zero unless the column axis is virtualized. */
+  readonly paddingStart = computed(() => {
+    this.measurementVersion();
+    if (this.isHorizontal()) return this.columnAxis.offsetForIndex(this.renderRange().start, this.minItemWidth());
+    if (this.isGrid()) return this.columnAxis.offsetForIndex(this.columnRenderRange().start, this.minItemWidth());
+    return 0;
+  });
 
-    const totalHeight = totalMin + totalCorrection;
-    const itemsEndOffset = this.getOffsetForIndex(end);
-
-    return Math.max(0, totalHeight - itemsEndOffset);
+  /** Trailing spacer on the X axis. Zero unless the column axis is virtualized. */
+  readonly paddingEnd = computed(() => {
+    this.measurementVersion();
+    const estimate = this.minItemWidth();
+    if (this.isHorizontal()) {
+      const total = this.columnAxis.totalSize(this.totalItems(), estimate);
+      return Math.max(0, total - this.columnAxis.offsetForIndex(this.renderRange().end, estimate));
+    }
+    if (this.isGrid()) {
+      const total = this.columnAxis.totalSize(this.gridColumns(), estimate);
+      return Math.max(0, total - this.columnAxis.offsetForIndex(this.columnRenderRange().end, estimate));
+    }
+    return 0;
   });
 
   private handleResizes(entries: ResizeObserverEntry[]): void {
-    let scrollAdjustment = 0;
     const firstVisible = this.viewportRange().start;
+    let scrollAdjustment = 0;
 
     for (const entry of entries) {
-      const el = entry.target as HTMLElement;
-      const index = Number.parseInt(el.dataset['index'] ?? '-1', 10);
-      if (index === -1) continue;
-
-      const newHeight = entry.borderBoxSize[0].blockSize;
-      const oldHeight = this.itemHeights.get(index) ?? this.minItemHeight();
-      const diff = newHeight - oldHeight;
-
-      if (Math.abs(diff) < 0.5) continue;
-
-      this.itemHeights.set(index, newHeight);
-
-      const chunkIdx = Math.floor(index / this.CHUNK_SIZE);
-      const currentCorrection = this.chunkCorrections.get(chunkIdx) ?? 0;
-      this.chunkCorrections.set(chunkIdx, currentCorrection + diff);
-
-      if (index < firstVisible) {
-        scrollAdjustment += diff;
-      }
+      scrollAdjustment += this.recordEntry(entry, firstVisible);
     }
 
     if (scrollAdjustment !== 0) {
       const container = this.containerRef()?.nativeElement;
       if (container) {
-        container.scrollTop += scrollAdjustment;
-        this.scrollTop.set(container.scrollTop);
+        this.applyScrollAdjustment(container, scrollAdjustment);
       }
     }
 
     this.measurementVersion.update(v => v + 1);
+  }
+
+  /** Folds one measurement into the right axis; returns the main-axis scroll correction it implies. */
+  private recordEntry(entry: ResizeObserverEntry, firstVisible: number): number {
+    const el = entry.target as HTMLElement;
+    const box = entry.borderBoxSize[0];
+
+    if (this.isGrid()) {
+      this.recordGridEntry(el, box);
+      return 0;
+    }
+
+    const index = Number.parseInt(el.dataset['index'] ?? '-1', 10);
+    if (index === -1) return 0;
+
+    const measured = this.isHorizontal() ? box.inlineSize : box.blockSize;
+    const delta = this.mainAxis().record(index, measured, this.mainEstimate());
+    return delta !== 0 && index < firstVisible ? delta : 0;
+  }
+
+  private recordGridEntry(el: HTMLElement, box: ResizeObserverSize): void {
+    const row = Number.parseInt(el.dataset['row'] ?? '-1', 10);
+    const column = Number.parseInt(el.dataset['column'] ?? '-1', 10);
+    if (row !== -1) this.rowAxis.record(row, box.blockSize, this.minItemHeight());
+    if (column !== -1) this.columnAxis.record(column, box.inlineSize, this.minItemWidth());
+  }
+
+  private applyScrollAdjustment(container: HTMLElement, adjustment: number): void {
+    if (this.isHorizontal()) {
+      container.scrollLeft += adjustment;
+      this.scrollLeft.set(container.scrollLeft);
+      return;
+    }
+    container.scrollTop += adjustment;
+    this.scrollTop.set(container.scrollTop);
   }
 
   /**
@@ -350,14 +474,38 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
    * is computed from measured heights where available and {@link minItemHeight}
    * elsewhere, so a jump far into unmeasured territory lands approximately and
    * settles once the rows there are measured.
+   *
+   * In `'horizontal'` mode it scrolls the X axis instead; in `'both'` mode
+   * `index` is the **row**, and {@link scrollToCell} handles the column too.
    */
   scrollToIndex(index: number): void {
     const offset = this.getOffsetForIndex(index);
     const container = this.containerRef()?.nativeElement;
-    if (container) {
-      container.scrollTo({ top: offset, behavior: 'instant' });
-      this.scrollTop.set(offset);
+    if (!container) return;
+
+    if (this.isHorizontal()) {
+      container.scrollTo({ left: offset, behavior: 'instant' });
+      this.scrollLeft.set(offset);
+      return;
     }
+    container.scrollTo({ top: offset, behavior: 'instant' });
+    this.scrollTop.set(offset);
+  }
+
+  /** Jumps to a grid cell, scrolling both axes. Falls back to {@link scrollToIndex} outside `'both'` mode. */
+  scrollToCell(row: number, column: number): void {
+    if (!this.isGrid()) {
+      this.scrollToIndex(row);
+      return;
+    }
+    const container = this.containerRef()?.nativeElement;
+    if (!container) return;
+
+    const top = this.rowAxis.offsetForIndex(row, this.minItemHeight());
+    const left = this.columnAxis.offsetForIndex(column, this.minItemWidth());
+    container.scrollTo({ top, left, behavior: 'instant' });
+    this.scrollTop.set(top);
+    this.scrollLeft.set(left);
   }
 
   /** Jumps to the first item. Exact, since offset zero needs no height estimates. */
@@ -382,9 +530,19 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     return item.id ?? item._virtualIndex ?? 0;
   }
 
+  /** Cell identity for the `'both'` grid loop — the flat index, which is unique by construction. */
+  trackByCell(_index: number, cell: VirtualCell<T>): number {
+    return cell.index;
+  }
+
   private calculateScrollProgress(): number {
     const container = this.containerRef()?.nativeElement;
     if (!container) return 0;
+    if (this.isHorizontal()) {
+      const { scrollLeft, scrollWidth, clientWidth } = container;
+      if (scrollWidth <= clientWidth) return 0;
+      return scrollLeft / (scrollWidth - clientWidth);
+    }
     const { scrollTop, scrollHeight, clientHeight } = container;
     if (scrollHeight <= clientHeight) return 0;
     return scrollTop / (scrollHeight - clientHeight);

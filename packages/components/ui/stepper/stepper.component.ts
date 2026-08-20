@@ -8,6 +8,7 @@ import {
   contentChildren,
   model,
   output,
+  signal,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { StepperItemComponent } from './sub/stepper-item.component';
@@ -18,6 +19,23 @@ export interface StepConfig {
   value: string;
   title: string;
   description?: string;
+}
+
+/**
+ * Gate consulted before the stepper leaves the current step.
+ *
+ * Return `true` to allow the move and `false` to block it. Returning a promise
+ * puts the stepper in {@link StepperComponent.guardPending} until it settles;
+ * a promise that resolves `false`, rejects, or a guard that throws all block
+ * the transition. Both indices are supplied so a guard can allow backwards
+ * navigation while validating forwards (`(from, to) => to < from || isValid()`).
+ */
+export type StepGuard = (from: number, to: number) => boolean | Promise<boolean>;
+
+/** Payload of `(stepBlocked)` — the move a {@link StepGuard} refused. */
+export interface StepBlockedEvent {
+  readonly from: number;
+  readonly to: number;
 }
 
 export const STEPPER = new InjectionToken<StepperComponent>('STEPPER');
@@ -50,6 +68,25 @@ export class StepperComponent {
   linear = input(false);
 
   /**
+   * Optional validation gate run before every move that actually changes
+   * {@link activeStep} — the "validate this step before advancing" hook.
+   * `null` (the default) leaves navigation exactly as it was.
+   *
+   * A guard returning a plain boolean keeps the whole transition synchronous:
+   * the step changes (or does not) in the same tick as the click. Returning a
+   * promise flips {@link guardPending} on until it settles, and the stepper
+   * ignores the result if the user started another move in the meantime.
+   *
+   * A refusal — `false`, a promise resolving `false`, a rejection, or a throw —
+   * blocks the move, leaves {@link activeStep} alone, emits {@link stepBlocked}
+   * and emits no {@link stepChange}.
+   *
+   * It runs *after* the {@link linear} gate, so a guard is never asked about a
+   * move linear mode already rejected.
+   */
+  canLeave = input<StepGuard | null>(null);
+
+  /**
    * Simple mode: pass a step list and the stepper renders the whole row itself
    * (indicator, title, description, connectors). A non-empty array replaces the
    * projected content entirely — the `<ng-content />` template mode is only used
@@ -60,7 +97,15 @@ export class StepperComponent {
   /** Emits the newly-selected index whenever {@link goToStep} actually moves — not on a rejected (non-linear-allowed) click, and not when {@link activeStep} is set from outside. */
   stepChange = output<number>();
 
+  /** Emits the attempted move whenever a {@link canLeave} guard refuses it. Never fires when no guard is set. */
+  readonly stepBlocked = output<StepBlockedEvent>();
+
   items = contentChildren(StepperItemComponent);
+
+  private readonly _guardPending = signal(false);
+  /** `true` while an async {@link canLeave} guard is still deciding — bind it to a spinner or to disable the Next button. */
+  readonly guardPending = this._guardPending.asReadonly();
+  private guardToken = 0;
 
   // For simple mode, use steps array length
   private readonly simpleStepCount = computed(() => this.steps().length);
@@ -137,10 +182,52 @@ export class StepperComponent {
 
   /** Moves to `index`, updating {@link activeStep} and emitting {@link stepChange}. A no-op — silently, with no emission — when {@link canNavigateTo} rejects the index. Does not clamp, so callers must pass an in-range index. */
   goToStep(index: number): void {
-    if (this.canNavigateTo(index)) {
-      this.activeStep.set(index);
-      this.stepChange.emit(index);
+    if (!this.canNavigateTo(index)) return;
+
+    const from = this.activeStep();
+    const guard = this.canLeave();
+    if (!guard || index === from) {
+      this.commitStep(index);
+      return;
     }
+
+    let outcome: boolean | Promise<boolean>;
+    try {
+      outcome = guard(from, index);
+    } catch {
+      outcome = false;
+    }
+
+    if (typeof outcome === 'boolean') {
+      this.settleGuard(outcome, from, index);
+      return;
+    }
+
+    const token = ++this.guardToken;
+    this._guardPending.set(true);
+    outcome.then(
+      allowed => this.settleAsyncGuard(token, allowed, from, index),
+      () => this.settleAsyncGuard(token, false, from, index)
+    );
+  }
+
+  private settleAsyncGuard(token: number, allowed: boolean, from: number, to: number): void {
+    if (token !== this.guardToken) return;
+    this._guardPending.set(false);
+    this.settleGuard(allowed, from, to);
+  }
+
+  private settleGuard(allowed: boolean, from: number, to: number): void {
+    if (allowed) {
+      this.commitStep(to);
+      return;
+    }
+    this.stepBlocked.emit({ from, to });
+  }
+
+  private commitStep(index: number): void {
+    this.activeStep.set(index);
+    this.stepChange.emit(index);
   }
 
   /** Advances one step through {@link goToStep}, clamped at the last step (counted from {@link steps} in simple mode, from the projected items otherwise). This is the only way forward when {@link linear} is set. */

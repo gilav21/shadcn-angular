@@ -511,6 +511,8 @@
     ],
     "files": [
       "command/command.component.ts",
+      "command/command.types.ts",
+      "command/command.utils.ts",
       "command/index.ts",
       "command/sub/command-dialog.component.ts",
       "command/sub/command-empty.component.ts",
@@ -526,7 +528,8 @@
       "dialog"
     ],
     "testFiles": [
-      "command/command.component.spec.ts"
+      "command/command.component.spec.ts",
+      "command/command.features.spec.ts"
     ],
     "libFiles": [
       "i18n/common.locales.ts",
@@ -1077,11 +1080,13 @@
     ],
     "files": [
       "virtual-scroll/index.ts",
+      "virtual-scroll/virtual-scroll.axis.ts",
       "virtual-scroll/virtual-scroll.component.css",
       "virtual-scroll/virtual-scroll.component.html",
       "virtual-scroll/virtual-scroll.component.ts"
     ],
     "testFiles": [
+      "virtual-scroll/virtual-scroll.axes.spec.ts",
       "virtual-scroll/virtual-scroll.component.spec.ts",
       "virtual-scroll/virtual-scroll.runway.spec.ts"
     ],
@@ -2087,7 +2092,8 @@
     ],
     "testFiles": [
       "stepper/stepper.component.spec.ts",
-      "stepper/stepper.coverage.spec.ts"
+      "stepper/stepper.coverage.spec.ts",
+      "stepper/stepper.guard.spec.ts"
     ]
   },
   "switch": {
@@ -2253,7 +2259,8 @@
       "i18n/index.ts"
     ],
     "testFiles": [
-      "toast/toast.component.spec.ts"
+      "toast/toast.component.spec.ts",
+      "toast/toast.features.spec.ts"
     ]
   },
   "toggle": {
@@ -3383,7 +3390,8 @@
     "files": [
       "tour/index.ts",
       "tour/tour.component.html",
-      "tour/tour.component.ts"
+      "tour/tour.component.ts",
+      "tour/tour.utils.ts"
     ],
     "libFiles": [
       "i18n/common.locales.ts",
@@ -3396,7 +3404,8 @@
       "button"
     ],
     "testFiles": [
-      "tour/tour.component.spec.ts"
+      "tour/tour.component.spec.ts",
+      "tour/tour.features.spec.ts"
     ]
   },
   "comparison-slider": {

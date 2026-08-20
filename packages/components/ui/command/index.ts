@@ -1,4 +1,6 @@
 export * from './command.component';
+export * from './command.types';
+export * from './command.utils';
 export * from './sub/command-input.component';
 export * from './sub/command-list.component';
 export * from './sub/command-empty.component';

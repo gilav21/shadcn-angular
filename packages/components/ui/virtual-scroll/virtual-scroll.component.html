@@ -2,26 +2,76 @@
   #container
   [class]="containerClasses()"
   [attr.data-slot]="'virtual-scroll'"
+  [attr.data-orientation]="orientation()"
   tabindex="0"
   (scroll)="onScroll($event)"
 >
-  <div
-    class="flex flex-col w-full min-h-full"
-    [style.padding-top.px]="paddingTop()"
-    [style.padding-bottom.px]="paddingBottom()"
-  >
-    @for (item of visibleItems(); track trackByFn(item)) {
-      <div
-        class="virtual-item w-full"
-        [attr.data-index]="item._virtualIndex"
-        #itemEl
-      >
-        <ng-container
-          *ngTemplateOutlet="itemTemplate()!; context: { $implicit: item, index: item._virtualIndex }"
-        />
-      </div>
-    }
-  </div>
+  @if (isGrid()) {
+    <div
+      class="flex flex-col min-w-full min-h-full"
+      [style.padding-top.px]="paddingTop()"
+      [style.padding-bottom.px]="paddingBottom()"
+    >
+      @for (rowEntry of visibleCellRows(); track rowEntry.row) {
+        <div
+          class="virtual-row flex"
+          [attr.data-row]="rowEntry.row"
+          [style.padding-inline-start.px]="paddingStart()"
+          [style.padding-inline-end.px]="paddingEnd()"
+        >
+          @for (cell of rowEntry.cells; track trackByCell($index, cell)) {
+            <div
+              class="virtual-item shrink-0"
+              [attr.data-index]="cell.index"
+              [attr.data-row]="cell.row"
+              [attr.data-column]="cell.column"
+              #itemEl
+            >
+              <ng-container
+                *ngTemplateOutlet="itemTemplate()!; context: { $implicit: cell.item, index: cell.index }"
+              />
+            </div>
+          }
+        </div>
+      }
+    </div>
+  } @else if (isHorizontal()) {
+    <div
+      class="flex flex-row h-full min-w-full"
+      [style.padding-inline-start.px]="paddingStart()"
+      [style.padding-inline-end.px]="paddingEnd()"
+    >
+      @for (item of visibleItems(); track trackByFn(item)) {
+        <div
+          class="virtual-item shrink-0 h-full"
+          [attr.data-index]="item._virtualIndex"
+          #itemEl
+        >
+          <ng-container
+            *ngTemplateOutlet="itemTemplate()!; context: { $implicit: item, index: item._virtualIndex }"
+          />
+        </div>
+      }
+    </div>
+  } @else {
+    <div
+      class="flex flex-col w-full min-h-full"
+      [style.padding-top.px]="paddingTop()"
+      [style.padding-bottom.px]="paddingBottom()"
+    >
+      @for (item of visibleItems(); track trackByFn(item)) {
+        <div
+          class="virtual-item w-full"
+          [attr.data-index]="item._virtualIndex"
+          #itemEl
+        >
+          <ng-container
+            *ngTemplateOutlet="itemTemplate()!; context: { $implicit: item, index: item._virtualIndex }"
+          />
+        </div>
+      }
+    </div>
+  }
 
   @if (loading()) {
     <div [class]="loadingClasses()">

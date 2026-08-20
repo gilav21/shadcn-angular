@@ -315,9 +315,9 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Searchable command palette with grouped, keyboard-navigable actions and a dialog mode.',
     tags: ['command', 'palette', 'cmdk', 'search', 'menu', 'spotlight'],
-    files: ['command/command.component.ts', 'command/index.ts', 'command/sub/command-dialog.component.ts', 'command/sub/command-empty.component.ts', 'command/sub/command-group.component.ts', 'command/sub/command-input.component.ts', 'command/sub/command-item.component.css', 'command/sub/command-item.component.ts', 'command/sub/command-list.component.ts', 'command/sub/command-separator.component.ts', 'command/sub/command-shortcut.component.ts'],
+    files: ['command/command.component.ts', 'command/command.types.ts', 'command/command.utils.ts', 'command/index.ts', 'command/sub/command-dialog.component.ts', 'command/sub/command-empty.component.ts', 'command/sub/command-group.component.ts', 'command/sub/command-input.component.ts', 'command/sub/command-item.component.css', 'command/sub/command-item.component.ts', 'command/sub/command-list.component.ts', 'command/sub/command-separator.component.ts', 'command/sub/command-shortcut.component.ts'],
     dependencies: ['dialog'],
-    testFiles: ['command/command.component.spec.ts'],
+    testFiles: ['command/command.component.spec.ts', 'command/command.features.spec.ts'],
     libFiles: ['i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts'],
     shortcutDefinitions: [
       {
@@ -492,8 +492,8 @@ export const registry = defineRegistry({
     category: 'data-display',
     description: 'Renders only visible rows of large lists for high-performance scrolling.',
     tags: ['virtual-scroll', 'virtualization', 'list', 'performance', 'windowing'],
-    files: ['virtual-scroll/index.ts', 'virtual-scroll/virtual-scroll.component.css', 'virtual-scroll/virtual-scroll.component.html', 'virtual-scroll/virtual-scroll.component.ts'],
-    testFiles: ['virtual-scroll/virtual-scroll.component.spec.ts', 'virtual-scroll/virtual-scroll.runway.spec.ts'],
+    files: ['virtual-scroll/index.ts', 'virtual-scroll/virtual-scroll.axis.ts', 'virtual-scroll/virtual-scroll.component.css', 'virtual-scroll/virtual-scroll.component.html', 'virtual-scroll/virtual-scroll.component.ts'],
+    testFiles: ['virtual-scroll/virtual-scroll.axes.spec.ts', 'virtual-scroll/virtual-scroll.component.spec.ts', 'virtual-scroll/virtual-scroll.runway.spec.ts'],
     breaking: [
       { kind: 'selector', from: 'virtualItem', to: 'uiVirtualItem', note: 'The item-template directive selector was renamed `[virtualItem]` -> `[uiVirtualItem]`. The old selector still works as a deprecated alias; rename `<ng-template virtualItem>` to `<ng-template uiVirtualItem>` in your templates.', codemod: 'selector' },
       { kind: 'type', from: 'items: T[]', to: 'items: T[] where T extends object', note: 'The `items` input is now generic over `T extends object`; any object row type binds unchanged. An `id: string | number` is optional and used for stable tracking when present.', codemod: 'none' },
@@ -809,7 +809,7 @@ export const registry = defineRegistry({
     description: 'Multi-step progress indicator for wizards and sequential flows.',
     tags: ['stepper', 'steps', 'wizard', 'progress', 'multi-step'],
     files: ['stepper/index.ts', 'stepper/stepper.component.html', 'stepper/stepper.component.ts', 'stepper/sub/stepper-content.component.ts', 'stepper/sub/stepper-description.component.ts', 'stepper/sub/stepper-item.component.ts', 'stepper/sub/stepper-separator.component.ts', 'stepper/sub/stepper-title.component.ts', 'stepper/sub/stepper-trigger.component.ts'],
-    testFiles: ['stepper/stepper.component.spec.ts', 'stepper/stepper.coverage.spec.ts'],
+    testFiles: ['stepper/stepper.component.spec.ts', 'stepper/stepper.coverage.spec.ts', 'stepper/stepper.guard.spec.ts'],
   },
   switch: {
     name: 'switch',
@@ -863,7 +863,7 @@ export const registry = defineRegistry({
     tags: ['toast', 'notification', 'snackbar', 'alert', 'message'],
     files: ['toast/index.ts', 'toast/sub/toaster.component.html', 'toast/sub/toaster.component.ts', 'toast/toast.component.html', 'toast/toast.component.ts'],
     libFiles: ['i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
-    testFiles: ['toast/toast.component.spec.ts'],
+    testFiles: ['toast/toast.component.spec.ts', 'toast/toast.features.spec.ts'],
   },
   toggle: {
     name: 'toggle',
@@ -1240,10 +1240,10 @@ export const registry = defineRegistry({
     category: 'editor',
     description: 'Guided product tour highlighting elements with step-by-step popovers.',
     tags: ['tour', 'onboarding', 'walkthrough', 'guide', 'coachmark'],
-    files: ['tour/index.ts', 'tour/tour.component.html', 'tour/tour.component.ts'],
+    files: ['tour/index.ts', 'tour/tour.component.html', 'tour/tour.component.ts', 'tour/tour.utils.ts'],
     libFiles: ['i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
-    testFiles: ['tour/tour.component.spec.ts'],
+    testFiles: ['tour/tour.component.spec.ts', 'tour/tour.features.spec.ts'],
   },
   'comparison-slider': {
     name: 'comparison-slider',

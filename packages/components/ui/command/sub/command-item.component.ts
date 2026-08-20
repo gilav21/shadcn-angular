@@ -119,6 +119,7 @@ export class CommandItemComponent implements OnInit, OnDestroy {
    */
   onClick(): void {
     if (!this.disabled()) {
+      this.cmdService.markRecent(this.value());
       this.selectItem.emit(this.value());
     }
   }

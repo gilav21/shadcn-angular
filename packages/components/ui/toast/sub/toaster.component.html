@@ -9,6 +9,7 @@
       [countdownSeconds]="toast.countdownSeconds"
       [duration]="toast.duration"
       [createdAt]="toast.createdAt"
+      [loading]="toast.loading"
       (closed)="toastService.dismiss(toast.id)"
     />
   }

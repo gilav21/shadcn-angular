@@ -8,7 +8,10 @@ import {
   effect,
   Injectable,
 } from '@angular/core';
+import { DestroyRef, untracked } from '@angular/core';
 import { cn } from '../../lib/utils';
+import type { CommandPage, CommandResult, CommandSource } from './command.types';
+import { readRecentValues, unshiftUniqueValue, writeRecentValues } from './command.utils';
 
 export const COMMAND_DIALOG_SHORTCUT_DEFINITIONS = [
   {
@@ -30,6 +33,43 @@ export class CommandService {
   private readonly items = signal<Map<string, { value: string; groupId?: string; onSelect: () => void }>>(new Map());
   activeItemId = signal<string | null>(null);
 
+  /** Async row provider, set from `ui-command`'s `source` input. `null` (default) leaves the palette purely projection-driven. */
+  readonly source = signal<CommandSource | null>(null);
+  /** Milliseconds of quiet typing before {@link source} is called. `0` calls it on every keystroke. */
+  readonly debounceMs = signal(200);
+
+  private readonly _results = signal<readonly CommandResult[]>([]);
+  /** Rows returned by the most recent non-stale {@link source} call. Always `[]` when no source is set. */
+  readonly results = this._results.asReadonly();
+
+  private readonly _isLoading = signal(false);
+  /** `true` from the moment a query is scheduled until its answer lands (or is superseded). */
+  readonly isLoading = this._isLoading.asReadonly();
+
+  private readonly _sourceError = signal<unknown>(null);
+  /** Whatever the last {@link source} call threw, or `null`. A source that throws clears the results rather than propagating. */
+  readonly sourceError = this._sourceError.asReadonly();
+
+  /** Values recently selected, newest first. Fed to a "Recent" group while the query is empty. */
+  readonly recents = signal<readonly string[]>([]);
+  /** localStorage key for {@link recents}. `null` (default) keeps them in memory for the session only. */
+  readonly recentKey = signal<string | null>(null);
+  /** How many {@link recents} to keep. */
+  readonly recentLimit = signal(5);
+
+  /** `true` when the query is empty and there is at least one recent — the cue to render the "Recent" group. */
+  readonly showRecents = computed(() => this.search().trim() === '' && this.recents().length > 0);
+
+  private readonly _pages = signal<readonly CommandPage[]>([]);
+  /** The drill-down stack, root-first. Empty at the top level. */
+  readonly pages = this._pages.asReadonly();
+  /** The page currently shown, or `null` at the top level. */
+  readonly currentPage = computed(() => this._pages().at(-1) ?? null);
+
+  private queryToken = 0;
+  private debounceHandle: ReturnType<typeof setTimeout> | null = null;
+  private controller: AbortController | null = null;
+
   constructor() {
     effect(() => {
       const visibleIds = this.filteredItemIds();
@@ -39,6 +79,111 @@ export class CommandService {
         this.activeItemId.set(first || null);
       }
     }, { allowSignalWrites: true });
+
+    effect(() => {
+      const key = this.recentKey();
+      const limit = this.recentLimit();
+      untracked(() => this.recents.set(readRecentValues(key, limit)));
+    });
+
+    effect(() => {
+      const source = this.source();
+      const query = this.search();
+      const wait = this.debounceMs();
+      untracked(() => this.scheduleQuery(source, query, wait));
+    });
+
+    inject(DestroyRef).onDestroy(() => this.cancelQuery());
+  }
+
+  /**
+   * Records `value` as recently used: newest first, de-duplicated, capped at
+   * {@link recentLimit}, and persisted when {@link recentKey} is set. Called by
+   * `ui-command-item` on every activation, so the common case needs no wiring.
+   */
+  markRecent(value: string): void {
+    if (!value) return;
+    const next = unshiftUniqueValue(this.recents(), value, this.recentLimit());
+    this.recents.set(next);
+    writeRecentValues(this.recentKey(), next);
+  }
+
+  /** Empties {@link recents} and the persisted copy under {@link recentKey}. */
+  clearRecents(): void {
+    this.recents.set([]);
+    writeRecentValues(this.recentKey(), []);
+  }
+
+  /** Opens a nested page. The query is cleared so the new level starts unfiltered. */
+  pushPage(page: CommandPage): void {
+    this._pages.update(stack => [...stack, page]);
+    this.search.set('');
+    this.activeItemId.set(null);
+  }
+
+  /** Returns to the parent page. Returns `false` when already at the top level. */
+  popPage(): boolean {
+    if (this._pages().length === 0) return false;
+    this._pages.update(stack => stack.slice(0, -1));
+    this.search.set('');
+    this.activeItemId.set(null);
+    return true;
+  }
+
+  /** Returns straight to the top level from any depth. */
+  resetPages(): void {
+    if (this._pages().length === 0) return;
+    this._pages.set([]);
+    this.search.set('');
+    this.activeItemId.set(null);
+  }
+
+  private scheduleQuery(source: CommandSource | null, query: string, wait: number): void {
+    this.cancelQuery();
+    const token = ++this.queryToken;
+
+    if (!source) {
+      this._results.set([]);
+      this._isLoading.set(false);
+      this._sourceError.set(null);
+      return;
+    }
+
+    this._isLoading.set(true);
+    if (wait <= 0) {
+      void this.runQuery(source, query, token);
+      return;
+    }
+    this.debounceHandle = setTimeout(() => {
+      this.debounceHandle = null;
+      void this.runQuery(source, query, token);
+    }, wait);
+  }
+
+  private async runQuery(source: CommandSource, query: string, token: number): Promise<void> {
+    const controller = new AbortController();
+    this.controller = controller;
+    try {
+      const rows = await source(query, controller.signal);
+      if (token !== this.queryToken) return;
+      this._results.set(rows);
+      this._sourceError.set(null);
+    } catch (error) {
+      if (token !== this.queryToken) return;
+      this._results.set([]);
+      this._sourceError.set(error);
+    } finally {
+      if (token === this.queryToken) this._isLoading.set(false);
+    }
+  }
+
+  private cancelQuery(): void {
+    if (this.debounceHandle !== null) {
+      clearTimeout(this.debounceHandle);
+      this.debounceHandle = null;
+    }
+    this.controller?.abort();
+    this.controller = null;
   }
 
   /**
@@ -188,7 +333,43 @@ export class CommandComponent {
    */
   search = input<string | null>(null);
 
+  /**
+   * Async row provider — a server-side search, typically. Leave `null`
+   * (default) and the palette stays purely projection-driven, exactly as
+   * before. When set, calls are debounced by {@link debounce} and any answer a
+   * newer keystroke has superseded is discarded, so results can never go
+   * backwards; the superseded call's `AbortSignal` is aborted too. Read the
+   * rows from {@link results} and render them as `ui-command-item`s yourself,
+   * which keeps the item API — filtering, highlight, shortcuts — unchanged.
+   */
+  readonly source = input<CommandSource | null>(null);
+  /** Milliseconds of quiet typing before {@link source} is called. `0` calls it on every keystroke. */
+  readonly debounce = input(200);
+  /**
+   * localStorage key for the recently-selected list. `null` (default) keeps
+   * recents in memory for the session — the developer keeps full control by
+   * reading {@link recents} and writing their own store instead.
+   */
+  readonly recentKey = input<string | null>(null);
+  /** How many recently-selected values to keep. */
+  readonly recentLimit = input(5);
+
   private readonly service = inject(CommandService);
+
+  /** Rows from the latest non-stale {@link source} call. `[]` when no source is set. */
+  readonly results = this.service.results;
+  /** `true` while a {@link source} query is scheduled or in flight. */
+  readonly isLoading = this.service.isLoading;
+  /** Whatever the last {@link source} call threw, or `null`. */
+  readonly sourceError = this.service.sourceError;
+  /** Recently-selected values, newest first. */
+  readonly recents = this.service.recents;
+  /** `true` when the query is empty and there is at least one recent — render the "Recent" group on this. */
+  readonly showRecents = this.service.showRecents;
+  /** The drill-down page stack, root-first. Empty at the top level. */
+  readonly pages = this.service.pages;
+  /** The page currently shown, or `null` at the top level. Switch your template on `page()?.id`. */
+  readonly page = this.service.currentPage;
 
   constructor() {
     effect(() => {
@@ -201,6 +382,42 @@ export class CommandComponent {
         this.service.search.set(s);
       }
     }, { allowSignalWrites: true });
+
+    effect(() => {
+      this.service.source.set(this.source());
+      this.service.debounceMs.set(this.debounce());
+      this.service.recentKey.set(this.recentKey());
+      this.service.recentLimit.set(this.recentLimit());
+    });
+  }
+
+  /**
+   * Opens a nested page — the drill-down "submenu" pattern. The query is
+   * cleared so the new level starts unfiltered. Escape (or Backspace on an
+   * empty query) in `ui-command-input` returns to the parent.
+   */
+  pushPage(page: CommandPage): void {
+    this.service.pushPage(page);
+  }
+
+  /** Returns to the parent page. Returns `false` when already at the top level. */
+  popPage(): boolean {
+    return this.service.popPage();
+  }
+
+  /** Returns straight to the top level from any depth. */
+  resetPages(): void {
+    this.service.resetPages();
+  }
+
+  /** Records a value as recently used. `ui-command-item` calls this itself on activation. */
+  markRecent(value: string): void {
+    this.service.markRecent(value);
+  }
+
+  /** Empties the recents list and its persisted copy. */
+  clearRecents(): void {
+    this.service.clearRecents();
   }
 
   classes = computed(() => cn(
