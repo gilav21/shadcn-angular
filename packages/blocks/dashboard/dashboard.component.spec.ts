@@ -12,10 +12,12 @@ import { DashboardBlockComponent } from './index';
  * the badge's colour treatment. Those four are exactly what a reader sees, so
  * any real visual regression in the extraction breaks this spec.
  *
- * It deliberately does NOT pin `innerHTML`: the extraction adds a
- * `display: contents` host element and a trend glyph inside the badge, neither
- * of which a reader can see, and an HTML-string snapshot would fail on both
- * while still missing a genuine colour or ordering regression.
+ * It deliberately does NOT pin `innerHTML`: the extraction wraps each tile in
+ * a `display: contents` host element, which a reader cannot see, and an
+ * HTML-string snapshot would fail on that while still missing a genuine colour
+ * or ordering regression. (The component can also draw a trend arrow inside the
+ * badge; the block passes `trendIcon=false` precisely so it does not, which is
+ * what keeps this snapshot honest about the block rendering unchanged.)
  */
 
 /**

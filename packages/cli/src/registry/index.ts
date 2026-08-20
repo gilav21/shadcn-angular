@@ -1324,7 +1324,7 @@ export const registry = defineRegistry({
     name: 'dashboard',
     type: 'block',
     files: ['dashboard/dashboard.component.html', 'dashboard/dashboard.component.ts', 'dashboard/index.ts'],
-    dependencies: ['avatar', 'badge', 'bar-chart', 'card', 'table'],
+    dependencies: ['avatar', 'bar-chart', 'card', 'stat-card', 'table'],
     category: 'dashboard',
     description: 'Analytics dashboard with stat cards, a revenue bar chart, and a recent-activity table.',
     tags: ['dashboard', 'analytics', 'admin', 'stats', 'chart'],
