@@ -213,7 +213,7 @@ Then update the task row with **Completed**, **Score**, **Retrospective**.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Write failing tests T-1…T-3, T-5 for `stat-card` | UC-1…UC-3, UC-5 | ⬜ Not started | — | — | — |
+| 1 | Write failing tests T-1…T-3, T-5 for `stat-card` | UC-1…UC-3, UC-5 | ✅ Done | 2026-08-20 | 93 | Writing the tests first forced the extraction's invisible constraints into the open — the `display: contents` host, and the arrow having to be an `aria-hidden` `<svg>` so the badge's text stays exactly the delta. Backing the `truncate` check with a real overflow proof turned UC-5 from a class-name assertion into a behavioural one. |
 | 2 | Write T-4 dashboard-block snapshot **against current markup** (must pass before refactor) | UC-4 | ⬜ Not started | — | — | — |
 | 3 | Implement `stat-card` + stories + demo page | UC-1…UC-3, UC-5 | ⬜ Not started | — | — | — |
 | 4 | Refactor `dashboard` block to consume `ui-stat-card`; T-4 still passes | UC-4 | ⬜ Not started | — | — | — |
@@ -227,4 +227,11 @@ Then update the task row with **Completed**, **Score**, **Retrospective**.
 
 ## 6. Completion log
 
-_(empty — no tasks complete yet)_
+> Gate cadence for this bundle: per task — targeted tests, `npm run lint`, and a
+> `review-gate` score ≥ 91. The full `npm run coverage` + SonarQube server scan
+> (project key `shadcn-angular-status-blocks`) runs once at the end of the
+> bundle, not per task.
+
+| # | Task | Completed | Score | Reviewer rationale |
+|---|------|-----------|-------|--------------------|
+| 1 | Write failing tests T-1…T-3, T-5 for `stat-card` | 2026-08-20 | 93 | All four tests carry real, non-vacuous assertions traceable to their use cases, with the badge-variant expectations matching the real cva output and T-5's `truncate` check backed by a `scrollWidth > clientWidth` overflow proof. Every stat-card edge case in §2.2 is covered — zero/negative delta, missing delta in both empty-string and unbound forms, RTL, and a 320px frame. The reviewer's concerns — an unasserted `display: contents` host, an RTL scan that skipped the card's own classList, and an unratified `neutral` treatment — were all addressed before commit. |
