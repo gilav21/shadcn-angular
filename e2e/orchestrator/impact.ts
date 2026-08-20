@@ -34,8 +34,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
     getComponentForFile,
+    getComponentNames,
     getComponentsUsingLibFile,
     getReverseDependents,
+    registry,
     type ComponentName,
 } from '../../packages/cli/src/registry/index.js';
 import { ALL_COMPONENTS, specLabel } from './specs.js';
@@ -91,16 +93,44 @@ function specForHarnessFolder(folder: string): string | null {
 }
 
 /**
+ * Registry name of the block owning a `packages/blocks/<name>/…` file, or null.
+ *
+ * Blocks are a separate top-level package, so the registry's
+ * `getComponentForFile` — which only knows the `packages/components/ui/` and
+ * `packages/components/lib/` prefixes — never matches them. Without this branch
+ * a block change maps to NO component and schedules NOTHING, not even that
+ * block's own spec (UC-3).
+ */
+export function blockForFile(file: string): ComponentName | null {
+    const match = /^packages\/blocks\/(.+)$/.exec(file);
+    if (!match) return null;
+    const tail = match[1];
+    for (const name of getComponentNames()) {
+        const def = registry[name];
+        if (def.type === 'block' && def.files.includes(tail)) return name;
+    }
+    return null;
+}
+
+/**
  * Set of components affected by a file change, registry-driven.
  *
  * - Direct hit (a `packages/components/ui/<X>/**` file owned by `X`)
  *   → `X` plus every component transitively depending on `X`.
+ * - Block hit (a `packages/blocks/<X>/**` file owned by block `X`)
+ *   → `X` plus anything depending on it.
  * - Lib-file hit (`packages/components/lib/<F>` referenced by N
  *   components) → all N + their reverse-dependents.
  * - Anything else → empty set.
  */
 function affectedComponentsForFile(file: string): Set<ComponentName> {
     const out = new Set<ComponentName>();
+    const block = blockForFile(file);
+    if (block) {
+        out.add(block);
+        for (const d of getReverseDependents(block)) out.add(d);
+        return out;
+    }
     const direct = getComponentForFile(file);
     if (direct) {
         out.add(direct);

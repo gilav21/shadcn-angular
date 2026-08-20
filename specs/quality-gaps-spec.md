@@ -38,16 +38,38 @@ of the library".
 
 The other three are smaller:
 
-- **`date-range-picker` orphan**: a flat `date-range-picker.stories.ts` sits
+- ~~**`date-range-picker` orphan**: a flat `date-range-picker.stories.ts` sits
   under `ui/` with no registry entry, no component folder, and no way to
   install it. It appears in Storybook, so a developer can find it, want it, and
   then discover `add date-range-picker` fails. That is worse than it not
-  existing.
+  existing.~~
+  > **❌ CORRECTED by Task 1 (2026-08-20).** This claim was wrong on all three
+  > counts, and is kept here per the living-history convention rather than
+  > deleted. Evidence:
+  > `packages/components/ui/date-picker/sub/date-range-picker.component.{ts,html,css}`
+  > all exist; `date-picker/index.ts` line 2 exports
+  > `./sub/date-range-picker.component`; and the `date-picker` registry entry's
+  > `files[]` already lists all three sub files (its description even reads
+  > "Popover date **and date-range** picker"). So `add date-picker` installs it
+  > today — nothing is uninstallable. The **only** real defect was the *stories
+  > file* sitting flat under `ui/` instead of inside the `date-picker/` folder,
+  > which violates the file-architecture convention in `.claude/CLAUDE.md`
+  > ("`<name>.stories.ts` moves into the folder"). Resolution: **move**, not
+  > delete. The root cause of the bad claim was searching the tree by *name*
+  > (`date-range-picker*`) instead of by *capability* (the
+  > `DateRangePickerComponent` class), which finds only the stories file.
 - **Directive discoverability**: `input-mask`, `context-menu-attach`,
   `copy-to`, `tree-context-menu`, `table-context-menu`,
   `data-table-context-menu` are registered under `utility` / `form` categories
   alongside components. They are a different kind of thing — used as attributes,
   not elements — and a developer browsing by category will not find them.
+  > **⚠ AMENDED by Task 7 (2026-08-20).** The count is wrong: there are **10**
+  > directive-only registry entries, not 6. The list above misses `confetti`,
+  > `ripple`, `magnetic` (category `animation`) and `component-outlet`
+  > (category `utility`). Derived by filtering the registry for entries whose
+  > `files[]` are all `.directive.ts`. The delivered work covers all 10, and the
+  > T-14 test derives the set rather than hardcoding it, so directives added
+  > later are held to the same convention automatically.
 - **`rich-text-editor.ideas.md`** sits inside `packages/components/ui/`, a
   directory whose contents are shipped source. Planning notes do not belong there.
 
@@ -71,6 +93,12 @@ back: how complete is the stories file, does a usable component exist behind it,
 and what would finishing it cost versus deleting it. **If the recommendation is
 "delete", STOP and confirm with the user before deleting** — removing something
 a developer may already be using from Storybook is not reversible for them.
+
+> **✅ RESOLVED (2026-08-20).** The delete-vs-finish question dissolved: a usable
+> component already exists *and* is already registered and installable (see the
+> correction in §1.2). Neither branch applied. The recommendation — move the
+> stories file into `date-picker/` — was reported to and confirmed by the
+> coordinator before any file was touched. Nothing was deleted.
 
 ### 1.5 Out of scope
 
@@ -166,6 +194,42 @@ registry change. Zero risk, zero publish, but does not fix `list`/`search`.
 category value is not a manifest-shape change. If it turns out to require a
 publish, fall back to Option 3 and record why. Option 2 is rejected: the extra
 expressiveness is not worth forcing a CLI release.
+
+> **➡ CONTINGENCY FIRED — Task 6 verdict (2026-08-20): fall back to Option 3.**
+>
+> Two separate questions, and they have different answers:
+>
+> 1. *Is adding a category value a manifest-**shape** change?* **No.**
+>    `isValidRegistryEntry` in `packages/cli/src/registry/load.ts` checks only
+>    `name` (string), `files` (array), and the optional `addons` / `testFiles` /
+>    `testDependencies` string arrays, plus addon-specific fields when
+>    `type === 'addon'`. It **never inspects `category`**. `Category` in
+>    `ComponentDefinition` is a compile-time TS union with no runtime presence.
+>    So an already-installed CLI parses a `registry.json` carrying
+>    `category: "directives"` without complaint — no publish required *for
+>    parsing*.
+> 2. *Does Option 1 nonetheless require a publish to deliver its value?*
+>    **Yes — and this is what fires the contingency.** The entire benefit of
+>    Option 1 is the grouping in `list`/`help`, and that grouping is bundled CLI
+>    code: `buildComponentsSection()` in `packages/cli/src/commands/help.ts`
+>    loops over the CLI's **own** `CATEGORIES` const and `continue`s past any
+>    group it does not recognise. Until a release shipped the new `CATEGORIES` +
+>    `CATEGORY_LABELS` entries, every already-installed CLI would render the
+>    directives **nowhere at all** in `help` — strictly *worse* discoverability
+>    than today, which is the exact opposite of UC-5/UC-6.
+>
+> Also noted while verifying: `list` prints bare names with one exception —
+> `addonSuffix()` renders `(addon of <parent>)` off the `type` data field. That
+> is the affordance directives lack, but reaching it means adding a
+> `type: 'directive'` value, which *is* Option 2 (rejected by this spec) and
+> *is* a manifest-shape change.
+>
+> **Delivered instead (Option 3, zero publish):** `docs/directives.md` covering
+> all 10 directive entries with selector, host element, and behaviour; plus T-14
+> locking in the pre-existing "description starts with `Directive`" convention,
+> which is what makes `search` / `why` / MCP output self-identifying today
+> (`search` prints `name [category] description`). No registry data changed, so
+> T-13 holds trivially.
 
 ### 3.4 Risks
 

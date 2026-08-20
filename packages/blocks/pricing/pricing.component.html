@@ -39,7 +39,8 @@
           <ui-button
             class="w-full"
             [variant]="tier.highlighted ? 'default' : 'outline'"
-            [label]="tier.cta" />
+            [label]="tier.cta"
+            (clicked)="ctaClicked.emit(tier)" />
         </ui-card-footer>
       </ui-card>
     }
