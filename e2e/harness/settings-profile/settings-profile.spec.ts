@@ -6,15 +6,15 @@ test('settings-profile: an edited field is carried into the submit payload', asy
     await expect(page.getByTestId('root')).toBeVisible();
 
     // The block seeds itself with an existing profile.
-    await expect(page.getByLabel('Name')).toHaveValue('Ada Lovelace');
+    await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Ada Lovelace');
 
-    await page.getByLabel('Name').fill('Grace Hopper');
-    // NOTE: located by placeholder, not by label. `ui-textarea` exposes no
+    await page.getByLabel('Name', { exact: true }).fill('Grace Hopper');
+    // NOTE: located by data-slot, not by label. `ui-textarea` exposes no
     // `elementId`/`ariaLabel` input, so the block's `<ui-label>Bio</ui-label>`
     // is not associated with the control and `getByLabel('Bio')` cannot match.
     // Reported as an a11y finding — fixing it means changing the shared
     // textarea component, which is outside this bundle's scope.
-    await page.getByPlaceholder('Tell us a little about yourself').fill('Compiler pioneer.');
+    await page.locator('textarea[data-slot="textarea"]').fill('Compiler pioneer.');
 
     await page.getByRole('button', { name: 'Save changes' }).click();
 
@@ -29,7 +29,7 @@ test('settings-profile: the avatar fallback tracks the name', async ({ page }) =
     const avatar = page.locator('[data-slot="avatar-fallback"]');
     await expect(avatar).toHaveText('AL');
 
-    await page.getByLabel('Name').fill('Grace Hopper');
+    await page.getByLabel('Name', { exact: true }).fill('Grace Hopper');
     await expect(avatar).toHaveText('GH');
 });
 
