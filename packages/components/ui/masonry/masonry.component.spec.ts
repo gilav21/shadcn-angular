@@ -204,7 +204,11 @@ describe('MasonryComponent', () => {
 
             const after = itemsOf(masonry);
             expect(after).toHaveLength(before.length + 1);
-            expect(after.slice(0, before.length)).toEqual(before);
+            // Reference identity, not `toEqual`: deep equality on elements falls
+            // back to isEqualNode, which a destroyed-and-recreated element with
+            // identical markup would still satisfy — exactly the failure UC-17
+            // is about.
+            before.forEach((element, index) => expect(after[index]).toBe(element));
         });
 
         it('re-balances after an append', async () => {
@@ -288,6 +292,31 @@ describe('MasonryComponent', () => {
             const item = itemsOf(masonry)[0].getBoundingClientRect();
             const container = masonry.getBoundingClientRect();
             expect(Math.round(container.right - item.right)).toBe(0);
+        });
+
+        it('runs its columns right-to-left in RTL, so reading order still matches DOM order', async () => {
+            masonry.setAttribute('dir', 'rtl');
+            fixture.componentInstance.cards.set([
+                { id: 1, height: 100 },
+                { id: 2, height: 100 },
+                { id: 3, height: 100 },
+            ]);
+            fixture.detectChanges();
+            await settle(fixture);
+
+            const container = masonry.getBoundingClientRect();
+            const rights = itemsOf(masonry).map((el) =>
+                Math.round(container.right - el.getBoundingClientRect().right)
+            );
+
+            // Equal heights, so the three items take columns 1, 2, 3 in order —
+            // and in RTL each successive column starts further from the right
+            // edge. Reading right-to-left therefore visits them in DOM order.
+            expect(rights).toHaveLength(3);
+            expect(rights[0]).toBe(0);
+            expect(rights[1]).toBeGreaterThan(rights[0]);
+            expect(rights[2]).toBeGreaterThan(rights[1]);
+            expect(topsOf(masonry)).toEqual([0, 0, 0]);
         });
     });
 });
