@@ -324,20 +324,32 @@ describe('CandlestickComponent', () => {
     });
 
     // T-18: resize
+    // T-18: the chart fills, and re-lays out with, its drawing box.
+    //
+    // NOT asserted via the `width` input: `observeChartWidth` reads the host's
+    // clientWidth synchronously at construction, so in a real browser the
+    // measured width always wins and the input is only the pre-measurement
+    // fallback. Asserting `svgWidth() === width()` would therefore pass under
+    // jsdom (clientWidth 0) and fail in the browser suite, which is exactly the
+    // kind of environment-shaped test the project's vitest config warns about.
     describe('T-18 resize', () => {
-        it('falls back to the width input before the container is measured', async () => {
+        it('lays every mark out inside the measured width, and fills it', async () => {
             await createFixture();
-            fixture.componentRef.setInput('width', 640);
-            fixture.detectChanges();
-            expect(component.svgWidth()).toBe(640);
+            const w = component.svgWidth();
+            expect(w).toBeGreaterThan(0);
+
+            const marks = component.candles();
+            const rightmost = Math.max(...marks.map(m => m.x + m.width));
+            expect(rightmost).toBeLessThanOrEqual(w + 0.001);
+            expect(rightmost).toBeGreaterThan(w / 2);
         });
 
-        it('re-lays out the candles when the width changes', async () => {
+        it('re-lays out the candles when the drawing box changes', async () => {
             await createFixture();
-            const before = component.candles().at(-1)!.centre;
-            fixture.componentRef.setInput('width', 1000);
+            const before = component.candles().map(m => m.y);
+            fixture.componentRef.setInput('height', 600);
             fixture.detectChanges();
-            expect(component.candles().at(-1)!.centre).toBeGreaterThan(before);
+            expect(component.candles().map(m => m.y)).not.toEqual(before);
         });
     });
 
