@@ -63,6 +63,38 @@ function installMetrics(
     );
 }
 
+/**
+ * Drives the component's private `handleResizes` with synthetic entries.
+ * jsdom-free but layout-free all the same: a real `ResizeObserver` never fires
+ * here, so the measurement path has to be invoked directly — the same technique
+ * `virtual-scroll.runway.spec.ts` uses for the vertical axis.
+ */
+interface ResizeSpec {
+    index?: number;
+    row?: number;
+    column?: number;
+    blockSize?: number;
+    inlineSize?: number;
+}
+
+function resize(vs: VirtualScrollComponent<Cell>, specs: ResizeSpec[]): void {
+    const entries = specs.map(spec => ({
+        target: {
+            dataset: {
+                index: spec.index === undefined ? undefined : String(spec.index),
+                row: spec.row === undefined ? undefined : String(spec.row),
+                column: spec.column === undefined ? undefined : String(spec.column),
+            },
+        },
+        borderBoxSize: [{
+            blockSize: spec.blockSize ?? CELL_HEIGHT,
+            inlineSize: spec.inlineSize ?? CELL_WIDTH,
+        }],
+    })) as unknown as ResizeObserverEntry[];
+
+    (vs as unknown as { handleResizes(e: ResizeObserverEntry[]): void }).handleResizes(entries);
+}
+
 @Component({
     imports: [VirtualScrollComponent, VirtualItemDirective],
     template: `
@@ -212,6 +244,31 @@ describe('VirtualScrollComponent — horizontal orientation', () => {
         expect(container.scrollTop).toBe(0);
     });
 
+    it('records a measured cell WIDTH on the column axis', () => {
+        resize(vs, [{ index: 0, inlineSize: 240 }]);
+        fixture.detectChanges();
+
+        vs.scrollToIndex(1);
+        expect(container.scrollLeft).toBe(240);
+    });
+
+    it('anchors the X scroll when a cell BEFORE the viewport grows', () => {
+        container.scrollLeft = 1000;
+        container.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+        expect(vs.renderRange().start).toBe(10);
+
+        resize(vs, [{ index: 3, inlineSize: 180 }]);
+
+        expect(container.scrollLeft).toBe(1000 + (180 - CELL_WIDTH));
+    });
+
+    it('scrollToBottom moves the X axis in horizontal mode', () => {
+        vs.scrollToBottom();
+        expect(container.scrollLeft).toBe(500 * CELL_WIDTH);
+        expect(container.scrollTop).toBe(0);
+    });
+
     it('emits no 2D window on a single axis', () => {
         expect(host.cellWindows).toHaveLength(0);
     });
@@ -310,6 +367,71 @@ describe('VirtualScrollComponent — 2D (both axes)', () => {
         vs.scrollToCell(10, 20);
         expect(container.scrollTop).toBe(500);
         expect(container.scrollLeft).toBe(2000);
+    });
+
+    it('anchors the scroll when a row ABOVE the viewport grows', () => {
+        container.scrollTop = 500;
+        container.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+        expect(vs.renderRange().start).toBe(10);
+
+        // Row 5 is above the viewport; growing it must push the content down so
+        // what the user is reading stays put.
+        resize(vs, [{ row: 5, blockSize: 150 }]);
+
+        expect(container.scrollTop).toBe(500 + (150 - CELL_HEIGHT));
+    });
+
+    it('anchors the scroll when a column BEFORE the viewport grows', () => {
+        container.scrollLeft = 1000;
+        container.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+        expect(vs.columnRenderRange().start).toBe(10);
+
+        resize(vs, [{ column: 5, inlineSize: 220 }]);
+
+        expect(container.scrollLeft).toBe(1000 + (220 - CELL_WIDTH));
+    });
+
+    it('does not shift the scroll for a cell INSIDE the viewport', () => {
+        container.scrollTop = 500;
+        container.scrollLeft = 1000;
+        container.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+
+        resize(vs, [{ row: 12, column: 12, blockSize: 150, inlineSize: 220 }]);
+
+        expect(container.scrollTop).toBe(500);
+        expect(container.scrollLeft).toBe(1000);
+    });
+
+    it('counts a row delta once, not once per column of that row', () => {
+        container.scrollTop = 500;
+        container.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+
+        // Every cell of row 5 reports the same new row height.
+        resize(vs, [
+            { row: 5, column: 0, blockSize: 150 },
+            { row: 5, column: 1, blockSize: 150 },
+            { row: 5, column: 2, blockSize: 150 },
+        ]);
+
+        expect(container.scrollTop).toBe(600);
+    });
+
+    it('feeds both axes from one measurement', () => {
+        resize(vs, [{ row: 0, column: 0, blockSize: 90, inlineSize: 140 }]);
+        fixture.detectChanges();
+
+        expect(vs.paddingTop()).toBe(0);
+        vs.scrollToCell(1, 1);
+        expect(container.scrollTop).toBe(90);
+        expect(container.scrollLeft).toBe(140);
+    });
+
+    it('reports no visibleItems in grid mode, since renderRange indexes rows', () => {
+        expect(vs.visibleItems()).toEqual([]);
     });
 
     it('treats a columnCount below one as a single column instead of dividing by zero', () => {

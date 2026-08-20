@@ -160,6 +160,14 @@
           />
         }
         @if (cropBoxStyle(); as box) {
+          <!--
+            The box itself is a plain div: it carries no ARIA role and is not
+            focusable, because a "region you can shove around" has no honest
+            native element or role. Keyboard and screen-reader access live on the
+            two real <button>s inside it instead — which is both what Sonar's
+            S6819/S6845 ask for and better for assistive tech than a focusable
+            div wearing role="group".
+          -->
           <div
             class="absolute cursor-move border-2 border-primary bg-primary/10 touch-none"
             data-slot="file-upload-crop-box"
@@ -167,20 +175,27 @@
             [style.top]="box.top"
             [style.width]="box.width"
             [style.height]="box.height"
-            role="group"
-            tabindex="0"
-            [attr.aria-label]="t().cropRegion ?? 'Crop region'"
             (mousedown)="startCropMove($event, cropFrame)"
             (touchstart)="startCropMove($event, cropFrame)"
-            (keydown)="onCropKeydown($event)"
           >
-            <span
-              class="absolute -bottom-2 ltr:-right-2 rtl:-left-2 block h-5 w-5 cursor-nwse-resize rounded-full border-2 border-background bg-primary touch-none"
+            <button
+              type="button"
+              class="absolute ltr:left-0 rtl:right-0 top-0 h-11 w-11 cursor-move rounded-none bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              data-slot="file-upload-crop-move"
+              [attr.aria-label]="t().cropRegion ?? 'Crop region'"
+              (mousedown)="startCropMove($event, cropFrame)"
+              (touchstart)="startCropMove($event, cropFrame)"
+              (keydown)="onCropKeydown($event)"
+            ></button>
+            <button
+              type="button"
+              class="absolute -bottom-2 ltr:-right-2 rtl:-left-2 block h-5 w-5 cursor-nwse-resize rounded-full border-2 border-background bg-primary touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               data-slot="file-upload-crop-handle"
               [attr.aria-label]="t().cropResizeHandle ?? 'Resize crop'"
               (mousedown)="startCropResize($event, cropFrame)"
               (touchstart)="startCropResize($event, cropFrame)"
-            ></span>
+              (keydown)="onCropKeydown($event)"
+            ></button>
           </div>
         }
       </div>

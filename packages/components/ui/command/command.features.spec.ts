@@ -232,6 +232,22 @@ describe('CommandComponent — async source', () => {
         expect(cmd.sourceError()).toBeNull();
     });
 
+    it('tears the pending debounce and controller down on destroy', async () => {
+        let aborted = false;
+        const held = deferred();
+        host.source.set((_query, signal) => {
+            signal.addEventListener('abort', () => { aborted = true; });
+            return held.promise;
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.destroy();
+
+        expect(aborted).toBe(true);
+        held.resolve([]);
+    });
+
     it('resets to empty when the source is removed', async () => {
         host.source.set(() => Promise.resolve([row('one')]));
         fixture.detectChanges();
@@ -361,6 +377,16 @@ describe('CommandComponent — recent items', () => {
         fixture.detectChanges();
 
         expect(cmd.recents()).toEqual(['stored-one', 'stored-two']);
+    });
+
+    it('keeps in-memory recents when recentLimit changes and no key is set', () => {
+        cmd.markRecent('alpha');
+        expect(cmd.recents()).toEqual(['alpha']);
+
+        fixture.componentRef.setInput('recentKey', null);
+        fixture.detectChanges();
+
+        expect(cmd.recents()).toEqual(['alpha']);
     });
 
     it('clearRecents empties both memory and storage', () => {

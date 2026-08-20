@@ -343,7 +343,16 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     return { start: Math.max(0, start - buf), end: Math.min(columns, end + buf) };
   });
 
+  /**
+   * The rendered window for the single-axis orientations.
+   *
+   * Empty in `'both'` mode on purpose: `renderRange()` there indexes ROWS, so
+   * slicing the flat item array by it would return a run of cells that has
+   * nothing to do with what is on screen. Read {@link visibleCellRows} for the
+   * grid instead.
+   */
   visibleItems = computed(() => {
+    if (this.isGrid()) return [];
     const { start, end } = this.renderRange();
     const items = this.items();
     return items.slice(start, end).map((item, idx) => ({
@@ -417,56 +426,87 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
   });
 
   private handleResizes(entries: ResizeObserverEntry[]): void {
-    const firstVisible = this.viewportRange().start;
-    let scrollAdjustment = 0;
+    // Scroll anchoring: a row (or column) that grows ABOVE/BEFORE the viewport
+    // would otherwise shove the content the user is reading. Both axes are
+    // corrected, including in grid mode.
+    const adjustment = { top: 0, left: 0 };
+    const firstMain = this.viewportRange().start;
+    const firstColumn = this.isGrid() ? this.columnRenderRange().start : 0;
 
     for (const entry of entries) {
-      scrollAdjustment += this.recordEntry(entry, firstVisible);
+      this.recordEntry(entry, firstMain, firstColumn, adjustment);
     }
 
-    if (scrollAdjustment !== 0) {
+    if (adjustment.top !== 0 || adjustment.left !== 0) {
       const container = this.containerRef()?.nativeElement;
-      if (container) {
-        this.applyScrollAdjustment(container, scrollAdjustment);
-      }
+      if (container) this.applyScrollAdjustment(container, adjustment);
     }
 
     this.measurementVersion.update(v => v + 1);
   }
 
-  /** Folds one measurement into the right axis; returns the main-axis scroll correction it implies. */
-  private recordEntry(entry: ResizeObserverEntry, firstVisible: number): number {
+  /** Folds one measurement into the right axis, accumulating any scroll correction it implies. */
+  private recordEntry(
+    entry: ResizeObserverEntry,
+    firstMain: number,
+    firstColumn: number,
+    adjustment: { top: number; left: number },
+  ): void {
     const el = entry.target as HTMLElement;
     const box = entry.borderBoxSize[0];
 
     if (this.isGrid()) {
-      this.recordGridEntry(el, box);
-      return 0;
+      this.recordGridEntry(el, box, firstMain, firstColumn, adjustment);
+      return;
     }
 
     const index = Number.parseInt(el.dataset['index'] ?? '-1', 10);
-    if (index === -1) return 0;
+    if (index === -1) return;
 
-    const measured = this.isHorizontal() ? box.inlineSize : box.blockSize;
-    const delta = this.mainAxis().record(index, measured, this.mainEstimate());
-    return delta !== 0 && index < firstVisible ? delta : 0;
-  }
-
-  private recordGridEntry(el: HTMLElement, box: ResizeObserverSize): void {
-    const row = Number.parseInt(el.dataset['row'] ?? '-1', 10);
-    const column = Number.parseInt(el.dataset['column'] ?? '-1', 10);
-    if (row !== -1) this.rowAxis.record(row, box.blockSize, this.minItemHeight());
-    if (column !== -1) this.columnAxis.record(column, box.inlineSize, this.minItemWidth());
-  }
-
-  private applyScrollAdjustment(container: HTMLElement, adjustment: number): void {
     if (this.isHorizontal()) {
-      container.scrollLeft += adjustment;
-      this.scrollLeft.set(container.scrollLeft);
+      const delta = this.columnAxis.record(index, box.inlineSize, this.minItemWidth());
+      if (delta !== 0 && index < firstMain) adjustment.left += delta;
       return;
     }
-    container.scrollTop += adjustment;
-    this.scrollTop.set(container.scrollTop);
+
+    const delta = this.rowAxis.record(index, box.blockSize, this.minItemHeight());
+    if (delta !== 0 && index < firstMain) adjustment.top += delta;
+  }
+
+  /**
+   * A grid cell measures BOTH axes. Every cell of a row reports that row, so
+   * `VirtualAxis.record` sees the first one as a change and the rest as noise —
+   * the delta is counted once, not once per column.
+   */
+  private recordGridEntry(
+    el: HTMLElement,
+    box: ResizeObserverSize,
+    firstRow: number,
+    firstColumn: number,
+    adjustment: { top: number; left: number },
+  ): void {
+    const row = Number.parseInt(el.dataset['row'] ?? '-1', 10);
+    const column = Number.parseInt(el.dataset['column'] ?? '-1', 10);
+
+    if (row !== -1) {
+      const delta = this.rowAxis.record(row, box.blockSize, this.minItemHeight());
+      if (delta !== 0 && row < firstRow) adjustment.top += delta;
+    }
+    if (column !== -1) {
+      const delta = this.columnAxis.record(column, box.inlineSize, this.minItemWidth());
+      if (delta !== 0 && column < firstColumn) adjustment.left += delta;
+    }
+  }
+
+  private applyScrollAdjustment(container: HTMLElement, adjustment: { top: number; left: number }): void {
+    if (adjustment.top !== 0) {
+      container.scrollTop += adjustment.top;
+      this.scrollTop.set(container.scrollTop);
+    }
+    if (adjustment.left !== 0) {
+      container.scrollLeft += adjustment.left;
+      this.scrollLeft.set(container.scrollLeft);
+    }
   }
 
   /**
@@ -513,12 +553,23 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     this.scrollToIndex(0);
   }
 
-  /** Jumps to the end of the currently known content. Because unrendered rows are still estimated, this lands on the estimated end rather than a guaranteed final row. */
+  /**
+   * Jumps to the end of the currently known content along the MAIN axis —
+   * `scrollLeft` in `'horizontal'` mode, `scrollTop` otherwise. Because
+   * unrendered rows are still estimated, this lands on the estimated end rather
+   * than a guaranteed final row.
+   */
   scrollToBottom(): void {
     const container = this.containerRef()?.nativeElement;
-    if (container) {
-      container.scrollTop = container.scrollHeight;
+    if (!container) return;
+
+    if (this.isHorizontal()) {
+      container.scrollLeft = container.scrollWidth;
+      this.scrollLeft.set(container.scrollLeft);
+      return;
     }
+    container.scrollTop = container.scrollHeight;
+    this.scrollTop.set(container.scrollTop);
   }
 
   /**

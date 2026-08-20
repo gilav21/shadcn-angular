@@ -7,8 +7,9 @@ import {
   inject,
   effect,
   Injectable,
+  DestroyRef,
+  untracked,
 } from '@angular/core';
-import { DestroyRef, untracked } from '@angular/core';
 import { cn } from '../../lib/utils';
 import type { CommandPage, CommandResult, CommandSource } from './command.types';
 import { readRecentValues, unshiftUniqueValue, writeRecentValues } from './command.utils';
@@ -80,10 +81,16 @@ export class CommandService {
       }
     }, { allowSignalWrites: true });
 
+    // Depends on `recentKey` ALONE. Reading `recentLimit()` here would make a
+    // runtime limit change re-hydrate, and with no key that means
+    // `readRecentValues(null, …)` — i.e. wiping the in-memory list the user
+    // just built.
     effect(() => {
       const key = this.recentKey();
-      const limit = this.recentLimit();
-      untracked(() => this.recents.set(readRecentValues(key, limit)));
+      untracked(() => {
+        if (key === null) return;
+        this.recents.set(readRecentValues(key, this.recentLimit()));
+      });
     });
 
     effect(() => {
@@ -341,6 +348,13 @@ export class CommandComponent {
    * backwards; the superseded call's `AbortSignal` is aborted too. Read the
    * rows from {@link results} and render them as `ui-command-item`s yourself,
    * which keeps the item API — filtering, highlight, shortcuts — unchanged.
+   *
+   * **Set `[shouldFilter]="false"` when the source already filters.** It
+   * defaults to `true`, which re-filters the rendered items client-side against
+   * the same query — so a server result whose `value` does not contain the
+   * typed text (a fuzzy match, a synonym, an id lookup) is fetched and then
+   * silently hidden. That is the usual reason an async palette "returns
+   * nothing".
    */
   readonly source = input<CommandSource | null>(null);
   /** Milliseconds of quiet typing before {@link source} is called. `0` calls it on every keystroke. */

@@ -1,14 +1,13 @@
 import { readFileSync } from 'node:fs';
 
 /**
- * Sonar helper. Temporary tooling — deleted once the gate is closed.
+ * Sonar query helper. Temporary tooling — deleted once the gate is closed.
  *
- * Reads the token from .env rather than the environment on purpose: the shell
- * profile exports a stale value that shadows the valid one.
+ * Reads the token from .env on purpose: the shell profile exports a stale
+ * value that shadows the valid one.
  *
- *   node scripts/tmp-sonar-check.mjs validate
- *   node scripts/tmp-sonar-check.mjs status <projectKey>
- *   node scripts/tmp-sonar-check.mjs issues <projectKey>
+ *   node scripts/tmp-sonar-check.mjs raw <apiPath>
+ *   node scripts/tmp-sonar-check.mjs issues [projectKey]
  */
 const token = /^SONAR_TOKEN=(.*)$/m.exec(readFileSync('.env', 'utf8'))?.[1]?.trim();
 if (!token) {
@@ -20,51 +19,43 @@ const base = 'http://localhost:9000';
 
 async function api(path) {
     const res = await fetch(base + path, { headers: { Authorization: auth } });
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText} on ${path}`);
-    return res.json();
+    const text = await res.text();
+    if (!res.ok) return { __error: `${res.status} ${res.statusText}`, body: text.slice(0, 300) };
+    return JSON.parse(text);
 }
 
-const [cmd, key = 'shadcn-angular-component-features'] = process.argv.slice(2);
+const [cmd, arg] = process.argv.slice(2);
+const key = arg ?? 'shadcn-angular-component-features';
 
-if (cmd === 'validate') {
-    console.log('token prefix:', token.slice(0, 4));
-    console.log(JSON.stringify(await api('/api/authentication/validate')));
-} else if (cmd === 'status') {
-    const ce = await api(`/api/ce/component?component=${encodeURIComponent(key)}`);
-    const current = ce.current ?? ce.queue?.[0] ?? null;
-    console.log(current ? `${current.status} (${current.id})` : 'no analysis yet');
-} else if (cmd === 'issues') {
-    // Scoped to this bundle's own paths. The project's `**/coverage/**`
-    // exclusion misses `coverage-*/`, so an unscoped query drowns in generated
-    // lcov-report HTML that has nothing to do with these changes.
-    const dirs = [
-        'toast', 'stepper', 'tour', 'virtual-scroll', 'command',
-        'sortable', 'kanban', 'file-upload',
-    ].map(d => `packages/components/ui/${d}/**`);
-    dirs.push('packages/components/lib/sortable-registry.ts');
+if (cmd === 'raw') {
+    console.log(JSON.stringify(await api(arg), null, 1).slice(0, 3000));
+    process.exit(0);
+}
 
-    const params = new URLSearchParams({
-        componentKeys: key,
-        resolved: 'false',
-        ps: '500',
-        files: '',
-    });
-    params.delete('files');
-    for (const d of dirs) params.append('componentKeys', key);
+// Only this bundle's own paths. The project's `**/coverage/**` exclusion misses
+// `coverage-*/`, so an unscoped query drowns in generated lcov-report HTML.
+const mineRe = /packages\/components\/(ui\/(toast|stepper|tour|virtual-scroll|command|sortable|kanban|file-upload)\/|lib\/sortable-registry\.ts)/;
 
-    const all = await api(
-        `/api/issues/search?componentKeys=${encodeURIComponent(key)}&resolved=false&ps=500`
+let page = 1;
+const mine = [];
+let total = 0;
+for (;;) {
+    const res = await api(
+        `/api/issues/search?componentKeys=${encodeURIComponent(key)}&resolved=false&ps=500&p=${page}`
     );
-    const mine = all.issues.filter(i => {
+    if (res.__error) { console.error('API error:', res.__error, res.body); process.exit(3); }
+    total = res.total;
+    for (const i of res.issues) {
         const c = i.component ?? '';
-        if (/coverage[^/]*\//.test(c)) return false;
-        return dirs.some(d => c.includes(d.replace('/**', '')));
-    });
-    console.log(`total open: ${all.total}; mine: ${mine.length}`);
-    for (const i of mine) {
-        console.log(`${i.severity} ${i.rule} ${i.component.split(':').pop()}:${i.line ?? '-'} ${i.message}`);
+        if (/coverage[^/]*\//.test(c)) continue;
+        if (mineRe.test(c)) mine.push(i);
     }
-} else {
-    console.error('usage: validate | status <key> | issues <key>');
-    process.exit(1);
+    if (page * 500 >= Math.min(total, 10000) || res.issues.length === 0) break;
+    page++;
+}
+
+console.log(`project open issues: ${total}`);
+console.log(`on MY changed paths: ${mine.length}`);
+for (const i of mine) {
+    console.log(`  ${i.severity}\t${i.rule}\t${i.component.split(':').pop()}:${i.line ?? '-'}\t${i.message}`);
 }
