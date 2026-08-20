@@ -243,3 +243,66 @@ Result: **13 test files, 452 tests, 0 failed** (24.6s). Per-file counts include
 No existing spec file may be edited by any task in this bundle. Re-running this
 exact command after every task must reproduce 452/452.
 
+
+### T-18 final verification (2026-08-20)
+
+The gate was checked **per file**, not in aggregate — an aggregate total can
+hide an edited spec behind a new one. Every original file still reports its
+exact baseline count:
+
+| Spec file | Baseline | After |
+|---|---|---|
+| `toast.component.spec.ts` | 24 | 24 |
+| `stepper.component.spec.ts` | 32 | 32 |
+| `stepper.coverage.spec.ts` | 12 | 12 |
+| `tour.component.spec.ts` | 61 | 61 |
+| `virtual-scroll.component.spec.ts` | 38 | 38 |
+| `virtual-scroll.runway.spec.ts` | 3 | 3 |
+| `command.component.spec.ts` | 51 | 51 |
+| `sortable.component.spec.ts` | 86 | 86 |
+| `sortable.component.browser.spec.ts` | 1 | 1 |
+| `sortable-ghost.directive.spec.ts` | 3 | 3 |
+| `kanban.component.spec.ts` | 97 | 97 |
+| `file-upload.component.spec.ts` | 31 | 31 |
+| `file-upload.dom.spec.ts` | 13 | 13 |
+| **Total** | **452** | **452** |
+
+**21 files / 628 tests pass** — the 452 preserved plus 176 new. Not one
+existing test was edited, so UC-14 holds by construction rather than by
+assertion.
+
+Three refactors touched code those untouched specs exercise, and each was
+constrained by them rather than the other way round:
+
+- `virtual-scroll`'s vertical axis was rewritten onto `VirtualAxis`, while
+  `virtual-scroll.component.spec.ts` and `.runway.spec.ts` call the *private*
+  `getOffsetForIndex` / `getIndexForOffset` / `handleResizes` through a cast.
+  Those signatures and their exact numeric semantics were preserved.
+- `SortableRegistryEntry.path` was made **optional** specifically so
+  `sortable-registry.spec.ts`'s `makeEntry` factory still satisfies the
+  contract; `entryDepth()` treats an absent path as depth 1.
+- `KanbanLocale.unassigned` and the seven `FileUploadLocale` crop keys are
+  optional with English fallbacks, following the existing `tooManyFiles?`
+  precedent, so a hand-written partial dictionary keeps compiling.
+
+### Deviations from the spec, recorded
+
+1. **§3.3 type placement.** `StepGuard`, `TourBranch` and `KanbanSwimlane`
+   live in their component's own `.ts` file rather than a dedicated
+   `<name>.types.ts`. Those three components have no types file today, and
+   adding one purely for a single exported type would have been a larger
+   change than the feature. `CommandSource`, `CropResult` and
+   `SortableNestedPath` **do** go in types files, because those components
+   either already had one or gained enough surface to warrant it.
+2. **Demo pages.** Only `toast`'s demo page was extended. Each demo page is
+   locale-driven across ten languages with its own spec, and the Storybook
+   stories cover every new feature with a worked example. Called out as a
+   deliberate omission rather than skipped silently.
+
+### Bundle gate
+
+- `npm run coverage` — **green**, both legs, thresholds met. Browser suite and
+  CLI suite (60 files / 1149 tests) both pass; `coverage/lcov.info` and
+  `coverage-cli/lcov.info` regenerated.
+- SonarQube — scanned under project key `shadcn-angular-component-features`
+  against `http://localhost:9000`.
