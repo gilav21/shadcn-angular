@@ -333,3 +333,36 @@ account quota limit while delivering it, so it never arrived directly. The
 verdict predates the failure rather than being inferred from it. Recorded here
 rather than silently, so a later reader can see the score did not come straight
 from the reviewer to the implementer.
+
+### T-20 — e2e result, and why the parallel runs lied
+
+**All eight components' e2e specs pass: 8/8.**
+
+Getting there took ruling out six phantom regressions, so the evidence is worth
+recording:
+
+| Run | Mode | Result |
+|---|---|---|
+| 1 | parallel workers, fixture left dirty | 2/8 |
+| control | `button` alone (a component this bundle never touched) after `npm run e2e:reset` | ✓ |
+| 2 | parallel workers, clean fixture | 4/8 |
+| 3 | each failing spec run **alone** | ✓ ✓ ✓ ✓ |
+
+Three things prove the failures were environmental rather than regressions:
+
+1. **The control.** `button` is untouched by this bundle. Running it alone
+   after a reset passes, so the harness mechanism itself is sound — the fault
+   was in the fixture's state, not in the components.
+2. **The failing set moved.** Run 1 failed `stepper, sortable, toast, tour,
+   kanban, virtual-scroll`; run 2 failed `sortable, stepper, virtual-scroll,
+   tour`, with `toast` and `kanban` now passing and nothing changed in between.
+   A real regression does not come and go.
+3. **The page snapshots.** The failures were not assertion mismatches against
+   rendered components — Playwright captured the demo **landing page**
+   ("Build beautiful apps faster") and an unrelated **pricing block**. The
+   harness demo never mounted, which is a fixture/worker fault, not a component
+   one.
+
+The machine was running seven sibling wave agents plus concurrent Dockerized
+SonarQube scans, so worker contention is the plausible cause. Run each spec
+alone to get a trustworthy signal under that load.
