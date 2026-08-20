@@ -364,6 +364,40 @@ So before this change a block could be broken arbitrarily and the impacted-spec
 job would have short-circuited to "nothing to run". The scratch commit and the
 temporary stub were both removed; `git status` is clean at `b088d30e`.
 
+### Gate results (2026-08-20)
+
+| Gate | Result |
+|---|---|
+| Targeted unit tests (T-12, T-13, T-14) | 18/18 pass (`impact.spec.ts` 13, `registry-meta.spec.ts` 5) |
+| Registry validator (T-13) | `check:registry` → "All components and blocks are in sync" — no `files[]` changed |
+| e2e — all 10 block specs | pass (25 Playwright tests across the ten harnesses) |
+| `npm run typecheck` | clean |
+| `npm run lint` | clean |
+| `npm run coverage` | exit 0; statements 75%, branches 68.96%, functions 77.78%, lines 76.11% — all above the configured ratchet (74/68/77/74) |
+| `npm run sonar` (project `shadcn-angular-quality-gaps`) | ANALYSIS SUCCESSFUL; **0 open issues on all 33 changed files** |
+
+**Honest scope note on the Sonar result.** `sonar-project.properties` excludes
+`e2e/**` (documented there as "dev-only and not part of delivery") and
+classifies `**/*.spec.ts` as tests. Of the 33 changed files, the ones inside
+Sonar's configured scope are the four delivered block sources
+(`pricing.component.{ts,html}`, `signup.component.{ts,html}`) plus the spec
+files as tests; `e2e/**`, `docs/`, and `specs/` are excluded by pre-existing
+config. Zero issues is therefore *meaningful* for the delivered code changed
+here and *vacuous* for the excluded paths — stated plainly rather than reported
+as blanket "Sonar clean". Verified the query itself was not silently matching
+nothing: the same `components=` query returns 5 issues for a known-dirty file,
+and `api/measures/component` confirms the block sources are indexed
+(ncloc 82 and 74).
+
+**Pre-existing config gap, NOT introduced here and NOT changed here.**
+`sonar.exclusions` lists `**/coverage/**` but nothing matching `coverage-cli/`,
+so the CLI leg's `coverage-cli/lcov-report/**` HTML and CSS are indexed as
+source. That alone accounts for the bulk of the project's **43,338** open
+issues and makes a "fix every issue" reading of the dashboard impossible.
+Adding `coverage-cli/**` next to `**/coverage/**` would fix it. Left alone
+deliberately: `sonar-project.properties` is shared by every agent scanning
+concurrently in this wave, and it is outside this bundle's remit.
+
 ### Amendments to the spec itself
 
 Per the living-history convention, wrong claims are struck through and
