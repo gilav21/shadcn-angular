@@ -61,6 +61,7 @@
           role="button"
           [attr.aria-label]="getBarAriaLabel(bar)"
           (mouseenter)="onBarHover(bar)"
+          (touchstart)="onBarHover(bar)"
           (mouseleave)="onBarLeave()"
           (focus)="onBarHover(bar)"
           (blur)="onBarLeave()"

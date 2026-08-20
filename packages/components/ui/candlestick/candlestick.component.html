@@ -62,6 +62,7 @@
           role="button"
           [attr.aria-label]="getCandleAriaLabel(candle)"
           (mouseenter)="onCandleHover(candle)"
+          (touchstart)="onCandleHover(candle)"
           (mouseleave)="onCandleLeave()"
           (focus)="onCandleHover(candle)"
           (blur)="onCandleLeave()"

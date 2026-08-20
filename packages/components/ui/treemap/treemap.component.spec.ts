@@ -364,4 +364,18 @@ describe('TreemapComponent', () => {
             ).toBeTruthy();
         });
     });
+    // CLAUDE.md section 6 — the tooltip is hover-revealed, so touch needs its own path
+    describe('touch', () => {
+        it('reveals the tooltip on touchstart, not only on mouseenter', async () => {
+            await createFixture();
+            const mark = fixture.nativeElement.querySelector('[data-slot="treemap-cell"]');
+            expect(component.hoveredIndex()).toBeNull();
+
+            mark.dispatchEvent(new TouchEvent('touchstart', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(component.hoveredIndex()).toBe(0);
+        });
+    });
+
 });

@@ -257,8 +257,9 @@ export class HistogramComponent implements AfterViewInit {
 
     /**
      * Marks the bar as active — dimming its siblings, parking the tooltip just
-     * above it and emitting {@link binHover}. Bound to both `mouseenter` and
-     * `focus` so keyboard users get the same highlight.
+     * above it and emitting {@link binHover}. Bound to `mouseenter`, `focus`
+     * and `touchstart`, so keyboard and touch users get the same highlight —
+     * the tooltip is the only place the bin range and count appear.
      */
     onBarHover(bar: HistogramBar): void {
         this._hover.set(bar.index);

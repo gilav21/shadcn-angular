@@ -269,8 +269,9 @@ export class BoxplotComponent implements AfterViewInit {
 
     /**
      * Marks the box as active — dimming its siblings, parking the tooltip beside
-     * it and emitting {@link groupHover}. Bound to both `mouseenter` and `focus`
-     * so keyboard users get the same highlight.
+     * it and emitting {@link groupHover}. Bound to `mouseenter`, `focus` and
+     * `touchstart`, so keyboard and touch users get the same highlight — the
+     * tooltip is the only place the five-number summary appears.
      */
     onBoxHover(box: BoxplotBox): void {
         this._hover.set(box.index);
