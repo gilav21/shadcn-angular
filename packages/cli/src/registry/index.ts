@@ -1824,6 +1824,10 @@ export const registry = defineRegistry({
     name: 'data-list',
     files: ['data-list/data-list.component.html', 'data-list/data-list.component.ts'],
   },
+  masonry: {
+    name: 'masonry',
+    files: ['masonry/masonry.component.ts'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

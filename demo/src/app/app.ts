@@ -207,6 +207,7 @@ export class AppComponent {
     // Layout
     { id: 'aspect-ratio', name: 'Aspect Ratio', category: 'Layout', icon: '📐' },
     { id: 'page-header', name: 'Page Header', category: 'Layout', icon: '🏷️' },
+    { id: 'masonry', name: 'Masonry', category: 'Layout', icon: '🧱' },
     { id: 'bento-grid', name: 'Bento Grid', category: 'Layout', icon: '🍱' },
     { id: 'collapsible', name: 'Collapsible', category: 'Layout', icon: '📂' },
     { id: 'comparison-slider', name: 'Comparison Slider', category: 'Layout', icon: '↔️' },
