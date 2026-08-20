@@ -203,6 +203,33 @@ Do not ask questions. If the spec cannot answer something, that is a spec bug �
 report it as BLOCKED with the specific gap.
 ```
 
+### ⚠️ Disk contention is the real parallelism ceiling — stagger the launch
+
+**Observed 2026-08-20:** eight agents launched at once produced six concurrent
+dependency installs plus three concurrent Sonar scans on one machine. A single
+`npm install` took **27+ minutes**, stalling agents before they could run a
+single test. The bottleneck was disk, not CPU or the model.
+
+Each worktree needs its own `node_modules`, and each task runs
+`npm run coverage` (full suite) plus a ~10-minute Sonar scan. That is a lot of
+I/O multiplied by N.
+
+Mitigations, in order of preference:
+
+1. **Stagger the launch.** Spawn 2–3 agents, wait until their installs finish,
+   then spawn the next batch. Total wall-clock is usually *lower* than an
+   all-at-once launch that thrashes.
+2. **Pre-seed dependencies** if the harness stages them (this repo has
+   `.claude/worktrees/nm-tmp`). Verify the stage is current — if the main
+   checkout's `node_modules` was reinstalled after the stage was built, it is
+   stale and every worktree falls back to a full install.
+3. **Size the wave to the machine**, not to the spec count. A wave of 8 specs
+   can still be run as three sub-waves.
+
+Never let an agent skip a gate because the machine is slow. Slow is not
+blocked — tell the agent to wait, and fix the sequencing at the orchestrator
+level.
+
 Track the spawned agents. Do **not** poll them; the harness notifies on
 completion.
 
