@@ -1261,7 +1261,7 @@ export const registry = defineRegistry({
     tags: ['sortable', 'drag-drop', 'reorder', 'list', 'dnd'],
     files: ['sortable/index.ts', 'sortable/sortable-locales.ts', 'sortable/sortable.component.html', 'sortable/sortable.component.ts', 'sortable/sortable.types.ts', 'sortable/sub/sortable-ghost.directive.ts', 'sortable/sub/sortable-item.component.html', 'sortable/sub/sortable-item.component.ts', 'sortable/sub/sortable-placeholder.directive.ts'],
     libFiles: ['auto-scroll.ts', 'flip.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'sortable-aria-live.ts', 'sortable-registry.ts', 'touch.ts'],
-    testFiles: ['sortable/sortable.component.spec.ts', 'sortable/sub/sortable-ghost.directive.spec.ts'],
+    testFiles: ['sortable/sortable.component.spec.ts', 'sortable/sortable.nested.spec.ts', 'sortable/sub/sortable-ghost.directive.spec.ts'],
   },
   'context-menu-attach': {
     name: 'context-menu-attach',

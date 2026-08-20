@@ -43,6 +43,20 @@ export interface SortableRegistryEntry {
     /** Group key — peers share the same string to be linked. */
     readonly group: string;
 
+    /**
+     * Ancestry of `listId`, outermost first and ending with `listId` itself.
+     * A top-level list reports `[listId]`. Optional, so an entry written before
+     * nesting existed still satisfies the contract — treat an absent path as
+     * depth 1 via {@link entryDepth}.
+     *
+     * Nesting makes hit-testing ambiguous: an inner list's rect sits entirely
+     * inside its parent's, so a pointer over the child is over the parent too
+     * and `peersInGroup` order (a `Set`, i.e. insertion order) would decide the
+     * winner arbitrarily. `path.length` is the depth, and the source list picks
+     * the DEEPEST containing peer so the innermost list always wins.
+     */
+    readonly path?: readonly string[];
+
     /** Container element used for pointer hit-testing by source lists. */
     readonly element: HTMLElement;
 
@@ -110,6 +124,18 @@ export function peersInGroup(
         if (entry !== exclude) out.push(entry);
     }
     return out;
+}
+
+/**
+ * How deeply an entry is nested, counting from 1 for a top-level list. Entries
+ * that predate nesting carry no `path` and are treated as top-level.
+ *
+ * Source lists use this to resolve overlapping hit-tests: when the pointer is
+ * inside several peers' rects at once — which is what nesting *means*, since a
+ * child list sits inside its parent — the deepest one wins.
+ */
+export function entryDepth(entry: SortableRegistryEntry): number {
+    return entry.path?.length ?? 1;
 }
 
 /** Number of entries currently registered under `group`. Diagnostics / testing only. */

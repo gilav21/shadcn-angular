@@ -11,12 +11,29 @@
 /** Layout axis the sortable lays its items along. */
 export type SortableOrientation = 'vertical' | 'horizontal';
 
+/**
+ * Chain of list ids from the outermost sortable down to (and including) one
+ * particular list. A top-level list's path is just `[itsOwnId]`; a list nested
+ * two deep reads `['root', 'child', 'grandchild']`.
+ *
+ * It is what makes a tree/outline reorder addressable: `to.index` alone says
+ * "position 2", which is ambiguous when a dozen nested lists all have a
+ * position 2 — the path says *which* list.
+ */
+export type SortableNestedPath = readonly string[];
+
 /** Endpoint of a reorder — the list and the position within that list. */
 export interface SortableLocation {
     /** Stable identifier of the sortable list (assigned via `[listId]` or auto-generated). */
     readonly listId: string;
     /** Zero-based position within the list at the moment the reorder commits. */
     readonly index: number;
+    /**
+     * Full ancestry of {@link listId}, outermost first, ending with `listId`
+     * itself — see {@link SortableNestedPath}. Always present; a list with no
+     * sortable ancestor reports a single-element path.
+     */
+    readonly path?: SortableNestedPath;
 }
 
 /**

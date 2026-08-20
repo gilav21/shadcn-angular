@@ -19,8 +19,8 @@ const toastVariants = cva(
         default: 'border bg-background text-foreground',
         destructive: 'destructive group border-destructive bg-destructive text-white',
         success: 'border-green-500 bg-green-500 text-white',
-        info: 'border-blue-500 bg-blue-500 text-white',
-        warning: 'border-amber-500 bg-amber-500 text-white',
+        info: 'border-blue-600 bg-blue-600 text-white',
+        warning: 'border-amber-500 bg-amber-500 text-amber-950',
       },
     },
     defaultVariants: {
@@ -41,7 +41,11 @@ export interface ToastData {
   showCountdown?: boolean;
   countdownSeconds?: number;
   createdAt?: number;
-  /** Renders a spinner in place of the countdown. Set by {@link ToastService.loading}. */
+  /**
+   * Renders a spinner ahead of the title. Additive — it does not replace the
+   * countdown or the action button. Set by {@link ToastService.loading} and
+   * cleared by {@link ToastService.promise} when the promise settles.
+   */
   loading?: boolean;
 }
 
@@ -293,8 +297,19 @@ export class ToastService {
 export class ToastComponent {
   /**
    * Visual style, which also sets the announcement politeness: `destructive` renders
-   * `role="alert"` / `aria-live="assertive"`, while `default` and `success` use
-   * `status` / `polite`.
+   * `role="alert"` / `aria-live="assertive"`, while `default`, `success`, `info` and
+   * `warning` all use `status` / `polite`.
+   *
+   * `warning` is deliberately polite rather than assertive: it is the "you may want
+   * to know" level, and interrupting whatever a screen-reader user is currently
+   * reading is reserved for `destructive`. Raise a `destructive` toast (or set
+   * `role="alert"` on a standalone `ui-toast`) for a warning that genuinely must
+   * interrupt.
+   *
+   * `info` and `warning` are also the two variants whose palette is tuned for
+   * contrast rather than for matching `success`: white on `blue-600` and
+   * `amber-950` on `amber-500` both clear WCAG AA for the 14px semibold title,
+   * which white on `amber-500` would not.
    */
   readonly variant = input<ToastVariant>('default');
   /** Bold first line. Omit it for a description-only toast — the row is simply not rendered. */

@@ -24,6 +24,7 @@ import { acquireAriaLive, type AriaLiveHandle } from '../../lib/sortable-aria-li
 import { SORTABLE_LOCALES, type SortableLocale } from './sortable-locales';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import {
+    entryDepth,
     peersInGroup,
     registerSortable,
     type AcceptResult,
@@ -39,6 +40,7 @@ import type {
     SortableDropRejectedEvent,
     SortableForeignHoverEvent,
     SortableLandEffectFn,
+    SortableNestedPath,
     SortableOrientation,
     SortablePositionClassFn,
     SortableReorderEvent,
@@ -53,6 +55,7 @@ export type {
     SortableDropRejectedEvent,
     SortableForeignHoverEvent,
     SortableLandEffectFn,
+    SortableNestedPath,
     SortableOrientation,
     SortablePositionClassFn,
     SortableReorderEvent,
@@ -401,6 +404,32 @@ export class SortableComponent<T> {
     private readonly autoListId = `sortable-${++SortableComponent.sortableIdCounter}`;
     /** The list's resolved id — the `listId` input, or an auto-generated value when blank. */
     readonly resolvedListId = computed((): string => this.listId() || this.autoListId);
+
+    /**
+     * The enclosing sortable, when this list is rendered inside another list's
+     * item template — the whole of what makes nesting work. Resolved through
+     * Angular's injector rather than the DOM, so it is correct even when the
+     * two containers are not directly nested elements.
+     */
+    private readonly parentSortable = inject(SortableComponent, { optional: true, skipSelf: true }) as SortableComponent<unknown> | null;
+
+    /**
+     * This list's ancestry, outermost first and ending with its own
+     * {@link resolvedListId}. A top-level list reports a single-element path;
+     * a list two levels deep reports three ids.
+     *
+     * It is reported on both endpoints of {@link reorder}, which is what makes a
+     * tree reorder addressable — `to.index` alone is ambiguous when a dozen
+     * nested lists all have a position 2.
+     */
+    readonly path = computed((): SortableNestedPath => {
+        const parent = this.parentSortable;
+        const own = this.resolvedListId();
+        return parent === null ? [own] : [...parent.path(), own];
+    });
+
+    /** How deep this list sits, counting from 1 for a top-level list. */
+    readonly depth = computed((): number => this.path().length);
     private readonly i18n = createLocaleBindings(this.locale, SORTABLE_LOCALES);
     /** The active locale strings (resolves the `locale()` input with global / English fallback). */
     readonly currentLocale = this.i18n.t;
@@ -557,6 +586,7 @@ export class SortableComponent<T> {
         return {
             get listId(): string { return self.resolvedListId(); },
             get group(): string { return self.group(); },
+            get path(): readonly string[] { return self.path(); },
             get element(): HTMLElement { return self.containerRef().nativeElement; },
             get orientation(): SortableOrientation { return self.orientation(); },
             getItemRects: (): DOMRect[] => self.getCurrentItemRects(),
@@ -676,9 +706,10 @@ export class SortableComponent<T> {
 
     private emitReorder(fromIndex: number, toIndex: number, item: T): void {
         const lid = this.resolvedListId();
+        const path = this.path();
         this.reorder.emit({
-            from: { listId: lid, index: fromIndex },
-            to: { listId: lid, index: toIndex },
+            from: { listId: lid, index: fromIndex, path },
+            to: { listId: lid, index: toIndex, path },
             item,
         });
     }
@@ -786,16 +817,33 @@ export class SortableComponent<T> {
         }
     }
 
+    /**
+     * The peer under the pointer, or `null` to keep the drag local.
+     *
+     * With nesting the answer is no longer unique: a child list's rect lies
+     * entirely inside its parent's, so a pointer over the child is over the
+     * parent too, and returning the first match would make the winner depend on
+     * registration order. The DEEPEST containing peer wins instead, which is
+     * what "drop it into the sub-list I am pointing at" means. Peers that are
+     * descendants of the dragged item's own list are still valid targets — an
+     * item may move into a child list.
+     */
     private findHoverPeer(clientX: number, clientY: number): SortableRegistryEntry | null {
         const groupName = this.group();
         if (groupName === '') return null;
+
+        let best: SortableRegistryEntry | null = null;
+        let bestDepth = -1;
         for (const peer of peersInGroup(groupName, this.registryEntry)) {
             const r = peer.element.getBoundingClientRect();
-            if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
-                return peer;
+            if (clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom) continue;
+            const depth = entryDepth(peer);
+            if (depth > bestDepth) {
+                best = peer;
+                bestDepth = depth;
             }
         }
-        return null;
+        return best;
     }
 
     private updateLocalTarget(
@@ -896,8 +944,8 @@ export class SortableComponent<T> {
         this.items.set(next);
         peer.receiveItem(item, targetIndex);
         this.reorder.emit({
-            from: { listId: this.resolvedListId(), index: from },
-            to: { listId: peer.listId, index: targetIndex },
+            from: { listId: this.resolvedListId(), index: from, path: this.path() },
+            to: { listId: peer.listId, index: targetIndex, path: peer.path ?? [peer.listId] },
             item,
         });
         this.schedulePlay();

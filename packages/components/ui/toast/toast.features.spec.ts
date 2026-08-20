@@ -1,6 +1,8 @@
-import { TestBed } from '@angular/core/testing';
+import { Component, signal } from '@angular/core';
+import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ToastService } from './toast.component';
+import { ToastComponent, ToastService, type ToastVariant } from './toast.component';
+import { ToasterComponent } from './sub/toaster.component';
 
 /**
  * Feature specs for the additive toast API (`update`, `loading`, `info`,
@@ -226,5 +228,111 @@ describe('ToastService — promise()', () => {
             duration: 1234,
         });
         expect(service.toasts()[0].duration).toBe(1234);
+    });
+
+    it('handles an already-rejected promise', async () => {
+        const settled = Promise.reject(new Error('was already dead'));
+        await expect(
+            service.promise(settled, { loading: 'L', success: 'S', error: e => (e as Error).message })
+        ).rejects.toThrow('was already dead');
+
+        expect(service.toasts()).toHaveLength(1);
+        expect(service.toasts()[0].title).toBe('was already dead');
+        expect(service.toasts()[0].variant).toBe('destructive');
+    });
+});
+
+describe('ToastComponent — rendering the new state', () => {
+    @Component({
+        imports: [ToastComponent],
+        template: '<ui-toast [variant]="variant()" [loading]="loading()" title="Working" />',
+    })
+    class ToastRenderHostComponent {
+        readonly variant = signal<ToastVariant>('default');
+        readonly loading = signal<boolean | undefined>(false);
+    }
+
+    afterEach(() => TestBed.resetTestingModule());
+
+    function render(): ComponentFixture<ToastRenderHostComponent> {
+        TestBed.configureTestingModule({ imports: [ToastRenderHostComponent] });
+        const fixture = TestBed.createComponent(ToastRenderHostComponent);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('renders the spinner only while loading', () => {
+        const fixture = render();
+        expect(fixture.nativeElement.querySelector('[data-slot="toast-spinner"]')).toBeNull();
+
+        fixture.componentInstance.loading.set(true);
+        fixture.detectChanges();
+
+        const spinner = fixture.nativeElement.querySelector('[data-slot="toast-spinner"]');
+        expect(spinner).not.toBeNull();
+        expect(spinner.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('keeps the title alongside the spinner rather than replacing it', () => {
+        const fixture = render();
+        fixture.componentInstance.loading.set(true);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('[data-slot="toast-title"]').textContent).toContain('Working');
+    });
+
+    it('announces info and warning politely, unlike destructive', () => {
+        const fixture = render();
+        const root = (): HTMLElement => fixture.nativeElement.querySelector('[data-slot="toast"]');
+
+        for (const variant of ['info', 'warning'] as const) {
+            fixture.componentInstance.variant.set(variant);
+            fixture.detectChanges();
+            expect(root().getAttribute('role')).toBe('status');
+            expect(root().getAttribute('aria-live')).toBe('polite');
+        }
+
+        fixture.componentInstance.variant.set('destructive');
+        fixture.detectChanges();
+        expect(root().getAttribute('aria-live')).toBe('assertive');
+    });
+
+    it('gives info and warning their own contrast-tuned styling', () => {
+        const fixture = render();
+        fixture.componentInstance.variant.set('info');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-slot="toast"]').className).toContain('bg-blue-600');
+
+        fixture.componentInstance.variant.set('warning');
+        fixture.detectChanges();
+        const warning = fixture.nativeElement.querySelector('[data-slot="toast"]').className;
+        expect(warning).toContain('bg-amber-500');
+        expect(warning).toContain('text-amber-950');
+    });
+});
+
+describe('ui-toaster — loading toasts reach the DOM', () => {
+    @Component({ imports: [ToasterComponent], template: '<ui-toaster />' })
+    class ToasterHostComponent { }
+
+    afterEach(() => TestBed.resetTestingModule());
+
+    it('forwards the service loading flag through to the rendered toast', () => {
+        TestBed.configureTestingModule({ imports: [ToasterHostComponent] });
+        const service = TestBed.inject(ToastService);
+        service.dismissAll();
+        const fixture = TestBed.createComponent(ToasterHostComponent);
+        fixture.detectChanges();
+
+        const id = service.loading('Saving…');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('[data-slot="toast-spinner"]')).not.toBeNull();
+
+        service.update(id, { title: 'Saved', variant: 'success', loading: false, duration: 5000 });
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.querySelector('[data-slot="toast-spinner"]')).toBeNull();
+        expect(fixture.nativeElement.querySelector('[data-slot="toast-title"]').textContent).toContain('Saved');
+        service.dismissAll();
     });
 });
