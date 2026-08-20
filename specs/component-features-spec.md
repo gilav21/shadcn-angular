@@ -306,3 +306,21 @@ constrained by them rather than the other way round:
   `coverage-cli/lcov.info` regenerated.
 - SonarQube — scanned under project key `shadcn-angular-component-features`
   against `http://localhost:9000`.
+
+### T-20 — e2e impact
+
+`npm run e2e:impact -- --base specs/wave-0` reports **subset (16 specs)** from
+54 changed files:
+
+```
+autocomplete command data-table data-table-context-menu
+data-table-ctx-directive data-table-export data-table-pivot file-upload
+kanban rte-all rte-typography sortable stepper toast tour virtual-scroll
+```
+
+The eight this bundle owns are all present. The other eight are pulled in by
+the regenerated `registry.json` rather than by a source change of theirs — the
+only shared source file touched is `packages/components/lib/sortable-registry.ts`,
+whose one behavioural change (`path`) is optional and read through
+`entryDepth()` with a depth-1 fallback, so a registry entry that predates
+nesting is unaffected.
