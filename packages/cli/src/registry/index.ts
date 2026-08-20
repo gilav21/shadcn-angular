@@ -1812,21 +1812,33 @@ export const registry = defineRegistry({
   },
   banner: {
     name: 'banner',
-    files: ['banner/banner.component.html', 'banner/banner.component.ts'],
+    category: 'feedback',
+    description: 'Persistent page-level announcement bar with severity variants and an optional dismiss control.',
+    tags: ['banner', 'announcement', 'notice', 'system-status', 'dismissible'],
+    files: ['banner/banner.component.html', 'banner/banner.component.ts', 'banner/index.ts'],
     libFiles: ['i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
   'page-header': {
     name: 'page-header',
-    files: ['page-header/page-header.component.html', 'page-header/page-header.component.ts'],
+    category: 'layout',
+    description: 'Page title, description, breadcrumb and actions strip that stacks the actions below the title on narrow screens.',
+    tags: ['page-header', 'heading', 'title', 'breadcrumb', 'actions'],
+    files: ['page-header/index.ts', 'page-header/page-header.component.html', 'page-header/page-header.component.ts'],
   },
   'data-list': {
     name: 'data-list',
-    files: ['data-list/data-list.component.html', 'data-list/data-list.component.ts'],
+    category: 'data-display',
+    description: 'Label-to-value description list rendered as real dl/dt/dd, with simple array and projected row modes.',
+    tags: ['data-list', 'description-list', 'key-value', 'details', 'dl'],
+    files: ['data-list/data-list.component.html', 'data-list/data-list.component.ts', 'data-list/index.ts', 'data-list/sub/data-list-item.component.html', 'data-list/sub/data-list-item.component.ts'],
   },
   masonry: {
     name: 'masonry',
-    files: ['masonry/masonry.component.ts'],
+    category: 'layout',
+    description: 'Column-balanced layout for uneven-height items that keeps DOM order equal to visual reading order.',
+    tags: ['masonry', 'columns', 'grid', 'layout', 'pinterest'],
+    files: ['masonry/index.ts', 'masonry/masonry.component.ts'],
   },
 });
 
