@@ -261,6 +261,30 @@ Any other conflict is a real conflict in hand-written code — resolve it
 deliberately, and record in the index that two specs contended on a surface the
 conflict map missed. **That is a bug in the index; fix the map.**
 
+### 🔴 Regenerate the utils baselines — once, on the integration branch
+
+**If the wave broadly edited `packages/components/ui/**`, the baselines are
+now stale and `doctor --fix` will silently stop pruning stale files while still
+reporting success.**
+
+This failure is invisible to every normal gate: unit tests, lint, tsc, the AOT
+build and SonarQube all pass, because no code path changed — only generated
+data. It is caught *only* by `e2e/clean-reinstall`, where the tell is runtime
+collapsing (≈6.6s instead of ≈80.8s).
+
+```bash
+npm run build:cli
+node packages/cli/scripts/gen-component-baselines.mjs   # + the legacy/lib variants
+```
+
+Do this **once, after all branches are merged** — never per agent, or the three
+baseline files conflict. The generators read `git log --all`, so their output is
+worktree-independent.
+
+Consequence: **a wave that broadly edits `ui/**` is a publish wave.** Record it
+in the pending-releases memory and hand off — publishing is manual and 2FA
+gated. Never run `npm publish`.
+
 ## Step 6 — Gate the integration branch
 
 The merge result is code no single agent ever tested. Run the full suite:
