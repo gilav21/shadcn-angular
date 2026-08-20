@@ -16,6 +16,10 @@ import {
   GaugeChartComponent,
   RadarChartComponent,
   BulletChartComponent,
+  HistogramComponent,
+  BoxplotComponent,
+  CandlestickComponent,
+  TreemapComponent,
   HeatmapComponent,
   CalendarHeatmapComponent,
   FunnelChartComponent,
@@ -32,6 +36,7 @@ import {
   HeatmapCell,
   CalendarDay,
   ChartDataPoint,
+  OhlcPoint,
   WaterfallBar,
   ChartLegendItem,
   BrushSelection,
@@ -60,6 +65,10 @@ const BRUSH_WIDTH = 560;
     GaugeChartComponent,
     RadarChartComponent,
     BulletChartComponent,
+    HistogramComponent,
+    BoxplotComponent,
+    CandlestickComponent,
+    TreemapComponent,
     HeatmapComponent,
     CalendarHeatmapComponent,
     FunnelChartComponent,
@@ -131,6 +140,34 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().bulletChartDescription }}</p>
           <ui-bullet-chart [value]="70" [target]="80" [ranges]="[50, 75, 100]" [width]="420"
             [height]="44" label="Revenue" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().histogramHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().histogramDescription }}</p>
+          <ui-histogram [dir]="dir()" [values]="latencySamples" [width]="560" [height]="300"
+            [unit]="t().histogramUnit" [title]="t().histogramTitle" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().boxplotHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().boxplotDescription }}</p>
+          <ui-boxplot [dir]="dir()" [groups]="t().boxplotGroups" [width]="560" [height]="320"
+            [unit]="t().boxplotUnit" [title]="t().boxplotTitle" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().candlestickHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().candlestickDescription }}</p>
+          <ui-candlestick [dir]="dir()" [points]="ohlcSessions" [width]="560" [height]="320"
+            [unit]="t().candlestickUnit" [title]="t().candlestickTitle" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().treemapHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().treemapDescription }}</p>
+          <ui-treemap [dir]="dir()" [nodes]="t().treemapNodes" [width]="560" [height]="340"
+            [unit]="t().treemapUnit" [title]="t().treemapTitle" />
         </div>
 
         <div class="space-y-4">
@@ -338,6 +375,31 @@ export class ChartsDemoComponent {
       { name: 'Speed', value: 5 }, { name: 'Power', value: 9 }, { name: 'Range', value: 4 },
       { name: 'Comfort', value: 8 }, { name: 'Price', value: 6 }, { name: 'Safety', value: 7 },
     ] },
+  ];
+  protected readonly latencySamples: number[] = (() => {
+    let seed = 42;
+    const next = (): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    return Array.from({ length: 400 }, () => {
+      const sum = next() + next() + next() + next() + next() + next();
+      return Math.max(0, Math.round(120 + (sum - 3) * 30));
+    });
+  })();
+  protected readonly ohlcSessions: OhlcPoint[] = [
+    { date: '2026-01-05', open: 100, high: 106, low: 99, close: 104 },
+    { date: '2026-01-06', open: 104, high: 108, low: 103, close: 105 },
+    { date: '2026-01-07', open: 105, high: 106, low: 98, close: 99 },
+    { date: '2026-01-08', open: 99, high: 103, low: 97, close: 102 },
+    { date: '2026-01-09', open: 102, high: 110, low: 101, close: 109 },
+    { date: '2026-01-12', open: 109, high: 112, low: 106, close: 107 },
+    { date: '2026-01-13', open: 107, high: 109, low: 101, close: 102 },
+    { date: '2026-01-14', open: 102, high: 105, low: 100, close: 104 },
+    { date: '2026-01-15', open: 104, high: 113, low: 104, close: 112 },
+    { date: '2026-01-16', open: 112, high: 115, low: 110, close: 111 },
+    { date: '2026-01-19', open: 111, high: 111, low: 104, close: 105 },
+    { date: '2026-01-20', open: 105, high: 108, low: 103, close: 108 },
   ];
   protected readonly heatmapData: HeatmapCell[] = (() => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];

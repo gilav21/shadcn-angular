@@ -1,0 +1,78 @@
+<div
+  [class]="classes()"
+  data-slot="treemap"
+  role="group"
+  [attr.aria-label]="ariaLabel()"
+>
+  @if (isEmpty()) {
+    <div
+      data-slot="treemap-empty"
+      class="flex items-center justify-center rounded-md border border-dashed p-4 text-sm text-muted-foreground sm:p-6"
+      [style.min-height.px]="height()"
+    >
+      No data to display
+    </div>
+  } @else {
+    <svg
+      [attr.viewBox]="viewBox()"
+      width="100%"
+      [attr.height]="height()"
+      class="block w-full overflow-hidden"
+    >
+      @for (cell of cells(); track cell.path) {
+        <g
+          data-slot="treemap-cell"
+          [attr.data-depth]="cell.depth"
+          [attr.data-leaf]="cell.isLeaf"
+          class="cursor-pointer outline-none"
+          [class.opacity-60]="hoveredIndex() !== null && hoveredIndex() !== cell.index"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="getCellAriaLabel(cell)"
+          (mouseenter)="onCellHover(cell)"
+          (mouseleave)="onCellLeave()"
+          (focus)="onCellHover(cell)"
+          (blur)="onCellLeave()"
+          (click)="onCellClick($event, cell)"
+          (keydown.enter)="onCellClick($event, cell)"
+          (keydown.space)="onCellClick($event, cell)"
+        >
+          <rect
+            [attr.x]="cell.x"
+            [attr.y]="cell.y"
+            [attr.width]="cell.width"
+            [attr.height]="cell.height"
+            [attr.rx]="cellRadius()"
+            [attr.fill]="cell.color"
+            [attr.fill-opacity]="cell.fillOpacity"
+            [attr.stroke]="cell.color"
+            [attr.stroke-width]="cell.isLeaf ? 1 : 1.5"
+            class="transition-[filter] duration-200 ease-out"
+            [class.brightness-110]="hoveredIndex() === cell.index"
+          />
+
+          @if (cell.showLabel) {
+            <text
+              data-slot="treemap-label"
+              [attr.x]="cell.labelX"
+              [attr.y]="cell.labelY"
+              [attr.text-anchor]="labelAnchor()"
+              class="pointer-events-none fill-foreground text-[10px] font-medium"
+            >{{ cell.node.label }}</text>
+          }
+        </g>
+      }
+    </svg>
+
+    @if (showTooltip()) {
+      <ui-chart-tooltip
+        [visible]="hoveredIndex() !== null"
+        [x]="tooltipPos().x"
+        [y]="tooltipPos().y"
+        [title]="tooltipTitle()"
+        [rows]="tooltipRows()"
+        [flipX]="tooltipPos().x > svgWidth() * 0.7"
+      />
+    }
+  }
+</div>

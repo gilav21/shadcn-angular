@@ -175,8 +175,19 @@ Result: Security Hotspots reviewed = 100%, 0 to-review.
 Chart/heatmap components render an inline `<svg>` carrying an ARIA role +
 `[attr.aria-label]` — the WAI-ARIA "complex graphic" pattern. S6819 wants a native
 `<img>`, which is impossible for inline SVG, so the role is required, not redundant.
-Scoped in `sonar-project.properties` to `*chart*`, `heatmap`, and `calendar-heatmap`
-component HTMLs only (raw non-chart elements stay checked).
+Scoped in `sonar-project.properties` to `*chart*`, `heatmap`, `calendar-heatmap`,
+`histogram`, `boxplot`, `candlestick` and `treemap` component HTMLs only (raw
+non-chart elements stay checked).
+
+The last four are listed individually for a purely mechanical reason: the family
+glob is `packages/components/ui/*chart*/`, and **none of `histogram`, `boxplot`,
+`candlestick` or `treemap` contains the substring `chart`** — so without their own
+entries they would raise the already-accepted `role="group"` finding as new
+issues. `heatmap` and `calendar-heatmap` are in the list for exactly the same
+reason. Confirmed against a real scan: the identical finding fires on
+`tree/sub/tree-item.component.html` ("Use `<address>` or `<details>` or
+`<fieldset>` or `<optgroup>` instead of the group role"), which is what these four
+charts' container would otherwise report.
 
 Which role: charts whose data points are keyboard-focusable (`tabindex="0"` on
 `<rect>`/`<circle>`) use **`role="group"`**, not `role="img"`. `role="img"` makes the

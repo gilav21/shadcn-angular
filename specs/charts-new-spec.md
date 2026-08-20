@@ -261,4 +261,161 @@ Then update the task row with **Completed**, **Score**, **Retrospective**.
 
 ## 6. Completion log
 
-_(empty — no tasks complete yet)_
+### Task 1 — Convention audit (2026-08-20)
+
+Audited `bar-chart` and `column-range-chart` as the spec asks, and additionally
+`line-chart` because it turned out the two named charts are the **older**
+generation and following them literally would reproduce two known defects (see
+"Divergences" below). The conventions the four new charts MUST follow are
+recorded here.
+
+#### 6.1 File layout
+
+```text
+packages/components/ui/<name>/
+  index.ts                     # export * from './<name>.component'; + types/utils
+  <name>.component.ts
+  <name>.component.html        # templateUrl, never an inline template
+  <name>.component.spec.ts
+  <name>.stories.ts
+  <name>.types.ts              # this spec: chart-local public types
+  <name>.utils.ts              # this spec: pure binning/quartile/squarify
+```
+
+No `.css` file — every chart is Tailwind-in-HTML only. The folder is then
+re-exported from `packages/components/ui/index.ts` (charts are grouped in the
+block at lines 96-118) and registered by `sync-registry --fix`.
+
+#### 6.2 Component shell
+
+- `selector: 'ui-<name>'`, `changeDetection: ChangeDetectionStrategy.OnPush`,
+  `templateUrl`, `host: { class: 'block' }`.
+- `private readonly el = inject(ElementRef)`, `destroyRef = inject(DestroyRef)`,
+  `_measuredWidth = observeChartWidth(this.el, this.destroyRef)`.
+- `svgWidth = computed(() => this._measuredWidth() ?? this.width())`;
+  container `relative w-full`; SVG `width="100%"` + `viewBox`.
+- **Every** member `readonly` (line-chart does this; bar-chart does not — Sonar
+  S2933 flags the older style, so follow line-chart).
+
+#### 6.3 Input vocabulary (verbatim names + defaults)
+
+| Input | Type / default | Notes |
+|---|---|---|
+| data-ish | `input.required<T[]>()` | `data` / `series` / `points` / `groups` / `nodes` |
+| `width` | `input(500)` | design width + pre-measurement fallback |
+| `height` | `input(300)` | literal SVG height |
+| `showGrid` | `input(true)` | dashed gridlines |
+| `showTooltip` | `input(true)` | hover output still fires when off |
+| `showLegend` | `input(true)` | only where a legend makes sense |
+| `class` | `input('')` | merged via `cn()` |
+| `title` | `input<string \| undefined>(undefined)` | prefixes the aria summary |
+| `dir` | `input<ChartDirection>('auto')` | `'auto' \| 'ltr' \| 'rtl'` |
+| `orientation` | `input<ChartOrientation>('vertical')` | boxplot (UC-8) |
+| `barRadius` / `barGap` | `input(4)` / `input(8..12)` | bar-family geometry |
+| `unit` | `input('')` | suffix on every formatted number |
+
+Every input carries a prose JSDoc block — the library treats them as the public
+API docs (see `column-range-chart` for the house style and length).
+
+#### 6.4 Outputs
+
+`<thing>Click = output<ChartClickEvent<T>>()` and
+`<thing>Hover = output<ChartClickEvent<T> | null>()`. Payload is
+`{ point, index, event? }` and `event` is forwarded **only** when
+`event instanceof MouseEvent`, so keyboard activation leaves it `undefined`.
+
+#### 6.5 RTL
+
+```ts
+private readonly _domRtl = signal(false);
+readonly isRtl = computed(() => {
+  const d = this.dir();
+  if (d === 'rtl') return true;
+  if (d === 'ltr') return false;
+  return this._domRtl();
+});
+ngAfterViewInit(): void { this._domRtl.set(isRtl(this.el.nativeElement)); }
+```
+
+RTL reverses the categorical range (`[right, left]`) and moves the value-axis
+tick labels to the opposite gutter. It does **not** flip the value axis.
+
+#### 6.6 Accessibility
+
+- Container (line-chart) or `<svg>` (older charts) carries `role="group"` +
+  `aria-label` from `getChartSummary(type, count, title)`.
+- Each datum is a focusable `<g>`/`<circle>`/`<rect>` with `tabindex="0"`,
+  `role="button"`, an `aria-label` (`getPointAriaLabel(name, value)` or a
+  chart-specific phrasing) and handlers
+  `mouseenter/mouseleave/focus/blur/click/keydown.enter/keydown.space`.
+- Charts drive hover from `focus` as well as `mouseenter`, so the keyboard path
+  produces the same tooltip.
+
+#### 6.7 Tooltip
+
+Modern convention is the shared `ui-chart-tooltip`
+(`visible/x/y/title/rows/flipX/flipY`, rows are `ChartTooltipRow[]` with
+**pre-formatted** `value` strings), positioned from `pointerToSvg()`.
+
+#### 6.8 Stories
+
+`title: 'Charts/<Name>'`, `tags: ['autodocs']`, an `argTypes` entry with a
+description for **every** input, matching `args` defaults, one `TEMPLATE`
+string + shared `render`, then `Playground`, `Default`, feature stories and
+`RightToLeft`.
+
+#### 6.9 Specs
+
+`TestBed.configureTestingModule({ imports: [Cmp] })`, inputs via
+`fixture.componentRef.setInput(...)`, and a `ResizeObserverStub` installed on
+`globalThis` in `beforeEach` / restored in `afterEach` — jsdom has no
+`ResizeObserver` and `observeChartWidth` would throw without it.
+
+#### 6.10 Demo page
+
+There is **no** per-chart demo page. All charts live in the single
+`demo/src/app/demos/charts/charts-demo.component.ts` (route `/charts`), and
+every heading/description string is i18n'd through
+`charts-demo.locales.ts`, which carries **10 locales**:
+`en, he, ar, de, fr, es, ja, zh, ru, pt`. Adding a chart therefore means adding
+`<name>Heading` / `<name>Description` to the `ChartsDemoLocale` interface and to
+all ten locale objects.
+
+#### 6.11 Divergences the new charts will NOT copy
+
+1. **Dead tooltip position.** `bar-chart` and `column-range-chart` both declare
+   `tooltipPosition = signal({ x: 0, y: 0 })` and *never update it*, so their
+   tooltips are pinned to the container origin regardless of which bar is
+   hovered. The new charts use `ui-chart-tooltip` positioned from the pointer,
+   as `line-chart` does. (Fixing the two old charts is out of scope here.)
+2. **Missing `data-slot`.** Neither audited chart sets one, although
+   `CLAUDE.md` requires it; `line-chart` does (`data-slot="line-chart"`). New
+   charts set `data-slot` on the container and on notable inner marks.
+3. **Non-`readonly` members** in `bar-chart`/`column-range-chart` (S2933).
+
+#### 6.12 Sonar configuration gap found by the audit
+
+`sonar-project.properties` scopes the accepted chart findings — `Web:S6819`
+(inline SVG under `role="img"`/`group`), `Web:MouseEventWithoutKeyboardEquivalentCheck`
+and the CPD exclusions — with the glob `packages/components/ui/*chart*/…`.
+**None of `histogram`, `boxplot`, `candlestick`, `treemap` contains the
+substring `chart`**, so the four new folders fall outside every existing
+exclusion and would raise the same already-accepted findings as new issues.
+`heatmap` and `calendar-heatmap` already set the precedent of adding an
+explicit per-folder entry for exactly this reason. Task 10 therefore adds four
+matching entries plus the CPD globs, with the rationale recorded in
+`docs/sonarqube-accepted-findings.md`. This is a scanner-config change only —
+**no `packages/components/lib/` file is touched**, so the spec's read-only
+constraint on the shared lib holds.
+
+#### 6.13 Confirmed available from `lib/` (read-only)
+
+`linearScale`, `bandScale`, `timeScale`, `sizeScale`, `niceDomain`,
+`niceTimeTicks`, `sequentialColorScale`, `toEpochMs` (`chart-scale.ts`);
+`linePath`, `areaPath`, `bandAreaPath`, `stackSeries` (`chart-path.ts`);
+`nearestPointX`, `nearestPoint2D`, `pointerToSvg`, `getClientPoint`
+(`chart-interaction.ts`); `observeChartWidth` (`chart-responsive.ts`);
+`getChartColor`, `formatChartValue`, `getChartSummary`, `getPointAriaLabel`,
+`calculateAxisTicks`, `getDataRange` (`chart.utils.ts`). Nothing needed by the
+four new charts is missing from these, so **no shared-lib change is required**.
+

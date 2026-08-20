@@ -1810,6 +1810,30 @@ export const registry = defineRegistry({
       selector: 'uiRteFull',
     },
   },
+  histogram: {
+    name: 'histogram',
+    files: ['histogram/histogram.component.html', 'histogram/histogram.component.ts', 'histogram/histogram.types.ts', 'histogram/histogram.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    dependencies: ['chart-tooltip'],
+  },
+  boxplot: {
+    name: 'boxplot',
+    files: ['boxplot/boxplot.component.html', 'boxplot/boxplot.component.ts', 'boxplot/boxplot.types.ts', 'boxplot/boxplot.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    dependencies: ['chart-tooltip'],
+  },
+  candlestick: {
+    name: 'candlestick',
+    files: ['candlestick/candlestick.component.html', 'candlestick/candlestick.component.ts', 'candlestick/candlestick.types.ts', 'candlestick/candlestick.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart-scale.ts', 'chart.types.ts', 'chart.utils.ts'],
+    dependencies: ['chart-tooltip'],
+  },
+  treemap: {
+    name: 'treemap',
+    files: ['treemap/treemap.component.html', 'treemap/treemap.component.ts', 'treemap/treemap.types.ts', 'treemap/treemap.utils.ts'],
+    libFiles: ['chart-responsive.ts', 'chart.types.ts', 'chart.utils.ts'],
+    dependencies: ['chart-tooltip'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;
