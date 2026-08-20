@@ -92,13 +92,13 @@ regenerated, never merged.**
 | Spec | Written | Implemented |
 |---|---|---|
 | `signal-forms-readiness-spec.md` | ✅ 2026-08-20 | ⬜ |
-| `layout-primitives-spec.md` | ⬜ | ⬜ |
-| `status-blocks-spec.md` | ⬜ | ⬜ |
-| `charts-new-spec.md` | ⬜ | ⬜ |
-| `component-features-spec.md` | ⬜ | ⬜ |
-| `quality-gaps-spec.md` | ⬜ | ⬜ |
-| `canvas-engine-spec.md` | ⬜ | ⬜ |
-| `dx-distribution-spec.md` | ⬜ | ⬜ |
+| `layout-primitives-spec.md` | ✅ 2026-08-20 | ⬜ |
+| `status-blocks-spec.md` | ✅ 2026-08-20 | ⬜ |
+| `charts-new-spec.md` | ✅ 2026-08-20 | ⬜ |
+| `component-features-spec.md` | ✅ 2026-08-20 | ⬜ |
+| `quality-gaps-spec.md` | ✅ 2026-08-20 | ⬜ |
+| `canvas-engine-spec.md` | ✅ 2026-08-20 | ⬜ |
+| `dx-distribution-spec.md` | ✅ 2026-08-20 | ⬜ |
 | `form-controls-small-spec.md` | ⬜ | ⬜ |
 | `data-table-contracts-spec.md` | ⬜ | ⬜ |
 | `charts-features-spec.md` | ⬜ | ⬜ |
