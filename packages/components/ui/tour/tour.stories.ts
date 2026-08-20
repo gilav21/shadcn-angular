@@ -1,6 +1,7 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { Component, input, signal } from '@angular/core';
 import { TourComponent, TourStep, TourSkippedEvent } from './tour.component';
+import { writeTourCompleted } from './tour.utils';
 import { ButtonComponent } from '../button';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent } from '../card';
 import { COMMON_LOCALES } from '../../lib/i18n/common.locales';
@@ -329,5 +330,96 @@ export const PresetSides: Story = {
                 </div>
             </div>
         `,
+    }),
+};
+
+@Component({
+    selector: 'tour-persistence-demo',
+    imports: [TourComponent, ButtonComponent],
+    template: `
+        <div style="min-height:320px;padding:24px;">
+            <div id="story-persist-step1" style="display:inline-block;margin-bottom:24px;">
+                <ui-button (click)="startTour()">Start onboarding</ui-button>
+            </div>
+            <div id="story-persist-step2" style="padding:16px;border:1px solid hsl(var(--border));border-radius:8px;max-width:320px;">
+                Second stop
+            </div>
+            <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <ui-button variant="outline" (click)="reset()">Reset completion flag</ui-button>
+                <span style="font-size:0.875rem;opacity:0.7;">Completed: {{ completed() }}</span>
+            </div>
+            <ui-tour #tour [steps]="steps" [(active)]="showTour" storageKey="storybook-onboarding" />
+        </div>
+    `,
+})
+class TourPersistenceDemoComponent {
+    readonly showTour = signal(false);
+    readonly completed = signal(false);
+    readonly steps: TourStep[] = [
+        { target: '#story-persist-step1', title: 'Welcome', description: 'Finish or skip this tour once and it will not replay.' },
+        { target: '#story-persist-step2', title: 'Second stop', description: 'The flag is written under storageKey on either ending.' },
+    ];
+
+    startTour(): void {
+        this.showTour.set(true);
+        queueMicrotask(() => this.completed.set(!this.showTour()));
+    }
+
+    reset(): void {
+        writeTourCompleted('storybook-onboarding', false);
+        this.completed.set(false);
+    }
+}
+
+@Component({
+    selector: 'tour-branching-demo',
+    imports: [TourComponent, ButtonComponent],
+    template: `
+        <div style="min-height:340px;padding:24px;">
+            <div id="story-branch-start" style="display:inline-block;margin-bottom:24px;">
+                <ui-button (click)="showTour.set(true)">Start branching tour</ui-button>
+            </div>
+            <label style="display:flex;gap:8px;align-items:center;margin-bottom:16px;font-size:0.875rem;">
+                <input type="checkbox" [checked]="isPro()" (change)="isPro.set(!isPro())" />
+                I am on the Pro plan
+            </label>
+            <div id="story-branch-free" style="padding:16px;border:1px solid hsl(var(--border));border-radius:8px;max-width:320px;margin-bottom:12px;">
+                Free-plan step
+            </div>
+            <div id="story-branch-pro" style="padding:16px;border:1px solid hsl(var(--border));border-radius:8px;max-width:320px;">
+                Pro-plan step
+            </div>
+            <ui-tour [steps]="steps" [(active)]="showTour" />
+        </div>
+    `,
+})
+class TourBranchingDemoComponent {
+    readonly showTour = signal(false);
+    readonly isPro = signal(false);
+    readonly steps: TourStep[] = [
+        {
+            target: '#story-branch-start',
+            title: 'Your plan',
+            description: 'The next step depends on the checkbox — the predicate picks the branch.',
+            next: () => (this.isPro() ? 2 : 1),
+        },
+        { target: '#story-branch-free', title: 'Free plan', description: 'You were routed here because Pro is off.', next: () => null },
+        { target: '#story-branch-pro', title: 'Pro plan', description: 'You were routed straight here, skipping the free step.' },
+    ];
+}
+
+export const PersistedCompletion: Story = {
+    name: 'storageKey — does not replay once completed',
+    render: () => ({
+        moduleMetadata: { imports: [TourPersistenceDemoComponent] },
+        template: '<tour-persistence-demo />',
+    }),
+};
+
+export const Branching: Story = {
+    name: 'Per-step branching',
+    render: () => ({
+        moduleMetadata: { imports: [TourBranchingDemoComponent] },
+        template: '<tour-branching-demo />',
     }),
 };

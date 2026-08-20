@@ -429,12 +429,14 @@ export class TourComponent {
      * Whether this run ever put a step on screen.
      *
      * `finish('finished')` is not only the happy ending — it is also the
-     * degenerate exit taken when no step resolves at all (`commitOrFinish`) or
-     * when `steps` empties under a live tour (`reconcileStepsLength`). Writing
-     * the completion flag there would permanently burn it for a consumer whose
-     * anchors simply had not rendered yet (an async route, data still loading),
-     * with no user-reachable recovery. So persistence is gated on the tour
-     * having actually shown something.
+     * degenerate exit `commitOrFinish` takes when no step resolves at all.
+     * Writing the completion flag there would permanently burn it for a
+     * consumer whose anchors simply had not rendered yet (an async route, data
+     * still loading), with no user-reachable recovery. So persistence is gated
+     * on the tour having actually shown something.
+     *
+     * A tour that DID show a step and then had `steps` emptied under it still
+     * records completion — it ran, so far as the user is concerned.
      */
     private showedAStep = false;
     private lastStepsLength = -1;

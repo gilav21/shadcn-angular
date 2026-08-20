@@ -117,3 +117,36 @@ export const LocalizedArabic: Story = {
         `,
     }),
 };
+
+export const DirectoryDrop: Story = {
+    name: 'Directory drop (recursive)',
+    render: () => ({
+        template: `
+            <div class="w-full max-w-md space-y-2">
+                <p class="text-sm text-muted-foreground">
+                    With <code>allowDirectories</code>, dropping a FOLDER enumerates its files
+                    recursively and the picker switches to folder-selection mode. Every enumerated
+                    file is still validated against accept / maxSize / maxFiles.
+                </p>
+                <ui-file-upload [allowDirectories]="true" />
+            </div>
+        `,
+    }),
+};
+
+export const InlineCrop: Story = {
+    name: 'Inline crop (square avatar)',
+    render: () => ({
+        template: `
+            <div class="w-full max-w-md space-y-2">
+                <p class="text-sm text-muted-foreground">
+                    With <code>cropImages</code>, an image is held back and the crop panel opens
+                    before it enters the queue. <code>cropAspect="1"</code> locks it square. Drag the
+                    box or use the arrow keys; <code>+</code> / <code>-</code> resize. Non-images
+                    bypass the step entirely.
+                </p>
+                <ui-file-upload accept="image/*,.pdf" [cropImages]="true" [cropAspect]="1" />
+            </div>
+        `,
+    }),
+};

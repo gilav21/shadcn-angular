@@ -479,3 +479,60 @@ export const ReducedMotion: Story = {
         `,
     }),
 };
+
+export const NestedOutline: Story = {
+    name: 'Nested lists (tree / outline reorder)',
+    render: () => {
+        const roots = signal([
+            { id: 'a', name: 'Discovery', children: signal([{ id: 'a1', name: 'User interviews' }, { id: 'a2', name: 'Competitive scan' }]) },
+            { id: 'b', name: 'Design', children: signal([{ id: 'b1', name: 'Wireframes' }]) },
+            { id: 'c', name: 'Build', children: signal<{ id: string; name: string }[]>([]) },
+        ]);
+        const log = signal<string[]>([]);
+        return {
+            props: {
+                roots,
+                log,
+                onReorder: (e: { from: { path?: readonly string[]; index: number }; to: { path?: readonly string[]; index: number } }): void =>
+                    log.set([
+                        `${(e.from.path ?? []).join(' / ')}[${e.from.index}] → ${(e.to.path ?? []).join(' / ')}[${e.to.index}]`,
+                        ...log(),
+                    ].slice(0, 5)),
+            },
+            template: `
+                <div class="space-y-3 max-w-md">
+                    <p class="text-sm text-muted-foreground">
+                        Every list shares one <code>group</code>, so an item can be dragged into a
+                        child list. Hit-testing picks the INNERMOST list under the pointer, and the
+                        reorder payload reports the full <code>path</code> of both endpoints.
+                    </p>
+                    <ui-sortable [(items)]="roots" group="outline" listId="root" (reorder)="onReorder($event)">
+                        <ng-template uiSortableItem let-node let-i="index">
+                            <ui-sortable-item [index]="i">
+                                <div class="rounded-md border p-2 bg-background">
+                                    <span class="text-sm font-medium">{{ node.name }}</span>
+                                    <ui-sortable
+                                        class="mt-2 ms-4 block min-h-[32px]"
+                                        [(items)]="node.children"
+                                        group="outline"
+                                        [listId]="'child-' + node.id"
+                                        (reorder)="onReorder($event)"
+                                    >
+                                        <ng-template uiSortableItem let-child let-j="index">
+                                            <ui-sortable-item [index]="j">
+                                                <div class="rounded border bg-muted/40 p-1.5 text-xs">{{ child.name }}</div>
+                                            </ui-sortable-item>
+                                        </ng-template>
+                                    </ui-sortable>
+                                </div>
+                            </ui-sortable-item>
+                        </ng-template>
+                    </ui-sortable>
+                    <div class="text-xs text-muted-foreground space-y-1">
+                        @for (line of log(); track line) { <div><code>{{ line }}</code></div> }
+                    </div>
+                </div>
+            `,
+        };
+    },
+};

@@ -123,3 +123,60 @@ export const SmallBuffer: Story = {
         `,
     }),
 };
+
+export const Horizontal: Story = {
+    name: 'Horizontal virtualization',
+    render: () => ({
+        props: { items: generateItems(10000) },
+        template: `
+            <div class="space-y-2">
+                <p class="text-sm text-muted-foreground">
+                    10,000 cells windowed on the X axis. <code>orientation="horizontal"</code> runs the
+                    same measure-and-correct machinery as the vertical axis, sized by
+                    <code>minItemWidth</code>.
+                </p>
+                <div class="h-[140px] w-full border rounded-lg">
+                    <ui-virtual-scroll [items]="items" orientation="horizontal" [minItemWidth]="160">
+                        <ng-template uiVirtualItem let-item let-index="index">
+                            <div class="h-full w-[160px] border-e p-3 text-sm flex flex-col justify-center">
+                                <span class="font-medium">{{ item.title }}</span>
+                                <span class="text-xs text-muted-foreground">#{{ index }}</span>
+                            </div>
+                        </ng-template>
+                    </ui-virtual-scroll>
+                </div>
+            </div>
+        `,
+    }),
+};
+
+export const Grid2D: Story = {
+    name: '2D virtualization (both axes)',
+    render: () => ({
+        props: { items: generateItems(200 * 60) },
+        template: `
+            <div class="space-y-2">
+                <p class="text-sm text-muted-foreground">
+                    12,000 cells as a 200 x 60 grid. <code>orientation="both"</code> reads
+                    <code>items</code> row-major and windows BOTH axes, so only the visible
+                    intersection is rendered — not a whole row or a whole column.
+                </p>
+                <div class="h-[320px] w-full border rounded-lg">
+                    <ui-virtual-scroll
+                        [items]="items"
+                        orientation="both"
+                        [columnCount]="60"
+                        [minItemWidth]="120"
+                        [minItemHeight]="48"
+                    >
+                        <ng-template uiVirtualItem let-item let-index="index">
+                            <div class="h-[48px] w-[120px] border-b border-e p-2 text-xs flex items-center">
+                                {{ item.title }}
+                            </div>
+                        </ng-template>
+                    </ui-virtual-scroll>
+                </div>
+            </div>
+        `,
+    }),
+};

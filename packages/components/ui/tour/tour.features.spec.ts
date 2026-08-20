@@ -195,19 +195,19 @@ describe('TourComponent — storageKey persistence', () => {
         warn.mockRestore();
     });
 
-    it('does NOT burn the flag when steps empty out under a live tour', () => {
+    it('DOES record completion when a live tour that showed a step has its steps emptied', () => {
         host.storageKey.set(KEY);
         fixture.detectChanges();
         host.active.set(true);
         fixture.detectChanges();
+        expect(getTour(fixture).currentIndex()).toBe(0);
 
-        // Reset to a tour that never showed anything, then empty it.
-        getTour(fixture).resetCompletion();
-        host.active.set(false);
+        // Emptied while still live — `reconcileStepsLength` takes the finish path.
         host.steps.set([]);
         fixture.detectChanges();
 
-        expect(readTourCompleted(KEY)).toBe(false);
+        expect(host.active()).toBe(false);
+        expect(readTourCompleted(KEY)).toBe(true);
     });
 
     it('records completion again on a second run once a step did show', () => {

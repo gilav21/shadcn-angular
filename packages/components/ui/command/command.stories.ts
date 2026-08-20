@@ -10,6 +10,7 @@ import {
   CommandShortcutComponent,
   CommandDialogComponent,
 } from '../command';
+import type { CommandSource } from './command.types';
 import { moduleMetadata } from '@storybook/angular';
 import { ButtonComponent } from '../button';
 import { DialogComponent, DialogContentComponent } from '../dialog';
@@ -135,6 +136,122 @@ export const Dialog: Story = {
           </ui-command-group>
         </ui-command-list>
       </ui-command-dialog>
+    `,
+  }),
+};
+
+const PEOPLE = [
+  'Ada Lovelace', 'Grace Hopper', 'Alan Turing', 'Katherine Johnson',
+  'Barbara Liskov', 'Donald Knuth', 'Margaret Hamilton', 'Edsger Dijkstra',
+];
+
+/** Stands in for a server: 400ms of latency, filtered server-side. */
+const remoteSearch: CommandSource = (query) =>
+  new Promise(resolve =>
+    setTimeout(() => {
+      const q = query.trim().toLowerCase();
+      const rows = PEOPLE
+        .filter(name => !q || name.toLowerCase().includes(q))
+        .map(name => ({ id: name, value: name }));
+      resolve(rows);
+    }, 400),
+  );
+
+export const AsyncSource: Story = {
+  name: 'Async source (debounced, race-safe)',
+  render: () => ({
+    props: { source: remoteSearch },
+    template: `
+      <div class="space-y-2">
+        <p class="text-sm text-muted-foreground">
+          Type fast: calls are debounced, and any answer a newer keystroke has superseded is
+          discarded and its AbortSignal fired — results can never go backwards.
+        </p>
+        <ui-command [source]="source" [shouldFilter]="false" class="border rounded-lg" #cmd>
+          <ui-command-input placeholder="Search people…" />
+          <ui-command-list>
+            @if (cmd.isLoading()) {
+              <div class="py-6 text-center text-sm text-muted-foreground">Searching…</div>
+            } @else if (cmd.results().length === 0) {
+              <ui-command-empty>No results.</ui-command-empty>
+            } @else {
+              <ui-command-group heading="People">
+                @for (row of cmd.results(); track row.id) {
+                  <ui-command-item [value]="row.value">{{ row.label ?? row.value }}</ui-command-item>
+                }
+              </ui-command-group>
+            }
+          </ui-command-list>
+        </ui-command>
+      </div>
+    `,
+  }),
+};
+
+export const RecentItems: Story = {
+  name: 'Recent items on an empty query',
+  render: () => ({
+    template: `
+      <div class="space-y-2">
+        <p class="text-sm text-muted-foreground">
+          Pick an item, then clear the query — recents surface, newest first, persisted under
+          <code>recentKey</code>.
+        </p>
+        <ui-command recentKey="storybook-palette" [recentLimit]="3" class="border rounded-lg" #cmd>
+          <ui-command-input placeholder="Type a command…" />
+          <ui-command-list>
+            @if (cmd.showRecents()) {
+              <ui-command-group heading="Recent">
+                @for (value of cmd.recents(); track value) {
+                  <ui-command-item [value]="value">{{ value }}</ui-command-item>
+                }
+              </ui-command-group>
+              <ui-command-separator />
+            }
+            <ui-command-group heading="All commands">
+              <ui-command-item value="New file">New file</ui-command-item>
+              <ui-command-item value="Open folder">Open folder</ui-command-item>
+              <ui-command-item value="Save all">Save all</ui-command-item>
+              <ui-command-item value="Toggle theme">Toggle theme</ui-command-item>
+            </ui-command-group>
+          </ui-command-list>
+        </ui-command>
+      </div>
+    `,
+  }),
+};
+
+export const NestedPages: Story = {
+  name: 'Nested pages (Escape goes back)',
+  render: () => ({
+    template: `
+      <div class="space-y-2">
+        <p class="text-sm text-muted-foreground">
+          Pick "Change theme…" to drill in. Escape — or Backspace on an empty query — returns to the
+          parent instead of closing the palette.
+        </p>
+        <ui-command class="border rounded-lg" #cmd>
+          <ui-command-input placeholder="Type a command…" />
+          <ui-command-list>
+            @if (cmd.page()?.id === 'themes') {
+              <ui-command-group [heading]="cmd.page()?.label ?? 'Themes'">
+                <ui-command-item value="Light">Light</ui-command-item>
+                <ui-command-item value="Dark">Dark</ui-command-item>
+                <ui-command-item value="System">System</ui-command-item>
+              </ui-command-group>
+            } @else {
+              <ui-command-group heading="Commands">
+                <ui-command-item
+                  value="Change theme"
+                  (selectItem)="cmd.pushPage({ id: 'themes', label: 'Themes' })"
+                >Change theme…</ui-command-item>
+                <ui-command-item value="New file">New file</ui-command-item>
+                <ui-command-item value="Save all">Save all</ui-command-item>
+              </ui-command-group>
+            }
+          </ui-command-list>
+        </ui-command>
+      </div>
     `,
   }),
 };
