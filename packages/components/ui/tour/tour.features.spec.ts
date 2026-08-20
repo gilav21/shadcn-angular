@@ -177,6 +177,51 @@ describe('TourComponent — storageKey persistence', () => {
         expect(host.active()).toBe(true);
     });
 
+    it('does NOT burn the flag when no step ever resolved', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        // Every anchor is missing — the app has not rendered them yet.
+        host.steps.set([
+            { target: '#not-rendered-1', title: 'One' },
+            { target: '#not-rendered-2', title: 'Two' },
+        ]);
+        host.storageKey.set(KEY);
+        fixture.detectChanges();
+
+        host.active.set(true);
+        fixture.detectChanges();
+
+        expect(host.doneCount).toBe(1);
+        expect(readTourCompleted(KEY)).toBe(false);
+        warn.mockRestore();
+    });
+
+    it('does NOT burn the flag when steps empty out under a live tour', () => {
+        host.storageKey.set(KEY);
+        fixture.detectChanges();
+        host.active.set(true);
+        fixture.detectChanges();
+
+        // Reset to a tour that never showed anything, then empty it.
+        getTour(fixture).resetCompletion();
+        host.active.set(false);
+        host.steps.set([]);
+        fixture.detectChanges();
+
+        expect(readTourCompleted(KEY)).toBe(false);
+    });
+
+    it('records completion again on a second run once a step did show', () => {
+        host.storageKey.set(KEY);
+        fixture.detectChanges();
+        host.active.set(true);
+        fixture.detectChanges();
+
+        getTour(fixture).skip();
+        fixture.detectChanges();
+
+        expect(readTourCompleted(KEY)).toBe(true);
+    });
+
     it('writes nothing when no storageKey is set', () => {
         host.active.set(true);
         fixture.detectChanges();

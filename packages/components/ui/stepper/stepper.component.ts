@@ -186,7 +186,15 @@ export class StepperComponent {
 
     const from = this.activeStep();
     const guard = this.canLeave();
+
+    // Bumped for EVERY decided move, not just the async ones. A synchronous
+    // move that lands while an async guard is still in flight has to invalidate
+    // it too — otherwise the stale promise resolves later and snaps the stepper
+    // back to the step it was deciding about, emitting a second `stepChange`.
+    const token = ++this.guardToken;
+
     if (!guard || index === from) {
+      this._guardPending.set(false);
       this.commitStep(index);
       return;
     }
@@ -199,11 +207,11 @@ export class StepperComponent {
     }
 
     if (typeof outcome === 'boolean') {
+      this._guardPending.set(false);
       this.settleGuard(outcome, from, index);
       return;
     }
 
-    const token = ++this.guardToken;
     this._guardPending.set(true);
     outcome.then(
       allowed => this.settleAsyncGuard(token, allowed, from, index),

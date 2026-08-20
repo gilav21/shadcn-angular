@@ -425,6 +425,18 @@ export class TourComponent {
     private savedTargetStyles: HighlightSavedStyles | null = null;
 
     private wasActive = false;
+    /**
+     * Whether this run ever put a step on screen.
+     *
+     * `finish('finished')` is not only the happy ending — it is also the
+     * degenerate exit taken when no step resolves at all (`commitOrFinish`) or
+     * when `steps` empties under a live tour (`reconcileStepsLength`). Writing
+     * the completion flag there would permanently burn it for a consumer whose
+     * anchors simply had not rendered yet (an async route, data still loading),
+     * with no user-reachable recovery. So persistence is gated on the tour
+     * having actually shown something.
+     */
+    private showedAStep = false;
     private lastStepsLength = -1;
     private runToken = 0;
     private abortController: AbortController | null = null;
@@ -439,6 +451,7 @@ export class TourComponent {
                         return;
                     }
                     this.wasActive = true;
+                    this.showedAStep = false;
                     this.transition(0, 'initial');
                 } else if (!isActive && this.wasActive) {
                     this.wasActive = false;
@@ -574,7 +587,7 @@ export class TourComponent {
         this.abortInFlight();
         this._isPending.set(false);
         this.active.set(false);
-        writeTourCompleted(this.storageKey(), true);
+        if (this.showedAStep) writeTourCompleted(this.storageKey(), true);
         this.done.emit(reason);
     }
 
@@ -741,7 +754,7 @@ export class TourComponent {
     }
 
     private reportHookError(index: number, error: unknown): void {
-        globalThis.console?.warn(`[ui-tour] step ${index} hook failed — skipping step.`, error);
+        globalThis.console?.warn(`[ui-tour] step ${index} hook failed — falling back to the default path.`, error);
     }
 
     /** Resolves a rendered target, optionally waiting for hooks to render it. */
@@ -801,6 +814,7 @@ export class TourComponent {
     }
 
     private commitStep({ el: targetEl, index }: ResolvedStep): void {
+        this.showedAStep = true;
         this.markReachable(index);
         this.teardownObservers();
         this.clearCurrentHighlight();
