@@ -1,0 +1,230 @@
+# Status Blocks — Spec
+
+> # ✅ NO PREREQUISITES
+>
+> This spec is self-contained and can start immediately. It depends on no other
+> spec in this set.
+>
+> It edits **one existing file** — `packages/blocks/dashboard/dashboard.component.html`
+> — to consume the extracted `stat-card`. No other bundle touches that file.
+
+**Status:** not started
+**Scope:** `error-page`, `result`, `stat-card`
+**Source plan:** `specs/ideas-backlog-2026-08-19.md` §1 Tier B items 7, 9
+
+---
+
+## 1. Product Manager section
+
+### 1.1 Business logic
+
+Three components covering the "something happened — tell the user" surface:
+
+- **`error-page`** — a full-page 404 / 500 / 403 state with illustration slot,
+  message, and recovery actions.
+- **`result`** — an in-page outcome panel (success / error / warning / info)
+  shown after an operation completes, e.g. after a form submit or a payment.
+- **`stat-card`** — a KPI tile: label, value, delta, optional trend/sparkline.
+
+`error-page` and `result` are genuinely new. **`stat-card` is an extraction** —
+the `dashboard` block already renders exactly this pattern inline.
+
+### 1.2 Why the customer wants this
+
+- **`error-page`**: every app needs 404 and 500 routes on day one. Today a
+  developer adopting this library has to hand-build them, and they end up
+  looking nothing like the rest of the library. This is one of the first things
+  a new user notices is missing.
+- **`result`**: after a multi-step form or a checkout, developers currently
+  compose card + icon + heading + buttons by hand, differently each time.
+- **`stat-card`**: the `dashboard` block proves the pattern is wanted, but it
+  is trapped inside a block. A developer who wants just the tile has to copy
+  markup out of a block, which is exactly the friction the library exists to
+  remove.
+
+Verified: `packages/blocks/dashboard/dashboard.component.html` renders
+`ui-card` → `ui-card-header` → `ui-card-description` (label) →
+`ui-card-title` (value) → `ui-card-content` → `ui-badge` (delta), inside a
+`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`. That is the component to extract.
+
+### 1.3 Use cases — definition of done
+
+**`stat-card`**
+| ID | Use case |
+|---|---|
+| UC-1 | A developer sets `label`, `value` and `delta` and gets the tile the dashboard block renders today, pixel-equivalent. |
+| UC-2 | A developer sets `trend` (`up`/`down`/`neutral`) and the delta badge colour and icon reflect it. |
+| UC-3 | A developer projects a sparkline (or any content) into a chart slot and it renders below the value. |
+| UC-4 | **The `dashboard` block is refactored to use `ui-stat-card` and renders identically to before** (visual regression check). |
+| UC-5 | A long label or a long value truncates rather than breaking the grid. |
+
+**`result`**
+| ID | Use case |
+|---|---|
+| UC-6 | A developer sets `status` (`success`/`error`/`warning`/`info`), `title` and `description` and gets a centred outcome panel with the right icon and colour. |
+| UC-7 | A developer projects action buttons and they render below the description, centred, wrapping on narrow screens. |
+| UC-8 | A developer projects arbitrary detail content (e.g. an error dump in a `ui-code-block`) and it renders in an extra slot. |
+| UC-9 | The status is announced to assistive tech without stealing focus. |
+
+**`error-page`**
+| ID | Use case |
+|---|---|
+| UC-10 | A developer sets `code` (404/500/403 or any string) and gets a full-page state with the default copy for that code. |
+| UC-11 | A developer overrides `title` / `description` and the defaults are replaced. |
+| UC-12 | Default actions ("Go back", "Go home") are present and emit outputs; a developer can replace them by projection. |
+| UC-13 | A developer projects a custom illustration and it replaces the default. |
+| UC-14 | The page renders correctly from 320px to ultrawide and the heading is a real `<h1>`. |
+
+### 1.4 Out of scope
+
+- Routing — `error-page` emits outputs; it never navigates by itself. (No DI
+  config, no `Router` dependency — see project convention.)
+- Illustrations as shipped assets: default is a typographic code, not an image.
+- Error *reporting* / telemetry.
+- `empty` component changes — it already exists and covers empty states.
+
+---
+
+## 2. QA section — write these tests FIRST
+
+### 2.1 Traceability
+
+| Test ID | Test name | Proves | Type |
+|---|---|---|---|
+| T-1 | `renders label, value and delta` | UC-1 | unit |
+| T-2 | `trend up/down/neutral sets badge variant and icon` | UC-2 | unit |
+| T-3 | `renders projected chart slot content` | UC-3 | unit |
+| T-4 | `dashboard block renders identically after refactor` | UC-4 | visual/story snapshot |
+| T-5 | `truncates overlong label and value` | UC-5 | unit |
+| T-6 | `renders each status with correct icon and colour` | UC-6 | unit |
+| T-7 | `projected actions render and wrap at 320px` | UC-7 | unit + story |
+| T-8 | `renders projected detail slot` | UC-8 | unit |
+| T-9 | `announces status via role/aria-live without moving focus` | UC-9 | a11y |
+| T-10 | `known codes render their default copy` | UC-10 | unit |
+| T-11 | `explicit title/description override defaults` | UC-11 | unit |
+| T-12 | `default actions emit goBack/goHome outputs` | UC-12 | unit |
+| T-13 | `projected illustration replaces default` | UC-13 | unit |
+| T-14 | `renders h1 and is responsive 320→1920` | UC-14 | unit + story |
+| T-15 | axe clean for all three | UC-9, UC-14 | story a11y |
+| T-16 | e2e smoke for all three | all | e2e |
+
+### 2.2 Edge cases
+
+Unknown `code` value (must not crash — falls back to generic copy); zero and
+negative `delta`; missing `delta` (badge hidden, not empty); RTL for all three;
+`result` with no actions; 320px viewport.
+
+### 2.3 Coverage expectation
+
+≥90% lines on all three new component folders. The `dashboard` block's coverage
+must not drop after the refactor.
+
+---
+
+## 3. Architecture
+
+### 3.1 Usability
+
+```html
+<!-- stat-card: simple -->
+<ui-stat-card label="Total Revenue" value="$45,231.89" delta="+20.1%" trend="up" />
+
+<!-- stat-card: with projected sparkline -->
+<ui-stat-card label="Active users" value="2,350">
+  <ui-line-chart [series]="spark()" [height]="40" />
+</ui-stat-card>
+
+<!-- result -->
+<ui-result status="success" title="Payment received"
+           description="We emailed your receipt.">
+  <ui-button>Back to dashboard</ui-button>
+</ui-result>
+
+<!-- error-page -->
+<ui-error-page code="404" (goHome)="router.navigate(['/'])" />
+```
+
+### 3.2 Efficiency
+
+No meaningful performance concern — all three are static presentational
+components. Explicitly noted so no agent invents optimisation work.
+
+### 3.3 DX
+
+Exported types: `StatCardTrend`, `ResultStatus`, `ErrorPageCode`. `error-page`
+must not import `@angular/router` — it emits `goBack` / `goHome` outputs and
+leaves navigation to the consumer, per the project's no-DI-config convention.
+
+### 3.4 Implementation options — `stat-card` extraction
+
+**Option 1 — New component; leave the dashboard block's inline markup alone.**
+Pros: zero risk to the block.
+Cons: two copies of the same pattern that will drift. Fails UC-4, and leaves
+the original friction (the pattern still lives inside a block) in place.
+
+**Option 2 — New component; refactor the dashboard block to consume it.**
+Pros: single source of truth; the block becomes a demonstration of composition,
+which is the message the library wants to send; proves the extraction is
+faithful because the block must still render identically.
+Cons: touches an existing block — needs a visual check (T-4).
+
+**✅ Chosen: Option 2.** The extraction is only worth doing if the original
+caller uses it; otherwise it is just a third copy of a card. T-4 is the safety
+net, and `stat-card`'s registry entry gains `dashboard` as a reverse dependent,
+which `why` will then surface correctly.
+
+### 3.5 Implementation options — `error-page` default copy
+
+**Option 1 — Hard-code English strings.** Simple, but breaks the library's i18n
+convention (`*.locales.ts` exists for every component with copy).
+
+**✅ Chosen: Option 2 — an `error-page.locales.ts`** following the existing
+pattern, with `code`-keyed default title/description, overridable by input.
+This matches every other component with user-visible text.
+
+### 3.6 Risks
+
+| ID | Risk | Mitigation |
+|---|---|---|
+| R-1 | Dashboard block visual regression during extraction | T-4 is written and passing *before* the refactor; story snapshot |
+| R-2 | `result` `aria-live` steals focus | `role="status"`; never call `.focus()` (T-9) |
+| R-3 | `error-page` tempts an agent into adding `Router` | Explicitly out of scope; outputs only. Enforced by T-12 |
+| R-4 | Registry churn — three new entries at once | Single `sync-registry --fix` in the final task, not per component |
+
+---
+
+## 4. Definition of Done (per task)
+
+A task row may be marked ✅ Done only when **all** of these pass:
+
+1. **Fully tested** — every test named for this task is written and passing.
+2. **Fully covered** — no uncovered lines introduced in the files touched.
+3. **Zero lint errors** — `npm run lint` clean.
+4. **Zero SonarQube issues** — full server scan (`npm run coverage` then
+   `npm run sonar` against `http://localhost:9000`) clean on changed code.
+   If token/server/Docker unavailable, the task is **blocked, not done**.
+5. **Review gate ≥ 91** — invoke the `review-gate` skill.
+
+Then update the task row with **Completed**, **Score**, **Retrospective**.
+
+---
+
+## 5. Tasks — table order is implementation order
+
+| # | Task | Proves | Status | Completed | Score | Retrospective |
+|---|------|--------|--------|-----------|-------|---------------|
+| 1 | Write failing tests T-1…T-3, T-5 for `stat-card` | UC-1…UC-3, UC-5 | ⬜ Not started | — | — | — |
+| 2 | Write T-4 dashboard-block snapshot **against current markup** (must pass before refactor) | UC-4 | ⬜ Not started | — | — | — |
+| 3 | Implement `stat-card` + stories + demo page | UC-1…UC-3, UC-5 | ⬜ Not started | — | — | — |
+| 4 | Refactor `dashboard` block to consume `ui-stat-card`; T-4 still passes | UC-4 | ⬜ Not started | — | — | — |
+| 5 | Write failing tests T-6…T-9 for `result` | UC-6…UC-9 | ⬜ Not started | — | — | — |
+| 6 | Implement `result` + stories + demo page | UC-6…UC-9 | ⬜ Not started | — | — | — |
+| 7 | Write failing tests T-10…T-14 for `error-page` | UC-10…UC-14 | ⬜ Not started | — | — | — |
+| 8 | Implement `error-page` + `error-page.locales.ts` + stories + demo page | UC-10…UC-14 | ⬜ Not started | — | — | — |
+| 9 | Register all three (`sync-registry --fix`), scaffold + pass e2e (T-16), axe clean (T-15) | all | ⬜ Not started | — | — | — |
+
+---
+
+## 6. Completion log
+
+_(empty — no tasks complete yet)_
