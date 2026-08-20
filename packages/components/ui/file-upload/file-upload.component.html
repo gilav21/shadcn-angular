@@ -161,12 +161,11 @@
         }
         @if (cropBoxStyle(); as box) {
           <!--
-            The box itself is a plain div: it carries no ARIA role and is not
-            focusable, because a "region you can shove around" has no honest
-            native element or role. Keyboard and screen-reader access live on the
-            two real <button>s inside it instead — which is both what Sonar's
-            S6819/S6845 ask for and better for assistive tech than a focusable
-            div wearing role="group".
+            The box carries no ARIA role and is not focusable, because a region
+            the user shoves around has no honest native element or role behind
+            it. Keyboard and screen-reader access live on the two real buttons
+            inside it instead, which is both what S6819 and S6845 ask for and
+            better for assistive tech than a focusable div wearing a group role.
           -->
           <div
             class="absolute cursor-move border-2 border-primary bg-primary/10 touch-none"

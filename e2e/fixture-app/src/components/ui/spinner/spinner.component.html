@@ -1,0 +1,44 @@
+<div #contentWrapper>
+  <ng-content />
+</div>
+@if (!hasCustomContent()) {
+  @if (variant() === 'ring') {
+    <output class="inline-flex" aria-label="Loading" [attr.data-slot]="'spinner'">
+      <svg
+        [class]="classes()"
+        [style]="customStyles()"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+      </svg>
+    </output>
+  } @else if (variant() === 'dots') {
+    <output class="flex items-center gap-1" aria-label="Loading" [attr.data-slot]="'spinner'">
+      <div [class]="cn(dotClass(), 'rounded-full bg-current animate-bounce [animation-delay:-0.3s]')"></div>
+      <div [class]="cn(dotClass(), 'rounded-full bg-current animate-bounce [animation-delay:-0.15s]')"></div>
+      <div [class]="cn(dotClass(), 'rounded-full bg-current animate-bounce')"></div>
+    </output>
+  } @else if (variant() === 'bars') {
+    <output class="flex items-center gap-0.5" aria-label="Loading" [attr.data-slot]="'spinner'">
+      @for (delay of barDelays; track delay) {
+        <div
+          [class]="cn(barClass(), 'bg-current rounded-sm animate-pulse')"
+          [style.animation-delay]="delay"
+        ></div>
+      }
+    </output>
+  } @else if (variant() === 'pulse') {
+    <output
+      [class]="cn(pulseClass(), 'block rounded-full bg-current animate-pulse')"
+      aria-label="Loading"
+      [attr.data-slot]="'spinner'"
+    ></output>
+  }
+}
