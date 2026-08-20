@@ -9,7 +9,7 @@
 > after this one. If you believe a shared helper must change, STOP and report
 > rather than editing it.
 
-**Status:** complete — all 10 tasks done, review gate 93/100
+**Status:** ✅ complete — all 10 tasks done, review gate 93/100, Sonar clean on changed code
 **Scope:** `histogram`, `boxplot`, `candlestick`, `treemap`
 **Source plan:** `specs/ideas-backlog-2026-08-19.md` §5 "Tier C ranked by real effort"
 
@@ -284,8 +284,47 @@ complexity check; and the two doc inaccuracies are corrected.
 | Chart tests | 232 pass, in **both** jsdom and real Chromium |
 | Full suite | 386/386 files, 8346/8346 tests |
 | Line coverage, 8 new files | **100%** (spec §2.3 asks ≥90%) |
-| e2e (T-21) | 4/4 specs, 14 assertions |
+| e2e (T-21) | 4/4 specs, 14 assertions (serially; see caveat) |
 | `packages/components/lib/` | untouched — `git diff --stat` empty |
+| **SonarQube** (`shadcn-angular-charts-new`) | **0 issues on changed code** — 0 on all four chart folders, 0 on `ui/index.ts` and `cli/src/registry/index.ts`. Project total 14, every one in a file this branch never touches. Coverage imported at 90.9%; duplication 1.6% with **no** duplication finding on the four new folders. |
+
+### The one Sonar issue, and the two globs that hid it
+
+The scan reported exactly one issue on this bundle:
+`typescript:S7755` at `histogram.utils.ts:53` — prefer `.at(…)` over
+`[….length - index]`. That line was itself a review-gate fix, where `.at(-1)!`
+had been swapped for `[length - 1]` to satisfy `no-non-null-assertion` — trading
+one rule for another. `sorted.at(-1) ?? sorted[0]` satisfies both.
+
+Surfacing it first required repairing two more config globs that match on a
+**name** rather than on what the thing is — the same failure mode as the
+`ui/*chart*/` gap in §6.12:
+
+| Config | Had | Missed | Consequence |
+|---|---|---|---|
+| `sonar.exclusions` | `**/coverage/**` | `**/coverage-*/**` | the CLI coverage leg writes `coverage-cli/`, so the scanner analysed generated lcov HTML and returned **43,411** issues, every sampled one under `coverage-cli/lcov-report/` |
+| `eslint.config.mjs` | `e2e/fixture-app/**` | `e2e/.workers/**` | the *parallel* e2e runner clones that fixture per worker, so `npm run e2e` followed by `npm run lint` — the CI order — failed with 57 `parserOptions.project` errors |
+
+`.gitignore` already had both right; the configs had simply drifted out of parity.
+Neither exclusion suppresses a real finding: both cover gitignored generated
+output that is never shipped. `eslint.config.mjs` already carried a comment
+teaching exactly this lesson for `coverage*/**` — it just had not been applied
+one entry below it.
+
+**Three instances of the same defect in one bundle** (`ui/*chart*/`,
+`**/coverage/**`, `e2e/fixture-app/**`) is the finding worth carrying forward:
+these globs encode a naming coincidence, and each new thing that does not happen
+to match the name fails a gate for reasons unrelated to its code.
+
+### Environmental caveats (not code defects)
+
+Both are contention artefacts of running eight agents on one machine, and both
+are proven environmental by passing in isolation:
+
+| Symptom | Evidence it is environmental |
+|---|---|
+| `packages/cli/src/core/baseline.spec.ts` timed out at 5s during the coverage chain, aborting it before `fix-lcov.mjs` | the same spec passes in **430ms** run alone; it shells out to `git`, which starves under load. `fix-lcov.mjs` was run by hand. |
+| e2e failed 3/4 in parallel — `ng serve did not become ready within 120000ms` | all three pass with `--workers 1`. `boxplot` won the race and passed 3/3 even in the parallel run. **The integration run should serialise e2e rather than re-diagnose this.** |
 
 ### Task 1 — Convention audit (2026-08-20)
 
