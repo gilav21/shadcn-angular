@@ -102,6 +102,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'kbd', loadComponent: () => import('./demos/data-display/kbd-demo.component').then(m => m.KbdDemoComponent) },
   { path: 'separator', loadComponent: () => import('./demos/data-display/separator-demo.component').then(m => m.SeparatorDemoComponent) },
   { path: 'number-ticker', loadComponent: () => import('./demos/data-display/number-ticker-demo.component').then(m => m.NumberTickerDemoComponent) },
+  { path: 'data-list', loadComponent: () => import('./demos/data-display/data-list-demo.component').then(m => m.DataListDemoComponent) },
   { path: 'data-table', loadComponent: () => import('./demos/data-display/data-table-demo.component').then(m => m.DataTableDemoComponent) },
   { path: 'icon', loadComponent: () => import('./demos/data-display/icon-demo.component').then(m => m.IconDemoComponent) },
   { path: 'file-viewer', loadComponent: () => import('./demos/data-display/file-viewer-demo.component').then(m => m.FileViewerDemoComponent) },

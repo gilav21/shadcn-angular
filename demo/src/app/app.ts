@@ -254,6 +254,7 @@ export class AppComponent {
     { id: 'number-ticker', name: 'Number Ticker', category: 'Data Display', icon: '🔢' },
     { id: 'separator', name: 'Separator', category: 'Data Display', icon: '➖' },
     { id: 'table', name: 'Table', category: 'Data Display', icon: '📊' },
+    { id: 'data-list', name: 'Data List', category: 'Data Display', icon: '📋' },
     { id: 'timeline', name: 'Timeline', category: 'Data Display', icon: '📅' },
     { id: 'tree-view', name: 'Tree View', category: 'Data Display', icon: '🌳' },
     { id: 'component-outlet', name: 'Component Outlet', category: 'Data Display', icon: '🧩' },

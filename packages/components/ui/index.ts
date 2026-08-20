@@ -35,6 +35,7 @@ export * from './table';
 export * from './breadcrumb';
 export * from './banner';
 export * from './page-header';
+export * from './data-list';
 export * from './hover-card';
 export * from './context-menu';
 export * from './drawer';

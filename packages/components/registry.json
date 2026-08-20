@@ -5056,5 +5056,12 @@
       "page-header/page-header.component.html",
       "page-header/page-header.component.ts"
     ]
+  },
+  "data-list": {
+    "name": "data-list",
+    "files": [
+      "data-list/data-list.component.html",
+      "data-list/data-list.component.ts"
+    ]
   }
 }

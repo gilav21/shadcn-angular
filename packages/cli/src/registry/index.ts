@@ -1820,6 +1820,10 @@ export const registry = defineRegistry({
     name: 'page-header',
     files: ['page-header/page-header.component.html', 'page-header/page-header.component.ts'],
   },
+  'data-list': {
+    name: 'data-list',
+    files: ['data-list/data-list.component.html', 'data-list/data-list.component.ts'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;
