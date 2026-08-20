@@ -1,0 +1,69 @@
+{
+  "version": 2,
+  "files": {
+    "candlestick/candlestick.component.html": {
+      "sha256": "edeaa15523411d0e82fce1e5e6e80e2ede7d3ae658f5ef122cc370ebbf13e71c",
+      "component": "candlestick"
+    },
+    "candlestick/candlestick.component.ts": {
+      "sha256": "5d2369278b3240b5ed2303b80060efd47d3ca9779a9f7186f27079993b6addf7",
+      "component": "candlestick"
+    },
+    "candlestick/candlestick.types.ts": {
+      "sha256": "f51d2fe87ab89da6ade97e080718986ad088857ce4d60127bea7c946d2eee625",
+      "component": "candlestick"
+    },
+    "candlestick/candlestick.utils.ts": {
+      "sha256": "1129b27c8299ec85717559b2ae4a55b66bc96bd35962919c357a7ae79320ea4c",
+      "component": "candlestick"
+    },
+    "candlestick/index.ts": {
+      "sha256": "6b35a7f318f0766a2ba5d30319efe74362726efc8f6bb285381aca5cd441282b",
+      "component": "candlestick"
+    },
+    "chart-responsive.ts": {
+      "sha256": "4c6afdb729f3be86a850b10de383893e6732b964c00fc53b8dcae924088e0a3c",
+      "component": "(lib)"
+    },
+    "chart-scale.ts": {
+      "sha256": "272741ebeaa60fbb6819da77c125d02ef499006b94fa6991c10e77e83b81e0c5",
+      "component": "(lib)"
+    },
+    "chart-tooltip/chart-tooltip.component.html": {
+      "sha256": "a0e728c7bb405f20e41191096bf9293fb70d20fe571e08754ee60b44ed8abf33",
+      "component": "chart-tooltip"
+    },
+    "chart-tooltip/chart-tooltip.component.ts": {
+      "sha256": "f9f6cc18ad62989f2331b3e4233a225cff76b4cd5879fafc805910b492875292",
+      "component": "chart-tooltip"
+    },
+    "chart-tooltip/index.ts": {
+      "sha256": "e1edbd7b9d949cc4abd0be5ae5d1b7aae62d003a8c925c1b7cdecd94543cda74",
+      "component": "chart-tooltip"
+    },
+    "chart.types.ts": {
+      "sha256": "a1968a8d53e490e5194999eb58b0456cc09f8cc903440a0978a7de4f955229c0",
+      "component": "(lib)"
+    },
+    "chart.utils.ts": {
+      "sha256": "11b0acd7b6fd4d4a32ef9afcb6a553930e58427302815e41c3cb405586ef9b16",
+      "component": "(lib)"
+    },
+    "shortcut-binding.service.ts": {
+      "sha256": "3591766bc882593440f932fe076fc2c775d2e29c7a528e5a2c4852a2334aad49",
+      "component": "(lib)"
+    },
+    "utils.ts": {
+      "sha256": "0fe9e5e2e32f179a04445e017ef9783ee65fd569c7858d5897f61388575a1524",
+      "component": "(lib)"
+    }
+  },
+  "components": {
+    "candlestick": {
+      "ref": "2abb054293fe3cec6a1740d089f3a51ac6812bfd"
+    },
+    "chart-tooltip": {
+      "ref": "2abb054293fe3cec6a1740d089f3a51ac6812bfd"
+    }
+  }
+}

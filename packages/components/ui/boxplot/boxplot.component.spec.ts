@@ -294,32 +294,55 @@ describe('BoxplotComponent', () => {
     });
 
     // T-18: resize
-    // T-18: the chart fills, and re-lays out with, its drawing box.
+    // T-18 / UC-18: the chart fills, and re-lays out with, its measured width.
     //
-    // NOT asserted via the `width` input: `observeChartWidth` reads the host's
-    // clientWidth synchronously at construction, so in a real browser the
-    // measured width always wins and the input is only the pre-measurement
-    // fallback. Asserting `svgWidth() === width()` would therefore pass under
-    // jsdom (clientWidth 0) and fail in the browser suite, which is exactly the
-    // kind of environment-shaped test the project's vitest config warns about.
+    // `observeChartWidth` reads the host's clientWidth SYNCHRONOUSLY at
+    // construction, so in a real browser the measured width always wins and the
+    // `width` input is only the pre-measurement fallback. Asserting
+    // `svgWidth() === width()` outright therefore passes under jsdom
+    // (clientWidth 0) and fails in the browser suite. Both paths are asserted
+    // honestly instead by driving the measured-width signal directly — the same
+    // trick line-chart.component.spec.ts uses.
     describe('T-18 resize', () => {
-        it('lays every mark out inside the measured width, and fills it', async () => {
-            await createFixture();
-            const w = component.svgWidth();
-            expect(w).toBeGreaterThan(0);
+        function setMeasuredWidth(value: number | null): void {
+            (component as unknown as {
+                _measuredWidth: { set(v: number | null): void };
+            })._measuredWidth.set(value);
+            fixture.detectChanges();
+        }
 
-            const marks = component.boxes();
-            const rightmost = Math.max(...marks.map(m => m.x + m.width));
-            expect(rightmost).toBeLessThanOrEqual(w + 0.001);
-            expect(rightmost).toBeGreaterThan(w / 2);
+        it('falls back to the width input before the container is measured', async () => {
+            await createFixture();
+            fixture.componentRef.setInput('width', 640);
+            setMeasuredWidth(null);
+            expect(component.svgWidth()).toBe(640);
         });
 
-        it('re-lays out the boxes when the drawing box changes', async () => {
+        it('prefers the measured container width over the width input', async () => {
             await createFixture();
-            const before = component.boxes().map(m => m.y);
-            fixture.componentRef.setInput('height', 600);
-            fixture.detectChanges();
-            expect(component.boxes().map(m => m.y)).not.toEqual(before);
+            fixture.componentRef.setInput('width', 640);
+            setMeasuredWidth(900);
+            expect(component.svgWidth()).toBe(900);
+        });
+
+        it('re-lays out the boxes when the measured width changes', async () => {
+            await createFixture();
+            setMeasuredWidth(400);
+            const narrow = Math.max(...component.boxes().map(m => m.x + m.width));
+
+            setMeasuredWidth(900);
+            const wide = Math.max(...component.boxes().map(m => m.x + m.width));
+
+            expect(wide).toBeGreaterThan(narrow);
+        });
+
+        it('lays every mark out inside the measured width, and fills it', async () => {
+            await createFixture();
+            setMeasuredWidth(600);
+            const marks = component.boxes();
+            const rightmost = Math.max(...marks.map(m => m.x + m.width));
+            expect(rightmost).toBeLessThanOrEqual(600.001);
+            expect(rightmost).toBeGreaterThan(300);
         });
     });
 

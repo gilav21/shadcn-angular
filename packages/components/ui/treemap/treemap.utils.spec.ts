@@ -5,6 +5,22 @@ import { TreemapNode, TreemapRect } from './treemap.types';
 const RECT: TreemapRect = { x: 0, y: 0, width: 400, height: 300 };
 
 const areaOf = (r: TreemapRect): number => r.width * r.height;
+
+/**
+ * Best (lowest) elapsed time across a few runs. Wall-clock timing on a loaded
+ * machine is dominated by scheduling noise, and noise only ever ADDS time, so
+ * the minimum is the closest estimate of the real cost — and the only form of
+ * this assertion that does not flake.
+ */
+function bestOf(work: () => unknown, runs = 5): number {
+    let best = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < runs; i++) {
+        const start = performance.now();
+        work();
+        best = Math.min(best, performance.now() - start);
+    }
+    return best;
+}
 const aspect = (r: TreemapRect): number =>
     r.width === 0 || r.height === 0 ? 0 : Math.max(r.width / r.height, r.height / r.width);
 
@@ -156,11 +172,26 @@ describe('treemap utils', () => {
             }
         });
 
-        it('squarifies 1000 nodes well under the 8ms budget', () => {
+        // Spec section 3.2: squarify of 1000 nodes under 8ms. Timed as the BEST of
+        // several runs, not a single one — a single wall-clock sample on a loaded
+        // machine measures the scheduler, not the algorithm, and would flake.
+        it('squarifies 1000 nodes within the 8ms budget', () => {
             const values = Array.from({ length: 1000 }, (_, i) => 1000 - i);
-            const start = performance.now();
-            squarify(values, { x: 0, y: 0, width: 1200, height: 800 });
-            expect(performance.now() - start).toBeLessThan(8);
+            const rect = { x: 0, y: 0, width: 1200, height: 800 };
+            expect(bestOf(() => squarify(values, rect))).toBeLessThan(8);
+        });
+
+        // Guards the complexity, which a wall-clock number alone cannot: squarify
+        // is O(n log n), so doubling the input must not quadruple the work.
+        it('scales sub-quadratically with the node count', () => {
+            const rect = { x: 0, y: 0, width: 1200, height: 800 };
+            const small = Array.from({ length: 1000 }, (_, i) => 1000 - i);
+            const large = Array.from({ length: 2000 }, (_, i) => 2000 - i);
+
+            const t1 = bestOf(() => squarify(small, rect));
+            const t2 = bestOf(() => squarify(large, rect));
+
+            expect(t2).toBeLessThan(Math.max(t1, 0.05) * 4);
         });
     });
 

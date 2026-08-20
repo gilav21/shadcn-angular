@@ -20,6 +20,24 @@ function finiteValues(values: readonly number[]): number[] {
     return values.filter(v => Number.isFinite(v));
 }
 
+/**
+ * `[min, max]` of a non-empty sample, in one pass.
+ *
+ * Deliberately not `Math.min(...values)`: the spread passes one argument per
+ * element, and V8 throws `RangeError: Maximum call stack size exceeded` around
+ * 100k arguments. The spec's own budget is 10,000 samples, so a caller is well
+ * within their rights to hand us an array that would crash the spread form.
+ */
+function extent(values: readonly number[]): [number, number] {
+    let min = values[0];
+    let max = values[0];
+    for (const value of values) {
+        if (value < min) min = value;
+        if (value > max) max = value;
+    }
+    return [min, max];
+}
+
 function resolveBinCount(binCount: number | undefined, sampleSize: number): number {
     if (binCount !== undefined && Number.isFinite(binCount) && binCount >= 1) {
         return Math.floor(binCount);
@@ -50,7 +68,8 @@ export function computeBinEdges(values: readonly number[], binCount?: number): n
     if (finite.length === 0) return [];
 
     const count = resolveBinCount(binCount, finite.length);
-    const [lo, hi] = niceDomain(Math.min(...finite), Math.max(...finite), count);
+    const [min, max] = extent(finite);
+    const [lo, hi] = niceDomain(min, max, count);
     const span = hi > lo ? hi - lo : 1;
     const width = span / count;
 

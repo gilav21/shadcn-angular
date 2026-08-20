@@ -71,9 +71,9 @@ function placeRow(
  * parallel to `values` — the algorithm sorts internally but restores the
  * caller's order.
  *
- * Values that are zero, negative or non-finite get a zero-size rectangle at the
- * remaining region's origin rather than distorting the layout, so a zero-value
- * node is representable. A degenerate `rect` (zero width or height) or an
+ * Values that are zero, negative or non-finite get a zero-size rectangle at
+ * `rect`'s own origin — they are excluded from the row search entirely rather
+ * than distorting the layout, so a zero-value node is representable. A degenerate `rect` (zero width or height) or an
  * all-zero `values` gives every entry a zero-size rectangle.
  */
 export function squarify(values: readonly number[], rect: TreemapRect): TreemapRect[] {

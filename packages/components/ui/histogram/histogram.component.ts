@@ -108,8 +108,10 @@ export class HistogramComponent implements AfterViewInit {
     /**
      * Layout direction. `'auto'` (default) resolves from the host element's
      * inherited DOM direction after view init; `'ltr'`/`'rtl'` force it. RTL
-     * reverses the value axis (the lowest bin on the right) and moves the count
-     * tick labels to the opposite edge. See {@link isRtl}.
+     * mirrors the horizontal *bin* axis — the lowest bin moves to the right —
+     * and moves the count tick labels to the opposite edge. The vertical count
+     * axis is never flipped, per the convention audit in
+     * `specs/charts-new-spec.md` section 6.5. See {@link isRtl}.
      */
     readonly dir = input<ChartDirection>('auto');
 
