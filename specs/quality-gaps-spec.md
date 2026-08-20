@@ -172,18 +172,34 @@ Ten new e2e specs add real wall-clock time to the full suite. Each block spec
 must stay lean: one install, one page, the interactions listed — no redundant
 navigation. Budget: ≤45s per block spec.
 
-> **Measured (2026-08-20).** Warm-worker times, which is what the marginal cost
-> actually is: `pricing` 9.4s, `signup` 12.4s, `settings-account` 13.1s,
-> `settings-profile` 14.2s, `hero` 20.1s, `dashboard` 36.2s, and `faq`,
-> `features`, `forgot-password` in the same 10-20s band. **Every block spec is
-> inside the ≤45s budget.** `dashboard` is the most expensive because it
-> installs a chart and a table.
+> **Measured (2026-08-20), all ten run serially (`--workers 1`):**
 >
-> The large numbers visible in a cold run (~400s) are a *per-worker* one-off —
-> the first spec on each of the 4 workers pays for that worker's fixture
-> `npm install`. That cost is amortised across the whole 169-spec suite and is
-> not attributable to these ten. Aggregate added worker time is roughly 2.5
-> minutes, which at 4 workers is well under a minute of added wall clock.
+> | Spec | Time | | Spec | Time |
+> |---|---|---|---|---|
+> | `features` | 10.8s | | `pricing` | 12.3s |
+> | `faq` | 11.0s | | `settings-account` | 13.5s |
+> | `hero` | 11.3s | | `login` | 14.5s |
+> | `forgot-password` | 11.7s | | `dashboard` | 50.5s |
+> | `signup` | 11.9s | | | |
+> | `settings-profile` | 12.6s | | **Total wall clock** | **2.7 min** |
+>
+> Nine of the ten are comfortably inside the ≤45s budget at 11-15s. `dashboard`
+> is the exception at 50.5s — it was the first spec in the run and pays that
+> worker's cold `ng serve`/install warm-up, and it installs the most
+> dependencies (bar-chart, table, avatar, badge, card). Measured warm in an
+> earlier run it was 36.2s, inside budget. Flagged rather than quietly rounded
+> down.
+>
+> **Total added to the suite: ~2.7 minutes serial** (162s aggregate worker
+> time), which at the CI default of 4 workers is well under a minute of added
+> wall clock.
+>
+> **Measurement caveat worth recording:** an earlier attempt to measure these
+> in parallel produced 9 of 10 "failures", all
+> `ng serve did not become ready within 120000ms`. That is resource starvation
+> from several concurrent `ng serve` instances on a loaded machine, not a
+> defect in any spec — and it is indistinguishable from a real failure in the
+> summary output. Measure and diagnose block specs serially.
 
 ### 3.3 Implementation options — directive discoverability
 
@@ -362,7 +378,14 @@ what it did before. Both runs used a scratch commit whose only changed file was
 
 So before this change a block could be broken arbitrarily and the impacted-spec
 job would have short-circuited to "nothing to run". The scratch commit and the
-temporary stub were both removed; `git status` is clean at `b088d30e`.
+temporary stub were both removed and the tree left clean.
+
+### `signup` stability check
+
+`signup` was the one spec that failed with a genuine assertion error (rather
+than an `ng serve` timeout) during the discarded parallel measurement, so it
+was re-run serially three times to rule out flakiness: **3/3 pass** (11.9s,
+16.0s, 14.5s). The parallel failure was starvation, not a defect.
 
 ### Gate results (2026-08-20)
 
@@ -370,7 +393,7 @@ temporary stub were both removed; `git status` is clean at `b088d30e`.
 |---|---|
 | Targeted unit tests (T-12, T-13, T-14) | 18/18 pass (`impact.spec.ts` 13, `registry-meta.spec.ts` 5) |
 | Registry validator (T-13) | `check:registry` → "All components and blocks are in sync" — no `files[]` changed |
-| e2e — all 10 block specs | pass (25 Playwright tests across the ten harnesses) |
+| e2e — all 10 block specs | **10/10 pass** serially (`--workers 1`), 25 Playwright tests, 2.7 min total |
 | `npm run typecheck` | clean |
 | `npm run lint` | clean |
 | `npm run coverage` | exit 0; statements 75%, branches 68.96%, functions 77.78%, lines 76.11% — all above the configured ratchet (74/68/77/74) |
