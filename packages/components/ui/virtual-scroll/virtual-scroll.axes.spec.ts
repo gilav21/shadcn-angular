@@ -104,7 +104,7 @@ function resize(vs: VirtualScrollComponent<Cell>, specs: ResizeSpec[]): void {
             [columnCount]="columnCount()"
             [minItemWidth]="100"
             [minItemHeight]="50"
-            [buffer]="0"
+            [buffer]="buffer()"
             [hasMore]="false"
             (cellWindowChange)="cellWindows.push($event)"
         >
@@ -118,6 +118,7 @@ class AxesHostComponent {
     readonly items = signal<Cell[]>([]);
     readonly orientation = signal<VirtualScrollOrientation>('horizontal');
     readonly columnCount = signal(1);
+    readonly buffer = signal(0);
     readonly cellWindows: VirtualScrollWindow2D[] = [];
 }
 
@@ -428,6 +429,32 @@ describe('VirtualScrollComponent — 2D (both axes)', () => {
         vs.scrollToCell(1, 1);
         expect(container.scrollTop).toBe(90);
         expect(container.scrollLeft).toBe(140);
+    });
+
+    it('anchors a BUFFERED column on the same terms as a buffered row', () => {
+        // With a buffer the render window starts before the viewport, so
+        // `columnRenderRange().start` and the unbuffered viewport start diverge.
+        // Anchoring must key off the viewport start on BOTH axes, or a column
+        // that is rendered-but-off-screen goes uncorrected while its row-axis
+        // equivalent does not.
+        host.buffer.set(3);
+        fixture.detectChanges();
+
+        container.scrollTop = 500;
+        container.scrollLeft = 1000;
+        container.dispatchEvent(new Event('scroll'));
+        fixture.detectChanges();
+
+        expect(vs.columnRenderRange().start).toBe(7);
+        expect(vs.renderRange().start).toBe(7);
+
+        // Column 8 and row 8 are both inside the buffer but before the viewport
+        // (which starts at 10). Both must produce a correction.
+        resize(vs, [{ row: 8, blockSize: 150 }]);
+        expect(container.scrollTop).toBe(500 + (150 - CELL_HEIGHT));
+
+        resize(vs, [{ column: 8, inlineSize: 220 }]);
+        expect(container.scrollLeft).toBe(1000 + (220 - CELL_WIDTH));
     });
 
     it('reports no visibleItems in grid mode, since renderRange indexes rows', () => {

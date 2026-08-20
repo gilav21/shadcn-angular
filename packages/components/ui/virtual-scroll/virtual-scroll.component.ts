@@ -327,18 +327,33 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     return { start: renderStart, end: renderEnd };
   });
 
+  /**
+   * Columns actually covering the viewport in `'both'` mode, WITHOUT the
+   * buffer — the column-axis counterpart of {@link viewportRange}. Scroll
+   * anchoring keys off this rather than off {@link columnRenderRange}, so a
+   * buffered column sitting before the viewport is corrected on exactly the
+   * same terms as its row-axis equivalent. With `buffer` at 0 the two coincide,
+   * which is why the asymmetry was invisible until the thresholds were named
+   * apart.
+   */
+  private readonly columnViewportRange = computed(() => {
+    if (!this.isGrid()) return { start: 0, end: 1 };
+
+    this.measurementVersion();
+    return this.columnAxis.window(
+      this.scrollLeft(),
+      this.containerWidth(),
+      this.minItemWidth(),
+      this.gridColumns()
+    );
+  });
+
   /** Window of columns rendered in `'both'` mode. Collapses to `{ start: 0, end: 1 }` on the single-axis orientations. */
   readonly columnRenderRange = computed(() => {
     if (!this.isGrid()) return { start: 0, end: 1 };
 
-    this.measurementVersion();
+    const { start, end } = this.columnViewportRange();
     const columns = this.gridColumns();
-    const { start, end } = this.columnAxis.window(
-      this.scrollLeft(),
-      this.containerWidth(),
-      this.minItemWidth(),
-      columns
-    );
     const buf = this.buffer();
     return { start: Math.max(0, start - buf), end: Math.min(columns, end + buf) };
   });
@@ -430,8 +445,10 @@ export class VirtualScrollComponent<T extends object = VirtualItem> implements A
     // would otherwise shove the content the user is reading. Both axes are
     // corrected, including in grid mode.
     const adjustment = { top: 0, left: 0 };
+    // Both thresholds are the UNBUFFERED viewport start of their axis, so a
+    // buffered row and a buffered column behave identically.
     const firstMain = this.viewportRange().start;
-    const firstColumn = this.isGrid() ? this.columnRenderRange().start : 0;
+    const firstColumn = this.isGrid() ? this.columnViewportRange().start : 0;
 
     for (const entry of entries) {
       this.recordEntry(entry, firstMain, firstColumn, adjustment);
