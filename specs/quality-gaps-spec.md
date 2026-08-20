@@ -7,7 +7,7 @@
 > It touches `e2e/`, `packages/blocks/`, one orphaned stories file, and the
 > registry's category metadata. No other Wave 0 bundle touches these.
 
-**Status:** not started
+**Status:** implemented — see §6
 **Scope:** interactive e2e for the 10 blocks · `date-range-picker` orphan ·
 directive discoverability · misplaced `rich-text-editor.ideas.md`
 **Source plan:** `specs/ideas-backlog-2026-08-19.md` §4
@@ -172,6 +172,19 @@ Ten new e2e specs add real wall-clock time to the full suite. Each block spec
 must stay lean: one install, one page, the interactions listed — no redundant
 navigation. Budget: ≤45s per block spec.
 
+> **Measured (2026-08-20).** Warm-worker times, which is what the marginal cost
+> actually is: `pricing` 9.4s, `signup` 12.4s, `settings-account` 13.1s,
+> `settings-profile` 14.2s, `hero` 20.1s, `dashboard` 36.2s, and `faq`,
+> `features`, `forgot-password` in the same 10-20s band. **Every block spec is
+> inside the ≤45s budget.** `dashboard` is the most expensive because it
+> installs a chart and a table.
+>
+> The large numbers visible in a cold run (~400s) are a *per-worker* one-off —
+> the first spec on each of the 4 workers pays for that worker's fixture
+> `npm install`. That cost is amortised across the whole 169-spec suite and is
+> not attributable to these ten. Aggregate added worker time is roughly 2.5
+> minutes, which at 4 workers is well under a minute of added wall clock.
+
 ### 3.3 Implementation options — directive discoverability
 
 **Option 1 — New `directives` registry category.**
@@ -263,19 +276,100 @@ Then update the task row with **Completed**, **Score**, **Retrospective**.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Investigate `date-range-picker` orphan; report completeness and a delete-vs-finish recommendation. **Ask the user before deleting.** | UC-4 | ⬜ Not started | — | — | — |
-| 2 | Scaffold e2e harnesses for all 10 blocks (`e2e:scaffold`); confirm auto-discovery without editing `specs.ts` | UC-1, UC-3 | ⬜ Not started | — | — | — |
-| 3 | Write real interaction specs T-1…T-6 (the six form-bearing blocks) | UC-1 | ⬜ Not started | — | — | — |
-| 4 | Write real interaction specs T-7…T-10 (marketing blocks) | UC-1 | ⬜ Not started | — | — | — |
-| 5 | **Deliberate-regression check T-11** — break a block, prove the spec fails, restore. Record in retro. | UC-2 | ⬜ Not started | — | — | — |
-| 6 | Verify whether a new registry category value is a manifest-shape change (`isValidRegistryShape`, `ComponentDefinition`); record the finding | UC-5 | ⬜ Not started | — | — | — |
-| 7 | Apply the chosen directive-discoverability option; T-13, T-14 pass | UC-5, UC-6, UC-8 | ⬜ Not started | — | — | — |
-| 8 | Resolve `date-range-picker` per Task 1's approved recommendation | UC-4 | ⬜ Not started | — | — | — |
-| 9 | Move `rich-text-editor.ideas.md` out of `ui/` into `specs/`; confirm registry unaffected | UC-7, UC-8 | ⬜ Not started | — | — | — |
-| 10 | Add T-12 impact-analyzer test; run `e2e:impact` and confirm block specs are selected | UC-3 | ⬜ Not started | — | — | — |
-
----
+| 1 | Investigate `date-range-picker` orphan; report completeness and a delete-vs-finish recommendation. **Ask the user before deleting.** | UC-4 | ✅ Done | 2026-08-20 | see log | Premise was false. The component exists (`date-picker/sub/date-range-picker.component.*`), is exported from the barrel, and is already in `date-picker`'s `files[]` — `add date-picker` installs it today. Only the stories file was misplaced. Recommended move, not delete; reported and confirmed before touching anything. Nothing deleted. |
+| 2 | Scaffold e2e harnesses for all 10 blocks (`e2e:scaffold`); confirm auto-discovery without editing `specs.ts` | UC-1, UC-3 | ✅ Done | 2026-08-20 | see log | `e2e:scaffold` could not scaffold a block at all — it hardcoded `packages/components/ui`, emitted `@/components/ui/<name>` imports, and assumed the tag was `ui-<name>`. Made it registry-driven and taught it to read the real `selector`. All 10 then scaffolded and auto-discovered (159 → 169 specs) with zero edits to `specs.ts`. |
+| 3 | Write real interaction specs T-1…T-6 (the six form-bearing blocks) | UC-1 | ✅ Done | 2026-08-20 | see log | T-2 was unwritable as specified: `signup` had no validation at all and emitted empty submissions. Added block-local validation. `settings-profile` needed unambiguous locators — `getByLabel('Name')` also matched "Username", and the `placeholder` matched both the `<ui-textarea>` host and its inner control. |
+| 4 | Write real interaction specs T-7…T-10 (marketing blocks) | UC-1 | ✅ Done | 2026-08-20 | see log | T-7 was unwritable as specified: every `pricing` CTA was `<ui-button [label]="tier.cta" />` with no handler and no output — literally the spec's own "dead link in pricing" example. Added `ctaClicked`. `features` asserts the per-name `ui-icon-<name>` hook because `ui-icon` renders an empty `<svg>` for an unknown name rather than throwing. |
+| 5 | **Deliberate-regression check T-11** — break a block, prove the spec fails, restore. Record in retro. | UC-2 | ✅ Done | 2026-08-20 | see log | Re-injected the real bug: deleted `(clicked)="ctaClicked.emit(tier)"` from `pricing.component.html`, making it byte-identical to its pre-fix state. `npm run e2e -- pricing` FAILED on "every plan CTA emits its own tier" (`getByTestId('picked')` → element(s) not found). Restored; re-ran; 2 passed. Decisive detail: the *rendering* test passed throughout — the exact false confidence `add-all-smoke` gives. |
+| 6 | Verify whether a new registry category value is a manifest-shape change (`isValidRegistryShape`, `ComponentDefinition`); record the finding | UC-5 | ✅ Done | 2026-08-20 | see log | Not a shape change — `isValidRegistryEntry` never inspects `category` and `Category` is compile-time only, so old CLIs parse it fine. But Option 1 still needs a publish to be *worth* anything: `help.ts` groups by the CLI's own bundled `CATEGORIES` and skips unknown ones, so until a release shipped, directives would vanish from `help` entirely. Contingency fired → Option 3. |
+| 7 | Apply the chosen directive-discoverability option; T-13, T-14 pass | UC-5, UC-6, UC-8 | ✅ Done | 2026-08-20 | see log | Delivered `docs/directives.md`. Found **10** directive entries, not the 6 the spec lists. All 10 already open their description with "Directive", which is what makes `search`/`why` self-identifying; T-14 locks that in and derives the set from `files[]` so new directives inherit the rule. T-13: `check:registry` reports "All components and blocks are in sync" — no `files[]` changed. |
+| 8 | Resolve `date-range-picker` per Task 1's approved recommendation | UC-4 | ✅ Done | 2026-08-20 | see log | Moved `date-range-picker.stories.ts` into `date-picker/` and repointed its imports at `./sub/date-range-picker.component` and `../calendar`. Storybook's glob is `../packages/**/*.stories.*`, so it is still collected; the file is in no `files[]`, so the registry is untouched. |
+| 9 | Move `rich-text-editor.ideas.md` out of `ui/` into `specs/`; confirm registry unaffected | UC-7 | ✅ Done | 2026-08-20 | see log | Moved to `specs/`. It was the only `.md` under `ui/`. Registry unaffected — confirmed by `check:registry`. |
+| 10 | Add T-12 impact-analyzer test; run `e2e:impact` and confirm block specs are selected | UC-3 | ✅ Done | 2026-08-20 | see log | Found the analyzer was blind to blocks: `getComponentForFile` matches only `ui/` and `lib/`, so a block edit scheduled **nothing** — UC-3 could not have held. Added `blockForFile` in `impact.ts` (not CLI source: the analyzer is its only caller, so no publish). T-12 asserts every block file maps back to its block and that every block has a schedulable spec. |
 
 ## 6. Completion log
 
-_(empty — no tasks complete yet)_
+### T-11 — deliberate regression (2026-08-20)
+
+The single most valuable check in this spec, per §2.2. Recorded in full
+because "the suite passed" is not evidence that the suite tests anything.
+
+| Step | Action | Result |
+|---|---|---|
+| 1 | Deleted the line `(clicked)="ctaClicked.emit(tier)"` from `packages/blocks/pricing/pricing.component.html`, restoring the block to byte-identical pre-fix state | block compiles, page renders |
+| 2 | `npm run e2e -- pricing` | **FAILED** — `pricing: every plan CTA emits its own tier` → `expect(locator).toHaveText("Free\|$0") failed … element(s) not found` on `getByTestId('picked')`. Exit code 1. |
+| 3 | `git checkout -- packages/blocks/pricing/pricing.component.html` | restored |
+| 4 | `npm run e2e:reset` then `npm run e2e -- pricing` | **2 passed**, `1/1 passed` |
+
+The finding that matters: in step 2 the *other* test in the same file —
+`pricing: all three tiers render with their prices and features` — **passed**.
+That test is the kind of coverage `add-all-smoke` already provided, and it was
+blind to a CTA that did nothing. The interaction assertion is what caught it.
+This is the spec's premise, demonstrated rather than asserted.
+
+### Defects found by writing the tests
+
+All three were pre-existing on `master` and none were visible to the existing
+smoke coverage.
+
+1. **`pricing` — dead CTAs (fixed).** Every plan button was
+   `<ui-button [label]="tier.cta" />`: no click handler, no output, no way for
+   a consumer to know a plan was chosen. This is verbatim the "dead link in
+   `pricing`" that §1.2 names as the motivating failure. Fixed additively with
+   `ctaClicked = output<PricingTier>()`.
+2. **`signup` — no validation (fixed).** `onSubmit()` emitted unconditionally,
+   so submitting an untouched form emitted `{name:'', email:'', password:'',
+   acceptTerms:false}`. Fixed with block-local validation and an inline error;
+   no base-component change.
+3. **`ui-textarea` — unlabelled control (NOT fixed; follow-up).** The component
+   exposes no `elementId`/`ariaLabel`/`ariaLabelledby` input and renders a bare
+   `<textarea>`, so `settings-profile`'s `<ui-label>Bio</ui-label>` is
+   decorative and the field is unnamed for assistive tech (WCAG 3.3.2 / 4.1.2).
+   Deliberately left alone: the fix belongs in a shared base component, outside
+   this bundle's remit. The spec locates that field by `data-slot` with a
+   comment recording why.
+
+### Infrastructure gaps that made the stated goals unreachable
+
+Both were discovered by attempting the tasks as written, and both are dev-only
+(no npm publish implied).
+
+- **`e2e:scaffold` could not scaffold a block.** It hardcoded
+  `packages/components/ui`, emitted `@/components/ui/<name>` imports, and
+  derived the element tag from the registry name. Blocks live in
+  `packages/blocks/`, install to `@/blocks/`, and are `ui-login-block` — not
+  `ui-login`. Now registry-driven, with the tag read from the component's real
+  `selector` (which also hardens it for any component whose selector does not
+  match its folder name).
+- **The impact analyzer was blind to blocks.** `getComponentForFile` matches
+  only `packages/components/{ui,lib}/`, so every `packages/blocks/**` change
+  mapped to no component and scheduled **nothing** — not even that block's own
+  spec. UC-3 could not have held. Fixed with `blockForFile` inside
+  `e2e/orchestrator/impact.ts` rather than in CLI source: the analyzer is that
+  function's only caller, so keeping it out of `packages/cli/` avoids implying
+  a release.
+
+### UC-3 verified end-to-end, both directions (2026-08-20)
+
+Asserting "the analyzer now picks up blocks" is worth nothing without showing
+what it did before. Both runs used a scratch commit whose only changed file was
+`packages/blocks/faq/faq.component.ts`:
+
+| Analyzer | `npm run e2e:impact -- --base HEAD~1` |
+|---|---|
+| With `blockForFile` disabled (pre-fix behaviour) | `decision: none` → **`NONE`** — CI would have run **no specs at all** for a block change |
+| With `blockForFile` (as shipped) | `decision: subset (1 specs)` → **`faq`** |
+
+So before this change a block could be broken arbitrarily and the impacted-spec
+job would have short-circuited to "nothing to run". The scratch commit and the
+temporary stub were both removed; `git status` is clean at `b088d30e`.
+
+### Amendments to the spec itself
+
+Per the living-history convention, wrong claims are struck through and
+annotated in place, never deleted: the `date-range-picker` "orphan" premise
+(§1.2), the six-directive count (§1.2), and the Option 1 decision (§3.3).
+
+### Wall-clock cost of the new specs
+
+See the note under §3.2.

@@ -27,6 +27,10 @@ export default tseslint.config(
       'coverage*/**',
       '.storybook/**',
       'e2e/fixture-app/**',
+      // Per-worker fixture clones written by the parallel e2e orchestrator.
+      // Gitignored build output, not source — and not in this checkout's
+      // tsconfig, so parserOptions.project rejects every file in them.
+      'e2e/.workers/**',
       // Transient consumer install used by the jest-fixpoint — gitignored
       // vendored copies of components, not source (tsconfig excludes it too).
       'e2e/jest-fixture/src/components/**',
