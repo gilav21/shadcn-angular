@@ -7,7 +7,7 @@
 > It touches `e2e/`, `packages/blocks/`, one orphaned stories file, and the
 > registry's category metadata. No other Wave 0 bundle touches these.
 
-**Status:** implemented — see §6
+**Status:** ✅ complete — all 11 tasks done, review gate 95/100 (see §6)
 **Scope:** interactive e2e for the 10 blocks · `date-range-picker` orphan ·
 directive discoverability · misplaced `rich-text-editor.ideas.md`
 **Source plan:** `specs/ideas-backlog-2026-08-19.md` §4
@@ -292,16 +292,17 @@ Then update the task row with **Completed**, **Score**, **Retrospective**.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Investigate `date-range-picker` orphan; report completeness and a delete-vs-finish recommendation. **Ask the user before deleting.** | UC-4 | ✅ Done (review gate pending) | 2026-08-20 | — | Premise was false. The component exists (`date-picker/sub/date-range-picker.component.*`), is exported from the barrel, and is already in `date-picker`'s `files[]` — `add date-picker` installs it today. Only the stories file was misplaced. Recommended move, not delete; reported and confirmed before touching anything. Nothing deleted. |
-| 2 | Scaffold e2e harnesses for all 10 blocks (`e2e:scaffold`); confirm auto-discovery without editing `specs.ts` | UC-1, UC-3 | ✅ Done (review gate pending) | 2026-08-20 | — | `e2e:scaffold` could not scaffold a block at all — it hardcoded `packages/components/ui`, emitted `@/components/ui/<name>` imports, and assumed the tag was `ui-<name>`. Made it registry-driven and taught it to read the real `selector`. All 10 then scaffolded and auto-discovered (159 → 169 specs) with zero edits to `specs.ts`. |
-| 3 | Write real interaction specs T-1…T-6 (the six form-bearing blocks) | UC-1 | ✅ Done (review gate pending) | 2026-08-20 | — | T-2 was unwritable as specified: `signup` had no validation at all and emitted empty submissions. Added block-local validation. `settings-profile` needed unambiguous locators — `getByLabel('Name')` also matched "Username", and the `placeholder` matched both the `<ui-textarea>` host and its inner control. |
-| 4 | Write real interaction specs T-7…T-10 (marketing blocks) | UC-1 | ✅ Done (review gate pending) | 2026-08-20 | — | T-7 was unwritable as specified: every `pricing` CTA was `<ui-button [label]="tier.cta" />` with no handler and no output — literally the spec's own "dead link in pricing" example. Added `ctaClicked`. `features` asserts the per-name `ui-icon-<name>` hook because `ui-icon` renders an empty `<svg>` for an unknown name rather than throwing. |
-| 5 | **Deliberate-regression check T-11** — break a block, prove the spec fails, restore. Record in retro. | UC-2 | ✅ Done (review gate pending) | 2026-08-20 | — | Re-injected the real bug: deleted `(clicked)="ctaClicked.emit(tier)"` from `pricing.component.html`, making it byte-identical to its pre-fix state. `npm run e2e -- pricing` FAILED on "every plan CTA emits its own tier" (`getByTestId('picked')` → element(s) not found). Restored; re-ran; 2 passed. Decisive detail: the *rendering* test passed throughout — the exact false confidence `add-all-smoke` gives. |
-| 6 | Verify whether a new registry category value is a manifest-shape change (`isValidRegistryShape`, `ComponentDefinition`); record the finding | UC-5 | ✅ Done (review gate pending) | 2026-08-20 | — | Not a shape change — `isValidRegistryEntry` never inspects `category` and `Category` is compile-time only, so old CLIs parse it fine. But Option 1 still needs a publish to be *worth* anything: `help.ts` groups by the CLI's own bundled `CATEGORIES` and skips unknown ones, so until a release shipped, directives would vanish from `help` entirely. Contingency fired → Option 3. |
-| 7 | Apply the chosen directive-discoverability option; T-13, T-14 pass | UC-5, UC-6, UC-8 | ✅ Done (review gate pending) | 2026-08-20 | — | Delivered `docs/directives.md`. Found **10** directive entries, not the 6 the spec lists. All 10 already open their description with "Directive", which is what makes `search`/`why` self-identifying; T-14 locks that in and derives the set from `files[]` so new directives inherit the rule. T-13: `check:registry` reports "All components and blocks are in sync" — no `files[]` changed. |
-| 8 | Resolve `date-range-picker` per Task 1's approved recommendation | UC-4 | ✅ Done (review gate pending) | 2026-08-20 | — | Moved `date-range-picker.stories.ts` into `date-picker/` and repointed its imports at `./sub/date-range-picker.component` and `../calendar`. Storybook's glob is `../packages/**/*.stories.*`, so it is still collected; the file is in no `files[]`, so the registry is untouched. |
-| 9 | Move `rich-text-editor.ideas.md` out of `ui/` into `specs/`; confirm registry unaffected | UC-7 | ✅ Done (review gate pending) | 2026-08-20 | — | Moved to `specs/`. It was the only `.md` under `ui/`. Registry unaffected — confirmed by `check:registry`. |
-| 10 | Add T-12 impact-analyzer test; run `e2e:impact` and confirm block specs are selected | UC-3 | ✅ Done (review gate pending) | 2026-08-20 | — | Found the analyzer was blind to blocks: `getComponentForFile` matches only `ui/` and `lib/`, so a block edit scheduled **nothing** — UC-3 could not have held. Added `blockForFile` in `impact.ts` (not CLI source: the analyzer is its only caller, so no publish). T-12 asserts every block file maps back to its block and that every block has a schedulable spec. |
+| 1 | Investigate `date-range-picker` orphan; report completeness and a delete-vs-finish recommendation. **Ask the user before deleting.** | UC-4 | ✅ Done | 2026-08-20 | 95 | Premise was false. The component exists (`date-picker/sub/date-range-picker.component.*`), is exported from the barrel, and is already in `date-picker`'s `files[]` — `add date-picker` installs it today. Only the stories file was misplaced. Recommended move, not delete; reported and confirmed before touching anything. Nothing deleted. |
+| 2 | Scaffold e2e harnesses for all 10 blocks (`e2e:scaffold`); confirm auto-discovery without editing `specs.ts` | UC-1, UC-3 | ✅ Done | 2026-08-20 | 95 | `e2e:scaffold` could not scaffold a block at all — it hardcoded `packages/components/ui`, emitted `@/components/ui/<name>` imports, and assumed the tag was `ui-<name>`. Made it registry-driven and taught it to read the real `selector`. All 10 then scaffolded and auto-discovered (159 → 169 specs) with zero edits to `specs.ts`. |
+| 3 | Write real interaction specs T-1…T-6 (the six form-bearing blocks) | UC-1 | ✅ Done | 2026-08-20 | 95 | T-2 was unwritable as specified: `signup` had no validation at all and emitted empty submissions. Added block-local validation. `settings-profile` needed unambiguous locators — `getByLabel('Name')` also matched "Username", and the `placeholder` matched both the `<ui-textarea>` host and its inner control. |
+| 4 | Write real interaction specs T-7…T-10 (marketing blocks) | UC-1 | ✅ Done | 2026-08-20 | 95 | T-7 was unwritable as specified: every `pricing` CTA was `<ui-button [label]="tier.cta" />` with no handler and no output — literally the spec's own "dead link in pricing" example. Added `ctaClicked`. `features` asserts the per-name `ui-icon-<name>` hook because `ui-icon` renders an empty `<svg>` for an unknown name rather than throwing. |
+| 5 | **Deliberate-regression check T-11** — break a block, prove the spec fails, restore. Record in retro. | UC-2 | ✅ Done | 2026-08-20 | 95 | Re-injected the real bug: deleted `(clicked)="ctaClicked.emit(tier)"` from `pricing.component.html`, making it byte-identical to its pre-fix state. `npm run e2e -- pricing` FAILED on "every plan CTA emits its own tier" (`getByTestId('picked')` → element(s) not found). Restored; re-ran; 2 passed. Decisive detail: the *rendering* test passed throughout — the exact false confidence `add-all-smoke` gives. |
+| 6 | Verify whether a new registry category value is a manifest-shape change (`isValidRegistryShape`, `ComponentDefinition`); record the finding | UC-5 | ✅ Done | 2026-08-20 | 95 | Not a shape change — `isValidRegistryEntry` never inspects `category` and `Category` is compile-time only, so old CLIs parse it fine. But Option 1 still needs a publish to be *worth* anything: `help.ts` groups by the CLI's own bundled `CATEGORIES` and skips unknown ones, so until a release shipped, directives would vanish from `help` entirely. Contingency fired → Option 3. |
+| 7 | Apply the chosen directive-discoverability option; T-13, T-14 pass | UC-5, UC-6, UC-8 | ✅ Done | 2026-08-20 | 95 | Delivered `docs/directives.md`. Found **10** directive entries, not the 6 the spec lists. All 10 already open their description with "Directive", which is what makes `search`/`why` self-identifying; T-14 locks that in and derives the set from `files[]` so new directives inherit the rule. T-13: `check:registry` reports "All components and blocks are in sync" — no `files[]` changed. |
+| 8 | Resolve `date-range-picker` per Task 1's approved recommendation | UC-4 | ✅ Done | 2026-08-20 | 95 | Moved `date-range-picker.stories.ts` into `date-picker/` and repointed its imports at `./sub/date-range-picker.component` and `../calendar`. Storybook's glob is `../packages/**/*.stories.*`, so it is still collected; the file is in no `files[]`, so the registry is untouched. |
+| 9 | Move `rich-text-editor.ideas.md` out of `ui/` into `specs/`; confirm registry unaffected | UC-7 | ✅ Done | 2026-08-20 | 95 | Moved to `specs/`. It was the only `.md` under `ui/`. Registry unaffected — confirmed by `check:registry`. |
+| 10 | Add T-12 impact-analyzer test; run `e2e:impact` and confirm block specs are selected | UC-3 | ✅ Done | 2026-08-20 | 95 | Found the analyzer was blind to blocks: `getComponentForFile` matches only `ui/` and `lib/`, so a block edit scheduled **nothing** — UC-3 could not have held. Added `blockForFile` in `impact.ts` (not CLI source: the analyzer is its only caller, so no publish). T-12 asserts every block file maps back to its block and that every block has a schedulable spec. |
+| 11 | **Unplanned but required to keep §4.3 green:** ignore `e2e/.workers/**` in `eslint.config.mjs` | §4.3 | ✅ Done | 2026-08-20 | 95 | Not in the original plan — declared here rather than left as silent scope creep, per the reviewer's nit. Adding the ten block specs meant running the parallel orchestrator, which writes per-worker fixture clones to `e2e/.workers/`. That path is gitignored build output but was **not** in the eslint ignore list, so `npm run lint` failed with 97 `parserOptions.project` parse errors in files that are not source — i.e. the lint gate broke for anyone who had run the parallel suite. Four purely additive lines beside the existing `e2e/fixture-app/**` entry; nothing reordered. Verified the ignore actually bites: lint is clean with `e2e/.workers/{_pristine,w0,w1}` present on disk, not merely absent. Deliberately fixed the ignore list rather than deleting the directory — worktrees here use directory junctions and a recursive delete can follow them out of the worktree. |
 
 ## 6. Completion log
 
@@ -421,29 +422,23 @@ Adding `coverage-cli/**` next to `**/coverage/**` would fix it. Left alone
 deliberately: `sonar-project.properties` is shared by every agent scanning
 concurrently in this wave, and it is outside this bundle's remit.
 
-### Review gate — BLOCKED, not passed (2026-08-20)
+### Review gate — PASSED, 95/100 (2026-08-20)
 
-The fifth Definition-of-Done criterion (§4.5, review gate ≥ 91) is **not
-satisfied**, and is recorded as blocked rather than quietly skipped or
-self-assessed.
+§4.5 satisfied. Scored by an independent reviewer agent dispatched with no
+shared context, against the full rubric (spec conformance, test depth,
+lint/compiler cleanliness, placeholder code, documented deviations, the
+publish-boundary reasoning, minimality of the two block fixes, and the
+credibility of the T-11 evidence). Recorded verbatim:
 
-Three independent reviewer agents were dispatched against this branch
-(`specs/wave-0...HEAD`, 33 files) with a full rubric covering spec conformance,
-test depth, lint/compiler cleanliness, placeholder code, documented deviations,
-the publish-boundary reasoning, the minimality of the two block fixes, and the
-credibility of the T-11 evidence. Two were given the complete brief; the third
-was deliberately narrowed to the ten specs, the two block diffs, and §6, and run
-on a smaller model to fit the machine's load. **None returned a verdict**, over
-roughly 40 minutes of waiting, including direct requests for a partial score
-covering only what each had actually verified. The cause appears to be
-session-level subagent starvation — seven bundle agents plus concurrent Sonar
-scans on one box — not anything about the change under review.
+> **SCORE: 95**
+>
+> **RATIONALE:** The implementation is thorough and honest: all ten block specs (e2e/harness/*/) assert real behaviour — emitted event payloads (login.spec.ts:18 `submitted` text `email|password|remember`), state transitions (pricing.spec.ts:15-23 cta-count/picked per click), and rendered geometry (dashboard.spec.ts:33-47 SVG rect count and bounding box) rather than mere visibility, and locators are scoped defensively (dashboard.spec.ts:12 explains an ambiguous "Revenue" label collision; settings-profile.spec.ts:12-17 documents why `ui-textarea`'s missing id/aria forces a data-slot locator instead of getByLabel). T-11's deliberate regression in pricing.component.html is concrete and credible (§6: re-deleting `(clicked)="ctaClicked.emit(tier)"` fails the interaction test while the pre-existing render-only test still passes, demonstrating exactly the blind spot being fixed). The block/CLI-publish call is correct and well-evidenced: `isValidRegistryEntry` in load.ts never inspects `category`, but `help.ts`'s `buildComponentsSection` loops the CLI's own bundled `CATEGORIES` and skips unknown groups, so Option 1 would silently vanish from `help` on old installs until a publish — Option 3 (docs/directives.md + registry-meta.spec.ts:19-24 floor-guarded derivation) is the right fallback, and `blockForFile` in impact.ts is correctly kept out of `packages/cli/` since `getComponentForFile`'s only caller is the analyzer itself, and impact.spec.ts even verifies the before/after with a scratch commit. The `date-range-picker` and directive-count corrections in specs/quality-gaps-spec.md are struck through per the living-history convention rather than deleted, with concrete evidence (barrel export line, files[] contents) — an honest self-correction of the spec's own false premises. The two block fixes (pricing.component.ts ctaClicked output; signup.component.ts validation via a small computed chain) are minimal and additive, not redesigns, respecting §1.5 scope. Only minor nits: eslint.config.mjs gets an unrelated `e2e/.workers/**` ignore entry not called out in the task table (small, justified, but scope creep), and the Sonar completion-log note is candid about the exclusion boundary rather than overclaiming, which is a plus, not a minus.
 
-Per the review-gate skill's own rule ("No self-review. If no independent
-reviewer is available, the gate fails"), the implementer does not score its own
-work, so no number is recorded here. Every other DoD criterion is green and
-evidenced above. This gate needs one reviewer pass before the bundle is
-merged.
+**Action taken on the reviewer's one actionable nit.** The `eslint.config.mjs`
+ignore entry was undeclared work. It is now **Task 11** in the table above,
+with its justification, rather than sitting in the diff unexplained. The change
+itself stands: it is required to keep §4.3 (zero lint errors) green once the
+parallel e2e orchestrator has run.
 
 ### Amendments to the spec itself
 
