@@ -24,6 +24,7 @@
       [accept]="accept()"
       [multiple]="multiple()"
       [disabled]="isDisabled()"
+      [attr.webkitdirectory]="allowDirectories() ? '' : null"
       (change)="onFileSelected($event)"
     />
     @if (files().length === 0) {
@@ -125,4 +126,76 @@
       </div>
     }
   </div>
+
+  @if (isCropOpen()) {
+    <!--
+      The crop step is inline rather than a dialog: it belongs to the dropzone
+      it was raised from, and a dialog would trap focus away from the queue the
+      user is still building.
+    -->
+    <section
+      class="mt-3 rounded-lg border bg-background p-3 sm:p-4"
+      data-slot="file-upload-crop"
+      [attr.aria-label]="t().cropTitle ?? 'Crop image'"
+    >
+      <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p class="text-sm font-medium truncate max-w-[180px] sm:max-w-[320px]">{{ t().cropTitle ?? 'Crop image' }}</p>
+        @if (cropRemaining() > 0) {
+          <span class="text-xs text-muted-foreground" data-slot="file-upload-crop-remaining">+{{ cropRemaining() }}</span>
+        }
+      </div>
+
+      <div
+        #cropFrame
+        class="relative mx-auto w-full max-w-[calc(100vw-3rem)] sm:max-w-[420px] select-none overflow-hidden rounded-md bg-muted"
+        data-slot="file-upload-crop-frame"
+      >
+        @if (cropPreview()) {
+          <img
+            [src]="cropPreview()"
+            alt=""
+            class="block w-full"
+            draggable="false"
+            (load)="onCropImageLoad($event)"
+          />
+        }
+        @if (cropBoxStyle(); as box) {
+          <div
+            class="absolute cursor-move border-2 border-primary bg-primary/10 touch-none"
+            data-slot="file-upload-crop-box"
+            [style.left]="box.left"
+            [style.top]="box.top"
+            [style.width]="box.width"
+            [style.height]="box.height"
+            role="group"
+            tabindex="0"
+            [attr.aria-label]="t().cropRegion ?? 'Crop region'"
+            (mousedown)="startCropMove($event, cropFrame)"
+            (touchstart)="startCropMove($event, cropFrame)"
+            (keydown)="onCropKeydown($event)"
+          >
+            <span
+              class="absolute -bottom-2 ltr:-right-2 rtl:-left-2 block h-5 w-5 cursor-nwse-resize rounded-full border-2 border-background bg-primary touch-none"
+              data-slot="file-upload-crop-handle"
+              [attr.aria-label]="t().cropResizeHandle ?? 'Resize crop'"
+              (mousedown)="startCropResize($event, cropFrame)"
+              (touchstart)="startCropResize($event, cropFrame)"
+            ></span>
+          </div>
+        }
+      </div>
+
+      <div class="mt-3 flex flex-wrap items-center justify-end gap-2">
+        <ui-button type="button" variant="ghost" (clicked)="cancelCrop()">
+          {{ t().cropCancel ?? 'Cancel' }}
+        </ui-button>
+        <ui-button type="button" variant="outline" (clicked)="skipCrop()">
+          {{ t().cropSkip ?? 'Skip' }}
+        </ui-button>
+        <ui-button type="button" [disabled]="isCropping()" (clicked)="applyCrop()">
+          {{ t().cropApply ?? 'Apply' }}
+        </ui-button>
+      </div>
+    </section>
+  }
 </div>

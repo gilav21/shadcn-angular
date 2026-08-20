@@ -556,10 +556,10 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Drag-and-drop file upload zone with previews and per-file progress.',
     tags: ['file-upload', 'upload', 'dropzone', 'files', 'attachment'],
-    files: ['file-upload/file-upload.component.html', 'file-upload/file-upload.component.ts', 'file-upload/file-upload.locales.ts', 'file-upload/index.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    files: ['file-upload/file-upload.component.html', 'file-upload/file-upload.component.ts', 'file-upload/file-upload.locales.ts', 'file-upload/file-upload.types.ts', 'file-upload/file-upload.utils.ts', 'file-upload/index.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
     dependencies: ['button', 'progress'],
-    testFiles: ['file-upload/file-upload.component.spec.ts', 'file-upload/file-upload.dom.spec.ts'],
+    testFiles: ['file-upload/file-upload.component.spec.ts', 'file-upload/file-upload.dom.spec.ts', 'file-upload/file-upload.features.spec.ts'],
   },
   'file-viewer': {
     name: 'file-viewer',

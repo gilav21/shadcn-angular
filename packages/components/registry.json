@@ -1283,13 +1283,16 @@
       "file-upload/file-upload.component.html",
       "file-upload/file-upload.component.ts",
       "file-upload/file-upload.locales.ts",
+      "file-upload/file-upload.types.ts",
+      "file-upload/file-upload.utils.ts",
       "file-upload/index.ts"
     ],
     "libFiles": [
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "touch.ts"
     ],
     "dependencies": [
       "button",
@@ -1297,7 +1300,8 @@
     ],
     "testFiles": [
       "file-upload/file-upload.component.spec.ts",
-      "file-upload/file-upload.dom.spec.ts"
+      "file-upload/file-upload.dom.spec.ts",
+      "file-upload/file-upload.features.spec.ts"
     ]
   },
   "file-viewer": {
