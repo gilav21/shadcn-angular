@@ -5035,7 +5035,17 @@
   },
   "histogram": {
     "name": "histogram",
+    "category": "charts",
+    "description": "Distribution of a raw numeric sample, auto-binned with the Sturges rule, or with an explicit bin count or bin edges.",
+    "tags": [
+      "histogram",
+      "distribution",
+      "bins",
+      "statistics",
+      "chart"
+    ],
     "files": [
+      "histogram/index.ts",
       "histogram/histogram.component.html",
       "histogram/histogram.component.ts",
       "histogram/histogram.types.ts",
@@ -5053,7 +5063,18 @@
   },
   "boxplot": {
     "name": "boxplot",
+    "category": "charts",
+    "description": "Quartile summary per group: box, median, 1.5xIQR whiskers and outlier points, from raw values or pre-computed stats.",
+    "tags": [
+      "boxplot",
+      "box-plot",
+      "quartiles",
+      "distribution",
+      "statistics",
+      "chart"
+    ],
     "files": [
+      "boxplot/index.ts",
       "boxplot/boxplot.component.html",
       "boxplot/boxplot.component.ts",
       "boxplot/boxplot.types.ts",
@@ -5071,7 +5092,17 @@
   },
   "candlestick": {
     "name": "candlestick",
+    "category": "charts",
+    "description": "OHLC price chart with bodies and high/low wicks, on an ordinal axis that closes weekend gaps or a continuous time axis.",
+    "tags": [
+      "candlestick",
+      "ohlc",
+      "finance",
+      "stock",
+      "chart"
+    ],
     "files": [
+      "candlestick/index.ts",
       "candlestick/candlestick.component.html",
       "candlestick/candlestick.component.ts",
       "candlestick/candlestick.types.ts",
@@ -5089,7 +5120,17 @@
   },
   "treemap": {
     "name": "treemap",
+    "category": "charts",
+    "description": "Hierarchical part-to-whole as nested area, squarified so rectangles stay near square and labels fit.",
+    "tags": [
+      "treemap",
+      "hierarchy",
+      "part-to-whole",
+      "squarified",
+      "chart"
+    ],
     "files": [
+      "treemap/index.ts",
       "treemap/treemap.component.html",
       "treemap/treemap.component.ts",
       "treemap/treemap.types.ts",

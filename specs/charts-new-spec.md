@@ -246,16 +246,16 @@ Then update the task row with **Completed**, **Score**, **Retrospective**.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Audit `bar-chart` + `column-range-chart` for input/tooltip/a11y conventions; record the conventions in this spec | — | ⬜ Not started | — | — | — |
-| 2 | Write failing tests T-1…T-4 for `histogram`, including binning unit tests | UC-1…UC-4 | ⬜ Not started | — | — | — |
-| 3 | Implement `histogram` + stories + demo page | UC-1…UC-4 | ⬜ Not started | — | — | — |
-| 4 | Write failing tests T-5…T-8 for `boxplot`, including quartile unit tests | UC-5…UC-8 | ⬜ Not started | — | — | — |
-| 5 | Implement `boxplot` + stories + demo page | UC-5…UC-8 | ⬜ Not started | — | — | — |
-| 6 | Write failing tests T-9…T-12 for `candlestick` | UC-9…UC-12 | ⬜ Not started | — | — | — |
-| 7 | Implement `candlestick` (ordinal axis default) + stories + demo page | UC-9…UC-12 | ⬜ Not started | — | — | — |
-| 8 | Write failing tests T-13…T-17 for `treemap`, including squarify unit tests | UC-13…UC-17 | ⬜ Not started | — | — | — |
-| 9 | Implement `treemap` (squarified) + stories + demo page | UC-13…UC-17 | ⬜ Not started | — | — | — |
-| 10 | Cross-cutting: T-18 resize, T-19 axe/keyboard, T-20 RTL for all four; register (`sync-registry --fix`); scaffold + pass e2e (T-21) | UC-18…UC-20 | ⬜ Not started | — | — | — |
+| 1 | Audit `bar-chart` + `column-range-chart` for input/tooltip/a11y conventions; record the conventions in this spec | — | ✅ Done | 2026-08-20 | pending | The two charts named are the OLDER generation; auditing `line-chart` too was necessary, and it exposed two defects not to copy (a tooltip position that is never updated, and missing `data-slot`). |
+| 2 | Write failing tests T-1…T-4 for `histogram`, including binning unit tests | UC-1…UC-4 | ✅ Done | 2026-08-20 | pending | Binning tested directly first. Writing the zero-variance case before the code is what forced `niceDomain` padding into `computeBinEdges`, so the bin width can never be 0. |
+| 3 | Implement `histogram` + stories + demo page | UC-1…UC-4 | ✅ Done | 2026-08-20 | pending | No shared-lib change needed: `linearScale` + `niceDomain` + `observeChartWidth` covered it. Bins are a `computed()` over the sample only, so a resize re-lays out without re-counting. |
+| 4 | Write failing tests T-5…T-8 for `boxplot`, including quartile unit tests | UC-5…UC-8 | ✅ Done | 2026-08-20 | pending | The two API shapes converge in `resolveGroupStats`, so T-6 is a real equality assertion between the raw and pre-computed paths rather than two parallel code paths. |
+| 5 | Implement `boxplot` + stories + demo page | UC-5…UC-8 | ✅ Done | 2026-08-20 | pending | Splitting layout into `layoutVertical`/`layoutHorizontal` kept both orientations under the complexity bar. RTL reverses the band keys instead of the pixel range, which would otherwise give a negative bandwidth. |
+| 6 | Write failing tests T-9…T-12 for `candlestick` | UC-9…UC-12 | ✅ Done | 2026-08-20 | pending | Tests-first paid for itself here: three genuinely failed, and the cause was real — `Date.parse("Week 1")` returns a timestamp in V8, so label-only periods were being placed on the time axis. |
+| 7 | Implement `candlestick` (ordinal axis default) + stories + demo page | UC-9…UC-12 | ✅ Done | 2026-08-20 | pending | Ordinal band scale by default per §3.5, with `axisMode="time"` opting into the continuous scale. The doji floor (`Math.max(1, …)`) is asserted, not assumed. |
+| 8 | Write failing tests T-13…T-17 for `treemap`, including squarify unit tests | UC-13…UC-17 | ✅ Done | 2026-08-20 | pending | Squarify is asserted against slice-and-dice directly, so T-15 measures the property the choice was made for rather than an arbitrary threshold. |
+| 9 | Implement `treemap` (squarified) + stories + demo page | UC-13…UC-17 | ✅ Done | 2026-08-20 | pending | Zero-value nodes get a zero-size rect rather than an `Infinity` aspect ratio; `worstRatio` returns `Infinity` on a zero member so such nodes are excluded from the row search entirely. |
+| 10 | Cross-cutting: T-18 resize, T-19 axe/keyboard, T-20 RTL for all four; register (`sync-registry --fix`); scaffold + pass e2e (T-21) | UC-18…UC-20 | 🟡 In progress | — | — | Registry regenerated (barrel seeded once so the walk starts there); e2e harnesses written; bundle-level coverage + Sonar scan pending. |
 
 ---
 
