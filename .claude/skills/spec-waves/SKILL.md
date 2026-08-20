@@ -293,6 +293,38 @@ git worktree remove <path>
 git branch -d <spec-branch>             # -d, never -D
 ```
 
+> ### 🔴 NEVER use a recursive filesystem delete on a worktree
+>
+> **This destroyed the main checkout's `node_modules` on 2026-08-20.**
+>
+> Worktrees here get `node_modules` as a **directory junction** to the main
+> checkout (that is what `.claude/worktrees/nm-tmp` stages). PowerShell
+> `Remove-Item -Recurse -Force` and `rm -rf` **follow junctions and delete the
+> target**, so deleting a worktree that way wipes the real `node_modules` — and
+> it took 511 tracked files under `demo/` and `packages/cli/` with it.
+>
+> - Use `git worktree remove` **only**. If it refuses, find out why.
+> - If a directory must be cleared by hand, use `cmd /c rmdir /s /q <path>`,
+>   which does **not** traverse junctions. Never `Remove-Item -Recurse`/`rm -rf`.
+> - Recovery if it happens anyway: `git restore .` for tracked files, `npm ci`
+>   for `node_modules`. Untracked files are unrecoverable.
+
+### Sonar project keys must be per-agent
+
+Every agent scanning the shared `sonar.projectKey=shadcn-angular` means each
+one's "no new issues" verdict is measured against a project polluted by the
+other branches in flight — agents get blamed for each other's issues, and the
+gate becomes non-deterministic.
+
+Set a distinct key per agent (`scripts/sonar.mjs` reads `SONAR_PROJECT_KEY`):
+
+```bash
+export SONAR_PROJECT_KEY=shadcn-angular-<spec-slug>
+unset SONAR_TOKEN; npm run sonar
+```
+
+Delete the scratch projects from the server after the wave merges.
+
 Rules:
 
 - **Never remove a worktree whose branch is not merged.** Use `git branch
