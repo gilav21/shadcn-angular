@@ -50,7 +50,11 @@ function usableEdges(binEdges: number[] | undefined): number[] | undefined {
     const finite = finiteValues(binEdges);
     if (finite.length < 2) return undefined;
     const sorted = [...finite].sort((a, b) => a - b);
-    return sorted[sorted.length - 1] > sorted[0] ? sorted : undefined;
+    // `.at(-1)` rather than `[length - 1]` (S7755). The `??` keeps the type
+    // narrowed without a non-null assertion, which the lint config forbids;
+    // the fallback is unreachable because `finite.length >= 2` above.
+    const highest = sorted.at(-1) ?? sorted[0];
+    return highest > sorted[0] ? sorted : undefined;
 }
 
 /**
