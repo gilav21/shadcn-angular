@@ -42,6 +42,8 @@ export interface DocsLocale extends LocaleMeta {
     cssHint: string;
     copyCss: string;
     equivalentCommands: string;
+    recipesHeading: string;
+    recipesDescription: string;
 }
 
 export const DOCS_LOCALES: Record<string, DocsLocale> = {
@@ -87,6 +89,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         cssHint: 'Paste this into your token stylesheet. It is exactly what the four CLI commands would write.',
         copyCss: 'Copy CSS',
         equivalentCommands: 'Equivalent CLI commands',
+        recipesHeading: 'Recipes',
+        recipesDescription: 'Composed patterns, not single components. Every one is a real file this repo compiles in a pristine consumer app.',
     },
     he: {
         code: 'he',
@@ -130,6 +134,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         cssHint: 'הדביקו בקובץ הטוקנים שלכם. זה בדיוק מה שארבע פקודות ה-CLI היו כותבות.',
         copyCss: 'העתק CSS',
         equivalentCommands: 'פקודות CLI מקבילות',
+        recipesHeading: 'מתכונים',
+        recipesDescription: 'דפוסים מורכבים, לא רכיבים בודדים. כל אחד הוא קובץ אמיתי שהמאגר הזה מקמפל באפליקציית צרכן נקייה.',
     },
     ar: {
         code: 'ar',
@@ -173,6 +179,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         cssHint: 'الصقه في ملف الرموز لديك. هذا بالضبط ما ستكتبه أوامر الأداة الأربعة.',
         copyCss: 'نسخ CSS',
         equivalentCommands: 'أوامر مكافئة',
+        recipesHeading: 'وصفات',
+        recipesDescription: 'أنماط مركّبة لا مكوّنات مفردة. كل وصفة ملف حقيقي يبنيه هذا المستودع داخل تطبيق مستهلك نظيف.',
     },
     de: {
         code: 'de',
@@ -216,6 +224,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         cssHint: 'Füge das in dein Token-Stylesheet ein. Es ist genau das, was die vier CLI-Befehle schreiben würden.',
         copyCss: 'CSS kopieren',
         equivalentCommands: 'Entsprechende CLI-Befehle',
+        recipesHeading: 'Rezepte',
+        recipesDescription: 'Zusammengesetzte Muster statt einzelner Komponenten. Jedes ist eine echte Datei, die dieses Repo in einer frischen Consumer-App kompiliert.',
     },
     fr: {
         code: 'fr',
@@ -259,6 +269,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         cssHint: 'Collez ceci dans votre feuille de tokens. C\'est exactement ce qu\'écriraient les quatre commandes CLI.',
         copyCss: 'Copier le CSS',
         equivalentCommands: 'Commandes CLI équivalentes',
+        recipesHeading: 'Recettes',
+        recipesDescription: 'Des motifs composés, pas des composants isolés. Chacun est un vrai fichier que ce dépôt compile dans une app consommatrice vierge.',
     },
     es: {
         code: 'es',
@@ -302,6 +314,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         cssHint: 'Pégalo en tu hoja de tokens. Es exactamente lo que escribirían los cuatro comandos de la CLI.',
         copyCss: 'Copiar CSS',
         equivalentCommands: 'Comandos CLI equivalentes',
+        recipesHeading: 'Recetas',
+        recipesDescription: 'Patrones compuestos, no componentes sueltos. Cada uno es un archivo real que este repositorio compila en una app de consumidor limpia.',
     },
     ja: {
         code: 'ja',
@@ -345,6 +359,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         cssHint: 'トークン用スタイルシートに貼り付けてください。4 つの CLI コマンドが書き込む内容とまったく同じです。',
         copyCss: 'CSS をコピー',
         equivalentCommands: '同等の CLI コマンド',
+        recipesHeading: 'レシピ',
+        recipesDescription: '単体コンポーネントではなく、組み合わせたパターン集です。どれもこのリポジトリがまっさらな利用側アプリでビルドしている実ファイルです。',
     },
     zh: {
         code: 'zh',
@@ -388,6 +404,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         cssHint: '粘贴到你的令牌样式表中。这与四条 CLI 命令写入的内容完全相同。',
         copyCss: '复制 CSS',
         equivalentCommands: '等效的 CLI 命令',
+        recipesHeading: '配方',
+        recipesDescription: '这些是组合起来的模式，而非单个组件。每一份都是本仓库在全新使用方应用中真实编译过的文件。',
     },
     ru: {
         code: 'ru',
@@ -431,6 +449,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         cssHint: 'Вставьте это в свой файл токенов. Это в точности то, что записали бы четыре команды CLI.',
         copyCss: 'Копировать CSS',
         equivalentCommands: 'Эквивалентные команды CLI',
+        recipesHeading: 'Рецепты',
+        recipesDescription: 'Составные паттерны, а не отдельные компоненты. Каждый — реальный файл, который репозиторий собирает в чистом приложении-потребителе.',
     },
     pt: {
         code: 'pt',
@@ -474,5 +494,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         cssHint: 'Cole isto na sua folha de tokens. É exatamente o que os quatro comandos da CLI escreveriam.',
         copyCss: 'Copiar CSS',
         equivalentCommands: 'Comandos CLI equivalentes',
+        recipesHeading: 'Receitas',
+        recipesDescription: 'Padrões compostos, não componentes isolados. Cada um é um arquivo real que este repositório compila em uma app consumidora limpa.',
     },
 };

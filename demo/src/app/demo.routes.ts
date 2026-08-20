@@ -135,6 +135,12 @@ export const DEMO_ROUTES: Routes = [
   { path: 'features', loadComponent: () => import('./demos/blocks/features-block-demo.component').then(m => m.FeaturesBlockDemoComponent) },
   { path: 'faq', loadComponent: () => import('./demos/blocks/faq-block-demo.component').then(m => m.FaqBlockDemoComponent) },
 
+  // Composed patterns. Each one is compiled verbatim by the `recipes` e2e spec.
+  {
+    path: 'recipes',
+    loadComponent: () => import('./docs/recipes.component').then(m => m.RecipesComponent),
+  },
+
   // Visual front end for the four theming CLI commands. The CSS it emits is
   // byte-identical to what they write — see packages/cli/scripts/theme-parity.spec.ts.
   {
