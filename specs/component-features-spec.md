@@ -8,7 +8,7 @@
 > is in flight, do **Task 9 last** and re-check for conflicts before editing
 > `file-upload`. Every other task here touches a component that bundle does not.
 
-**Status:** not started
+**Status:** in progress
 **Scope:** eight independent enhancements to existing components
 **Source plan:** `specs/ideas-backlog-2026-08-19.md` §2 "Others"
 
@@ -217,7 +217,7 @@ the riskier components.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|------|--------|--------|-----------|-------|---------------|
-| 1 | Record green baseline of existing specs for all eight components (T-18 baseline) | UC-14 | ⬜ Not started | — | — | — |
+| 1 | Record green baseline of existing specs for all eight components (T-18 baseline) | UC-14 | ✅ Done | 2026-08-20 | n/a (no code) | Baseline captured on a pristine tree at `4232d229`: `vitest --run` over the eight component folders gave **13 files / 452 tests, 0 failures**. That number is the T-18 gate every later task is measured against. |
 | 2 | `toast`: write T-1…T-3, then implement `update`, `loading`, `info`, `warning`, `promise` | UC-1, UC-2 | ⬜ Not started | — | — | — |
 | 3 | `stepper`: write T-8, T-9, then implement the sync/async guard hook | UC-6 | ⬜ Not started | — | — | — |
 | 4 | `tour`: write T-10, T-11, then implement `storageKey` persistence and branching | UC-7, UC-8 | ⬜ Not started | — | — | — |
@@ -232,4 +232,14 @@ the riskier components.
 
 ## 6. Completion log
 
-_(empty — no tasks complete yet)_
+### Task 1 — baseline (2026-08-20)
+
+Command: `npx vitest --run packages/components/ui/{toast,stepper,tour,virtual-scroll,command,sortable,kanban,file-upload}`
+
+Result: **13 test files, 452 tests, 0 failed** (24.6s). Per-file counts include
+`command.component.spec.ts` 51, `tour.component.spec.ts` 61,
+`kanban.component.spec.ts` 97, `sortable.component.spec.ts` 86.
+
+No existing spec file may be edited by any task in this bundle. Re-running this
+exact command after every task must reproduce 452/452.
+
