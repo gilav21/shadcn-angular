@@ -6,6 +6,9 @@ export const DEMO_ROUTES: Routes = [
 
   // Feedback
   { path: 'alert', loadComponent: () => import('./demos/feedback/alert-demo.component').then(m => m.AlertDemoComponent) },
+  { path: 'banner', loadComponent: () => import('./demos/feedback/banner-demo.component').then(m => m.BannerDemoComponent) },
+  { path: 'result', loadComponent: () => import('./demos/feedback/result-demo.component').then(m => m.ResultDemoComponent) },
+  { path: 'error-page', loadComponent: () => import('./demos/feedback/error-page-demo.component').then(m => m.ErrorPageDemoComponent) },
   { path: 'progress', loadComponent: () => import('./demos/feedback/progress-demo.component').then(m => m.ProgressDemoComponent) },
   { path: 'skeleton', loadComponent: () => import('./demos/feedback/skeleton-demo.component').then(m => m.SkeletonDemoComponent) },
   { path: 'spinner', loadComponent: () => import('./demos/feedback/spinner-demo.component').then(m => m.SpinnerDemoComponent) },
@@ -73,11 +76,14 @@ export const DEMO_ROUTES: Routes = [
 
   // Layout
   { path: 'scroll-area', loadComponent: () => import('./demos/layout/scroll-area-demo.component').then(m => m.ScrollAreaDemoComponent) },
+  { path: 'page-header', loadComponent: () => import('./demos/layout/page-header-demo.component').then(m => m.PageHeaderDemoComponent) },
+  { path: 'masonry', loadComponent: () => import('./demos/layout/masonry-demo.component').then(m => m.MasonryDemoComponent) },
   { path: 'aspect-ratio', loadComponent: () => import('./demos/layout/aspect-ratio-demo.component').then(m => m.AspectRatioDemoComponent) },
   { path: 'resizable', loadComponent: () => import('./demos/layout/resizable-demo.component').then(m => m.ResizableDemoComponent) },
   { path: 'sidebar', loadComponent: () => import('./demos/layout/sidebar-demo.component').then(m => m.SidebarDemoComponent) },
   { path: 'bento-grid', loadComponent: () => import('./demos/layout/bento-grid-demo.component').then(m => m.BentoGridDemoComponent) },
   { path: 'virtual-scroll', loadComponent: () => import('./demos/layout/virtual-scroll-demo.component').then(m => m.VirtualScrollDemoComponent) },
+  { path: 'infinite-canvas', loadComponent: () => import('./demos/layout/infinite-canvas-demo.component').then(m => m.InfiniteCanvasDemoComponent) },
   { path: 'comparison-slider', loadComponent: () => import('./demos/layout/comparison-slider-demo.component').then(m => m.ComparisonSliderDemoComponent) },
   { path: 'collapsible', loadComponent: () => import('./demos/layout/collapsible-demo.component').then(m => m.CollapsibleDemoComponent) },
 
@@ -100,6 +106,8 @@ export const DEMO_ROUTES: Routes = [
   { path: 'kbd', loadComponent: () => import('./demos/data-display/kbd-demo.component').then(m => m.KbdDemoComponent) },
   { path: 'separator', loadComponent: () => import('./demos/data-display/separator-demo.component').then(m => m.SeparatorDemoComponent) },
   { path: 'number-ticker', loadComponent: () => import('./demos/data-display/number-ticker-demo.component').then(m => m.NumberTickerDemoComponent) },
+  { path: 'data-list', loadComponent: () => import('./demos/data-display/data-list-demo.component').then(m => m.DataListDemoComponent) },
+  { path: 'stat-card', loadComponent: () => import('./demos/data-display/stat-card-demo.component').then(m => m.StatCardDemoComponent) },
   { path: 'data-table', loadComponent: () => import('./demos/data-display/data-table-demo.component').then(m => m.DataTableDemoComponent) },
   { path: 'icon', loadComponent: () => import('./demos/data-display/icon-demo.component').then(m => m.IconDemoComponent) },
   { path: 'file-viewer', loadComponent: () => import('./demos/data-display/file-viewer-demo.component').then(m => m.FileViewerDemoComponent) },
@@ -134,6 +142,30 @@ export const DEMO_ROUTES: Routes = [
   { path: 'hero', loadComponent: () => import('./demos/blocks/hero-block-demo.component').then(m => m.HeroBlockDemoComponent) },
   { path: 'features', loadComponent: () => import('./demos/blocks/features-block-demo.component').then(m => m.FeaturesBlockDemoComponent) },
   { path: 'faq', loadComponent: () => import('./demos/blocks/faq-block-demo.component').then(m => m.FaqBlockDemoComponent) },
+
+
+  // Composed patterns. Each one is compiled verbatim by the `recipes` e2e spec.
+  {
+    path: 'recipes',
+    loadComponent: () => import('./docs/recipes.component').then(m => m.RecipesComponent),
+  },
+
+  // Visual front end for the four theming CLI commands. The CSS it emits is
+  // byte-identical to what they write — see packages/cli/scripts/theme-parity.spec.ts.
+  {
+    path: 'theme-playground',
+    loadComponent: () =>
+      import('./docs/theme-playground.component').then(m => m.ThemePlaygroundComponent),
+  },
+
+  // Generated documentation — one page for EVERY registry component, including
+  // the 62 that share a demo route (all charts on /charts, all text effects on
+  // /animations, the rich-text addons on the editor page) and therefore have no
+  // page of their own. Driven entirely by `component-docs.json`.
+  {
+    path: 'docs/:name',
+    loadComponent: () => import('./docs/docs-page.component').then(m => m.DocsPageComponent),
+  },
 
   // Wildcard
   { path: '**', redirectTo: '' },

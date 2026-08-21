@@ -1,0 +1,2914 @@
+# shadcn-angular
+
+> Copy-paste Angular component library. The CLI writes real source files into
+> your project — there is no runtime package to depend on, so every component
+> below is code you own and can edit.
+
+## How to use this file
+
+Every component section states the exact install command, the exact import, the
+element selector, the full input/output surface with declared types, and a usage
+snippet that compiles. Prefer these facts over anything you remember about
+shadcn/ui for React: this is Angular, the selectors are `ui-*` elements, and
+the APIs are Angular signal inputs, not React props.
+
+Rules that hold for every component:
+
+- Install with `npx @gilav21/shadcn-angular@latest add <name>` before importing it. The
+  command also installs the component's dependency closure.
+- Components are standalone. Import the class and list it in the consuming
+  component's `imports: []` array. There is no NgModule.
+- The import path shown is the default alias from `components.json`
+  (`@/components/ui`). If a project configured a different `ui` alias, substitute it.
+- Inputs are signal inputs. Bind them from a template exactly like any other
+  Angular input; read them in TypeScript as `comp.value()`.
+- Inputs marked `(required)` must be bound or the template will not compile.
+- A section without a snippet says so explicitly; do not invent one.
+
+## Index (165 components)
+
+- [accordion](#accordion): Vertically stacked, collapsible sections that expand one or more panels to reveal content.
+- [alert](#alert): Inline callout banner for important messages with title, description, and variants.
+- [alert-dialog](#alert-dialog): Modal dialog that interrupts the user to confirm or cancel a destructive action.
+- [area-chart](#area-chart): Area chart with optional stacking (absolute or percent), smoothing curves, crosshair, and an interactive legend.
+- [aspect-ratio](#aspect-ratio): Wrapper that constrains its content to a fixed width-to-height ratio (e.g. 16:9).
+- [autocomplete](#autocomplete): Text input with a filtered suggestion dropdown and highlighted matches as you type.
+- [avatar](#avatar): User profile image with automatic fallback to initials or a placeholder.
+- [badge](#badge): Small label for statuses, counts, or tags with color variants.
+- [banner](#banner): Persistent page-level announcement bar with severity variants and an optional dismiss control.
+- [bar-chart](#bar-chart): Bar chart comparing categorical values with horizontal or vertical bars.
+- [bar-chart-drilldown](#bar-chart-drilldown): Interactive bar chart whose bars drill down into nested detail charts.
+- [bar-race-chart](#bar-race-chart): Animated racing bar chart showing ranked values changing over time.
+- [bento-grid](#bento-grid): Responsive bento-style grid of variable-size cells for feature showcases.
+- [blur-fade](#blur-fade): Reveals content with a combined blur and fade-in entrance animation.
+- [boxplot](#boxplot): Quartile summary per group: box, median, 1.5xIQR whiskers and outlier points, from raw values or pre-computed stats.
+- [breadcrumb](#breadcrumb): Hierarchy trail showing the current page location with links to ancestor pages.
+- [bubble-chart](#bubble-chart): Scatter plot with a third dimension encoded as area-proportional bubble size.
+- [bullet-chart](#bullet-chart): Compact linear KPI bar with qualitative range bands and a target marker.
+- [button](#button): Clickable button with variants (default, destructive, outline, ghost, link) and sizes.
+- [button-group](#button-group): Joins related buttons into a single segmented control with shared borders.
+- [calendar](#calendar): Month-grid date calendar for selecting single dates with localized weekdays.
+- [calendar-heatmap](#calendar-heatmap): GitHub-style contribution calendar: days as cells colored by value, with tooltips.
+- [candlestick](#candlestick): OHLC price chart with bodies and high/low wicks, on an ordinal axis that closes weekend gaps or a continuous time axis.
+- [card](#card): Container with header, content, and footer slots for grouping related information.
+- [card-accordion](#card-accordion): Collapsible sections styled as elevated cards, with a header, optional actions, and a smooth height animation.
+- [carousel](#carousel): Sliding content slider with previous/next controls for cycling through items.
+- [chart-brush](#chart-brush): Zoom, pan, and brush selection overlay for dense cartesian charts.
+- [chart-legend](#chart-legend): Interactive chart legend with series show/hide toggling.
+- [chart-tooltip](#chart-tooltip): Reusable positioned tooltip for chart hover details.
+- [chat](#chat): Chat interface with scrollable message list, avatars, and a composer input.
+- [checkbox](#checkbox): Toggleable checkbox input with checked, unchecked, and indeterminate states.
+- [chip-list](#chip-list): Input that collects multiple values as removable chips or tags.
+- [code-block](#code-block): Syntax-highlighted code display with a copy-to-clipboard button.
+- [collapsible](#collapsible): Single region that toggles its content open and closed via a trigger.
+- [color-picker](#color-picker): Interactive picker for choosing colors via swatches, sliders, and hex/rgb inputs.
+- [column-range-chart](#column-range-chart): Column chart plotting a low-to-high range per category as floating bars.
+- [combo-chart](#combo-chart): Combined bar + line chart with a dual axis and optional cumulative Pareto line.
+- [command](#command): Searchable command palette with grouped, keyboard-navigable actions and a dialog mode.
+- [comparison-slider](#comparison-slider): Before/after slider that wipes between two overlaid images via a handle.
+- [component-outlet](#component-outlet): Directive that dynamically renders a component by reference into the DOM.
+- [confetti](#confetti): Directive that bursts celebratory confetti particles on a triggered event.
+- [context-menu](#context-menu): Right-click (or long-press) menu with items, submenus, and keyboard shortcuts.
+- [context-menu-attach](#context-menu-attach): Directive that attaches a context menu to any element via right-click or long-press.
+- [copy-to](#copy-to): Directive that copies a string to the clipboard on click and shows a localized "Copied!" indicator.
+- [data-list](#data-list): Label-to-value description list rendered as real dl/dt/dd, with simple array and projected row modes.
+- [data-table](#data-table): Feature-rich table with sorting, filtering, pagination, and column tools.
+- [data-table-context-menu](#data-table-context-menu): Directive adding right-click context menus to data-table rows and columns.
+- [data-table-range-chart](#data-table-range-chart): Dialog that visualizes a data table's selected range as a bar, pie, or stacked bar chart.
+- [data-table/context-menu](#data-tablecontext-menu): Opt-in right-click + ⋮ context menus (row actions, column sort/pin/hide) for the data-table.
+- [data-table/export](#data-tableexport): Opt-in CSV/Excel export for the data-table (isolates the xlsx dependency from the base).
+- [data-table/pivot](#data-tablepivot): Opt-in pivot transform (rows x columns x values) for the data-table; exposes getPivot + the pure computePivot.
+- [date-picker](#date-picker): Popover date and date-range picker combining an input trigger with a calendar.
+- [dialog](#dialog): Modal dialog overlay with header, content, and footer for focused tasks.
+- [dock](#dock): macOS-style dock of icons that magnify on hover for quick app navigation.
+- [drawer](#drawer): Bottom-anchored sliding panel with drag-to-dismiss, ideal for mobile.
+- [dropdown-menu](#dropdown-menu): Button-triggered menu of actions with labels, separators, and submenus.
+- [emoji-picker](#emoji-picker): Searchable emoji selector with categories and a popover trigger.
+- [empty](#empty): Empty-state placeholder with media, title, description, and call-to-action.
+- [error-page](#error-page): Full-page 404/403/500 state with localised copy, illustration slot and recovery actions.
+- [eyedropper](#eyedropper): Tool for sampling a color from anywhere on screen via the EyeDropper API.
+- [field](#field): Form field wrapper grouping label, control, description, and error messages.
+- [file-upload](#file-upload): Drag-and-drop file upload zone with previews and per-file progress.
+- [file-viewer](#file-viewer): In-browser viewer rendering PDF, DOCX, XLSX, images, and other documents.
+- [flip-text](#flip-text): Animates characters flipping into place as the text reveals.
+- [funnel-chart](#funnel-chart): Conversion funnel of narrowing stages with per-stage percentages and tooltips.
+- [gauge-chart](#gauge-chart): Radial gauge for a single KPI with colored threshold zones and a semicircular value arc.
+- [gradient-text](#gradient-text): Text styled with an animated multi-color gradient fill.
+- [heatmap](#heatmap): Grid heatmap with a sequential color scale, cell tooltips, and a gradient legend.
+- [histogram](#histogram): Distribution of a raw numeric sample, auto-binned with the Sturges rule, or with an explicit bin count or bin edges.
+- [hover-card](#hover-card): Floating card that reveals rich preview content on hover or tap.
+- [icon](#icon): Renders named SVG icons from a configurable icon registry.
+- [infinite-canvas](#infinite-canvas): Infinite pannable, zoomable plane that renders only the items in view.
+- [input](#input): Single-line text input with variants and add-on support for forms.
+- [input-group](#input-group): Combines an input with leading/trailing add-ons like icons, text, or buttons.
+- [input-mask](#input-mask): Directive that formats input text against a pattern (phone, date, card numbers).
+- [input-otp](#input-otp): Segmented one-time-password input with individual slots and auto-advance.
+- [kanban](#kanban): Drag-and-drop kanban board with columns, cards, and edit dialogs.
+- [kbd](#kbd): Styled element for displaying keyboard keys and shortcut combinations.
+- [label](#label): Accessible form label that associates with and activates its control.
+- [line-chart](#line-chart): Multi-series line chart with crosshair, hover tooltip, smoothing curves, and a clickable legend that toggles series.
+- [magnetic](#magnetic): Directive that makes an element drift toward the cursor like a magnet.
+- [marquee](#marquee): Continuously scrolling row of content, ideal for logo or testimonial strips.
+- [masonry](#masonry): Column-balanced layout for uneven-height items that keeps DOM order equal to visual reading order.
+- [menubar](#menubar): Desktop-style horizontal menu bar with dropdown menus and submenus.
+- [meteors](#meteors): Animated meteor-shower background effect of streaking light trails.
+- [morphing-text](#morphing-text): Smoothly morphs one phrase into the next with a fluid blend effect.
+- [native-select](#native-select): Styled wrapper around the native HTML select element for dropdown choices.
+- [navigation-menu](#navigation-menu): Site navigation with dropdown panels of links and a sliding indicator.
+- [number-input](#number-input): Numeric input with stepper buttons, min/max, and locale-aware formatting.
+- [number-ticker](#number-ticker): Animates a number counting up or down to its target value.
+- [orbit](#orbit): Animates child elements orbiting in circular paths around a center.
+- [org-chart](#org-chart): Organizational chart rendering hierarchical node relationships as a tree.
+- [page-builder](#page-builder): Drag-and-drop visual builder for composing pages from configurable blocks.
+- [page-header](#page-header): Page title, description, breadcrumb and actions strip that stacks the actions below the title on narrow screens.
+- [page-renderer](#page-renderer): Renders a page-builder layout definition into a live page at runtime.
+- [pagination](#pagination): Page navigation control with prev/next, numbered links, and ellipsis.
+- [particles](#particles): Interactive particle-field background that reacts to pointer movement.
+- [phone-input](#phone-input): International phone number input with country selector and format masking.
+- [pie-chart](#pie-chart): Pie/donut chart for showing parts of a whole as proportional slices.
+- [pie-chart-drilldown](#pie-chart-drilldown): Interactive pie chart whose slices drill down into nested sub-charts.
+- [popover](#popover): Floating panel anchored to a trigger for showing rich, non-modal content.
+- [progress](#progress): Horizontal progress bar that visualizes completion from 0 to 100 percent.
+- [radar-chart](#radar-chart): Radar (spider) chart comparing multiple series across shared axes, with an interactive legend.
+- [radio-group](#radio-group): Set of radio buttons for selecting exactly one option from a list.
+- [rating](#rating): Star rating input for capturing or displaying a score with half-step support.
+- [resizable](#resizable): Split panes the user can resize by dragging handles, with touch support.
+- [result](#result): Centred outcome panel for after an operation completes, with status icon, actions and a detail slot.
+- [rich-text-editor](#rich-text-editor): WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.
+- [rich-text-editor/actions](#rich-text-editoractions): Attach premade click/hover actions to text and images; dev-defined callbacks fire on the rendered HTML.
+- [rich-text-editor/ai](#rich-text-editorai): AI assist for the rich text editor: an Ask-AI selection chip, a streaming task/custom-prompt panel, and the /ai slash command.
+- [rich-text-editor/colors](#rich-text-editorcolors): Text-colour and highlight-colour toolbar buttons for the rich text editor; applies inline colour styles to the selection.
+- [rich-text-editor/emoji](#rich-text-editoremoji): Emoji picker toolbar button for the rich text editor; inserts the picked emoji at the caret.
+- [rich-text-editor/file-import](#rich-text-editorfile-import): DOCX/PDF import for the rich text editor: toolbar picker (images route to the images addon), document drag-and-drop, and lazy parsers.
+- [rich-text-editor/full](#rich-text-editorfull): One uiRteFull marker composes all thirteen rich-text-editor addons; import RTE_FULL, and every addon input/output stays bindable.
+- [rich-text-editor/history](#rich-text-editorhistory): Revision-history UI for the rich text editor: a Revisions button, panel, preview dialog, and browser dialog to jump between snapshots.
+- [rich-text-editor/images](#rich-text-editorimages): Image support for the rich text editor: toolbar insert popover, paste/drag-drop, upload + auto-upload pipeline, and a resize/align overlay.
+- [rich-text-editor/links](#rich-text-editorlinks): Link insert/edit for the rich text editor: toolbar popover, Ctrl+K, /link command, and click-to-edit with remove on existing links.
+- [rich-text-editor/mentions](#rich-text-editormentions): Mentions/tags for the rich text editor: @/# trigger, async search popover, keyboard nav, and inserting styled entity chips or links.
+- [rich-text-editor/outline](#rich-text-editoroutline): Document outline for the rich text editor: a toolbar button + /outline command that open a docked, live table-of-contents panel.
+- [rich-text-editor/slash-commands](#rich-text-editorslash-commands): Slash-command ("/") menu for the rich text editor; type / to open a filterable command palette at the caret.
+- [rich-text-editor/tables](#rich-text-editortables): Table insert for the rich text editor: a toolbar button and 8x8 grid picker that inserts an empty table at the caret.
+- [rich-text-editor/typography](#rich-text-editortypography): Font-size and font-family toolbar dropdowns for the rich text editor; applies inline font styles to the selection.
+- [ripple](#ripple): Directive adding a Material-style click ripple effect to any element.
+- [scatter-chart](#scatter-chart): Scatter plot over continuous x/y axes with nearest-point hover tooltip and an interactive legend.
+- [scroll-area](#scroll-area): Scrollable container with custom, cross-browser styled scrollbars.
+- [scroll-progress](#scroll-progress): Top-of-page bar that fills to reflect how far the user has scrolled.
+- [select](#select): Custom dropdown select with grouped, searchable, keyboard-navigable options.
+- [separator](#separator): Thin horizontal or vertical divider line for visually separating content.
+- [sheet](#sheet): Panel that slides in from a screen edge for secondary content or forms.
+- [shine-border](#shine-border): Wrapper that draws an animated shimmering gradient border around content.
+- [shortcut-bindings-dialog](#shortcut-bindings-dialog): Dialog listing keyboard shortcuts grouped by category for reference.
+- [sidebar](#sidebar): Collapsible app sidebar with grouped menu items, header, and footer.
+- [skeleton](#skeleton): Animated placeholder block shown while content is loading.
+- [slider](#slider): Draggable slider for selecting a value or range from a numeric scale.
+- [sortable](#sortable): Drag-and-drop sortable list with reordering, auto-scroll, and FLIP animation.
+- [sparkles](#sparkles): Adds animated sparkle particles around content or a button for emphasis.
+- [speed-dial](#speed-dial): Floating action button that fans out into a menu of quick actions.
+- [spinner](#spinner): Animated loading spinner, available inline or as a full-page overlay.
+- [split-button](#split-button): Primary action button paired with a dropdown of secondary actions.
+- [stacked-bar-chart](#stacked-bar-chart): Bar chart that stacks multiple series within each bar to show composition.
+- [stagger-children](#stagger-children): Animates child elements into view one after another with a staggered delay.
+- [stat-card](#stat-card): KPI tile with label, value, trend-coloured delta badge and a projected chart slot.
+- [stepper](#stepper): Multi-step progress indicator for wizards and sequential flows.
+- [streaming-text](#streaming-text): Renders text that appears progressively, mimicking AI token streaming.
+- [switch](#switch): On/off toggle switch for binary settings, an alternative to a checkbox.
+- [table](#table): Composable styled table primitives: header, body, row, cell, and caption.
+- [table-context-menu](#table-context-menu): Directive wiring a context menu to table rows and headers for right-click actions.
+- [tabs](#tabs): Tabbed interface that switches between panels via a list of triggers.
+- [text-reveal](#text-reveal): Reveals text word by word as the user scrolls it into view.
+- [textarea](#textarea): Multi-line text input for longer free-form content, with add-on support.
+- [timeline](#timeline): Vertical timeline of events with dots, connectors, titles, and timestamps.
+- [toast](#toast): Transient notification messages that stack and auto-dismiss from a corner.
+- [toggle](#toggle): Two-state toggle button that can be pressed on or off.
+- [toggle-group](#toggle-group): Group of toggle buttons supporting single or multiple selection.
+- [tooltip](#tooltip): Small floating label that explains an element on hover or focus.
+- [tour](#tour): Guided product tour highlighting elements with step-by-step popovers.
+- [tree](#tree): Hierarchical tree view with expandable nodes, icons, and labels.
+- [tree-context-menu](#tree-context-menu): Directive wiring a context menu to tree nodes for per-node right-click actions.
+- [tree-select](#tree-select): Dropdown select backed by a hierarchical tree for picking nested options.
+- [treemap](#treemap): Hierarchical part-to-whole as nested area, squarified so rectangles stay near square and labels fit.
+- [typing-animation](#typing-animation): Reveals text character by character with a blinking typewriter cursor.
+- [virtual-scroll](#virtual-scroll): Renders only visible rows of large lists for high-performance scrolling.
+- [waterfall-chart](#waterfall-chart): Waterfall chart of running totals with floating bars, connectors, and total columns.
+- [wobble-card](#wobble-card): Card that wobbles and tilts in response to the pointer for a 3D feel.
+- [word-rotate](#word-rotate): Cycles through a list of words in place with an animated transition.
+
+## animation
+
+### blur-fade
+
+Reveals content with a combined blur and fade-in entrance animation.
+
+- Install: `npx @gilav21/shadcn-angular@latest add blur-fade`
+- Import: `import { BlurFadeComponent } from '@/components/ui/blur-fade';`
+- Selector: `ui-blur-fade`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `delay: number = 0`, `direction: "up" | "down" | "left" | "right" = 'up'`, `duration: number = 500`, `inView: boolean = true`
+- Outputs: `replay: void`
+
+```html
+<ui-blur-fade>Content</ui-blur-fade>
+```
+
+### comparison-slider
+
+Before/after slider that wipes between two overlaid images via a handle.
+
+- Install: `npx @gilav21/shadcn-angular@latest add comparison-slider`
+- Import: `import { ComparisonSliderComponent } from '@/components/ui/comparison-slider';`
+- Selector: `ui-comparison-slider`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `afterAlt: string = ''`, `afterLabel: string`, `afterSrc: string` (required), `beforeAlt: string = ''`, `beforeLabel: string`, `beforeSrc: string` (required), `class: string = ''`, `locale: LocaleInput<ComparisonSliderLocale>`, `orientation: ComparisonSliderOrientation = 'horizontal'`, `position: number = 50`
+- Outputs: `position: number`
+
+```html
+<ui-comparison-slider afterSrc="text" beforeSrc="text" />
+```
+
+### confetti
+
+Directive that bursts celebratory confetti particles on a triggered event.
+
+- Install: `npx @gilav21/shadcn-angular@latest add confetti`
+- Import: `import { UiConfettiDirective } from '@/components/ui/confetti.directive';`
+- Selector: `[uiConfetti]`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `manualTrigger: boolean = false`, `options: ConfettiOptions = {}`
+
+```html
+<div uiConfetti></div>
+```
+
+### flip-text
+
+Animates characters flipping into place as the text reveals.
+
+- Install: `npx @gilav21/shadcn-angular@latest add flip-text`
+- Import: `import { FlipTextComponent } from '@/components/ui/flip-text';`
+- Selector: `ui-flip-text`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `delay: number = 50`, `duration: number = 500`, `text: string = ''`
+
+```html
+<ui-flip-text />
+```
+
+### gradient-text
+
+Text styled with an animated multi-color gradient fill.
+
+- Install: `npx @gilav21/shadcn-angular@latest add gradient-text`
+- Import: `import { GradientTextComponent } from '@/components/ui/gradient-text';`
+- Selector: `ui-gradient-text`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `colors: string[] = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4']`, `direction: 'to right' | 'to left' | 'to bottom' | 'to top' = 'to right'`, `speed: number = 3`
+
+```html
+<ui-gradient-text>Content</ui-gradient-text>
+```
+
+### magnetic
+
+Directive that makes an element drift toward the cursor like a magnet.
+
+- Install: `npx @gilav21/shadcn-angular@latest add magnetic`
+- Import: `import { UiMagneticDirective } from '@/components/ui/magnetic.directive';`
+- Selector: `[uiMagnetic]`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `uiMagneticRadius: number = 200`, `uiMagneticSmoothing: number = 150`, `uiMagneticStrength: number = 0.3`
+
+```html
+<div uiMagnetic></div>
+```
+
+### marquee
+
+Continuously scrolling row of content, ideal for logo or testimonial strips.
+
+- Install: `npx @gilav21/shadcn-angular@latest add marquee`
+- Import: `import { MarqueeComponent } from '@/components/ui/marquee';`
+- Selector: `ui-marquee`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `direction: "left" | "right" | "up" | "down" = 'left'`, `gap: number = 16`, `pauseOnHover: boolean = false`, `speed: number = 20`
+
+```html
+<ui-marquee>Content</ui-marquee>
+```
+
+### meteors
+
+Animated meteor-shower background effect of streaking light trails.
+
+- Install: `npx @gilav21/shadcn-angular@latest add meteors`
+- Import: `import { MeteorsComponent } from '@/components/ui/meteors';`
+- Selector: `ui-meteors`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `color: string = 'white'`, `count: number = 20`, `speed: "slow" | "medium" | "fast" = 'medium'`
+
+```html
+<ui-meteors />
+```
+
+### morphing-text
+
+Smoothly morphs one phrase into the next with a fluid blend effect.
+
+- Install: `npx @gilav21/shadcn-angular@latest add morphing-text`
+- Import: `import { MorphingTextComponent } from '@/components/ui/morphing-text';`
+- Selector: `ui-morphing-text`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `interval: number = 3000`, `texts: string[] = []`
+
+```html
+<ui-morphing-text />
+```
+
+### orbit
+
+Animates child elements orbiting in circular paths around a center.
+
+- Install: `npx @gilav21/shadcn-angular@latest add orbit`
+- Import: `import { OrbitComponent } from '@/components/ui/orbit';`
+- Selector: `ui-orbit`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `delay: number = 0`, `duration: number = 10`, `radius: number = 100`, `reverse: boolean = false`
+
+```html
+<ui-orbit>Content</ui-orbit>
+```
+
+### particles
+
+Interactive particle-field background that reacts to pointer movement.
+
+- Install: `npx @gilav21/shadcn-angular@latest add particles`
+- Import: `import { ParticlesComponent } from '@/components/ui/particles';`
+- Selector: `ui-particles`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `color: string = 'currentColor'`, `connectDistance: number = 120`, `count: number = 50`, `mouseInteraction: boolean = true`, `speed: number = 0.5`
+
+```html
+<ui-particles />
+```
+
+### ripple
+
+Directive adding a Material-style click ripple effect to any element.
+
+- Install: `npx @gilav21/shadcn-angular@latest add ripple`
+- Import: `import { UiRippleDirective } from '@/components/ui/ripple.directive';`
+- Selector: `[uiRipple]`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `uiRippleColor: string = 'color-mix(in srgb, currentColor 35%, transparent)'`, `uiRippleDisabled: boolean = false`, `uiRippleDuration: number = 600`
+
+```html
+<div uiRipple></div>
+```
+
+### scroll-progress
+
+Top-of-page bar that fills to reflect how far the user has scrolled.
+
+- Install: `npx @gilav21/shadcn-angular@latest add scroll-progress`
+- Import: `import { ScrollProgressComponent } from '@/components/ui/scroll-progress';`
+- Selector: `ui-scroll-progress`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `color: string = 'var(--primary)'`, `container: string | HTMLElement | null = null`, `height: number = 3`, `position: "top" | "bottom" = 'top'`
+
+```html
+<ui-scroll-progress />
+```
+
+### shine-border
+
+Wrapper that draws an animated shimmering gradient border around content.
+
+- Install: `npx @gilav21/shadcn-angular@latest add shine-border`
+- Import: `import { ShineBorderComponent } from '@/components/ui/shine-border';`
+- Selector: `ui-shine-border`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `borderRadius: number = 8`, `borderWidth: number = 2`, `class: string = ''`, `colors: string[] = ['#A07CFE', '#FE8FB5', '#FFBE7B']`, `duration: number = 3`
+
+```html
+<ui-shine-border>Content</ui-shine-border>
+```
+
+### sparkles
+
+Adds animated sparkle particles around content or a button for emphasis.
+
+- Install: `npx @gilav21/shadcn-angular@latest add sparkles`
+- Import: `import { SparklesComponent } from '@/components/ui/sparkles';`
+- Selector: `ui-sparkles`
+- Category: animation
+- Depends on: `button`
+- npm dependencies: none
+- Inputs: `class: string = ''`
+
+```html
+<ui-sparkles />
+```
+
+### stagger-children
+
+Animates child elements into view one after another with a staggered delay.
+
+- Install: `npx @gilav21/shadcn-angular@latest add stagger-children`
+- Import: `import { StaggerChildrenComponent } from '@/components/ui/stagger-children';`
+- Selector: `ui-stagger-children`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `delay: number = 0`, `direction: "up" | "down" | "left" | "right" = 'up'`, `duration: number = 400`, `staggerDelay: number = 80`
+
+```html
+<ui-stagger-children>Content</ui-stagger-children>
+```
+
+### streaming-text
+
+Renders text that appears progressively, mimicking AI token streaming.
+
+- Install: `npx @gilav21/shadcn-angular@latest add streaming-text`
+- Import: `import { StreamingTextComponent } from '@/components/ui/streaming-text';`
+- Selector: `ui-streaming-text`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `showCursor: boolean = true`, `speed: number = 30`, `text: string = ''`
+- Outputs: `complete: void`
+
+```html
+<ui-streaming-text />
+```
+
+### text-reveal
+
+Reveals text word by word as the user scrolls it into view.
+
+- Install: `npx @gilav21/shadcn-angular@latest add text-reveal`
+- Import: `import { TextRevealComponent } from '@/components/ui/text-reveal';`
+- Selector: `ui-text-reveal`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `delay: number = 50`, `text: string = ''`
+
+```html
+<ui-text-reveal />
+```
+
+### typing-animation
+
+Reveals text character by character with a blinking typewriter cursor.
+
+- Install: `npx @gilav21/shadcn-angular@latest add typing-animation`
+- Import: `import { TypingAnimationComponent } from '@/components/ui/typing-animation';`
+- Selector: `ui-typing-animation`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `cursor: boolean = true`, `deleteSpeed: number = 30`, `loop: boolean = true`, `pauseDuration: number = 1500`, `strings: string[] = []`, `typeSpeed: number = 50`
+- Outputs: `complete: void`
+
+```html
+<ui-typing-animation />
+```
+
+### wobble-card
+
+Card that wobbles and tilts in response to the pointer for a 3D feel.
+
+- Install: `npx @gilav21/shadcn-angular@latest add wobble-card`
+- Import: `import { WobbleCardComponent } from '@/components/ui/wobble-card';`
+- Selector: `ui-wobble-card`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `intensity: number = 15`, `perspective: number = 1000`
+
+```html
+<ui-wobble-card>Content</ui-wobble-card>
+```
+
+### word-rotate
+
+Cycles through a list of words in place with an animated transition.
+
+- Install: `npx @gilav21/shadcn-angular@latest add word-rotate`
+- Import: `import { WordRotateComponent } from '@/components/ui/word-rotate';`
+- Selector: `ui-word-rotate`
+- Category: animation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `duration: number = 2000`, `words: string[] = []`
+
+```html
+<ui-word-rotate />
+```
+
+## charts
+
+### area-chart
+
+Area chart with optional stacking (absolute or percent), smoothing curves, crosshair, and an interactive legend.
+
+- Install: `npx @gilav21/shadcn-angular@latest add area-chart`
+- Import: `import { AreaChartComponent } from '@/components/ui/area-chart';`
+- Selector: `ui-area-chart`
+- Category: charts
+- Depends on: `chart-legend`, `chart-tooltip`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `curve: CurveType = 'linear'`, `dir: ChartDirection = 'auto'`, `fillOpacity: number = 0.25`, `height: number = 300`, `series: ChartSeries[]` (required), `showCrosshair: boolean = true`, `showGrid: boolean = true`, `showLegend: boolean = true`, `showTooltip: boolean = true`, `stacked: boolean = false`, `stackingMode: StackingMode = 'absolute'`, `title: string | undefined`, `width: number = 500`
+- Outputs: `pointHover: ChartClickEvent | null`
+
+```html
+<ui-area-chart [series]="[]" />
+```
+
+### bar-chart
+
+Bar chart comparing categorical values with horizontal or vertical bars.
+
+- Install: `npx @gilav21/shadcn-angular@latest add bar-chart`
+- Import: `import { BarChartComponent } from '@/components/ui/bar-chart';`
+- Selector: `ui-bar-chart`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `barGap: number = 8`, `barRadius: number = 4`, `class: string = ''`, `data: ChartDataPoint[]` (required), `dir: ChartDirection = 'auto'`, `height: number = 300`, `orientation: ChartOrientation = 'vertical'`, `showGrid: boolean = true`, `showTooltip: boolean = true`, `showValues: boolean = true`, `title: string | undefined`, `width: number = 500`, `xAxisLabel: string = ''`, `yAxisLabel: string = ''`
+- Outputs: `barClick: ChartClickEvent`, `barHover: ChartClickEvent | null`
+
+```html
+<ui-bar-chart [data]="[]" />
+```
+
+### bar-chart-drilldown
+
+Interactive bar chart whose bars drill down into nested detail charts.
+
+- Install: `npx @gilav21/shadcn-angular@latest add bar-chart-drilldown`
+- Import: `import { BarChartDrilldownComponent } from '@/components/ui/bar-chart-drilldown';`
+- Selector: `ui-bar-chart-drilldown`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `backButtonText: string = 'Back'`, `barGap: number = 8`, `barRadius: number = 4`, `class: string = ''`, `data: DrilldownDataPoint[]` (required), `dir: ChartDirection = 'auto'`, `drilldownSeries: DrilldownSeries[] = []`, `height: number = 300`, `showBreadcrumb: boolean = true`, `showGrid: boolean = true`, `showTooltip: boolean = true`, `showValues: boolean = true`, `title: string | undefined`, `width: number = 500`
+- Outputs: `barClick: ChartClickEvent<DrilldownDataPoint>`, `barHover: ChartClickEvent<DrilldownDataPoint> | null`, `drilldown: DrilldownEvent`, `drillup: void`
+
+```html
+<ui-bar-chart-drilldown [data]="[]" />
+```
+
+### bar-race-chart
+
+Animated racing bar chart showing ranked values changing over time.
+
+- Install: `npx @gilav21/shadcn-angular@latest add bar-race-chart`
+- Import: `import { BarRaceChartComponent } from '@/components/ui/bar-race-chart';`
+- Selector: `ui-bar-race-chart`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `animationDuration: number = 500`, `autoPlay: boolean = false`, `barGap: number = 4`, `barRadius: number = 4`, `class: string = ''`, `dir: ChartDirection = 'auto'`, `frameLabels: string[] = []`, `frames: ChartDataPoint[][]` (required), `height: number = 400`, `locale: LocaleInput<BarRaceChartLocale>`, `loop: boolean = false`, `maxBars: number = 10`, `title: string | undefined`, `width: number = 600`
+- Outputs: `animationComplete: void`, `frameChange: number`
+
+```html
+<ui-bar-race-chart [frames]="[]" />
+```
+
+### boxplot
+
+Quartile summary per group: box, median, 1.5xIQR whiskers and outlier points, from raw values or pre-computed stats.
+
+- Install: `npx @gilav21/shadcn-angular@latest add boxplot`
+- Import: `import { BoxplotComponent } from '@/components/ui/boxplot';`
+- Selector: `ui-boxplot`
+- Category: charts
+- Depends on: `chart-tooltip`
+- npm dependencies: none
+- Inputs: `boxRadius: number = 2`, `class: string = ''`, `dir: ChartDirection = 'auto'`, `groups: BoxplotGroup[]` (required), `height: number = 300`, `orientation: ChartOrientation = 'vertical'`, `showGrid: boolean = true`, `showOutliers: boolean = true`, `showTooltip: boolean = true`, `title: string | undefined`, `unit: string = ''`, `width: number = 500`
+- Outputs: `groupClick: ChartClickEvent<BoxplotGroup>`, `groupHover: ChartClickEvent<BoxplotGroup> | null`
+
+```html
+<ui-boxplot [groups]="[]" />
+```
+
+### bubble-chart
+
+Scatter plot with a third dimension encoded as area-proportional bubble size.
+
+- Install: `npx @gilav21/shadcn-angular@latest add bubble-chart`
+- Import: `import { BubbleChartComponent } from '@/components/ui/bubble-chart';`
+- Selector: `ui-bubble-chart`
+- Category: charts
+- Depends on: `chart-legend`, `chart-tooltip`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `dir: ChartDirection = 'auto'`, `height: number = 340`, `maxRadius: number = 28`, `minRadius: number = 6`, `series: XYZSeries[]` (required), `showGrid: boolean = true`, `showLegend: boolean = true`, `showTooltip: boolean = true`, `title: string | undefined`, `width: number = 540`
+- Outputs: `pointClick: ChartClickEvent<XYZDataPoint>`
+
+```html
+<ui-bubble-chart [series]="[]" />
+```
+
+### bullet-chart
+
+Compact linear KPI bar with qualitative range bands and a target marker.
+
+- Install: `npx @gilav21/shadcn-angular@latest add bullet-chart`
+- Import: `import { BulletChartComponent } from '@/components/ui/bullet-chart';`
+- Selector: `ui-bullet-chart`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `color: string = ''`, `dir: ChartDirection = 'auto'`, `height: number = 40`, `label: string = ''`, `min: number = 0`, `ranges: number[] = []`, `target: number | undefined`, `title: string | undefined`, `unit: string = ''`, `value: number` (required), `width: number = 360`
+
+```html
+<ui-bullet-chart [value]="0" />
+```
+
+### calendar-heatmap
+
+GitHub-style contribution calendar: days as cells colored by value, with tooltips.
+
+- Install: `npx @gilav21/shadcn-angular@latest add calendar-heatmap`
+- Import: `import { CalendarHeatmapComponent } from '@/components/ui/calendar-heatmap';`
+- Selector: `ui-calendar-heatmap`
+- Category: charts
+- Depends on: `chart-tooltip`
+- npm dependencies: none
+- Inputs: `cellSize: number = 13`, `class: string = ''`, `data: CalendarDay[]` (required), `dir: ChartDirection = 'auto'`, `emptyColor: string = 'hsl(220, 13%, 91%)'`, `fromColor: string = 'hsl(214, 95%, 92%)'`, `showLegend: boolean = true`, `showTooltip: boolean = true`, `title: string | undefined`, `toColor: string = 'hsl(221, 83%, 38%)'`
+- Outputs: `dayHover: CalendarDay | null`
+
+```html
+<ui-calendar-heatmap [data]="[]" />
+```
+
+### candlestick
+
+OHLC price chart with bodies and high/low wicks, on an ordinal axis that closes weekend gaps or a continuous time axis.
+
+- Install: `npx @gilav21/shadcn-angular@latest add candlestick`
+- Import: `import { CandlestickComponent } from '@/components/ui/candlestick';`
+- Selector: `ui-candlestick`
+- Category: charts
+- Depends on: `chart-tooltip`
+- npm dependencies: none
+- Inputs: `axisMode: CandlestickAxisMode = 'ordinal'`, `class: string = ''`, `dir: ChartDirection = 'auto'`, `fallingColor: string = 'hsl(0, 84%, 60%)'`, `height: number = 300`, `locale: string = 'en-US'`, `points: OhlcPoint[]` (required), `risingColor: string = 'hsl(142, 71%, 45%)'`, `showGrid: boolean = true`, `showTooltip: boolean = true`, `title: string | undefined`, `unit: string = ''`, `width: number = 500`
+- Outputs: `candleClick: ChartClickEvent<OhlcPoint>`, `candleHover: ChartClickEvent<OhlcPoint> | null`
+
+```html
+<ui-candlestick [points]="[]" />
+```
+
+### chart-brush
+
+Zoom, pan, and brush selection overlay for dense cartesian charts.
+
+- Install: `npx @gilav21/shadcn-angular@latest add chart-brush`
+- Import: `import { ChartBrushComponent } from '@/components/ui/chart-brush';`
+- Selector: `ui-chart-brush`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `height: number = 40`, `selection: BrushSelection | null = null`, `width: number = 400`
+- Outputs: `selectionChange: BrushSelection | null`
+
+```html
+<ui-chart-brush />
+```
+
+### chart-legend
+
+Interactive chart legend with series show/hide toggling.
+
+- Install: `npx @gilav21/shadcn-angular@latest add chart-legend`
+- Import: `import { ChartLegendComponent } from '@/components/ui/chart-legend';`
+- Selector: `ui-chart-legend`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `hidden: string[] = []`, `interactive: boolean = true`, `items: ChartLegendItem[] = []`, `position: LegendPosition = 'bottom'`
+- Outputs: `itemToggle: string`
+
+```html
+<ui-chart-legend />
+```
+
+### chart-tooltip
+
+Reusable positioned tooltip for chart hover details.
+
+- Install: `npx @gilav21/shadcn-angular@latest add chart-tooltip`
+- Import: `import { ChartTooltipComponent } from '@/components/ui/chart-tooltip';`
+- Selector: `ui-chart-tooltip`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `flipX: boolean = false`, `flipY: boolean = false`, `rows: ChartTooltipRow[] = []`, `title: string | undefined`, `visible: boolean = false`, `x: number = 0`, `y: number = 0`
+
+```html
+<ui-chart-tooltip />
+```
+
+### column-range-chart
+
+Column chart plotting a low-to-high range per category as floating bars.
+
+- Install: `npx @gilav21/shadcn-angular@latest add column-range-chart`
+- Import: `import { ColumnRangeChartComponent } from '@/components/ui/column-range-chart';`
+- Selector: `ui-column-range-chart`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `barGap: number = 12`, `barRadius: number = 4`, `class: string = ''`, `data: RangeDataPoint[]` (required), `dir: ChartDirection = 'auto'`, `height: number = 300`, `showGrid: boolean = true`, `showRangeLabels: boolean = true`, `title: string | undefined`, `unit: string = ''`, `width: number = 500`
+- Outputs: `barClick: ChartClickEvent<RangeDataPoint>`
+
+```html
+<ui-column-range-chart [data]="[]" />
+```
+
+### combo-chart
+
+Combined bar + line chart with a dual axis and optional cumulative Pareto line.
+
+- Install: `npx @gilav21/shadcn-angular@latest add combo-chart`
+- Import: `import { ComboChartComponent } from '@/components/ui/combo-chart';`
+- Selector: `ui-combo-chart`
+- Category: charts
+- Depends on: `chart-legend`, `chart-tooltip`
+- npm dependencies: none
+- Inputs: `barRadius: number = 2`, `barSeries: ChartSeries[]` (required), `class: string = ''`, `cumulativeLabel: string = 'Cumulative'`, `dir: ChartDirection = 'auto'`, `height: number = 320`, `lineSeries: ChartSeries[] = []`, `showCumulative: boolean = false`, `showGrid: boolean = true`, `showLegend: boolean = true`, `showTooltip: boolean = true`, `title: string | undefined`, `width: number = 540`
+- Outputs: `barClick: ChartClickEvent`
+
+```html
+<ui-combo-chart [barSeries]="[]" />
+```
+
+### data-table-range-chart
+
+Dialog that visualizes a data table's selected range as a bar, pie, or stacked bar chart.
+
+- Install: `npx @gilav21/shadcn-angular@latest add data-table-range-chart`
+- Import: `import { DataTableRangeChartComponent } from '@/components/ui/data-table-range-chart/data-table-range-chart.component';`
+- Selector: `ui-data-table-range-chart`
+- Category: charts
+- Depends on: `bar-chart`, `button`, `dialog`, `pie-chart`, `stacked-bar-chart`
+- npm dependencies: none
+- Inputs: `chartType: RangeChartType = 'bar'`, `class: string = ''`, `open: boolean = false`, `payload: RangeChartData | null = null`, `title: string = 'Chart'`
+- Outputs: `chartType: RangeChartType`, `open: boolean`
+
+```html
+<ui-data-table-range-chart />
+```
+
+### funnel-chart
+
+Conversion funnel of narrowing stages with per-stage percentages and tooltips.
+
+- Install: `npx @gilav21/shadcn-angular@latest add funnel-chart`
+- Import: `import { FunnelChartComponent } from '@/components/ui/funnel-chart';`
+- Selector: `ui-funnel-chart`
+- Category: charts
+- Depends on: `chart-tooltip`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `data: ChartDataPoint[]` (required), `dir: ChartDirection = 'auto'`, `gap: number = 2`, `height: number = 300`, `percentageMode: PercentageMode = 'first'`, `showTooltip: boolean = true`, `showValues: boolean = true`, `title: string | undefined`, `width: number = 440`
+- Outputs: `stageClick: ChartClickEvent`
+
+```html
+<ui-funnel-chart [data]="[]" />
+```
+
+### gauge-chart
+
+Radial gauge for a single KPI with colored threshold zones and a semicircular value arc.
+
+- Install: `npx @gilav21/shadcn-angular@latest add gauge-chart`
+- Import: `import { GaugeChartComponent } from '@/components/ui/gauge-chart';`
+- Selector: `ui-gauge-chart`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `dir: ChartDirection = 'auto'`, `label: string = ''`, `max: number = 100`, `min: number = 0`, `showValue: boolean = true`, `size: number = 220`, `thickness: number = 0.2`, `thresholds: GaugeThreshold[] = []`, `title: string | undefined`, `unit: string = ''`, `value: number` (required)
+
+```html
+<ui-gauge-chart [value]="0" />
+```
+
+### heatmap
+
+Grid heatmap with a sequential color scale, cell tooltips, and a gradient legend.
+
+- Install: `npx @gilav21/shadcn-angular@latest add heatmap`
+- Import: `import { HeatmapComponent } from '@/components/ui/heatmap';`
+- Selector: `ui-heatmap`
+- Category: charts
+- Depends on: `chart-tooltip`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `data: HeatmapCell[]` (required), `dir: ChartDirection = 'auto'`, `fromColor: string = 'hsl(214, 95%, 93%)'`, `maxCellSize: number = 52`, `minCellSize: number = 18`, `showLegend: boolean = true`, `showTooltip: boolean = true`, `showValues: boolean = false`, `title: string | undefined`, `toColor: string = 'hsl(221, 83%, 40%)'`, `width: number = 480`
+- Outputs: `cellHover: HeatmapCell | null`
+
+```html
+<ui-heatmap [data]="[]" />
+```
+
+### histogram
+
+Distribution of a raw numeric sample, auto-binned with the Sturges rule, or with an explicit bin count or bin edges.
+
+- Install: `npx @gilav21/shadcn-angular@latest add histogram`
+- Import: `import { HistogramComponent } from '@/components/ui/histogram';`
+- Selector: `ui-histogram`
+- Category: charts
+- Depends on: `chart-tooltip`
+- npm dependencies: none
+- Inputs: `barGap: number = 2`, `barRadius: number = 2`, `binCount: number | undefined`, `binEdges: number[] | undefined`, `class: string = ''`, `color: string | undefined`, `dir: ChartDirection = 'auto'`, `height: number = 300`, `showGrid: boolean = true`, `showTooltip: boolean = true`, `showValues: boolean = true`, `title: string | undefined`, `unit: string = ''`, `values: number[]` (required), `width: number = 500`
+- Outputs: `binClick: ChartClickEvent<HistogramBin>`, `binHover: ChartClickEvent<HistogramBin> | null`
+
+```html
+<ui-histogram [values]="[]" />
+```
+
+### line-chart
+
+Multi-series line chart with crosshair, hover tooltip, smoothing curves, and a clickable legend that toggles series.
+
+- Install: `npx @gilav21/shadcn-angular@latest add line-chart`
+- Import: `import { LineChartComponent } from '@/components/ui/line-chart';`
+- Selector: `ui-line-chart`
+- Category: charts
+- Depends on: `chart-legend`, `chart-tooltip`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `curve: CurveType = 'linear'`, `dir: ChartDirection = 'auto'`, `height: number = 300`, `series: ChartSeries[]` (required), `showCrosshair: boolean = true`, `showGrid: boolean = true`, `showLegend: boolean = true`, `showPoints: boolean = true`, `showTooltip: boolean = true`, `title: string | undefined`, `width: number = 500`
+- Outputs: `pointClick: ChartClickEvent`, `pointHover: ChartClickEvent | null`
+
+```html
+<ui-line-chart [series]="[]" />
+```
+
+### org-chart
+
+Organizational chart rendering hierarchical node relationships as a tree.
+
+- Install: `npx @gilav21/shadcn-angular@latest add org-chart`
+- Import: `import { OrgChartComponent } from '@/components/ui/org-chart';`
+- Selector: `ui-org-chart`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `data: OrgNode[]` (required), `layout: OrgLayoutDirection = 'vertical'`, `lineType: OrgLineType = 'curved'`, `nodeHeight: number = 80`, `nodePaddingX: number = 40`, `nodePaddingY: number = 60`, `nodeWidth: number = 180`, `showImages: boolean = true`, `title: string | undefined`
+- Outputs: `nodeClick: { node: OrgNode; event?: MouseEvent }`, `nodeHover: OrgNode | null`
+
+```html
+<ui-org-chart [data]="[]" />
+```
+
+### pie-chart
+
+Pie/donut chart for showing parts of a whole as proportional slices.
+
+- Install: `npx @gilav21/shadcn-angular@latest add pie-chart`
+- Import: `import { PieChartComponent } from '@/components/ui/pie-chart';`
+- Selector: `ui-pie-chart`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `animated: boolean = true`, `class: string = ''`, `data: ChartDataPoint[]` (required), `innerRadius: number = 0`, `legendPosition: LegendPosition = 'right'`, `showLabels: boolean = true`, `showLegend: boolean = true`, `showTooltip: boolean = true`, `size: number = 300`, `title: string | undefined`
+- Outputs: `sliceClick: ChartClickEvent`, `sliceHover: ChartClickEvent | null`
+
+```html
+<ui-pie-chart [data]="[]" />
+```
+
+### pie-chart-drilldown
+
+Interactive pie chart whose slices drill down into nested sub-charts.
+
+- Install: `npx @gilav21/shadcn-angular@latest add pie-chart-drilldown`
+- Import: `import { PieChartDrilldownComponent } from '@/components/ui/pie-chart-drilldown';`
+- Selector: `ui-pie-chart-drilldown`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `backButtonText: string = 'Back'`, `class: string = ''`, `data: DrilldownDataPoint[]` (required), `drilldownSeries: DrilldownSeries[] = []`, `innerRadius: number = 0`, `legendPosition: LegendPosition = 'right'`, `showBreadcrumb: boolean = true`, `showLabels: boolean = true`, `showLegend: boolean = true`, `showTooltip: boolean = true`, `size: number = 300`, `title: string | undefined`
+- Outputs: `drilldown: DrilldownEvent`, `drillup: void`, `sliceClick: ChartClickEvent<DrilldownDataPoint>`, `sliceHover: ChartClickEvent<DrilldownDataPoint> | null`
+
+```html
+<ui-pie-chart-drilldown [data]="[]" />
+```
+
+### radar-chart
+
+Radar (spider) chart comparing multiple series across shared axes, with an interactive legend.
+
+- Install: `npx @gilav21/shadcn-angular@latest add radar-chart`
+- Import: `import { RadarChartComponent } from '@/components/ui/radar-chart';`
+- Selector: `ui-radar-chart`
+- Category: charts
+- Depends on: `chart-legend`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `dir: ChartDirection = 'auto'`, `fillOpacity: number = 0.2`, `levels: number = 4`, `maxValueInput: number | undefined`, `series: ChartSeries[]` (required), `showLegend: boolean = true`, `size: number = 320`, `title: string | undefined`
+
+```html
+<ui-radar-chart [series]="[]" />
+```
+
+### scatter-chart
+
+Scatter plot over continuous x/y axes with nearest-point hover tooltip and an interactive legend.
+
+- Install: `npx @gilav21/shadcn-angular@latest add scatter-chart`
+- Import: `import { ScatterChartComponent } from '@/components/ui/scatter-chart';`
+- Selector: `ui-scatter-chart`
+- Category: charts
+- Depends on: `chart-legend`, `chart-tooltip`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `dir: ChartDirection = 'auto'`, `height: number = 320`, `pointRadius: number = 5`, `series: XYSeries[]` (required), `showGrid: boolean = true`, `showLegend: boolean = true`, `showTooltip: boolean = true`, `title: string | undefined`, `width: number = 520`, `xAxisLabel: string = ''`, `yAxisLabel: string = ''`
+- Outputs: `pointClick: ChartClickEvent<XYDataPoint>`
+
+```html
+<ui-scatter-chart [series]="[]" />
+```
+
+### stacked-bar-chart
+
+Bar chart that stacks multiple series within each bar to show composition.
+
+- Install: `npx @gilav21/shadcn-angular@latest add stacked-bar-chart`
+- Import: `import { StackedBarChartComponent } from '@/components/ui/stacked-bar-chart';`
+- Selector: `ui-stacked-bar-chart`
+- Category: charts
+- Depends on: none
+- npm dependencies: none
+- Inputs: `barGap: number = 12`, `barRadius: number = 4`, `categories: string[]` (required), `class: string = ''`, `dir: ChartDirection = 'auto'`, `height: number = 300`, `series: ChartSeries[]` (required), `showGrid: boolean = true`, `showLegend: boolean = true`, `showTotal: boolean = false`, `stacking: StackingMode = 'absolute'`, `title: string | undefined`, `width: number = 500`
+- Outputs: `segmentClick: { series: string; category: string; value: number }`
+
+```html
+<ui-stacked-bar-chart [categories]="[]" [series]="[]" />
+```
+
+### treemap
+
+Hierarchical part-to-whole as nested area, squarified so rectangles stay near square and labels fit.
+
+- Install: `npx @gilav21/shadcn-angular@latest add treemap`
+- Import: `import { TreemapComponent } from '@/components/ui/treemap';`
+- Selector: `ui-treemap`
+- Category: charts
+- Depends on: `chart-tooltip`
+- npm dependencies: none
+- Inputs: `cellRadius: number = 2`, `class: string = ''`, `dir: ChartDirection = 'auto'`, `groupPadding: unknown = GROUP_INSET`, `height: number = 320`, `minLabelHeight: unknown = MIN_LABEL_HEIGHT`, `minLabelWidth: unknown = MIN_LABEL_WIDTH`, `nodes: TreemapNode[]` (required), `showLabels: boolean = true`, `showTooltip: boolean = true`, `title: string | undefined`, `unit: string = ''`, `width: number = 500`
+- Outputs: `nodeClick: ChartClickEvent<TreemapNode>`, `nodeHover: ChartClickEvent<TreemapNode> | null`
+
+```html
+<ui-treemap [nodes]="[]" />
+```
+
+### waterfall-chart
+
+Waterfall chart of running totals with floating bars, connectors, and total columns.
+
+- Install: `npx @gilav21/shadcn-angular@latest add waterfall-chart`
+- Import: `import { WaterfallChartComponent } from '@/components/ui/waterfall-chart';`
+- Selector: `ui-waterfall-chart`
+- Category: charts
+- Depends on: `chart-tooltip`
+- npm dependencies: none
+- Inputs: `barRadius: number = 2`, `class: string = ''`, `data: WaterfallBar[]` (required), `dir: ChartDirection = 'auto'`, `height: number = 320`, `negativeColor: string = 'hsl(0, 84%, 60%)'`, `positiveColor: string = 'hsl(142, 71%, 45%)'`, `showConnectors: boolean = true`, `showTooltip: boolean = true`, `showValues: boolean = false`, `title: string | undefined`, `totalColor: string = 'hsl(221, 83%, 53%)'`, `width: number = 520`
+- Outputs: `barClick: ChartClickEvent`
+
+```html
+<ui-waterfall-chart [data]="[]" />
+```
+
+## data-display
+
+### calendar
+
+Month-grid date calendar for selecting single dates with localized weekdays.
+
+- Install: `npx @gilav21/shadcn-angular@latest add calendar`
+- Import: `import { CalendarComponent } from '@/components/ui/calendar';`
+- Selector: `ui-calendar`
+- Category: data-display
+- Depends on: `button`, `select`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `locale: LocaleInput<CalendarLocale>`, `mode: CalendarMode = 'single'`, `rtl: boolean = false`, `selected: Date | DateRange | Date[] | string | string[] | null = null`, `selectedTimeRange: TimeRange = { start: '', end: '' }`, `showMonthSelect: boolean = false`, `showTimeSelect: boolean = false`, `showYearSelect: boolean = false`, `timeMode: CalendarTimeMode = 'single'`, `weekStartsOn: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 0`
+- Outputs: `rtl: boolean`, `selected: Date | DateRange | Date[] | string | string[] | null`, `selectedTimeRange: TimeRange`
+
+```html
+<ui-calendar />
+```
+
+### data-list
+
+Label-to-value description list rendered as real dl/dt/dd, with simple array and projected row modes.
+
+- Install: `npx @gilav21/shadcn-angular@latest add data-list`
+- Import: `import { DataListComponent } from '@/components/ui/data-list';`
+- Selector: `ui-data-list`
+- Category: data-display
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `items: readonly DataListItem[] = []`, `orientation: DataListOrientation = 'vertical'`
+
+```html
+<ui-data-list>Content</ui-data-list>
+```
+
+### data-table
+
+Feature-rich table with sorting, filtering, pagination, and column tools.
+
+- Install: `npx @gilav21/shadcn-angular@latest add data-table`
+- Import: `import { DataTableComponent } from '@/components/ui/data-table';`
+- Selector: `ui-data-table`
+- Category: data-display
+- Depends on: `badge`, `button`, `calendar`, `checkbox`, `command`, `component-outlet`, `icon`, `input`, `pagination`, `popover`, `select`, `skeleton`, `table`
+- npm dependencies: none
+- Inputs: `advancedFilter: FilterGroup | null = null`, `aiProvider: AiProvider | undefined`, `cellFlashDuration: number = 500`, `collapsedGroups: Record<string, boolean> = {}`, `columnFilters: Record<string, unknown> = {}`, `columnOrder: string[] = []`, `columns: ColumnDef<T>[]` (required), `columnVisibility: Record<string, boolean> = {}`, `columnWidths: Record<string, string> = {}`, `data: T[]` (required), `disabledRowIds: ReadonlySet<string> | readonly string[] = []`, `emptyStateComponent: Type<unknown>`, `emptyStateComponentInputs: Record<string, unknown> = {}`, `enableAdvancedFilter: boolean = false`, `enableCellFlash: boolean = false`, `enableCellRangeSelection: boolean = false`, `enableClipboardPaste: boolean = false`, `enableColumnReorder: boolean = false`, `enableColumnResize: boolean = false`, `enableCopy: boolean = true`, `enableEditHistory: boolean = false`, `enableFillHandle: boolean = false`, `enableFloatingFilters: boolean = false`, `enableMultiSort: boolean = false`, `enableNlFilter: boolean = true`, `enableRangeActions: boolean = false`, `enableRowDrag: boolean = false`, `enableRowExpansion: boolean = false`, `enableRowSelection: boolean = false`, `enableSubRows: boolean = false`, `enableSubRowSorting: boolean = true`, `enableVirtualScroll: boolean | "auto" = false`, `expandedRows: Record<string, boolean> = {}`, `filterDebounce: number = 0`, `fullWidthRowComponent: Type<unknown>`, `fullWidthRowTemplate: TemplateRef<unknown>`, `getChildren: (row: T) => T[] | undefined = (row: T) => (row as Record<string, unknown>)['children'] as T[] | undefined`, `getRowId: (row: T) => string = DEFAULT_GET_ROW_ID`, `globalFilter: string = ""`, `groupAggregates: boolean = true`, `groupBy: string | undefined`, `loaderComponent: Type<unknown>`, `loaderComponentInputs: Record<string, unknown> = {}`, `loaderTemplate: TemplateRef<unknown>`, `loading: boolean = false`, `loadingVisibility: DataTableLoadingVisibility = {    initial: true,    pagination: true,    sorting: true,    filtering: true,  }`, `locale: LocaleInput<DataTableLocale>`, `localFiltering: boolean = true`, `localPagination: boolean = true`, `localReorder: boolean = true`, `localSorting: boolean = true`, `maxMultiSortColumns: number = 3`, `multiSortState: SortState[] = []`, `pageSizeOptions: number[] = [10, 20, 30, 40, 50]`, `paginationState: PaginationState = { pageIndex: 0, pageSize: 10 }`, `rowDetailComponent: Type<unknown>`, `rowDetailTemplate: TemplateRef<unknown>`, `rowDragMode: "flat" | "tree" = 'flat'`, `rowSelection: Record<string, boolean> = {}`, `setChildren: (row: T, children: T[]) => T =     (row: T, children: T[]) => ({ ...row, children }),  `, `showColumnBorders: boolean = true`, `showColumnVisibilityToggle: boolean = true`, `showFooter: boolean | "auto" = "auto"`, `showPageSizeSelector: boolean = true`, `showPagination: boolean = true`, `showRowBorders: boolean = true`, `showToolbar: boolean = true`, `skeleton: boolean = false`, `skeletonRows: number = 5`, `sortState: SortState = { column: "", direction: null }`, `subRowDefaultExpanded: number = 0`, `subRowExpandedRows: Record<string, boolean> = {}`, `subRowFilterMode: SubRowFilterMode = "includeParentOnChildMatch"`, `subRowIndentSize: number = 20`, `subRowSelectionMode: SubRowSelectionMode = "self"`, `subRowsPaginated: boolean = false`, `total: number = 0`, `virtualAutoColumnWidth: number = 150`, `virtualAutoThreshold: VirtualAutoThreshold = {    rows: 500,    columns: 20,  }`, `virtualColumnBuffer: number = 3`, `virtualRecycleComponents: boolean = false`, `virtualRowBuffer: number = 5`, `virtualRowHeight: number = 40`, `virtualVariableRowHeight: boolean = false`
+- Outputs: `advancedFilter: FilterGroup | null`, `aiFillComplete: { columnKey: string; count: number }`, `cellEdit: CellEditEvent<T>`, `cellsPaste: CellsPasteEvent`, `collapsedGroups: Record<string, boolean>`, `columnFilters: Record<string, unknown>`, `columnOrder: string[]`, `columnResize: ColumnResizeEvent`, `columnVisibility: Record<string, boolean>`, `columnWidths: Record<string, string>`, `data: T[]`, `editError: CellEditErrorEvent<T>`, `editRedo: void`, `editUndo: void`, `expandedRows: Record<string, boolean>`, `fillSeries: FillSeriesEvent`, `filterChange: string`, `globalFilter: string`, `multiSortChange: SortState[]`, `multiSortState: SortState[]`, `nlFilter: { query: string; spec: NlFilterSpec }`, `pageChange: PaginationState`, `paginationState: PaginationState`, `rangeChartOpen: RangeChartPayload`, `rowReorder: RowReorderEvent<T>`, `rowSelection: Record<string, boolean>`, `sortChange: SortState`, `sortState: SortState`, `subRowExpandedRows: Record<string, boolean>`
+
+```html
+<ui-data-table [columns]="[]" [data]="[]" />
+```
+
+### data-table/context-menu
+
+Opt-in right-click + ⋮ context menus (row actions, column sort/pin/hide) for the data-table.
+
+- Install: `npx @gilav21/shadcn-angular@latest add data-table/context-menu`
+- Import: `import { DataTableContextMenuDirective } from '@/components/ui/data-table/addons/context-menu';`
+- Selector: `[uiDtContextMenu]`
+- Category: data-display
+- Depends on: `context-menu`, `data-table`
+- npm dependencies: none
+- Inputs: `enableColumnMenu: boolean = false`, `rowActions: RowActionsFn<T> | undefined`
+- Outputs: `columnMenuOpen: ColumnDef<T>`, `rowMenuOpen: RowActionContext<T>`
+
+```html
+<div uiDtContextMenu></div>
+```
+
+### data-table/export
+
+Opt-in CSV/Excel export for the data-table (isolates the xlsx dependency from the base).
+
+- Install: `npx @gilav21/shadcn-angular@latest add data-table/export`
+- Import: `import { DataTableExportDirective } from '@/components/ui/data-table/addons/export';`
+- Selector: `[uiDtExport]`
+- Category: data-display
+- Depends on: `data-table`
+- npm dependencies: none
+- Inputs: `exportDataProvider: ExportDataProvider<T> | undefined`, `uiDtExportLocale: LocaleInput<DataTableExportLocale>`
+
+```html
+<div uiDtExport></div>
+```
+
+### data-table/pivot
+
+Opt-in pivot transform (rows x columns x values) for the data-table; exposes getPivot + the pure computePivot.
+
+- Install: `npx @gilav21/shadcn-angular@latest add data-table/pivot`
+- Import: `import { DataTablePivotDirective } from '@/components/ui/data-table/addons/pivot';`
+- Selector: `[uiDtPivot]`
+- Category: data-display
+- Depends on: `data-table`
+- npm dependencies: none
+
+```html
+<div uiDtPivot></div>
+```
+
+### empty
+
+Empty-state placeholder with media, title, description, and call-to-action.
+
+- Install: `npx @gilav21/shadcn-angular@latest add empty`
+- Import: `import { EmptyComponent } from '@/components/ui/empty';`
+- Selector: `ui-empty`
+- Category: data-display
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`
+
+```html
+<ui-empty />
+```
+
+### stat-card
+
+KPI tile with label, value, trend-coloured delta badge and a projected chart slot.
+
+- Install: `npx @gilav21/shadcn-angular@latest add stat-card`
+- Import: `import { StatCardComponent } from '@/components/ui/stat-card';`
+- Selector: `ui-stat-card`
+- Category: data-display
+- Depends on: `badge`, `card`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `delta: string`, `label: string = ''`, `trend: StatCardTrend = 'neutral'`, `trendIcon: boolean = true`, `value: string = ''`
+
+```html
+<ui-stat-card>Content</ui-stat-card>
+```
+
+### table
+
+Composable styled table primitives: header, body, row, cell, and caption.
+
+- Install: `npx @gilav21/shadcn-angular@latest add table`
+- Import: `import { TableComponent } from '@/components/ui/table';`
+- Selector: `ui-table`
+- Category: data-display
+- Depends on: `skeleton`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `role: "table" | "treegrid" = 'table'`
+
+```html
+<ui-table />
+```
+
+### timeline
+
+Vertical timeline of events with dots, connectors, titles, and timestamps.
+
+- Install: `npx @gilav21/shadcn-angular@latest add timeline`
+- Import: `import { TimelineComponent } from '@/components/ui/timeline';`
+- Selector: `ui-timeline`
+- Category: data-display
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `orientation: "vertical" | "horizontal" = 'vertical'`
+
+```html
+<ui-timeline />
+```
+
+### tree
+
+Hierarchical tree view with expandable nodes, icons, and labels.
+
+- Install: `npx @gilav21/shadcn-angular@latest add tree`
+- Import: `import { TreeComponent } from '@/components/ui/tree';`
+- Selector: `ui-tree`
+- Category: data-display
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `data: TreeNode[] = []`, `initialExpandDepth: number = 0`, `selectable: "single" | "multiple" | "none" = 'none'`
+- Outputs: `expandChange: string[]`, `selectionChange: string[]`
+
+```html
+<ui-tree>Content</ui-tree>
+```
+
+### virtual-scroll
+
+Renders only visible rows of large lists for high-performance scrolling.
+
+- Install: `npx @gilav21/shadcn-angular@latest add virtual-scroll`
+- Import: `import { VirtualItemDirective } from '@/components/ui/virtual-scroll';`
+- Selector: `[uiVirtualItem],[virtualItem]`
+- Category: data-display
+- Depends on: none
+- npm dependencies: none
+
+```html
+<div uiVirtualItem></div>
+```
+
+## editor
+
+### chat
+
+Chat interface with scrollable message list, avatars, and a composer input.
+
+- Install: `npx @gilav21/shadcn-angular@latest add chat`
+- Import: `import { ChatMessageComponent } from '@/components/ui/chat';`
+- Selector: `ui-chat-message`
+- Category: editor
+- Depends on: `avatar`, `button`, `scroll-area`, `textarea`
+- npm dependencies: none
+- Inputs: `avatarFallback: string = '?'`, `avatarSrc: string | undefined`, `class: string = ''`, `content: string`, `role: "user" | "assistant" | "system" = 'user'`
+
+```html
+<ui-chat-message>Content</ui-chat-message>
+```
+
+### code-block
+
+Syntax-highlighted code display with a copy-to-clipboard button.
+
+- Install: `npx @gilav21/shadcn-angular@latest add code-block`
+- Import: `import { CodeBlockComponent } from '@/components/ui/code-block';`
+- Selector: `ui-code-block`
+- Category: editor
+- Depends on: `button`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `code: string = ''`, `collapseScope: boolean = false`, `customLanguages: Record<string, LanguagePattern | LanguageConfig> | null = null`, `defaultCollapsed: number | undefined`, `language: string = 'typescript'`, `lineNumbers: boolean = true`, `locale: LocaleInput<CodeBlockLocale>`, `theme: CodeBlockTheme | null = null`
+
+```html
+<ui-code-block />
+```
+
+### kanban
+
+Drag-and-drop kanban board with columns, cards, and edit dialogs.
+
+- Install: `npx @gilav21/shadcn-angular@latest add kanban`
+- Import: `import { KanbanComponent } from '@/components/ui/kanban';`
+- Selector: `ui-kanban`
+- Category: editor
+- Depends on: `alert-dialog`, `autocomplete`, `avatar`, `badge`, `button`, `chip-list`, `context-menu`, `dialog`, `input`, `label`, `scroll-area`, `separator`, `textarea`
+- npm dependencies: none
+- Inputs: `assigneeOptions: { name: string; avatar?: string }[] = []`, `cards: KanbanCard[] = []`, `class: string = ''`, `columns: KanbanColumn[] = []`, `haveAssignees: boolean = true`, `haveLabels: boolean = true`, `initiallyCollapsedSwimlanes: readonly string[] = []`, `locale: LocaleInput<KanbanLocale>`, `rtl: boolean = false`, `searchTerm: string = ''`, `swimlaneBy: KanbanSwimlaneBy = null`
+- Outputs: `cardAdded: KanbanCardAddEvent`, `cardDeleted: string`, `cardMoved: KanbanCardMoveEvent`, `cardsChange: KanbanCard[]`, `cardUpdated: KanbanCard`, `columnAdded: Omit<KanbanColumn, 'id'>`, `columnDeleted: KanbanColumnDeleteEvent`, `columnsChange: KanbanColumn[]`, `columnUpdated: KanbanColumn`, `historyChange: KanbanHistoryState`, `rtl: boolean`
+
+```html
+<ui-kanban />
+```
+
+### page-builder
+
+Drag-and-drop visual builder for composing pages from configurable blocks.
+
+- Install: `npx @gilav21/shadcn-angular@latest add page-builder`
+- Import: `import { PageBuilderComponent } from '@/components/ui/page-builder';`
+- Selector: `ui-page-builder`
+- Category: editor
+- Depends on: `bento-grid`, `icon`, `select`, `switch`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `components: ComponentMeta[] = []`, `data: PageData | undefined`, `enableExport: boolean = false`, `enableSave: boolean = true`
+- Outputs: `save: PageData`, `viewModeChange: PageBuilderViewMode`
+
+```html
+<ui-page-builder />
+```
+
+### page-renderer
+
+Renders a page-builder layout definition into a live page at runtime.
+
+- Install: `npx @gilav21/shadcn-angular@latest add page-renderer`
+- Import: `import { PageRendererComponent } from '@/components/ui/page-renderer';`
+- Selector: `ui-page-renderer`
+- Category: editor
+- Depends on: `bento-grid`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `components: ComponentMeta[] = []`, `context: Record<string, unknown> = {}`, `data: PageData` (required)
+
+_No generated snippet: required input `data: PageData` needs application data._
+
+### rich-text-editor
+
+WYSIWYG editor with toolbar, formatting, mentions, images, and markdown.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor`
+- Import: `import { RichTextEditorComponent } from '@/components/ui/rich-text-editor';`
+- Selector: `ui-rich-text-editor`
+- Category: editor
+- Depends on: `separator`
+- npm dependencies: none
+- Inputs: `ariaDescribedBy: string | undefined`, `ariaLabel: string | undefined`, `class: string = ''`, `customToolbarItems: RichTextCustomToolbarItem[] = []`, `disabled: boolean = false`, `historyDebounceMs: number = 450`, `historyLimit: number = 100`, `locale: LocaleInput<RichTextLocale>`, `maxHeight: string = '400px'`, `maxLength: number | undefined`, `minHeight: string = '120px'`, `mode: EditorMode = 'markdown'`, `placeholder: string = ''`, `readonly: boolean = false`, `showCount: boolean = false`, `showWordCount: boolean = false`, `size: EditorSize = 'default'`, `toolbar: ToolbarPosition = 'top'`, `toolbarItems: ToolbarItem[] = DEFAULT_TOOLBAR_ITEMS`, `variant: EditorVariant = 'default'`
+- Outputs: `blurred: void`, `customToolbarAction: { id: string; ref: RichTextEditorRef }`, `focused: void`, `htmlChange: string`, `markdownChange: string`, `wordCountChange: number`
+
+```html
+<ui-rich-text-editor />
+```
+
+### rich-text-editor/actions
+
+Attach premade click/hover actions to text and images; dev-defined callbacks fire on the rendered HTML.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/actions`
+- Import: `import { PresetHoverCardComponent } from '@/components/ui/rich-text-editor/addons/actions';`
+- Selector: `ui-preset-hover-card`
+- Category: editor
+- Depends on: `button`, `dialog`, `rich-text-editor`
+- npm dependencies: none
+- Inputs: `body: string = ''`, `dir: "ltr" | "rtl" = 'ltr'`, `title: string = ''`
+
+```html
+<ui-preset-hover-card />
+```
+
+### rich-text-editor/ai
+
+AI assist for the rich text editor: an Ask-AI selection chip, a streaming task/custom-prompt panel, and the /ai slash command.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/ai`
+- Import: `import { RichTextAiChipComponent } from '@/components/ui/rich-text-editor/addons/ai';`
+- Selector: `ui-rte-ai-chip`
+- Category: editor
+- Depends on: `button`, `rich-text-editor`
+- npm dependencies: none
+
+```html
+<ui-rte-ai-chip />
+```
+
+### rich-text-editor/colors
+
+Text-colour and highlight-colour toolbar buttons for the rich text editor; applies inline colour styles to the selection.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/colors`
+- Import: `import { RichTextColorsButtonComponent } from '@/components/ui/rich-text-editor/addons/colors';`
+- Selector: `ui-rte-colors-button`
+- Category: editor
+- Depends on: `color-picker`, `popover`, `rich-text-editor`
+- npm dependencies: none
+
+```html
+<ui-rte-colors-button />
+```
+
+### rich-text-editor/emoji
+
+Emoji picker toolbar button for the rich text editor; inserts the picked emoji at the caret.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/emoji`
+- Import: `import { RichTextEmojiButtonComponent } from '@/components/ui/rich-text-editor/addons/emoji';`
+- Selector: `ui-rte-emoji-button`
+- Category: editor
+- Depends on: `emoji-picker`, `rich-text-editor`
+- npm dependencies: none
+
+```html
+<ui-rte-emoji-button />
+```
+
+### rich-text-editor/file-import
+
+DOCX/PDF import for the rich text editor: toolbar picker (images route to the images addon), document drag-and-drop, and lazy parsers.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/file-import`
+- Import: `import { RichTextFileImportButtonComponent } from '@/components/ui/rich-text-editor/addons/file-import';`
+- Selector: `ui-rte-file-import-button`
+- Category: editor
+- Depends on: `rich-text-editor`
+- npm dependencies: none
+
+```html
+<ui-rte-file-import-button />
+```
+
+### rich-text-editor/full
+
+One uiRteFull marker composes all thirteen rich-text-editor addons; import RTE_FULL, and every addon input/output stays bindable.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/full`
+- Import: `@/components/ui/rich-text-editor/addons/full`
+- Category: editor
+- Depends on: `rich-text-editor/actions`, `rich-text-editor/ai`, `rich-text-editor/colors`, `rich-text-editor/emoji`, `rich-text-editor/file-import`, `rich-text-editor/history`, `rich-text-editor/images`, `rich-text-editor/links`, `rich-text-editor/mentions`, `rich-text-editor/outline`, `rich-text-editor/slash-commands`, `rich-text-editor/tables`, `rich-text-editor/typography`
+- npm dependencies: none
+
+_No generated snippet: no element or attribute selector in the registry source._
+
+### rich-text-editor/history
+
+Revision-history UI for the rich text editor: a Revisions button, panel, preview dialog, and browser dialog to jump between snapshots.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/history`
+- Import: `import { RichTextHistoryPanelComponent } from '@/components/ui/rich-text-editor/addons/history';`
+- Selector: `ui-rich-text-history-panel`
+- Category: editor
+- Depends on: `button`, `dialog`, `popover`, `rich-text-editor`, `scroll-area`
+- npm dependencies: none
+- Inputs: `locale: RichTextHistoryLocale = RICH_TEXT_HISTORY_LOCALES['en']`, `showButton: boolean = true`
+- Outputs: `restore: number`
+
+```html
+<ui-rich-text-history-panel />
+```
+
+### rich-text-editor/images
+
+Image support for the rich text editor: toolbar insert popover, paste/drag-drop, upload + auto-upload pipeline, and a resize/align overlay.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/images`
+- Import: `import { RichTextImagesButtonComponent } from '@/components/ui/rich-text-editor/addons/images';`
+- Selector: `ui-rte-images-button`
+- Category: editor
+- Depends on: `button`, `popover`, `rich-text-editor`
+- npm dependencies: none
+
+```html
+<ui-rte-images-button />
+```
+
+### rich-text-editor/links
+
+Link insert/edit for the rich text editor: toolbar popover, Ctrl+K, /link command, and click-to-edit with remove on existing links.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/links`
+- Import: `import { RichTextLinksButtonComponent } from '@/components/ui/rich-text-editor/addons/links';`
+- Selector: `ui-rte-links-button`
+- Category: editor
+- Depends on: `button`, `popover`, `rich-text-editor`
+- npm dependencies: none
+
+```html
+<ui-rte-links-button />
+```
+
+### rich-text-editor/mentions
+
+Mentions/tags for the rich text editor: @/# trigger, async search popover, keyboard nav, and inserting styled entity chips or links.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/mentions`
+- Import: `import { RichTextMentionPopoverComponent } from '@/components/ui/rich-text-editor/addons/mentions';`
+- Selector: `ui-rich-text-mention-popover`
+- Category: editor
+- Depends on: `rich-text-editor`, `scroll-area`
+- npm dependencies: none
+- Inputs: `items: (MentionItem | TagItem)[] = []`, `locale: RichTextMentionsLocale = RICH_TEXT_MENTIONS_LOCALES['en']`, `position: { x: number; y: number } = { x: 0, y: 0 }`, `query: string = ''`, `type: "mention" | "tag" = 'mention'`
+- Outputs: `closed: void`, `itemSelect: MentionItem | TagItem`
+
+```html
+<ui-rich-text-mention-popover />
+```
+
+### rich-text-editor/outline
+
+Document outline for the rich text editor: a toolbar button + /outline command that open a docked, live table-of-contents panel.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/outline`
+- Import: `import { RichTextOutlinePanelComponent } from '@/components/ui/rich-text-editor/addons/outline';`
+- Selector: `ui-rte-outline-panel`
+- Category: editor
+- Depends on: `button`, `rich-text-editor`, `scroll-area`
+- npm dependencies: none
+
+```html
+<ui-rte-outline-panel />
+```
+
+### rich-text-editor/slash-commands
+
+Slash-command ("/") menu for the rich text editor; type / to open a filterable command palette at the caret.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/slash-commands`
+- Import: `import { RichTextSlashCommandsMenuComponent } from '@/components/ui/rich-text-editor/addons/slash-commands';`
+- Selector: `ui-rich-text-slash-commands-menu`
+- Category: editor
+- Depends on: `rich-text-editor`
+- npm dependencies: none
+- Inputs: `commands: RichTextSlashCommand[] = []`, `menuAriaLabel: string = ''`, `noResultsLabel: string = ''`, `selectedIndex: number = 0`
+- Outputs: `commandSelect: RichTextSlashCommand`, `hoverIndex: number`
+
+```html
+<ui-rich-text-slash-commands-menu />
+```
+
+### rich-text-editor/tables
+
+Table insert for the rich text editor: a toolbar button and 8x8 grid picker that inserts an empty table at the caret.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/tables`
+- Import: `import { RichTextTablesButtonComponent } from '@/components/ui/rich-text-editor/addons/tables';`
+- Selector: `ui-rte-tables-button`
+- Category: editor
+- Depends on: `popover`, `rich-text-editor`
+- npm dependencies: none
+
+```html
+<ui-rte-tables-button />
+```
+
+### rich-text-editor/typography
+
+Font-size and font-family toolbar dropdowns for the rich text editor; applies inline font styles to the selection.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rich-text-editor/typography`
+- Import: `import { RichTextTypographyButtonComponent } from '@/components/ui/rich-text-editor/addons/typography';`
+- Selector: `ui-rte-typography-button`
+- Category: editor
+- Depends on: `autocomplete`, `popover`, `rich-text-editor`
+- npm dependencies: none
+
+```html
+<ui-rte-typography-button />
+```
+
+### sortable
+
+Drag-and-drop sortable list with reordering, auto-scroll, and FLIP animation.
+
+- Install: `npx @gilav21/shadcn-angular@latest add sortable`
+- Import: `import { SortableComponent } from '@/components/ui/sortable';`
+- Selector: `ui-sortable`
+- Category: editor
+- Depends on: none
+- npm dependencies: none
+- Inputs: `accepts: SortableAccepts<T> = true`, `ariaItemLabel: (item: T, index: number) => string = (_, i) => `item ${i + 1}``, `ariaLabel: string = 'list'`, `autoScroll: boolean = true`, `class: string = ''`, `disabled: boolean = false`, `group: string = ''`, `handleOnly: boolean = false`, `items: T[]` (required), `landEffect: SortableLandEffectFn<T> = () => null`, `listId: string = ''`, `locale: LocaleInput<SortableLocale>`, `orientation: SortableOrientation = 'vertical'`, `positionClass: SortablePositionClassFn<T> = () => ''`, `trackBy: SortableTrackByFn<T> = (item) => item`
+- Outputs: `dropRejected: SortableDropRejectedEvent<T>`, `itemEnter: SortableForeignHoverEvent<T>`, `itemLeave: SortableForeignHoverEvent<T>`, `items: T[]`, `reorder: SortableReorderEvent<T>`
+
+```html
+<ui-sortable [items]="[]">Content</ui-sortable>
+```
+
+### tour
+
+Guided product tour highlighting elements with step-by-step popovers.
+
+- Install: `npx @gilav21/shadcn-angular@latest add tour`
+- Import: `import { TourComponent } from '@/components/ui/tour';`
+- Selector: `ui-tour`
+- Category: editor
+- Depends on: `button`
+- npm dependencies: none
+- Inputs: `active: boolean = false`, `class: string = ''`, `finishLabel: string`, `locale: LocaleInput<CommonLocale>`, `nextLabel: string`, `prevLabel: string`, `showSkip: boolean = true`, `skipLabel: string`, `steps: TourStep[] = []`, `storageKey: string | null = null`, `targetTimeout: number = 0`
+- Outputs: `active: boolean`, `done: TourEndReason`, `stepChange: number`, `stepSkipped: TourSkippedEvent`
+
+```html
+<ui-tour />
+```
+
+## feedback
+
+### alert
+
+Inline callout banner for important messages with title, description, and variants.
+
+- Install: `npx @gilav21/shadcn-angular@latest add alert`
+- Import: `import { AlertComponent } from '@/components/ui/alert';`
+- Selector: `ui-alert`
+- Category: feedback
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `description: string = ''`, `title: string = ''`, `variant: AlertVariant = 'default'`
+
+```html
+<ui-alert>Content</ui-alert>
+```
+
+### badge
+
+Small label for statuses, counts, or tags with color variants.
+
+- Install: `npx @gilav21/shadcn-angular@latest add badge`
+- Import: `import { BadgeComponent } from '@/components/ui/badge';`
+- Selector: `ui-badge`
+- Category: feedback
+- Depends on: `skeleton`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `label: string = ''`, `skeleton: boolean = false`, `variant: BadgeVariant = 'default'`
+
+```html
+<ui-badge>Content</ui-badge>
+```
+
+### banner
+
+Persistent page-level announcement bar with severity variants and an optional dismiss control.
+
+- Install: `npx @gilav21/shadcn-angular@latest add banner`
+- Import: `import { BannerComponent } from '@/components/ui/banner';`
+- Selector: `ui-banner`
+- Category: feedback
+- Depends on: `button`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `dismissible: unknown = false, { transform: booleanAttribute }`, `locale: LocaleInput<CommonLocale>`, `message: string = ''`, `variant: BannerVariant = 'info'`
+- Outputs: `dismissed: void`
+
+```html
+<ui-banner>Content</ui-banner>
+```
+
+### error-page
+
+Full-page 404/403/500 state with localised copy, illustration slot and recovery actions.
+
+- Install: `npx @gilav21/shadcn-angular@latest add error-page`
+- Import: `import { ErrorPageComponent } from '@/components/ui/error-page';`
+- Selector: `ui-error-page`
+- Category: feedback
+- Depends on: `button`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `code: ErrorPageCode = '404'`, `description: string = ''`, `locale: LocaleInput<ErrorPageLocale>`, `title: string = ''`
+- Outputs: `goBack: void`, `goHome: void`
+
+```html
+<ui-error-page>Content</ui-error-page>
+```
+
+### number-ticker
+
+Animates a number counting up or down to its target value.
+
+- Install: `npx @gilav21/shadcn-angular@latest add number-ticker`
+- Import: `import { NumberTickerComponent } from '@/components/ui/number-ticker';`
+- Selector: `ui-number-ticker`
+- Category: feedback
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `decimalPlaces: number = 0`, `delay: number = 0`, `direction: "up" | "down" = 'up'`, `duration: number = 1`, `locale: string`, `value: number` (required)
+
+```html
+<ui-number-ticker [value]="0" />
+```
+
+### progress
+
+Horizontal progress bar that visualizes completion from 0 to 100 percent.
+
+- Install: `npx @gilav21/shadcn-angular@latest add progress`
+- Import: `import { ProgressComponent } from '@/components/ui/progress';`
+- Selector: `ui-progress`
+- Category: feedback
+- Depends on: none
+- npm dependencies: none
+- Inputs: `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `class: string = ''`, `locale: string`, `max: number = 100`, `value: number = 0`
+
+```html
+<ui-progress />
+```
+
+### result
+
+Centred outcome panel for after an operation completes, with status icon, actions and a detail slot.
+
+- Install: `npx @gilav21/shadcn-angular@latest add result`
+- Import: `import { ResultComponent } from '@/components/ui/result';`
+- Selector: `ui-result`
+- Category: feedback
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `description: string = ''`, `status: ResultStatus = 'info'`, `title: string = ''`
+
+```html
+<ui-result>Content</ui-result>
+```
+
+### skeleton
+
+Animated placeholder block shown while content is loading.
+
+- Install: `npx @gilav21/shadcn-angular@latest add skeleton`
+- Import: `import { SkeletonComponent } from '@/components/ui/skeleton';`
+- Selector: `ui-skeleton`
+- Category: feedback
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `variant: "pulse" | "shimmer" = 'pulse'`
+
+```html
+<ui-skeleton />
+```
+
+### spinner
+
+Animated loading spinner, available inline or as a full-page overlay.
+
+- Install: `npx @gilav21/shadcn-angular@latest add spinner`
+- Import: `import { SpinnerComponent } from '@/components/ui/spinner';`
+- Selector: `ui-spinner`
+- Category: feedback
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `customSize: number | null = null`, `size: SpinnerSize = 'default'`, `variant: SpinnerVariant = 'ring'`
+
+```html
+<ui-spinner>Content</ui-spinner>
+```
+
+### toast
+
+Transient notification messages that stack and auto-dismiss from a corner.
+
+- Install: `npx @gilav21/shadcn-angular@latest add toast`
+- Import: `import { ToastComponent } from '@/components/ui/toast';`
+- Selector: `ui-toast`
+- Category: feedback
+- Depends on: none
+- npm dependencies: none
+- Inputs: `action: { label: string; onClick: () => void }`, `countdownSeconds: number | undefined`, `createdAt: number | undefined`, `description: string`, `duration: number | undefined`, `loading: boolean | undefined = false`, `locale: LocaleInput<CommonLocale>`, `showCountdown: boolean | undefined = false`, `title: string`, `variant: ToastVariant = 'default'`
+- Outputs: `closed: void`
+
+```html
+<ui-toast />
+```
+
+## form
+
+### autocomplete
+
+Text input with a filtered suggestion dropdown and highlighted matches as you type.
+
+- Install: `npx @gilav21/shadcn-angular@latest add autocomplete`
+- Import: `import { AutocompleteComponent } from '@/components/ui/autocomplete';`
+- Selector: `ui-autocomplete`
+- Category: form
+- Depends on: `badge`, `command`, `popover`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `debounceTime: number = 0`, `disabled: boolean = false`, `displayWith: (option: T) => string = String`, `filter: boolean = true`, `locale: LocaleInput<CommonLocale>`, `multiple: boolean = false`, `options: T[] = []`, `placeholder: string`, `searchTerm: string = ''`, `value: AutocompleteValue<T> | undefined`, `valueAttribute: string | undefined`
+- Outputs: `searchChange: string`, `searchTerm: string`, `value: AutocompleteValue<T> | undefined`
+
+```html
+<ui-autocomplete />
+```
+
+### checkbox
+
+Toggleable checkbox input with checked, unchecked, and indeterminate states.
+
+- Install: `npx @gilav21/shadcn-angular@latest add checkbox`
+- Import: `import { CheckboxComponent } from '@/components/ui/checkbox';`
+- Selector: `ui-checkbox`
+- Category: form
+- Depends on: `skeleton`
+- npm dependencies: none
+- Inputs: `ariaDescribedby: string | undefined`, `ariaInvalid: boolean | undefined`, `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `checked: boolean = false`, `class: string = ''`, `disabled: boolean = false`, `elementId: string | undefined`, `indeterminate: boolean = false`, `label: string | undefined`, `skeleton: boolean = false`
+- Outputs: `checked: boolean`
+
+```html
+<ui-checkbox />
+```
+
+### chip-list
+
+Input that collects multiple values as removable chips or tags.
+
+- Install: `npx @gilav21/shadcn-angular@latest add chip-list`
+- Import: `import { ChipListComponent } from '@/components/ui/chip-list';`
+- Selector: `ui-chip-list`
+- Category: form
+- Depends on: `badge`, `input`
+- npm dependencies: none
+- Inputs: `allowDuplicates: boolean = false`, `badgeVariant: BadgeVariant = 'default'`, `chipColors: Record<string, string> = {}`, `class: string = ''`, `disabled: boolean = false`, `maxRows: number = 0`, `placeholder: string = 'Add item...'`, `separatorKeys: string[] = []`, `variant: ChipListVariant = 'outline'`
+- Outputs: `chipAdded: string`, `chipRemoved: string`
+
+```html
+<ui-chip-list />
+```
+
+### color-picker
+
+Interactive picker for choosing colors via swatches, sliders, and hex/rgb inputs.
+
+- Install: `npx @gilav21/shadcn-angular@latest add color-picker`
+- Import: `import { ColorPickerComponent } from '@/components/ui/color-picker';`
+- Selector: `ui-color-picker`
+- Category: form
+- Depends on: `eyedropper`, `icon`, `input`, `popover`, `tabs`, `tooltip`
+- npm dependencies: none
+- Inputs: `alpha: boolean = false`, `class: string = ''`, `contrastBackground: string = '#ffffff'`, `disabled: boolean = false`, `enableEyedropper: boolean = true`, `enableImagePick: boolean = false`, `fallbackTarget: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | null = null`, `formats: readonly ColorFormat[] = ['hex', 'rgb', 'hsl']`, `imageExtractAlgorithm: ExtractAlgorithm = 'median-cut'`, `imageExtractCount: number = 6`, `inline: boolean = false`, `locale: LocaleInput<ColorPickerLocale>`, `maxRecent: number = 8`, `presets: string[] = []`, `recentColors: string[] | null = null`, `showContrast: boolean = false`, `showHarmonies: boolean = false`, `showRecent: boolean = true`, `storageKey: string | null = null`, `value: string = ''`
+- Outputs: `colorChange: string`, `recentColorsChange: string[]`, `value: string`
+
+```html
+<ui-color-picker>Content</ui-color-picker>
+```
+
+### date-picker
+
+Popover date and date-range picker combining an input trigger with a calendar.
+
+- Install: `npx @gilav21/shadcn-angular@latest add date-picker`
+- Import: `import { DatePickerComponent } from '@/components/ui/date-picker';`
+- Selector: `ui-date-picker`
+- Category: form
+- Depends on: `calendar`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `date: Date | null = null`, `disabled: boolean = false`, `locale: string = 'en'`, `placeholder: string = 'Pick a date'`, `showTime: boolean = false`
+- Outputs: `dateChange: Date | null`
+
+```html
+<ui-date-picker />
+```
+
+### eyedropper
+
+Tool for sampling a color from anywhere on screen via the EyeDropper API.
+
+- Install: `npx @gilav21/shadcn-angular@latest add eyedropper`
+- Import: `import { EyedropperComponent } from '@/components/ui/eyedropper';`
+- Selector: `ui-eyedropper`
+- Category: form
+- Depends on: `icon`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `disabled: boolean = false`, `fallbackTarget: FallbackTarget = null`, `label: string`, `locale: LocaleInput<EyedropperLocale>`, `variant: EyedropperVariant = 'icon'`
+- Outputs: `colorPick: string`, `pickCancel: void`, `pickStart: void`
+
+```html
+<ui-eyedropper />
+```
+
+### field
+
+Form field wrapper grouping label, control, description, and error messages.
+
+- Install: `npx @gilav21/shadcn-angular@latest add field`
+- Import: `import { FieldComponent } from '@/components/ui/field';`
+- Selector: `ui-field`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `orientation: "vertical" | "horizontal" = 'vertical'`
+
+```html
+<ui-field />
+```
+
+### file-upload
+
+Drag-and-drop file upload zone with previews and per-file progress.
+
+- Install: `npx @gilav21/shadcn-angular@latest add file-upload`
+- Import: `import { FileUploadComponent } from '@/components/ui/file-upload';`
+- Selector: `ui-file-upload`
+- Category: form
+- Depends on: `button`, `progress`
+- npm dependencies: none
+- Inputs: `accept: string = ''`, `allowDirectories: boolean = false`, `class: string = ''`, `cropAspect: number | null = null`, `cropImages: boolean = false`, `disabled: boolean = false`, `locale: LocaleInput<FileUploadLocale>`, `maxFiles: number | null = null`, `maxSize: number | null = null`, `multiple: boolean = true`
+- Outputs: `cropped: CropResult`, `fileAdded: FileUploadItem`, `fileError: { file: File; error: string }`, `fileRemoved: FileUploadItem`, `filesChange: FileUploadItem[]`
+
+```html
+<ui-file-upload />
+```
+
+### input
+
+Single-line text input with variants and add-on support for forms.
+
+- Install: `npx @gilav21/shadcn-angular@latest add input`
+- Import: `import { InputComponent } from '@/components/ui/input';`
+- Selector: `ui-input`
+- Category: form
+- Depends on: `icon`, `skeleton`, `spinner`
+- npm dependencies: none
+- Inputs: `ariaDescribedby: string | undefined`, `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `autofocus: boolean = false`, `class: string = ''`, `clearable: boolean = false`, `disabled: boolean = false`, `elementId: string | undefined`, `floating: boolean = false`, `label: string`, `labelClass: string = ''`, `loading: boolean = false`, `name: string | undefined`, `placeholder: string = ''`, `prefix: string`, `skeleton: boolean = false`, `suffix: string`, `type: string = 'text'`, `value: string = ''`, `variant: InputVariant = 'outline'`
+- Outputs: `value: string`
+
+```html
+<ui-input />
+```
+
+### input-group
+
+Combines an input with leading/trailing add-ons like icons, text, or buttons.
+
+- Install: `npx @gilav21/shadcn-angular@latest add input-group`
+- Import: `import { InputGroupComponent } from '@/components/ui/input-group';`
+- Selector: `ui-input-group`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `disabled: boolean = false`, `variant: InputGroupVariant = 'outline'`
+
+```html
+<ui-input-group>Content</ui-input-group>
+```
+
+### input-mask
+
+Directive that formats input text against a pattern (phone, date, card numbers).
+
+- Install: `npx @gilav21/shadcn-angular@latest add input-mask`
+- Import: `import { InputMaskDirective } from '@/components/ui/input-mask.directive';`
+- Selector: `[uiInputMask]`
+- Category: form
+- Depends on: `input`
+- npm dependencies: none
+- Inputs: `showMaskTyped: boolean = false`, `slotChar: string = '_'`, `uiInputMask: string = ''`
+
+```html
+<div uiInputMask></div>
+```
+
+### input-otp
+
+Segmented one-time-password input with individual slots and auto-advance.
+
+- Install: `npx @gilav21/shadcn-angular@latest add input-otp`
+- Import: `import { InputOTPComponent } from '@/components/ui/input-otp';`
+- Selector: `ui-input-otp`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `class: string = ''`, `maxLength: number | undefined = DEFAULT_OTP_LENGTH`, `separator: number[] = [2]`, `value: string = ''`
+- Outputs: `value: string`
+
+```html
+<ui-input-otp />
+```
+
+### native-select
+
+Styled wrapper around the native HTML select element for dropdown choices.
+
+- Install: `npx @gilav21/shadcn-angular@latest add native-select`
+- Import: `import { NativeSelectComponent } from '@/components/ui/native-select';`
+- Selector: `ui-native-select`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `ariaLabel: string | undefined`, `class: string = ''`, `disabled: boolean = false`, `invalid: boolean = false`, `size: "sm" | "default" = 'default'`
+
+```html
+<ui-native-select>Content</ui-native-select>
+```
+
+### number-input
+
+Numeric input with stepper buttons, min/max, and locale-aware formatting.
+
+- Install: `npx @gilav21/shadcn-angular@latest add number-input`
+- Import: `import { NumberInputComponent } from '@/components/ui/number-input';`
+- Selector: `ui-number-input`
+- Category: form
+- Depends on: `input`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `disabled: boolean = false`, `locale: string`, `max: number | undefined`, `min: number | undefined`, `placeholder: string = '0'`, `step: number = 1`, `value: number | null = null`, `variant: NumberInputVariant = 'outline'`
+- Outputs: `value: number | null`
+
+```html
+<ui-number-input />
+```
+
+### phone-input
+
+International phone number input with country selector and format masking.
+
+- Install: `npx @gilav21/shadcn-angular@latest add phone-input`
+- Import: `import { PhoneInputComponent } from '@/components/ui/phone-input';`
+- Selector: `ui-phone-input`
+- Category: form
+- Depends on: `input`, `input-group`, `input-mask`, `popover`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `countries: PhoneCountry[] = DEFAULT_COUNTRIES`, `defaultCountry: string = 'US'`, `disabled: boolean = false`, `locale: LocaleInput<PhoneInputLocale>`, `placeholder: string | undefined`, `value: string | null = null`, `variant: PhoneInputVariant = 'outline'`
+- Outputs: `value: string | null`
+
+```html
+<ui-phone-input />
+```
+
+### radio-group
+
+Set of radio buttons for selecting exactly one option from a list.
+
+- Install: `npx @gilav21/shadcn-angular@latest add radio-group`
+- Import: `import { RadioGroupComponent } from '@/components/ui/radio-group';`
+- Selector: `ui-radio-group`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `disabled: boolean = false`, `disabledWith: (option: T) => boolean = () => false`, `displayWith: (option: T) => string = String`, `options: T[] = []`, `orientation: "horizontal" | "vertical" = 'vertical'`, `value: string | undefined`, `valueAttribute: string | undefined`
+- Outputs: `value: string | undefined`
+
+```html
+<ui-radio-group>Content</ui-radio-group>
+```
+
+### rating
+
+Star rating input for capturing or displaying a score with half-step support.
+
+- Install: `npx @gilav21/shadcn-angular@latest add rating`
+- Import: `import { RatingComponent } from '@/components/ui/rating';`
+- Selector: `ui-rating`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `ariaLabel: string`, `class: string = ''`, `disabled: boolean = false`, `locale: LocaleInput<RatingLocale>`, `max: number | undefined = DEFAULT_MAX_RATING`, `precision: 0.5 | 1 = 1`, `readonly: boolean = false`, `size: "sm" | "md" | "lg" = 'md'`, `value: number = 0`
+- Outputs: `ratingChange: number`, `value: number`
+
+```html
+<ui-rating />
+```
+
+### select
+
+Custom dropdown select with grouped, searchable, keyboard-navigable options.
+
+- Install: `npx @gilav21/shadcn-angular@latest add select`
+- Import: `import { SelectComponent } from '@/components/ui/select';`
+- Selector: `ui-select`
+- Category: form
+- Depends on: `skeleton`, `spinner`
+- npm dependencies: none
+- Inputs: `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `defaultValue: T | undefined`, `disabled: boolean = false`, `disabledWith: (option: T) => boolean = () => false`, `displayWith: (option: T) => string = String`, `locale: LocaleInput<CommonLocale>`, `options: T[] = []`, `placeholder: string`, `position: "popper" | "item-aligned" = 'item-aligned'`, `value: T | undefined`, `valueAttribute: string | undefined`
+- Outputs: `value: T | undefined`
+
+```html
+<ui-select />
+```
+
+### slider
+
+Draggable slider for selecting a value or range from a numeric scale.
+
+- Install: `npx @gilav21/shadcn-angular@latest add slider`
+- Import: `import { SliderComponent } from '@/components/ui/slider';`
+- Selector: `ui-slider`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `class: string = ''`, `defaultValue: number = 0`, `disabled: boolean = false`, `locale: string`, `max: number | undefined = DEFAULT_MAX`, `min: number | undefined = DEFAULT_MIN`, `step: number = 1`, `value: number = 0`
+- Outputs: `value: number`
+
+```html
+<ui-slider />
+```
+
+### switch
+
+On/off toggle switch for binary settings, an alternative to a checkbox.
+
+- Install: `npx @gilav21/shadcn-angular@latest add switch`
+- Import: `import { SwitchComponent } from '@/components/ui/switch';`
+- Selector: `ui-switch`
+- Category: form
+- Depends on: `skeleton`
+- npm dependencies: none
+- Inputs: `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `checked: boolean = false`, `class: string = ''`, `disabled: boolean = false`, `elementId: string | undefined`, `label: string | undefined`, `skeleton: boolean = false`
+- Outputs: `checked: boolean`
+
+```html
+<ui-switch />
+```
+
+### textarea
+
+Multi-line text input for longer free-form content, with add-on support.
+
+- Install: `npx @gilav21/shadcn-angular@latest add textarea`
+- Import: `import { TextareaComponent } from '@/components/ui/textarea';`
+- Selector: `ui-textarea`
+- Category: form
+- Depends on: `skeleton`
+- npm dependencies: none
+- Inputs: `ariaDescribedby: string | undefined`, `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `class: string = ''`, `disabled: boolean = false`, `elementId: string | undefined`, `name: string | undefined`, `placeholder: string = ''`, `rows: number = 3`, `skeleton: boolean = false`, `value: string = ''`, `variant: TextareaVariant = 'outline'`
+- Outputs: `value: string`
+
+```html
+<ui-textarea />
+```
+
+### toggle
+
+Two-state toggle button that can be pressed on or off.
+
+- Install: `npx @gilav21/shadcn-angular@latest add toggle`
+- Import: `import { ToggleComponent } from '@/components/ui/toggle';`
+- Selector: `ui-toggle`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `defaultPressed: boolean = false`, `disabled: boolean = false`, `size: ToggleSize = 'default'`, `variant: ToggleVariant = 'default'`
+- Outputs: `pressedChange: boolean`
+
+```html
+<ui-toggle>Content</ui-toggle>
+```
+
+### toggle-group
+
+Group of toggle buttons supporting single or multiple selection.
+
+- Install: `npx @gilav21/shadcn-angular@latest add toggle-group`
+- Import: `import { ToggleGroupComponent } from '@/components/ui/toggle-group';`
+- Selector: `ui-toggle-group`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `defaultValue: string | string[] | undefined`, `disabled: boolean = false`, `items: ToggleGroupItem[] = []`, `size: ToggleGroupSize = 'default'`, `type: ToggleGroupType = 'single'`, `value: string | string[] | undefined`, `variant: ToggleGroupVariant = 'default'`
+- Outputs: `value: string | string[] | undefined`
+
+```html
+<ui-toggle-group>Content</ui-toggle-group>
+```
+
+### tree-select
+
+Dropdown select backed by a hierarchical tree for picking nested options.
+
+- Install: `npx @gilav21/shadcn-angular@latest add tree-select`
+- Import: `import { TreeSelectComponent } from '@/components/ui/tree-select';`
+- Selector: `ui-tree-select`
+- Category: form
+- Depends on: `popover`, `tree`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `disabled: boolean = false`, `locale: LocaleInput<CommonLocale>`, `nodes: TreeNode[] = []`, `placeholder: string`, `value: string | null | undefined`
+- Outputs: `selectionChange: string[]`
+
+```html
+<ui-tree-select>Content</ui-tree-select>
+```
+
+## layout
+
+### aspect-ratio
+
+Wrapper that constrains its content to a fixed width-to-height ratio (e.g. 16:9).
+
+- Install: `npx @gilav21/shadcn-angular@latest add aspect-ratio`
+- Import: `import { AspectRatioComponent } from '@/components/ui/aspect-ratio';`
+- Selector: `ui-aspect-ratio`
+- Category: layout
+- Depends on: none
+- npm dependencies: none
+- Inputs: `ratio: number = 1`
+
+```html
+<ui-aspect-ratio>Content</ui-aspect-ratio>
+```
+
+### bento-grid
+
+Responsive bento-style grid of variable-size cells for feature showcases.
+
+- Install: `npx @gilav21/shadcn-angular@latest add bento-grid`
+- Import: `import { BentoGridComponent } from '@/components/ui/bento-grid';`
+- Selector: `ui-bento-grid`
+- Category: layout
+- Depends on: `component-outlet`, `context-menu`
+- npm dependencies: none
+- Inputs: `borderRadius: string, string | number = '0.75rem'`, `class: string = ''`, `cols: number = 12`, `columnWidth: string, string | number = '1fr'`, `editable: boolean = true`, `gap: string, string | number = '1.5rem'`, `itemPadding: string, string | number = '1rem'`, `items: DashboardItem[] = []`, `resizeHandleType: "corners" | "edges" | "both" = 'both'`, `rowHeight: string, string | number = '120px'`, `showBorders: boolean = true`
+- Outputs: `componentInit: { id: string, ref: ComponentRef<unknown> }`, `externalDrop: { widgetId: string, targetId: string | null, x?: number, y?: number }`, `itemsChange: DashboardItem[]`, `selectionChange: string[]`
+
+```html
+<ui-bento-grid>Content</ui-bento-grid>
+```
+
+### card
+
+Container with header, content, and footer slots for grouping related information.
+
+- Install: `npx @gilav21/shadcn-angular@latest add card`
+- Import: `import { CardComponent } from '@/components/ui/card';`
+- Selector: `ui-card`
+- Category: layout
+- Depends on: `skeleton`, `spinner`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `content: string = ''`, `description: string = ''`, `loading: boolean = false`, `skeleton: boolean = false`, `title: string = ''`
+
+```html
+<ui-card />
+```
+
+### collapsible
+
+Single region that toggles its content open and closed via a trigger.
+
+- Install: `npx @gilav21/shadcn-angular@latest add collapsible`
+- Import: `import { CollapsibleComponent } from '@/components/ui/collapsible';`
+- Selector: `ui-collapsible`
+- Category: layout
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `defaultOpen: boolean = false`, `disabled: boolean = false`
+- Outputs: `openChange: boolean`
+
+```html
+<ui-collapsible />
+```
+
+### infinite-canvas
+
+Infinite pannable, zoomable plane that renders only the items in view.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas`
+- Import: `import { InfiniteCanvasComponent } from '@/components/ui/infinite-canvas';`
+- Selector: `ui-infinite-canvas`
+- Category: layout
+- Depends on: none
+- npm dependencies: none
+- Inputs: `ariaLabel: string = 'Canvas'`, `class: string = ''`, `edges: readonly CanvasEdge[] = []`, `fitPadding: unknown = DEFAULT_FIT_PADDING`, `gridSize: number = 24`, `items: readonly T[] = []`, `maxZoom: unknown = DEFAULT_MAX_ZOOM`, `minZoom: unknown = DEFAULT_MIN_ZOOM`, `overscan: unknown = DEFAULT_OVERSCAN`, `pan: CanvasPoint = { x: 0, y: 0 }`, `showGrid: boolean = true`, `zoom: number = 1`
+- Outputs: `viewportChange: CanvasViewport`
+
+```html
+<ui-infinite-canvas>Content</ui-infinite-canvas>
+```
+
+### masonry
+
+Column-balanced layout for uneven-height items that keeps DOM order equal to visual reading order.
+
+- Install: `npx @gilav21/shadcn-angular@latest add masonry`
+- Import: `import { MasonryComponent } from '@/components/ui/masonry';`
+- Selector: `ui-masonry`
+- Category: layout
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `columns: MasonryColumnsInput = DEFAULT_COLUMNS`, `gap: unknown = 16, { transform: (value: unknown) => numberAttribute(value, 16) }`
+
+```html
+<ui-masonry />
+```
+
+### page-header
+
+Page title, description, breadcrumb and actions strip that stacks the actions below the title on narrow screens.
+
+- Install: `npx @gilav21/shadcn-angular@latest add page-header`
+- Import: `import { PageHeaderComponent } from '@/components/ui/page-header';`
+- Selector: `ui-page-header`
+- Category: layout
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `description: string = ''`, `headingLevel: number = 1`, `title: string = ''`
+
+```html
+<ui-page-header>Content</ui-page-header>
+```
+
+### resizable
+
+Split panes the user can resize by dragging handles, with touch support.
+
+- Install: `npx @gilav21/shadcn-angular@latest add resizable`
+- Import: `import { ResizablePanelGroupComponent } from '@/components/ui/resizable';`
+- Selector: `ui-resizable-panel-group`
+- Category: layout
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `direction: "horizontal" | "vertical" = 'horizontal'`
+
+```html
+<ui-resizable-panel-group>Content</ui-resizable-panel-group>
+```
+
+### scroll-area
+
+Scrollable container with custom, cross-browser styled scrollbars.
+
+- Install: `npx @gilav21/shadcn-angular@latest add scroll-area`
+- Import: `import { ScrollAreaComponent } from '@/components/ui/scroll-area';`
+- Selector: `ui-scroll-area`
+- Category: layout
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `orientation: "vertical" | "horizontal" | "both" = 'vertical'`
+
+```html
+<ui-scroll-area>Content</ui-scroll-area>
+```
+
+### separator
+
+Thin horizontal or vertical divider line for visually separating content.
+
+- Install: `npx @gilav21/shadcn-angular@latest add separator`
+- Import: `import { SeparatorComponent } from '@/components/ui/separator';`
+- Selector: `ui-separator`
+- Category: layout
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `orientation: "horizontal" | "vertical" = 'horizontal'`
+
+```html
+<ui-separator />
+```
+
+## media
+
+### avatar
+
+User profile image with automatic fallback to initials or a placeholder.
+
+- Install: `npx @gilav21/shadcn-angular@latest add avatar`
+- Import: `import { AvatarComponent } from '@/components/ui/avatar';`
+- Selector: `ui-avatar`
+- Category: media
+- Depends on: `skeleton`, `spinner`
+- npm dependencies: none
+- Inputs: `alt: string = ''`, `class: string = ''`, `fallback: string = ''`, `loading: boolean = false`, `skeleton: boolean = false`, `src: string = ''`
+
+```html
+<ui-avatar>Content</ui-avatar>
+```
+
+### carousel
+
+Sliding content slider with previous/next controls for cycling through items.
+
+- Install: `npx @gilav21/shadcn-angular@latest add carousel`
+- Import: `import { CarouselComponent } from '@/components/ui/carousel';`
+- Selector: `ui-carousel`
+- Category: media
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `orientation: CarouselOrientation = 'horizontal'`
+
+```html
+<ui-carousel />
+```
+
+### file-viewer
+
+In-browser viewer rendering PDF, DOCX, XLSX, images, and other documents.
+
+- Install: `npx @gilav21/shadcn-angular@latest add file-viewer`
+- Import: `import { FileViewerComponent } from '@/components/ui/file-viewer';`
+- Selector: `ui-file-viewer`
+- Category: media
+- Depends on: `spinner`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `file: File | Blob | null = null`, `filename: string = ''`, `height: string = '600px'`, `page: number = 1`, `src: string = ''`, `type: FileViewerType | '' = ''`, `zoom: number = 1`
+- Outputs: `loaded: FileViewerLoadedEvent`, `loadError: FileViewerErrorEvent`, `pageChange: number`, `zoomChange: number`
+
+```html
+<ui-file-viewer>Content</ui-file-viewer>
+```
+
+## navigation
+
+### breadcrumb
+
+Hierarchy trail showing the current page location with links to ancestor pages.
+
+- Install: `npx @gilav21/shadcn-angular@latest add breadcrumb`
+- Import: `import { BreadcrumbComponent } from '@/components/ui/breadcrumb';`
+- Selector: `ui-breadcrumb`
+- Category: navigation
+- Depends on: `skeleton`
+- npm dependencies: none
+- Inputs: `locale: LocaleInput<BreadcrumbLocale>`
+
+```html
+<ui-breadcrumb />
+```
+
+### button
+
+Clickable button with variants (default, destructive, outline, ghost, link) and sizes.
+
+- Install: `npx @gilav21/shadcn-angular@latest add button`
+- Import: `import { ButtonComponent } from '@/components/ui/button';`
+- Selector: `ui-button`
+- Category: navigation
+- Depends on: `alert-dialog`, `ripple`, `skeleton`, `spinner`
+- npm dependencies: none
+- Inputs: `ariaLabel: string | undefined`, `class: string = ''`, `disabled: boolean = false`, `label: string = ''`, `loading: boolean = false`, `ripple: boolean = false`, `rippleColor: string = 'color-mix(in srgb, currentColor 35%, transparent)'`, `size: ButtonSize = 'default'`, `skeleton: boolean = false`, `type: "button" | "submit" | "reset" = 'button'`, `variant: ButtonVariant = 'default'`
+- Outputs: `clicked: MouseEvent`
+
+```html
+<ui-button>Content</ui-button>
+```
+
+### button-group
+
+Joins related buttons into a single segmented control with shared borders.
+
+- Install: `npx @gilav21/shadcn-angular@latest add button-group`
+- Import: `import { ButtonGroupComponent } from '@/components/ui/button-group';`
+- Selector: `ui-button-group`
+- Category: navigation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `orientation: "horizontal" | "vertical" = 'horizontal'`
+
+```html
+<ui-button-group>Content</ui-button-group>
+```
+
+### command
+
+Searchable command palette with grouped, keyboard-navigable actions and a dialog mode.
+
+- Install: `npx @gilav21/shadcn-angular@latest add command`
+- Import: `import { CommandComponent } from '@/components/ui/command';`
+- Selector: `ui-command`
+- Category: navigation
+- Depends on: `dialog`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `debounce: number = 200`, `recentKey: string | null = null`, `recentLimit: number = 5`, `search: string | null = null`, `shouldFilter: boolean = true`, `source: CommandSource | null = null`
+
+```html
+<ui-command />
+```
+
+### context-menu
+
+Right-click (or long-press) menu with items, submenus, and keyboard shortcuts.
+
+- Install: `npx @gilav21/shadcn-angular@latest add context-menu`
+- Import: `import { ContextMenuComponent } from '@/components/ui/context-menu';`
+- Selector: `ui-context-menu`
+- Category: navigation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `items: ContextMenuItem[] = []`
+
+```html
+<ui-context-menu />
+```
+
+### dock
+
+macOS-style dock of icons that magnify on hover for quick app navigation.
+
+- Install: `npx @gilav21/shadcn-angular@latest add dock`
+- Import: `import { DockComponent } from '@/components/ui/dock';`
+- Selector: `ui-dock`
+- Category: navigation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `distance: number = 100`, `items: DockItemData[] = []`, `magnification: number = 60`, `position: "bottom" | "top" | "left" | "right" = 'bottom'`
+
+```html
+<ui-dock>Content</ui-dock>
+```
+
+### dropdown-menu
+
+Button-triggered menu of actions with labels, separators, and submenus.
+
+- Install: `npx @gilav21/shadcn-angular@latest add dropdown-menu`
+- Import: `import { DropdownMenuComponent } from '@/components/ui/dropdown-menu';`
+- Selector: `ui-dropdown-menu`
+- Category: navigation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `items: DropdownItem[] = []`, `open: boolean = false`
+- Outputs: `open: boolean`
+
+```html
+<ui-dropdown-menu />
+```
+
+### menubar
+
+Desktop-style horizontal menu bar with dropdown menus and submenus.
+
+- Install: `npx @gilav21/shadcn-angular@latest add menubar`
+- Import: `import { MenubarComponent } from '@/components/ui/menubar';`
+- Selector: `ui-menubar`
+- Category: navigation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`
+
+```html
+<ui-menubar />
+```
+
+### navigation-menu
+
+Site navigation with dropdown panels of links and a sliding indicator.
+
+- Install: `npx @gilav21/shadcn-angular@latest add navigation-menu`
+- Import: `import { NavigationMenuComponent } from '@/components/ui/navigation-menu';`
+- Selector: `ui-navigation-menu`
+- Category: navigation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `items: NavigationMenuItem[] = []`
+
+```html
+<ui-navigation-menu>Content</ui-navigation-menu>
+```
+
+### pagination
+
+Page navigation control with prev/next, numbered links, and ellipsis.
+
+- Install: `npx @gilav21/shadcn-angular@latest add pagination`
+- Import: `import { PaginationComponent } from '@/components/ui/pagination';`
+- Selector: `ui-pagination`
+- Category: navigation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `currentPage: number = 0`, `locale: LocaleInput<PaginationLocale>`, `siblingCount: number = 1`, `totalPages: number = 0`
+- Outputs: `pageChange: number`
+
+```html
+<ui-pagination />
+```
+
+### sidebar
+
+Collapsible app sidebar with grouped menu items, header, and footer.
+
+- Install: `npx @gilav21/shadcn-angular@latest add sidebar`
+- Import: `import { SidebarComponent } from '@/components/ui/sidebar';`
+- Selector: `ui-sidebar`
+- Category: navigation
+- Depends on: `scroll-area`, `tooltip`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `collapseMode: "icon" | "hidden" = 'icon'`, `collapsible: boolean = true`, `side: "left" | "right" = 'left'`, `variant: SidebarVariant = 'sidebar'`
+
+```html
+<ui-sidebar />
+```
+
+### speed-dial
+
+Floating action button that fans out into a menu of quick actions.
+
+- Install: `npx @gilav21/shadcn-angular@latest add speed-dial`
+- Import: `import { SpeedDialComponent } from '@/components/ui/speed-dial';`
+- Selector: `ui-speed-dial`
+- Category: navigation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `direction: SpeedDialDirection = 'up'`, `disabled: unknown = false, { transform: booleanAttribute }`, `radius: number = 80`, `transitionDelay: number = 80`, `type: SpeedDialType = 'linear'`
+- Outputs: `hidden: void`, `shown: void`, `visibleChange: boolean`
+
+```html
+<ui-speed-dial />
+```
+
+### split-button
+
+Primary action button paired with a dropdown of secondary actions.
+
+- Install: `npx @gilav21/shadcn-angular@latest add split-button`
+- Import: `import { SplitButtonComponent } from '@/components/ui/split-button';`
+- Selector: `ui-split-button`
+- Category: navigation
+- Depends on: `button`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `disabled: unknown = false, { transform: booleanAttribute }`, `dropdownAriaLabel: string = 'More options'`, `items: SplitButtonItem[] = []`, `label: string = ''`, `size: ButtonSize = 'default'`, `variant: ButtonVariant = 'default'`
+- Outputs: `itemClick: SplitButtonItem`, `primaryClick: MouseEvent`
+
+```html
+<ui-split-button />
+```
+
+### stepper
+
+Multi-step progress indicator for wizards and sequential flows.
+
+- Install: `npx @gilav21/shadcn-angular@latest add stepper`
+- Import: `import { StepperComponent } from '@/components/ui/stepper';`
+- Selector: `ui-stepper`
+- Category: navigation
+- Depends on: none
+- npm dependencies: none
+- Inputs: `activeStep: number = 0`, `canLeave: StepGuard | null = null`, `class: string = ''`, `linear: boolean = false`, `orientation: "horizontal" | "vertical" = 'horizontal'`, `steps: StepConfig[] = []`
+- Outputs: `activeStep: number`, `stepBlocked: StepBlockedEvent`, `stepChange: number`
+
+```html
+<ui-stepper>Content</ui-stepper>
+```
+
+### tabs
+
+Tabbed interface that switches between panels via a list of triggers.
+
+- Install: `npx @gilav21/shadcn-angular@latest add tabs`
+- Import: `import { TabsComponent } from '@/components/ui/tabs';`
+- Selector: `ui-tabs`
+- Category: navigation
+- Depends on: `skeleton`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `defaultValue: string = ''`, `tabs: TabConfig[] = []`
+- Outputs: `tabChange: string`
+
+```html
+<ui-tabs />
+```
+
+## overlay
+
+### alert-dialog
+
+Modal dialog that interrupts the user to confirm or cancel a destructive action.
+
+- Install: `npx @gilav21/shadcn-angular@latest add alert-dialog`
+- Import: `import { AlertDialogComponent } from '@/components/ui/alert-dialog';`
+- Selector: `ui-alert-dialog`
+- Category: overlay
+- Depends on: none
+- npm dependencies: none
+- Inputs: `open: boolean = false`
+- Outputs: `open: boolean`
+
+```html
+<ui-alert-dialog />
+```
+
+### dialog
+
+Modal dialog overlay with header, content, and footer for focused tasks.
+
+- Install: `npx @gilav21/shadcn-angular@latest add dialog`
+- Import: `import { DialogComponent } from '@/components/ui/dialog';`
+- Selector: `ui-dialog`
+- Category: overlay
+- Depends on: none
+- npm dependencies: none
+- Inputs: `open: boolean = false`
+- Outputs: `open: boolean`
+
+```html
+<ui-dialog />
+```
+
+### drawer
+
+Bottom-anchored sliding panel with drag-to-dismiss, ideal for mobile.
+
+- Install: `npx @gilav21/shadcn-angular@latest add drawer`
+- Import: `import { DrawerComponent } from '@/components/ui/drawer';`
+- Selector: `ui-drawer`
+- Category: overlay
+- Depends on: none
+- npm dependencies: none
+- Inputs: `direction: DrawerDirection = 'bottom'`, `open: boolean = false`
+- Outputs: `open: boolean`
+
+```html
+<ui-drawer />
+```
+
+### hover-card
+
+Floating card that reveals rich preview content on hover or tap.
+
+- Install: `npx @gilav21/shadcn-angular@latest add hover-card`
+- Import: `import { HoverCardComponent } from '@/components/ui/hover-card';`
+- Selector: `ui-hover-card`
+- Category: overlay
+- Depends on: none
+- npm dependencies: none
+
+```html
+<ui-hover-card />
+```
+
+### popover
+
+Floating panel anchored to a trigger for showing rich, non-modal content.
+
+- Install: `npx @gilav21/shadcn-angular@latest add popover`
+- Import: `import { PopoverComponent } from '@/components/ui/popover';`
+- Selector: `ui-popover`
+- Category: overlay
+- Depends on: none
+- npm dependencies: none
+- Inputs: `closeOnScroll: boolean = false`, `open: boolean = false`
+- Outputs: `open: boolean`
+
+```html
+<ui-popover />
+```
+
+### sheet
+
+Panel that slides in from a screen edge for secondary content or forms.
+
+- Install: `npx @gilav21/shadcn-angular@latest add sheet`
+- Import: `import { SheetComponent } from '@/components/ui/sheet';`
+- Selector: `ui-sheet`
+- Category: overlay
+- Depends on: none
+- npm dependencies: none
+- Outputs: `openChange: boolean`
+
+```html
+<ui-sheet />
+```
+
+### shortcut-bindings-dialog
+
+Dialog listing keyboard shortcuts grouped by category for reference.
+
+- Install: `npx @gilav21/shadcn-angular@latest add shortcut-bindings-dialog`
+- Import: `import { ShortcutBindingsDialogComponent } from '@/components/ui/shortcut-bindings-dialog';`
+- Selector: `ui-shortcut-bindings-dialog`
+- Category: overlay
+- Depends on: `accordion`, `badge`, `button`, `dialog`, `scroll-area`
+- npm dependencies: none
+- Inputs: `allowSaveMapping: boolean = false`, `locale: LocaleInput<ShortcutBindingsDialogLocale>`, `mappingSchema: ShortcutOverrideSchema | null = null`, `open: boolean = false`, `replaceOnSchemaLoad: boolean = true`
+- Outputs: `mappingSave: ShortcutOverrideSchema`, `open: boolean`
+
+```html
+<ui-shortcut-bindings-dialog />
+```
+
+### tooltip
+
+Small floating label that explains an element on hover or focus.
+
+- Install: `npx @gilav21/shadcn-angular@latest add tooltip`
+- Import: `import { TooltipDirective } from '@/components/ui/tooltip';`
+- Selector: `[uiTooltip]`
+- Category: overlay
+- Depends on: none
+- npm dependencies: none
+- Inputs: `tooltipDisabled: boolean = false`, `tooltipSide: "top" | "bottom" | "left" | "right" = 'top'`, `uiTooltip: string` (required)
+
+```html
+<div uiTooltip uiTooltip="text"></div>
+```
+
+## utility
+
+### accordion
+
+Vertically stacked, collapsible sections that expand one or more panels to reveal content.
+
+- Install: `npx @gilav21/shadcn-angular@latest add accordion`
+- Import: `import { AccordionComponent } from '@/components/ui/accordion';`
+- Selector: `ui-accordion`
+- Category: utility
+- Depends on: `skeleton`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `collapsible: boolean = true`, `openValues: string[] | null = null`, `type: "single" | "multiple" = 'single'`
+
+```html
+<ui-accordion>Content</ui-accordion>
+```
+
+### card-accordion
+
+Collapsible sections styled as elevated cards, with a header, optional actions, and a smooth height animation.
+
+- Install: `npx @gilav21/shadcn-angular@latest add card-accordion`
+- Import: `import { CardAccordionComponent } from '@/components/ui/card-accordion';`
+- Selector: `ui-card-accordion`
+- Category: utility
+- Depends on: `accordion`, `skeleton`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `collapsible: boolean = true`, `openValues: string[] | null = null`, `type: "single" | "multiple" = 'single'`
+
+```html
+<ui-card-accordion>Content</ui-card-accordion>
+```
+
+### component-outlet
+
+Directive that dynamically renders a component by reference into the DOM.
+
+- Install: `npx @gilav21/shadcn-angular@latest add component-outlet`
+- Import: `import { UiComponentOutletDirective } from '@/components/ui/component-outlet.directive';`
+- Selector: `[uiComponentOutlet]`
+- Category: utility
+- Depends on: none
+- npm dependencies: none
+- Inputs: `component: Type<unknown> = { alias: 'uiComponentOutlet' }` (required), `inputs: Record<string, unknown> = {}`, `outputs: Record<string, OutputHandler> = {}`, `recycle: boolean = false`
+- Outputs: `initialized: ComponentRef<unknown>`
+
+_No generated snippet: required input `component: Type<unknown>` needs application data._
+
+### context-menu-attach
+
+Directive that attaches a context menu to any element via right-click or long-press.
+
+- Install: `npx @gilav21/shadcn-angular@latest add context-menu-attach`
+- Import: `import { ContextMenuAttachDirective } from '@/components/ui/context-menu-attach.directive';`
+- Selector: `[uiContextMenuAttach]`
+- Category: utility
+- Depends on: `context-menu`
+- npm dependencies: none
+- Inputs: `contextMenuData: T` (required), `disabled: boolean = false`, `uiContextMenuAttach: ContextMenuComponent` (required)
+- Outputs: `contextMenuTriggered: ContextMenuEvent<T>`
+
+_No generated snippet: required input `contextMenuData: T` needs application data._
+
+### copy-to
+
+Directive that copies a string to the clipboard on click and shows a localized "Copied!" indicator.
+
+- Install: `npx @gilav21/shadcn-angular@latest add copy-to`
+- Import: `import { CopyToDirective } from '@/components/ui/directives/copy-to.directive';`
+- Selector: `[uiCopyTo]`
+- Category: utility
+- Depends on: none
+- npm dependencies: none
+- Inputs: `locale: LocaleInput<CommonLocale>`, `uiCopyTo: string` (required)
+- Outputs: `copied: void`
+
+```html
+<div uiCopyTo uiCopyTo="text"></div>
+```
+
+### data-table-context-menu
+
+Directive adding right-click context menus to data-table rows and columns.
+
+- Install: `npx @gilav21/shadcn-angular@latest add data-table-context-menu`
+- Import: `import { DataTableContextMenuDirective } from '@/components/ui/data-table-context-menu.directive';`
+- Selector: `ui-data-table[uiDataTableContextMenu]`
+- Category: utility
+- Depends on: `context-menu`, `data-table`, `table-context-menu`
+- npm dependencies: none
+- Inputs: `contextMenuDisabled: boolean = false`, `contextMenuRowsOnly: boolean = true`, `uiDataTableContextMenu: ContextMenuComponent` (required)
+- Outputs: `headerContextMenu: DataTableHeaderContextMenuEvent`, `rowContextMenu: TableRowContextMenuEvent<T>`
+
+_No generated snippet: applies to <ui-data-table>, so usage depends on that component's own required inputs._
+
+### emoji-picker
+
+Searchable emoji selector with categories and a popover trigger.
+
+- Install: `npx @gilav21/shadcn-angular@latest add emoji-picker`
+- Import: `import { EmojiPickerComponent } from '@/components/ui/emoji-picker';`
+- Selector: `ui-emoji-picker`
+- Category: utility
+- Depends on: `input`, `input-group`, `scroll-area`, `tooltip`
+- npm dependencies: none
+- Inputs: `closeOnScroll: boolean = false`, `closeOnSelect: boolean = true`, `open: boolean = false`
+- Outputs: `emojiSelect: string`, `open: boolean`
+
+```html
+<ui-emoji-picker />
+```
+
+### icon
+
+Renders named SVG icons from a configurable icon registry.
+
+- Install: `npx @gilav21/shadcn-angular@latest add icon`
+- Import: `import { IconComponent } from '@/components/ui/icon';`
+- Selector: `ui-icon`
+- Category: utility
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `color: string`, `fillColor: string`, `name: IconName = ''`, `size: IconSize = 'md'`, `strokeWidth: number | undefined`, `weight: IconWeight = 'regular'`
+
+```html
+<ui-icon />
+```
+
+### kbd
+
+Styled element for displaying keyboard keys and shortcut combinations.
+
+- Install: `npx @gilav21/shadcn-angular@latest add kbd`
+- Import: `import { KbdComponent } from '@/components/ui/kbd';`
+- Selector: `ui-kbd`
+- Category: utility
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`
+
+```html
+<ui-kbd>Content</ui-kbd>
+```
+
+### label
+
+Accessible form label that associates with and activates its control.
+
+- Install: `npx @gilav21/shadcn-angular@latest add label`
+- Import: `import { LabelComponent } from '@/components/ui/label';`
+- Selector: `ui-label`
+- Category: utility
+- Depends on: none
+- npm dependencies: none
+- Inputs: `class: string = ''`, `for: string = ''`
+
+```html
+<ui-label>Content</ui-label>
+```
+
+### table-context-menu
+
+Directive wiring a context menu to table rows and headers for right-click actions.
+
+- Install: `npx @gilav21/shadcn-angular@latest add table-context-menu`
+- Import: `import { TableContextMenuDirective } from '@/components/ui/table-context-menu.directive';`
+- Selector: `table[uiTableContextMenu], [uiTable]`
+- Category: utility
+- Depends on: `context-menu`
+- npm dependencies: none
+- Inputs: `contextMenuDisabled: boolean = false`, `rowDataAttribute: string = 'data-row'`, `uiTableContextMenu: ContextMenuComponent | null = null`
+- Outputs: `cellContextMenu: TableCellContextMenuEvent<T>`, `rowContextMenu: TableRowContextMenuEvent<T>`
+
+_No generated snippet: applies to <table>, so usage depends on that component's own required inputs._
+
+### tree-context-menu
+
+Directive wiring a context menu to tree nodes for per-node right-click actions.
+
+- Install: `npx @gilav21/shadcn-angular@latest add tree-context-menu`
+- Import: `import { TreeContextMenuDirective } from '@/components/ui/tree-context-menu.directive';`
+- Selector: `ui-tree[uiTreeContextMenu]`
+- Category: utility
+- Depends on: `context-menu`
+- npm dependencies: none
+- Inputs: `contextMenuDisabled: boolean = false`, `uiTreeContextMenu: ContextMenuComponent` (required)
+- Outputs: `nodeContextMenu: TreeContextMenuEvent<T>`
+
+_No generated snippet: applies to <ui-tree>, so usage depends on that component's own required inputs._

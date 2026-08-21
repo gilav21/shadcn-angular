@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { delay, of, Observable } from 'rxjs';
 import { AiRequest } from '../../../../../packages/components/lib/ai';
+import { DocsForComponent } from '../../docs/docs-for.component';
 import {
   RichTextEditorComponent,
   SwitchComponent,
@@ -32,7 +33,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
 @Component({
   selector: 'app-rich-text-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, RichTextOutlineDirective, SwitchComponent, InputComponent, SelectComponent],
+  imports: [DocsForComponent, FormsModule, RichTextEditorComponent, RichTextEmojiDirective, RichTextSlashCommandsDirective, RichTextHistoryDirective, RichTextColorsDirective, RichTextTypographyDirective, RichTextLinksDirective, RichTextTablesDirective, RichTextImagesDirective, RichTextMentionsDirective, RichTextAiDirective, RichTextOutlineDirective, SwitchComponent, InputComponent, SelectComponent],
   template: `
     <section class="space-y-6">
       <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
@@ -51,6 +52,11 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         }}</pre>
         </details>
         }
+        <app-docs-for name="rich-text-editor" />
+        <app-docs-for name="rich-text-editor/emoji" />
+        <app-docs-for name="rich-text-editor/links" />
+        <app-docs-for name="rich-text-editor/slash-commands" />
+        <app-docs-for name="rich-text-editor/tables" />
       </div>
 
       <div class="space-y-2">
@@ -95,6 +101,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
             </p>
           </div>
         </details>
+        <app-docs-for name="rich-text-editor/ai" />
       </div>
 
       <div class="space-y-2">
@@ -110,6 +117,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         <ui-rich-text-editor mode="markdown" toolbar="top" uiRteMentions [uiRteMentionsSearch]="searchMentions"
           [uiRteMentionsRender]="mentionLinkRender" [uiRteTags]="true" [uiRteTagsSearch]="searchTags" [uiRteTagsRender]="tagLinkRender"
           [placeholder]="t().mentionsPlaceholder" minHeight="120px" />
+        <app-docs-for name="rich-text-editor/mentions" />
       </div>
 
       <div class="space-y-2">
@@ -135,6 +143,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           [showCount]="true" [showWordCount]="true" [maxLength]="220" [historyLimit]="180"
           [uiRteHistoryButton]="richTextShowHistoryButton()" [historyDebounceMs]="500"
           [placeholder]="t().advancedPlaceholder" minHeight="160px" />
+        <app-docs-for name="rich-text-editor/history" />
       </div>
 
       <div class="space-y-2">
@@ -152,6 +161,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           [toolbarItems]="outlineToolbarBase"
           [(ngModel)]="richTextOutlineContent"
           minHeight="320px" />
+        <app-docs-for name="rich-text-editor/outline" />
       </div>
 
       <div class="space-y-2">
@@ -180,6 +190,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
         <ui-rich-text-editor mode="html" toolbar="top" uiRteColors uiRteTypography
           [toolbarItems]="['bold', 'italic', 'separator']"
           [placeholder]="t().fontFamilyPlaceholder" minHeight="120px" />
+        <app-docs-for name="rich-text-editor/colors" />
       </div>
 
       <div class="space-y-2">
@@ -190,6 +201,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           [uiRteTypographyFamilies]="['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins']"
           uiRteTypographyFamiliesStrategy="replace"
           [placeholder]="t().customFontPlaceholder" minHeight="120px" />
+        <app-docs-for name="rich-text-editor/typography" />
       </div>
 
       <div class="space-y-2">
@@ -207,6 +219,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
           {{ t().uploadedUrlLabel }} <code class="text-xs bg-muted px-1.5 py-0.5 rounded">{{ lastAutoUploadUrl }}</code>
         </p>
         }
+        <app-docs-for name="rich-text-editor/images" />
       </div>
 
       <div class="space-y-2">
@@ -229,7 +242,7 @@ type ImageAlignmentOption = 'inline' | 'left' | 'center' | 'right';
             <span id="imgDefaultAlignmentLabel" class="text-sm font-medium">{{ t().defaultAlignmentLabel }}</span>
             <ui-select class="w-full" ariaLabelledby="imgDefaultAlignmentLabel"
               [options]="alignmentOptions" [displayWith]="alignmentDisplay()"
-              [value]="imgDefaultAlignment()" (valueChange)="imgDefaultAlignment.set($event)" />
+              [value]="imgDefaultAlignment()" (valueChange)="imgDefaultAlignment.set($event ?? 'center')" />
           </div>
           <div class="space-y-1.5">
             <label for="imgMinWidth" class="text-sm font-medium">{{ t().minWidthLabel }}</label>

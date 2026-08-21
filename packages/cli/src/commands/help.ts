@@ -120,7 +120,7 @@ function buildInspectCommands(branchDefault: string): string[] {
     '    ' + chalk.gray('--fix') + '                Repair missing files/deps (never touches your edits)',
     '    ' + chalk.gray('--dry-run') + '            Show what --fix would do without changes',
     '',
-    '  ' + chalk.cyan('why') + ' <components...>   Print files, deps, and reverse-dependents for component(s)',
+    '  ' + chalk.cyan('why') + ' <components...>   Print files, install size, deps, and reverse-dependents',
     '',
     '  ' + chalk.cyan('status') + ' Show project status: design tokens, component health, and config',
     '',

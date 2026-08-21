@@ -1,0 +1,75 @@
+@let text = t();
+
+<div class="flex flex-col gap-4 sm:gap-6 p-4 sm:p-6">
+  <header class="flex flex-col gap-2">
+    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">{{ text.heading }}</h1>
+    <p class="text-sm sm:text-base text-muted-foreground">{{ text.description }}</p>
+  </header>
+
+  <section class="flex flex-col gap-3" [attr.aria-label]="text.controls">
+    <div class="flex flex-wrap items-center gap-2">
+      <ui-button size="sm" variant="outline" (click)="fitView()">{{ text.fitView }}</ui-button>
+      <ui-button size="sm" variant="outline" (click)="zoomIn()">{{ text.zoomIn }}</ui-button>
+      <ui-button size="sm" variant="outline" (click)="zoomOut()">{{ text.zoomOut }}</ui-button>
+      <ui-button size="sm" variant="outline" (click)="goToOrigin()">{{ text.origin }}</ui-button>
+      <ui-button size="sm" variant="outline" (click)="reset()">{{ text.reset }}</ui-button>
+      <ui-button size="sm" variant="outline" [attr.aria-pressed]="showGrid()" (click)="toggleGrid()">
+        {{ text.grid }}
+      </ui-button>
+      <ui-button size="sm" [variant]="large() ? 'outline' : 'default'" (click)="useSmallGraph()">
+        {{ text.smallGraph }}
+      </ui-button>
+      <ui-button size="sm" [variant]="large() ? 'default' : 'outline'" (click)="useLargeGraph()">
+        {{ text.largeGraph }}
+      </ui-button>
+    </div>
+
+    <dl class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" [attr.aria-label]="text.stats">
+      <div class="flex items-center gap-2">
+        <dt class="text-muted-foreground">{{ text.itemsLoaded }}</dt>
+        <dd class="font-medium tabular-nums">{{ items().length }}</dd>
+      </div>
+      <div class="flex items-center gap-2">
+        <dt class="text-muted-foreground">{{ text.itemsInDom }}</dt>
+        <dd class="font-medium tabular-nums">{{ domCount() }}</dd>
+      </div>
+      <div class="flex items-center gap-2">
+        <dt class="text-muted-foreground">{{ text.zoomLevel }}</dt>
+        <dd class="font-medium tabular-nums">{{ zoomLabel() }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <div class="w-full overflow-hidden rounded-lg border">
+    <ui-infinite-canvas
+      #canvasRef="uiInfiniteCanvas"
+      class="h-[350px] sm:h-[450px] md:h-[600px] w-full"
+      [items]="items()"
+      [edges]="edges()"
+      [showGrid]="showGrid()"
+      [ariaLabel]="text.heading"
+      (viewportChange)="refreshStats($event)"
+    >
+      <ng-template uiInfiniteCanvasItem [ofType]="items()" let-item>
+        <div
+          class="flex h-full w-full flex-col justify-center gap-1 overflow-hidden rounded-lg border bg-card p-3 shadow-sm"
+          [class.border-primary]="item.accent"
+        >
+          <span class="truncate text-sm font-medium">{{ text.nodeLabel }} {{ item.label }}</span>
+          <span class="truncate text-xs text-muted-foreground tabular-nums">{{ item.x }}, {{ item.y }}</span>
+        </div>
+      </ng-template>
+    </ui-infinite-canvas>
+  </div>
+
+  <section class="flex flex-col gap-2">
+    <h2 class="text-lg font-semibold">{{ text.shortcuts }}</h2>
+    <ul class="flex flex-col gap-1 text-sm text-muted-foreground">
+      <li>{{ text.shortcutPan }}</li>
+      <li>{{ text.shortcutZoom }}</li>
+      <li>{{ text.shortcutWheel }}</li>
+      <li>{{ text.shortcutSpace }}</li>
+      <li>{{ text.shortcutKeys }}</li>
+    </ul>
+  </section>
+</div>

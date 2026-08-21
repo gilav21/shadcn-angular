@@ -1,6 +1,8 @@
 // Feedback
 export { AlertDemoComponent } from './feedback/alert-demo.component';
 export { ProgressDemoComponent } from './feedback/progress-demo.component';
+export { ResultDemoComponent } from './feedback/result-demo.component';
+export { ErrorPageDemoComponent } from './feedback/error-page-demo.component';
 export { SkeletonDemoComponent } from './feedback/skeleton-demo.component';
 export { SpinnerDemoComponent } from './feedback/spinner-demo.component';
 export { ToastDemoComponent } from './feedback/toast-demo.component';
@@ -86,6 +88,7 @@ export { CodeBlockDemoComponent } from './data-display/code-block-demo.component
 export { TreeViewDemoComponent } from './data-display/tree-view-demo.component';
 export { TimelineDemoComponent } from './data-display/timeline-demo.component';
 export { EmptyDemoComponent } from './data-display/empty-demo.component';
+export { StatCardDemoComponent } from './data-display/stat-card-demo.component';
 export { KbdDemoComponent } from './data-display/kbd-demo.component';
 export { SeparatorDemoComponent } from './data-display/separator-demo.component';
 export { NumberTickerDemoComponent } from './data-display/number-ticker-demo.component';

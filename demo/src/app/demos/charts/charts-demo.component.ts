@@ -16,6 +16,10 @@ import {
   GaugeChartComponent,
   RadarChartComponent,
   BulletChartComponent,
+  HistogramComponent,
+  BoxplotComponent,
+  CandlestickComponent,
+  TreemapComponent,
   HeatmapComponent,
   CalendarHeatmapComponent,
   FunnelChartComponent,
@@ -32,10 +36,12 @@ import {
   HeatmapCell,
   CalendarDay,
   ChartDataPoint,
+  OhlcPoint,
   WaterfallBar,
   ChartLegendItem,
   BrushSelection,
 } from '../../../../../packages/components/ui';
+import { DocsForComponent } from '../../docs/docs-for.component';
 import { CHARTS_DEMO_LOCALES } from './charts-demo.locales';
 
 const LEGEND_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
@@ -60,6 +66,10 @@ const BRUSH_WIDTH = 560;
     GaugeChartComponent,
     RadarChartComponent,
     BulletChartComponent,
+    HistogramComponent,
+    BoxplotComponent,
+    CandlestickComponent,
+    TreemapComponent,
     HeatmapComponent,
     CalendarHeatmapComponent,
     FunnelChartComponent,
@@ -70,6 +80,7 @@ const BRUSH_WIDTH = 560;
     ChartBrushComponent,
     DataTableRangeChartComponent,
     ButtonComponent,
+    DocsForComponent,
   ],
   template: `
     <section class="space-y-6">
@@ -84,6 +95,7 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().lineChartDescription }}</p>
           <ui-line-chart [dir]="dir()" [series]="t().stackedSeries" [width]="560" [height]="300"
             curve="monotone" [title]="t().lineChartHeading" />
+          <app-docs-for name="line-chart" />
         </div>
 
         <div class="space-y-4">
@@ -91,6 +103,7 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().areaChartDescription }}</p>
           <ui-area-chart [dir]="dir()" [series]="t().stackedSeries" [width]="560" [height]="300"
             curve="monotone" [stacked]="true" [title]="t().areaChartHeading" />
+          <app-docs-for name="area-chart" />
         </div>
 
         <div class="space-y-4">
@@ -98,6 +111,7 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().comboChartDescription }}</p>
           <ui-combo-chart [dir]="dir()" [barSeries]="comboBars()" [showCumulative]="true"
             [width]="560" [height]="320" [title]="t().comboChartHeading" />
+          <app-docs-for name="combo-chart" />
         </div>
 
         <div class="space-y-4">
@@ -105,6 +119,7 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().scatterChartDescription }}</p>
           <ui-scatter-chart [dir]="dir()" [series]="scatterSeries" [width]="560" [height]="320"
             [title]="t().scatterChartHeading" />
+          <app-docs-for name="scatter-chart" />
         </div>
 
         <div class="space-y-4">
@@ -112,18 +127,21 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().bubbleChartDescription }}</p>
           <ui-bubble-chart [dir]="dir()" [series]="bubbleSeries" [width]="560" [height]="360"
             [title]="t().bubbleChartHeading" />
+          <app-docs-for name="bubble-chart" />
         </div>
 
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">{{ t().gaugeChartHeading }}</h3>
           <p class="text-sm text-muted-foreground">{{ t().gaugeChartDescription }}</p>
           <ui-gauge-chart [value]="72" unit="%" label="CPU" [thresholds]="gaugeThresholds" [size]="240" />
+          <app-docs-for name="gauge-chart" />
         </div>
 
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">{{ t().radarChartHeading }}</h3>
           <p class="text-sm text-muted-foreground">{{ t().radarChartDescription }}</p>
           <ui-radar-chart [series]="radarSeries" [size]="340" [levels]="4" />
+          <app-docs-for name="radar-chart" />
         </div>
 
         <div class="space-y-4">
@@ -131,24 +149,60 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().bulletChartDescription }}</p>
           <ui-bullet-chart [value]="70" [target]="80" [ranges]="[50, 75, 100]" [width]="420"
             [height]="44" label="Revenue" />
+          <app-docs-for name="bullet-chart" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().histogramHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().histogramDescription }}</p>
+          <ui-histogram [dir]="dir()" [values]="latencySamples" [width]="560" [height]="300"
+            [unit]="t().histogramUnit" [title]="t().histogramTitle" />
+          <app-docs-for name="histogram" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().boxplotHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().boxplotDescription }}</p>
+          <ui-boxplot [dir]="dir()" [groups]="t().boxplotGroups" [width]="560" [height]="320"
+            [unit]="t().boxplotUnit" [title]="t().boxplotTitle" />
+          <app-docs-for name="boxplot" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().candlestickHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().candlestickDescription }}</p>
+          <ui-candlestick [dir]="dir()" [points]="ohlcSessions" [width]="560" [height]="320"
+            [unit]="t().candlestickUnit" [title]="t().candlestickTitle" />
+          <app-docs-for name="candlestick" />
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">{{ t().treemapHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().treemapDescription }}</p>
+          <ui-treemap [dir]="dir()" [nodes]="t().treemapNodes" [width]="560" [height]="340"
+            [unit]="t().treemapUnit" [title]="t().treemapTitle" />
+          <app-docs-for name="treemap" />
         </div>
 
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">{{ t().heatmapHeading }}</h3>
           <p class="text-sm text-muted-foreground">{{ t().heatmapDescription }}</p>
           <ui-heatmap [data]="heatmapData" [width]="460" [showValues]="true" />
+          <app-docs-for name="heatmap" />
         </div>
 
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">{{ t().calendarHeatmapHeading }}</h3>
           <p class="text-sm text-muted-foreground">{{ t().calendarHeatmapDescription }}</p>
           <ui-calendar-heatmap [data]="calendarData" [cellSize]="13" />
+          <app-docs-for name="calendar-heatmap" />
         </div>
 
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">{{ t().funnelChartHeading }}</h3>
           <p class="text-sm text-muted-foreground">{{ t().funnelChartDescription }}</p>
           <ui-funnel-chart [data]="funnelData" [width]="440" [height]="300" [title]="t().funnelChartHeading" />
+          <app-docs-for name="funnel-chart" />
         </div>
 
         <div class="space-y-4">
@@ -156,12 +210,14 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().waterfallChartDescription }}</p>
           <ui-waterfall-chart [dir]="dir()" [data]="waterfallData" [width]="560" [height]="340"
             [showValues]="true" [title]="t().waterfallChartHeading" />
+          <app-docs-for name="waterfall-chart" />
         </div>
 
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">{{ t().pieChartHeading }}</h3>
           <p class="text-sm text-muted-foreground">{{ t().pieChartDescription }}</p>
           <ui-pie-chart [data]="t().pieChartData" [size]="280" legendPosition="right" />
+          <app-docs-for name="pie-chart" />
         </div>
 
         <div class="space-y-4">
@@ -175,6 +231,7 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().drilldownPieDescription }}</p>
           <ui-pie-chart-drilldown [data]="t().drilldownData" [drilldownSeries]="t().drilldownSeries" [size]="280"
             [innerRadius]="0" legendPosition="right" [title]="t().drilldownPieTitle" />
+          <app-docs-for name="pie-chart-drilldown" />
         </div>
 
         <div class="space-y-4">
@@ -182,6 +239,7 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().barVerticalDescription }}</p>
           <ui-bar-chart [dir]="dir()" [data]="t().barChartData" [width]="500" [height]="280"
             orientation="vertical" [xAxisLabel]="t().barVerticalXLabel" [yAxisLabel]="t().barVerticalYLabel" />
+          <app-docs-for name="bar-chart" />
         </div>
 
         <div class="space-y-4">
@@ -196,6 +254,7 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().barDrilldownDescription }}</p>
           <ui-bar-chart-drilldown [dir]="dir()" [data]="t().drilldownData"
             [drilldownSeries]="t().drilldownSeries" [width]="500" [height]="280" [title]="t().barDrilldownTitle" />
+          <app-docs-for name="bar-chart-drilldown" />
         </div>
 
         <div class="space-y-4">
@@ -203,6 +262,7 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().stackedDescription }}</p>
           <ui-stacked-bar-chart [dir]="dir()" [series]="t().stackedSeries"
             [categories]="t().stackedCategories" [width]="500" [height]="280" stacking="absolute" [showTotal]="true" />
+          <app-docs-for name="stacked-bar-chart" />
         </div>
 
         <div class="space-y-4">
@@ -217,6 +277,7 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().columnRangeDescription }}</p>
           <ui-column-range-chart [dir]="dir()" [data]="t().rangeChartData" [width]="500"
             [height]="280" unit="°C" [title]="t().columnRangeTitle" />
+          <app-docs-for name="column-range-chart" />
         </div>
 
         <div class="space-y-4">
@@ -224,6 +285,7 @@ const BRUSH_WIDTH = 560;
           <p class="text-sm text-muted-foreground">{{ t().barRaceDescription }}</p>
           <ui-bar-race-chart [dir]="dir()" [frames]="t().barRaceFrames" [frameLabels]="t().barRaceLabels"
             [width]="600" [height]="320" [maxBars]="6" [animationDuration]="600" [title]="t().barRaceTitle" />
+          <app-docs-for name="bar-race-chart" />
         </div>
 
         <div class="space-y-4">
@@ -233,6 +295,7 @@ const BRUSH_WIDTH = 560;
             <ui-org-chart [data]="t().orgChartData" layout="vertical" lineType="curved"
               [nodeWidth]="170" [nodeHeight]="76" [title]="t().orgChartTitle" />
           </div>
+          <app-docs-for name="org-chart" />
         </div>
 
         <div class="space-y-4">
@@ -251,6 +314,7 @@ const BRUSH_WIDTH = 560;
             <ui-chart-tooltip [visible]="true" [x]="24" [y]="24" [title]="t().chartTooltipTitle"
               [rows]="t().chartTooltipRows" />
           </div>
+          <app-docs-for name="chart-tooltip" />
         </div>
 
         <div class="space-y-4">
@@ -266,6 +330,7 @@ const BRUSH_WIDTH = 560;
               <p class="text-sm text-muted-foreground">{{ t().chartLegendEmpty }}</p>
             }
           </div>
+          <app-docs-for name="chart-legend" />
         </div>
 
         <div class="space-y-4">
@@ -285,6 +350,7 @@ const BRUSH_WIDTH = 560;
               </ui-button>
             </div>
           </div>
+          <app-docs-for name="chart-brush" />
         </div>
 
         <div class="space-y-4">
@@ -293,6 +359,7 @@ const BRUSH_WIDTH = 560;
           <ui-button (click)="rangeChartOpen.set(true)">{{ t().rangeDialogButton }}</ui-button>
           <ui-data-table-range-chart [payload]="t().rangeDialogPayload" [(open)]="rangeChartOpen"
             [title]="t().rangeDialogTitle" />
+          <app-docs-for name="data-table-range-chart" />
         </div>
       </div>
     </section>
@@ -338,6 +405,31 @@ export class ChartsDemoComponent {
       { name: 'Speed', value: 5 }, { name: 'Power', value: 9 }, { name: 'Range', value: 4 },
       { name: 'Comfort', value: 8 }, { name: 'Price', value: 6 }, { name: 'Safety', value: 7 },
     ] },
+  ];
+  protected readonly latencySamples: number[] = (() => {
+    let seed = 42;
+    const next = (): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    return Array.from({ length: 400 }, () => {
+      const sum = next() + next() + next() + next() + next() + next();
+      return Math.max(0, Math.round(120 + (sum - 3) * 30));
+    });
+  })();
+  protected readonly ohlcSessions: OhlcPoint[] = [
+    { date: '2026-01-05', open: 100, high: 106, low: 99, close: 104 },
+    { date: '2026-01-06', open: 104, high: 108, low: 103, close: 105 },
+    { date: '2026-01-07', open: 105, high: 106, low: 98, close: 99 },
+    { date: '2026-01-08', open: 99, high: 103, low: 97, close: 102 },
+    { date: '2026-01-09', open: 102, high: 110, low: 101, close: 109 },
+    { date: '2026-01-12', open: 109, high: 112, low: 106, close: 107 },
+    { date: '2026-01-13', open: 107, high: 109, low: 101, close: 102 },
+    { date: '2026-01-14', open: 102, high: 105, low: 100, close: 104 },
+    { date: '2026-01-15', open: 104, high: 113, low: 104, close: 112 },
+    { date: '2026-01-16', open: 112, high: 115, low: 110, close: 111 },
+    { date: '2026-01-19', open: 111, high: 111, low: 104, close: 105 },
+    { date: '2026-01-20', open: 105, high: 108, low: 103, close: 108 },
   ];
   protected readonly heatmapData: HeatmapCell[] = (() => {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];

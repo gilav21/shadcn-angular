@@ -95,6 +95,24 @@
     <div class="flex-1 overflow-y-auto p-4 md:p-8">
       <div class="mx-auto w-full space-y-8 sm:space-y-12">
         <router-outlet />
+
+        <!-- Install command and generated API tables for whatever this route
+             previews. Rendered once here rather than pasted into 113 demo
+             pages.
+
+             AFTER the outlet, not before: the reader came for the component,
+             so the page reads title -> description -> live demo -> how to
+             install it. Rendering this first meant every single-component page
+             opened on an install card for something the reader had not seen
+             yet. Multi-component routes place the same block per section (see
+             DocsForComponent) and already read in that order.
+
+             Deferred: it is secondary to the demo it annotates, and the ~850 KB
+             payload it renders is fetched lazily anyway, so it has no business
+             in the initial bundle. -->
+        @defer (on idle) {
+          <app-docs-header [route]="activeComponent()" />
+        }
       </div>
     </div>
   </ui-sidebar-inset>

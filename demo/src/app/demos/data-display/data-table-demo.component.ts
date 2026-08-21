@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnDestroy, output, signal, viewChild } from '@angular/core';
+import { DocsForComponent } from '../../docs/docs-for.component';
 import { CommonModule } from '@angular/common';
 import { delay, of } from 'rxjs';
 import {
@@ -60,6 +61,22 @@ import { StatusCellComponent } from '../../cells/status-cell.component';
 import { AmountCellComponent } from '../../cells/amount-cell.component';
 import { ActionsCellComponent } from '../../cells/actions-cell.component';
 import { TextFilterComponent } from '../../filters/text-filter.component';
+
+/**
+ * A uniform fraction in [0, 1) from the platform CSPRNG.
+ *
+ * This seeds the demo's fake ticket and payment tables, so `Math.random` would
+ * do the job — but CodeQL's `js/insecure-randomness` cannot tell demo seed data
+ * from a security context, and reads every use as high severity. Sourcing it
+ * from `crypto.getRandomValues` costs nothing here and keeps the scan honest,
+ * rather than teaching the reader to dismiss a security alert.
+ */
+function randomFraction(): number {
+    const buffer = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(buffer);
+    return buffer[0] / 2 ** 32;
+}
+
 
 // --- Virtual Scroll Demo Cell Components ---
 
@@ -423,13 +440,13 @@ function generateVDemoData(rowCount: number, colCount: number): VDemoRow[] {
     }
     row['status'] = statuses[r % 3];
     row['enabled'] = r % 2 === 0;
-    row['metricValue'] = Math.round(Math.random() * 10000);
-    row['metricDelta'] = Math.round((Math.random() * 40 - 20) * 10) / 10;
-    row['metricTarget'] = Math.round(Math.random() * 12000);
-    row['sparklineData'] = Array.from({ length: 7 }, () => Math.round(Math.random() * 100));
+    row['metricValue'] = Math.round(randomFraction() * 10000);
+    row['metricDelta'] = Math.round((randomFraction() * 40 - 20) * 10) / 10;
+    row['metricTarget'] = Math.round(randomFraction() * 12000);
+    row['sparklineData'] = Array.from({ length: 7 }, () => Math.round(randomFraction() * 100));
     row['metricLabel'] = METRIC_LABELS[(r + Math.floor(r / 8)) % METRIC_LABELS.length];
     row['metricFormat'] = METRIC_FORMATS[r % 3];
-    const rowH = 40 + Math.floor(Math.random() * 960);
+    const rowH = 40 + Math.floor(randomFraction() * 960);
     row['rowHeight'] = rowH;
     const lineCount = Math.max(1, Math.floor(rowH / 20));
     row['notes'] = Array.from({ length: lineCount }, (_, i) =>
@@ -603,6 +620,7 @@ class OpsTicketDetailComponent {
     }
   `],
   imports: [
+    DocsForComponent,
     CommonModule,
     BadgeComponent,
     ButtonComponent,
@@ -1273,11 +1291,11 @@ export class DataTableDemoComponent {
 
     const data: Payment[] = Array.from({ length: 100 }, (_, i) => ({
       id: `PAY-${i + 1}`,
-      amount: Math.floor(Math.random() * 500) + 50,
-      status: (['pending', 'processing', 'success', 'failed'] as const)[Math.floor(Math.random() * 4)],
+      amount: Math.floor(randomFraction() * 500) + 50,
+      status: (['pending', 'processing', 'success', 'failed'] as const)[Math.floor(randomFraction() * 4)],
       email: `user${i + 1}@example.com`,
-      clientName: clientNames[Math.floor(Math.random() * clientNames.length)],
-      role: roles[Math.floor(Math.random() * roles.length)],
+      clientName: clientNames[Math.floor(randomFraction() * clientNames.length)],
+      role: roles[Math.floor(randomFraction() * roles.length)],
     }));
     this.payments.set(data);
     this.editableData.set(data.slice(0, 8));
@@ -1365,13 +1383,13 @@ export class DataTableDemoComponent {
 
     const data: OpsTicket[] = Array.from({ length: 240 }, (_, i) => {
       const created = new Date(Date.now() - (i + 1) * 1000 * 60 * 60 * 6);
-      const updated = new Date(created.getTime() + (Math.floor(Math.random() * 18) + 1) * 1000 * 60 * 30);
-      const priority = priorities[Math.floor(Math.random() * priorities.length)];
-      const account = accounts[Math.floor(Math.random() * accounts.length)];
-      const service = services[Math.floor(Math.random() * services.length)];
-      const owner = owners[Math.floor(Math.random() * owners.length)];
-      const region = regions[Math.floor(Math.random() * regions.length)];
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const updated = new Date(created.getTime() + (Math.floor(randomFraction() * 18) + 1) * 1000 * 60 * 30);
+      const priority = priorities[Math.floor(randomFraction() * priorities.length)];
+      const account = accounts[Math.floor(randomFraction() * accounts.length)];
+      const service = services[Math.floor(randomFraction() * services.length)];
+      const owner = owners[Math.floor(randomFraction() * owners.length)];
+      const region = regions[Math.floor(randomFraction() * regions.length)];
+      const status = statuses[Math.floor(randomFraction() * statuses.length)];
 
       return {
         id: `INC-${(1000 + i).toString()}`,
@@ -1381,8 +1399,8 @@ export class DataTableDemoComponent {
         priority,
         status,
         owner,
-        mrr: 12000 + Math.floor(Math.random() * 185000),
-        slaMinutes: 45 + Math.floor(Math.random() * 720),
+        mrr: 12000 + Math.floor(randomFraction() * 185000),
+        slaMinutes: 45 + Math.floor(randomFraction() * 720),
         createdAt: created.toISOString(),
         updatedAt: updated.toISOString(),
         summary: `${service} latency spike detected for ${account} (${region})`,
