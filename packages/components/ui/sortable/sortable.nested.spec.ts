@@ -6,7 +6,7 @@ import {
     SortableItemTemplateDirective,
 } from './sortable.component';
 import { SortableItemComponent } from './sub/sortable-item.component';
-import type { SortableReorderEvent } from './sortable.types';
+import type { SortableLocation, SortableReorderEvent } from './sortable.types';
 import { clearRegistry, entryDepth, type SortableRegistryEntry } from '../../lib/sortable-registry';
 
 /**
@@ -29,6 +29,7 @@ interface Node { id: string; children: Node[] }
             [(items)]="roots"
             group="outline"
             listId="root"
+            [landEffect]="landEffect()"
             (reorder)="events.push($event)"
         >
             <ng-template uiSortableItem let-node let-i="index">
@@ -57,6 +58,7 @@ class OutlineHostComponent {
         { id: 'b', children: [] },
     ]);
     readonly events: SortableReorderEvent<unknown>[] = [];
+    readonly landEffect = signal<(item: unknown, from: SortableLocation, to: SortableLocation) => string | null>(() => null);
     readonly sortables = viewChildren(SortableComponent);
 }
 
@@ -139,6 +141,37 @@ describe('SortableComponent — nested lists', () => {
         expect(event?.to.path).toEqual(['root', 'child-a']);
     });
 
+    it('reports the path on the KEYBOARD cross-list hand-off, not just the pointer one', () => {
+        host.events.length = 0;
+        const root = sortableFor('root');
+
+        // Row 1 hosts no child list, so child-b is a legal keyboard target.
+        root['_liftedIndex'].set(1);
+        root['keyboardCrossList'](1, 1);
+        fixture.detectChanges();
+
+        const event = host.events.at(-1);
+        expect(event?.from.path).toEqual(['root']);
+        expect(event?.to.path).toBeDefined();
+        expect(event?.to.path?.[0]).toBe('root');
+    });
+
+    it('reports the path on landEffect endpoints as well', () => {
+        const root = sortableFor('root');
+        const seen: { from: readonly string[] | undefined; to: readonly string[] | undefined }[] = [];
+
+        // landEffect receives two SortableLocations; both must carry the path.
+        host.landEffect.set((_item, from, to) => {
+            seen.push({ from: from.path, to: to.path });
+            return null;
+        });
+        fixture.detectChanges();
+
+        root['scheduleLandEffect'](0, 1, root.items()[0]);
+
+        expect(seen).toEqual([{ from: ['root'], to: ['root'] }]);
+    });
+
     it('reports the full path of BOTH lists when an item crosses into a nested list', () => {
         host.events.length = 0;
         const root = sortableFor('root');
@@ -182,6 +215,48 @@ describe('SortableComponent — nested lists', () => {
 
         const peer = child['findHoverPeer'](350, 350);
         expect(peer?.listId).toBe('root');
+    });
+
+    it('refuses to drop an item into a list nested inside that very item', () => {
+        // The cycle case: an outline row hosts its own child list, so the
+        // pointer sitting over that child makes it the DEEPEST hit. Dropping
+        // there would remove the item from its parent and re-insert it into a
+        // list it itself owns, detaching its own subtree from the tree.
+        const root = sortableFor('root');
+        const ownChild = sortableFor('child-a');
+
+        const wide = { left: 0, right: 400, top: 0, bottom: 400 } as DOMRect;
+        root['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
+        ownChild['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
+
+        // Item 0 of the root list is the row that HOSTS child-a.
+        const hostRow = root['collectItemElements']()[0];
+        expect(hostRow.contains(ownChild['registryEntry'].element)).toBe(true);
+
+        root['_dragSource'].set(0);
+        expect(root['findHoverPeer'](10, 10)).toBeNull();
+
+        // Dragging a DIFFERENT row, child-a is a perfectly good target again.
+        root['_dragSource'].set(1);
+        expect(root['findHoverPeer'](10, 10)?.listId).toBe('child-a');
+    });
+
+    it('skips a self-owned list on the keyboard hand-off too', () => {
+        const root = sortableFor('root');
+        const ownChild = sortableFor('child-a');
+        const otherChild = sortableFor('child-b');
+
+        // Row 0 is the one that HOSTS child-a.
+        root['_liftedIndex'].set(0);
+        root['keyboardCrossList'](0, 1);
+        fixture.detectChanges();
+
+        // It must not have landed in the list it owns...
+        expect(ownChild.items()).toHaveLength(1);
+        expect(ownChild.items().some((c: unknown) => (c as Node).id === 'a')).toBe(false);
+        // ...but a peer that is NOT inside it is still a legal destination, so
+        // the hand-off is skipped over, not blocked outright.
+        expect(otherChild.items()).toHaveLength(1);
     });
 
     it('keeps depth ordering stable regardless of registration order', () => {

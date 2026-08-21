@@ -719,10 +719,11 @@ export class SortableComponent<T> {
     /** Schedule the land-effect class on the just-landed item at `toIndex`. */
     private scheduleLandEffect(fromIndex: number, toIndex: number, item: T): void {
         const lid = this.resolvedListId();
+        const path = this.path();
         const cls = this.landEffect()(
             item,
-            { listId: lid, index: fromIndex },
-            { listId: lid, index: toIndex },
+            { listId: lid, index: fromIndex, path },
+            { listId: lid, index: toIndex, path },
         );
         if (cls === null || cls === '') return;
         setTimeout(() => {
@@ -824,19 +825,25 @@ export class SortableComponent<T> {
      * entirely inside its parent's, so a pointer over the child is over the
      * parent too, and returning the first match would make the winner depend on
      * registration order. The DEEPEST containing peer wins instead, which is
-     * what "drop it into the sub-list I am pointing at" means. Peers that are
-     * descendants of the dragged item's own list are still valid targets — an
-     * item may move into a child list.
+     * what "drop it into the sub-list I am pointing at" means. Equal-depth
+     * peers keep the old first-match winner, so a flat cross-list drag behaves
+     * exactly as it did before nesting existed.
+     *
+     * A list nested INSIDE the item being dragged is excluded — see
+     * {@link isInsideDraggedItem}. Dropping an item into its own subtree would
+     * detach that subtree from the tree along with it.
      */
     private findHoverPeer(clientX: number, clientY: number): SortableRegistryEntry | null {
         const groupName = this.group();
         if (groupName === '') return null;
 
+        const draggedEl = this.draggedItemElement();
         let best: SortableRegistryEntry | null = null;
         let bestDepth = -1;
         for (const peer of peersInGroup(groupName, this.registryEntry)) {
             const r = peer.element.getBoundingClientRect();
             if (clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom) continue;
+            if (this.isInsideDraggedItem(peer, draggedEl)) continue;
             const depth = entryDepth(peer);
             if (depth > bestDepth) {
                 best = peer;
@@ -844,6 +851,33 @@ export class SortableComponent<T> {
             }
         }
         return best;
+    }
+
+    /** The DOM wrapper of the item currently being dragged, or `null` when no drag is active. */
+    private draggedItemElement(): HTMLElement | null {
+        const source = this._dragSource() ?? this._liftedIndex();
+        if (source === null) return null;
+        return this.collectItemElements()[source] ?? null;
+    }
+
+    /**
+     * Whether `peer` is a list rendered inside the item being dragged.
+     *
+     * An outline item hosts its own child list, and that child registers in the
+     * same group as everything else — so without this guard the pointer sitting
+     * over a dragged row's own sub-list makes it the deepest hit, and the drop
+     * removes the item from its parent and re-inserts it into a list it itself
+     * owns. The item then holds its own ancestor: the subtree is detached from
+     * the tree and, on the next render, the child list is inside an item that no
+     * longer exists anywhere above it.
+     *
+     * `contains()` is the honest test rather than comparing paths, because the
+     * child list's `path` is derived from the injector and stays valid right up
+     * until the move commits.
+     */
+    private isInsideDraggedItem(peer: SortableRegistryEntry, draggedEl: HTMLElement | null): boolean {
+        if (draggedEl === null) return false;
+        return draggedEl.contains(peer.element);
     }
 
     private updateLocalTarget(
@@ -1024,11 +1058,19 @@ export class SortableComponent<T> {
         this.ariaLive.announce(this.currentLocale().moved(toIndex + 1, this.items().length));
     }
 
-    /** Hand the lifted item off to the next or previous peer in the same group. */
+    /**
+     * Hand the lifted item off to the next or previous peer in the same group.
+     *
+     * Lists nested inside the lifted item are skipped for the same reason the
+     * pointer route skips them (see {@link isInsideDraggedItem}): handing an
+     * item to a list it owns would detach its own subtree.
+     */
     private keyboardCrossList(fromIndex: number, direction: 1 | -1): void {
         const groupName = this.group();
         if (groupName === '') return;
-        const allPeers = peersInGroup(groupName);
+        const draggedEl = this.collectItemElements()[fromIndex] ?? null;
+        const allPeers = peersInGroup(groupName)
+            .filter(p => p === this.registryEntry || !this.isInsideDraggedItem(p, draggedEl));
         const selfIdx = allPeers.indexOf(this.registryEntry);
         if (selfIdx === -1 || allPeers.length < 2) return;
         const peerIdx = (selfIdx + direction + allPeers.length) % allPeers.length;
@@ -1060,8 +1102,8 @@ export class SortableComponent<T> {
         this._liftedIndex.set(null);
         this._liftOrigin.set(null);
         this.reorder.emit({
-            from: { listId: this.resolvedListId(), index: fromIndex },
-            to: { listId: peer.listId, index: targetIndex },
+            from: { listId: this.resolvedListId(), index: fromIndex, path: this.path() },
+            to: { listId: peer.listId, index: targetIndex, path: peer.path ?? [peer.listId] },
             item,
         });
         const peerNewTotal = peerExistingCount + 1;
