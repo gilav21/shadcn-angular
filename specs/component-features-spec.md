@@ -260,16 +260,23 @@ exact baseline count:
 | `virtual-scroll.runway.spec.ts` | 3 | 3 |
 | `command.component.spec.ts` | 51 | 51 |
 | `sortable.component.spec.ts` | 86 | 86 |
-| `sortable.component.browser.spec.ts` | 1 | 1 |
+| `sortable.component.browser.spec.ts` | 1 | 1 (+1 appended, see below) |
 | `sortable-ghost.directive.spec.ts` | 3 | 3 |
 | `kanban.component.spec.ts` | 97 | 97 |
 | `file-upload.component.spec.ts` | 31 | 31 |
 | `file-upload.dom.spec.ts` | 13 | 13 |
 | **Total** | **452** | **452** |
 
-**21 files / 628 tests pass** — the 452 preserved plus 176 new. Not one
-existing test was edited, so UC-14 holds by construction rather than by
-assertion.
+**22 files / 665 tests pass** — the 452 originals all preserved, plus 213 new
+(201 in new spec files, 1 appended to `sortable.component.browser.spec.ts`, and
+the 11 pre-existing `sortable-registry.spec.ts` tests unchanged).
+
+**Not one existing test was edited.** Twelve of the thirteen original files are
+byte-identical to the base commit. The thirteenth,
+`sortable.component.browser.spec.ts`, was **appended to** — the sortable
+reviewer required a real-pointer nested drag, and `git diff 4232d229..HEAD` on
+that file reports **zero deleted lines**, so its original test is untouched and
+still passes. UC-14 therefore holds by construction rather than by assertion.
 
 Three refactors touched code those untouched specs exercise, and each was
 constrained by them rather than the other way round:
