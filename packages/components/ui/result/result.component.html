@@ -1,0 +1,44 @@
+<output
+  [class]="classes()"
+  data-slot="result"
+  aria-live="polite"
+>
+  <div
+    [class]="iconClasses()"
+    data-slot="result-icon"
+    [attr.data-status]="status()"
+    aria-hidden="true"
+  >
+    <svg
+      class="size-10 sm:size-12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path [attr.d]="glyph()" />
+    </svg>
+  </div>
+
+  @if (title()) {
+    <div class="text-lg font-semibold text-balance sm:text-xl" data-slot="result-title">
+      {{ title() }}
+    </div>
+  }
+  @if (description()) {
+    <p class="max-w-prose text-sm text-muted-foreground text-balance" data-slot="result-description">
+      {{ description() }}
+    </p>
+  }
+
+  <ng-content select="ui-result-detail" />
+
+  <div
+    class="flex w-full flex-wrap items-center justify-center gap-2 empty:hidden"
+    data-slot="result-actions"
+  >
+    <ng-content />
+  </div>
+</output>
