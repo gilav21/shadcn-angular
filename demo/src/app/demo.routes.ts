@@ -8,6 +8,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'alert', loadComponent: () => import('./demos/feedback/alert-demo.component').then(m => m.AlertDemoComponent) },
   { path: 'progress', loadComponent: () => import('./demos/feedback/progress-demo.component').then(m => m.ProgressDemoComponent) },
   { path: 'result', loadComponent: () => import('./demos/feedback/result-demo.component').then(m => m.ResultDemoComponent) },
+  { path: 'error-page', loadComponent: () => import('./demos/feedback/error-page-demo.component').then(m => m.ErrorPageDemoComponent) },
   { path: 'skeleton', loadComponent: () => import('./demos/feedback/skeleton-demo.component').then(m => m.SkeletonDemoComponent) },
   { path: 'spinner', loadComponent: () => import('./demos/feedback/spinner-demo.component').then(m => m.SpinnerDemoComponent) },
   { path: 'toast', loadComponent: () => import('./demos/feedback/toast-demo.component').then(m => m.ToastDemoComponent) },

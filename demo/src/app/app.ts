@@ -265,6 +265,7 @@ export class AppComponent {
 
     // Feedback
     { id: 'alert', name: 'Alert', category: 'Feedback', icon: '⚠️' },
+    { id: 'error-page', name: 'Error Page', category: 'Feedback', icon: '🚧' },
     { id: 'progress', name: 'Progress', category: 'Feedback', icon: '📈' },
     { id: 'result', name: 'Result', category: 'Feedback', icon: '🏁' },
     { id: 'skeleton', name: 'Skeleton', category: 'Feedback', icon: '💀' },

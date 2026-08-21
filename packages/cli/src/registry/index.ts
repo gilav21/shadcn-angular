@@ -1825,6 +1825,15 @@ export const registry = defineRegistry({
     tags: ['result', 'outcome', 'success', 'error', 'status'],
     files: ['result/index.ts', 'result/result.component.html', 'result/result.component.ts', 'result/sub/result-detail.component.html', 'result/sub/result-detail.component.ts'],
   },
+  'error-page': {
+    name: 'error-page',
+    category: 'feedback',
+    description: 'Full-page 404/403/500 state with localised copy, illustration slot and recovery actions.',
+    tags: ['error-page', '404', '500', 'not-found', 'full-page'],
+    files: ['error-page/index.ts', 'error-page/error-page.component.html', 'error-page/error-page.component.ts', 'error-page/error-page.locales.ts', 'error-page/sub/error-page-actions.component.html', 'error-page/sub/error-page-actions.component.ts', 'error-page/sub/error-page-illustration.component.html', 'error-page/sub/error-page-illustration.component.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['button'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

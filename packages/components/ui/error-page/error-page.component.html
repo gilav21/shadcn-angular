@@ -1,0 +1,37 @@
+<div [class]="classes()" data-slot="error-page">
+  <ng-content select="ui-error-page-illustration" />
+  @if (showDefaultIllustration()) {
+    <div
+      class="text-6xl font-bold tracking-tight text-muted-foreground/40 sm:text-8xl"
+      data-slot="error-page-code"
+      aria-hidden="true"
+    >
+      {{ code() }}
+    </div>
+  }
+
+  <h1 class="text-2xl font-semibold text-balance sm:text-3xl" data-slot="error-page-title">
+    {{ resolvedTitle() }}
+  </h1>
+  <p
+    class="max-w-prose text-sm text-muted-foreground text-balance sm:text-base"
+    data-slot="error-page-description"
+  >
+    {{ resolvedDescription() }}
+  </p>
+
+  <ng-content select="ui-error-page-actions" />
+  @if (showDefaultActions()) {
+    <div
+      class="flex w-full flex-wrap items-center justify-center gap-2"
+      data-slot="error-page-actions"
+    >
+      <ui-button variant="outline" data-slot="error-page-back" (clicked)="goBack.emit()">
+        {{ t().goBack }}
+      </ui-button>
+      <ui-button data-slot="error-page-home" (clicked)="goHome.emit()">
+        {{ t().goHome }}
+      </ui-button>
+    </div>
+  }
+</div>

@@ -53,6 +53,7 @@ export * from './spinner';
 export * from './empty';
 export * from './stat-card';
 export * from './result';
+export * from './error-page';
 export * from './kbd';
 export * from './button-group';
 export * from './input-group';

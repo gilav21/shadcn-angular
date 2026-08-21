@@ -2,6 +2,7 @@
 export { AlertDemoComponent } from './feedback/alert-demo.component';
 export { ProgressDemoComponent } from './feedback/progress-demo.component';
 export { ResultDemoComponent } from './feedback/result-demo.component';
+export { ErrorPageDemoComponent } from './feedback/error-page-demo.component';
 export { SkeletonDemoComponent } from './feedback/skeleton-demo.component';
 export { SpinnerDemoComponent } from './feedback/spinner-demo.component';
 export { ToastDemoComponent } from './feedback/toast-demo.component';

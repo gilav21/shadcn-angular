@@ -1,3 +1,6 @@
+/// <reference types="vite/client" />
+// for `import.meta.glob` below — the shared tsconfig does not pull in
+// Vite's ambient types, and this is the only spec that needs them.
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { describe, it, expect, beforeEach } from 'vitest';
