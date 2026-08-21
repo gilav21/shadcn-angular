@@ -477,6 +477,7 @@ export class SortableComponent<T> {
     readonly foreignHover = this._foreignHover.asReadonly();
 
     private dragCleanup: (() => void) | null = null;
+    private draggedEl: HTMLElement | null = null;
     private rects: DOMRect[] = [];
 
     readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>('container');
@@ -571,9 +572,30 @@ export class SortableComponent<T> {
         });
     }
 
+    /**
+     * This list's OWN item wrappers, in DOM order.
+     *
+     * `querySelectorAll` is unscoped, so two kinds of impostor get matched and
+     * both have to go:
+     *
+     * - **Nested lists' items.** A `<ui-sortable>` rendered inside an item
+     *   template puts its own `sortable-item`s inside this container, so a
+     *   three-row outline whose rows each host a child list reports seven
+     *   elements for three items. Every index derived from this array is then
+     *   off, which corrupts drop-index maths and item identity alike.
+     * - **The ghost.** While dragging, the ghost renders the item template a
+     *   second time, so the live copy of the dragged row appears twice.
+     *
+     * Keeping only elements whose nearest enclosing `[data-slot="sortable"]` is
+     * THIS container drops the first; excluding anything inside a ghost host
+     * drops the second. For a flat list with no drag in progress both filters
+     * are no-ops, so the pre-nesting behaviour is unchanged.
+     */
     private collectItemElements(): HTMLElement[] {
         const root = this.containerRef().nativeElement;
-        return Array.from(root.querySelectorAll<HTMLElement>('[data-slot="sortable-item"]'));
+        return Array.from(root.querySelectorAll<HTMLElement>('[data-slot="sortable-item"]'))
+            .filter(el => el.closest('[data-slot="sortable"]') === root)
+            .filter(el => el.closest('[data-slot="sortable-ghost"],[data-slot="sortable-ghost-host"]') === null);
     }
 
     private getCurrentItemRects(): DOMRect[] {
@@ -779,6 +801,7 @@ export class SortableComponent<T> {
         if (this.disabled()) return;
         this.dragCleanup?.();
         this.captureRects();
+        this.draggedEl = this.collectItemElements()[fromIndex] ?? null;
         this._dragSource.set(fromIndex);
         this._dragTarget.set(fromIndex);
         this._dragDelta.set({ x: 0, y: 0 });
@@ -795,9 +818,7 @@ export class SortableComponent<T> {
     }
 
     private captureRects(): void {
-        const containerEl = this.containerRef().nativeElement;
-        const itemEls = containerEl.querySelectorAll('[data-slot="sortable-item"]');
-        this.rects = Array.from(itemEls).map(el => el.getBoundingClientRect());
+        this.rects = this.getCurrentItemRects();
     }
 
     private onDragMove(
@@ -853,11 +874,15 @@ export class SortableComponent<T> {
         return best;
     }
 
-    /** The DOM wrapper of the item currently being dragged, or `null` when no drag is active. */
+    /**
+     * The DOM wrapper of the item currently being dragged, or `null` when no
+     * drag is active. Captured once at {@link startDrag} rather than looked up
+     * per frame: by the time the pointer is moving, the ghost has rendered a
+     * second copy of the row, and re-deriving identity from a live query while
+     * the DOM is mutating is exactly how the off-by-N crept in.
+     */
     private draggedItemElement(): HTMLElement | null {
-        const source = this._dragSource() ?? this._liftedIndex();
-        if (source === null) return null;
-        return this.collectItemElements()[source] ?? null;
+        return this.draggedEl;
     }
 
     /**
@@ -993,6 +1018,7 @@ export class SortableComponent<T> {
         this._hoverPeer.set(null);
         this._hoverPeerTarget.set(null);
         this.dragStartLength = null;
+        this.draggedEl = null;
         this.autoScroller?.stop();
         this.autoScroller = null;
     }

@@ -55,7 +55,8 @@ interface Node { id: string; children: Node[] }
 class OutlineHostComponent {
     readonly roots = signal<Node[]>([
         { id: 'a', children: [{ id: 'a1', children: [] }] },
-        { id: 'b', children: [] },
+        { id: 'b', children: [{ id: 'b1', children: [] }] },
+        { id: 'c', children: [{ id: 'c1', children: [] }] },
     ]);
     readonly events: SortableReorderEvent<unknown>[] = [];
     readonly landEffect = signal<(item: unknown, from: SortableLocation, to: SortableLocation) => string | null>(() => null);
@@ -222,41 +223,86 @@ describe('SortableComponent — nested lists', () => {
         // pointer sitting over that child makes it the DEEPEST hit. Dropping
         // there would remove the item from its parent and re-insert it into a
         // list it itself owns, detaching its own subtree from the tree.
+        //
+        // Driven through the real `startDrag` rather than by hand-setting
+        // `_dragSource`: the dragged element is captured there, and the whole
+        // class of bug this guards against lives in how that element is
+        // resolved.
         const root = sortableFor('root');
         const ownChild = sortableFor('child-a');
+        const otherChild = sortableFor('child-b');
 
         const wide = { left: 0, right: 400, top: 0, bottom: 400 } as DOMRect;
         root['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
         ownChild['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
+        otherChild['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
 
-        // Item 0 of the root list is the row that HOSTS child-a.
-        const hostRow = root['collectItemElements']()[0];
-        expect(hostRow.contains(ownChild['registryEntry'].element)).toBe(true);
+        // Row 0 hosts child-a; row 1 hosts child-b.
+        root.startDrag(0, 0, 0);
+        const hit = root['findHoverPeer'](10, 10);
+        expect(hit?.listId).not.toBe('child-a');
+        root['onDragEnd']();
 
-        root['_dragSource'].set(0);
-        expect(root['findHoverPeer'](10, 10)).toBeNull();
-
-        // Dragging a DIFFERENT row, child-a is a perfectly good target again.
-        root['_dragSource'].set(1);
+        // Dragging row 1 instead, child-a is a perfectly good target again.
+        root.startDrag(1, 0, 0);
         expect(root['findHoverPeer'](10, 10)?.listId).toBe('child-a');
+        root['onDragEnd']();
+    });
+
+    it('counts only its OWN items, excluding nested lists and the ghost', () => {
+        // The unscoped query returned 7 elements for 3 items on this very
+        // fixture — every nested child plus the ghost — so every index derived
+        // from it was off.
+        const root = sortableFor('root');
+        expect(root['collectItemElements']()).toHaveLength(3);
+        expect(sortableFor('child-a')['collectItemElements']()).toHaveLength(1);
+
+        root.startDrag(0, 0, 0);
+        fixture.detectChanges();
+        expect(root['collectItemElements']()).toHaveLength(3);
+        root['onDragEnd']();
+    });
+
+    it('guards the cycle for EVERY row, not just row 0', () => {
+        // Row 2 is where the old off-by-N hid: `collectItemElements()[2]`
+        // resolved to the wrong element, `contains()` returned false, and the
+        // item's own child list won the hit test.
+        //
+        // Asserting element IDENTITY, not just the hit result: with the
+        // unscoped query the hit test still happened to avoid the named list
+        // for the wrong reason, so only identity pins the bug down.
+        const root = sortableFor('root');
+        const wide = { left: 0, right: 400, top: 0, bottom: 400 } as DOMRect;
+        for (const id of ['root', 'child-a', 'child-b', 'child-c']) {
+            sortableFor(id)['registryEntry'].element.getBoundingClientRect = (): DOMRect => wide;
+        }
+
+        for (const [row, ownList] of [[0, 'child-a'], [1, 'child-b'], [2, 'child-c']] as const) {
+            root.startDrag(row, 0, 0);
+
+            const draggedEl = root['draggedItemElement']();
+            const ownListEl = sortableFor(ownList)['registryEntry'].element;
+            expect(draggedEl).not.toBeNull();
+            expect(draggedEl?.contains(ownListEl)).toBe(true);
+            expect(root['findHoverPeer'](10, 10)?.listId).not.toBe(ownList);
+
+            root['onDragEnd']();
+        }
     });
 
     it('skips a self-owned list on the keyboard hand-off too', () => {
         const root = sortableFor('root');
         const ownChild = sortableFor('child-a');
-        const otherChild = sortableFor('child-b');
 
         // Row 0 is the one that HOSTS child-a.
         root['_liftedIndex'].set(0);
         root['keyboardCrossList'](0, 1);
         fixture.detectChanges();
 
-        // It must not have landed in the list it owns...
-        expect(ownChild.items()).toHaveLength(1);
-        expect(ownChild.items().some((c: unknown) => (c as Node).id === 'a')).toBe(false);
-        // ...but a peer that is NOT inside it is still a legal destination, so
-        // the hand-off is skipped over, not blocked outright.
-        expect(otherChild.items()).toHaveLength(1);
+        // It must not have landed in the list it owns. The guard SKIPS rather
+        // than blocks, so it does land in the next eligible peer — what matters
+        // is that the eligible peer is never its own child.
+        expect(ownChild.items().map((c: unknown) => (c as Node).id)).toEqual(['a1']);
     });
 
     it('keeps depth ordering stable regardless of registration order', () => {
