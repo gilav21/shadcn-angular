@@ -231,6 +231,18 @@ describe('ResultComponent', () => {
             expect(need('[data-testid="dump"]').textContent).toContain('TypeError');
         });
 
+        /**
+         * The panel is a polite live region and `aria-live` is inherited, so
+         * without an explicit opt-out a screen reader would read an entire stack
+         * trace aloud the moment the result appeared. The content stays reachable
+         * by normal navigation; it is simply not announced.
+         */
+        it('opts the detail out of the panel live region', () => {
+            expect(need('[data-slot="result-detail"]').getAttribute('aria-live')).toBe(
+                'off',
+            );
+        });
+
         it('keeps the detail out of the actions region', () => {
             const actions = need('[data-slot="result-actions"]');
             expect(actions.querySelector('[data-testid="dump"]')).toBeNull();

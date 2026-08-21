@@ -10,15 +10,17 @@ import { cn } from '../../../lib/utils';
  * description and the actions, so detail and buttons never share a region. Its
  * text is start-aligned rather than inheriting the panel's centring, because
  * centred code or tabular data is unreadable.
+ *
+ * **It opts out of the panel's live region.** `<ui-result>` is
+ * `aria-live="polite"`, and live regions are inherited, so without
+ * `aria-live="off"` here a screen reader would read an entire stack trace aloud
+ * the moment the panel appeared. The content stays reachable by normal
+ * navigation — it is simply not announced.
  */
 @Component({
     selector: 'ui-result-detail',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <div [class]="classes()" data-slot="result-detail">
-            <ng-content />
-        </div>
-    `,
+    templateUrl: './result-detail.component.html',
     host: { class: 'contents' },
 })
 export class ResultDetailComponent {

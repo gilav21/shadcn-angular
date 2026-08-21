@@ -5069,6 +5069,7 @@
       "result/index.ts",
       "result/result.component.html",
       "result/result.component.ts",
+      "result/sub/result-detail.component.html",
       "result/sub/result-detail.component.ts"
     ]
   }

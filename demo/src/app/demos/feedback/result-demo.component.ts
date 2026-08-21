@@ -67,14 +67,14 @@ import { RESULT_DEMO_LOCALES } from './result-demo.locales';
         class="rounded-lg border"
       >
         <ui-result-detail>
-          <pre class="whitespace-pre" data-testid="dump">{{ trace }}</pre>
+          <pre class="whitespace-pre">{{ trace }}</pre>
         </ui-result-detail>
         <ui-button>{{ t().tryAgain }}</ui-button>
         <ui-button variant="outline">{{ t().contactSupport }}</ui-button>
       </ui-result>
 
-      <h3 class="text-lg font-medium mt-8">{{ t().a11yHeading }}</h3>
-      <p class="text-muted-foreground text-sm mb-4">{{ t().a11yDescription }}</p>
+      <h3 class="text-lg font-medium mt-8">{{ t().noActionsHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().noActionsDescription }}</p>
       <ui-result
         status="info"
         [title]="t().nothingTitle"

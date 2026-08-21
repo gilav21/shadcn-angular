@@ -9,8 +9,8 @@ export interface ResultDemoLocale extends LocaleMeta {
   actionsDescription: string;
   detailHeading: string;
   detailDescription: string;
-  a11yHeading: string;
-  a11yDescription: string;
+  noActionsHeading: string;
+  noActionsDescription: string;
   successTitle: string;
   successDescription: string;
   errorTitle: string;
@@ -47,8 +47,8 @@ export const RESULT_DEMO_LOCALES: Record<string, ResultDemoLocale> = {
     detailHeading: 'With detail',
     detailDescription:
       'Project a result-detail for anything too bulky for the actions row. It is pulled out of the default slot and rendered above the buttons, start-aligned, because centred code is unreadable.',
-    a11yHeading: 'Without actions',
-    a11yDescription:
+    noActionsHeading: 'Without actions',
+    noActionsDescription:
       'With nothing projected, the actions row collapses entirely and leaves no gap behind it.',
     successTitle: 'Payment received',
     successDescription: 'We emailed your receipt to ada@example.com.',
@@ -85,8 +85,8 @@ export const RESULT_DEMO_LOCALES: Record<string, ResultDemoLocale> = {
     detailHeading: 'עם פירוט',
     detailDescription:
       'הקרן result-detail לכל תוכן גדול מדי לשורת הפעולות. הוא נשלף מהחריץ הרגיל ומוצג מעל הכפתורים, מיושר לתחילת השורה.',
-    a11yHeading: 'ללא פעולות',
-    a11yDescription: 'ללא תוכן מוקרן, שורת הפעולות נעלמת לגמרי ולא משאירה רווח.',
+    noActionsHeading: 'ללא פעולות',
+    noActionsDescription: 'ללא תוכן מוקרן, שורת הפעולות נעלמת לגמרי ולא משאירה רווח.',
     successTitle: 'התשלום התקבל',
     successDescription: 'שלחנו את הקבלה לכתובת ada@example.com.',
     errorTitle: 'התשלום נכשל',
@@ -122,8 +122,8 @@ export const RESULT_DEMO_LOCALES: Record<string, ResultDemoLocale> = {
     detailHeading: 'مع التفاصيل',
     detailDescription:
       'اعرض result-detail لأي محتوى أكبر من صف الإجراءات. يُسحَب من الفتحة الافتراضية ويظهر فوق الأزرار بمحاذاة البداية.',
-    a11yHeading: 'بدون إجراءات',
-    a11yDescription: 'بدون محتوى معروض، ينطوي صف الإجراءات تمامًا ولا يترك فراغًا.',
+    noActionsHeading: 'بدون إجراءات',
+    noActionsDescription: 'بدون محتوى معروض، ينطوي صف الإجراءات تمامًا ولا يترك فراغًا.',
     successTitle: 'تم استلام الدفعة',
     successDescription: 'أرسلنا الإيصال إلى ada@example.com.',
     errorTitle: 'فشل الدفع',
@@ -158,8 +158,8 @@ export const RESULT_DEMO_LOCALES: Record<string, ResultDemoLocale> = {
     detailHeading: 'Mit Details',
     detailDescription:
       'Projizieren Sie ein result-detail für alles, was für die Aktionszeile zu sperrig ist. Es wird über den Schaltflächen linksbündig gerendert.',
-    a11yHeading: 'Ohne Aktionen',
-    a11yDescription:
+    noActionsHeading: 'Ohne Aktionen',
+    noActionsDescription:
       'Ohne projizierten Inhalt verschwindet die Aktionszeile vollständig und hinterlässt keine Lücke.',
     successTitle: 'Zahlung erhalten',
     successDescription: 'Wir haben die Quittung an ada@example.com geschickt.',
@@ -195,8 +195,8 @@ export const RESULT_DEMO_LOCALES: Record<string, ResultDemoLocale> = {
     detailHeading: 'Avec détail',
     detailDescription:
       'Projetez un result-detail pour tout ce qui est trop volumineux pour la rangée d’actions. Il s’affiche au-dessus des boutons, aligné au début.',
-    a11yHeading: 'Sans actions',
-    a11yDescription:
+    noActionsHeading: 'Sans actions',
+    noActionsDescription:
       'Sans contenu projeté, la rangée d’actions disparaît entièrement et ne laisse aucun espace.',
     successTitle: 'Paiement reçu',
     successDescription: 'Nous avons envoyé le reçu à ada@example.com.',
@@ -232,8 +232,8 @@ export const RESULT_DEMO_LOCALES: Record<string, ResultDemoLocale> = {
     detailHeading: 'Con detalle',
     detailDescription:
       'Proyecta un result-detail para lo que no quepa en la fila de acciones. Se muestra sobre los botones, alineado al inicio.',
-    a11yHeading: 'Sin acciones',
-    a11yDescription:
+    noActionsHeading: 'Sin acciones',
+    noActionsDescription:
       'Sin contenido proyectado, la fila de acciones se colapsa por completo y no deja hueco.',
     successTitle: 'Pago recibido',
     successDescription: 'Enviamos tu recibo a ada@example.com.',
@@ -269,8 +269,8 @@ export const RESULT_DEMO_LOCALES: Record<string, ResultDemoLocale> = {
     detailHeading: '詳細付き',
     detailDescription:
       'アクション行に収まらない内容は result-detail に投影します。ボタンの上に、行頭寄せで表示されます。',
-    a11yHeading: 'アクションなし',
-    a11yDescription: '何も投影しなければ、アクション行は完全に消えて余白も残しません。',
+    noActionsHeading: 'アクションなし',
+    noActionsDescription: '何も投影しなければ、アクション行は完全に消えて余白も残しません。',
     successTitle: '支払いを受け付けました',
     successDescription: '領収書を ada@example.com に送信しました。',
     errorTitle: '支払いに失敗しました',
@@ -303,8 +303,8 @@ export const RESULT_DEMO_LOCALES: Record<string, ResultDemoLocale> = {
     detailHeading: '带详情',
     detailDescription:
       '操作行放不下的内容请投影到 result-detail。它会渲染在按钮上方，并按行首对齐。',
-    a11yHeading: '不带操作按钮',
-    a11yDescription: '没有投影内容时，操作行会整体折叠，不留空隙。',
+    noActionsHeading: '不带操作按钮',
+    noActionsDescription: '没有投影内容时，操作行会整体折叠，不留空隙。',
     successTitle: '已收到付款',
     successDescription: '收据已发送至 ada@example.com。',
     errorTitle: '支付失败',
@@ -339,8 +339,8 @@ export const RESULT_DEMO_LOCALES: Record<string, ResultDemoLocale> = {
     detailHeading: 'С подробностями',
     detailDescription:
       'Спроецируйте result-detail для всего, что не помещается в строку действий. Он выводится над кнопками с выравниванием по началу строки.',
-    a11yHeading: 'Без действий',
-    a11yDescription:
+    noActionsHeading: 'Без действий',
+    noActionsDescription:
       'Без спроецированного содержимого строка действий полностью схлопывается и не оставляет пустоты.',
     successTitle: 'Платёж получен',
     successDescription: 'Мы отправили чек на ada@example.com.',
@@ -376,8 +376,8 @@ export const RESULT_DEMO_LOCALES: Record<string, ResultDemoLocale> = {
     detailHeading: 'Com detalhe',
     detailDescription:
       'Projete um result-detail para o que não couber na linha de ações. Ele aparece acima dos botões, alinhado ao início.',
-    a11yHeading: 'Sem ações',
-    a11yDescription:
+    noActionsHeading: 'Sem ações',
+    noActionsDescription:
       'Sem conteúdo projetado, a linha de ações some por completo e não deixa espaço.',
     successTitle: 'Pagamento recebido',
     successDescription: 'Enviamos seu recibo para ada@example.com.',

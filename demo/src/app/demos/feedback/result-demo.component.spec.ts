@@ -49,10 +49,14 @@ describe('ResultDemoComponent', () => {
     });
 
     it('keeps the projected stack trace out of the actions row', () => {
-      const dump = root.querySelector('[data-testid="dump"]');
+      const dump = root.querySelector('[data-slot="result-detail"] pre');
       expect(dump?.textContent).toContain('TypeError');
-      expect(dump?.closest('[data-slot="result-detail"]')).toBeTruthy();
       expect(dump?.closest('[data-slot="result-actions"]')).toBeNull();
+    });
+
+    it('opts the detail out of the panel live region', () => {
+      const detail = root.querySelector('[data-slot="result-detail"]');
+      expect(detail?.getAttribute('aria-live')).toBe('off');
     });
   });
 

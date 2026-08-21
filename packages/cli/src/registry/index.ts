@@ -1823,7 +1823,7 @@ export const registry = defineRegistry({
     category: 'feedback',
     description: 'Centred outcome panel for after an operation completes, with status icon, actions and a detail slot.',
     tags: ['result', 'outcome', 'success', 'error', 'status'],
-    files: ['result/index.ts', 'result/result.component.html', 'result/result.component.ts', 'result/sub/result-detail.component.ts'],
+    files: ['result/index.ts', 'result/result.component.html', 'result/result.component.ts', 'result/sub/result-detail.component.html', 'result/sub/result-detail.component.ts'],
   },
 });
 
