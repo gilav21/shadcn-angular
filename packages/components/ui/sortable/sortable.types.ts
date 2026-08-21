@@ -30,8 +30,14 @@ export interface SortableLocation {
     readonly index: number;
     /**
      * Full ancestry of {@link listId}, outermost first, ending with `listId`
-     * itself — see {@link SortableNestedPath}. Always present; a list with no
-     * sortable ancestor reports a single-element path.
+     * itself — see {@link SortableNestedPath}. A list with no sortable ancestor
+     * reports a single-element path.
+     *
+     * **Every location `ui-sortable` emits carries this** — pointer reorders,
+     * cross-list drops, the keyboard hand-off and both `landEffect` endpoints
+     * alike. It is nonetheless typed optional so that a `SortableLocation` a
+     * consumer built by hand before nesting existed still satisfies the type;
+     * treat an absent path as `[listId]`.
      */
     readonly path?: SortableNestedPath;
 }
