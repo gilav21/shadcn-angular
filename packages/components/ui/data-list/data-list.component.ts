@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, contentChildren, input } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { DataListItemComponent } from './sub/data-list-item.component';
 
 /** One label→value pair for {@link DataListComponent}'s simple mode. */
 export interface DataListItem {
@@ -26,6 +28,7 @@ export type DataListOrientation = 'vertical' | 'horizontal';
 @Component({
     selector: 'ui-data-list',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [NgTemplateOutlet],
     templateUrl: './data-list.component.html',
     host: {
         class: 'block',
@@ -44,6 +47,13 @@ export class DataListComponent {
     readonly orientation = input<DataListOrientation>('vertical');
     /** Extra classes merged onto the inner `<dl>`. */
     readonly class = input('');
+
+    /**
+     * Projected rows. Their markup is stamped into the `<dl>` above rather than
+     * projected, so the `<dt>`/`<dd>` stay direct children of the list — see
+     * {@link DataListItemComponent} for why that matters to axe.
+     */
+    protected readonly rows = contentChildren(DataListItemComponent);
 
     protected readonly listClasses = computed(() =>
         cn(

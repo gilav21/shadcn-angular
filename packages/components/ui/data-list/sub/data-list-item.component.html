@@ -1,6 +1,8 @@
-<dt class="min-w-0 break-words font-medium text-muted-foreground" data-slot="data-list-label">
-    {{ label() }}
-</dt>
-<dd [class]="valueClasses()" data-slot="data-list-value">
-    <ng-content />
-</dd>
+<ng-template #row>
+    <dt class="min-w-0 break-words font-medium text-muted-foreground" data-slot="data-list-label">
+        {{ label() }}
+    </dt>
+    <dd [class]="valueClasses()" data-slot="data-list-value">
+        <ng-content />
+    </dd>
+</ng-template>

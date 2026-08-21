@@ -188,14 +188,22 @@ describe('DataListComponent custom mode (T-11)', () => {
         expect(name!.closest('dd')).not.toBeNull();
     });
 
-    it('keeps the projected rows accessible children of the dl (R-4)', async () => {
+    // R-4, and the axe finding behind it: `definition-list` / `dlitem` inspect
+    // the DOM tree, not the accessibility tree, so a `display: contents` custom
+    // element between <dl> and <dt> is still a serious violation. The projected
+    // row hosts must therefore never reach the document at all.
+    it('puts no element between the dl and its dt/dd (R-4)', async () => {
         const fixture = await setup();
         const list = fixture.debugElement.query(By.directive(DataListComponent)).nativeElement as HTMLElement;
         const dl = list.querySelector('dl')!;
-        const row = dl.querySelector('ui-data-list-item') as HTMLElement;
 
-        expect(row.parentElement).toBe(dl);
-        expect(globalThis.getComputedStyle(row).display).toBe('contents');
+        expect(dl.querySelector('ui-data-list-item')).toBeNull();
+        for (const child of dl.children) {
+            expect(['DT', 'DD']).toContain(child.tagName);
+        }
+        for (const cell of dl.querySelectorAll('dt, dd')) {
+            expect(cell.parentElement).toBe(dl);
+        }
     });
 
     it('inherits the list orientation rather than styling each row separately', async () => {

@@ -7,5 +7,11 @@
             {{ item.value }}
         </dd>
     }
-    <ng-content />
+    @for (row of rows(); track row) {
+        <ng-container [ngTemplateOutlet]="row.row()" />
+    }
 </dl>
+
+<!-- Deliberately no <ng-content>: projected `ui-data-list-item` hosts must never
+     enter the DOM, or they would sit between the <dl> and its <dt>/<dd>. Their
+     rows are stamped into the list above instead. -->
