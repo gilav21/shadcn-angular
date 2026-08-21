@@ -88,6 +88,12 @@ export class CommandInputComponent implements OnInit {
    * highlighted one. All three call `preventDefault()`, so the caret never
    * jumps within the text and Enter never submits a surrounding form. Every
    * other key falls through to normal typing.
+   *
+   * While a nested page is open, Escape and Backspace-on-an-empty-query go
+   * *back* one level instead: both `preventDefault()` **and**
+   * `stopPropagation()`, so the first Escape leaves the submenu rather than
+   * closing the whole dialog. At the top level neither key is intercepted, so
+   * Escape still closes `ui-command-dialog` exactly as before.
    */
   onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowDown') {
@@ -99,7 +105,17 @@ export class CommandInputComponent implements OnInit {
     } else if (event.key === 'Enter') {
       event.preventDefault();
       this.cmdService.selectActive();
+    } else if (this.shouldGoBack(event)) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.cmdService.popPage();
     }
+  }
+
+  private shouldGoBack(event: KeyboardEvent): boolean {
+    if (this.cmdService.currentPage() === null) return false;
+    if (event.key === 'Escape') return true;
+    return event.key === 'Backspace' && this.cmdService.search() === '';
   }
 
   /** Focuses the text field; safe to call before the view exists (it no-ops). `ui-command-dialog` calls this on every open so typing starts immediately. */

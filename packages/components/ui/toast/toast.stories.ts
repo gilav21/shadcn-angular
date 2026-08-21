@@ -19,6 +19,14 @@ import { Component, inject, input } from '@angular/core';
         <ui-button variant="secondary" (click)="showWithAction()">With Action</ui-button>
         <ui-button variant="ghost" (click)="showCountdown()">With Countdown</ui-button>
       </div>
+      <div class="flex gap-2 flex-wrap">
+        <ui-button variant="outline" (click)="showInfo()">Info</ui-button>
+        <ui-button variant="outline" (click)="showWarning()">Warning</ui-button>
+        <ui-button variant="outline" (click)="showLoading()">Loading (sticky)</ui-button>
+        <ui-button variant="secondary" (click)="showPromiseSuccess()">promise() — resolves</ui-button>
+        <ui-button variant="secondary" (click)="showPromiseFailure()">promise() — rejects</ui-button>
+        <ui-button variant="ghost" (click)="showUpdate()">update() in place</ui-button>
+      </div>
       <p class="text-sm text-muted-foreground">
         Position: {{ vertical() }}-{{ horizontal() }}
       </p>
@@ -55,6 +63,49 @@ class ToastStoryWrapperComponent {
                 onClick: () => { /* undo handler */ },
             },
         });
+    }
+
+    showInfo() {
+        this.toastService.info('Heads up', 'A new version is available.');
+    }
+
+    showWarning() {
+        this.toastService.warning('Almost out of space', 'You are using 92% of your quota.');
+    }
+
+    showLoading() {
+        const id = this.toastService.loading('Working…', 'This toast is sticky until you resolve it.');
+        setTimeout(() => this.toastService.dismiss(id), 4000);
+    }
+
+    showPromiseSuccess() {
+        void this.toastService.promise(
+            new Promise<string>(resolve => setTimeout(() => resolve('Ada'), 2000)),
+            {
+                loading: 'Saving…',
+                success: name => `Saved ${name}`,
+                error: 'Could not save',
+            },
+        );
+    }
+
+    showPromiseFailure() {
+        void this.toastService
+            .promise(
+                new Promise<never>((_, reject) => setTimeout(() => reject(new Error('network down')), 2000)),
+                {
+                    loading: 'Saving…',
+                    success: 'Saved',
+                    error: e => `Failed: ${(e as Error).message}`,
+                },
+            )
+            .catch(() => { /* the toast already reported it */ });
+    }
+
+    showUpdate() {
+        const id = this.toastService.toast({ title: 'Step 1 of 3', duration: 0 });
+        setTimeout(() => this.toastService.update(id, { title: 'Step 2 of 3' }), 1200);
+        setTimeout(() => this.toastService.update(id, { title: 'Done', variant: 'success', duration: 3000 }), 2400);
     }
 
     showCountdown() {

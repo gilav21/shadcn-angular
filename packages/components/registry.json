@@ -511,6 +511,8 @@
     ],
     "files": [
       "command/command.component.ts",
+      "command/command.types.ts",
+      "command/command.utils.ts",
       "command/index.ts",
       "command/sub/command-dialog.component.ts",
       "command/sub/command-empty.component.ts",
@@ -526,7 +528,8 @@
       "dialog"
     ],
     "testFiles": [
-      "command/command.component.spec.ts"
+      "command/command.component.spec.ts",
+      "command/command.features.spec.ts"
     ],
     "libFiles": [
       "i18n/common.locales.ts",
@@ -1077,11 +1080,13 @@
     ],
     "files": [
       "virtual-scroll/index.ts",
+      "virtual-scroll/virtual-scroll.axis.ts",
       "virtual-scroll/virtual-scroll.component.css",
       "virtual-scroll/virtual-scroll.component.html",
       "virtual-scroll/virtual-scroll.component.ts"
     ],
     "testFiles": [
+      "virtual-scroll/virtual-scroll.axes.spec.ts",
       "virtual-scroll/virtual-scroll.component.spec.ts",
       "virtual-scroll/virtual-scroll.runway.spec.ts"
     ],
@@ -1100,6 +1105,33 @@
         "note": "The `items` input is now generic over `T extends object`; any object row type binds unchanged. An `id: string | number` is optional and used for stable tracking when present.",
         "codemod": "none"
       }
+    ]
+  },
+  "infinite-canvas": {
+    "name": "infinite-canvas",
+    "category": "layout",
+    "description": "Infinite pannable, zoomable plane that renders only the items in view.",
+    "tags": [
+      "infinite-canvas",
+      "canvas",
+      "pan",
+      "zoom",
+      "virtualization",
+      "diagram"
+    ],
+    "files": [
+      "infinite-canvas/index.ts",
+      "infinite-canvas/infinite-canvas-item.directive.ts",
+      "infinite-canvas/infinite-canvas.component.css",
+      "infinite-canvas/infinite-canvas.component.html",
+      "infinite-canvas/infinite-canvas.component.ts",
+      "infinite-canvas/infinite-canvas.edge-renderer.ts",
+      "infinite-canvas/infinite-canvas.item-layer.ts",
+      "infinite-canvas/infinite-canvas.item-pool.ts",
+      "infinite-canvas/infinite-canvas.pointer.ts",
+      "infinite-canvas/infinite-canvas.spatial-hash.ts",
+      "infinite-canvas/infinite-canvas.transform.ts",
+      "infinite-canvas/infinite-canvas.types.ts"
     ]
   },
   "input-mask": {
@@ -1278,13 +1310,16 @@
       "file-upload/file-upload.component.html",
       "file-upload/file-upload.component.ts",
       "file-upload/file-upload.locales.ts",
+      "file-upload/file-upload.types.ts",
+      "file-upload/file-upload.utils.ts",
       "file-upload/index.ts"
     ],
     "libFiles": [
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "touch.ts"
     ],
     "dependencies": [
       "button",
@@ -1292,7 +1327,8 @@
     ],
     "testFiles": [
       "file-upload/file-upload.component.spec.ts",
-      "file-upload/file-upload.dom.spec.ts"
+      "file-upload/file-upload.dom.spec.ts",
+      "file-upload/file-upload.features.spec.ts"
     ]
   },
   "file-viewer": {
@@ -2087,7 +2123,8 @@
     ],
     "testFiles": [
       "stepper/stepper.component.spec.ts",
-      "stepper/stepper.coverage.spec.ts"
+      "stepper/stepper.coverage.spec.ts",
+      "stepper/stepper.guard.spec.ts"
     ]
   },
   "switch": {
@@ -2253,7 +2290,8 @@
       "i18n/index.ts"
     ],
     "testFiles": [
-      "toast/toast.component.spec.ts"
+      "toast/toast.component.spec.ts",
+      "toast/toast.features.spec.ts"
     ]
   },
   "toggle": {
@@ -3331,7 +3369,8 @@
       "textarea"
     ],
     "testFiles": [
-      "kanban/kanban.component.spec.ts"
+      "kanban/kanban.component.spec.ts",
+      "kanban/kanban.swimlanes.spec.ts"
     ]
   },
   "shortcut-bindings-dialog": {
@@ -3383,7 +3422,8 @@
     "files": [
       "tour/index.ts",
       "tour/tour.component.html",
-      "tour/tour.component.ts"
+      "tour/tour.component.ts",
+      "tour/tour.utils.ts"
     ],
     "libFiles": [
       "i18n/common.locales.ts",
@@ -3396,7 +3436,8 @@
       "button"
     ],
     "testFiles": [
-      "tour/tour.component.spec.ts"
+      "tour/tour.component.spec.ts",
+      "tour/tour.features.spec.ts"
     ]
   },
   "comparison-slider": {
@@ -3463,6 +3504,7 @@
     ],
     "testFiles": [
       "sortable/sortable.component.spec.ts",
+      "sortable/sortable.nested.spec.ts",
       "sortable/sub/sortable-ghost.directive.spec.ts"
     ]
   },
@@ -3618,9 +3660,9 @@
     ],
     "dependencies": [
       "avatar",
-      "badge",
       "bar-chart",
       "card",
+      "stat-card",
       "table"
     ],
     "category": "dashboard",
@@ -4176,6 +4218,118 @@
     ],
     "testFiles": [
       "bullet-chart/bullet-chart.component.spec.ts"
+    ]
+  },
+  "histogram": {
+    "name": "histogram",
+    "category": "charts",
+    "description": "Distribution of a raw numeric sample, auto-binned with the Sturges rule, or with an explicit bin count or bin edges.",
+    "tags": [
+      "histogram",
+      "distribution",
+      "bins",
+      "statistics",
+      "chart"
+    ],
+    "files": [
+      "histogram/histogram.component.html",
+      "histogram/histogram.component.ts",
+      "histogram/histogram.types.ts",
+      "histogram/histogram.utils.ts",
+      "histogram/index.ts"
+    ],
+    "libFiles": [
+      "chart-responsive.ts",
+      "chart-scale.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-tooltip"
+    ]
+  },
+  "boxplot": {
+    "name": "boxplot",
+    "category": "charts",
+    "description": "Quartile summary per group: box, median, 1.5xIQR whiskers and outlier points, from raw values or pre-computed stats.",
+    "tags": [
+      "boxplot",
+      "box-plot",
+      "quartiles",
+      "distribution",
+      "statistics",
+      "chart"
+    ],
+    "files": [
+      "boxplot/boxplot.component.html",
+      "boxplot/boxplot.component.ts",
+      "boxplot/boxplot.types.ts",
+      "boxplot/boxplot.utils.ts",
+      "boxplot/index.ts"
+    ],
+    "libFiles": [
+      "chart-responsive.ts",
+      "chart-scale.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-tooltip"
+    ]
+  },
+  "candlestick": {
+    "name": "candlestick",
+    "category": "charts",
+    "description": "OHLC price chart with bodies and high/low wicks, on an ordinal axis that closes weekend gaps or a continuous time axis.",
+    "tags": [
+      "candlestick",
+      "ohlc",
+      "finance",
+      "stock",
+      "chart"
+    ],
+    "files": [
+      "candlestick/candlestick.component.html",
+      "candlestick/candlestick.component.ts",
+      "candlestick/candlestick.types.ts",
+      "candlestick/candlestick.utils.ts",
+      "candlestick/index.ts"
+    ],
+    "libFiles": [
+      "chart-responsive.ts",
+      "chart-scale.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-tooltip"
+    ]
+  },
+  "treemap": {
+    "name": "treemap",
+    "category": "charts",
+    "description": "Hierarchical part-to-whole as nested area, squarified so rectangles stay near square and labels fit.",
+    "tags": [
+      "treemap",
+      "hierarchy",
+      "part-to-whole",
+      "squarified",
+      "chart"
+    ],
+    "files": [
+      "treemap/index.ts",
+      "treemap/treemap.component.html",
+      "treemap/treemap.component.ts",
+      "treemap/treemap.types.ts",
+      "treemap/treemap.utils.ts"
+    ],
+    "libFiles": [
+      "chart-responsive.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-tooltip"
     ]
   },
   "radar-chart": {
@@ -5032,5 +5186,155 @@
       "import": "RTE_FULL from './ui/rich-text-editor/addons/full'",
       "selector": "uiRteFull"
     }
+  },
+  "banner": {
+    "name": "banner",
+    "category": "feedback",
+    "description": "Persistent page-level announcement bar with severity variants and an optional dismiss control.",
+    "tags": [
+      "banner",
+      "announcement",
+      "notice",
+      "system-status",
+      "dismissible"
+    ],
+    "files": [
+      "banner/banner.component.html",
+      "banner/banner.component.ts",
+      "banner/index.ts"
+    ],
+    "libFiles": [
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "button"
+    ]
+  },
+  "page-header": {
+    "name": "page-header",
+    "category": "layout",
+    "description": "Page title, description, breadcrumb and actions strip that stacks the actions below the title on narrow screens.",
+    "tags": [
+      "page-header",
+      "heading",
+      "title",
+      "breadcrumb",
+      "actions"
+    ],
+    "files": [
+      "page-header/index.ts",
+      "page-header/page-header.component.html",
+      "page-header/page-header.component.ts"
+    ]
+  },
+  "data-list": {
+    "name": "data-list",
+    "category": "data-display",
+    "description": "Label-to-value description list rendered as real dl/dt/dd, with simple array and projected row modes.",
+    "tags": [
+      "data-list",
+      "description-list",
+      "key-value",
+      "details",
+      "dl"
+    ],
+    "files": [
+      "data-list/data-list.component.html",
+      "data-list/data-list.component.ts",
+      "data-list/index.ts",
+      "data-list/sub/data-list-item.component.html",
+      "data-list/sub/data-list-item.component.ts"
+    ]
+  },
+  "stat-card": {
+    "name": "stat-card",
+    "category": "data-display",
+    "description": "KPI tile with label, value, trend-coloured delta badge and a projected chart slot.",
+    "tags": [
+      "stat-card",
+      "kpi",
+      "metric",
+      "dashboard",
+      "sparkline"
+    ],
+    "files": [
+      "stat-card/index.ts",
+      "stat-card/stat-card.component.html",
+      "stat-card/stat-card.component.ts"
+    ],
+    "dependencies": [
+      "badge",
+      "card"
+    ]
+  },
+  "masonry": {
+    "name": "masonry",
+    "category": "layout",
+    "description": "Column-balanced layout for uneven-height items that keeps DOM order equal to visual reading order.",
+    "tags": [
+      "masonry",
+      "columns",
+      "grid",
+      "layout",
+      "pinterest"
+    ],
+    "files": [
+      "masonry/index.ts",
+      "masonry/masonry.component.ts"
+    ]
+  },
+  "result": {
+    "name": "result",
+    "category": "feedback",
+    "description": "Centred outcome panel for after an operation completes, with status icon, actions and a detail slot.",
+    "tags": [
+      "result",
+      "outcome",
+      "success",
+      "error",
+      "status"
+    ],
+    "files": [
+      "result/index.ts",
+      "result/result.component.html",
+      "result/result.component.ts",
+      "result/sub/result-detail.component.html",
+      "result/sub/result-detail.component.ts"
+    ]
+  },
+  "error-page": {
+    "name": "error-page",
+    "category": "feedback",
+    "description": "Full-page 404/403/500 state with localised copy, illustration slot and recovery actions.",
+    "tags": [
+      "error-page",
+      "404",
+      "500",
+      "not-found",
+      "full-page"
+    ],
+    "files": [
+      "error-page/error-page.component.html",
+      "error-page/error-page.component.ts",
+      "error-page/error-page.locales.ts",
+      "error-page/index.ts",
+      "error-page/sub/error-page-actions.component.html",
+      "error-page/sub/error-page-actions.component.ts",
+      "error-page/sub/error-page-illustration.component.html",
+      "error-page/sub/error-page-illustration.component.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "button"
+    ]
   }
 }

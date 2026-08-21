@@ -488,3 +488,56 @@ export const FullFeatured: Story = {
         `,
     }),
 };
+
+export const Swimlanes: Story = {
+    name: 'Swimlanes (grouped by assignee)',
+    render: () => ({
+        props: {
+            columns: defaultColumns,
+            cards: defaultCards.map(c => ({ ...c, assignee: c.assignees?.[0]?.name ?? '' })),
+        },
+        template: `
+            <div class="space-y-2">
+                <p class="text-sm text-muted-foreground">
+                    <code>swimlaneBy="assignee"</code> adds a second axis on top of the columns. Each
+                    lane collapses independently, and because the grouping is a property NAME, dragging
+                    a card into another lane reassigns that field for you.
+                </p>
+                <div class="h-[600px] overflow-auto bg-muted/30 rounded-xl border">
+                    <ui-kanban [columns]="columns" [cards]="cards" swimlaneBy="assignee" />
+                </div>
+            </div>
+        `,
+    }),
+};
+
+export const SwimlanesDerived: Story = {
+    name: 'Swimlanes (derived by priority)',
+    render: () => ({
+        props: {
+            columns: defaultColumns,
+            cards: defaultCards,
+            byPriority: (card: KanbanCard): string => card.priority ?? '',
+            label: (id: string): string => (id === '' ? 'No priority' : id.toUpperCase()),
+            collapsed: ['low'],
+        },
+        template: `
+            <div class="space-y-2">
+                <p class="text-sm text-muted-foreground">
+                    A derive FUNCTION groups by anything — here by priority, with a custom lane label and
+                    the <code>low</code> lane collapsed on first render. A derived lane cannot be
+                    inverted, so a cross-lane drop moves the card between columns and reports
+                    <code>toSwimlaneId</code> for you to act on.
+                </p>
+                <div class="h-[600px] overflow-auto bg-muted/30 rounded-xl border">
+                    <ui-kanban
+                        [columns]="columns"
+                        [cards]="cards"
+                        [swimlaneBy]="byPriority"
+                        [swimlaneLabel]="label"
+                        [initiallyCollapsedSwimlanes]="collapsed" />
+                </div>
+            </div>
+        `,
+    }),
+};

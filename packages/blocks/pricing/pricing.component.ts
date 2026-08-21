@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { cn } from '../../components/lib/utils';
 import { ButtonComponent } from '../../components/ui/button';
 import { BadgeComponent } from '../../components/ui/badge';
@@ -13,7 +13,7 @@ import {
   CardFooterComponent,
 } from '../../components/ui/card';
 
-interface PricingTier {
+export interface PricingTier {
   readonly name: string;
   readonly price: string;
   readonly period: string;
@@ -44,6 +44,9 @@ interface PricingTier {
 })
 export class PricingBlockComponent {
   readonly class = input('');
+
+  /** Emits the tier whose call-to-action button was clicked. */
+  readonly ctaClicked = output<PricingTier>();
 
   readonly tiers: readonly PricingTier[] = [
     {

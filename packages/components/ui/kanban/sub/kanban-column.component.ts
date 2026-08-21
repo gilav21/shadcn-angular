@@ -152,6 +152,16 @@ export class KanbanColumnComponent implements AfterContentInit {
     collapsible = input(true);
     /** Locale dictionary for the empty-state text. The board passes its own resolved locale down; set it only on a hand-placed `<ui-kanban-column>` outside a `<ui-kanban>`. */
     locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
+    /**
+     * Narrows this column to one swimlane, so a board with lanes renders one
+     * column instance per (column x lane) cell. `undefined` (the default) is
+     * the whole column, which is what a board without lanes renders — and what
+     * every pre-swimlane consumer keeps getting.
+     *
+     * A drop into this instance reports the lane along with the column, so the
+     * board can reassign the card's grouping field.
+     */
+    swimlaneId = input<string | undefined>(undefined);
 
     collapsed = signal(false);
     dropIndicatorIndex = signal(-1);
@@ -176,7 +186,7 @@ export class KanbanColumnComponent implements AfterContentInit {
 
     visibleCards = computed(() => {
         if (!this.kanban) return [];
-        return this.kanban.getCardsForColumn(this.columnId());
+        return this.kanban.getCardsForColumn(this.columnId(), this.swimlaneId());
     });
 
     cardCount = computed(() => {
@@ -302,7 +312,7 @@ export class KanbanColumnComponent implements AfterContentInit {
         const cardId = event.dataTransfer?.getData('text/plain');
         if (!cardId || !this.kanban) return;
 
-        this.kanban.moveCard(cardId, this.columnId(), this.dropIndicatorIndex());
+        this.kanban.moveCard(cardId, this.columnId(), this.dropIndicatorIndex(), this.swimlaneId());
         this.dropIndicatorIndex.set(-1);
         this.dropIndicatorTop.set(-1);
         this.isDragOver.set(false);

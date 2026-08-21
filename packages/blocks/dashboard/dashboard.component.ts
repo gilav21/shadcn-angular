@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { cn } from '../../components/lib/utils';
-import { BadgeComponent } from '../../components/ui/badge';
 import { BarChartComponent } from '../../components/ui/bar-chart';
+import { StatCardComponent } from '../../components/ui/stat-card';
 import {
   CardComponent,
   CardHeaderComponent,
@@ -40,8 +40,8 @@ interface ActivityRow {
   selector: 'ui-dashboard-block',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    BadgeComponent,
     BarChartComponent,
+    StatCardComponent,
     CardComponent,
     CardHeaderComponent,
     CardTitleComponent,

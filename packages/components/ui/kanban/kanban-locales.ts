@@ -53,6 +53,12 @@ export interface KanbanLocale extends LocaleMeta {
     lastColumnWarning: string;
     columnHasCards: string;
     deleteEmptyColumn: string;
+    /**
+     * Heading of the swimlane that collects cards with no grouping value.
+     * Optional so a hand-written partial locale object keeps compiling; the
+     * board falls back to 'Unassigned' when it is absent.
+     */
+    unassigned?: string;
 }
 
 export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
@@ -110,6 +116,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         lastColumnWarning: 'This is the only column. All cards will be permanently deleted.',
         columnHasCards: 'This column has cards. Choose what to do with them:',
         deleteEmptyColumn: 'Are you sure you want to delete this empty column?',
+        unassigned: 'Unassigned',
         rtl: false,
     },
     he: {
@@ -166,6 +173,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         lastColumnWarning: 'זו העמודה היחידה. כל הכרטיסים יימחקו לצמיתות.',
         columnHasCards: 'בעמודה זו יש כרטיסים. בחר מה לעשות איתם:',
         deleteEmptyColumn: 'האם אתה בטוח שברצונך למחוק עמודה ריקה זו?',
+        unassigned: 'לא משויך',
         rtl: true,
     },
     ar: {
@@ -222,6 +230,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         lastColumnWarning: 'هذا هو العمود الوحيد. سيتم حذف جميع البطاقات نهائياً.',
         columnHasCards: 'يحتوي هذا العمود على بطاقات. اختر ما تريد فعله بها:',
         deleteEmptyColumn: 'هل أنت متأكد أنك تريد حذف هذا العمود الفارغ؟',
+        unassigned: 'غير معيّن',
         rtl: true,
     },
     de: {
@@ -278,6 +287,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         lastColumnWarning: 'Dies ist die einzige Spalte. Alle Karten werden dauerhaft gelöscht.',
         columnHasCards: 'Diese Spalte enthält Karten. Wählen Sie, was damit geschehen soll:',
         deleteEmptyColumn: 'Sind Sie sicher, dass Sie diese leere Spalte löschen möchten?',
+        unassigned: 'Nicht zugewiesen',
         rtl: false,
     },
     fr: {
@@ -334,6 +344,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         lastColumnWarning: 'C\'est la seule colonne. Toutes les cartes seront supprimées définitivement.',
         columnHasCards: 'Cette colonne contient des cartes. Choisissez quoi en faire :',
         deleteEmptyColumn: 'Êtes-vous sûr de vouloir supprimer cette colonne vide ?',
+        unassigned: 'Non assigné',
         rtl: false,
     },
     es: {
@@ -390,6 +401,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         lastColumnWarning: 'Esta es la única columna. Todas las tarjetas se eliminarán permanentemente.',
         columnHasCards: 'Esta columna tiene tarjetas. Elige qué hacer con ellas:',
         deleteEmptyColumn: '¿Estás seguro de que quieres eliminar esta columna vacía?',
+        unassigned: 'Sin asignar',
         rtl: false,
     },
     ja: {
@@ -446,6 +458,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         lastColumnWarning: 'これは唯一の列です。すべてのカードが完全に削除されます。',
         columnHasCards: 'この列にはカードがあります。どうしますか：',
         deleteEmptyColumn: 'この空の列を削除しますか？',
+        unassigned: '未割り当て',
         rtl: false,
     },
     zh: {
@@ -502,6 +515,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         lastColumnWarning: '这是唯一的列。所有卡片将被永久删除。',
         columnHasCards: '此列包含卡片。选择如何处理：',
         deleteEmptyColumn: '确定要删除这个空列吗？',
+        unassigned: '未分配',
         rtl: false,
     },
     ru: {
@@ -558,6 +572,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         lastColumnWarning: 'Это единственная колонка. Все карточки будут удалены безвозвратно.',
         columnHasCards: 'В этой колонке есть карточки. Выберите, что с ними делать:',
         deleteEmptyColumn: 'Вы уверены, что хотите удалить эту пустую колонку?',
+        unassigned: 'Не назначено',
         rtl: false,
     },
     pt: {
@@ -614,6 +629,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         lastColumnWarning: 'Esta é a única coluna. Todos os cartões serão excluídos permanentemente.',
         columnHasCards: 'Esta coluna tem cartões. Escolha o que fazer com eles:',
         deleteEmptyColumn: 'Tem certeza de que deseja excluir esta coluna vazia?',
+        unassigned: 'Não atribuído',
         rtl: false,
     },
 };

@@ -1,4 +1,11 @@
 <div [class]="classes()" [attr.data-slot]="'toast'" [attr.role]="role()" [attr.aria-live]="ariaLive()" [attr.dir]="dir()">
+  @if (loading()) {
+    <div
+      class="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent opacity-70"
+      data-slot="toast-spinner"
+      aria-hidden="true"
+    ></div>
+  }
   <div class="grid gap-1 flex-1">
     @if (title()) {
       <div class="text-sm font-semibold" [attr.data-slot]="'toast-title'">{{ title() }}</div>

@@ -220,3 +220,96 @@ describe('CollapsibleComponent API', () => {
         expect(inner.nativeElement.className).toContain('overflow-hidden');
     });
 });
+
+// ---------------------------------------------------------------------------
+// Trigger role: the wrapper is the control only when the consumer did not
+// supply one.
+// ---------------------------------------------------------------------------
+
+@Component({
+    template: `
+        <ui-collapsible>
+            <ui-collapsible-trigger>
+                <span>Show more</span>
+            </ui-collapsible-trigger>
+            <ui-collapsible-content>Body</ui-collapsible-content>
+        </ui-collapsible>
+    `,
+    imports: [CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent],
+})
+class PlainTriggerHost {}
+
+@Component({
+    template: `
+        <ui-collapsible>
+            <ui-collapsible-trigger>
+                <button type="button">Toggle</button>
+            </ui-collapsible-trigger>
+            <ui-collapsible-content>Body</ui-collapsible-content>
+        </ui-collapsible>
+    `,
+    imports: [CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent],
+})
+class ProjectedControlHost {}
+
+describe('CollapsibleTriggerComponent focus ownership', () => {
+    function trigger(fixture: ComponentFixture<unknown>): HTMLElement {
+        fixture.detectChanges();
+        const el = (fixture.nativeElement as HTMLElement)
+            .querySelector('[data-slot="collapsible-trigger"]');
+        if (!el) throw new Error('no trigger rendered');
+        return el as HTMLElement;
+    }
+
+    it('is the button itself when only inert content is projected', async () => {
+        await TestBed.configureTestingModule({ imports: [PlainTriggerHost] }).compileComponents();
+        const fixture = TestBed.createComponent(PlainTriggerHost);
+        const el = trigger(fixture);
+
+        expect(el.getAttribute('role')).toBe('button');
+        expect(el.getAttribute('tabindex')).toBe('0');
+        expect(el.getAttribute('aria-expanded')).toBe('false');
+        expect(el.className).toContain('cursor-pointer');
+    });
+
+    it('reflects the open state on aria-expanded', async () => {
+        await TestBed.configureTestingModule({ imports: [PlainTriggerHost] }).compileComponents();
+        const fixture = TestBed.createComponent(PlainTriggerHost);
+        const el = trigger(fixture);
+
+        el.click();
+        fixture.detectChanges();
+        expect(el.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    /**
+     * The wrapper must stand down when the consumer projects a real control.
+     * Claiming `role="button"` around another button is `nested-interactive`
+     * (a WCAG 4.1.2 failure), and an unconditional `tabindex` put a second,
+     * nameless tab stop on every such usage — three of them ship in this repo.
+     */
+    it('stands down when a real control is projected', async () => {
+        await TestBed.configureTestingModule({ imports: [ProjectedControlHost] }).compileComponents();
+        const fixture = TestBed.createComponent(ProjectedControlHost);
+        const el = trigger(fixture);
+
+        expect(el.getAttribute('role')).toBeNull();
+        expect(el.getAttribute('tabindex')).toBeNull();
+        expect(el.getAttribute('aria-expanded')).toBeNull();
+        expect(el.className).not.toContain('cursor-pointer');
+
+        // Positive control: the projected button really is there, so the
+        // assertions above describe a stand-down and not an empty trigger.
+        expect(el.querySelector('button')).not.toBeNull();
+    });
+
+    it('still toggles when the projected control is clicked', async () => {
+        await TestBed.configureTestingModule({ imports: [ProjectedControlHost] }).compileComponents();
+        const fixture = TestBed.createComponent(ProjectedControlHost);
+        const el = trigger(fixture);
+
+        el.querySelector('button')?.click();
+        fixture.detectChanges();
+        expect(el.getAttribute('data-state')).toBe('open');
+    });
+});
