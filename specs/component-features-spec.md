@@ -301,11 +301,31 @@ constrained by them rather than the other way round:
 
 ### Bundle gate
 
-- `npm run coverage` — **green**, both legs, thresholds met. Browser suite and
-  CLI suite (60 files / 1149 tests) both pass; `coverage/lcov.info` and
-  `coverage-cli/lcov.info` regenerated.
-- SonarQube — scanned under project key `shadcn-angular-component-features`
-  against `http://localhost:9000`.
+- `npm run coverage` — **green**, both legs, thresholds met. Browser suite
+  **386 files / 8329 tests**, CLI suite **60 files / 1149 tests**, zero
+  failures; `coverage/lcov.info` and `coverage-cli/lcov.info` regenerated.
+- **SonarQube — clean.** Scanned under project key
+  `shadcn-angular-component-features` against `http://localhost:9000`.
+  Across the 50 changed files there is exactly **one** open issue, and it is
+  not ours: `Web:S6819` on the `file-upload` dropzone's `role="presentation"`
+  at line 9. Proven pre-existing rather than asserted — `git diff
+  4232d229..HEAD -U0` on that file reports hunks at lines 27 and 129+ only, and
+  line 9 is byte-identical to the base commit. It is already recorded in
+  `docs/sonarqube-accepted-findings.md`: the element is presentational
+  precisely because making it interactive caused a nested-interactive axe
+  failure.
+
+  Everything the scan attributed to this bundle was fixed: a duplicate
+  `@angular/core` import (`S3863` x2), the crop box's `role="group"` +
+  `tabindex` (`S6819`, `S6845`), and an explanatory comment that quoted markup
+  literally and so parsed as commented-out code
+  (`Web:AvoidCommentedOutCodeCheck`).
+
+  Note on querying: the project's `**/coverage/**` exclusion does not match
+  `coverage-*/`, so the generated lcov-report HTML contributes ~43k junk issues
+  and swamps any project-wide search. Issues were therefore queried **per file
+  key**, validated against a positive control (a file known to have issues
+  returns them) so a zero could not be a false negative.
 
 ### T-20 — e2e impact
 
