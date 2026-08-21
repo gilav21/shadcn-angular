@@ -1,4 +1,4 @@
-<div [class]="classes()" data-slot="error-page">
+<div [class]="classes()" [attr.dir]="dir()" data-slot="error-page">
   <ng-content select="ui-error-page-illustration" />
   @if (showDefaultIllustration()) {
     <div

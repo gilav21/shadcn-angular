@@ -64,14 +64,24 @@ export class ErrorPageComponent {
     readonly locale = input<LocaleInput<ErrorPageLocale>>();
     private readonly i18n = createLocaleBindings(this.locale, ERROR_PAGE_LOCALES);
     protected readonly t = this.i18n.t;
+    /** `'rtl'` for an RTL locale, otherwise null so an ancestor `dir` still applies. */
+    protected readonly dir = this.i18n.dir;
 
     /** Emitted by the default back action. The consumer decides what "back" means. */
     readonly goBack = output<void>();
     /** Emitted by the default home action. The consumer decides where home is. */
     readonly goHome = output<void>();
 
-    private readonly projectedIllustration = contentChild(ErrorPageIllustrationComponent);
-    private readonly projectedActions = contentChild(ErrorPageActionsComponent);
+    // `descendants: false` deliberately: `<ng-content select=...>` only matches
+    // DIRECT children, so a descendants-true query would report an actions row
+    // nested inside a wrapper `<div>` as present, suppress the default row, and
+    // then project nothing at all — leaving the page with no actions.
+    private readonly projectedIllustration = contentChild(ErrorPageIllustrationComponent, {
+        descendants: false,
+    });
+    private readonly projectedActions = contentChild(ErrorPageActionsComponent, {
+        descendants: false,
+    });
 
     /** True while no `<ui-error-page-illustration>` is projected. */
     readonly showDefaultIllustration = computed(() => !this.projectedIllustration());
@@ -79,9 +89,14 @@ export class ErrorPageComponent {
     readonly showDefaultActions = computed(() => !this.projectedActions());
 
     /** Copy for the current {@link code}, falling back to the locale's generic copy. */
-    private readonly copy = computed(
-        () => this.t().codes[this.code()] ?? this.t().fallback,
-    );
+    private readonly copy = computed(() => {
+        const { codes, fallback } = this.t();
+        const code = this.code();
+        // `Object.hasOwn`, not a truthiness check: a code like `'toString'` would
+        // otherwise resolve to the inherited prototype member, which is neither
+        // null nor undefined, so `??` would hand back a function to render.
+        return Object.hasOwn(codes, code) ? codes[code] : fallback;
+    });
 
     /** Effective heading — explicit {@link title} wins over the code's default. */
     readonly resolvedTitle = computed(() => this.title() || this.copy().title);

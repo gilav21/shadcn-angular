@@ -29,14 +29,32 @@ describe('ErrorPageDemoComponent', () => {
       expect(root.textContent).toContain(ERROR_PAGE_DEMO_LOCALES['en'].description);
     });
 
-    it('shows every shipped code alongside the fallback', () => {
+    it('shows the fallback code alongside the switchable shipped ones', () => {
       const codes = Array.from(
         root.querySelectorAll<HTMLElement>('[data-slot="error-page-code"]'),
       ).map(el => el.textContent?.trim());
       expect(codes).toContain('404');
-      expect(codes).toContain('403');
-      expect(codes).toContain('500');
       expect(codes).toContain('418');
+    });
+
+    it('switches the shipped-code example through every shipped code', () => {
+      const buttons = Array.from(
+        root.querySelectorAll<HTMLButtonElement>('ui-button button'),
+      );
+      for (const code of ['403', '500']) {
+        const button = buttons.find(b => b.textContent?.trim() === code);
+        expect(button, `expected a ${code} switch button`).toBeTruthy();
+        button!.click();
+        fixture.detectChanges();
+
+        const shown = Array.from(
+          root.querySelectorAll<HTMLElement>('[data-slot="error-page-code"]'),
+        ).map(el => el.textContent?.trim());
+        expect(shown).toContain(code);
+        expect(root.textContent).toContain(
+          ERROR_PAGE_LOCALES['en'].codes[code].title,
+        );
+      }
     });
 
     it('renders generic copy for the unrecognised code', () => {

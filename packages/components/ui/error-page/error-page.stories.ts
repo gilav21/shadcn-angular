@@ -38,6 +38,16 @@ const meta: Meta<ErrorPageComponent> = {
             options: ['en', 'he', 'ar', 'de', 'fr', 'es', 'ja', 'zh', 'ru', 'pt'],
             description: 'Locale registry key. Falls back to `UI_LOCALE_ID` when not set.',
         },
+        goBack: {
+            action: 'goBack',
+            description:
+                'Emitted by the default back action. The component never routes — the consumer decides what "back" means.',
+        },
+        goHome: {
+            action: 'goHome',
+            description:
+                'Emitted by the default home action. The component never routes — the consumer decides where home is.',
+        },
     },
     args: {
         code: '404',
@@ -62,6 +72,8 @@ export const Playground: Story = {
                 [description]="description"
                 [class]="class"
                 [locale]="locale"
+                (goBack)="goBack($event)"
+                (goHome)="goHome($event)"
             />
         `,
     }),

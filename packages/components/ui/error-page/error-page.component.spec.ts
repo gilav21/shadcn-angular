@@ -57,6 +57,13 @@ const EN = ERROR_PAGE_LOCALES['en'];
                         <button data-testid="custom-action">Take me somewhere else</button>
                     </ui-error-page-actions>
                 }
+                @if (showNestedActions()) {
+                    <div>
+                        <ui-error-page-actions>
+                            <button data-testid="nested-action">Nested</button>
+                        </ui-error-page-actions>
+                    </div>
+                }
             </ui-error-page>
         </div>
     `,
@@ -74,6 +81,7 @@ class HostComponent {
     readonly locale = signal<string | undefined>(undefined);
     readonly showIllustration = signal(false);
     readonly showActions = signal(false);
+    readonly showNestedActions = signal(false);
     readonly dir = signal<'ltr' | 'rtl'>('ltr');
     readonly frameWidth = signal(1024);
     readonly backCount = signal(0);
@@ -196,6 +204,21 @@ describe('ErrorPageComponent', () => {
             ).toBe(EN.fallback.description);
         });
 
+        /**
+         * A code colliding with an `Object.prototype` member must not resolve to
+         * the inherited function — that is neither null nor undefined, so a `??`
+         * fallback would sail past it and render garbage.
+         */
+        it.each(['toString', 'constructor', 'valueOf'])(
+            'falls back rather than resolving the inherited %s member',
+            code => {
+                withCode(code);
+                expect(need('[data-slot="error-page-title"]').textContent?.trim()).toBe(
+                    EN.fallback.title,
+                );
+            },
+        );
+
         it('survives an empty code without throwing or rendering blank copy', () => {
             withCode('');
             expect(need('[data-slot="error-page-title"]').textContent?.trim()).toBe(
@@ -276,6 +299,21 @@ describe('ErrorPageComponent', () => {
             expect(q('[data-slot="error-page-back"]')).toBeNull();
             expect(q('[data-slot="error-page-home"]')).toBeNull();
             expect(need('[data-testid="custom-action"]')).toBeTruthy();
+        });
+
+        /**
+         * `<ng-content select=...>` only matches DIRECT children, so the query
+         * that decides whether to suppress the default row must be scoped the
+         * same way. With a descendants-true query, an actions row nested in a
+         * wrapper would be *detected* but never *projected*, and the page would
+         * render no actions at all.
+         */
+        it('keeps the default actions when a projected row is nested too deeply', () => {
+            host.showNestedActions.set(true);
+            fixture.detectChanges();
+            expect(q('[data-slot="error-page-back"]')).toBeTruthy();
+            expect(q('[data-slot="error-page-home"]')).toBeTruthy();
+            expect(q('[data-testid="nested-action"]')).toBeNull();
         });
 
         it('renders exactly one actions region when actions are projected', () => {
@@ -383,6 +421,24 @@ describe('ErrorPageComponent', () => {
         });
 
         it('inherits the ambient direction', () => {
+            expect(getComputedStyle(need('[data-slot="error-page"]')).direction).toBe(
+                'rtl',
+            );
+        });
+
+        it('sets dir from an RTL locale even inside an LTR document', () => {
+            host.dir.set('ltr');
+            host.locale.set('he');
+            fixture.detectChanges();
+            const page = need('[data-slot="error-page"]');
+            expect(page.getAttribute('dir')).toBe('rtl');
+            expect(getComputedStyle(page).direction).toBe('rtl');
+        });
+
+        it('leaves dir unset for an LTR locale so an ancestor still applies', () => {
+            host.locale.set('en');
+            fixture.detectChanges();
+            expect(need('[data-slot="error-page"]').getAttribute('dir')).toBeNull();
             expect(getComputedStyle(need('[data-slot="error-page"]')).direction).toBe(
                 'rtl',
             );

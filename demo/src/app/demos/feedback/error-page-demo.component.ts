@@ -30,11 +30,23 @@ import { ERROR_PAGE_DEMO_LOCALES } from './error-page-demo.locales';
 
       <h3 class="text-lg font-medium mt-8">{{ t().codesHeading }}</h3>
       <p class="text-muted-foreground text-sm mb-4">{{ t().codesDescription }}</p>
-      <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <ui-error-page code="404" class="rounded-lg border" />
-        <ui-error-page code="403" class="rounded-lg border" />
-        <ui-error-page code="500" class="rounded-lg border" />
+      <!--
+        One switchable page rather than three stacked ones. Each error-page owns
+        a real <h1> by design (UC-14), so rendering every shipped code at once
+        would pile h1s onto a single gallery route.
+      -->
+      <div class="flex flex-wrap items-center gap-2 mb-4">
+        @for (code of shippedCodes; track code) {
+          <ui-button
+            [variant]="selectedCode() === code ? 'default' : 'outline'"
+            size="sm"
+            (clicked)="selectedCode.set(code)"
+          >
+            {{ code }}
+          </ui-button>
+        }
       </div>
+      <ui-error-page [code]="selectedCode()" class="rounded-lg border" />
 
       <h3 class="text-lg font-medium mt-8">{{ t().fallbackHeading }}</h3>
       <p class="text-muted-foreground text-sm mb-4">{{ t().fallbackDescription }}</p>
@@ -103,4 +115,8 @@ export class ErrorPageDemoComponent {
   );
 
   readonly lastEvent = signal('');
+
+  /** The codes that ship with default copy in `error-page.locales.ts`. */
+  readonly shippedCodes = ['404', '403', '500'] as const;
+  readonly selectedCode = signal<string>('404');
 }
