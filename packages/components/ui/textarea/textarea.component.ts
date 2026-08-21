@@ -1,9 +1,10 @@
 import {
     Component,
     ChangeDetectionStrategy,
+    ElementRef,
     input,
     computed,
-    signal,
+    model,
     forwardRef,
     inject,
 } from '@angular/core';
@@ -30,6 +31,8 @@ const textareaVariants = cva(
 
 export type TextareaVariant = VariantProps<typeof textareaVariants>['variant'];
 
+let nextTextareaId = 0;
+
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
 @Component({
@@ -47,6 +50,7 @@ import { UI_INPUT_GROUP } from '../../lib/input-group.token';
     templateUrl: './textarea.component.html',
     host: {
         '[class]': '"contents"',
+        '[attr.id]': 'null',
     },
 })
 export class TextareaComponent implements ControlValueAccessor {
@@ -64,6 +68,37 @@ export class TextareaComponent implements ControlValueAccessor {
     /** Visual style. `underline` and `ghost` also drop the resize handle. Inside a `ui-input-group`, `outline` is downgraded to `ghost` so the group draws the border. */
     variant = input<TextareaVariant>('outline');
 
+    /**
+     * Forwarded to the inner `<textarea>`'s id so an external `<label for="x">`
+     * associates with the real control. Without it, an `id` on the `<ui-textarea>`
+     * host (which is `display: contents`) is not a labelable element, so the
+     * control reaches screen readers unlabeled — a non-empty {@link placeholder}
+     * quietly masks that from everything except axe.
+     */
+    readonly elementId = input<string | undefined>(undefined);
+    /** Forwarded to the inner `<textarea>`'s name, for form submission. */
+    readonly name = input<string | undefined>(undefined);
+    /** Forwarded to the inner `<textarea>`'s aria-label, for when no visible label exists. */
+    readonly ariaLabel = input<string | undefined>(undefined);
+    /** Forwarded to the inner `<textarea>`'s aria-labelledby, when an external element already labels it. */
+    readonly ariaLabelledby = input<string | undefined>(undefined);
+    /** Forwarded to the inner `<textarea>`'s aria-describedby, e.g. pointing at a hint or error message. */
+    readonly ariaDescribedby = input<string | undefined>(undefined);
+
+    private readonly autoId = `ui-textarea-${++nextTextareaId}`;
+
+    /**
+     * An `id` written the native way — `<ui-textarea id="bio">`. Read off the host
+     * and moved to the real control, because the host is a `display: contents`
+     * wrapper and `<label for="bio">` would otherwise associate with nothing. The
+     * host binding strips it, so the id is never duplicated.
+     */
+    private readonly hostId =
+        inject<ElementRef<HTMLElement>>(ElementRef).nativeElement.getAttribute('id') ?? undefined;
+
+    /** The id actually applied to the inner `<textarea>`, from either spelling, falling back to a generated one. */
+    readonly resolvedId = computed(() => this.elementId() ?? this.hostId ?? this.autoId);
+
     private readonly group = inject(UI_INPUT_GROUP, { optional: true });
 
     protected readonly effectiveVariant = computed(() => {
@@ -71,7 +106,19 @@ export class TextareaComponent implements ControlValueAccessor {
         return v === 'outline' && this.group ? 'ghost' : v;
     });
 
-    value = signal('');
+    /**
+     * The text, as a two-way `model()`. Written by user typing, by
+     * {@link writeValue} when a form pushes a value in, and by a `[(value)]`
+     * binding.
+     *
+     * Being a `ModelSignal` is what makes this component a valid Signal Forms
+     * `FormValueControl`. Unlike the controls that already had a hand-written
+     * `valueChange` output, this one never promised silence on a programmatic
+     * write — the output is new here — so there is no second signal and no
+     * suppression: the model is the single source of truth, and a form write
+     * keeps a `[(value)]` binding in sync instead of letting it drift.
+     */
+    readonly value = model('');
 
     private onChange: (value: string) => void = () => { };
     onTouched: () => void = () => { };

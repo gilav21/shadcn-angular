@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SwitchComponent } from './switch.component';
 import { Component, signal } from '@angular/core';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
@@ -304,5 +304,98 @@ describe('SwitchComponent with Label', () => {
     it('should have role=switch on button', () => {
         const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.getAttribute('role')).toBe('switch');
+    });
+});
+
+@Component({
+    template: `<ui-switch [(checked)]="flag" (checkedChange)="emissions.push($event)" />`,
+    imports: [SwitchComponent],
+})
+class TwoWaySwitchHost {
+    readonly flag = signal(false);
+    readonly emissions: boolean[] = [];
+}
+
+@Component({
+    template: `<form [formGroup]="form"><ui-switch formControlName="enabled" /></form>`,
+    imports: [SwitchComponent, ReactiveFormsModule],
+})
+class FormGroupSwitchHost {
+    readonly form = new FormGroup({ enabled: new FormControl(false) });
+}
+
+/**
+ * Reference harness for the signal-forms readiness spec. `checked` is already a
+ * `model()`, so these pass unchanged — they exist to pin the behaviour every
+ * converted control must reproduce.
+ */
+describe('SwitchComponent — signal-forms readiness', () => {
+    const track = (fixture: ComponentFixture<unknown>): HTMLButtonElement =>
+        fixture.debugElement.query(By.css('button[role="switch"]')).nativeElement;
+
+    const clickTrack = (fixture: ComponentFixture<unknown>): void => {
+        track(fixture).click();
+        fixture.detectChanges();
+    };
+
+    it('T-1: two-way [(checked)] updates the model on user input', () => {
+        const fixture = TestBed.createComponent(TwoWaySwitchHost);
+        fixture.detectChanges();
+
+        clickTrack(fixture);
+
+        expect(fixture.componentInstance.flag()).toBe(true);
+    });
+
+    it('T-2: two-way [(checked)] updates the view when the model changes', () => {
+        const fixture = TestBed.createComponent(TwoWaySwitchHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.flag.set(true);
+        fixture.detectChanges();
+
+        expect(track(fixture).getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('T-3: works with formControlName and reports value to the form group', () => {
+        const fixture = TestBed.createComponent(FormGroupSwitchHost);
+        fixture.detectChanges();
+
+        clickTrack(fixture);
+
+        expect(fixture.componentInstance.form.value.enabled).toBe(true);
+    });
+
+    it('T-4: writeValue from the form updates the rendered value', () => {
+        const fixture = TestBed.createComponent(FormGroupSwitchHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.form.setValue({ enabled: true });
+        fixture.detectChanges();
+
+        expect(track(fixture).getAttribute('aria-checked')).toBe('true');
+    });
+
+    it('T-9: emits checkedChange exactly once per user interaction', () => {
+        const fixture = TestBed.createComponent(TwoWaySwitchHost);
+        fixture.detectChanges();
+
+        clickTrack(fixture);
+
+        expect(fixture.componentInstance.emissions).toEqual([true]);
+    });
+
+    it('T-10: does not re-emit when writeValue is called with the current value', () => {
+        const fixture = TestBed.createComponent(TwoWaySwitchHost);
+        fixture.detectChanges();
+        const switchComponent: SwitchComponent = fixture.debugElement
+            .query(By.directive(SwitchComponent)).componentInstance;
+        clickTrack(fixture);
+        fixture.componentInstance.emissions.length = 0;
+
+        switchComponent.writeValue(true);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.emissions).toEqual([]);
     });
 });

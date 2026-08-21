@@ -7,8 +7,8 @@ import {
     inject,
     InjectionToken,
     input,
+    model,
     OnDestroy,
-    output,
     computed,
     signal,
     ViewChild,
@@ -184,11 +184,16 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
      */
     readonly displayWith = input<(option: T) => string>(String);
     /**
-     * Controlled selection. Any defined value is pushed into the internal
-     * signal on every change; `undefined` is ignored, so it cannot be used to
-     * clear the selection. Setting it does not emit {@link valueChange}.
+     * The selection, as a two-way `model()`. Any defined value written from
+     * outside is pushed into the internal signal; `undefined` is ignored, so it
+     * cannot be used to clear the selection. A write from outside does not emit
+     * {@link valueChange} — only a user pick does.
+     *
+     * Being a `ModelSignal` is what makes this component a valid Signal Forms
+     * `FormValueControl`, and it is also the `valueChange` output: Angular
+     * derives the output from the model, so there is no separate declaration.
      */
-    readonly value = input<T | undefined>(undefined);
+    readonly value = model<T | undefined>(undefined);
     /**
      * Property name to read the option's value from when options are objects
      * (e.g. `'id'`). When unset the whole option object is the value, and
@@ -202,16 +207,16 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
      */
     readonly disabledWith = input<(option: T) => boolean>(() => false);
 
+    /**
+     * The rendered selection. Held separately from {@link value} so that
+     * programmatic writes — a `writeValue` from a reactive form, or the
+     * {@link defaultValue} seed — can move the selection without emitting, which
+     * is the behaviour every consumer of this component was written against.
+     * User picks write both, so `value` is the one that emits, exactly once.
+     */
     internalValue = signal<T | undefined>(undefined);
     open = signal(false);
     focusedIndex = signal(0);
-
-    /**
-     * Emits the newly picked value on user selection only — writes through
-     * {@link value}, {@link defaultValue} or {@link writeValue} stay silent, so
-     * a two-way `[(value)]` binding will not loop.
-     */
-    readonly valueChange = output<T>();
 
     private static nextId = 0;
     readonly listId = `select-list-${++SelectComponent.nextId}`;
@@ -388,10 +393,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     selectOption(option: T): void {
         if (this.isOptionDisabled(option)) return;
         const val = this.getValue(option) as T;
-        this.internalValue.set(val);
-        this.valueChange.emit(val);
-        this._onChange(val);
-        this.close();
+        this.commit(val);
     }
 
     /** Opens or closes the popup; ignored while {@link isDisabled}. */
@@ -417,8 +419,17 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
      * the caller is responsible for that.
      */
     select(val: T): void {
+        this.commit(val);
+    }
+
+    /**
+     * The one path a user-driven selection takes: store it, publish it through
+     * the {@link value} model (which emits `valueChange` once), notify the form,
+     * and close.
+     */
+    private commit(val: T): void {
         this.internalValue.set(val);
-        this.valueChange.emit(val);
+        this.value.set(val);
         this._onChange(val);
         this.close();
     }

@@ -2,7 +2,7 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
+    model,
     computed,
     signal,
     forwardRef,
@@ -56,8 +56,19 @@ export type NumberInputVariant = 'outline' | 'underline' | 'ghost';
     host: { class: 'contents' },
 })
 export class NumberInputComponent implements ControlValueAccessor {
-    /** One-way value. Any change overwrites the current value, so it acts as a controlled value rather than just an initial one; `null` shows the placeholder. */
-    readonly value = input<number | null>(null);
+    /**
+     * The value, as a two-way `model()`. A write from outside overwrites the
+     * current value, so it acts as a controlled value rather than just an
+     * initial one; `null` shows the placeholder.
+     *
+     * Being a `ModelSignal` is what makes this component a valid Signal Forms
+     * `FormValueControl`, and it doubles as the `valueChange` output: Angular
+     * derives the output from the model, so there is no separate declaration.
+     * A write from outside stays silent; only a user edit emits. Note that
+     * after a `writeValue` from a reactive form this still reads the pre-write
+     * value — the rendered value is {@link displayValue}.
+     */
+    readonly value = model<number | null>(null);
     /** Lower bound applied by the steppers, arrow keys and wheel, and enforced on blur. Typing below it is allowed until the field loses focus. */
     readonly min = input<number | undefined>(undefined);
     /** Upper bound applied by the steppers, arrow keys and wheel, and enforced on blur. Typing above it is allowed until the field loses focus. */
@@ -87,8 +98,6 @@ export class NumberInputComponent implements ControlValueAccessor {
     /** Effective locale tag — explicit input wins; otherwise UI_LOCALE_ID. */
     readonly resolvedLocale = computed(() => this.locale() ?? this.globalLocale());
 
-    /** Emits on every user-driven change — typing, stepper buttons, arrow keys, wheel, and the clamp applied on blur. Not emitted for {@link writeValue} or {@link value} input changes. */
-    readonly valueChange = output<number | null>();
 
     readonly inputRef = viewChild.required<InputComponent>('inputRef');
 
@@ -130,19 +139,14 @@ export class NumberInputComponent implements ControlValueAccessor {
 
     /** Parses raw typed text (empty or unparsable becomes `null`) and publishes it. Deliberately does not clamp — {@link onBlur} does that once editing ends. */
     onInputChange(raw: string): void {
-        const parsed = this.parseValue(raw);
-        this._currentValue.set(parsed);
-        this.onChange(parsed);
-        this.valueChange.emit(parsed);
+        this.commit(this.parseValue(raw));
     }
 
     /** Clamps the typed value into {@link min}/{@link max}, emitting only if that actually changed it, then marks the control touched. */
     onBlur(): void {
         const clamped = this.clamp(this._currentValue());
         if (clamped !== this._currentValue()) {
-            this._currentValue.set(clamped);
-            this.onChange(clamped);
-            this.valueChange.emit(clamped);
+            this.commit(clamped);
         }
         this.onTouched();
     }
@@ -220,8 +224,17 @@ export class NumberInputComponent implements ControlValueAccessor {
     }
 
     private updateValue(value: number | null): void {
+        this.commit(value);
+    }
+
+    /**
+     * The one path a user-driven change takes: store it, notify the form, then
+     * publish it through the {@link value} model, which emits `valueChange`
+     * exactly once.
+     */
+    private commit(value: number | null): void {
         this._currentValue.set(value);
         this.onChange(value);
-        this.valueChange.emit(value);
+        this.value.set(value);
     }
 }

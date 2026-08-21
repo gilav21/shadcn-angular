@@ -2,14 +2,17 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
+    model,
     computed,
-    signal,
     ElementRef,
     inject,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
 import { UI_LOCALE_ID, formatNumber } from '../../lib/i18n';
+
+/** Track bounds used when {@link SliderComponent.min} / {@link SliderComponent.max} are left unset. */
+const DEFAULT_MIN = 0;
+const DEFAULT_MAX = 100;
 
 @Component({
     selector: 'ui-slider',
@@ -24,9 +27,19 @@ export class SliderComponent {
     private readonly el = inject(ElementRef);
 
     /** Lower bound of the range. Must be less than {@link max}, otherwise the fill percentage logs an error and falls back to 0. */
-    min = input(0);
+    min = input<number | undefined>(DEFAULT_MIN);
     /** Upper bound of the range. Must be greater than {@link min}. */
-    max = input(100);
+    max = input<number | undefined>(DEFAULT_MAX);
+
+    /**
+     * {@link min} / {@link max} with their defaults applied. Every bound
+     * calculation reads these, never the raw inputs: the Signal Forms `Field`
+     * directive binds `min` and `max` from the field's schema, so a field with
+     * no such rule pushes `undefined` in, and an unresolved `undefined` would
+     * turn every percentage into `NaN`.
+     */
+    readonly resolvedMin = computed(() => this.min() ?? DEFAULT_MIN);
+    readonly resolvedMax = computed(() => this.max() ?? DEFAULT_MAX);
     /** Granularity that pointer, arrow-key and Page-key changes snap to; Page Up/Down move ten steps at once. */
     step = input(1);
     /** Dims the slider and blocks pointer events, and short-circuits every keyboard and drag handler. */
@@ -49,10 +62,16 @@ export class SliderComponent {
     private readonly globalLocale = inject(UI_LOCALE_ID);
     /** Locale-formatted value text, e.g. `'1,234.5'` in en or `'1.234,5'` in de. */
     readonly valueText = computed(() => formatNumber(this.value(), this.locale() ?? this.globalLocale()));
-    /** Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. */
-    valueChange = output<number>();
-
-    value = signal(0);
+    /**
+     * The slider position, as a two-way `model()`. Emits on every value change
+     * from dragging, tapping the track or keyboard input — including each
+     * intermediate value during a drag.
+     *
+     * Being a `ModelSignal` is what makes this component a valid Signal Forms
+     * `FormValueControl`, and it doubles as the `valueChange` output: Angular
+     * derives the output from the model, so there is no separate declaration.
+     */
+    value = model(0);
 
     /** Whether the host resolves to a right-to-left direction; flips the fill/thumb positioning and the arrow-key direction. */
     rtl(): boolean {
@@ -67,8 +86,8 @@ export class SliderComponent {
     }
 
     percentage = computed(() => {
-        const min = this.min();
-        const max = this.max();
+        const min = this.resolvedMin();
+        const max = this.resolvedMax();
         if (min >= max) {
             console.error('[ui-slider] min should be less than max');
             return 0;
@@ -155,8 +174,8 @@ export class SliderComponent {
         if (this.disabled()) return;
 
         const step = this.step();
-        const min = this.min();
-        const max = this.max();
+        const min = this.resolvedMin();
+        const max = this.resolvedMax();
         let newValue = this.value();
         const isRtl = this.rtl();
 
@@ -193,7 +212,6 @@ export class SliderComponent {
 
         if (newValue !== this.value()) {
             this.value.set(newValue);
-            this.valueChange.emit(newValue);
         }
     }
 
@@ -217,8 +235,8 @@ export class SliderComponent {
         }
 
         percent = Math.max(0, Math.min(1, percent));
-        const min = this.min();
-        const max = this.max();
+        const min = this.resolvedMin();
+        const max = this.resolvedMax();
         const step = this.step();
 
         let newValue = min + percent * (max - min);
@@ -226,7 +244,6 @@ export class SliderComponent {
         newValue = Math.max(min, Math.min(max, newValue));
 
         this.value.set(newValue);
-        this.valueChange.emit(newValue);
     }
 
     /** Current value as a string, handy for template interpolation and test assertions. */

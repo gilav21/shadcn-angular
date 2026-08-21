@@ -2,7 +2,7 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
+    model,
     computed,
     signal,
     effect,
@@ -116,8 +116,19 @@ export class PhoneInputComponent implements ControlValueAccessor {
     readonly variant = input<PhoneInputVariant>('outline');
     /** Country list shown in the dropdown. Defaults to {@link DEFAULT_COUNTRIES}. */
     readonly countries = input<PhoneCountry[]>(DEFAULT_COUNTRIES);
-    /** External value (E.164 string). Use this for one-way binding without forms. */
-    readonly value = input<string | null>(null);
+    /**
+     * The phone number as an E.164 string, as a two-way `model()`. Use it for
+     * binding without forms.
+     *
+     * Being a `ModelSignal` is what makes this component a valid Signal Forms
+     * `FormValueControl`, and it doubles as the `valueChange` output: Angular
+     * derives the output from the model, so there is no separate declaration.
+     * A write from outside stays silent; only a user edit emits. Note that
+     * after a `writeValue` from a reactive form this still reads the pre-write
+     * value — the rendered state is {@link selectedCountry} +
+     * {@link nationalNumber}.
+     */
+    readonly value = model<string | null>(null);
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
     readonly locale = input<LocaleInput<PhoneInputLocale>>();
@@ -125,8 +136,6 @@ export class PhoneInputComponent implements ControlValueAccessor {
     protected readonly t = this.i18n.t;
     protected readonly dir = this.i18n.dir;
 
-    /** Emits the E.164-formatted phone number on every change (`''` when empty). */
-    readonly valueChange = output<string>();
 
     private readonly _selectedCountry = signal<PhoneCountry>(DEFAULT_COUNTRIES[0]);
     readonly selectedCountry = this._selectedCountry.asReadonly();
@@ -253,9 +262,14 @@ export class PhoneInputComponent implements ControlValueAccessor {
         this._nationalNumber.set(national);
     }
 
+    /**
+     * The one path a user-driven change takes: rebuild the E.164 string, notify
+     * the form, then publish it through the {@link value} model, which emits
+     * `valueChange` exactly once.
+     */
     private emitValue(): void {
         const e164 = buildE164(this._selectedCountry().dialCode, this._nationalNumber());
         this.onChange(e164);
-        this.valueChange.emit(e164);
+        this.value.set(e164);
     }
 }

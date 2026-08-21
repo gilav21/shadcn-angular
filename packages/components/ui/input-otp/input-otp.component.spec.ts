@@ -262,3 +262,80 @@ describe('InputOTP sub-components', () => {
         expect(fixture.componentInstance.index()).toBe(0);
     });
 });
+
+@Component({
+    template: `<ui-input-otp [(value)]="code" (valueChange)="emissions.push($event)" />`,
+    imports: [InputOTPComponent],
+})
+class TwoWayOtpHost {
+    readonly code = signal('');
+    readonly emissions: string[] = [];
+}
+
+/**
+ * Reference harness for the signal-forms readiness spec. `value` is already a
+ * `model()`, so these pass unchanged — they exist to pin the behaviour every
+ * converted control must reproduce.
+ *
+ * T-3 / T-4 are deliberately absent: `input-otp` is not a
+ * `ControlValueAccessor` (verified in the spec's §3.4.b inventory), so it has
+ * no `formControlName` or `writeValue` behaviour to assert.
+ */
+describe('InputOTPComponent — signal-forms readiness', () => {
+    const hidden = (fixture: ComponentFixture<unknown>): HTMLInputElement =>
+        fixture.debugElement.query(By.css('input')).nativeElement;
+
+    const type = (fixture: ComponentFixture<unknown>, text: string): void => {
+        const el = hidden(fixture);
+        el.value = text;
+        el.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+    };
+
+    const slotText = (fixture: ComponentFixture<unknown>): string[] =>
+        fixture.debugElement
+            .queryAll(By.css('[class*="border-y"]'))
+            .map(slot => slot.nativeElement.textContent.trim());
+
+    it('T-1: two-way [(value)] updates the model on user input', () => {
+        const fixture = TestBed.createComponent(TwoWayOtpHost);
+        fixture.detectChanges();
+
+        type(fixture, '123');
+
+        expect(fixture.componentInstance.code()).toBe('123');
+    });
+
+    it('T-2: two-way [(value)] updates the view when the model changes', () => {
+        const fixture = TestBed.createComponent(TwoWayOtpHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.code.set('42');
+        fixture.detectChanges();
+
+        expect(slotText(fixture).slice(0, 2)).toEqual(['4', '2']);
+    });
+
+    it('T-9: emits valueChange exactly once per user interaction', () => {
+        const fixture = TestBed.createComponent(TwoWayOtpHost);
+        fixture.detectChanges();
+
+        type(fixture, '123');
+
+        expect(fixture.componentInstance.emissions).toEqual(['123']);
+    });
+
+    it('T-10: does not re-emit when the value is set to the value it already holds', () => {
+        const fixture = TestBed.createComponent(TwoWayOtpHost);
+        fixture.detectChanges();
+        const otp: InputOTPComponent = fixture.debugElement
+            .query(By.directive(InputOTPComponent)).componentInstance;
+        type(fixture, '123');
+        fixture.componentInstance.emissions.length = 0;
+
+        otp.value.set('123');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.emissions).toEqual([]);
+    });
+});

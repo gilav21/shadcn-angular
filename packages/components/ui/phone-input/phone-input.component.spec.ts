@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
-import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
+import { Component, signal } from '@angular/core';
+import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
+import { By } from '@angular/platform-browser';
 import { PhoneInputComponent } from './phone-input.component';
 import { DEFAULT_COUNTRIES } from './phone-input-data';
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -74,24 +75,24 @@ describe('PhoneInputComponent', () => {
     });
 
     it('should emit E.164 on national number change', () => {
-        const emitted: string[] = [];
-        component.valueChange.subscribe(v => emitted.push(v));
+        const emitted: (string | null)[] = [];
+        component.value.subscribe((v: string | null) => emitted.push(v));
 
         component.onNationalChange('5551234567');
         expect(emitted[0]).toBe('+15551234567');
     });
 
     it('should strip non-digit chars when building E.164', () => {
-        const emitted: string[] = [];
-        component.valueChange.subscribe(v => emitted.push(v));
+        const emitted: (string | null)[] = [];
+        component.value.subscribe((v: string | null) => emitted.push(v));
 
         component.onNationalChange('(555) 123-4567');
         expect(emitted[0]).toBe('+15551234567');
     });
 
     it('should emit empty string when national number is empty', () => {
-        const emitted: string[] = [];
-        component.valueChange.subscribe(v => emitted.push(v));
+        const emitted: (string | null)[] = [];
+        component.value.subscribe((v: string | null) => emitted.push(v));
 
         component.onNationalChange('');
         expect(emitted[0]).toBe('');
@@ -401,5 +402,108 @@ describe('PhoneInputComponent — i18n integration', () => {
         fixture.detectChanges();
         const host = fixture.nativeElement.querySelector('[data-slot="phone-input"]');
         expect(host.getAttribute('dir')).toBe('rtl');
+    });
+});
+
+@Component({
+    template: `<ui-phone-input [(value)]="phone" (valueChange)="emissions.push($event)" />`,
+    imports: [PhoneInputComponent],
+})
+class TwoWayPhoneHost {
+    readonly phone = signal<string | null>(null);
+    readonly emissions: (string | null)[] = [];
+}
+
+@Component({
+    template: `
+        <form [formGroup]="form">
+            <ui-phone-input formControlName="phone" (valueChange)="emissions.push($event)" />
+        </form>
+    `,
+    imports: [PhoneInputComponent, ReactiveFormsModule],
+})
+class FormGroupPhoneHost {
+    readonly form = new FormGroup({ phone: new FormControl<string | null>(null) });
+    readonly emissions: (string | null)[] = [];
+}
+
+/** The reference harness from the signal-forms readiness spec, applied to `phone-input`. */
+describe('PhoneInputComponent — signal-forms readiness', () => {
+    const componentOf = (fixture: ComponentFixture<unknown>): PhoneInputComponent =>
+        fixture.debugElement.query(By.directive(PhoneInputComponent)).componentInstance;
+
+    it('T-1: two-way [(value)] updates the model on user input', () => {
+        const fixture = TestBed.createComponent(TwoWayPhoneHost);
+        fixture.detectChanges();
+
+        componentOf(fixture).onNationalChange('5551234567');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.phone()).toBe('+15551234567');
+    });
+
+    it('T-2: two-way [(value)] updates the view when the model changes', () => {
+        const fixture = TestBed.createComponent(TwoWayPhoneHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.phone.set('+442071234567');
+        fixture.detectChanges();
+
+        expect(componentOf(fixture).nationalNumber()).toBe('2071234567');
+        expect(componentOf(fixture).selectedCountry().dialCode).toBe('+44');
+    });
+
+    it('T-3: works with formControlName and reports value to the form group', () => {
+        const fixture = TestBed.createComponent(FormGroupPhoneHost);
+        fixture.detectChanges();
+
+        componentOf(fixture).onNationalChange('5551234567');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.form.value.phone).toBe('+15551234567');
+    });
+
+    it('T-4: writeValue from the form updates the rendered value', () => {
+        const fixture = TestBed.createComponent(FormGroupPhoneHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.form.setValue({ phone: '+442071234567' });
+        fixture.detectChanges();
+
+        expect(componentOf(fixture).nationalNumber()).toBe('2071234567');
+    });
+
+    it('T-9: emits valueChange exactly once per user edit', () => {
+        const fixture = TestBed.createComponent(TwoWayPhoneHost);
+        fixture.detectChanges();
+
+        componentOf(fixture).onNationalChange('5551234567');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.emissions).toEqual(['+15551234567']);
+    });
+
+    it('T-10: does not re-emit when writeValue is called with the current value', () => {
+        const fixture = TestBed.createComponent(TwoWayPhoneHost);
+        fixture.detectChanges();
+        const phone = componentOf(fixture);
+        phone.onNationalChange('5551234567');
+        fixture.detectChanges();
+        fixture.componentInstance.emissions.length = 0;
+
+        phone.writeValue('+15551234567');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.emissions).toEqual([]);
+    });
+
+    it('stays silent when the form writes a number the user did not type', () => {
+        const fixture = TestBed.createComponent(FormGroupPhoneHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.form.setValue({ phone: '+442071234567' });
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.emissions).toEqual([]);
     });
 });

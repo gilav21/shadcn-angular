@@ -213,7 +213,7 @@ describe('Slider Keyboard — additional keys', () => {
 
     it('emits valueChange only when the value changes', () => {
         let emitted: number | null = null;
-        component.valueChange.subscribe(v => (emitted = v));
+        component.value.subscribe((v: number) => (emitted = v));
         key('ArrowRight');
         expect(emitted).toBe(51);
     });

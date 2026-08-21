@@ -136,10 +136,16 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
      * Uncontrolled-style seed for the selection, applied by an `effect` whenever
      * it changes: an array replaces the whole selection, a non-array becomes a
      * single-item selection, `undefined` leaves the current selection alone.
-     * Setting it does *not* emit {@link valueChange}. Prefer `ngModel` /
+     * Setting it from outside does *not* emit `valueChange`. Prefer `ngModel` /
      * `formControl` ({@link writeValue}) — mixing both means the last writer wins.
+     *
+     * Being a `ModelSignal` is what makes this component a valid Signal Forms
+     * `FormValueControl`, and it doubles as the `valueChange` output: Angular
+     * derives the output from the model, so there is no separate declaration.
+     * Note that after a `writeValue` from a reactive form this still reads the
+     * pre-write value — {@link internalValue} is the rendered selection.
      */
-    readonly value = input<T | T[] | undefined>(undefined);
+    readonly value = model<AutocompleteValue<T> | undefined>(undefined);
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
     readonly locale = input<LocaleInput<CommonLocale>>();
@@ -154,15 +160,6 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
      * {@link debounceTime}.
      */
     searchChange = output<string>();
-    /**
-     * The new selection after {@link onSelect}, {@link removeItem} or a Backspace
-     * chip removal. Emits the option objects themselves (not
-     * {@link valueAttribute} keys): a `T[]` when {@link multiple} is set,
-     * otherwise the single option or `null` once the selection is empty.
-     * Not emitted for programmatic writes via {@link value} or {@link writeValue}.
-     */
-    valueChange = output<AutocompleteValue<T>>();
-
     open = signal(false);
     readonly dropdownSide = signal<'top' | 'bottom'>('bottom');
     /**
@@ -268,12 +265,13 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
 
         effect(() => {
             const val = this.value();
-            if (val !== undefined) {
-                if (Array.isArray(val)) {
-                    this.internalValue.set(val);
-                } else {
-                    this.internalValue.set([val]);
-                }
+            if (val === undefined) return;
+            if (val === null) {
+                this.internalValue.set([]);
+            } else if (Array.isArray(val)) {
+                this.internalValue.set(val);
+            } else {
+                this.internalValue.set([val]);
             }
         });
 
@@ -590,7 +588,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         }
 
         this.onChange(emitValue);
-        this.valueChange.emit(emitValue);
+        this.value.set(emitValue);
         this.onTouched();
     }
 

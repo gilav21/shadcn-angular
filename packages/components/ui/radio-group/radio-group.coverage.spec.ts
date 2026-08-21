@@ -147,7 +147,7 @@ describe('RadioGroup selectValue when disabled', () => {
     fixture.detectChanges();
 
     let emitted = false;
-    group.valueChange.subscribe(() => (emitted = true));
+    group.value.subscribe(() => (emitted = true));
     group.selectValue('nope');
 
     expect(group.internalValue()).toBeNull();

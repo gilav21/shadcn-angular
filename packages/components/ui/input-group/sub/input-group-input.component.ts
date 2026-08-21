@@ -4,6 +4,7 @@ import {
   input,
   computed,
   forwardRef,
+  model,
   signal,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
@@ -38,7 +39,13 @@ export class InputGroupInputComponent implements ControlValueAccessor {
   /** Disables the input. Combined with `FormControl.disable()` via {@link setDisabledState} — either source disables it. */
   disabled = input(false);
 
-  value = signal('');
+  /**
+   * The text, as a two-way `model()`. Written by user typing, by
+   * {@link writeValue} when a form pushes a value in, and by a `[(value)]`
+   * binding. Being a `ModelSignal` is what makes this component a valid Signal
+   * Forms `FormValueControl`.
+   */
+  readonly value = model('');
   private readonly formDisabled = signal(false);
   isDisabled = computed(() => this.disabled() || this.formDisabled());
 

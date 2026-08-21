@@ -18,8 +18,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 })
 class TestHostComponent {
     selectedValue = '';
-    onValueChange(value: string) {
-        this.selectedValue = value;
+    onValueChange(value: string | undefined) {
+        this.selectedValue = value ?? '';
     }
 }
 
@@ -278,8 +278,8 @@ describe('RadioGroup RTL Support', () => {
 })
 class LabelModeTestHostComponent {
     selectedValue = '';
-    onValueChange(value: string) {
-        this.selectedValue = value;
+    onValueChange(value: string | undefined) {
+        this.selectedValue = value ?? '';
     }
 }
 

@@ -13,7 +13,7 @@
         type="range"
         class="sr-only"
         min="0"
-        [max]="max()"
+        [max]="resolvedMax()"
         [step]="precision()"
         [value]="value()"
         [disabled]="isDisabled() || readonly()"

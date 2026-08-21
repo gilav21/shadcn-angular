@@ -4,6 +4,7 @@ import {
     input,
     computed,
     forwardRef,
+    model,
     signal,
     inject,
     viewChild,
@@ -142,7 +143,19 @@ export class InputComponent implements ControlValueAccessor {
         return v === 'outline' && this.group ? 'ghost' : v;
     });
 
-    readonly value = signal('');
+    /**
+     * The text, as a two-way `model()`. Written by user typing, by
+     * {@link writeValue} when a form pushes a value in, and by a `[(value)]`
+     * binding.
+     *
+     * Being a `ModelSignal` is what makes this component a valid Signal Forms
+     * `FormValueControl`. Unlike the controls that already had a hand-written
+     * `valueChange` output, this one never promised silence on a programmatic
+     * write — the output is new here — so there is no second signal and no
+     * suppression: the model is the single source of truth, and a form write
+     * keeps a `[(value)]` binding in sync instead of letting it drift.
+     */
+    readonly value = model('');
 
     private onChange: (value: string) => void = () => { };
     onTouched: () => void = () => { };
