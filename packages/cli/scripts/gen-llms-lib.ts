@@ -29,6 +29,10 @@ export type { ApiClass, ApiDocs, ApiMember };
 export interface RegistryEntry {
     readonly name: string;
     readonly files: readonly string[];
+    /** Extra component-root files installed alongside `files`. */
+    readonly peerFiles?: readonly string[];
+    /** Shared helpers installed from `packages/components/lib/`. */
+    readonly libFiles?: readonly string[];
     readonly description?: string;
     readonly category?: string;
     readonly dependencies?: readonly string[];
