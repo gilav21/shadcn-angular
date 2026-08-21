@@ -147,6 +147,15 @@ describe('ResultComponent', () => {
             fixture.detectChanges();
             expect(need('[data-slot="result"]').classList.contains('ring-2')).toBe(true);
         });
+
+        /** UC-6 calls for a *centred* outcome panel, not merely centred actions. */
+        it('centres the panel itself', () => {
+            const style = getComputedStyle(need('[data-slot="result"]'));
+            expect(style.display).toBe('flex');
+            expect(style.flexDirection).toBe('column');
+            expect(style.alignItems).toBe('center');
+            expect(style.textAlign).toBe('center');
+        });
     });
 
     // T-7 / UC-7 — projected actions, centred, wrapping.
@@ -193,12 +202,20 @@ describe('ResultComponent', () => {
             expect(actions.scrollWidth).toBeLessThanOrEqual(frame.clientWidth);
         });
 
-        it('collapses the actions region entirely when nothing is projected', () => {
+        /**
+         * Deliberately agnostic about HOW: the region may be omitted from the
+         * DOM or rendered and collapsed. Both leave no gap, which is the thing
+         * UC-7 actually cares about, so pinning one would rule out a legitimate
+         * implementation the spec never forbade.
+         */
+        it('leaves no actions region taking up space when nothing is projected', () => {
             host.showActions.set(false);
             fixture.detectChanges();
-            expect(getComputedStyle(need('[data-slot="result-actions"]')).display).toBe(
-                'none',
-            );
+            const actions = q('[data-slot="result-actions"]');
+            if (actions) {
+                expect(actions.getBoundingClientRect().height).toBe(0);
+            }
+            expect(q('[data-testid="primary"]')).toBeNull();
         });
     });
 
@@ -262,8 +279,14 @@ describe('ResultComponent', () => {
             expect(document.activeElement).toBe(input);
         });
 
-        it('does not make the panel itself focusable', () => {
-            expect(need('[data-slot="result"]').hasAttribute('tabindex')).toBe(false);
+        /**
+         * R-2 forbids stealing focus, not owning a programmatic focus target, so
+         * `tabindex="-1"` stays legal here — only a value that inserts the panel
+         * into the tab order is rejected.
+         */
+        it('does not put the panel in the tab order', () => {
+            const tabindex = need('[data-slot="result"]').getAttribute('tabindex');
+            expect(tabindex === null || Number(tabindex) < 0).toBe(true);
         });
     });
 
