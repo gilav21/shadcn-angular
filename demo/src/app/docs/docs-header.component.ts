@@ -35,6 +35,10 @@ import type { ComponentDoc } from './component-docs.types';
     selector: 'app-docs-header',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [DocsForComponent],
+    // A custom element defaults to display:inline, and vertical margin does
+    // not apply to an inline box — so the shell's space-y left this block flush
+    // against the demo above it once it moved below the router outlet.
+    host: { class: 'block' },
     template: `
     @if (soleComponent(); as name) {
       <div data-slot="docs-header">

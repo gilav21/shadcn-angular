@@ -52,6 +52,9 @@ import { DOCS_LOCALES } from './docs.locales';
         CollapsibleComponent, CollapsibleContentComponent, CollapsibleTriggerComponent,
         DocsApiComponent, DocsInstallComponent, IconComponent, RouterLink,
     ],
+    // Same reason as DocsHeaderComponent: an inline host cannot take the
+    // vertical margin its container hands out.
+    host: { class: 'block' },
     template: `
     @if (doc(); as component) {
       <div
