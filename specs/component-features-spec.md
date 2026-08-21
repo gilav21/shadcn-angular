@@ -223,7 +223,7 @@ the riskier components.
 | 4 | `tour`: write T-10, T-11, then implement `storageKey` persistence and branching | UC-7, UC-8 | ✅ Done | 2026-08-20 | 94 | Round 1 scored 90 on a genuine trap: `writeTourCompleted` sat unconditionally in `finish()`, but that is also the degenerate exit when no target resolves, so a consumer whose anchors had not yet rendered would permanently burn the flag. Persistence is now gated on `showedAStep`. The reviewer also caught one of my own tests being vacuous; it was replaced with the reachable case. |
 | 5 | `virtual-scroll`: write T-15, then implement horizontal + 2D virtualization | UC-11 | ✅ Done | 2026-08-20 | 95 | The chunk/measure machinery was extracted into a reusable `VirtualAxis` instantiated once per axis, so horizontal and 2D reuse it rather than duplicate it (§3.2). Round 1 scored 88: grid-mode scroll anchoring was silently dropped and the whole new measurement path was untested. Both fixed — `handleResizes` now accumulates a two-axis correction, with nine tests driving it directly. Round 2 scored 95 and caught a buffered-column anchoring asymmetry, also fixed. |
 | 6 | `command`: write T-4…T-7, then implement async sources, recent items, nested pages | UC-3…UC-5 | ✅ Done | 2026-08-20 | 92 | The staleness token is bumped at SCHEDULE time rather than call time, so a superseded answer can never land, and its `AbortSignal` fires. Async rows are exposed as `results()` for the consumer to render, leaving the content-projection item API untouched. The reviewer caught a real bug: the hydration effect read `recentLimit`, so changing it without a key wiped in-memory recents. |
-| 7 | `sortable`: write T-14, then implement nested lists | UC-10 | ✅ Done | 2026-08-20 | pending | Nesting is layered on the existing group registry: parent/child cross-list drops already worked, so only disambiguation and addressability were missing. Hit-testing picks the deepest containing peer instead of the first, and `SortableRegistryEntry.path` was made optional so the existing `sortable-registry.spec.ts` factory still satisfies the contract unedited. |
+| 7 | `sortable`: write T-14, then implement nested lists | UC-10 | ✅ Done | 2026-08-20 | pending | Nesting is layered on the existing group registry: parent/child cross-list drops already worked, so only disambiguation and addressability were missing. Hit-testing picks the deepest containing peer, and `SortableRegistryEntry.path` was made optional so the existing `sortable-registry.spec.ts` factory still satisfies the contract unedited. Round 1 scored 87 on two real defects: an item could be dropped into a list nested inside *itself*, detaching its own subtree, and `path` was omitted on the keyboard hand-off and both `landEffect` endpoints despite being documented "always present". Both fixed; the cycle guard was verified by probe. |
 | 8 | `kanban`: write T-12, T-13, then implement swimlanes | UC-9 | ✅ Done | 2026-08-20 | pending | Lanes render as a sibling template branch rather than a wrapper, so a board without `swimlaneBy` emits identical DOM. The string-vs-function split is load-bearing: only a property name can be inverted, so only then does a cross-lane drop reassign the field. `initiallyCollapsedSwimlanes` seeds exactly once so it cannot re-collapse a lane the user opened. |
 | 9 | `file-upload`: **re-check conflict with signal-forms bundle first**; write T-16, T-17, then implement directory drop + crop | UC-12, UC-13 | ✅ Done | 2026-08-20 | pending | Conflict re-check done first: no sibling branch has touched `file-upload`. Stayed transport-agnostic per §1.4. The subtle correctness point is drop-event lifetime — `DataTransferItemList` dies with the event, so every entry is snapshotted before the first await, and `readEntries` is drained in a loop because it answers ~100 at a time. |
 | 10 | Full regression sweep T-18, axe T-19, e2e T-20; update stories and demo pages for all eight | UC-14 | ✅ Done | 2026-08-20 | — | T-18 verified per FILE rather than in aggregate: all 13 original spec files still report their exact baseline counts (452 preserved) with 176 new tests alongside. Stories cover every new feature; only toast's demo page was extended, recorded as a deliberate omission. |
@@ -366,3 +366,23 @@ Three things prove the failures were environmental rather than regressions:
 The machine was running seven sibling wave agents plus concurrent Dockerized
 SonarQube scans, so worker contention is the plausible cause. Run each spec
 alone to get a trustworthy signal under that load.
+
+### The two defects the review gate caught that tests did not
+
+Worth recording, because both were invisible to a green suite:
+
+1. **stepper — stale async guard.** Only the async branch bumped `guardToken`,
+   so a synchronous move landing while a guard was in flight did not invalidate
+   it. The stale promise then resolved and snapped the stepper back, emitting
+   `stepChange` twice. Every existing test passed throughout, because none of
+   them mixed a sync and an async move.
+2. **sortable — self-subtree drop.** An outline row hosts its own child list,
+   which registers in the same group, so the pointer over that child made it
+   the deepest hit and therefore the winner. The drop detached the item's own
+   subtree from the tree. Verified by probe: disabling the guard line makes the
+   new test fail with `expected { listId: 'child-a' } to be null`.
+
+Both were found by a reviewer reading the code against the spec, not by the
+suite. Each is now covered by a test that fails on the pre-fix code — the
+standard applied throughout this bundle, since a test that passes either way
+proves nothing.
