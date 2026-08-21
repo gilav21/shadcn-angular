@@ -1,11 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { describe, it, expect, beforeEach } from 'vitest';
-import errorPageSource from './error-page.component.ts?raw';
 import {
     ErrorPageActionsComponent,
     ErrorPageComponent,
     ErrorPageIllustrationComponent,
+    type ErrorPageCode,
 } from './index';
 import { ERROR_PAGE_LOCALES } from './error-page.locales';
 
@@ -64,7 +64,7 @@ const EN = ERROR_PAGE_LOCALES['en'];
     ],
 })
 class HostComponent {
-    readonly code = signal('404');
+    readonly code = signal<ErrorPageCode>('404');
     readonly title = signal('');
     readonly description = signal('');
     readonly cls = signal('');
@@ -99,7 +99,7 @@ describe('ErrorPageComponent', () => {
         return el!;
     };
 
-    const withCode = (code: string) => {
+    const withCode = (code: ErrorPageCode) => {
         host.code.set(code);
         fixture.detectChanges();
     };
@@ -115,13 +115,44 @@ describe('ErrorPageComponent', () => {
 
     // R-3 / §3.3 — outputs only, no router dependency.
     describe('R-3 never depends on the router', () => {
-        it('does not import @angular/router', () => {
-            expect(errorPageSource).not.toContain('@angular/router');
+        /**
+         * R-3's failure mode is invisible to behavioural assertions: a component
+         * that injected `Router` would still emit both outputs and pass every
+         * other test in this file. So the guard reads the source instead.
+         *
+         * It scans EVERY `.ts` under the component folder, `sub/` included — a
+         * router smuggled into a sub-component would otherwise slip past — and
+         * strips comments first, so the spec's own
+         * `(goHome)="router.navigate(['/'])"` usage snippet can be quoted in a
+         * JSDoc block without failing the build. Only real code is inspected.
+         */
+        const sources = Object.entries(
+            import.meta.glob('./**/*.ts', {
+                query: '?raw',
+                import: 'default',
+                eager: true,
+            }) as Record<string, string>,
+        ).filter(([file]) => !file.endsWith('.spec.ts'));
+
+        const stripComments = (source: string) =>
+            source.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/[^\n]*/g, '');
+
+        it('finds source files to scan', () => {
+            expect(sources.length).toBeGreaterThan(0);
         });
 
-        it('does not reference Router or navigate in its source', () => {
-            expect(errorPageSource).not.toMatch(/\bRouter\b/);
-            expect(errorPageSource).not.toMatch(/\bnavigate\b/);
+        it.each([
+            ['@angular/router', /@angular\/router/],
+            ['Router', /\bRouter\b/],
+            ['navigate', /\bnavigate\b/],
+        ] as const)('never references %s in real code', (label, pattern) => {
+            for (const [file, source] of sources) {
+                expect(
+                    stripComments(source),
+                    `${file} must not reference ${label} — error-page emits ` +
+                        'goBack/goHome and leaves navigation to the consumer (spec §1.4)',
+                ).not.toMatch(pattern);
+            }
         });
     });
 
@@ -278,6 +309,29 @@ describe('ErrorPageComponent', () => {
         it('renders the title as a real h1', () => {
             const title = need('[data-slot="error-page-title"]');
             expect(title.tagName).toBe('H1');
+        });
+
+        /**
+         * §1.1 calls this a *full-page* state, which is the whole reason it owns
+         * the `<h1>`. A panel that merely hugged its content would satisfy every
+         * other assertion here, so the standing height and the centring are
+         * pinned explicitly.
+         */
+        it('stands as a full-page centred state', () => {
+            const style = getComputedStyle(need('[data-slot="error-page"]'));
+            expect(style.display).toBe('flex');
+            expect(style.flexDirection).toBe('column');
+            expect(style.alignItems).toBe('center');
+            expect(style.justifyContent).toBe('center');
+            expect(Number.parseFloat(style.minHeight)).toBeGreaterThan(0);
+        });
+
+        it('merges the class input onto the page', () => {
+            host.cls.set('bg-muted');
+            fixture.detectChanges();
+            expect(need('[data-slot="error-page"]').classList.contains('bg-muted')).toBe(
+                true,
+            );
         });
 
         it('renders exactly one h1', () => {
