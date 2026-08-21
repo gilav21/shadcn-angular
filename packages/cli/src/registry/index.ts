@@ -1818,6 +1818,13 @@ export const registry = defineRegistry({
     files: ['stat-card/index.ts', 'stat-card/stat-card.component.html', 'stat-card/stat-card.component.ts'],
     dependencies: ['badge', 'card'],
   },
+  result: {
+    name: 'result',
+    category: 'feedback',
+    description: 'Centred outcome panel for after an operation completes, with status icon, actions and a detail slot.',
+    tags: ['result', 'outcome', 'success', 'error', 'status'],
+    files: ['result/index.ts', 'result/result.component.html', 'result/result.component.ts', 'result/sub/result-detail.component.ts'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

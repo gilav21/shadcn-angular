@@ -52,6 +52,7 @@ export * from './sidebar';
 export * from './spinner';
 export * from './empty';
 export * from './stat-card';
+export * from './result';
 export * from './kbd';
 export * from './button-group';
 export * from './input-group';
