@@ -8,9 +8,25 @@ for Angular.
 
 > **NOTE:** This library is a collection of re-usable components that you can
 > copy and paste into your apps.
->
-> **VERSION:** Currently built using **Angular 21**. Further versions have
-> not been tested yet.
+
+<!-- BEGIN GENERATED: facts (npm run docs:readme) -->
+
+## 0 runtime dependencies
+
+All **165** components and addons install as source you own. **0** of them pull an npm package: the CLI copies TypeScript, HTML and CSS into your project and adds nothing to your `package.json`. There is no `@shadcn-angular/*` runtime to depend on, to keep in version lockstep, or to wait on for a fix — you edit the component in place.
+
+Registry today: 148 components, 17 opt-in addons, 10 composed blocks.
+
+## Tested versions
+
+| | Developed against | Verified in a consumer install |
+|---|---|---|
+| Angular | 21.2.17 | 20.3.0 |
+| TypeScript | 5.9.2 | 5.9.2 |
+
+"Verified in a consumer install" is not a compatibility promise on paper: every release runs the e2e suite, which `init`s a pristine Angular app, `add`s components into it exactly as a user would, and builds it with `strictTemplates`. Angular 20 and 21 are both covered.
+
+<!-- END GENERATED: facts -->
 
 ## Features
 

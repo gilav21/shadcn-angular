@@ -37,6 +37,10 @@
         "node_modules",
         "e2e/harness",
         "e2e/fixture-app",
-        "e2e/jest-fixture"
+        "e2e/jest-fixture",
+        // Recipe sources are written against the CONSUMER alias
+        // (@/components/ui/...) and are compiled in the fixture app by the
+        // `recipes` e2e spec, not by this program.
+        "e2e/recipes"
     ]
 }

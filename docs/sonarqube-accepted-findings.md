@@ -63,6 +63,7 @@ interactive role (it contains its own nested controls):
 | `file-viewer` content pane | Same: the `flex-1 overflow-auto` pane that scrolls the rendered document (PDF/DOCX/PPTX/image). Keyboard users reach it only via `tabindex="0"`; axe's `scrollable-region-focusable` requires it. |
 | `dock` container | Same: the dock strip is `overflow-x-auto` (it scrolls horizontally when the items exceed `max-w-[calc(100vw-2rem)]`), so axe requires the container to be focusable. The dock items themselves are separately focusable controls; the container is only a scrollport. |
 | `tree-item` header | An interactive composite: it carries `(click)` + `(keydown.enter)` + `(keydown.space)` activation and is the tree's per-item focus target, but it **contains** the expand-toggle `<button>`. It therefore can't be a native `<button>` (interactive nesting is invalid HTML) and can't take `role="button"` (a `button` role supports no focusable descendants — axe reports `nested-interactive`, a real WCAG 4.1.2 failure). The `tabindex="0"` is what makes its keyboard handlers reachable; removing it would strip keyboard activation from every tree item. |
+| `infinite-canvas` root | The engine's pannable/zoomable plane. It is a genuinely interactive widget — it owns `(pointerdown/move/up)`, `(wheel)` and `(keydown)` handlers, and arrow keys pan while `+`/`-` zoom — so `tabindex="0"` is what makes the whole component keyboard-operable at all (its spec's UC-12). No native control fits: it **contains** the consumer's projected item components, which have their own buttons and form controls, so a native `<button>` or `role="button"` would be invalid interactive nesting (axe `nested-interactive`, a real WCAG 4.1.2 failure). `role="application"` would satisfy "interactive" but is worse: it suppresses browse mode over every projected item, harming the accessibility of the consumer's own content. It is therefore a focusable labelled `role="region"`, the same shape as the scrollport cases above. |
 
 ## `Web:S6819` dialog — drawer
 
@@ -175,8 +176,40 @@ Result: Security Hotspots reviewed = 100%, 0 to-review.
 Chart/heatmap components render an inline `<svg>` carrying an ARIA role +
 `[attr.aria-label]` — the WAI-ARIA "complex graphic" pattern. S6819 wants a native
 `<img>`, which is impossible for inline SVG, so the role is required, not redundant.
-Scoped in `sonar-project.properties` to `*chart*`, `heatmap`, and `calendar-heatmap`
-component HTMLs only (raw non-chart elements stay checked).
+Scoped in `sonar-project.properties` to `*chart*`, `heatmap`, `calendar-heatmap`,
+`histogram`, `boxplot`, `candlestick` and `treemap` component HTMLs only (raw
+non-chart elements stay checked).
+
+### The `*chart*` glob is a pattern-level defect, not a four-name gap
+
+The last four are listed individually for a purely mechanical reason, and it is
+worth stating plainly because it will keep recurring:
+
+> **`packages/components/ui/*chart*/` silently fails to match any chart whose
+> folder name does not literally contain the substring `chart`.**
+
+`histogram`, `boxplot`, `candlestick` and `treemap` are all charts, all render the
+same inline-SVG-under-`role="group"` pattern, and **none of them contains
+`chart`** — so the family glob skips all four. `heatmap` and `calendar-heatmap`
+were already in this list for exactly the same reason, which means the workaround
+has now been applied three separate times.
+
+Confirmed against a real scan rather than assumed: the identical finding fires on
+`tree/sub/tree-item.component.html` ("Use `<address>` or `<details>` or
+`<fieldset>` or `<optgroup>` instead of the group role"), which is precisely what
+these four charts' containers would otherwise report.
+
+**Do not fix this by appending a fifth, sixth and seventh name.** The glob is
+matching on a naming coincidence rather than on what the files actually are. The
+next person to touch this should replace the name-matching with something that
+tracks the real property — for example an explicit chart-family list generated
+from the registry's `category: 'charts'`, or a marker the chart components
+themselves carry. Until then, every new chart not named `*chart*` needs a manual
+entry here and will otherwise fail the Sonar gate for a reason that has nothing
+to do with its code.
+
+The same glob shape is used for the CPD exclusions further down
+(`sonar.cpd.exclusions`), so it has the identical blind spot there.
 
 Which role: charts whose data points are keyboard-focusable (`tabindex="0"` on
 `<rect>`/`<circle>`) use **`role="group"`**, not `role="img"`. `role="img"` makes the
@@ -193,3 +226,39 @@ WCAG 4.1.2 failure, not a false positive. Static charts with no focusable data p
 dictionaries — every language carries the same key structure), the generated
 `registry/legacy-baselines.ts` hash table, and `emoji-data.ts` (a static lookup
 table). Real logic files (including all chart implementations) remain in CPD.
+
+## `Web:S6845` — `tabindex` on the infinite-canvas root
+
+`packages/components/ui/infinite-canvas/infinite-canvas.component.html`
+
+The rule objects to `tabindex` on a non-interactive element. The `<section>` it
+flags **is** interactive: it is the pan/zoom surface, and it handles
+`pointerdown`/`pointermove`/`wheel` plus a keyboard map (arrow keys pan,
+`+`/`-` zoom, `0` resets). Without `tabindex="0"` the canvas is unreachable by
+keyboard, which is the WCAG 2.1.1 failure the rule is nominally protecting
+against — so honouring it here would *cause* the defect it guards.
+
+The element is not silently a widget either: it carries `aria-label` and
+`aria-roledescription="pannable and zoomable canvas"`, and `e2e/harness/
+infinite-canvas` asserts that focusing it and pressing `ArrowRight` pans the
+plane on one axis only. Making it a `<button>` — the rule's usual remedy — is
+wrong: it is a 2-D manipulation surface, not a command.
+
+## `Web:ItemTagNotWithinContainerTagCheck` — `<dt>` in data-list-item
+
+`packages/components/ui/data-list/sub/data-list-item.component.html`
+
+The rule wants every `<dt>` surrounded by a `<dl>` **in the same file**. Here
+the `<dt>`/`<dd>` pair lives inside an `<ng-template #row>` that the parent
+`ui-data-list` stamps into its own `<dl>` via `ngTemplateOutlet` — so at
+runtime the container relationship holds exactly, and it is asserted by both
+`data-list.component.spec.ts` and `e2e/harness/data-list`, which check that
+`dl > *` yields only `DT`/`DD` with no wrapper element in between.
+
+This indirection is deliberate and load-bearing. The rows were previously
+projected with `display: contents` on the host, which does **not** satisfy
+`definition-list`/`dlitem`: those rules inspect the DOM tree, not the
+accessibility tree, so a host sitting between `<dl>` and `<dt>` is a *serious*
+axe violation whatever it computes to. Stamping through a template is what
+removes the host from the document entirely. A single-file static check cannot
+see across that boundary.

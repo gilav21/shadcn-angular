@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parseRegistryEntries, diffRegistryEntries } from './impact';
+import { parseRegistryEntries, diffRegistryEntries, blockForFile } from './impact';
+import { registry, getComponentNames } from '../../packages/cli/src/registry/index.js';
+import { ALL_COMPONENTS, specLabel } from './specs.js';
 
 /**
  * Faithful slice of the real registry shape — `defineRegistry({ <name>: {...} })`
@@ -92,5 +94,43 @@ describe('diffRegistryEntries', () => {
             .replace("dependencies: ['popover']", "dependencies: ['eyedropper', 'popover']");
         const changed = diffRegistryEntries(REGISTRY_BASE, head);
         expect([...changed].sort((a, b) => a.localeCompare(b))).toEqual(['button', 'color-picker']);
+    });
+});
+
+// T-12 — a change to a block must schedule that block's own e2e spec.
+// Blocks live in `packages/blocks/`, which the registry's `getComponentForFile`
+// (ui/ and lib/ only) does not recognise; before `blockForFile` existed, every
+// block edit mapped to NO component and the analyzer scheduled NOTHING.
+describe('block impact analysis', () => {
+    const blockNames = getComponentNames().filter(n => registry[n].type === 'block');
+
+    it('has blocks to analyse', () => {
+        expect(blockNames.length).toBeGreaterThan(0);
+    });
+
+    it('maps every block source file back to its block', () => {
+        for (const name of blockNames) {
+            for (const file of registry[name].files) {
+                expect(blockForFile(`packages/blocks/${file}`), file).toBe(name);
+            }
+        }
+    });
+
+    it('ignores paths outside packages/blocks/', () => {
+        expect(blockForFile('packages/components/ui/button/button.component.ts')).toBeNull();
+        expect(blockForFile('docs/directives.md')).toBeNull();
+    });
+
+    it('returns null for an unregistered file under packages/blocks/', () => {
+        expect(blockForFile('packages/blocks/login/not-a-real-file.ts')).toBeNull();
+    });
+
+    it('every block has an e2e spec the analyzer can schedule', () => {
+        const labels = new Set(ALL_COMPONENTS.map(specLabel));
+        for (const name of blockNames) {
+            const scheduled = ALL_COMPONENTS.some(s => s.names.includes(name));
+            expect(scheduled, `no e2e spec installs block "${name}"`).toBe(true);
+            expect(labels.has(name), `no spec labelled "${name}"`).toBe(true);
+        }
     });
 });

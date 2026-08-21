@@ -6,6 +6,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The workflow only reads the repository — it publishes nothing and comments
+# on nothing — so the token is scoped down from the default write-all.
+# CodeQL's actions/missing-workflow-permissions flags the absence of this.
+permissions:
+  contents: read
+
 # Cancel in-progress runs for the same branch — saves CI minutes when
 # someone pushes a fix on top of a still-running run.
 concurrency:
