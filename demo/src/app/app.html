@@ -96,8 +96,14 @@
       <div class="mx-auto w-full space-y-8 sm:space-y-12">
         <!-- Install command, StackBlitz link and generated API tables for
              whatever this route previews. Rendered once here rather than pasted
-             into 113 demo pages. -->
-        <app-docs-header [route]="activeComponent()" />
+             into 113 demo pages.
+
+             Deferred: it is secondary to the demo it annotates, and the ~850 KB
+             payload it renders is fetched lazily anyway, so it has no business
+             in the initial bundle. -->
+        @defer (on idle) {
+          <app-docs-header [route]="activeComponent()" />
+        }
         <router-outlet />
       </div>
     </div>

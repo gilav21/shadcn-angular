@@ -39,7 +39,9 @@ import type { ApiMemberDoc, ApiTableDoc } from './component-docs.types';
             </div>
             @if (table.inputs.length > 0) {
               <p class="text-xs font-semibold uppercase text-muted-foreground">{{ t().inputs }}</p>
-              <div class="overflow-x-auto">
+              <div
+                role="region"
+                [attr.aria-label]="table.className + ' ' + t().inputs">
                 <ui-table>
                   <ui-table-header>
                     <ui-table-row>
@@ -72,7 +74,9 @@ import type { ApiMemberDoc, ApiTableDoc } from './component-docs.types';
             }
             @if (table.outputs.length > 0) {
               <p class="text-xs font-semibold uppercase text-muted-foreground">{{ t().outputs }}</p>
-              <div class="overflow-x-auto">
+              <div
+                role="region"
+                [attr.aria-label]="table.className + ' ' + t().outputs">
                 <ui-table>
                   <ui-table-header>
                     <ui-table-row>
