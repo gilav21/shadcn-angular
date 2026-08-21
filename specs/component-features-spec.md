@@ -324,8 +324,14 @@ constrained by them rather than the other way round:
   Note on querying: the project's `**/coverage/**` exclusion does not match
   `coverage-*/`, so the generated lcov-report HTML contributes ~43k junk issues
   and swamps any project-wide search. Issues were therefore queried **per file
-  key**, validated against a positive control (a file known to have issues
-  returns them) so a zero could not be a false negative.
+  key**, validated against a positive control (`coverage-cli/lcov-report/base.css`
+  returns 5) so a zero could not be a false negative.
+
+  The result was also checked against the right analysis. `EXECUTION SUCCESS`
+  from the scanner is not enough — the server queues a compute-engine task
+  afterwards, and querying before it finishes silently returns the PREVIOUS
+  scan's issues. The final numbers here were taken only after
+  `/api/ce/task?id=…` reported `SUCCESS`.
 
 ### T-20 — e2e impact
 
