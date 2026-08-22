@@ -428,7 +428,7 @@ export class NodeEditorComponent {
 
   private updateDrag(event: PointerEvent): void {
     const drag = this.drag;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (drag?.pointerId !== event.pointerId) return;
 
     const world = this.canvas().screenToWorld({ x: event.clientX, y: event.clientY });
     const dx = world.x - drag.origin.x;

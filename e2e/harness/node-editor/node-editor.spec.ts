@@ -165,8 +165,13 @@ test('moves a node with shift+arrow, and does not pan the view', async ({ page }
     // while the camera moved further right than that, leaving the card visibly
     // further LEFT. Asserting only the world position would pass while the
     // thing a user sees went the wrong way.
-    const after = await card(page, 'alpha').boundingBox();
-    expect(after?.x ?? 0).toBeGreaterThan(before?.x ?? 0);
+    // Polled, not sampled once. The <p> above is re-rendered by Angular change
+    // detection, but the card is repositioned by the ENGINE on its next
+    // animation frame — so a single read taken the moment the text updates can
+    // beat the frame that moves the card, and did, about half the time.
+    await expect
+        .poll(async () => (await card(page, 'alpha').boundingBox())?.x ?? 0)
+        .toBeGreaterThan(before?.x ?? 0);
 });
 
 test('deletes the selection with Delete', async ({ page }) => {

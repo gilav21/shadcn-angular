@@ -3,32 +3,62 @@
 <!--
   The card and the ports are SIBLINGS, not parent and children.
 
-  The card is a control in its own right — focusable, selectable, the roving
-  tab stop — and so is each port. Nesting them tripped axe's
-  `nested-interactive`, and rightly: a screen reader cannot present a button
-  inside a button. As siblings they both position against the canvas item
-  wrapper, which is exactly the node's world box, so the geometry is unchanged.
+  Both are controls in their own right, and nesting them tripped axe's
+  `nested-interactive` — a screen reader cannot present a button inside a
+  button. As siblings they both position against the canvas item wrapper, which
+  is exactly the node's world box, so the geometry is unchanged.
+
+  The card is a real <button> when the editor owns its body, and a
+  non-widget group when a template is projected into it. That split is not
+  cosmetic: a projected body may legitimately contain the consumer's own
+  controls, and claiming `button` around them would recreate the very nesting
+  violation above. Where we cannot know what is inside, we do not claim it is
+  a button — the ports beside it and the editor's accessible tree carry the
+  interaction either way.
 -->
-<div
-  [class]="cardClasses()"
-  [attr.data-slot]="'node-editor-node'"
-  [attr.data-node]="current.id"
-  [attr.data-selected]="selected() ? 'true' : null"
-  [attr.data-locked]="current.locked ? 'true' : null"
-  [attr.aria-label]="ariaLabel()"
-  [attr.aria-pressed]="selected()"
-  [tabindex]="focused() ? 0 : -1"
-  role="button"
->
-  @if (bodyTemplate(); as body) {
+@if (bodyTemplate(); as body) {
+  <!--
+    A fieldset rather than a div carrying a group role: this repo's
+    accessibility work resolves ARIA roles to their native element wherever one
+    exists, and fieldset is the native grouping element. The min-w-0 in
+    projectedCardClasses is not optional — a fieldset's minimum inline size
+    defaults to its min-content width, which would let a wide projected body
+    push the card past the node's world box.
+  -->
+  <fieldset
+    [class]="projectedCardClasses()"
+    [attr.data-slot]="'node-editor-node'"
+    [attr.data-node]="current.id"
+    [attr.data-selected]="selected() ? 'true' : null"
+    [attr.data-locked]="current.locked ? 'true' : null"
+    [attr.aria-label]="ariaLabel()"
+    [tabindex]="focused() ? 0 : -1"
+  >
     <ng-container [ngTemplateOutlet]="body" [ngTemplateOutletContext]="{ $implicit: current }" />
-  } @else {
-    <div
+  </fieldset>
+} @else {
+  <!--
+    Spans rather than divs inside the button: a button element takes phrasing
+    content only, and flow content inside one is invalid even though browsers
+    render it anyway. Flex layout makes the spans behave identically.
+  -->
+  <button
+    type="button"
+    [class]="cardClasses()"
+    [attr.data-slot]="'node-editor-node'"
+    [attr.data-node]="current.id"
+    [attr.data-selected]="selected() ? 'true' : null"
+    [attr.data-locked]="current.locked ? 'true' : null"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-pressed]="selected()"
+    [tabindex]="focused() ? 0 : -1"
+  >
+    <span
       class="flex flex-col justify-center gap-0.5 overflow-hidden rounded-t-lg border-b px-3"
       [style.min-height.px]="headerHeight"
       [attr.data-slot]="'node-editor-node-header'"
     >
-      <div class="flex items-center gap-2">
+      <span class="flex items-center gap-2">
         @if (current.accent) {
           <span
             class="size-2 shrink-0 rounded-full"
@@ -39,7 +69,7 @@
         <span class="truncate text-sm font-medium" [attr.data-slot]="'node-editor-node-title'">{{
           current.title
         }}</span>
-      </div>
+      </span>
       @if (current.subtitle) {
         <span
           class="truncate text-[11px] text-muted-foreground"
@@ -47,9 +77,9 @@
           >{{ current.subtitle }}</span
         >
       }
-    </div>
-  }
-</div>
+    </span>
+  </button>
+}
 
 @for (port of current.ports; track port.id) {
   <ui-node-editor-port

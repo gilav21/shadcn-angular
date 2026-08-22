@@ -9,6 +9,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import axe from 'axe-core';
 import { NodeEditorComponent } from './node-editor.component';
+import { NodeEditorNodeDirective } from './node-editor-node.directive';
 import type { EditorNode, NodeConnection } from './node-editor.types';
 
 const NODES: EditorNode[] = [
@@ -273,5 +274,107 @@ describe('NodeEditorComponent accessibility (T-10)', () => {
             expect(portBox?.height ?? 0).toBeGreaterThan(dotBox?.height ?? 0);
             expect(portBox?.width ?? 0).toBeGreaterThan(dotBox?.width ?? 0);
         });
+    });
+});
+
+/**
+ * A projected node body containing the consumer's OWN control.
+ *
+ * This is the case the card's role split exists for, and it is a realistic one:
+ * the library's whole dual-mode philosophy invites a consumer to put a
+ * ui-button in a node. If the card claimed `button` around it, that is a button
+ * inside a button — the exact `nested-interactive` violation already fixed once
+ * by moving the ports out of the card.
+ */
+@Component({
+    standalone: true,
+    imports: [NodeEditorComponent, NodeEditorNodeDirective],
+    template: `
+    <ui-node-editor class="h-[400px] w-[900px]" [nodes]="nodes()" ariaLabel="Projected">
+      <ng-template uiNodeEditorNode let-node>
+        <div class="p-2">
+          <span>{{ node.title }}</span>
+          <button type="button">Run</button>
+        </div>
+      </ng-template>
+    </ui-node-editor>
+  `,
+})
+class ProjectedHostComponent {
+    readonly nodes = signal<readonly EditorNode[]>(NODES);
+}
+
+describe('a projected node body is not claimed as a button', () => {
+    let fixture: ComponentFixture<ProjectedHostComponent>;
+    let root: HTMLElement;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [ProjectedHostComponent] })
+            .compileComponents();
+        fixture = TestBed.createComponent(ProjectedHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await nextFrame();
+        fixture.detectChanges();
+        root = fixture.nativeElement.querySelector('[data-slot="node-editor"]') as HTMLElement;
+        await nextFrame();
+    });
+
+    afterEach(() => fixture.destroy());
+
+    it('has no axe violations with a control projected into every card', async () => {
+        expect(await audit(root)).toEqual([]);
+    });
+
+    it('renders the card as a native grouping element, not a button', () => {
+        const cardEl = root.querySelector('[data-slot="node-editor-node"]');
+        // A <fieldset> IS role=group, without spelling the role out — this
+        // repo resolves ARIA roles to native elements wherever one exists.
+        expect(cardEl?.tagName).toBe('FIELDSET');
+        expect(cardEl?.getAttribute('role')).toBeNull();
+    });
+
+    it('neutralises the fieldset min-width that would blow out the card', () => {
+        const cardEl = root.querySelector('[data-slot="node-editor-node"]') as HTMLElement;
+        expect(getComputedStyle(cardEl).minInlineSize).toBe('0px');
+    });
+
+    it('still gives the card the roving tab stop', () => {
+        const cardEl = root.querySelector('[data-slot="node-editor-node"]');
+        expect(cardEl?.getAttribute('tabindex')).not.toBeNull();
+    });
+
+    it('still renders and wires the ports, which the template never sees', () => {
+        expect(root.querySelectorAll('[data-slot="node-editor-port"]').length)
+            .toBeGreaterThan(0);
+    });
+});
+
+describe('the default card IS a real button, not a div wearing the role', () => {
+    let fixture: ComponentFixture<A11yHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [A11yHostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(A11yHostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await nextFrame();
+        fixture.detectChanges();
+    });
+
+    afterEach(() => fixture.destroy());
+
+    it('uses a <button> element so it is keyboard operable without any ARIA', () => {
+        const cardEl = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-slot="node-editor-node"]',
+        );
+        expect(cardEl?.tagName).toBe('BUTTON');
+    });
+
+    it('contains only phrasing content — flow content in a button is invalid', () => {
+        const cardEl = (fixture.nativeElement as HTMLElement).querySelector(
+            '[data-slot="node-editor-node"]',
+        );
+        expect(cardEl?.querySelector('div')).toBeNull();
     });
 });

@@ -59,6 +59,9 @@ export class NodeEditorNodeComponent {
   protected readonly cardClasses = computed(() =>
     cn(
       'relative h-full w-full overflow-visible rounded-lg border bg-card text-card-foreground shadow-sm',
+      // The default card is a real <button>, so the UA's own button styling has
+      // to be neutralised: it would otherwise impose its font and centre the text.
+      'appearance-none text-start font-[inherit]',
       'transition-[box-shadow,border-color]',
       this.selected() ? 'border-primary ring-2 ring-primary/40' : 'border-border',
       this.node().locked ? 'cursor-default' : 'cursor-grab active:cursor-grabbing',
@@ -82,9 +85,17 @@ export class NodeEditorNodeComponent {
     return parts.join(', ');
   });
 
+  /**
+   * The projected variant is a `<fieldset>`, which brings UA margin, padding
+   * and — the one that actually bites — `min-inline-size: min-content`.
+   */
+  protected readonly projectedCardClasses = computed(() =>
+    cn(this.cardClasses(), 'm-0 min-w-0 p-0'),
+  );
+
   protected dropStateFor(portId: string): PortDropState {
     const over = this.dropPort();
-    if (!over || over.node !== this.node().id || over.port !== portId) return null;
+    if (over?.node !== this.node().id || over.port !== portId) return null;
     return this.dropValid() ? 'valid' : 'invalid';
   }
 }

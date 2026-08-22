@@ -1,6 +1,6 @@
 # Node Editor — Architecture Spec
 
-**Status:** in progress · **Branch:** `feat/node-editor` · **Wave:** 1
+**Status:** T-1..T-14 complete, T-15 (Sonar gate) running · **Branch:** `feat/node-editor` · **Wave:** 1
 **Prerequisite:** `canvas-engine` (`ui/infinite-canvas`) — **on `specs/wave-0`,
 not yet on master.** This branch is cut from `specs/wave-0`; its PR cannot merge
 before #119 does.
@@ -309,20 +309,20 @@ risks:
 
 | # | Task | Gate |
 |---|---|---|
-| T-1 | Engine: `sourceAnchor`/`targetAnchor`/`curve` on `CanvasEdge` | Existing engine tests still green; new tests for anchored + bezier bounds |
-| T-2 | `node-editor.types.ts` | — |
-| T-3 | `layout.ts` — heights, port anchors | Unit: dot CSS top and edge anchor agree for every port |
-| T-4 | `validate.ts` — `canConnect`, cycle detection | Unit: one case per `ConnectRejection` |
-| T-5 | `graph.ts` — apply/remove, adjacency index | Unit: incremental anchor recompute |
-| T-6 | Node + port sub-components | 44×44 coarse-pointer targets |
-| T-7 | Editor component: render, select, drag | Component spec |
-| T-8 | Mouse connect / disconnect with pending edge | Component spec |
-| T-9 | Keyboard model + roving tabindex | Component spec, keyboard-only |
-| T-10 | Parallel accessible model + live region | a11y spec, axe clean |
-| T-11 | Stories | All variants |
-| T-12 | Demo page | Copy-paste examples |
-| T-13 | e2e harness | `npm run e2e -- node-editor` |
-| T-14 | Registry + playground | Sweep spec still passes |
+| ✅ T-1 | Engine: `sourceAnchor`/`targetAnchor`/`curve` on `CanvasEdge` | Existing engine tests still green; new tests for anchored + bezier bounds |
+| ✅ T-2 | `node-editor.types.ts` | — |
+| ✅ T-3 | `layout.ts` — heights, port anchors | Unit: dot CSS top and edge anchor agree for every port |
+| ✅ T-4 | `validate.ts` — `canConnect`, cycle detection | Unit: one case per `ConnectRejection` |
+| ✅ T-5 | `graph.ts` — apply/remove, adjacency index | Unit: incremental anchor recompute |
+| ✅ T-6 | Node + port sub-components | 44×44 coarse-pointer targets |
+| ✅ T-7 | Editor component: render, select, drag | Component spec |
+| ✅ T-8 | Mouse connect / disconnect with pending edge | Component spec |
+| ✅ T-9 | Keyboard model + roving tabindex | Component spec, keyboard-only |
+| ✅ T-10 | Parallel accessible model + live region | a11y spec, axe clean |
+| ✅ T-11 | Stories | All variants |
+| ✅ T-12 | Demo page | Copy-paste examples |
+| ✅ T-13 | e2e harness | `npm run e2e -- node-editor` |
+| ✅ T-14 | Registry + playground | Sweep spec still passes |
 | T-15 | Full gates | lint · tests · coverage · **`npm run sonar`** |
 
 **T-9 and T-10 are not optional polish.** Section 8 of the engine spec calls an
@@ -340,3 +340,76 @@ ship the thing every other library already has.
 | Keyboard connect and mouse connect diverge | Both call `canConnect`; a spec asserts the same rejection from both paths |
 | a11y tree cost at scale | Gated by `[a11yTreeLimit]`, measured before the default is fixed |
 | Depends on unmerged #119 | Branch cut from `specs/wave-0`; rebase onto master after it merges |
+
+---
+
+## 12. Build log
+
+### What the gates caught that review would not have
+
+Recorded because each is a class of defect, not a one-off:
+
+1. **A multiple selection could not be dragged.** Pressing an already-selected
+   node collapsed the selection to it, so the drag that followed moved one
+   node. The collapse is deferred to pointer-up-without-movement now. Caught by
+   the component spec.
+2. **`nested-interactive`.** The node card was `role="button"` and *contained*
+   the port buttons. A screen reader cannot present a button inside a button.
+   Card and ports are siblings inside the canvas item wrapper — which is the
+   node's world box either way, so the geometry did not change. Caught by axe.
+3. **A wrapper div with pointer and key handlers is not focusable.** Both a
+   lint error and a real defect: it reads as a control to a linter and to
+   nobody else. Delegation moved to the component host, which is what it
+   always was.
+4. **The engine panned on shift+arrow while a node had focus.** Its keydown
+   handler is on a DESCENDANT of ours, so on the bubble path it acted before
+   our `stopPropagation` ever ran: the node moved 8 units right in the graph
+   while the camera moved further, so on screen the card went *left*. Now a
+   capture-phase listener. **Only the e2e suite could see this** — a viewport
+   pan does not change a node's world coordinates, only where it is drawn, so
+   the unit test's assertion was blind to it by construction.
+5. **The playground gave a false reason.** `snippetSkipReason` said "no element
+   or attribute selector" for a component that plainly has one; the API-docs
+   payload the generator reads had simply not been regenerated. A stated reason
+   is not the same as a true one, and this would have silently cost the
+   component its StackBlitz playground while every gate stayed green.
+6. **The Storybook a11y runner was choking the machine and failing for it.**
+   `test-storybook` wraps Jest, whose default is one worker per CPU; each
+   worker drives its own Chromium against a *single* dev server. On 32 threads
+   that is 31 browsers queued on one server, `page.goto` exceeding 30s, and the
+   runner reporting "Test suite failed to run" — which reads like an
+   accessibility failure and is congestion. Capped at 4. The same staged set
+   went from 39 tests with suites failing to run, to 168 suites / 1084 tests
+   all passing.
+7. **`role="button"` on a div, where a real `<button>` belonged** (Sonar
+   Web:S6819). Fixed — but only for the card the editor owns. When a template
+   is projected the card is a `role="group"` instead, because a projected body
+   may legitimately hold the consumer's own controls and claiming `button`
+   around them recreates item 2 exactly. The a11y spec now projects a real
+   `<button>` into every card and asserts axe stays clean, so the split cannot
+   be "simplified" away without the test saying why it exists. The default
+   card's header also became spans: `<button>` takes phrasing content only.
+8. **A 5s default timeout on a test that shells out to `git log --all`.** Fine
+   alone (~400ms), over budget under a full parallel suite. It reported "the
+   baseline is broken" when the truth was "git was busy". Given an explicit
+   30s budget.
+9. **An e2e assertion that raced the render.** The node's world position is
+   re-rendered by Angular change detection; the card is repositioned by the
+   ENGINE on its next animation frame. Reading the card's box the moment the
+   text updated beat that frame about half the time. Polled now — and the
+   distinction is the same one as item 4, arriving from the other direction.
+
+Items 4, 5 and 6 are the same failure mode this project keeps meeting: **a gate
+that asserts a proxy rather than the outcome.** Worth stating plainly, because
+it is now the most common source of wasted work here.
+
+### Not done
+
+- **Marquee select** (§5) — click, shift-click and Ctrl+A are in; dragging a
+  rectangle on empty plane is not. The plane's drag gesture is the engine's pan,
+  so this needs a modifier and a decision about which one.
+- **Edge selection by clicking a wire.** `hitTest` on the engine already
+  resolves an edge exactly; the selection model carries `connections` and
+  renders them thicker. Only the click-to-select wiring is missing.
+- **`a11yTreeLimit`'s default of 500 is still a placeholder**, exactly as §9
+  warned. It has not been measured.
