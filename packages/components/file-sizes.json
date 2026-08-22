@@ -8453,6 +8453,10 @@
       "bytes": 14804,
       "lines": 380
     },
+    "treemap/__screenshots__/treemap.utils.spec.ts/treemap-utils-squarify-scales-sub-quadratically-with-the-node-count-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "treemap/index.ts": {
       "bytes": 103,
       "lines": 3
