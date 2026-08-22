@@ -1907,6 +1907,11 @@ export const registry = defineRegistry({
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
+  'node-editor-node': {
+    name: 'node-editor-node',
+    files: ['node-editor/node-editor-node.directive.ts', 'node-editor/node-editor.types.ts'],
+    dependencies: ['infinite-canvas'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

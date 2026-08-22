@@ -1,0 +1,9 @@
+/*
+ * The canvas mounts each node into an absolutely positioned wrapper that is
+ * sized to the node's world box. Ports deliberately overhang that box by half
+ * a dot so the dot's centre lands on the node's edge, where the edge anchor
+ * is — so the wrapper must not clip them.
+ */
+:host ::ng-deep [data-slot='canvas-item'] {
+    overflow: visible;
+}

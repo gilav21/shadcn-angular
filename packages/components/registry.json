@@ -5336,5 +5336,15 @@
     "dependencies": [
       "button"
     ]
+  },
+  "node-editor-node": {
+    "name": "node-editor-node",
+    "files": [
+      "node-editor/node-editor-node.directive.ts",
+      "node-editor/node-editor.types.ts"
+    ],
+    "dependencies": [
+      "infinite-canvas"
+    ]
   }
 }

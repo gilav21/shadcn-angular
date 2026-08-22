@@ -1,0 +1,63 @@
+@let current = node();
+
+<!--
+  The card and the ports are SIBLINGS, not parent and children.
+
+  The card is a control in its own right — focusable, selectable, the roving
+  tab stop — and so is each port. Nesting them tripped axe's
+  `nested-interactive`, and rightly: a screen reader cannot present a button
+  inside a button. As siblings they both position against the canvas item
+  wrapper, which is exactly the node's world box, so the geometry is unchanged.
+-->
+<div
+  [class]="cardClasses()"
+  [attr.data-slot]="'node-editor-node'"
+  [attr.data-node]="current.id"
+  [attr.data-selected]="selected() ? 'true' : null"
+  [attr.data-locked]="current.locked ? 'true' : null"
+  [attr.aria-label]="ariaLabel()"
+  [attr.aria-pressed]="selected()"
+  [tabindex]="focused() ? 0 : -1"
+  role="button"
+>
+  @if (bodyTemplate(); as body) {
+    <ng-container [ngTemplateOutlet]="body" [ngTemplateOutletContext]="{ $implicit: current }" />
+  } @else {
+    <div
+      class="flex flex-col justify-center gap-0.5 overflow-hidden rounded-t-lg border-b px-3"
+      [style.min-height.px]="headerHeight"
+      [attr.data-slot]="'node-editor-node-header'"
+    >
+      <div class="flex items-center gap-2">
+        @if (current.accent) {
+          <span
+            class="size-2 shrink-0 rounded-full"
+            [style.background]="current.accent"
+            [attr.data-slot]="'node-editor-node-accent'"
+          ></span>
+        }
+        <span class="truncate text-sm font-medium" [attr.data-slot]="'node-editor-node-title'">{{
+          current.title
+        }}</span>
+      </div>
+      @if (current.subtitle) {
+        <span
+          class="truncate text-[11px] text-muted-foreground"
+          [attr.data-slot]="'node-editor-node-subtitle'"
+          >{{ current.subtitle }}</span
+        >
+      }
+    </div>
+  }
+</div>
+
+@for (port of current.ports; track port.id) {
+  <ui-node-editor-port
+    [port]="port"
+    [node]="current"
+    [metrics]="metrics()"
+    [connected]="connectedPorts().has(port.id)"
+    [dropState]="dropStateFor(port.id)"
+    [active]="activePort() === port.id"
+  />
+}

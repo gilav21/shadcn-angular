@@ -1,0 +1,22 @@
+@let current = port();
+
+<button
+  type="button"
+  tabindex="-1"
+  [class]="rowClasses()"
+  [style.top.px]="top()"
+  [style.height.px]="metrics().rowHeight"
+  [disabled]="current.disabled"
+  [attr.data-slot]="'node-editor-port'"
+  [attr.data-node]="node().id"
+  [attr.data-port]="current.id"
+  [attr.data-direction]="current.direction"
+  [attr.data-connected]="connected() ? 'true' : null"
+  [attr.data-drop]="dropState()"
+  [attr.aria-label]="ariaLabel()"
+>
+  <span [class]="dotClasses()" [attr.data-slot]="'node-editor-port-dot'"></span>
+  <span class="max-w-[72px] truncate" [attr.data-slot]="'node-editor-port-label'">{{
+    current.label
+  }}</span>
+</button>

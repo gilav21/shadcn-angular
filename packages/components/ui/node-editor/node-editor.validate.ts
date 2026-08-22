@@ -13,6 +13,7 @@
  * So validity is decided here, once, and both paths ask.
  */
 import type {
+  NodeId,
   ConnectRejection,
   ConnectResult,
   EditorNode,
@@ -91,14 +92,14 @@ function isOccupied(
  */
 function reaches(
   connections: readonly NodeConnection[],
-  start: string | number,
-  goal: string | number,
+  start: NodeId,
+  goal: NodeId,
 ): boolean {
-  const stack: (string | number)[] = [start];
-  const seen = new Set<string | number>();
+  const stack: (NodeId)[] = [start];
+  const seen = new Set<NodeId>();
 
   while (stack.length > 0) {
-    const current = stack.pop() as string | number;
+    const current = stack.pop() as NodeId;
     if (current === goal) return true;
     if (seen.has(current)) continue;
     seen.add(current);

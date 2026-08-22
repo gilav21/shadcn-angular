@@ -7,8 +7,8 @@
  * this is what feeds it.
  */
 import type { CanvasEdge } from '../infinite-canvas';
-import { portAnchor } from './node-editor.layout';
-import type { EditorNode, NodeConnection, PortRef } from './node-editor.types';
+import { defaultMetrics, portAnchor, type PortMetrics } from './node-editor.layout';
+import type { EditorNode, NodeConnection, NodeId, PortRef } from './node-editor.types';
 
 /** Stroke width of a normal edge, in screen pixels. */
 export const EDGE_WIDTH = 2;
@@ -20,7 +20,7 @@ export const PENDING_DASH = [6, 4] as const;
 /** Nodes keyed by id, for the anchor lookups below. */
 export function indexNodes(
   nodes: readonly EditorNode[],
-): ReadonlyMap<string | number, EditorNode> {
+): ReadonlyMap<NodeId, EditorNode> {
   return new Map(nodes.map(node => [node.id, node]));
 }
 
@@ -33,9 +33,9 @@ export function indexNodes(
  */
 export function adjacency(
   connections: readonly NodeConnection[],
-): ReadonlyMap<string | number, readonly string[]> {
-  const index = new Map<string | number, string[]>();
-  const add = (nodeId: string | number, connectionId: string): void => {
+): ReadonlyMap<NodeId, readonly string[]> {
+  const index = new Map<NodeId, string[]>();
+  const add = (nodeId: NodeId, connectionId: string): void => {
     const list = index.get(nodeId);
     if (list) list.push(connectionId);
     else index.set(nodeId, [connectionId]);
@@ -52,8 +52,8 @@ export function adjacency(
 
 /** The connection ids that must be re-anchored when these nodes move. */
 export function touchedBy(
-  index: ReadonlyMap<string | number, readonly string[]>,
-  nodeIds: Iterable<string | number>,
+  index: ReadonlyMap<NodeId, readonly string[]>,
+  nodeIds: Iterable<NodeId>,
 ): readonly string[] {
   const touched = new Set<string>();
   for (const nodeId of nodeIds) {
@@ -70,6 +70,8 @@ export interface EdgeStyle {
   readonly defaultColor?: string;
   /** Colour used for the selected ones. */
   readonly selectedColor?: string;
+  /** Port geometry; resolved from the device when omitted. */
+  readonly metrics?: PortMetrics;
 }
 
 /**
@@ -85,6 +87,7 @@ export function toCanvasEdges(
   style: EdgeStyle = {},
 ): CanvasEdge[] {
   const byId = indexNodes(nodes);
+  const metrics = style.metrics ?? defaultMetrics();
   const edges: CanvasEdge[] = [];
 
   for (const connection of connections) {
@@ -92,8 +95,8 @@ export function toCanvasEdges(
     const target = byId.get(connection.target);
     if (!source || !target) continue;
 
-    const sourceAnchor = portAnchor(source, connection.sourcePort);
-    const targetAnchor = portAnchor(target, connection.targetPort);
+    const sourceAnchor = portAnchor(source, connection.sourcePort, metrics);
+    const targetAnchor = portAnchor(target, connection.targetPort, metrics);
     if (!sourceAnchor || !targetAnchor) continue;
 
     const isSelected = style.selected?.has(connection.id) ?? false;
@@ -176,7 +179,7 @@ export function removeConnections(
 export function removeNodes(
   nodes: readonly EditorNode[],
   connections: readonly NodeConnection[],
-  ids: Iterable<string | number>,
+  ids: Iterable<NodeId>,
 ): { nodes: readonly EditorNode[]; connections: readonly NodeConnection[] } {
   const drop = new Set(ids);
   if (drop.size === 0) return { nodes, connections };

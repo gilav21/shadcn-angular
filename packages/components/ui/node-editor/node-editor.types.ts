@@ -6,6 +6,15 @@
  */
 import type { CanvasItem, CanvasPoint } from '../infinite-canvas';
 
+/**
+ * A node's identity.
+ *
+ * Named rather than spelled out at each use: it appears in the node, the
+ * connection, the port reference and the selection, and a bare
+ * `string | number` repeated that many times stops reading as one concept.
+ */
+export type NodeId = string | number;
+
 /** Which side of a node a port lives on, and which way data flows through it. */
 export type PortDirection = 'in' | 'out';
 
@@ -48,9 +57,9 @@ export interface EditorNode extends CanvasItem {
 /** An edge between one node's `out` port and another's `in` port. */
 export interface NodeConnection {
   id: string;
-  source: string | number;
+  source: NodeId;
   sourcePort: string;
-  target: string | number;
+  target: NodeId;
   targetPort: string;
   /** Any CSS colour. Defaults to the editor's themed stroke. */
   color?: string;
@@ -58,7 +67,7 @@ export interface NodeConnection {
 
 /** One end of a prospective or existing connection. */
 export interface PortRef {
-  node: string | number;
+  node: NodeId;
   port: string;
 }
 
@@ -103,6 +112,6 @@ export interface PendingConnection {
 
 /** What the editor currently has selected. */
 export interface EditorSelection {
-  readonly nodes: readonly (string | number)[];
+  readonly nodes: readonly (NodeId)[];
   readonly connections: readonly string[];
 }
