@@ -57,10 +57,17 @@ export interface CanvasItem {
   height: number;
 }
 
+/** How an edge is drawn between its two resolved endpoints. */
+export type CanvasEdgeCurve = 'line' | 'bezier';
+
 /**
- * A line between two items, drawn on the edge canvas. Endpoints are resolved
- * from the items' centres — routing is a `node-editor` concern, not an engine
- * one.
+ * A connection between two items, drawn on the edge canvas.
+ *
+ * Endpoints default to the items' centres. A consumer that attaches edges to
+ * something more specific than "the middle of the box" — a node editor's
+ * ports, an org-chart's connector stubs — supplies {@link sourceAnchor} /
+ * {@link targetAnchor} instead. The engine stays deliberately ignorant of what
+ * those offsets *mean*: it takes a point, not a port.
  */
 export interface CanvasEdge {
   id: string | number;
@@ -72,6 +79,18 @@ export interface CanvasEdge {
   width?: number;
   /** `setLineDash` pattern in world units. */
   dash?: readonly number[];
+  /**
+   * World-space offset from the **source item's origin** — not an absolute
+   * point, so the edge follows the item when it moves. Omitted means centre.
+   */
+  sourceAnchor?: CanvasPoint;
+  /** World-space offset from the target item's origin. Omitted means centre. */
+  targetAnchor?: CanvasPoint;
+  /**
+   * `'bezier'` draws a cubic with horizontal tangents, the convention every
+   * node-graph UI uses. Defaults to `'line'`.
+   */
+  curve?: CanvasEdgeCurve;
 }
 
 /** What `hitTest()` found under a point, in the engine's defined z-order. */

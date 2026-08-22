@@ -1,5 +1,11 @@
 import { rectsIntersect } from './infinite-canvas.transform';
-import type { CanvasEdge, CanvasItem, CanvasRect, CanvasViewport } from './infinite-canvas.types';
+import type {
+  CanvasEdge,
+  CanvasItem,
+  CanvasPoint,
+  CanvasRect,
+  CanvasViewport,
+} from './infinite-canvas.types';
 
 /**
  * The edge layer: one `<canvas>`, one draw loop, zero DOM per edge.
@@ -93,7 +99,14 @@ export class CanvasEdgeRenderer {
       const source = itemsById.get(edge.source);
       const target = itemsById.get(edge.target);
       if (!source || !target) continue;
-      this.cache.set(edge.id, buildCachedEdge(edge, centreOf(source), centreOf(target)));
+      this.cache.set(
+        edge.id,
+        buildCachedEdge(
+          edge,
+          anchorOf(source, edge.sourceAnchor),
+          anchorOf(target, edge.targetAnchor),
+        ),
+      );
     }
   }
 
@@ -200,27 +213,70 @@ interface StyleBatch {
   dash: readonly number[];
 }
 
-function centreOf(item: CanvasItem): { x: number; y: number } {
-  return { x: item.x + item.width / 2, y: item.y + item.height / 2 };
+/**
+ * Where an edge meets an item: the item's origin plus an optional world-space
+ * offset, defaulting to its centre.
+ *
+ * The offset is relative rather than absolute precisely so a moving item drags
+ * its edges with it — an absolute point would have to be recomputed by the
+ * consumer on every drag frame, and would silently detach the first time one
+ * was missed.
+ */
+function anchorOf(item: CanvasItem, offset?: CanvasPoint): CanvasPoint {
+  if (!offset) return { x: item.x + item.width / 2, y: item.y + item.height / 2 };
+  return { x: item.x + offset.x, y: item.y + offset.y };
 }
 
-function buildCachedEdge(
-  edge: CanvasEdge,
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-): CachedEdge {
+/**
+ * Horizontal control-point reach for a bezier edge, as a fraction of the
+ * endpoints' horizontal separation.
+ */
+const BEZIER_TENSION = 0.5;
+/**
+ * Floor on that reach, in world units. Without it two ports at nearly the same
+ * x collapse to a straight vertical line, losing the visual cue that tells the
+ * two directions apart.
+ */
+const BEZIER_MIN_REACH = 30;
+
+/** Control-point offset for a horizontal-tangent cubic between two points. */
+function bezierReach(from: CanvasPoint, to: CanvasPoint): number {
+  return Math.max(Math.abs(to.x - from.x) * BEZIER_TENSION, BEZIER_MIN_REACH);
+}
+
+function buildCachedEdge(edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): CachedEdge {
   const path = new Path2D();
   path.moveTo(from.x, from.y);
-  path.lineTo(to.x, to.y);
+
+  // The bounds must contain the CONTROL points, not just the endpoints. A
+  // cubic never leaves its control hull, so hull bounds are always safe; the
+  // curve's true extent is tighter, but culling an edge that is actually
+  // on-screen is a visible bug and a slightly loose AABB is not.
+  const xs = [from.x, to.x];
+  const ys = [from.y, to.y];
+
+  if (edge.curve === 'bezier') {
+    const reach = bezierReach(from, to);
+    const c1 = { x: from.x + reach, y: from.y };
+    const c2 = { x: to.x - reach, y: to.y };
+    path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, to.x, to.y);
+    xs.push(c1.x, c2.x);
+    ys.push(c1.y, c2.y);
+  } else {
+    path.lineTo(to.x, to.y);
+  }
+
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
 
   return {
     edge,
     path,
     bounds: {
-      x: Math.min(from.x, to.x) - AABB_PADDING,
-      y: Math.min(from.y, to.y) - AABB_PADDING,
-      width: Math.abs(to.x - from.x) + AABB_PADDING * 2,
-      height: Math.abs(to.y - from.y) + AABB_PADDING * 2,
+      x: minX - AABB_PADDING,
+      y: minY - AABB_PADDING,
+      width: Math.max(...xs) - minX + AABB_PADDING * 2,
+      height: Math.max(...ys) - minY + AABB_PADDING * 2,
     },
     styleKey: `${edge.color ?? DEFAULT_EDGE_COLOR}|${edge.width ?? DEFAULT_EDGE_WIDTH}|${(edge.dash ?? []).join(',')}`,
   };

@@ -267,3 +267,132 @@ function countOpaqueColumnPixels(canvas: HTMLCanvasElement, x: number): number {
   }
   return count;
 }
+
+// T-1 from `specs/node-editor-spec.md` §0 — anchored, curved edges.
+//
+// The node editor attaches edges to ports rather than item centres, and draws
+// them as curves. Rather than teach the engine what a port is, the engine
+// learned to take an offset and a curve style; these tests pin that contract,
+// and pin that the old behaviour is still exactly what you get by default.
+describe('T-1 — anchor offsets and curve style (node-editor prerequisite)', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+  });
+
+  afterEach(() => {
+    canvas.remove();
+  });
+
+  /** An edge is present at this world point if hit-testing finds it. */
+  function hitAt(x: number, y: number): string | number | undefined {
+    return renderer.hitTest(x, y, IDENTITY)?.id;
+  }
+
+  describe('an edge with no anchors is unchanged', () => {
+    it('still meets both items at their centres', () => {
+      renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], ITEMS);
+      // Centres are (5,5) and (205,5), so the midpoint of the run is (105,5).
+      expect(hitAt(105, 5)).toBe('e');
+      // …and nothing runs along the items' top edge at y=0.
+      expect(hitAt(105, -30)).toBeUndefined();
+    });
+  });
+
+  describe('an anchor offsets the endpoint from the item origin', () => {
+    it('draws from the offset point rather than the centre', () => {
+      // Tall items, so the top edge and the centre are further apart than the
+      // renderer's 6px hit tolerance — otherwise "not at the centre" is a
+      // claim the hit test cannot actually distinguish.
+      const tall = itemMap([
+        { id: 'a', x: 0, y: 0, width: 10, height: 80 },
+        { id: 'b', x: 200, y: 0, width: 10, height: 80 },
+      ]);
+      renderer.setEdges(
+        [{
+          id: 'e',
+          source: 'a',
+          target: 'b',
+          // y:0 anchors both ends to the items' top edge, 40 units above the
+          // centres a default edge would use.
+          sourceAnchor: { x: 10, y: 0 },
+          targetAnchor: { x: 0, y: 0 },
+        }],
+        tall,
+      );
+      expect(hitAt(105, 0)).toBe('e');
+      expect(hitAt(105, 40)).toBeUndefined();
+    });
+
+    it('is relative to the origin, so moving the item moves the edge with it', () => {
+      const edge: CanvasEdge = {
+        id: 'e',
+        source: 'a',
+        target: 'b',
+        sourceAnchor: { x: 10, y: 0 },
+        targetAnchor: { x: 0, y: 0 },
+      };
+      const moved = itemMap([
+        { id: 'a', x: 0, y: 100, width: 10, height: 10 },
+        { id: 'b', x: 200, y: 100, width: 10, height: 10 },
+      ]);
+      renderer.setEdges([edge], moved);
+
+      // The SAME edge object now runs 100 units lower, with no anchor edit.
+      expect(hitAt(105, 100)).toBe('e');
+      expect(hitAt(105, 0)).toBeUndefined();
+    });
+  });
+
+  describe("curve: 'bezier' bows the edge out horizontally", () => {
+    it('leaves the straight line the two endpoints would have formed', () => {
+      // Endpoints at (5,5) and (205,205): a straight edge passes through
+      // (105,105), a horizontal-tangent cubic does not.
+      const diagonal = itemMap([
+        { id: 'a', x: 0, y: 0, width: 10, height: 10 },
+        { id: 'b', x: 200, y: 200, width: 10, height: 10 },
+      ]);
+      renderer.setEdges([{ id: 'e', source: 'a', target: 'b', curve: 'bezier' }], diagonal);
+
+      // The midpoint of a symmetric horizontal-tangent cubic still sits at the
+      // centre, but the quarter points are pulled toward the horizontal.
+      expect(hitAt(55, 55)).toBeUndefined();
+      expect(hitAt(105, 105)).toBe('e');
+    });
+
+    it('bounds the curve by its control hull, so a near-vertical edge is not culled', () => {
+      // The worst case for a horizontal-tangent cubic: the endpoints are nearly
+      // vertically aligned, so the curve bulges sideways well past BOTH of
+      // them. Endpoint-only bounds would cull the bulge, and the visible part
+      // of the edge would vanish when the endpoints scrolled off.
+      const stacked = itemMap([
+        { id: 'a', x: 0, y: 0, width: 10, height: 10 },
+        { id: 'b', x: 0, y: 200, width: 10, height: 10 },
+      ]);
+      renderer.setEdges([{ id: 'e', source: 'a', target: 'b', curve: 'bezier' }], stacked);
+
+      // A viewport strictly to the RIGHT of both endpoints (x >= 20) contains
+      // no endpoint at all, yet the curve's bulge crosses it.
+      const rightOfBoth: CanvasRect = { x: 20, y: 0, width: 100, height: 210 };
+      expect(renderer.draw(IDENTITY, rightOfBoth)).toBe(1);
+    });
+  });
+
+  describe('anchors and curves compose with the existing batching', () => {
+    it('still collapses same-styled edges into one stroke call', () => {
+      renderer.setEdges(
+        [
+          { id: 'e1', source: 'a', target: 'b', curve: 'bezier' },
+          { id: 'e2', source: 'a', target: 'b', curve: 'bezier', sourceAnchor: { x: 10, y: 2 } },
+        ],
+        ITEMS,
+      );
+      expect(renderer.draw(IDENTITY, VIEW)).toBe(1);
+    });
+  });
+});
