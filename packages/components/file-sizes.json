@@ -3774,8 +3774,12 @@
       "lines": 2
     },
     "index.ts": {
-      "bytes": 5871,
-      "lines": 170
+      "bytes": 5902,
+      "lines": 171
+    },
+    "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/T-1---anchor-offsets-and-curve-style--node-editor-prerequisite--an-anchor-offsets-the-endpoint-from-the-item-origin-draws-from-the-offset-point-rather-than-the-centre-1.png": {
+      "bytes": 4290,
+      "lines": 3
     },
     "infinite-canvas/index.ts": {
       "bytes": 412,
@@ -3806,12 +3810,12 @@
       "lines": 651
     },
     "infinite-canvas/infinite-canvas.edge-renderer.spec.ts": {
-      "bytes": 9993,
-      "lines": 269
+      "bytes": 15168,
+      "lines": 398
     },
     "infinite-canvas/infinite-canvas.edge-renderer.ts": {
-      "bytes": 7346,
-      "lines": 227
+      "bytes": 9169,
+      "lines": 283
     },
     "infinite-canvas/infinite-canvas.integration.spec.ts": {
       "bytes": 12250,
@@ -3862,8 +3866,8 @@
       "lines": 208
     },
     "infinite-canvas/infinite-canvas.types.ts": {
-      "bytes": 2332,
-      "lines": 89
+      "bytes": 3181,
+      "lines": 108
     },
     "input-group/__screenshots__/input-group.component.spec.ts/InputGroupComponent-should-structure-content-correctly-1.png": {
       "bytes": 6415,
@@ -4384,6 +4388,102 @@
     "navigation-menu/sub/navigation-menu-trigger.component.ts": {
       "bytes": 2863,
       "lines": 83
+    },
+    "node-editor/__screenshots__/node-editor.a11y.spec.ts/NodeEditorComponent-accessibility--T-10--axe-has-no-violations-in-an-RTL-container-1.png": {
+      "bytes": 15658,
+      "lines": 14
+    },
+    "node-editor/__screenshots__/node-editor.a11y.spec.ts/NodeEditorComponent-accessibility--T-10--axe-has-no-violations-while-a-connection-is-being-dragged-1.png": {
+      "bytes": 20684,
+      "lines": 28
+    },
+    "node-editor/__screenshots__/node-editor.a11y.spec.ts/NodeEditorComponent-accessibility--T-10--axe-has-no-violations-with-a-populated-graph-1.png": {
+      "bytes": 18521,
+      "lines": 41
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-moves-the-whole-selection-when-a-selected-node-is-dragged-1.png": {
+      "bytes": 21593,
+      "lines": 51
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-rendering-renders-a-dot-for-every-port-1.png": {
+      "bytes": 21937,
+      "lines": 35
+    },
+    "node-editor/index.ts": {
+      "bytes": 339,
+      "lines": 8
+    },
+    "node-editor/node-editor-node.directive.ts": {
+      "bytes": 1731,
+      "lines": 48
+    },
+    "node-editor/node-editor.a11y.spec.ts": {
+      "bytes": 10659,
+      "lines": 277
+    },
+    "node-editor/node-editor.component.css": {
+      "bytes": 354,
+      "lines": 9
+    },
+    "node-editor/node-editor.component.html": {
+      "bytes": 3023,
+      "lines": 98
+    },
+    "node-editor/node-editor.component.spec.ts": {
+      "bytes": 22010,
+      "lines": 548
+    },
+    "node-editor/node-editor.component.ts": {
+      "bytes": 28326,
+      "lines": 795
+    },
+    "node-editor/node-editor.graph.spec.ts": {
+      "bytes": 8206,
+      "lines": 211
+    },
+    "node-editor/node-editor.graph.ts": {
+      "bytes": 6710,
+      "lines": 198
+    },
+    "node-editor/node-editor.layout.spec.ts": {
+      "bytes": 7204,
+      "lines": 191
+    },
+    "node-editor/node-editor.layout.ts": {
+      "bytes": 5493,
+      "lines": 144
+    },
+    "node-editor/node-editor.stories.ts": {
+      "bytes": 8404,
+      "lines": 220
+    },
+    "node-editor/node-editor.types.ts": {
+      "bytes": 3705,
+      "lines": 117
+    },
+    "node-editor/node-editor.validate.spec.ts": {
+      "bytes": 7262,
+      "lines": 186
+    },
+    "node-editor/node-editor.validate.ts": {
+      "bytes": 4923,
+      "lines": 145
+    },
+    "node-editor/sub/node-editor-node.component.html": {
+      "bytes": 2088,
+      "lines": 63
+    },
+    "node-editor/sub/node-editor-node.component.ts": {
+      "bytes": 3624,
+      "lines": 90
+    },
+    "node-editor/sub/node-editor-port.component.html": {
+      "bytes": 664,
+      "lines": 22
+    },
+    "node-editor/sub/node-editor-port.component.ts": {
+      "bytes": 4146,
+      "lines": 95
     },
     "number-input/index.ts": {
       "bytes": 43,

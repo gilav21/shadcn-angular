@@ -1,0 +1,68 @@
+@let text = t();
+
+<div class="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+  <header class="flex flex-col gap-2">
+    <h1 class="text-2xl font-bold tracking-tight sm:text-3xl">{{ text.heading }}</h1>
+    <p class="text-sm text-muted-foreground sm:text-base">{{ text.description }}</p>
+  </header>
+
+  <section class="flex flex-col gap-3" [attr.aria-label]="text.controls">
+    <div class="flex flex-wrap items-center gap-2">
+      <ui-button size="sm" variant="outline" (click)="addNode()">{{ text.addNode }}</ui-button>
+      <ui-button size="sm" variant="outline" (click)="reset()">{{ text.reset }}</ui-button>
+
+      <!--
+        ui-switch renders its OWN associated <label>, wired to a generated id.
+        Wrapping it in a label of our own leaves that label pointing at nothing
+        the linter (or a screen reader) can resolve.
+      -->
+      <ui-switch class="ms-2" [(checked)]="acyclic" [label]="text.acyclic" />
+      <ui-switch [(checked)]="snap" [label]="text.snapToGrid" />
+      <ui-switch [(checked)]="readonlyGraph" [label]="text.readonlyGraph" />
+    </div>
+
+    <dl class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" [attr.aria-label]="text.stats">
+      <div class="flex items-center gap-2">
+        <dt class="text-muted-foreground">{{ text.nodesLabel }}</dt>
+        <dd class="font-medium tabular-nums">{{ nodes().length }}</dd>
+      </div>
+      <div class="flex items-center gap-2">
+        <dt class="text-muted-foreground">{{ text.connectionsLabel }}</dt>
+        <dd class="font-medium tabular-nums">{{ connections().length }}</dd>
+      </div>
+      <div class="flex items-center gap-2">
+        <dt class="text-muted-foreground">{{ text.selectedLabel }}</dt>
+        <dd class="font-medium tabular-nums">{{ selectedCount() }}</dd>
+      </div>
+      <div class="flex items-center gap-2">
+        <dt class="text-muted-foreground">{{ text.lastRejection }}</dt>
+        <dd class="font-medium">{{ rejection() ?? text.none }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <div class="w-full overflow-hidden rounded-lg border">
+    <ui-node-editor
+      class="h-[350px] w-full sm:h-[450px] md:h-[600px]"
+      [(nodes)]="nodes"
+      [(connections)]="connections"
+      [(selection)]="selection"
+      [allowCycles]="!acyclic()"
+      [gridSnap]="gridSnap()"
+      [readonlyGraph]="readonlyGraph()"
+      [ariaLabel]="text.editorLabel"
+      (connectionRejected)="onRejected($event)"
+    />
+  </div>
+
+  <section class="flex flex-col gap-2" [attr.aria-label]="text.shortcuts">
+    <h2 class="text-sm font-semibold">{{ text.shortcuts }}</h2>
+    <ul class="flex flex-col gap-1 text-sm text-muted-foreground">
+      <li>{{ text.shortcutConnect }}</li>
+      <li>{{ text.shortcutUnplug }}</li>
+      <li>{{ text.shortcutMove }}</li>
+      <li>{{ text.shortcutKeyboard }}</li>
+      <li>{{ text.shortcutDelete }}</li>
+    </ul>
+  </section>
+</div>

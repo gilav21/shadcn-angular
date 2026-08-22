@@ -9806,6 +9806,255 @@
       ]
     },
     {
+      "name": "node-editor",
+      "description": "Graph of nodes with named ports: drag to connect, fully keyboard operable, screen-reader readable.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add node-editor",
+      "importStatement": "import { NodeEditorComponent } from '@/components/ui/node-editor';",
+      "selector": "ui-node-editor",
+      "dependencies": [
+        "infinite-canvas"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor />",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorComponent",
+          "file": "packages/components/ui/node-editor/node-editor.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor",
+          "description": "A graph of nodes with named ports, connected by edges between those ports. Built on `ui-infinite-canvas`, which supplies pan, zoom, virtualisation and the batched edge layer. This adds ports, port-anchored edges, connect and disconnect, node dragging, selection — and the keyboard and screen-reader model that makes all of it usable without a mouse, which is the part every other node-graph library omits. See `specs/node-editor-spec.md`. ### Why events are delegated rather than bound Node cards are created and recycled by the canvas's view pool as the viewport moves, so there is no stable binding scope to attach handlers to. The editor listens once at its root and resolves the target from `data-node` / `data-port`.",
+          "inputs": [
+            {
+              "name": "a11yTreeLimit",
+              "type": "number",
+              "description": "Above this node count the parallel accessible tree is summarised rather than rendered in full — it is the one part of the design that does not virtualise, being O(nodes) DOM by definition.",
+              "default": "500"
+            },
+            {
+              "name": "allowCycles",
+              "type": "boolean",
+              "description": "When `false`, a connection that would close a directed cycle is refused.",
+              "default": "true"
+            },
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "description": "",
+              "default": "'Node editor'"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes for the editor root. Give it a height here.",
+              "default": "''"
+            },
+            {
+              "name": "connections",
+              "type": "readonly NodeConnection[]",
+              "description": "Every connection in the graph.",
+              "default": "[]"
+            },
+            {
+              "name": "gridSnap",
+              "type": "number",
+              "description": "Snap dragged nodes to a world-unit grid. `0` disables snapping.",
+              "default": "0"
+            },
+            {
+              "name": "nodes",
+              "type": "readonly EditorNode[]",
+              "description": "Every node in the graph. Heights are derived and written back.",
+              "default": "[]"
+            },
+            {
+              "name": "readonlyGraph",
+              "type": "boolean",
+              "description": "Whether nodes may be moved, connected or deleted.",
+              "default": "false"
+            },
+            {
+              "name": "selection",
+              "type": "EditorSelection",
+              "description": "What is currently selected.",
+              "default": "EMPTY_SELECTION"
+            },
+            {
+              "name": "showGrid",
+              "type": "boolean",
+              "description": "",
+              "default": "true"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "connectionRejected",
+              "type": "ConnectionRejectedEvent",
+              "description": ""
+            },
+            {
+              "name": "connections",
+              "type": "readonly NodeConnection[]",
+              "description": "Every connection in the graph.",
+              "default": "[]"
+            },
+            {
+              "name": "nodes",
+              "type": "readonly EditorNode[]",
+              "description": "Every node in the graph. Heights are derived and written back.",
+              "default": "[]"
+            },
+            {
+              "name": "selection",
+              "type": "EditorSelection",
+              "description": "What is currently selected.",
+              "default": "EMPTY_SELECTION"
+            }
+          ]
+        },
+        {
+          "className": "NodeEditorNodeDirective",
+          "file": "packages/components/ui/node-editor/node-editor-node.directive.ts",
+          "kind": "directive",
+          "selector": "[uiNodeEditorNode]",
+          "description": "Marks the template that replaces a node card's default header. A `TemplateRef` rather than static content projection, for the same reason the canvas engine uses one: nodes are instantiated per *visible* node and recycled as the viewport moves, so there is no single place to project into. The template replaces the card's **body**. Ports keep being rendered and wired by the editor — see `NodeEditorNodeComponent`. ```html <ui-node-editor [nodes]=\"nodes()\" [connections]=\"connections()\"> <ng-template uiNodeEditorNode [ofType]=\"nodes()\" let-node> <my-fancy-node [data]=\"node\" /> </ng-template> </ui-node-editor> ```",
+          "inputs": [
+            {
+              "name": "ofType",
+              "type": "readonly T[] | undefined",
+              "description": "Type-inference anchor. Bind the same array passed to the editor's `nodes` and the template variables take that element type; the value itself is never read. Mirrors `uiInfiniteCanvasItem`'s `ofType`."
+            }
+          ],
+          "outputs": []
+        },
+        {
+          "className": "NodeEditorNodeComponent",
+          "file": "packages/components/ui/node-editor/sub/node-editor-node.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-node",
+          "description": "One node card on the plane. The card body is replaceable — project a `*uiNodeEditorNode` template and it renders in place of the default header. **The ports are not replaceable**: a projected template that rendered its own ports would have to re-derive the layout maths that keeps the dot and the wire together, and would get it wrong. So the editor keeps them in both modes. Like the port, this component handles no events of its own — the editor delegates from its root, because the canvas's view pool creates and recycles these elements outside any single binding scope.",
+          "inputs": [
+            {
+              "name": "activePort",
+              "type": "string | null",
+              "description": "The port the keyboard is currently on within this node.",
+              "default": "null"
+            },
+            {
+              "name": "bodyTemplate",
+              "type": "TemplateRef<NodeTemplateContext> | null",
+              "description": "Optional replacement for the default header.",
+              "default": "null"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "",
+              "default": "''"
+            },
+            {
+              "name": "connectedPorts",
+              "type": "ReadonlySet<string>",
+              "description": "Ports that already have at least one connection.",
+              "default": "new Set<string>()"
+            },
+            {
+              "name": "dropPort",
+              "type": "PortRef | null",
+              "description": "The port a connection is currently being dragged over, if it is on this node.",
+              "default": "null"
+            },
+            {
+              "name": "dropValid",
+              "type": "boolean",
+              "description": "Whether dropping on {@link dropPort} would be accepted.",
+              "default": "false"
+            },
+            {
+              "name": "focused",
+              "type": "boolean",
+              "description": "Whether this node holds the roving tab stop.",
+              "default": "false"
+            },
+            {
+              "name": "metrics",
+              "type": "PortMetrics",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "node",
+              "type": "EditorNode",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "selected",
+              "type": "boolean",
+              "description": "",
+              "default": "false"
+            }
+          ],
+          "outputs": []
+        },
+        {
+          "className": "NodeEditorPortComponent",
+          "file": "packages/components/ui/node-editor/sub/node-editor-port.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-port",
+          "description": "One connection point on a node. ### Why the whole row is the button The dot renders at 10px, which is nowhere near a usable tap target. The tap target is therefore the entire row — dot *and* label — which is as tall as `metrics.rowHeight` (44px on touch, per CLAUDE.md §6) and comfortably wide. Enlarging an invisible hit area around the dot instead would let adjacent ports overlap and steal each other's taps. ### Why it is positioned absolutely rather than laid out in flow The edge that meets this port is painted on a canvas, from a world-space anchor computed by `portOffsetTop`. If the dot's position came from normal flow instead, the two would be independent derivations of the same number and would eventually disagree. So the dot is placed *at* the anchor. The port does not handle its own events: the editor delegates from its root, because these elements are created and recycled by the canvas's view pool.",
+          "inputs": [
+            {
+              "name": "active",
+              "type": "boolean",
+              "description": "Set while this is the keyboard's current port within a focused node.",
+              "default": "false"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "",
+              "default": "''"
+            },
+            {
+              "name": "connected",
+              "type": "boolean",
+              "description": "Whether at least one connection already reaches this port.",
+              "default": "false"
+            },
+            {
+              "name": "dropState",
+              "type": "PortDropState",
+              "description": "Set while a connection is being dragged over this port.",
+              "default": "null"
+            },
+            {
+              "name": "metrics",
+              "type": "PortMetrics",
+              "description": "",
+              "required": true
+            },
+            {
+              "name": "node",
+              "type": "EditorNode",
+              "description": "The node this port belongs to — supplies the id and the layout geometry.",
+              "required": true
+            },
+            {
+              "name": "port",
+              "type": "NodePort",
+              "description": "",
+              "required": true
+            }
+          ],
+          "outputs": []
+        }
+      ]
+    },
+    {
       "name": "number-input",
       "description": "Numeric input with stepper buttons, min/max, and locale-aware formatting.",
       "category": "form",
@@ -11495,7 +11744,7 @@
           "file": "packages/components/ui/result/result.component.ts",
           "kind": "component",
           "selector": "ui-result",
-          "description": "Result — a centred in-page outcome panel shown after an operation completes: a form submit, a checkout, a bulk action. **It announces, but never interrupts and never focuses.** The panel is a `role=\"status\"` / `aria-live=\"polite\"` region for *every* status, error included. An assertive region cuts a screen reader off mid-sentence, which a result is not worth; and nothing here calls `.focus()`, so a panel appearing beside a form cannot pull the caret out of it. ```html <ui-result status=\"success\" title=\"Payment received\" description=\"We emailed your receipt.\"> <ui-button>Back to dashboard</ui-button> </ui-result> ``` Projected content lands in the actions row. For anything bulkier — an error dump, a summary table — project a `<ui-result-detail>`, which is pulled out of the default slot and rendered above the actions.",
+          "description": "Result — a centred in-page outcome panel shown after an operation completes: a form submit, a checkout, a bulk action. **It announces, but never interrupts and never focuses.** The panel is a native `<output>` — which carries the `status` role implicitly — combined with `aria-live=\"polite\"`, for *every* status, error included. The native element is used in preference to spelling the ARIA role out on a plain container: assistive-tech support for it is broader, and Sonar's Web:S6819 asks for exactly this. Note that `classes()` applies `flex`, so the element's default inline display never takes effect. An assertive region cuts a screen reader off mid-sentence, which a result is not worth; and nothing here calls `.focus()`, so a panel appearing beside a form cannot pull the caret out of it. ```html <ui-result status=\"success\" title=\"Payment received\" description=\"We emailed your receipt.\"> <ui-button>Back to dashboard</ui-button> </ui-result> ``` Projected content lands in the actions row. For anything bulkier — an error dump, a summary table — project a `<ui-result-detail>`, which is pulled out of the default slot and rendered above the actions.",
           "inputs": [
             {
               "name": "class",

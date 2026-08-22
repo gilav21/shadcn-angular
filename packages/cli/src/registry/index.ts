@@ -1907,9 +1907,13 @@ export const registry = defineRegistry({
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
-  'node-editor-node': {
-    name: 'node-editor-node',
-    files: ['node-editor/node-editor-node.directive.ts', 'node-editor/node-editor.types.ts'],
+  'node-editor': {
+    name: 'node-editor',
+    category: 'layout',
+    description: 'Graph of nodes with named ports: drag to connect, fully keyboard operable, screen-reader readable.',
+    tags: ['node-editor', 'graph', 'flow', 'ports', 'diagram', 'canvas', 'workflow'],
+    files: ['node-editor/index.ts', 'node-editor/node-editor-node.directive.ts', 'node-editor/node-editor.component.css', 'node-editor/node-editor.component.html', 'node-editor/node-editor.component.ts', 'node-editor/node-editor.graph.ts', 'node-editor/node-editor.layout.ts', 'node-editor/node-editor.types.ts', 'node-editor/node-editor.validate.ts', 'node-editor/sub/node-editor-node.component.html', 'node-editor/sub/node-editor-node.component.ts', 'node-editor/sub/node-editor-port.component.html', 'node-editor/sub/node-editor-port.component.ts'],
+    libFiles: ['sortable-aria-live.ts', 'touch.ts'],
     dependencies: ['infinite-canvas'],
   },
 });

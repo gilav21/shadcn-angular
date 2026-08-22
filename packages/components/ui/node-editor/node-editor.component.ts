@@ -117,6 +117,8 @@ interface DragState {
    * tab stop that does nothing. These handlers are not an element's behaviour;
    * they are the component catching events that bubbled up from the node cards
    * the canvas pool creates and recycles. The host is where that belongs.
+   *
+   * `keydown` is NOT here — see the capture-phase listener in the constructor.
    */
   host: {
     class: 'contents',
@@ -124,7 +126,6 @@ interface DragState {
     '(pointermove)': 'onPointerMove($event)',
     '(pointerup)': 'onPointerUp($event)',
     '(pointercancel)': 'onPointerUp($event)',
-    '(keydown)': 'onKeyDown($event)',
     '(focusin)': 'onNodeFocus($event)',
   },
 })
@@ -191,7 +192,29 @@ export class NodeEditorComponent {
   protected readonly activePort = signal<string | null>(null);
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.live.release());
+    /*
+     * Keys are captured, not bubbled.
+     *
+     * The engine's own keydown handler is on its <section>, which is a
+     * DESCENDANT of this host. On the bubble path the engine therefore acts
+     * first: pressing shift+Right nudged the node AND panned the viewport, so
+     * the node moved 8 units right in the world and the camera moved further
+     * than that, leaving it visibly further LEFT. Calling stopPropagation from
+     * a bubble listener is too late — the pan already happened.
+     *
+     * Capturing on the host runs before any descendant, so once a node has
+     * focus the arrow keys belong to the graph and the engine never sees them.
+     * Found by the e2e suite; the unit test missed it because a viewport pan
+     * does not change a node's world coordinates, only where it is drawn.
+     */
+    const element = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const onKeyDownCapture = (event: Event): void => this.onKeyDown(event as KeyboardEvent);
+    element.addEventListener('keydown', onKeyDownCapture, true);
+
+    inject(DestroyRef).onDestroy(() => {
+      element.removeEventListener('keydown', onKeyDownCapture, true);
+      this.live.release();
+    });
   }
 
   /** Nodes with their derived heights applied — what the canvas actually renders. */

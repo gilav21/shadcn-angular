@@ -219,6 +219,7 @@ export class AppComponent {
     { id: 'scroll-area', name: 'Scroll Area', category: 'Layout', icon: '📜' },
     { id: 'sidebar', name: 'Sidebar', category: 'Layout', icon: '📎' },
     { id: 'infinite-canvas', name: 'Infinite Canvas', category: 'Layout', icon: '🗺️' },
+    { id: 'node-editor', name: 'Node Editor', category: 'Layout', icon: '🕸️' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
 
     // Navigation

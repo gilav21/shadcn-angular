@@ -1,0 +1,295 @@
+import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
+
+export interface NodeEditorDemoLocale extends LocaleMeta {
+  heading: string;
+  description: string;
+  editorLabel: string;
+  controls: string;
+  acyclic: string;
+  snapToGrid: string;
+  readonlyGraph: string;
+  addNode: string;
+  reset: string;
+  stats: string;
+  nodesLabel: string;
+  connectionsLabel: string;
+  selectedLabel: string;
+  lastRejection: string;
+  none: string;
+  shortcuts: string;
+  shortcutConnect: string;
+  shortcutUnplug: string;
+  shortcutMove: string;
+  shortcutKeyboard: string;
+  shortcutDelete: string;
+}
+
+export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
+  en: {
+    code: 'en',
+    heading: 'Node Editor',
+    description:
+      'A graph of nodes with named ports, built on the infinite canvas. Everything here works from the keyboard, and the whole graph is mirrored as navigable text for screen readers.',
+    editorLabel: 'Pipeline editor',
+    controls: 'Controls',
+    acyclic: 'Acyclic only',
+    snapToGrid: 'Snap to grid',
+    readonlyGraph: 'Read only',
+    addNode: 'Add node',
+    reset: 'Reset graph',
+    stats: 'Graph',
+    nodesLabel: 'Nodes',
+    connectionsLabel: 'Connections',
+    selectedLabel: 'Selected',
+    lastRejection: 'Last refused connection',
+    none: 'None',
+    shortcuts: 'How to use it',
+    shortcutConnect: 'Drag from one port to another to connect them.',
+    shortcutUnplug: 'Grab the input end of a wire to unplug it; drop it in space to delete it.',
+    shortcutMove: 'Drag a card to move it. Shift-click to add to the selection.',
+    shortcutKeyboard:
+      'Keyboard: arrows move between nodes, Tab cycles that node’s ports, Enter connects, Escape cancels.',
+    shortcutDelete: 'Delete removes the selection. Ctrl+A selects everything.',
+  },
+  he: {
+    code: 'he',
+    rtl: true,
+    heading: 'עורך צמתים',
+    description:
+      'גרף של צמתים עם פורטים מוגדרים, הבנוי על הקנבס האינסופי. כל הפעולות זמינות גם מהמקלדת, והגרף כולו משתקף כטקסט נגיש לקוראי מסך.',
+    editorLabel: 'עורך צינור עיבוד',
+    controls: 'בקרות',
+    acyclic: 'ללא מעגלים',
+    snapToGrid: 'הצמדה לרשת',
+    readonlyGraph: 'קריאה בלבד',
+    addNode: 'הוספת צומת',
+    reset: 'איפוס הגרף',
+    stats: 'גרף',
+    nodesLabel: 'צמתים',
+    connectionsLabel: 'חיבורים',
+    selectedLabel: 'נבחרו',
+    lastRejection: 'החיבור האחרון שנדחה',
+    none: 'אין',
+    shortcuts: 'איך משתמשים',
+    shortcutConnect: 'גררו מפורט אחד לפורט אחר כדי לחבר ביניהם.',
+    shortcutUnplug: 'תפסו את קצה הקלט של חוט כדי לנתק אותו; שחררו בחלל ריק כדי למחוק אותו.',
+    shortcutMove: 'גררו כרטיס כדי להזיז אותו. Shift+לחיצה מוסיפה לבחירה.',
+    shortcutKeyboard:
+      'מקלדת: מקשי החצים עוברים בין צמתים, Tab מחליף בין הפורטים של הצומת, Enter מחבר, Escape מבטל.',
+    shortcutDelete: 'Delete מוחק את הבחירה. Ctrl+A בוחר הכול.',
+  },
+  ar: {
+    code: 'ar',
+    rtl: true,
+    heading: 'محرر العقد',
+    description:
+      'رسم بياني من العقد ذات منافذ مسماة، مبني على اللوحة اللانهائية. كل شيء هنا يعمل من لوحة المفاتيح، والرسم البياني بأكمله ينعكس كنص قابل للتصفح لقارئات الشاشة.',
+    editorLabel: 'محرر خط المعالجة',
+    controls: 'عناصر التحكم',
+    acyclic: 'بدون دورات',
+    snapToGrid: 'محاذاة للشبكة',
+    readonlyGraph: 'للقراءة فقط',
+    addNode: 'إضافة عقدة',
+    reset: 'إعادة تعيين الرسم',
+    stats: 'الرسم البياني',
+    nodesLabel: 'العقد',
+    connectionsLabel: 'الوصلات',
+    selectedLabel: 'المحدد',
+    lastRejection: 'آخر وصلة مرفوضة',
+    none: 'لا شيء',
+    shortcuts: 'كيفية الاستخدام',
+    shortcutConnect: 'اسحب من منفذ إلى آخر لربطهما.',
+    shortcutUnplug: 'امسك طرف الإدخال للسلك لفصله؛ أفلته في فراغ لحذفه.',
+    shortcutMove: 'اسحب البطاقة لتحريكها. Shift+نقر للإضافة إلى التحديد.',
+    shortcutKeyboard:
+      'لوحة المفاتيح: الأسهم تنقل بين العقد، Tab يتنقل بين منافذ العقدة، Enter يربط، Escape يلغي.',
+    shortcutDelete: 'Delete يحذف التحديد. Ctrl+A يحدد الكل.',
+  },
+  de: {
+    code: 'de',
+    heading: 'Node-Editor',
+    description:
+      'Ein Graph aus Knoten mit benannten Ports, aufgebaut auf dem unendlichen Canvas. Alles hier funktioniert per Tastatur, und der gesamte Graph wird als navigierbarer Text für Screenreader gespiegelt.',
+    editorLabel: 'Pipeline-Editor',
+    controls: 'Steuerung',
+    acyclic: 'Nur azyklisch',
+    snapToGrid: 'Am Raster ausrichten',
+    readonlyGraph: 'Schreibgeschützt',
+    addNode: 'Knoten hinzufügen',
+    reset: 'Graph zurücksetzen',
+    stats: 'Graph',
+    nodesLabel: 'Knoten',
+    connectionsLabel: 'Verbindungen',
+    selectedLabel: 'Ausgewählt',
+    lastRejection: 'Zuletzt abgelehnte Verbindung',
+    none: 'Keine',
+    shortcuts: 'Bedienung',
+    shortcutConnect: 'Von einem Port zu einem anderen ziehen, um sie zu verbinden.',
+    shortcutUnplug:
+      'Das Eingangsende einer Leitung greifen, um sie zu lösen; im freien Raum loslassen löscht sie.',
+    shortcutMove: 'Eine Karte ziehen, um sie zu bewegen. Umschalt+Klick erweitert die Auswahl.',
+    shortcutKeyboard:
+      'Tastatur: Pfeiltasten wechseln zwischen Knoten, Tab durchläuft dessen Ports, Enter verbindet, Escape bricht ab.',
+    shortcutDelete: 'Entf entfernt die Auswahl. Strg+A wählt alles aus.',
+  },
+  fr: {
+    code: 'fr',
+    heading: 'Éditeur de nœuds',
+    description:
+      'Un graphe de nœuds à ports nommés, bâti sur le canevas infini. Tout est utilisable au clavier, et le graphe entier est reflété en texte navigable pour les lecteurs d’écran.',
+    editorLabel: 'Éditeur de pipeline',
+    controls: 'Commandes',
+    acyclic: 'Acyclique uniquement',
+    snapToGrid: 'Aligner sur la grille',
+    readonlyGraph: 'Lecture seule',
+    addNode: 'Ajouter un nœud',
+    reset: 'Réinitialiser le graphe',
+    stats: 'Graphe',
+    nodesLabel: 'Nœuds',
+    connectionsLabel: 'Connexions',
+    selectedLabel: 'Sélection',
+    lastRejection: 'Dernière connexion refusée',
+    none: 'Aucune',
+    shortcuts: 'Utilisation',
+    shortcutConnect: 'Faites glisser d’un port à un autre pour les relier.',
+    shortcutUnplug:
+      'Saisissez l’extrémité d’entrée d’un fil pour le débrancher ; relâchez dans le vide pour le supprimer.',
+    shortcutMove: 'Faites glisser une carte pour la déplacer. Maj+clic ajoute à la sélection.',
+    shortcutKeyboard:
+      'Clavier : les flèches passent d’un nœud à l’autre, Tab parcourt ses ports, Entrée connecte, Échap annule.',
+    shortcutDelete: 'Suppr retire la sélection. Ctrl+A sélectionne tout.',
+  },
+  es: {
+    code: 'es',
+    heading: 'Editor de nodos',
+    description:
+      'Un grafo de nodos con puertos con nombre, construido sobre el lienzo infinito. Todo funciona con el teclado, y el grafo completo se refleja como texto navegable para lectores de pantalla.',
+    editorLabel: 'Editor de canalización',
+    controls: 'Controles',
+    acyclic: 'Solo acíclico',
+    snapToGrid: 'Ajustar a la cuadrícula',
+    readonlyGraph: 'Solo lectura',
+    addNode: 'Añadir nodo',
+    reset: 'Restablecer grafo',
+    stats: 'Grafo',
+    nodesLabel: 'Nodos',
+    connectionsLabel: 'Conexiones',
+    selectedLabel: 'Seleccionado',
+    lastRejection: 'Última conexión rechazada',
+    none: 'Ninguna',
+    shortcuts: 'Cómo usarlo',
+    shortcutConnect: 'Arrastra de un puerto a otro para conectarlos.',
+    shortcutUnplug:
+      'Agarra el extremo de entrada de un cable para desconectarlo; suéltalo en el vacío para eliminarlo.',
+    shortcutMove: 'Arrastra una tarjeta para moverla. Mayús+clic añade a la selección.',
+    shortcutKeyboard:
+      'Teclado: las flechas se mueven entre nodos, Tab recorre sus puertos, Intro conecta, Esc cancela.',
+    shortcutDelete: 'Supr elimina la selección. Ctrl+A selecciona todo.',
+  },
+  ja: {
+    code: 'ja',
+    heading: 'ノードエディター',
+    description:
+      '名前付きポートを持つノードのグラフで、無限キャンバス上に構築されています。すべてキーボードで操作でき、グラフ全体がスクリーンリーダー向けに移動可能なテキストとして反映されます。',
+    editorLabel: 'パイプラインエディター',
+    controls: 'コントロール',
+    acyclic: '非循環のみ',
+    snapToGrid: 'グリッドに吸着',
+    readonlyGraph: '読み取り専用',
+    addNode: 'ノードを追加',
+    reset: 'グラフをリセット',
+    stats: 'グラフ',
+    nodesLabel: 'ノード',
+    connectionsLabel: '接続',
+    selectedLabel: '選択中',
+    lastRejection: '直前に拒否された接続',
+    none: 'なし',
+    shortcuts: '使い方',
+    shortcutConnect: 'ポートから別のポートへドラッグすると接続されます。',
+    shortcutUnplug: '配線の入力側をつかむと外れます。何もない場所で離すと削除されます。',
+    shortcutMove: 'カードをドラッグすると移動します。Shift+クリックで選択に追加します。',
+    shortcutKeyboard:
+      'キーボード: 矢印キーでノード間を移動、Tab でそのノードのポートを巡回、Enter で接続、Escape で取り消し。',
+    shortcutDelete: 'Delete で選択を削除。Ctrl+A ですべて選択。',
+  },
+  zh: {
+    code: 'zh',
+    heading: '节点编辑器',
+    description:
+      '一个由带命名端口的节点组成的图，构建在无限画布之上。所有操作都支持键盘，并且整个图会以可导航的文本形式呈现给屏幕阅读器。',
+    editorLabel: '流水线编辑器',
+    controls: '控件',
+    acyclic: '仅无环',
+    snapToGrid: '对齐网格',
+    readonlyGraph: '只读',
+    addNode: '添加节点',
+    reset: '重置图',
+    stats: '图',
+    nodesLabel: '节点',
+    connectionsLabel: '连接',
+    selectedLabel: '已选中',
+    lastRejection: '上次被拒绝的连接',
+    none: '无',
+    shortcuts: '使用方法',
+    shortcutConnect: '从一个端口拖到另一个端口即可连接。',
+    shortcutUnplug: '抓住连线的输入端可将其拔出；放到空白处即可删除。',
+    shortcutMove: '拖动卡片可移动它。Shift+点击可加入选择。',
+    shortcutKeyboard:
+      '键盘：方向键在节点间移动，Tab 循环该节点的端口，Enter 连接，Escape 取消。',
+    shortcutDelete: 'Delete 删除所选。Ctrl+A 全选。',
+  },
+  ru: {
+    code: 'ru',
+    heading: 'Редактор узлов',
+    description:
+      'Граф из узлов с именованными портами, построенный на бесконечном холсте. Всё здесь работает с клавиатуры, а весь граф дублируется в виде текста, доступного для навигации экранными дикторами.',
+    editorLabel: 'Редактор конвейера',
+    controls: 'Управление',
+    acyclic: 'Только без циклов',
+    snapToGrid: 'Привязка к сетке',
+    readonlyGraph: 'Только чтение',
+    addNode: 'Добавить узел',
+    reset: 'Сбросить граф',
+    stats: 'Граф',
+    nodesLabel: 'Узлы',
+    connectionsLabel: 'Связи',
+    selectedLabel: 'Выбрано',
+    lastRejection: 'Последняя отклонённая связь',
+    none: 'Нет',
+    shortcuts: 'Как пользоваться',
+    shortcutConnect: 'Перетащите от одного порта к другому, чтобы соединить их.',
+    shortcutUnplug:
+      'Возьмите входной конец провода, чтобы отсоединить его; отпустите в пустоте, чтобы удалить.',
+    shortcutMove: 'Перетащите карточку, чтобы переместить её. Shift+клик добавляет к выделению.',
+    shortcutKeyboard:
+      'Клавиатура: стрелки перемещают между узлами, Tab перебирает порты узла, Enter соединяет, Escape отменяет.',
+    shortcutDelete: 'Delete удаляет выделение. Ctrl+A выделяет всё.',
+  },
+  pt: {
+    code: 'pt',
+    heading: 'Editor de nós',
+    description:
+      'Um grafo de nós com portas nomeadas, construído sobre o canvas infinito. Tudo aqui funciona pelo teclado, e o grafo inteiro é espelhado como texto navegável para leitores de tela.',
+    editorLabel: 'Editor de pipeline',
+    controls: 'Controlos',
+    acyclic: 'Apenas acíclico',
+    snapToGrid: 'Ajustar à grelha',
+    readonlyGraph: 'Apenas leitura',
+    addNode: 'Adicionar nó',
+    reset: 'Repor grafo',
+    stats: 'Grafo',
+    nodesLabel: 'Nós',
+    connectionsLabel: 'Ligações',
+    selectedLabel: 'Selecionado',
+    lastRejection: 'Última ligação recusada',
+    none: 'Nenhuma',
+    shortcuts: 'Como usar',
+    shortcutConnect: 'Arraste de uma porta para outra para as ligar.',
+    shortcutUnplug:
+      'Agarre a ponta de entrada de um fio para o desligar; largue no vazio para o eliminar.',
+    shortcutMove: 'Arraste um cartão para o mover. Shift+clique adiciona à seleção.',
+    shortcutKeyboard:
+      'Teclado: as setas movem entre nós, Tab percorre as portas desse nó, Enter liga, Escape cancela.',
+    shortcutDelete: 'Delete remove a seleção. Ctrl+A seleciona tudo.',
+  },
+};
