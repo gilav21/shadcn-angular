@@ -38,10 +38,19 @@ function node(id: string, x: number, y: number, extra: Partial<EditorNode> = {})
   `,
 })
 class HostComponent {
+    /**
+     * Positioned to fit the test browser's 414x896 viewport.
+     *
+     * The editor resolves a drop target with `document.elementFromPoint`, which
+     * returns null for anything outside the VIEWPORT — so a node parked beyond
+     * the window edge can never be dropped on here, however wide the editor
+     * element is. A real pointer is always inside the viewport, so this is a
+     * property of the harness, not of the component.
+     */
     readonly nodes = signal<readonly EditorNode[]>([
-        node('a', 0, 0),
-        node('b', 400, 0),
-        node('c', 0, 300),
+        node('a', START_A.x, START_A.y),
+        node('b', START_B.x, START_B.y),
+        node('c', 10, 300),
     ]);
     readonly connections = signal<readonly NodeConnection[]>([]);
     readonly selection = signal<EditorSelection>({ nodes: [], connections: [] });
@@ -49,6 +58,10 @@ class HostComponent {
     readonly gridSnap = signal(0);
     readonly rejections: string[] = [];
 }
+
+/** Starting positions, so no assertion hard-codes the fixture's origin. */
+const START_A = { x: 10, y: 0 };
+const START_B = { x: 215, y: 0 };
 
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
@@ -219,7 +232,7 @@ describe('NodeEditorComponent', () => {
             pointer(nodeEl('a'), 'pointerdown', { clientX: 100, clientY: 100 });
             pointer(root, 'pointermove', { clientX: 101, clientY: 101 });
             await settle();
-            expect(host.nodes().find(n => n.id === 'a')?.x).toBe(0);
+            expect(host.nodes().find(n => n.id === 'a')?.x).toBe(START_A.x);
         });
 
         it('moves the whole selection when a selected node is dragged', async () => {
@@ -232,8 +245,8 @@ describe('NodeEditorComponent', () => {
             pointer(root, 'pointermove', { clientX: 150, clientY: 100 });
             await settle();
 
-            expect(host.nodes().find(n => n.id === 'a')?.x).toBeCloseTo(50, 0);
-            expect(host.nodes().find(n => n.id === 'b')?.x).toBeCloseTo(450, 0);
+            expect(host.nodes().find(n => n.id === 'a')?.x).toBeCloseTo(START_A.x + 50, 0);
+            expect(host.nodes().find(n => n.id === 'b')?.x).toBeCloseTo(START_B.x + 50, 0);
         });
 
         it('does not move a locked node', async () => {
@@ -545,4 +558,85 @@ describe('NodeEditorComponent', () => {
             readonlyFixture.destroy();
         });
     });
+
+describe('connecting on a touch device', () => {
+    /**
+     * Touch pointers have IMPLICIT capture.
+     *
+     * Once `pointerdown` lands on an element, every subsequent `pointermove`
+     * and `pointerup` for that pointer is retargeted to it — `event.target` is
+     * the element the finger STARTED on, not the one it is currently over.
+     * A mouse does not behave this way, so a drag that works perfectly with a
+     * pointing device can be completely impossible with a finger, and the unit
+     * tests above would never notice.
+     *
+     * These dispatch on the SOURCE element with the coordinates of the TARGET,
+     * which is exactly what a browser does for touch.
+     */
+    async function touchDrag(from: [string, string], to: [string, string]): Promise<void> {
+        const source = portEl(...from);
+        const start = portScreen(...from);
+        const end = portScreen(...to);
+        const init = { pointerType: 'touch', isPrimary: true };
+
+        pointer(source, 'pointerdown', { clientX: start.x, clientY: start.y, ...init });
+        await settle();
+        // Retargeted to `source`, per implicit capture.
+        pointer(source, 'pointermove', { clientX: end.x, clientY: end.y, ...init });
+        await settle();
+        pointer(source, 'pointerup', { clientX: end.x, clientY: end.y, ...init });
+        await settle();
+    }
+
+    it('connects two ports with a finger', async () => {
+        await touchDrag(['a', 'out'], ['b', 'in']);
+
+        expect(host.connections()).toHaveLength(1);
+        expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'b' });
+    });
+
+    it('marks the port under the finger, not the one it started on', async () => {
+        const start = portScreen('a', 'out');
+        const end = portScreen('b', 'in');
+        const init = { pointerType: 'touch', isPrimary: true };
+
+        pointer(portEl('a', 'out'), 'pointerdown', { clientX: start.x, clientY: start.y, ...init });
+        await settle();
+        pointer(portEl('a', 'out'), 'pointermove', { clientX: end.x, clientY: end.y, ...init });
+        await settle();
+
+        expect(portEl('b', 'in').dataset['drop']).toBe('valid');
+        expect(portEl('a', 'out').dataset['drop']).toBeUndefined();
+    });
+
+    it('still refuses an invalid target, with the same reason as a mouse would give', async () => {
+        await touchDrag(['a', 'out'], ['a', 'in']);
+        expect(host.rejections).toEqual(['same-node']);
+        expect(host.connections()).toEqual([]);
+    });
+
+    it('moves a node with a finger', async () => {
+        const card = nodeEl('a');
+        const init = { pointerType: 'touch', isPrimary: true };
+
+        pointer(card, 'pointerdown', { clientX: 100, clientY: 100, ...init });
+        pointer(card, 'pointermove', { clientX: 190, clientY: 100, ...init });
+        await settle();
+
+        expect(host.nodes().find(n => n.id === 'a')?.x).toBeCloseTo(START_A.x + 90, 0);
+    });
+
+    it('abandons a pending connection when the gesture is cancelled', async () => {
+        const start = portScreen('a', 'out');
+        const init = { pointerType: 'touch', isPrimary: true };
+
+        pointer(portEl('a', 'out'), 'pointerdown', { clientX: start.x, clientY: start.y, ...init });
+        await settle();
+        pointer(portEl('a', 'out'), 'pointercancel', { ...init });
+        await settle();
+
+        expect(host.connections()).toEqual([]);
+        expect(root.querySelector('[data-slot="node-editor-pending"]')).toBeNull();
+    });
+});
 });

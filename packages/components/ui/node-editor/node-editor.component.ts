@@ -13,6 +13,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { acquireAriaLive } from '../../lib/sortable-aria-live';
 import { cn } from '../../lib/utils';
 import {
@@ -125,7 +126,7 @@ interface DragState {
     '(pointerdown)': 'onPointerDown($event)',
     '(pointermove)': 'onPointerMove($event)',
     '(pointerup)': 'onPointerUp($event)',
-    '(pointercancel)': 'onPointerUp($event)',
+    '(pointercancel)': 'onPointerCancel()',
     '(focusin)': 'onNodeFocus($event)',
   },
 })
@@ -164,6 +165,7 @@ export class NodeEditorComponent {
    * `display: contents`, so its own `getBoundingClientRect()` is all zeros and
    * every screen-space conversion built on it would be silently wrong.
    */
+  private readonly document = inject(DOCUMENT);
   private readonly rootRef = viewChild.required<ElementRef<HTMLElement>>('root');
   private readonly canvas = viewChild.required(InfiniteCanvasComponent);
 
@@ -341,7 +343,10 @@ export class NodeEditorComponent {
   protected onPointerUp(event: PointerEvent): void {
     const state = this.pending();
     if (state) {
-      this.commitPending(state);
+      // Resolve the drop from where the pointer actually IS. `pointerup` is
+      // retargeted by implicit capture on touch exactly as the moves were, so
+      // trusting the last known `over` would depend on a move having landed.
+      this.commitPending({ ...state, over: this.portAtPointer(event) });
       return;
     }
     const drag = this.drag;
@@ -353,6 +358,19 @@ export class NodeEditorComponent {
     if (!drag.moved && drag.collapseTo !== null) {
       this.selection.set({ nodes: [drag.collapseTo], connections: [] });
     }
+  }
+
+  /**
+   * A cancelled gesture is not a drop. The OS taking the pointer away — a
+   * system gesture, a second finger — must abandon the connection rather than
+   * commit it wherever the finger happened to be.
+   */
+  protected onPointerCancel(): void {
+    if (this.pending()) {
+      this.pending.set(null);
+      this.announce('Connection cancelled.');
+    }
+    this.drag = null;
   }
 
   private beginConnect(port: PortRef, event: PointerEvent): void {
@@ -379,7 +397,7 @@ export class NodeEditorComponent {
     if (!state) return;
 
     const world = this.canvas().screenToWorld({ x: event.clientX, y: event.clientY });
-    const over = this.portFromEvent(event);
+    const over = this.portAtPointer(event);
     const valid = over !== null && this.evaluate(state.from, over).ok;
 
     if (samePort(over, state.over) && state.valid === valid) {
@@ -706,11 +724,34 @@ export class NodeEditorComponent {
     return { x: clientPoint.x - rect.left, y: clientPoint.y - rect.top };
   }
 
-  /** Resolve the port an event landed on, from the delegated target. */
+  /**
+   * The port a press landed on. Safe to read from `event.target`, because
+   * `pointerdown` is not retargeted on any input type.
+   */
   private portFromEvent(event: Event): PortRef | null {
-    const element = (event.target as Element | null)?.closest<HTMLElement>(
-      '[data-slot="node-editor-port"]',
-    );
+    return this.portFromElement(event.target as Element | null);
+  }
+
+  /**
+   * The port currently UNDER the pointer, resolved by hit-testing the position
+   * rather than reading `event.target`.
+   *
+   * This distinction is the whole reason connecting worked with a mouse and was
+   * impossible with a finger. Touch pointers have **implicit capture**: after
+   * `pointerdown`, every `pointermove` and `pointerup` for that pointer is
+   * retargeted to the element the finger started on. So `event.target` during a
+   * touch drag is always the SOURCE port — the drop target could never be
+   * anything else, and every connection was refused as `same-node`.
+   *
+   * Hit-testing the coordinates is correct for both, so there is one path.
+   */
+  private portAtPointer(event: PointerEvent): PortRef | null {
+    const element = this.document.elementFromPoint(event.clientX, event.clientY);
+    return this.portFromElement(element);
+  }
+
+  private portFromElement(target: Element | null): PortRef | null {
+    const element = target?.closest<HTMLElement>('[data-slot="node-editor-port"]');
     const nodeId = element?.dataset['node'];
     const portId = element?.dataset['port'];
     if (nodeId === undefined || portId === undefined) return null;

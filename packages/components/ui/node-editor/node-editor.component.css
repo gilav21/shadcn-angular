@@ -7,3 +7,13 @@
 :host ::ng-deep [data-slot='canvas-item'] {
     overflow: visible;
 }
+
+/*
+ * The browser must not treat a drag that starts on a node or a port as a
+ * scroll gesture. Without this it claims the touch, fires pointercancel, and
+ * the connection or the move is abandoned mid-gesture — on touch devices only.
+ */
+:host ::ng-deep [data-slot='node-editor-node'],
+:host ::ng-deep [data-slot='node-editor-port'] {
+    touch-action: none;
+}
