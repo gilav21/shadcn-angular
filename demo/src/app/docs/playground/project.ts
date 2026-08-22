@@ -15,6 +15,17 @@ export interface PlaygroundDoc {
     readonly snippet: string | null;
     /** Why the snippet is absent, when it is. */
     readonly snippetSkipReason: string | null;
+    /**
+     * Set for a recipe rather than a registry component.
+     *
+     * A recipe already IS the App — a whole compiling component composing
+     * several library components — so it needs no generated snippet or import
+     * line. Its `components` are the closure roots to install.
+     */
+    readonly recipe?: {
+        readonly code: string;
+        readonly components: readonly string[];
+    };
 }
 
 /** Everything `buildProject` needs. Fetching happens before this, never inside. */
@@ -190,6 +201,23 @@ function appComponent(doc: PlaygroundDoc, snippet: string, importStatement: stri
     ].join('\n');
 }
 
+/**
+ * A recipe's own source, used verbatim as the app's root component.
+ *
+ * Two edits only: the selector becomes `app-root`, which index.html
+ * bootstraps, and the class is re-exported as `App`, which main.ts imports.
+ * Nothing else is touched — the point of a recipe playground is that the
+ * reader edits the exact file the e2e suite compiles.
+ */
+function recipeApp(code: string): string {
+    const withRootSelector = code.replace(/selector:\s*'[^']*'/, "selector: 'app-root'");
+    const declared = /export class (\w+)/.exec(code);
+    const alias = declared ? `
+export { ${declared[1]} as App };
+` : '';
+    return `${withRootSelector}${alias}`;
+}
+
 const MAIN_TS = [
     "import { bootstrapApplication } from '@angular/platform-browser';",
     "import { provideZonelessChangeDetection } from '@angular/core';",
@@ -231,7 +259,9 @@ const INDEX_HTML = [
  */
 export function buildProject(input: PlaygroundInput): PlaygroundProject | null {
     const { doc, closure, sources } = input;
-    if (!doc.snippet || !doc.importStatement) return null;
+    // A recipe supplies its own App component, so it needs neither snippet nor
+    // import line; a registry component needs both.
+    if (!doc.recipe && (!doc.snippet || !doc.importStatement)) return null;
 
     const files: Record<string, string> = {
         'package.json': packageJson(closure),
@@ -245,7 +275,9 @@ export function buildProject(input: PlaygroundInput): PlaygroundProject | null {
         'src/index.html': INDEX_HTML,
         'src/main.ts': MAIN_TS,
         'src/styles.css': playgroundStyles(input.themeCss),
-        'src/app/app.ts': appComponent(doc, doc.snippet, doc.importStatement),
+        'src/app/app.ts': doc.recipe
+            ? recipeApp(doc.recipe.code)
+            : appComponent(doc, doc.snippet as string, doc.importStatement as string),
     };
 
     // `Object.hasOwn` rather than an `undefined` check: the index signature is

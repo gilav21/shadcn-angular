@@ -6,6 +6,14 @@
     "outDir": "./out-tsc/app",
     "types": [],
     "paths": {
+      /* The recipes in ../e2e/recipes import through the consumer alias
+         (@/components/ui/...), because they must compile unchanged inside the
+         fixture app a real consumer gets. Mapping that prefix at the library
+         lets the demo render the very same files live instead of printing
+         their source — one source of truth, no copy to drift. */
+      "@/components/*": [
+        "../packages/components/*"
+      ],
       "@/*": [
         "src/*"
       ]
@@ -13,7 +21,8 @@
     "baseUrl": "."
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "../e2e/recipes/**/*.recipe.ts"
   ],
   "exclude": [
     "src/**/*.spec.ts"

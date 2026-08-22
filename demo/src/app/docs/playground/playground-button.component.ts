@@ -77,9 +77,12 @@ export class PlaygroundButtonComponent {
      * No snippet — or no class to import — means no playground, and therefore
      * no button at all rather than one that opens an empty page (UC-5).
      */
-    protected readonly available = computed(
-        () => this.doc().snippet !== null && this.doc().importStatement !== null,
-    );
+    protected readonly available = computed(() => {
+        const doc = this.doc();
+        // A recipe brings its own App component, so it needs no snippet.
+        if (doc.recipe) return true;
+        return doc.snippet !== null && doc.importStatement !== null;
+    });
 
     protected readonly label = computed(
         () => `${this.t().openInStackblitz} — ${this.doc().name}`,

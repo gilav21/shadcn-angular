@@ -18,6 +18,15 @@ import { CopyToDirective } from '../../../../packages/components/ui/directives/c
 import { UI_LOCALE_ID } from '../../../../packages/components/lib/i18n';
 import { DOCS_LOCALES } from './docs.locales';
 import { isRecipes, type Recipe } from './recipes.types';
+import { PlaygroundButtonComponent } from './playground/playground-button.component';
+import type { PlaygroundDoc } from './playground/project';
+// The recipe components themselves — the very files the `recipes` e2e spec
+// compiles in a pristine consumer app. Rendered live rather than re-created
+// here, so the demo cannot drift from what the spec proves compiles.
+import { ConfirmBeforeDestroyComponent } from '../../../../e2e/recipes/confirm-before-destroy.recipe';
+import { LoadingToLoadedListComponent } from '../../../../e2e/recipes/loading-to-loaded-list.recipe';
+import { SearchableCommandPaletteComponent } from '../../../../e2e/recipes/searchable-command-palette.recipe';
+import { ValidatedFormInASheetComponent } from '../../../../e2e/recipes/validated-form-in-a-sheet.recipe';
 
 /** Where the generated payload is served from (demo `public/` is the site root). */
 export const DEFAULT_RECIPES_URL = '/recipes.json';
@@ -45,7 +54,9 @@ export const RECIPES_URL = new InjectionToken<string>('RECIPES_URL', {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         BadgeComponent, ButtonComponent, CodeBlockComponent, CopyToDirective,
-        IconComponent, RouterLink,
+        IconComponent, RouterLink, PlaygroundButtonComponent,
+        ConfirmBeforeDestroyComponent, LoadingToLoadedListComponent,
+        SearchableCommandPaletteComponent, ValidatedFormInASheetComponent,
     ],
     template: `
     <section class="space-y-8" data-slot="recipes">
@@ -64,6 +75,25 @@ export const RECIPES_URL = new InjectionToken<string>('RECIPES_URL', {
               <a [routerLink]="['/docs', name]">
                 <ui-badge variant="secondary">{{ name }}</ui-badge>
               </a>
+            }
+            <app-playground-button class="ms-auto" [doc]="playgroundDoc(recipe)" />
+          </div>
+
+          <!-- The pattern itself, running. A recipe is about how components
+               behave together, so source alone cannot show it: the confirm
+               dialog, the skeleton-to-list swap and the palette only make sense
+               when you can operate them. -->
+          <div class="rounded-md border bg-background p-4" data-slot="recipe-demo">
+            @switch (recipe.id) {
+              @case ('confirm-before-destroy') { <app-confirm-before-destroy /> }
+              @case ('loading-to-loaded-list') { <app-loading-to-loaded-list /> }
+              @case ('searchable-command-palette') { <app-searchable-command-palette /> }
+              @case ('validated-form-in-a-sheet') { <app-validated-form-in-a-sheet /> }
+              @default {
+                <p class="text-sm text-muted-foreground" data-slot="recipe-no-demo">
+                  {{ t().recipeNoDemo }}
+                </p>
+              }
             }
           </div>
 
@@ -103,6 +133,26 @@ export class RecipesComponent {
      * how many change-detection passes it takes.
      */
     readonly ready: Promise<void> = this.load().catch(() => undefined);
+
+    /**
+     * A recipe described as a playground component.
+     *
+     * `PlaygroundButtonComponent` takes a `PlaygroundDoc`, and a recipe is a
+     * near-perfect fit: its `code` is the App the generated project renders,
+     * and `components` is the closure to install. The only thing it lacks is a
+     * single import line, because a recipe imports several components — so the
+     * playground builds its project from the recipe file itself rather than
+     * from a generated snippet.
+     */
+    playgroundDoc(recipe: Recipe): PlaygroundDoc {
+        return {
+            name: recipe.id,
+            importStatement: null,
+            snippet: null,
+            snippetSkipReason: null,
+            recipe: { code: recipe.code, components: recipe.components },
+        };
+    }
 
     private async load(): Promise<void> {
         const response = await fetch(this.url);

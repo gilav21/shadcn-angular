@@ -9,6 +9,7 @@ export interface DocsLocale extends LocaleMeta {
     openInStackblitz: string;
     playgroundOpening: string;
     playgroundUnavailable: string;
+    recipeNoDemo: string;
     apiReference: string;
     inputs: string;
     outputs: string;
@@ -58,6 +59,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         openInStackblitz: 'Open in StackBlitz',
         playgroundOpening: 'Opening…',
         playgroundUnavailable: 'This component has no standalone example to run.',
+        recipeNoDemo: 'This recipe has no live demo yet.',
         apiReference: 'API reference',
         inputs: 'Inputs',
         outputs: 'Outputs',
@@ -105,6 +107,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         openInStackblitz: 'פתח ב-StackBlitz',
         playgroundOpening: '…נפתח',
         playgroundUnavailable: 'לרכיב זה אין דוגמה עצמאית להרצה.',
+        recipeNoDemo: 'למתכון זה אין עדיין הדגמה חיה.',
         apiReference: 'מדריך API',
         inputs: 'קלטים',
         outputs: 'פלטים',
@@ -152,6 +155,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         openInStackblitz: 'افتح في StackBlitz',
         playgroundOpening: '...جارٍ الفتح',
         playgroundUnavailable: 'لا يوجد لهذا المكوّن مثال مستقل قابل للتشغيل.',
+        recipeNoDemo: 'لا توجد بعد معاينة حية لهذه الوصفة.',
         apiReference: 'مرجع API',
         inputs: 'المدخلات',
         outputs: 'المخرجات',
@@ -199,6 +203,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         openInStackblitz: 'In StackBlitz öffnen',
         playgroundOpening: 'Opening…',
         playgroundUnavailable: 'This component has no standalone example to run.',
+        recipeNoDemo: 'This recipe has no live demo yet.',
         apiReference: 'API-Referenz',
         inputs: 'Eingaben',
         outputs: 'Ausgaben',
@@ -246,6 +251,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         openInStackblitz: 'Ouvrir dans StackBlitz',
         playgroundOpening: 'Opening…',
         playgroundUnavailable: 'This component has no standalone example to run.',
+        recipeNoDemo: 'This recipe has no live demo yet.',
         apiReference: 'Référence API',
         inputs: 'Entrées',
         outputs: 'Sorties',
@@ -293,6 +299,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         openInStackblitz: 'Abrir en StackBlitz',
         playgroundOpening: 'Opening…',
         playgroundUnavailable: 'This component has no standalone example to run.',
+        recipeNoDemo: 'This recipe has no live demo yet.',
         apiReference: 'Referencia de API',
         inputs: 'Entradas',
         outputs: 'Salidas',
@@ -340,6 +347,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         openInStackblitz: 'StackBlitz で開く',
         playgroundOpening: 'Opening…',
         playgroundUnavailable: 'This component has no standalone example to run.',
+        recipeNoDemo: 'This recipe has no live demo yet.',
         apiReference: 'API リファレンス',
         inputs: '入力',
         outputs: '出力',
@@ -387,6 +395,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         openInStackblitz: '在 StackBlitz 中打开',
         playgroundOpening: 'Opening…',
         playgroundUnavailable: 'This component has no standalone example to run.',
+        recipeNoDemo: 'This recipe has no live demo yet.',
         apiReference: 'API 参考',
         inputs: '输入',
         outputs: '输出',
@@ -434,6 +443,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         openInStackblitz: 'Открыть в StackBlitz',
         playgroundOpening: 'Opening…',
         playgroundUnavailable: 'This component has no standalone example to run.',
+        recipeNoDemo: 'This recipe has no live demo yet.',
         apiReference: 'Справочник API',
         inputs: 'Входные параметры',
         outputs: 'События',
@@ -481,6 +491,7 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         openInStackblitz: 'Abrir no StackBlitz',
         playgroundOpening: 'Opening…',
         playgroundUnavailable: 'This component has no standalone example to run.',
+        recipeNoDemo: 'This recipe has no live demo yet.',
         apiReference: 'Referência da API',
         inputs: 'Entradas',
         outputs: 'Saídas',

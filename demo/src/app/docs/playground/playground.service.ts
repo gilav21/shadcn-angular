@@ -1,5 +1,18 @@
 import { Injectable, InjectionToken, inject } from '@angular/core';
 import { resolveClosure, type Closure, type PlaygroundRegistry } from './closure';
+
+/** Union of several closures, so a recipe can pull in everything it composes. */
+function mergeClosures(closures: readonly Closure[]): Closure {
+    const dedupe = (lists: readonly (readonly string[])[]): string[] =>
+        [...new Set(lists.flat())].sort((a, b) => a.localeCompare(b));
+    return {
+        components: dedupe(closures.map(c => c.components)),
+        files: dedupe(closures.map(c => c.files)),
+        libFiles: dedupe(closures.map(c => c.libFiles)),
+        npmDependencies: dedupe(closures.map(c => c.npmDependencies)),
+        missing: dedupe(closures.map(c => c.missing)),
+    };
+}
 import { buildProject, type PlaygroundDoc, type PlaygroundProject } from './project';
 
 /**
@@ -79,10 +92,13 @@ export class PlaygroundService {
      * button at all rather than one that opens an empty page (UC-5).
      */
     async project(doc: PlaygroundDoc): Promise<PlaygroundProject | null> {
-        if (!doc.snippet || !doc.importStatement) return null;
+        if (!doc.recipe && (!doc.snippet || !doc.importStatement)) return null;
 
         const registry = await this.registry();
-        const closure = resolveClosure(registry, doc.name);
+        // A recipe is not a registry entry — it composes several — so its
+        // closure is the union over the components it names.
+        const roots = doc.recipe ? doc.recipe.components : [doc.name];
+        const closure = mergeClosures(roots.map(root => resolveClosure(registry, root)));
         const libPaths = [...new Set([...closure.libFiles, ...BASELINE_LIB_FILES])];
         const [ui, lib, themeCss] = await Promise.all([
             this.fetchAll(closure.files, 'ui'),
