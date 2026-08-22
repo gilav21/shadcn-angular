@@ -47,7 +47,21 @@ export interface NodePort {
 export interface EditorNode extends CanvasItem {
   title: string;
   subtitle?: string;
-  ports: readonly NodePort[];
+  /**
+   * The node type's id, when this node is backed by a registered
+   * {@link NodeTypeDefinition}. The editor then MATERIALISES `ports`, `title`
+   * and `accent` from that definition, so the definition stays the single
+   * source of truth and every consumer can still read `node.ports`.
+   *
+   * Omit it for a purely structural graph, which is what the editor was before
+   * it had a runtime — that mode still works unchanged.
+   */
+  type?: string;
+  /**
+   * Optional only for authors: a typed node inherits its ports from its
+   * definition. Always populated by the time a node reaches rendering.
+   */
+  ports?: readonly NodePort[];
   /** Any CSS colour, painted as the node's header accent. */
   accent?: string;
   /** Selectable, but neither movable nor deletable. */

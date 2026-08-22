@@ -81,7 +81,7 @@
   </button>
 }
 
-@for (port of current.ports; track port.id) {
+@for (port of current.ports ?? []; track port.id) {
   <ui-node-editor-port
     [port]="port"
     [node]="current"

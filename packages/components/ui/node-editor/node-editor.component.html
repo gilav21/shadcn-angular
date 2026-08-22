@@ -69,9 +69,9 @@
         @for (node of tree; track node.id) {
           <li>
             {{ node.title }}
-            @if (node.ports.length > 0) {
+            @if ((node.ports ?? []).length > 0) {
               <ul>
-                @for (port of node.ports; track port.id) {
+                @for (port of node.ports ?? []; track port.id) {
                   <li>
                     {{ port.label }}, {{ port.direction === 'out' ? 'output' : 'input' }},
                     @if (port.links.length === 0) {

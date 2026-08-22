@@ -12,6 +12,7 @@
  *
  * So validity is decided here, once, and both paths ask.
  */
+import { portsOf } from './node-editor.layout';
 import type {
   NodeId,
   ConnectRejection,
@@ -46,7 +47,7 @@ function reject(reason: ConnectRejection): ConnectResult {
 function resolve(nodes: readonly EditorNode[], ref: PortRef): Resolution {
   const node = nodes.find(candidate => candidate.id === ref.node);
   if (!node) return { ok: false, reason: 'unknown-node' };
-  const port = node.ports.find(candidate => candidate.id === ref.port);
+  const port = portsOf(node).find(candidate => candidate.id === ref.port);
   if (!port) return { ok: false, reason: 'unknown-port' };
   return { ok: true, node, port };
 }

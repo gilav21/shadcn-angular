@@ -1,0 +1,798 @@
+/**
+ * The dataflow runtime: what turns a drawing of a graph into a running one.
+ *
+ * Deliberately a plain class with no Angular dependency beyond `signal` for
+ * read-out, and — the constraint that matters most — **no global or singleton
+ * state of any kind**. That is what keeps nested graphs (subgraphs) buildable
+ * later as an addon: a `subgraph` node type is simply a node whose `compute`
+ * owns another instance of this class. One convenience singleton closes that
+ * door quietly, so it is the first thing to check when reviewing a change here.
+ *
+ * Algorithms and their justification: `specs/node-editor-runtime-design.md`.
+ * Every one of them was proved by a throwaway spike before this file existed.
+ */
+import { signal, type Signal, type WritableSignal } from '@angular/core';
+import type { EditorNode, NodeConnection, NodeId } from './node-editor.types';
+import type {
+  GraphProblem,
+  NodeStatus,
+  NodeTypeDefinition,
+  PortValues,
+  RemoteExecutor,
+  RemoteRequest,
+  RemoteResult,
+  StalenessPolicy,
+} from './node-editor.runtime.types';
+
+interface ActiveRun {
+  readonly id: number;
+  readonly controller: AbortController;
+}
+
+/** Counters the performance suite asserts on. Counts, never wall-clock. */
+export interface RuntimeMetrics {
+  /** Nodes whose `compute` actually ran. */
+  readonly computed: readonly NodeId[];
+  /** Calls made to `executeRemote`. K ready remote nodes must cost 1. */
+  readonly remoteCalls: number;
+  /** Times the topological order was repaired. */
+  readonly reorders: number;
+  /** Async iterators still open. Must return to 0 after a disconnect. */
+  readonly openIterators: number;
+}
+
+const DEFAULT_STALENESS: StalenessPolicy = 'cancel';
+/** Guards a pathological graph from spinning forever rather than hanging silently. */
+const MAX_DRAIN_ITERATIONS = 100_000;
+
+export class NodeGraphRuntime {
+  // ---- graph -------------------------------------------------------------
+  private readonly definitions = new Map<string, NodeTypeDefinition>();
+  private readonly nodes = new Map<NodeId, EditorNode>();
+  private connections: readonly NodeConnection[] = [];
+  private readonly outgoing = new Map<NodeId, Set<NodeId>>();
+  private readonly incoming = new Map<NodeId, Set<NodeId>>();
+
+  // ---- topological order (design §1) -------------------------------------
+  private order: NodeId[] = [];
+  private readonly position = new Map<NodeId, number>();
+
+  // ---- evaluation (design §2, §3) ----------------------------------------
+  private readonly dirty = new Set<NodeId>();
+  private readonly readySet = new Set<NodeId>();
+
+  // ---- values and memoisation (design §4) --------------------------------
+  private readonly outputValues = new Map<NodeId, PortValues>();
+  private readonly stateValues = new Map<NodeId, unknown>();
+  private readonly lastInputs = new Map<NodeId, PortValues>();
+  private readonly lastState = new Map<NodeId, unknown>();
+  private readonly emitSeq = new Map<string, number>();
+  private seq = 0;
+
+  // ---- async (design §6, §7) ---------------------------------------------
+  private readonly active = new Map<NodeId, ActiveRun>();
+  private readonly iterators = new Map<NodeId, AsyncIterator<unknown>>();
+  private runCounter = 0;
+  private disposed = false;
+
+  // ---- reactive read-out --------------------------------------------------
+  private readonly statusSignals = new Map<NodeId, WritableSignal<NodeStatus>>();
+  private readonly outputSignals = new Map<NodeId, WritableSignal<PortValues>>();
+  private readonly stateSignals = new Map<NodeId, WritableSignal<unknown>>();
+  private readonly errorSignals = new Map<NodeId, WritableSignal<unknown>>();
+  private readonly problemsSignal = signal<readonly GraphProblem[]>([]);
+  private readonly readySignal = signal<readonly NodeId[]>([]);
+
+  /** Backend hand-off. `null` means every node runs locally. */
+  executeRemote: RemoteExecutor | null = null;
+
+  /** Notified whenever a node settles, for the run-history addon. */
+  onNodeSettled: ((nodeId: NodeId, status: NodeStatus) => void) | null = null;
+
+  // ---- instrumentation ----------------------------------------------------
+  private readonly computedNodes: NodeId[] = [];
+  private remoteCalls = 0;
+  private reorders = 0;
+
+  get metrics(): RuntimeMetrics {
+    return {
+      computed: [...this.computedNodes],
+      remoteCalls: this.remoteCalls,
+      reorders: this.reorders,
+      openIterators: this.iterators.size,
+    };
+  }
+
+  resetMetrics(): void {
+    this.computedNodes.length = 0;
+    this.remoteCalls = 0;
+    this.reorders = 0;
+  }
+
+  readonly problems: Signal<readonly GraphProblem[]> = this.problemsSignal.asReadonly();
+  /** What `step()` would execute next. */
+  readonly ready: Signal<readonly NodeId[]> = this.readySignal.asReadonly();
+
+  // =========================================================== graph mutation
+
+  setDefinitions(definitions: readonly NodeTypeDefinition[]): void {
+    this.definitions.clear();
+    for (const definition of definitions) this.definitions.set(definition.id, definition);
+    for (const id of this.nodes.keys()) this.markDirty(id);
+    this.refresh();
+  }
+
+  definition(nodeId: NodeId): NodeTypeDefinition | undefined {
+    const type = this.nodes.get(nodeId)?.type;
+    return type === undefined ? undefined : this.definitions.get(type);
+  }
+
+  /**
+   * Replace the graph.
+   *
+   * Diffed rather than rebuilt: a rebuild would drop every cached output and
+   * re-run the whole graph on any edit, which is precisely what R13 bans.
+   */
+  setGraph(nodes: readonly EditorNode[], connections: readonly NodeConnection[]): void {
+    if (this.disposed) return;
+
+    const incomingIds = new Set(nodes.map(n => n.id));
+    for (const id of [...this.nodes.keys()]) {
+      if (!incomingIds.has(id)) this.removeNode(id);
+    }
+    for (const node of nodes) {
+      if (this.nodes.has(node.id)) this.nodes.set(node.id, node);
+      else this.addNode(node);
+    }
+    this.setConnections(connections);
+    this.refresh();
+  }
+
+  private addNode(node: EditorNode): void {
+    this.nodes.set(node.id, node);
+    this.order.push(node.id);
+    this.position.set(node.id, this.order.length - 1);
+    this.outgoing.set(node.id, new Set());
+    this.incoming.set(node.id, new Set());
+    this.outputValues.set(node.id, {});
+
+    const initial = this.definitions.get(node.type ?? '')?.initialState?.();
+    this.stateValues.set(node.id, initial);
+    this.stateSignal(node.id).set(initial);
+    this.markDirty(node.id);
+  }
+
+  private removeNode(id: NodeId): void {
+    this.abortRun(id);
+    this.teardownIterator(id);
+    this.nodes.delete(id);
+    this.outputValues.delete(id);
+    this.stateValues.delete(id);
+    this.lastInputs.delete(id);
+    this.lastState.delete(id);
+    this.dirty.delete(id);
+    this.readySet.delete(id);
+
+    for (const peer of this.outgoing.get(id) ?? []) this.incoming.get(peer)?.delete(id);
+    for (const peer of this.incoming.get(id) ?? []) this.outgoing.get(peer)?.delete(id);
+    this.outgoing.delete(id);
+    this.incoming.delete(id);
+
+    this.order = this.order.filter(n => n !== id);
+    this.reindex();
+  }
+
+  /** One compaction pass, rather than an O(N) shift per delete (design §1). */
+  private reindex(): void {
+    this.position.clear();
+    this.order.forEach((n, i) => this.position.set(n, i));
+  }
+
+  private setConnections(next: readonly NodeConnection[]): void {
+    const before = new Map(this.connections.map(c => [c.id, c]));
+    const after = new Map(next.map(c => [c.id, c]));
+
+    for (const [id, connection] of before) {
+      if (!after.has(id)) {
+        // design §7 — an edge going away must tear its stream down.
+        this.teardownIterator(connection.source);
+        this.markDirty(connection.target);
+      }
+    }
+    this.connections = next;
+    this.rebuildAdjacency();
+
+    for (const [id, connection] of after) {
+      if (before.has(id)) continue;
+      this.repairOrder(connection.source, connection.target);
+      this.markDirty(connection.target);
+    }
+  }
+
+  private rebuildAdjacency(): void {
+    for (const set of this.outgoing.values()) set.clear();
+    for (const set of this.incoming.values()) set.clear();
+    for (const c of this.connections) {
+      this.outgoing.get(c.source)?.add(c.target);
+      this.incoming.get(c.target)?.add(c.source);
+    }
+  }
+
+  setState(nodeId: NodeId, next: unknown): void {
+    if (this.disposed || !this.nodes.has(nodeId)) return;
+    this.stateValues.set(nodeId, next);
+    this.stateSignal(nodeId).set(next);
+    this.markDirty(nodeId);
+    this.refresh();
+  }
+
+  // ================================================= topological order (§1)
+
+  /**
+   * Pearce–Kelly. When the existing order already satisfies the new edge this
+   * is O(1), which is the common case because nodes are created upstream-first.
+   * Otherwise only the region between the endpoints is touched — never N.
+   */
+  private repairOrder(source: NodeId, target: NodeId): void {
+    const from = this.position.get(source);
+    const to = this.position.get(target);
+    if (from === undefined || to === undefined || from < to) return;
+
+    const forward = this.collectForward(target, from);
+    if (forward === null) return;            // closes a cycle; §5 handles it
+    const backward = this.collectBackward(source, to);
+
+    const byPosition = (a: NodeId, b: NodeId): number =>
+      (this.position.get(a) ?? 0) - (this.position.get(b) ?? 0);
+
+    const slots = [...backward, ...forward].map(n => this.position.get(n) ?? 0);
+    slots.sort((a, b) => a - b);
+
+    const orderedBackward = [...backward];
+    orderedBackward.sort(byPosition);
+    const orderedForward = [...forward];
+    orderedForward.sort(byPosition);
+    const reordered = [...orderedBackward, ...orderedForward];
+
+    slots.forEach((slot, i) => {
+      this.order[slot] = reordered[i];
+      this.position.set(reordered[i], slot);
+    });
+    this.reorders++;
+  }
+
+  /** Nodes reachable from `start` within the affected region, or null on a cycle. */
+  private collectForward(start: NodeId, limit: number): NodeId[] | null {
+    const seen = new Set<NodeId>();
+    const found: NodeId[] = [];
+    const stack = [start];
+    while (stack.length > 0) {
+      const node = stack.pop() as NodeId;
+      if (seen.has(node)) continue;
+      seen.add(node);
+      found.push(node);
+      for (const next of this.outgoing.get(node) ?? []) {
+        const at = this.position.get(next) ?? Number.POSITIVE_INFINITY;
+        if (at > limit) continue;
+        if (at === limit) return null;        // reached the source: a cycle
+        stack.push(next);
+      }
+    }
+    return found;
+  }
+
+  private collectBackward(start: NodeId, limit: number): NodeId[] {
+    const seen = new Set<NodeId>();
+    const found: NodeId[] = [];
+    const stack = [start];
+    while (stack.length > 0) {
+      const node = stack.pop() as NodeId;
+      if (seen.has(node)) continue;
+      seen.add(node);
+      found.push(node);
+      for (const prev of this.incoming.get(node) ?? []) {
+        if ((this.position.get(prev) ?? Number.NEGATIVE_INFINITY) >= limit) stack.push(prev);
+      }
+    }
+    return found;
+  }
+
+  // ================================================== dirty and ready (§2,§3)
+
+  private markDirty(start: NodeId): void {
+    const stack = [start];
+    while (stack.length > 0) {
+      const node = stack.pop() as NodeId;
+      // Already dirty means its descendants are already marked. Without this,
+      // a diamond re-walks its tail once per path.
+      if (this.dirty.has(node)) continue;
+      this.dirty.add(node);
+      this.setStatus(node, 'stale');
+      this.readySet.delete(node);
+      for (const next of this.outgoing.get(node) ?? []) stack.push(next);
+    }
+  }
+
+  /**
+   * Recompute the ready set over the DIRTY subgraph only.
+   *
+   * Bounded by the dirty set, never by N — which is the property R13 requires
+   * and the perf suite asserts.
+   */
+  private refresh(): void {
+    this.readySet.clear();
+    for (const node of this.dirty) {
+      let pending = 0;
+      for (const up of this.incoming.get(node) ?? []) if (this.dirty.has(up)) pending++;
+      if (pending === 0) this.readySet.add(node);
+    }
+    this.excludeCycles();
+    this.readySignal.set([...this.readySet]);
+    this.problemsSignal.set(this.collectProblems());
+  }
+
+  /** Tarjan over the dirty subgraph; SCC members can never become ready (§5). */
+  private excludeCycles(): void {
+    const index = new Map<NodeId, number>();
+    const low = new Map<NodeId, number>();
+    const onStack = new Set<NodeId>();
+    const stack: NodeId[] = [];
+    let counter = 0;
+
+    const connect = (v: NodeId): void => {
+      index.set(v, counter);
+      low.set(v, counter);
+      counter++;
+      stack.push(v);
+      onStack.add(v);
+
+      for (const w of this.outgoing.get(v) ?? []) {
+        if (!this.dirty.has(w)) continue;
+        if (!index.has(w)) {
+          connect(w);
+          low.set(v, Math.min(low.get(v) ?? 0, low.get(w) ?? 0));
+        } else if (onStack.has(w)) {
+          low.set(v, Math.min(low.get(v) ?? 0, index.get(w) ?? 0));
+        }
+      }
+
+      if (low.get(v) === index.get(v)) closeComponent(v);
+    };
+
+    const closeComponent = (root: NodeId): void => {
+      const component: NodeId[] = [];
+      let node: NodeId;
+      do {
+        node = stack.pop() as NodeId;
+        onStack.delete(node);
+        component.push(node);
+      } while (node !== root);
+      this.markCycle(component);
+    };
+
+    for (const node of this.dirty) if (!index.has(node)) connect(node);
+  }
+
+  /** A component is a cycle when it has more than one node, or a self-edge. */
+  private markCycle(component: readonly NodeId[]): void {
+    const selfEdge =
+      component.length === 1 && (this.outgoing.get(component[0])?.has(component[0]) ?? false);
+    if (component.length === 1 && !selfEdge) return;
+    for (const node of component) {
+      this.setStatus(node, 'cycle');
+      this.readySet.delete(node);
+    }
+  }
+
+  // ====================================================== input resolution (§8)
+
+  private resolveInputs(nodeId: NodeId): PortValues {
+    const definition = this.definition(nodeId);
+    const values: PortValues = {};
+    if (!definition) return values;
+
+    for (const port of definition.ports) {
+      if (port.direction !== 'in') continue;
+      const conns = this.connections.filter(
+        c => c.target === nodeId && c.targetPort === port.id,
+      );
+
+      if (conns.length === 0) {
+        values[port.id] = port.default;
+      } else if (port.multi === 'collect') {
+        values[port.id] = conns.map(c => this.outputValues.get(c.source)?.[c.sourcePort]);
+      } else if (port.multi === 'latest') {
+        const newest = conns.reduce(
+          (best, c) => (this.emittedAt(c) > this.emittedAt(best) ? c : best),
+          conns[0],
+        );
+        values[port.id] = this.outputValues.get(newest.source)?.[newest.sourcePort];
+      } else {
+        values[port.id] = this.outputValues.get(conns[0].source)?.[conns[0].sourcePort];
+      }
+    }
+    return values;
+  }
+
+  /** When a connection's source port last produced a value. */
+  private emittedAt(connection: NodeConnection): number {
+    return this.emitSeq.get(`${connection.source}:${connection.sourcePort}`) ?? -1;
+  }
+
+  /**
+   * design §4 — collect ports MUST compare element-wise.
+   *
+   * They resolve to a new array on every pass, so an identity check would
+   * report a change every time and memoisation would never fire anywhere.
+   */
+  private inputsUnchanged(nodeId: NodeId, resolved: PortValues): boolean {
+    const previous = this.lastInputs.get(nodeId);
+    if (!previous) return false;
+    const definition = this.definition(nodeId);
+    if (!definition) return false;
+
+    for (const port of definition.ports) {
+      if (port.direction !== 'in') continue;
+      const next = resolved[port.id];
+      const last = previous[port.id];
+
+      if (port.multi === 'collect') {
+        const a = next as unknown[] | undefined;
+        const b = last as unknown[] | undefined;
+        if (!a || !b || a.length !== b.length) return false;
+        if (a.some((value, i) => !Object.is(value, b[i]))) return false;
+      } else if (!Object.is(next, last)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // ================================================================ execution
+
+  /** Execute exactly one ready node. */
+  async step(): Promise<void> {
+    const next = this.readySet.values().next();
+    if (next.done === true) return;
+    await this.execute([next.value]);
+  }
+
+  /** Drain until nothing is ready. */
+  async run(): Promise<void> {
+    let guard = 0;
+    while (this.readySet.size > 0) {
+      if (++guard > MAX_DRAIN_ITERATIONS) {
+        throw new Error('node-editor: evaluation did not converge');
+      }
+      await this.execute([...this.readySet]);
+    }
+  }
+
+  private async execute(batch: readonly NodeId[]): Promise<void> {
+    const local: NodeId[] = [];
+    const remote: NodeId[] = [];
+    for (const node of batch) {
+      (this.definition(node)?.remote === true ? remote : local).push(node);
+    }
+    await Promise.all([
+      Promise.all(local.map(n => this.executeLocal(n))),
+      this.executeRemoteBatch(remote),
+    ]);
+  }
+
+  private async executeLocal(nodeId: NodeId): Promise<void> {
+    const definition = this.definition(nodeId);
+    if (!definition) {
+      this.settle(nodeId, 'error');
+      return;
+    }
+
+    const inputs = this.resolveInputs(nodeId);
+    if (
+      this.inputsUnchanged(nodeId, inputs) &&
+      Object.is(this.stateValues.get(nodeId), this.lastState.get(nodeId))
+    ) {
+      this.settle(nodeId, 'done');           // memo hit — no compute, no propagation
+      return;
+    }
+    this.lastInputs.set(nodeId, inputs);
+    this.lastState.set(nodeId, this.stateValues.get(nodeId));
+
+    if (!definition.compute) {
+      this.settle(nodeId, 'done');
+      return;
+    }
+
+    const run = this.beginRun(nodeId, definition);
+    this.computedNodes.push(nodeId);
+    this.setStatus(nodeId, 'running');
+
+    try {
+      const result = definition.compute(this.resolveInputs(nodeId), {
+        state: this.stateValues.get(nodeId),
+        signal: run.controller.signal,
+        setState: next => this.setState(nodeId, next),
+        emit: (portId, value) => this.applyOutputs(nodeId, run.id, definition, { [portId]: value }),
+      });
+
+      if (isAsyncIterable(result)) {
+        await this.consume(nodeId, run.id, definition, result);
+        return;
+      }
+      this.applyOutputs(nodeId, run.id, definition, (await result) as PortValues);
+      this.settle(nodeId, 'done');
+    } catch (cause: unknown) {
+      this.errorSignal(nodeId).set(cause);
+      this.settle(nodeId, 'error');
+    }
+  }
+
+  private beginRun(nodeId: NodeId, definition: NodeTypeDefinition): ActiveRun {
+    const previous = this.active.get(nodeId);
+    if (previous && (definition.staleness ?? DEFAULT_STALENESS) === 'cancel') {
+      previous.controller.abort();
+    }
+    const run: ActiveRun = { id: ++this.runCounter, controller: new AbortController() };
+    this.active.set(nodeId, run);
+    return run;
+  }
+
+  /** design §6 — only `apply` lets a superseded run win. */
+  private applyOutputs(
+    nodeId: NodeId,
+    runId: number,
+    definition: NodeTypeDefinition,
+    value: PortValues,
+  ): void {
+    const current = this.active.get(nodeId);
+    const stale = current !== undefined && current.id !== runId;
+    if (stale && (definition.staleness ?? DEFAULT_STALENESS) !== 'apply') return;
+
+    const merged = { ...this.outputValues.get(nodeId), ...value };
+    this.outputValues.set(nodeId, merged);
+    this.outputSignal(nodeId).set(merged);
+    for (const key of Object.keys(value)) this.emitSeq.set(`${nodeId}:${key}`, ++this.seq);
+  }
+
+  /** design §7 — every yield propagates; the iterator is tracked for teardown. */
+  private async consume(
+    nodeId: NodeId,
+    runId: number,
+    definition: NodeTypeDefinition,
+    iterable: AsyncIterable<unknown>,
+  ): Promise<void> {
+    const iterator = iterable[Symbol.asyncIterator]();
+    this.iterators.set(nodeId, iterator);
+    try {
+      while (true) {
+        const { value, done } = await iterator.next();
+        if (done === true) break;
+        if (this.active.get(nodeId)?.id !== runId) break;      // superseded
+        this.applyOutputs(nodeId, runId, definition, value as PortValues);
+      }
+    } catch (cause: unknown) {
+      this.errorSignal(nodeId).set(cause);
+      this.settle(nodeId, 'error');
+      return;
+    } finally {
+      if (this.iterators.get(nodeId) === iterator) this.iterators.delete(nodeId);
+    }
+    this.settle(nodeId, 'done');
+  }
+
+  private teardownIterator(nodeId: NodeId): void {
+    const iterator = this.iterators.get(nodeId);
+    if (!iterator) return;
+    this.iterators.delete(nodeId);
+    // Runs the generator's `finally`, which is where a real node closes its
+    // socket. Without this, disconnecting an edge leaks the stream.
+    void iterator.return?.(undefined);
+  }
+
+  private abortRun(nodeId: NodeId): void {
+    this.active.get(nodeId)?.controller.abort();
+    this.active.delete(nodeId);
+  }
+
+  /** design §9 — every ready remote node in a tick is ONE call. */
+  private async executeRemoteBatch(batch: readonly NodeId[]): Promise<void> {
+    if (batch.length === 0) return;
+
+    if (!this.executeRemote) {
+      for (const nodeId of batch) this.settle(nodeId, 'error');
+      this.problemsSignal.set(this.collectProblems());
+      return;
+    }
+
+    const controller = new AbortController();
+    const requests = batch
+      .map(nodeId => this.buildRemoteRequest(nodeId))
+      .filter((request): request is RemoteRequest => request !== null);
+
+    this.remoteCalls++;
+    try {
+      const results = this.executeRemote(requests, controller.signal);
+      if (isAsyncIterable(results)) {
+        for await (const result of results) this.applyRemoteResult(result);
+      } else {
+        for (const result of await results) this.applyRemoteResult(result);
+      }
+    } catch (cause: unknown) {
+      for (const nodeId of batch) {
+        this.errorSignal(nodeId).set(cause);
+        this.settle(nodeId, 'error');
+      }
+    }
+  }
+
+  /** Starts a run for one remote node and describes it for the executor. */
+  private buildRemoteRequest(nodeId: NodeId): RemoteRequest | null {
+    const definition = this.definition(nodeId);
+    if (!definition) return null;
+
+    const run = this.beginRun(nodeId, definition);
+    this.computedNodes.push(nodeId);
+    this.setStatus(nodeId, 'running');
+
+    const inputs = this.resolveInputs(nodeId);
+    this.lastInputs.set(nodeId, inputs);
+    this.lastState.set(nodeId, this.stateValues.get(nodeId));
+
+    return {
+      runId: run.id,
+      nodeId,
+      type: this.nodes.get(nodeId)?.type ?? '',
+      inputs,
+      state: this.stateValues.get(nodeId),
+    };
+  }
+
+  private applyRemoteResult(result: RemoteResult): void {
+    const definition = this.definition(result.nodeId);
+    if (!definition) return;
+    if (!result.ok) {
+      this.errorSignal(result.nodeId).set(result.error);
+      this.settle(result.nodeId, 'error');
+      return;
+    }
+    this.applyOutputs(result.nodeId, result.runId, definition, result.outputs);
+    if (result.done !== false) this.settle(result.nodeId, 'done');
+  }
+
+  private settle(nodeId: NodeId, status: NodeStatus): void {
+    this.dirty.delete(nodeId);
+    this.readySet.delete(nodeId);
+    if (this.statusSignal(nodeId)() !== 'cycle') this.setStatus(nodeId, status);
+    this.onNodeSettled?.(nodeId, status);
+    this.refresh();
+  }
+
+  // ================================================================ problems
+
+  private collectProblems(): readonly GraphProblem[] {
+    const problems: GraphProblem[] = [];
+    for (const [nodeId, node] of this.nodes) problems.push(...this.problemsFor(nodeId, node));
+    return problems;
+  }
+
+  private problemsFor(nodeId: NodeId, node: EditorNode): readonly GraphProblem[] {
+    const definition = this.definition(nodeId);
+    if (!definition) {
+      if (node.type === undefined) return [];
+      return [{
+        kind: 'unknown-type',
+        nodeId,
+        message: `“${node.title}” has type “${node.type}”, which is not registered.`,
+        severity: 'error',
+      }];
+    }
+
+    const problems: GraphProblem[] = [];
+    if (definition.remote === true && !this.executeRemote) {
+      problems.push({
+        kind: 'remote-without-executor',
+        nodeId,
+        message: `“${node.title}” runs on a backend, but no executor is bound.`,
+        severity: 'error',
+      });
+    }
+    if (this.statusSignal(nodeId)() === 'cycle') {
+      problems.push({
+        kind: 'cycle',
+        nodeId,
+        message: `“${node.title}” is part of a loop, so it cannot run.`,
+        severity: 'error',
+      });
+    }
+    problems.push(...this.missingRequiredInputs(nodeId, node, definition));
+    return problems;
+  }
+
+  private missingRequiredInputs(
+    nodeId: NodeId,
+    node: EditorNode,
+    definition: NodeTypeDefinition,
+  ): readonly GraphProblem[] {
+    return definition.ports
+      .filter(port => port.direction === 'in' && port.required === true)
+      .filter(port => !this.connections.some(c => c.target === nodeId && c.targetPort === port.id))
+      .map(port => ({
+        kind: 'required-input-unconnected' as const,
+        nodeId,
+        portId: port.id,
+        message: `“${node.title}” needs “${port.label}” connected.`,
+        severity: 'error' as const,
+      }));
+  }
+
+  // ============================================================== read-out
+
+  status(nodeId: NodeId): Signal<NodeStatus> {
+    return this.statusSignal(nodeId).asReadonly();
+  }
+
+  outputs(nodeId: NodeId): Signal<PortValues> {
+    return this.outputSignal(nodeId).asReadonly();
+  }
+
+  state(nodeId: NodeId): Signal<unknown> {
+    return this.stateSignal(nodeId).asReadonly();
+  }
+
+  error(nodeId: NodeId): Signal<unknown> {
+    return this.errorSignal(nodeId).asReadonly();
+  }
+
+  private statusSignal(nodeId: NodeId): WritableSignal<NodeStatus> {
+    let existing = this.statusSignals.get(nodeId);
+    if (!existing) {
+      existing = signal<NodeStatus>('idle');
+      this.statusSignals.set(nodeId, existing);
+    }
+    return existing;
+  }
+
+  private outputSignal(nodeId: NodeId): WritableSignal<PortValues> {
+    let existing = this.outputSignals.get(nodeId);
+    if (!existing) {
+      existing = signal<PortValues>({});
+      this.outputSignals.set(nodeId, existing);
+    }
+    return existing;
+  }
+
+  private stateSignal(nodeId: NodeId): WritableSignal<unknown> {
+    let existing = this.stateSignals.get(nodeId);
+    if (!existing) {
+      existing = signal<unknown>(undefined);
+      this.stateSignals.set(nodeId, existing);
+    }
+    return existing;
+  }
+
+  private errorSignal(nodeId: NodeId): WritableSignal<unknown> {
+    let existing = this.errorSignals.get(nodeId);
+    if (!existing) {
+      existing = signal<unknown>(null);
+      this.errorSignals.set(nodeId, existing);
+    }
+    return existing;
+  }
+
+  private setStatus(nodeId: NodeId, status: NodeStatus): void {
+    this.statusSignal(nodeId).set(status);
+  }
+
+  /** Abort everything in flight and refuse further work. */
+  dispose(): void {
+    this.disposed = true;
+    for (const nodeId of [...this.active.keys()]) this.abortRun(nodeId);
+    for (const nodeId of [...this.iterators.keys()]) this.teardownIterator(nodeId);
+    this.dirty.clear();
+    this.readySet.clear();
+  }
+}
+
+function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
+  return typeof value === 'object' && value !== null && Symbol.asyncIterator in value;
+}

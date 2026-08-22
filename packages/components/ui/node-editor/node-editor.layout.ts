@@ -53,12 +53,23 @@ export function defaultMetrics(): PortMetrics {
   return isTouchDevice() ? TOUCH_METRICS : POINTER_METRICS;
 }
 
+/**
+ * A node's ports.
+ *
+ * One accessor rather than reading `node.ports` directly, because `ports` is
+ * optional for authors of typed nodes — the editor materialises it from the
+ * type definition. Everything downstream can then assume an array.
+ */
+export function portsOf(node: Pick<EditorNode, 'ports'>): readonly NodePort[] {
+  return node.ports ?? [];
+}
+
 /** The node's ports on one side, in declaration order. */
 export function portsOnSide(
   node: Pick<EditorNode, 'ports'>,
   direction: PortDirection,
 ): readonly NodePort[] {
-  return node.ports.filter(port => port.direction === direction);
+  return portsOf(node).filter(port => port.direction === direction);
 }
 
 /** Where the port rows begin, measured from the node's top edge. */
@@ -98,7 +109,7 @@ export function portOffsetTop(
   portId: string,
   metrics: PortMetrics = defaultMetrics(),
 ): number | null {
-  const port = node.ports.find(candidate => candidate.id === portId);
+  const port = portsOf(node).find(candidate => candidate.id === portId);
   if (!port) return null;
 
   const index = portsOnSide(node, port.direction).indexOf(port);
@@ -120,7 +131,7 @@ export function portAnchor(
   const top = portOffsetTop(node, portId, metrics);
   if (top === null) return null;
 
-  const port = node.ports.find(candidate => candidate.id === portId);
+  const port = portsOf(node).find(candidate => candidate.id === portId);
   // Inputs meet the left edge, outputs the right — the direction the bezier's
   // horizontal tangent then points is what makes flow readable at a glance.
   return { x: port?.direction === 'out' ? node.width : 0, y: top };

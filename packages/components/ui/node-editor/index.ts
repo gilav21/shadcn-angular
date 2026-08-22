@@ -2,6 +2,8 @@ export * from './node-editor.component';
 export * from './node-editor-node.directive';
 export * from './node-editor.graph';
 export * from './node-editor.layout';
+export * from './node-editor.runtime';
+export * from './node-editor.runtime.types';
 export * from './node-editor.types';
 export * from './node-editor.validate';
 export * from './sub/node-editor-node.component';

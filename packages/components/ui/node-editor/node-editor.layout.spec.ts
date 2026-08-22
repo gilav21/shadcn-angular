@@ -12,6 +12,7 @@ import {
     portAnchor,
     portListTop,
     portOffsetTop,
+    portsOf,
     portsOnSide,
     withDerivedHeights,
 } from './node-editor.layout';
@@ -44,7 +45,7 @@ function node(ports: NodePort[], extra: Partial<EditorNode> = {}): EditorNode {
 describe('nodeHeight', () => {
     it('grows with the LARGER side, because the columns are parallel', () => {
         const threeIn = node([port('a', 'in'), port('b', 'in'), port('c', 'in')]);
-        const threeInOneOut = node([...threeIn.ports, port('z', 'out')]);
+        const threeInOneOut = node([...portsOf(threeIn), port('z', 'out')]);
 
         // If height summed the two sides, adding an output would make it taller.
         expect(nodeHeight(threeInOneOut, M)).toBe(nodeHeight(threeIn, M));
@@ -93,7 +94,7 @@ describe('portOffsetTop', () => {
         ], { subtitle: 'with a subtitle' });
         const height = nodeHeight(n, M);
 
-        for (const p of n.ports) {
+        for (const p of portsOf(n)) {
             const top = portOffsetTop(n, p.id, M) as number;
             expect(top).toBeGreaterThan(portListTop(n) - 1);
             expect(top).toBeLessThan(height);
@@ -119,7 +120,7 @@ describe('portAnchor', () => {
             port('o1', 'out'), port('o2', 'out'), port('o3', 'out'),
         ], { subtitle: 'x' });
 
-        for (const p of n.ports) {
+        for (const p of portsOf(n)) {
             expect(portAnchor(n, p.id, M)?.y).toBe(portOffsetTop(n, p.id, M));
         }
     });
@@ -179,7 +180,7 @@ describe('port metrics adapt the row height to the device', () => {
     it('keeps the dot and the wire in agreement under either metric', () => {
         const n = node([port('i', 'in'), port('o', 'out'), port('o2', 'out')]);
         for (const metrics of [POINTER_METRICS, TOUCH_METRICS]) {
-            for (const p of n.ports) {
+            for (const p of portsOf(n)) {
                 expect(portAnchor(n, p.id, metrics)?.y).toBe(portOffsetTop(n, p.id, metrics));
             }
         }

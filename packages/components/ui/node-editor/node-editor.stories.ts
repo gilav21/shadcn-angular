@@ -210,7 +210,7 @@ export const CustomNodeTemplate: Story = {
           <span class="text-xs uppercase tracking-wide text-muted-foreground">custom</span>
           <span class="truncate text-sm font-semibold">{{ node.title }}</span>
           <span class="truncate text-[11px] text-muted-foreground">
-            {{ node.ports.length }} ports
+            {{ (node.ports ?? []).length }} ports
           </span>
         </div>
       </ng-template>

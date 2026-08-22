@@ -33,7 +33,7 @@ import {
   samePort,
   toCanvasEdges,
 } from './node-editor.graph';
-import { defaultMetrics, portAnchor, withDerivedHeights } from './node-editor.layout';
+import { defaultMetrics, portAnchor, portsOf, withDerivedHeights } from './node-editor.layout';
 import { NodeEditorNodeComponent } from './sub/node-editor-node.component';
 import type {
   ConnectRejection,
@@ -274,7 +274,7 @@ export class NodeEditorComponent {
     return nodes.map(node => ({
       id: node.id,
       title: node.title,
-      ports: node.ports.map(port => {
+      ports: portsOf(node).map(port => {
         const links = connections
           .filter(connection =>
             port.direction === 'out'
@@ -505,7 +505,7 @@ export class NodeEditorComponent {
     const node = this.focusedEditorNode();
     if (!node) return false;
 
-    if (event.key === 'Tab' && node.ports.length > 0) {
+    if (event.key === 'Tab' && portsOf(node).length > 0) {
       this.cyclePort(node, event.shiftKey ? -1 : 1);
       return true;
     }
@@ -538,13 +538,13 @@ export class NodeEditorComponent {
   }
 
   private cyclePort(node: EditorNode, step: number): void {
-    const ids = node.ports.map(port => port.id);
+    const ids = portsOf(node).map(port => port.id);
     const current = this.activePort();
     const index = current ? ids.indexOf(current) : -1;
     const next = ids[(index + step + ids.length) % ids.length];
     this.activePort.set(next);
 
-    const port = node.ports.find(candidate => candidate.id === next);
+    const port = portsOf(node).find(candidate => candidate.id === next);
     if (port) this.announce(`${port.label}, ${port.direction === 'out' ? 'output' : 'input'}.`);
   }
 
