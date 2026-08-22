@@ -5,7 +5,7 @@
 // generator that writes it.
 import { vi } from 'vitest';
 import { TestBed } from '@angular/core/testing';
-import { provideZonelessChangeDetection } from '@angular/core';
+import { provideZonelessChangeDetection, type Type } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideUiLocale } from '../../../../packages/components/lib/i18n';
 import { DEMO_ROUTES } from '../demo.routes';
@@ -210,12 +210,15 @@ describe('T-7: every demo page renders its add command', () => {
      * blocks are present and complete, by name, against the real payload.
      */
     describe('multi-component routes document each component in its own section', () => {
-        const PAGES = [
+        // Typed as Type<unknown>: these are four unrelated components, and
+        // without the annotation TS infers their union and refuses to hand it
+        // to createComponent, which wants one concrete type.
+        const PAGES: readonly { route: string; type: Type<unknown> }[] = [
             { route: 'charts', type: ChartsDemoComponent },
             { route: 'animations', type: AnimationsDemoComponent },
             { route: 'data-table', type: DataTableDemoComponent },
             { route: 'rich-text-editor', type: RichTextEditorDemoComponent },
-        ] as const;
+        ];
 
         function renderedNames(host: HTMLElement): string[] {
             return [...host.querySelectorAll('app-docs-for')]

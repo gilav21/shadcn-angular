@@ -22,6 +22,12 @@
             "dom"
         ],
         "paths": {
+            // Recipes under e2e/recipes/ import the way a CONSUMER does, through
+            // the alias `shadcn-angular init` writes. More specific than "@/*",
+            // so it wins for those imports and leaves the rest alone.
+            "@/components/*": [
+                "./packages/components/*"
+            ],
             "@/*": [
                 "./packages/components/*"
             ]

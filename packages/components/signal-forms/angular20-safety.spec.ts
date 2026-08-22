@@ -20,33 +20,31 @@
  */
 import { describe, expect, it } from 'vitest';
 
-/**
- * `import.meta.glob` is a Vite build-time transform, not a TS lib member, and
- * this workspace does not pull in `vite/client`'s ambient types. Declared here
- * with exactly the shape used below rather than widening the whole program.
- */
-declare global {
-    interface ImportMeta {
-        glob(
-            pattern: string,
-            options: { readonly query: string; readonly import: string; readonly eager: true },
-        ): Record<string, string>;
-    }
-}
-
 const SIGNALS_ENTRYPOINT = '@angular/forms/signals';
 
-const shippedSources = import.meta.glob('../{ui,lib}/**/*.ts', {
-    query: '?raw',
-    import: 'default',
-    eager: true,
-});
+/**
+ * `import.meta.glob` is a Vite build-time transform. Its ambient type (from
+ * `vite/client`) returns `Record<string, unknown>`, because the module shape
+ * depends on the query — and `?raw` + `import: 'default'` makes every value a
+ * string. This narrows that once, rather than casting at each use.
+ *
+ * It used to be a local `declare global` augmentation, on the premise that the
+ * workspace did not pull in `vite/client` at all. That stopped being true, and
+ * the augmentation became a duplicate-identifier error.
+ */
+function globSources(entries: Record<string, unknown>): Record<string, string> {
+    return Object.fromEntries(
+        Object.entries(entries).map(([path, source]) => [path, String(source)]),
+    );
+}
 
-const conformanceSources = import.meta.glob('./*.ts', {
-    query: '?raw',
-    import: 'default',
-    eager: true,
-});
+const shippedSources = globSources(
+    import.meta.glob('../{ui,lib}/**/*.ts', { query: '?raw', import: 'default', eager: true }),
+);
+
+const conformanceSources = globSources(
+    import.meta.glob('./*.ts', { query: '?raw', import: 'default', eager: true }),
+);
 
 const importsSignals = (source: string): boolean =>
     source.includes(`'${SIGNALS_ENTRYPOINT}'`) || source.includes(`"${SIGNALS_ENTRYPOINT}"`);
