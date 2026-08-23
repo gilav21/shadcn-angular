@@ -8,8 +8,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Component, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { NodeEditorComponent } from './node-editor.component';
-import type { NodeTypeDefinition } from './node-editor.runtime.types';
-import type { EditorNode, NodeConnection } from './node-editor.types';
+import type { NodeTypeDefinition, RunFinishedEvent } from './node-editor.runtime.types';
+import type { EditorNode, NodeConnection, NodeId } from './node-editor.types';
 import type { CanvasPoint } from '../infinite-canvas';
 
 const SOURCE: NodeTypeDefinition = {
@@ -36,12 +36,18 @@ const SINK: NodeTypeDefinition = {
       [(connections)]="connections"
       [definitions]="definitions"
       (addNodeRequested)="requested.set($event)"
+      (runStarted)="runs.push($event.runId)"
+      (nodeSettled)="settled.push($event.nodeId)"
+      (runFinished)="finished.push($event)"
     />
   `,
 })
 class HostComponent {
     readonly definitions = [SOURCE, SINK];
     readonly requested = signal<CanvasPoint | null>(null);
+    readonly runs: number[] = [];
+    readonly settled: NodeId[] = [];
+    readonly finished: RunFinishedEvent[] = [];
     readonly nodes = signal<readonly EditorNode[]>([
         { id: 'a', type: 'source', x: 10, y: 10, width: 170, height: 0 },
         { id: 'b', type: 'sink', x: 10, y: 160, width: 170, height: 0 },
@@ -251,7 +257,6 @@ describe('the base API the addons need', () => {
 
     describe('readonly graphs refuse every one of these', () => {
         it('will not add, move or place', async () => {
-            fixture.componentRef.setInput('readonlyGraph', true);
             const solo = TestBed.createComponent(NodeEditorComponent);
             solo.componentRef.setInput('definitions', [SOURCE]);
             solo.componentRef.setInput('readonlyGraph', true);
@@ -265,6 +270,41 @@ describe('the base API the addons need', () => {
             solo.destroy();
         });
     });
+
+describe('run lifecycle — for the run-history addon', () => {
+    /**
+     * Three outputs rather than one union, so a consumer that only wants
+     * finished runs writes one handler and never sees the rest.
+     */
+    it('brackets an evaluation pass', async () => {
+        host.runs.length = 0;
+        host.finished.length = 0;
+        editor.runtime.setState('a', 'changed');
+        await editor.run();
+
+        expect(host.runs).toHaveLength(1);
+        expect(host.finished).toHaveLength(1);
+    });
+
+    it('reports each node with the values it saw', async () => {
+        host.settled.length = 0;
+        host.finished.length = 0;
+        editor.runtime.setState('a', 'later');
+        await editor.run();
+
+        expect(host.settled).toContain('a');
+        expect(host.finished[0].nodes.find(n => n.nodeId === 'b')?.inputs).toEqual({
+            in: 'later',
+        });
+    });
+
+    it('says nothing when there is nothing to do', async () => {
+        await editor.run();
+        host.runs.length = 0;
+        await editor.run();
+        expect(host.runs).toEqual([]);
+    });
+});
 
 describe('renderedNodes — what an addon must position and draw', () => {
     /**

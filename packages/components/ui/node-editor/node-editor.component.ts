@@ -57,9 +57,14 @@ import {
   NODE_CONTEXT,
   type GraphProblem,
   type NodeContext,
+  type NodeSettledEvent,
+  type NodeStatus,
   type NodeTypeDefinition,
   type RemoteExecutor,
   type RemoteRequest,
+  type ReplayFrame,
+  type RunFinishedEvent,
+  type RunStartedEvent,
 } from './node-editor.runtime.types';
 import { NodeEditorNodeComponent } from './sub/node-editor-node.component';
 import type {
@@ -224,6 +229,21 @@ export class NodeEditorComponent {
    */
   readonly live = input(true);
 
+  /**
+   * Show a past run's values instead of the live ones.
+   *
+   * Bind a frame and every node view renders what it held then — the same
+   * views, the same layout, different values. Evaluation is suspended for as
+   * long as a frame is bound, because a graph cannot be showing the past and
+   * computing the present at the same time; that is not a silent override of
+   * `live` but the meaning of replay.
+   *
+   * The base owns this rather than an addon because node views read their
+   * values through `NODE_CONTEXT`, which only the editor supplies — an addon
+   * could not substitute them without forking the template.
+   */
+  readonly replay = input<ReplayFrame | null>(null);
+
   readonly connectionRejected = output<ConnectionRejectedEvent>();
 
   /**
@@ -252,6 +272,17 @@ export class NodeEditorComponent {
    * is why a minimap updates after a pan rather than during one.
    */
   readonly viewportChange = output<CanvasViewport>();
+
+  /**
+   * Run lifecycle, for the run-history addon.
+   *
+   * Three separate outputs rather than one union, so a consumer that only
+   * wants finished runs writes one handler and never sees the rest. A pass
+   * with nothing to do emits nothing at all.
+   */
+  readonly runStarted = output<RunStartedEvent>();
+  readonly nodeSettled = output<NodeSettledEvent>();
+  readonly runFinished = output<RunFinishedEvent>();
 
   @ContentChild(NodeEditorNodeDirective, { read: TemplateRef })
   nodeTemplateRef?: TemplateRef<NodeEditorNodeContext>;
@@ -322,6 +353,10 @@ export class NodeEditorComponent {
     const onKeyDownCapture = (event: Event): void => this.onKeyDown(event as KeyboardEvent);
     element.addEventListener('keydown', onKeyDownCapture, true);
 
+    this.runtime.onRunStarted = event => this.runStarted.emit(event);
+    this.runtime.onNodeSettled = event => this.nodeSettled.emit(event);
+    this.runtime.onRunFinished = event => this.runFinished.emit(event);
+
     /*
      * The runtime mirrors the graph.
      *
@@ -336,7 +371,7 @@ export class NodeEditorComponent {
     effect(() => {
       this.runtime.executeRemote = this.wrapExecutor(this.executeRemote());
       this.runtime.setGraph(this.sizedNodes(), this.connections());
-      if (this.live()) void this.runtime.run();
+      if (this.evaluating()) void this.runtime.run();
     });
 
     inject(DestroyRef).onDestroy(() => {
@@ -543,7 +578,7 @@ export class NodeEditorComponent {
     this.nodes.set(next.nodes);
     this.connections.set(next.connections);
     if (command.kind === 'set-state') this.runtime.setState(command.nodeId, command.after);
-    if (this.live()) void this.runtime.run();
+    if (this.evaluating()) void this.runtime.run();
   }
 
   /** Where the viewport currently is, for a minimap. */
@@ -671,17 +706,42 @@ export class NodeEditorComponent {
    */
   private createNodeContext(nodeId: NodeId): NodeContext {
     const runtime = this.runtime;
+    // Replay substitutes the values here, at the one place every view reads
+    // them — so a node written months ago replays without knowing it can.
+    const recorded = computed(() => this.replay()?.[nodeId] ?? null);
     return {
       nodeId,
       state: runtime.state(nodeId),
       setState: (next: unknown) => this.setNodeState(nodeId, next),
       input: <T,>(portId: string) =>
-        computed(() => runtime.inputs(nodeId)()[portId] as T | undefined),
+        computed(
+          () => (recorded()?.inputs ?? runtime.inputs(nodeId)())[portId] as T | undefined,
+        ),
       output: <T,>(portId: string) =>
-        computed(() => runtime.outputs(nodeId)()[portId] as T | undefined),
-      status: runtime.status(nodeId),
+        computed(
+          () => (recorded()?.outputs ?? runtime.outputs(nodeId)())[portId] as T | undefined,
+        ),
+      status: computed(() => recorded()?.status ?? runtime.status(nodeId)()),
       error: runtime.error(nodeId),
     };
+  }
+
+  /**
+   * The status a node's card shows.
+   *
+   * A node absent from a replay frame reports `idle` rather than its live
+   * status: it did not run in that pass, and showing the value it happens to
+   * hold now would put a present-tense answer inside a picture of the past.
+   */
+  protected statusOf(nodeId: NodeId): NodeStatus {
+    const frame = this.replay();
+    if (!frame) return this.runtime.status(nodeId)();
+    return frame[nodeId]?.status ?? 'idle';
+  }
+
+  /** Live dataflow, unless a replay frame is holding the graph in the past. */
+  private evaluating(): boolean {
+    return this.live() && this.replay() === null;
   }
 
   /** A view editing its own state. Routed through history, like every edit. */
@@ -695,7 +755,7 @@ export class NodeEditorComponent {
       at: this.now(),
     });
     this.runtime.setState(nodeId, next);
-    if (this.live()) void this.runtime.run();
+    if (this.evaluating()) void this.runtime.run();
   }
 
   /** Overridable in tests, which must not depend on the wall clock. */

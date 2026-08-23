@@ -60,9 +60,12 @@
       [gridSnap]="gridSnap()"
       [readonlyGraph]="readonlyGraph()"
       [ariaLabel]="text.editorLabel"
+      [replay]="replay()"
       (connectionRejected)="onRejected($event)"
       (addNodeRequested)="openPalette($event)"
       (viewportChange)="onViewportChange()"
+      (runStarted)="onRunStarted($event)"
+      (runFinished)="onRunFinished($event)"
     />
 
     <!--
@@ -96,6 +99,24 @@
   <ui-node-editor-problems
     [problems]="problems()"
     (problemSelected)="revealProblem($event.nodeId)"
+  />
+
+  <!--
+    The run history is an ADDON, and the clearest illustration of the boundary
+    in the suite: it consumes three lifecycle outputs and produces a replay
+    frame. Replay itself is the base's — node views read their values through
+    NODE_CONTEXT, which only the editor supplies.
+
+    Downloading the JSON is the demo's job, not the panel's: a permission
+    prompt in one host and a file dialog in another is an application
+    decision.
+  -->
+  <ui-node-editor-history
+    [runs]="history.runs()"
+    (replayChange)="showRun($event)"
+    (nodeSelected)="revealProblem($event)"
+    (runExported)="downloadRun($event)"
+    (clearRequested)="history.clear()"
   />
 
   <section class="flex flex-col gap-2" [attr.aria-label]="text.shortcuts">

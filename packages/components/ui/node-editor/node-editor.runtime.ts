@@ -15,18 +15,34 @@ import { signal, type Signal, type WritableSignal } from '@angular/core';
 import type { EditorNode, NodeConnection, NodeId } from './node-editor.types';
 import type {
   GraphProblem,
+  NodeSettledEvent,
   NodeStatus,
   NodeTypeDefinition,
   PortValues,
   RemoteExecutor,
   RemoteRequest,
   RemoteResult,
+  RunFinishedEvent,
+  RunStartedEvent,
   StalenessPolicy,
 } from './node-editor.runtime.types';
 
 interface ActiveRun {
   readonly id: number;
   readonly controller: AbortController;
+}
+
+/** The evaluation pass in flight, accumulating what settles inside it. */
+interface RunSession {
+  readonly id: number;
+  readonly startedAt: number;
+  readonly startedTick: number;
+  readonly nodes: NodeSettledEvent[];
+}
+
+/** Monotonic where available; `performance` is absent in some SSR shims. */
+function tick(): number {
+  return globalThis.performance?.now() ?? Date.now();
 }
 
 /** Counters the performance suite asserts on. Counts, never wall-clock. */
@@ -97,8 +113,24 @@ export class NodeGraphRuntime {
   /** Backend hand-off. `null` means every node runs locally. */
   executeRemote: RemoteExecutor | null = null;
 
-  /** Notified whenever a node settles, for the run-history addon. */
-  onNodeSettled: ((nodeId: NodeId, status: NodeStatus) => void) | null = null;
+  /**
+   * Run lifecycle, for the run-history addon.
+   *
+   * Plain callbacks rather than signals: history is a stream of things that
+   * happened, and a signal only ever holds the latest — an observer that
+   * missed a tick would silently lose a run.
+   */
+  onRunStarted: ((event: RunStartedEvent) => void) | null = null;
+  onNodeSettled: ((event: NodeSettledEvent) => void) | null = null;
+  onRunFinished: ((event: RunFinishedEvent) => void) | null = null;
+
+  // ---- run sessions -------------------------------------------------------
+  private session: RunSession | null = null;
+  private sessionCounter = 0;
+  /** Re-entrant `run()` callers. The pass closes when the last one leaves. */
+  private runDepth = 0;
+  /** When each node's current attempt started, for its duration. */
+  private readonly startedTicks = new Map<NodeId, number>();
 
   // ---- instrumentation ----------------------------------------------------
   private readonly computedNodes: NodeId[] = [];
@@ -482,7 +514,12 @@ export class NodeGraphRuntime {
     if (this.draining) await this.draining;
     const next = this.readySet.values().next();
     if (next.done === true) return;
-    await this.execute([next.value]);
+    this.enterSession();
+    try {
+      await this.execute([next.value]);
+    } finally {
+      this.leaveSession();
+    }
   }
 
   /**
@@ -503,21 +540,76 @@ export class NodeGraphRuntime {
    * takes two callers to produce it.
    */
   async run(): Promise<void> {
-    while (this.readySet.size > 0) {
-      if (this.draining) {
-        // Join the drain in flight, then re-check: work dirtied while it ran
-        // may have arrived after it made its final decision to stop.
-        await this.draining;
-        continue;
-      }
-      const drain = this.drain();
-      this.draining = drain;
-      try {
-        await drain;
-      } finally {
-        if (this.draining === drain) this.draining = null;
-      }
+    // Nothing to do starts no pass at all, so an idle editor calling `run()`
+    // on every keystroke does not fill the history with empty runs.
+    if (this.readySet.size === 0) return;
+
+    this.enterSession();
+    try {
+      while (this.readySet.size > 0) await this.drainOnce();
+    } finally {
+      this.leaveSession();
     }
+  }
+
+  /**
+   * One drain — or a join of the one already in flight.
+   *
+   * Joining then returning to the loop is deliberate: work dirtied while a
+   * drain ran may have arrived after it made its final decision to stop, so
+   * the caller re-checks rather than assuming the graph is settled.
+   */
+  private async drainOnce(): Promise<void> {
+    if (this.draining) {
+      await this.draining;
+      return;
+    }
+    const drain = this.drain();
+    this.draining = drain;
+    try {
+      await drain;
+    } finally {
+      if (this.draining === drain) this.draining = null;
+    }
+  }
+
+  /**
+   * Join the pass in flight, or open one.
+   *
+   * The editor calls `run()` from several places at once — an effect, a state
+   * change, every stream emission. Treating each as its own run would report
+   * three runs for what a person did once, so callers nest.
+   */
+  private enterSession(): void {
+    this.runDepth++;
+    if (this.session) return;
+
+    this.session = {
+      id: ++this.sessionCounter,
+      startedAt: Date.now(),
+      startedTick: tick(),
+      nodes: [],
+    };
+    this.onRunStarted?.({
+      runId: this.session.id,
+      startedAt: this.session.startedAt,
+      nodes: [...this.readySet],
+    });
+  }
+
+  private leaveSession(): void {
+    this.runDepth = Math.max(0, this.runDepth - 1);
+    const session = this.session;
+    if (this.runDepth > 0 || !session) return;
+
+    this.session = null;
+    this.onRunFinished?.({
+      runId: session.id,
+      startedAt: session.startedAt,
+      durationMs: tick() - session.startedTick,
+      nodes: session.nodes,
+      status: session.nodes.some(node => node.status === 'error') ? 'error' : 'done',
+    });
   }
 
   private async drain(): Promise<void> {
@@ -533,7 +625,9 @@ export class NodeGraphRuntime {
   private async execute(batch: readonly NodeId[]): Promise<void> {
     const local: NodeId[] = [];
     const remote: NodeId[] = [];
+    const startedTick = tick();
     for (const node of batch) {
+      this.startedTicks.set(node, startedTick);
       (this.definition(node)?.remote === true ? remote : local).push(node);
     }
     await Promise.all([
@@ -748,8 +842,26 @@ export class NodeGraphRuntime {
     this.dirty.delete(nodeId);
     this.readySet.delete(nodeId);
     if (this.statusSignal(nodeId)() !== 'cycle') this.setStatus(nodeId, status);
-    this.onNodeSettled?.(nodeId, status);
+    this.report(nodeId, status);
     this.refresh();
+  }
+
+  /** Publish what this node did, and file it under the pass in flight. */
+  private report(nodeId: NodeId, status: NodeStatus): void {
+    const startedTick = this.startedTicks.get(nodeId);
+    this.startedTicks.delete(nodeId);
+
+    const event: NodeSettledEvent = {
+      runId: this.session?.id ?? 0,
+      nodeId,
+      status,
+      inputs: { ...this.inputSignal(nodeId)() },
+      outputs: { ...this.outputValues.get(nodeId) },
+      error: status === 'error' ? this.errorSignal(nodeId)() : undefined,
+      durationMs: startedTick === undefined ? 0 : tick() - startedTick,
+    };
+    this.session?.nodes.push(event);
+    this.onNodeSettled?.(event);
   }
 
   // ================================================================ problems
@@ -903,6 +1015,7 @@ export class NodeGraphRuntime {
     for (const nodeId of streaming) this.teardownIterator(nodeId);
     this.dirty.clear();
     this.readySet.clear();
+    this.startedTicks.clear();
   }
 }
 

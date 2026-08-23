@@ -8819,6 +8819,80 @@
       "outputs": []
     },
     {
+      "name": "NodeEditorHistoryComponent",
+      "file": "packages/components/ui/node-editor/addons/history/node-editor-history.component.ts",
+      "kind": "component",
+      "selector": "ui-node-editor-history",
+      "description": "What happened, run by run. ### Why this is an addon It consumes three lifecycle outputs and nothing else — it never touches the graph model, and it takes an array of records rather than the editor. A consumer who does not want a history panel does not install one, and the runtime is not carrying a recorder nobody reads. ### Why it does not choose storage or write files `runExported` hands over a JSON string and stops there. Downloading it, or putting it on the clipboard, means a permission prompt in one host and a file dialog in another — decisions that belong to the application, not to a list. The same reasoning that keeps `RunSink` an interface.",
+      "projectsContent": false,
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "",
+          "default": "''"
+        },
+        {
+          "name": "heading",
+          "type": "boolean",
+          "description": "Hide the heading when the panel already sits under one.",
+          "default": "true"
+        },
+        {
+          "name": "replaying",
+          "type": "boolean",
+          "description": "Whether the selected run's values are being shown in the editor.",
+          "default": "false"
+        },
+        {
+          "name": "runs",
+          "type": "readonly RunRecord[]",
+          "description": "",
+          "default": "[]"
+        },
+        {
+          "name": "selectedRun",
+          "type": "number | null",
+          "description": "The run being inspected, by id.",
+          "default": "null"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "clearRequested",
+          "type": "void",
+          "description": ""
+        },
+        {
+          "name": "nodeSelected",
+          "type": "NodeId",
+          "description": "A node row was activated; the consumer decides what to reveal."
+        },
+        {
+          "name": "replayChange",
+          "type": "RunRecord | null",
+          "description": "The run to show in the editor, or `null` to return to the present. The consumer binds this to the editor's `replay` input — via `replayFrame()` — rather than the addon reaching into the editor."
+        },
+        {
+          "name": "replaying",
+          "type": "boolean",
+          "description": "Whether the selected run's values are being shown in the editor.",
+          "default": "false"
+        },
+        {
+          "name": "runExported",
+          "type": "RunExportEvent",
+          "description": ""
+        },
+        {
+          "name": "selectedRun",
+          "type": "number | null",
+          "description": "The run being inspected, by id.",
+          "default": "null"
+        }
+      ]
+    },
+    {
       "name": "NodeEditorMinimapComponent",
       "file": "packages/components/ui/node-editor/addons/minimap/node-editor-minimap.component.ts",
       "kind": "component",
@@ -9054,6 +9128,12 @@
           "default": "false"
         },
         {
+          "name": "replay",
+          "type": "ReplayFrame | null",
+          "description": "Show a past run's values instead of the live ones. Bind a frame and every node view renders what it held then — the same views, the same layout, different values. Evaluation is suspended for as long as a frame is bound, because a graph cannot be showing the past and computing the present at the same time; that is not a silent override of `live` but the meaning of replay. The base owns this rather than an addon because node views read their values through `NODE_CONTEXT`, which only the editor supplies — an addon could not substitute them without forking the template.",
+          "default": "null"
+        },
+        {
           "name": "selection",
           "type": "EditorSelection",
           "description": "What is currently selected.",
@@ -9093,6 +9173,21 @@
           "type": "readonly EditorNode[]",
           "description": "Every node in the graph. Heights are derived and written back.",
           "default": "[]"
+        },
+        {
+          "name": "nodeSettled",
+          "type": "NodeSettledEvent",
+          "description": ""
+        },
+        {
+          "name": "runFinished",
+          "type": "RunFinishedEvent",
+          "description": ""
+        },
+        {
+          "name": "runStarted",
+          "type": "RunStartedEvent",
+          "description": "Run lifecycle, for the run-history addon. Three separate outputs rather than one union, so a consumer that only wants finished runs writes one handler and never sees the rest. A pass with nothing to do emits nothing at all."
         },
         {
           "name": "selection",

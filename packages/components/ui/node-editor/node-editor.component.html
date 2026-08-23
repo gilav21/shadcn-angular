@@ -29,7 +29,7 @@
         [bodyTemplate]="nodeTemplateRef ?? null"
         [view]="viewFor(node)"
         [viewInjector]="injectorFor(node)"
-        [status]="runtime.status(node.id)()"
+        [status]="statusOf(node.id)"
         [connectable]="connectablePorts()"
       />
     </ng-template>

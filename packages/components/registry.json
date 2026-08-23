@@ -5337,6 +5337,42 @@
       "button"
     ]
   },
+  "node-editor/history": {
+    "name": "node-editor/history",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Records every run with its values and timings, and replays a past run in the editor.",
+    "tags": [
+      "node-editor",
+      "history",
+      "replay",
+      "runs",
+      "debug"
+    ],
+    "files": [
+      "node-editor/addons/history/index.ts",
+      "node-editor/addons/history/node-editor-history.component.html",
+      "node-editor/addons/history/node-editor-history.component.ts",
+      "node-editor/addons/history/node-editor-history.locales.ts",
+      "node-editor/addons/history/node-editor-history.store.ts",
+      "node-editor/addons/history/node-editor-history.types.ts",
+      "node-editor/addons/history/node-editor-history.utils.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorHistoryComponent from './ui/node-editor/addons/history'",
+      "selector": "ui-node-editor-history"
+    }
+  },
   "node-editor/layout": {
     "name": "node-editor/layout",
     "type": "addon",
@@ -5500,6 +5536,7 @@
       "infinite-canvas"
     ],
     "addons": [
+      "node-editor/history",
       "node-editor/layout",
       "node-editor/minimap",
       "node-editor/palette",

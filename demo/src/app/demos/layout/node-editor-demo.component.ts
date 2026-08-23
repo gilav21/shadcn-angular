@@ -15,9 +15,20 @@ import {
   type EditorSelection,
   type CanvasPoint,
   type CanvasRect,
+  serializeGraph,
   type NodeConnection,
+  type ReplayFrame,
+  type RunFinishedEvent,
+  type RunStartedEvent,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import {
+  NodeEditorHistoryComponent,
+  RunHistoryStore,
+  replayFrame,
+  type RunExportEvent,
+  type RunRecord,
+} from '../../../../../packages/components/ui/node-editor/addons/history';
 import { layoutGraph } from '../../../../../packages/components/ui/node-editor/addons/layout';
 import { NodeEditorMinimapComponent } from '../../../../../packages/components/ui/node-editor/addons/minimap';
 import {
@@ -156,6 +167,7 @@ function initialConnections(): NodeConnection[] {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     NodeEditorComponent,
+    NodeEditorHistoryComponent,
     NodeEditorMinimapComponent,
     NodeEditorPaletteComponent,
     NodeEditorProblemsComponent,
@@ -199,6 +211,43 @@ export class NodeEditorDemoComponent {
 
   /** Graph-level problems the runtime found — missing inputs, cycles, bad types. */
   protected readonly problems = computed(() => this.editorRef()?.problems() ?? []);
+
+  /**
+   * The run history, one store per editor.
+   *
+   * A `providedIn: 'root'` service would give the whole application one
+   * history, and two editors on a page would interleave their runs into a
+   * single unreadable list — the same no-singleton rule the runtime keeps.
+   */
+  protected readonly history = new RunHistoryStore({ limit: 25 });
+  protected readonly replay = signal<ReplayFrame | null>(null);
+
+  protected onRunStarted(event: RunStartedEvent): void {
+    this.history.begin(event, serializeGraph(this.nodes(), this.connections()));
+  }
+
+  protected onRunFinished(event: RunFinishedEvent): void {
+    this.history.finish(event);
+  }
+
+  /** The panel picks a run; the editor renders it through its own node views. */
+  protected showRun(run: RunRecord | null): void {
+    this.replay.set(replayFrame(run));
+  }
+
+  /**
+   * Downloading is the APPLICATION's decision, which is why the addon hands
+   * over a string and stops. A permission prompt in one host and a file dialog
+   * in another is not something a list component should be choosing.
+   */
+  protected downloadRun(event: RunExportEvent): void {
+    const url = URL.createObjectURL(new Blob([event.json], { type: 'application/json' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `run-${event.run.id}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
 
   protected onRejected(event: ConnectionRejectedEvent): void {
     this.rejection.set(event.reason);

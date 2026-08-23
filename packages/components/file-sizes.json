@@ -4493,6 +4493,46 @@
       "bytes": 4290,
       "lines": 3
     },
+    "node-editor/addons/history/index.ts": {
+      "bytes": 231,
+      "lines": 5
+    },
+    "node-editor/addons/history/node-editor-history.component.html": {
+      "bytes": 8320,
+      "lines": 195
+    },
+    "node-editor/addons/history/node-editor-history.component.spec.ts": {
+      "bytes": 10782,
+      "lines": 305
+    },
+    "node-editor/addons/history/node-editor-history.component.ts": {
+      "bytes": 5737,
+      "lines": 174
+    },
+    "node-editor/addons/history/node-editor-history.locales.ts": {
+      "bytes": 7923,
+      "lines": 250
+    },
+    "node-editor/addons/history/node-editor-history.store.spec.ts": {
+      "bytes": 8093,
+      "lines": 236
+    },
+    "node-editor/addons/history/node-editor-history.store.ts": {
+      "bytes": 4106,
+      "lines": 121
+    },
+    "node-editor/addons/history/node-editor-history.types.ts": {
+      "bytes": 2054,
+      "lines": 58
+    },
+    "node-editor/addons/history/node-editor-history.utils.spec.ts": {
+      "bytes": 6846,
+      "lines": 200
+    },
+    "node-editor/addons/history/node-editor-history.utils.ts": {
+      "bytes": 3955,
+      "lines": 106
+    },
     "node-editor/addons/layout/__screenshots__/node-editor-layout.spec.ts/layers-follow-dependencies-places-a-node-after-its-deepest-dependency--not-its-shallowest-1.png": {
       "bytes": 4290,
       "lines": 3
@@ -4594,15 +4634,15 @@
       "lines": 380
     },
     "node-editor/node-editor.api.spec.ts": {
-      "bytes": 10344,
-      "lines": 268
+      "bytes": 12668,
+      "lines": 330
     },
     "node-editor/node-editor.component.css": {
       "bytes": 719,
       "lines": 19
     },
     "node-editor/node-editor.component.html": {
-      "bytes": 3945,
+      "bytes": 3937,
       "lines": 121
     },
     "node-editor/node-editor.component.spec.ts": {
@@ -4610,8 +4650,8 @@
       "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 47494,
-      "lines": 1321
+      "bytes": 50490,
+      "lines": 1392
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -4653,17 +4693,25 @@
       "bytes": 11876,
       "lines": 323
     },
+    "node-editor/node-editor.replay.spec.ts": {
+      "bytes": 6875,
+      "lines": 203
+    },
+    "node-editor/node-editor.runtime.events.spec.ts": {
+      "bytes": 9675,
+      "lines": 281
+    },
     "node-editor/node-editor.runtime.spec.ts": {
       "bytes": 25148,
       "lines": 651
     },
     "node-editor/node-editor.runtime.ts": {
-      "bytes": 32890,
-      "lines": 924
+      "bytes": 36452,
+      "lines": 1037
     },
     "node-editor/node-editor.runtime.types.ts": {
-      "bytes": 6988,
-      "lines": 208
+      "bytes": 9362,
+      "lines": 273
     },
     "node-editor/node-editor.serialize.spec.ts": {
       "bytes": 6287,

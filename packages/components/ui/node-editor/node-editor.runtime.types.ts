@@ -124,6 +124,71 @@ export type NodeStatus =
   | 'error'
   | 'cycle';
 
+/**
+ * One node's finished work.
+ *
+ * Carries the inputs it saw and the outputs it produced, not just the fact
+ * that it finished — because the question a run history exists to answer is
+ * *"what did node X actually get on run #47"*, and a status alone cannot
+ * answer it.
+ */
+export interface NodeSettledEvent {
+  /** The evaluation pass this belongs to. */
+  readonly runId: number;
+  readonly nodeId: NodeId;
+  readonly status: NodeStatus;
+  readonly inputs: PortValues;
+  readonly outputs: PortValues;
+  /** Present only when `status` is `error`. */
+  readonly error?: unknown;
+  /** Monotonic, in milliseconds. Zero for a memo hit — it did no work. */
+  readonly durationMs: number;
+}
+
+/**
+ * An evaluation pass beginning: the first ready node through to nothing left.
+ *
+ * Re-entrant calls join the pass already in flight rather than starting a new
+ * one, so this fires once per settled-to-settled cycle — which is what a
+ * person means by "a run". A call with nothing to do starts no pass at all,
+ * so an idle editor does not fill the history with empty entries.
+ */
+export interface RunStartedEvent {
+  readonly runId: number;
+  /** Wall clock, for display alongside the record. */
+  readonly startedAt: number;
+  /** What was ready when it began; more may be dirtied as it goes. */
+  readonly nodes: readonly NodeId[];
+}
+
+/** An evaluation pass ending, with everything that settled inside it. */
+export interface RunFinishedEvent {
+  readonly runId: number;
+  readonly startedAt: number;
+  readonly durationMs: number;
+  /** In settle order, which is the order the work actually completed. */
+  readonly nodes: readonly NodeSettledEvent[];
+  /** `error` when any node in the pass errored. */
+  readonly status: 'done' | 'error';
+}
+
+/** One node's values as they were, for replay. */
+export interface ReplayNodeValues {
+  readonly status: NodeStatus;
+  readonly inputs: PortValues;
+  readonly outputs: PortValues;
+}
+
+/**
+ * A past run's values, shown in place of the live ones.
+ *
+ * Bound to the editor, this is what makes *"what happened on run #47"* a thing
+ * you can look at rather than read in a table: the same node views render the
+ * recorded values. Evaluation stops while a frame is bound — a graph cannot be
+ * showing the past and computing the present at once.
+ */
+export type ReplayFrame = Readonly<Record<NodeId, ReplayNodeValues>>;
+
 /** Why a graph is not valid. Rendered in plain language, never as the code. */
 export type GraphProblemKind =
   | 'required-input-unconnected'

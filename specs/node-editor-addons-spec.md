@@ -19,7 +19,7 @@ from actual consumers rather than guessed.
 
 ## 0. Gaps this exercise found in the base API
 
-Writing the addons surfaced six things the base must expose that the runtime
+Writing the addons surfaced seven things the base must expose that the runtime
 spec did not mention. They are folded into the base's task list.
 
 | Gap | Needed by | Base addition |
@@ -29,7 +29,27 @@ spec did not mention. They are folded into the base's task list.
 | The registered type list | palette | `definitions` input is an array; expose as a readonly signal |
 | A "user asked to add a node here" intent | palette | `(addNodeRequested)` output carrying a world point |
 | Programmatic insertion honouring undo | palette, auto-layout | `addNode()`, `moveNodes()` as public methods routed through the command funnel |
-| Runtime lifecycle events | run history | `(runStarted)`, `(nodeSettled)`, `(runFinished)` outputs |
+| Runtime lifecycle events | run history | `(runStarted)`, `(nodeSettled)`, `(runFinished)` outputs ✅ |
+| Showing a past run's values | run history | `[replay]` input taking a `ReplayFrame` ✅ |
+
+**Why replay landed in the base rather than the addon.** The addon can record
+everything it needs from three outputs, but it cannot *show* a past run: node
+views read their values through `NODE_CONTEXT`, which only the editor supplies.
+An addon would have had to fork the editor's template and re-render the graph
+itself — a second renderer to keep in step with the first, which is how every
+"preview mode" eventually drifts. So the base substitutes the values at the one
+place every view already reads them, and a node type written months ago
+replays without knowing it can.
+
+Two decisions fell out of that:
+
+- **Evaluation is suspended while a frame is bound.** A graph cannot show the
+  past and compute the present at once; left running, the live value overwrites
+  the replayed one the moment anything upstream changes. This is not a silent
+  override of `live` — it is what replay *means*.
+- **A node absent from the frame reads `idle`, not its live status.** It did
+  not run in that pass, and reporting the value it happens to hold now would
+  put a present-tense answer inside a picture of the past.
 
 ---
 
@@ -192,8 +212,38 @@ exists to answer.
 Storage is the consumer's: the addon exposes a `RunRecord[]` and a sink
 interface; it does not choose IndexedDB on anyone's behalf.
 
-Tasks: E1 record shape + collection · E2 run list UI · E3 replay mode ·
-E4 per-node timing display · E5 export a run as JSON · E6 story + demo.
+Tasks: E1 record shape + collection ✅ · E2 run list UI ✅ · E3 replay mode ✅ ·
+E4 per-node timing display ✅ · E5 export a run as JSON ✅ · E6 demo ✅.
+
+**Built.** `RunHistoryStore` is a plain class, not a service: `providedIn:
+'root'` would give the whole application one history, and two editors on a page
+— or a subgraph node owning a nested one — would interleave their runs into a
+single unreadable list. It is bounded (default 50) because a graph with a
+streaming node produces a run per emission, and an editor left open overnight
+is otherwise a memory leak that reports itself as a very long list. "Keep
+everything" is what `RunSink` is for.
+
+Three decisions worth recording:
+
+- **The graph snapshot is taken when a run STARTS.** By the time anyone asks
+  what a run did, the graph has usually been edited; a snapshot taken at the
+  end would be a picture of a different graph than the one that produced the
+  values beside it.
+- **The error is stored as its MESSAGE.** `JSON.stringify(new Error('boom'))`
+  is `'{}'` — the message lives on the prototype and does not survive. Keeping
+  the object gives a history that looks right in a console and exports as an
+  empty pair of braces.
+- **The panel hands over a JSON string and stops.** Downloading it, or putting
+  it on the clipboard, means a permission prompt in one host and a file dialog
+  in another. Those are application decisions, the same reasoning that keeps
+  `RunSink` an interface. The demo does the download.
+
+**Found by looking, not by a test.** The per-node timing bar was drawn bare and
+left-aligned under a right-aligned number, so a node accounting for 1% of a run
+was a two-pixel speck that read as stray punctuation. It is a bar in a fixed
+track now, right-aligned to match the number, with a minimum fill so work that
+happened stays visible as work that happened. Every assertion in the suite
+passed both before and after.
 
 ---
 
