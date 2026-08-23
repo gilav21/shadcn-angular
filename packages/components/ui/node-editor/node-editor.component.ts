@@ -326,6 +326,10 @@ export class NodeEditorComponent {
     withDerivedHeights(
       withMaterializedTypes(this.nodes(), this.definitionIndex()),
       this.metrics,
+      node =>
+        node.type === undefined
+          ? 0
+          : (this.definitionIndex().get(node.type)?.bodyHeight ?? 0),
     ),
   );
 

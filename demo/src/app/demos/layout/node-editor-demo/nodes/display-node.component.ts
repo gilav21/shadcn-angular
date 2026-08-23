@@ -35,6 +35,7 @@ export const DISPLAY_NODE: NodeTypeDefinition = {
     category: 'Output',
     ports: [{ id: 'value', direction: 'in', label: 'Value' }],
     view: DisplayNodeComponent,
+    bodyHeight: 46,
 };
 
 /** A pure transform: no view, no state — four lines of definition. */

@@ -86,6 +86,15 @@ export interface NodeTypeDefinition<
   readonly view?: Type<unknown>;
 
   /**
+   * Vertical space, in world units, the {@link view} needs below the ports.
+   *
+   * Required in spirit whenever `view` is set: the node's height is derived
+   * from its ports, so a view that declares nothing gets the port rows drawn
+   * straight over its content.
+   */
+  readonly bodyHeight?: number;
+
+  /**
    * Whether this type is safe to evaluate on every change.
    *
    * `true` for pure transforms, which then stream live. `false` for anything

@@ -47,5 +47,6 @@ export const TEXT_INPUT_NODE: NodeTypeDefinition<TextInputState> = {
     ports: [{ id: 'text', direction: 'out', label: 'Text', type: 'text' }],
     initialState: () => ({ value: 'example.com' }),
     view: TextInputNodeComponent,
+    bodyHeight: 46,
     compute: (_inputs, ctx) => ({ text: ctx.state.value }),
 };

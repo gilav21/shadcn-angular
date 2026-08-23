@@ -12,6 +12,7 @@ import {
     portAnchor,
     portListTop,
     portOffsetTop,
+    portRowsHeight,
     portsOf,
     portsOnSide,
     withDerivedHeights,
@@ -188,5 +189,37 @@ describe('port metrics adapt the row height to the device', () => {
 
     it('resolves a real metric by default', () => {
         expect(defaultMetrics().rowHeight).toBeGreaterThan(0);
+    });
+});
+
+describe('a node with a view reserves room for it', () => {
+    /**
+     * The bug this guards against was visible in the first live demo: port
+     * labels drawn straight over a text field and a value display. Ports are
+     * absolutely positioned siblings of the card, so a body that starts at the
+     * header's bottom edge renders underneath them.
+     */
+    it('grows by exactly the body height it was given', () => {
+        const n = node([port('in', 'in'), port('out', 'out')]);
+        expect(nodeHeight(n, M, 60) - nodeHeight(n, M, 0)).toBe(60);
+    });
+
+    it('places the port band between the header and the body', () => {
+        const n = node([port('a', 'in'), port('b', 'in')]);
+        // header + padding + band + body === total
+        expect(portListTop(n) + portRowsHeight(n, M) + 60).toBe(nodeHeight(n, M, 60));
+    });
+
+    it('keeps every port inside the band, clear of the body', () => {
+        const n = node([port('a', 'in'), port('b', 'in'), port('c', 'out')]);
+        const bandEnd = portListTop(n) + portRowsHeight(n, M);
+        for (const p of portsOf(n)) {
+            expect(portOffsetTop(n, p.id, M) as number).toBeLessThan(bandEnd);
+        }
+    });
+
+    it('costs nothing for a node with no view', () => {
+        const n = node([port('a', 'in')]);
+        expect(nodeHeight(n, M)).toBe(nodeHeight(n, M, 0));
     });
 });

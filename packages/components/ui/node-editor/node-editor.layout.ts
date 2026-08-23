@@ -80,20 +80,36 @@ export function portListTop(node: Pick<EditorNode, 'subtitle'>): number {
 }
 
 /**
- * A node's height, derived from its port count.
+ * The vertical space the port rows occupy, below the header.
  *
  * Inputs and outputs stack in parallel columns, so the row count is the larger
- * of the two — not their sum.
+ * of the two — not their sum. The card renders a spacer of exactly this height
+ * so that a node's body starts BELOW the ports instead of underneath them.
  */
-export function nodeHeight(
-  node: Pick<EditorNode, 'ports' | 'subtitle'>,
+export function portRowsHeight(
+  node: Pick<EditorNode, 'ports'>,
   metrics: PortMetrics = defaultMetrics(),
 ): number {
   const rows = Math.max(
     portsOnSide(node, 'in').length,
     portsOnSide(node, 'out').length,
   );
-  const content = portListTop(node) + rows * metrics.rowHeight + PORT_LIST_PADDING;
+  return rows * metrics.rowHeight + PORT_LIST_PADDING;
+}
+
+/**
+ * A node's height: header, then port rows, then whatever its body needs.
+ *
+ * `bodyHeight` is not optional in spirit — a node type with a view that does
+ * not declare one gets ports drawn straight over its content, which is exactly
+ * the bug the screenshot of the first live demo showed.
+ */
+export function nodeHeight(
+  node: Pick<EditorNode, 'ports' | 'subtitle'>,
+  metrics: PortMetrics = defaultMetrics(),
+  bodyHeight = 0,
+): number {
+  const content = portListTop(node) + portRowsHeight(node, metrics) + bodyHeight;
   return Math.max(NODE_MIN_HEIGHT, content);
 }
 
@@ -141,10 +157,11 @@ export function portAnchor(
 export function withDerivedHeights(
   nodes: readonly EditorNode[],
   metrics: PortMetrics = defaultMetrics(),
+  bodyHeightOf: (node: EditorNode) => number = () => 0,
 ): readonly EditorNode[] {
   let changed = false;
   const next = nodes.map(node => {
-    const height = nodeHeight(node, metrics);
+    const height = nodeHeight(node, metrics, bodyHeightOf(node));
     if (height === node.height) return node;
     changed = true;
     return { ...node, height };

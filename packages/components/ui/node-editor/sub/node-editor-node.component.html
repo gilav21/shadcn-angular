@@ -76,6 +76,17 @@
   >
     <ng-container [ngTemplateOutlet]="header" />
 
+    <!--
+      Reserves the band the absolutely-positioned ports occupy, so the body
+      below starts clear of them rather than underneath them.
+    -->
+    <span
+      class="block shrink-0"
+      [style.height.px]="portBandHeight()"
+      [attr.data-slot]="'node-editor-port-band'"
+      aria-hidden="true"
+    ></span>
+
     @if (bodyTemplate(); as body) {
       <ng-container [ngTemplateOutlet]="body" [ngTemplateOutletContext]="{ $implicit: current }" />
     } @else if (view(); as component) {
@@ -87,7 +98,7 @@
       <div class="p-2" [attr.data-slot]="'node-editor-node-body'">
         <ng-container
           [ngComponentOutlet]="component"
-          [ngComponentOutletInjector]="viewInjector()"
+          [ngComponentOutletInjector]="viewInjector() ?? undefined"
         />
       </div>
     }

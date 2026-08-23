@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { NgComponentOutlet, NgTemplateOutlet } from '@angular/common';
 import { cn } from '../../../lib/utils';
-import { NODE_HEADER_HEIGHT, type PortMetrics } from '../node-editor.layout';
+import { NODE_HEADER_HEIGHT, portRowsHeight, type PortMetrics } from '../node-editor.layout';
 import type { NodeStatus } from '../node-editor.runtime.types';
 import type { EditorNode, PortRef } from '../node-editor.types';
 import { NodeEditorPortComponent, type PortDropState } from './node-editor-port.component';
@@ -66,6 +66,18 @@ export class NodeEditorNodeComponent {
   readonly class = input('');
 
   protected readonly headerHeight = NODE_HEADER_HEIGHT;
+
+  /**
+   * The vertical band the ports occupy.
+   *
+   * Ports are absolutely positioned siblings of the card, so without a spacer
+   * of exactly this height the card's body renders UNDERNEATH them — which is
+   * what the first live demo screenshot showed: port labels sitting on top of
+   * a text field and a value display.
+   */
+  protected readonly portBandHeight = computed(() =>
+    portRowsHeight(this.node(), this.metrics()),
+  );
 
   /**
    * Whether someone other than the editor owns this card's body.

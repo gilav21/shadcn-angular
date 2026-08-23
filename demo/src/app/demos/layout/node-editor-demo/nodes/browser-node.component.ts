@@ -79,4 +79,5 @@ export const BROWSER_NODE: NodeTypeDefinition = {
     accent: '#3b82f6',
     ports: [{ id: 'url', direction: 'in', label: 'URL', type: 'text', required: true }],
     view: BrowserNodeComponent,
+    bodyHeight: 184,
 };
