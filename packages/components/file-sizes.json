@@ -4489,6 +4489,26 @@
       "bytes": 4290,
       "lines": 3
     },
+    "node-editor/addons/problems/index.ts": {
+      "bytes": 98,
+      "lines": 2
+    },
+    "node-editor/addons/problems/node-editor-problems.component.html": {
+      "bytes": 1945,
+      "lines": 55
+    },
+    "node-editor/addons/problems/node-editor-problems.component.spec.ts": {
+      "bytes": 6172,
+      "lines": 164
+    },
+    "node-editor/addons/problems/node-editor-problems.component.ts": {
+      "bytes": 3431,
+      "lines": 89
+    },
+    "node-editor/addons/problems/node-editor-problems.locales.ts": {
+      "bytes": 2996,
+      "lines": 111
+    },
     "node-editor/index.ts": {
       "bytes": 546,
       "lines": 13
@@ -4514,8 +4534,8 @@
       "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 41568,
-      "lines": 1145
+      "bytes": 41541,
+      "lines": 1146
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -4562,8 +4582,8 @@
       "lines": 651
     },
     "node-editor/node-editor.runtime.ts": {
-      "bytes": 32178,
-      "lines": 911
+      "bytes": 32890,
+      "lines": 924
     },
     "node-editor/node-editor.runtime.types.ts": {
       "bytes": 6988,
@@ -4574,7 +4594,7 @@
       "lines": 157
     },
     "node-editor/node-editor.serialize.ts": {
-      "bytes": 8219,
+      "bytes": 8209,
       "lines": 244
     },
     "node-editor/node-editor.stories.ts": {

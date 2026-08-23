@@ -8819,6 +8819,41 @@
       "outputs": []
     },
     {
+      "name": "NodeEditorProblemsComponent",
+      "file": "packages/components/ui/node-editor/addons/problems/node-editor-problems.component.ts",
+      "kind": "component",
+      "selector": "ui-node-editor-problems",
+      "description": "The graph's problems, listed. ### Why this is an addon It consumes exactly one thing from the base — the `problems()` signal — and needs nothing else. By the boundary rule in `specs/node-editor-addons-spec.md` that makes it an addon rather than part of the editor: it never touches the graph's internal model, so a consumer who does not want a panel does not install one. It does not take the editor as an input either. It takes an array and emits a selection, which keeps it a pure presentation component and testable without ever constructing an editor. The *inline* half of validation — dimming incompatible ports and explaining a refusal at the pointer — is in the base, because it has to happen during a drag and needs the connection rules.",
+      "projectsContent": false,
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "Extra classes for the panel root.",
+          "default": "''"
+        },
+        {
+          "name": "heading",
+          "type": "boolean",
+          "description": "Hide the heading when the panel already sits under one.",
+          "default": "true"
+        },
+        {
+          "name": "problems",
+          "type": "readonly GraphProblem[]",
+          "description": "",
+          "default": "[]"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "problemSelected",
+          "type": "GraphProblem",
+          "description": "A row was activated — the consumer decides what to reveal."
+        }
+      ]
+    },
+    {
       "name": "NodeEditorNodeDirective",
       "file": "packages/components/ui/node-editor/node-editor-node.directive.ts",
       "kind": "directive",

@@ -185,7 +185,7 @@ function describeUnserializable(value: unknown, path: string, seen: Set<object>)
   if (value === null) return null;
 
   return typeof value === 'object'
-    ? describeObject(value as object, path, where, seen)
+    ? describeObject(value, path, where, seen)
     : describePrimitive(value, where);
 }
 

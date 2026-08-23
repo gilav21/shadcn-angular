@@ -10108,6 +10108,58 @@
       ]
     },
     {
+      "name": "node-editor/problems",
+      "description": "Lists what is wrong with a graph in plain language, and reveals the node it belongs to.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add node-editor/problems",
+      "importStatement": "import { NodeEditorProblemsComponent } from '@/components/ui/node-editor/addons/problems';",
+      "selector": "ui-node-editor-problems",
+      "dependencies": [
+        "node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor-problems />",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorProblemsComponent",
+          "file": "packages/components/ui/node-editor/addons/problems/node-editor-problems.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-problems",
+          "description": "The graph's problems, listed. ### Why this is an addon It consumes exactly one thing from the base — the `problems()` signal — and needs nothing else. By the boundary rule in `specs/node-editor-addons-spec.md` that makes it an addon rather than part of the editor: it never touches the graph's internal model, so a consumer who does not want a panel does not install one. It does not take the editor as an input either. It takes an array and emits a selection, which keeps it a pure presentation component and testable without ever constructing an editor. The *inline* half of validation — dimming incompatible ports and explaining a refusal at the pointer — is in the base, because it has to happen during a drag and needs the connection rules.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes for the panel root.",
+              "default": "''"
+            },
+            {
+              "name": "heading",
+              "type": "boolean",
+              "description": "Hide the heading when the panel already sits under one.",
+              "default": "true"
+            },
+            {
+              "name": "problems",
+              "type": "readonly GraphProblem[]",
+              "description": "",
+              "default": "[]"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "problemSelected",
+              "type": "GraphProblem",
+              "description": "A row was activated — the consumer decides what to reveal."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "number-input",
       "description": "Numeric input with stepper buttons, min/max, and locale-aware formatting.",
       "category": "form",

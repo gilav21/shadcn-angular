@@ -16,6 +16,7 @@ import {
   type NodeConnection,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { NodeEditorProblemsComponent } from '../../../../../packages/components/ui/node-editor/addons/problems';
 import { NODE_EDITOR_DEMO_LOCALES } from './node-editor-demo.locales';
 import { BROWSER_NODE } from './node-editor-demo/nodes/browser-node.component';
 import {
@@ -145,7 +146,12 @@ function initialConnections(): NodeConnection[] {
 @Component({
   selector: 'app-node-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NodeEditorComponent, ButtonComponent, SwitchComponent],
+  imports: [
+    NodeEditorComponent,
+    NodeEditorProblemsComponent,
+    ButtonComponent,
+    SwitchComponent,
+  ],
   templateUrl: './node-editor-demo.component.html',
 })
 export class NodeEditorDemoComponent {
@@ -186,6 +192,11 @@ export class NodeEditorDemoComponent {
 
   protected onRejected(event: ConnectionRejectedEvent): void {
     this.rejection.set(event.reason);
+  }
+
+  /** Reveal the node a problem belongs to — the addon only reports it. */
+  protected revealProblem(nodeId: string | number): void {
+    this.editorRef()?.focusNode(nodeId);
   }
 
   protected async runGraph(): Promise<void> {

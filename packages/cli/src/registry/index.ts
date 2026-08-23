@@ -1907,6 +1907,17 @@ export const registry = defineRegistry({
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
+  'node-editor/problems': {
+    name: 'node-editor/problems',
+    type: 'addon',
+    parent: 'node-editor',
+    category: 'layout',
+    description: 'Lists what is wrong with a graph in plain language, and reveals the node it belongs to.',
+    tags: ['node-editor', 'problems', 'validation', 'errors', 'graph'],
+    files: ['node-editor/addons/problems/index.ts', 'node-editor/addons/problems/node-editor-problems.component.html', 'node-editor/addons/problems/node-editor-problems.component.ts', 'node-editor/addons/problems/node-editor-problems.locales.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['node-editor'],
+  },
   'node-editor': {
     name: 'node-editor',
     category: 'layout',

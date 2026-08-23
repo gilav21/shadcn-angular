@@ -1,0 +1,55 @@
+@let text = t();
+@let rows = ordered();
+
+<section [class]="rootClasses()" [attr.data-slot]="'node-editor-problems'">
+  @if (heading()) {
+    <h3 class="text-sm font-semibold" [attr.data-slot]="'node-editor-problems-heading'">
+      {{ text.heading }}
+    </h3>
+  }
+
+  <!--
+    Announced politely rather than assertively: problems appear while the user
+    is editing, and interrupting them mid-action to say a required input is
+    still unconnected would be worse than telling them when they pause.
+  -->
+  <p class="sr-only" role="status" aria-live="polite">
+    {{ rows.length === 0 ? text.empty : summary() }}
+  </p>
+
+  @if (rows.length === 0) {
+    <p
+      class="rounded-md border border-dashed px-2 py-1.5 text-sm text-muted-foreground"
+      [attr.data-slot]="'node-editor-problems-empty'"
+    >
+      {{ text.empty }}
+    </p>
+  } @else {
+    <!--
+      A real list of real buttons. Each row reveals its node, so it has to be
+      keyboard reachable — a div with a click handler would leave the panel
+      usable only with a pointer.
+    -->
+    <ul class="flex flex-col gap-1">
+      @for (problem of rows; track trackProblem($index, problem)) {
+        <li>
+          <button
+            type="button"
+            [class]="rowClasses(problem)"
+            [attr.data-slot]="'node-editor-problem'"
+            [attr.data-severity]="problem.severity"
+            [attr.data-node]="problem.nodeId"
+            [attr.aria-label]="severityLabel(problem) + ': ' + problem.message + '. ' + text.reveal"
+            (click)="problemSelected.emit(problem)"
+          >
+            <span class="sr-only">{{ severityLabel(problem) }}</span>
+            <span aria-hidden="true" class="shrink-0 select-none">
+              {{ problem.severity === 'error' ? '●' : '▲' }}
+            </span>
+            <span class="[overflow-wrap:anywhere]">{{ problem.message }}</span>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</section>

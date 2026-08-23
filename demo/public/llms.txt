@@ -25,7 +25,7 @@ Rules that hold for every component:
 - Inputs marked `(required)` must be bound or the template will not compile.
 - A section without a snippet says so explicitly; do not invent one.
 
-## Index (166 components)
+## Index (167 components)
 
 - [accordion](#accordion): Vertically stacked, collapsible sections that expand one or more panels to reveal content.
 - [alert](#alert): Inline callout banner for important messages with title, description, and variants.
@@ -116,6 +116,7 @@ Rules that hold for every component:
 - [native-select](#native-select): Styled wrapper around the native HTML select element for dropdown choices.
 - [navigation-menu](#navigation-menu): Site navigation with dropdown panels of links and a sliding indicator.
 - [node-editor](#node-editor): Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
+- [node-editor/problems](#node-editorproblems): Lists what is wrong with a graph in plain language, and reveals the node it belongs to.
 - [number-input](#number-input): Numeric input with stepper buttons, min/max, and locale-aware formatting.
 - [number-ticker](#number-ticker): Animates a number counting up or down to its target value.
 - [orbit](#orbit): Animates child elements orbiting in circular paths around a center.
@@ -2240,6 +2241,23 @@ Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable
 
 ```html
 <ui-node-editor />
+```
+
+### node-editor/problems
+
+Lists what is wrong with a graph in plain language, and reveals the node it belongs to.
+
+- Install: `npx @gilav21/shadcn-angular@latest add node-editor/problems`
+- Import: `import { NodeEditorProblemsComponent } from '@/components/ui/node-editor/addons/problems';`
+- Selector: `ui-node-editor-problems`
+- Category: layout
+- Depends on: `node-editor`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `heading: boolean = true`, `problems: readonly GraphProblem[] = []`
+- Outputs: `problemSelected: GraphProblem`
+
+```html
+<ui-node-editor-problems />
 ```
 
 ### page-header

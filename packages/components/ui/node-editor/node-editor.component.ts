@@ -41,12 +41,13 @@ import { defaultMetrics, portAnchor, portsOf, withDerivedHeights } from './node-
 import { indexDefinitions, withMaterializedTypes } from './node-editor.materialize';
 import { GraphHistory } from './node-editor.history';
 import { NodeGraphRuntime } from './node-editor.runtime';
-import { NODE_CONTEXT, type NodeContext } from './node-editor.runtime.types';
-import type {
-  GraphProblem,
-  NodeTypeDefinition,
-  RemoteExecutor,
-  RemoteRequest,
+import {
+  NODE_CONTEXT,
+  type GraphProblem,
+  type NodeContext,
+  type NodeTypeDefinition,
+  type RemoteExecutor,
+  type RemoteRequest,
 } from './node-editor.runtime.types';
 import { NodeEditorNodeComponent } from './sub/node-editor-node.component';
 import type {

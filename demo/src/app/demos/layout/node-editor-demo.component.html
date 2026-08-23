@@ -63,16 +63,14 @@
     />
   </div>
 
-  @if (problems().length > 0) {
-    <section class="flex flex-col gap-2" [attr.aria-label]="text.problems">
-      <h2 class="text-sm font-semibold">{{ text.problems }}</h2>
-      <ul class="flex flex-col gap-1 text-sm text-destructive">
-        @for (problem of problems(); track problem.nodeId + problem.kind + (problem.portId ?? '')) {
-          <li>{{ problem.message }}</li>
-        }
-      </ul>
-    </section>
-  }
+  <!--
+    The problems panel is an ADDON. It takes the list and emits a selection —
+    it never touches the editor, which is the boundary rule in practice.
+  -->
+  <ui-node-editor-problems
+    [problems]="problems()"
+    (problemSelected)="revealProblem($event.nodeId)"
+  />
 
   <section class="flex flex-col gap-2" [attr.aria-label]="text.shortcuts">
     <h2 class="text-sm font-semibold">{{ text.shortcuts }}</h2>

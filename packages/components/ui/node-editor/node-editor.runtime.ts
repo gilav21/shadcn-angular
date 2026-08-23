@@ -148,9 +148,10 @@ export class NodeGraphRuntime {
     if (this.disposed) return;
 
     const incomingIds = new Set(nodes.map(n => n.id));
-    for (const id of [...this.nodes.keys()]) {
-      if (!incomingIds.has(id)) this.removeNode(id);
-    }
+    // Collected first: `removeNode` deletes from `this.nodes`, and mutating a
+    // collection while iterating it is a trap even where the spec allows it.
+    const removed = [...this.nodes.keys()].filter(id => !incomingIds.has(id));
+    for (const id of removed) this.removeNode(id);
     for (const node of nodes) {
       if (this.nodes.has(node.id)) this.nodes.set(node.id, node);
       else this.addNode(node);
@@ -464,14 +465,10 @@ export class NodeGraphRuntime {
       const next = resolved[port.id];
       const last = previous[port.id];
 
-      if (port.multi === 'collect') {
-        const a = next as unknown[] | undefined;
-        const b = last as unknown[] | undefined;
-        if (!a || !b || a.length !== b.length) return false;
-        if (a.some((value, i) => !Object.is(value, b[i]))) return false;
-      } else if (!Object.is(next, last)) {
-        return false;
-      }
+      const same = port.multi === 'collect'
+        ? sameCollected(next, last)
+        : Object.is(next, last);
+      if (!same) return false;
     }
     return true;
   }
@@ -596,7 +593,7 @@ export class NodeGraphRuntime {
         this.settle(nodeId, 'done', version);
         return;
       }
-      this.applyOutputs(nodeId, run.id, definition, (await result) as PortValues);
+      this.applyOutputs(nodeId, run.id, definition, await result);
       this.settle(nodeId, 'done', version);
     } catch (cause: unknown) {
       this.errorSignal(nodeId).set(cause);
@@ -899,11 +896,27 @@ export class NodeGraphRuntime {
   /** Abort everything in flight and refuse further work. */
   dispose(): void {
     this.disposed = true;
-    for (const nodeId of [...this.active.keys()]) this.abortRun(nodeId);
-    for (const nodeId of [...this.iterators.keys()]) this.teardownIterator(nodeId);
+    // Snapshotted: both loops delete from the collection they read.
+    const running = [...this.active.keys()];
+    const streaming = [...this.iterators.keys()];
+    for (const nodeId of running) this.abortRun(nodeId);
+    for (const nodeId of streaming) this.teardownIterator(nodeId);
     this.dirty.clear();
     this.readySet.clear();
   }
+}
+
+/**
+ * Whether two resolved `collect` values are equal.
+ *
+ * Element-wise, because a collect port resolves to a NEW array on every pass —
+ * an identity check would report a change every time and memoisation would
+ * never fire anywhere in the graph (design §4). Falls back to identity when
+ * either side is not an array, which also makes two absent values equal.
+ */
+function sameCollected(next: unknown, last: unknown): boolean {
+  if (!Array.isArray(next) || !Array.isArray(last)) return Object.is(next, last);
+  return next.length === last.length && next.every((value, i) => Object.is(value, last[i]));
 }
 
 function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
