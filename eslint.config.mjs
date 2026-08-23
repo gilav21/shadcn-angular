@@ -187,6 +187,9 @@ export default tseslint.config(
       'packages/components/ui/rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts',
       'packages/components/ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
       'demo/src/app/demos/data-display/pdf-readable-compare-demo.component.ts',
+      // Demo-only. Unlike every other entry here this one frames USER input,
+      // and is documented separately in docs/sonarqube-accepted-findings.md.
+      'demo/src/app/demos/layout/node-editor-demo/nodes/browser-node.component.ts',
     ],
     rules: {
       'sonarjs/no-angular-bypass-sanitization': 'off',

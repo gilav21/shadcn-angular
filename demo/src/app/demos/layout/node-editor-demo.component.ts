@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import {
   ButtonComponent,
   NodeEditorComponent,
@@ -10,6 +17,57 @@ import {
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { NODE_EDITOR_DEMO_LOCALES } from './node-editor-demo.locales';
+import { BROWSER_NODE } from './node-editor-demo/nodes/browser-node.component';
+import {
+  DELAY_NODE,
+  DISPLAY_NODE,
+  LENGTH_NODE,
+  UPPERCASE_NODE,
+} from './node-editor-demo/nodes/display-node.component';
+import { TEXT_INPUT_NODE } from './node-editor-demo/nodes/text-input-node.component';
+
+/**
+ * The node types this demo offers.
+ *
+ * Five definitions and three small components — that is the entire cost of
+ * making the editor run something. A pure transform with no view and no state
+ * is four lines.
+ */
+const DEMO_NODE_TYPES = [
+  TEXT_INPUT_NODE,
+  UPPERCASE_NODE,
+  LENGTH_NODE,
+  DELAY_NODE,
+  BROWSER_NODE,
+  DISPLAY_NODE,
+];
+
+/**
+ * The live graph: type a web address and the browser node follows it.
+ *
+ * Also branches, so one output feeds two different subtrees — which is where
+ * the memoisation and the scoped re-evaluation become visible.
+ */
+function liveNodes(): EditorNode[] {
+  return [
+    { id: 'url', type: 'text-input', x: 0, y: 80, width: 190, height: 0 },
+    { id: 'upper', type: 'uppercase', x: 260, y: 0, width: 180, height: 0 },
+    { id: 'shout', type: 'display', x: 500, y: 0, width: 190, height: 0 },
+    { id: 'count', type: 'length', x: 260, y: 130, width: 180, height: 0 },
+    { id: 'size', type: 'display', x: 500, y: 130, width: 190, height: 0 },
+    { id: 'preview', type: 'browser', x: 260, y: 270, width: 300, height: 0 },
+  ];
+}
+
+function liveConnections(): NodeConnection[] {
+  return [
+    { id: 'l1', source: 'url', sourcePort: 'text', target: 'upper', targetPort: 'in' },
+    { id: 'l2', source: 'upper', sourcePort: 'out', target: 'shout', targetPort: 'value' },
+    { id: 'l3', source: 'url', sourcePort: 'text', target: 'count', targetPort: 'in' },
+    { id: 'l4', source: 'count', sourcePort: 'out', target: 'size', targetPort: 'value' },
+    { id: 'l5', source: 'url', sourcePort: 'text', target: 'preview', targetPort: 'url' },
+  ];
+}
 
 /** The starting graph: an ETL pipeline, which is what node editors are for. */
 function initialNodes(): EditorNode[] {
@@ -96,9 +154,12 @@ export class NodeEditorDemoComponent {
     () => NODE_EDITOR_DEMO_LOCALES[this.localeId()] ?? NODE_EDITOR_DEMO_LOCALES['en'],
   );
 
-  readonly nodes = signal<readonly EditorNode[]>(initialNodes());
-  readonly connections = signal<readonly NodeConnection[]>(initialConnections());
+  readonly definitions = DEMO_NODE_TYPES;
+
+  readonly nodes = signal<readonly EditorNode[]>(liveNodes());
+  readonly connections = signal<readonly NodeConnection[]>(liveConnections());
   readonly selection = signal<EditorSelection>({ nodes: [], connections: [] });
+  readonly live = signal(true);
 
   readonly acyclic = signal(false);
   readonly snap = signal(false);
@@ -118,8 +179,22 @@ export class NodeEditorDemoComponent {
     () => this.selection().nodes.length + this.selection().connections.length,
   );
 
+  private readonly editorRef = viewChild(NodeEditorComponent);
+
+  /** Graph-level problems the runtime found — missing inputs, cycles, bad types. */
+  protected readonly problems = computed(() => this.editorRef()?.problems() ?? []);
+
   protected onRejected(event: ConnectionRejectedEvent): void {
     this.rejection.set(event.reason);
+  }
+
+  protected async runGraph(): Promise<void> {
+    await this.editorRef()?.run();
+  }
+
+  /** One ready node at a time — the maintainer's "single step at a time". */
+  protected async stepGraph(): Promise<void> {
+    await this.editorRef()?.step();
   }
 
   protected addNode(): void {
@@ -142,6 +217,14 @@ export class NodeEditorDemoComponent {
   }
 
   protected reset(): void {
+    this.nodes.set(liveNodes());
+    this.connections.set(liveConnections());
+    this.selection.set({ nodes: [], connections: [] });
+    this.rejection.set(null);
+  }
+
+  /** The structural pipeline — no runtime, just shape. */
+  protected useStructural(): void {
     this.nodes.set(initialNodes());
     this.connections.set(initialConnections());
     this.selection.set({ nodes: [], connections: [] });

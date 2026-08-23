@@ -8,15 +8,21 @@
 
   <section class="flex flex-col gap-3" [attr.aria-label]="text.controls">
     <div class="flex flex-wrap items-center gap-2">
+      <ui-button size="sm" (click)="runGraph()">{{ text.run }}</ui-button>
+      <ui-button size="sm" variant="outline" (click)="stepGraph()">{{ text.step }}</ui-button>
       <ui-button size="sm" variant="outline" (click)="addNode()">{{ text.addNode }}</ui-button>
       <ui-button size="sm" variant="outline" (click)="reset()">{{ text.reset }}</ui-button>
+      <ui-button size="sm" variant="ghost" (click)="useStructural()">{{
+        text.structural
+      }}</ui-button>
 
       <!--
         ui-switch renders its OWN associated <label>, wired to a generated id.
         Wrapping it in a label of our own leaves that label pointing at nothing
         the linter (or a screen reader) can resolve.
       -->
-      <ui-switch class="ms-2" [(checked)]="acyclic" [label]="text.acyclic" />
+      <ui-switch class="ms-2" [(checked)]="live" [label]="text.liveMode" />
+      <ui-switch [(checked)]="acyclic" [label]="text.acyclic" />
       <ui-switch [(checked)]="snap" [label]="text.snapToGrid" />
       <ui-switch [(checked)]="readonlyGraph" [label]="text.readonlyGraph" />
     </div>
@@ -47,6 +53,8 @@
       [(nodes)]="nodes"
       [(connections)]="connections"
       [(selection)]="selection"
+      [definitions]="definitions"
+      [live]="live()"
       [allowCycles]="!acyclic()"
       [gridSnap]="gridSnap()"
       [readonlyGraph]="readonlyGraph()"
@@ -54,6 +62,17 @@
       (connectionRejected)="onRejected($event)"
     />
   </div>
+
+  @if (problems().length > 0) {
+    <section class="flex flex-col gap-2" [attr.aria-label]="text.problems">
+      <h2 class="text-sm font-semibold">{{ text.problems }}</h2>
+      <ul class="flex flex-col gap-1 text-sm text-destructive">
+        @for (problem of problems(); track problem.nodeId + problem.kind + (problem.portId ?? '')) {
+          <li>{{ problem.message }}</li>
+        }
+      </ul>
+    </section>
+  }
 
   <section class="flex flex-col gap-2" [attr.aria-label]="text.shortcuts">
     <h2 class="text-sm font-semibold">{{ text.shortcuts }}</h2>

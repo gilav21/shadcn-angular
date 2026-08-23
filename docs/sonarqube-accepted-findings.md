@@ -135,6 +135,38 @@ re-scans.
 > **Accepted** with a link to this file, or mirror the file/rule exclusion in
 > their own scanner config.
 
+## `typescript:S6268` — the node-editor browser node (a DIFFERENT case)
+
+`demo/src/app/demos/layout/node-editor-demo/nodes/browser-node.component.ts`
+does not belong in the table above, and it is listed separately so nobody
+reads it as fitting that pattern.
+
+**Every other bypass in this repo operates on trusted, internally-produced
+content. This one frames a URL the user typed.** Filing it under "never user
+input" would be false.
+
+It is accepted because the bypass is not what carries the risk, and three
+controls stand in front of it:
+
+1. **The scheme is validated before the bypass, not by it.** The value is
+   parsed with `new URL()` and refused unless the protocol is `http:` or
+   `https:`, so `javascript:` and `data:` never reach the sanitizer at all.
+   Angular's own sanitizer is not being relied on and then overruled — it is
+   replaced by a stricter, explicit check.
+2. **The sandbox omits `allow-same-origin`.** Combined with `allow-scripts`
+   that flag would let framed content escape the sandbox entirely; without it
+   the document sits in an opaque origin and cannot reach the parent.
+   `referrerpolicy="no-referrer"` is set for the same reason.
+3. **It is demo code and ships to nobody.** The decision to keep the browser
+   node out of the library was made deliberately, precisely so that a
+   component library does not choose a sandbox and CSP policy on a consumer's
+   behalf. Anyone building this node in their own app makes that call with
+   their own threat model.
+
+There is no way to bind a dynamic URL to `iframe[src]` in Angular without
+`bypassSecurityTrustResourceUrl`. Setting `src` imperatively would evade the
+same protection while hiding that it had been evaded, which is worse.
+
 ## `typescript:S5843` — "regular expression is too complex" (FIXED, not accepted)
 
 The syntax-highlighter keyword matchers in `code-block.component.ts` were single
