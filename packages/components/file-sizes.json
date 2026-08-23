@@ -4401,41 +4401,121 @@
       "bytes": 18521,
       "lines": 41
     },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-on-a-touch-device-connects-two-ports-with-a-finger-1.png": {
+      "bytes": 22355,
+      "lines": 49
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-on-a-touch-device-marks-the-port-under-the-finger--not-the-one-it-started-on-1.png": {
+      "bytes": 23905,
+      "lines": 47
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-on-a-touch-device-moves-a-node-with-a-finger-1.png": {
+      "bytes": 24783,
+      "lines": 31
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-ignores-movement-below-the-drag-threshold--so-a-click-is-not-a-move-1.png": {
+      "bytes": 24915,
+      "lines": 29
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-moves-the-pressed-node-1.png": {
+      "bytes": 24915,
+      "lines": 29
+    },
     "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-moves-the-whole-selection-when-a-selected-node-is-dragged-1.png": {
-      "bytes": 21593,
-      "lines": 51
+      "bytes": 25183,
+      "lines": 36
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-snaps-to-the-grid-when-one-is-set-1.png": {
+      "bytes": 24865,
+      "lines": 30
     },
     "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-rendering-renders-a-dot-for-every-port-1.png": {
       "bytes": 21937,
       "lines": 35
     },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-marks-the-hovered-port-valid-or-invalid-BEFORE-release-1.png": {
+      "bytes": 23123,
+      "lines": 49
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-TEMP-probe-reports-what-is-under-each-port-anchor-1.png": {
+      "bytes": 22355,
+      "lines": 49
+    },
+    "node-editor/__screenshots__/node-editor.design-spike.spec.ts/design-claim-2---a-change-recomputes-only-descendants-recomputes-the-changed-node-and-everything-below-it--and-nothing-else-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-11-the-motivating-example--typing-streams-downstream-keeps-streaming-on-every-keystroke-1.png": {
+      "bytes": 27521,
+      "lines": 44
+    },
+    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-11-the-motivating-example--typing-streams-downstream-reaches-the-far-end-of-the-graph-with-no-Run-button-1.png": {
+      "bytes": 27937,
+      "lines": 42
+    },
+    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-11-the-motivating-example--typing-streams-downstream-TEMP-probe-1.png": {
+      "bytes": 27263,
+      "lines": 51
+    },
+    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-11-typed-nodes-render-their-own-view-surfaces-runtime-status-on-the-card-1.png": {
+      "bytes": 27375,
+      "lines": 50
+    },
+    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-12-controls-inside-a-node-are-usable-DOES-drag-when-the-press-lands-on-the-header-1.png": {
+      "bytes": 27375,
+      "lines": 50
+    },
+    "node-editor/__screenshots__/node-editor.perf.spec.ts/ENFORCED---a-change-costs-only-what-depends-on-it-recomputes-nothing-when-a-value-is-set-to-what-it-already-was-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-4-async-runs-and-staleness-discards-a-superseded-result-under-the-default-cancel-policy-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-4-async-runs-and-staleness-discards-it-under-drop--without-aborting-the-work-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-4-async-runs-and-staleness-fires-the-AbortSignal-of-the-superseded-run-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-4-async-runs-and-staleness-lets-a-superseded-result-WIN-under-apply-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "node-editor/__screenshots__/node-editor.serialize.spec.ts/state-must-survive-the-round-trip-names-the-node-whose-state-would-be-lost-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "node-editor/index.ts": {
-      "bytes": 339,
-      "lines": 8
+      "bytes": 546,
+      "lines": 13
     },
     "node-editor/node-editor-node.directive.ts": {
       "bytes": 1731,
       "lines": 48
     },
     "node-editor/node-editor.a11y.spec.ts": {
-      "bytes": 10659,
-      "lines": 277
+      "bytes": 14666,
+      "lines": 380
     },
     "node-editor/node-editor.component.css": {
-      "bytes": 354,
-      "lines": 9
+      "bytes": 719,
+      "lines": 19
     },
     "node-editor/node-editor.component.html": {
-      "bytes": 3023,
-      "lines": 98
+      "bytes": 3894,
+      "lines": 120
     },
     "node-editor/node-editor.component.spec.ts": {
-      "bytes": 22010,
-      "lines": 548
+      "bytes": 26170,
+      "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 28326,
-      "lines": 795
+      "bytes": 41568,
+      "lines": 1145
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -4445,45 +4525,89 @@
       "bytes": 6710,
       "lines": 198
     },
+    "node-editor/node-editor.history.spec.ts": {
+      "bytes": 8794,
+      "lines": 223
+    },
+    "node-editor/node-editor.history.ts": {
+      "bytes": 7050,
+      "lines": 212
+    },
+    "node-editor/node-editor.integration.spec.ts": {
+      "bytes": 11602,
+      "lines": 322
+    },
     "node-editor/node-editor.layout.spec.ts": {
-      "bytes": 7204,
-      "lines": 191
+      "bytes": 8616,
+      "lines": 225
     },
     "node-editor/node-editor.layout.ts": {
-      "bytes": 5493,
-      "lines": 144
+      "bytes": 6579,
+      "lines": 172
+    },
+    "node-editor/node-editor.legibility.spec.ts": {
+      "bytes": 9939,
+      "lines": 247
+    },
+    "node-editor/node-editor.materialize.ts": {
+      "bytes": 2702,
+      "lines": 65
+    },
+    "node-editor/node-editor.perf.spec.ts": {
+      "bytes": 11876,
+      "lines": 323
+    },
+    "node-editor/node-editor.runtime.spec.ts": {
+      "bytes": 25148,
+      "lines": 651
+    },
+    "node-editor/node-editor.runtime.ts": {
+      "bytes": 32178,
+      "lines": 911
+    },
+    "node-editor/node-editor.runtime.types.ts": {
+      "bytes": 6988,
+      "lines": 208
+    },
+    "node-editor/node-editor.serialize.spec.ts": {
+      "bytes": 6287,
+      "lines": 157
+    },
+    "node-editor/node-editor.serialize.ts": {
+      "bytes": 8219,
+      "lines": 244
     },
     "node-editor/node-editor.stories.ts": {
-      "bytes": 8404,
-      "lines": 220
+      "bytes": 14929,
+      "lines": 432
     },
     "node-editor/node-editor.types.ts": {
-      "bytes": 3705,
-      "lines": 117
+      "bytes": 4494,
+      "lines": 135
     },
     "node-editor/node-editor.validate.spec.ts": {
       "bytes": 7262,
       "lines": 186
     },
     "node-editor/node-editor.validate.ts": {
-      "bytes": 4923,
-      "lines": 145
+      "bytes": 4974,
+      "lines": 146
     },
     "node-editor/sub/node-editor-node.component.html": {
-      "bytes": 2088,
-      "lines": 63
+      "bytes": 4982,
+      "lines": 138
     },
     "node-editor/sub/node-editor-node.component.ts": {
-      "bytes": 3624,
-      "lines": 90
+      "bytes": 6018,
+      "lines": 147
     },
     "node-editor/sub/node-editor-port.component.html": {
-      "bytes": 664,
-      "lines": 22
+      "bytes": 732,
+      "lines": 24
     },
     "node-editor/sub/node-editor-port.component.ts": {
-      "bytes": 4146,
-      "lines": 95
+      "bytes": 5477,
+      "lines": 130
     },
     "number-input/index.ts": {
       "bytes": 43,

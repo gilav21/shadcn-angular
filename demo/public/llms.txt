@@ -115,7 +115,7 @@ Rules that hold for every component:
 - [morphing-text](#morphing-text): Smoothly morphs one phrase into the next with a fluid blend effect.
 - [native-select](#native-select): Styled wrapper around the native HTML select element for dropdown choices.
 - [navigation-menu](#navigation-menu): Site navigation with dropdown panels of links and a sliding indicator.
-- [node-editor](#node-editor): Graph of nodes with named ports: drag to connect, fully keyboard operable, screen-reader readable.
+- [node-editor](#node-editor): Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
 - [number-input](#number-input): Numeric input with stepper buttons, min/max, and locale-aware formatting.
 - [number-ticker](#number-ticker): Animates a number counting up or down to its target value.
 - [orbit](#orbit): Animates child elements orbiting in circular paths around a center.
@@ -2227,7 +2227,7 @@ Column-balanced layout for uneven-height items that keeps DOM order equal to vis
 
 ### node-editor
 
-Graph of nodes with named ports: drag to connect, fully keyboard operable, screen-reader readable.
+Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
 
 - Install: `npx @gilav21/shadcn-angular@latest add node-editor`
 - Import: `import { NodeEditorComponent } from '@/components/ui/node-editor';`
@@ -2235,8 +2235,8 @@ Graph of nodes with named ports: drag to connect, fully keyboard operable, scree
 - Category: layout
 - Depends on: `infinite-canvas`
 - npm dependencies: none
-- Inputs: `a11yTreeLimit: number = 500`, `allowCycles: boolean = true`, `ariaLabel: string = 'Node editor'`, `class: string = ''`, `connections: readonly NodeConnection[] = []`, `gridSnap: number = 0`, `nodes: readonly EditorNode[] = []`, `readonlyGraph: boolean = false`, `selection: EditorSelection = EMPTY_SELECTION`, `showGrid: boolean = true`
-- Outputs: `connectionRejected: ConnectionRejectedEvent`, `connections: readonly NodeConnection[]`, `nodes: readonly EditorNode[]`, `selection: EditorSelection`
+- Inputs: `a11yTreeLimit: number = 500`, `allowCycles: boolean = true`, `ariaLabel: string = 'Node editor'`, `class: string = ''`, `connections: readonly NodeConnection[] = []`, `definitions: readonly NodeTypeDefinition[] = []`, `executeRemote: RemoteExecutor | null = null`, `gridSnap: number = 0`, `live: boolean = true`, `nodes: readonly EditorNode[] = []`, `readonlyGraph: boolean = false`, `selection: EditorSelection = EMPTY_SELECTION`, `showGrid: boolean = true`
+- Outputs: `connectionRejected: ConnectionRejectedEvent`, `connections: readonly NodeConnection[]`, `nodeExecute: readonly RemoteRequest[]`, `nodes: readonly EditorNode[]`, `selection: EditorSelection`
 
 ```html
 <ui-node-editor />

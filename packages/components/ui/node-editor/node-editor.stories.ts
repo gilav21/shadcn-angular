@@ -1,6 +1,12 @@
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { NodeEditorComponent } from './node-editor.component';
 import { NodeEditorNodeDirective } from './node-editor-node.directive';
+import {
+  NODE_CONTEXT,
+  type NodeContext,
+  type NodeTypeDefinition,
+} from './node-editor.runtime.types';
 import type { EditorNode, NodeConnection } from './node-editor.types';
 
 function node(
@@ -216,5 +222,211 @@ export const CustomNodeTemplate: Story = {
       </ng-template>
     `,
     ),
+  }),
+};
+
+// ---------------------------------------------------------------------------
+// The runtime
+// ---------------------------------------------------------------------------
+
+interface CounterState {
+  value: number;
+}
+
+@Component({
+  selector: 'sb-counter-node',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        class="size-7 rounded-md border text-sm hover:bg-accent"
+        (click)="bump(-1)"
+        aria-label="Decrease"
+      >
+        −
+      </button>
+      <span class="min-w-8 text-center font-mono text-sm">{{ ctx.state().value }}</span>
+      <button
+        type="button"
+        class="size-7 rounded-md border text-sm hover:bg-accent"
+        (click)="bump(1)"
+        aria-label="Increase"
+      >
+        +
+      </button>
+    </div>
+  `,
+})
+class CounterNodeComponent {
+  readonly ctx = inject(NODE_CONTEXT) as NodeContext<CounterState>;
+  protected bump(by: number): void {
+    this.ctx.setState({ value: this.ctx.state().value + by });
+  }
+}
+
+@Component({
+  selector: 'sb-readout-node',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <p class="truncate rounded-md border bg-muted/40 px-2 py-1.5 font-mono text-xs">
+      {{ shown() }}
+    </p>
+  `,
+})
+class ReadoutNodeComponent {
+  private readonly ctx = inject(NODE_CONTEXT);
+  private readonly value = this.ctx.input<unknown>('value');
+  protected readonly shown = computed(() => String(this.value() ?? '—'));
+}
+
+/**
+ * A node type with a view and state. The whole library-specific surface is
+ * `inject(NODE_CONTEXT)` — read state, write state.
+ */
+const COUNTER: NodeTypeDefinition<CounterState> = {
+  id: 'counter',
+  label: 'Counter',
+  accent: '#22c55e',
+  ports: [{ id: 'out', direction: 'out', label: 'Value', type: 'number' }],
+  initialState: () => ({ value: 1 }),
+  view: CounterNodeComponent,
+  bodyHeight: 46,
+  compute: (_inputs, ctx) => ({ out: ctx.state.value }),
+};
+
+/** A pure transform: no view, no state, four lines. */
+const DOUBLE: NodeTypeDefinition = {
+  id: 'double',
+  label: 'Double',
+  ports: [
+    { id: 'in', direction: 'in', label: 'In', type: 'number' },
+    { id: 'out', direction: 'out', label: 'Out', type: 'number' },
+  ],
+  compute: inputs => ({ out: Number(inputs['in'] ?? 0) * 2 }),
+};
+
+/** A `collect` port: several connections arrive as an array, in order. */
+const SUM: NodeTypeDefinition = {
+  id: 'sum',
+  label: 'Sum',
+  ports: [
+    { id: 'items', direction: 'in', label: 'Values', type: 'number', multi: 'collect' },
+    { id: 'out', direction: 'out', label: 'Total', type: 'number' },
+  ],
+  compute: inputs => ({
+    out: (inputs['items'] as number[]).reduce((total, n) => total + Number(n ?? 0), 0),
+  }),
+};
+
+const READOUT: NodeTypeDefinition = {
+  id: 'readout',
+  label: 'Readout',
+  accent: '#3b82f6',
+  ports: [{ id: 'value', direction: 'in', label: 'Value', required: true }],
+  view: ReadoutNodeComponent,
+  bodyHeight: 46,
+};
+
+const RUNTIME_TYPES = [COUNTER, DOUBLE, SUM, READOUT];
+
+const RUNTIME_NODES: EditorNode[] = [
+  { id: 'a', type: 'counter', x: 0, y: 0, width: 180, height: 0 },
+  { id: 'b', type: 'counter', x: 0, y: 170, width: 180, height: 0 },
+  { id: 'x2', type: 'double', x: 250, y: 0, width: 170, height: 0 },
+  { id: 'total', type: 'sum', x: 250, y: 170, width: 170, height: 0 },
+  { id: 'out', type: 'readout', x: 480, y: 80, width: 180, height: 0 },
+];
+
+const RUNTIME_EDGES: NodeConnection[] = [
+  { id: 'r1', source: 'a', sourcePort: 'out', target: 'x2', targetPort: 'in' },
+  { id: 'r2', source: 'x2', sourcePort: 'out', target: 'total', targetPort: 'items' },
+  { id: 'r3', source: 'b', sourcePort: 'out', target: 'total', targetPort: 'items' },
+  { id: 'r4', source: 'total', sourcePort: 'out', target: 'out', targetPort: 'value' },
+];
+
+const RUNTIME_EDITOR = (extra = ''): string => `
+  <div class="w-full overflow-hidden rounded-lg border">
+    <ui-node-editor
+      class="h-[350px] w-full sm:h-[420px]"
+      [nodes]="nodes"
+      [connections]="connections"
+      [definitions]="definitions"
+      ${extra}
+    />
+  </div>
+`;
+
+/**
+ * **The editor as a runtime.** Press + or − on a counter and the value flows
+ * through Double, into a `collect` port that sums both counters, and out to a
+ * readout — with no Run button anywhere.
+ *
+ * Only what depends on the change recomputes: press the lower counter and
+ * Double never runs.
+ */
+export const WithRuntime: Story = {
+  args: { nodes: RUNTIME_NODES, connections: RUNTIME_EDGES },
+  render: args => ({
+    props: { ...args, definitions: RUNTIME_TYPES },
+    template: RUNTIME_EDITOR(),
+  }),
+};
+
+/**
+ * The same graph with live evaluation off. Nothing recomputes until `run()` is
+ * called, which is what a graph of side-effecting steps wants. `step()`
+ * advances exactly one ready node.
+ */
+export const ManualRun: Story = {
+  args: { nodes: RUNTIME_NODES, connections: RUNTIME_EDGES },
+  render: args => ({
+    props: { ...args, definitions: RUNTIME_TYPES },
+    template: `
+      <div class="flex w-full flex-col gap-2">
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            class="h-8 rounded-md border px-3 text-sm hover:bg-accent"
+            (click)="editor.run()"
+          >
+            Run
+          </button>
+          <button
+            type="button"
+            class="h-8 rounded-md border px-3 text-sm hover:bg-accent"
+            (click)="editor.step()"
+          >
+            Step one node
+          </button>
+        </div>
+        <div class="w-full overflow-hidden rounded-lg border">
+          <ui-node-editor
+            #editor
+            class="h-[350px] w-full sm:h-[420px]"
+            [nodes]="nodes"
+            [connections]="connections"
+            [definitions]="definitions"
+            [live]="false"
+          />
+        </div>
+      </div>
+    `,
+  }),
+};
+
+/**
+ * A required input left unconnected. The runtime reports it as a graph
+ * problem in plain language; the base exposes the list, and a panel to render
+ * it is an addon.
+ */
+export const WithProblems: Story = {
+  args: {
+    nodes: RUNTIME_NODES,
+    connections: RUNTIME_EDGES.filter(edge => edge.id !== 'r4'),
+  },
+  render: args => ({
+    props: { ...args, definitions: RUNTIME_TYPES },
+    template: RUNTIME_EDITOR(),
   }),
 };

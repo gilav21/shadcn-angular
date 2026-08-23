@@ -5340,7 +5340,7 @@
   "node-editor": {
     "name": "node-editor",
     "category": "layout",
-    "description": "Graph of nodes with named ports: drag to connect, fully keyboard operable, screen-reader readable.",
+    "description": "Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.",
     "tags": [
       "node-editor",
       "graph",

@@ -10,14 +10,24 @@ import { test, expect, type Page, type Locator } from '@playwright/test';
  * whole thing compiles outside the workspace's own path mapping.
  */
 
+/**
+ * The page hosts TWO editors — a structural one and a runtime one — so every
+ * selector below is scoped to the structural one. An unscoped query matches
+ * both and Playwright's strict mode rejects it, which is the correct
+ * behaviour and how this was caught.
+ */
+function structural(page: Page): Locator {
+    return page.getByTestId('root');
+}
+
 function port(page: Page, node: string, id: string): Locator {
-    return page.locator(
+    return structural(page).locator(
         `[data-slot="node-editor-port"][data-node="${node}"][data-port="${id}"]`,
     );
 }
 
 function card(page: Page, node: string): Locator {
-    return page.locator(`[data-slot="node-editor-node"][data-node="${node}"]`);
+    return structural(page).locator(`[data-slot="node-editor-node"][data-node="${node}"]`);
 }
 
 /** Drag one port onto another with real mouse events. */
@@ -84,9 +94,10 @@ test('unplugs a connection by dragging its input end into empty space', async ({
     await expect(page.getByTestId('connection-count')).toHaveText('1');
 
     const grab = await port(page, 'beta', 'in').boundingBox();
-    // NOT getByTestId('root'): `ui-node-editor` is display:contents, so the
-    // host element has no box at all. The editor's own root div does.
-    const root = await page.locator('[data-slot="node-editor"]').boundingBox();
+    // NOT getByTestId('root') for the BOX: `ui-node-editor` is
+    // display:contents, so the host element has no box at all. Its own root
+    // div does — scoped, because the page has two editors.
+    const root = await structural(page).locator('[data-slot="node-editor"]').boundingBox();
     if (!grab || !root) throw new Error('not on screen');
 
     await page.mouse.move(grab.x + grab.width / 2, grab.y + grab.height / 2);
@@ -116,7 +127,7 @@ test('selects a node on click', async ({ page }) => {
 });
 
 test('mirrors the whole graph as text for screen readers', async ({ page }) => {
-    const tree = page.locator('[data-slot="node-editor-a11y-tree"]');
+    const tree = structural(page).locator('[data-slot="node-editor-a11y-tree"]');
 
     // Present in the accessibility tree, but not on screen.
     await expect(tree).toHaveCount(1);
@@ -180,4 +191,58 @@ test('deletes the selection with Delete', async ({ page }) => {
 
     await expect(page.getByTestId('node-count')).toHaveText('1');
     await expect(card(page, 'alpha')).toHaveCount(0);
+});
+
+// ---------------------------------------------------------------------------
+// The runtime, in a real consumer install
+// ---------------------------------------------------------------------------
+
+test.describe('typed nodes and live dataflow', () => {
+    /**
+     * The runtime's own tests run against the workspace. This runs against the
+     * component installed the way `shadcn-angular add` installs it, which is
+     * the only thing that proves the registry names every runtime file — a
+     * missing `node-editor.runtime.ts` would compile fine in the workspace and
+     * fail only here.
+     */
+    test('renders a node type view and streams a value through the graph', async ({ page }) => {
+        const input = page.getByTestId('rt-input');
+        const output = page.getByTestId('rt-output');
+
+        await expect(input).toBeVisible();
+        await input.fill('hello');
+
+        // text -> uppercase -> readout, with no Run button anywhere.
+        await expect(output).toHaveText('HELLO');
+    });
+
+    test('keeps streaming on every keystroke', async ({ page }) => {
+        const input = page.getByTestId('rt-input');
+        await input.fill('a');
+        await expect(page.getByTestId('rt-output')).toHaveText('A');
+        await input.fill('ab');
+        await expect(page.getByTestId('rt-output')).toHaveText('AB');
+    });
+
+    test('materialises ports from the definition, not the node', async ({ page }) => {
+        // The nodes were authored with no ports at all.
+        const ports = page.locator(
+            '[data-testid="runtime-root"] [data-slot="node-editor-port"]',
+        );
+        await expect(ports.first()).toBeVisible();
+        expect(await ports.count()).toBeGreaterThanOrEqual(4);
+    });
+
+    test('lets the caret into a node input instead of dragging the node', async ({ page }) => {
+        const input = page.getByTestId('rt-input');
+        const box = await input.boundingBox();
+        if (!box) throw new Error('input not on screen');
+
+        await input.click();
+        await expect(input).toBeFocused();
+
+        // The card must not have moved.
+        const after = await input.boundingBox();
+        expect(after?.x).toBeCloseTo(box.x, 0);
+    });
 });

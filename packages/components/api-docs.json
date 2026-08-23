@@ -8873,10 +8873,28 @@
           "default": "[]"
         },
         {
+          "name": "definitions",
+          "type": "readonly NodeTypeDefinition[]",
+          "description": "The node types this graph may contain. Supplying them turns the editor from a drawing of a graph into a running one: a node with a matching `type` inherits its ports, renders that type's view, and has its `compute` evaluated by the runtime.",
+          "default": "[]"
+        },
+        {
+          "name": "executeRemote",
+          "type": "RemoteExecutor | null",
+          "description": "Hands every ready `remote: true` node to a backend, in ONE call per tick. Returning the promise is resolution; throwing is failure; the AbortSignal arrives already wired.",
+          "default": "null"
+        },
+        {
           "name": "gridSnap",
           "type": "number",
           "description": "Snap dragged nodes to a world-unit grid. `0` disables snapping.",
           "default": "0"
+        },
+        {
+          "name": "live",
+          "type": "boolean",
+          "description": "Whether a change re-evaluates the graph immediately. `true` gives live dataflow — type in one node and downstream updates as you go. `false` waits for `run()`, which is what a graph full of side-effecting steps wants. Individual node types opt out either way via their own `reactive` flag.",
+          "default": "true"
         },
         {
           "name": "nodes",
@@ -8916,6 +8934,11 @@
           "default": "[]"
         },
         {
+          "name": "nodeExecute",
+          "type": "readonly RemoteRequest[]",
+          "description": "Fires alongside `executeRemote`, for observing or logging. Explicitly NOT authoritative: `executeRemote` does the work. Two ways to answer the same request would leave nobody sure which one won."
+        },
+        {
           "name": "nodes",
           "type": "readonly EditorNode[]",
           "description": "Every node in the graph. Heights are derived and written back.",
@@ -8928,6 +8951,33 @@
           "default": "EMPTY_SELECTION"
         }
       ]
+    },
+    {
+      "name": "CounterNodeComponent",
+      "file": "packages/components/ui/node-editor/node-editor.stories.ts",
+      "kind": "component",
+      "selector": "sb-counter-node",
+      "description": "",
+      "projectsContent": false,
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "name": "ReadoutNodeComponent",
+      "file": "packages/components/ui/node-editor/node-editor.stories.ts",
+      "kind": "component",
+      "selector": "sb-readout-node",
+      "description": "",
+      "projectsContent": false,
+      "inputs": [
+        {
+          "name": "value",
+          "type": "unknown",
+          "description": "",
+          "default": "'value'"
+        }
+      ],
+      "outputs": []
     },
     {
       "name": "NodeEditorNodeComponent",
@@ -8954,6 +9004,12 @@
           "type": "string",
           "description": "",
           "default": "''"
+        },
+        {
+          "name": "connectable",
+          "type": "ReadonlySet<string> | null",
+          "description": "Ports that would accept the connection in flight; passed straight down.",
+          "default": "null"
         },
         {
           "name": "connectedPorts",
@@ -8996,6 +9052,24 @@
           "type": "boolean",
           "description": "",
           "default": "false"
+        },
+        {
+          "name": "status",
+          "type": "NodeStatus | null",
+          "description": "Runtime status, surfaced on the card so a run is visible.",
+          "default": "null"
+        },
+        {
+          "name": "view",
+          "type": "Type<unknown> | null",
+          "description": "The node type's view component, rendered inside the card.",
+          "default": "null"
+        },
+        {
+          "name": "viewInjector",
+          "type": "Injector | null",
+          "description": "Injector carrying this node's NODE_CONTEXT to that view.",
+          "default": "null"
         }
       ],
       "outputs": []
@@ -9019,6 +9093,12 @@
           "type": "string",
           "description": "",
           "default": "''"
+        },
+        {
+          "name": "connectable",
+          "type": "ReadonlySet<string> | null",
+          "description": "Ports that would accept the connection in flight, or `null` when none is. A set rather than a boolean so the node passes one reference down to every port and each looks itself up in O(1).",
+          "default": "null"
         },
         {
           "name": "connected",
