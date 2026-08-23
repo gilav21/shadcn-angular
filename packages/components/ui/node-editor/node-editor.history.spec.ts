@@ -5,7 +5,6 @@ import {
     GraphHistory,
     apply,
     invert,
-    restoredConnections,
     type GraphCommand,
     type GraphSnapshot,
 } from './node-editor.history';
@@ -44,16 +43,24 @@ describe('every command has a true inverse', () => {
     });
 
     /**
-     * The one command whose inverse is not self-contained: removing a node
-     * took its edges with it, so undo has to bring those back as well.
-     * Restoring only the node would silently lose the wiring.
+     * Removing a node takes its edges with it, so the inverse has to bring
+     * those back as well — and it does so ITSELF. An inverse that restored
+     * only the node would make the caller responsible for the wiring, which
+     * is exactly the knowledge a command funnel exists to remove.
      */
-    it('remove-nodes reports the connections that must come back too', () => {
+    it('remove-nodes round-trips its connections, not just its nodes', () => {
         const command: GraphCommand = {
             kind: 'remove-nodes', nodes: [node('b')], connections: [link('c1', 'a', 'b')],
         };
-        expect(restoredConnections(command).map(c => c.id)).toEqual(['c1']);
-        expect(restoredConnections({ kind: 'add-nodes', nodes: [] })).toEqual([]);
+        const back = roundTrip(GRAPH, command);
+        expect(back.connections.map(c => c.id)).toEqual(['c1']);
+    });
+
+    it('does not duplicate a connection that is already there', () => {
+        const restore: GraphCommand = {
+            kind: 'add-nodes', nodes: [], connections: [link('c1', 'a', 'b')],
+        };
+        expect(apply(GRAPH, restore).connections).toHaveLength(1);
     });
 
     it('move-nodes', () => {

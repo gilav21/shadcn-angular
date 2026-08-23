@@ -19,11 +19,24 @@ export interface GraphSnapshot {
 }
 
 export type GraphCommand =
-  | { readonly kind: 'add-nodes'; readonly nodes: readonly EditorNode[] }
+  | {
+      readonly kind: 'add-nodes';
+      readonly nodes: readonly EditorNode[];
+      /**
+       * Edges to restore alongside them.
+       *
+       * Present so that the inverse of `remove-nodes` is SELF-CONTAINED.
+       * Removing a node takes its edges with it, and an inverse that restored
+       * only the node would silently lose the wiring — the caller would have
+       * to know to put it back, which is exactly the kind of knowledge a
+       * command funnel exists to remove.
+       */
+      readonly connections?: readonly NodeConnection[];
+    }
   | {
       readonly kind: 'remove-nodes';
       readonly nodes: readonly EditorNode[];
-      /** Edges touching those nodes, so undo restores them too. */
+      /** Edges touching those nodes, so the inverse can restore them. */
       readonly connections: readonly NodeConnection[];
     }
   | { readonly kind: 'move-nodes'; readonly deltas: ReadonlyMap<NodeId, CanvasPoint> }
@@ -47,11 +60,15 @@ export const DEFAULT_HISTORY_LIMIT = 100;
 export function invert(command: GraphCommand): GraphCommand {
   switch (command.kind) {
     case 'add-nodes':
-      return { kind: 'remove-nodes', nodes: command.nodes, connections: [] };
+      return {
+        kind: 'remove-nodes',
+        nodes: command.nodes,
+        connections: command.connections ?? [],
+      };
     case 'remove-nodes':
-      // Restoring the nodes is not enough: the edges that touched them were
-      // removed with them, and undo has to bring those back too.
-      return { kind: 'add-nodes', nodes: command.nodes };
+      // The edges travel with it: restoring the nodes alone would lose the
+      // wiring, and nothing downstream should have to know that.
+      return { kind: 'add-nodes', nodes: command.nodes, connections: command.connections };
     case 'move-nodes':
       return { kind: 'move-nodes', deltas: negate(command.deltas) };
     case 'connect':
@@ -73,8 +90,16 @@ function negate(deltas: ReadonlyMap<NodeId, CanvasPoint>): ReadonlyMap<NodeId, C
  */
 export function apply(graph: GraphSnapshot, command: GraphCommand): GraphSnapshot {
   switch (command.kind) {
-    case 'add-nodes':
-      return { ...graph, nodes: [...graph.nodes, ...command.nodes] };
+    case 'add-nodes': {
+      const existing = new Set(graph.connections.map(c => c.id));
+      return {
+        nodes: [...graph.nodes, ...command.nodes],
+        connections: [
+          ...graph.connections,
+          ...(command.connections ?? []).filter(c => !existing.has(c.id)),
+        ],
+      };
+    }
 
     case 'remove-nodes': {
       const removing = new Set(command.nodes.map(n => n.id));
@@ -116,15 +141,6 @@ export function apply(graph: GraphSnapshot, command: GraphCommand): GraphSnapsho
       // half. Returning the graph unchanged keeps `apply` total.
       return graph;
   }
-}
-
-/**
- * Undoing a `remove-nodes` has to restore its connections too. Kept separate
- * from `invert` because a single command cannot express both halves, and
- * inventing a compound command type for one case is worse than this.
- */
-export function restoredConnections(command: GraphCommand): readonly NodeConnection[] {
-  return command.kind === 'remove-nodes' ? command.connections : [];
 }
 
 export class GraphHistory {

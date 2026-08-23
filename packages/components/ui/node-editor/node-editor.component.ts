@@ -24,6 +24,7 @@ import {
   InfiniteCanvasComponent,
   InfiniteCanvasItemDirective,
   type CanvasPoint,
+  type CanvasRect,
 } from '../infinite-canvas';
 import {
   NodeEditorNodeDirective,
@@ -37,9 +38,19 @@ import {
   samePort,
   toCanvasEdges,
 } from './node-editor.graph';
-import { defaultMetrics, portAnchor, portsOf, withDerivedHeights } from './node-editor.layout';
+import {
+  NODE_DEFAULT_WIDTH,
+  defaultMetrics,
+  portAnchor,
+  portsOf,
+  withDerivedHeights,
+} from './node-editor.layout';
 import { indexDefinitions, withMaterializedTypes } from './node-editor.materialize';
-import { GraphHistory } from './node-editor.history';
+import {
+  GraphHistory,
+  apply as applyGraphCommand,
+  type GraphCommand,
+} from './node-editor.history';
 import { NodeGraphRuntime } from './node-editor.runtime';
 import {
   NODE_CONTEXT,
@@ -157,6 +168,7 @@ interface DragState {
     '(pointerup)': 'onPointerUp($event)',
     '(pointercancel)': 'onPointerCancel()',
     '(focusin)': 'onNodeFocus($event)',
+    '(dblclick)': 'onDoubleClick($event)',
   },
 })
 export class NodeEditorComponent {
@@ -221,6 +233,15 @@ export class NodeEditorComponent {
    */
   readonly nodeExecute = output<readonly RemoteRequest[]>();
 
+  /**
+   * The user asked for a node here — double-click on empty plane.
+   *
+   * The base owns the intent and the insertion; the picker UI is an addon
+   * (R15). Carries the WORLD point, so whatever opens can drop the node
+   * exactly where the user asked rather than guessing.
+   */
+  readonly addNodeRequested = output<CanvasPoint>();
+
   @ContentChild(NodeEditorNodeDirective, { read: TemplateRef })
   nodeTemplateRef?: TemplateRef<NodeEditorNodeContext>;
 
@@ -250,6 +271,7 @@ export class NodeEditorComponent {
 
   private readonly liveRegion = acquireAriaLive();
   private drag: DragState | null = null;
+  private insertCounter = 0;
 
   /**
    * One runtime per editor instance, never a shared one — that is what keeps
@@ -421,6 +443,101 @@ export class NodeEditorComponent {
     const reach = Math.max(Math.abs(b.x - a.x) * 0.5, 30);
     return `M ${a.x} ${a.y} C ${a.x + reach} ${a.y}, ${b.x - reach} ${b.y}, ${b.x} ${b.y}`;
   });
+
+  // ------------------------------------------------------------ public API
+
+  /**
+   * Insert a node of a registered type at a world point.
+   *
+   * Public because the palette addon needs it, and routed through the command
+   * funnel so the insertion is undoable like any other edit — an addon should
+   * not have to know how history works to participate in it.
+   */
+  addNode(typeId: string, at: CanvasPoint, id?: NodeId): NodeId | null {
+    const definition = this.definitionIndex().get(typeId);
+    if (!definition || this.readonlyGraph()) return null;
+
+    const nodeId = id ?? `${typeId}-${++this.insertCounter}`;
+    const node: EditorNode = {
+      id: nodeId,
+      type: typeId,
+      x: at.x,
+      y: at.y,
+      width: NODE_DEFAULT_WIDTH,
+      height: 0,
+    };
+
+    this.history.push({ kind: 'add-nodes', nodes: [node] });
+    this.nodes.set([...this.nodes(), node]);
+    this.selection.set({ nodes: [nodeId], connections: [] });
+    this.announce(`${definition.label} added.`);
+    return nodeId;
+  }
+
+  /** Move nodes by a delta, as one undoable command. */
+  moveNodes(deltas: ReadonlyMap<NodeId, CanvasPoint>): void {
+    if (this.readonlyGraph() || deltas.size === 0) return;
+    this.history.push({ kind: 'move-nodes', deltas });
+    this.nodes.set(
+      this.nodes().map(node => {
+        const delta = deltas.get(node.id);
+        return delta ? { ...node, x: node.x + delta.x, y: node.y + delta.y } : node;
+      }),
+    );
+  }
+
+  /** Place nodes at absolute positions, as one undoable command — auto-layout. */
+  placeNodes(positions: ReadonlyMap<NodeId, CanvasPoint>): void {
+    const deltas = new Map<NodeId, CanvasPoint>();
+    for (const node of this.nodes()) {
+      const target = positions.get(node.id);
+      if (target) deltas.set(node.id, { x: target.x - node.x, y: target.y - node.y });
+    }
+    this.moveNodes(deltas);
+  }
+
+  /** Undo the last edit. */
+  undo(): void {
+    const command = this.history.undo();
+    if (command) this.applyCommand(command);
+  }
+
+  /** Redo the last undone edit. */
+  redo(): void {
+    const command = this.history.redo();
+    if (command) this.applyCommand(command);
+  }
+
+  readonly canUndo = (): boolean => this.history.canUndo;
+  readonly canRedo = (): boolean => this.history.canRedo;
+
+  private applyCommand(command: GraphCommand): void {
+    const next = applyGraphCommand(
+      { nodes: this.nodes(), connections: this.connections() },
+      command,
+    );
+    // No special case for edges: `add-nodes` carries the connections to
+    // restore, so every inverse is self-contained.
+    this.nodes.set(next.nodes);
+    this.connections.set(next.connections);
+    if (command.kind === 'set-state') this.runtime.setState(command.nodeId, command.after);
+    if (this.live()) void this.runtime.run();
+  }
+
+  /** Where the viewport currently is, for a minimap. */
+  visibleRect(): CanvasRect {
+    return this.canvas().visibleWorldRect();
+  }
+
+  /** Centre a world point — how a minimap navigates. */
+  panTo(worldPoint: CanvasPoint): void {
+    this.canvas().panTo(worldPoint);
+  }
+
+  /** Screen coordinates to world, so an addon can drop something under a pointer. */
+  toWorld(clientPoint: CanvasPoint): CanvasPoint {
+    return this.canvas().screenToWorld(clientPoint);
+  }
 
   // ------------------------------------------------- connect legibility (RT-13)
 
@@ -651,6 +768,22 @@ export class NodeEditorComponent {
    * system gesture, a second finger — must abandon the connection rather than
    * commit it wherever the finger happened to be.
    */
+  /**
+   * A double-click on empty plane asks for a node here.
+   *
+   * The base resolves the world point and emits; what opens is the consumer's
+   * or an addon's business (R15). Doing nothing when no one is listening is
+   * correct — it is an intent, not a command.
+   */
+  protected onDoubleClick(event: MouseEvent): void {
+    if (this.readonlyGraph()) return;
+    const target = event.target as Element | null;
+    if (target?.closest('[data-slot="node-editor-node"]')) return;
+    if (target?.closest('[data-slot="node-editor-port"]')) return;
+
+    this.addNodeRequested.emit(this.toWorld({ x: event.clientX, y: event.clientY }));
+  }
+
   protected onPointerCancel(): void {
     if (this.pending()) {
       this.pending.set(null);
@@ -783,6 +916,17 @@ export class NodeEditorComponent {
       this.deleteSelection();
       return true;
     }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      // Shift+Ctrl+Z redoes, which is the convention everywhere except a few
+      // editors that also accept Ctrl+Y — handled below.
+      if (event.shiftKey) this.redo();
+      else this.undo();
+      return true;
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
+      this.redo();
+      return true;
+    }
     return false;
   }
 
@@ -906,14 +1050,34 @@ export class NodeEditorComponent {
     const afterEdges = removeConnections(this.connections(), selection.connections);
     const result = removeNodes(this.sizedNodes(), afterEdges, selection.nodes);
 
-    const removedNodes = this.sizedNodes().length - result.nodes.length;
-    const removedEdges = this.connections().length - result.connections.length;
-    if (removedNodes === 0 && removedEdges === 0) return;
+    const removedNodes = this.sizedNodes().filter(
+      node => !result.nodes.some(kept => kept.id === node.id),
+    );
+    const removedEdges = this.connections().filter(
+      edge => !result.connections.some(kept => kept.id === edge.id),
+    );
+    if (removedNodes.length === 0 && removedEdges.length === 0) return;
+
+    /*
+     * Recorded as a command, or delete is the one edit that cannot be undone.
+     *
+     * The removed CONNECTIONS have to travel with the command: taking a node
+     * out takes its edges with it, and restoring only the node would silently
+     * lose the wiring. That is the single case an inverse cannot express on
+     * its own, which is why `restoredConnections` exists.
+     */
+    this.history.push({
+      kind: 'remove-nodes',
+      nodes: removedNodes,
+      connections: removedEdges,
+    });
 
     this.nodes.set(result.nodes);
     this.connections.set(result.connections);
     this.selection.set(EMPTY_SELECTION);
-    this.announce(`Removed ${removedNodes} nodes and ${removedEdges} connections.`);
+    this.announce(
+      `Removed ${removedNodes.length} nodes and ${removedEdges.length} connections.`,
+    );
   }
 
   /**
