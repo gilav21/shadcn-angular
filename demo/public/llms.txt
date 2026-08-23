@@ -2321,8 +2321,8 @@ Canvas overview of the whole graph, with a draggable viewport rectangle for navi
 - Category: layout
 - Depends on: `node-editor`
 - npm dependencies: none
-- Inputs: `ariaLabel: string = 'Graph overview'`, `class: string = ''`, `connections: readonly NodeConnection[] = []`, `height: number = 140`, `nodes: readonly EditorNode[] = []`, `viewport: CanvasRect | null = null`, `width: number = 200`
-- Outputs: `navigate: CanvasPoint`
+- Inputs: `ariaLabel: string = 'Graph overview'`, `class: string = ''`, `collapsed: boolean = false`, `collapsible: boolean = true`, `connections: readonly NodeConnection[] = []`, `height: number = 140`, `nodes: readonly EditorNode[] = []`, `viewport: CanvasRect | null = null`, `width: number = 200`
+- Outputs: `collapsed: boolean`, `navigate: CanvasPoint`
 
 ```html
 <ui-node-editor-minimap />

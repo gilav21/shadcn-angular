@@ -893,6 +893,30 @@ export class NodeEditorComponent {
   // ------------------------------------------------------------------ pointer
 
   protected onPointerDown(event: PointerEvent): void {
+    /*
+     * A second finger means pan and zoom, never editing.
+     *
+     * Reported from a phone: pinching while one finger rested on a node
+     * dragged the node instead of zooming. Two fingers are a viewport gesture
+     * everywhere, so anything the first finger had started is abandoned here
+     * and the nodes go back where they were — a pinch that quietly moves part
+     * of the graph is worse than one that does not zoom.
+     *
+     * `isPrimary` rather than a set of live pointer ids: the browser already
+     * knows which finger is the first of a gesture, and a set of ids has to be
+     * cleaned up on every exit path. The first version tracked them by hand
+     * and one missed `pointerup` would have wedged the editor for good.
+     *
+     * Narrowed to `touch` because that is the gesture this is about, and
+     * because a synthetic `PointerEvent` reports `isPrimary: false` by
+     * default — so an unqualified check treats every dispatched event in
+     * every test as a second finger, which is exactly what it did.
+     */
+    if (event.pointerType === 'touch' && !event.isPrimary) {
+      this.abandonGesture();
+      return;
+    }
+
     const port = this.portFromEvent(event);
     if (port) {
       this.beginConnect(port, event);
@@ -1063,6 +1087,26 @@ export class NodeEditorComponent {
       this.announce('Connection cancelled.');
     }
     this.drag = null;
+  }
+
+  /**
+   * Abandon whatever the pointer had started, leaving the graph as it was.
+   *
+   * Node positions are restored rather than left where the drag had got to:
+   * the gesture turned out to be a pinch, so the movement was never meant.
+   */
+  private abandonGesture(): void {
+    const drag = this.drag;
+    this.drag = null;
+    if (this.pending()) this.pending.set(null);
+    if (!drag || !drag.moved) return;
+
+    this.nodes.update(nodes =>
+      nodes.map(node => {
+        const start = drag.start.get(node.id);
+        return start ? { ...node, x: start.x, y: start.y } : node;
+      }),
+    );
   }
 
   private beginConnect(port: PortRef, event: PointerEvent): void {

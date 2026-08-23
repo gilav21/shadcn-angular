@@ -10427,6 +10427,18 @@
               "default": "''"
             },
             {
+              "name": "collapsed",
+              "type": "boolean",
+              "description": "Folded down to a single control. A `model`, so a consumer can start it collapsed on a narrow screen and still let the reader open it: on a phone a 200x140 overview covers a serious fraction of the canvas it exists to help navigate.",
+              "default": "false"
+            },
+            {
+              "name": "collapsible",
+              "type": "boolean",
+              "description": "Whether the reader may fold it away.",
+              "default": "true"
+            },
+            {
               "name": "connections",
               "type": "readonly NodeConnection[]",
               "description": "",
@@ -10458,6 +10470,12 @@
             }
           ],
           "outputs": [
+            {
+              "name": "collapsed",
+              "type": "boolean",
+              "description": "Folded down to a single control. A `model`, so a consumer can start it collapsed on a narrow screen and still let the reader open it: on a phone a 200x140 overview covers a serious fraction of the canvas it exists to help navigate.",
+              "default": "false"
+            },
             {
               "name": "navigate",
               "type": "CanvasPoint",

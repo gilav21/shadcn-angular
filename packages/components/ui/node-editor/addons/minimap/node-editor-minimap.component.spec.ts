@@ -27,6 +27,7 @@ const CONNECTIONS: NodeConnection[] = [
       [viewport]="viewport()"
       [width]="200"
       [height]="140"
+      [(collapsed)]="collapsed"
       (navigate)="navigated.set($event)"
     />
   `,
@@ -36,6 +37,7 @@ class HostComponent {
     readonly connections = CONNECTIONS;
     readonly viewport = signal<CanvasRect | null>({ x: 0, y: 0, width: 300, height: 200 });
     readonly navigated = signal<CanvasPoint | null>(null);
+    readonly collapsed = signal(false);
 }
 
 describe('NodeEditorMinimapComponent', () => {
@@ -183,6 +185,63 @@ describe('NodeEditorMinimapComponent', () => {
                 key: 'ArrowRight', bubbles: true, cancelable: true,
             }));
             expect(host.navigated()).toBeNull();
+        });
+    });
+
+    describe('folding away on a small screen', () => {
+        /**
+         * A 200x140 overview on a phone covers a serious fraction of the
+         * canvas it exists to help navigate — reported as "the minimap takes
+         * most of the space on my phone". Hiding it below a breakpoint would
+         * leave small screens without one at all, so it folds instead.
+         */
+        it('collapses to a single control', async () => {
+            host.collapsed.set(true);
+            await settle();
+
+            expect(fixture.nativeElement.querySelector('[data-slot="node-editor-minimap-toggle"]'))
+                .not.toBeNull();
+            expect(fixture.nativeElement.querySelector('[data-slot="node-editor-minimap"]'))
+                .toBeNull();
+        });
+
+        it('says what it is while folded, so it is not a mystery glyph', async () => {
+            host.collapsed.set(true);
+            await settle();
+
+            const toggle = fixture.nativeElement.querySelector(
+                '[data-slot="node-editor-minimap-toggle"]',
+            );
+            expect(toggle?.getAttribute('aria-label')).toContain('3 nodes');
+            expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+        });
+
+        it('opens again when the control is activated', async () => {
+            host.collapsed.set(true);
+            await settle();
+
+            fixture.nativeElement
+                .querySelector('[data-slot="node-editor-minimap-toggle"]')
+                ?.click();
+            await settle();
+
+            expect(fixture.nativeElement.querySelector('[data-slot="node-editor-minimap"]'))
+                .not.toBeNull();
+        });
+
+        it('offers a way to fold it while open', async () => {
+            expect(fixture.nativeElement.querySelector('[data-slot="node-editor-minimap-collapse"]'))
+                .not.toBeNull();
+        });
+
+        it('paints nothing while folded, rather than throwing', async () => {
+            host.collapsed.set(true);
+            await settle();
+            host.nodes.set([...NODES]);
+            await settle();
+
+            expect(fixture.nativeElement.querySelector('[data-slot="node-editor-minimap-surface"]'))
+                .toBeNull();
         });
     });
 

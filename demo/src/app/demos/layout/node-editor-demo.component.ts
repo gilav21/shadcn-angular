@@ -120,6 +120,11 @@ const SHOUT_SUBGRAPH = subgraphNodeType({
   definitions: [UPPERCASE_NODE, LENGTH_NODE],
 });
 
+/** Rendered size of the zone panel, for keeping it inside the canvas. */
+const ZONE_PANEL = { x: 256, y: 190 };
+/** Rendered size of the rename field, same reason. */
+const RENAME_FIELD = { x: 192, y: 34 };
+
 const DEMO_NODE_TYPES = [
   TEXT_INPUT_NODE,
   UPPERCASE_NODE,
@@ -603,14 +608,34 @@ export class NodeEditorDemoComponent {
   }
 
   private openZoneEditor(group: NodeGroup, screen: CanvasPoint): void {
-    const box = this.surfaceRef()?.nativeElement.getBoundingClientRect();
+    const at = this.clampToSurface(screen, ZONE_PANEL);
     this.editingZone.set({
       id: group.id,
       title: group.title,
       colour: group.colour ?? '#6366f1',
-      left: screen.x - (box?.left ?? 0),
-      top: screen.y - (box?.top ?? 0),
+      left: at.x,
+      top: at.y,
     });
+  }
+
+  /**
+   * Where a floating panel can sit without falling off the canvas.
+   *
+   * Opening one at the pointer is right until the pointer is near an edge,
+   * and then the panel is clipped by the canvas's own `overflow: hidden` and
+   * half its controls are unreachable. Reported for the zone editor; the
+   * rename field had it too.
+   */
+  private clampToSurface(screen: CanvasPoint, size: CanvasPoint): CanvasPoint {
+    const box = this.surfaceRef()?.nativeElement.getBoundingClientRect();
+    if (!box) return { x: screen.x, y: screen.y };
+
+    const local = { x: screen.x - box.left, y: screen.y - box.top };
+    const margin = 8;
+    return {
+      x: Math.max(margin, Math.min(local.x, box.width - size.x - margin)),
+      y: Math.max(margin, Math.min(local.y, box.height - size.y - margin)),
+    };
   }
 
   protected applyZone(title: string, colour: string): void {
@@ -665,12 +690,12 @@ export class NodeEditorDemoComponent {
 
   protected beginRename(target: NodeEditorContextTarget): void {
     if (target.kind !== 'node') return;
-    const box = this.surfaceRef()?.nativeElement.getBoundingClientRect();
+    const at = this.clampToSurface(target.screen, RENAME_FIELD);
     this.renaming.set({
       id: target.nodeId,
       title: target.node.title ?? '',
-      left: target.screen.x - (box?.left ?? 0),
-      top: target.screen.y - (box?.top ?? 0),
+      left: at.x,
+      top: at.y,
     });
   }
 
@@ -728,6 +753,22 @@ export class NodeEditorDemoComponent {
    * so the minimap follows a pan rather than tracking it frame by frame.
    */
   protected readonly viewportRect = signal<CanvasRect | null>(null);
+
+  /**
+   * The minimap starts folded on a small screen.
+   *
+   * A 200x140 overview on a phone covers a serious fraction of the canvas it
+   * exists to help navigate, so it opens as a single control there and the
+   * reader unfolds it if they want it.
+   */
+  protected readonly narrowScreen = signal(
+    typeof globalThis.matchMedia === 'function'
+      ? globalThis.matchMedia('(max-width: 640px)').matches
+      : false,
+  );
+  protected readonly minimapCollapsed = signal(this.narrowScreen());
+  protected readonly minimapWidth = computed(() => (this.narrowScreen() ? 132 : 200));
+  protected readonly minimapHeight = computed(() => (this.narrowScreen() ? 92 : 140));
 
   /** What the minimap draws: real sizes, not the authored zero heights. */
   protected readonly renderedNodes = computed(() => this.editorRef()?.renderedNodes() ?? []);

@@ -378,7 +378,7 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
     if (!started) return;
 
     event.preventDefault();
-    this.rootRef().nativeElement.setPointerCapture(event.pointerId);
+    this.captureQuietly(event.pointerId);
     this.beginInteraction();
   }
 
@@ -390,10 +390,21 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
   }
 
   onPointerUp(event: PointerEvent): void {
-    if (this.machine.mode === 'idle') return;
+    /*
+     * A lifted pointer is always forgotten, even one the engine was not
+     * acting on.
+     *
+     * This used to return early while idle, which was fine when an idle
+     * engine tracked nothing. It now tracks every pointer so a second finger
+     * can pinch regardless of what the first is resting on — and with the
+     * early return those pointers were never released. The next press found a
+     * stale partner and began a phantom pinch, which stole the capture and
+     * broke dropping a connection.
+     */
+    const wasInteracting = this.machine.mode !== 'idle';
     this.machine.pointerUp(event.pointerId);
     this.releaseCapture(event.pointerId);
-    this.endInteractionIfIdle();
+    if (wasInteracting) this.endInteractionIfIdle();
   }
 
   /**
@@ -568,6 +579,24 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
     if (key === '+' || key === '=') return KEYBOARD_ZOOM_FACTOR;
     if (key === '-' || key === '_') return 1 / KEYBOARD_ZOOM_FACTOR;
     return null;
+  }
+
+  /**
+   * Take the pointer, or carry on without it.
+   *
+   * `setPointerCapture` throws for a pointer the browser does not consider
+   * active — a synthetic event, or one already released — and a throw inside
+   * a listener abandons everything after it, which here means the interaction
+   * never officially begins and `will-change` is never set. Capture is an
+   * optimisation for keeping events flowing to one element; losing it is
+   * survivable, losing the rest of the handler is not.
+   */
+  private captureQuietly(pointerId: number): void {
+    try {
+      this.rootRef().nativeElement.setPointerCapture(pointerId);
+    } catch {
+      // No active pointer with that id. Events still arrive by bubbling.
+    }
   }
 
   private releaseCapture(pointerId: number): void {

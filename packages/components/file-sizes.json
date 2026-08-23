@@ -3806,8 +3806,8 @@
       "lines": 370
     },
     "infinite-canvas/infinite-canvas.component.ts": {
-      "bytes": 21541,
-      "lines": 651
+      "bytes": 22809,
+      "lines": 680
     },
     "infinite-canvas/infinite-canvas.edge-renderer.spec.ts": {
       "bytes": 15168,
@@ -3842,8 +3842,8 @@
       "lines": 346
     },
     "infinite-canvas/infinite-canvas.pointer.ts": {
-      "bytes": 9886,
-      "lines": 296
+      "bytes": 10788,
+      "lines": 316
     },
     "infinite-canvas/infinite-canvas.spatial-hash.spec.ts": {
       "bytes": 7660,
@@ -4405,6 +4405,10 @@
       "bytes": 18521,
       "lines": 41
     },
+    "node-editor/__screenshots__/node-editor.a11y.spec.ts/NodeEditorComponent-accessibility--T-10--the-spatial-view-carries-its-own-labels-keeps-the-decorative-pending-overlay-out-of-the-accessibility-tree-1.png": {
+      "bytes": 20272,
+      "lines": 32
+    },
     "node-editor/__screenshots__/node-editor.api.spec.ts/the-base-API-the-addons-need-undo-and-redo-restores-a-removed-node-s-connections--not-just-the-node-1.png": {
       "bytes": 16209,
       "lines": 37
@@ -4426,28 +4430,76 @@
       "lines": 29
     },
     "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-moves-the-pressed-node-1.png": {
-      "bytes": 24915,
+      "bytes": 28473,
       "lines": 29
     },
     "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-moves-the-whole-selection-when-a-selected-node-is-dragged-1.png": {
-      "bytes": 25183,
-      "lines": 36
+      "bytes": 30234,
+      "lines": 47
     },
     "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-snaps-to-the-grid-when-one-is-set-1.png": {
-      "bytes": 24865,
-      "lines": 30
+      "bytes": 28265,
+      "lines": 28
     },
     "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-rendering-renders-a-dot-for-every-port-1.png": {
       "bytes": 21937,
       "lines": 35
     },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-selection-adds-to-the-selection-on-shift-press-1.png": {
+      "bytes": 30213,
+      "lines": 42
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-selection-marks-the-selected-card--so-selection-is-visible-and-not-just-modelled-1.png": {
+      "bytes": 28377,
+      "lines": 54
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-selection-replaces-the-selection-on-a-plain-press-1.png": {
+      "bytes": 30361,
+      "lines": 51
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-selection-selects-the-node-that-was-pressed-1.png": {
+      "bytes": 28231,
+      "lines": 29
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-creates-a-connection-between-the-two-ports-1.png": {
+      "bytes": 28300,
+      "lines": 36
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-draws-a-pending-edge-while-the-drag-is-in-flight-1.png": {
+      "bytes": 28473,
+      "lines": 29
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-marks-a-connected-port-so-the-dot-reads-as-occupied-1.png": {
+      "bytes": 28281,
+      "lines": 43
+    },
     "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-marks-the-hovered-port-valid-or-invalid-BEFORE-release-1.png": {
-      "bytes": 23123,
-      "lines": 49
+      "bytes": 28137,
+      "lines": 47
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-reports-the-reason-when-the-drop-is-invalid-1.png": {
+      "bytes": 28300,
+      "lines": 36
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-disconnecting-detaches-the-existing-edge-when-its-input-end-is-grabbed-1.png": {
+      "bytes": 28281,
+      "lines": 43
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-disconnecting-re-homes-it-when-dropped-on-another-input-1.png": {
+      "bytes": 30207,
+      "lines": 30
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-9-keyboard-deletes-the-selection-with-Delete-1.png": {
+      "bytes": 28265,
+      "lines": 28
     },
     "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-TEMP-probe-reports-what-is-under-each-port-anchor-1.png": {
       "bytes": 22355,
       "lines": 49
+    },
+    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-the-keyboard-and-the-pointer-agree-about-what-is-allowed-refuses-the-same-pair-either-way--for-the-same-reason-1.png": {
+      "bytes": 31594,
+      "lines": 52
     },
     "node-editor/__screenshots__/node-editor.design-spike.spec.ts/design-claim-2---a-change-recomputes-only-descendants-recomputes-the-changed-node-and-everything-below-it--and-nothing-else-1.png": {
       "bytes": 4290,
@@ -4470,8 +4522,48 @@
       "lines": 50
     },
     "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-12-controls-inside-a-node-are-usable-DOES-drag-when-the-press-lands-on-the-header-1.png": {
-      "bytes": 27375,
-      "lines": 50
+      "bytes": 31533,
+      "lines": 82
+    },
+    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-12-controls-inside-a-node-are-usable-still-selects-the-node--so-pressing-its-body-is-not-inert-1.png": {
+      "bytes": 31646,
+      "lines": 86
+    },
+    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-a-refusal-says-why--in-words-disappears-when-the-drag-ends-1.png": {
+      "bytes": 24348,
+      "lines": 45
+    },
+    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-a-refusal-says-why--in-words-explains-a-same-node-attempt-1.png": {
+      "bytes": 24422,
+      "lines": 33
+    },
+    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-a-refusal-says-why--in-words-is-hidden-from-screen-readers--because-the-live-region-already-says-it-1.png": {
+      "bytes": 24422,
+      "lines": 33
+    },
+    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-a-refusal-says-why--in-words-names-BOTH-types-for-a-mismatch--not-the-word--type-mismatch--1.png": {
+      "bytes": 24032,
+      "lines": 37
+    },
+    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-what-is-highlighted-is-exactly-what-can-be-dropped-on-every-port-marked-connectable-actually-accepts-the-drop-1.png": {
+      "bytes": 24481,
+      "lines": 40
+    },
+    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-what-is-highlighted-is-exactly-what-can-be-dropped-on-every-port-marked-unconnectable-states-a-reason-when-hovered-1.png": {
+      "bytes": 24481,
+      "lines": 40
+    },
+    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-while-dragging--valid-targets-are-obvious-before-the-attempt-marks-a-compatible-input-connectable-1.png": {
+      "bytes": 24260,
+      "lines": 35
+    },
+    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-while-dragging--valid-targets-are-obvious-before-the-attempt-marks-an-incompatible-input-NOT-connectable-1.png": {
+      "bytes": 24481,
+      "lines": 40
+    },
+    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-while-dragging--valid-targets-are-obvious-before-the-attempt-marks-the-source-node-s-own-ports-not-connectable-1.png": {
+      "bytes": 24481,
+      "lines": 40
     },
     "node-editor/__screenshots__/node-editor.perf.spec.ts/ENFORCED---a-change-costs-only-what-depends-on-it-recomputes-nothing-when-a-value-is-set-to-what-it-already-was-1.png": {
       "bytes": 4290,
@@ -4634,20 +4726,24 @@
       "lines": 441
     },
     "node-editor/addons/minimap/index.ts": {
-      "bytes": 94,
-      "lines": 2
+      "bytes": 141,
+      "lines": 3
     },
     "node-editor/addons/minimap/node-editor-minimap.component.html": {
-      "bytes": 760,
-      "lines": 25
+      "bytes": 2271,
+      "lines": 65
     },
     "node-editor/addons/minimap/node-editor-minimap.component.spec.ts": {
-      "bytes": 8113,
-      "lines": 209
+      "bytes": 10433,
+      "lines": 268
     },
     "node-editor/addons/minimap/node-editor-minimap.component.ts": {
-      "bytes": 7036,
-      "lines": 207
+      "bytes": 8420,
+      "lines": 243
+    },
+    "node-editor/addons/minimap/node-editor-minimap.locales.ts": {
+      "bytes": 1292,
+      "lines": 21
     },
     "node-editor/addons/minimap/node-editor-minimap.utils.spec.ts": {
       "bytes": 5940,
@@ -4782,8 +4878,8 @@
       "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 58800,
-      "lines": 1607
+      "bytes": 60583,
+      "lines": 1651
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -4820,6 +4916,10 @@
     "node-editor/node-editor.materialize.ts": {
       "bytes": 2702,
       "lines": 65
+    },
+    "node-editor/node-editor.multitouch.spec.ts": {
+      "bytes": 6723,
+      "lines": 187
     },
     "node-editor/node-editor.perf.spec.ts": {
       "bytes": 11876,

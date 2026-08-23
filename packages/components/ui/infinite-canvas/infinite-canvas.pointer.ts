@@ -145,20 +145,40 @@ export class CanvasPointerMachine {
    * Returns `true` when an interaction started, which is the caller's cue to
    * call `setPointerCapture`.
    */
+  /**
+   * Feeds a pointerdown. Returns `true` when the engine took the gesture.
+   *
+   * ### Why every pointer is tracked, even one it will not act on
+   *
+   * A finger that lands on a node is not a pan — but it is still a finger, and
+   * the engine has to know it is down. It used not to: a press on a node was
+   * dropped entirely, so when a second finger arrived there was nothing to
+   * pinch against, and the two-finger gesture never started. What happened
+   * instead was the node kept dragging while the other finger moved, which is
+   * the opposite of what two fingers mean.
+   *
+   * So the pointer is always recorded; only the MODE is conditional. The
+   * second finger then finds a partner and a pinch begins regardless of what
+   * either finger happens to be resting on — which is what every canvas app
+   * does.
+   */
   pointerDown(event: CanvasPointerInput, onEmptySpace: boolean): boolean {
     if (this.pointers.length >= 2) return false;
-
-    const second = this.pointers.length === 1;
-    if (!second && !this.shouldPan(event, onEmptySpace)) return false;
 
     this.pointers.push({ id: event.pointerId, x: event.clientX, y: event.clientY });
 
     if (this.pointers.length === 2) {
       this.beginPinch();
-    } else {
-      this._mode = 'panning';
+      return true;
     }
-    return true;
+    if (this.shouldPan(event, onEmptySpace)) {
+      this._mode = 'panning';
+      return true;
+    }
+
+    // Tracked, but idle: this press belongs to whatever is under it.
+    this._mode = 'idle';
+    return false;
   }
 
   /** Feeds a pointermove. Returns `true` when the viewport actually changed. */

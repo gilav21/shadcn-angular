@@ -1987,7 +1987,8 @@ export const registry = defineRegistry({
     category: 'layout',
     description: 'Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.',
     tags: ['node-editor', 'minimap', 'overview', 'navigation', 'canvas'],
-    files: ['node-editor/addons/minimap/index.ts', 'node-editor/addons/minimap/node-editor-minimap.component.html', 'node-editor/addons/minimap/node-editor-minimap.component.ts', 'node-editor/addons/minimap/node-editor-minimap.utils.ts'],
+    files: ['node-editor/addons/minimap/index.ts', 'node-editor/addons/minimap/node-editor-minimap.component.html', 'node-editor/addons/minimap/node-editor-minimap.component.ts', 'node-editor/addons/minimap/node-editor-minimap.locales.ts', 'node-editor/addons/minimap/node-editor-minimap.utils.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['node-editor'],
     attach: {
       import: "NodeEditorMinimapComponent from './ui/node-editor/addons/minimap'",

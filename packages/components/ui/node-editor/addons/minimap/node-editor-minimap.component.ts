@@ -7,11 +7,14 @@ import {
   computed,
   inject,
   input,
+  model,
   output,
   signal,
   viewChild,
 } from '@angular/core';
+import { UI_LOCALE_ID } from '../../../../lib/i18n';
 import { cn } from '../../../../lib/utils';
+import { NODE_EDITOR_MINIMAP_LOCALES } from './node-editor-minimap.locales';
 import type { CanvasPoint, CanvasRect, EditorNode, NodeConnection } from '../..';
 import {
   coverage,
@@ -56,10 +59,22 @@ export class NodeEditorMinimapComponent {
   readonly class = input('');
   readonly ariaLabel = input('Graph overview');
 
+  /**
+   * Folded down to a single control.
+   *
+   * A `model`, so a consumer can start it collapsed on a narrow screen and
+   * still let the reader open it: on a phone a 200x140 overview covers a
+   * serious fraction of the canvas it exists to help navigate.
+   */
+  readonly collapsed = model(false);
+  /** Whether the reader may fold it away. */
+  readonly collapsible = input(true);
+
   /** The user asked to centre this world point. */
   readonly navigate = output<CanvasPoint>();
 
-  private readonly canvasRef = viewChild.required<ElementRef<HTMLCanvasElement>>('surface');
+  private readonly localeId = inject(UI_LOCALE_ID);
+  private readonly canvasRef = viewChild<ElementRef<HTMLCanvasElement>>('surface');
   private readonly dragging = signal(false);
 
   /**
@@ -79,8 +94,24 @@ export class NodeEditorMinimapComponent {
     cn(
       'relative overflow-hidden rounded-md border bg-background/80 shadow-sm',
       this.dragging() ? 'cursor-grabbing' : 'cursor-pointer',
+      this.collapsible() ? '' : this.class(),
+    ),
+  );
+
+  /** Wraps the map and its collapse control, and carries the caller's class. */
+  protected readonly shellClasses = computed(() => cn('relative', this.class()));
+
+  protected readonly toggleClasses = computed(() =>
+    cn(
+      'flex size-10 items-center justify-center rounded-md border bg-background/80 text-sm',
+      'text-muted-foreground shadow-sm hover:text-foreground',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       this.class(),
     ),
+  );
+
+  protected readonly t = computed(
+    () => NODE_EDITOR_MINIMAP_LOCALES[this.localeId()] ?? NODE_EDITOR_MINIMAP_LOCALES['en'],
   );
 
   /** A short description of what the map shows, for a screen reader. */
@@ -91,7 +122,10 @@ export class NodeEditorMinimapComponent {
   constructor() {
     // Repaints after render whenever the inputs change. A canvas is not part
     // of the template's data binding, so something has to drive it.
-    afterRenderEffect(() => this.paint());
+    // Collapsed, there is no canvas to paint on.
+    afterRenderEffect(() => {
+      if (!this.collapsed()) this.paint();
+    });
 
     /*
      * Released anywhere ends the drag, not just released over the map.
@@ -143,7 +177,9 @@ export class NodeEditorMinimapComponent {
   }
 
   private navigateTo(event: PointerEvent): void {
-    const rect = this.canvasRef().nativeElement.getBoundingClientRect();
+    const surface = this.canvasRef()?.nativeElement;
+    if (!surface) return;
+    const rect = surface.getBoundingClientRect();
     this.navigate.emit(
       toWorld(
         { x: event.clientX - rect.left, y: event.clientY - rect.top },
@@ -154,9 +190,9 @@ export class NodeEditorMinimapComponent {
 
   /** One pass: edges, then node boxes, then the viewport rectangle. */
   private paint(): void {
-    const canvas = this.canvasRef().nativeElement;
-    const context = canvas.getContext('2d');
-    if (!context) return;
+    const canvas = this.canvasRef()?.nativeElement;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) return;
 
     const dpr = globalThis.devicePixelRatio > 0 ? globalThis.devicePixelRatio : 1;
     const width = this.width();

@@ -181,6 +181,9 @@
       [nodes]="renderedNodes()"
       [connections]="connections()"
       [viewport]="viewportRect()"
+      [width]="minimapWidth()"
+      [height]="minimapHeight()"
+      [(collapsed)]="minimapCollapsed"
       (navigate)="navigateTo($event)"
     />
   </div>
