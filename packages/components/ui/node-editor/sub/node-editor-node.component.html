@@ -122,5 +122,6 @@
     [connected]="connectedPorts().has(port.id)"
     [dropState]="dropStateFor(port.id)"
     [active]="activePort() === port.id"
+    [connectable]="connectable()"
   />
 }

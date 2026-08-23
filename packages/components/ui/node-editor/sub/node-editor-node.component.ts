@@ -61,6 +61,8 @@ export class NodeEditorNodeComponent {
   readonly viewInjector = input<Injector | null>(null);
   /** Runtime status, surfaced on the card so a run is visible. */
   readonly status = input<NodeStatus | null>(null);
+  /** Ports that would accept the connection in flight; passed straight down. */
+  readonly connectable = input<ReadonlySet<string> | null>(null);
   readonly class = input('');
 
   protected readonly headerHeight = NODE_HEADER_HEIGHT;

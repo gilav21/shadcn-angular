@@ -44,6 +44,13 @@ export class NodeEditorPortComponent {
   readonly dropState = input<PortDropState>(null);
   /** Set while this is the keyboard's current port within a focused node. */
   readonly active = input(false);
+  /**
+   * Ports that would accept the connection in flight, or `null` when none is.
+   *
+   * A set rather than a boolean so the node passes one reference down to every
+   * port and each looks itself up in O(1).
+   */
+  readonly connectable = input<ReadonlySet<string> | null>(null);
   readonly class = input('');
 
   protected readonly isOutput = computed(() => this.port().direction === 'out');
@@ -52,6 +59,18 @@ export class NodeEditorPortComponent {
   protected readonly top = computed(() => {
     const centre = portOffsetTop(this.node(), this.port().id, this.metrics());
     return (centre ?? 0) - this.metrics().rowHeight / 2;
+  });
+
+  /**
+   * Whether this port is a possible target for the connection being dragged.
+   *
+   * `null` when nothing is in flight — the resting state, where every port
+   * looks the same.
+   */
+  protected readonly isConnectable = computed(() => {
+    const keys = this.connectable();
+    if (!keys) return null;
+    return keys.has(`${this.node().id}:${this.port().id}`);
   });
 
   protected readonly rowClasses = computed(() =>
@@ -64,6 +83,10 @@ export class NodeEditorPortComponent {
       // exactly on the node boundary where the edge anchor is.
       this.isOutput() ? 'end-[-5px] flex-row-reverse' : 'start-[-5px]',
       this.active() && 'ring-2 ring-ring',
+      // Dimmed while a connection is in flight and this port cannot take it,
+      // so the valid targets are obvious BEFORE the attempt rather than after.
+      this.isConnectable() === false && 'opacity-25',
+      this.isConnectable() === true && 'font-medium text-foreground',
       this.class(),
     ),
   );
@@ -91,5 +114,17 @@ export class NodeEditorPortComponent {
     const state = this.connected() ? 'connected' : 'not connected';
     const type = port.type ? `, type ${port.type}` : '';
     return `${port.label}, ${direction}${type}, ${state}`;
+  });
+
+  /**
+   * Hover text naming the port's type.
+   *
+   * The type is what decides whether a connection is allowed, so it has to be
+   * discoverable at rest — not only in the message that appears after a
+   * refused attempt.
+   */
+  protected readonly hint = computed(() => {
+    const port = this.port();
+    return port.type ? `${port.label} (${port.type})` : port.label;
   });
 }

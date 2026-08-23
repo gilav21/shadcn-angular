@@ -29,6 +29,7 @@
         [view]="viewFor(node)"
         [viewInjector]="injectorFor(node)"
         [status]="runtime.status(node.id)()"
+        [connectable]="connectablePorts()"
       />
     </ng-template>
   </ui-infinite-canvas>
@@ -58,6 +59,24 @@
         "
       />
     </svg>
+  }
+
+  <!--
+    Why the port under the pointer will not take this connection, in plain
+    language and right where the user is looking. `aria-hidden` because the
+    live region already announces it — reading it twice is worse than once.
+  -->
+  @if (rejectionText(); as reason) {
+    @if (rejectionAt(); as at) {
+      <p
+        class="pointer-events-none absolute z-10 max-w-[calc(100vw-2rem)] translate-x-3 translate-y-3
+               rounded-md border border-destructive/40 bg-popover px-2 py-1 text-xs text-destructive shadow-sm"
+        [style.left.px]="at.x"
+        [style.top.px]="at.y"
+        aria-hidden="true"
+        [attr.data-slot]="'node-editor-rejection'"
+      >{{ reason }}</p>
+    }
   }
 
   <!--

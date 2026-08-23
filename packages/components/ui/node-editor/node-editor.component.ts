@@ -52,6 +52,7 @@ import { NodeEditorNodeComponent } from './sub/node-editor-node.component';
 import type {
   ConnectRejection,
   NodeId,
+  NodePort,
   EditorNode,
   EditorSelection,
   NodeConnection,
@@ -415,6 +416,76 @@ export class NodeEditorComponent {
     const reach = Math.max(Math.abs(b.x - a.x) * 0.5, 30);
     return `M ${a.x} ${a.y} C ${a.x + reach} ${a.y}, ${b.x - reach} ${b.y}, ${b.x} ${b.y}`;
   });
+
+  // ------------------------------------------------- connect legibility (RT-13)
+
+  /**
+   * The source port of a connection in flight, or `null`.
+   *
+   * Split out from `pending()` with a custom equality so it changes only when
+   * the SOURCE changes — `pending` itself changes on every pointer move, and
+   * {@link connectablePorts} below is O(nodes x ports). Without this the
+   * compatibility sweep would run on every frame of every drag.
+   */
+  private readonly pendingFrom = computed(() => this.pending()?.from ?? null, {
+    equal: (a, b) => (a === null && b === null) || samePort(a, b),
+  });
+
+  /**
+   * Every port that would accept the connection in flight, as `node:port`.
+   *
+   * The point is that a valid target is obvious BEFORE the attempt: ports that
+   * cannot take it dim, rather than the user discovering it on release. Uses
+   * the same `canConnect` the drop does, so what looks connectable is exactly
+   * what is.
+   */
+  protected readonly connectablePorts = computed<ReadonlySet<string> | null>(() => {
+    const from = this.pendingFrom();
+    if (!from) return null;
+
+    const keys = new Set<string>();
+    for (const node of this.sizedNodes()) {
+      for (const port of portsOf(node)) {
+        if (this.evaluate(from, { node: node.id, port: port.id }).ok) {
+          keys.add(`${node.id}:${port.id}`);
+        }
+      }
+    }
+    return keys;
+  });
+
+  /**
+   * Why the port under the pointer will not accept this connection, in words.
+   *
+   * `type-mismatch` names both types, because "those port types are
+   * incompatible" tells you no more than the red wire already did. This is the
+   * whole answer to "why can some connect and some not".
+   */
+  protected readonly rejectionText = computed(() => {
+    const state = this.pending();
+    if (!state?.over || state.valid) return null;
+
+    const result = this.evaluate(state.from, state.over);
+    if (result.ok) return null;
+    if (result.reason !== 'type-mismatch') return REJECTION_TEXT[result.reason];
+
+    const from = this.findPort(state.from);
+    const to = this.findPort(state.over);
+    if (!from || !to) return REJECTION_TEXT['type-mismatch'];
+    return `${from.label} is ${from.type}, ${to.label} expects ${to.type}`;
+  });
+
+  /** Where to put that explanation: at the free end of the pending wire. */
+  protected readonly rejectionAt = computed(() => {
+    const state = this.pending();
+    if (!state) return null;
+    return this.toLocal(this.canvas().worldToScreen(state.to));
+  });
+
+  private findPort(ref: PortRef): NodePort | undefined {
+    const node = this.sizedNodes().find(candidate => candidate.id === ref.node);
+    return node ? portsOf(node).find(port => port.id === ref.port) : undefined;
+  }
 
   // ------------------------------------------------------- node views (RT-11)
 

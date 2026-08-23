@@ -13,6 +13,8 @@
   [attr.data-direction]="current.direction"
   [attr.data-connected]="connected() ? 'true' : null"
   [attr.data-drop]="dropState()"
+  [attr.data-connectable]="isConnectable()"
+  [attr.title]="hint()"
   [attr.aria-label]="ariaLabel()"
 >
   <span [class]="dotClasses()" [attr.data-slot]="'node-editor-port-dot'"></span>
