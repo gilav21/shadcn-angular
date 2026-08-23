@@ -14,9 +14,11 @@ import {
   type EditorNode,
   type EditorSelection,
   type CanvasPoint,
+  type CanvasRect,
   type NodeConnection,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { NodeEditorMinimapComponent } from '../../../../../packages/components/ui/node-editor/addons/minimap';
 import {
   NodeEditorPaletteComponent,
   type NodeTypePicked,
@@ -153,6 +155,7 @@ function initialConnections(): NodeConnection[] {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     NodeEditorComponent,
+    NodeEditorMinimapComponent,
     NodeEditorPaletteComponent,
     NodeEditorProblemsComponent,
     ButtonComponent,
@@ -201,6 +204,24 @@ export class NodeEditorDemoComponent {
   }
 
   private readonly paletteRef = viewChild(NodeEditorPaletteComponent);
+
+  /**
+   * The viewport the minimap draws, refreshed when a pan or zoom settles.
+   *
+   * Settle-only is the engine's design — its hot path never touches Angular —
+   * so the minimap follows a pan rather than tracking it frame by frame.
+   */
+  protected readonly viewportRect = signal<CanvasRect | null>(null);
+
+  protected onViewportChange(): void {
+    this.viewportRect.set(this.editorRef()?.visibleRect() ?? null);
+  }
+
+  /** The minimap reports where to go; the editor does the moving. */
+  protected navigateTo(point: CanvasPoint): void {
+    this.editorRef()?.panTo(point);
+    this.onViewportChange();
+  }
 
   /** The editor emits the intent; the palette addon supplies the picker. */
   protected openPalette(at: CanvasPoint): void {

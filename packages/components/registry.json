@@ -5337,6 +5337,33 @@
       "button"
     ]
   },
+  "node-editor/minimap": {
+    "name": "node-editor/minimap",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.",
+    "tags": [
+      "node-editor",
+      "minimap",
+      "overview",
+      "navigation",
+      "canvas"
+    ],
+    "files": [
+      "node-editor/addons/minimap/index.ts",
+      "node-editor/addons/minimap/node-editor-minimap.component.html",
+      "node-editor/addons/minimap/node-editor-minimap.component.ts",
+      "node-editor/addons/minimap/node-editor-minimap.utils.ts"
+    ],
+    "dependencies": [
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorMinimapComponent from './ui/node-editor/addons/minimap'",
+      "selector": "ui-node-editor-minimap"
+    }
+  },
   "node-editor/palette": {
     "name": "node-editor/palette",
     "type": "addon",
@@ -5448,6 +5475,7 @@
       "infinite-canvas"
     ],
     "addons": [
+      "node-editor/minimap",
       "node-editor/palette",
       "node-editor/problems"
     ]

@@ -25,6 +25,7 @@ import {
   InfiniteCanvasItemDirective,
   type CanvasPoint,
   type CanvasRect,
+  type CanvasViewport,
 } from '../infinite-canvas';
 import {
   NodeEditorNodeDirective,
@@ -241,6 +242,16 @@ export class NodeEditorComponent {
    * exactly where the user asked rather than guessing.
    */
   readonly addNodeRequested = output<CanvasPoint>();
+
+  /**
+   * The viewport, when a pan or zoom SETTLES.
+   *
+   * Re-exposed from the engine so an addon talks to `ui-node-editor` rather
+   * than reaching past it to the canvas underneath. Settle-only by the
+   * engine's design — the hot path deliberately never touches Angular — which
+   * is why a minimap updates after a pan rather than during one.
+   */
+  readonly viewportChange = output<CanvasViewport>();
 
   @ContentChild(NodeEditorNodeDirective, { read: TemplateRef })
   nodeTemplateRef?: TemplateRef<NodeEditorNodeContext>;

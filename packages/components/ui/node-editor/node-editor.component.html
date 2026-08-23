@@ -14,6 +14,7 @@
     [showGrid]="showGrid()"
     [ariaLabel]="ariaLabel()"
     class="h-full w-full"
+    (viewportChange)="viewportChange.emit($event)"
   >
     <ng-template uiInfiniteCanvasItem [ofType]="sizedNodes()" let-node>
       <ui-node-editor-node

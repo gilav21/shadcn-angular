@@ -47,7 +47,7 @@
     </dl>
   </section>
 
-  <div class="w-full overflow-hidden rounded-lg border">
+  <div class="relative w-full overflow-hidden rounded-lg border">
     <ui-node-editor
       class="h-[350px] w-full sm:h-[450px] md:h-[600px]"
       [(nodes)]="nodes"
@@ -61,6 +61,20 @@
       [ariaLabel]="text.editorLabel"
       (connectionRejected)="onRejected($event)"
       (addNodeRequested)="openPalette($event)"
+      (viewportChange)="onViewportChange()"
+    />
+
+    <!--
+      The minimap is an addon as well: nodes in, navigation out. It floats over
+      the canvas because that is where a minimap belongs, and it is a real
+      button so arrow keys move the viewport too.
+    -->
+    <ui-node-editor-minimap
+      class="absolute bottom-3 end-3"
+      [nodes]="nodes()"
+      [connections]="connections()"
+      [viewport]="viewportRect()"
+      (navigate)="navigateTo($event)"
     />
   </div>
 

@@ -9940,6 +9940,11 @@
               "type": "EditorSelection",
               "description": "What is currently selected.",
               "default": "EMPTY_SELECTION"
+            },
+            {
+              "name": "viewportChange",
+              "type": "CanvasViewport",
+              "description": "The viewport, when a pan or zoom SETTLES. Re-exposed from the engine so an addon talks to `ui-node-editor` rather than reaching past it to the canvas underneath. Settle-only by the engine's design — the hot path deliberately never touches Angular — which is why a minimap updates after a pan rather than during one."
             }
           ]
         },
@@ -10109,6 +10114,82 @@
             }
           ],
           "outputs": []
+        }
+      ]
+    },
+    {
+      "name": "node-editor/minimap",
+      "description": "Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add node-editor/minimap",
+      "importStatement": "import { NodeEditorMinimapComponent } from '@/components/ui/node-editor/addons/minimap';",
+      "selector": "ui-node-editor-minimap",
+      "dependencies": [
+        "node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor-minimap />",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorMinimapComponent",
+          "file": "packages/components/ui/node-editor/addons/minimap/node-editor-minimap.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-minimap",
+          "description": "An overview of the whole graph, and a way to navigate it. ### Why a canvas rather than DOM The base's edge layer already proves the pattern: at thousands of nodes, one `<canvas>` with batched fills is the only version that holds a frame budget. A minimap of DOM boxes would double the element count of a large graph for something the size of a postage stamp. ### Why it takes data rather than the editor Nodes in, navigation out. It never touches the editor, so it can be rendered and tested on its own — the same shape as the other addons.",
+          "inputs": [
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "description": "",
+              "default": "'Graph overview'"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "",
+              "default": "''"
+            },
+            {
+              "name": "connections",
+              "type": "readonly NodeConnection[]",
+              "description": "",
+              "default": "[]"
+            },
+            {
+              "name": "height",
+              "type": "number",
+              "description": "",
+              "default": "140"
+            },
+            {
+              "name": "nodes",
+              "type": "readonly EditorNode[]",
+              "description": "",
+              "default": "[]"
+            },
+            {
+              "name": "viewport",
+              "type": "CanvasRect | null",
+              "description": "The editor's visible world rect.",
+              "default": "null"
+            },
+            {
+              "name": "width",
+              "type": "number",
+              "description": "",
+              "default": "200"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "navigate",
+              "type": "CanvasPoint",
+              "description": "The user asked to centre this world point."
+            }
+          ]
         }
       ]
     },

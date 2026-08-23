@@ -25,7 +25,7 @@ Rules that hold for every component:
 - Inputs marked `(required)` must be bound or the template will not compile.
 - A section without a snippet says so explicitly; do not invent one.
 
-## Index (168 components)
+## Index (169 components)
 
 - [accordion](#accordion): Vertically stacked, collapsible sections that expand one or more panels to reveal content.
 - [alert](#alert): Inline callout banner for important messages with title, description, and variants.
@@ -116,6 +116,7 @@ Rules that hold for every component:
 - [native-select](#native-select): Styled wrapper around the native HTML select element for dropdown choices.
 - [navigation-menu](#navigation-menu): Site navigation with dropdown panels of links and a sliding indicator.
 - [node-editor](#node-editor): Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
+- [node-editor/minimap](#node-editorminimap): Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.
 - [node-editor/palette](#node-editorpalette): Searchable picker over the registered node types, filterable by what a port accepts.
 - [node-editor/problems](#node-editorproblems): Lists what is wrong with a graph in plain language, and reveals the node it belongs to.
 - [number-input](#number-input): Numeric input with stepper buttons, min/max, and locale-aware formatting.
@@ -2238,10 +2239,27 @@ Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable
 - Depends on: `infinite-canvas`
 - npm dependencies: none
 - Inputs: `a11yTreeLimit: number = 500`, `allowCycles: boolean = true`, `ariaLabel: string = 'Node editor'`, `class: string = ''`, `connections: readonly NodeConnection[] = []`, `definitions: readonly NodeTypeDefinition[] = []`, `executeRemote: RemoteExecutor | null = null`, `gridSnap: number = 0`, `live: boolean = true`, `nodes: readonly EditorNode[] = []`, `readonlyGraph: boolean = false`, `selection: EditorSelection = EMPTY_SELECTION`, `showGrid: boolean = true`
-- Outputs: `addNodeRequested: CanvasPoint`, `connectionRejected: ConnectionRejectedEvent`, `connections: readonly NodeConnection[]`, `nodeExecute: readonly RemoteRequest[]`, `nodes: readonly EditorNode[]`, `selection: EditorSelection`
+- Outputs: `addNodeRequested: CanvasPoint`, `connectionRejected: ConnectionRejectedEvent`, `connections: readonly NodeConnection[]`, `nodeExecute: readonly RemoteRequest[]`, `nodes: readonly EditorNode[]`, `selection: EditorSelection`, `viewportChange: CanvasViewport`
 
 ```html
 <ui-node-editor />
+```
+
+### node-editor/minimap
+
+Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.
+
+- Install: `npx @gilav21/shadcn-angular@latest add node-editor/minimap`
+- Import: `import { NodeEditorMinimapComponent } from '@/components/ui/node-editor/addons/minimap';`
+- Selector: `ui-node-editor-minimap`
+- Category: layout
+- Depends on: `node-editor`
+- npm dependencies: none
+- Inputs: `ariaLabel: string = 'Graph overview'`, `class: string = ''`, `connections: readonly NodeConnection[] = []`, `height: number = 140`, `nodes: readonly EditorNode[] = []`, `viewport: CanvasRect | null = null`, `width: number = 200`
+- Outputs: `navigate: CanvasPoint`
+
+```html
+<ui-node-editor-minimap />
 ```
 
 ### node-editor/palette

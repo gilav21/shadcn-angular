@@ -1,0 +1,25 @@
+<!--
+  A button, not a div: this is a navigation control, so it has to be reachable
+  and operable from the keyboard like any other. Arrow keys move the viewport
+  across the map; shift moves it a whole screen at a time.
+-->
+<button
+  type="button"
+  [class]="rootClasses()"
+  [style.width.px]="width()"
+  [style.height.px]="height()"
+  [attr.data-slot]="'node-editor-minimap'"
+  [attr.aria-label]="ariaLabel() + ': ' + summary()"
+  (pointerdown)="onPointerDown($event)"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerUp()"
+  (pointercancel)="onPointerUp()"
+  (keydown)="onKeyDown($event)"
+>
+  <canvas
+    #surface
+    class="block touch-none"
+    aria-hidden="true"
+    [attr.data-slot]="'node-editor-minimap-surface'"
+  ></canvas>
+</button>

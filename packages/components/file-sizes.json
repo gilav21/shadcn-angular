@@ -4493,6 +4493,30 @@
       "bytes": 4290,
       "lines": 3
     },
+    "node-editor/addons/minimap/index.ts": {
+      "bytes": 94,
+      "lines": 2
+    },
+    "node-editor/addons/minimap/node-editor-minimap.component.html": {
+      "bytes": 760,
+      "lines": 25
+    },
+    "node-editor/addons/minimap/node-editor-minimap.component.spec.ts": {
+      "bytes": 8113,
+      "lines": 209
+    },
+    "node-editor/addons/minimap/node-editor-minimap.component.ts": {
+      "bytes": 7036,
+      "lines": 207
+    },
+    "node-editor/addons/minimap/node-editor-minimap.utils.spec.ts": {
+      "bytes": 5940,
+      "lines": 150
+    },
+    "node-editor/addons/minimap/node-editor-minimap.utils.ts": {
+      "bytes": 4510,
+      "lines": 135
+    },
     "node-editor/addons/palette/index.ts": {
       "bytes": 141,
       "lines": 3
@@ -4542,7 +4566,7 @@
       "lines": 111
     },
     "node-editor/index.ts": {
-      "bytes": 805,
+      "bytes": 821,
       "lines": 19
     },
     "node-editor/node-editor-node.directive.ts": {
@@ -4562,16 +4586,16 @@
       "lines": 19
     },
     "node-editor/node-editor.component.html": {
-      "bytes": 3894,
-      "lines": 120
+      "bytes": 3945,
+      "lines": 121
     },
     "node-editor/node-editor.component.spec.ts": {
       "bytes": 26170,
       "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 47054,
-      "lines": 1310
+      "bytes": 47494,
+      "lines": 1321
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
