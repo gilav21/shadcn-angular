@@ -100,7 +100,12 @@ export function describeValue(value: unknown): string {
   if (value === null) return 'null';
   if (typeof value === 'string') return value.length > 60 ? `${value.slice(0, 57)}…` : value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'bigint') return `${value}n`;
+  if (typeof value === 'symbol') return value.toString();
+  if (typeof value === 'function') return '[function]';
   if (Array.isArray(value)) return `[${value.length}]`;
-  if (typeof value === 'object') return `{${Object.keys(value).length}}`;
-  return String(value);
+  // Every remaining case is an object. There is deliberately no `String()`
+  // fallback: on an object it yields '[object Object]', which fills a column
+  // with a word that describes nothing.
+  return `{${Object.keys(value).length}}`;
 }

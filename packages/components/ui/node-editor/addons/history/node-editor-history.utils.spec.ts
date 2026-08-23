@@ -193,6 +193,21 @@ describe('describeValue — one line, for a table cell', () => {
         expect(describeValue({ a: 1, b: 2 })).toBe('{2}');
     });
 
+    /**
+     * There is deliberately no `String()` fallback: on an object it yields
+     * '[object Object]', which fills a column with a word describing nothing.
+     */
+    it('never renders [object Object]', () => {
+        expect(describeValue({ nested: { deep: true } })).toBe('{1}');
+        expect(describeValue(new Map())).toBe('{0}');
+    });
+
+    it('names the types JSON has no word for', () => {
+        expect(describeValue(10n)).toBe('10n');
+        expect(describeValue(Symbol('s'))).toContain('Symbol');
+        expect(describeValue(() => 1)).toBe('[function]');
+    });
+
     it('shows numbers and booleans as themselves', () => {
         expect(describeValue(0)).toBe('0');
         expect(describeValue(false)).toBe('false');

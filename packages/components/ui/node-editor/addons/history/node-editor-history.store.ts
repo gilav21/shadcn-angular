@@ -117,5 +117,23 @@ function messageOf(error: unknown): string | undefined {
   if (error === undefined || error === null) return undefined;
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
+
+  /*
+   * A thrown plain object — what an HTTP layer usually rejects with.
+   * `String()` on one gives '[object Object]', which is the exact
+   * information loss this function exists to prevent, so it is described
+   * rather than stringified.
+   */
+  if (typeof error === 'object') return describeThrownObject(error);
   return String(error);
+}
+
+function describeThrownObject(error: object): string {
+  try {
+    return JSON.stringify(error) ?? 'Unserialisable error';
+  } catch {
+    // Circular, or a getter that throws. The run still failed, and saying so
+    // beats losing the record of it.
+    return 'Unserialisable error';
+  }
 }

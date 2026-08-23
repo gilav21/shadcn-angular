@@ -143,6 +143,44 @@ describe('errors', () => {
         expect(record.nodes[0].error).toBe('just a string');
     });
 
+    /**
+     * What an HTTP layer usually rejects with. `String()` on a plain object
+     * gives '[object Object]' — the exact information loss this whole field
+     * exists to prevent.
+     */
+    it('describes a thrown plain object instead of saying [object Object]', () => {
+        const store = new RunHistoryStore();
+        store.begin(started(1), graph());
+        const record = store.finish(
+            finished(1, [settled({ status: 'error', error: { code: 502, why: 'upstream' } })], 'error'),
+        );
+
+        expect(record.nodes[0].error).toContain('502');
+        expect(record.nodes[0].error).not.toContain('[object Object]');
+    });
+
+    it('survives a circular thrown object rather than losing the record', () => {
+        const circular: Record<string, unknown> = { code: 1 };
+        circular['self'] = circular;
+
+        const store = new RunHistoryStore();
+        store.begin(started(1), graph());
+        const record = store.finish(
+            finished(1, [settled({ status: 'error', error: circular })], 'error'),
+        );
+
+        expect(record.nodes[0].error).toBe('Unserialisable error');
+    });
+
+    it('keeps a thrown number as itself', () => {
+        const store = new RunHistoryStore();
+        store.begin(started(1), graph());
+        const record = store.finish(
+            finished(1, [settled({ status: 'error', error: 404 })], 'error'),
+        );
+        expect(record.nodes[0].error).toBe('404');
+    });
+
     it('leaves error absent when nothing went wrong', () => {
         const store = new RunHistoryStore();
         store.begin(started(1), graph());
