@@ -25,7 +25,7 @@ Rules that hold for every component:
 - Inputs marked `(required)` must be bound or the template will not compile.
 - A section without a snippet says so explicitly; do not invent one.
 
-## Index (171 components)
+## Index (172 components)
 
 - [accordion](#accordion): Vertically stacked, collapsible sections that expand one or more panels to reveal content.
 - [alert](#alert): Inline callout banner for important messages with title, description, and variants.
@@ -116,6 +116,7 @@ Rules that hold for every component:
 - [native-select](#native-select): Styled wrapper around the native HTML select element for dropdown choices.
 - [navigation-menu](#navigation-menu): Site navigation with dropdown panels of links and a sliding indicator.
 - [node-editor](#node-editor): Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
+- [node-editor/groups](#node-editorgroups): Titled frames behind the nodes and freestanding comments, both purely visual.
 - [node-editor/history](#node-editorhistory): Records every run with its values and timings, and replays a past run in the editor.
 - [node-editor/layout](#node-editorlayout): Deterministic layered auto-layout: a pure function from nodes and edges to positions.
 - [node-editor/minimap](#node-editorminimap): Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.
@@ -2244,7 +2245,24 @@ Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable
 - Outputs: `addNodeRequested: CanvasPoint`, `connectionRejected: ConnectionRejectedEvent`, `connections: readonly NodeConnection[]`, `nodeExecute: readonly RemoteRequest[]`, `nodes: readonly EditorNode[]`, `nodeSettled: NodeSettledEvent`, `runFinished: RunFinishedEvent`, `runStarted: RunStartedEvent`, `selection: EditorSelection`, `viewportChange: CanvasViewport`
 
 ```html
-<ui-node-editor />
+<ui-node-editor>Content</ui-node-editor>
+```
+
+### node-editor/groups
+
+Titled frames behind the nodes and freestanding comments, both purely visual.
+
+- Install: `npx @gilav21/shadcn-angular@latest add node-editor/groups`
+- Import: `import { NodeEditorGroupsComponent } from '@/components/ui/node-editor/addons/groups';`
+- Selector: `ui-node-editor-groups`
+- Category: layout
+- Depends on: `node-editor`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `comments: readonly NodeComment[] = []`, `groups: readonly NodeGroup[] = []`, `nodes: readonly EditorNode[] = []`, `readonlyGroups: boolean = false`
+- Outputs: `comments: readonly NodeComment[]`, `groupActivated: NodeGroup`, `groupMoved: GroupMoveEvent`, `groups: readonly NodeGroup[]`
+
+```html
+<ui-node-editor-groups />
 ```
 
 ### node-editor/history

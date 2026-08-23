@@ -5337,6 +5337,42 @@
       "button"
     ]
   },
+  "node-editor/groups": {
+    "name": "node-editor/groups",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Titled frames behind the nodes and freestanding comments, both purely visual.",
+    "tags": [
+      "node-editor",
+      "groups",
+      "comments",
+      "annotation",
+      "graph"
+    ],
+    "files": [
+      "node-editor/addons/groups/index.ts",
+      "node-editor/addons/groups/node-editor-groups.component.css",
+      "node-editor/addons/groups/node-editor-groups.component.html",
+      "node-editor/addons/groups/node-editor-groups.component.ts",
+      "node-editor/addons/groups/node-editor-groups.locales.ts",
+      "node-editor/addons/groups/node-editor-groups.types.ts",
+      "node-editor/addons/groups/node-editor-groups.utils.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorGroupsComponent from './ui/node-editor/addons/groups'",
+      "selector": "ui-node-editor-groups"
+    }
+  },
   "node-editor/history": {
     "name": "node-editor/history",
     "type": "addon",
@@ -5536,6 +5572,7 @@
       "infinite-canvas"
     ],
     "addons": [
+      "node-editor/groups",
       "node-editor/history",
       "node-editor/layout",
       "node-editor/minimap",

@@ -1,0 +1,87 @@
+@let text = t();
+
+<!--
+  Everything here is positioned at WORLD coordinates. The carrier is
+  `display: contents` so it adds no box of its own between these and the
+  canvas's transform wrapper, which is what they are positioned against.
+-->
+@for (group of ordered(); track group.id) {
+  <!--
+    A labelled region, not a decoration with a name. Its members are real
+    nodes elsewhere in the DOM and stay individually reachable — a group must
+    never become a container you have to enter to get at what it holds.
+  -->
+  <section
+    [class]="frameClasses(group)"
+    [attr.data-slot]="'node-editor-group'"
+    [attr.data-group]="group.id"
+    [attr.aria-label]="label(group)"
+    [style.left.px]="group.x"
+    [style.top.px]="group.y"
+    [style.width.px]="group.width"
+    [style.height.px]="group.height"
+    [style.color]="group.colour ?? 'var(--color-muted-foreground)'"
+  >
+    <!--
+      The frame itself takes no pointer events — it sits over the nodes'
+      hit areas only in the sense of DOM order, and swallowing clicks here
+      would make every node inside it unselectable. Only the title bar and
+      the resize corner are grabbable.
+    -->
+    <button
+      type="button"
+      class="group-handle absolute start-0 top-0 flex w-full items-center gap-2 rounded-t-md
+             px-2 text-start text-xs font-medium
+             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      [attr.data-slot]="'node-editor-group-title'"
+      [style.height.px]="headerHeight"
+      [attr.aria-label]="label(group)"
+      [disabled]="readonlyGroups()"
+      (pointerdown)="onPointerDown($event, group, 'move')"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp($event)"
+      (pointercancel)="onPointerUp($event)"
+    >
+      <span class="truncate">{{ group.title }}</span>
+      <span class="ms-auto shrink-0">{{ memberCount(group) }}</span>
+    </button>
+
+    @if (!readonlyGroups()) {
+      <!--
+        The resize corner. `aria-hidden` and not focusable on purpose: it is a
+        pointer affordance for something a keyboard user does not need — the
+        group is defined by what it contains, and nodes are moved with the
+        keyboard already.
+      -->
+      <span
+        class="group-handle absolute bottom-0 end-0 size-4 cursor-nwse-resize rounded-br-md"
+        aria-hidden="true"
+        [attr.data-slot]="'node-editor-group-resize'"
+        (pointerdown)="onPointerDown($event, group, 'resize')"
+        (pointermove)="onPointerMove($event)"
+        (pointerup)="onPointerUp($event)"
+        (pointercancel)="onPointerUp($event)"
+      ></span>
+    }
+  </section>
+}
+
+<!--
+  A comment is the same primitive without membership: nothing moves with it,
+  so it is a note rather than a frame.
+-->
+@for (comment of comments(); track comment.id) {
+  <aside
+    class="absolute rounded-md border p-2 text-xs shadow-sm"
+    [attr.data-slot]="'node-editor-comment'"
+    [attr.data-comment]="comment.id"
+    [attr.aria-label]="text.comment"
+    [style.left.px]="comment.x"
+    [style.top.px]="comment.y"
+    [style.width.px]="comment.width"
+    [style.min-height.px]="comment.height"
+    [style.color]="comment.colour ?? 'var(--color-muted-foreground)'"
+  >
+    <p class="[overflow-wrap:anywhere] whitespace-pre-wrap">{{ comment.text }}</p>
+  </aside>
+}

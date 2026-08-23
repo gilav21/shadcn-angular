@@ -1907,6 +1907,21 @@ export const registry = defineRegistry({
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
+  'node-editor/groups': {
+    name: 'node-editor/groups',
+    type: 'addon',
+    parent: 'node-editor',
+    category: 'layout',
+    description: 'Titled frames behind the nodes and freestanding comments, both purely visual.',
+    tags: ['node-editor', 'groups', 'comments', 'annotation', 'graph'],
+    files: ['node-editor/addons/groups/index.ts', 'node-editor/addons/groups/node-editor-groups.component.css', 'node-editor/addons/groups/node-editor-groups.component.html', 'node-editor/addons/groups/node-editor-groups.component.ts', 'node-editor/addons/groups/node-editor-groups.locales.ts', 'node-editor/addons/groups/node-editor-groups.types.ts', 'node-editor/addons/groups/node-editor-groups.utils.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['node-editor'],
+    attach: {
+      import: "NodeEditorGroupsComponent from './ui/node-editor/addons/groups'",
+      selector: 'ui-node-editor-groups',
+    },
+  },
   'node-editor/history': {
     name: 'node-editor/history',
     type: 'addon',
@@ -1988,7 +2003,7 @@ export const registry = defineRegistry({
     files: ['node-editor/index.ts', 'node-editor/node-editor-node.directive.ts', 'node-editor/node-editor.component.css', 'node-editor/node-editor.component.html', 'node-editor/node-editor.component.ts', 'node-editor/node-editor.graph.ts', 'node-editor/node-editor.history.ts', 'node-editor/node-editor.layout.ts', 'node-editor/node-editor.materialize.ts', 'node-editor/node-editor.runtime.ts', 'node-editor/node-editor.runtime.types.ts', 'node-editor/node-editor.serialize.ts', 'node-editor/node-editor.types.ts', 'node-editor/node-editor.validate.ts', 'node-editor/sub/node-editor-node.component.html', 'node-editor/sub/node-editor-node.component.ts', 'node-editor/sub/node-editor-port.component.html', 'node-editor/sub/node-editor-port.component.ts'],
     libFiles: ['sortable-aria-live.ts', 'touch.ts'],
     dependencies: ['infinite-canvas'],
-    addons: ['node-editor/history', 'node-editor/layout', 'node-editor/minimap', 'node-editor/palette', 'node-editor/problems'],
+    addons: ['node-editor/groups', 'node-editor/history', 'node-editor/layout', 'node-editor/minimap', 'node-editor/palette', 'node-editor/problems'],
   },
 });
 

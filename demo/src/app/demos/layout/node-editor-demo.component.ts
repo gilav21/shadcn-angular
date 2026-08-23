@@ -29,6 +29,13 @@ import {
   type RunExportEvent,
   type RunRecord,
 } from '../../../../../packages/components/ui/node-editor/addons/history';
+import {
+  NodeEditorGroupsComponent,
+  movedGroup,
+  type GroupMoveEvent,
+  type NodeComment,
+  type NodeGroup,
+} from '../../../../../packages/components/ui/node-editor/addons/groups';
 import { layoutGraph } from '../../../../../packages/components/ui/node-editor/addons/layout';
 import { NodeEditorMinimapComponent } from '../../../../../packages/components/ui/node-editor/addons/minimap';
 import {
@@ -70,12 +77,15 @@ const DEMO_NODE_TYPES = [
  */
 function liveNodes(): EditorNode[] {
   return [
-    { id: 'url', type: 'text-input', x: 0, y: 80, width: 190, height: 0 },
-    { id: 'upper', type: 'uppercase', x: 260, y: 0, width: 180, height: 0 },
-    { id: 'shout', type: 'display', x: 500, y: 0, width: 190, height: 0 },
-    { id: 'count', type: 'length', x: 260, y: 130, width: 180, height: 0 },
-    { id: 'size', type: 'display', x: 500, y: 130, width: 190, height: 0 },
-    { id: 'preview', type: 'browser', x: 260, y: 270, width: 300, height: 0 },
+    // Offset down the plane so the group frames fitted around these — which
+    // reach a title bar's height above the topmost node — start on screen
+    // rather than above the initial viewport.
+    { id: 'url', type: 'text-input', x: 0, y: 170, width: 190, height: 0 },
+    { id: 'upper', type: 'uppercase', x: 260, y: 90, width: 180, height: 0 },
+    { id: 'shout', type: 'display', x: 500, y: 90, width: 190, height: 0 },
+    { id: 'count', type: 'length', x: 260, y: 220, width: 180, height: 0 },
+    { id: 'size', type: 'display', x: 500, y: 220, width: 190, height: 0 },
+    { id: 'preview', type: 'browser', x: 260, y: 360, width: 300, height: 0 },
   ];
 }
 
@@ -167,6 +177,7 @@ function initialConnections(): NodeConnection[] {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     NodeEditorComponent,
+    NodeEditorGroupsComponent,
     NodeEditorHistoryComponent,
     NodeEditorMinimapComponent,
     NodeEditorPaletteComponent,
@@ -247,6 +258,81 @@ export class NodeEditorDemoComponent {
     anchor.download = `run-${event.run.id}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Groups and comments — the addon's own data, never the graph's.
+   *
+   * Nothing here reaches the runtime: a frame does not change what the graph
+   * computes or what may connect to what.
+   */
+  /*
+   * Fitted around where the demo's nodes actually are — `GROUP_PADDING` out
+   * on each side and `GROUP_HEADER` extra at the top for the title bar. Rects
+   * guessed by eye contained nothing at all, and a group holding zero nodes
+   * looks identical to one holding six until you read the count.
+   */
+  protected readonly groups = signal<readonly NodeGroup[]>([
+    { id: 'input', title: 'Input', x: -28, y: 110, width: 246, height: 214, colour: '#22c55e' },
+    { id: 'derived', title: 'Derived', x: 232, y: 30, width: 486, height: 344, colour: '#6366f1' },
+  ]);
+
+  protected readonly comments = signal<readonly NodeComment[]>([
+    {
+      id: 'why',
+      text: 'Type in the input node — every keystroke streams through the graph.',
+      x: 760,
+      y: 110,
+      width: 240,
+      height: 70,
+    },
+  ]);
+
+  private readonly groupsRef = viewChild(NodeEditorGroupsComponent);
+
+  /**
+   * A group drag, as ONE undo entry.
+   *
+   * The frame is the addon's data and the nodes are the editor's. Applying the
+   * nodes through `placeNodes` would push a second command, and a single
+   * Ctrl+Z would then put the nodes back while leaving the frame where it was
+   * — stranding the members outside the group that owns them. `pushEdit`
+   * exists for exactly this: the base runs both halves and never learns what a
+   * group is.
+   */
+  protected onGroupMoved(event: GroupMoveEvent): void {
+    const groupsRef = this.groupsRef();
+    const editor = this.editorRef();
+    if (!groupsRef || !editor) return;
+
+    const before = new Map(
+      [...event.members.keys()].map(id => {
+        const node = this.nodes().find(n => n.id === id);
+        return [id, { x: node?.x ?? 0, y: node?.y ?? 0 }] as const;
+      }),
+    );
+    const frameBefore = movedGroup(event.group, { x: -event.delta.x, y: -event.delta.y });
+
+    this.placeMembers(event.members);
+    editor.pushEdit(
+      () => {
+        this.placeMembers(event.members);
+        groupsRef.restoreGroup(event.group);
+      },
+      () => {
+        this.placeMembers(before);
+        groupsRef.restoreGroup(frameBefore);
+      },
+    );
+  }
+
+  private placeMembers(positions: ReadonlyMap<string | number, CanvasPoint>): void {
+    this.nodes.update(nodes =>
+      nodes.map(node => {
+        const at = positions.get(node.id);
+        return at ? { ...node, x: at.x, y: at.y } : node;
+      }),
+    );
   }
 
   protected onRejected(event: ConnectionRejectedEvent): void {

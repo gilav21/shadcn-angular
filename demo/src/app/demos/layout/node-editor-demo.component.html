@@ -66,7 +66,23 @@
       (viewportChange)="onViewportChange()"
       (runStarted)="onRunStarted($event)"
       (runFinished)="onRunFinished($event)"
-    />
+    >
+      <!--
+        Groups and comments are an ADDON, projected into the editor's
+        world-space underlay so they pan and zoom with the plane. The carrier
+        is `display: contents`: a box of its own between these and the
+        canvas's transform wrapper would give them the wrong containing block.
+      -->
+      <div uiNodeEditorUnderlay class="contents">
+        <ui-node-editor-groups
+          [(groups)]="groups"
+          [comments]="comments()"
+          [nodes]="renderedNodes()"
+          [readonlyGroups]="readonlyGraph()"
+          (groupMoved)="onGroupMoved($event)"
+        />
+      </div>
+    </ui-node-editor>
 
     <!--
       The minimap is an addon as well: nodes in, navigation out. It floats over

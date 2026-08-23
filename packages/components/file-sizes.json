@@ -3798,8 +3798,8 @@
       "lines": 51
     },
     "infinite-canvas/infinite-canvas.component.html": {
-      "bytes": 1212,
-      "lines": 39
+      "bytes": 2109,
+      "lines": 56
     },
     "infinite-canvas/infinite-canvas.component.spec.ts": {
       "bytes": 13146,
@@ -3868,6 +3868,10 @@
     "infinite-canvas/infinite-canvas.types.ts": {
       "bytes": 3181,
       "lines": 108
+    },
+    "infinite-canvas/infinite-canvas.underlay.spec.ts": {
+      "bytes": 3967,
+      "lines": 111
     },
     "input-group/__screenshots__/input-group.component.spec.ts/InputGroupComponent-should-structure-content-correctly-1.png": {
       "bytes": 6415,
@@ -4493,6 +4497,46 @@
       "bytes": 4290,
       "lines": 3
     },
+    "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-accessibility-has-no-axe-violations-1.png": {
+      "bytes": 13738,
+      "lines": 13
+    },
+    "node-editor/addons/groups/index.ts": {
+      "bytes": 182,
+      "lines": 4
+    },
+    "node-editor/addons/groups/node-editor-groups.component.css": {
+      "bytes": 2809,
+      "lines": 87
+    },
+    "node-editor/addons/groups/node-editor-groups.component.html": {
+      "bytes": 3329,
+      "lines": 87
+    },
+    "node-editor/addons/groups/node-editor-groups.component.spec.ts": {
+      "bytes": 12118,
+      "lines": 314
+    },
+    "node-editor/addons/groups/node-editor-groups.component.ts": {
+      "bytes": 8242,
+      "lines": 248
+    },
+    "node-editor/addons/groups/node-editor-groups.locales.ts": {
+      "bytes": 1500,
+      "lines": 63
+    },
+    "node-editor/addons/groups/node-editor-groups.types.ts": {
+      "bytes": 1527,
+      "lines": 40
+    },
+    "node-editor/addons/groups/node-editor-groups.utils.spec.ts": {
+      "bytes": 7392,
+      "lines": 199
+    },
+    "node-editor/addons/groups/node-editor-groups.utils.ts": {
+      "bytes": 4964,
+      "lines": 153
+    },
     "node-editor/addons/history/index.ts": {
       "bytes": 231,
       "lines": 5
@@ -4514,24 +4558,24 @@
       "lines": 250
     },
     "node-editor/addons/history/node-editor-history.store.spec.ts": {
-      "bytes": 8093,
-      "lines": 236
+      "bytes": 9555,
+      "lines": 274
     },
     "node-editor/addons/history/node-editor-history.store.ts": {
-      "bytes": 4106,
-      "lines": 121
+      "bytes": 4962,
+      "lines": 142
     },
     "node-editor/addons/history/node-editor-history.types.ts": {
       "bytes": 2054,
       "lines": 58
     },
     "node-editor/addons/history/node-editor-history.utils.spec.ts": {
-      "bytes": 6846,
-      "lines": 200
+      "bytes": 7434,
+      "lines": 215
     },
     "node-editor/addons/history/node-editor-history.utils.ts": {
-      "bytes": 3955,
-      "lines": 106
+      "bytes": 4262,
+      "lines": 111
     },
     "node-editor/addons/layout/__screenshots__/node-editor-layout.spec.ts/layers-follow-dependencies-places-a-node-after-its-deepest-dependency--not-its-shallowest-1.png": {
       "bytes": 4290,
@@ -4634,24 +4678,24 @@
       "lines": 380
     },
     "node-editor/node-editor.api.spec.ts": {
-      "bytes": 12668,
-      "lines": 330
+      "bytes": 14930,
+      "lines": 408
     },
     "node-editor/node-editor.component.css": {
       "bytes": 719,
       "lines": 19
     },
     "node-editor/node-editor.component.html": {
-      "bytes": 3937,
-      "lines": 121
+      "bytes": 4544,
+      "lines": 135
     },
     "node-editor/node-editor.component.spec.ts": {
       "bytes": 26170,
       "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 50490,
-      "lines": 1392
+      "bytes": 51491,
+      "lines": 1417
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -4666,8 +4710,8 @@
       "lines": 230
     },
     "node-editor/node-editor.history.ts": {
-      "bytes": 7466,
-      "lines": 228
+      "bytes": 8885,
+      "lines": 258
     },
     "node-editor/node-editor.integration.spec.ts": {
       "bytes": 11602,
@@ -4728,6 +4772,10 @@
     "node-editor/node-editor.types.ts": {
       "bytes": 4494,
       "lines": 135
+    },
+    "node-editor/node-editor.underlay.spec.ts": {
+      "bytes": 3866,
+      "lines": 107
     },
     "node-editor/node-editor.validate.spec.ts": {
       "bytes": 7262,

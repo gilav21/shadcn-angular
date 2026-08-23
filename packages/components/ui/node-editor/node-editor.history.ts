@@ -43,6 +43,28 @@ export type GraphCommand =
   | { readonly kind: 'connect'; readonly connections: readonly NodeConnection[] }
   | { readonly kind: 'disconnect'; readonly connections: readonly NodeConnection[] }
   | {
+      /**
+       * An edit the base does not understand, on the base's undo stack.
+       *
+       * The escape hatch an addon needs when its own data and the graph move
+       * together. Dragging a group frame moves the frame — which is the
+       * groups addon's data — AND the nodes inside it, which are the base's.
+       * Pushed as two commands, one Ctrl+Z would put the nodes back and leave
+       * the frame where it was, so the members end up outside the group that
+       * owns them. They have to be one entry.
+       *
+       * The base runs these closures and never inspects them, so it stays
+       * ignorant of what a group is. `apply` leaves the graph untouched: the
+       * effect belongs in the editor, where side effects already live, rather
+       * than inside a pure function.
+       */
+      readonly kind: 'custom';
+      /** Performs the edit. Called again on redo. */
+      readonly run: () => void;
+      /** Puts it back. */
+      readonly reverse: () => void;
+    }
+  | {
       readonly kind: 'set-state';
       readonly nodeId: NodeId;
       readonly before: unknown;
@@ -75,6 +97,10 @@ export function invert(command: GraphCommand): GraphCommand {
       return { kind: 'disconnect', connections: command.connections };
     case 'disconnect':
       return { kind: 'connect', connections: command.connections };
+    case 'custom':
+      // Swapped, not negated: the addon supplied both directions, because
+      // only it knows how to reverse its own data.
+      return { kind: 'custom', run: command.reverse, reverse: command.run };
     case 'set-state':
       return { ...command, before: command.after, after: command.before };
   }
@@ -136,6 +162,10 @@ export function apply(graph: GraphSnapshot, command: GraphCommand): GraphSnapsho
       return { ...graph, connections: graph.connections.filter(c => !removing.has(c.id)) };
     }
 
+    case 'custom':
+      // The closure is the effect, and it runs in the editor. Keeping it out
+      // of here is what keeps `apply` a pure function of the graph.
+      return graph;
     case 'set-state':
       // State lives in the runtime, not the snapshot; the editor applies this
       // half. Returning the graph unchanged keeps `apply` total.

@@ -16,6 +16,20 @@
     class="h-full w-full"
     (viewportChange)="viewportChange.emit($event)"
   >
+    <!--
+      World-space content behind the nodes — group frames, comments, region
+      backdrops. Rendered into the engine's underlay slot rather than
+      re-implemented, so it shares the ONE transform the items use and cannot
+      drift out of step with them.
+
+      `display: contents` on the carrier: its children are absolutely
+      positioned at world coordinates, and a box of its own between them and
+      the transform wrapper would give them the wrong containing block.
+    -->
+    <div uiCanvasUnderlay class="contents">
+      <ng-content select="[uiNodeEditorUnderlay]" />
+    </div>
+
     <ng-template uiInfiniteCanvasItem [ofType]="sizedNodes()" let-node>
       <ui-node-editor-node
         [node]="node"

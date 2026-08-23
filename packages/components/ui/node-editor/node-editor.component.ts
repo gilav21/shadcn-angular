@@ -568,7 +568,32 @@ export class NodeEditorComponent {
   readonly canUndo = (): boolean => this.history.canUndo;
   readonly canRedo = (): boolean => this.history.canRedo;
 
+  /**
+   * Put an addon's own edit on this editor's undo stack.
+   *
+   * The seam an addon needs when its data and the graph move together.
+   * Dragging a group frame moves the frame — the groups addon's data — and the
+   * nodes inside it, which are the base's. As two entries, one Ctrl+Z would
+   * put the nodes back and leave the frame behind, so the members end up
+   * outside the group that owns them.
+   *
+   * The edit must already have been performed when this is called, exactly
+   * like every other command. The base runs the closures and never inspects
+   * them, so it learns nothing about groups — or about whatever the next addon
+   * turns out to need.
+   */
+  pushEdit(run: () => void, reverse: () => void): void {
+    if (this.readonlyGraph()) return;
+    this.history.push({ kind: 'custom', run, reverse });
+  }
+
   private applyCommand(command: GraphCommand): void {
+    // The base does not know what this edit is; the addon that pushed it does.
+    if (command.kind === 'custom') {
+      command.run();
+      return;
+    }
+
     const next = applyGraphCommand(
       { nodes: this.nodes(), connections: this.connections() },
       command,

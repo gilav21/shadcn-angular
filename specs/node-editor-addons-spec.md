@@ -31,6 +31,8 @@ spec did not mention. They are folded into the base's task list.
 | Programmatic insertion honouring undo | palette, auto-layout | `addNode()`, `moveNodes()` as public methods routed through the command funnel |
 | Runtime lifecycle events | run history | `(runStarted)`, `(nodeSettled)`, `(runFinished)` outputs ✅ |
 | Showing a past run's values | run history | `[replay]` input taking a `ReplayFrame` ✅ |
+| A world-space layer behind the nodes | groups | `[uiNodeEditorUnderlay]` projection slot, re-projected into a new `[uiCanvasUnderlay]` slot on the engine ✅ |
+| An addon's own edit on the undo stack | groups | `pushEdit(run, reverse)` ✅ |
 
 **Why replay landed in the base rather than the addon.** The addon can record
 everything it needs from three outputs, but it cannot *show* a past run: node
@@ -266,9 +268,54 @@ The one base addition needed is an overlay slot rendered *beneath* nodes and
 forking the base template — which is exactly the signal the boundary rule
 predicts.
 
-Tasks: F1 group model + rendering · F2 membership by containment · F3 move
-with members · F4 comments · F5 a11y (a group is a labelled region; its members
-must remain individually reachable) · F6 story + demo.
+Tasks: F1 group model + rendering ✅ · F2 membership by containment ✅ · F3 move
+with members ✅ · F4 comments ✅ · F5 a11y (a group is a labelled region; its
+members must remain individually reachable) ✅ · F6 demo ✅.
+
+**Built.** The prediction held: this addon was impossible without a base
+addition, and it needed two.
+
+**The underlay went in the ENGINE, inside the existing transform wrapper.** The
+spec asked for a slot "beneath nodes and above the grid"; the cheaper place is
+inside the one transform the items already use, immediately before the item
+anchor. A second wrapper carrying the same transform would have meant a third
+style write on the canvas hot path, a second composited layer, and — the part
+that actually matters — two elements that can disagree for a frame during a
+fling. Sharing the wrapper makes desync impossible: it is the same element. The
+cost is that an underlay draws on top of the edge canvas, which for a
+translucent frame reads as a region tint over the wires.
+
+**`pushEdit` is the seam that keeps undo coherent.** A group drag moves the
+frame (the addon's data) and the nodes inside it (the base's). Pushed as two
+commands, one Ctrl+Z puts the nodes back and leaves the frame behind, stranding
+members outside the group that owns them. `pushEdit(run, reverse)` takes both
+directions as closures the base runs and never inspects, so the editor learns
+nothing about groups — and the next addon that mixes its own data with graph
+edits gets it for free. Verified in a browser: a drag moved frame and members
+by exactly the same delta, and one Ctrl+Z restored both.
+
+**Membership is containment, recomputed, never stored.** Full containment
+rather than overlap, or a node touching the corner of two frames belongs to
+both and dragging either drags a node the user never put in it. A node inside
+nested groups belongs to both, because dragging the outer frame has to move
+everything drawn inside it.
+
+**Two things only looking could have caught.** The group title inherited the
+frame's colour, so a coloured group rendered pale green text on a pale green
+wash — axe found it on the coloured fixture while the default grey one passed,
+which is exactly what a single-colour fixture would have hidden. And the demo's
+group rects, written by eye, contained *zero* nodes; a group holding nothing
+looks identical to one holding six until you read the count.
+
+**A wrong theory, recorded because it was nearly shipped as a comment.** The
+frames rendered nothing in the browser and the obvious suspect was double
+projection — the editor's slot is itself projected into the canvas. That theory
+was wrong. A throwaway probe proved re-projection works exactly as documented;
+the dev server had been serving a stale bundle the whole time. The `TemplateRef`
+workaround built on that theory was reverted, and the explanation nearly written
+into three files was deleted. The stale bundle also hid a real AOT template
+error (`[groups]` bound to a signal instead of `[(groups)]`) that `tsc --noEmit`
+cannot see, because it does not typecheck Angular templates.
 
 ---
 
