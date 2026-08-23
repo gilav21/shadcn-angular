@@ -33,6 +33,44 @@ spec did not mention. They are folded into the base's task list.
 
 ---
 
+## 0.1 Registering an addon — three things, all easy to miss
+
+Learned by getting each of them wrong on the first addon. Every remaining
+addon in this document has to do all three.
+
+**1. Import through the parent's barrel, never a deep path.** An addon that
+does `from '../../node-editor.runtime.types'` defeats `sync-registry`'s
+component-boundary detection: it copied two parent files INTO the addon's
+`files[]` and set `dependencies: ['infinite-canvas']` — an addon that would
+not install its own parent. `from '../..'` fixes both. Already stated in
+CLAUDE.md; restated here because the failure is silent and the registry looks
+plausible afterwards.
+
+**2. An addon MUST declare `attach`.** `isValidAddonEntry` requires
+`parent`, plus `attach.import` and `attach.selector`. And `isValidRegistryShape`
+is all-or-nothing — `Object.values(data).every(isValidRegistryEntry)` — so a
+single addon without `attach` makes the WHOLE manifest invalid. Not just that
+addon: every component becomes invisible to an installed CLI, `list_components`
+returns nothing, and `apply` reports "Available addons: (none)". The blast
+radius is the entire registry, which is why this is worth its own paragraph.
+
+```ts
+attach: {
+  import: "NodeEditorProblemsComponent from './ui/node-editor/addons/problems'",
+  selector: 'ui-node-editor-problems',
+},
+```
+
+**3. The PARENT must list the addon.** `addons: ['node-editor/problems']` on
+the `node-editor` entry is what surfaces it in `add`'s multiselect and in the
+discovery tools. Resolving the base deliberately does not install them.
+
+Then regenerate the docs payload (`npm run docs:regen`) — a component in the
+registry that is missing from `component-docs.json` fails the CLI coverage leg
+by exactly one.
+
+---
+
 ## 1. `node-editor-problems` — problems panel
 
 **Priority: 1.** Directly answers the maintainer's complaint that refusal

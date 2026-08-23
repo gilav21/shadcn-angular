@@ -1917,6 +1917,10 @@ export const registry = defineRegistry({
     files: ['node-editor/addons/problems/index.ts', 'node-editor/addons/problems/node-editor-problems.component.html', 'node-editor/addons/problems/node-editor-problems.component.ts', 'node-editor/addons/problems/node-editor-problems.locales.ts'],
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['node-editor'],
+    attach: {
+      import: "NodeEditorProblemsComponent from './ui/node-editor/addons/problems'",
+      selector: 'ui-node-editor-problems',
+    },
   },
   'node-editor': {
     name: 'node-editor',
@@ -1926,6 +1930,7 @@ export const registry = defineRegistry({
     files: ['node-editor/index.ts', 'node-editor/node-editor-node.directive.ts', 'node-editor/node-editor.component.css', 'node-editor/node-editor.component.html', 'node-editor/node-editor.component.ts', 'node-editor/node-editor.graph.ts', 'node-editor/node-editor.history.ts', 'node-editor/node-editor.layout.ts', 'node-editor/node-editor.materialize.ts', 'node-editor/node-editor.runtime.ts', 'node-editor/node-editor.runtime.types.ts', 'node-editor/node-editor.serialize.ts', 'node-editor/node-editor.types.ts', 'node-editor/node-editor.validate.ts', 'node-editor/sub/node-editor-node.component.html', 'node-editor/sub/node-editor-node.component.ts', 'node-editor/sub/node-editor-port.component.html', 'node-editor/sub/node-editor-port.component.ts'],
     libFiles: ['sortable-aria-live.ts', 'touch.ts'],
     dependencies: ['infinite-canvas'],
+    addons: ['node-editor/problems'],
   },
 });
 

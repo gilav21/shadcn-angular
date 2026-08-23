@@ -5364,7 +5364,11 @@
     ],
     "dependencies": [
       "node-editor"
-    ]
+    ],
+    "attach": {
+      "import": "NodeEditorProblemsComponent from './ui/node-editor/addons/problems'",
+      "selector": "ui-node-editor-problems"
+    }
   },
   "node-editor": {
     "name": "node-editor",
@@ -5405,6 +5409,9 @@
     ],
     "dependencies": [
       "infinite-canvas"
+    ],
+    "addons": [
+      "node-editor/problems"
     ]
   }
 }
