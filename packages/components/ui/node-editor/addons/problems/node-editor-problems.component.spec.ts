@@ -124,12 +124,15 @@ describe('NodeEditorProblemsComponent', () => {
         it('announces politely, not assertively', () => {
             // Problems appear WHILE editing; interrupting mid-action to say an
             // input is still unconnected is worse than waiting for a pause.
-            const live = root.querySelector('[role="status"]');
+            // An <output> element, whose implicit role IS status.
+            const live = root.querySelector('[data-slot="node-editor-problems-live"]');
+            expect(live?.tagName).toBe('OUTPUT');
             expect(live?.getAttribute('aria-live')).toBe('polite');
         });
 
         it('summarises the count for a screen reader', () => {
-            expect(root.querySelector('[role="status"]')?.textContent).toContain('3');
+            expect(root.querySelector('[data-slot="node-editor-problems-live"]')?.textContent)
+                .toContain('3');
         });
     });
 

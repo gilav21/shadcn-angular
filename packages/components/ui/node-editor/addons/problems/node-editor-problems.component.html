@@ -9,13 +9,17 @@
   }
 
   <!--
-    Announced politely rather than assertively: problems appear while the user
-    is editing, and interrupting them mid-action to say a required input is
-    still unconnected would be worse than telling them when they pause.
+    An output element rather than a div carrying role=status: this repo
+    resolves ARIA roles to their native equivalent wherever one exists, and
+    output already IS that role.
+
+    Announced politely rather than assertively, because problems appear WHILE
+    the user is editing — interrupting them mid-action to say a required input
+    is still unconnected is worse than telling them when they pause.
   -->
-  <p class="sr-only" role="status" aria-live="polite">
+  <output class="sr-only" aria-live="polite" [attr.data-slot]="'node-editor-problems-live'">
     {{ rows.length === 0 ? text.empty : summary() }}
-  </p>
+  </output>
 
   @if (rows.length === 0) {
     <p
