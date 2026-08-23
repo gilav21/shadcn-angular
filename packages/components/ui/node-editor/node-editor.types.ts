@@ -45,7 +45,11 @@ export interface NodePort {
  * place.
  */
 export interface EditorNode extends CanvasItem {
-  title: string;
+  /**
+   * Optional for the same reason `ports` is: a typed node takes its label from
+   * its definition. Always populated by the time a node reaches rendering.
+   */
+  title?: string;
   subtitle?: string;
   /**
    * The node type's id, when this node is backed by a registered

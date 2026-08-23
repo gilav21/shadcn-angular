@@ -26,6 +26,9 @@
         [dropValid]="pending()?.valid ?? false"
         [activePort]="focusedNode() === node.id ? activePort() : null"
         [bodyTemplate]="nodeTemplateRef ?? null"
+        [view]="viewFor(node)"
+        [viewInjector]="injectorFor(node)"
+        [status]="runtime.status(node.id)()"
       />
     </ng-template>
   </ui-infinite-canvas>

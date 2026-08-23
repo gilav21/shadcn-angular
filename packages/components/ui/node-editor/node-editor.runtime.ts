@@ -60,6 +60,14 @@ export class NodeGraphRuntime {
   // ---- evaluation (design §2, §3) ----------------------------------------
   private readonly dirty = new Set<NodeId>();
   private readonly readySet = new Set<NodeId>();
+  /**
+   * Bumped every time a node is marked dirty.
+   *
+   * A run captures the version it set out to satisfy. If the node is dirtied
+   * again while that run is in flight, the version moves on and `settle` must
+   * NOT clear the dirtiness — the newer change has not been addressed yet.
+   */
+  private readonly dirtyVersion = new Map<NodeId, number>();
 
   // ---- values and memoisation (design §4) --------------------------------
   private readonly outputValues = new Map<NodeId, PortValues>();
@@ -74,10 +82,13 @@ export class NodeGraphRuntime {
   private readonly iterators = new Map<NodeId, AsyncIterator<unknown>>();
   private runCounter = 0;
   private disposed = false;
+  /** The drain in flight, if any. See {@link run}. */
+  private draining: Promise<void> | null = null;
 
   // ---- reactive read-out --------------------------------------------------
   private readonly statusSignals = new Map<NodeId, WritableSignal<NodeStatus>>();
   private readonly outputSignals = new Map<NodeId, WritableSignal<PortValues>>();
+  private readonly inputSignals = new Map<NodeId, WritableSignal<PortValues>>();
   private readonly stateSignals = new Map<NodeId, WritableSignal<unknown>>();
   private readonly errorSignals = new Map<NodeId, WritableSignal<unknown>>();
   private readonly problemsSignal = signal<readonly GraphProblem[]>([]);
@@ -300,17 +311,34 @@ export class NodeGraphRuntime {
   // ================================================== dirty and ready (§2,§3)
 
   private markDirty(start: NodeId): void {
+    // A local `seen` set rather than skipping already-dirty nodes: the version
+    // has to be bumped even for a node that is currently running, or its
+    // settle would clear a dirtiness it never addressed. `seen` still keeps a
+    // diamond's tail visited once, and a cycle from looping forever.
+    const seen = new Set<NodeId>();
     const stack = [start];
     while (stack.length > 0) {
       const node = stack.pop() as NodeId;
-      // Already dirty means its descendants are already marked. Without this,
-      // a diamond re-walks its tail once per path.
-      if (this.dirty.has(node)) continue;
+      if (seen.has(node)) continue;
+      seen.add(node);
+
+      this.dirtyVersion.set(node, (this.dirtyVersion.get(node) ?? 0) + 1);
       this.dirty.add(node);
       this.setStatus(node, 'stale');
       this.readySet.delete(node);
       for (const next of this.outgoing.get(node) ?? []) stack.push(next);
     }
+  }
+
+  /** Re-dirty everything downstream of a node, without re-running the node. */
+  private propagateFrom(nodeId: NodeId): void {
+    for (const next of this.outgoing.get(nodeId) ?? []) this.markDirty(next);
+    this.refresh();
+  }
+
+  /** The dirtiness a run is setting out to satisfy. */
+  private versionOf(nodeId: NodeId): number {
+    return this.dirtyVersion.get(nodeId) ?? 0;
   }
 
   /**
@@ -452,13 +480,50 @@ export class NodeGraphRuntime {
 
   /** Execute exactly one ready node. */
   async step(): Promise<void> {
+    // Never step into a drain that is already in flight, for the same reason
+    // two drains cannot overlap.
+    if (this.draining) await this.draining;
     const next = this.readySet.values().next();
     if (next.done === true) return;
     await this.execute([next.value]);
   }
 
-  /** Drain until nothing is ready. */
+  /**
+   * Drain until nothing is ready.
+   *
+   * ### Why this is serialised
+   *
+   * Two overlapping drains corrupt results, and quietly. Both pick up the same
+   * ready node, so `beginRun` bumps its run id; the first drain's result is
+   * then discarded as stale — correctly, by design — but a downstream node in
+   * the *other* drain may already have read the output slot before either
+   * write landed, computed from an empty value, and settled.
+   *
+   * That is exactly what happened once the editor called `run()` on every
+   * state change while its own effect was also calling it: the source node
+   * held the right value and everything downstream of it held an empty one.
+   * Found by the integration test, not by the runtime's own suite, because it
+   * takes two callers to produce it.
+   */
   async run(): Promise<void> {
+    while (this.readySet.size > 0) {
+      if (this.draining) {
+        // Join the drain in flight, then re-check: work dirtied while it ran
+        // may have arrived after it made its final decision to stop.
+        await this.draining;
+        continue;
+      }
+      const drain = this.drain();
+      this.draining = drain;
+      try {
+        await drain;
+      } finally {
+        if (this.draining === drain) this.draining = null;
+      }
+    }
+  }
+
+  private async drain(): Promise<void> {
     let guard = 0;
     while (this.readySet.size > 0) {
       if (++guard > MAX_DRAIN_ITERATIONS) {
@@ -487,19 +552,21 @@ export class NodeGraphRuntime {
       return;
     }
 
+    // Captured before any await: the dirtiness this run is answering.
+    const version = this.versionOf(nodeId);
     const inputs = this.resolveInputs(nodeId);
     if (
       this.inputsUnchanged(nodeId, inputs) &&
       Object.is(this.stateValues.get(nodeId), this.lastState.get(nodeId))
     ) {
-      this.settle(nodeId, 'done');           // memo hit — no compute, no propagation
+      this.settle(nodeId, 'done', version);  // memo hit — no compute, no propagation
       return;
     }
-    this.lastInputs.set(nodeId, inputs);
+    this.recordInputs(nodeId, inputs);
     this.lastState.set(nodeId, this.stateValues.get(nodeId));
 
     if (!definition.compute) {
-      this.settle(nodeId, 'done');
+      this.settle(nodeId, 'done', version);
       return;
     }
 
@@ -516,14 +583,24 @@ export class NodeGraphRuntime {
       });
 
       if (isAsyncIterable(result)) {
-        await this.consume(nodeId, run.id, definition, result);
+        /*
+         * A stream does NOT block the drain.
+         *
+         * Awaiting it would hold the drain open for as long as the generator
+         * keeps yielding — forever, for a websocket or a poller — and every
+         * later evaluation in the graph would queue behind it. The node
+         * settles now, on the value it already has, and each later emission
+         * propagates on its own.
+         */
+        void this.consume(nodeId, run.id, definition, result);
+        this.settle(nodeId, 'done', version);
         return;
       }
       this.applyOutputs(nodeId, run.id, definition, (await result) as PortValues);
-      this.settle(nodeId, 'done');
+      this.settle(nodeId, 'done', version);
     } catch (cause: unknown) {
       this.errorSignal(nodeId).set(cause);
-      this.settle(nodeId, 'error');
+      this.settle(nodeId, 'error', version);
     }
   }
 
@@ -569,15 +646,17 @@ export class NodeGraphRuntime {
         if (done === true) break;
         if (this.active.get(nodeId)?.id !== runId) break;      // superseded
         this.applyOutputs(nodeId, runId, definition, value as PortValues);
+        // The node itself settled when the stream started, so downstream has
+        // to be re-dirtied for each emission to reach it.
+        this.propagateFrom(nodeId);
+        void this.run();
       }
     } catch (cause: unknown) {
       this.errorSignal(nodeId).set(cause);
-      this.settle(nodeId, 'error');
-      return;
+      this.setStatus(nodeId, 'error');
     } finally {
       if (this.iterators.get(nodeId) === iterator) this.iterators.delete(nodeId);
     }
-    this.settle(nodeId, 'done');
   }
 
   private teardownIterator(nodeId: NodeId): void {
@@ -635,7 +714,7 @@ export class NodeGraphRuntime {
     this.setStatus(nodeId, 'running');
 
     const inputs = this.resolveInputs(nodeId);
-    this.lastInputs.set(nodeId, inputs);
+    this.recordInputs(nodeId, inputs);
     this.lastState.set(nodeId, this.stateValues.get(nodeId));
 
     return {
@@ -659,7 +738,16 @@ export class NodeGraphRuntime {
     if (result.done !== false) this.settle(result.nodeId, 'done');
   }
 
-  private settle(nodeId: NodeId, status: NodeStatus): void {
+  private settle(nodeId: NodeId, status: NodeStatus, version?: number): void {
+    // Re-dirtied while this run was in flight: the newer change is still
+    // outstanding, so leave the node dirty for the drain to pick up again.
+    if (version !== undefined && this.versionOf(nodeId) !== version) {
+      this.setStatus(nodeId, 'stale');
+      this.readySet.delete(nodeId);
+      this.refresh();
+      return;
+    }
+
     this.dirty.delete(nodeId);
     this.readySet.delete(nodeId);
     if (this.statusSignal(nodeId)() !== 'cycle') this.setStatus(nodeId, status);
@@ -733,6 +821,31 @@ export class NodeGraphRuntime {
 
   outputs(nodeId: NodeId): Signal<PortValues> {
     return this.outputSignal(nodeId).asReadonly();
+  }
+
+  /**
+   * The values currently arriving on a node's inputs.
+   *
+   * Read by a node's view, which is how a node with no `compute` at all — the
+   * browser node in the motivating example — still reacts to its upstream.
+   */
+  inputs(nodeId: NodeId): Signal<PortValues> {
+    return this.inputSignal(nodeId).asReadonly();
+  }
+
+  /** Stores the resolved inputs for both memoisation and the view. */
+  private recordInputs(nodeId: NodeId, inputs: PortValues): void {
+    this.lastInputs.set(nodeId, inputs);
+    this.inputSignal(nodeId).set(inputs);
+  }
+
+  private inputSignal(nodeId: NodeId): WritableSignal<PortValues> {
+    let existing = this.inputSignals.get(nodeId);
+    if (!existing) {
+      existing = signal<PortValues>({});
+      this.inputSignals.set(nodeId, existing);
+    }
+    return existing;
   }
 
   state(nodeId: NodeId): Signal<unknown> {

@@ -3,11 +3,14 @@ import {
   Component,
   computed,
   input,
+  type Injector,
   type TemplateRef,
+  type Type,
 } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
+import { NgComponentOutlet, NgTemplateOutlet } from '@angular/common';
 import { cn } from '../../../lib/utils';
 import { NODE_HEADER_HEIGHT, type PortMetrics } from '../node-editor.layout';
+import type { NodeStatus } from '../node-editor.runtime.types';
 import type { EditorNode, PortRef } from '../node-editor.types';
 import { NodeEditorPortComponent, type PortDropState } from './node-editor-port.component';
 
@@ -32,7 +35,7 @@ export interface NodeTemplateContext {
 @Component({
   selector: 'ui-node-editor-node',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, NodeEditorPortComponent],
+  imports: [NgComponentOutlet, NgTemplateOutlet, NodeEditorPortComponent],
   templateUrl: './node-editor-node.component.html',
   host: { class: 'contents' },
 })
@@ -52,9 +55,38 @@ export class NodeEditorNodeComponent {
   readonly activePort = input<string | null>(null);
   /** Optional replacement for the default header. */
   readonly bodyTemplate = input<TemplateRef<NodeTemplateContext> | null>(null);
+  /** The node type's view component, rendered inside the card. */
+  readonly view = input<Type<unknown> | null>(null);
+  /** Injector carrying this node's NODE_CONTEXT to that view. */
+  readonly viewInjector = input<Injector | null>(null);
+  /** Runtime status, surfaced on the card so a run is visible. */
+  readonly status = input<NodeStatus | null>(null);
   readonly class = input('');
 
   protected readonly headerHeight = NODE_HEADER_HEIGHT;
+
+  /**
+   * Whether someone other than the editor owns this card's body.
+   *
+   * A projected template or a node type's view may both contain the
+   * consumer's own controls, so neither may be wrapped in a <button> — see
+   * the template.
+   */
+  /**
+   * Short status text in the header, or `null` when there is nothing to say.
+   *
+   * `idle` and `done` are the resting states of a healthy graph, and labelling
+   * every node in a large graph "done" is noise rather than information.
+   */
+  protected readonly statusLabel = computed(() => {
+    const status = this.status();
+    if (status === null || status === 'idle' || status === 'done') return null;
+    return status;
+  });
+
+  protected readonly bodyIsForeign = computed(
+    () => this.bodyTemplate() !== null || this.view() !== null,
+  );
 
   protected readonly cardClasses = computed(() =>
     cn(

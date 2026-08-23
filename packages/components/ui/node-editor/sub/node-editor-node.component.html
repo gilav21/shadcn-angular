@@ -8,15 +8,54 @@
   button. As siblings they both position against the canvas item wrapper, which
   is exactly the node's world box, so the geometry is unchanged.
 
-  The card is a real <button> when the editor owns its body, and a
-  non-widget group when a template is projected into it. That split is not
-  cosmetic: a projected body may legitimately contain the consumer's own
-  controls, and claiming `button` around them would recreate the very nesting
-  violation above. Where we cannot know what is inside, we do not claim it is
-  a button — the ports beside it and the editor's accessible tree carry the
-  interaction either way.
+  The card is a real button when the EDITOR owns its body, and a non-widget
+  grouping element when someone else does. That split is not cosmetic: a
+  projected template or a node type's view may legitimately contain the
+  consumer's own controls, and claiming `button` around them would recreate the
+  very nesting violation above.
 -->
-@if (bodyTemplate(); as body) {
+<ng-template #header>
+  <!--
+    Rendered in BOTH branches, because it is the node's identity and its drag
+    handle at once. A card whose body is the consumer's own view has no other
+    draggable surface — every press inside it belongs to their controls — so
+    without a header such a node could not be moved at all.
+  -->
+  <span
+    class="flex flex-col justify-center gap-0.5 overflow-hidden rounded-t-lg border-b px-3"
+    [style.min-height.px]="headerHeight"
+    [attr.data-slot]="'node-editor-node-header'"
+  >
+    <span class="flex items-center gap-2">
+      @if (current.accent) {
+        <span
+          class="size-2 shrink-0 rounded-full"
+          [style.background]="current.accent"
+          [attr.data-slot]="'node-editor-node-accent'"
+        ></span>
+      }
+      <span class="truncate text-sm font-medium" [attr.data-slot]="'node-editor-node-title'">{{
+        current.title
+      }}</span>
+      @if (statusLabel(); as label) {
+        <span
+          class="ms-auto shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground"
+          [attr.data-slot]="'node-editor-node-status'"
+          >{{ label }}</span
+        >
+      }
+    </span>
+    @if (current.subtitle) {
+      <span
+        class="truncate text-[11px] text-muted-foreground"
+        [attr.data-slot]="'node-editor-node-subtitle'"
+        >{{ current.subtitle }}</span
+      >
+    }
+  </span>
+</ng-template>
+
+@if (bodyIsForeign()) {
   <!--
     A fieldset rather than a div carrying a group role: this repo's
     accessibility work resolves ARIA roles to their native element wherever one
@@ -31,10 +70,27 @@
     [attr.data-node]="current.id"
     [attr.data-selected]="selected() ? 'true' : null"
     [attr.data-locked]="current.locked ? 'true' : null"
+    [attr.data-status]="status()"
     [attr.aria-label]="ariaLabel()"
     [tabindex]="focused() ? 0 : -1"
   >
-    <ng-container [ngTemplateOutlet]="body" [ngTemplateOutletContext]="{ $implicit: current }" />
+    <ng-container [ngTemplateOutlet]="header" />
+
+    @if (bodyTemplate(); as body) {
+      <ng-container [ngTemplateOutlet]="body" [ngTemplateOutletContext]="{ $implicit: current }" />
+    } @else if (view(); as component) {
+      <!--
+        The node type's own view. Its injector carries this node's
+        NODE_CONTEXT, and is cached per node: a fresh injector each pass would
+        rebuild the view continuously and lose focus and caret position.
+      -->
+      <div class="p-2" [attr.data-slot]="'node-editor-node-body'">
+        <ng-container
+          [ngComponentOutlet]="component"
+          [ngComponentOutletInjector]="viewInjector()"
+        />
+      </div>
+    }
   </fieldset>
 } @else {
   <!--
@@ -49,35 +105,12 @@
     [attr.data-node]="current.id"
     [attr.data-selected]="selected() ? 'true' : null"
     [attr.data-locked]="current.locked ? 'true' : null"
+    [attr.data-status]="status()"
     [attr.aria-label]="ariaLabel()"
     [attr.aria-pressed]="selected()"
     [tabindex]="focused() ? 0 : -1"
   >
-    <span
-      class="flex flex-col justify-center gap-0.5 overflow-hidden rounded-t-lg border-b px-3"
-      [style.min-height.px]="headerHeight"
-      [attr.data-slot]="'node-editor-node-header'"
-    >
-      <span class="flex items-center gap-2">
-        @if (current.accent) {
-          <span
-            class="size-2 shrink-0 rounded-full"
-            [style.background]="current.accent"
-            [attr.data-slot]="'node-editor-node-accent'"
-          ></span>
-        }
-        <span class="truncate text-sm font-medium" [attr.data-slot]="'node-editor-node-title'">{{
-          current.title
-        }}</span>
-      </span>
-      @if (current.subtitle) {
-        <span
-          class="truncate text-[11px] text-muted-foreground"
-          [attr.data-slot]="'node-editor-node-subtitle'"
-          >{{ current.subtitle }}</span
-        >
-      }
-    </span>
+    <ng-container [ngTemplateOutlet]="header" />
   </button>
 }
 

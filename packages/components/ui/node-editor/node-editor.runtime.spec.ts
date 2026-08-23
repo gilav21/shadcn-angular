@@ -218,11 +218,10 @@ describe('RT-3 scoped re-evaluation and memoisation', () => {
 });
 
 describe('RT-4 async runs and staleness', () => {
-    function slow(delays: Record<string, number>, staleness?: NodeTypeDefinition['staleness']): NodeTypeDefinition {
+    function slow(delays: Record<string, number>): NodeTypeDefinition {
         return {
             id: 'slow',
             label: 'Slow',
-            staleness,
             ports: [{ id: 'out', direction: 'out', label: 'Out' }],
             compute: async (_inputs, ctx) => {
                 const value = ctx.state as string;
@@ -232,9 +231,18 @@ describe('RT-4 async runs and staleness', () => {
         };
     }
 
-    async function raceRuns(definition: NodeTypeDefinition): Promise<NodeGraphRuntime> {
+    /**
+     * The drain is serialised, so two runs of the SAME node never overlap:
+     * a change arriving mid-run leaves the node dirty, and the drain runs it
+     * again once the first finishes. The newest state always wins, and no work
+     * races anything.
+     *
+     * This is the behaviour that matters for the motivating example — type
+     * fast, and the far end of the graph shows what you typed last.
+     */
+    it('always ends on the newest state, however slow the earlier run was', async () => {
         const runtime = new NodeGraphRuntime();
-        runtime.setDefinitions([definition]);
+        runtime.setDefinitions([slow({ old: 45, new: 0 })]);
         runtime.setGraph([node('n', 'slow')], []);
         runtime.setState('n', 'old');
 
@@ -242,49 +250,115 @@ describe('RT-4 async runs and staleness', () => {
         runtime.setState('n', 'new');
         const second = runtime.run();
         await Promise.all([first, second]);
-        await new Promise(resolve => setTimeout(resolve, 90));
-        return runtime;
-    }
 
-    it('discards a superseded result under the default cancel policy', async () => {
-        const runtime = await raceRuns(slow({ old: 45, new: 0 }));
         expect(runtime.outputs('n')()['out']).toBe('new');
     });
 
-    it('discards it under drop, without aborting the work', async () => {
-        const runtime = await raceRuns(slow({ old: 45, new: 0 }, 'drop'));
-        expect(runtime.outputs('n')()['out']).toBe('new');
+    it('does not drop work that arrives while a node is running', async () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([slow({ first: 30, second: 0 })]);
+        runtime.setGraph([node('n', 'slow')], []);
+        runtime.setState('n', 'first');
+
+        const inFlight = runtime.run();
+        // Settling the first run must not clear the dirtiness this created.
+        runtime.setState('n', 'second');
+        await inFlight;
+        await runtime.run();
+
+        expect(runtime.outputs('n')()['out']).toBe('second');
     });
 
-    /** Opt-in only, because this is exactly the motivating example's bug. */
-    it('lets a superseded result WIN under apply', async () => {
-        const runtime = await raceRuns(slow({ old: 45, new: 0 }, 'apply'));
-        expect(runtime.outputs('n')()['out']).toBe('old');
+    /**
+     * Where staleness IS reachable: a backend answering out of order.
+     *
+     * The drain cannot serialise the network, so a reply carrying an old runId
+     * can genuinely arrive after a newer one. The policy decides what happens.
+     */
+    describe('a remote reply carrying a stale runId', () => {
+        function remoteRuntime(staleness?: NodeTypeDefinition['staleness']): NodeGraphRuntime {
+            const definition: NodeTypeDefinition = {
+                id: 'remote', label: 'Remote', remote: true, staleness,
+                ports: [{ id: 'out', direction: 'out', label: 'Out' }],
+            };
+            const runtime = new NodeGraphRuntime();
+            runtime.setDefinitions([definition]);
+            runtime.setGraph([node('r', 'remote')], []);
+            return runtime;
+        }
+
+        /** Replies with a runId one older than the request's. */
+        async function replyStale(batch: readonly RemoteRequest[]) {
+            return batch.map(request => ({
+                runId: request.runId - 1,
+                nodeId: request.nodeId,
+                ok: true as const,
+                outputs: { out: 'stale' } as PortValues,
+            }));
+        }
+
+        it('is discarded under the default cancel policy', async () => {
+            const runtime = remoteRuntime();
+            runtime.executeRemote = replyStale;
+            await runtime.run();
+            expect(runtime.outputs('r')()['out']).toBeUndefined();
+        });
+
+        it('is discarded under drop', async () => {
+            const runtime = remoteRuntime('drop');
+            runtime.executeRemote = replyStale;
+            await runtime.run();
+            expect(runtime.outputs('r')()['out']).toBeUndefined();
+        });
+
+        it('is APPLIED under apply — which is why that is opt-in', async () => {
+            const runtime = remoteRuntime('apply');
+            runtime.executeRemote = replyStale;
+            await runtime.run();
+            expect(runtime.outputs('r')()['out']).toBe('stale');
+        });
+
+        it('applies a reply whose runId is current', async () => {
+            const runtime = remoteRuntime();
+            runtime.executeRemote = async batch =>
+                batch.map(r => ({ runId: r.runId, nodeId: r.nodeId, ok: true as const, outputs: { out: 'fresh' } }));
+            await runtime.run();
+            expect(runtime.outputs('r')()['out']).toBe('fresh');
+        });
     });
 
-    it('fires the AbortSignal of the superseded run', async () => {
+    /** The other reachable overlap: a stream still running when a new run starts. */
+    it('aborts a running stream when its node is re-run', async () => {
         const aborted: string[] = [];
         const definition: NodeTypeDefinition = {
-            id: 'slow',
-            label: 'Slow',
+            id: 'ticker',
+            label: 'Ticker',
             ports: [{ id: 'out', direction: 'out', label: 'Out' }],
-            compute: async (_inputs, ctx) => {
-                const value = ctx.state as string;
-                ctx.signal.addEventListener('abort', () => aborted.push(value));
-                await new Promise(resolve => setTimeout(resolve, 30));
-                return { out: value };
+            compute: (_inputs, ctx) => {
+                const label = ctx.state as string;
+                ctx.signal.addEventListener('abort', () => aborted.push(label));
+                return (async function* () {
+                    while (true) {
+                        yield { out: label };
+                        await new Promise(resolve => setTimeout(resolve, 5));
+                    }
+                })();
             },
         };
         const runtime = new NodeGraphRuntime();
         runtime.setDefinitions([definition]);
-        runtime.setGraph([node('n', 'slow')], []);
+        runtime.setGraph([node('n', 'ticker')], []);
+
         runtime.setState('n', 'first');
-        const a = runtime.run();
+        await runtime.run();
+        await new Promise(resolve => setTimeout(resolve, 15));
+
         runtime.setState('n', 'second');
-        const b = runtime.run();
-        await Promise.all([a, b]);
+        await runtime.run();
+        await new Promise(resolve => setTimeout(resolve, 15));
 
         expect(aborted).toContain('first');
+        runtime.dispose();
     });
 
     it('records a thrown compute as an error rather than dying', async () => {

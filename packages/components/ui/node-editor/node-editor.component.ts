@@ -6,12 +6,16 @@ import {
   ElementRef,
   TemplateRef,
   computed,
+  effect,
   inject,
   input,
   model,
   output,
   signal,
   viewChild,
+  Injector,
+  type Signal,
+  type Type,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { acquireAriaLive } from '../../lib/sortable-aria-live';
@@ -34,6 +38,16 @@ import {
   toCanvasEdges,
 } from './node-editor.graph';
 import { defaultMetrics, portAnchor, portsOf, withDerivedHeights } from './node-editor.layout';
+import { indexDefinitions, withMaterializedTypes } from './node-editor.materialize';
+import { GraphHistory } from './node-editor.history';
+import { NodeGraphRuntime } from './node-editor.runtime';
+import { NODE_CONTEXT, type NodeContext } from './node-editor.runtime.types';
+import type {
+  GraphProblem,
+  NodeTypeDefinition,
+  RemoteExecutor,
+  RemoteRequest,
+} from './node-editor.runtime.types';
 import { NodeEditorNodeComponent } from './sub/node-editor-node.component';
 import type {
   ConnectRejection,
@@ -70,6 +84,19 @@ const EMPTY_SELECTION: EditorSelection = { nodes: [], connections: [] };
 
 /** Pointer movement, in screen pixels, before a press counts as a drag. */
 const DRAG_THRESHOLD_PX = 3;
+
+/**
+ * Things inside a node that own their own pointer behaviour.
+ *
+ * A node's view may contain the consumer's real controls — a text field, a
+ * select, a button. Starting a node drag from one of those makes it impossible
+ * to use: you cannot place a caret in an input if the press is being read as
+ * the start of a drag. So a press landing on one of these is left alone.
+ *
+ * The same selector convention is already used by the collapsible trigger.
+ */
+const INTERACTIVE_IN_NODE =
+  'input, textarea, select, button, a[href], [contenteditable], [role="button"], [data-node-interactive]';
 
 interface DragState {
   readonly pointerId: number;
@@ -155,7 +182,42 @@ export class NodeEditorComponent {
   readonly ariaLabel = input('Node editor');
   readonly showGrid = input(true);
 
+  /**
+   * The node types this graph may contain.
+   *
+   * Supplying them turns the editor from a drawing of a graph into a running
+   * one: a node with a matching `type` inherits its ports, renders that type's
+   * view, and has its `compute` evaluated by the runtime.
+   */
+  readonly definitions = input<readonly NodeTypeDefinition[]>([]);
+
+  /**
+   * Hands every ready `remote: true` node to a backend, in ONE call per tick.
+   *
+   * Returning the promise is resolution; throwing is failure; the AbortSignal
+   * arrives already wired.
+   */
+  readonly executeRemote = input<RemoteExecutor | null>(null);
+
+  /**
+   * Whether a change re-evaluates the graph immediately.
+   *
+   * `true` gives live dataflow — type in one node and downstream updates as
+   * you go. `false` waits for `run()`, which is what a graph full of
+   * side-effecting steps wants. Individual node types opt out either way via
+   * their own `reactive` flag.
+   */
+  readonly live = input(true);
+
   readonly connectionRejected = output<ConnectionRejectedEvent>();
+
+  /**
+   * Fires alongside `executeRemote`, for observing or logging.
+   *
+   * Explicitly NOT authoritative: `executeRemote` does the work. Two ways to
+   * answer the same request would leave nobody sure which one won.
+   */
+  readonly nodeExecute = output<readonly RemoteRequest[]>();
 
   @ContentChild(NodeEditorNodeDirective, { read: TemplateRef })
   nodeTemplateRef?: TemplateRef<NodeEditorNodeContext>;
@@ -184,8 +246,20 @@ export class NodeEditorComponent {
    */
   protected readonly emptyPorts: ReadonlySet<string> = new Set<string>();
 
-  private readonly live = acquireAriaLive();
+  private readonly liveRegion = acquireAriaLive();
   private drag: DragState | null = null;
+
+  /**
+   * One runtime per editor instance, never a shared one — that is what keeps
+   * nested graphs (a node owning a child runtime) buildable later.
+   */
+  readonly runtime = new NodeGraphRuntime();
+
+  /** Undo/redo. Every mutation routes through here, which is the point of it. */
+  readonly history = new GraphHistory();
+
+  /** Problems the runtime found: missing required inputs, cycles, bad types. */
+  readonly problems: Signal<readonly GraphProblem[]> = this.runtime.problems;
 
   protected readonly pending = signal<PendingConnection | null>(null);
   /** The node holding the roving tab stop. */
@@ -213,15 +287,45 @@ export class NodeEditorComponent {
     const onKeyDownCapture = (event: Event): void => this.onKeyDown(event as KeyboardEvent);
     element.addEventListener('keydown', onKeyDownCapture, true);
 
+    /*
+     * The runtime mirrors the graph.
+     *
+     * `setGraph` DIFFS rather than rebuilding, so an edit does not drop every
+     * cached output and re-run everything — which is the whole point of the
+     * incremental scheduler.
+     */
+    effect(() => {
+      this.runtime.setDefinitions(this.definitions());
+    });
+
+    effect(() => {
+      this.runtime.executeRemote = this.wrapExecutor(this.executeRemote());
+      this.runtime.setGraph(this.sizedNodes(), this.connections());
+      if (this.live()) void this.runtime.run();
+    });
+
     inject(DestroyRef).onDestroy(() => {
       element.removeEventListener('keydown', onKeyDownCapture, true);
-      this.live.release();
+      this.runtime.dispose();
+      this.liveRegion.release();
     });
   }
 
-  /** Nodes with their derived heights applied — what the canvas actually renders. */
+  /** Definitions keyed by id — the lookup everything else uses. */
+  protected readonly definitionIndex = computed(() => indexDefinitions(this.definitions()));
+
+  /**
+   * What the canvas renders: typed nodes filled in from their definition, then
+   * given their derived height.
+   *
+   * Materialising first matters — the height is derived from the port count,
+   * and a typed node has no ports until its definition supplies them.
+   */
   protected readonly sizedNodes = computed(() =>
-    withDerivedHeights(this.nodes(), this.metrics),
+    withDerivedHeights(
+      withMaterializedTypes(this.nodes(), this.definitionIndex()),
+      this.metrics,
+    ),
   );
 
   private readonly selectedNodeIds = computed(() => new Set(this.selection().nodes));
@@ -312,6 +416,108 @@ export class NodeEditorComponent {
     return `M ${a.x} ${a.y} C ${a.x + reach} ${a.y}, ${b.x - reach} ${b.y}, ${b.x} ${b.y}`;
   });
 
+  // ------------------------------------------------------- node views (RT-11)
+
+  /**
+   * Per-node injectors, cached.
+   *
+   * A view is created by `NgComponentOutlet`, which takes an `Injector`. A new
+   * injector on every change detection pass would tear the view down and
+   * rebuild it continuously — losing focus, caret position and any local state
+   * the moment anything upstream changed.
+   */
+  private readonly nodeInjectors = new Map<NodeId, Injector>();
+  private readonly parentInjector = inject(Injector);
+
+  /** The component a node type renders inside its card, if it has one. */
+  protected viewFor(node: EditorNode): Type<unknown> | null {
+    if (node.type === undefined) return null;
+    return this.definitionIndex().get(node.type)?.view ?? null;
+  }
+
+  protected injectorFor(node: EditorNode): Injector {
+    const existing = this.nodeInjectors.get(node.id);
+    if (existing) return existing;
+
+    const created = Injector.create({
+      parent: this.parentInjector,
+      providers: [{ provide: NODE_CONTEXT, useValue: this.createNodeContext(node.id) }],
+    });
+    this.nodeInjectors.set(node.id, created);
+    return created;
+  }
+
+  /**
+   * Everything a node's view can see and do.
+   *
+   * Deliberately small: read your inputs, read or set your state, read your
+   * status. A view that needs more than this is reaching into the graph, which
+   * is the editor's job rather than a node's.
+   */
+  private createNodeContext(nodeId: NodeId): NodeContext {
+    const runtime = this.runtime;
+    return {
+      nodeId,
+      state: runtime.state(nodeId),
+      setState: (next: unknown) => this.setNodeState(nodeId, next),
+      input: <T,>(portId: string) =>
+        computed(() => runtime.inputs(nodeId)()[portId] as T | undefined),
+      output: <T,>(portId: string) =>
+        computed(() => runtime.outputs(nodeId)()[portId] as T | undefined),
+      status: runtime.status(nodeId),
+      error: runtime.error(nodeId),
+    };
+  }
+
+  /** A view editing its own state. Routed through history, like every edit. */
+  private setNodeState(nodeId: NodeId, next: unknown): void {
+    const before = this.runtime.state(nodeId)();
+    this.history.push({
+      kind: 'set-state',
+      nodeId,
+      before,
+      after: next,
+      at: this.now(),
+    });
+    this.runtime.setState(nodeId, next);
+    if (this.live()) void this.runtime.run();
+  }
+
+  /** Overridable in tests, which must not depend on the wall clock. */
+  protected now(): number {
+    return Date.now();
+  }
+
+  // ------------------------------------------------------------------ runtime
+
+  /**
+   * Wraps the consumer's executor so the observation event fires too.
+   *
+   * The event is deliberately not given a way to answer: `executeRemote` is
+   * authoritative, and two ways to resolve one request would leave nobody sure
+   * which won.
+   */
+  private wrapExecutor(executor: RemoteExecutor | null): RemoteExecutor | null {
+    if (!executor) return null;
+    return (batch, signal) => {
+      this.nodeExecute.emit(batch);
+      return executor(batch, signal);
+    };
+  }
+
+  /** Evaluate the whole graph. */
+  async run(): Promise<void> {
+    await this.runtime.run();
+  }
+
+  /** Evaluate exactly one ready node — the single-step mode. */
+  async step(): Promise<void> {
+    await this.runtime.step();
+  }
+
+  /** Node ids `step()` would pick from next. */
+  readonly readyNodes: Signal<readonly NodeId[]> = this.runtime.ready;
+
   // ------------------------------------------------------------------ pointer
 
   protected onPointerDown(event: PointerEvent): void {
@@ -329,6 +535,10 @@ export class NodeEditorComponent {
 
     const collapseTo = this.selectNode(nodeId, event.shiftKey);
     this.focusedNode.set(nodeId);
+
+    // A press on the consumer's own control inside a node view selects the
+    // node but must NOT start a drag — otherwise the control cannot be used.
+    if (this.landedOnInteractive(event)) return;
     this.beginDrag(nodeId, event, collapseTo);
   }
 
@@ -680,7 +890,7 @@ export class NodeEditorComponent {
       centre.y > visible.y + visible.height;
     if (offscreen) this.canvas().panTo(centre);
 
-    this.announce(node.title);
+    this.announce(node.title ?? String(node.id));
     // The element only exists once the layer has mounted it, which for a
     // culled node happens after the pan above.
     queueMicrotask(() => this.nodeElement(nodeId)?.focus());
@@ -722,6 +932,30 @@ export class NodeEditorComponent {
   private toLocal(clientPoint: CanvasPoint): CanvasPoint {
     const rect = this.rootRef().nativeElement.getBoundingClientRect();
     return { x: clientPoint.x - rect.left, y: clientPoint.y - rect.top };
+  }
+
+  /**
+   * Whether the press landed on something owning its own pointer behaviour.
+   *
+   * The header is checked first: with arbitrary controls in a card, dragging
+   * from anywhere is ambiguous, so the header stays a drag handle even when
+   * the body is full of the consumer's widgets.
+   */
+  private landedOnInteractive(event: PointerEvent): boolean {
+    const target = event.target as Element | null;
+    if (!target) return false;
+
+    // The header is always a drag handle, even when the body is full of the
+    // consumer's widgets — dragging from anywhere would otherwise be ambiguous.
+    if (target.closest('[data-slot="node-editor-node-header"]')) return false;
+
+    const interactive = target.closest(INTERACTIVE_IN_NODE);
+    if (!interactive) return false;
+
+    // The default card is ITSELF a <button>, so it matches the selector. It is
+    // the thing being dragged, not content inside it. Missing this disabled
+    // dragging entirely, which is what the drag tests caught.
+    return !interactive.matches('[data-slot="node-editor-node"]');
   }
 
   /**
@@ -777,7 +1011,7 @@ export class NodeEditorComponent {
   }
 
   private announce(message: string): void {
-    this.live.announce(message);
+    this.liveRegion.announce(message);
   }
 }
 

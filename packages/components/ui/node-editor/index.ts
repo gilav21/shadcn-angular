@@ -4,6 +4,7 @@ export * from './node-editor.graph';
 export * from './node-editor.history';
 export * from './node-editor.serialize';
 export * from './node-editor.layout';
+export * from './node-editor.materialize';
 export * from './node-editor.runtime';
 export * from './node-editor.runtime.types';
 export * from './node-editor.types';
