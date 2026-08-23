@@ -65,8 +65,9 @@
     (navigate)="goToLevel($event)"
   />
 
-  <div class="relative w-full overflow-hidden rounded-lg border">
+  <div #surface class="relative w-full overflow-hidden rounded-lg border">
     <ui-node-editor
+      [uiNodeEditorContextMenu]="graphMenu"
       class="h-[350px] w-full sm:h-[450px] md:h-[600px]"
       [(nodes)]="nodes"
       [(connections)]="connections"
@@ -81,6 +82,7 @@
       (connectionRejected)="onRejected($event)"
       (addNodeRequested)="openPalette($event)"
       (viewportChange)="onViewportChange()"
+      (nodeOpened)="openSubgraphById($event)"
       (runStarted)="onRunStarted($event)"
       (runFinished)="onRunFinished($event)"
     >
@@ -97,9 +99,77 @@
           [nodes]="renderedNodes()"
           [readonlyGroups]="readonlyGraph()"
           (groupMoved)="onGroupMoved($event)"
+          (groupActivated)="onGroupActivated($event)"
         />
       </div>
     </ui-node-editor>
+
+    <!--
+      Renaming, floated over the node it belongs to. Committed on Enter or on
+      blur, abandoned on Escape — the three things a person tries.
+    -->
+    @if (renaming(); as active) {
+      <input
+        #renameField
+        class="absolute z-20 w-48 rounded-md border bg-popover px-2 py-1 text-sm shadow-md
+               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        [style.left.px]="active.left"
+        [style.top.px]="active.top"
+        [value]="active.title"
+        [attr.aria-label]="text.renameLabel"
+        (keydown.enter)="commitRename(renameField.value)"
+        (keydown.escape)="cancelRename()"
+        (blur)="commitRename(renameField.value)"
+      />
+    }
+
+    <!--
+      Naming and colouring a zone. `type="color"` rather than a row of
+      swatches: a zone means whatever the person drawing it decides, and a
+      fixed palette would decide part of that for them.
+    -->
+    @if (editingZone(); as zone) {
+      <div
+        class="absolute z-20 flex w-64 max-w-[calc(100vw-2rem)] flex-col gap-2 rounded-md border
+               bg-popover p-3 shadow-md"
+        [style.left.px]="zone.left"
+        [style.top.px]="zone.top"
+        [attr.aria-label]="text.zoneEditor"
+        role="group"
+      >
+        <label class="flex flex-col gap-1 text-xs font-medium">
+          {{ text.zoneName }}
+          <input
+            #zoneTitle
+            class="rounded-md border bg-background px-2 py-1 text-sm
+                   focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            [value]="zone.title"
+            (keydown.enter)="applyZone(zoneTitle.value, zoneColour.value); closeZoneEditor()"
+            (keydown.escape)="closeZoneEditor()"
+          />
+        </label>
+
+        <label class="flex items-center justify-between gap-2 text-xs font-medium">
+          {{ text.zoneColour }}
+          <input
+            #zoneColour
+            type="color"
+            class="h-8 w-16 cursor-pointer rounded border bg-background"
+            [value]="zone.colour"
+            (input)="applyZone(zoneTitle.value, zoneColour.value)"
+          />
+        </label>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <ui-button size="sm" variant="ghost" class="text-destructive" (click)="deleteZone()">
+            {{ text.zoneDelete }}
+          </ui-button>
+          <ui-button size="sm" (click)="applyZone(zoneTitle.value, zoneColour.value); closeZoneEditor()">
+            {{ text.zoneDone }}
+          </ui-button>
+        </div>
+      </div>
+    }
 
     <!--
       The minimap is an addon as well: nodes in, navigation out. It floats over
@@ -151,6 +221,80 @@
     (runExported)="downloadRun($event)"
     (clearRequested)="history.clear()"
   />
+
+  <!--
+    ONE menu, whose contents depend on what was right-clicked. The directive
+    resolves the target — port, then node, then wire, then plane — and hands it
+    over as `graphMenu.data()`; everything below is this demo's vocabulary, not
+    the library's.
+  -->
+  <ui-context-menu #graphMenu>
+    <ui-context-menu-content class="w-56">
+      @if (asTarget(graphMenu.data()); as target) {
+        @switch (target.kind) {
+          @case ('canvas') {
+            <ui-context-menu-label>{{ text.menuCanvas }}</ui-context-menu-label>
+            <ui-context-menu-item (click)="openPalette(target.at)">
+              {{ text.menuAddNode }}
+            </ui-context-menu-item>
+            <ui-context-menu-item (click)="addZone(target)">
+              {{ text.menuAddZone }}
+            </ui-context-menu-item>
+            <ui-context-menu-separator />
+            <ui-context-menu-item (click)="autoLayout()">{{ text.tidy }}</ui-context-menu-item>
+          }
+
+          @case ('node') {
+            <ui-context-menu-label>{{ target.node.title }}</ui-context-menu-label>
+            <ui-context-menu-item (click)="beginRename(target)">
+              {{ text.menuRename }}
+            </ui-context-menu-item>
+            <ui-context-menu-item (click)="duplicateNode(target.node)">
+              {{ text.menuDuplicate }}
+            </ui-context-menu-item>
+
+            <!-- Offered only by a node whose work IS another graph. -->
+            @if (isSubgraph(target.node)) {
+              <ui-context-menu-separator />
+              <ui-context-menu-item (click)="openSubgraphNode(target.node)">
+                {{ text.openSubgraph }}
+              </ui-context-menu-item>
+            }
+
+            <ui-context-menu-separator />
+            <ui-context-menu-item
+              variant="destructive"
+              [disabled]="target.node.locked === true"
+              (click)="deleteNode(target.nodeId)"
+            >
+              {{ text.menuDelete }}
+            </ui-context-menu-item>
+          }
+
+          @case ('port') {
+            <ui-context-menu-label>{{ target.portId }}</ui-context-menu-label>
+            <ui-context-menu-item
+              variant="destructive"
+              [disabled]="target.connections.length === 0"
+              (click)="deleteConnections(connectionIds(target.connections))"
+            >
+              {{ text.menuDisconnect.replace('{count}', '' + target.connections.length) }}
+            </ui-context-menu-item>
+          }
+
+          @case ('connection') {
+            <ui-context-menu-label>{{ text.menuConnection }}</ui-context-menu-label>
+            <ui-context-menu-item
+              variant="destructive"
+              (click)="deleteConnections([target.connection.id])"
+            >
+              {{ text.menuDeleteConnection }}
+            </ui-context-menu-item>
+          }
+        }
+      }
+    </ui-context-menu-content>
+  </ui-context-menu>
 
   <section class="flex flex-col gap-2" [attr.aria-label]="text.shortcuts">
     <h2 class="text-sm font-semibold">{{ text.shortcuts }}</h2>

@@ -5373,6 +5373,34 @@
       "selector": "subgraphNodeType"
     }
   },
+  "node-editor/context-menu": {
+    "name": "node-editor/context-menu",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Right-click menus whose contents depend on the node, port, wire or plane clicked.",
+    "tags": [
+      "node-editor",
+      "context-menu",
+      "right-click",
+      "actions",
+      "graph"
+    ],
+    "files": [
+      "node-editor/addons/context-menu/index.ts",
+      "node-editor/addons/context-menu/node-editor-context-menu.directive.ts",
+      "node-editor/addons/context-menu/node-editor-context-menu.resolve.ts",
+      "node-editor/addons/context-menu/node-editor-context-menu.types.ts"
+    ],
+    "dependencies": [
+      "context-menu",
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorContextMenuDirective from './ui/node-editor/addons/context-menu'",
+      "selector": "uiNodeEditorContextMenu"
+    }
+  },
   "node-editor/groups": {
     "name": "node-editor/groups",
     "type": "addon",
@@ -5608,6 +5636,7 @@
       "infinite-canvas"
     ],
     "addons": [
+      "node-editor/context-menu",
       "node-editor/groups",
       "node-editor/subgraph",
       "node-editor/history",

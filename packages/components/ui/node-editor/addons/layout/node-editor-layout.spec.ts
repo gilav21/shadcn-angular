@@ -209,6 +209,83 @@ describe('determinism — the reason this is not force-directed', () => {
     });
 });
 
+describe('clusters are laid out as a unit', () => {
+    /**
+     * The guarantee that matters. A dependency layout spreads a zone's
+     * members across layers; re-fitting the frame around them afterwards
+     * produced a box big enough to swallow whatever landed in between, so a
+     * tidy quietly added and removed nodes from a zone. Reported as "it
+     * adds/removes items from a zone, bad" — and it is worse than no tidy.
+     */
+    it('never lets a non-member land inside a cluster’s box', () => {
+        const nodes = [
+            node('a', 100, 60), node('b', 100, 60), node('c', 100, 60),
+            node('loose1', 300, 260), node('loose2', 100, 60),
+        ];
+        const connections = [
+            link('1', 'a', 'b'), link('2', 'b', 'c'),
+            link('3', 'a', 'loose1'), link('4', 'loose1', 'loose2'),
+            link('5', 'loose2', 'c'),
+        ];
+        const inZone = new Set(['a', 'b', 'c']);
+        const positions = layoutGraph(nodes, connections, {
+            clusterOf: id => (inZone.has(id as string) ? 'zone' : null),
+        });
+
+        const boxOf = (ids: readonly string[]) => {
+            const placed = ids.map(id => ({ n: nodes.find(x => x.id === id)!, p: positions.get(id)! }));
+            return {
+                left: Math.min(...placed.map(e => e.p.x)),
+                top: Math.min(...placed.map(e => e.p.y)),
+                right: Math.max(...placed.map(e => e.p.x + e.n.width)),
+                bottom: Math.max(...placed.map(e => e.p.y + e.n.height)),
+            };
+        };
+        const zone = boxOf(['a', 'b', 'c']);
+
+        for (const id of ['loose1', 'loose2']) {
+            const n = nodes.find(x => x.id === id)!;
+            const p = positions.get(id)!;
+            const overlaps =
+                p.x < zone.right && p.x + n.width > zone.left &&
+                p.y < zone.bottom && p.y + n.height > zone.top;
+            expect(overlaps, `${id} landed inside the zone`).toBe(false);
+        }
+    });
+
+    it('still places every node exactly once', () => {
+        const nodes = ['a', 'b', 'c', 'd'].map(id => node(id));
+        const positions = layoutGraph(nodes, [link('1', 'a', 'b'), link('2', 'c', 'd')], {
+            clusterOf: id => (id === 'a' || id === 'b' ? 'pair' : null),
+        });
+        expect(positions.size).toBe(4);
+    });
+
+    it('keeps dependency order inside a cluster', () => {
+        const nodes = ['a', 'b', 'c'].map(id => node(id));
+        const positions = layoutGraph(nodes, [link('1', 'a', 'b'), link('2', 'b', 'c')], {
+            clusterOf: () => 'all',
+        });
+        expect(positions.get('a')!.x).toBeLessThan(positions.get('b')!.x);
+        expect(positions.get('b')!.x).toBeLessThan(positions.get('c')!.x);
+    });
+
+    it('leaves an unclustered graph exactly as before', () => {
+        const nodes = ['a', 'b'].map(id => node(id));
+        const connections = [link('1', 'a', 'b')];
+        expect([...layoutGraph(nodes, connections, { clusterOf: () => null })])
+            .toEqual([...layoutGraph(nodes, connections)]);
+    });
+
+    it('is still deterministic with clusters', () => {
+        const nodes = ['a', 'b', 'c'].map(id => node(id));
+        const connections = [link('1', 'a', 'b'), link('2', 'b', 'c')];
+        const opts = { clusterOf: (id: NodeId) => (id === 'a' ? 'one' : null) };
+        expect([...layoutGraph(nodes, connections, opts)])
+            .toEqual([...layoutGraph(nodes, connections, opts)]);
+    });
+});
+
 describe('crossing reduction', () => {
     /**
      * The classic case: two sources feeding two sinks, wired across. A layout

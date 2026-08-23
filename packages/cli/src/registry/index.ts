@@ -1922,6 +1922,20 @@ export const registry = defineRegistry({
       selector: 'subgraphNodeType',
     },
   },
+  'node-editor/context-menu': {
+    name: 'node-editor/context-menu',
+    type: 'addon',
+    parent: 'node-editor',
+    category: 'layout',
+    description: 'Right-click menus whose contents depend on the node, port, wire or plane clicked.',
+    tags: ['node-editor', 'context-menu', 'right-click', 'actions', 'graph'],
+    files: ['node-editor/addons/context-menu/index.ts', 'node-editor/addons/context-menu/node-editor-context-menu.directive.ts', 'node-editor/addons/context-menu/node-editor-context-menu.resolve.ts', 'node-editor/addons/context-menu/node-editor-context-menu.types.ts'],
+    dependencies: ['context-menu', 'node-editor'],
+    attach: {
+      import: "NodeEditorContextMenuDirective from './ui/node-editor/addons/context-menu'",
+      selector: 'uiNodeEditorContextMenu',
+    },
+  },
   'node-editor/groups': {
     name: 'node-editor/groups',
     type: 'addon',
@@ -2018,7 +2032,7 @@ export const registry = defineRegistry({
     files: ['node-editor/index.ts', 'node-editor/node-editor-node.directive.ts', 'node-editor/node-editor.component.css', 'node-editor/node-editor.component.html', 'node-editor/node-editor.component.ts', 'node-editor/node-editor.graph.ts', 'node-editor/node-editor.history.ts', 'node-editor/node-editor.layout.ts', 'node-editor/node-editor.materialize.ts', 'node-editor/node-editor.runtime.ts', 'node-editor/node-editor.runtime.types.ts', 'node-editor/node-editor.serialize.ts', 'node-editor/node-editor.types.ts', 'node-editor/node-editor.validate.ts', 'node-editor/sub/node-editor-node.component.html', 'node-editor/sub/node-editor-node.component.ts', 'node-editor/sub/node-editor-port.component.html', 'node-editor/sub/node-editor-port.component.ts'],
     libFiles: ['sortable-aria-live.ts', 'touch.ts'],
     dependencies: ['infinite-canvas'],
-    addons: ['node-editor/groups', 'node-editor/subgraph', 'node-editor/history', 'node-editor/layout', 'node-editor/minimap', 'node-editor/palette', 'node-editor/problems'],
+    addons: ['node-editor/context-menu', 'node-editor/groups', 'node-editor/subgraph', 'node-editor/history', 'node-editor/layout', 'node-editor/minimap', 'node-editor/palette', 'node-editor/problems'],
   },
 });
 

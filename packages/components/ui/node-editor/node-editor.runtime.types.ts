@@ -112,6 +112,20 @@ export interface NodeTypeDefinition<
 
   /** Accent colour for the card header. */
   readonly accent?: string;
+
+  /**
+   * Whether a node of this type contains something worth opening.
+   *
+   * The editor draws an affordance on the card and emits `nodeOpened` when it
+   * is double-clicked; what "open" means is the consumer's business. Written
+   * generically rather than as a subgraph flag because the editor should not
+   * know what a subgraph is — a node holding a document or a remote job is the
+   * same shape of thing.
+   *
+   * Without it a nested graph is invisible: nothing on the card said it had an
+   * inside, and the only way in was a button outside the canvas.
+   */
+  readonly openable?: boolean;
 }
 
 /** Where a node is in its lifecycle. */

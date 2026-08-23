@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
   computed,
   effect,
   inject,
@@ -9,6 +10,11 @@ import {
 } from '@angular/core';
 import {
   ButtonComponent,
+  ContextMenuComponent,
+  ContextMenuContentComponent,
+  ContextMenuItemComponent,
+  ContextMenuLabelComponent,
+  ContextMenuSeparatorComponent,
   NodeEditorComponent,
   SwitchComponent,
   type ConnectionRejectedEvent,
@@ -40,6 +46,10 @@ import {
   type NodeComment,
   type NodeGroup,
 } from '../../../../../packages/components/ui/node-editor/addons/groups';
+import {
+  NodeEditorContextMenuDirective,
+  type NodeEditorContextTarget,
+} from '../../../../../packages/components/ui/node-editor/addons/context-menu';
 import { layoutGraph } from '../../../../../packages/components/ui/node-editor/addons/layout';
 import {
   NodeEditorSubgraphBreadcrumbComponent,
@@ -235,7 +245,13 @@ function initialConnections(): NodeConnection[] {
   selector: 'app-node-editor-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ContextMenuComponent,
+    ContextMenuContentComponent,
+    ContextMenuItemComponent,
+    ContextMenuLabelComponent,
+    ContextMenuSeparatorComponent,
     NodeEditorComponent,
+    NodeEditorContextMenuDirective,
     NodeEditorGroupsComponent,
     NodeEditorSubgraphBreadcrumbComponent,
     NodeEditorHistoryComponent,
@@ -448,6 +464,11 @@ export class NodeEditorDemoComponent {
 
     this.navigator.update({ nodes: this.nodes(), connections: this.connections() });
     this.navigator.enter(node.id, node.title ?? definition.label, graph);
+
+    // The outer graph's scenery stays with the outer graph.
+    this.groupStack.push({ groups: this.groups(), comments: this.comments() });
+    this.groups.set([]);
+    this.comments.set([]);
     this.showCurrentGraph();
   }
 
@@ -460,6 +481,10 @@ export class NodeEditorDemoComponent {
     // Remembered here first; the effect below writes it into the runtime once
     // the outer graph is actually mounted.
     if (left.nodeId !== null) this.innerGraphs.set(left.nodeId, left.graph);
+
+    const scenery = this.groupStack.pop();
+    this.groups.set(scenery?.groups ?? []);
+    this.comments.set(scenery?.comments ?? []);
     this.showCurrentGraph();
   }
 
@@ -477,6 +502,19 @@ export class NodeEditorDemoComponent {
 
   constructor() {
     /*
+     * Focus the rename field when it appears.
+     *
+     * `autofocus` would have done it in one attribute, and is banned for good
+     * reason: it moves focus on page load too, which drops a screen-reader
+     * user into the middle of a document they have not been introduced to.
+     * Here the field appears because someone asked for it, so focusing it is
+     * the courtesy — the attribute is just the wrong tool.
+     */
+    effect(() => {
+      if (this.renaming()) this.renameFieldRef()?.nativeElement.select();
+    });
+
+    /*
      * Re-apply remembered inner graphs whenever the mounted nodes change.
      *
      * Declarative rather than a `setTimeout` after the swap: the editor's own
@@ -492,6 +530,189 @@ export class NodeEditorDemoComponent {
         if (mounted.has(nodeId)) editor.runtime.setState(nodeId, graph);
       }
     });
+  }
+
+  // ------------------------------------------------------------ context menu
+
+  /** The node being renamed, and where to float the field over it. */
+  protected readonly renaming = signal<{
+    readonly id: NodeId;
+    readonly title: string;
+    readonly left: number;
+    readonly top: number;
+  } | null>(null);
+
+  private readonly surfaceRef = viewChild<ElementRef<HTMLElement>>('surface');
+  private readonly renameFieldRef = viewChild<ElementRef<HTMLInputElement>>('renameField');
+
+  /**
+   * Zones belong to the graph they were drawn on.
+   *
+   * They were not: descending into a subgraph kept showing the outer graph's
+   * frames, which "has nothing to do with it". Nodes and connections are
+   * swapped when the editor changes level, and zones have to travel with
+   * them — they are scenery for one particular graph.
+   */
+  private readonly groupStack: { groups: readonly NodeGroup[]; comments: readonly NodeComment[] }[] = [];
+
+  /** The zone being named and coloured, floated over the canvas. */
+  protected readonly editingZone = signal<{
+    readonly id: string;
+    readonly title: string;
+    readonly colour: string;
+    readonly left: number;
+    readonly top: number;
+  } | null>(null);
+
+  /** Add a zone where the menu was opened, then let it be named. */
+  protected addZone(target: NodeEditorContextTarget): void {
+    if (target.kind !== 'canvas') return;
+    const id = `zone-${this.groups().length + 1}-${Math.round(target.at.x)}`;
+    const zone: NodeGroup = {
+      id,
+      title: 'New zone',
+      x: target.at.x,
+      y: target.at.y,
+      width: 320,
+      height: 240,
+      colour: '#6366f1',
+    };
+
+    const before = this.groups();
+    const after = [...before, zone];
+    this.groups.set(after);
+    this.editorRef()?.pushEdit(
+      () => this.groups.set(after),
+      () => this.groups.set(before),
+    );
+    this.openZoneEditor(zone, target.screen);
+  }
+
+  /** Clicking a zone's title bar opens the same editor. */
+  protected onGroupActivated(group: NodeGroup): void {
+    const box = this.surfaceRef()?.nativeElement.getBoundingClientRect();
+    const editor = this.editorRef();
+    if (!editor || !box) return;
+    // The frame's own top-left, so the panel opens on the zone it edits.
+    const rect = editor.visibleRect();
+    const scale = box.width / Math.max(1, rect.width);
+    this.openZoneEditor(group, {
+      x: box.left + (group.x - rect.x) * scale,
+      y: box.top + (group.y - rect.y) * scale,
+    });
+  }
+
+  private openZoneEditor(group: NodeGroup, screen: CanvasPoint): void {
+    const box = this.surfaceRef()?.nativeElement.getBoundingClientRect();
+    this.editingZone.set({
+      id: group.id,
+      title: group.title,
+      colour: group.colour ?? '#6366f1',
+      left: screen.x - (box?.left ?? 0),
+      top: screen.y - (box?.top ?? 0),
+    });
+  }
+
+  protected applyZone(title: string, colour: string): void {
+    const active = this.editingZone();
+    if (!active) return;
+    const before = this.groups();
+    const after = before.map(group =>
+      group.id === active.id ? { ...group, title: title.trim() || group.title, colour } : group,
+    );
+    this.groups.set(after);
+    this.editorRef()?.pushEdit(
+      () => this.groups.set(after),
+      () => this.groups.set(before),
+    );
+  }
+
+  protected closeZoneEditor(): void {
+    this.editingZone.set(null);
+  }
+
+  protected deleteZone(): void {
+    const active = this.editingZone();
+    this.editingZone.set(null);
+    if (!active) return;
+    const before = this.groups();
+    const after = before.filter(group => group.id !== active.id);
+    this.groups.set(after);
+    this.editorRef()?.pushEdit(
+      () => this.groups.set(after),
+      () => this.groups.set(before),
+    );
+  }
+
+  /**
+   * Narrows the menu's untyped `data()` for the template.
+   *
+   * `ContextMenuComponent.data()` is `unknown` by design — it carries whatever
+   * the opener passed. This is the one place that knows what that is.
+   */
+  protected asTarget(data: unknown): NodeEditorContextTarget | null {
+    return (data ?? null) as NodeEditorContextTarget | null;
+  }
+
+  protected connectionIds(connections: readonly NodeConnection[]): readonly string[] {
+    return connections.map(connection => connection.id);
+  }
+
+  /** Whether this node is one whose work is a nested graph. */
+  protected isSubgraph(node: EditorNode): boolean {
+    return node.type === SHOUT_SUBGRAPH.id;
+  }
+
+  protected beginRename(target: NodeEditorContextTarget): void {
+    if (target.kind !== 'node') return;
+    const box = this.surfaceRef()?.nativeElement.getBoundingClientRect();
+    this.renaming.set({
+      id: target.nodeId,
+      title: target.node.title ?? '',
+      left: target.screen.x - (box?.left ?? 0),
+      top: target.screen.y - (box?.top ?? 0),
+    });
+  }
+
+  protected commitRename(title: string): void {
+    const active = this.renaming();
+    this.renaming.set(null);
+    if (active && title.trim().length > 0) this.editorRef()?.renameNode(active.id, title.trim());
+  }
+
+  protected cancelRename(): void {
+    this.renaming.set(null);
+  }
+
+  /** Duplicate: a fresh node of the same type, offset so it is visible. */
+  protected duplicateNode(node: EditorNode): void {
+    if (node.type === undefined) return;
+    this.editorRef()?.addNode(node.type, { x: node.x + 40, y: node.y + 40 });
+  }
+
+  protected deleteNode(nodeId: NodeId): void {
+    const editor = this.editorRef();
+    if (!editor) return;
+    editor.selection.set({ nodes: [nodeId], connections: [] });
+    editor.deleteSelection();
+  }
+
+  protected deleteConnections(ids: readonly string[]): void {
+    const editor = this.editorRef();
+    if (!editor) return;
+    editor.selection.set({ nodes: [], connections: [...ids] });
+    editor.deleteSelection();
+  }
+
+  /** Open a subgraph node straight from its own menu. */
+  protected openSubgraphNode(node: EditorNode): void {
+    this.openSubgraphById(node.id);
+  }
+
+  /** Double-click on a node that contains a graph — the editor's own gesture. */
+  protected openSubgraphById(nodeId: NodeId): void {
+    this.selection.set({ nodes: [nodeId], connections: [] });
+    this.openSubgraph();
   }
 
   protected onRejected(event: ConnectionRejectedEvent): void {
@@ -542,9 +763,20 @@ export class NodeEditorDemoComponent {
 
     // renderedNodes, not nodes: the authored array carries height 0, and a
     // layout computed from that stacks nodes on top of each other.
+    /*
+     * Which frame each node belongs to, so the layout keeps a zone's members
+     * adjacent instead of scattering them and leaving the re-fitted frame big
+     * enough to swallow whatever landed in between.
+     */
+    const clusterByNode = new Map<NodeId, string>();
+    for (const [groupId, ids] of held) {
+      for (const id of ids) clusterByNode.set(id, groupId);
+    }
+
     const positions = layoutGraph(rendered, this.connections(), {
       direction: 'LR',
       origin: { x: 0, y: 240 },
+      clusterOf: nodeId => clusterByNode.get(nodeId) ?? null,
     });
 
     const moved = <T extends EditorNode>(node: T): T => {

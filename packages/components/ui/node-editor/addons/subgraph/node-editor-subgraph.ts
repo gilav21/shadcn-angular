@@ -128,6 +128,10 @@ export function subgraphNodeType(
     category: options.category,
     accent: options.accent,
     ports: boundaryPorts(options.graph),
+    // Says on the card that this node has an inside, and makes double-click
+    // descend into it — so opening a nested graph is a canvas gesture rather
+    // than a button somewhere off it.
+    openable: true,
     // Cloned, or every node of this type would share one graph object and
     // editing inside one would edit all of them.
     initialState: () => structuredClone(options.graph) as SubgraphGraph,

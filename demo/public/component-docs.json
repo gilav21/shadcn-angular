@@ -9936,6 +9936,11 @@
               "description": "Fires alongside `executeRemote`, for observing or logging. Explicitly NOT authoritative: `executeRemote` does the work. Two ways to answer the same request would leave nobody sure which one won."
             },
             {
+              "name": "nodeOpened",
+              "type": "NodeId",
+              "description": "A node the user asked to open — double-click on a node whose type declares `openable`. The editor owns the gesture; what opening means is the consumer's. For a subgraph node that is descending into its graph."
+            },
+            {
               "name": "nodes",
               "type": "readonly EditorNode[]",
               "description": "Every node in the graph. Heights are derived and written back.",
@@ -9954,7 +9959,7 @@
             {
               "name": "runStarted",
               "type": "RunStartedEvent",
-              "description": "Run lifecycle, for the run-history addon. Three separate outputs rather than one union, so a consumer that only wants finished runs writes one handler and never sees the rest. A pass with nothing to do emits nothing at all."
+              "description": ""
             },
             {
               "name": "selection",
@@ -10052,6 +10057,12 @@
               "required": true
             },
             {
+              "name": "openable",
+              "type": "boolean",
+              "description": "This node contains something worth opening; double-click descends into it.",
+              "default": "false"
+            },
+            {
               "name": "recentlyRan",
               "type": "boolean",
               "description": "Briefly true just after this node finished work — see the editor.",
@@ -10141,6 +10152,53 @@
             }
           ],
           "outputs": []
+        }
+      ]
+    },
+    {
+      "name": "node-editor/context-menu",
+      "description": "Right-click menus whose contents depend on the node, port, wire or plane clicked.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add node-editor/context-menu",
+      "importStatement": "import { NodeEditorContextMenuDirective } from '@/components/ui/node-editor/addons/context-menu';",
+      "selector": "ui-node-editor[uiNodeEditorContextMenu]",
+      "dependencies": [
+        "context-menu",
+        "node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": null,
+      "snippetSkipReason": "applies to <ui-node-editor>, so usage depends on that component's own required inputs",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorContextMenuDirective",
+          "file": "packages/components/ui/node-editor/addons/context-menu/node-editor-context-menu.directive.ts",
+          "kind": "directive",
+          "selector": "ui-node-editor[uiNodeEditorContextMenu]",
+          "description": "A context menu on the graph, with contents that depend on what was clicked. ### Why a directive, and why on the editor element It follows the convention already in this repo — `uiTreeContextMenu`, `uiTableContextMenu`, `uiDataTableContextMenu` all attach a {@link ContextMenuComponent} to a host and hand it the thing under the pointer. A node graph is the same problem with a richer answer. Sitting on `ui-node-editor` lets it inject the editor, which is the only thing that can say what is under a screen point: node cards and ports are real elements, but connections are painted into one shared canvas, so no amount of DOM walking finds a wire. ### What it does NOT do It does not decide what the menu contains. The target it publishes carries the node, the port and the connection themselves, and the consumer writes the items — which is what makes \"options per what you right-click\" the consumer's vocabulary rather than a fixed list baked in here. ```html <ui-node-editor [uiNodeEditorContextMenu]=\"menu\" /> ___COMPODOC_EMPTY_LINE___ <ui-context-menu #menu> @if (menu.data(); as target) { @switch (target.kind) { @case ('canvas') { <ui-context-menu-item (select)=\"add(target.at)\">Add node…</ui-context-menu-item> } @case ('node') { <ui-context-menu-item (select)=\"rename(target.node)\">Rename…</ui-context-menu-item> } } } </ui-context-menu> ```",
+          "inputs": [
+            {
+              "name": "contextMenuDisabled",
+              "type": "boolean",
+              "description": "",
+              "default": "false"
+            },
+            {
+              "name": "uiNodeEditorContextMenu",
+              "type": "ContextMenuComponent",
+              "description": "The menu to open. Template-reference it: `[uiNodeEditorContextMenu]=\"menu\"`.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "contextTarget",
+              "type": "NodeEditorContextTarget",
+              "description": "Fires with the resolved target, whether or not a menu is attached."
+            }
+          ]
         }
       ]
     },

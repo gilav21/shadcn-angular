@@ -18,7 +18,7 @@
  * cleanest illustration of the addon boundary in the suite, and it means the
  * same function could run on a server to lay out a graph nobody is looking at.
  */
-import type { CanvasPoint, EditorNode, NodeConnection, NodeId } from '../..';
+import type { CanvasPoint, CanvasRect, EditorNode, NodeConnection, NodeId } from '../..';
 
 export type LayoutDirection = 'LR' | 'TB';
 
@@ -33,14 +33,37 @@ export interface LayoutOptions {
   readonly origin?: CanvasPoint;
   /** Sweeps of the crossing-reduction pass. More is tidier and slower. */
   readonly sweeps?: number;
+  /** Room left around a cluster's members, for the frame drawn around them. */
+  readonly clusterPadding?: number;
+  /**
+   * Which cluster a node belongs to — a group frame, usually. `null` for none.
+   *
+   * A dependency layout and a spatial grouping pull in opposite directions: the
+   * layout spreads a group's members across layers by what they depend on,
+   * and then a frame re-fitted around them is a box big enough to swallow
+   * every unrelated node that landed in between. Reported bluntly, and
+   * correctly, as "the tidy does a really bad job".
+   *
+   * So a cluster is laid out as a UNIT: its members are arranged among
+   * themselves, the whole block is treated as one node in the outer layout,
+   * and the members are placed back inside it. Nothing that is not a member
+   * can land in the middle of one, which is the guarantee that matters — a
+   * tidy that quietly changes what a zone contains is worse than no tidy at
+   * all.
+   */
+  readonly clusterOf?: (nodeId: NodeId) => string | null;
 }
 
-const DEFAULTS = {
+type ResolvedOptions = Required<LayoutOptions>;
+
+const DEFAULTS: ResolvedOptions = {
   direction: 'LR' as LayoutDirection,
   layerGap: 80,
   nodeGap: 32,
   origin: { x: 0, y: 0 },
   sweeps: 4,
+  clusterPadding: 40,
+  clusterOf: () => null,
 };
 
 interface Edge {
@@ -226,6 +249,150 @@ export function layoutGraph(
   options: LayoutOptions = {},
 ): ReadonlyMap<NodeId, CanvasPoint> {
   const settings = { ...DEFAULTS, ...options };
+  if (nodes.length === 0) return new Map();
+
+  const clustered = groupsIn(nodes, settings.clusterOf);
+  if (clustered.size > 0) return layoutClustered(nodes, connections, settings, clustered);
+
+  return layoutFlat(nodes, connections, settings);
+}
+
+/** Members per cluster, in the order the nodes were given. */
+function groupsIn(
+  nodes: readonly EditorNode[],
+  clusterOf: (nodeId: NodeId) => string | null,
+): Map<string, EditorNode[]> {
+  const groups = new Map<string, EditorNode[]>();
+  for (const node of nodes) {
+    const cluster = clusterOf(node.id);
+    if (cluster === null) continue;
+    const members = groups.get(cluster);
+    if (members) members.push(node);
+    else groups.set(cluster, [node]);
+  }
+  return groups;
+}
+
+/**
+ * Lay out each cluster as a unit, then lay out those units.
+ *
+ * Three passes, and the order is the whole point:
+ *
+ * 1. Each cluster's members are arranged among themselves.
+ * 2. Every cluster becomes ONE node the size of that arrangement, and the
+ *    graph of clusters and loose nodes is laid out normally.
+ * 3. Members are placed back inside their cluster's slot.
+ *
+ * Because a cluster occupies a rectangle of its own in step 2, no node from
+ * outside it can be placed within that rectangle — so a frame drawn around
+ * the members afterwards contains exactly the members it started with.
+ * Arranging everything in one pass and re-fitting the frames afterwards is
+ * what let a tidy silently add and remove nodes from a zone.
+ */
+function layoutClustered(
+  nodes: readonly EditorNode[],
+  connections: readonly NodeConnection[],
+  settings: ResolvedOptions,
+  groups: ReadonlyMap<string, EditorNode[]>,
+): ReadonlyMap<NodeId, CanvasPoint> {
+  const clusterOfNode = new Map<NodeId, string>();
+  for (const [cluster, members] of groups) {
+    for (const member of members) clusterOfNode.set(member.id, cluster);
+  }
+  const keyOf = (id: NodeId): NodeId => clusterOfNode.get(id) ?? id;
+
+  // 1 — inside each cluster, at a local origin.
+  const inner = new Map<string, ReadonlyMap<NodeId, CanvasPoint>>();
+  const blocks: EditorNode[] = [];
+  for (const [cluster, members] of groups) {
+    const ids = new Set(members.map(member => member.id));
+    const within = connections.filter(c => ids.has(c.source) && ids.has(c.target));
+    const placed = layoutFlat(members, within, { ...settings, origin: { x: 0, y: 0 } });
+    inner.set(cluster, placed);
+
+    const box = boundsOf(members, placed);
+    blocks.push({
+      id: cluster,
+      x: 0,
+      y: 0,
+      width: box.width + settings.clusterPadding * 2,
+      height: box.height + settings.clusterPadding * 2,
+    });
+  }
+
+  // 2 — the condensed graph: clusters as single nodes, plus everything loose.
+  const loose = nodes.filter(node => !clusterOfNode.has(node.id));
+  const condensed = layoutFlat(
+    [...loose, ...blocks],
+    connections
+      .map(c => ({ ...c, source: keyOf(c.source), target: keyOf(c.target) }))
+      .filter(c => c.source !== c.target),
+    settings,
+  );
+
+  // 3 — members back inside their cluster's slot.
+  const positions = new Map<NodeId, CanvasPoint>();
+  for (const node of loose) {
+    const at = condensed.get(node.id);
+    if (at) positions.set(node.id, at);
+  }
+  for (const [cluster, members] of groups) {
+    const slot = condensed.get(cluster);
+    const placed = inner.get(cluster);
+    if (slot && placed) {
+      placeInside(members, placed, slot, settings.clusterPadding, positions);
+    }
+  }
+  return positions;
+}
+
+/**
+ * Shift a cluster's internal arrangement into the slot the outer layout gave
+ * it.
+ *
+ * The sub-layout centres about its own origin and so has negative
+ * coordinates; shifting by its own minimum puts it flush inside the slot.
+ */
+function placeInside(
+  members: readonly EditorNode[],
+  placed: ReadonlyMap<NodeId, CanvasPoint>,
+  slot: CanvasPoint,
+  padding: number,
+  into: Map<NodeId, CanvasPoint>,
+): void {
+  const box = boundsOf(members, placed);
+  for (const member of members) {
+    const at = placed.get(member.id);
+    if (!at) continue;
+    into.set(member.id, {
+      x: slot.x + padding + (at.x - box.x),
+      y: slot.y + padding + (at.y - box.y),
+    });
+  }
+}
+
+/** The box a set of placed nodes occupies. */
+function boundsOf(
+  nodes: readonly EditorNode[],
+  positions: ReadonlyMap<NodeId, CanvasPoint>,
+): CanvasRect {
+  const placed = nodes
+    .map(node => ({ node, at: positions.get(node.id) }))
+    .filter((entry): entry is { node: EditorNode; at: CanvasPoint } => entry.at !== undefined);
+  if (placed.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
+
+  const left = Math.min(...placed.map(e => e.at.x));
+  const top = Math.min(...placed.map(e => e.at.y));
+  const right = Math.max(...placed.map(e => e.at.x + e.node.width));
+  const bottom = Math.max(...placed.map(e => e.at.y + e.node.height));
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+function layoutFlat(
+  nodes: readonly EditorNode[],
+  connections: readonly NodeConnection[],
+  settings: ResolvedOptions,
+): ReadonlyMap<NodeId, CanvasPoint> {
   const positions = new Map<NodeId, CanvasPoint>();
   if (nodes.length === 0) return positions;
 

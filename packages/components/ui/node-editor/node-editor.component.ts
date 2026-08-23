@@ -198,7 +198,6 @@ interface DragState {
     '(pointercancel)': 'onPointerCancel()',
     '(focusin)': 'onNodeFocus($event)',
     '(dblclick)': 'onDoubleClick($event)',
-    '(contextmenu)': 'onContextMenu($event)',
   },
 })
 export class NodeEditorComponent {
@@ -304,6 +303,15 @@ export class NodeEditorComponent {
    * wants finished runs writes one handler and never sees the rest. A pass
    * with nothing to do emits nothing at all.
    */
+  /**
+   * A node the user asked to open — double-click on a node whose type
+   * declares `openable`.
+   *
+   * The editor owns the gesture; what opening means is the consumer's. For a
+   * subgraph node that is descending into its graph.
+   */
+  readonly nodeOpened = output<NodeId>();
+
   readonly runStarted = output<RunStartedEvent>();
   readonly nodeSettled = output<NodeSettledEvent>();
   readonly runFinished = output<RunFinishedEvent>();
@@ -947,7 +955,29 @@ export class NodeEditorComponent {
    * correct — it is an intent, not a command.
    */
   protected onDoubleClick(event: MouseEvent): void {
+    const card = (event.target as Element | null)?.closest<HTMLElement>(
+      '[data-slot="node-editor-node"]',
+    );
+    if (card) {
+      // Opening belongs on the canvas, next to the thing being opened —
+      // reaching for a button outside it to get inside a node is backwards.
+      const nodeId = this.nodeIdFrom(card.dataset['node']);
+      if (nodeId !== null && this.isOpenable(nodeId)) this.nodeOpened.emit(nodeId);
+      return;
+    }
     this.requestAddAt(event);
+  }
+
+  /** Whether this node's type says it contains something worth opening. */
+  protected isOpenable(nodeId: NodeId): boolean {
+    const node = this.sizedNodes().find(candidate => candidate.id === nodeId);
+    const type = node?.type;
+    return type !== undefined && this.definitionIndex().get(type)?.openable === true;
+  }
+
+  private nodeIdFrom(raw: string | undefined): NodeId | null {
+    if (raw === undefined) return null;
+    return this.sizedNodes().find(node => String(node.id) === raw)?.id ?? null;
   }
 
   /**
@@ -962,10 +992,6 @@ export class NodeEditorComponent {
    * right-clicking a node still gets the native menu, because nothing here has
    * anything better to offer there yet.
    */
-  protected onContextMenu(event: MouseEvent): void {
-    if (this.requestAddAt(event)) event.preventDefault();
-  }
-
   /** Emits `addNodeRequested` if this landed on empty plane. */
   private requestAddAt(event: MouseEvent): boolean {
     if (this.readonlyGraph()) return false;
@@ -975,6 +1001,47 @@ export class NodeEditorComponent {
 
     this.addNodeRequested.emit(this.toWorld({ x: event.clientX, y: event.clientY }));
     return true;
+  }
+
+  /**
+   * What sits under a screen point: a node, a connection, or nothing.
+   *
+   * Node cards and ports are real elements, so a `closest()` answers for them.
+   * Connections are not — they are painted into one shared canvas for speed,
+   * which means nothing in the DOM knows a wire is under the pointer. Any
+   * addon that has to answer "what did I just right-click" needs this, and
+   * only the editor can reach the engine that knows.
+   */
+  hitTest(screenPoint: CanvasPoint): { kind: 'node' | 'connection'; id: NodeId } | null {
+    const hit = this.canvas().hitTest(screenPoint);
+    if (!hit) return null;
+    return { kind: hit.kind === 'edge' ? 'connection' : 'node', id: hit.id };
+  }
+
+  /**
+   * Rename a node, undoably.
+   *
+   * The first thing anyone tries on something called a node *editor*, and it
+   * was not there: "you don't really have a way to edit a node, not the title,
+   * not the type, nothing."
+   */
+  renameNode(nodeId: NodeId, title: string): void {
+    if (this.readonlyGraph()) return;
+    const before = this.nodes().find(node => node.id === nodeId)?.title;
+    if (before === title) return;
+
+    const apply = (next: string | undefined): void => {
+      this.nodes.update(nodes =>
+        nodes.map(node => (node.id === nodeId ? { ...node, title: next } : node)),
+      );
+    };
+
+    apply(title);
+    this.history.push({
+      kind: 'custom',
+      run: () => apply(title),
+      reverse: () => apply(before),
+    });
   }
 
   /**
@@ -1267,7 +1334,13 @@ export class NodeEditorComponent {
     return canConnect(graph, from, to);
   }
 
-  private deleteSelection(): void {
+  /**
+   * Delete whatever is selected, undoably.
+   *
+   * Public because Delete is not the only way anyone asks for it — a context
+   * menu offers the same thing with a pointer, and had no way to say so.
+   */
+  deleteSelection(): void {
     if (this.readonlyGraph()) return;
 
     const selection = this.selection();

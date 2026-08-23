@@ -37,6 +37,23 @@
       <span class="truncate text-sm font-medium" [attr.data-slot]="'node-editor-node-title'">{{
         current.title
       }}</span>
+      @if (openable()) {
+        <!--
+          Says the node has an inside. Without it a nested graph was invisible:
+          nothing on the card distinguished it from any other node, and the
+          only way in was a button outside the canvas.
+
+          `aria-hidden` because the card's own name already says it — see
+          `ariaLabel` — and a screen reader announcing a glyph as well would
+          say it twice.
+        -->
+        <span
+          class="shrink-0 text-xs leading-none text-muted-foreground"
+          aria-hidden="true"
+          [attr.data-slot]="'node-editor-node-openable'"
+          >⧉</span
+        >
+      }
       @if (statusLabel(); as label) {
         <span
           class="ms-auto shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground"
@@ -72,6 +89,7 @@
     [attr.data-locked]="current.locked ? 'true' : null"
     [attr.data-status]="status()"
     [attr.data-ran]="recentlyRan() ? 'true' : null"
+    [attr.data-openable]="openable() ? 'true' : null"
     [attr.aria-label]="ariaLabel()"
     [tabindex]="focused() ? 0 : -1"
   >
@@ -119,6 +137,7 @@
     [attr.data-locked]="current.locked ? 'true' : null"
     [attr.data-status]="status()"
     [attr.data-ran]="recentlyRan() ? 'true' : null"
+    [attr.data-openable]="openable() ? 'true' : null"
     [attr.aria-label]="ariaLabel()"
     [attr.aria-pressed]="selected()"
     [tabindex]="focused() ? 0 : -1"

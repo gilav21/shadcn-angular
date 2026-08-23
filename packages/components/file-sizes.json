@@ -4517,6 +4517,26 @@
       "bytes": 21278,
       "lines": 41
     },
+    "node-editor/addons/context-menu/index.ts": {
+      "bytes": 156,
+      "lines": 3
+    },
+    "node-editor/addons/context-menu/node-editor-context-menu.directive.ts": {
+      "bytes": 3367,
+      "lines": 84
+    },
+    "node-editor/addons/context-menu/node-editor-context-menu.resolve.spec.ts": {
+      "bytes": 8005,
+      "lines": 201
+    },
+    "node-editor/addons/context-menu/node-editor-context-menu.resolve.ts": {
+      "bytes": 3688,
+      "lines": 100
+    },
+    "node-editor/addons/context-menu/node-editor-context-menu.types.ts": {
+      "bytes": 1759,
+      "lines": 55
+    },
     "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-accessibility-has-no-axe-violations-1.png": {
       "bytes": 13738,
       "lines": 13
@@ -4606,12 +4626,12 @@
       "lines": 1
     },
     "node-editor/addons/layout/node-editor-layout.spec.ts": {
-      "bytes": 9389,
-      "lines": 232
+      "bytes": 12860,
+      "lines": 309
     },
     "node-editor/addons/layout/node-editor-layout.ts": {
-      "bytes": 9933,
-      "lines": 274
+      "bytes": 16141,
+      "lines": 441
     },
     "node-editor/addons/minimap/index.ts": {
       "bytes": 94,
@@ -4726,8 +4746,8 @@
       "lines": 299
     },
     "node-editor/addons/subgraph/node-editor-subgraph.ts": {
-      "bytes": 7294,
-      "lines": 200
+      "bytes": 7510,
+      "lines": 204
     },
     "node-editor/addons/subgraph/node-editor-subgraph.types.ts": {
       "bytes": 1828,
@@ -4754,16 +4774,16 @@
       "lines": 57
     },
     "node-editor/node-editor.component.html": {
-      "bytes": 4589,
-      "lines": 136
+      "bytes": 4630,
+      "lines": 137
     },
     "node-editor/node-editor.component.spec.ts": {
       "bytes": 26170,
       "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 56029,
-      "lines": 1534
+      "bytes": 58800,
+      "lines": 1607
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -4822,8 +4842,8 @@
       "lines": 1062
     },
     "node-editor/node-editor.runtime.types.ts": {
-      "bytes": 9362,
-      "lines": 273
+      "bytes": 9972,
+      "lines": 287
     },
     "node-editor/node-editor.serialize.spec.ts": {
       "bytes": 6287,
@@ -4858,12 +4878,12 @@
       "lines": 146
     },
     "node-editor/sub/node-editor-node.component.html": {
-      "bytes": 5086,
-      "lines": 140
+      "bytes": 5844,
+      "lines": 159
     },
     "node-editor/sub/node-editor-node.component.ts": {
-      "bytes": 6941,
-      "lines": 165
+      "bytes": 7253,
+      "lines": 171
     },
     "node-editor/sub/node-editor-port.component.html": {
       "bytes": 732,

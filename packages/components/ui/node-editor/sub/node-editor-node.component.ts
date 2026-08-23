@@ -68,6 +68,9 @@ export class NodeEditorNodeComponent {
   /** Briefly true just after this node finished work — see the editor. */
   readonly recentlyRan = input(false);
 
+  /** This node contains something worth opening; double-click descends into it. */
+  readonly openable = input(false);
+
   protected readonly headerHeight = NODE_HEADER_HEIGHT;
 
   /**
@@ -145,6 +148,9 @@ export class NodeEditorNodeComponent {
     const node = this.node();
     const parts = [node.title];
     if (node.subtitle) parts.push(node.subtitle);
+    // The glyph is aria-hidden, so this is where a screen reader learns the
+    // node has an inside at all.
+    if (this.openable()) parts.push('contains a graph, opens on double-click');
     if (node.locked) parts.push('locked');
     return parts.join(', ');
   });
