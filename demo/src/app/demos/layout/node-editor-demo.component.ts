@@ -33,6 +33,8 @@ import {
 } from '../../../../../packages/components/ui/node-editor/addons/history';
 import {
   NodeEditorGroupsComponent,
+  fitAround,
+  membership,
   movedGroup,
   type GroupMoveEvent,
   type NodeComment,
@@ -523,13 +525,63 @@ export class NodeEditorDemoComponent {
   protected autoLayout(): void {
     const editor = this.editorRef();
     if (!editor) return;
+
+    const rendered = editor.renderedNodes();
+    /*
+     * Who belongs to what, captured BEFORE anything moves.
+     *
+     * Membership is containment, so the instant the nodes are relaid out the
+     * old frames contain whatever they happen to be sitting over — which is
+     * nothing. Reported as "the tidy does change things, but it's not tidy":
+     * the nodes were in fact tidy, and the zones had been left behind over the
+     * empty space where the graph used to be.
+     */
+    const held = membership(this.groups(), rendered);
+    const nodesBefore = this.nodes();
+    const framesBefore = this.groups();
+
     // renderedNodes, not nodes: the authored array carries height 0, and a
     // layout computed from that stacks nodes on top of each other.
-    editor.placeNodes(
-      layoutGraph(editor.renderedNodes(), this.connections(), {
-        direction: 'LR',
-        origin: { x: 0, y: 240 },
-      }),
+    const positions = layoutGraph(rendered, this.connections(), {
+      direction: 'LR',
+      origin: { x: 0, y: 240 },
+    });
+
+    const moved = <T extends EditorNode>(node: T): T => {
+      const at = positions.get(node.id);
+      return at ? { ...node, x: at.x, y: at.y } : node;
+    };
+
+    const nodesAfter = nodesBefore.map(moved);
+    // Fitted from the RENDERED nodes moved to their new spots: heights are
+    // derived and an authored zero would fit every frame to a sliver.
+    const placed = new Map(rendered.map(moved).map(node => [node.id, node]));
+    const framesAfter = framesBefore.map(group => {
+      const members = (held.get(group.id) ?? [])
+        .map(id => placed.get(id))
+        .filter(node => node !== undefined);
+      const fitted = fitAround(members);
+      return fitted ? { ...group, ...fitted } : group;
+    });
+
+    /*
+     * ONE undo entry for the whole tidy.
+     *
+     * `placeNodes` would have pushed a command of its own, and the frames a
+     * second — so a single Ctrl+Z put the frames back while leaving the nodes
+     * tidied, and the zones ended up around nothing. Exactly the failure
+     * `pushEdit` exists to prevent, walked into anyway the first time these
+     * two were combined.
+     */
+    const apply = (nodes: readonly EditorNode[], frames: readonly NodeGroup[]): void => {
+      this.nodes.set(nodes);
+      this.groups.set(frames);
+    };
+
+    apply(nodesAfter, framesAfter);
+    editor.pushEdit(
+      () => apply(nodesAfter, framesAfter),
+      () => apply(nodesBefore, framesBefore),
     );
     this.onViewportChange();
   }
@@ -566,12 +618,14 @@ export class NodeEditorDemoComponent {
 
   protected addNode(): void {
     const index = this.nodes().length;
+    // Where you are looking, not a fixed spot off the side of the plane.
+    const at = this.editorRef()?.viewCentre() ?? { x: 40, y: 420 };
     this.nodes.set([
       ...this.nodes(),
       {
         id: `node-${index}-${this.nodes().reduce((max, n) => Math.max(max, n.y), 0)}`,
-        x: 40,
-        y: 420,
+        x: at.x - 95,
+        y: at.y - 40,
         width: 190,
         height: 0,
         title: `Step ${index + 1}`,

@@ -65,6 +65,9 @@ export class NodeEditorNodeComponent {
   readonly connectable = input<ReadonlySet<string> | null>(null);
   readonly class = input('');
 
+  /** Briefly true just after this node finished work — see the editor. */
+  readonly recentlyRan = input(false);
+
   protected readonly headerHeight = NODE_HEADER_HEIGHT;
 
   /**
@@ -105,8 +108,23 @@ export class NodeEditorNodeComponent {
   protected readonly cardClasses = computed(() =>
     cn(
       'relative h-full w-full overflow-visible rounded-lg border bg-card text-card-foreground shadow-sm',
-      // The default card is a real <button>, so the UA's own button styling has
-      // to be neutralised: it would otherwise impose its font and centre the text.
+      /*
+       * The default card is a real <button>, so the UA's own button styling
+       * has to be neutralised: it would otherwise impose its font and centre
+       * the text — in BOTH axes.
+       *
+       * The vertical half was missed, and it was not subtle. A button centres
+       * its content block, so on a node with no body the 40px header floated
+       * to the middle of the card and its bottom border landed exactly on the
+       * port row. The port geometry is computed from the top of the node and
+       * was right all along; the header had drifted 20px down to meet it.
+       *
+       * The result read as a divider BETWEEN the inputs and the outputs, and
+       * was reported as one: "the line between the input and output is a bug?
+       * what does an output under the line or above it mean?" Nothing — it is
+       * the title's underline, and every port belongs below it.
+       */
+      'flex flex-col items-stretch justify-start',
       'appearance-none text-start font-[inherit]',
       'transition-[box-shadow,border-color]',
       this.selected() ? 'border-primary ring-2 ring-primary/40' : 'border-border',

@@ -507,16 +507,41 @@ export class NodeGraphRuntime {
 
   // ================================================================ execution
 
-  /** Execute exactly one ready node. */
+  /**
+   * Execute exactly one ready node — the one furthest upstream.
+   *
+   * Any ready node would be *correct*: they are ready precisely because
+   * nothing they depend on is outstanding. But stepping is something a person
+   * watches, and taking whichever node happened to be inserted first made the
+   * graph light up in an order with no visible logic — a node on the right
+   * running before one on the left, for reasons only the insertion order knew.
+   * Reported as "it seems like the nodes AFTER the derived area update before
+   * it, am I missing something?" Nothing was missing; the order was arbitrary.
+   *
+   * Taking the lowest topological position makes a step walk the graph the way
+   * it reads. It costs a scan of the ready set, which only `step` pays —
+   * `run()` still drains the whole set at once and does not care.
+   */
   async step(): Promise<void> {
     // Never step into a drain that is already in flight, for the same reason
     // two drains cannot overlap.
     if (this.draining) await this.draining;
-    const next = this.readySet.values().next();
-    if (next.done === true) return;
+    if (this.readySet.size === 0) return;
+
+    let next: NodeId | null = null;
+    let best = Number.POSITIVE_INFINITY;
+    for (const nodeId of this.readySet) {
+      const at = this.position.get(nodeId) ?? Number.POSITIVE_INFINITY;
+      if (at < best) {
+        best = at;
+        next = nodeId;
+      }
+    }
+    if (next === null) return;
+
     this.enterSession();
     try {
-      await this.execute([next.value]);
+      await this.execute([next]);
     } finally {
       this.leaveSession();
     }

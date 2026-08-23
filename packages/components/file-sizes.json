@@ -3842,8 +3842,8 @@
       "lines": 346
     },
     "infinite-canvas/infinite-canvas.pointer.ts": {
-      "bytes": 8768,
-      "lines": 271
+      "bytes": 9886,
+      "lines": 296
     },
     "infinite-canvas/infinite-canvas.spatial-hash.spec.ts": {
       "bytes": 7660,
@@ -4497,6 +4497,26 @@
       "bytes": 4290,
       "lines": 3
     },
+    "node-editor/__screenshots__/node-editor.typing.spec.ts/keys-pressed-while-typing-belong-to-the-field-does-not-clear-the-selection-when-Escape-is-pressed-in-a-field-1.png": {
+      "bytes": 21278,
+      "lines": 41
+    },
+    "node-editor/__screenshots__/node-editor.typing.spec.ts/keys-pressed-while-typing-belong-to-the-field-does-not-delete-the-graph-on-Backspace-either-1.png": {
+      "bytes": 14029,
+      "lines": 29
+    },
+    "node-editor/__screenshots__/node-editor.typing.spec.ts/keys-pressed-while-typing-belong-to-the-field-does-NOT-delete-the-graph-when-Delete-is-pressed-in-a-field-1.png": {
+      "bytes": 14029,
+      "lines": 29
+    },
+    "node-editor/__screenshots__/node-editor.typing.spec.ts/keys-pressed-while-typing-belong-to-the-field-leaves-Ctrl-A-to-the-field--so-it-selects-text-and-not-every-node-1.png": {
+      "bytes": 23077,
+      "lines": 39
+    },
+    "node-editor/__screenshots__/node-editor.typing.spec.ts/keys-pressed-while-typing-belong-to-the-field-leaves-Ctrl-Z-to-the-field--so-it-undoes-typing-and-not-the-graph-1.png": {
+      "bytes": 21278,
+      "lines": 41
+    },
     "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-accessibility-has-no-axe-violations-1.png": {
       "bytes": 13738,
       "lines": 13
@@ -4730,20 +4750,20 @@
       "lines": 408
     },
     "node-editor/node-editor.component.css": {
-      "bytes": 719,
-      "lines": 19
+      "bytes": 2020,
+      "lines": 57
     },
     "node-editor/node-editor.component.html": {
-      "bytes": 4544,
-      "lines": 135
+      "bytes": 4589,
+      "lines": 136
     },
     "node-editor/node-editor.component.spec.ts": {
       "bytes": 26170,
       "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 51491,
-      "lines": 1417
+      "bytes": 56029,
+      "lines": 1534
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -4798,8 +4818,8 @@
       "lines": 651
     },
     "node-editor/node-editor.runtime.ts": {
-      "bytes": 36452,
-      "lines": 1037
+      "bytes": 37526,
+      "lines": 1062
     },
     "node-editor/node-editor.runtime.types.ts": {
       "bytes": 9362,
@@ -4821,6 +4841,10 @@
       "bytes": 4494,
       "lines": 135
     },
+    "node-editor/node-editor.typing.spec.ts": {
+      "bytes": 8002,
+      "lines": 237
+    },
     "node-editor/node-editor.underlay.spec.ts": {
       "bytes": 3866,
       "lines": 107
@@ -4834,12 +4858,12 @@
       "lines": 146
     },
     "node-editor/sub/node-editor-node.component.html": {
-      "bytes": 4982,
-      "lines": 138
+      "bytes": 5086,
+      "lines": 140
     },
     "node-editor/sub/node-editor-node.component.ts": {
-      "bytes": 6018,
-      "lines": 147
+      "bytes": 6941,
+      "lines": 165
     },
     "node-editor/sub/node-editor-port.component.html": {
       "bytes": 732,

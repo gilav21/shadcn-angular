@@ -71,6 +71,7 @@
     [attr.data-selected]="selected() ? 'true' : null"
     [attr.data-locked]="current.locked ? 'true' : null"
     [attr.data-status]="status()"
+    [attr.data-ran]="recentlyRan() ? 'true' : null"
     [attr.aria-label]="ariaLabel()"
     [tabindex]="focused() ? 0 : -1"
   >
@@ -117,6 +118,7 @@
     [attr.data-selected]="selected() ? 'true' : null"
     [attr.data-locked]="current.locked ? 'true' : null"
     [attr.data-status]="status()"
+    [attr.data-ran]="recentlyRan() ? 'true' : null"
     [attr.aria-label]="ariaLabel()"
     [attr.aria-pressed]="selected()"
     [tabindex]="focused() ? 0 : -1"

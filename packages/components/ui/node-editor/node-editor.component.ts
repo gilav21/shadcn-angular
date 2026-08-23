@@ -101,8 +101,31 @@ const REJECTION_TEXT: Record<ConnectRejection, string> = {
 
 const EMPTY_SELECTION: EditorSelection = { nodes: [], connections: [] };
 
+/**
+ * Whether a key event landed somewhere the user is typing.
+ *
+ * `isContentEditable` covers rich text; the tag check covers the rest. A
+ * `select` counts too — its own keys pick options.
+ */
+function isTypingTarget(target: EventTarget | null): boolean {
+  const element = target as HTMLElement | null;
+  if (!element || typeof element.tagName !== 'string') return false;
+  if (element.isContentEditable) return true;
+
+  const tag = element.tagName.toLowerCase();
+  return tag === 'input' || tag === 'textarea' || tag === 'select';
+}
+
 /** Pointer movement, in screen pixels, before a press counts as a drag. */
 const DRAG_THRESHOLD_PX = 3;
+
+/**
+ * How long a node stays highlighted after it finishes work.
+ *
+ * Long enough to catch out of the corner of an eye while stepping, short
+ * enough that live typing does not leave the whole graph permanently lit.
+ */
+const RECENTLY_RAN_MS = 900;
 
 /**
  * Things inside a node that own their own pointer behaviour.
@@ -175,6 +198,7 @@ interface DragState {
     '(pointercancel)': 'onPointerCancel()',
     '(focusin)': 'onNodeFocus($event)',
     '(dblclick)': 'onDoubleClick($event)',
+    '(contextmenu)': 'onContextMenu($event)',
   },
 })
 export class NodeEditorComponent {
@@ -354,7 +378,10 @@ export class NodeEditorComponent {
     element.addEventListener('keydown', onKeyDownCapture, true);
 
     this.runtime.onRunStarted = event => this.runStarted.emit(event);
-    this.runtime.onNodeSettled = event => this.nodeSettled.emit(event);
+    this.runtime.onNodeSettled = event => {
+      this.markRecentlyRan(event.nodeId);
+      this.nodeSettled.emit(event);
+    };
     this.runtime.onRunFinished = event => this.runFinished.emit(event);
 
     /*
@@ -376,9 +403,46 @@ export class NodeEditorComponent {
 
     inject(DestroyRef).onDestroy(() => {
       element.removeEventListener('keydown', onKeyDownCapture, true);
+      for (const timer of this.recentTimers.values()) clearTimeout(timer);
+      this.recentTimers.clear();
       this.runtime.dispose();
       this.liveRegion.release();
     });
+  }
+
+  /**
+   * Nodes that finished work in the last moment, for a brief highlight.
+   *
+   * Stepping through a graph one node at a time was unreadable without it:
+   * "I had to really look at what changed, and worked out that the 'stale'
+   * text had disappeared." A run that recomputes a node to the same value
+   * changes nothing on screen at all, so the only evidence anything happened
+   * was a word vanishing somewhere.
+   */
+  private readonly recentlyRanIds = signal<ReadonlySet<NodeId>>(new Set());
+  private readonly recentTimers = new Map<NodeId, ReturnType<typeof setTimeout>>();
+
+  protected recentlyRan(nodeId: NodeId): boolean {
+    return this.recentlyRanIds().has(nodeId);
+  }
+
+  private markRecentlyRan(nodeId: NodeId): void {
+    this.recentlyRanIds.update(existing => new Set(existing).add(nodeId));
+
+    // Restarted rather than stacked, so a node that runs twice in quick
+    // succession stays lit for the full window after the SECOND run.
+    clearTimeout(this.recentTimers.get(nodeId));
+    this.recentTimers.set(
+      nodeId,
+      setTimeout(() => {
+        this.recentTimers.delete(nodeId);
+        this.recentlyRanIds.update(existing => {
+          const next = new Set(existing);
+          next.delete(nodeId);
+          return next;
+        });
+      }, RECENTLY_RAN_MS),
+    );
   }
 
   /** Definitions keyed by id — the lookup everything else uses. */
@@ -883,12 +947,47 @@ export class NodeEditorComponent {
    * correct — it is an intent, not a command.
    */
   protected onDoubleClick(event: MouseEvent): void {
-    if (this.readonlyGraph()) return;
+    this.requestAddAt(event);
+  }
+
+  /**
+   * Right-click on empty plane asks for a node too.
+   *
+   * Double-click was the only way in, and it is not what a hand reaches for:
+   * "my instinct led me to try and open a context menu to add a node." Both
+   * gestures now emit the same intent at the same world point, so whichever
+   * one a person tries first is the one that works.
+   *
+   * The browser menu is suppressed only when the intent is actually emitted —
+   * right-clicking a node still gets the native menu, because nothing here has
+   * anything better to offer there yet.
+   */
+  protected onContextMenu(event: MouseEvent): void {
+    if (this.requestAddAt(event)) event.preventDefault();
+  }
+
+  /** Emits `addNodeRequested` if this landed on empty plane. */
+  private requestAddAt(event: MouseEvent): boolean {
+    if (this.readonlyGraph()) return false;
     const target = event.target as Element | null;
-    if (target?.closest('[data-slot="node-editor-node"]')) return;
-    if (target?.closest('[data-slot="node-editor-port"]')) return;
+    if (target?.closest('[data-slot="node-editor-node"]')) return false;
+    if (target?.closest('[data-slot="node-editor-port"]')) return false;
 
     this.addNodeRequested.emit(this.toWorld({ x: event.clientX, y: event.clientY }));
+    return true;
+  }
+
+  /**
+   * The middle of what is on screen, in world units.
+   *
+   * What "add a node" means without a pointer to hang it on. Reported: the
+   * button "always adds to the same place, and it has nothing to do with where
+   * I'm currently looking" — a node dropped at fixed coordinates is invisible
+   * the moment you have panned anywhere.
+   */
+  viewCentre(): CanvasPoint {
+    const rect = this.visibleRect();
+    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
   }
 
   protected onPointerCancel(): void {
@@ -993,6 +1092,24 @@ export class NodeEditorComponent {
   // ----------------------------------------------------------------- keyboard
 
   protected onKeyDown(event: KeyboardEvent): void {
+    /*
+     * A person typing owns every key they press.
+     *
+     * These handlers listen in the CAPTURE phase on the host, so without this
+     * they run before the field the caret is in ever sees the event —
+     * `Delete` deleted the selected NODES instead of a character, `Ctrl+A`
+     * selected the graph instead of the text, `Ctrl+Z` undid a graph edit
+     * instead of the typing, and the arrow keys moved the node out from under
+     * the caret.
+     *
+     * Reported from real use: "I accidentally hit delete when typing and it
+     * deleted all my nodes." Losing work to a keystroke that should have
+     * inserted nothing is the worst failure in this component, and it was
+     * missed because every test drove the keyboard at the graph, never at a
+     * field inside a node.
+     */
+    if (isTypingTarget(event.target)) return;
+
     if (this.handleGlobalKey(event) || this.handlePortKey(event) || this.handleNodeKey(event)) {
       event.preventDefault();
       // The engine pans on arrows and resets on `0`. Once a node has focus

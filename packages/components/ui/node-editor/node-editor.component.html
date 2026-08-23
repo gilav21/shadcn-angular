@@ -44,6 +44,7 @@
         [view]="viewFor(node)"
         [viewInjector]="injectorFor(node)"
         [status]="statusOf(node.id)"
+        [recentlyRan]="recentlyRan(node.id)"
         [connectable]="connectablePorts()"
       />
     </ng-template>

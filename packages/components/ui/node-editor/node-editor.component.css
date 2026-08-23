@@ -17,3 +17,41 @@
 :host ::ng-deep [data-slot='node-editor-port'] {
     touch-action: none;
 }
+
+/*
+ * A brief highlight on a node that just finished work.
+ *
+ * Stepping through a graph one node at a time was unreadable without it: a
+ * node recomputed to the SAME value changes nothing on screen, so the only
+ * evidence anything ran was the word "stale" disappearing somewhere. The ring
+ * says which node the step just advanced, and fades on its own.
+ *
+ * `outline` rather than `box-shadow`: it does not participate in layout and
+ * cannot nudge a card whose geometry the port anchors depend on.
+ */
+:host ::ng-deep [data-slot='node-editor-node'][data-ran='true'] {
+    animation: node-editor-ran 900ms ease-out;
+}
+
+@keyframes node-editor-ran {
+    0% {
+        outline: 2px solid color-mix(in oklab, var(--color-primary) 90%, transparent);
+        outline-offset: 2px;
+    }
+    100% {
+        outline: 2px solid transparent;
+        outline-offset: 6px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    /*
+     * Still says which node ran — a person who has turned motion off needs
+     * that answer more than anyone, not less. It simply holds and cuts.
+     */
+    :host ::ng-deep [data-slot='node-editor-node'][data-ran='true'] {
+        animation: none;
+        outline: 2px solid color-mix(in oklab, var(--color-primary) 70%, transparent);
+        outline-offset: 2px;
+    }
+}

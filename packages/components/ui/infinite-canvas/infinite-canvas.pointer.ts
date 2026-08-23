@@ -47,14 +47,38 @@ export interface CanvasWheelInput {
 export interface CanvasPointerOptions extends CanvasZoomLimits {
   /**
    * Exponent applied to a pixel-mode wheel delta when zooming. The default
-   * makes one 100px notch a ~2.7x change, matching Figma's feel.
+   * A 100px notch is clamped to {@link MAX_ZOOM_DELTA} first, so the default
+   * gives roughly a 1.16x step per notch — granular enough to creep up on a
+   * scale, rather than jumping past it.
    */
   zoomSensitivity?: number;
 }
 
 /** Chrome reports ~16px per line for `deltaMode === 1`. */
 const PIXELS_PER_LINE = 16;
-const DEFAULT_ZOOM_SENSITIVITY = 0.01;
+
+/**
+ * How much zoom one notch of scrolling is worth.
+ *
+ * Was `0.01`, which made a single 100px mouse notch a **0.37x** change — two
+ * notches took the graph from full size to 13%, and there was no way to stop
+ * anywhere in between. Reported as "it's either very close or very far".
+ *
+ * At `0.003`, paired with the clamp below, a notch is about 1.16x: sixteen
+ * percent, repeatable, and reversible by scrolling back the same amount.
+ */
+const DEFAULT_ZOOM_SENSITIVITY = 0.003;
+
+/**
+ * The largest per-event delta zoom will act on.
+ *
+ * One device's "notch" is another's fine-grained stream. A mouse wheel sends
+ * ~100 per notch while a trackpad pinch sends single digits many times a
+ * second, so a sensitivity tuned for one is unusable on the other. Clamping
+ * the mouse's coarse jump lets a single curve serve both: the pinch stays
+ * proportional and smooth, and the notch stops overshooting.
+ */
+const MAX_ZOOM_DELTA = 50;
 /** Below this pointer separation a pinch ratio is numerically meaningless. */
 const MIN_PINCH_DISTANCE = 1e-3;
 
@@ -192,7 +216,8 @@ export class CanvasPointerMachine {
     if (deltaX === 0 && deltaY === 0) return false;
 
     if (event.ctrlKey || event.metaKey) {
-      const factor = Math.exp(-deltaY * this.zoomSensitivity);
+      const clamped = Math.max(-MAX_ZOOM_DELTA, Math.min(MAX_ZOOM_DELTA, deltaY));
+      const factor = Math.exp(-clamped * this.zoomSensitivity);
       this.applyViewport(
         zoomAbout(this.viewport, factor, { x: event.clientX, y: event.clientY }, this.limits),
       );

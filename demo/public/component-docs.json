@@ -10052,6 +10052,12 @@
               "required": true
             },
             {
+              "name": "recentlyRan",
+              "type": "boolean",
+              "description": "Briefly true just after this node finished work — see the editor.",
+              "default": "false"
+            },
+            {
               "name": "selected",
               "type": "boolean",
               "description": "",
