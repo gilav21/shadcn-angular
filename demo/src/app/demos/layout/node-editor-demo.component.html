@@ -10,6 +10,7 @@
     <div class="flex flex-wrap items-center gap-2">
       <ui-button size="sm" (click)="runGraph()">{{ text.run }}</ui-button>
       <ui-button size="sm" variant="outline" (click)="stepGraph()">{{ text.step }}</ui-button>
+      <ui-button size="sm" variant="outline" (click)="autoLayout()">{{ text.tidy }}</ui-button>
       <ui-button size="sm" variant="outline" (click)="addNode()">{{ text.addNode }}</ui-button>
       <ui-button size="sm" variant="outline" (click)="reset()">{{ text.reset }}</ui-button>
       <ui-button size="sm" variant="ghost" (click)="useStructural()">{{
@@ -71,7 +72,7 @@
     -->
     <ui-node-editor-minimap
       class="absolute bottom-3 end-3"
-      [nodes]="nodes()"
+      [nodes]="renderedNodes()"
       [connections]="connections()"
       [viewport]="viewportRect()"
       (navigate)="navigateTo($event)"

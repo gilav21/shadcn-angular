@@ -5337,6 +5337,31 @@
       "button"
     ]
   },
+  "node-editor/layout": {
+    "name": "node-editor/layout",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Deterministic layered auto-layout: a pure function from nodes and edges to positions.",
+    "tags": [
+      "node-editor",
+      "layout",
+      "sugiyama",
+      "auto-arrange",
+      "graph"
+    ],
+    "files": [
+      "node-editor/addons/layout/index.ts",
+      "node-editor/addons/layout/node-editor-layout.ts"
+    ],
+    "dependencies": [
+      "node-editor"
+    ],
+    "attach": {
+      "import": "layoutGraph from './ui/node-editor/addons/layout'",
+      "selector": "layoutGraph"
+    }
+  },
   "node-editor/minimap": {
     "name": "node-editor/minimap",
     "type": "addon",
@@ -5475,6 +5500,7 @@
       "infinite-canvas"
     ],
     "addons": [
+      "node-editor/layout",
       "node-editor/minimap",
       "node-editor/palette",
       "node-editor/problems"

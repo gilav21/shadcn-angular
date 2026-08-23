@@ -367,6 +367,17 @@ export class NodeEditorComponent {
     ),
   );
 
+  /**
+   * The nodes as RENDERED: types materialised, heights derived.
+   *
+   * Public because an addon that positions or draws nodes needs their real
+   * size, and the authored `nodes()` carry `height: 0` — the editor derives it
+   * from the port count. Handing an addon the authored array made auto-layout
+   * stack overlapping nodes and the minimap draw hairlines, which is exactly
+   * the kind of gap the boundary rule says belongs in the base.
+   */
+  readonly renderedNodes: Signal<readonly EditorNode[]> = this.sizedNodes;
+
   private readonly selectedNodeIds = computed(() => new Set(this.selection().nodes));
   private readonly selectedConnectionIds = computed(() => new Set(this.selection().connections));
 

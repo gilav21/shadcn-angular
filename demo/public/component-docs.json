@@ -10118,6 +10118,23 @@
       ]
     },
     {
+      "name": "node-editor/layout",
+      "description": "Deterministic layered auto-layout: a pure function from nodes and edges to positions.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add node-editor/layout",
+      "importStatement": null,
+      "selector": null,
+      "dependencies": [
+        "node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": null,
+      "snippetSkipReason": "no element or attribute selector in the registry source",
+      "demoRoute": null,
+      "demoFile": null,
+      "api": []
+    },
+    {
       "name": "node-editor/minimap",
       "description": "Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.",
       "category": "layout",

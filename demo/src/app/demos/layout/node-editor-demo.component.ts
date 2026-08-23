@@ -18,6 +18,7 @@ import {
   type NodeConnection,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { layoutGraph } from '../../../../../packages/components/ui/node-editor/addons/layout';
 import { NodeEditorMinimapComponent } from '../../../../../packages/components/ui/node-editor/addons/minimap';
 import {
   NodeEditorPaletteComponent,
@@ -213,8 +214,32 @@ export class NodeEditorDemoComponent {
    */
   protected readonly viewportRect = signal<CanvasRect | null>(null);
 
+  /** What the minimap draws: real sizes, not the authored zero heights. */
+  protected readonly renderedNodes = computed(() => this.editorRef()?.renderedNodes() ?? []);
+
   protected onViewportChange(): void {
     this.viewportRect.set(this.editorRef()?.visibleRect() ?? null);
+  }
+
+  /**
+   * Tidy the graph.
+   *
+   * The addon is a pure function — nodes and edges in, positions out — and the
+   * editor applies them as ONE undoable command, so a layout someone did not
+   * want is a single Ctrl+Z rather than a node-by-node repair.
+   */
+  protected autoLayout(): void {
+    const editor = this.editorRef();
+    if (!editor) return;
+    // renderedNodes, not nodes: the authored array carries height 0, and a
+    // layout computed from that stacks nodes on top of each other.
+    editor.placeNodes(
+      layoutGraph(editor.renderedNodes(), this.connections(), {
+        direction: 'LR',
+        origin: { x: 0, y: 240 },
+      }),
+    );
+    this.onViewportChange();
   }
 
   /** The minimap reports where to go; the editor does the moving. */

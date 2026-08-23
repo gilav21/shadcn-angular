@@ -1907,6 +1907,20 @@ export const registry = defineRegistry({
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
+  'node-editor/layout': {
+    name: 'node-editor/layout',
+    type: 'addon',
+    parent: 'node-editor',
+    category: 'layout',
+    description: 'Deterministic layered auto-layout: a pure function from nodes and edges to positions.',
+    tags: ['node-editor', 'layout', 'sugiyama', 'auto-arrange', 'graph'],
+    files: ['node-editor/addons/layout/index.ts', 'node-editor/addons/layout/node-editor-layout.ts'],
+    dependencies: ['node-editor'],
+    attach: {
+      import: "layoutGraph from './ui/node-editor/addons/layout'",
+      selector: 'layoutGraph',
+    },
+  },
   'node-editor/minimap': {
     name: 'node-editor/minimap',
     type: 'addon',
@@ -1959,7 +1973,7 @@ export const registry = defineRegistry({
     files: ['node-editor/index.ts', 'node-editor/node-editor-node.directive.ts', 'node-editor/node-editor.component.css', 'node-editor/node-editor.component.html', 'node-editor/node-editor.component.ts', 'node-editor/node-editor.graph.ts', 'node-editor/node-editor.history.ts', 'node-editor/node-editor.layout.ts', 'node-editor/node-editor.materialize.ts', 'node-editor/node-editor.runtime.ts', 'node-editor/node-editor.runtime.types.ts', 'node-editor/node-editor.serialize.ts', 'node-editor/node-editor.types.ts', 'node-editor/node-editor.validate.ts', 'node-editor/sub/node-editor-node.component.html', 'node-editor/sub/node-editor-node.component.ts', 'node-editor/sub/node-editor-port.component.html', 'node-editor/sub/node-editor-port.component.ts'],
     libFiles: ['sortable-aria-live.ts', 'touch.ts'],
     dependencies: ['infinite-canvas'],
-    addons: ['node-editor/minimap', 'node-editor/palette', 'node-editor/problems'],
+    addons: ['node-editor/layout', 'node-editor/minimap', 'node-editor/palette', 'node-editor/problems'],
   },
 });
 

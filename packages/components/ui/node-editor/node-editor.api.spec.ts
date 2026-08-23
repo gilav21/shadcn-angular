@@ -265,4 +265,26 @@ describe('the base API the addons need', () => {
             solo.destroy();
         });
     });
+
+describe('renderedNodes — what an addon must position and draw', () => {
+    /**
+     * The authored array carries `height: 0`; the editor derives the real
+     * height from the port count. An addon handed the authored array laid out
+     * overlapping nodes and drew hairline boxes on the minimap — both found by
+     * looking at the result rather than by a test.
+     */
+    it('reports the DERIVED height, not the authored zero', () => {
+        expect(host.nodes().every(n => n.height === 0)).toBe(true);
+        expect(editor.renderedNodes().every(n => n.height > 0)).toBe(true);
+    });
+
+    it('reports materialised ports, so a layout knows what it is placing', () => {
+        expect(host.nodes().every(n => n.ports === undefined)).toBe(true);
+        expect(editor.renderedNodes().every(n => (n.ports?.length ?? 0) > 0)).toBe(true);
+    });
+
+    it('keeps every node, in order', () => {
+        expect(editor.renderedNodes().map(n => n.id)).toEqual(host.nodes().map(n => n.id));
+    });
+});
 });

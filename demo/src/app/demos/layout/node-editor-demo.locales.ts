@@ -8,6 +8,7 @@ export interface NodeEditorDemoLocale extends LocaleMeta {
   acyclic: string;
   snapToGrid: string;
   readonlyGraph: string;
+  tidy: string;
   run: string;
   step: string;
   structural: string;
@@ -40,6 +41,7 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     acyclic: 'Acyclic only',
     snapToGrid: 'Snap to grid',
     readonlyGraph: 'Read only',
+    tidy: 'Tidy',
     run: 'Run',
     step: 'Step',
     structural: 'Structural example',
@@ -72,6 +74,7 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     acyclic: 'ללא מעגלים',
     snapToGrid: 'הצמדה לרשת',
     readonlyGraph: 'קריאה בלבד',
+    tidy: 'סידור',
     run: 'הרצה',
     step: 'צעד',
     structural: 'דוגמה מבנית',
@@ -104,6 +107,7 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     acyclic: 'بدون دورات',
     snapToGrid: 'محاذاة للشبكة',
     readonlyGraph: 'للقراءة فقط',
+    tidy: 'ترتيب',
     run: 'تشغيل',
     step: 'خطوة',
     structural: 'مثال هيكلي',
@@ -135,6 +139,7 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     acyclic: 'Nur azyklisch',
     snapToGrid: 'Am Raster ausrichten',
     readonlyGraph: 'Schreibgeschützt',
+    tidy: 'Aufräumen',
     run: 'Ausführen',
     step: 'Schritt',
     structural: 'Strukturbeispiel',
@@ -167,6 +172,7 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     acyclic: 'Acyclique uniquement',
     snapToGrid: 'Aligner sur la grille',
     readonlyGraph: 'Lecture seule',
+    tidy: 'Ranger',
     run: 'Exécuter',
     step: 'Pas à pas',
     structural: 'Exemple structurel',
@@ -199,6 +205,7 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     acyclic: 'Solo acíclico',
     snapToGrid: 'Ajustar a la cuadrícula',
     readonlyGraph: 'Solo lectura',
+    tidy: 'Ordenar',
     run: 'Ejecutar',
     step: 'Paso',
     structural: 'Ejemplo estructural',
@@ -231,6 +238,7 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     acyclic: '非循環のみ',
     snapToGrid: 'グリッドに吸着',
     readonlyGraph: '読み取り専用',
+    tidy: '整列',
     run: '実行',
     step: 'ステップ',
     structural: '構造の例',
@@ -262,6 +270,7 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     acyclic: '仅无环',
     snapToGrid: '对齐网格',
     readonlyGraph: '只读',
+    tidy: '整理',
     run: '运行',
     step: '单步',
     structural: '结构示例',
@@ -293,6 +302,7 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     acyclic: 'Только без циклов',
     snapToGrid: 'Привязка к сетке',
     readonlyGraph: 'Только чтение',
+    tidy: 'Упорядочить',
     run: 'Запустить',
     step: 'Шаг',
     structural: 'Структурный пример',
@@ -325,6 +335,7 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     acyclic: 'Apenas acíclico',
     snapToGrid: 'Ajustar à grelha',
     readonlyGraph: 'Apenas leitura',
+    tidy: 'Arrumar',
     run: 'Executar',
     step: 'Passo',
     structural: 'Exemplo estrutural',
