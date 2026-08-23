@@ -1,0 +1,44 @@
+@let text = t();
+@let crumbs = path();
+
+<!--
+  A real <nav> with a real list. Descending into a subgraph is navigation, and
+  the way back has to be reachable by keyboard — it is the only way out.
+-->
+<nav
+  [class]="rootClasses()"
+  [attr.aria-label]="text.breadcrumbLabel"
+  [attr.data-slot]="'node-editor-subgraph-breadcrumb'"
+>
+  <ol class="flex flex-wrap items-center gap-1">
+    @for (frame of crumbs; track trackFrame($index, frame)) {
+      <li class="flex items-center gap-1">
+        @if (!$first) {
+          <span aria-hidden="true" class="text-muted-foreground select-none">/</span>
+        }
+
+        @if (isLast($index)) {
+          <!--
+            The current level is not a link. `aria-current` says which one it
+            is rather than leaving a screen reader to infer it from styling.
+          -->
+          <span
+            [class]="crumbClasses($index)"
+            aria-current="page"
+            [attr.data-slot]="'node-editor-subgraph-crumb'"
+            [attr.data-depth]="$index"
+          >{{ frame.label }}</span>
+        } @else {
+          <button
+            type="button"
+            [class]="crumbClasses($index)"
+            [attr.data-slot]="'node-editor-subgraph-crumb'"
+            [attr.data-depth]="$index"
+            [attr.aria-label]="text.goTo.replace('{name}', frame.label)"
+            (click)="navigate.emit($index)"
+          >{{ frame.label }}</button>
+        }
+      </li>
+    }
+  </ol>
+</nav>

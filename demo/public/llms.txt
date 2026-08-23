@@ -25,7 +25,7 @@ Rules that hold for every component:
 - Inputs marked `(required)` must be bound or the template will not compile.
 - A section without a snippet says so explicitly; do not invent one.
 
-## Index (172 components)
+## Index (173 components)
 
 - [accordion](#accordion): Vertically stacked, collapsible sections that expand one or more panels to reveal content.
 - [alert](#alert): Inline callout banner for important messages with title, description, and variants.
@@ -122,6 +122,7 @@ Rules that hold for every component:
 - [node-editor/minimap](#node-editorminimap): Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.
 - [node-editor/palette](#node-editorpalette): Searchable picker over the registered node types, filterable by what a port accepts.
 - [node-editor/problems](#node-editorproblems): Lists what is wrong with a graph in plain language, and reveals the node it belongs to.
+- [node-editor/subgraph](#node-editorsubgraph): Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.
 - [number-input](#number-input): Numeric input with stepper buttons, min/max, and locale-aware formatting.
 - [number-ticker](#number-ticker): Animates a number counting up or down to its target value.
 - [orbit](#orbit): Animates child elements orbiting in circular paths around a center.
@@ -2343,6 +2344,23 @@ Lists what is wrong with a graph in plain language, and reveals the node it belo
 
 ```html
 <ui-node-editor-problems />
+```
+
+### node-editor/subgraph
+
+Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.
+
+- Install: `npx @gilav21/shadcn-angular@latest add node-editor/subgraph`
+- Import: `import { NodeEditorSubgraphBreadcrumbComponent } from '@/components/ui/node-editor/addons/subgraph';`
+- Selector: `ui-node-editor-subgraph-breadcrumb`
+- Category: layout
+- Depends on: `node-editor`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `path: readonly SubgraphFrame[] = []`
+- Outputs: `navigate: number`
+
+```html
+<ui-node-editor-subgraph-breadcrumb />
 ```
 
 ### page-header

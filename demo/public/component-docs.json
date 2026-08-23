@@ -10525,6 +10525,52 @@
       ]
     },
     {
+      "name": "node-editor/subgraph",
+      "description": "Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add node-editor/subgraph",
+      "importStatement": "import { NodeEditorSubgraphBreadcrumbComponent } from '@/components/ui/node-editor/addons/subgraph';",
+      "selector": "ui-node-editor-subgraph-breadcrumb",
+      "dependencies": [
+        "node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor-subgraph-breadcrumb />",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorSubgraphBreadcrumbComponent",
+          "file": "packages/components/ui/node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-subgraph-breadcrumb",
+          "description": "Where you are in a nest of graphs, and the way back out. Takes the path and emits an index — it never touches the navigator, the editor or a runtime, which is what keeps it renderable and testable on its own. The same shape as every other addon in this folder.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "",
+              "default": "''"
+            },
+            {
+              "name": "path",
+              "type": "readonly SubgraphFrame[]",
+              "description": "Root first. A single entry means the editor is showing the root graph.",
+              "default": "[]"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "navigate",
+              "type": "number",
+              "description": "Go to this level. The index into `path`."
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "number-input",
       "description": "Numeric input with stepper buttons, min/max, and locale-aware formatting.",
       "category": "form",

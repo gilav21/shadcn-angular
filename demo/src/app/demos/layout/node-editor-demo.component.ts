@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
@@ -17,6 +18,7 @@ import {
   type CanvasRect,
   serializeGraph,
   type NodeConnection,
+  type NodeId,
   type ReplayFrame,
   type RunFinishedEvent,
   type RunStartedEvent,
@@ -37,6 +39,15 @@ import {
   type NodeGroup,
 } from '../../../../../packages/components/ui/node-editor/addons/groups';
 import { layoutGraph } from '../../../../../packages/components/ui/node-editor/addons/layout';
+import {
+  NodeEditorSubgraphBreadcrumbComponent,
+  SUBGRAPH_BOUNDARY_TYPES,
+  SUBGRAPH_INPUT_TYPE,
+  SUBGRAPH_OUTPUT_TYPE,
+  SubgraphNavigator,
+  subgraphNodeType,
+  type SubgraphGraph,
+} from '../../../../../packages/components/ui/node-editor/addons/subgraph';
 import { NodeEditorMinimapComponent } from '../../../../../packages/components/ui/node-editor/addons/minimap';
 import {
   NodeEditorPaletteComponent,
@@ -60,6 +71,43 @@ import { TEXT_INPUT_NODE } from './node-editor-demo/nodes/text-input-node.compon
  * making the editor run something. A pure transform with no view and no state
  * is four lines.
  */
+/**
+ * A nested graph: shout it, then measure it.
+ *
+ * A boundary node's **id is the port id** — the `text` input node below is why
+ * the outer node has an input port called `text`.
+ */
+const SHOUT_AND_SIZE: SubgraphGraph = {
+  nodes: [
+    { id: 'text', type: SUBGRAPH_INPUT_TYPE, x: 0, y: 60, width: 170, height: 0, title: 'Text' },
+    { id: 'loud', type: 'uppercase', x: 240, y: 0, width: 180, height: 0 },
+    { id: 'chars', type: 'length', x: 240, y: 150, width: 180, height: 0 },
+    { id: 'shouted', type: SUBGRAPH_OUTPUT_TYPE, x: 480, y: 0, width: 170, height: 0, title: 'Shouted' },
+    { id: 'size', type: SUBGRAPH_OUTPUT_TYPE, x: 480, y: 150, width: 170, height: 0, title: 'Size' },
+  ],
+  connections: [
+    { id: 's1', source: 'text', sourcePort: 'value', target: 'loud', targetPort: 'in' },
+    { id: 's2', source: 'text', sourcePort: 'value', target: 'chars', targetPort: 'in' },
+    { id: 's3', source: 'loud', sourcePort: 'out', target: 'shouted', targetPort: 'value' },
+    { id: 's4', source: 'chars', sourcePort: 'out', target: 'size', targetPort: 'value' },
+  ],
+};
+
+/**
+ * A node whose work is the graph above.
+ *
+ * The whole addon is this factory plus a navigator — it needs nothing from the
+ * base, which is the point of it (`specs/node-editor-runtime-design.md` §14.9).
+ */
+const SHOUT_SUBGRAPH = subgraphNodeType({
+  id: 'shout-and-size',
+  label: 'Shout and size',
+  category: 'Composite',
+  accent: '#a855f7',
+  graph: SHOUT_AND_SIZE,
+  definitions: [UPPERCASE_NODE, LENGTH_NODE],
+});
+
 const DEMO_NODE_TYPES = [
   TEXT_INPUT_NODE,
   UPPERCASE_NODE,
@@ -67,6 +115,10 @@ const DEMO_NODE_TYPES = [
   DELAY_NODE,
   BROWSER_NODE,
   DISPLAY_NODE,
+  SHOUT_SUBGRAPH,
+  // Registered so the boundary nodes render when the editor is showing the
+  // INSIDE of a subgraph — the same editor, a different graph.
+  ...SUBGRAPH_BOUNDARY_TYPES,
 ];
 
 /**
@@ -86,6 +138,9 @@ function liveNodes(): EditorNode[] {
     { id: 'count', type: 'length', x: 260, y: 220, width: 180, height: 0 },
     { id: 'size', type: 'display', x: 500, y: 220, width: 190, height: 0 },
     { id: 'preview', type: 'browser', x: 260, y: 360, width: 300, height: 0 },
+    // A node whose work is another graph. Select it and press "Open subgraph".
+    { id: 'composite', type: 'shout-and-size', x: 760, y: 300, width: 200, height: 0 },
+    { id: 'inner-out', type: 'display', x: 1020, y: 300, width: 190, height: 0 },
   ];
 }
 
@@ -96,6 +151,8 @@ function liveConnections(): NodeConnection[] {
     { id: 'l3', source: 'url', sourcePort: 'text', target: 'count', targetPort: 'in' },
     { id: 'l4', source: 'count', sourcePort: 'out', target: 'size', targetPort: 'value' },
     { id: 'l5', source: 'url', sourcePort: 'text', target: 'preview', targetPort: 'url' },
+    { id: 'l6', source: 'url', sourcePort: 'text', target: 'composite', targetPort: 'text' },
+    { id: 'l7', source: 'composite', sourcePort: 'shouted', target: 'inner-out', targetPort: 'value' },
   ];
 }
 
@@ -178,6 +235,7 @@ function initialConnections(): NodeConnection[] {
   imports: [
     NodeEditorComponent,
     NodeEditorGroupsComponent,
+    NodeEditorSubgraphBreadcrumbComponent,
     NodeEditorHistoryComponent,
     NodeEditorMinimapComponent,
     NodeEditorPaletteComponent,
@@ -333,6 +391,105 @@ export class NodeEditorDemoComponent {
         return at ? { ...node, x: at.x, y: at.y } : node;
       }),
     );
+  }
+
+  /**
+   * Which graph the editor is showing.
+   *
+   * Descending into a subgraph does not open a second editor — it swaps what
+   * this one is looking at. Undo, the palette, the minimap and the groups
+   * addon all keep working at every depth, because there is only ever one
+   * editor.
+   */
+  protected readonly navigator = new SubgraphNavigator(
+    { nodes: liveNodes(), connections: liveConnections() },
+    'Main',
+  );
+
+  protected readonly insideSubgraph = computed(() => this.navigator.depth() > 0);
+
+  /**
+   * Inner graphs, kept here rather than only in the runtime.
+   *
+   * Leaving a subgraph swaps the editor back to the outer graph, and the
+   * editor's effect calls `setGraph` AFTER this handler returns. A node that
+   * was not in the runtime a moment ago is added fresh, with `initialState()`
+   * — so a `setState` written before that lands and is immediately thrown
+   * away. Every edit made inside a subgraph silently vanished on re-entry;
+   * the unit tests passed, because the navigator does carry the edits. It is
+   * the hand-off to the runtime that dropped them.
+   *
+   * So the demo keeps the authoritative copy and re-applies it whenever the
+   * outer graph is on screen.
+   */
+  private readonly innerGraphs = new Map<NodeId, SubgraphGraph>();
+
+  /** Open the selected subgraph node, if one is selected. */
+  protected openSubgraph(): void {
+    const editor = this.editorRef();
+    // Length, not `[0] === undefined`: index access is typed non-optional
+    // here, so the undefined check reads as dead code while still being the
+    // thing that stops an empty selection.
+    const selected = this.selection().nodes;
+    if (!editor || selected.length === 0) return;
+
+    const node = this.nodes().find(n => n.id === selected[0]);
+    const definition = DEMO_NODE_TYPES.find(d => d.id === node?.type);
+    if (!node || definition?.id !== SHOUT_SUBGRAPH.id) return;
+
+    // The node's STATE is its graph — that is what makes a nested graph
+    // serialise with the document for free.
+    const graph =
+      this.innerGraphs.get(node.id) ??
+      (editor.runtime.state(node.id)() as SubgraphGraph | undefined) ??
+      SHOUT_AND_SIZE;
+
+    this.navigator.update({ nodes: this.nodes(), connections: this.connections() });
+    this.navigator.enter(node.id, node.title ?? definition.label, graph);
+    this.showCurrentGraph();
+  }
+
+  /** Go back up one level, carrying the edits made inside. */
+  protected leaveSubgraph(): void {
+    this.navigator.update({ nodes: this.nodes(), connections: this.connections() });
+    const left = this.navigator.leave();
+    if (!left) return;
+
+    // Remembered here first; the effect below writes it into the runtime once
+    // the outer graph is actually mounted.
+    if (left.nodeId !== null) this.innerGraphs.set(left.nodeId, left.graph);
+    this.showCurrentGraph();
+  }
+
+  protected goToLevel(index: number): void {
+    this.navigator.update({ nodes: this.nodes(), connections: this.connections() });
+    while (this.navigator.depth() > index) this.leaveSubgraph();
+  }
+
+  private showCurrentGraph(): void {
+    const frame = this.navigator.current();
+    this.selection.set({ nodes: [], connections: [] });
+    this.connections.set(frame.graph.connections);
+    this.nodes.set(frame.graph.nodes);
+  }
+
+  constructor() {
+    /*
+     * Re-apply remembered inner graphs whenever the mounted nodes change.
+     *
+     * Declarative rather than a `setTimeout` after the swap: the editor's own
+     * effect decides when `setGraph` runs, and racing it with a guessed delay
+     * is how the edits went missing in the first place.
+     */
+    effect(() => {
+      const editor = this.editorRef();
+      const mounted = new Set(this.nodes().map(node => node.id));
+      if (!editor) return;
+
+      for (const [nodeId, graph] of this.innerGraphs) {
+        if (mounted.has(nodeId)) editor.runtime.setState(nodeId, graph);
+      }
+    });
   }
 
   protected onRejected(event: ConnectionRejectedEvent): void {

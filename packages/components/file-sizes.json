@@ -4514,12 +4514,12 @@
       "lines": 87
     },
     "node-editor/addons/groups/node-editor-groups.component.spec.ts": {
-      "bytes": 12118,
-      "lines": 314
+      "bytes": 12141,
+      "lines": 315
     },
     "node-editor/addons/groups/node-editor-groups.component.ts": {
-      "bytes": 8242,
-      "lines": 248
+      "bytes": 8672,
+      "lines": 256
     },
     "node-editor/addons/groups/node-editor-groups.locales.ts": {
       "bytes": 1500,
@@ -4664,6 +4664,54 @@
     "node-editor/addons/problems/node-editor-problems.locales.ts": {
       "bytes": 2996,
       "lines": 111
+    },
+    "node-editor/addons/subgraph/__screenshots__/node-editor-subgraph.spec.ts/a-graph-runs-inside-a-graph-carries-several-inputs-and-several-outputs-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "node-editor/addons/subgraph/__screenshots__/node-editor-subgraph.spec.ts/inner-state-uses-the-saved-inner-state-when-nothing-is-connected-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "node-editor/addons/subgraph/index.ts": {
+      "bytes": 245,
+      "lines": 5
+    },
+    "node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.html": {
+      "bytes": 1452,
+      "lines": 44
+    },
+    "node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.spec.ts": {
+      "bytes": 4112,
+      "lines": 116
+    },
+    "node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.ts": {
+      "bytes": 2059,
+      "lines": 54
+    },
+    "node-editor/addons/subgraph/node-editor-subgraph.locales.ts": {
+      "bytes": 2132,
+      "lines": 87
+    },
+    "node-editor/addons/subgraph/node-editor-subgraph.navigator.spec.ts": {
+      "bytes": 5719,
+      "lines": 147
+    },
+    "node-editor/addons/subgraph/node-editor-subgraph.navigator.ts": {
+      "bytes": 2875,
+      "lines": 76
+    },
+    "node-editor/addons/subgraph/node-editor-subgraph.spec.ts": {
+      "bytes": 11003,
+      "lines": 299
+    },
+    "node-editor/addons/subgraph/node-editor-subgraph.ts": {
+      "bytes": 7294,
+      "lines": 200
+    },
+    "node-editor/addons/subgraph/node-editor-subgraph.types.ts": {
+      "bytes": 1828,
+      "lines": 50
     },
     "node-editor/index.ts": {
       "bytes": 821,

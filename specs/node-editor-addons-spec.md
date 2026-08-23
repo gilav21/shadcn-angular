@@ -336,9 +336,49 @@ editor is showing.
 **This addon is the test of §14.9 of the design doc.** If it cannot be built
 without touching the base, a singleton crept in.
 
-Tasks: G1 subgraph node type · G2 boundary port mapping · G3 expand/collapse
-navigation · G4 breadcrumb · G5 serialisation of nested graphs · G6 story +
-demo.
+Tasks: G1 subgraph node type ✅ · G2 boundary port mapping ✅ · G3
+expand/collapse navigation ✅ · G4 breadcrumb ✅ · G5 serialisation of nested
+graphs ✅ · G6 demo ✅.
+
+**The verdict on §14.9: the claim held.** This addon needed *nothing* from the
+base — no new input, no new output, no new method. A second `NodeGraphRuntime`
+runs inside the first one's evaluation, two levels deep in the test, and the
+results are correct. One shared counter, one module-level cache or one
+`providedIn: 'root'` service anywhere in the runtime and the inner graph would
+have corrupted the outer one.
+
+**The one cost, stated rather than hidden.** The child runtime is created per
+evaluation and disposed after, so an inner graph does not memoise between outer
+runs. `ComputeContext` carries no node identity, so a `compute` has nothing to
+key a per-instance runtime by. Both alternatives were worse: a module-level
+`Map` is the singleton this addon exists to prove unnecessary and nothing would
+dispose it, and adding `nodeId` to `ComputeContext` is a base change — an addon
+that needs one has failed the test it was written to run. A subgraph therefore
+evaluates as a pure function call. If that ever stops being acceptable,
+`nodeId` on `ComputeContext` is the fix, and it should be made deliberately
+rather than discovered.
+
+**A boundary node's id IS the port id.** Add an input boundary node called
+`url` and the outer node grows an input port called `url`. One fact rather than
+two, so they cannot disagree — which a separate mapping table would eventually
+let them do. The node's *state is its graph*, so nesting serialises with the
+document for free and every instance owns its own copy.
+
+**Two defects, both found by running it rather than by a green suite.**
+
+- An unconnected input port arrives as `undefined`, and writing it in
+  overwrote the subgraph's saved inner values — the graph answered `NaN`. The
+  base always puts a key on the inputs map for every port, so key presence
+  says nothing about whether anything is wired. An arriving `undefined` now
+  means nothing arrived, and saved state stands; the same rule the base
+  already applies to an unconnected port.
+- Every edit made inside a subgraph silently vanished on re-entry. The
+  navigator carried them correctly and its unit tests passed — the hand-off to
+  the runtime dropped them, because leaving swaps the editor back to the outer
+  graph and the editor's effect calls `setGraph` *after* the handler returns,
+  adding the node fresh with `initialState()` and discarding the `setState`
+  written a moment earlier. Fixed declaratively rather than with a guessed
+  delay, since racing that effect is what caused it.
 
 ---
 

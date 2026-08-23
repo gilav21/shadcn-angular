@@ -161,7 +161,11 @@ export class NodeEditorGroupsComponent {
 
   protected onPointerMove(event: PointerEvent): void {
     const drag = this.drag;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    // Two guards, not one `||`: the combined form reads as an optional chain
+    // to Sonar, and the optional-chain rewrite stops narrowing `drag` to
+    // non-null for everything below it.
+    if (drag === null) return;
+    if (drag.pointerId !== event.pointerId) return;
 
     const delta = this.worldDelta(event, drag);
     if (!this.moved && Math.hypot(delta.x * drag.zoom, delta.y * drag.zoom) < DRAG_THRESHOLD_PX) {
@@ -180,7 +184,11 @@ export class NodeEditorGroupsComponent {
 
   protected onPointerUp(event: PointerEvent): void {
     const drag = this.drag;
-    if (!drag || drag.pointerId !== event.pointerId) return;
+    // Two guards, not one `||`: the combined form reads as an optional chain
+    // to Sonar, and the optional-chain rewrite stops narrowing `drag` to
+    // non-null for everything below it.
+    if (drag === null) return;
+    if (drag.pointerId !== event.pointerId) return;
 
     this.drag = null;
     this.dragging.set(null);

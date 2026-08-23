@@ -13,6 +13,14 @@
       <ui-button size="sm" variant="outline" (click)="autoLayout()">{{ text.tidy }}</ui-button>
       <ui-button size="sm" variant="outline" (click)="addNode()">{{ text.addNode }}</ui-button>
       <ui-button size="sm" variant="outline" (click)="reset()">{{ text.reset }}</ui-button>
+      <ui-button size="sm" variant="outline" (click)="openSubgraph()">{{
+        text.openSubgraph
+      }}</ui-button>
+      @if (insideSubgraph()) {
+        <ui-button size="sm" variant="outline" (click)="leaveSubgraph()">{{
+          text.leaveSubgraph
+        }}</ui-button>
+      }
       <ui-button size="sm" variant="ghost" (click)="useStructural()">{{
         text.structural
       }}</ui-button>
@@ -47,6 +55,15 @@
       </div>
     </dl>
   </section>
+
+  <!--
+    Where you are in the nest of graphs, and the way back out. An addon: it
+    takes the path and emits an index, and never touches the editor.
+  -->
+  <ui-node-editor-subgraph-breadcrumb
+    [path]="navigator.path()"
+    (navigate)="goToLevel($event)"
+  />
 
   <div class="relative w-full overflow-hidden rounded-lg border">
     <ui-node-editor

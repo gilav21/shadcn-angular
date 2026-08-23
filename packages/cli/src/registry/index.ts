@@ -1907,6 +1907,21 @@ export const registry = defineRegistry({
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
+  'node-editor/subgraph': {
+    name: 'node-editor/subgraph',
+    type: 'addon',
+    parent: 'node-editor',
+    category: 'layout',
+    description: 'Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.',
+    tags: ['node-editor', 'subgraph', 'nested', 'graph', 'composition'],
+    files: ['node-editor/addons/subgraph/index.ts', 'node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.html', 'node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.ts', 'node-editor/addons/subgraph/node-editor-subgraph.locales.ts', 'node-editor/addons/subgraph/node-editor-subgraph.navigator.ts', 'node-editor/addons/subgraph/node-editor-subgraph.ts', 'node-editor/addons/subgraph/node-editor-subgraph.types.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['node-editor'],
+    attach: {
+      import: "subgraphNodeType from './ui/node-editor/addons/subgraph'",
+      selector: 'subgraphNodeType',
+    },
+  },
   'node-editor/groups': {
     name: 'node-editor/groups',
     type: 'addon',
@@ -2003,7 +2018,7 @@ export const registry = defineRegistry({
     files: ['node-editor/index.ts', 'node-editor/node-editor-node.directive.ts', 'node-editor/node-editor.component.css', 'node-editor/node-editor.component.html', 'node-editor/node-editor.component.ts', 'node-editor/node-editor.graph.ts', 'node-editor/node-editor.history.ts', 'node-editor/node-editor.layout.ts', 'node-editor/node-editor.materialize.ts', 'node-editor/node-editor.runtime.ts', 'node-editor/node-editor.runtime.types.ts', 'node-editor/node-editor.serialize.ts', 'node-editor/node-editor.types.ts', 'node-editor/node-editor.validate.ts', 'node-editor/sub/node-editor-node.component.html', 'node-editor/sub/node-editor-node.component.ts', 'node-editor/sub/node-editor-port.component.html', 'node-editor/sub/node-editor-port.component.ts'],
     libFiles: ['sortable-aria-live.ts', 'touch.ts'],
     dependencies: ['infinite-canvas'],
-    addons: ['node-editor/groups', 'node-editor/history', 'node-editor/layout', 'node-editor/minimap', 'node-editor/palette', 'node-editor/problems'],
+    addons: ['node-editor/groups', 'node-editor/subgraph', 'node-editor/history', 'node-editor/layout', 'node-editor/minimap', 'node-editor/palette', 'node-editor/problems'],
   },
 });
 

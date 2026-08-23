@@ -12,6 +12,10 @@ export interface NodeEditorDemoLocale extends LocaleMeta {
   run: string;
   step: string;
   structural: string;
+  /** Descends into the selected subgraph node. */
+  openSubgraph: string;
+  /** Goes back up one level. */
+  leaveSubgraph: string;
   liveMode: string;
   problems: string;
   addNode: string;
@@ -45,6 +49,8 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     run: 'Run',
     step: 'Step',
     structural: 'Structural example',
+    openSubgraph: 'Open subgraph',
+    leaveSubgraph: 'Back up',
     liveMode: 'Live',
     problems: 'Problems',
     addNode: 'Add node',
@@ -78,6 +84,8 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     run: 'הרצה',
     step: 'צעד',
     structural: 'דוגמה מבנית',
+    openSubgraph: 'פתיחת תת-גרף',
+    leaveSubgraph: 'חזרה למעלה',
     liveMode: 'חי',
     problems: 'בעיות',
     addNode: 'הוספת צומת',
@@ -111,6 +119,8 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     run: 'تشغيل',
     step: 'خطوة',
     structural: 'مثال هيكلي',
+    openSubgraph: 'فتح الرسم الفرعي',
+    leaveSubgraph: 'رجوع للأعلى',
     liveMode: 'مباشر',
     problems: 'المشاكل',
     addNode: 'إضافة عقدة',
@@ -143,6 +153,8 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     run: 'Ausführen',
     step: 'Schritt',
     structural: 'Strukturbeispiel',
+    openSubgraph: 'Untergraph öffnen',
+    leaveSubgraph: 'Zurück nach oben',
     liveMode: 'Live',
     problems: 'Probleme',
     addNode: 'Knoten hinzufügen',
@@ -176,6 +188,8 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     run: 'Exécuter',
     step: 'Pas à pas',
     structural: 'Exemple structurel',
+    openSubgraph: 'Ouvrir le sous-graphe',
+    leaveSubgraph: 'Remonter',
     liveMode: 'Direct',
     problems: 'Problèmes',
     addNode: 'Ajouter un nœud',
@@ -209,6 +223,8 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     run: 'Ejecutar',
     step: 'Paso',
     structural: 'Ejemplo estructural',
+    openSubgraph: 'Abrir subgrafo',
+    leaveSubgraph: 'Subir un nivel',
     liveMode: 'En vivo',
     problems: 'Problemas',
     addNode: 'Añadir nodo',
@@ -242,6 +258,8 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     run: '実行',
     step: 'ステップ',
     structural: '構造の例',
+    openSubgraph: 'サブグラフを開く',
+    leaveSubgraph: '一つ上へ',
     liveMode: 'ライブ',
     problems: '問題',
     addNode: 'ノードを追加',
@@ -274,6 +292,8 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     run: '运行',
     step: '单步',
     structural: '结构示例',
+    openSubgraph: '打开子图',
+    leaveSubgraph: '返回上一层',
     liveMode: '实时',
     problems: '问题',
     addNode: '添加节点',
@@ -306,6 +326,8 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     run: 'Запустить',
     step: 'Шаг',
     structural: 'Структурный пример',
+    openSubgraph: 'Открыть подграф',
+    leaveSubgraph: 'Вернуться назад',
     liveMode: 'Живой режим',
     problems: 'Проблемы',
     addNode: 'Добавить узел',
@@ -339,6 +361,8 @@ export const NODE_EDITOR_DEMO_LOCALES: Record<string, NodeEditorDemoLocale> = {
     run: 'Executar',
     step: 'Passo',
     structural: 'Exemplo estrutural',
+    openSubgraph: 'Abrir subgrafo',
+    leaveSubgraph: 'Voltar acima',
     liveMode: 'Ao vivo',
     problems: 'Problemas',
     addNode: 'Adicionar nó',

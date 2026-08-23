@@ -9102,6 +9102,35 @@
       ]
     },
     {
+      "name": "NodeEditorSubgraphBreadcrumbComponent",
+      "file": "packages/components/ui/node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.ts",
+      "kind": "component",
+      "selector": "ui-node-editor-subgraph-breadcrumb",
+      "description": "Where you are in a nest of graphs, and the way back out. Takes the path and emits an index — it never touches the navigator, the editor or a runtime, which is what keeps it renderable and testable on its own. The same shape as every other addon in this folder.",
+      "projectsContent": false,
+      "inputs": [
+        {
+          "name": "class",
+          "type": "string",
+          "description": "",
+          "default": "''"
+        },
+        {
+          "name": "path",
+          "type": "readonly SubgraphFrame[]",
+          "description": "Root first. A single entry means the editor is showing the root graph.",
+          "default": "[]"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "navigate",
+          "type": "number",
+          "description": "Go to this level. The index into `path`."
+        }
+      ]
+    },
+    {
       "name": "NodeEditorNodeDirective",
       "file": "packages/components/ui/node-editor/node-editor-node.directive.ts",
       "kind": "directive",
