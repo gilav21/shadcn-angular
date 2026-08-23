@@ -117,15 +117,18 @@ function messageOf(error: unknown): string | undefined {
   if (error === undefined || error === null) return undefined;
   if (error instanceof Error) return error.message;
   if (typeof error === 'string') return error;
+  if (typeof error === 'number' || typeof error === 'boolean') return String(error);
+  if (typeof error === 'bigint') return `${error}n`;
+  if (typeof error === 'symbol') return error.toString();
+  if (typeof error === 'function') return '[function]';
 
   /*
-   * A thrown plain object — what an HTTP layer usually rejects with.
-   * `String()` on one gives '[object Object]', which is the exact
-   * information loss this function exists to prevent, so it is described
-   * rather than stringified.
+   * Everything left is an object — what an HTTP layer usually rejects with.
+   * There is deliberately no `String()` fallback: on an object it yields
+   * '[object Object]', which is the exact information loss this function
+   * exists to prevent. Each case above is named instead.
    */
-  if (typeof error === 'object') return describeThrownObject(error);
-  return String(error);
+  return describeThrownObject(error);
 }
 
 function describeThrownObject(error: object): string {
