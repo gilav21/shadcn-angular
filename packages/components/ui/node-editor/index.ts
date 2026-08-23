@@ -1,3 +1,9 @@
+/**
+ * Re-exported from the engine so an addon can talk in world coordinates
+ * without importing past its parent — which is what breaks sync-registry's
+ * component-boundary detection.
+ */
+export type { CanvasPoint, CanvasRect } from '../infinite-canvas';
 export * from './node-editor.component';
 export * from './node-editor-node.directive';
 export * from './node-editor.graph';

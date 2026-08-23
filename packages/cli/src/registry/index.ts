@@ -1907,6 +1907,21 @@ export const registry = defineRegistry({
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
+  'node-editor/palette': {
+    name: 'node-editor/palette',
+    type: 'addon',
+    parent: 'node-editor',
+    category: 'layout',
+    description: 'Searchable picker over the registered node types, filterable by what a port accepts.',
+    tags: ['node-editor', 'palette', 'command', 'search', 'add-node'],
+    files: ['node-editor/addons/palette/index.ts', 'node-editor/addons/palette/node-editor-palette.component.html', 'node-editor/addons/palette/node-editor-palette.component.ts', 'node-editor/addons/palette/node-editor-palette.locales.ts', 'node-editor/addons/palette/node-editor-palette.utils.ts'],
+    libFiles: ['i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts'],
+    dependencies: ['command', 'node-editor'],
+    attach: {
+      import: "NodeEditorPaletteComponent from './ui/node-editor/addons/palette'",
+      selector: 'ui-node-editor-palette',
+    },
+  },
   'node-editor/problems': {
     name: 'node-editor/problems',
     type: 'addon',
@@ -1930,7 +1945,7 @@ export const registry = defineRegistry({
     files: ['node-editor/index.ts', 'node-editor/node-editor-node.directive.ts', 'node-editor/node-editor.component.css', 'node-editor/node-editor.component.html', 'node-editor/node-editor.component.ts', 'node-editor/node-editor.graph.ts', 'node-editor/node-editor.history.ts', 'node-editor/node-editor.layout.ts', 'node-editor/node-editor.materialize.ts', 'node-editor/node-editor.runtime.ts', 'node-editor/node-editor.runtime.types.ts', 'node-editor/node-editor.serialize.ts', 'node-editor/node-editor.types.ts', 'node-editor/node-editor.validate.ts', 'node-editor/sub/node-editor-node.component.html', 'node-editor/sub/node-editor-node.component.ts', 'node-editor/sub/node-editor-port.component.html', 'node-editor/sub/node-editor-port.component.ts'],
     libFiles: ['sortable-aria-live.ts', 'touch.ts'],
     dependencies: ['infinite-canvas'],
-    addons: ['node-editor/problems'],
+    addons: ['node-editor/palette', 'node-editor/problems'],
   },
 });
 

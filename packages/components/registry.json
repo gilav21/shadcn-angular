@@ -5337,6 +5337,43 @@
       "button"
     ]
   },
+  "node-editor/palette": {
+    "name": "node-editor/palette",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Searchable picker over the registered node types, filterable by what a port accepts.",
+    "tags": [
+      "node-editor",
+      "palette",
+      "command",
+      "search",
+      "add-node"
+    ],
+    "files": [
+      "node-editor/addons/palette/index.ts",
+      "node-editor/addons/palette/node-editor-palette.component.html",
+      "node-editor/addons/palette/node-editor-palette.component.ts",
+      "node-editor/addons/palette/node-editor-palette.locales.ts",
+      "node-editor/addons/palette/node-editor-palette.utils.ts"
+    ],
+    "libFiles": [
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
+      "shortcut-binding.service.ts"
+    ],
+    "dependencies": [
+      "command",
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorPaletteComponent from './ui/node-editor/addons/palette'",
+      "selector": "ui-node-editor-palette"
+    }
+  },
   "node-editor/problems": {
     "name": "node-editor/problems",
     "type": "addon",
@@ -5411,6 +5448,7 @@
       "infinite-canvas"
     ],
     "addons": [
+      "node-editor/palette",
       "node-editor/problems"
     ]
   }

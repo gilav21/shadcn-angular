@@ -60,8 +60,19 @@
       [readonlyGraph]="readonlyGraph()"
       [ariaLabel]="text.editorLabel"
       (connectionRejected)="onRejected($event)"
+      (addNodeRequested)="openPalette($event)"
     />
   </div>
+
+  <!--
+    The palette is an ADDON too. The editor owns the intent and the insertion;
+    this supplies the picker, and reports a choice rather than performing one.
+    Double-click empty plane, or press Ctrl/Cmd+K.
+  -->
+  <ui-node-editor-palette
+    [definitions]="definitions"
+    (picked)="insertPicked($event)"
+  />
 
   <!--
     The problems panel is an ADDON. It takes the list and emits a selection —

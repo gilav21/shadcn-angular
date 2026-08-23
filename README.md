@@ -13,9 +13,9 @@ for Angular.
 
 ## 0 runtime dependencies
 
-All **167** components and addons install as source you own. **0** of them pull an npm package: the CLI copies TypeScript, HTML and CSS into your project and adds nothing to your `package.json`. There is no `@shadcn-angular/*` runtime to depend on, to keep in version lockstep, or to wait on for a fix — you edit the component in place.
+All **168** components and addons install as source you own. **0** of them pull an npm package: the CLI copies TypeScript, HTML and CSS into your project and adds nothing to your `package.json`. There is no `@shadcn-angular/*` runtime to depend on, to keep in version lockstep, or to wait on for a fix — you edit the component in place.
 
-Registry today: 149 components, 18 opt-in addons, 10 composed blocks.
+Registry today: 149 components, 19 opt-in addons, 10 composed blocks.
 
 ## Tested versions
 

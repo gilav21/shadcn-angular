@@ -13,9 +13,14 @@ import {
   type ConnectionRejectedEvent,
   type EditorNode,
   type EditorSelection,
+  type CanvasPoint,
   type NodeConnection,
 } from '../../../../../packages/components/ui';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import {
+  NodeEditorPaletteComponent,
+  type NodeTypePicked,
+} from '../../../../../packages/components/ui/node-editor/addons/palette';
 import { NodeEditorProblemsComponent } from '../../../../../packages/components/ui/node-editor/addons/problems';
 import { NODE_EDITOR_DEMO_LOCALES } from './node-editor-demo.locales';
 import { BROWSER_NODE } from './node-editor-demo/nodes/browser-node.component';
@@ -148,6 +153,7 @@ function initialConnections(): NodeConnection[] {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     NodeEditorComponent,
+    NodeEditorPaletteComponent,
     NodeEditorProblemsComponent,
     ButtonComponent,
     SwitchComponent,
@@ -192,6 +198,18 @@ export class NodeEditorDemoComponent {
 
   protected onRejected(event: ConnectionRejectedEvent): void {
     this.rejection.set(event.reason);
+  }
+
+  private readonly paletteRef = viewChild(NodeEditorPaletteComponent);
+
+  /** The editor emits the intent; the palette addon supplies the picker. */
+  protected openPalette(at: CanvasPoint): void {
+    this.paletteRef()?.openAt(at);
+  }
+
+  /** The palette reports a choice; the editor performs the insertion. */
+  protected insertPicked(picked: NodeTypePicked): void {
+    this.editorRef()?.addNode(picked.typeId, picked.at ?? { x: 40, y: 40 });
   }
 
   /** Reveal the node a problem belongs to — the addon only reports it. */

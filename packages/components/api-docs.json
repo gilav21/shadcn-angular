@@ -8819,6 +8819,57 @@
       "outputs": []
     },
     {
+      "name": "NodeEditorPaletteComponent",
+      "file": "packages/components/ui/node-editor/addons/palette/node-editor-palette.component.ts",
+      "kind": "component",
+      "selector": "ui-node-editor-palette",
+      "description": "A searchable picker over the registered node types. ### Why this is an addon R15 puts the *intent* and the *insertion* in the base — `(addNodeRequested)` and `addNode()` — and the picker UI here. The base therefore has a complete add-node story with no palette installed, and a consumer who wants a different picker writes one without forking anything. It composes `ui-command`, which this library already ships, so this is mostly a filter and a grouping rather than a new widget. It takes the type list and emits a choice — it never touches the editor. A consumer wires the two together in one line, and this component can be tested without constructing an editor at all.",
+      "projectsContent": false,
+      "inputs": [
+        {
+          "name": "acceptsType",
+          "type": "string | undefined",
+          "description": "Restrict the offer to types that could take this value type. The query that makes a palette worth having in a typed graph: after dragging from a `table` output, \"what can accept this\" beats an alphabetical list of everything."
+        },
+        {
+          "name": "definitions",
+          "type": "readonly NodeTypeDefinition[]",
+          "description": "Every node type the graph may contain — the editor's `definitions`.",
+          "default": "[]"
+        },
+        {
+          "name": "open",
+          "type": "boolean",
+          "description": "Two-way open state, so a consumer can drive it however they like.",
+          "default": "false"
+        },
+        {
+          "name": "producesType",
+          "type": "string | undefined",
+          "description": "Restrict to types producing this value type."
+        },
+        {
+          "name": "shortcut",
+          "type": "string",
+          "description": "Keyboard shortcut that toggles the picker. Blank disables it.",
+          "default": "'Mod+K'"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "description": "Two-way open state, so a consumer can drive it however they like.",
+          "default": "false"
+        },
+        {
+          "name": "picked",
+          "type": "NodeTypePicked",
+          "description": ""
+        }
+      ]
+    },
+    {
       "name": "NodeEditorProblemsComponent",
       "file": "packages/components/ui/node-editor/addons/problems/node-editor-problems.component.ts",
       "kind": "component",
@@ -8957,6 +9008,11 @@
         }
       ],
       "outputs": [
+        {
+          "name": "addNodeRequested",
+          "type": "CanvasPoint",
+          "description": "The user asked for a node here — double-click on empty plane. The base owns the intent and the insertion; the picker UI is an addon (R15). Carries the WORLD point, so whatever opens can drop the node exactly where the user asked rather than guessing."
+        },
         {
           "name": "connectionRejected",
           "type": "ConnectionRejectedEvent",

@@ -4401,6 +4401,10 @@
       "bytes": 18521,
       "lines": 41
     },
+    "node-editor/__screenshots__/node-editor.api.spec.ts/the-base-API-the-addons-need-undo-and-redo-restores-a-removed-node-s-connections--not-just-the-node-1.png": {
+      "bytes": 16209,
+      "lines": 37
+    },
     "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-on-a-touch-device-connects-two-ports-with-a-finger-1.png": {
       "bytes": 22355,
       "lines": 49
@@ -4489,17 +4493,45 @@
       "bytes": 4290,
       "lines": 3
     },
+    "node-editor/addons/palette/index.ts": {
+      "bytes": 141,
+      "lines": 3
+    },
+    "node-editor/addons/palette/node-editor-palette.component.html": {
+      "bytes": 1961,
+      "lines": 52
+    },
+    "node-editor/addons/palette/node-editor-palette.component.spec.ts": {
+      "bytes": 6122,
+      "lines": 184
+    },
+    "node-editor/addons/palette/node-editor-palette.component.ts": {
+      "bytes": 4608,
+      "lines": 142
+    },
+    "node-editor/addons/palette/node-editor-palette.locales.ts": {
+      "bytes": 2628,
+      "lines": 99
+    },
+    "node-editor/addons/palette/node-editor-palette.utils.spec.ts": {
+      "bytes": 5341,
+      "lines": 152
+    },
+    "node-editor/addons/palette/node-editor-palette.utils.ts": {
+      "bytes": 3928,
+      "lines": 107
+    },
     "node-editor/addons/problems/index.ts": {
       "bytes": 98,
       "lines": 2
     },
     "node-editor/addons/problems/node-editor-problems.component.html": {
-      "bytes": 1945,
-      "lines": 55
+      "bytes": 2171,
+      "lines": 59
     },
     "node-editor/addons/problems/node-editor-problems.component.spec.ts": {
-      "bytes": 6172,
-      "lines": 164
+      "bytes": 6354,
+      "lines": 167
     },
     "node-editor/addons/problems/node-editor-problems.component.ts": {
       "bytes": 3431,
@@ -4510,8 +4542,8 @@
       "lines": 111
     },
     "node-editor/index.ts": {
-      "bytes": 546,
-      "lines": 13
+      "bytes": 805,
+      "lines": 19
     },
     "node-editor/node-editor-node.directive.ts": {
       "bytes": 1731,
@@ -4520,6 +4552,10 @@
     "node-editor/node-editor.a11y.spec.ts": {
       "bytes": 14666,
       "lines": 380
+    },
+    "node-editor/node-editor.api.spec.ts": {
+      "bytes": 10344,
+      "lines": 268
     },
     "node-editor/node-editor.component.css": {
       "bytes": 719,
@@ -4534,8 +4570,8 @@
       "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 41541,
-      "lines": 1146
+      "bytes": 47054,
+      "lines": 1310
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -4546,12 +4582,12 @@
       "lines": 198
     },
     "node-editor/node-editor.history.spec.ts": {
-      "bytes": 8794,
-      "lines": 223
+      "bytes": 9087,
+      "lines": 230
     },
     "node-editor/node-editor.history.ts": {
-      "bytes": 7050,
-      "lines": 212
+      "bytes": 7466,
+      "lines": 228
     },
     "node-editor/node-editor.integration.spec.ts": {
       "bytes": 11602,
