@@ -58,6 +58,7 @@ const SAME_GESTURE_MS = 700;
 export class NodeEditorContextMenuDirective {
   /** The menu to open. Template-reference it: `[uiNodeEditorContextMenu]="menu"`. */
   readonly uiNodeEditorContextMenu = input.required<ContextMenuComponent>();
+  /** Stops the canvas from opening a context menu. */
   readonly contextMenuDisabled = input(false);
 
   /** Fires with the resolved target, whether or not a menu is attached. */

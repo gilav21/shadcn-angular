@@ -31,6 +31,7 @@ import { NODE_EDITOR_PROBLEMS_LOCALES } from './node-editor-problems.locales';
   host: { class: 'contents' },
 })
 export class NodeEditorProblemsComponent {
+  /** Problems to list, as produced by validating the graph. */
   readonly problems = input<readonly GraphProblem[]>([]);
   /** Extra classes for the panel root. */
   readonly class = input('');

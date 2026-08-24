@@ -50,14 +50,20 @@ import {
   host: { class: 'contents' },
 })
 export class NodeEditorMinimapComponent {
+  /** Nodes to plot on the overview. */
   readonly nodes = input<readonly EditorNode[]>([]);
+  /** Edges to plot on the overview. */
   readonly connections = input<readonly NodeConnection[]>([]);
   /** The editor's visible world rect. */
   readonly viewport = input<CanvasRect | null>(null);
 
+  /** Overview width in CSS pixels. */
   readonly width = input(200);
+  /** Overview height in CSS pixels. */
   readonly height = input(140);
+  /** Extra classes merged onto the overview. */
   readonly class = input('');
+  /** Accessible name for the overview. */
   readonly ariaLabel = input('Graph overview');
 
   /**

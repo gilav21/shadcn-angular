@@ -34,9 +34,11 @@ export type PortDropState = 'valid' | 'invalid' | null;
   host: { class: 'contents' },
 })
 export class NodeEditorPortComponent {
+  /** The port this element renders. */
   readonly port = input.required<NodePort>();
   /** The node this port belongs to — supplies the id and the layout geometry. */
   readonly node = input.required<EditorNode>();
+  /** Port geometry, shared with the canvas so edges meet the ports exactly. */
   readonly metrics = input.required<PortMetrics>();
   /** Whether at least one connection already reaches this port. */
   readonly connected = input(false);
@@ -51,6 +53,7 @@ export class NodeEditorPortComponent {
    * port and each looks itself up in O(1).
    */
   readonly connectable = input<ReadonlySet<string> | null>(null);
+  /** Extra classes merged onto the port. */
   readonly class = input('');
 
   protected readonly isOutput = computed(() => this.port().direction === 'out');

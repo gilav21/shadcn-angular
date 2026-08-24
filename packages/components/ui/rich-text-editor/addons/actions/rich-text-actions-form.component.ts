@@ -48,6 +48,10 @@ export class RichTextActionsFormComponent {
 
     private readonly model = signal<ActionParams>({});
 
+    /**
+     * The current validation message per field key, or `null` where the field
+     * passes. Exposed so a host can render errors outside this form.
+     */
     readonly errors = computed<Record<string, string | null>>(() => {
         const p = this.model();
         const out: Record<string, string | null> = {};

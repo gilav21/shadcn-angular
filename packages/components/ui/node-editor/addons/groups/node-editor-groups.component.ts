@@ -89,11 +89,15 @@ const DRAG_THRESHOLD_PX = 3;
   host: { class: 'contents' },
 })
 export class NodeEditorGroupsComponent {
+  /** The zones drawn behind the graph. Two-way: dragging or resizing a zone writes back. */
   readonly groups = model<readonly NodeGroup[]>([]);
+  /** Free-standing notes on the canvas. Two-way: editing or moving one writes back. */
   readonly comments = model<readonly NodeComment[]>([]);
   /** The editor's rendered nodes, for membership and for moving members. */
   readonly nodes = input<readonly EditorNode[]>([]);
+  /** Render zones and comments without letting them be moved, resized or edited. */
   readonly readonlyGroups = input(false);
+  /** Extra classes merged onto the overlay. */
   readonly class = input('');
 
   /**

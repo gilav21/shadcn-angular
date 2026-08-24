@@ -40,8 +40,11 @@ export interface NodeTemplateContext {
   host: { class: 'contents' },
 })
 export class NodeEditorNodeComponent {
+  /** The node this element renders. */
   readonly node = input.required<EditorNode>();
+  /** Port geometry, shared with the canvas so edges meet the ports exactly. */
   readonly metrics = input.required<PortMetrics>();
+  /** Whether the node is part of the current selection. */
   readonly selected = input(false);
   /** Whether this node holds the roving tab stop. */
   readonly focused = input(false);
@@ -63,6 +66,7 @@ export class NodeEditorNodeComponent {
   readonly status = input<NodeStatus | null>(null);
   /** Ports that would accept the connection in flight; passed straight down. */
   readonly connectable = input<ReadonlySet<string> | null>(null);
+  /** Extra classes merged onto the node card. */
   readonly class = input('');
 
   /** Briefly true just after this node finished work — see the editor. */

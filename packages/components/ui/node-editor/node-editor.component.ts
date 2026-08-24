@@ -231,7 +231,9 @@ export class NodeEditorComponent {
   readonly a11yTreeLimit = input(500);
   /** Extra classes for the editor root. Give it a height here. */
   readonly class = input('');
+  /** Accessible name for the canvas. */
   readonly ariaLabel = input('Node editor');
+  /** Draw the background grid behind the graph. */
   readonly showGrid = input(true);
 
   /**
@@ -276,6 +278,7 @@ export class NodeEditorComponent {
    */
   readonly replay = input<ReplayFrame | null>(null);
 
+  /** Emits when a drag would have made an invalid connection, with the reason it was refused. */
   readonly connectionRejected = output<ConnectionRejectedEvent>();
 
   /**
@@ -321,8 +324,11 @@ export class NodeEditorComponent {
    */
   readonly nodeOpened = output<NodeId>();
 
+  /** Emits when a run begins, before any node is evaluated. */
   readonly runStarted = output<RunStartedEvent>();
+  /** Emits as each node reaches its final state during a run. */
   readonly nodeSettled = output<NodeSettledEvent>();
+  /** Emits once a run has ended, whether it completed or failed. */
   readonly runFinished = output<RunFinishedEvent>();
 
   @ContentChild(NodeEditorNodeDirective, { read: TemplateRef })

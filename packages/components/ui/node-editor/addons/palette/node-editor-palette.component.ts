@@ -91,6 +91,7 @@ export class NodeEditorPaletteComponent {
   /** Keyboard shortcut that toggles the picker. Blank disables it. */
   readonly shortcut = input('Mod+K');
 
+  /** Emits the node type the user chose, and where it should be placed. */
   readonly picked = output<NodeTypePicked>();
 
   private readonly localeId = inject(UI_LOCALE_ID);

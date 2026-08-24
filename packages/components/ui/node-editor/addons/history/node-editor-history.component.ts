@@ -52,11 +52,13 @@ export interface RunExportEvent {
   host: { class: 'contents' },
 })
 export class NodeEditorHistoryComponent {
+  /** Past runs, newest first. */
   readonly runs = input<readonly RunRecord[]>([]);
   /** The run being inspected, by id. */
   readonly selectedRun = model<number | null>(null);
   /** Whether the selected run's values are being shown in the editor. */
   readonly replaying = model(false);
+  /** Extra classes merged onto the panel. */
   readonly class = input('');
   /** Hide the heading when the panel already sits under one. */
   readonly heading = input(true);
@@ -70,7 +72,9 @@ export class NodeEditorHistoryComponent {
   readonly replayChange = output<RunRecord | null>();
   /** A node row was activated; the consumer decides what to reveal. */
   readonly nodeSelected = output<NodeId>();
+  /** Emits the run the user asked to export, with the chosen format. */
   readonly runExported = output<RunExportEvent>();
+  /** Emits when the user asks to clear the history; the consumer owns the list and performs the removal. */
   readonly clearRequested = output<void>();
 
   private readonly localeId = inject(UI_LOCALE_ID);

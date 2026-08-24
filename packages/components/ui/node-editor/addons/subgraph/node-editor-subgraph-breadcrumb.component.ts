@@ -21,6 +21,7 @@ import type { SubgraphFrame } from './node-editor-subgraph.types';
 export class NodeEditorSubgraphBreadcrumbComponent {
   /** Root first. A single entry means the editor is showing the root graph. */
   readonly path = input<readonly SubgraphFrame[]>([]);
+  /** Extra classes merged onto the breadcrumb. */
   readonly class = input('');
 
   /** Go to this level. The index into `path`. */

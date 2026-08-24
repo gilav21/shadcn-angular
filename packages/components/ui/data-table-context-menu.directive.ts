@@ -26,11 +26,16 @@ export interface DataTableHeaderContextMenuEvent {
   standalone: true,
 })
 export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
+  /** The menu to open when a row or header is right-clicked. */
   uiDataTableContextMenu = input.required<ContextMenuComponent>();
+  /** Stops the table from opening the menu. */
   contextMenuDisabled = input<boolean>(false);
+  /** Restrict the menu to body rows, leaving the header alone. */
   contextMenuRowsOnly = input<boolean>(true);
 
+  /** Emits the row that was right-clicked. */
   rowContextMenu = output<TableRowContextMenuEvent<T>>();
+  /** Emits the column header that was right-clicked. */
   headerContextMenu = output<DataTableHeaderContextMenuEvent>();
 
   private readonly tableElement = inject(ElementRef<HTMLElement>);
