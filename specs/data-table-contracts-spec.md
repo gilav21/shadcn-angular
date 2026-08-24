@@ -189,7 +189,7 @@ for T-1 — a clean axe pass, which the pre-commit hook enforces anyway.
 
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|---|---|---|---|---|---|
-| T-1 | ARIA grid semantics | UC-1, UC-6, R-1, R-2 | ⬜ | | | |
+| T-1 | ARIA grid semantics | UC-1, UC-6, R-1, R-2 | ✅ | 2026-08-25 | — | The audit's premise was wrong and had to be corrected first. The numbering bug was a layout spacer row, found only because a count came out one too high. |
 | T-2 | `DataTableQuery` / `DataTableResult` + `query` output + worked example | UC-2, R-5 | ⬜ | | | |
 | T-3 | `getViewState()` / `applyViewState()` | UC-3, UC-5, R-3 | ⬜ | | | |
 | T-4 | `editType: 'date'` | UC-4, R-4 | ⬜ | | | |
@@ -202,3 +202,41 @@ task also touches.
 ---
 
 ## 6. Completion log
+
+### T-1 ARIA grid semantics — 2026-08-25
+
+**Two commits.** `ui-table` gained a `grid` role and `ui-table-cell` now derives
+`cell` vs `gridcell` from the enclosing table through an injection token — which
+fixed a live bug, since sub-rows mode already asked for `treegrid` while serving
+invalid `cell` children. Then `data-table` declares `grid`, and stamps
+`aria-rowcount` / `aria-colcount` on the grid and `aria-rowindex` /
+`aria-colindex` on rows and cells.
+
+**Stamped after render rather than bound in the template.** The template renders
+rows from six branches — virtual and non-virtual, flat, tree and grouped — plus
+detail rows, full-width rows and group headers that occupy real row positions
+without appearing in any row array. 15 row sites, 21 cell sites and 5 head
+sites, and a per-branch binding would have numbered the branches it knew about
+and silently skipped the rest. Numbering from the DOM is the only thing
+guaranteed to agree with what was actually rendered.
+
+**A layout spacer was being counted as a row.** `aria-rowcount` came out at 7
+for five rows, which is the kind of off-by-one that a test asserting "has an
+aria-rowcount" would have sailed past. The body ends with an empty
+`ui-table-row` that stretches it to fill its container; it is now
+`aria-hidden`, and the stamping skips decorative rows and cells so a filler
+header cell cannot shift the column numbering either.
+
+**Column indices are withheld rather than guessed.** DOM order is the true
+visual order — pinned-left, centre, pinned-right — but it is only *absolute*
+when every column is present. When the middle columns are windowed, the index
+is left off. A missing `aria-colindex` is a gap; a wrong one sends the user to
+the wrong column.
+
+**Verified by removing the fix.** 9 of the 12 new tests fail with the stamping
+disabled. The virtualized case is asserted against 5,000 rows: `aria-rowcount`
+reads 5001 while the DOM holds a few dozen, and the indices are absolute rather
+than restarting at 1 on every scroll — which is the whole reason UC-1 exists.
+
+884 tests across `table` and `data-table`, e2e green, lint, `tsc` and `ngc`
+clean, axe clean via the pre-commit gate.

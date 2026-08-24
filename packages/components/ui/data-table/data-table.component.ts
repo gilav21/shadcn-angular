@@ -2591,6 +2591,89 @@ export class DataTableComponent<T>
   // Re-position the single fill-handle overlay after each relevant render. Works
   // across the flat, virtual and tree paths since all expose data-row-index /
   // data-column; the virtual-visible signals are read so it tracks scroll.
+  /**
+   * Stamp the grid's position semantics onto the rendered rows and cells.
+   *
+   * `aria-rowcount` / `aria-rowindex` exist for exactly this component's
+   * situation: the DOM holds a window of ~30 rows out of a dataset of any size,
+   * so assistive tech that counts DOM rows announces "row 3 of 30" and the user
+   * has no idea where they are. The count must therefore be the dataset's and
+   * the index must be absolute.
+   *
+   * Done here rather than as template bindings because this template renders
+   * rows from six different branches — virtual and non-virtual, flat, tree and
+   * grouped — plus detail rows, full-width rows and group headers that occupy
+   * real row positions without appearing in any row array. Numbering from the
+   * DOM is the only way to stay consistent with what was actually rendered; a
+   * per-branch binding would number the branches it knew about and silently
+   * skip the rest.
+   */
+  private stampGridSemantics(): void {
+    const grid = this._el.nativeElement.querySelector('[data-slot="table"]');
+    if (!grid) return;
+
+    /*
+     * Spacer rows and filler header cells exist only to make the flex layout
+     * fill its container. They are hidden from assistive tech, and counting
+     * them would put every index and both totals out by one.
+     */
+    const isDecorative = (el: Element): boolean =>
+      el.getAttribute('aria-hidden') === 'true' || el.getAttribute('role') === 'presentation';
+
+    const rows = [...grid.querySelectorAll('[data-slot="table-row"]')].filter(
+      row => !isDecorative(row),
+    );
+    const isHeaderRow = (row: Element): boolean =>
+      row.closest('[data-slot="table-header"]') !== null;
+    const headerRows = rows.filter(isHeaderRow).length;
+
+    /*
+     * Under virtualization the first rendered row is not row one; the scroller
+     * says which absolute row it is. Everywhere else the DOM already holds the
+     * whole set the grid represents.
+     */
+    const offset = this.isVirtualScrollActive() ? this.virtualRowRange().start : 0;
+
+    /*
+     * Column indices come from DOM order, which is the true visual order —
+     * pinned-left, then centre, then pinned-right. That is only *absolute*
+     * when every column is present, so when the middle columns are windowed
+     * the index is left off rather than published wrong. A missing
+     * `aria-colindex` is a gap; a wrong one sends the user to the wrong column.
+     */
+    const columnsWindowed =
+      this.virtualVisibleMiddleColumns().length < this.scrollableColumns().length;
+
+    let dataRow = 0;
+    for (const [position, row] of rows.entries()) {
+      const index = isHeaderRow(row)
+        ? position + 1
+        : headerRows + offset + ++dataRow;
+      row.setAttribute('aria-rowindex', String(index));
+
+      if (columnsWindowed) continue;
+      const cells = [...row.children].filter(cell => !isDecorative(cell));
+      for (const [column, cell] of cells.entries()) {
+        cell.setAttribute('aria-colindex', String(column + 1));
+      }
+    }
+
+    const dataRows = this.isVirtualScrollActive()
+      ? this.virtualTotalRows()
+      : rows.length - headerRows;
+    grid.setAttribute('aria-rowcount', String(headerRows + dataRows));
+    grid.setAttribute('aria-colcount', String(this.enhancedColumns().length));
+  }
+
+  private readonly _gridSemanticsEffect = afterRenderEffect(() => {
+    // Re-stamp whenever the rendered window, the data or the columns move.
+    this.virtualRowRange();
+    this.processedData();
+    this.enhancedColumns();
+    this.virtualTotalRows();
+    this.stampGridSemantics();
+  });
+
   private readonly _fillHandlePositionEffect = afterRenderEffect(() => {
     this.fillHandleCell();
     this.data();

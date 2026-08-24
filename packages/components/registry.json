@@ -858,6 +858,7 @@
       "data-table/data-table-autofit.spec.ts",
       "data-table/data-table-column-builder.spec.ts",
       "data-table/data-table-fill.spec.ts",
+      "data-table/data-table-grid-semantics.spec.ts",
       "data-table/data-table-paste.spec.ts",
       "data-table/data-table-virtual-scroll.spec.ts",
       "data-table/data-table.component.spec.ts",
