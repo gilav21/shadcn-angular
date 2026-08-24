@@ -190,7 +190,7 @@ for T-1 — a clean axe pass, which the pre-commit hook enforces anyway.
 | # | Task | Proves | Status | Completed | Score | Retrospective |
 |---|---|---|---|---|---|---|
 | T-1 | ARIA grid semantics | UC-1, UC-6, R-1, R-2 | ✅ | 2026-08-25 | — | The audit's premise was wrong and had to be corrected first. The numbering bug was a layout spacer row, found only because a count came out one too high. |
-| T-2 | `DataTableQuery` / `DataTableResult` + `query` output + worked example | UC-2, R-5 | ⬜ | | | |
+| T-2 | `DataTableQuery` / `DataTableResult` + `query` output + worked example | UC-2, R-5 | ✅ | 2026-08-25 | — | The duplicate-emission guard turned out to be the substance, not a nicety: on a server-side table a redundant emit is a redundant fetch. |
 | T-3 | `getViewState()` / `applyViewState()` | UC-3, UC-5, R-3 | ⬜ | | | |
 | T-4 | `editType: 'date'` | UC-4, R-4 | ⬜ | | | |
 | T-5 | Bundle close | coverage, Sonar, docs regen | ⬜ | | | |
@@ -240,3 +240,41 @@ than restarting at 1 on every scroll — which is the whole reason UC-1 exists.
 
 884 tests across `table` and `data-table`, e2e green, lint, `tsc` and `ngc`
 clean, axe clean via the pre-commit gate.
+
+### T-2 The server-side contract — 2026-08-25
+
+**Built.** `DataTableQuery` and `DataTableResult<T>` exported, a `query` output
+that emits the whole request, and `currentQuery()` — tagged `@publicApi`, so it
+appears in the generated API table — for the first fetch.
+
+**Types, not a mechanism.** Nothing about server-side mode changed;
+`sortChange` / `pageChange` / `filterChange` still work exactly as before. The
+audit's finding was that the mechanism was fine and the *contract* was
+unpublished, so an input taking a fetch callback was rejected: it would have
+owned loading, error, retry and cancellation, and become a second way to do
+what `[data]` already does.
+
+**The guard is the substance.** Several of the six fields are `model()`s
+holding objects, so signal identity alone re-emits when an equal-but-new object
+is written. On a local table that is a wasted tick; on a server-side table it
+is a duplicate round trip. `sameQuery` compares field by field rather than by
+`JSON.stringify`, because `columnFilters` holds arbitrary consumer values that
+may not be serialisable, and this runs on every state change. Verified by
+removing the guard: two tests fail.
+
+**It does not emit on init**, because there is no change to report yet and an
+output that fires during construction beats the consumer to readiness. That is
+what `currentQuery()` is for, and the demo uses exactly that for its first page.
+
+**A test failure that was not a bug.** Setting `pageIndex: 2` on a two-row
+fixture emitted twice — the table clamps an out-of-range page back to 0, which
+is a genuine second state change that the contract correctly reports. The
+fixture grew to 100 rows rather than the guard being loosened.
+
+**The worked example sits next to the thing it replaces.** The existing
+server-side section wires four outputs to four handlers backed by six signals
+kept in sync. The new section does the same job with one handler and two
+signals. Confirmed in a browser: paging emits `{pageIndex: 1}` and the rows
+move to PAY-11; sorting by amount emits the new sort **and** the page reset to
+0 in a single request — which through the granular outputs arrives as two
+callbacks to reconcile by hand.

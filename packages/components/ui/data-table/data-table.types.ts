@@ -218,6 +218,49 @@ export interface DataTableExportQuery {
     sortStates: SortState[];
 }
 
+/**
+ * Everything a server needs to answer one page of a data table.
+ *
+ * The mechanism for server-side mode has always been here — set `localSorting`,
+ * `localPagination` and `localFiltering` to `false`, feed `data` and `total`,
+ * and listen to `sortChange` / `pageChange` / `filterChange`. What was missing
+ * was the *shape*: every consumer re-derived a request from six separate
+ * inputs. This is that request, published once.
+ *
+ * It is deliberately the same vocabulary as {@link DataTableExportQuery}, which
+ * is the same question asked without a page — an export returns the whole
+ * result set.
+ */
+export interface DataTableQuery {
+    /** Global (search box) filter value. */
+    readonly globalFilter: string;
+    /** Per-column filter values, keyed by `accessorKey`. */
+    readonly columnFilters: Record<string, unknown>;
+    /** Primary sort. */
+    readonly sort: SortState;
+    /** Full multi-column sort state (highest priority first); empty when unused. */
+    readonly sortStates: readonly SortState[];
+    /** The advanced filter tree, or `null` when the builder is unused. */
+    readonly advancedFilter: FilterGroup | null;
+    /** Which page, and how big. */
+    readonly page: PaginationState;
+}
+
+/**
+ * What a server answers a {@link DataTableQuery} with.
+ *
+ * `total` is the count of rows matching the filters across **every** page, not
+ * the length of `rows` — it is what the pager needs to know how many pages
+ * there are, and it is the single most common thing to get wrong when wiring
+ * server-side mode by hand.
+ */
+export interface DataTableResult<T> {
+    /** The rows for the requested page. */
+    readonly rows: readonly T[];
+    /** Total matching rows across all pages. */
+    readonly total: number;
+}
+
 export type FilterOperator =
     | 'equals'
     | 'notEquals'

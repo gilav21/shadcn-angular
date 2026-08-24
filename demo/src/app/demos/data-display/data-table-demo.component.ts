@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, OnDestroy, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, afterNextRender, computed, inject, input, OnDestroy, output, signal, viewChild } from '@angular/core';
 import { DocsForComponent } from '../../docs/docs-for.component';
 import { CommonModule } from '@angular/common';
 import { delay, of } from 'rxjs';
@@ -33,6 +33,8 @@ import {
   RowActionContext,
   SeparatorComponent,
   SortState,
+  DataTableQuery,
+  DataTableResult,
   SpinnerComponent,
   SubRowFilterMode,
   SubRowSelectionMode,
@@ -1106,6 +1108,45 @@ export class DataTableDemoComponent {
     this.loadServerData();
   }
 
+  // One query, one handler — specs/data-table-contracts-spec.md T-2
+  private readonly oneQueryRef = viewChild<DataTableComponent<Payment>>('oneQueryGrid');
+  readonly oneQueryData = signal<Payment[]>([]);
+  readonly oneQueryTotal = signal(0);
+  readonly oneQueryLast = signal<DataTableQuery | null>(null);
+
+  /**
+   * The whole of server-side mode, in one handler.
+   *
+   * Compare the section above: four outputs, four handlers, and six signals
+   * kept in sync so each callback can rebuild the parts it did not receive.
+   * `query` carries the entire request, so there is nothing to keep and
+   * nothing to reassemble.
+   *
+   * A real implementation would debounce this — the global filter changes as
+   * the user types — and cancel the previous request. The table reports state;
+   * it deliberately does not fetch.
+   */
+  onOneQuery(query: DataTableQuery): void {
+    this.oneQueryLast.set(query);
+
+    const matched = this.queryServerData(query);
+    const { pageIndex, pageSize } = query.page;
+    const start = pageIndex * pageSize;
+
+    const result: DataTableResult<Payment> = {
+      rows: matched.slice(start, start + pageSize),
+      total: matched.length,
+    };
+    this.oneQueryData.set([...result.rows]);
+    this.oneQueryTotal.set(result.total);
+  }
+
+  /** The first page: `query` only reports changes, so ask what the state is. */
+  private loadFirstOneQueryPage(): void {
+    const grid = this.oneQueryRef();
+    if (grid) this.onOneQuery(grid.currentQuery());
+  }
+
   // Ops grid
   private readonly opsGridRef = viewChild<DataTableComponent<OpsTicket>>('opsGrid');
   readonly opsSource = signal<OpsTicket[]>([]);
@@ -1302,6 +1343,9 @@ export class DataTableDemoComponent {
     this.draggableData.set(data.slice(0, 6));
 
     this.loadServerData();
+
+    // `query` only reports changes, so the first page is asked for explicitly.
+    afterNextRender(() => this.loadFirstOneQueryPage());
     this.createOpsDataset();
     this.loadOpsData();
   }

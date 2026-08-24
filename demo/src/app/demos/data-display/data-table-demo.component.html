@@ -514,6 +514,29 @@
 </section>
 
 <section class="space-y-4">
+  <h2 id="data-table-one-query" class="text-2xl font-semibold scroll-m-20">{{ t().sectionOneQuery }}</h2>
+  <p class="text-muted-foreground">{{ t().oneQueryLead }}</p>
+
+  <div class="rounded-md border">
+    <ui-data-table
+      #oneQueryGrid
+      [data]="oneQueryData()"
+      [columns]="paymentColumns()"
+      [total]="oneQueryTotal()"
+      [localSorting]="false"
+      [localPagination]="false"
+      [localFiltering]="false"
+      (query)="onOneQuery($event)"
+    />
+  </div>
+
+  <p class="text-xs text-muted-foreground">{{ t().oneQueryNote }}</p>
+  @if (oneQueryLast(); as last) {
+    <pre class="bg-muted overflow-x-auto rounded p-3 text-xs" data-testid="one-query-last">{{ last | json }}</pre>
+  }
+</section>
+
+<section class="space-y-4">
   <h2 id="data-table-ops" class="text-2xl font-semibold scroll-m-20">{{ t().sectionOpsConsole }}</h2>
   <p class="text-muted-foreground">
     Realistic incident operations grid using server-mode pagination/filter/sort, multi-sort (Shift+Click),

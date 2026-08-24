@@ -860,6 +860,7 @@
       "data-table/data-table-fill.spec.ts",
       "data-table/data-table-grid-semantics.spec.ts",
       "data-table/data-table-paste.spec.ts",
+      "data-table/data-table-query.spec.ts",
       "data-table/data-table-virtual-scroll.spec.ts",
       "data-table/data-table.component.spec.ts",
       "data-table/data-table.coverage.spec.ts",

@@ -13,6 +13,7 @@ import {
   Type,
   TemplateRef,
   ElementRef,
+  untracked,
   inject,
   forwardRef,
   AfterViewInit,
@@ -67,6 +68,7 @@ import {
   DataTableLoadingVisibility,
   DataTableExportOptions,
   DataTableExportQuery,
+  DataTableQuery,
   SubRowSelectionMode,
   SubRowFilterMode,
   FlattenedTreeRow,
@@ -128,6 +130,29 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   if (id == null) return JSON.stringify(row);
   return stringifyValue(id);
 };
+
+/**
+ * Whether two requests describe the same page of data.
+ *
+ * Compared field by field rather than with a deep clone or `JSON.stringify`:
+ * `columnFilters` holds arbitrary consumer values, which may not be
+ * serialisable, and this runs on every state change.
+ */
+function sameQuery(a: DataTableQuery, b: DataTableQuery): boolean {
+  const sameSort = (x: SortState, y: SortState): boolean =>
+    x.column === y.column && x.direction === y.direction;
+
+  return (
+    a.globalFilter === b.globalFilter &&
+    a.columnFilters === b.columnFilters &&
+    a.advancedFilter === b.advancedFilter &&
+    a.page.pageIndex === b.page.pageIndex &&
+    a.page.pageSize === b.page.pageSize &&
+    sameSort(a.sort, b.sort) &&
+    a.sortStates.length === b.sortStates.length &&
+    a.sortStates.every((sort, i) => sameSort(sort, b.sortStates[i]))
+  );
+}
 
 @Component({
   selector: "ui-data-table",
@@ -317,6 +342,25 @@ export class DataTableComponent<T>
    * {@link localFiltering} is false, which is how you drive a server-side search.
    */
   readonly filterChange = output<string>();
+
+  /**
+   * The complete server request, emitted whenever any part of it changes.
+   *
+   * `sortChange` / `pageChange` / `filterChange` each report one fragment, so
+   * wiring server-side mode from them means keeping your own copy of the other
+   * five and reassembling a request on every callback. This emits the whole
+   * {@link DataTableQuery} instead — one handler, one shape.
+   *
+   * It **reports state; it does not fetch**. A global filter changes on every
+   * keystroke (after {@link filterDebounce}), so debounce or `switchMap` on
+   * your side before hitting a server — the table cannot know how expensive
+   * your endpoint is.
+   *
+   * It does not fire on init: there is no change to report yet, and an output
+   * that emits during construction fires before a consumer can be ready. Read
+   * {@link currentQuery} for the first fetch.
+   */
+  readonly query = output<DataTableQuery>();
 
   /**
    * A committed inline cell edit: row, column key, and old/new value. The table
@@ -3797,6 +3841,48 @@ export class DataTableComponent<T>
   /** The raw, unfiltered input rows (addon transform seam, e.g. pivot). */
   getRawRows(): readonly T[] {
     return this.data();
+  }
+
+  private _lastEmittedQuery: DataTableQuery | null = null;
+
+  /**
+   * Emit {@link query} whenever the request actually changes.
+   *
+   * Guarded on the *contents* rather than left to signal identity: several of
+   * these are `model()`s holding objects, and a write of an equal-but-new
+   * object would otherwise emit again — which on a server-side table is a
+   * duplicate round trip, not a wasted tick.
+   *
+   * The first run is the initial state, so there is nothing to report yet; see
+   * {@link currentQuery}.
+   */
+  private readonly _queryEmitter = effect(() => {
+    const next = this.currentQuery();
+    const previous = this._lastEmittedQuery;
+    this._lastEmittedQuery = next;
+
+    if (previous === null || sameQuery(previous, next)) return;
+    untracked(() => this.query.emit(next));
+  });
+
+  /**
+   * The request that describes what the table is showing right now.
+   *
+   * The companion to the {@link query} output, which only fires on a change:
+   * this is how a consumer gets the *first* page without waiting for the user
+   * to touch something.
+   *
+   * @publicApi
+   */
+  currentQuery(): DataTableQuery {
+    return {
+      globalFilter: this.globalFilter(),
+      columnFilters: this.columnFilters(),
+      sort: this.sortState(),
+      sortStates: this.multiSortState(),
+      advancedFilter: this.advancedFilter(),
+      page: this.paginationState(),
+    };
   }
 
   /** The active filter + sort query, for a server-side export provider. */

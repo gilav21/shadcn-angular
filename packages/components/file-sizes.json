@@ -1849,6 +1849,54 @@
       "bytes": 14114,
       "lines": 17
     },
+    "data-table/__screenshots__/data-table-grid-semantics.spec.ts/data-table-grid-semantics-cell-numbering-numbers-the-cells-of-a-row-from-1-1.png": {
+      "bytes": 19376,
+      "lines": 29
+    },
+    "data-table/__screenshots__/data-table-grid-semantics.spec.ts/data-table-grid-semantics-cell-numbering-numbers-the-header-cells-too-1.png": {
+      "bytes": 19376,
+      "lines": 29
+    },
+    "data-table/__screenshots__/data-table-grid-semantics.spec.ts/data-table-grid-semantics-row-numbering-gives-the-header-row-index-1--so-data-starts-at-2-1.png": {
+      "bytes": 19376,
+      "lines": 29
+    },
+    "data-table/__screenshots__/data-table-grid-semantics.spec.ts/data-table-grid-semantics-row-numbering-numbers-every-rendered-row-consecutively-1.png": {
+      "bytes": 19376,
+      "lines": 29
+    },
+    "data-table/__screenshots__/data-table-grid-semantics.spec.ts/data-table-grid-semantics-row-numbering-renumbers-when-the-data-changes-1.png": {
+      "bytes": 15879,
+      "lines": 14
+    },
+    "data-table/__screenshots__/data-table-grid-semantics.spec.ts/data-table-grid-semantics-the-grid-declares-itself-counts-the-header-row-in-aria-rowcount-1.png": {
+      "bytes": 19376,
+      "lines": 29
+    },
+    "data-table/__screenshots__/data-table-grid-semantics.spec.ts/data-table-grid-semantics-the-grid-declares-itself-publishes-the-column-count-1.png": {
+      "bytes": 19376,
+      "lines": 29
+    },
+    "data-table/__screenshots__/data-table-grid-semantics.spec.ts/data-table-grid-semantics-virtualized--where-the-DOM-holds-a-window-of-the-data-counts-the-whole-dataset--not-the-rendered-window-1.png": {
+      "bytes": 12654,
+      "lines": 9
+    },
+    "data-table/__screenshots__/data-table-grid-semantics.spec.ts/data-table-grid-semantics-virtualized--where-the-DOM-holds-a-window-of-the-data-numbers-rows-by-their-absolute-position--not-their-DOM-position-1.png": {
+      "bytes": 12654,
+      "lines": 9
+    },
+    "data-table/__screenshots__/data-table-query.spec.ts/the-data-table-server-side-query-contract-what-it-does-not-report-stays-quiet-when-a-value-is-rewritten-unchanged-1.png": {
+      "bytes": 23071,
+      "lines": 16
+    },
+    "data-table/__screenshots__/data-table-query.spec.ts/the-data-table-server-side-query-contract-what-it-does-not-report-stays-quiet-when-an-equal-sort-chain-is-rebuilt-1.png": {
+      "bytes": 22081,
+      "lines": 19
+    },
+    "data-table/__screenshots__/data-table-query.spec.ts/the-data-table-server-side-query-contract-what-it-reports-emits-the-whole-request-when-the-page-changes--not-just-the-page-1.png": {
+      "bytes": 13952,
+      "lines": 16
+    },
     "data-table/__screenshots__/data-table.component.spec.ts/DataTableComponent---Column-resize-drag-touch-drag-resizes-the-column-1.png": {
       "bytes": 16452,
       "lines": 17
@@ -2313,25 +2361,33 @@
       "bytes": 4785,
       "lines": 123
     },
+    "data-table/data-table-grid-semantics.spec.ts": {
+      "bytes": 7477,
+      "lines": 201
+    },
     "data-table/data-table-paste.spec.ts": {
       "bytes": 1362,
       "lines": 48
+    },
+    "data-table/data-table-query.spec.ts": {
+      "bytes": 8696,
+      "lines": 246
     },
     "data-table/data-table-virtual-scroll.spec.ts": {
       "bytes": 7036,
       "lines": 183
     },
     "data-table/data-table.component.html": {
-      "bytes": 69779,
-      "lines": 1513
+      "bytes": 68513,
+      "lines": 1516
     },
     "data-table/data-table.component.spec.ts": {
       "bytes": 306611,
       "lines": 6854
     },
     "data-table/data-table.component.ts": {
-      "bytes": 211051,
-      "lines": 5889
+      "bytes": 217827,
+      "lines": 6058
     },
     "data-table/data-table.coverage.spec.ts": {
       "bytes": 25674,
@@ -2354,8 +2410,8 @@
       "lines": 1863
     },
     "data-table/data-table.types.ts": {
-      "bytes": 11290,
-      "lines": 390
+      "bytes": 12658,
+      "lines": 433
     },
     "data-table/data-table.utils.ts": {
       "bytes": 23851,
@@ -8681,6 +8737,14 @@
       "bytes": 14033,
       "lines": 356
     },
+    "table/__screenshots__/table.component.spec.ts/table-role-and-the-cell-role-that-follows-from-it-does-the-same-for-a-treegrid--which-is-a-grid-with-hierarchy-1.png": {
+      "bytes": 11395,
+      "lines": 6
+    },
+    "table/__screenshots__/table.component.spec.ts/table-role-and-the-cell-role-that-follows-from-it-turns-its-cells-into-gridcells-when-it-becomes-a-grid-1.png": {
+      "bytes": 11395,
+      "lines": 6
+    },
     "table/index.ts": {
       "bytes": 404,
       "lines": 9
@@ -8698,8 +8762,8 @@
       "lines": 8
     },
     "table/sub/table-cell.component.ts": {
-      "bytes": 1075,
-      "lines": 34
+      "bytes": 1762,
+      "lines": 50
     },
     "table/sub/table-footer.component.ts": {
       "bytes": 727,
@@ -8726,12 +8790,12 @@
       "lines": 31
     },
     "table/table.component.spec.ts": {
-      "bytes": 8627,
-      "lines": 227
+      "bytes": 11065,
+      "lines": 291
     },
     "table/table.component.ts": {
-      "bytes": 1117,
-      "lines": 32
+      "bytes": 2127,
+      "lines": 58
     },
     "table/table.stories.ts": {
       "bytes": 5812,

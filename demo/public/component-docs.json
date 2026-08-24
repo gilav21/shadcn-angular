@@ -5565,6 +5565,11 @@
               "default": "{ pageIndex: 0, pageSize: 10 }"
             },
             {
+              "name": "query",
+              "type": "DataTableQuery",
+              "description": "The complete server request, emitted whenever any part of it changes. `sortChange` / `pageChange` / `filterChange` each report one fragment, so wiring server-side mode from them means keeping your own copy of the other five and reassembling a request on every callback. This emits the whole {@link DataTableQuery} instead — one handler, one shape. It **reports state; it does not fetch**. A global filter changes on every keystroke (after {@link filterDebounce}), so debounce or `switchMap` on your side before hitting a server — the table cannot know how expensive your endpoint is. It does not fire on init: there is no change to report yet, and an output that emits during construction fires before a consumer can be ready. Read {@link currentQuery} for the first fetch."
+            },
+            {
               "name": "rangeChartOpen",
               "type": "RangeChartPayload",
               "description": "Emitted when the user opens the range chart; carries the chart payload."
@@ -5598,7 +5603,15 @@
               "default": "{}"
             }
           ],
-          "methods": []
+          "methods": [
+            {
+              "name": "currentQuery",
+              "signature": "currentQuery()",
+              "returns": "DataTableQuery",
+              "description": "The request that describes what the table is showing right now. The companion to the {@link query} output, which only fires on a change: this is how a consumer gets the *first* page without waiting for the user to touch something.",
+              "params": []
+            }
+          ]
         },
         {
           "className": "DataTableColumnHeaderComponent",
@@ -17410,8 +17423,8 @@
             },
             {
               "name": "role",
-              "type": "\"table\" | \"treegrid\"",
-              "description": "ARIA role of the grid. Rows that expose `aria-expanded` / `aria-level` — a hierarchical table, as produced by the data table's sub-rows mode — are only valid inside a `treegrid`; on a plain `table` those attributes are ignored by assistive tech, so the hierarchy is lost.",
+              "type": "TableRole",
+              "description": "ARIA role of the table. `table` is a static, read-only grid of data. Use `grid` when the widget is *interactive* — arrow-key navigation between cells, cell selection, in-place editing — because that is what tells assistive tech to switch out of document reading mode and let the arrow keys through. `treegrid` is `grid` plus hierarchy. Rows that expose `aria-expanded` / `aria-level` — as the data table's sub-rows mode produces — are only valid inside a `treegrid`; on a plain `table` those attributes are ignored by assistive tech, so the hierarchy is lost.",
               "default": "'table'"
             }
           ],
