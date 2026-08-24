@@ -42,6 +42,7 @@ export class NodeEditorSubgraphBreadcrumbComponent {
   protected crumbClasses(index: number): string {
     return cn(
       'rounded px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      'pointer-coarse:min-h-11 pointer-coarse:inline-flex pointer-coarse:items-center',
       this.isLast(index)
         ? 'font-medium text-foreground'
         : 'text-muted-foreground hover:bg-accent hover:text-foreground',

@@ -1,8 +1,19 @@
 import { Directive, ElementRef, inject, input, output, DestroyRef } from '@angular/core';
+import { onLongPress } from '../../../../lib/touch';
 import { ContextMenuComponent } from '../../../context-menu';
 import { NodeEditorComponent } from '../..';
 import type { NodeEditorContextTarget } from './node-editor-context-menu.types';
-import { resolveTarget } from './node-editor-context-menu.resolve';
+import { resolveTarget, type ContextPointer } from './node-editor-context-menu.resolve';
+
+/**
+ * How long after a long-press a `contextmenu` is assumed to be the same
+ * gesture.
+ *
+ * Android fires `contextmenu` for a long-press as well; iOS does not. Without
+ * a window the menu would open twice on one platform and not at all on the
+ * other.
+ */
+const SAME_GESTURE_MS = 700;
 
 /**
  * A context menu on the graph, with contents that depend on what was clicked.
@@ -55,30 +66,66 @@ export class NodeEditorContextMenuDirective {
   private readonly editor = inject(NodeEditorComponent);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
+  /** When a long-press last opened the menu, to ignore the echo. */
+  private lastLongPress = 0;
+
   constructor() {
     const element = this.host.nativeElement;
     element.addEventListener('contextmenu', this.onContextMenu);
-    inject(DestroyRef).onDestroy(() =>
-      element.removeEventListener('contextmenu', this.onContextMenu),
-    );
+
+    /*
+     * Long-press is the touch equivalent, and without it a phone could not
+     * reach any of this: adding a node, adding a zone, renaming, deleting and
+     * disconnecting were all behind a right-click, which a finger does not
+     * have.
+     */
+    const stopLongPress = onLongPress(element, event => {
+      const touch = event.touches[0] ?? event.changedTouches[0];
+      if (!touch) return;
+      this.lastLongPress = Date.now();
+      this.open({
+        target: touch.target,
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+      });
+    });
+
+    inject(DestroyRef).onDestroy(() => {
+      element.removeEventListener('contextmenu', this.onContextMenu);
+      stopLongPress();
+    });
   }
 
   private readonly onContextMenu = (event: MouseEvent): void => {
-    if (this.contextMenuDisabled()) return;
+    // Android raises this for a long-press too; the menu is already open.
+    if (Date.now() - this.lastLongPress < SAME_GESTURE_MS) {
+      event.preventDefault();
+      return;
+    }
+    if (this.open(event)) {
+      /*
+       * The browser's own menu is suppressed only once we have something
+       * better to show. A right-click that resolves to nothing — on a
+       * scrollbar inside a node's view, say — keeps the native menu, because
+       * taking it away and offering nothing is worse than either.
+       */
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
 
-    const target = resolveTarget(event, this.editor);
-    if (!target) return;
+  /** Resolve and show. Returns whether anything was worth showing. */
+  private open(pointer: ContextPointer): boolean {
+    if (this.contextMenuDisabled()) return false;
 
-    /*
-     * The browser's own menu is suppressed only once we have something better
-     * to show. A right-click that resolves to nothing — on a scrollbar inside
-     * a node's view, say — keeps the native menu, because taking it away and
-     * offering nothing is worse than either.
-     */
-    event.preventDefault();
-    event.stopPropagation();
+    const target = resolveTarget(pointer, this.editor);
+    if (!target) return false;
+
+    // Whatever the finger had started is not what it turned out to mean.
+    this.editor.cancelGesture();
 
     this.contextTarget.emit(target);
     this.uiNodeEditorContextMenu().show(target.screen.x, target.screen.y, target);
-  };
+    return true;
+  }
 }

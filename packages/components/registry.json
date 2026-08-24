@@ -5392,6 +5392,9 @@
       "node-editor/addons/context-menu/node-editor-context-menu.resolve.ts",
       "node-editor/addons/context-menu/node-editor-context-menu.types.ts"
     ],
+    "libFiles": [
+      "touch.ts"
+    ],
     "dependencies": [
       "context-menu",
       "node-editor"
@@ -5427,7 +5430,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "touch.ts"
     ],
     "dependencies": [
       "node-editor"
@@ -5522,7 +5526,8 @@
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "touch.ts"
     ],
     "dependencies": [
       "node-editor"

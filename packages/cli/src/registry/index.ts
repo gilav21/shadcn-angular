@@ -1930,6 +1930,7 @@ export const registry = defineRegistry({
     description: 'Right-click menus whose contents depend on the node, port, wire or plane clicked.',
     tags: ['node-editor', 'context-menu', 'right-click', 'actions', 'graph'],
     files: ['node-editor/addons/context-menu/index.ts', 'node-editor/addons/context-menu/node-editor-context-menu.directive.ts', 'node-editor/addons/context-menu/node-editor-context-menu.resolve.ts', 'node-editor/addons/context-menu/node-editor-context-menu.types.ts'],
+    libFiles: ['touch.ts'],
     dependencies: ['context-menu', 'node-editor'],
     attach: {
       import: "NodeEditorContextMenuDirective from './ui/node-editor/addons/context-menu'",
@@ -1944,7 +1945,7 @@ export const registry = defineRegistry({
     description: 'Titled frames behind the nodes and freestanding comments, both purely visual.',
     tags: ['node-editor', 'groups', 'comments', 'annotation', 'graph'],
     files: ['node-editor/addons/groups/index.ts', 'node-editor/addons/groups/node-editor-groups.component.css', 'node-editor/addons/groups/node-editor-groups.component.html', 'node-editor/addons/groups/node-editor-groups.component.ts', 'node-editor/addons/groups/node-editor-groups.locales.ts', 'node-editor/addons/groups/node-editor-groups.types.ts', 'node-editor/addons/groups/node-editor-groups.utils.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
     dependencies: ['node-editor'],
     attach: {
       import: "NodeEditorGroupsComponent from './ui/node-editor/addons/groups'",
@@ -1988,7 +1989,7 @@ export const registry = defineRegistry({
     description: 'Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.',
     tags: ['node-editor', 'minimap', 'overview', 'navigation', 'canvas'],
     files: ['node-editor/addons/minimap/index.ts', 'node-editor/addons/minimap/node-editor-minimap.component.html', 'node-editor/addons/minimap/node-editor-minimap.component.ts', 'node-editor/addons/minimap/node-editor-minimap.locales.ts', 'node-editor/addons/minimap/node-editor-minimap.utils.ts'],
-    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
     dependencies: ['node-editor'],
     attach: {
       import: "NodeEditorMinimapComponent from './ui/node-editor/addons/minimap'",

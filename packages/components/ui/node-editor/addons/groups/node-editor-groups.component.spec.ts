@@ -242,6 +242,63 @@ describe('NodeEditorGroupsComponent', () => {
         });
     });
 
+    describe('two fingers mean pan and zoom, not dragging a zone', () => {
+        function touch(target: EventTarget, type: string, init: PointerEventInit): void {
+            target.dispatchEvent(new PointerEvent(type, {
+                bubbles: true, cancelable: true, button: 0, pointerType: 'touch', ...init,
+            }));
+        }
+
+        /**
+         * Nodes were fixed first, and zones were still being dragged around by
+         * a pinch — the guard has to sit on every surface that owns a drag.
+         */
+        it('puts a half-dragged frame back when a second finger lands elsewhere', async () => {
+            const before = host.groups().find(g => g.id === 'stage-1');
+
+            touch(title('stage-1'), 'pointerdown', { pointerId: 1, isPrimary: true, clientX: 0, clientY: 0 });
+            touch(title('stage-1'), 'pointermove', { pointerId: 1, isPrimary: true, clientX: 90, clientY: 60 });
+            await settle();
+            expect(host.groups().find(g => g.id === 'stage-1')).not.toEqual(before);
+
+            // The other finger lands on the page, not on the frame.
+            touch(document.body, 'pointerdown', { pointerId: 2, isPrimary: false, clientX: 300, clientY: 300 });
+            await settle();
+
+            expect(host.groups().find(g => g.id === 'stage-1')).toEqual(before);
+        });
+
+        it('stops the frame following the first finger afterwards', async () => {
+            const before = host.groups().find(g => g.id === 'stage-1');
+
+            touch(title('stage-1'), 'pointerdown', { pointerId: 1, isPrimary: true, clientX: 0, clientY: 0 });
+            touch(title('stage-1'), 'pointermove', { pointerId: 1, isPrimary: true, clientX: 50, clientY: 50 });
+            touch(document.body, 'pointerdown', { pointerId: 2, isPrimary: false, clientX: 300, clientY: 300 });
+            await settle();
+
+            touch(title('stage-1'), 'pointermove', { pointerId: 1, isPrimary: true, clientX: 400, clientY: 400 });
+            await settle();
+
+            expect(host.groups().find(g => g.id === 'stage-1')).toEqual(before);
+        });
+
+        it('reports no member move for a drag that was abandoned', async () => {
+            touch(title('stage-1'), 'pointerdown', { pointerId: 1, isPrimary: true, clientX: 0, clientY: 0 });
+            touch(title('stage-1'), 'pointermove', { pointerId: 1, isPrimary: true, clientX: 90, clientY: 60 });
+            touch(document.body, 'pointerdown', { pointerId: 2, isPrimary: false, clientX: 300, clientY: 300 });
+            touch(title('stage-1'), 'pointerup', { pointerId: 1, isPrimary: true, clientX: 90, clientY: 60 });
+            await settle();
+
+            expect(host.moved()).toBeNull();
+        });
+
+        it('does not disturb a mouse drag', async () => {
+            const before = host.groups().find(g => g.id === 'stage-1');
+            await drag(title('stage-1'), 100, 50);
+            expect(host.groups().find(g => g.id === 'stage-1')).not.toEqual(before);
+        });
+    });
+
     describe('readonly', () => {
         beforeEach(async () => {
             host.readonlyGroups.set(true);

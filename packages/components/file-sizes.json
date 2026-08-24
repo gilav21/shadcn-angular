@@ -4609,21 +4609,45 @@
       "bytes": 21278,
       "lines": 41
     },
+    "node-editor/addons/context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-gives-up-the-drag-the-finger-had-started-1.png": {
+      "bytes": 14877,
+      "lines": 20
+    },
+    "node-editor/addons/context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-ignores-the-contextmenu-echo-that-follows-on-some-platforms-1.png": {
+      "bytes": 16722,
+      "lines": 43
+    },
+    "node-editor/addons/context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-reports-the-world-point--so-a-node-lands-where-the-finger-was-1.png": {
+      "bytes": 14609,
+      "lines": 15
+    },
+    "node-editor/addons/context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-resolves-empty-plane-from-a-held-finger-1.png": {
+      "bytes": 14670,
+      "lines": 15
+    },
+    "node-editor/addons/context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-resolves-the-node-a-finger-was-held-on-1.png": {
+      "bytes": 14609,
+      "lines": 15
+    },
     "node-editor/addons/context-menu/index.ts": {
       "bytes": 156,
       "lines": 3
     },
     "node-editor/addons/context-menu/node-editor-context-menu.directive.ts": {
-      "bytes": 3367,
-      "lines": 84
+      "bytes": 4937,
+      "lines": 131
     },
     "node-editor/addons/context-menu/node-editor-context-menu.resolve.spec.ts": {
       "bytes": 8005,
       "lines": 201
     },
     "node-editor/addons/context-menu/node-editor-context-menu.resolve.ts": {
-      "bytes": 3688,
-      "lines": 100
+      "bytes": 4047,
+      "lines": 113
+    },
+    "node-editor/addons/context-menu/node-editor-context-menu.touch.spec.ts": {
+      "bytes": 6356,
+      "lines": 185
     },
     "node-editor/addons/context-menu/node-editor-context-menu.types.ts": {
       "bytes": 1759,
@@ -4632,6 +4656,18 @@
     "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-accessibility-has-no-axe-violations-1.png": {
       "bytes": 13738,
       "lines": 13
+    },
+    "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-two-fingers-mean-pan-and-zoom--not-dragging-a-zone-puts-a-half-dragged-frame-back-when-a-second-finger-lands-elsewhere-1.png": {
+      "bytes": 12607,
+      "lines": 13
+    },
+    "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-two-fingers-mean-pan-and-zoom--not-dragging-a-zone-reports-no-member-move-for-a-drag-that-was-abandoned-1.png": {
+      "bytes": 12803,
+      "lines": 8
+    },
+    "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-two-fingers-mean-pan-and-zoom--not-dragging-a-zone-stops-the-frame-following-the-first-finger-afterwards-1.png": {
+      "bytes": 7535,
+      "lines": 7
     },
     "node-editor/addons/groups/index.ts": {
       "bytes": 182,
@@ -4642,16 +4678,16 @@
       "lines": 87
     },
     "node-editor/addons/groups/node-editor-groups.component.html": {
-      "bytes": 3329,
-      "lines": 87
+      "bytes": 3367,
+      "lines": 88
     },
     "node-editor/addons/groups/node-editor-groups.component.spec.ts": {
-      "bytes": 12141,
-      "lines": 315
+      "bytes": 15140,
+      "lines": 372
     },
     "node-editor/addons/groups/node-editor-groups.component.ts": {
-      "bytes": 8672,
-      "lines": 256
+      "bytes": 10097,
+      "lines": 297
     },
     "node-editor/addons/groups/node-editor-groups.locales.ts": {
       "bytes": 1500,
@@ -4666,24 +4702,24 @@
       "lines": 199
     },
     "node-editor/addons/groups/node-editor-groups.utils.ts": {
-      "bytes": 4964,
-      "lines": 153
+      "bytes": 5604,
+      "lines": 170
     },
     "node-editor/addons/history/index.ts": {
       "bytes": 231,
       "lines": 5
     },
     "node-editor/addons/history/node-editor-history.component.html": {
-      "bytes": 8320,
-      "lines": 195
+      "bytes": 8607,
+      "lines": 199
     },
     "node-editor/addons/history/node-editor-history.component.spec.ts": {
       "bytes": 10782,
       "lines": 305
     },
     "node-editor/addons/history/node-editor-history.component.ts": {
-      "bytes": 5737,
-      "lines": 174
+      "bytes": 5832,
+      "lines": 176
     },
     "node-editor/addons/history/node-editor-history.locales.ts": {
       "bytes": 7923,
@@ -4730,16 +4766,16 @@
       "lines": 3
     },
     "node-editor/addons/minimap/node-editor-minimap.component.html": {
-      "bytes": 2271,
-      "lines": 65
+      "bytes": 2351,
+      "lines": 66
     },
     "node-editor/addons/minimap/node-editor-minimap.component.spec.ts": {
       "bytes": 10433,
       "lines": 268
     },
     "node-editor/addons/minimap/node-editor-minimap.component.ts": {
-      "bytes": 8420,
-      "lines": 243
+      "bytes": 8909,
+      "lines": 256
     },
     "node-editor/addons/minimap/node-editor-minimap.locales.ts": {
       "bytes": 1292,
@@ -4794,8 +4830,8 @@
       "lines": 167
     },
     "node-editor/addons/problems/node-editor-problems.component.ts": {
-      "bytes": 3431,
-      "lines": 89
+      "bytes": 3492,
+      "lines": 90
     },
     "node-editor/addons/problems/node-editor-problems.locales.ts": {
       "bytes": 2996,
@@ -4822,8 +4858,8 @@
       "lines": 116
     },
     "node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.ts": {
-      "bytes": 2059,
-      "lines": 54
+      "bytes": 2147,
+      "lines": 55
     },
     "node-editor/addons/subgraph/node-editor-subgraph.locales.ts": {
       "bytes": 2132,
@@ -4878,8 +4914,8 @@
       "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 60583,
-      "lines": 1651
+      "bytes": 62230,
+      "lines": 1699
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -10024,8 +10060,8 @@
       "lines": 260
     },
     "touch.ts": {
-      "bytes": 4817,
-      "lines": 140
+      "bytes": 5410,
+      "lines": 157
     },
     "utils.ts": {
       "bytes": 2532,

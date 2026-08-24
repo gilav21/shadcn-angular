@@ -19,6 +19,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { acquireAriaLive } from '../../lib/sortable-aria-live';
+import { isSecondaryTouch, onDoubleTap } from '../../lib/touch';
 import { cn } from '../../lib/utils';
 import {
   InfiniteCanvasComponent,
@@ -126,6 +127,14 @@ const DRAG_THRESHOLD_PX = 3;
  * enough that live typing does not leave the whole graph permanently lit.
  */
 const RECENTLY_RAN_MS = 900;
+
+/**
+ * Window in which a second double-activation is treated as an echo.
+ *
+ * A touch platform may deliver both a real double-tap and a synthesised
+ * `dblclick` for one gesture.
+ */
+const DOUBLE_ACTIVATE_MS = 500;
 
 /**
  * Things inside a node that own their own pointer behaviour.
@@ -345,6 +354,7 @@ export class NodeEditorComponent {
 
   private readonly liveRegion = acquireAriaLive();
   private drag: DragState | null = null;
+  private lastDoubleActivate = 0;
   private insertCounter = 0;
 
   /**
@@ -385,6 +395,18 @@ export class NodeEditorComponent {
     const onKeyDownCapture = (event: Event): void => this.onKeyDown(event as KeyboardEvent);
     element.addEventListener('keydown', onKeyDownCapture, true);
 
+    /*
+     * Double-tap is the touch half of double-click: opening a node that
+     * contains a graph, and asking for a new node on empty plane. Without it
+     * both depend on a synthesised `dblclick` that not every platform sends.
+     */
+    const stopDoubleTap = onDoubleTap(element, event => {
+      const touch = event.changedTouches[0] ?? event.touches[0];
+      if (touch) {
+        this.handleDoubleActivate(touch.target, { x: touch.clientX, y: touch.clientY });
+      }
+    });
+
     this.runtime.onRunStarted = event => this.runStarted.emit(event);
     this.runtime.onNodeSettled = event => {
       this.markRecentlyRan(event.nodeId);
@@ -411,6 +433,7 @@ export class NodeEditorComponent {
 
     inject(DestroyRef).onDestroy(() => {
       element.removeEventListener('keydown', onKeyDownCapture, true);
+      stopDoubleTap();
       for (const timer of this.recentTimers.values()) clearTimeout(timer);
       this.recentTimers.clear();
       this.runtime.dispose();
@@ -907,12 +930,9 @@ export class NodeEditorComponent {
      * cleaned up on every exit path. The first version tracked them by hand
      * and one missed `pointerup` would have wedged the editor for good.
      *
-     * Narrowed to `touch` because that is the gesture this is about, and
-     * because a synthetic `PointerEvent` reports `isPrimary: false` by
-     * default — so an unqualified check treats every dispatched event in
-     * every test as a second finger, which is exactly what it did.
+     * See `isSecondaryTouch` for why it is narrowed to touch.
      */
-    if (event.pointerType === 'touch' && !event.isPrimary) {
+    if (isSecondaryTouch(event)) {
       this.abandonGesture();
       return;
     }
@@ -979,7 +999,24 @@ export class NodeEditorComponent {
    * correct — it is an intent, not a command.
    */
   protected onDoubleClick(event: MouseEvent): void {
-    const card = (event.target as Element | null)?.closest<HTMLElement>(
+    this.handleDoubleActivate(event.target, { x: event.clientX, y: event.clientY });
+  }
+
+  /**
+   * Double-click and double-tap, arriving at the same place.
+   *
+   * Touch platforms disagree about whether a double-tap also produces a
+   * synthesised `dblclick`: some send both, some send neither once
+   * `touch-action: none` is set. Handling each separately meant adding two
+   * nodes on one platform and none on the other, so both routes funnel here
+   * and a repeat inside {@link DOUBLE_ACTIVATE_MS} is ignored.
+   */
+  private handleDoubleActivate(target: EventTarget | null, screen: CanvasPoint): void {
+    const now = this.now();
+    if (now - this.lastDoubleActivate < DOUBLE_ACTIVATE_MS) return;
+    this.lastDoubleActivate = now;
+
+    const card = (target as Element | null)?.closest<HTMLElement>(
       '[data-slot="node-editor-node"]',
     );
     if (card) {
@@ -989,7 +1026,7 @@ export class NodeEditorComponent {
       if (nodeId !== null && this.isOpenable(nodeId)) this.nodeOpened.emit(nodeId);
       return;
     }
-    this.requestAddAt(event);
+    this.requestAddAtPoint(target, screen);
   }
 
   /** Whether this node's type says it contains something worth opening. */
@@ -1017,13 +1054,13 @@ export class NodeEditorComponent {
    * anything better to offer there yet.
    */
   /** Emits `addNodeRequested` if this landed on empty plane. */
-  private requestAddAt(event: MouseEvent): boolean {
+  private requestAddAtPoint(target: EventTarget | null, screen: CanvasPoint): boolean {
     if (this.readonlyGraph()) return false;
-    const target = event.target as Element | null;
-    if (target?.closest('[data-slot="node-editor-node"]')) return false;
-    if (target?.closest('[data-slot="node-editor-port"]')) return false;
+    const element = target as Element | null;
+    if (element?.closest('[data-slot="node-editor-node"]')) return false;
+    if (element?.closest('[data-slot="node-editor-port"]')) return false;
 
-    this.addNodeRequested.emit(this.toWorld({ x: event.clientX, y: event.clientY }));
+    this.addNodeRequested.emit(this.toWorld(screen));
     return true;
   }
 
@@ -1095,6 +1132,17 @@ export class NodeEditorComponent {
    * Node positions are restored rather than left where the drag had got to:
    * the gesture turned out to be a pinch, so the movement was never meant.
    */
+  /**
+   * Give up any pointer gesture in progress.
+   *
+   * Public because a long-press has to. Opening a menu over a node that is
+   * still following the finger underneath it leaves the graph moving behind
+   * the thing you opened to act on it.
+   */
+  cancelGesture(): void {
+    this.abandonGesture();
+  }
+
   private abandonGesture(): void {
     const drag = this.drag;
     this.drag = null;

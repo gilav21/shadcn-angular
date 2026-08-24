@@ -13,6 +13,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { UI_LOCALE_ID } from '../../../../lib/i18n';
+import { isSecondaryTouch } from '../../../../lib/touch';
 import { cn } from '../../../../lib/utils';
 import { NODE_EDITOR_MINIMAP_LOCALES } from './node-editor-minimap.locales';
 import type { CanvasPoint, CanvasRect, EditorNode, NodeConnection } from '../..';
@@ -104,6 +105,8 @@ export class NodeEditorMinimapComponent {
   protected readonly toggleClasses = computed(() =>
     cn(
       'flex size-10 items-center justify-center rounded-md border bg-background/80 text-sm',
+      // WCAG 2.5.8 wants 44; 40 is the comfortable size with a mouse.
+      'pointer-coarse:size-11',
       'text-muted-foreground shadow-sm hover:text-foreground',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       this.class(),
@@ -140,11 +143,21 @@ export class NodeEditorMinimapComponent {
   }
 
   protected onPointerDown(event: PointerEvent): void {
+    // A second finger belongs to a pinch, not to navigating. Without this the
+    // viewport lurches about while the other hand is only trying to zoom.
+    if (isSecondaryTouch(event)) {
+      this.dragging.set(false);
+      return;
+    }
     this.dragging.set(true);
     this.navigateTo(event);
   }
 
   protected onPointerMove(event: PointerEvent): void {
+    if (isSecondaryTouch(event)) {
+      this.dragging.set(false);
+      return;
+    }
     if (this.dragging()) this.navigateTo(event);
   }
 

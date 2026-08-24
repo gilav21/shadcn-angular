@@ -54,7 +54,8 @@
         keyboard already.
       -->
       <span
-        class="group-handle absolute bottom-0 end-0 size-4 cursor-nwse-resize rounded-br-md"
+        class="group-handle absolute bottom-0 end-0 size-4 pointer-coarse:size-11
+               cursor-nwse-resize rounded-br-md"
         aria-hidden="true"
         [attr.data-slot]="'node-editor-group-resize'"
         (pointerdown)="onPointerDown($event, group, 'resize')"

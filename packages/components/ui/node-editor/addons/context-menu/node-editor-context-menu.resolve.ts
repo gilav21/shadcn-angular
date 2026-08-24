@@ -8,6 +8,19 @@
 import type { CanvasPoint, NodeEditorComponent } from '../..';
 import type { NodeEditorContextTarget } from './node-editor-context-menu.types';
 
+/**
+ * Where a gesture landed.
+ *
+ * A `MouseEvent` satisfies this as-is; a long-press supplies it from
+ * `touches[0]`, which is how the same resolution serves both without the
+ * caller pretending a touch is a mouse.
+ */
+export interface ContextPointer {
+  readonly target: EventTarget | null;
+  readonly clientX: number;
+  readonly clientY: number;
+}
+
 /** The editor surface a resolve needs. Narrow, so a test can stand one up. */
 export interface ContextMenuEditor {
   toWorld: NodeEditorComponent['toWorld'];
@@ -59,7 +72,7 @@ function resolvePort(
  * any other order answers with the container instead of the thing.
  */
 export function resolveTarget(
-  event: MouseEvent,
+  event: ContextPointer,
   editor: ContextMenuEditor,
 ): NodeEditorContextTarget | null {
   const element = event.target as Element | null;

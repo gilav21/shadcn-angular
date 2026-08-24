@@ -5,6 +5,7 @@
  * rules that decide what belongs to a group are testable on their own rather
  * than only through a drag.
  */
+import { isTouchDevice } from '../../../../lib/touch';
 import type { CanvasPoint, CanvasRect, EditorNode, NodeId } from '../..';
 import type { GroupMembership, NodeGroup } from './node-editor-groups.types';
 
@@ -18,6 +19,21 @@ export const GROUP_PADDING = 28;
  * a card.
  */
 export const GROUP_HEADER = 32;
+
+/** 44 world units on touch: WCAG 2.5.8, the same rule the ports follow. */
+export const GROUP_HEADER_TOUCH = 44;
+
+/**
+ * The title bar height for this device.
+ *
+ * The bar is the only way to grab a zone, and 32 units is a comfortable
+ * mouse target and a poor thumb one. It is measured in WORLD units, so it
+ * also shrinks with the zoom — which is exactly why it needs the larger
+ * baseline rather than a CSS minimum that world space would ignore.
+ */
+export function groupHeader(): number {
+  return isTouchDevice() ? GROUP_HEADER_TOUCH : GROUP_HEADER;
+}
 
 /** Smallest a group may be dragged or fitted to. */
 export const MIN_GROUP_SIZE = 80;
@@ -83,11 +99,12 @@ export function fitAround(nodes: readonly EditorNode[]): CanvasRect | null {
   const far = Math.max(...nodes.map(right));
   const low = Math.max(...nodes.map(bottom));
 
+  const header = groupHeader();
   return {
     x: left - GROUP_PADDING,
-    y: top - GROUP_PADDING - GROUP_HEADER,
+    y: top - GROUP_PADDING - header,
     width: Math.max(MIN_GROUP_SIZE, far - left + GROUP_PADDING * 2),
-    height: Math.max(MIN_GROUP_SIZE, low - top + GROUP_PADDING * 2 + GROUP_HEADER),
+    height: Math.max(MIN_GROUP_SIZE, low - top + GROUP_PADDING * 2 + header),
   };
 }
 
@@ -148,6 +165,6 @@ export function titleBarOf(group: NodeGroup): CanvasRect {
     x: group.x,
     y: group.y,
     width: group.width,
-    height: Math.min(GROUP_HEADER, group.height),
+    height: Math.min(groupHeader(), group.height),
   };
 }

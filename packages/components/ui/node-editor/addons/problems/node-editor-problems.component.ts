@@ -71,6 +71,7 @@ export class NodeEditorProblemsComponent {
   protected rowClasses(problem: GraphProblem): string {
     return cn(
       'flex w-full items-start gap-2 rounded-md border px-2 py-1.5 text-start text-sm',
+      'pointer-coarse:min-h-11 pointer-coarse:items-center',
       'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       problem.severity === 'error'
         ? 'border-destructive/40 text-destructive'

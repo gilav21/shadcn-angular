@@ -16,7 +16,8 @@
     @if (list.length > 0) {
       <button
         type="button"
-        class="rounded-md border px-2 py-1 text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        class="rounded-md border px-2 py-1 text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+               pointer-coarse:min-h-11 pointer-coarse:px-3"
         [attr.data-slot]="'node-editor-history-clear'"
         (click)="clear()"
       >
@@ -77,7 +78,8 @@
         -->
         <button
           type="button"
-          class="ms-auto rounded-md border px-2 py-1 text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="ms-auto rounded-md border px-2 py-1 text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                 pointer-coarse:min-h-11 pointer-coarse:px-3"
           [attr.data-slot]="'node-editor-history-replay'"
           [attr.aria-pressed]="replaying()"
           (click)="toggleReplay()"
@@ -86,7 +88,8 @@
         </button>
         <button
           type="button"
-          class="rounded-md border px-2 py-1 text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          class="rounded-md border px-2 py-1 text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                 pointer-coarse:min-h-11 pointer-coarse:px-3"
           [attr.data-slot]="'node-editor-history-export'"
           (click)="exportSelected()"
         >
@@ -128,7 +131,8 @@
                 <th scope="row" class="py-1 text-start font-normal">
                   <button
                     type="button"
-                    class="text-start underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    class="text-start underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                           pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center"
                     [attr.data-slot]="'node-editor-history-node-reveal'"
                     [attr.aria-label]="text.reveal.replace('{node}', node.title)"
                     (click)="nodeSelected.emit(node.nodeId)"

@@ -131,6 +131,8 @@ export class NodeEditorHistoryComponent {
   protected runClasses(run: RunRecord): string {
     return cn(
       'flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-start text-sm',
+      // A row is a target on touch, not just a line of text.
+      'pointer-coarse:min-h-11',
       'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       run.status === 'error' ? 'border-destructive/40 text-destructive' : 'border-border',
       run.id === this.selectedRun() ? 'bg-accent' : '',

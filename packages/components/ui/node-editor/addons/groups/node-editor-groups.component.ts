@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   computed,
   inject,
@@ -10,13 +11,14 @@ import {
   signal,
 } from '@angular/core';
 import { UI_LOCALE_ID } from '../../../../lib/i18n';
+import { isSecondaryTouch } from '../../../../lib/touch';
 import { cn } from '../../../../lib/utils';
 import type { CanvasPoint, EditorNode, NodeId } from '../..';
 import { NODE_EDITOR_GROUPS_LOCALES } from './node-editor-groups.locales';
 import type { NodeComment, NodeGroup } from './node-editor-groups.types';
 import {
-  GROUP_HEADER,
   byPaintOrder,
+  groupHeader,
   membership,
   movedGroup,
   movedMembers,
@@ -110,6 +112,41 @@ export class NodeEditorGroupsComponent {
   private drag: DragState | null = null;
   private moved = false;
 
+  constructor() {
+    /*
+     * A second finger anywhere ends a frame drag.
+     *
+     * Listened for on the window rather than on the frame, because the second
+     * finger usually lands somewhere else entirely — on the plane, on a node —
+     * and this component would never hear about it. Guarding only its own
+     * handlers left zones being dragged around by a pinch after nodes had
+     * already been fixed, which is exactly the kind of thing that gets missed
+     * once per surface.
+     */
+    const onSecondFinger = (event: PointerEvent): void => {
+      if (this.drag && isSecondaryTouch(event)) this.abandonDrag();
+    };
+    globalThis.addEventListener('pointerdown', onSecondFinger, true);
+    inject(DestroyRef).onDestroy(() =>
+      globalThis.removeEventListener('pointerdown', onSecondFinger, true),
+    );
+  }
+
+  /**
+   * Give up the drag and put the frame back where it started.
+   *
+   * The gesture turned out to be a pinch, so the movement was never meant —
+   * and members are only reported on a completed drag, so nothing else has to
+   * be undone.
+   */
+  private abandonDrag(): void {
+    const drag = this.drag;
+    this.drag = null;
+    this.dragging.set(null);
+    this.moved = false;
+    if (drag) this.write(drag.before);
+  }
+
   protected readonly t = computed(
     () => NODE_EDITOR_GROUPS_LOCALES[this.localeId()] ?? NODE_EDITOR_GROUPS_LOCALES['en'],
   );
@@ -119,7 +156,7 @@ export class NodeEditorGroupsComponent {
 
   private readonly members = computed(() => membership(this.groups(), this.nodes()));
 
-  protected readonly headerHeight = GROUP_HEADER;
+  protected readonly headerHeight = groupHeader();
   protected readonly dragging = signal<string | null>(null);
 
   protected memberCount(group: NodeGroup): number {
@@ -141,6 +178,10 @@ export class NodeEditorGroupsComponent {
   }
 
   protected onPointerDown(event: PointerEvent, group: NodeGroup, mode: DragMode): void {
+    if (isSecondaryTouch(event)) {
+      this.abandonDrag();
+      return;
+    }
     if (this.readonlyGroups() || event.button !== 0) return;
 
     const zoom = this.zoomFrom(event.target as HTMLElement, group);
