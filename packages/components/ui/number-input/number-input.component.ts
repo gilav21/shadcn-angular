@@ -36,6 +36,19 @@ const numberInputWrapperVariants = cva(
 
 export type NumberInputVariant = 'outline' | 'underline' | 'ghost';
 
+/**
+ * A number field with steppers and bounds.
+ *
+ * ### Focus is watched on the wrapper, not the field
+ *
+ * The bubbling focusout event is used rather than blur. The inner field is
+ * inside `ui-input`, which declares no outputs, so a blur binding on it
+ * attached the native DOM event to the host element — and blur does not
+ * bubble, so a blur raised on the real field never arrived. Clamping
+ * therefore never ran for a real user: typing 250 into a field bounded at 100
+ * and clicking away left 250. Every test missed it by calling the handler
+ * directly instead of blurring anything.
+ */
 @Component({
     selector: 'ui-number-input',
     changeDetection: ChangeDetectionStrategy.OnPush,

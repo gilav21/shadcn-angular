@@ -154,6 +154,31 @@ describe('NumberInputComponent', () => {
         expect(emitted[0]).toBe(2);
     });
 
+    /**
+     * A REAL blur, not `component.onBlur()`.
+     *
+     * Every other blur test here calls the method directly, which is why none
+     * of them noticed that the binding never fired: `blur` does not bubble,
+     * and `ui-input` has no `blur` output, so clamping never ran for a user.
+     */
+    it('clamps on a real blur, not just when onBlur is called', async () => {
+        const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+        fixture.componentRef.setInput('max', 100);
+        fixture.detectChanges();
+
+        input.value = '250';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        input.focus();
+        input.blur();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.value()).toBe(100);
+    });
+
     it('should clamp value to max on blur', () => {
         const emitted: (number | null)[] = [];
         component.value.subscribe((v: number | null) => emitted.push(v));

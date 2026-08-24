@@ -3,6 +3,7 @@
   [attr.data-slot]="'number-input'"
   [attr.data-variant]="variant()"
   [attr.aria-disabled]="isDisabled() || null"
+  (focusout)="onBlur()"
 >
   <ui-input
     #inputRef
@@ -12,7 +13,6 @@
     [placeholder]="placeholder()"
     [ngModel]="displayValue()"
     (ngModelChange)="onInputChange($event)"
-    (blur)="onBlur()"
     (keydown)="onKeydown($event)"
   />
 </div>

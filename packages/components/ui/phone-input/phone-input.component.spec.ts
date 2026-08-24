@@ -507,3 +507,43 @@ describe('PhoneInputComponent — signal-forms readiness', () => {
         expect(fixture.componentInstance.emissions).toEqual([]);
     });
 });
+
+/**
+ * A REAL blur, not `component.onBlur()`.
+ *
+ * `ui-input` exposes no `blur` output and `blur` does not bubble, so the old
+ * `(blur)` binding on it never fired — the control was never marked touched,
+ * and any validation message gated on `ng-touched` never appeared. Every
+ * existing blur test called the method directly, which is exactly why none of
+ * them noticed.
+ */
+describe('PhoneInputComponent — touched on a real blur', () => {
+    @Component({
+        standalone: true,
+        imports: [PhoneInputComponent, ReactiveFormsModule],
+        template: `<ui-phone-input [formControl]="control" />`,
+    })
+    class BlurHostComponent {
+        readonly control = new FormControl('');
+    }
+
+    it('marks the control touched when the field is blurred', async () => {
+        await TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({ imports: [BlurHostComponent] }).compileComponents();
+        const blurFixture = TestBed.createComponent(BlurHostComponent);
+        blurFixture.detectChanges();
+        await blurFixture.whenStable();
+        blurFixture.detectChanges();
+
+        const field: HTMLInputElement = blurFixture.nativeElement.querySelector('input');
+        expect(blurFixture.componentInstance.control.touched).toBe(false);
+
+        field.focus();
+        field.blur();
+        blurFixture.detectChanges();
+        await blurFixture.whenStable();
+
+        expect(blurFixture.componentInstance.control.touched).toBe(true);
+        blurFixture.destroy();
+    });
+});

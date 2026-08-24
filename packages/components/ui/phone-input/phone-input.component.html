@@ -1,4 +1,14 @@
-<ui-input-group [variant]="variant()" [disabled]="isDisabled()" [class]="class()" [attr.data-slot]="'phone-input'" [attr.dir]="dir()">
+<!--
+  `focusout` on the wrapper, not `(blur)` on `ui-input`.
+
+  `ui-input` exposes no `blur` output, so `(blur)` on it bound the native DOM
+  event on the host element — and `blur` does not bubble, so a blur raised on
+  the inner `<input>` never arrived. The control was therefore never marked
+  touched, and any validation message gated on `ng-touched` never appeared.
+  `focusout` is the bubbling pair.
+-->
+<ui-input-group [variant]="variant()" [disabled]="isDisabled()" [class]="class()" [attr.data-slot]="'phone-input'" [attr.dir]="dir()"
+  (focusout)="onBlur()">
   <ui-input-group-addon class="!pe-0">
     <ui-popover>
       <ui-popover-trigger>
@@ -52,6 +62,5 @@
     [placeholder]="effectivePlaceholder()"
     [ngModel]="nationalNumber()"
     (ngModelChange)="onNationalChange($event)"
-    (blur)="onBlur()"
   />
 </ui-input-group>

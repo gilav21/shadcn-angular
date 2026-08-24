@@ -1,3 +1,12 @@
+<!--
+  `focusout` on the fieldset, not `(blur)` on `ui-input`.
+
+  `ui-input` exposes no `blur` output, so `(blur)` on it bound the native DOM
+  event on the host element — and `blur` does not bubble, so a blur raised on
+  the inner `<input>` never arrived. The control was therefore never marked
+  touched, and any validation message gated on `ng-touched` never appeared.
+  `focusout` is the bubbling pair.
+-->
 <fieldset
   [class]="containerClasses() + ' min-w-0'"
   [style.max-height]="maxHeightStyle()"
@@ -7,6 +16,7 @@
   (click)="focusInput()"
   (keydown.enter)="focusInput()"
   (keydown.space)="focusInput()"
+  (focusout)="onBlur()"
   tabindex="-1"
 >
   @for (chip of chips(); track chip; let i = $index) {
@@ -53,7 +63,6 @@
     [ngModel]="inputValue()"
     (ngModelChange)="onInputChange($event)"
     (keydown)="onKeyDown($event)"
-    (blur)="onBlur()"
     class="flex-1 min-w-[80px] bg-transparent border-none outline-none shadow-none focus-visible:ring-0 p-0"
     variant="ghost"
   />
