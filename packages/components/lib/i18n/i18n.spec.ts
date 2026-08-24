@@ -10,6 +10,8 @@ import {
     resolveLocale,
     createLocaleSelector,
     createLocaleBindings,
+    localeDigits,
+    toAsciiDigits,
     UI_LOCALE_ID,
     provideUiLocale,
     type LocaleInput,
@@ -276,5 +278,46 @@ describe('createLocaleBindings (component helper)', () => {
         const span = fixture.nativeElement.querySelector('span') as HTMLSpanElement;
         expect(span.hasAttribute('dir')).toBe(false);
         expect(span.textContent?.trim()).toBe('Bonjour false');
+    });
+});
+
+describe('digits that are not ASCII', () => {
+    /**
+     * A field that formats with `Intl` and then parses with a `[0-9]` class
+     * does not merely mishandle foreign input — it rejects the exact string it
+     * just produced. Both `currency-input` and `time-picker` depend on this.
+     */
+    it('reports a locale’s own glyphs for 0–9', () => {
+        expect(localeDigits('en-US')).toEqual(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']);
+        expect(localeDigits('ar-EG')[3]).toBe('٣');
+        expect(localeDigits('fa-IR')[3]).toBe('۳');
+    });
+
+    it('reports ten glyphs for every locale it is asked about', () => {
+        for (const locale of ['en-US', 'ar-EG', 'fa-IR', 'hi-IN', 'th-TH', 'ja-JP']) {
+            expect(localeDigits(locale)).toHaveLength(10);
+        }
+    });
+
+    it('rewrites a locale’s digits as ASCII', () => {
+        expect(toAsciiDigits('٣٠', localeDigits('ar-EG'))).toBe('30');
+        expect(toAsciiDigits('۲۳', localeDigits('fa-IR'))).toBe('23');
+    });
+
+    it('leaves ASCII digits alone', () => {
+        expect(toAsciiDigits('30', localeDigits('ar-EG'))).toBe('30');
+    });
+
+    /** Separators and symbols are the caller's problem, not this function's. */
+    it('leaves everything that is not a digit exactly as it was', () => {
+        expect(toAsciiDigits('١٢:٣٠ م', localeDigits('ar-EG'))).toBe('12:30 م');
+    });
+
+    it('round-trips what the locale formats', () => {
+        for (const locale of ['en-US', 'ar-EG', 'fa-IR']) {
+            const digits = localeDigits(locale);
+            const shown = new Intl.NumberFormat(locale, { useGrouping: false }).format(2026);
+            expect(toAsciiDigits(shown, digits)).toBe('2026');
+        }
     });
 });

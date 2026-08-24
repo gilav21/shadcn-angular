@@ -1,0 +1,55 @@
+<fieldset
+  [class]="wrapperClasses()"
+  dir="ltr"
+  [attr.data-slot]="'time-picker'"
+  [attr.data-variant]="variant()"
+  [attr.data-locale]="resolvedLocale()"
+  [attr.aria-label]="ariaLabel()"
+  [attr.aria-disabled]="isDisabled() || null"
+  (focusout)="onBlur()"
+>
+  @for (segment of segments(); track segment.kind) {
+    @if (segment.kind === 'dayPeriod') {
+      <button
+        type="button"
+        class="rounded px-1 py-1 text-sm font-medium tabular-nums outline-none
+               focus-visible:ring-ring/50 focus-visible:ring-[3px]
+               disabled:cursor-not-allowed pointer-coarse:min-h-11 pointer-coarse:px-2"
+        [attr.data-slot]="'time-picker-period'"
+        [disabled]="isDisabled()"
+        [attr.aria-label]="segment.label"
+        (click)="togglePeriod()"
+        (keydown)="onSegmentKeydown(segment.kind, $event)"
+      >
+        {{ segment.text }}
+      </button>
+    } @else {
+      <input
+        type="text"
+        inputmode="numeric"
+        autocomplete="off"
+        class="w-[3ch] bg-transparent py-1 text-center tabular-nums outline-none
+               disabled:cursor-not-allowed pointer-coarse:py-2.5"
+        role="spinbutton"
+        [attr.data-slot]="'time-picker-segment'"
+        [attr.data-segment]="segment.kind"
+        [value]="segment.text"
+        [disabled]="isDisabled()"
+        [attr.aria-label]="segment.label"
+        [attr.aria-valuenow]="segment.value"
+        [attr.aria-valuemin]="segment.min"
+        [attr.aria-valuemax]="segment.max"
+        [attr.aria-valuetext]="segment.text + ' ' + segment.label"
+        placeholder="--"
+        (input)="onSegmentInput(segment.kind, $any($event.target).value)"
+        (keydown)="onSegmentKeydown(segment.kind, $event)"
+      />
+    }
+
+    @if (segment.separator) {
+      <span aria-hidden="true" class="text-muted-foreground select-none">{{
+        segment.separator
+      }}</span>
+    }
+  }
+</fieldset>

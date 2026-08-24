@@ -1,0 +1,21 @@
+<div
+  [class]="wrapperClasses()"
+  [attr.data-slot]="'currency-input'"
+  [attr.data-variant]="variant()"
+  [attr.aria-disabled]="isDisabled() || null"
+  (focusin)="onFocus()"
+  (focusout)="onBlur()"
+>
+  <ui-input
+    #inputRef
+    type="text"
+    class="px-3"
+    inputMode="decimal"
+    [disabled]="isDisabled()"
+    [placeholder]="placeholder()"
+    [lang]="resolvedLocale()"
+    [ariaLabel]="ariaLabel()"
+    [ngModel]="displayValue()"
+    (ngModelChange)="onInputChange($event)"
+  />
+</div>

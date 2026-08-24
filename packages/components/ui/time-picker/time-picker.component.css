@@ -1,0 +1,30 @@
+:host {
+    --_d: var(--density-input, var(--density, 1));
+}
+
+@layer components {
+    [data-slot="time-picker"][data-variant="outline"] {
+        min-height: calc(2.25rem * var(--_d));
+    }
+}
+
+/*
+ * Segments are text fields, so a browser may still offer its own number
+ * affordances on some platforms. Nothing should sit inside a 3ch box.
+ */
+[data-slot="time-picker-segment"]::-webkit-outer-spin-button,
+[data-slot="time-picker-segment"]::-webkit-inner-spin-button {
+    appearance: none;
+    margin: 0;
+}
+
+/*
+ * A fieldset carries the grouping natively, so its user-agent margin, padding
+ * and implicit minimum width are reset here rather than fought in the class
+ * list.
+ */
+[data-slot="time-picker"] {
+    margin: 0;
+    padding-block: 0;
+    min-inline-size: 0;
+}

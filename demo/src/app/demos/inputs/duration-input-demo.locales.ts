@@ -1,0 +1,162 @@
+import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
+
+export interface DurationInputDemoLocale extends LocaleMeta {
+  heading: string;
+  description: string;
+  basicHeading: string;
+  basicDescription: string;
+  unitsHeading: string;
+  unitsDescription: string;
+  isoHeading: string;
+  isoDescription: string;
+  secondsLabel: string;
+  emptyValue: string;
+}
+
+const EN: DurationInputDemoLocale = {
+  code: 'en',
+  heading: 'Duration Input',
+  description: 'A length of time, edited one unit at a time. The value is seconds.',
+  basicHeading: 'Basic',
+  basicDescription: 'Type into a segment, or step it with the arrow keys.',
+  unitsHeading: 'The leading unit absorbs the rest',
+  unitsDescription:
+    'The same 90 minutes shown three ways. Nothing is dropped just because a unit is not on screen.',
+  isoHeading: 'ISO-8601 when an API wants it',
+  isoDescription:
+    'Offered as a helper, not as the value — a consumer doing arithmetic on PT1H30M has to parse it first.',
+  secondsLabel: 'Seconds',
+  emptyValue: 'empty',
+};
+
+export const DURATION_INPUT_DEMO_LOCALES: Record<string, DurationInputDemoLocale> = {
+  en: EN,
+  he: {
+    ...EN,
+    code: 'he',
+    rtl: true,
+    heading: 'שדה משך',
+    description: 'משך זמן, נערך יחידה אחת בכל פעם. הערך הוא שניות.',
+    basicHeading: 'בסיסי',
+    basicDescription: 'הקלידו בתוך מקטע, או שנו אותו עם מקשי החצים.',
+    unitsHeading: 'היחידה המובילה קולטת את השאר',
+    unitsDescription: 'אותן 90 דקות בשלוש צורות. שום דבר לא נעלם.',
+    isoHeading: 'ISO-8601 כשממשק דורש זאת',
+    isoDescription: 'מוצע ככלי עזר, לא כערך.',
+    secondsLabel: 'שניות',
+    emptyValue: 'ריק',
+  },
+  ar: {
+    ...EN,
+    code: 'ar',
+    rtl: true,
+    heading: 'حقل المدة',
+    description: 'مدة زمنية، تُحرَّر وحدة واحدة في كل مرة. القيمة بالثواني.',
+    basicHeading: 'أساسي',
+    basicDescription: 'اكتب داخل مقطع أو غيّره بمفاتيح الأسهم.',
+    unitsHeading: 'الوحدة الأولى تستوعب الباقي',
+    unitsDescription: 'نفس التسعين دقيقة بثلاث صور.',
+    isoHeading: 'ISO-8601 عند الحاجة',
+    isoDescription: 'يُقدَّم كمساعد وليس كقيمة.',
+    secondsLabel: 'ثوانٍ',
+    emptyValue: 'فارغ',
+  },
+  de: {
+    ...EN,
+    code: 'de',
+    heading: 'Dauer-Feld',
+    description: 'Eine Zeitspanne, Einheit für Einheit bearbeitet. Der Wert ist in Sekunden.',
+    basicHeading: 'Einfach',
+    basicDescription: 'In ein Segment tippen oder mit den Pfeiltasten ändern.',
+    unitsHeading: 'Die führende Einheit nimmt den Rest auf',
+    unitsDescription: 'Dieselben 90 Minuten in drei Darstellungen.',
+    isoHeading: 'ISO-8601, wenn eine API es will',
+    isoDescription: 'Als Helfer angeboten, nicht als Wert.',
+    secondsLabel: 'Sekunden',
+    emptyValue: 'leer',
+  },
+  fr: {
+    ...EN,
+    code: 'fr',
+    heading: 'Champ de durée',
+    description: 'Une durée, modifiée unité par unité. La valeur est en secondes.',
+    basicHeading: 'Simple',
+    basicDescription: 'Saisissez dans un segment ou utilisez les flèches.',
+    unitsHeading: 'L’unité de tête absorbe le reste',
+    unitsDescription: 'Les mêmes 90 minutes de trois façons.',
+    isoHeading: 'ISO-8601 si une API le demande',
+    isoDescription: 'Proposé comme utilitaire, pas comme valeur.',
+    secondsLabel: 'Secondes',
+    emptyValue: 'vide',
+  },
+  es: {
+    ...EN,
+    code: 'es',
+    heading: 'Campo de duración',
+    description: 'Una duración, editada unidad por unidad. El valor está en segundos.',
+    basicHeading: 'Básico',
+    basicDescription: 'Escriba en un segmento o use las flechas.',
+    unitsHeading: 'La unidad principal absorbe el resto',
+    unitsDescription: 'Los mismos 90 minutos de tres formas.',
+    isoHeading: 'ISO-8601 cuando una API lo pide',
+    isoDescription: 'Ofrecido como ayuda, no como valor.',
+    secondsLabel: 'Segundos',
+    emptyValue: 'vacío',
+  },
+  ja: {
+    ...EN,
+    code: 'ja',
+    heading: '期間入力',
+    description: '時間の長さを単位ごとに編集します。値は秒です。',
+    basicHeading: '基本',
+    basicDescription: 'セグメントに入力するか、矢印キーで増減します。',
+    unitsHeading: '先頭の単位が残りを吸収します',
+    unitsDescription: '同じ90分を3通りで表示。',
+    isoHeading: 'API が求めるなら ISO-8601',
+    isoDescription: '値ではなく補助として提供します。',
+    secondsLabel: '秒',
+    emptyValue: '空',
+  },
+  zh: {
+    ...EN,
+    code: 'zh',
+    heading: '时长输入',
+    description: '按单位逐个编辑的时间长度。值以秒为单位。',
+    basicHeading: '基础',
+    basicDescription: '在分段中输入，或用方向键增减。',
+    unitsHeading: '首个单位吸收其余部分',
+    unitsDescription: '同样的 90 分钟，三种显示方式。',
+    isoHeading: '当接口需要 ISO-8601',
+    isoDescription: '作为辅助提供，而非值本身。',
+    secondsLabel: '秒',
+    emptyValue: '空',
+  },
+  ru: {
+    ...EN,
+    code: 'ru',
+    heading: 'Поле длительности',
+    description: 'Длительность, редактируемая по одной единице. Значение в секундах.',
+    basicHeading: 'Базовое',
+    basicDescription: 'Вводите в сегмент или меняйте стрелками.',
+    unitsHeading: 'Ведущая единица вбирает остальное',
+    unitsDescription: 'Те же 90 минут в трёх видах.',
+    isoHeading: 'ISO-8601, когда его просит API',
+    isoDescription: 'Предлагается как помощник, не как значение.',
+    secondsLabel: 'Секунды',
+    emptyValue: 'пусто',
+  },
+  pt: {
+    ...EN,
+    code: 'pt',
+    heading: 'Campo de duração',
+    description: 'Uma duração, editada unidade a unidade. O valor está em segundos.',
+    basicHeading: 'Básico',
+    basicDescription: 'Escreva num segmento ou use as setas.',
+    unitsHeading: 'A unidade principal absorve o resto',
+    unitsDescription: 'Os mesmos 90 minutos de três formas.',
+    isoHeading: 'ISO-8601 quando uma API o pede',
+    isoDescription: 'Oferecido como auxiliar, não como valor.',
+    secondsLabel: 'Segundos',
+    emptyValue: 'vazio',
+  },
+};

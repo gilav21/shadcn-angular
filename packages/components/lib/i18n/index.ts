@@ -9,6 +9,8 @@ export {
     formatNumber,
     formatList,
     formatRelativeTime,
+    localeDigits,
+    toAsciiDigits,
     type LocaleBindings,
 } from './i18n.utils';
 // Locale string bundles are intentionally NOT re-exported by this barrel:
