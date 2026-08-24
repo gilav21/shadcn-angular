@@ -79,8 +79,8 @@ export function loadRouteSources(repoRoot: string): DemoRouteSource[] {
 export function run(argv: readonly string[]): number {
     const args = parseArgs(argv);
     const docs = JSON.parse(fs.readFileSync(args.docs, 'utf-8')) as ApiDocs;
-    if (docs.version !== 1) {
-        throw new Error(`${args.docs} has extract version ${docs.version}; this script expects 1.`);
+    if (docs.version !== 2) {
+        throw new Error(`${args.docs} has extract version ${docs.version}; this script expects 2.`);
     }
     const registry = JSON.parse(fs.readFileSync(REGISTRY, 'utf-8')) as RegistryJson;
     const routes = loadRouteSources(REPO_ROOT);

@@ -13,6 +13,8 @@ export interface DocsLocale extends LocaleMeta {
     apiReference: string;
     inputs: string;
     outputs: string;
+    methods: string;
+    returns: string;
     name: string;
     type: string;
     defaultValue: string;
@@ -63,6 +65,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         apiReference: 'API reference',
         inputs: 'Inputs',
         outputs: 'Outputs',
+        methods: 'Methods',
+        returns: 'Returns',
         name: 'Name',
         type: 'Type',
         defaultValue: 'Default',
@@ -111,6 +115,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         apiReference: 'מדריך API',
         inputs: 'קלטים',
         outputs: 'פלטים',
+        methods: 'מתודות',
+        returns: 'מחזיר',
         name: 'שם',
         type: 'סוג',
         defaultValue: 'ברירת מחדל',
@@ -159,6 +165,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         apiReference: 'مرجع API',
         inputs: 'المدخلات',
         outputs: 'المخرجات',
+        methods: 'الدوال',
+        returns: 'يُرجع',
         name: 'الاسم',
         type: 'النوع',
         defaultValue: 'الافتراضي',
@@ -207,6 +215,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         apiReference: 'API-Referenz',
         inputs: 'Eingaben',
         outputs: 'Ausgaben',
+        methods: 'Methoden',
+        returns: 'Rückgabe',
         name: 'Name',
         type: 'Typ',
         defaultValue: 'Standard',
@@ -255,6 +265,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         apiReference: 'Référence API',
         inputs: 'Entrées',
         outputs: 'Sorties',
+        methods: 'Méthodes',
+        returns: 'Retour',
         name: 'Nom',
         type: 'Type',
         defaultValue: 'Par défaut',
@@ -303,6 +315,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         apiReference: 'Referencia de API',
         inputs: 'Entradas',
         outputs: 'Salidas',
+        methods: 'Métodos',
+        returns: 'Devuelve',
         name: 'Nombre',
         type: 'Tipo',
         defaultValue: 'Predeterminado',
@@ -351,6 +365,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         apiReference: 'API リファレンス',
         inputs: '入力',
         outputs: '出力',
+        methods: 'メソッド',
+        returns: '戻り値',
         name: '名前',
         type: '型',
         defaultValue: '既定値',
@@ -399,6 +415,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         apiReference: 'API 参考',
         inputs: '输入',
         outputs: '输出',
+        methods: '方法',
+        returns: '返回',
         name: '名称',
         type: '类型',
         defaultValue: '默认值',
@@ -447,6 +465,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         apiReference: 'Справочник API',
         inputs: 'Входные параметры',
         outputs: 'События',
+        methods: 'Методы',
+        returns: 'Возвращает',
         name: 'Имя',
         type: 'Тип',
         defaultValue: 'По умолчанию',
@@ -495,6 +515,8 @@ export const DOCS_LOCALES: Record<string, DocsLocale> = {
         apiReference: 'Referência da API',
         inputs: 'Entradas',
         outputs: 'Saídas',
+        methods: 'Métodos',
+        returns: 'Devolve',
         name: 'Nome',
         type: 'Tipo',
         defaultValue: 'Padrão',

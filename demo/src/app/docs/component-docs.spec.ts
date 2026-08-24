@@ -52,13 +52,13 @@ function configure(): void {
 describe('component-docs.json', () => {
     it('is served, well-formed, and passes the app\'s own shape guard', async () => {
         const payload = await loadPayload();
-        expect(payload.version).toBe(1);
+        expect(payload.version).toBe(2);
         expect(payload.components.length).toBeGreaterThan(100);
     });
 
     it('rejects a payload the generator did not write', () => {
-        expect(isComponentDocs({ version: 2, components: [] })).toBe(false);
-        expect(isComponentDocs({ version: 1, components: [{ name: 'x' }] })).toBe(false);
+        expect(isComponentDocs({ version: 9, components: [] })).toBe(false);
+        expect(isComponentDocs({ version: 2, components: [{ name: 'x' }] })).toBe(false);
         expect(isComponentDocs(null)).toBe(false);
     });
 });

@@ -18,6 +18,23 @@ export interface ApiMemberDoc {
     readonly deprecated?: string;
 }
 
+/** One argument of a documented method. */
+export interface ApiMethodParamDoc {
+    readonly name: string;
+    readonly type: string;
+    readonly optional: boolean;
+    readonly default?: string;
+}
+
+/** One imperative method a class publishes, opted in with `@publicApi`. */
+export interface ApiMethodDoc {
+    readonly name: string;
+    readonly signature: string;
+    readonly returns: string;
+    readonly description: string;
+    readonly params: readonly ApiMethodParamDoc[];
+}
+
 /** The API surface of one class a component ships. */
 export interface ApiTableDoc {
     readonly className: string;
@@ -27,6 +44,7 @@ export interface ApiTableDoc {
     readonly description: string;
     readonly inputs: readonly ApiMemberDoc[];
     readonly outputs: readonly ApiMemberDoc[];
+    readonly methods: readonly ApiMethodDoc[];
 }
 
 /** Everything needed to document one component. */
@@ -48,7 +66,7 @@ export interface ComponentDoc {
 
 /** The whole payload. */
 export interface ComponentDocs {
-    readonly version: 1;
+    readonly version: 2;
     readonly components: readonly ComponentDoc[];
 }
 
@@ -71,7 +89,7 @@ function isComponentDoc(value: unknown): value is ComponentDoc {
  */
 export function isComponentDocs(value: unknown): value is ComponentDocs {
     if (!isRecord(value)) return false;
-    if (value['version'] !== 1) return false;
+    if (value['version'] !== 2) return false;
     const components = value['components'];
     return Array.isArray(components) && components.every(isComponentDoc);
 }

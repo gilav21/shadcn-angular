@@ -31,7 +31,7 @@ import {
     type RegistryEntry,
     type RegistryJson,
 } from './gen-llms-lib.js';
-import type { ApiClass, ApiDocs, ApiMember } from './gen-api-docs-lib.js';
+import type { ApiClass, ApiDocs, ApiMember, ApiMethod } from './gen-api-docs-lib.js';
 
 /** Repo the StackBlitz import links point at. */
 export const REPO_SLUG = 'gilav21/shadcn-angular';
@@ -71,6 +71,8 @@ export interface ApiTable {
     readonly description: string;
     readonly inputs: readonly ApiTableRow[];
     readonly outputs: readonly ApiTableRow[];
+    /** Methods tagged `@publicApi`; empty for a class that publishes none. */
+    readonly methods: readonly ApiMethod[];
 }
 
 /** Everything the demo app needs to render one component's documentation. */
@@ -95,7 +97,7 @@ export interface ComponentDoc {
 /** The committed payload the demo app fetches. */
 export interface ComponentDocs {
     /** Bumped when the shape changes, so a stale fetch fails loudly. */
-    readonly version: 1;
+    readonly version: 2;
     readonly components: readonly ComponentDoc[];
 }
 
@@ -245,6 +247,7 @@ export function apiTablesFor(
         description: cls.description,
         inputs: cls.inputs,
         outputs: cls.outputs,
+        methods: cls.methods,
     }));
     if (!primary) return tables;
     const isPrimary = (t: ApiTable): boolean =>
@@ -289,7 +292,7 @@ export function buildComponentDocs(
         };
     });
 
-    return { version: 1, components };
+    return { version: 2, components };
 }
 
 /** Serialize exactly as committed (stable, newline-terminated). */

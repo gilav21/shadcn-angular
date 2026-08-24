@@ -47,7 +47,19 @@ export function parseArgs(argv: readonly string[]): GenApiDocsArgs {
 export function run(argv: readonly string[]): number {
     const args = parseArgs(argv);
     const raw = JSON.parse(fs.readFileSync(args.docs, 'utf-8')) as RawDocumentation;
-    const extract = extractApiDocs(raw);
+    /*
+     * The `@publicApi` marker lives in the source, not in compodoc's output —
+     * compodoc drops tags it does not recognise — so the extractor is handed a
+     * reader. A file it cannot read simply publishes no methods.
+     */
+    const readSource = (file: string): string => {
+        try {
+            return fs.readFileSync(path.join(REPO_ROOT, file), 'utf-8');
+        } catch {
+            return '';
+        }
+    };
+    const extract = extractApiDocs(raw, readSource);
     if (extract.classes.length === 0) {
         throw new Error(
             `${args.docs} yielded no library classes. The committed documentation.json is a ` +

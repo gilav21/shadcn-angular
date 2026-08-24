@@ -50,6 +50,7 @@ function apiClass(over: Partial<ApiClass> & { name: string; file: string }): Api
         kind: 'component',
         selector: '',
         description: '',
+        methods: [],
         projectsContent: false,
         inputs: [],
         outputs: [],
@@ -71,7 +72,7 @@ const FIXTURE_REGISTRY: RegistryJson = {
 };
 
 const FIXTURE_DOCS: ApiDocs = {
-    version: 1,
+    version: 2,
     classes: [
         apiClass({
             name: 'BoxComponent',
@@ -168,7 +169,7 @@ describe('T-6: a component with a new input shows it without hand-editing', () =
         expect(before.components[0].api[0].inputs.map(i => i.name)).toEqual(['size']);
 
         const grown: ApiDocs = {
-            version: 1,
+            version: 2,
             classes: FIXTURE_DOCS.classes.map(cls => cls.name === 'BoxComponent'
                 ? { ...cls, inputs: [...cls.inputs, member({ name: 'tone', type: "'a' | 'b'" })] }
                 : cls),
@@ -179,7 +180,7 @@ describe('T-6: a component with a new input shows it without hand-editing', () =
 
     it('surfaces a newly required input in the snippet too', () => {
         const grown: ApiDocs = {
-            version: 1,
+            version: 2,
             classes: FIXTURE_DOCS.classes.map(cls => cls.name === 'BoxComponent'
                 ? { ...cls, inputs: [member({ name: 'items', type: 'Item[]', required: true })] }
                 : cls),
@@ -190,7 +191,7 @@ describe('T-6: a component with a new input shows it without hand-editing', () =
 
     it('drops a removed input without anyone editing a page', () => {
         const shrunk: ApiDocs = {
-            version: 1,
+            version: 2,
             classes: FIXTURE_DOCS.classes.map(cls => cls.name === 'BoxComponent'
                 ? { ...cls, inputs: [] }
                 : cls),
@@ -353,7 +354,7 @@ describe('classOwners', () => {
 
     it('ignores a class from a file no registry entry claims', () => {
         const stray: ApiDocs = {
-            version: 1,
+            version: 2,
             classes: [apiClass({ name: 'Stray', file: 'packages/components/ui/stray.ts' })],
         };
         expect(classOwners(FIXTURE_REGISTRY, stray).size).toBe(0);

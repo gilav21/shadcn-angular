@@ -52,8 +52,8 @@ function readJson<T>(file: string): T {
 }
 
 function assertDocsUsable(docs: ApiDocs, file: string): void {
-    if (docs.version !== 1) {
-        throw new Error(`${file} has extract version ${docs.version}; this script expects 1.`);
+    if (docs.version !== 2) {
+        throw new Error(`${file} has extract version ${docs.version}; this script expects 2.`);
     }
     if (docs.classes.length === 0) {
         throw new Error(

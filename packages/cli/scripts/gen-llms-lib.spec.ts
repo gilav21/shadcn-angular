@@ -54,6 +54,7 @@ function apiClass(over: Partial<ApiClass> & { name: string; file: string }): Api
         kind: 'component',
         selector: '',
         description: '',
+        methods: [],
         projectsContent: false,
         inputs: [],
         outputs: [],
@@ -62,7 +63,7 @@ function apiClass(over: Partial<ApiClass> & { name: string; file: string }): Api
 }
 
 const FIXTURE_DOCS: ApiDocs = {
-    version: 1,
+    version: 2,
     classes: [
         apiClass({
             name: 'PlainComponent',

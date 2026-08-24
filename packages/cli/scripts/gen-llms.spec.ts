@@ -86,7 +86,7 @@ describe('run', () => {
     it('refuses an extract with no classes rather than writing an empty corpus', () => {
         const dir = tempDir();
         const docs = path.join(dir, 'api-docs.json');
-        const empty: ApiDocs = { version: 1, classes: [] };
+        const empty: ApiDocs = { version: 2, classes: [] };
         fs.writeFileSync(docs, JSON.stringify(empty));
         expect(() => run(['--docs', docs])).toThrow(/lists no classes/);
     });
@@ -94,7 +94,7 @@ describe('run', () => {
     it('refuses an extract written by a different schema version', () => {
         const dir = tempDir();
         const docs = path.join(dir, 'api-docs.json');
-        fs.writeFileSync(docs, JSON.stringify({ version: 2, classes: [] }));
-        expect(() => run(['--docs', docs])).toThrow(/extract version 2/);
+        fs.writeFileSync(docs, JSON.stringify({ version: 9, classes: [] }));
+        expect(() => run(['--docs', docs])).toThrow(/extract version 9/);
     });
 });
