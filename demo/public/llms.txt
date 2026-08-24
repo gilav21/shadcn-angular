@@ -25,7 +25,7 @@ Rules that hold for every component:
 - Inputs marked `(required)` must be bound or the template will not compile.
 - A section without a snippet says so explicitly; do not invent one.
 
-## Index (174 components)
+## Index (178 components)
 
 - [accordion](#accordion): Vertically stacked, collapsible sections that expand one or more panels to reveal content.
 - [alert](#alert): Inline callout banner for important messages with title, description, and variants.
@@ -71,6 +71,7 @@ Rules that hold for every component:
 - [context-menu](#context-menu): Right-click (or long-press) menu with items, submenus, and keyboard shortcuts.
 - [context-menu-attach](#context-menu-attach): Directive that attaches a context menu to any element via right-click or long-press.
 - [copy-to](#copy-to): Directive that copies a string to the clipboard on click and shows a localized "Copied!" indicator.
+- [currency-input](#currency-input): Money input that formats and parses for any locale and currency, including non-ASCII digits.
 - [data-list](#data-list): Label-to-value description list rendered as real dl/dt/dd, with simple array and projected row modes.
 - [data-table](#data-table): Feature-rich table with sorting, filtering, pagination, and column tools.
 - [data-table-context-menu](#data-table-context-menu): Directive adding right-click context menus to data-table rows and columns.
@@ -83,6 +84,7 @@ Rules that hold for every component:
 - [dock](#dock): macOS-style dock of icons that magnify on hover for quick app navigation.
 - [drawer](#drawer): Bottom-anchored sliding panel with drag-to-dismiss, ideal for mobile.
 - [dropdown-menu](#dropdown-menu): Button-triggered menu of actions with labels, separators, and submenus.
+- [duration-input](#duration-input): A length of time edited one unit at a time; the value is seconds.
 - [emoji-picker](#emoji-picker): Searchable emoji selector with categories and a popover trigger.
 - [empty](#empty): Empty-state placeholder with media, title, description, and call-to-action.
 - [error-page](#error-page): Full-page 404/403/500 state with localised copy, illustration slot and recovery actions.
@@ -168,6 +170,7 @@ Rules that hold for every component:
 - [shine-border](#shine-border): Wrapper that draws an animated shimmering gradient border around content.
 - [shortcut-bindings-dialog](#shortcut-bindings-dialog): Dialog listing keyboard shortcuts grouped by category for reference.
 - [sidebar](#sidebar): Collapsible app sidebar with grouped menu items, header, and footer.
+- [signature-pad](#signature-pad): Hand-drawn signature on a canvas. Strokes are the source of truth; the value is a PNG data URL. Touch-first, undo and clear.
 - [skeleton](#skeleton): Animated placeholder block shown while content is loading.
 - [slider](#slider): Draggable slider for selecting a value or range from a numeric scale.
 - [sortable](#sortable): Drag-and-drop sortable list with reordering, auto-scroll, and FLIP animation.
@@ -186,6 +189,7 @@ Rules that hold for every component:
 - [tabs](#tabs): Tabbed interface that switches between panels via a list of triggers.
 - [text-reveal](#text-reveal): Reveals text word by word as the user scrolls it into view.
 - [textarea](#textarea): Multi-line text input for longer free-form content, with add-on support.
+- [time-picker](#time-picker): Time-of-day field whose segment order, meridiem and digits all come from the locale. Stores 24-hour "HH:mm", never a Date.
 - [timeline](#timeline): Vertical timeline of events with dots, connectors, titles, and timestamps.
 - [toast](#toast): Transient notification messages that stack and auto-dismiss from a corner.
 - [toggle](#toggle): Two-state toggle button that can be pressed on or off.
@@ -1796,6 +1800,23 @@ Interactive picker for choosing colors via swatches, sliders, and hex/rgb inputs
 <ui-color-picker>Content</ui-color-picker>
 ```
 
+### currency-input
+
+Money input that formats and parses for any locale and currency, including non-ASCII digits.
+
+- Install: `npx @gilav21/shadcn-angular@latest add currency-input`
+- Import: `import { CurrencyInputComponent } from '@/components/ui/currency-input';`
+- Selector: `ui-currency-input`
+- Category: form
+- Depends on: `input`
+- npm dependencies: none
+- Inputs: `ariaLabel: string = 'Amount'`, `class: string = ''`, `currency: string = 'USD'`, `disabled: boolean = false`, `locale: string`, `max: number | undefined`, `min: number | undefined`, `placeholder: string = ''`, `value: number | null = null`, `variant: CurrencyInputVariant = 'outline'`
+- Outputs: `value: number | null`
+
+```html
+<ui-currency-input />
+```
+
 ### date-picker
 
 Popover date and date-range picker combining an input trigger with a calendar.
@@ -1811,6 +1832,23 @@ Popover date and date-range picker combining an input trigger with a calendar.
 
 ```html
 <ui-date-picker />
+```
+
+### duration-input
+
+A length of time edited one unit at a time; the value is seconds.
+
+- Install: `npx @gilav21/shadcn-angular@latest add duration-input`
+- Import: `import { DurationInputComponent } from '@/components/ui/duration-input';`
+- Selector: `ui-duration-input`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `ariaLabel: string = 'Duration'`, `class: string = ''`, `disabled: boolean = false`, `units: readonly DurationUnit[] = ['hours', 'minutes']`, `value: number | null = null`, `variant: DurationInputVariant = 'outline'`
+- Outputs: `value: number | null`
+
+```html
+<ui-duration-input />
 ```
 
 ### eyedropper
@@ -1873,7 +1911,7 @@ Single-line text input with variants and add-on support for forms.
 - Category: form
 - Depends on: `icon`, `skeleton`, `spinner`
 - npm dependencies: none
-- Inputs: `ariaDescribedby: string | undefined`, `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `autofocus: boolean = false`, `class: string = ''`, `clearable: boolean = false`, `disabled: boolean = false`, `elementId: string | undefined`, `floating: boolean = false`, `label: string`, `labelClass: string = ''`, `loading: boolean = false`, `name: string | undefined`, `placeholder: string = ''`, `prefix: string`, `skeleton: boolean = false`, `suffix: string`, `type: string = 'text'`, `value: string = ''`, `variant: InputVariant = 'outline'`
+- Inputs: `ariaDescribedby: string | undefined`, `ariaLabel: string | undefined`, `ariaLabelledby: string | undefined`, `autofocus: boolean = false`, `class: string = ''`, `clearable: boolean = false`, `disabled: boolean = false`, `elementId: string | undefined`, `floating: boolean = false`, `inputMode: string | undefined`, `label: string`, `labelClass: string = ''`, `lang: string | undefined`, `loading: boolean = false`, `name: string | undefined`, `placeholder: string = ''`, `prefix: string`, `skeleton: boolean = false`, `suffix: string`, `type: string = 'text'`, `value: string = ''`, `variant: InputVariant = 'outline'`
 - Outputs: `value: string`
 
 ```html
@@ -2030,6 +2068,23 @@ Custom dropdown select with grouped, searchable, keyboard-navigable options.
 <ui-select />
 ```
 
+### signature-pad
+
+Hand-drawn signature on a canvas. Strokes are the source of truth; the value is a PNG data URL. Touch-first, undo and clear.
+
+- Install: `npx @gilav21/shadcn-angular@latest add signature-pad`
+- Import: `import { SignaturePadComponent } from '@/components/ui/signature-pad';`
+- Selector: `ui-signature-pad`
+- Category: form
+- Depends on: `button`
+- npm dependencies: none
+- Inputs: `ariaLabel: string = 'Signature'`, `class: string = ''`, `clearLabel: string = 'Clear'`, `disabled: boolean = false`, `height: number = 180`, `hideControls: boolean = false`, `penColor: string = 'currentColor'`, `penWidth: number = 2`, `undoLabel: string = 'Undo'`, `value: string | null = null`, `variant: SignaturePadVariant = 'outline'`
+- Outputs: `strokeEnd: void`, `value: string | null`
+
+```html
+<ui-signature-pad />
+```
+
 ### slider
 
 Draggable slider for selecting a value or range from a numeric scale.
@@ -2079,6 +2134,23 @@ Multi-line text input for longer free-form content, with add-on support.
 
 ```html
 <ui-textarea />
+```
+
+### time-picker
+
+Time-of-day field whose segment order, meridiem and digits all come from the locale. Stores 24-hour "HH:mm", never a Date.
+
+- Install: `npx @gilav21/shadcn-angular@latest add time-picker`
+- Import: `import { TimePickerComponent } from '@/components/ui/time-picker';`
+- Selector: `ui-time-picker`
+- Category: form
+- Depends on: none
+- npm dependencies: none
+- Inputs: `ariaLabel: string = 'Time'`, `class: string = ''`, `disabled: boolean = false`, `locale: string`, `value: string | null = null`, `variant: TimePickerVariant = 'outline'`, `withSeconds: boolean = false`
+- Outputs: `value: string | null`
+
+```html
+<ui-time-picker />
 ```
 
 ### toggle

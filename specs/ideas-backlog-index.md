@@ -411,7 +411,7 @@ have been.
 | `data-table-contracts-spec.md` | ⬜ | ⬜ |
 | `charts-features-spec.md` | ⬜ | ⬜ |
 | `app-shell-spec.md` | ⬜ | ⬜ |
-| `node-editor-spec.md` | ⬜ | ⬜ |
+| `node-editor-spec.md` | ✅ 2026-08-21 | ✅ **done** — base + runtime + 7 addons, 3 specs, Sonar clean |
 | `query-builder-extraction-spec.md` | ⬜ | ⬜ |
 | `crud-page-spec.md` | ⬜ | ⬜ |
 | `form-builder-spec.md` | ⬜ | ⬜ |

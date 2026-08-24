@@ -1190,12 +1190,12 @@
       "lines": 5
     },
     "chip-list/chip-list.component.html": {
-      "bytes": 1979,
-      "lines": 60
+      "bytes": 2394,
+      "lines": 69
     },
     "chip-list/chip-list.component.spec.ts": {
-      "bytes": 14041,
-      "lines": 338
+      "bytes": 15253,
+      "lines": 378
     },
     "chip-list/chip-list.component.ts": {
       "bytes": 10116,
@@ -1510,8 +1510,8 @@
       "lines": 183
     },
     "component-outlet.directive.ts": {
-      "bytes": 7799,
-      "lines": 218
+      "bytes": 8006,
+      "lines": 223
     },
     "component-outlet.stories.ts": {
       "bytes": 11834,
@@ -1522,8 +1522,8 @@
       "lines": 484
     },
     "confetti.directive.ts": {
-      "bytes": 11551,
-      "lines": 345
+      "bytes": 11370,
+      "lines": 347
     },
     "confetti.stories.ts": {
       "bytes": 6205,
@@ -1534,8 +1534,8 @@
       "lines": 131
     },
     "context-menu-attach.directive.ts": {
-      "bytes": 1248,
-      "lines": 50
+      "bytes": 1460,
+      "lines": 54
     },
     "context-menu-attach.stories.ts": {
       "bytes": 10740,
@@ -1709,6 +1709,82 @@
       "bytes": 6775,
       "lines": 169
     },
+    "currency-input/__screenshots__/currency-input.component.spec.ts/CurrencyInputComponent-bounds-clamps-down-to-the-maximum-on-blur-1.png": {
+      "bytes": 5520,
+      "lines": 5
+    },
+    "currency-input/__screenshots__/currency-input.component.spec.ts/CurrencyInputComponent-bounds-clamps-up-to-the-minimum-on-blur-1.png": {
+      "bytes": 5292,
+      "lines": 4
+    },
+    "currency-input/__screenshots__/currency-input.component.spec.ts/CurrencyInputComponent-edge-cases-the-readiness-spec-named-does-not-rewrite-the-field-while-it-has-focus-1.png": {
+      "bytes": 5570,
+      "lines": 4
+    },
+    "currency-input/__screenshots__/currency-input.component.spec.ts/CurrencyInputComponent-money-lets-a-half-typed-decimal-survive-until-blur-1.png": {
+      "bytes": 5362,
+      "lines": 4
+    },
+    "currency-input/__screenshots__/currency-input.component.spec.ts/CurrencyInputComponent-money-rounds-a-whole-yen-for-a-zero-decimal-currency-1.png": {
+      "bytes": 5608,
+      "lines": 3
+    },
+    "currency-input/__screenshots__/currency-input.component.spec.ts/CurrencyInputComponent-money-rounds-to-the-currency-scale-on-blur--not-before-1.png": {
+      "bytes": 5444,
+      "lines": 3
+    },
+    "currency-input/__screenshots__/currency-input.component.spec.ts/CurrencyInputComponent-money-shows-a-plain-number-while-the-field-has-focus-1.png": {
+      "bytes": 5811,
+      "lines": 4
+    },
+    "currency-input/__screenshots__/currency-input.format.spec.ts/parsing-reads-back-what-formatting-wrote-ar-EG---EGP---Arabic-Indic-digits-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "currency-input/__screenshots__/currency-input.format.spec.ts/parsing-reads-back-what-formatting-wrote-ar-EG---EGP-round-trips-a-negative-amount-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "currency-input/__screenshots__/currency-input.format.spec.ts/parsing-reads-back-what-formatting-wrote-ar-EG---EGP-round-trips-zero-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "currency-input/__screenshots__/currency-input.format.spec.ts/the-Arabic-case--called-out-because-it-is-the-one-that-bites-survives-the-bidi-marks-Intl-adds-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
+    "currency-input/currency-input.component.css": {
+      "bytes": 192,
+      "lines": 9
+    },
+    "currency-input/currency-input.component.html": {
+      "bytes": 496,
+      "lines": 21
+    },
+    "currency-input/currency-input.component.spec.ts": {
+      "bytes": 12060,
+      "lines": 348
+    },
+    "currency-input/currency-input.component.ts": {
+      "bytes": 9627,
+      "lines": 275
+    },
+    "currency-input/currency-input.format.spec.ts": {
+      "bytes": 8066,
+      "lines": 222
+    },
+    "currency-input/currency-input.format.ts": {
+      "bytes": 7661,
+      "lines": 208
+    },
+    "currency-input/currency-input.stories.ts": {
+      "bytes": 5200,
+      "lines": 137
+    },
+    "currency-input/index.ts": {
+      "bytes": 85,
+      "lines": 2
+    },
     "data-list/data-list.component.html": {
       "bytes": 706,
       "lines": 17
@@ -1742,8 +1818,8 @@
       "lines": 377
     },
     "data-table-context-menu.directive.ts": {
-      "bytes": 4836,
-      "lines": 140
+      "bytes": 4980,
+      "lines": 145
     },
     "data-table-context-menu.stories.ts": {
       "bytes": 9343,
@@ -2748,6 +2824,38 @@
     "dropdown-menu/sub/dropdown-menu-trigger.component.ts": {
       "bytes": 2513,
       "lines": 79
+    },
+    "duration-input/duration-input.component.css": {
+      "bytes": 785,
+      "lines": 30
+    },
+    "duration-input/duration-input.component.html": {
+      "bytes": 1253,
+      "lines": 36
+    },
+    "duration-input/duration-input.component.spec.ts": {
+      "bytes": 11353,
+      "lines": 316
+    },
+    "duration-input/duration-input.component.ts": {
+      "bytes": 9350,
+      "lines": 281
+    },
+    "duration-input/duration-input.format.spec.ts": {
+      "bytes": 8025,
+      "lines": 238
+    },
+    "duration-input/duration-input.format.ts": {
+      "bytes": 7230,
+      "lines": 202
+    },
+    "duration-input/duration-input.stories.ts": {
+      "bytes": 3283,
+      "lines": 90
+    },
+    "duration-input/index.ts": {
+      "bytes": 85,
+      "lines": 2
     },
     "emoji-picker/__screenshots__/emoji-picker.component.spec.ts/EmojiPickerComponent-updates-the-active-category-from-a-real-scroll-event-1.png": {
       "bytes": 72987,
@@ -3774,8 +3882,8 @@
       "lines": 2
     },
     "index.ts": {
-      "bytes": 5902,
-      "lines": 171
+      "bytes": 5864,
+      "lines": 175
     },
     "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/T-1---anchor-offsets-and-curve-style--node-editor-prerequisite--an-anchor-offsets-the-endpoint-from-the-item-origin-draws-from-the-offset-point-rather-than-the-centre-1.png": {
       "bytes": 4290,
@@ -3938,8 +4046,8 @@
       "lines": 216
     },
     "input-mask.directive.ts": {
-      "bytes": 9023,
-      "lines": 254
+      "bytes": 9058,
+      "lines": 257
     },
     "input-mask.stories.ts": {
       "bytes": 3935,
@@ -3986,16 +4094,16 @@
       "lines": 40
     },
     "input/input.component.html": {
-      "bytes": 2834,
-      "lines": 84
+      "bytes": 2942,
+      "lines": 90
     },
     "input/input.component.spec.ts": {
       "bytes": 16503,
       "lines": 426
     },
     "input/input.component.ts": {
-      "bytes": 10705,
-      "lines": 269
+      "bytes": 11612,
+      "lines": 286
     },
     "input/input.stories.ts": {
       "bytes": 5579,
@@ -4130,8 +4238,8 @@
       "lines": 153
     },
     "magnetic.directive.ts": {
-      "bytes": 2225,
-      "lines": 68
+      "bytes": 2404,
+      "lines": 71
     },
     "magnetic.stories.ts": {
       "bytes": 5599,
@@ -4634,8 +4742,8 @@
       "lines": 3
     },
     "node-editor/addons/context-menu/node-editor-context-menu.directive.ts": {
-      "bytes": 4937,
-      "lines": 131
+      "bytes": 4992,
+      "lines": 132
     },
     "node-editor/addons/context-menu/node-editor-context-menu.resolve.spec.ts": {
       "bytes": 8005,
@@ -4686,8 +4794,8 @@
       "lines": 372
     },
     "node-editor/addons/groups/node-editor-groups.component.ts": {
-      "bytes": 10097,
-      "lines": 297
+      "bytes": 10411,
+      "lines": 301
     },
     "node-editor/addons/groups/node-editor-groups.locales.ts": {
       "bytes": 1500,
@@ -4718,8 +4826,8 @@
       "lines": 305
     },
     "node-editor/addons/history/node-editor-history.component.ts": {
-      "bytes": 5832,
-      "lines": 176
+      "bytes": 6094,
+      "lines": 180
     },
     "node-editor/addons/history/node-editor-history.locales.ts": {
       "bytes": 7923,
@@ -4774,8 +4882,8 @@
       "lines": 268
     },
     "node-editor/addons/minimap/node-editor-minimap.component.ts": {
-      "bytes": 8909,
-      "lines": 256
+      "bytes": 9160,
+      "lines": 262
     },
     "node-editor/addons/minimap/node-editor-minimap.locales.ts": {
       "bytes": 1292,
@@ -4802,8 +4910,8 @@
       "lines": 184
     },
     "node-editor/addons/palette/node-editor-palette.component.ts": {
-      "bytes": 4608,
-      "lines": 142
+      "bytes": 4684,
+      "lines": 143
     },
     "node-editor/addons/palette/node-editor-palette.locales.ts": {
       "bytes": 2628,
@@ -4830,8 +4938,8 @@
       "lines": 167
     },
     "node-editor/addons/problems/node-editor-problems.component.ts": {
-      "bytes": 3492,
-      "lines": 90
+      "bytes": 3556,
+      "lines": 91
     },
     "node-editor/addons/problems/node-editor-problems.locales.ts": {
       "bytes": 2996,
@@ -4858,8 +4966,8 @@
       "lines": 116
     },
     "node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.ts": {
-      "bytes": 2147,
-      "lines": 55
+      "bytes": 2198,
+      "lines": 56
     },
     "node-editor/addons/subgraph/node-editor-subgraph.locales.ts": {
       "bytes": 2132,
@@ -4914,8 +5022,8 @@
       "lines": 642
     },
     "node-editor/node-editor.component.ts": {
-      "bytes": 62230,
-      "lines": 1699
+      "bytes": 62620,
+      "lines": 1705
     },
     "node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -5018,16 +5126,16 @@
       "lines": 159
     },
     "node-editor/sub/node-editor-node.component.ts": {
-      "bytes": 7253,
-      "lines": 171
+      "bytes": 7483,
+      "lines": 175
     },
     "node-editor/sub/node-editor-port.component.html": {
       "bytes": 732,
       "lines": 24
     },
     "node-editor/sub/node-editor-port.component.ts": {
-      "bytes": 5477,
-      "lines": 130
+      "bytes": 5642,
+      "lines": 133
     },
     "number-input/index.ts": {
       "bytes": 43,
@@ -5038,16 +5146,16 @@
       "lines": 8
     },
     "number-input/number-input.component.html": {
-      "bytes": 438,
+      "bytes": 422,
       "lines": 18
     },
     "number-input/number-input.component.spec.ts": {
-      "bytes": 20245,
-      "lines": 577
+      "bytes": 21133,
+      "lines": 602
     },
     "number-input/number-input.component.ts": {
-      "bytes": 9888,
-      "lines": 240
+      "bytes": 10490,
+      "lines": 253
     },
     "number-input/number-input.stories.ts": {
       "bytes": 3117,
@@ -5197,17 +5305,37 @@
       "bytes": 5212,
       "lines": 123
     },
+    "page-header/__screenshots__/page-header.component.spec.ts/PageHeaderComponent-T-7--actions-wrap-below-title-at-640px-computes-the-flex-direction-the-640px-breakpoint-dictates-1.png": {
+      "bytes": 6640,
+      "lines": 5
+    },
+    "page-header/__screenshots__/page-header.component.spec.ts/PageHeaderComponent-T-7--actions-wrap-below-title-at-640px-end-aligns-the-actions-on-the-desktop-row-1.png": {
+      "bytes": 6640,
+      "lines": 5
+    },
+    "page-header/__screenshots__/page-header.component.spec.ts/PageHeaderComponent-T-7--actions-wrap-below-title-at-640px-stacks-below-the-640px-breakpoint-and-rows-above-it-1.png": {
+      "bytes": 6640,
+      "lines": 5
+    },
+    "page-header/__screenshots__/page-header.component.spec.ts/PageHeaderComponent-T-7--actions-wrap-below-title-at-640px-stacks-the-title-block-and-the-actions-below-640px--and-rows-them-from-sm-up-1.png": {
+      "bytes": 6640,
+      "lines": 5
+    },
+    "page-header/__screenshots__/page-header.component.spec.ts/PageHeaderComponent-T-7--actions-wrap-below-title-at-640px-wraps-on-container-width--not-just-on-window-width-1.png": {
+      "bytes": 6640,
+      "lines": 5
+    },
     "page-header/index.ts": {
       "bytes": 41,
       "lines": 1
     },
     "page-header/page-header.component.html": {
-      "bytes": 1834,
-      "lines": 44
+      "bytes": 2957,
+      "lines": 63
     },
     "page-header/page-header.component.spec.ts": {
-      "bytes": 10910,
-      "lines": 237
+      "bytes": 10454,
+      "lines": 220
     },
     "page-header/page-header.component.ts": {
       "bytes": 2084,
@@ -5314,12 +5442,12 @@
       "lines": 46
     },
     "phone-input/phone-input.component.html": {
-      "bytes": 2388,
-      "lines": 57
+      "bytes": 2745,
+      "lines": 66
     },
     "phone-input/phone-input.component.spec.ts": {
-      "bytes": 19855,
-      "lines": 509
+      "bytes": 21377,
+      "lines": 549
     },
     "phone-input/phone-input.component.ts": {
       "bytes": 10993,
@@ -6158,8 +6286,8 @@
       "lines": 64
     },
     "rich-text-editor/addons/actions/rich-text-actions-form.component.ts": {
-      "bytes": 4862,
-      "lines": 108
+      "bytes": 5027,
+      "lines": 112
     },
     "rich-text-editor/addons/actions/rich-text-actions-popover.component.html": {
       "bytes": 1244,
@@ -7158,8 +7286,8 @@
       "lines": 232
     },
     "ripple.directive.ts": {
-      "bytes": 2592,
-      "lines": 71
+      "bytes": 2743,
+      "lines": 74
     },
     "ripple.stories.ts": {
       "bytes": 6585,
@@ -7788,6 +7916,42 @@
     "sidebar/sub/sidebar-trigger.component.ts": {
       "bytes": 1654,
       "lines": 44
+    },
+    "signature-pad/__screenshots__/signature-pad.component.spec.ts/SignaturePadComponent-a-second-finger-abandons-the-stroke-rather-than-drawing-a-spike-1.png": {
+      "bytes": 6717,
+      "lines": 4
+    },
+    "signature-pad/index.ts": {
+      "bytes": 84,
+      "lines": 2
+    },
+    "signature-pad/signature-pad.component.css": {
+      "bytes": 587,
+      "lines": 23
+    },
+    "signature-pad/signature-pad.component.html": {
+      "bytes": 1947,
+      "lines": 60
+    },
+    "signature-pad/signature-pad.component.spec.ts": {
+      "bytes": 13919,
+      "lines": 418
+    },
+    "signature-pad/signature-pad.component.ts": {
+      "bytes": 14301,
+      "lines": 435
+    },
+    "signature-pad/signature-pad.stories.ts": {
+      "bytes": 4226,
+      "lines": 95
+    },
+    "signature-pad/signature-pad.strokes.spec.ts": {
+      "bytes": 5224,
+      "lines": 156
+    },
+    "signature-pad/signature-pad.strokes.ts": {
+      "bytes": 5415,
+      "lines": 143
     },
     "skeleton/index.ts": {
       "bytes": 39,
@@ -8510,8 +8674,8 @@
       "lines": 249
     },
     "table-context-menu.directive.ts": {
-      "bytes": 3433,
-      "lines": 109
+      "bytes": 3604,
+      "lines": 114
     },
     "table-context-menu.stories.ts": {
       "bytes": 14033,
@@ -8656,6 +8820,42 @@
     "textarea/textarea.stories.ts": {
       "bytes": 3225,
       "lines": 96
+    },
+    "time-picker/__screenshots__/time-picker.component.spec.ts/TimePickerComponent-a-reactive-form-renders-what-the-control-holds-1.png": {
+      "bytes": 4730,
+      "lines": 3
+    },
+    "time-picker/index.ts": {
+      "bytes": 79,
+      "lines": 2
+    },
+    "time-picker/time-picker.component.css": {
+      "bytes": 773,
+      "lines": 30
+    },
+    "time-picker/time-picker.component.html": {
+      "bytes": 1913,
+      "lines": 55
+    },
+    "time-picker/time-picker.component.spec.ts": {
+      "bytes": 17308,
+      "lines": 494
+    },
+    "time-picker/time-picker.component.ts": {
+      "bytes": 12460,
+      "lines": 380
+    },
+    "time-picker/time-picker.format.spec.ts": {
+      "bytes": 9723,
+      "lines": 250
+    },
+    "time-picker/time-picker.format.ts": {
+      "bytes": 9015,
+      "lines": 244
+    },
+    "time-picker/time-picker.stories.ts": {
+      "bytes": 4014,
+      "lines": 94
     },
     "timeline/index.ts": {
       "bytes": 440,
@@ -9002,8 +9202,8 @@
       "lines": 207
     },
     "tree-context-menu.directive.ts": {
-      "bytes": 2309,
-      "lines": 82
+      "bytes": 2378,
+      "lines": 85
     },
     "tree-context-menu.stories.ts": {
       "bytes": 19746,
@@ -9508,8 +9708,8 @@
       "lines": 236
     },
     "i18n/i18n.spec.ts": {
-      "bytes": 11376,
-      "lines": 280
+      "bytes": 12872,
+      "lines": 323
     },
     "i18n/i18n.token.ts": {
       "bytes": 3941,
@@ -9520,12 +9720,12 @@
       "lines": 24
     },
     "i18n/i18n.utils.ts": {
-      "bytes": 6429,
-      "lines": 171
+      "bytes": 7561,
+      "lines": 200
     },
     "i18n/index.ts": {
-      "bytes": 670,
-      "lines": 17
+      "bytes": 690,
+      "lines": 19
     },
     "input-group.token.ts": {
       "bytes": 474,

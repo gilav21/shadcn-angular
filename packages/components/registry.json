@@ -747,6 +747,62 @@
       "text-reveal/text-reveal.component.spec.ts"
     ]
   },
+  "duration-input": {
+    "name": "duration-input",
+    "category": "form",
+    "description": "A length of time edited one unit at a time; the value is seconds.",
+    "tags": [
+      "duration-input",
+      "duration",
+      "time",
+      "segments",
+      "timer"
+    ],
+    "files": [
+      "duration-input/duration-input.component.css",
+      "duration-input/duration-input.component.html",
+      "duration-input/duration-input.component.ts",
+      "duration-input/duration-input.format.ts",
+      "duration-input/index.ts"
+    ],
+    "testFiles": [
+      "duration-input/duration-input.component.spec.ts",
+      "duration-input/duration-input.format.spec.ts"
+    ]
+  },
+  "currency-input": {
+    "name": "currency-input",
+    "category": "form",
+    "description": "Money input that formats and parses for any locale and currency, including non-ASCII digits.",
+    "tags": [
+      "currency-input",
+      "money",
+      "amount",
+      "price",
+      "intl"
+    ],
+    "files": [
+      "currency-input/currency-input.component.css",
+      "currency-input/currency-input.component.html",
+      "currency-input/currency-input.component.ts",
+      "currency-input/currency-input.format.ts",
+      "currency-input/index.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
+      "input-group.token.ts"
+    ],
+    "dependencies": [
+      "input"
+    ],
+    "testFiles": [
+      "currency-input/currency-input.component.spec.ts",
+      "currency-input/currency-input.format.spec.ts"
+    ]
+  },
   "data-table": {
     "name": "data-table",
     "category": "data-display",
@@ -5656,6 +5712,64 @@
       "node-editor/minimap",
       "node-editor/palette",
       "node-editor/problems"
+    ]
+  },
+  "time-picker": {
+    "name": "time-picker",
+    "category": "form",
+    "description": "Time-of-day field whose segment order, meridiem and digits all come from the locale. Stores 24-hour \"HH:mm\", never a Date.",
+    "tags": [
+      "time-picker",
+      "time",
+      "clock",
+      "hour",
+      "intl"
+    ],
+    "files": [
+      "time-picker/index.ts",
+      "time-picker/time-picker.component.css",
+      "time-picker/time-picker.component.html",
+      "time-picker/time-picker.component.ts",
+      "time-picker/time-picker.format.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "testFiles": [
+      "time-picker/time-picker.component.spec.ts",
+      "time-picker/time-picker.format.spec.ts"
+    ]
+  },
+  "signature-pad": {
+    "name": "signature-pad",
+    "category": "form",
+    "description": "Hand-drawn signature on a canvas. Strokes are the source of truth; the value is a PNG data URL. Touch-first, undo and clear.",
+    "tags": [
+      "signature-pad",
+      "signature",
+      "canvas",
+      "draw",
+      "consent"
+    ],
+    "files": [
+      "signature-pad/index.ts",
+      "signature-pad/signature-pad.component.css",
+      "signature-pad/signature-pad.component.html",
+      "signature-pad/signature-pad.component.ts",
+      "signature-pad/signature-pad.strokes.ts"
+    ],
+    "libFiles": [
+      "touch.ts"
+    ],
+    "dependencies": [
+      "button"
+    ],
+    "testFiles": [
+      "signature-pad/signature-pad.component.spec.ts",
+      "signature-pad/signature-pad.strokes.spec.ts"
     ]
   }
 }

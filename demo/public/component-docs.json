@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "components": [
     {
       "name": "accordion",
@@ -49,7 +49,8 @@
               "default": "'single'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AccordionContentComponent",
@@ -65,7 +66,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AccordionItemComponent",
@@ -103,7 +105,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AccordionTriggerComponent",
@@ -119,7 +122,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -169,7 +173,8 @@
               "default": "'default'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AlertDescriptionComponent",
@@ -185,7 +190,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AlertTitleComponent",
@@ -201,7 +207,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -240,7 +247,8 @@
               "description": "Two-way bound visibility. Nothing inside `ui-alert-dialog-content` exists in the DOM while this is `false`. Unlike `ui-dialog`, clicking the backdrop does not clear it — only Escape, the action/cancel buttons or your own code can.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "AlertDialogActionComponent",
@@ -256,7 +264,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AlertDialogCancelComponent",
@@ -272,7 +281,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AlertDialogContentComponent",
@@ -324,7 +334,8 @@
               "type": "void",
               "description": "The cancel button was pressed. Same simple-mode-only rules as {@link actionClick}."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "AlertDialogDescriptionComponent",
@@ -333,7 +344,8 @@
           "selector": "ui-alert-dialog-description",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AlertDialogFooterComponent",
@@ -342,7 +354,8 @@
           "selector": "ui-alert-dialog-footer",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AlertDialogHeaderComponent",
@@ -351,7 +364,8 @@
           "selector": "ui-alert-dialog-header",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AlertDialogTitleComponent",
@@ -360,7 +374,8 @@
           "selector": "ui-alert-dialog-title",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AlertDialogTriggerComponent",
@@ -369,7 +384,8 @@
           "selector": "ui-alert-dialog-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -487,7 +503,8 @@
               "type": "ChartClickEvent | null",
               "description": "Emitted with the nearest category's point from the first *visible* series on pointer move, and with `null` on pointer-leave. `index` is the category index, so consumers can mirror the highlight across their own series. There is no click output — the areas are not interactive targets."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -519,7 +536,8 @@
               "default": "1"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -634,7 +652,8 @@
               "type": "AutocompleteValue<T> | undefined",
               "description": "Uncontrolled-style seed for the selection, applied by an `effect` whenever it changes: an array replaces the whole selection, a non-array becomes a single-item selection, `undefined` leaves the current selection alone. Setting it from outside does *not* emit `valueChange`. Prefer `ngModel` / `formControl` ({@link writeValue}) — mixing both means the last writer wins. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. Note that after a `writeValue` from a reactive form this still reads the pre-write value — {@link internalValue} is the rendered selection."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -699,7 +718,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AvatarFallbackComponent",
@@ -715,7 +735,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "AvatarImageComponent",
@@ -743,7 +764,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -795,7 +817,8 @@
               "default": "'default'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -858,7 +881,8 @@
               "type": "void",
               "description": "Emits once when the user closes a {@link dismissible} banner."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -978,7 +1002,8 @@
               "type": "ChartClickEvent | null",
               "description": "Emitted with the bar on hover/focus and with `null` on mouse-leave/blur, so consumers can mirror the highlight."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -1108,7 +1133,8 @@
               "type": "void",
               "description": "Emitted after {@link onDrillUp} returns the chart to the top-level {@link data}."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -1227,7 +1253,8 @@
               "type": "number",
               "description": "Emits the new {@link frames} index whenever the displayed frame changes — from playback, {@link reset}, {@link goToFrame} or the timeline slider — so external captions can stay in step. {@link goToFrame} emits even when the requested index resolves to the frame already shown, so the stream can repeat a value."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -1343,7 +1370,8 @@
               "type": "string[]",
               "description": "The ids currently selected, after every {@link toggleSelection} / {@link clearSelection} and whenever {@link editable} goes false."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "BentoGridItemComponent",
@@ -1371,7 +1399,8 @@
               "default": "1"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -1433,7 +1462,8 @@
               "type": "void",
               "description": "Emitted whenever {@link playAnimation} restarts a reveal that has already run once. The first reveal — automatic or manual — is not a replay and stays silent, so a counter bound here reports repeats only."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -1543,7 +1573,8 @@
               "type": "ChartClickEvent<BoxplotGroup> | null",
               "description": "Emitted with the group on hover/focus and with `null` on mouse-leave/blur, so consumers can mirror the highlight."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -1576,7 +1607,8 @@
               "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "BreadcrumbEllipsisComponent",
@@ -1597,7 +1629,8 @@
               "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` (which is broadcast by the parent `<ui-breadcrumb>`)."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "BreadcrumbItemComponent",
@@ -1613,7 +1646,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "BreadcrumbLinkComponent",
@@ -1635,7 +1669,8 @@
               "default": "'#'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "BreadcrumbListComponent",
@@ -1669,7 +1704,8 @@
               "default": "3"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "BreadcrumbPageComponent",
@@ -1685,7 +1721,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "BreadcrumbSeparatorComponent",
@@ -1701,7 +1738,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -1801,7 +1839,8 @@
               "type": "ChartClickEvent<XYZDataPoint>",
               "description": "Emitted when a bubble is clicked or activated with Enter while focused. `index` is the point's position **within its own series**, not a flat index across the chart, and the payload carries no series identifier — track the series yourself if you need it. The originating event is not forwarded."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -1897,7 +1936,8 @@
               "default": "360"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -1999,7 +2039,8 @@
               "type": "MouseEvent",
               "description": "Emits the native click. Never fires while disabled, loading, or in skeleton mode."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "ConfirmDialogComponent",
@@ -2019,7 +2060,8 @@
               "type": "void",
               "description": "Emits when the user accepts. Always followed by the dialog closing."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "ConfirmDirective",
@@ -2060,7 +2102,8 @@
               "type": "void",
               "description": "Emits only after the user confirms. The host's own click is stopped, so this — not `(click)` — is where the guarded action belongs."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -2098,7 +2141,8 @@
               "default": "'horizontal'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ButtonGroupSeparatorComponent",
@@ -2120,7 +2164,8 @@
               "default": "'vertical'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ButtonGroupTextComponent",
@@ -2136,7 +2181,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -2249,7 +2295,8 @@
               "description": "Two-way `HH:mm` pair backing the `timeMode: 'range'` footer. Acts as the time-of-day applied to days picked afterwards; days already in {@link selected} keep the time they were stored with.",
               "default": "{ start: '', end: '' }"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -2342,7 +2389,8 @@
               "type": "CalendarDay | null",
               "description": "Emits the day on hover/focus and `null` on mouse-leave/blur, so a consumer can mirror the highlight elsewhere."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -2458,7 +2506,8 @@
               "type": "ChartClickEvent<OhlcPoint> | null",
               "description": "Emitted with the period on hover/focus and with `null` on mouse-leave/blur, so consumers can mirror the highlight."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -2523,7 +2572,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CardContentComponent",
@@ -2539,7 +2589,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CardDescriptionComponent",
@@ -2555,7 +2606,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CardFooterComponent",
@@ -2571,7 +2623,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CardHeaderComponent",
@@ -2587,7 +2640,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CardTitleComponent",
@@ -2603,7 +2657,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -2656,7 +2711,8 @@
               "default": "'single'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CardAccordionActionsComponent",
@@ -2672,7 +2728,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CardAccordionContentComponent",
@@ -2688,7 +2745,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CardAccordionItemComponent",
@@ -2731,7 +2789,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CardAccordionTriggerComponent",
@@ -2747,7 +2806,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -2785,7 +2845,8 @@
               "default": "'horizontal'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CarouselContentComponent",
@@ -2801,7 +2862,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CarouselItemComponent",
@@ -2817,7 +2879,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CarouselNextComponent",
@@ -2838,7 +2901,8 @@
               "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CarouselPreviousComponent",
@@ -2859,7 +2923,8 @@
               "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -2915,7 +2980,8 @@
               "type": "BrushSelection | null",
               "description": "Fires on every pointer move during a drag (live filtering of the host chart), again on release, and with `null` when the Reset button calls {@link reset}. The payload is always normalized so `start <= end`, even while dragging leftwards."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -2977,7 +3043,8 @@
               "type": "string",
               "description": "Emitted with the `key` of the activated entry when {@link interactive} is set. It signals intent only — the host decides whether to add or remove the key from {@link hidden}."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -3050,7 +3117,8 @@
               "default": "0"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -3109,7 +3177,8 @@
               "default": "'user'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ChatInputComponent",
@@ -3143,7 +3212,8 @@
               "type": "string",
               "description": "Emitted with the message text when the user sends. The textarea is cleared immediately, optimistically — nothing waits for the consumer, so failed sends must be restored by the consumer."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "ChatListComponent",
@@ -3165,7 +3235,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -3260,7 +3331,8 @@
               "description": "Two-way checked state. Also written by {@link writeValue} and emitted through the registered `onChange`.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -3354,7 +3426,8 @@
               "type": "string",
               "description": "Emits the removed chip's text, both for the remove button ({@link removeChip}) and for the Backspace-on-empty-field shortcut."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -3434,7 +3507,8 @@
               "default": "null"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -3484,7 +3558,8 @@
               "type": "boolean",
               "description": "Emits the new open state after {@link toggle}, {@link show} or {@link hide} changes it. Not emitted for the initial {@link defaultOpen} expansion, and `show`/`hide` emit even when the state did not actually change."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "CollapsibleContentComponent",
@@ -3500,7 +3575,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CollapsibleTriggerComponent",
@@ -3509,7 +3585,8 @@
           "selector": "ui-collapsible-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -3678,7 +3755,8 @@
               "description": "The colour as hex, as a two-way `model()` — the control's actual value, and what makes this component a valid Signal Forms `FormValueControl`. It tracks the canonical colour on every change, programmatic ones included, so `[(value)]` and a bound `FieldTree` cannot drift from what the picker is showing. That is deliberately *not* how {@link colorChange} behaves: that output stays silent for the initial colour and for {@link writeValue}, as it always has, so binding it back into the same state does not loop and does not dirty a form control.",
               "default": "''"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -3775,7 +3853,8 @@
               "type": "ChartClickEvent<RangeDataPoint>",
               "description": "Emitted when a column is clicked, or activated with Enter/Space while focused. The payload's `point` is the original {@link RangeDataPoint}, low and high included."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -3887,7 +3966,8 @@
               "type": "ChartClickEvent",
               "description": "Emitted when any bar is clicked. `index` is the category index and `point` the matching {@link barSeries} datum — but the template wires every rect to bar series 0, so with several bar series the payload reports the first series' value for that category regardless of which grouped bar was hit. Call {@link onBarClick} directly if you need the exact series."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -3957,7 +4037,8 @@
               "default": "null"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CommandDialogComponent",
@@ -4004,7 +4085,8 @@
               "description": "Two-way open state of the underlying `ui-dialog`. Toggled by the global {@link shortcut}, and each transition to open focuses the projected `ui-command-input` on the next tick.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "CommandEmptyComponent",
@@ -4013,7 +4095,8 @@
           "selector": "ui-command-empty",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CommandGroupComponent",
@@ -4035,7 +4118,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CommandInputComponent",
@@ -4066,7 +4150,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CommandItemComponent",
@@ -4112,7 +4197,8 @@
               "type": "string",
               "description": "Emits {@link value} when the row is activated by click, Enter on the focused row, or Enter while it is the highlighted item. Never emits while {@link disabled}."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "CommandListComponent",
@@ -4133,7 +4219,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CommandSeparatorComponent",
@@ -4142,7 +4229,8 @@
           "selector": "ui-command-separator",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "CommandShortcutComponent",
@@ -4151,7 +4239,8 @@
           "selector": "ui-command-shortcut",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -4241,7 +4330,8 @@
               "description": "Divider position as a percentage from the start edge (left, or top when vertical), 0–100. Two-way: dragging, tapping the track and the arrow keys all write back to it, and it is always clamped into range.",
               "default": "50"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -4269,26 +4359,26 @@
             {
               "name": "component",
               "type": "Type<unknown>",
-              "description": "",
+              "description": "The component class to render. Bound through the `uiComponentOutlet` alias.",
               "required": true,
               "default": "{ alias: 'uiComponentOutlet' }"
             },
             {
               "name": "inputs",
               "type": "Record<string, unknown>",
-              "description": "",
+              "description": "Inputs to set on the rendered component, keyed by input name.",
               "default": "{}"
             },
             {
               "name": "outputs",
               "type": "Record<string, OutputHandler>",
-              "description": "",
+              "description": "Handlers for the rendered component's outputs, keyed by output name.",
               "default": "{}"
             },
             {
               "name": "recycle",
               "type": "boolean",
-              "description": "",
+              "description": "Reuse the existing instance when the class has not changed, instead of destroying and recreating it.",
               "default": "false"
             }
           ],
@@ -4296,9 +4386,10 @@
             {
               "name": "initialized",
               "type": "ComponentRef<unknown>",
-              "description": ""
+              "description": "Emits the `ComponentRef` once the component has been created."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -4326,17 +4417,18 @@
             {
               "name": "manualTrigger",
               "type": "boolean",
-              "description": "",
+              "description": "Wait to be fired explicitly rather than bursting as soon as the host appears.",
               "default": "false"
             },
             {
               "name": "options",
               "type": "ConfettiOptions",
-              "description": "",
+              "description": "Burst settings — particle count, spread, colours and physics.",
               "default": "{}"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -4368,7 +4460,8 @@
               "default": "[]"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ContextMenuContentComponent",
@@ -4384,7 +4477,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ContextMenuItemComponent",
@@ -4424,7 +4518,8 @@
               "default": "'default'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ContextMenuLabelComponent",
@@ -4446,7 +4541,8 @@
               "default": "false"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ContextMenuSeparatorComponent",
@@ -4455,7 +4551,8 @@
           "selector": "ui-context-menu-separator",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ContextMenuShortcutComponent",
@@ -4464,7 +4561,8 @@
           "selector": "ui-context-menu-shortcut",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ContextMenuSubContentComponent",
@@ -4480,7 +4578,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ContextMenuSubTriggerComponent",
@@ -4508,7 +4607,8 @@
               "default": "false, { transform: booleanAttribute }"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ContextMenuSubComponent",
@@ -4517,7 +4617,8 @@
           "selector": "ui-context-menu-sub",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ContextMenuTriggerComponent",
@@ -4526,7 +4627,8 @@
           "selector": "ui-context-menu-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ContextMenuTriggerDirective",
@@ -4542,7 +4644,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -4572,19 +4675,19 @@
             {
               "name": "contextMenuData",
               "type": "T",
-              "description": "",
+              "description": "Value handed back with the event, so a handler knows what was clicked.",
               "required": true
             },
             {
               "name": "disabled",
               "type": "boolean",
-              "description": "",
+              "description": "Stops the host from opening the menu.",
               "default": "false"
             },
             {
               "name": "uiContextMenuAttach",
               "type": "ContextMenuComponent",
-              "description": "",
+              "description": "The menu to open when the host is right-clicked.",
               "required": true
             }
           ],
@@ -4592,9 +4695,10 @@
             {
               "name": "contextMenuTriggered",
               "type": "ContextMenuEvent<T>",
-              "description": ""
+              "description": "Emits the bound data and the originating event when the menu opens."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -4637,7 +4741,101 @@
               "type": "void",
               "description": "Emitted after the clipboard write succeeds, just before the confirmation badge appears. Never emits if the write is rejected (e.g. no permission or a non-secure origin)."
             }
-          ]
+          ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "currency-input",
+      "description": "Money input that formats and parses for any locale and currency, including non-ASCII digits.",
+      "category": "form",
+      "install": "npx @gilav21/shadcn-angular@latest add currency-input",
+      "importStatement": "import { CurrencyInputComponent } from '@/components/ui/currency-input';",
+      "selector": "ui-currency-input",
+      "dependencies": [
+        "input"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-currency-input />",
+      "snippetSkipReason": "",
+      "demoRoute": "currency-input",
+      "demoFile": "demo/src/app/demos/inputs/currency-input-demo.component.ts",
+      "api": [
+        {
+          "className": "CurrencyInputComponent",
+          "file": "packages/components/ui/currency-input/currency-input.component.ts",
+          "kind": "component",
+          "selector": "ui-currency-input",
+          "description": "An amount of money, written the way the reader's locale writes it. ### The value is major units `12.34` means twelve dollars thirty-four, not 1234 cents. Integer minor units cannot drift and would be the safer type in isolation — but a consumer binding `[(value)]` to a field their API calls `price` would get `1234` where they expect `12.34` and divide by 100 by hand, reintroducing the float in their code without the rounding this control does. Surprise costs more than the drift. The drift is bounded instead of ignored: {@link CurrencyInputComponent.onBlur} rounds to the currency's own scale, so an amount can never carry more precision than the currency has — which is where accumulated float error becomes visible. {@link minorUnits} is there for consumers who want the integer. ### Formatting happens at rest, never mid-keystroke While the field has focus it shows a plain editable number; on blur it shows the locale's full formatting. Reformatting as someone types moves the caret out from under them. See `specs/form-controls-small-spec.md` §3.2 and §3.6. ### Focus is watched on the wrapper, not the field The bubbling focusin/focusout pair is used rather than focus/blur. The inner field is inside `ui-input`, which declares no outputs, so a blur binding on it would attach the native DOM event to the host element — and focus and blur do not bubble, so an event raised on the real field never arrives. ### The field asks for a numeric keypad without being a number field A number field refuses a comma, which is the decimal separator across most of Europe, and strips the formatting this control exists to show. Declaring the input mode gives the keypad without any of the rest.",
+          "inputs": [
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "description": "Accessible name for the field.",
+              "default": "'Amount'"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes for the wrapper, not the inner `<input>`.",
+              "default": "''"
+            },
+            {
+              "name": "currency",
+              "type": "string",
+              "description": "ISO 4217 code. Drives the symbol, the decimal places and the parsing.",
+              "default": "'USD'"
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "description": "OR-ed with the state a reactive form pushes via `setDisabledState`.",
+              "default": "false"
+            },
+            {
+              "name": "locale",
+              "type": "string",
+              "description": "BCP-47 tag. Falls back to the app-wide `UI_LOCALE_ID`."
+            },
+            {
+              "name": "max",
+              "type": "number | undefined",
+              "description": "Upper bound, enforced on blur."
+            },
+            {
+              "name": "min",
+              "type": "number | undefined",
+              "description": "Lower bound, enforced on blur so typing is never interrupted."
+            },
+            {
+              "name": "placeholder",
+              "type": "string",
+              "description": "Shown while the value is `null`.",
+              "default": "''"
+            },
+            {
+              "name": "value",
+              "type": "number | null",
+              "description": "The amount, in major units. `null` shows the placeholder. A `model()` named exactly `value` is what makes this a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output. A write from outside stays silent; only a user edit emits.",
+              "default": "null"
+            },
+            {
+              "name": "variant",
+              "type": "CurrencyInputVariant",
+              "description": "Visual style of the wrapper: `outline`, `underline` or `ghost`.",
+              "default": "'outline'"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "value",
+              "type": "number | null",
+              "description": "The amount, in major units. `null` shows the placeholder. A `model()` named exactly `value` is what makes this a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output. A write from outside stays silent; only a user edit emits.",
+              "default": "null"
+            }
+          ],
+          "methods": []
         }
       ]
     },
@@ -4681,7 +4879,8 @@
               "default": "'vertical'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DataListItemComponent",
@@ -4703,7 +4902,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -5397,7 +5597,8 @@
               "description": "Which tree nodes are expanded, keyed by {@link getRowId}. Two-way, and separate from {@link expandedRows} (which is master/detail).",
               "default": "{}"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "DataTableColumnHeaderComponent",
@@ -5454,7 +5655,8 @@
               "type": "{ direction: SortDirection; multi: boolean }",
               "description": "Same direction as {@link sort}, plus `multi: true` when the activating event carried the shift key (a request to *add* to the sort chain rather than replace it). Both outputs fire on every activation, in this order."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "DataTableDateFilterComponent",
@@ -5492,7 +5694,8 @@
               "type": "Date | null",
               "description": "The newly picked date, or `null` when cleared. The component filters nothing itself — pair it with {@link dateFilterFn} as the column's filter function and feed this value in as the column filter value."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "DataTableDateRangeFilterComponent",
@@ -5536,7 +5739,8 @@
               "type": "DateRange | null",
               "description": "The completed range, or `null` when cleared. Only emitted once *both* endpoints exist — picking the first endpoint updates the calendar but stays silent — so a consumer never sees a half-open range from calendar clicks. Presets emit immediately. Pair with {@link dateRangeFilterFn}."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "DataTableFilterBuilderComponent",
@@ -5570,7 +5774,8 @@
               "type": "FilterGroup",
               "description": "A complete replacement tree emitted on every edit (combinator toggle, add/remove, or any field change), including edits bubbled up from nested groups. The builder evaluates nothing — pass the tree to the data-table's advanced filter to actually filter rows."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "DataTableMultiselectFilterComponent",
@@ -5631,7 +5836,8 @@
               "type": "unknown[] | null",
               "description": "The selected {@link valueWith} values after each toggle, or `null` when the selection becomes empty — `null` means \"no filter\" to {@link multiselectFilterFn}, so an empty array is never emitted."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "DataTablePaginationComponent",
@@ -5689,7 +5895,8 @@
               "type": "PaginationState",
               "description": "The requested next state, already clamped to `[0, totalPages - 1]`. Changing the page size resets `pageIndex` to 0. The component never paginates data itself — slice your rows from this."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -5721,19 +5928,19 @@
             {
               "name": "contextMenuDisabled",
               "type": "boolean",
-              "description": "",
+              "description": "Stops the table from opening the menu.",
               "default": "false"
             },
             {
               "name": "contextMenuRowsOnly",
               "type": "boolean",
-              "description": "",
+              "description": "Restrict the menu to body rows, leaving the header alone.",
               "default": "true"
             },
             {
               "name": "uiDataTableContextMenu",
               "type": "ContextMenuComponent",
-              "description": "",
+              "description": "The menu to open when a row or header is right-clicked.",
               "required": true
             }
           ],
@@ -5741,14 +5948,15 @@
             {
               "name": "headerContextMenu",
               "type": "DataTableHeaderContextMenuEvent",
-              "description": ""
+              "description": "Emits the column header that was right-clicked."
             },
             {
               "name": "rowContextMenu",
               "type": "TableRowContextMenuEvent<T>",
-              "description": ""
+              "description": "Emits the row that was right-clicked."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -5823,7 +6031,8 @@
               "description": "Two-way dialog visibility.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -5874,7 +6083,8 @@
               "type": "RowActionContext<T>",
               "description": "Emitted when a row menu opens (with its context)."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -5912,7 +6122,8 @@
               "description": "Locale for the busy label: a registry key (`'en'`/`'he'`) or a full dictionary."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -5939,7 +6150,8 @@
           "selector": "[uiDtPivot]",
           "description": "Opt-in pivot addon for `<ui-data-table>`. Attaches via DI to the `DataTableAddonHost` the base provides and exposes `getPivot(config)` — a pivot (rows x columns x values) of the table's raw data computed through the base's accessors. Grab a template reference (`#pv=\"uiDtPivot\"`) and bind the result's `columns` / `rows` to another `<ui-data-table>` to render it. The base ships no pivot code; the pure `computePivot` is re-exported for callers that pivot arbitrary data without a table instance.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -6009,7 +6221,8 @@
               "type": "Date | null",
               "description": "Emits on every calendar selection (the `[(date)]` half). Fires alongside the `ControlValueAccessor` change callback, so forms and two-way binding stay in sync."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "DateRangePickerComponent",
@@ -6060,7 +6273,8 @@
               "type": "TimeRange",
               "description": "Emits the `HH:mm` start/end times when {@link showTime} is on. Times are tracked separately from {@link rangeChange} and are never merged into the `Date` objects."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -6099,7 +6313,8 @@
               "description": "Two-way bound visibility. The projected `ui-dialog-content` only renders its overlay and panel while this is `true`, so nothing inside the dialog exists in the DOM when closed — bind it if you need to open the dialog without a `ui-dialog-trigger`.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "DialogContentComponent",
@@ -6130,7 +6345,8 @@
               "description": "Simple mode: renders a `ui-dialog-header`/`ui-dialog-title` above the projected content. Leave unset and project your own header for full control — {@link description} is only rendered when this is set too."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DialogDescriptionComponent",
@@ -6139,7 +6355,8 @@
           "selector": "ui-dialog-description",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DialogFooterComponent",
@@ -6148,7 +6365,8 @@
           "selector": "ui-dialog-footer",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DialogHeaderComponent",
@@ -6157,7 +6375,8 @@
           "selector": "ui-dialog-header",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DialogTitleComponent",
@@ -6166,7 +6385,8 @@
           "selector": "ui-dialog-title",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DialogTriggerComponent",
@@ -6175,7 +6395,8 @@
           "selector": "ui-dialog-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -6231,7 +6452,8 @@
               "default": "'bottom'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DockIconComponent",
@@ -6247,7 +6469,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DockItemComponent",
@@ -6269,7 +6492,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DockLabelComponent",
@@ -6285,7 +6509,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -6330,7 +6555,8 @@
               "description": "Two-way bound visibility. While `true` the body is scroll-locked (with padding compensating for the hidden scrollbar) and `ui-drawer-content` renders; nothing inside the drawer exists in the DOM when closed.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "DrawerCloseComponent",
@@ -6339,7 +6565,8 @@
           "selector": "ui-drawer-close",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DrawerContentComponent",
@@ -6365,7 +6592,8 @@
               "description": "Simple mode: renders a `ui-drawer-header`/`ui-drawer-title` above the projected content. Leave unset and project your own header instead; {@link description} is only rendered when this is set."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DrawerDescriptionComponent",
@@ -6374,7 +6602,8 @@
           "selector": "ui-drawer-description",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DrawerFooterComponent",
@@ -6390,7 +6619,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DrawerHeaderComponent",
@@ -6406,7 +6636,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DrawerTitleComponent",
@@ -6415,7 +6646,8 @@
           "selector": "ui-drawer-title",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DrawerTriggerComponent",
@@ -6424,7 +6656,8 @@
           "selector": "ui-drawer-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -6469,7 +6702,8 @@
               "description": "Open state, two-way bindable as `[(open)]`. Also written by the document-level outside-click listener and by Escape in the content, so a consumer binding sees closes it did not request.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "DropdownMenuContentComponent",
@@ -6491,7 +6725,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DropdownMenuItemComponent",
@@ -6525,7 +6760,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DropdownMenuLabelComponent",
@@ -6534,7 +6770,8 @@
           "selector": "ui-dropdown-menu-label",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DropdownMenuSeparatorComponent",
@@ -6543,7 +6780,8 @@
           "selector": "ui-dropdown-menu-separator",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DropdownMenuSubContentComponent",
@@ -6559,7 +6797,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DropdownMenuSubTriggerComponent",
@@ -6587,7 +6826,8 @@
               "default": "false, { transform: booleanAttribute }"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DropdownMenuSubComponent",
@@ -6596,7 +6836,8 @@
           "selector": "ui-dropdown-menu-sub",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "DropdownMenuTriggerComponent",
@@ -6605,7 +6846,78 @@
           "selector": "ui-dropdown-menu-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "duration-input",
+      "description": "A length of time edited one unit at a time; the value is seconds.",
+      "category": "form",
+      "install": "npx @gilav21/shadcn-angular@latest add duration-input",
+      "importStatement": "import { DurationInputComponent } from '@/components/ui/duration-input';",
+      "selector": "ui-duration-input",
+      "dependencies": [],
+      "npmDependencies": [],
+      "snippet": "<ui-duration-input />",
+      "snippetSkipReason": "",
+      "demoRoute": "duration-input",
+      "demoFile": "demo/src/app/demos/inputs/duration-input-demo.component.ts",
+      "api": [
+        {
+          "className": "DurationInputComponent",
+          "file": "packages/components/ui/duration-input/duration-input.component.ts",
+          "kind": "component",
+          "selector": "ui-duration-input",
+          "description": "A length of time, edited one unit at a time. ### The value is seconds Not milliseconds and not an ISO-8601 string — see `specs/form-controls-small-spec.md` §3.2. `formatIso8601` and `parseIso8601` ship alongside for APIs that speak it. ### Why segments rather than one text field A single field has to guess what `130` means, and every guess is wrong for somebody. Separate segments make the question unnecessary: the caret is in the minutes box, so the digits are minutes. It is also how `<input type=\"time\">` behaves, which means the muscle memory already exists. Only the leading segment is unbounded. Minutes under an hours segment stop at 59 because sixty of them are an hour — but a field showing minutes alone must allow 90, or a ninety-minute duration could not be typed at all. ### A fieldset, and a numeric keypad without a number field The segments are a named group of related controls, which is what a fieldset *is* — so the grouping is carried by a native element rather than by an ARIA role bolted onto a div. Focus is watched with the bubbling focusout event rather than blur, because blur does not bubble and moving between two segments is not leaving the control. Each segment is a text field that declares a numeric input mode rather than a number field: a number field brings spinner arrows that would sit inside every segment, and accepts `e`, `+` and `-`, none of which belong in a duration.",
+          "inputs": [
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "description": "Accessible name for the group of segments.",
+              "default": "'Duration'"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the wrapper.",
+              "default": "''"
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "description": "OR-ed with the state a reactive form pushes via `setDisabledState`.",
+              "default": "false"
+            },
+            {
+              "name": "units",
+              "type": "readonly DurationUnit[]",
+              "description": "Which units to show, largest first. The largest one absorbs everything above it, so `['minutes','seconds']` renders 90 minutes as `90:00` rather than silently dropping an hour.",
+              "default": "['hours', 'minutes']"
+            },
+            {
+              "name": "value",
+              "type": "number | null",
+              "description": "The duration in seconds. `null` shows empty segments. A `model()` named exactly `value` is what makes this a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output.",
+              "default": "null"
+            },
+            {
+              "name": "variant",
+              "type": "DurationInputVariant",
+              "description": "Visual style of the wrapper: `outline`, `underline` or `ghost`.",
+              "default": "'outline'"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "value",
+              "type": "number | null",
+              "description": "The duration in seconds. `null` shows empty segments. A `model()` named exactly `value` is what makes this a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output.",
+              "default": "null"
+            }
+          ],
+          "methods": []
         }
       ]
     },
@@ -6666,7 +6978,8 @@
               "description": "Two-way open state of the panel, also driven by the trigger and by the outside-click listener. Bind it to open the picker programmatically instead of calling {@link show}/{@link hide} when the host owns the state.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "EmojiPickerContentComponent",
@@ -6688,7 +7001,8 @@
               "default": "'absolute'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "EmojiPickerTriggerComponent",
@@ -6697,7 +7011,8 @@
           "selector": "ui-emoji-picker-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -6729,7 +7044,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "EmptyContentComponent",
@@ -6745,7 +7061,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "EmptyDescriptionComponent",
@@ -6761,7 +7078,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "EmptyHeaderComponent",
@@ -6777,7 +7095,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "EmptyMediaComponent",
@@ -6799,7 +7118,8 @@
               "default": "'default'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "EmptyTitleComponent",
@@ -6815,7 +7135,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -6883,7 +7204,8 @@
               "type": "void",
               "description": "Emitted by the default home action. The consumer decides where home is."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "ErrorPageActionsComponent",
@@ -6899,7 +7221,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ErrorPageIllustrationComponent",
@@ -6915,7 +7238,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -6993,7 +7317,8 @@
               "type": "void",
               "description": "Fired when picking mode begins — the native overlay opened, or the fallback crosshair was armed. Exactly one of {@link colorPick} or {@link pickCancel} follows."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -7031,7 +7356,8 @@
               "default": "'vertical'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "FieldAutoErrorsComponent",
@@ -7064,7 +7390,8 @@
               "default": "{}"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "FieldDescriptionComponent",
@@ -7086,7 +7413,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "FieldErrorComponent",
@@ -7108,7 +7436,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "FieldGroupComponent",
@@ -7124,7 +7453,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "FieldLabelComponent",
@@ -7146,7 +7476,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "FieldLegendComponent",
@@ -7162,7 +7493,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "FieldSeparatorComponent",
@@ -7178,7 +7510,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "FieldSetComponent",
@@ -7194,7 +7527,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -7308,7 +7642,8 @@
               "type": "FileUploadItem[]",
               "description": "The whole queue after any add, remove or clear — emitted once per batch, not per file, and also when a batch added nothing. Progress and status changes made via {@link updateFileProgress} / {@link setFileError} do **not** re-emit it."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -7405,7 +7740,8 @@
               "type": "number",
               "description": "Emitted with the new clamped zoom factor after {@link zoomIn}/{@link zoomOut}."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "FileViewerContentDirective",
@@ -7414,7 +7750,8 @@
           "selector": "ui-file-viewer-content",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "FileViewerToolbarDirective",
@@ -7423,7 +7760,8 @@
           "selector": "ui-file-viewer-toolbar",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -7473,7 +7811,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -7566,7 +7905,8 @@
               "type": "ChartClickEvent",
               "description": "Emitted when a stage is clicked, or activated with Enter while focused. The payload's `point` is the original {@link data} entry and `index` its position; no `event` is attached, so use the DOM event on your own handler if you need modifier keys."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -7663,7 +8003,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -7713,7 +8054,8 @@
               "default": "3"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -7818,7 +8160,8 @@
               "type": "HeatmapCell | null",
               "description": "Emits the cell on hover/focus and `null` on mouse-leave/blur, so a consumer can mirror the highlight elsewhere."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -7943,7 +8286,8 @@
               "type": "ChartClickEvent<HistogramBin> | null",
               "description": "Emitted with the bar's bin on hover/focus and with `null` on mouse-leave/blur, so consumers can mirror the highlight."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -7968,7 +8312,8 @@
           "selector": "ui-hover-card",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "HoverCardContentComponent",
@@ -8006,7 +8351,8 @@
               "description": "Simple mode: renders a heading (plus {@link description}) above any projected content. Leave unset to supply the whole card body yourself."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "HoverCardTriggerComponent",
@@ -8015,7 +8361,8 @@
           "selector": "ui-hover-card-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -8080,7 +8427,8 @@
               "default": "'regular'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -8184,7 +8532,8 @@
               "type": "CanvasViewport",
               "description": "Emitted when panning/zooming **settles**, not on every frame — the hot path deliberately never touches Angular. Read {@link viewport} for the live value."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "InfiniteCanvasItemDirective",
@@ -8199,7 +8548,8 @@
               "description": "Type-inference anchor. Bind the same array passed to the canvas's `items` and the template variables take that element type; the value itself is never read. This mirrors how `*ngFor` infers from `ngForOf`."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -8279,6 +8629,11 @@
               "default": "false"
             },
             {
+              "name": "inputMode",
+              "type": "string | undefined",
+              "description": "Which on-screen keyboard a touch device should offer. Separate from {@link type} because the two answer different questions. A currency or duration field cannot use `type=\"number\"` — a number field refuses the comma that most of Europe uses as a decimal separator, and strips any formatting — but it still wants a numeric keypad. Without this the only way to get one is to reach past the component to the native element."
+            },
+            {
               "name": "label",
               "type": "string",
               "description": "Label text. Rendered as a floating label when {@link floating} is set."
@@ -8288,6 +8643,11 @@
               "type": "string",
               "description": "Extra classes for the floating label, e.g. `text-base font-semibold text-foreground` — merged last so they override the defaults.",
               "default": "''"
+            },
+            {
+              "name": "lang",
+              "type": "string | undefined",
+              "description": "BCP-47 tag on the field itself, so a browser offers the right keypad layout and assistive tech reads digits in the right language."
             },
             {
               "name": "loading",
@@ -8309,7 +8669,7 @@
             {
               "name": "prefix",
               "type": "string",
-              "description": "Icon name shown before the field. Presence forces the bordered container layout."
+              "description": "Text shown before the field, such as a currency symbol or `https://`. Presence forces the bordered container layout."
             },
             {
               "name": "skeleton",
@@ -8348,7 +8708,8 @@
               "description": "The text, as a two-way `model()`. Written by user typing, by {@link writeValue} when a form pushes a value in, and by a `[(value)]` binding. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`. Unlike the controls that already had a hand-written `valueChange` output, this one never promised silence on a programmatic write — the output is new here — so there is no second signal and no suppression: the model is the single source of truth, and a form write keeps a `[(value)]` binding in sync instead of letting it drift.",
               "default": "''"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -8392,7 +8753,8 @@
               "default": "'outline'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "InputGroupAddonComponent",
@@ -8414,7 +8776,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "InputGroupInputComponent",
@@ -8461,7 +8824,8 @@
               "description": "The text, as a two-way `model()`. Written by user typing, by {@link writeValue} when a form pushes a value in, and by a `[(value)]` binding. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`.",
               "default": "''"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "InputGroupTextComponent",
@@ -8477,7 +8841,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -8507,23 +8872,24 @@
             {
               "name": "showMaskTyped",
               "type": "boolean",
-              "description": "",
+              "description": "Keep the whole mask visible while typing, rather than revealing it as it fills.",
               "default": "false"
             },
             {
               "name": "slotChar",
               "type": "string",
-              "description": "",
+              "description": "Placeholder character shown for a slot that has not been filled yet.",
               "default": "'_'"
             },
             {
               "name": "uiInputMask",
               "type": "string",
-              "description": "",
+              "description": "The mask pattern, where `9` accepts a digit, `a` a letter and `*` either — for example `(999) 999-9999`.",
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -8590,7 +8956,8 @@
               "description": "Two-way code. Typed input is stripped to alphanumerics, upper-cased and truncated to {@link maxLength}, so what is written back may differ from what was typed.",
               "default": "''"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "InputOTPGroupComponent",
@@ -8599,7 +8966,8 @@
           "selector": "ui-input-otp-group",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "InputOTPSeparatorComponent",
@@ -8608,7 +8976,8 @@
           "selector": "ui-input-otp-separator",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "InputOTPSlotComponent",
@@ -8624,7 +8993,8 @@
               "default": "0"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -8786,7 +9156,8 @@
               "description": "Text direction of the board. Two-way, but the component overwrites it from {@link locale}'s `rtl` flag whenever the resolved locale changes — set a locale rather than fighting this input if you need a fixed direction.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "KanbanCardContentComponent",
@@ -8802,7 +9173,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "KanbanCardDialogComponent",
@@ -8848,7 +9220,8 @@
               "type": "{        mode: 'add' | 'edit';        columnId: string;        card?: KanbanCard;        data: KanbanCardAddEvent;    }",
               "description": "Emits the form contents when the user saves; the dialog closes itself but performs no state change. `card` carries the original in `'edit'` mode (`undefined` in `'add'`), and `data` holds the new values — merge the two yourself. Cancelling emits nothing."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "KanbanCardComponent",
@@ -8875,7 +9248,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "KanbanColumnDialogComponent",
@@ -8903,7 +9277,8 @@
               "type": "{        mode: KanbanColumnDialogMode;        name?: string;        wipLimit?: number;        columnId?: string;    }",
               "description": "Emits the form values when the user submits, tagged with the `mode` the dialog was opened in — `add-column` carries `name` (+ optional `wipLimit`), the other two carry `columnId` plus whichever field that mode showed. `name` is trimmed and `wipLimit` is normalised to a positive integer or `undefined` (blank, zero, negative and non-numeric all mean \"no limit\"). The dialog owns no board state — create, rename or re-cap the column yourself from the payload. Cancelling emits nothing."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "KanbanColumnHeaderComponent",
@@ -8919,7 +9294,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "KanbanColumnComponent",
@@ -8969,7 +9345,8 @@
               "description": "Soft work-in-progress cap shown as `/ n` beside the count. Exceeding it turns the count badge destructive and the border red — it never blocks a drop or an add. Counts only cards visible under the board's search filter."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "KanbanDeleteColumnDialogComponent",
@@ -9003,7 +9380,8 @@
               "type": "KanbanColumnDeleteEvent",
               "description": "Emits once the user confirms, with `columnId` plus `moveCardsTo` — the column the orphaned cards should go to, or `undefined` meaning \"delete the cards with the column\". Nothing is deleted by this component: you own the board arrays and must apply both the column removal and the card move yourself. Cancelling emits nothing."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -9035,7 +9413,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -9073,7 +9452,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -9184,7 +9564,8 @@
               "type": "ChartClickEvent | null",
               "description": "Emitted with the nearest category's point from the first *visible* series on pointer move, and with `null` on pointer-leave. `index` is the category index, so consumers can mirror the highlight across their own series."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -9212,23 +9593,24 @@
             {
               "name": "uiMagneticRadius",
               "type": "number",
-              "description": "",
+              "description": "Pointer distance in pixels within which the host starts being pulled.",
               "default": "200"
             },
             {
               "name": "uiMagneticSmoothing",
               "type": "number",
-              "description": "",
+              "description": "Easing duration in milliseconds applied to the movement.",
               "default": "150"
             },
             {
               "name": "uiMagneticStrength",
               "type": "number",
-              "description": "",
+              "description": "How far the host moves toward the pointer, as a fraction of the distance between them.",
               "default": "0.3"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -9284,7 +9666,8 @@
               "default": "20"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -9328,7 +9711,8 @@
               "default": "16, { transform: (value: unknown) => numberAttribute(value, 16) }"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -9360,7 +9744,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "MenubarContentComponent",
@@ -9376,7 +9761,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "MenubarItemComponent",
@@ -9416,7 +9802,8 @@
               "type": "void",
               "description": "Fires when the item is activated by click or Enter, just before the menu is closed. Never fires while {@link disabled}."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "MenubarMenuComponent",
@@ -9425,7 +9812,8 @@
           "selector": "ui-menubar-menu",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "MenubarSeparatorComponent",
@@ -9434,7 +9822,8 @@
           "selector": "ui-menubar-separator",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "MenubarShortcutComponent",
@@ -9443,7 +9832,8 @@
           "selector": "ui-menubar-shortcut",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "MenubarSubContentComponent",
@@ -9459,7 +9849,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "MenubarSubTriggerComponent",
@@ -9487,7 +9878,8 @@
               "default": "false, { transform: booleanAttribute }"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "MenubarSubComponent",
@@ -9496,7 +9888,8 @@
           "selector": "ui-menubar-sub",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "MenubarTriggerComponent",
@@ -9512,7 +9905,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -9556,7 +9950,8 @@
               "default": "'medium'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -9600,7 +9995,8 @@
               "default": "[]"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -9655,7 +10051,8 @@
               "default": "'default'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -9693,7 +10090,8 @@
               "default": "[]"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "NavigationMenuContentComponent",
@@ -9709,7 +10107,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "NavigationMenuIndicatorComponent",
@@ -9725,7 +10124,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "NavigationMenuItemComponent",
@@ -9741,7 +10141,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "NavigationMenuLinkComponent",
@@ -9769,7 +10170,8 @@
               "default": "'#'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "NavigationMenuListComponent",
@@ -9785,7 +10187,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "NavigationMenuTriggerComponent",
@@ -9801,7 +10204,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -9843,7 +10247,7 @@
             {
               "name": "ariaLabel",
               "type": "string",
-              "description": "",
+              "description": "Accessible name for the canvas.",
               "default": "'Node editor'"
             },
             {
@@ -9909,7 +10313,7 @@
             {
               "name": "showGrid",
               "type": "boolean",
-              "description": "",
+              "description": "Draw the background grid behind the graph.",
               "default": "true"
             }
           ],
@@ -9922,7 +10326,7 @@
             {
               "name": "connectionRejected",
               "type": "ConnectionRejectedEvent",
-              "description": ""
+              "description": "Emits when a drag would have made an invalid connection, with the reason it was refused."
             },
             {
               "name": "connections",
@@ -9949,17 +10353,17 @@
             {
               "name": "nodeSettled",
               "type": "NodeSettledEvent",
-              "description": ""
+              "description": "Emits as each node reaches its final state during a run."
             },
             {
               "name": "runFinished",
               "type": "RunFinishedEvent",
-              "description": ""
+              "description": "Emits once a run has ended, whether it completed or failed."
             },
             {
               "name": "runStarted",
               "type": "RunStartedEvent",
-              "description": ""
+              "description": "Emits when a run begins, before any node is evaluated."
             },
             {
               "name": "selection",
@@ -9972,7 +10376,8 @@
               "type": "CanvasViewport",
               "description": "The viewport, when a pan or zoom SETTLES. Re-exposed from the engine so an addon talks to `ui-node-editor` rather than reaching past it to the canvas underneath. Settle-only by the engine's design — the hot path deliberately never touches Angular — which is why a minimap updates after a pan rather than during one."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "NodeEditorNodeDirective",
@@ -9987,7 +10392,8 @@
               "description": "Type-inference anchor. Bind the same array passed to the editor's `nodes` and the template variables take that element type; the value itself is never read. Mirrors `uiInfiniteCanvasItem`'s `ofType`."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "NodeEditorNodeComponent",
@@ -10011,7 +10417,7 @@
             {
               "name": "class",
               "type": "string",
-              "description": "",
+              "description": "Extra classes merged onto the node card.",
               "default": "''"
             },
             {
@@ -10047,13 +10453,13 @@
             {
               "name": "metrics",
               "type": "PortMetrics",
-              "description": "",
+              "description": "Port geometry, shared with the canvas so edges meet the ports exactly.",
               "required": true
             },
             {
               "name": "node",
               "type": "EditorNode",
-              "description": "",
+              "description": "The node this element renders.",
               "required": true
             },
             {
@@ -10071,7 +10477,7 @@
             {
               "name": "selected",
               "type": "boolean",
-              "description": "",
+              "description": "Whether the node is part of the current selection.",
               "default": "false"
             },
             {
@@ -10093,7 +10499,8 @@
               "default": "null"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "NodeEditorPortComponent",
@@ -10111,7 +10518,7 @@
             {
               "name": "class",
               "type": "string",
-              "description": "",
+              "description": "Extra classes merged onto the port.",
               "default": "''"
             },
             {
@@ -10135,7 +10542,7 @@
             {
               "name": "metrics",
               "type": "PortMetrics",
-              "description": "",
+              "description": "Port geometry, shared with the canvas so edges meet the ports exactly.",
               "required": true
             },
             {
@@ -10147,11 +10554,12 @@
             {
               "name": "port",
               "type": "NodePort",
-              "description": "",
+              "description": "The port this element renders.",
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -10182,7 +10590,7 @@
             {
               "name": "contextMenuDisabled",
               "type": "boolean",
-              "description": "",
+              "description": "Stops the canvas from opening a context menu.",
               "default": "false"
             },
             {
@@ -10198,7 +10606,8 @@
               "type": "NodeEditorContextTarget",
               "description": "Fires with the resolved target, whether or not a menu is attached."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -10228,19 +10637,19 @@
             {
               "name": "class",
               "type": "string",
-              "description": "",
+              "description": "Extra classes merged onto the overlay.",
               "default": "''"
             },
             {
               "name": "comments",
               "type": "readonly NodeComment[]",
-              "description": "",
+              "description": "Free-standing notes on the canvas. Two-way: editing or moving one writes back.",
               "default": "[]"
             },
             {
               "name": "groups",
               "type": "readonly NodeGroup[]",
-              "description": "",
+              "description": "The zones drawn behind the graph. Two-way: dragging or resizing a zone writes back.",
               "default": "[]"
             },
             {
@@ -10252,7 +10661,7 @@
             {
               "name": "readonlyGroups",
               "type": "boolean",
-              "description": "",
+              "description": "Render zones and comments without letting them be moved, resized or edited.",
               "default": "false"
             }
           ],
@@ -10260,7 +10669,7 @@
             {
               "name": "comments",
               "type": "readonly NodeComment[]",
-              "description": "",
+              "description": "Free-standing notes on the canvas. Two-way: editing or moving one writes back.",
               "default": "[]"
             },
             {
@@ -10276,10 +10685,11 @@
             {
               "name": "groups",
               "type": "readonly NodeGroup[]",
-              "description": "",
+              "description": "The zones drawn behind the graph. Two-way: dragging or resizing a zone writes back.",
               "default": "[]"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -10309,7 +10719,7 @@
             {
               "name": "class",
               "type": "string",
-              "description": "",
+              "description": "Extra classes merged onto the panel.",
               "default": "''"
             },
             {
@@ -10327,7 +10737,7 @@
             {
               "name": "runs",
               "type": "readonly RunRecord[]",
-              "description": "",
+              "description": "Past runs, newest first.",
               "default": "[]"
             },
             {
@@ -10341,7 +10751,7 @@
             {
               "name": "clearRequested",
               "type": "void",
-              "description": ""
+              "description": "Emits when the user asks to clear the history; the consumer owns the list and performs the removal."
             },
             {
               "name": "nodeSelected",
@@ -10362,7 +10772,7 @@
             {
               "name": "runExported",
               "type": "RunExportEvent",
-              "description": ""
+              "description": "Emits the run the user asked to export, with the chosen format."
             },
             {
               "name": "selectedRun",
@@ -10370,7 +10780,8 @@
               "description": "The run being inspected, by id.",
               "default": "null"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -10417,13 +10828,13 @@
             {
               "name": "ariaLabel",
               "type": "string",
-              "description": "",
+              "description": "Accessible name for the overview.",
               "default": "'Graph overview'"
             },
             {
               "name": "class",
               "type": "string",
-              "description": "",
+              "description": "Extra classes merged onto the overview.",
               "default": "''"
             },
             {
@@ -10441,19 +10852,19 @@
             {
               "name": "connections",
               "type": "readonly NodeConnection[]",
-              "description": "",
+              "description": "Edges to plot on the overview.",
               "default": "[]"
             },
             {
               "name": "height",
               "type": "number",
-              "description": "",
+              "description": "Overview height in CSS pixels.",
               "default": "140"
             },
             {
               "name": "nodes",
               "type": "readonly EditorNode[]",
-              "description": "",
+              "description": "Nodes to plot on the overview.",
               "default": "[]"
             },
             {
@@ -10465,7 +10876,7 @@
             {
               "name": "width",
               "type": "number",
-              "description": "",
+              "description": "Overview width in CSS pixels.",
               "default": "200"
             }
           ],
@@ -10481,7 +10892,8 @@
               "type": "CanvasPoint",
               "description": "The user asked to centre this world point."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -10548,9 +10960,10 @@
             {
               "name": "picked",
               "type": "NodeTypePicked",
-              "description": ""
+              "description": "Emits the node type the user chose, and where it should be placed."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -10592,7 +11005,7 @@
             {
               "name": "problems",
               "type": "readonly GraphProblem[]",
-              "description": "",
+              "description": "Problems to list, as produced by validating the graph.",
               "default": "[]"
             }
           ],
@@ -10602,7 +11015,8 @@
               "type": "GraphProblem",
               "description": "A row was activated — the consumer decides what to reveal."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -10632,7 +11046,7 @@
             {
               "name": "class",
               "type": "string",
-              "description": "",
+              "description": "Extra classes merged onto the breadcrumb.",
               "default": "''"
             },
             {
@@ -10648,7 +11062,8 @@
               "type": "number",
               "description": "Go to this level. The index into `path`."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -10673,7 +11088,7 @@
           "file": "packages/components/ui/number-input/number-input.component.ts",
           "kind": "component",
           "selector": "ui-number-input",
-          "description": "",
+          "description": "A number field with steppers and bounds. ### Focus is watched on the wrapper, not the field The bubbling focusout event is used rather than blur. The inner field is inside `ui-input`, which declares no outputs, so a blur binding on it attached the native DOM event to the host element — and blur does not bubble, so a blur raised on the real field never arrived. Clamping therefore never ran for a real user: typing 250 into a field bounded at 100 and clicking away left 250. Every test missed it by calling the handler directly instead of blurring anything.",
           "inputs": [
             {
               "name": "class",
@@ -10734,7 +11149,8 @@
               "description": "The value, as a two-way `model()`. A write from outside overwrites the current value, so it acts as a controlled value rather than just an initial one; `null` shows the placeholder. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside stays silent; only a user edit emits. Note that after a `writeValue` from a reactive form this still reads the pre-write value — the rendered value is {@link displayValue}.",
               "default": "null"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -10801,7 +11217,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "NumberTickerDigitComponent",
@@ -10817,7 +11234,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -10873,7 +11291,8 @@
               "default": "false"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -10969,7 +11388,8 @@
               "type": "OrgNode | null",
               "description": "Emitted with the hovered node and again with `null` when the pointer leaves. Bound to `mouseenter`/`mouseleave` only, so keyboard users never trigger it — do not put information behind hover alone."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -11040,7 +11460,8 @@
               "type": "PageBuilderViewMode",
               "description": "Emits whenever the view mode changes between 'edit' and 'preview'."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "PropertyEditorComponent",
@@ -11077,7 +11498,8 @@
               "type": "{ id: string, prop: string, value: unknown }",
               "description": "One edit, as `{ id, prop, value }`. The editor is fully controlled: nothing changes until the parent applies this and feeds a new {@link item} back. `prop` is `'bindings'` for the whole bindings map, a geometry field (`x`/`y`/`cols`/`rows`), or otherwise a component input name."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -11127,7 +11549,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -11179,7 +11602,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -11240,7 +11664,8 @@
               "type": "number",
               "description": "The 1-based page the user asked for. Nothing moves until you write it back into {@link currentPage}. Already filtered: never out of range and never the page already shown."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "PaginationContentComponent",
@@ -11256,7 +11681,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "PaginationEllipsisComponent",
@@ -11277,7 +11703,8 @@
               "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "PaginationItemComponent",
@@ -11293,7 +11720,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "PaginationLinkComponent",
@@ -11327,7 +11755,8 @@
               "default": "'icon'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "PaginationNextComponent",
@@ -11354,7 +11783,8 @@
               "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "PaginationPreviousComponent",
@@ -11381,7 +11811,8 @@
               "description": "Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -11437,7 +11868,8 @@
               "default": "0.5"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -11521,7 +11953,8 @@
               "description": "The phone number as an E.164 string, as a two-way `model()`. Use it for binding without forms. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside stays silent; only a user edit emits. Note that after a `writeValue` from a reactive form this still reads the pre-write value — the rendered state is {@link selectedCountry} + {@link nationalNumber}.",
               "default": "null"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -11617,7 +12050,8 @@
               "type": "ChartClickEvent | null",
               "description": "Emitted with the slice on hover/focus and with `null` on mouse-leave/blur, so consumers can mirror the highlight."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -11735,7 +12169,8 @@
               "type": "ChartClickEvent<DrilldownDataPoint> | null",
               "description": "Emitted with the slice on hover/focus and with `null` on mouse-leave/blur, so consumers can mirror the highlight."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -11780,7 +12215,8 @@
               "description": "Two-way open state, shared with the trigger and content through DI. Clicking outside the popover (and outside its portal) closes it and writes `false` back, so a consumer binding stays in sync with user dismissals.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "PopoverCloseComponent",
@@ -11789,7 +12225,8 @@
           "selector": "ui-popover-close",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "PopoverContentComponent",
@@ -11841,7 +12278,8 @@
               "default": "'absolute'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "PopoverTriggerComponent",
@@ -11850,7 +12288,8 @@
           "selector": "ui-popover-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -11909,7 +12348,8 @@
               "default": "0"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -11989,7 +12429,8 @@
               "description": "Human-readable chart name, used only to prefix the SVG group's accessible summary (see {@link ariaLabel})."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -12067,7 +12508,8 @@
               "type": "string | undefined",
               "description": "The selection, as a two-way `model()`. A write from outside is applied to {@link internalValue} whenever it is not `null`/`undefined`, so it can never clear a selection, and it stays silent — only a user pick emits. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. Note that after a `writeValue` from a reactive form this still reads the pre-write value — {@link internalValue} is the rendered selection."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RadioGroupItemComponent",
@@ -12105,7 +12547,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -12195,7 +12638,8 @@
               "description": "The committed rating, as a two-way `model()`. Written by a user pick, by {@link writeValue} when a form pushes a value in, and by a `[(value)]` binding. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`. The pre-existing {@link ratingChange} output is untouched and still fires on user picks only; the `valueChange` output Angular derives from this model is new, and additionally fires when a form writes, so a `[(value)]` binding cannot drift from the form.",
               "default": "0"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -12233,7 +12677,8 @@
               "default": "'horizontal'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ResizableHandleComponent",
@@ -12279,7 +12724,8 @@
               "type": "{ delta: number; sizes: number[] }",
               "description": "Fires continuously during a drag, and once per arrow-key press, with the two adjacent panels' new percentages. `delta` is the pixel offset from where the drag started, and is `0` for a keyboard resize. The handle has **already** applied those sizes through the panels' own `setSize()`, so this is a notification, not a request — the panels' `size` signals and their `sizeChange` outputs are equally up to date. Nothing is persisted."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "ResizablePanelComponent",
@@ -12319,7 +12765,8 @@
               "type": "number",
               "description": "The panel's new size in percent after any change — a handle drag, an arrow-key resize, {@link setSize} or {@link updateSize}. Not emitted when the size is unchanged."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -12369,7 +12816,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "ResultDetailComponent",
@@ -12385,7 +12833,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -12560,7 +13009,8 @@
               "type": "number",
               "description": "Emits the current word count after every content change. Pair with `[showWordCount]`."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextToolbarComponent",
@@ -12640,7 +13090,8 @@
               "type": "string",
               "description": "Emits the clicked {@link ToolbarItem} id. The toolbar owns no editor state: the host is responsible for executing the command and feeding the result back through {@link activeFormats}."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -12688,7 +13139,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "PresetDialogComponent",
@@ -12744,7 +13196,8 @@
               "type": "void",
               "description": "Close button, backdrop click or `Escape`. The handlers tear the overlay down on this — nothing else does."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextActionsBindDirective",
@@ -12778,7 +13231,8 @@
               "default": "{}"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextActionsDialogComponent",
@@ -12822,7 +13276,8 @@
               "type": "RichTextActionDefinition",
               "description": "A definition was selected in the picker, before any params are gathered. The host uses this to validate the definition and to run a tier-3 `resolveParams` flow (driving the dialog through {@link setBusy}). Also fires for the selection restored from `context.prefill`, since that goes through {@link pickAction} exactly like a user click."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextActionsFormComponent",
@@ -12840,7 +13295,7 @@
             {
               "name": "errors",
               "type": "unknown",
-              "description": ""
+              "description": "The current validation message per field key, or `null` where the field passes. Exposed so a host can render errors outside this form."
             },
             {
               "name": "fields",
@@ -12865,7 +13320,7 @@
             {
               "name": "errors",
               "type": "unknown",
-              "description": ""
+              "description": "The current validation message per field key, or `null` where the field passes. Exposed so a host can render errors outside this form."
             },
             {
               "name": "paramsChange",
@@ -12877,7 +13332,8 @@
               "type": "boolean",
               "description": "Whether every field passes `required` and its own `validate`. Emitted eagerly on init (so a consumer learns the starting validity without touching the form) and again whenever the verdict is recomputed."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextActionsPopoverComponent",
@@ -12921,7 +13377,8 @@
               "type": "PopoverActionRow",
               "description": "Detach this row's action. Emits the whole row, not just the trigger, because the addon needs `combined` to know whether to strip both attributes and `id` to look the definition's seed styles back up."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextActionsDirective",
@@ -12971,7 +13428,8 @@
               "type": "{        actionId: string; trigger: RichTextActionTrigger; targetKind: ActionTargetKind;    }",
               "description": "An action was removed from its element via the popover. A combined action emits twice (`'click'` then `'hover'`). `actionId` is read off the DOM before removal, so it is `''` if the attribute was already gone."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -12999,7 +13457,8 @@
           "selector": "ui-rte-ai-chip",
           "description": "The floating \"✨ Ask AI\" chip the AI addon shows above an active text selection. Mounted once into the editor's overlay anchor; it reads its visibility, position, and label from {@link RICH_TEXT_AI_CONTEXT} and opens the task panel on click. Reproduces the chip the base editor used to render inline, now driven entirely by the addon.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextAiPanelComponent",
@@ -13008,7 +13467,8 @@
           "selector": "ui-rte-ai-panel",
           "description": "The AI addon's task panel: a fixed, viewport-clamped popover anchored under the selection. In the `menu` phase it lists the six built-in tasks plus a free-form prompt field; in `loading`/`review` it shows the streaming status, any error, and the accept / discard / try-again controls. Mounted once into the editor's overlay anchor, it reads its state and callbacks from {@link RICH_TEXT_AI_CONTEXT}, reproducing the panel the base editor used to render inline.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextAiDirective",
@@ -13050,7 +13510,8 @@
               "type": "string",
               "description": "Emitted with the final generated text when a task completes."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -13079,7 +13540,8 @@
           "selector": "ui-rte-colors-button",
           "description": "A colour toolbar button the colors addon contributes as a component slot: a standard toolbar button anchoring a popover with an inline `ui-color-picker`. Reads editor state through {@link RichTextEditorAddonHost} and its per-kind config + apply callback through {@link RICH_TEXT_COLOR_BUTTON_CONTEXT}.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextColorsDirective",
@@ -13136,7 +13598,8 @@
               "type": "RichTextColorChange",
               "description": "Emits after a colour is applied to the selection."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -13164,7 +13627,8 @@
           "selector": "ui-rte-emoji-button",
           "description": "The emoji toolbar button the addon contributes as a component slot: the `ui-emoji-picker` compound anchored to a standard toolbar button. Reads editor state through {@link RichTextEditorAddonHost} and reports picks via {@link RICH_TEXT_EMOJI_CONTEXT}.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextEmojiDirective",
@@ -13197,7 +13661,8 @@
               "type": "string",
               "description": "Emits the picked emoji after it has been inserted into the content."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -13224,7 +13689,8 @@
           "selector": "ui-rte-file-import-button",
           "description": "The import toolbar button the file-import addon contributes as a component slot: a standard toolbar button that opens a hidden file picker restricted to the addon's accepted types. Reads editor state through {@link RichTextEditorAddonHost} and its locale + import callback through {@link RICH_TEXT_FILE_IMPORT_BUTTON_CONTEXT}; the directive performs the parse and insert.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextFileImportOverlayComponent",
@@ -13252,7 +13718,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextFileImportDirective",
@@ -13306,7 +13773,8 @@
               "type": "File",
               "description": "Emits the `File` when an import begins."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -13385,7 +13853,8 @@
               "type": "number",
               "description": "Emits the restored entry index after a revision is applied."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextHistoryDirective",
@@ -13418,7 +13887,8 @@
               "type": "number",
               "description": "Emits the restored entry index whenever a revision is applied."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -13447,7 +13917,8 @@
           "selector": "ui-rte-images-button",
           "description": "The image toolbar button the images addon contributes as a component slot: a standard toolbar button anchoring a popover with a URL/alt form and, when the configured sources allow it, a file picker. Reads editor state through {@link RichTextEditorAddonHost} and its locale + callbacks through {@link RICH_TEXT_IMAGES_BUTTON_CONTEXT}; the directive performs the insert.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextImagesOverlayComponent",
@@ -13548,7 +14019,8 @@
               "type": "string",
               "description": "Retry pressed on an error badge. Emits that entry's `id`."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextImageResizerComponent",
@@ -13621,7 +14093,8 @@
               "type": "void",
               "description": "A drag ended (pointer released). Fires once per drag, not per move — the size was already written to the image live, so this is the signal to record one undo entry for the whole gesture."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextImagesDirective",
@@ -13737,7 +14210,8 @@
               "type": "File",
               "description": "Emits the `File` when an image upload begins."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -13766,7 +14240,8 @@
           "selector": "ui-rte-links-button",
           "description": "The link toolbar button the links addon contributes as a component slot: a standard toolbar button anchoring a popover with the shared link form. Reads editor state through {@link RichTextEditorAddonHost} and its locale + seeded text + submit callback through {@link RICH_TEXT_LINKS_BUTTON_CONTEXT}.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextLinksFormComponent",
@@ -13816,7 +14291,8 @@
               "type": "RichTextLinkSubmit",
               "description": "Confirm the link with the entered text + URL."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextLinksDirective",
@@ -13866,7 +14342,8 @@
               "type": "{ url: string }",
               "description": "Emits after a link is unwrapped, carrying the removed href."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -13936,7 +14413,8 @@
               "type": "MentionItem | TagItem",
               "description": "A row was chosen, by click or by `Enter`. The popover does not close itself on selection — the host is expected to insert the entity and tear the popover down."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextMentionsDirective",
@@ -13998,7 +14476,8 @@
               "type": "RichTextEntityInsertEvent",
               "description": "Emits when a tag is inserted into the editor."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -14027,7 +14506,8 @@
           "selector": "ui-rte-outline-panel",
           "description": "The document-outline addon's docked side panel: a scrollable table of contents anchored to the editor's start edge (left in LTR, right in RTL). It lists every heading in document order, indented by level, and scrolls the editor to a heading on click or Enter/Space. Mounted once into the editor's overlay anchor, it reads its state and callbacks from {@link RICH_TEXT_OUTLINE_CONTEXT}, reproducing the panel the base editor used to render inline. Renders nothing while the panel is closed.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextOutlineDirective",
@@ -14066,7 +14546,8 @@
               "default": "true"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -14129,7 +14610,8 @@
               "type": "number",
               "description": "Emits the index the pointer moved onto."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "RichTextSlashCommandsDirective",
@@ -14150,7 +14632,8 @@
               "description": "Locale for the menu UI: a registry key (`'en'`/`'he'`/…) or a full dictionary."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -14178,7 +14661,8 @@
           "selector": "ui-rte-tables-button",
           "description": "The table toolbar button the tables addon contributes as a component slot: a standard toolbar button anchoring a popover with an 8×8 grid picker. Reads editor state through {@link RichTextEditorAddonHost} and its locale + open + select callbacks through {@link RICH_TEXT_TABLES_BUTTON_CONTEXT}.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextTablesDirective",
@@ -14211,7 +14695,8 @@
               "type": "{ rows: number; cols: number }",
               "description": "Emits the inserted table's dimensions after it lands in the content."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -14240,7 +14725,8 @@
           "selector": "ui-rte-typography-button",
           "description": "A typography toolbar button the typography addon contributes as a component slot: a standard toolbar button anchoring a popover with an inline `ui-autocomplete`. Reads editor state through {@link RichTextEditorAddonHost} and its per-kind config + apply callback through {@link RICH_TEXT_TYPOGRAPHY_BUTTON_CONTEXT}.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "RichTextTypographyDirective",
@@ -14290,7 +14776,8 @@
               "type": "string",
               "description": "Emits the applied font size (numeric px string, e.g. `'24'`)."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -14318,23 +14805,24 @@
             {
               "name": "uiRippleColor",
               "type": "string",
-              "description": "",
+              "description": "Ripple colour. Defaults to a translucent tint of the current text colour, so it works on any background.",
               "default": "'color-mix(in srgb, currentColor 35%, transparent)'"
             },
             {
               "name": "uiRippleDisabled",
               "type": "boolean",
-              "description": "",
+              "description": "Stops the host from rippling.",
               "default": "false"
             },
             {
               "name": "uiRippleDuration",
               "type": "number",
-              "description": "",
+              "description": "How long one ripple takes to finish, in milliseconds.",
               "default": "600"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -14440,7 +14928,8 @@
               "type": "ChartClickEvent<XYDataPoint>",
               "description": "Emitted when a point is clicked or activated with Enter while focused. `index` is the point's position **within its own series**, not a flat index across the chart, and the payload carries no series identifier — track the series yourself if you need it. The originating event is not forwarded."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -14478,7 +14967,8 @@
               "default": "'vertical'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -14534,7 +15024,8 @@
               "default": "'top'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -14634,7 +15125,8 @@
               "type": "T | undefined",
               "description": "The selection, as a two-way `model()`. Any defined value written from outside is pushed into the internal signal; `undefined` is ignored, so it cannot be used to clear the selection. A write from outside does not emit {@link valueChange} — only a user pick does. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it is also the `valueChange` output: Angular derives the output from the model, so there is no separate declaration."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "SelectContentComponent",
@@ -14662,7 +15154,8 @@
               "default": "'bottom'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SelectGroupComponent",
@@ -14671,7 +15164,8 @@
           "selector": "ui-select-group",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SelectItemComponent",
@@ -14699,7 +15193,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SelectLabelComponent",
@@ -14708,7 +15203,8 @@
           "selector": "ui-select-label",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SelectSeparatorComponent",
@@ -14717,7 +15213,8 @@
           "selector": "ui-select-separator",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SelectTriggerComponent",
@@ -14750,7 +15247,8 @@
               "default": "false"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SelectValueComponent",
@@ -14770,7 +15268,8 @@
               "description": "Override for the empty-state placeholder. When unset, falls back to the parent `<ui-select>`'s resolved placeholder (which itself falls back to the locale's `selectPlaceholder` string)."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -14808,7 +15307,8 @@
               "default": "'horizontal'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -14839,7 +15339,8 @@
               "type": "boolean",
               "description": "Emits the new visibility whenever {@link show}, {@link hide} or {@link toggle} runs. It is **not** emitted when `open` is set directly, so drive the sheet through those methods (or a `ui-sheet-trigger`) if you rely on this event."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "SheetCloseComponent",
@@ -14848,7 +15349,8 @@
           "selector": "ui-sheet-close",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SheetContentComponent",
@@ -14885,7 +15387,8 @@
               "description": "Simple mode: renders a `ui-sheet-header`/`ui-sheet-title` above the projected content. Leave unset and project your own header instead; {@link description} is only rendered when this is set."
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SheetDescriptionComponent",
@@ -14894,7 +15397,8 @@
           "selector": "ui-sheet-description",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SheetFooterComponent",
@@ -14903,7 +15407,8 @@
           "selector": "ui-sheet-footer",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SheetHeaderComponent",
@@ -14912,7 +15417,8 @@
           "selector": "ui-sheet-header",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SheetTitleComponent",
@@ -14921,7 +15427,8 @@
           "selector": "ui-sheet-title",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SheetTriggerComponent",
@@ -14930,7 +15437,8 @@
           "selector": "ui-sheet-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -14986,7 +15494,8 @@
               "default": "3"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -15059,7 +15568,8 @@
               "description": "Two-way visibility of the underlying `ui-dialog`. The catalog is read from the global {@link ShortcutBindingService} on every change-detection pass, so it is already current when the dialog opens — no refresh call is needed.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -15118,7 +15628,8 @@
               "default": "'sidebar'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarContentComponent",
@@ -15134,7 +15645,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarFooterComponent",
@@ -15150,7 +15662,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarGroupContentComponent",
@@ -15166,7 +15679,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarGroupLabelComponent",
@@ -15182,7 +15696,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarGroupComponent",
@@ -15198,7 +15713,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarHeaderComponent",
@@ -15214,7 +15730,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarInsetComponent",
@@ -15230,7 +15747,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarMenuButtonComponent",
@@ -15264,7 +15782,8 @@
               "type": "MouseEvent",
               "description": "The raw click. The button does nothing else — navigation, selection and closing the mobile drawer are all the consumer's job."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "SidebarMenuItemComponent",
@@ -15280,7 +15799,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarMenuLinkComponent",
@@ -15308,7 +15828,8 @@
               "default": "false"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarMenuComponent",
@@ -15324,7 +15845,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarProviderComponent",
@@ -15340,7 +15862,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarSeparatorComponent",
@@ -15356,7 +15879,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SidebarTriggerComponent",
@@ -15372,7 +15896,144 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "signature-pad",
+      "description": "Hand-drawn signature on a canvas. Strokes are the source of truth; the value is a PNG data URL. Touch-first, undo and clear.",
+      "category": "form",
+      "install": "npx @gilav21/shadcn-angular@latest add signature-pad",
+      "importStatement": "import { SignaturePadComponent } from '@/components/ui/signature-pad';",
+      "selector": "ui-signature-pad",
+      "dependencies": [
+        "button"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-signature-pad />",
+      "snippetSkipReason": "",
+      "demoRoute": "signature-pad",
+      "demoFile": "demo/src/app/demos/inputs/signature-pad-demo.component.ts",
+      "api": [
+        {
+          "className": "SignaturePadComponent",
+          "file": "packages/components/ui/signature-pad/signature-pad.component.ts",
+          "kind": "component",
+          "selector": "ui-signature-pad",
+          "description": "A hand-drawn mark. ### The value is a PNG data URL; the strokes are the truth A form value has to be a submittable scalar, and a data URL is what every backend, `<img src>` and PDF renderer already accepts. But the *bitmap* is only a projection: the strokes are kept normalised to the pad and re-drawn whenever the size or the pixel ratio changes, so the signature neither blurs on a HiDPI screen nor disappears when the layout moves (R-4). ### Touch is the primary input This is the one control in the set that most people will use with a finger. `touch-action: none` so the page does not scroll out from under the stroke, and a second finger **abandons** the stroke rather than drawing a spike across the signature — the node editor learned that one the hard way, and the check lives in `lib/touch.ts` as `isSecondaryTouch`. ### It cannot be made accessible by labelling it A drawn mark is irreducibly visual and irreducibly motor. No `aria-label` changes that. Consumers **must** offer an alternative — typically a typed-name field — and the demo shows one. Saying so is the honest position; claiming an attribute solves it would not be. See §3.4.",
+          "inputs": [
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "description": "Accessible name for the drawing surface. Note that naming it does not make it operable — see the accessibility note on this component.",
+              "default": "'Signature'"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the wrapper.",
+              "default": "''"
+            },
+            {
+              "name": "clearLabel",
+              "type": "string",
+              "description": "Text of the Clear button.",
+              "default": "'Clear'"
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "description": "OR-ed with the state a reactive form pushes via `setDisabledState`.",
+              "default": "false"
+            },
+            {
+              "name": "height",
+              "type": "number",
+              "description": "Pad height in CSS pixels. The width always follows the container.",
+              "default": "180"
+            },
+            {
+              "name": "hideControls",
+              "type": "boolean",
+              "description": "Hides the built-in Clear and Undo buttons for a custom toolbar.",
+              "default": "false"
+            },
+            {
+              "name": "penColor",
+              "type": "string",
+              "description": "Ink colour. Any CSS colour; defaults to the current text colour.",
+              "default": "'currentColor'"
+            },
+            {
+              "name": "penWidth",
+              "type": "number",
+              "description": "Ink width in CSS pixels.",
+              "default": "2"
+            },
+            {
+              "name": "undoLabel",
+              "type": "string",
+              "description": "Text of the Undo button.",
+              "default": "'Undo'"
+            },
+            {
+              "name": "value",
+              "type": "string | null",
+              "description": "The signature as a `data:image/png;base64,…` URL, or `null` when blank. A `model()` named exactly `value` is what makes this a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output.",
+              "default": "null"
+            },
+            {
+              "name": "variant",
+              "type": "SignaturePadVariant",
+              "description": "Visual style of the wrapper: `outline`, `underline` or `ghost`.",
+              "default": "'outline'"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "strokeEnd",
+              "type": "void",
+              "description": "Fires when a stroke finishes — after the value has been committed."
+            },
+            {
+              "name": "value",
+              "type": "string | null",
+              "description": "The signature as a `data:image/png;base64,…` URL, or `null` when blank. A `model()` named exactly `value` is what makes this a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output.",
+              "default": "null"
+            }
+          ],
+          "methods": [
+            {
+              "name": "clear",
+              "signature": "clear()",
+              "returns": "void",
+              "description": "Erase everything, including an image that was loaded in. Reachable from a custom toolbar — see {@link hideControls}.",
+              "params": []
+            },
+            {
+              "name": "toDataURL",
+              "signature": "toDataURL(type?: SignatureImageType | \"svg\")",
+              "returns": "string | null",
+              "description": "The signature in another format, without widening the value type. `'svg'` is line art rather than a bitmap: a tenth the size, printable at any resolution, and what a PDF actually wants. The value stays a PNG on purpose, so this is the only way to reach the other formats.",
+              "params": [
+                {
+                  "name": "type",
+                  "type": "SignatureImageType | \"svg\"",
+                  "optional": true,
+                  "default": "'image/png'"
+                }
+              ]
+            },
+            {
+              "name": "undo",
+              "signature": "undo()",
+              "returns": "void",
+              "description": "Remove the last stroke. An image loaded in is not a stroke and stays. Reachable from a custom toolbar — see {@link hideControls}.",
+              "params": []
+            }
+          ]
         }
       ]
     },
@@ -15410,7 +16071,8 @@
               "default": "'pulse'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -15500,7 +16162,8 @@
               "description": "The slider position, as a two-way `model()`. Emits on every value change from dragging, tapping the track or keyboard input — including each intermediate value during a drag. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration.",
               "default": "0"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -15642,7 +16305,8 @@
               "type": "SortableReorderEvent<T>",
               "description": "Fires AFTER the move has been applied to {@link items} — for pointer drops, keyboard moves, and Tab hand-offs to a peer, but not for an Escape revert. The payload's `from`/`to` carry both list id and index, which differ for a cross-list move. Use it to persist the new order, not to apply it."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "SortableHandleDirective",
@@ -15651,7 +16315,8 @@
           "selector": "[uiSortableHandle]",
           "description": "Marks the drag handle inside a row (used when handleOnly is true).",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SortableItemTemplateDirective",
@@ -15660,7 +16325,8 @@
           "selector": "[uiSortableItem]",
           "description": "Marker directive placed on the <ng-template> inside ui-sortable.",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SortableGhostTemplateDirective",
@@ -15669,7 +16335,8 @@
           "selector": "[uiSortableGhost]",
           "description": "Marker directive placed on the `<ng-template>` that renders a custom drop-target preview (\"ghost\") inside `<ui-sortable>`. Template context: `{ $implicit: T, index: number }` where `$implicit` is the dragged item and `index` is the gap index it would land at. Usage: <ui-sortable [(items)]=\"rows\"> <ng-template uiSortableItem let-row let-i=\"index\">…</ng-template> <ng-template uiSortableGhost let-row let-i=\"index\"> <div class=\"opacity-50 border-2 border-primary rounded\">Drop here</div> </ng-template> </ui-sortable>",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SortableItemComponent",
@@ -15691,7 +16358,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SortablePlaceholderTemplateDirective",
@@ -15700,7 +16368,8 @@
           "selector": "[uiSortablePlaceholder]",
           "description": "Marker directive placed on the `<ng-template>` that renders a custom placeholder (\"silhouette\") shown at the lift origin while an item is being dragged inside `<ui-sortable>`. Template context: `{ $implicit: T, index: number }` where `$implicit` is the lifted item and `index` is its original position in the list. Usage: <ui-sortable [(items)]=\"rows\"> <ng-template uiSortableItem let-row let-i=\"index\">…</ng-template> <ng-template uiSortablePlaceholder let-row> <div class=\"opacity-30 border-dashed border-2 rounded h-10\"></div> </ng-template> </ui-sortable>",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -15734,7 +16403,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SparklesButtonComponent",
@@ -15762,7 +16432,8 @@
               "default": "'default'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -15834,7 +16505,8 @@
               "type": "boolean",
               "description": "Emits the new open state on every {@link show}, {@link showAt} and {@link hide}. Note {@link hide} runs on every document click outside the host, so `false` can be emitted repeatedly while the menu is already closed — de-duplicate if the handler is not idempotent."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "SpeedDialContextTriggerComponent",
@@ -15850,7 +16522,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SpeedDialContextTriggerDirective",
@@ -15866,7 +16539,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SpeedDialItemComponent",
@@ -15882,7 +16556,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SpeedDialMaskComponent",
@@ -15898,7 +16573,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SpeedDialMenuComponent",
@@ -15919,7 +16595,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SpeedDialTriggerComponent",
@@ -15941,7 +16618,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -15991,7 +16669,8 @@
               "default": "'ring'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "PageSpinnerComponent",
@@ -16013,7 +16692,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -16094,7 +16774,8 @@
               "type": "MouseEvent",
               "description": "Fires on activation of the primary half only — the dropdown toggle never emits it. Emitted by both simple mode ({@link label}) and a projected `ui-split-button-primary`, which forwards its click through the parent."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "SplitButtonItemComponent",
@@ -16116,7 +16797,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SplitButtonMenuComponent",
@@ -16125,7 +16807,8 @@
           "selector": "ui-split-button-menu",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "SplitButtonPrimaryComponent",
@@ -16134,7 +16817,8 @@
           "selector": "ui-split-button-primary",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -16243,7 +16927,8 @@
               "type": "{ series: string; category: string; value: number }",
               "description": "Emitted when a segment is clicked, or activated with Enter/Space while focused, identifying it by series name and category label rather than by index. `value` is the raw series value, never the percentage."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -16299,7 +16984,8 @@
               "default": "80"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -16363,7 +17049,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -16442,7 +17129,8 @@
               "type": "number",
               "description": "Emits the newly-selected index whenever {@link goToStep} actually moves — not on a rejected (non-linear-allowed) click, and not when {@link activeStep} is set from outside."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "StepperContentComponent",
@@ -16458,7 +17146,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "StepperDescriptionComponent",
@@ -16474,7 +17163,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "StepperItemComponent",
@@ -16496,7 +17186,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "StepperSeparatorComponent",
@@ -16512,7 +17203,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "StepperTitleComponent",
@@ -16528,7 +17220,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "StepperTriggerComponent",
@@ -16544,7 +17237,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -16600,7 +17294,8 @@
               "type": "void",
               "description": "Emitted when the displayed text has caught up with {@link text}. Fires once per typing run, so a stream that keeps appending emits repeatedly as it drains — and it fires immediately (with the full text shown) when the user prefers reduced motion."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -16679,7 +17374,8 @@
               "description": "Two-way on/off state, mirrored to `aria-checked` and driving the thumb position. Also written by {@link writeValue}.",
               "default": "false"
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -16719,7 +17415,8 @@
               "default": "'table'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TableBodyComponent",
@@ -16747,7 +17444,8 @@
               "default": "5"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TableCaptionComponent",
@@ -16763,7 +17461,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TableCellComponent",
@@ -16779,7 +17478,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TableFooterComponent",
@@ -16795,7 +17495,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TableHeadComponent",
@@ -16817,7 +17518,8 @@
               "default": "'columnheader'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TableHeaderDirective",
@@ -16833,7 +17535,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TableHeaderComponent",
@@ -16849,7 +17552,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TableRowComponent",
@@ -16871,7 +17575,8 @@
               "default": "false"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -16901,19 +17606,19 @@
             {
               "name": "contextMenuDisabled",
               "type": "boolean",
-              "description": "",
+              "description": "Stops the table from opening the menu.",
               "default": "false"
             },
             {
               "name": "rowDataAttribute",
               "type": "string",
-              "description": "",
+              "description": "Attribute the directive reads to work out which row was clicked.",
               "default": "'data-row'"
             },
             {
               "name": "uiTableContextMenu",
               "type": "ContextMenuComponent | null",
-              "description": "",
+              "description": "The menu to open when a row or cell is right-clicked.",
               "default": "null"
             }
           ],
@@ -16921,14 +17626,15 @@
             {
               "name": "cellContextMenu",
               "type": "TableCellContextMenuEvent<T>",
-              "description": ""
+              "description": "Emits the cell that was right-clicked."
             },
             {
               "name": "rowContextMenu",
               "type": "TableRowContextMenuEvent<T>",
-              "description": ""
+              "description": "Emits the row that was right-clicked."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -16980,7 +17686,8 @@
               "type": "string",
               "description": "Emits the newly selected tab's value on every {@link selectTab} call — from a click in either mode, or programmatically — including when the same tab is re-selected. Not emitted for the initial {@link defaultValue} selection."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "TabsContentComponent",
@@ -17002,7 +17709,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TabsListComponent",
@@ -17035,7 +17743,8 @@
               "default": "3"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TabsTriggerComponent",
@@ -17057,7 +17766,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -17101,7 +17811,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -17203,7 +17914,83 @@
               "description": "The text, as a two-way `model()`. Written by user typing, by {@link writeValue} when a form pushes a value in, and by a `[(value)]` binding. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`. Unlike the controls that already had a hand-written `valueChange` output, this one never promised silence on a programmatic write — the output is new here — so there is no second signal and no suppression: the model is the single source of truth, and a form write keeps a `[(value)]` binding in sync instead of letting it drift.",
               "default": "''"
             }
-          ]
+          ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "time-picker",
+      "description": "Time-of-day field whose segment order, meridiem and digits all come from the locale. Stores 24-hour \"HH:mm\", never a Date.",
+      "category": "form",
+      "install": "npx @gilav21/shadcn-angular@latest add time-picker",
+      "importStatement": "import { TimePickerComponent } from '@/components/ui/time-picker';",
+      "selector": "ui-time-picker",
+      "dependencies": [],
+      "npmDependencies": [],
+      "snippet": "<ui-time-picker />",
+      "snippetSkipReason": "",
+      "demoRoute": "time-picker",
+      "demoFile": "demo/src/app/demos/inputs/time-picker-demo.component.ts",
+      "api": [
+        {
+          "className": "TimePickerComponent",
+          "file": "packages/components/ui/time-picker/time-picker.component.ts",
+          "kind": "component",
+          "selector": "ui-time-picker",
+          "description": "A time of day, edited one segment at a time. ### The value is `\"HH:mm\"`, never a `Date` A `Date` is an instant and a time of day is not — see `specs/form-controls-small-spec.md` §3.2. `\"HH:mm\"` is what `<input type=\"time\">` uses, what a SQL `TIME` column takes, and what JSON round-trips unchanged. The stored value is always 24-hour; **12-hour is a rendering choice**, made from the locale rather than from an input. ### The layout comes from the locale Segment order, separators, the names of the two halves of the day and the digits themselves are all read from `Intl` — see §3.7 for the 82-locale sweep behind that. `zh-TW` renders `下午9:05`, meridiem first, and this control renders it that way because the locale says so, not because anything here knows about Chinese. ### Incomplete is empty An hour with no minute is not a time, so the value stays `null` until both are set. This is what a native time input does, and anything else means a form can submit half a reading. ### Why a fieldset, and why it is forced left-to-right The segments are a named group of related controls, which is what a fieldset *is* — so the grouping is carried by a native element rather than by an ARIA role bolted onto a div. The direction is pinned left-to-right on purpose, and it is measured rather than assumed: across all 82 locales in the §3.7 sweep the hour always precedes the minute, because no locale reads a clock right-to-left. In an RTL page a default-direction row would reverse the boxes and render 23:05 as 05:23 — not a different convention, just wrong. Focus is watched with the bubbling focusout event rather than blur, because blur does not bubble and moving between two segments is not leaving the control.",
+          "inputs": [
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "description": "Accessible name for the group of segments.",
+              "default": "'Time'"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the wrapper.",
+              "default": "''"
+            },
+            {
+              "name": "disabled",
+              "type": "boolean",
+              "description": "OR-ed with the state a reactive form pushes via `setDisabledState`.",
+              "default": "false"
+            },
+            {
+              "name": "locale",
+              "type": "string",
+              "description": "BCP-47 tag. Falls back to the app-wide `UI_LOCALE_ID`."
+            },
+            {
+              "name": "value",
+              "type": "string | null",
+              "description": "The time as `\"HH:mm\"`, or `\"HH:mm:ss\"` with {@link withSeconds}. A `model()` named exactly `value` is what makes this a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output.",
+              "default": "null"
+            },
+            {
+              "name": "variant",
+              "type": "TimePickerVariant",
+              "description": "Visual style of the wrapper: `outline`, `underline` or `ghost`.",
+              "default": "'outline'"
+            },
+            {
+              "name": "withSeconds",
+              "type": "boolean",
+              "description": "Adds a seconds segment, and widens the value to `\"HH:mm:ss\"`.",
+              "default": "false"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "value",
+              "type": "string | null",
+              "description": "The time as `\"HH:mm\"`, or `\"HH:mm:ss\"` with {@link withSeconds}. A `model()` named exactly `value` is what makes this a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output.",
+              "default": "null"
+            }
+          ],
+          "methods": []
         }
       ]
     },
@@ -17241,7 +18028,8 @@
               "default": "'vertical'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TimelineConnectorComponent",
@@ -17257,7 +18045,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TimelineContentComponent",
@@ -17273,7 +18062,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TimelineDescriptionComponent",
@@ -17289,7 +18079,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TimelineDotComponent",
@@ -17311,7 +18102,8 @@
               "default": "'default'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TimelineHeaderComponent",
@@ -17327,7 +18119,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TimelineItemComponent",
@@ -17370,7 +18163,8 @@
               "default": "'default'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TimelineTimeComponent",
@@ -17386,7 +18180,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TimelineTitleComponent",
@@ -17402,7 +18197,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -17487,7 +18283,8 @@
               "type": "void",
               "description": "Emitted when the user clicks the close button or presses `Escape` on the toast. `ui-toaster` responds by calling `ToastService.dismiss` — a standalone `ui-toast` must remove itself, since the component never hides itself."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "ToasterComponent",
@@ -17509,7 +18306,8 @@
               "default": "'bottom'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -17571,7 +18369,8 @@
               "type": "boolean",
               "description": "Emitted with the new state on every user toggle (click or tap). Not emitted when the state is changed programmatically via {@link setPressed}."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -17649,7 +18448,8 @@
               "type": "string | string[] | undefined",
               "description": "The selection, as a two-way `model()`, in the shape this component has always emitted: the single selected value (`''` when cleared) in `single` mode, the full array in `multiple` mode. Being a `ModelSignal` is what makes this component a valid Signal Forms `FormValueControl`, and it doubles as the `valueChange` output: Angular derives the output from the model, so there is no separate declaration. A write from outside is normalised into {@link selection} and stays silent; only a user toggle emits. It starts `undefined` rather than empty so that \"nobody has written this yet\" is distinguishable from \"written empty\" — otherwise the sync effect, which runs after `ngOnInit`, would clobber the {@link defaultValue} seed. Read {@link selection} for the current selection; this member is the published surface."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "ToggleGroupItemComponent",
@@ -17682,7 +18482,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -17726,7 +18527,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TooltipContentComponent",
@@ -17742,7 +18544,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TooltipTriggerComponent",
@@ -17751,7 +18554,8 @@
           "selector": "ui-tooltip-trigger",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TooltipComponent",
@@ -17779,7 +18583,8 @@
               "default": "'top'"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -17890,7 +18695,8 @@
               "type": "TourSkippedEvent",
               "description": "Emitted for each step the tour passes over instead of showing."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -17951,7 +18757,8 @@
               "type": "string[]",
               "description": "Emits the full set of selected node keys after every selection change — not just the key that changed — so a `'single'` tree emits a 0- or 1-element array. Never emits while {@link selectable} is `'none'`."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "TreeIconComponent",
@@ -17967,7 +18774,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TreeItemComponent",
@@ -18000,7 +18808,8 @@
               "required": true
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TreeLabelComponent",
@@ -18016,7 +18825,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TreeNodeContentDirective",
@@ -18025,7 +18835,8 @@
           "selector": "[uiTreeNodeContent]",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -18055,13 +18866,13 @@
             {
               "name": "contextMenuDisabled",
               "type": "boolean",
-              "description": "",
+              "description": "Stops the tree from opening the menu.",
               "default": "false"
             },
             {
               "name": "uiTreeContextMenu",
               "type": "ContextMenuComponent",
-              "description": "",
+              "description": "The menu to open when a node is right-clicked.",
               "required": true
             }
           ],
@@ -18069,9 +18880,10 @@
             {
               "name": "nodeContextMenu",
               "type": "TreeContextMenuEvent<T>",
-              "description": ""
+              "description": "Emits the node that was right-clicked."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -18139,7 +18951,8 @@
               "type": "string[]",
               "description": "Emits the selected node keys after every pick. Selection is single, so the array holds at most one key and is empty when the selection is cleared — it is an array only to mirror `ui-tree`'s output. Emitted by both {@link onSelectionChange} and {@link select}, each of which also closes the popover. Not emitted for values arriving via {@link value} or {@link writeValue}."
             }
-          ]
+          ],
+          "methods": []
         },
         {
           "className": "TreeSelectContentComponent",
@@ -18155,7 +18968,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "TreeSelectTriggerComponent",
@@ -18171,7 +18985,8 @@
               "default": "''"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -18287,7 +19102,8 @@
               "type": "ChartClickEvent<TreemapNode> | null",
               "description": "Emitted with the node on hover/focus and with `null` on mouse-leave/blur, so consumers can mirror the highlight."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -18361,7 +19177,8 @@
               "type": "void",
               "description": "Emitted once the final phrase has been typed, which only ever happens when {@link loop} is `false`. Never emitted for a looping animation, nor when the user prefers reduced motion (the first phrase is then shown at once, with no run at all)."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -18386,7 +19203,8 @@
           "selector": "[uiVirtualItem],[virtualItem]",
           "description": "",
           "inputs": [],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         },
         {
           "className": "VirtualScrollComponent",
@@ -18465,7 +19283,8 @@
               "type": "{ start: number; end: number }",
               "description": "Emitted whenever the rendered index window moves. The range includes the {@link buffer} rows, so it is wider than what is actually on screen."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -18576,7 +19395,8 @@
               "type": "ChartClickEvent",
               "description": "Emitted when a bar is clicked or activated with Enter while focused. The payload's `point` carries the bar's `name` and its own `value` (the delta, not the cumulative level) plus the {@link data} index; no `MouseEvent` is forwarded."
             }
-          ]
+          ],
+          "methods": []
         }
       ]
     },
@@ -18620,7 +19440,8 @@
               "default": "1000"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     },
@@ -18664,7 +19485,8 @@
               "default": "[]"
             }
           ],
-          "outputs": []
+          "outputs": [],
+          "methods": []
         }
       ]
     }
