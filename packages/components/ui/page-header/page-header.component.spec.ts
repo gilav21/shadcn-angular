@@ -6,39 +6,6 @@ import { BreadcrumbComponent } from '../breadcrumb';
 import { ButtonComponent } from '../button';
 import { PageHeaderComponent } from './page-header.component';
 
-/** Every CSS rule in the document, flattened through `@layer` / `@media` groups. */
-function allCssRules(): CSSRule[] {
-    const out: CSSRule[] = [];
-    const visit = (rules: CSSRuleList): void => {
-        for (const rule of rules) {
-            out.push(rule);
-            const nested = (rule as CSSGroupingRule).cssRules;
-            if (nested) visit(nested);
-        }
-    };
-    for (const sheet of document.styleSheets) {
-        try {
-            visit(sheet.cssRules);
-        } catch {
-            // Cross-origin sheet — not ours, and not readable.
-        }
-    }
-    return out;
-}
-
-/** True when the loaded CSS really defines `flex-direction: row` behind the 640px breakpoint. */
-function hasSmBreakpointRowRule(): boolean {
-    const isSmBreakpoint = (condition: string): boolean =>
-        condition.includes('640px') || condition.includes('40rem');
-
-    return allCssRules().some(
-        (rule) =>
-            rule instanceof CSSMediaRule &&
-            isSmBreakpoint(rule.conditionText) &&
-            [...rule.cssRules].some((inner) => /flex-direction:\s*row/.test(inner.cssText))
-    );
-}
-
 /** Host projecting both a breadcrumb and action buttons — the full UC-7/UC-8 shape. */
 @Component({
     template: `
@@ -103,16 +70,22 @@ describe('PageHeaderComponent', () => {
 
     // T-7 — UC-7
     describe('T-7: actions wrap below title at 640px', () => {
-        it('stacks the title block and the actions below 640px, and rows them from sm up', () => {
+        it('stacks below the 640px breakpoint and rows above it', () => {
             const row = host.querySelector<HTMLElement>('[data-slot="page-header-row"]');
             expect(row).not.toBeNull();
-            expect(row?.className).toContain('flex-col');
-            expect(row?.className).toContain('sm:flex-row');
+            // UC-7 states the rule in viewport terms, so the viewport rule stays.
+            expect(row?.className).toContain('max-sm:flex-col');
         });
 
         it('end-aligns the actions on the desktop row', () => {
             const row = host.querySelector<HTMLElement>('[data-slot="page-header-row"]');
-            expect(row?.className).toContain('sm:justify-between');
+            expect(row?.className).toContain('justify-between');
+        });
+
+        it('computes the flex direction the 640px breakpoint dictates', () => {
+            const row = host.querySelector<HTMLElement>('[data-slot="page-header-row"]');
+            const isDesktop = globalThis.matchMedia('(min-width: 640px)').matches;
+            expect(globalThis.getComputedStyle(row!).flexDirection).toBe(isDesktop ? 'row' : 'column');
         });
 
         it('lets the actions container wrap its own children', () => {
@@ -121,23 +94,33 @@ describe('PageHeaderComponent', () => {
             expect(actions?.className).toContain('flex-wrap');
         });
 
-        // The `sm:` variant is a viewport media query, so an element-level width
-        // cannot exercise it. Assert the real computed direction against what the
-        // runner's own viewport dictates — that proves the element follows the
-        // breakpoint rather than merely carrying the class name.
-        it('computes the flex direction the 640px breakpoint dictates', () => {
-            const row = host.querySelector<HTMLElement>('[data-slot="page-header-row"]');
-            const isDesktop = globalThis.matchMedia('(min-width: 640px)').matches;
-            expect(globalThis.getComputedStyle(row!).flexDirection).toBe(isDesktop ? 'row' : 'column');
-        });
+        /*
+         * The assertion that was missing, and that let a visibly broken demo
+         * ship green.
+         *
+         * Every other test here checks the class *string*, which is a proxy
+         * rather than an outcome: `sm:flex-row` asks about the WINDOW, so a
+         * header squeezed into a narrow container — a split pane, a dialog, a
+         * sidebar-narrowed page — kept the wide layout and jammed the actions
+         * against a title broken mid-word. The class assertions stayed green
+         * the whole time, because the classes were exactly as written.
+         *
+         * This asserts *resolved* style rather than geometry, and that choice
+         * was forced by measurement. Two geometric versions of this test were
+         * written first and both passed against the broken markup: this
+         * runner's own window is under 640px, so the old `flex-col` stacked
+         * the actions for the wrong reason and no container width could tell
+         * a working container rule from a broken one. `flex-wrap` is the
+         * mechanism that makes narrowness of the CONTAINER sufficient, and it
+         * resolves the same whatever the window is doing.
+         */
+        it('wraps on container width, not just on window width', () => {
+            const row = host.querySelector<HTMLElement>('[data-slot="page-header-row"]')!;
+            const heading = host.querySelector<HTMLElement>('[data-slot="page-header-heading-block"]')!;
 
-        // Evidence for the state the runner's viewport is NOT in: the stylesheet
-        // must actually carry an `sm` breakpoint media rule that flips the row
-        // back to a row. Tailwind v4 nests utilities inside `@layer` blocks and
-        // writes the condition in `rem`, so walk grouping rules and accept either
-        // spelling of the 640px breakpoint.
-        it('ships an sm-breakpoint media rule that switches the row to a row', () => {
-            expect(hasSmBreakpointRowRule()).toBe(true);
+            expect(globalThis.getComputedStyle(row).flexWrap).toBe('wrap');
+            // A basis the title holds onto, so the actions give up the line first.
+            expect(globalThis.getComputedStyle(heading).flexBasis).not.toBe('auto');
         });
     });
 

@@ -4,11 +4,30 @@
     <ng-content select="ui-breadcrumb, nav[data-slot=breadcrumb], [slot=breadcrumb]" />
 </div>
 
+<!-- The row wraps rather than switching on a viewport breakpoint.
+
+     `sm:` asks how wide the *window* is, which is the wrong question: a page
+     header inside a split pane, a dialog or a sidebar-narrowed content area
+     has its own width, and a viewport breakpoint gives it the wide layout
+     anyway. Wrapping asks the right question and needs no threshold — the
+     actions drop below when they genuinely do not fit, which also means a
+     header with six buttons wraps sooner than one with a single button.
+
+     `basis-64` keeps the title from being squeezed into a sliver before the
+     actions give up the line; `justify-between` places a lone wrapped line at
+     the start, so the actions sit under the title rather than off to one
+     side.
+
+     `max-sm:flex-col` is kept on top of the wrapping because UC-7 states the
+     stacking rule in viewport terms — at 640px and below the actions go under
+     the title, whether or not they would have fitted beside it. Wrapping
+     handles every narrow *container*; this handles the narrow *window* the
+     spec actually asks about. -->
 <div
-    class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
+    class="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 max-sm:flex-col"
     data-slot="page-header-row"
 >
-    <div class="min-w-0 space-y-1" data-slot="page-header-heading-block">
+    <div class="min-w-0 flex-1 basis-64 space-y-1" data-slot="page-header-heading-block">
         @if (title()) {
             @switch (headingLevel()) {
                 @case (1) {
@@ -38,7 +57,7 @@
         }
     </div>
 
-    <div class="flex flex-wrap items-center gap-2 sm:shrink-0" data-slot="page-header-actions">
+    <div class="flex flex-wrap items-center gap-2 shrink-0" data-slot="page-header-actions">
         <ng-content />
     </div>
 </div>
