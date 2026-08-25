@@ -47,9 +47,11 @@ export const DEMO_PAGE_ALIASES: Readonly<Record<string, string>> = {
     'bar-chart': 'charts',
     'bar-chart-drilldown': 'charts',
     'bar-race-chart': 'charts',
+    boxplot: 'charts',
     'bubble-chart': 'charts',
     'bullet-chart': 'charts',
     'calendar-heatmap': 'charts',
+    candlestick: 'charts',
     'chart-brush': 'charts',
     'chart-legend': 'charts',
     'chart-tooltip': 'charts',
@@ -59,6 +61,7 @@ export const DEMO_PAGE_ALIASES: Readonly<Record<string, string>> = {
     'funnel-chart': 'charts',
     'gauge-chart': 'charts',
     heatmap: 'charts',
+    histogram: 'charts',
     'line-chart': 'charts',
     'org-chart': 'charts',
     'pie-chart': 'charts',
@@ -66,6 +69,7 @@ export const DEMO_PAGE_ALIASES: Readonly<Record<string, string>> = {
     'radar-chart': 'charts',
     'scatter-chart': 'charts',
     'stacked-bar-chart': 'charts',
+    treemap: 'charts',
     'waterfall-chart': 'charts',
 
     // ── The /animations gallery ──
