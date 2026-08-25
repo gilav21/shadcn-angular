@@ -3552,7 +3552,7 @@ export class DataTableComponent<T>
    * @publicApi
    */
   applyViewState(state: DataTableViewState | null | undefined): boolean {
-    if (!state || state.version !== DATA_TABLE_VIEW_STATE_VERSION) return false;
+    if (state?.version !== DATA_TABLE_VIEW_STATE_VERSION) return false;
 
     this.applyColumnState(state.columns);
     this.sortState.set(state.sort);
