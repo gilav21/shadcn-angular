@@ -70,6 +70,17 @@ describe('NodeEditorPaletteComponent', () => {
         return [...document.querySelectorAll<HTMLElement>('[data-slot="node-editor-palette-item"]')];
     }
 
+    /*
+     * The test hooks sit on the host <ui-command-item>, but ui-command-item
+     * listens on the role="option" row it renders inside that host. A real
+     * click lands on the row and bubbles up; dispatching one on the host
+     * instead exercises a path no user can take — which is how the palette
+     * shipped keyboard-dead while these tests stayed green.
+     */
+    function row(item: HTMLElement): HTMLElement {
+        return item.querySelector<HTMLElement>('[role="option"]')!;
+    }
+
     async function settle(): Promise<void> {
         fixture.detectChanges();
         await fixture.whenStable();
@@ -100,7 +111,7 @@ describe('NodeEditorPaletteComponent', () => {
             palette().openAt({ x: 240, y: 90 });
             await settle();
 
-            items().find(i => i.dataset['type'] === 'filter')?.click();
+            row(items().find(i => i.dataset['type'] === 'filter')!).click();
             await settle();
 
             // The point travels with the choice, so the node lands where the
@@ -108,11 +119,30 @@ describe('NodeEditorPaletteComponent', () => {
             expect(host.picked()).toEqual({ typeId: 'filter', at: { x: 240, y: 90 } });
         });
 
+        /*
+         * The palette is opened from a keyboard shortcut, so arriving at it
+         * without a mouse is the normal case, not the edge case. ui-command-item
+         * answers Enter by emitting `selectItem` — it never dispatches a DOM
+         * click — so a consumer bound to (click) gets a list that highlights
+         * under the arrow keys and then refuses to pick anything.
+         */
+        it('picks with the keyboard, not just the mouse', async () => {
+            palette().openAt({ x: 12, y: 34 });
+            await settle();
+
+            row(items().find(i => i.dataset['type'] === 'filter')!).dispatchEvent(
+                new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+            );
+            await settle();
+
+            expect(host.picked()).toEqual({ typeId: 'filter', at: { x: 12, y: 34 } });
+        });
+
         it('openAnywhere reports no point, leaving placement to the consumer', async () => {
             palette().openAnywhere();
             await settle();
 
-            items()[0].click();
+            row(items()[0]).click();
             await settle();
             expect(host.picked()?.at).toBeNull();
         });
@@ -125,13 +155,13 @@ describe('NodeEditorPaletteComponent', () => {
         });
 
         it('emits the type that was chosen', async () => {
-            items().find(i => i.dataset['type'] === 'uppercase')?.click();
+            row(items().find(i => i.dataset['type'] === 'uppercase')!).click();
             await settle();
             expect(host.picked()?.typeId).toBe('uppercase');
         });
 
         it('closes afterwards', async () => {
-            items()[0].click();
+            row(items()[0]).click();
             await settle();
             expect(host.open()).toBe(false);
         });
@@ -139,7 +169,7 @@ describe('NodeEditorPaletteComponent', () => {
         it('does not insert anything itself — it only reports', async () => {
             // The addon has no reference to an editor at all, which is the
             // boundary rule made structural rather than promised.
-            items()[0].click();
+            row(items()[0]).click();
             await settle();
             expect(host.picked()).not.toBeNull();
         });

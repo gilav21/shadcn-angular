@@ -1153,7 +1153,7 @@ export class NodeEditorComponent {
     const drag = this.drag;
     this.drag = null;
     if (this.pending()) this.pending.set(null);
-    if (!drag || !drag.moved) return;
+    if (!drag?.moved) return;
 
     this.nodes.update(nodes =>
       nodes.map(node => {

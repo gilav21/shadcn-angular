@@ -26,7 +26,7 @@
               [value]="definition.label + ' ' + definition.id + ' ' + describe(definition)"
               [attr.data-slot]="'node-editor-palette-item'"
               [attr.data-type]="definition.id"
-              (click)="choose(definition)"
+              (selectItem)="choose(definition)"
             >
               <span class="flex w-full items-center gap-2">
                 @if (definition.accent) {

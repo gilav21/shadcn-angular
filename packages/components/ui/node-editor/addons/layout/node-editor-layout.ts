@@ -57,7 +57,7 @@ export interface LayoutOptions {
 type ResolvedOptions = Required<LayoutOptions>;
 
 const DEFAULTS: ResolvedOptions = {
-  direction: 'LR' as LayoutDirection,
+  direction: 'LR',
   layerGap: 80,
   nodeGap: 32,
   origin: { x: 0, y: 0 },
@@ -103,8 +103,10 @@ function withoutBackEdges(nodes: readonly NodeId[], edges: readonly Edge[]): rea
     state.set(root, OPEN);
     const stack: { node: NodeId; next: number }[] = [{ node: root, next: 0 }];
 
-    while (stack.length > 0) {
-      const frame = stack[stack.length - 1];
+    // `for` rather than `while`, so the re-read of the top frame also runs on
+    // the `continue` below — and so the loop condition itself proves the frame
+    // is there, with no redundant guard for a stack we just checked.
+    for (let frame = stack.at(-1); frame; frame = stack.at(-1)) {
       const candidates = outgoing.get(frame.node) ?? [];
 
       if (frame.next >= candidates.length) {

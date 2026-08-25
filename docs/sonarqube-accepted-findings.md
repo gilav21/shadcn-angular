@@ -295,3 +295,37 @@ accessibility tree, so a host sitting between `<dl>` and `<dt>` is a *serious*
 axe violation whatever it computes to. Stamping through a template is what
 removes the host from the document entirely. A single-file static check cannot
 see across that boundary.
+
+## `Web:S6825` — `aria-hidden` on the node-editor minimap `<canvas>`
+
+The rule guards against hiding a **focusable** element from assistive tech,
+which strands a keyboard user on a control their screen reader never announces.
+That is not this markup. The minimap is a `<button>` carrying the full
+`aria-label` (`ariaLabel() + ': ' + summary()`), and the `<canvas>` inside it is
+the decorative rendering surface: no `tabindex`, no fallback content, therefore
+not focusable and exposing nothing to the accessibility tree either way.
+
+Marking a decorative canvas `aria-hidden` inside a labelled control is the
+recommended pattern, and axe's own `aria-hidden-focus` — the rule that
+implements this WCAG requirement — does not flag it; the project's mandatory
+axe gate passes over this component. Sonar's static HTML analyzer appears to
+treat every `<canvas>` as focusable because a canvas *may* carry interactive
+fallback content; this one does not.
+
+Scoped to the minimap file so S6825 keeps running everywhere else.
+
+### Not accepted here: the palette's `(click)` on `<ui-command-item>`
+
+The same scan reported
+`MouseEventWithoutKeyboardEquivalentCheck` on
+`node-editor/addons/palette/…component.html`, which looks like the `ui-button`
+false positive above but **was a real bug**. `ui-command-item` renders
+`<div role="option" tabindex="0" (keydown.enter)="onClick()">`, and `onClick()`
+emits the `selectItem` output — it never dispatches a DOM `click`. So a
+consumer bound to `(click)` on the host gets a palette that highlights under
+the arrow keys and then refuses to pick anything, while the mouse works fine.
+Fixed by binding `(selectItem)` (which both paths reach) and pinned by a spec
+that fails when the binding is reverted.
+
+The general lesson for this rule: check what the custom element *does with the
+keyboard*, not merely whether it is a custom element.
