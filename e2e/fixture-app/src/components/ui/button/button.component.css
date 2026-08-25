@@ -1,0 +1,32 @@
+:host {
+    --_d: var(--density-button, var(--density, 1));
+}
+@layer components {
+    [data-slot="button"] {
+        height: calc(2.25rem * var(--_d));
+        padding-inline: calc(1rem * var(--_d));
+    }
+    :host([data-size="sm"]) [data-slot="button"] {
+        height: calc(2rem * var(--_d));
+        padding-inline: calc(0.75rem * var(--_d));
+    }
+    :host([data-size="lg"]) [data-slot="button"] {
+        height: calc(2.5rem * var(--_d));
+        padding-inline: calc(2rem * var(--_d));
+    }
+    :host([data-size="icon"]) [data-slot="button"] {
+        height: calc(2.25rem * var(--_d));
+        width: calc(2.25rem * var(--_d));
+        padding: 0;
+    }
+    :host([data-size="icon-sm"]) [data-slot="button"] {
+        height: calc(2rem * var(--_d));
+        width: calc(2rem * var(--_d));
+        padding: 0;
+    }
+    :host([data-size="icon-lg"]) [data-slot="button"] {
+        height: calc(2.5rem * var(--_d));
+        width: calc(2.5rem * var(--_d));
+        padding: 0;
+    }
+}
