@@ -1,0 +1,52 @@
+@let text = t();
+
+<ui-command-dialog
+  [(open)]="open"
+  [shortcut]="shortcut()"
+  [shortcutEnabled]="shortcut() !== ''"
+  shortcutActionId="node-editor-palette.toggle"
+  shortcutCategory="Node editor"
+>
+  <ui-command [attr.data-slot]="'node-editor-palette'" [attr.aria-label]="text.label">
+    <ui-command-input [placeholder]="text.search" />
+
+    <ui-command-list>
+      <ui-command-empty>{{ text.empty }}</ui-command-empty>
+
+      @for (group of groups(); track group.category) {
+        <ui-command-group [heading]="group.category">
+          @for (definition of group.types; track definition.id) {
+            <!--
+              `value` carries the searchable text so ui-command's own filter
+              matches on the type's ports as well as its name — the port types
+              are exactly what someone is looking for when they ask "what takes
+              a table".
+            -->
+            <ui-command-item
+              [value]="definition.label + ' ' + definition.id + ' ' + describe(definition)"
+              [attr.data-slot]="'node-editor-palette-item'"
+              [attr.data-type]="definition.id"
+              (selectItem)="choose(definition)"
+            >
+              <span class="flex w-full items-center gap-2">
+                @if (definition.accent) {
+                  <span
+                    class="size-2 shrink-0 rounded-full"
+                    [style.background]="definition.accent"
+                  ></span>
+                }
+                <span class="truncate">{{ definition.label }}</span>
+                <span
+                  class="ms-auto shrink-0 font-mono text-[11px] text-muted-foreground"
+                  [attr.data-slot]="'node-editor-palette-ports'"
+                >
+                  {{ describe(definition) }}
+                </span>
+              </span>
+            </ui-command-item>
+          }
+        </ui-command-group>
+      }
+    </ui-command-list>
+  </ui-command>
+</ui-command-dialog>

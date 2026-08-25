@@ -18,7 +18,8 @@
             [class]="stepTriggerClasses(canNavigateToIndex(idx))"
             [attr.data-slot]="'stepper-trigger'"
             [attr.data-status]="getStepStatusByIndex(idx)"
-            [disabled]="!canNavigateToIndex(idx)"
+            [disabled]="!canNavigateToIndex(idx) || guardPending()"
+            [attr.aria-busy]="guardPending() || null"
             (click)="goToStep(idx)"
           >
             <div [class]="indicatorClasses(getStepStatusByIndex(idx))">

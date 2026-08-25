@@ -20,8 +20,11 @@ export class UiRippleDirective implements OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly renderer = inject(Renderer2);
 
+    /** Ripple colour. Defaults to a translucent tint of the current text colour, so it works on any background. */
     uiRippleColor = input('color-mix(in srgb, currentColor 35%, transparent)');
+    /** How long one ripple takes to finish, in milliseconds. */
     uiRippleDuration = input(600);
+    /** Stops the host from rippling. */
     uiRippleDisabled = input(false);
 
     private activeRipples: HTMLSpanElement[] = [];

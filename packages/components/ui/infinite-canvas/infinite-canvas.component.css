@@ -1,0 +1,51 @@
+/*
+ * Only rules Tailwind utilities cannot express live here; everything else stays
+ * inline in the template.
+ */
+
+.canvas-root {
+  /* Grid dots are decoration; keep them well below the content's contrast. */
+  --canvas-grid-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+
+  /* The browser must not steal pinch/scroll — the engine owns both. */
+  touch-action: none;
+  overscroll-behavior: contain;
+  cursor: default;
+
+  /*
+   * The dot grid is painted as a background on the root rather than as DOM or
+   * canvas: panning it costs two style writes per frame and no layout at all.
+   * Size and position are driven from the viewport transform in TypeScript.
+   */
+  background-image: radial-gradient(circle, var(--canvas-grid-color, currentColor) 1px, transparent 1px);
+  background-repeat: repeat;
+}
+
+.canvas-root[data-grid='false'] {
+  background-image: none;
+}
+
+.canvas-root[data-panning='true'] {
+  cursor: grabbing;
+}
+
+.canvas-root[data-pan-ready='true']:not([data-panning='true']) {
+  cursor: grab;
+}
+
+/*
+ * The transform wrapper is deliberately ZERO-SIZED. An infinite plane needs a
+ * transform origin, not a big element: allocating a large composited layer is
+ * what blows up GPU memory in naive implementations.
+ */
+.canvas-viewport {
+  transform-origin: 0 0;
+  /* Children are positioned at world coordinates and may be negative. */
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-root {
+    scroll-behavior: auto;
+  }
+}

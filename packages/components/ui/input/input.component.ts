@@ -4,6 +4,7 @@ import {
     input,
     computed,
     forwardRef,
+    model,
     signal,
     inject,
     viewChild,
@@ -131,6 +132,23 @@ export class InputComponent implements ControlValueAccessor {
      * text-foreground` — merged last so they override the defaults. */
     readonly labelClass = input('');
     /** Icon name shown before the field. Presence forces the bordered container layout. */
+    /**
+     * Which on-screen keyboard a touch device should offer.
+     *
+     * Separate from {@link type} because the two answer different questions.
+     * A currency or duration field cannot use `type="number"` — a number field
+     * refuses the comma that most of Europe uses as a decimal separator, and
+     * strips any formatting — but it still wants a numeric keypad. Without
+     * this the only way to get one is to reach past the component to the
+     * native element.
+     */
+    readonly inputMode = input<string | undefined>(undefined);
+    /**
+     * BCP-47 tag on the field itself, so a browser offers the right keypad
+     * layout and assistive tech reads digits in the right language.
+     */
+    readonly lang = input<string | undefined>(undefined);
+    /** Text shown before the field, such as a currency symbol or `https://`. Presence forces the bordered container layout. */
     readonly prefix = input<string>();
     /** Icon name shown after the field. Presence forces the bordered container layout. */
     readonly suffix = input<string>();
@@ -142,7 +160,19 @@ export class InputComponent implements ControlValueAccessor {
         return v === 'outline' && this.group ? 'ghost' : v;
     });
 
-    readonly value = signal('');
+    /**
+     * The text, as a two-way `model()`. Written by user typing, by
+     * {@link writeValue} when a form pushes a value in, and by a `[(value)]`
+     * binding.
+     *
+     * Being a `ModelSignal` is what makes this component a valid Signal Forms
+     * `FormValueControl`. Unlike the controls that already had a hand-written
+     * `valueChange` output, this one never promised silence on a programmatic
+     * write — the output is new here — so there is no second signal and no
+     * suppression: the model is the single source of truth, and a form write
+     * keeps a `[(value)]` binding in sync instead of letting it drift.
+     */
+    readonly value = model('');
 
     private onChange: (value: string) => void = () => { };
     onTouched: () => void = () => { };

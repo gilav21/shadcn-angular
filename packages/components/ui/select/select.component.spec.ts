@@ -3,7 +3,7 @@ import { SelectComponent, SelectTriggerComponent, SelectContentComponent, Select
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 // Test host for integration
 @Component({
@@ -861,3 +861,174 @@ describe('SelectComponent — i18n integration', () => {
     });
 });
 
+@Component({
+    template: `
+        <ui-select [(value)]="picked" (valueChange)="emissions.push($event)">
+            <ui-select-trigger>
+                <ui-select-value placeholder="Select option" />
+            </ui-select-trigger>
+            <ui-select-content>
+                <ui-select-item value="sf1">Option 1</ui-select-item>
+                <ui-select-item value="sf2">Option 2</ui-select-item>
+            </ui-select-content>
+        </ui-select>
+    `,
+    imports: [SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent],
+})
+class TwoWaySelectHost {
+    readonly picked = signal<string | undefined>(undefined);
+    readonly emissions: string[] = [];
+}
+
+@Component({
+    template: `
+        <ui-select defaultValue="sf2" (valueChange)="emissions.push($event)">
+            <ui-select-trigger>
+                <ui-select-value placeholder="Select option" />
+            </ui-select-trigger>
+            <ui-select-content>
+                <ui-select-item value="sf1">Option 1</ui-select-item>
+                <ui-select-item value="sf2">Option 2</ui-select-item>
+            </ui-select-content>
+        </ui-select>
+    `,
+    imports: [SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent],
+})
+class DefaultValueSelectHost {
+    readonly emissions: string[] = [];
+}
+
+@Component({
+    template: `
+        <form [formGroup]="form">
+            <ui-select formControlName="choice" (valueChange)="emissions.push($event)">
+                <ui-select-trigger>
+                    <ui-select-value placeholder="Select option" />
+                </ui-select-trigger>
+                <ui-select-content>
+                    <ui-select-item value="sf1">Option 1</ui-select-item>
+                    <ui-select-item value="sf2">Option 2</ui-select-item>
+                </ui-select-content>
+            </ui-select>
+        </form>
+    `,
+    imports: [
+        SelectComponent,
+        SelectTriggerComponent,
+        SelectContentComponent,
+        SelectValueComponent,
+        SelectItemComponent,
+        ReactiveFormsModule,
+    ],
+})
+class FormGroupSelectHost {
+    readonly form = new FormGroup({ choice: new FormControl<string | null>(null) });
+    readonly emissions: string[] = [];
+}
+
+/**
+ * The reference harness from the signal-forms readiness spec, applied to the
+ * first converted control. Every one of these passed before `value` became a
+ * `model()` and must still pass after — that is exactly what makes them worth
+ * writing first.
+ */
+describe('SelectComponent — signal-forms readiness', () => {
+    const pickFirstOption = async (fixture: ComponentFixture<unknown>): Promise<void> => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="select-trigger"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="select-item"]'));
+        items[0].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+    };
+
+    const renderedValue = (fixture: ComponentFixture<unknown>): string =>
+        fixture.debugElement.query(By.css('[data-slot="select-value"]')).nativeElement.textContent.trim();
+
+    it('T-1: two-way [(value)] updates the model on user selection', async () => {
+        const fixture = TestBed.createComponent(TwoWaySelectHost);
+        fixture.detectChanges();
+
+        await pickFirstOption(fixture);
+
+        expect(fixture.componentInstance.picked()).toBe('sf1');
+    });
+
+    it('T-2: two-way [(value)] updates the view when the model changes', async () => {
+        const fixture = TestBed.createComponent(TwoWaySelectHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.picked.set('sf2');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(renderedValue(fixture)).toContain('sf2');
+    });
+
+    it('T-3: works with formControlName and reports value to the form group', async () => {
+        const fixture = TestBed.createComponent(FormGroupSelectHost);
+        fixture.detectChanges();
+
+        await pickFirstOption(fixture);
+
+        expect(fixture.componentInstance.form.value.choice).toBe('sf1');
+    });
+
+    it('T-4: writeValue from the form updates the rendered value', async () => {
+        const fixture = TestBed.createComponent(FormGroupSelectHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.form.setValue({ choice: 'sf2' });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(renderedValue(fixture)).toContain('sf2');
+    });
+
+    it('T-9: emits valueChange exactly once per user selection', async () => {
+        const fixture = TestBed.createComponent(TwoWaySelectHost);
+        fixture.detectChanges();
+
+        await pickFirstOption(fixture);
+
+        expect(fixture.componentInstance.emissions).toEqual(['sf1']);
+    });
+
+    it('T-10: does not re-emit when writeValue is called with the current value', async () => {
+        const fixture = TestBed.createComponent(TwoWaySelectHost);
+        fixture.detectChanges();
+        const select: SelectComponent<string> = fixture.debugElement
+            .query(By.directive(SelectComponent)).componentInstance;
+        await pickFirstOption(fixture);
+        fixture.componentInstance.emissions.length = 0;
+
+        select.writeValue('sf1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(fixture.componentInstance.emissions).toEqual([]);
+    });
+
+    it('stays silent when the form writes a value the user did not pick', async () => {
+        const fixture = TestBed.createComponent(FormGroupSelectHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.form.setValue({ choice: 'sf2' });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(fixture.componentInstance.emissions).toEqual([]);
+    });
+
+    it('stays silent when defaultValue seeds the initial selection', async () => {
+        const fixture = TestBed.createComponent(DefaultValueSelectHost);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(renderedValue(fixture)).toContain('sf2');
+        expect(fixture.componentInstance.emissions).toEqual([]);
+    });
+});

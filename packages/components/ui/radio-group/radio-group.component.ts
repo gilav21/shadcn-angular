@@ -2,7 +2,7 @@ import {
   Component,
   ChangeDetectionStrategy,
   input,
-  output,
+  model,
   computed,
   signal,
   forwardRef,
@@ -60,16 +60,24 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
   readonly valueAttribute = input<string | undefined>(undefined);
   /** Predicate deciding per option whether its item is disabled. Defaults to always enabled. See {@link isOptionDisabled}. */
   readonly disabledWith = input<(option: T) => boolean>(() => false);
-  /** One-way initial/controlled selection. Applied to {@link internalValue} whenever it is not `null`/`undefined`, so it can never clear a selection. */
-  readonly value = input<string | undefined>(undefined);
+  /**
+   * The selection, as a two-way `model()`. A write from outside is applied to
+   * {@link internalValue} whenever it is not `null`/`undefined`, so it can never
+   * clear a selection, and it stays silent — only a user pick emits.
+   *
+   * Being a `ModelSignal` is what makes this component a valid Signal Forms
+   * `FormValueControl`, and it doubles as the `valueChange` output: Angular
+   * derives the output from the model, so there is no separate declaration.
+   * Note that after a `writeValue` from a reactive form this still reads the
+   * pre-write value — {@link internalValue} is the rendered selection.
+   */
+  readonly value = model<string | undefined>(undefined);
 
   private readonly formDisabled = signal(false);
   isDisabled = computed(() => this.disabled() || this.formDisabled());
   readonly isDataDriven = computed(() => this.options().length > 0);
 
   internalValue = signal<string | null>(null);
-  /** Emits the newly selected value on user selection only — not when {@link writeValue} or the {@link value} input changes the selection. */
-  valueChange = output<string>();
 
   private onChange: (value: string) => void = () => { };
   private onTouched: () => void = () => { };
@@ -116,7 +124,7 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
     if (this.isDisabled()) return;
     this.internalValue.set(val);
     this.onChange(val);
-    this.valueChange.emit(val);
+    this.value.set(val);
     this.onTouched();
   }
 

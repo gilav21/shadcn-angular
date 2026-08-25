@@ -20,6 +20,18 @@ export interface FileUploadLocale extends LocaleMeta {
      * it still type-checks — the component falls back to English.
      */
     tooManyFiles?: string;
+    /**
+     * Copy for the inline crop step. All optional, so a hand-written dictionary
+     * predating cropping still type-checks — the component falls back to
+     * English for any key a locale omits.
+     */
+    cropTitle?: string;
+    cropApply?: string;
+    cropSkip?: string;
+    cropCancel?: string;
+    cropRegion?: string;
+    cropResizeHandle?: string;
+    cropFailed?: string;
 }
 
 export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
@@ -34,6 +46,13 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         fileTypeNotAccepted: 'File type not accepted',
         fileTooLarge: 'File exceeds maximum size of {size}',
         tooManyFiles: 'Maximum of {count} files allowed',
+        cropTitle: 'Crop image',
+        cropApply: 'Apply',
+        cropSkip: 'Skip',
+        cropCancel: 'Cancel',
+        cropRegion: 'Crop region',
+        cropResizeHandle: 'Resize crop',
+        cropFailed: 'Could not crop this image',
     },
     he: {
         code: 'he',
@@ -47,6 +66,13 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         fileTypeNotAccepted: 'סוג הקובץ אינו מתקבל',
         fileTooLarge: 'הקובץ חורג מהגודל המרבי של {size}',
         tooManyFiles: 'ניתן להעלות עד {count} קבצים',
+        cropTitle: 'חיתוך תמונה',
+        cropApply: 'החל',
+        cropSkip: 'דלג',
+        cropCancel: 'ביטול',
+        cropRegion: 'אזור חיתוך',
+        cropResizeHandle: 'שינוי גודל החיתוך',
+        cropFailed: 'לא ניתן לחתוך את התמונה',
     },
     ar: {
         code: 'ar',
@@ -60,6 +86,13 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         fileTypeNotAccepted: 'نوع الملف غير مقبول',
         fileTooLarge: 'الملف يتجاوز الحجم الأقصى البالغ {size}',
         tooManyFiles: 'الحد الأقصى {count} ملفات',
+        cropTitle: 'اقتصاص الصورة',
+        cropApply: 'تطبيق',
+        cropSkip: 'تخطٍّ',
+        cropCancel: 'إلغاء',
+        cropRegion: 'منطقة الاقتصاص',
+        cropResizeHandle: 'تغيير حجم الاقتصاص',
+        cropFailed: 'تعذّر اقتصاص هذه الصورة',
     },
     de: {
         code: 'de',
@@ -72,6 +105,13 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         fileTypeNotAccepted: 'Dateityp nicht akzeptiert',
         fileTooLarge: 'Datei überschreitet die maximale Größe von {size}',
         tooManyFiles: 'Maximal {count} Dateien erlaubt',
+        cropTitle: 'Bild zuschneiden',
+        cropApply: 'Übernehmen',
+        cropSkip: 'Überspringen',
+        cropCancel: 'Abbrechen',
+        cropRegion: 'Zuschneidebereich',
+        cropResizeHandle: 'Zuschnitt anpassen',
+        cropFailed: 'Bild konnte nicht zugeschnitten werden',
     },
     fr: {
         code: 'fr',
@@ -84,6 +124,13 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         fileTypeNotAccepted: 'Type de fichier non accepté',
         fileTooLarge: 'Le fichier dépasse la taille maximale de {size}',
         tooManyFiles: 'Maximum de {count} fichiers autorisés',
+        cropTitle: 'Recadrer l’image',
+        cropApply: 'Appliquer',
+        cropSkip: 'Ignorer',
+        cropCancel: 'Annuler',
+        cropRegion: 'Zone de recadrage',
+        cropResizeHandle: 'Redimensionner le recadrage',
+        cropFailed: 'Impossible de recadrer cette image',
     },
     es: {
         code: 'es',
@@ -96,6 +143,13 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         fileTypeNotAccepted: 'Tipo de archivo no aceptado',
         fileTooLarge: 'El archivo supera el tamaño máximo de {size}',
         tooManyFiles: 'Máximo de {count} archivos permitidos',
+        cropTitle: 'Recortar imagen',
+        cropApply: 'Aplicar',
+        cropSkip: 'Omitir',
+        cropCancel: 'Cancelar',
+        cropRegion: 'Área de recorte',
+        cropResizeHandle: 'Redimensionar recorte',
+        cropFailed: 'No se pudo recortar esta imagen',
     },
     ja: {
         code: 'ja',
@@ -108,6 +162,13 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         fileTypeNotAccepted: 'ファイル形式は受け付けられません',
         fileTooLarge: 'ファイルは最大サイズ {size} を超えています',
         tooManyFiles: 'ファイルは最大 {count} 件までです',
+        cropTitle: '画像を切り抜く',
+        cropApply: '適用',
+        cropSkip: 'スキップ',
+        cropCancel: 'キャンセル',
+        cropRegion: '切り抜き範囲',
+        cropResizeHandle: '切り抜きサイズ変更',
+        cropFailed: 'この画像を切り抜けませんでした',
     },
     zh: {
         code: 'zh',
@@ -120,6 +181,13 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         fileTypeNotAccepted: '不接受的文件类型',
         fileTooLarge: '文件超过最大大小 {size}',
         tooManyFiles: '最多允许 {count} 个文件',
+        cropTitle: '裁剪图片',
+        cropApply: '应用',
+        cropSkip: '跳过',
+        cropCancel: '取消',
+        cropRegion: '裁剪区域',
+        cropResizeHandle: '调整裁剪大小',
+        cropFailed: '无法裁剪此图片',
     },
     ru: {
         code: 'ru',
@@ -132,6 +200,13 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         fileTypeNotAccepted: 'Тип файла не принимается',
         fileTooLarge: 'Файл превышает максимальный размер {size}',
         tooManyFiles: 'Максимум {count} файлов',
+        cropTitle: 'Обрезать изображение',
+        cropApply: 'Применить',
+        cropSkip: 'Пропустить',
+        cropCancel: 'Отмена',
+        cropRegion: 'Область обрезки',
+        cropResizeHandle: 'Изменить размер обрезки',
+        cropFailed: 'Не удалось обрезать изображение',
     },
     pt: {
         code: 'pt',
@@ -144,5 +219,12 @@ export const FILE_UPLOAD_LOCALES: Record<string, FileUploadLocale> = {
         fileTypeNotAccepted: 'Tipo de arquivo não aceito',
         fileTooLarge: 'O arquivo excede o tamanho máximo de {size}',
         tooManyFiles: 'Máximo de {count} arquivos permitidos',
+        cropTitle: 'Recortar imagem',
+        cropApply: 'Aplicar',
+        cropSkip: 'Ignorar',
+        cropCancel: 'Cancelar',
+        cropRegion: 'Área de recorte',
+        cropResizeHandle: 'Redimensionar recorte',
+        cropFailed: 'Não foi possível recortar esta imagem',
     },
 };

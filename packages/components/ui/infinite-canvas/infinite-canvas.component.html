@@ -1,0 +1,56 @@
+@let panReady = spacePressed();
+
+<section
+  #root
+  [class]="rootClasses()"
+  [attr.data-slot]="'infinite-canvas'"
+  [attr.data-panning]="interacting()"
+  [attr.data-pan-ready]="panReady"
+  [attr.data-grid]="showGrid()"
+  [attr.aria-label]="ariaLabel()"
+  [attr.aria-roledescription]="'pannable and zoomable canvas'"
+  tabindex="0"
+  (pointerdown)="onPointerDown($event)"
+  (pointermove)="onPointerMove($event)"
+  (pointerup)="onPointerUp($event)"
+  (pointercancel)="onPointerUp($event)"
+  (lostpointercapture)="onPointerUp($event)"
+  (wheel)="onWheel($event)"
+  (keydown)="onKeyDown($event)"
+  (keyup)="onKeyUp($event)"
+  (blur)="onBlur()"
+>
+  <canvas
+    #edgeCanvas
+    [attr.data-slot]="'canvas-edges'"
+    class="pointer-events-none absolute inset-0 block h-full w-full"
+  ></canvas>
+
+  <!--
+    The transform wrapper: ONE element carrying ONE composited transform.
+    It is zero-sized on purpose (see the .canvas-viewport comment) and only
+    serves as the origin for absolutely positioned, world-coordinate children.
+  -->
+  <div #viewport class="canvas-viewport absolute left-0 top-0 h-0 w-0" [attr.data-slot]="'canvas-viewport'">
+    <!--
+      World-space content that belongs BEHIND the items — group frames, region
+      backdrops, annotations. Anything here is positioned in world coordinates
+      and pans and zooms with the plane.
+
+      It lives INSIDE the existing transform wrapper rather than in a second
+      one of its own. A second wrapper would mean a third style write on the
+      hot path and a second composited layer, and — the part that actually
+      matters — two elements that can disagree for a frame during a fling.
+      Sharing the wrapper makes desync impossible: it is the same element.
+
+      The cost is that an underlay draws ON TOP of the edge canvas, which is
+      painted in screen space below this. For a translucent group frame that
+      reads as a region tint over the wires, which is what it should look
+      like anyway.
+    -->
+    <ng-content select="[uiCanvasUnderlay]" />
+    <ng-container #itemAnchor />
+  </div>
+
+  <ng-content />
+</section>

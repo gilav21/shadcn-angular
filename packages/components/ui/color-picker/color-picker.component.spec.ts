@@ -173,7 +173,7 @@ describe('ColorPickerComponent', () => {
                 .updateFromAreaPosition(0, 0);
             fixture.detectChanges();
             expect(picker.saturation()).toBe(0);
-            expect(picker.value()).toBe(100);
+            expect(picker.hsvValue()).toBe(100);
             expect(picker.currentColor()).toBe('#ffffff');
         });
 
@@ -207,9 +207,9 @@ describe('ColorPickerComponent', () => {
 
         it('Shift+ArrowDown decreases value by 10', async () => {
             const picker = await openAndGetPicker(fixture);
-            const startV = picker.value();
+            const startV = picker.hsvValue();
             picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown', shiftKey: true }));
-            expect(picker.value()).toBe(Math.max(0, startV - 10));
+            expect(picker.hsvValue()).toBe(Math.max(0, startV - 10));
         });
 
         it('Home clamps saturation to 0', async () => {
@@ -499,7 +499,7 @@ describe('ColorPickerComponent', () => {
             picker.onAreaMouseDown(new MouseEvent('mousedown', { clientX: 0, clientY: 0 }));
             fixture.detectChanges();
             expect(picker.saturation()).toBe(0);
-            expect(picker.value()).toBe(100);
+            expect(picker.hsvValue()).toBe(100);
             // release any global drag listeners
             document.dispatchEvent(new MouseEvent('mouseup'));
         });
@@ -525,7 +525,7 @@ describe('ColorPickerComponent', () => {
             picker.onAreaTouchStart(ev);
             fixture.detectChanges();
             expect(picker.saturation()).toBe(100);
-            expect(picker.value()).toBe(100);
+            expect(picker.hsvValue()).toBe(100);
             document.dispatchEvent(new Event('touchend'));
         });
     });
@@ -734,7 +734,7 @@ describe('ColorPickerComponent', () => {
             window.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 100 }));
             fixture.detectChanges();
             expect(picker.saturation()).toBe(100);
-            expect(picker.value()).toBe(0);
+            expect(picker.hsvValue()).toBe(0);
             window.dispatchEvent(new MouseEvent('mouseup'));
         });
     });
@@ -778,17 +778,17 @@ describe('ColorPickerComponent', () => {
         it('ArrowLeft, ArrowUp, End, PageUp and PageDown all move the marker', async () => {
             const picker = await openAndGetPicker(fixture);
             picker.saturation.set(50);
-            picker.value.set(50);
+            picker.hsvValue.set(50);
             picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
             expect(picker.saturation()).toBe(49);
             picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
-            expect(picker.value()).toBe(51);
+            expect(picker.hsvValue()).toBe(51);
             picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'End' }));
             expect(picker.saturation()).toBe(100);
             picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'PageDown' }));
-            expect(picker.value()).toBe(41);
+            expect(picker.hsvValue()).toBe(41);
             picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'PageUp' }));
-            expect(picker.value()).toBe(51);
+            expect(picker.hsvValue()).toBe(51);
         });
     });
 
@@ -1036,5 +1036,124 @@ describe('color-picker.utils', () => {
             expect(() => writeRecents('boom', ['#fff'])).not.toThrow();
             spy.mockRestore();
         });
+    });
+});
+
+@Component({
+    template: `<ui-color-picker [(value)]="colour" (valueChange)="valueEmissions.push($event)" (colorChange)="colorEmissions.push($event)" />`,
+    imports: [ColorPickerComponent],
+})
+class TwoWayColorHost {
+    readonly colour = signal('');
+    readonly valueEmissions: string[] = [];
+    readonly colorEmissions: string[] = [];
+}
+
+/**
+ * The reference harness from the signal-forms readiness spec, applied to the
+ * component the spec singled out as the risk (R-3): its `writeValue` used to
+ * echo `colorChange` straight back out, and making the colour a `model()` could
+ * have widened that loop rather than closing it. T-10 is written first here on
+ * purpose, and it covers both outputs.
+ */
+describe('ColorPickerComponent — signal-forms readiness', () => {
+    const componentOf = (fixture: ComponentFixture<unknown>): ColorPickerComponent =>
+        fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance;
+
+    const settle = async (fixture: ComponentFixture<unknown>): Promise<void> => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+    };
+
+    it('T-10: writeValue with the current colour re-emits on neither output', async () => {
+        const fixture = TestBed.createComponent(TwoWayColorHost);
+        await settle(fixture);
+        const picker = componentOf(fixture);
+        picker.writeValue('#ff0000');
+        await settle(fixture);
+        fixture.componentInstance.valueEmissions.length = 0;
+        fixture.componentInstance.colorEmissions.length = 0;
+
+        picker.writeValue('#ff0000');
+        await settle(fixture);
+
+        expect(fixture.componentInstance.valueEmissions).toEqual([]);
+        expect(fixture.componentInstance.colorEmissions).toEqual([]);
+    });
+
+    it('T-10: a form write does not echo back through colorChange', async () => {
+        const fixture = TestBed.createComponent(TwoWayColorHost);
+        await settle(fixture);
+        const picker = componentOf(fixture);
+        fixture.componentInstance.colorEmissions.length = 0;
+
+        picker.writeValue('#00ff00');
+        await settle(fixture);
+
+        expect(fixture.componentInstance.colorEmissions).toEqual([]);
+    });
+
+    it('T-1: two-way [(value)] updates the model on a user pick', async () => {
+        const fixture = TestBed.createComponent(TwoWayColorHost);
+        await settle(fixture);
+
+        componentOf(fixture).selectPreset('#0000ff');
+        await settle(fixture);
+
+        expect(fixture.componentInstance.colour()).toBe('#0000ff');
+    });
+
+    it('T-2: two-way [(value)] updates the rendered colour when the model changes', async () => {
+        const fixture = TestBed.createComponent(TwoWayColorHost);
+        await settle(fixture);
+
+        fixture.componentInstance.colour.set('#00ff00');
+        await settle(fixture);
+
+        expect(componentOf(fixture).currentColor()).toBe('#00ff00');
+    });
+
+    it('T-9: a user pick emits valueChange exactly once', async () => {
+        const fixture = TestBed.createComponent(TwoWayColorHost);
+        await settle(fixture);
+        fixture.componentInstance.valueEmissions.length = 0;
+
+        componentOf(fixture).selectPreset('#0000ff');
+        await settle(fixture);
+
+        expect(fixture.componentInstance.valueEmissions).toEqual(['#0000ff']);
+    });
+
+    it('keeps the value model in step with a programmatic write', async () => {
+        const fixture = TestBed.createComponent(TwoWayColorHost);
+        await settle(fixture);
+
+        componentOf(fixture).writeValue('#123456');
+        await settle(fixture);
+
+        expect(componentOf(fixture).value()).toBe('#123456');
+    });
+
+    it('T-10: an external write through the value model never echoes colorChange', async () => {
+        const fixture = TestBed.createComponent(TwoWayColorHost);
+        await settle(fixture);
+        fixture.componentInstance.colorEmissions.length = 0;
+
+        componentOf(fixture).value.set('#abcdef');
+        await settle(fixture);
+
+        expect(componentOf(fixture).currentColor()).toBe('#abcdef');
+        expect(fixture.componentInstance.colorEmissions).toEqual([]);
+    });
+
+    it('leaves the HSV brightness channel readable under its own name', async () => {
+        const fixture = TestBed.createComponent(TwoWayColorHost);
+        await settle(fixture);
+
+        componentOf(fixture).writeValue('#000000');
+        await settle(fixture);
+
+        expect(componentOf(fixture).hsvValue()).toBe(0);
     });
 });

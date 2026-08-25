@@ -1,0 +1,66 @@
+@if (collapsed()) {
+  <!--
+    Collapsed, the map is a button the size of a button.
+
+    On a phone a 200x140 overview covers a serious fraction of the canvas it is
+    meant to help you navigate — reported as "the minimap takes most of the
+    space on my phone". Rather than hiding it below a breakpoint and leaving
+    small screens without one, it folds down to a control that says what it is
+    and opens on a tap.
+  -->
+  <button
+    type="button"
+    [class]="toggleClasses()"
+    [attr.data-slot]="'node-editor-minimap-toggle'"
+    [attr.aria-expanded]="false"
+    [attr.aria-label]="t().expand + ': ' + summary()"
+    (click)="collapsed.set(false)"
+  >
+    <span aria-hidden="true">&#9707;</span>
+  </button>
+} @else {
+  <div [class]="shellClasses()" [attr.data-slot]="'node-editor-minimap-shell'">
+    <!--
+      A button, not a div: this is a navigation control, so it has to be
+      reachable and operable from the keyboard like any other. Arrow keys move
+      the viewport across the map; shift moves it a whole screen at a time.
+    -->
+    <button
+      type="button"
+      [class]="rootClasses()"
+      [style.width.px]="width()"
+      [style.height.px]="height()"
+      [attr.data-slot]="'node-editor-minimap'"
+      [attr.aria-label]="ariaLabel() + ': ' + summary()"
+      (pointerdown)="onPointerDown($event)"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp()"
+      (pointercancel)="onPointerUp()"
+      (keydown)="onKeyDown($event)"
+    >
+      <canvas
+        #surface
+        class="block touch-none"
+        aria-hidden="true"
+        [attr.data-slot]="'node-editor-minimap-surface'"
+      ></canvas>
+    </button>
+
+    @if (collapsible()) {
+      <button
+        type="button"
+        class="absolute end-0.5 top-0.5 flex size-6 items-center justify-center rounded
+               pointer-coarse:size-11 pointer-coarse:end-0 pointer-coarse:top-0
+               bg-background/80 text-xs text-muted-foreground
+               hover:text-foreground focus-visible:outline-none focus-visible:ring-2
+               focus-visible:ring-ring"
+        [attr.data-slot]="'node-editor-minimap-collapse'"
+        [attr.aria-expanded]="true"
+        [attr.aria-label]="t().collapse"
+        (click)="collapsed.set(true)"
+      >
+        <span aria-hidden="true">&#8722;</span>
+      </button>
+    }
+  </div>
+}

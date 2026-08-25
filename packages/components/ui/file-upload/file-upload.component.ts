@@ -13,6 +13,25 @@ import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i
 import { FILE_UPLOAD_LOCALES, type FileUploadLocale } from './file-upload.locales';
 import { ButtonComponent } from '../button';
 import { ProgressComponent } from '../progress';
+import { onPointerDrag } from '../../lib/touch';
+import type { CropRect, CropResult } from './file-upload.types';
+import {
+  clampCropRect,
+  collectDroppedFiles,
+  cropKeyStep,
+  cropImageFile,
+  initialCropRect,
+  isImageFile,
+} from './file-upload.utils';
+
+/** First pointer position of a mouse or touch event, or `null` for a touch that carries none. */
+function pointerPosition(event: MouseEvent | TouchEvent): { x: number; y: number } | null {
+  if ('touches' in event) {
+    const touch = event.touches[0];
+    return touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+  return { x: event.clientX, y: event.clientY };
+}
 
 export interface FileUploadItem {
   file: File;
@@ -62,6 +81,32 @@ export class FileUploadComponent {
   /** Extra classes merged onto the `w-full` wrapper (not the dropzone itself). */
   readonly class = input('');
 
+  /**
+   * Accepts dropped **folders** and enumerates them recursively, and switches
+   * the picker to folder-selection mode (`webkitdirectory`). `false` (the
+   * default) reads only `dataTransfer.files`, exactly as before, so a dropped
+   * folder contributes nothing.
+   *
+   * Enumerated files are still validated one by one against {@link accept},
+   * {@link maxSize} and {@link maxFiles} — dropping a folder is a shortcut for
+   * selecting its files, not a way around the limits. Each file keeps its
+   * `webkitRelativePath`, so the folder structure is recoverable.
+   */
+  readonly allowDirectories = input(false);
+
+  /**
+   * Interposes an inline crop step before an image enters the queue: the file
+   * is held, the crop panel opens, and only {@link applyCrop} (or
+   * {@link skipCrop}) releases it. `false` (the default) queues every file
+   * straight away.
+   *
+   * Non-image files bypass the step entirely rather than erroring, so a mixed
+   * drop still works — and a batch is cropped one image at a time, in order.
+   */
+  readonly cropImages = input(false);
+  /** Locks the crop box to this width/height ratio (`1` for an avatar). `null` (default) lets it be any shape. */
+  readonly cropAspect = input<number | null>(null);
+
   /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
   readonly locale = input<LocaleInput<FileUploadLocale>>();
   private readonly i18n = createLocaleBindings(this.locale, FILE_UPLOAD_LOCALES);
@@ -90,9 +135,42 @@ export class FileUploadComponent {
    * ({@link maxSize}) or a file past the {@link maxFiles} cap.
    */
   readonly fileError = output<{ file: File; error: string }>();
+  /** Emitted once per image the user actually cropped, carrying both the original and the result. Never fires for a skipped image or a non-image. */
+  readonly cropped = output<CropResult>();
 
   readonly files = signal<FileUploadItem[]>([]);
   readonly isDragging = signal(false);
+
+  /** Images accepted but held back for cropping, in arrival order. */
+  private readonly cropQueue = signal<File[]>([]);
+
+  private readonly _cropFile = signal<File | null>(null);
+  /** The image the crop panel is currently showing, or `null` when the panel is closed. */
+  readonly cropFile = this._cropFile.asReadonly();
+
+  private readonly _cropPreview = signal<string | null>(null);
+  /** Object URL of {@link cropFile}, revoked when the panel closes. */
+  readonly cropPreview = this._cropPreview.asReadonly();
+
+  private readonly _cropNatural = signal<{ width: number; height: number }>({ width: 0, height: 0 });
+  /** Intrinsic pixel size of {@link cropFile}, measured once the image loads. */
+  readonly cropNatural = this._cropNatural.asReadonly();
+
+  private readonly _cropRect = signal<CropRect>({ x: 0, y: 0, width: 0, height: 0 });
+  /** The selected region, in the SOURCE image's pixels. */
+  readonly cropRect = this._cropRect.asReadonly();
+
+  private readonly _isCropping = signal(false);
+  /** `true` while {@link applyCrop} is re-encoding — the Apply button's busy state. */
+  readonly isCropping = this._isCropping.asReadonly();
+
+  /** How many images are still waiting their turn behind the current one. */
+  readonly cropRemaining = computed(() => this.cropQueue().length);
+
+  /** `true` while the inline crop panel is open. */
+  readonly isCropOpen = computed(() => this._cropFile() !== null);
+
+  private cropDragCleanup: (() => void) | null = null;
 
   readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
 
@@ -146,7 +224,13 @@ export class FileUploadComponent {
   /**
    * Takes the dropped `DataTransfer` files through {@link addFiles}, where
    * {@link accept} and {@link maxSize} are enforced in JS — the browser applies neither
-   * to a drop. Only `dataTransfer.files` is read, so dropped folders are not walked.
+   * to a drop.
+   *
+   * With {@link allowDirectories} set, dropped **folders** are walked
+   * recursively first; otherwise only `dataTransfer.files` is read and a
+   * dropped folder contributes nothing, exactly as before. The walk is async,
+   * so the entry list is snapshotted synchronously inside this handler — see
+   * `collectDroppedFiles`.
    */
   onDrop(event: DragEvent): void {
     event.preventDefault();
@@ -155,10 +239,15 @@ export class FileUploadComponent {
 
     if (this.isDisabled()) return;
 
-    const files = event.dataTransfer?.files;
-    if (files) {
-      this.addFiles(Array.from(files));
+    if (!this.allowDirectories()) {
+      const files = event.dataTransfer?.files;
+      if (files) this.addFiles(Array.from(files));
+      return;
     }
+
+    void collectDroppedFiles(event.dataTransfer, true).then(files => {
+      if (files.length > 0) this.addFiles(files);
+    });
   }
 
   /**
@@ -220,21 +309,193 @@ export class FileUploadComponent {
         continue;
       }
 
-      const item: FileUploadItem = {
-        file,
-        id: crypto.randomUUID(),
-        progress: 0,
-        status: 'pending',
-        preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
-      };
+      if (this.cropImages() && isImageFile(file)) {
+        this.cropQueue.update((q) => [...q, file]);
+        available--;
+        continue;
+      }
 
-      this.files.update((f) => [...f, item]);
-      this.fileAdded.emit(item);
+      this.enqueue(file);
       available--;
     }
 
     this.filesChange.emit(this.files());
+    this.openNextCrop();
   }
+
+  /** Wraps an accepted file and appends it to the queue. The single place a `FileUploadItem` is minted. */
+  private enqueue(file: File): FileUploadItem {
+    const item: FileUploadItem = {
+      file,
+      id: crypto.randomUUID(),
+      progress: 0,
+      status: 'pending',
+      preview: isImageFile(file) ? URL.createObjectURL(file) : undefined,
+    };
+
+    this.files.update((f) => [...f, item]);
+    this.fileAdded.emit(item);
+    return item;
+  }
+
+  /** Opens the panel on the next queued image, or closes it when the queue is empty. */
+  private openNextCrop(): void {
+    if (this._cropFile() !== null) return;
+
+    const [next, ...rest] = this.cropQueue();
+    if (!next) return;
+
+    this.cropQueue.set(rest);
+    this._cropFile.set(next);
+    this._cropPreview.set(URL.createObjectURL(next));
+    this._cropNatural.set({ width: 0, height: 0 });
+    this._cropRect.set({ x: 0, y: 0, width: 0, height: 0 });
+  }
+
+  /**
+   * `(load)` handler for the crop panel's `<img>`: records the intrinsic size
+   * and seeds a centred selection honouring {@link cropAspect}. The rect cannot
+   * be computed before this — the natural size is unknown until the image
+   * decodes.
+   */
+  onCropImageLoad(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    const natural = { width: img.naturalWidth, height: img.naturalHeight };
+    this._cropNatural.set(natural);
+    this._cropRect.set(initialCropRect(natural, this.cropAspect()));
+  }
+
+  /** Replaces the selection, clamped inside the image. Use it to drive the crop from your own UI. */
+  setCropRect(rect: CropRect): void {
+    this._cropRect.set(clampCropRect(rect, this._cropNatural()));
+  }
+
+  /**
+   * Cuts the current selection out of the held image, queues the RESULT in
+   * place of the original, emits {@link cropped}, and moves on to the next
+   * image. A re-encode failure falls back to queueing the original untouched
+   * and reports it on {@link fileError} — a crop that cannot run must not lose
+   * the user's file.
+   */
+  async applyCrop(): Promise<void> {
+    const original = this._cropFile();
+    if (!original || this._isCropping()) return;
+
+    this._isCropping.set(true);
+    const rect = clampCropRect(this._cropRect(), this._cropNatural());
+    try {
+      const file = await cropImageFile(original, rect);
+      this.closeCropPanel();
+      this.enqueue(file);
+      this.cropped.emit({ original, file, rect });
+    } catch {
+      this.closeCropPanel();
+      this.enqueue(original);
+      this.fileError.emit({ file: original, error: this.t().cropFailed ?? 'Could not crop this image' });
+    } finally {
+      this._isCropping.set(false);
+      this.filesChange.emit(this.files());
+      this.openNextCrop();
+    }
+  }
+
+  /** Queues the held image uncropped and moves on. Emits no {@link cropped}. */
+  skipCrop(): void {
+    const original = this._cropFile();
+    if (!original) return;
+
+    this.closeCropPanel();
+    this.enqueue(original);
+    this.filesChange.emit(this.files());
+    this.openNextCrop();
+  }
+
+  /** Discards the held image and every image still queued behind it. Nothing is added. */
+  cancelCrop(): void {
+    this.cropQueue.set([]);
+    this.closeCropPanel();
+  }
+
+  private closeCropPanel(): void {
+    this.cropDragCleanup?.();
+    this.cropDragCleanup = null;
+    const preview = this._cropPreview();
+    if (preview) URL.revokeObjectURL(preview);
+    this._cropPreview.set(null);
+    this._cropFile.set(null);
+  }
+
+  /**
+   * Starts a pointer drag that moves the crop box. Bound for mouse AND touch —
+   * the panel is fully usable on a touch-only device.
+   *
+   * `frame` is the displayed image's box, which is what converts pointer travel
+   * in CSS pixels into source pixels.
+   */
+  startCropMove(event: MouseEvent | TouchEvent, frame: HTMLElement): void {
+    this.beginCropDrag(event, frame, (dx, dy, origin, scale) =>
+      this.setCropRect({ ...origin, x: origin.x + dx * scale, y: origin.y + dy * scale })
+    );
+  }
+
+  /** Touch/mouse drag on the bottom-end handle, resizing the box and honouring {@link cropAspect}. */
+  startCropResize(event: MouseEvent | TouchEvent, frame: HTMLElement): void {
+    this.beginCropDrag(event, frame, (dx, dy, origin, scale) => {
+      const aspect = this.cropAspect();
+      const width = origin.width + dx * scale;
+      const height = aspect === null || aspect <= 0 ? origin.height + dy * scale : width / aspect;
+      this.setCropRect({ ...origin, width, height });
+    });
+  }
+
+  private beginCropDrag(
+    event: MouseEvent | TouchEvent,
+    frame: HTMLElement,
+    update: (dx: number, dy: number, origin: CropRect, scale: number) => void,
+  ): void {
+    const start = pointerPosition(event);
+    if (!start) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const origin = this._cropRect();
+    const box = frame.getBoundingClientRect();
+    const scale = box.width > 0 ? this._cropNatural().width / box.width : 1;
+
+    this.cropDragCleanup?.();
+    this.cropDragCleanup = onPointerDrag(
+      (clientX, clientY) => update(clientX - start.x, clientY - start.y, origin, scale),
+      () => { this.cropDragCleanup = null; },
+    );
+  }
+
+  /**
+   * Keyboard driver for the crop box, so the step is not pointer-only: arrows
+   * move it, `+`/`-` resize it, and Shift multiplies the step by ten. Every
+   * handled key is `preventDefault`ed so the arrows do not scroll the page.
+   */
+  onCropKeydown(event: KeyboardEvent): void {
+    const step = event.shiftKey ? 10 : 1;
+    const rect = this._cropRect();
+    const next = cropKeyStep(event.key, rect, step, this.cropAspect());
+    if (!next) return;
+
+    event.preventDefault();
+    this.setCropRect(next);
+  }
+
+  /** The crop box in percentages of the displayed image, for absolute positioning. */
+  readonly cropBoxStyle = computed(() => {
+    const natural = this._cropNatural();
+    if (natural.width <= 0 || natural.height <= 0) return null;
+    const rect = this._cropRect();
+    return {
+      left: `${(rect.x / natural.width) * 100}%`,
+      top: `${(rect.y / natural.height) * 100}%`,
+      width: `${(rect.width / natural.width) * 100}%`,
+      height: `${(rect.height / natural.height) * 100}%`,
+    };
+  });
 
   private tooManyFilesMessage(maxFiles: number | null): string {
     const template = this.t().tooManyFiles ?? 'Maximum of {count} files allowed';

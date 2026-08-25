@@ -57,6 +57,12 @@
           label="I agree to the Terms of Service and Privacy Policy."
           [checked]="acceptTerms()"
           (checkedChange)="acceptTerms.set($event)" />
+
+        @if (showError()) {
+          <output class="text-sm text-destructive" data-slot="signup-error">
+            {{ validationError() }}
+          </output>
+        }
       </ui-card-content>
 
       <ui-card-footer class="flex flex-col gap-3">

@@ -18,7 +18,8 @@ import { STEPPER_ITEM } from './stepper-item.component';
       [class]="classes()"
       [attr.data-slot]="'stepper-trigger'"
       [attr.data-status]="item?.status()"
-      [disabled]="!canClick()"
+      [disabled]="!canClick() || guardPending()"
+      [attr.aria-busy]="guardPending() || null"
       (click)="onClick()"
     >
       <div [class]="indicatorClasses()">
@@ -72,6 +73,13 @@ export class StepperTriggerComponent {
 
   stepNumber = computed(() => (this.item?.index() ?? 0) + 1);
   canClick = computed(() => this.stepper?.canNavigateTo(this.item?.index() ?? 0) ?? true);
+  /**
+   * Mirrors the parent's async-guard pending state, so a projected trigger gets
+   * the same disable and `aria-busy` treatment as simple mode's generated one.
+   * Always false without a `canLeave` guard, so nothing changes for consumers
+   * who set none.
+   */
+  readonly guardPending = computed(() => this.stepper?.guardPending() ?? false);
 
   classes = computed(() =>
     cn(

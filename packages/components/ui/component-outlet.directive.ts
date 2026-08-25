@@ -25,10 +25,15 @@ import { ComponentPoolService } from '../lib/component-pool.service';
     standalone: true
 })
 export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy {
+    /** The component class to render. Bound through the `uiComponentOutlet` alias. */
     readonly component = input.required<Type<unknown>>({ alias: 'uiComponentOutlet' });
+    /** Inputs to set on the rendered component, keyed by input name. */
     readonly inputs = input<Record<string, unknown>>({});
+    /** Handlers for the rendered component's outputs, keyed by output name. */
     readonly outputs = input<Record<string, OutputHandler>>({});
+    /** Reuse the existing instance when the class has not changed, instead of destroying and recreating it. */
     readonly recycle = input(false);
+    /** Emits the `ComponentRef` once the component has been created. */
     readonly initialized = output<ComponentRef<unknown>>();
 
     private componentRef: ComponentRef<unknown> | null = null;

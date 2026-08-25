@@ -1,6 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CheckboxComponent } from './checkbox.component';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -293,5 +293,100 @@ describe('CheckboxComponent as a form control', () => {
         expect(reactiveInput.nativeElement.disabled).toBe(true);
 
         expect(template.checked()).toBe(false);
+    });
+});
+
+@Component({
+    template: `<ui-checkbox [(checked)]="flag" (checkedChange)="emissions.push($event)" />`,
+    imports: [CheckboxComponent],
+})
+class TwoWayCheckboxHost {
+    readonly flag = signal(false);
+    readonly emissions: boolean[] = [];
+}
+
+@Component({
+    template: `<form [formGroup]="form"><ui-checkbox formControlName="agree" /></form>`,
+    imports: [CheckboxComponent, ReactiveFormsModule],
+})
+class FormGroupCheckboxHost {
+    readonly form = new FormGroup({ agree: new FormControl(false) });
+}
+
+/**
+ * Reference harness for the signal-forms readiness spec. `checked` is already a
+ * `model()`, so these pass unchanged — they exist to pin the behaviour every
+ * converted control must reproduce.
+ */
+describe('CheckboxComponent — signal-forms readiness', () => {
+    const nativeInput = (fixture: ComponentFixture<unknown>): HTMLInputElement =>
+        fixture.debugElement.query(By.css('input[type="checkbox"]')).nativeElement;
+
+    const toggleNative = (fixture: ComponentFixture<unknown>, next: boolean): void => {
+        const input = nativeInput(fixture);
+        input.checked = next;
+        input.dispatchEvent(new Event('change'));
+        fixture.detectChanges();
+    };
+
+    it('T-1: two-way [(checked)] updates the model on user input', () => {
+        const fixture = TestBed.createComponent(TwoWayCheckboxHost);
+        fixture.detectChanges();
+
+        toggleNative(fixture, true);
+
+        expect(fixture.componentInstance.flag()).toBe(true);
+    });
+
+    it('T-2: two-way [(checked)] updates the view when the model changes', () => {
+        const fixture = TestBed.createComponent(TwoWayCheckboxHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.flag.set(true);
+        fixture.detectChanges();
+
+        expect(nativeInput(fixture).checked).toBe(true);
+    });
+
+    it('T-3: works with formControlName and reports value to the form group', () => {
+        const fixture = TestBed.createComponent(FormGroupCheckboxHost);
+        fixture.detectChanges();
+
+        toggleNative(fixture, true);
+
+        expect(fixture.componentInstance.form.value.agree).toBe(true);
+    });
+
+    it('T-4: writeValue from the form updates the rendered value', () => {
+        const fixture = TestBed.createComponent(FormGroupCheckboxHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.form.setValue({ agree: true });
+        fixture.detectChanges();
+
+        expect(nativeInput(fixture).checked).toBe(true);
+    });
+
+    it('T-9: emits checkedChange exactly once per user interaction', () => {
+        const fixture = TestBed.createComponent(TwoWayCheckboxHost);
+        fixture.detectChanges();
+
+        toggleNative(fixture, true);
+
+        expect(fixture.componentInstance.emissions).toEqual([true]);
+    });
+
+    it('T-10: does not re-emit when writeValue is called with the current value', () => {
+        const fixture = TestBed.createComponent(TwoWayCheckboxHost);
+        fixture.detectChanges();
+        const checkbox: CheckboxComponent = fixture.debugElement
+            .query(By.directive(CheckboxComponent)).componentInstance;
+        toggleNative(fixture, true);
+        fixture.componentInstance.emissions.length = 0;
+
+        checkbox.writeValue(true);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.emissions).toEqual([]);
     });
 });

@@ -31,11 +31,16 @@ export interface TableCellContextMenuEvent<T = unknown> extends TableRowContextM
   standalone: true,
 })
 export class TableContextMenuDirective<T = unknown> implements OnDestroy {
+  /** The menu to open when a row or cell is right-clicked. */
   uiTableContextMenu = input<ContextMenuComponent | null>(null);
+  /** Stops the table from opening the menu. */
   contextMenuDisabled = input<boolean>(false);
+  /** Attribute the directive reads to work out which row was clicked. */
   rowDataAttribute = input<string>('data-row');
 
+  /** Emits the row that was right-clicked. */
   rowContextMenu = output<TableRowContextMenuEvent<T>>();
+  /** Emits the cell that was right-clicked. */
   cellContextMenu = output<TableCellContextMenuEvent<T>>();
 
   private readonly tableElement = inject(ElementRef<HTMLElement>);

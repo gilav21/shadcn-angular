@@ -1,0 +1,23 @@
+:host {
+    --_d: var(--density-input, var(--density, 1));
+}
+
+@layer components {
+    [data-slot="signature-pad"] > div {
+        padding: calc(0.5rem * var(--_d));
+    }
+}
+
+/*
+ * The pad must not scroll the page out from under a stroke. `touch-action` is
+ * also set as a utility class; declaring it here as well means the rule
+ * survives a consumer who overrides the class list.
+ */
+[data-slot="signature-pad-canvas"] {
+    touch-action: none;
+    cursor: crosshair;
+}
+
+[data-slot="signature-pad"][aria-disabled="true"] [data-slot="signature-pad-canvas"] {
+    cursor: not-allowed;
+}

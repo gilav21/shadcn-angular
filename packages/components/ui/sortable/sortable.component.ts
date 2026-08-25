@@ -24,6 +24,7 @@ import { acquireAriaLive, type AriaLiveHandle } from '../../lib/sortable-aria-li
 import { SORTABLE_LOCALES, type SortableLocale } from './sortable-locales';
 import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import {
+    entryDepth,
     peersInGroup,
     registerSortable,
     type AcceptResult,
@@ -39,6 +40,7 @@ import type {
     SortableDropRejectedEvent,
     SortableForeignHoverEvent,
     SortableLandEffectFn,
+    SortableNestedPath,
     SortableOrientation,
     SortablePositionClassFn,
     SortableReorderEvent,
@@ -53,6 +55,7 @@ export type {
     SortableDropRejectedEvent,
     SortableForeignHoverEvent,
     SortableLandEffectFn,
+    SortableNestedPath,
     SortableOrientation,
     SortablePositionClassFn,
     SortableReorderEvent,
@@ -401,6 +404,32 @@ export class SortableComponent<T> {
     private readonly autoListId = `sortable-${++SortableComponent.sortableIdCounter}`;
     /** The list's resolved id — the `listId` input, or an auto-generated value when blank. */
     readonly resolvedListId = computed((): string => this.listId() || this.autoListId);
+
+    /**
+     * The enclosing sortable, when this list is rendered inside another list's
+     * item template — the whole of what makes nesting work. Resolved through
+     * Angular's injector rather than the DOM, so it is correct even when the
+     * two containers are not directly nested elements.
+     */
+    private readonly parentSortable = inject(SortableComponent, { optional: true, skipSelf: true }) as SortableComponent<unknown> | null;
+
+    /**
+     * This list's ancestry, outermost first and ending with its own
+     * {@link resolvedListId}. A top-level list reports a single-element path;
+     * a list two levels deep reports three ids.
+     *
+     * It is reported on both endpoints of {@link reorder}, which is what makes a
+     * tree reorder addressable — `to.index` alone is ambiguous when a dozen
+     * nested lists all have a position 2.
+     */
+    readonly path = computed((): SortableNestedPath => {
+        const parent = this.parentSortable;
+        const own = this.resolvedListId();
+        return parent === null ? [own] : [...parent.path(), own];
+    });
+
+    /** How deep this list sits, counting from 1 for a top-level list. */
+    readonly depth = computed((): number => this.path().length);
     private readonly i18n = createLocaleBindings(this.locale, SORTABLE_LOCALES);
     /** The active locale strings (resolves the `locale()` input with global / English fallback). */
     readonly currentLocale = this.i18n.t;
@@ -448,6 +477,7 @@ export class SortableComponent<T> {
     readonly foreignHover = this._foreignHover.asReadonly();
 
     private dragCleanup: (() => void) | null = null;
+    private draggedEl: HTMLElement | null = null;
     private rects: DOMRect[] = [];
 
     readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>('container');
@@ -542,9 +572,30 @@ export class SortableComponent<T> {
         });
     }
 
+    /**
+     * This list's OWN item wrappers, in DOM order.
+     *
+     * `querySelectorAll` is unscoped, so two kinds of impostor get matched and
+     * both have to go:
+     *
+     * - **Nested lists' items.** A `<ui-sortable>` rendered inside an item
+     *   template puts its own `sortable-item`s inside this container, so a
+     *   three-row outline whose rows each host a child list reports seven
+     *   elements for three items. Every index derived from this array is then
+     *   off, which corrupts drop-index maths and item identity alike.
+     * - **The ghost.** While dragging, the ghost renders the item template a
+     *   second time, so the live copy of the dragged row appears twice.
+     *
+     * Keeping only elements whose nearest enclosing `[data-slot="sortable"]` is
+     * THIS container drops the first; excluding anything inside a ghost host
+     * drops the second. For a flat list with no drag in progress both filters
+     * are no-ops, so the pre-nesting behaviour is unchanged.
+     */
     private collectItemElements(): HTMLElement[] {
         const root = this.containerRef().nativeElement;
-        return Array.from(root.querySelectorAll<HTMLElement>('[data-slot="sortable-item"]'));
+        return Array.from(root.querySelectorAll<HTMLElement>('[data-slot="sortable-item"]'))
+            .filter(el => el.closest('[data-slot="sortable"]') === root)
+            .filter(el => el.closest('[data-slot="sortable-ghost"],[data-slot="sortable-ghost-host"]') === null);
     }
 
     private getCurrentItemRects(): DOMRect[] {
@@ -557,6 +608,7 @@ export class SortableComponent<T> {
         return {
             get listId(): string { return self.resolvedListId(); },
             get group(): string { return self.group(); },
+            get path(): readonly string[] { return self.path(); },
             get element(): HTMLElement { return self.containerRef().nativeElement; },
             get orientation(): SortableOrientation { return self.orientation(); },
             getItemRects: (): DOMRect[] => self.getCurrentItemRects(),
@@ -676,9 +728,10 @@ export class SortableComponent<T> {
 
     private emitReorder(fromIndex: number, toIndex: number, item: T): void {
         const lid = this.resolvedListId();
+        const path = this.path();
         this.reorder.emit({
-            from: { listId: lid, index: fromIndex },
-            to: { listId: lid, index: toIndex },
+            from: { listId: lid, index: fromIndex, path },
+            to: { listId: lid, index: toIndex, path },
             item,
         });
     }
@@ -688,10 +741,11 @@ export class SortableComponent<T> {
     /** Schedule the land-effect class on the just-landed item at `toIndex`. */
     private scheduleLandEffect(fromIndex: number, toIndex: number, item: T): void {
         const lid = this.resolvedListId();
+        const path = this.path();
         const cls = this.landEffect()(
             item,
-            { listId: lid, index: fromIndex },
-            { listId: lid, index: toIndex },
+            { listId: lid, index: fromIndex, path },
+            { listId: lid, index: toIndex, path },
         );
         if (cls === null || cls === '') return;
         setTimeout(() => {
@@ -747,6 +801,7 @@ export class SortableComponent<T> {
         if (this.disabled()) return;
         this.dragCleanup?.();
         this.captureRects();
+        this.draggedEl = this.collectItemElements()[fromIndex] ?? null;
         this._dragSource.set(fromIndex);
         this._dragTarget.set(fromIndex);
         this._dragDelta.set({ x: 0, y: 0 });
@@ -763,9 +818,7 @@ export class SortableComponent<T> {
     }
 
     private captureRects(): void {
-        const containerEl = this.containerRef().nativeElement;
-        const itemEls = containerEl.querySelectorAll('[data-slot="sortable-item"]');
-        this.rects = Array.from(itemEls).map(el => el.getBoundingClientRect());
+        this.rects = this.getCurrentItemRects();
     }
 
     private onDragMove(
@@ -786,16 +839,70 @@ export class SortableComponent<T> {
         }
     }
 
+    /**
+     * The peer under the pointer, or `null` to keep the drag local.
+     *
+     * With nesting the answer is no longer unique: a child list's rect lies
+     * entirely inside its parent's, so a pointer over the child is over the
+     * parent too, and returning the first match would make the winner depend on
+     * registration order. The DEEPEST containing peer wins instead, which is
+     * what "drop it into the sub-list I am pointing at" means. Equal-depth
+     * peers keep the old first-match winner, so a flat cross-list drag behaves
+     * exactly as it did before nesting existed.
+     *
+     * A list nested INSIDE the item being dragged is excluded — see
+     * {@link isInsideDraggedItem}. Dropping an item into its own subtree would
+     * detach that subtree from the tree along with it.
+     */
     private findHoverPeer(clientX: number, clientY: number): SortableRegistryEntry | null {
         const groupName = this.group();
         if (groupName === '') return null;
+
+        const draggedEl = this.draggedItemElement();
+        let best: SortableRegistryEntry | null = null;
+        let bestDepth = -1;
         for (const peer of peersInGroup(groupName, this.registryEntry)) {
             const r = peer.element.getBoundingClientRect();
-            if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
-                return peer;
+            if (clientX < r.left || clientX > r.right || clientY < r.top || clientY > r.bottom) continue;
+            if (this.isInsideDraggedItem(peer, draggedEl)) continue;
+            const depth = entryDepth(peer);
+            if (depth > bestDepth) {
+                best = peer;
+                bestDepth = depth;
             }
         }
-        return null;
+        return best;
+    }
+
+    /**
+     * The DOM wrapper of the item currently being dragged, or `null` when no
+     * drag is active. Captured once at {@link startDrag} rather than looked up
+     * per frame: by the time the pointer is moving, the ghost has rendered a
+     * second copy of the row, and re-deriving identity from a live query while
+     * the DOM is mutating is exactly how the off-by-N crept in.
+     */
+    private draggedItemElement(): HTMLElement | null {
+        return this.draggedEl;
+    }
+
+    /**
+     * Whether `peer` is a list rendered inside the item being dragged.
+     *
+     * An outline item hosts its own child list, and that child registers in the
+     * same group as everything else — so without this guard the pointer sitting
+     * over a dragged row's own sub-list makes it the deepest hit, and the drop
+     * removes the item from its parent and re-inserts it into a list it itself
+     * owns. The item then holds its own ancestor: the subtree is detached from
+     * the tree and, on the next render, the child list is inside an item that no
+     * longer exists anywhere above it.
+     *
+     * `contains()` is the honest test rather than comparing paths, because the
+     * child list's `path` is derived from the injector and stays valid right up
+     * until the move commits.
+     */
+    private isInsideDraggedItem(peer: SortableRegistryEntry, draggedEl: HTMLElement | null): boolean {
+        if (draggedEl === null) return false;
+        return draggedEl.contains(peer.element);
     }
 
     private updateLocalTarget(
@@ -896,8 +1003,8 @@ export class SortableComponent<T> {
         this.items.set(next);
         peer.receiveItem(item, targetIndex);
         this.reorder.emit({
-            from: { listId: this.resolvedListId(), index: from },
-            to: { listId: peer.listId, index: targetIndex },
+            from: { listId: this.resolvedListId(), index: from, path: this.path() },
+            to: { listId: peer.listId, index: targetIndex, path: peer.path ?? [peer.listId] },
             item,
         });
         this.schedulePlay();
@@ -911,6 +1018,7 @@ export class SortableComponent<T> {
         this._hoverPeer.set(null);
         this._hoverPeerTarget.set(null);
         this.dragStartLength = null;
+        this.draggedEl = null;
         this.autoScroller?.stop();
         this.autoScroller = null;
     }
@@ -976,11 +1084,19 @@ export class SortableComponent<T> {
         this.ariaLive.announce(this.currentLocale().moved(toIndex + 1, this.items().length));
     }
 
-    /** Hand the lifted item off to the next or previous peer in the same group. */
+    /**
+     * Hand the lifted item off to the next or previous peer in the same group.
+     *
+     * Lists nested inside the lifted item are skipped for the same reason the
+     * pointer route skips them (see {@link isInsideDraggedItem}): handing an
+     * item to a list it owns would detach its own subtree.
+     */
     private keyboardCrossList(fromIndex: number, direction: 1 | -1): void {
         const groupName = this.group();
         if (groupName === '') return;
-        const allPeers = peersInGroup(groupName);
+        const draggedEl = this.collectItemElements()[fromIndex] ?? null;
+        const allPeers = peersInGroup(groupName)
+            .filter(p => p === this.registryEntry || !this.isInsideDraggedItem(p, draggedEl));
         const selfIdx = allPeers.indexOf(this.registryEntry);
         if (selfIdx === -1 || allPeers.length < 2) return;
         const peerIdx = (selfIdx + direction + allPeers.length) % allPeers.length;
@@ -1012,8 +1128,8 @@ export class SortableComponent<T> {
         this._liftedIndex.set(null);
         this._liftOrigin.set(null);
         this.reorder.emit({
-            from: { listId: this.resolvedListId(), index: fromIndex },
-            to: { listId: peer.listId, index: targetIndex },
+            from: { listId: this.resolvedListId(), index: fromIndex, path: this.path() },
+            to: { listId: peer.listId, index: targetIndex, path: peer.path ?? [peer.listId] },
             item,
         });
         const peerNewTotal = peerExistingCount + 1;

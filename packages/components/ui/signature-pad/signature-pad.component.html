@@ -1,0 +1,60 @@
+<!--
+  The canvas is focusable so the pad can be reached by keyboard and so the
+  focus ring on the wrapper means something — but reaching it is not the same
+  as being able to use it. A drawn mark cannot be produced without a pointing
+  device, which is why §3.4 requires consumers to offer an alternative rather
+  than pretending an attribute solves it.
+-->
+<div
+  [class]="wrapperClasses()"
+  [attr.data-slot]="'signature-pad'"
+  [attr.data-variant]="variant()"
+  [attr.aria-disabled]="isDisabled() || null"
+  (focusout)="onBlur()"
+>
+  <canvas
+    #canvas
+    tabindex="0"
+    class="block w-full touch-none outline-none"
+    [style.height.px]="height()"
+    [attr.data-slot]="'signature-pad-canvas'"
+    [attr.role]="'img'"
+    [attr.aria-label]="ariaLabel()"
+    (pointerdown)="onPointerDown($event)"
+    (pointermove)="onPointerMove($event)"
+    (pointerup)="onPointerUp($event)"
+    (pointercancel)="onPointerUp($event)"
+    (pointerleave)="onPointerUp($event)"
+  ></canvas>
+
+  @if (!hideControls()) {
+    <!--
+      Buttons rather than icons alone, and `sm` rather than `icon`: these are
+      the two actions that undo a mistake on a control where a mistake means
+      starting a signature again, so they need to be findable and — on a phone,
+      where this control mostly lives — comfortably hittable.
+    -->
+    <div class="border-input flex flex-wrap justify-end gap-2 border-t p-2">
+      <ui-button
+        type="button"
+        variant="ghost"
+        size="sm"
+        [disabled]="isDisabled() || !canUndo()"
+        [attr.data-slot]="'signature-pad-undo'"
+        (click)="undo()"
+      >
+        {{ undoLabel() }}
+      </ui-button>
+      <ui-button
+        type="button"
+        variant="ghost"
+        size="sm"
+        [disabled]="isDisabled() || !hasSignature()"
+        [attr.data-slot]="'signature-pad-clear'"
+        (click)="clear()"
+      >
+        {{ clearLabel() }}
+      </ui-button>
+    </div>
+  }
+</div>

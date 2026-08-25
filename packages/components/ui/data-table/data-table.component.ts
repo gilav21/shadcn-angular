@@ -13,6 +13,7 @@ import {
   Type,
   TemplateRef,
   ElementRef,
+  untracked,
   inject,
   forwardRef,
   AfterViewInit,
@@ -41,6 +42,7 @@ import {
 } from "../table";
 import { InputComponent } from "../input";
 import { CheckboxComponent } from "../checkbox";
+import { DatePickerComponent } from "../date-picker";
 import {
   PopoverComponent,
   PopoverTriggerComponent,
@@ -67,6 +69,9 @@ import {
   DataTableLoadingVisibility,
   DataTableExportOptions,
   DataTableExportQuery,
+  DataTableQuery,
+  DataTableViewState,
+  DATA_TABLE_VIEW_STATE_VERSION,
   SubRowSelectionMode,
   SubRowFilterMode,
   FlattenedTreeRow,
@@ -104,6 +109,8 @@ import {
   parseNlFilterSpec,
   type NlFilterSpec,
   evaluateAdvancedFilter,
+  asEditableDate,
+  toEditedDateValue,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
 import { AiProvider, runAiTask } from "../../lib/ai";
@@ -129,6 +136,29 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   return stringifyValue(id);
 };
 
+/**
+ * Whether two requests describe the same page of data.
+ *
+ * Compared field by field rather than with a deep clone or `JSON.stringify`:
+ * `columnFilters` holds arbitrary consumer values, which may not be
+ * serialisable, and this runs on every state change.
+ */
+function sameQuery(a: DataTableQuery, b: DataTableQuery): boolean {
+  const sameSort = (x: SortState, y: SortState): boolean =>
+    x.column === y.column && x.direction === y.direction;
+
+  return (
+    a.globalFilter === b.globalFilter &&
+    a.columnFilters === b.columnFilters &&
+    a.advancedFilter === b.advancedFilter &&
+    a.page.pageIndex === b.page.pageIndex &&
+    a.page.pageSize === b.page.pageSize &&
+    sameSort(a.sort, b.sort) &&
+    a.sortStates.length === b.sortStates.length &&
+    a.sortStates.every((sort, i) => sameSort(sort, b.sortStates[i]))
+  );
+}
+
 @Component({
   selector: "ui-data-table",
   imports: [
@@ -142,6 +172,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
     TableCellComponent,
     InputComponent,
     CheckboxComponent,
+    DatePickerComponent,
     PopoverComponent,
     PopoverTriggerComponent,
     PopoverContentComponent,
@@ -317,6 +348,25 @@ export class DataTableComponent<T>
    * {@link localFiltering} is false, which is how you drive a server-side search.
    */
   readonly filterChange = output<string>();
+
+  /**
+   * The complete server request, emitted whenever any part of it changes.
+   *
+   * `sortChange` / `pageChange` / `filterChange` each report one fragment, so
+   * wiring server-side mode from them means keeping your own copy of the other
+   * five and reassembling a request on every callback. This emits the whole
+   * {@link DataTableQuery} instead — one handler, one shape.
+   *
+   * It **reports state; it does not fetch**. A global filter changes on every
+   * keystroke (after {@link filterDebounce}), so debounce or `switchMap` on
+   * your side before hitting a server — the table cannot know how expensive
+   * your endpoint is.
+   *
+   * It does not fire on init: there is no change to report yet, and an output
+   * that emits during construction fires before a consumer can be ready. Read
+   * {@link currentQuery} for the first fetch.
+   */
+  readonly query = output<DataTableQuery>();
 
   /**
    * A committed inline cell edit: row, column key, and old/new value. The table
@@ -2591,6 +2641,89 @@ export class DataTableComponent<T>
   // Re-position the single fill-handle overlay after each relevant render. Works
   // across the flat, virtual and tree paths since all expose data-row-index /
   // data-column; the virtual-visible signals are read so it tracks scroll.
+  /**
+   * Stamp the grid's position semantics onto the rendered rows and cells.
+   *
+   * `aria-rowcount` / `aria-rowindex` exist for exactly this component's
+   * situation: the DOM holds a window of ~30 rows out of a dataset of any size,
+   * so assistive tech that counts DOM rows announces "row 3 of 30" and the user
+   * has no idea where they are. The count must therefore be the dataset's and
+   * the index must be absolute.
+   *
+   * Done here rather than as template bindings because this template renders
+   * rows from six different branches — virtual and non-virtual, flat, tree and
+   * grouped — plus detail rows, full-width rows and group headers that occupy
+   * real row positions without appearing in any row array. Numbering from the
+   * DOM is the only way to stay consistent with what was actually rendered; a
+   * per-branch binding would number the branches it knew about and silently
+   * skip the rest.
+   */
+  private stampGridSemantics(): void {
+    const grid = this._el.nativeElement.querySelector('[data-slot="table"]');
+    if (!grid) return;
+
+    /*
+     * Spacer rows and filler header cells exist only to make the flex layout
+     * fill its container. They are hidden from assistive tech, and counting
+     * them would put every index and both totals out by one.
+     */
+    const isDecorative = (el: Element): boolean =>
+      el.getAttribute('aria-hidden') === 'true' || el.getAttribute('role') === 'presentation';
+
+    const rows = [...grid.querySelectorAll('[data-slot="table-row"]')].filter(
+      row => !isDecorative(row),
+    );
+    const isHeaderRow = (row: Element): boolean =>
+      row.closest('[data-slot="table-header"]') !== null;
+    const headerRows = rows.filter(isHeaderRow).length;
+
+    /*
+     * Under virtualization the first rendered row is not row one; the scroller
+     * says which absolute row it is. Everywhere else the DOM already holds the
+     * whole set the grid represents.
+     */
+    const offset = this.isVirtualScrollActive() ? this.virtualRowRange().start : 0;
+
+    /*
+     * Column indices come from DOM order, which is the true visual order —
+     * pinned-left, then centre, then pinned-right. That is only *absolute*
+     * when every column is present, so when the middle columns are windowed
+     * the index is left off rather than published wrong. A missing
+     * `aria-colindex` is a gap; a wrong one sends the user to the wrong column.
+     */
+    const columnsWindowed =
+      this.virtualVisibleMiddleColumns().length < this.scrollableColumns().length;
+
+    let dataRow = 0;
+    for (const [position, row] of rows.entries()) {
+      const index = isHeaderRow(row)
+        ? position + 1
+        : headerRows + offset + ++dataRow;
+      row.setAttribute('aria-rowindex', String(index));
+
+      if (columnsWindowed) continue;
+      const cells = [...row.children].filter(cell => !isDecorative(cell));
+      for (const [column, cell] of cells.entries()) {
+        cell.setAttribute('aria-colindex', String(column + 1));
+      }
+    }
+
+    const dataRows = this.isVirtualScrollActive()
+      ? this.virtualTotalRows()
+      : rows.length - headerRows;
+    grid.setAttribute('aria-rowcount', String(headerRows + dataRows));
+    grid.setAttribute('aria-colcount', String(this.enhancedColumns().length));
+  }
+
+  private readonly _gridSemanticsEffect = afterRenderEffect(() => {
+    // Re-stamp whenever the rendered window, the data or the columns move.
+    this.virtualRowRange();
+    this.processedData();
+    this.enhancedColumns();
+    this.virtualTotalRows();
+    this.stampGridSemantics();
+  });
+
   private readonly _fillHandlePositionEffect = afterRenderEffect(() => {
     this.fillHandleCell();
     this.data();
@@ -3361,6 +3494,76 @@ export class DataTableComponent<T>
     });
   }
 
+  /** The value being edited, read as a date for `editType: 'date'`. */
+  editDateValue(): Date | null {
+    return asEditableDate(this.editValue());
+  }
+
+  /**
+   * Commit a date picked in a `editType: 'date'` cell.
+   *
+   * The shape is read from the value still in the editor — which is the cell's
+   * original, because the picker commits on the first change — so a column
+   * holding ISO strings keeps holding ISO strings. Changing a cell's type
+   * behind the consumer's back is the failure mode here, not a wrong day.
+   */
+  onEditDateChange(picked: Date | null): void {
+    const next = toEditedDateValue(picked, this.editValue());
+    this.onEditValueChange(next);
+    this.commitEdit();
+  }
+
+  /**
+   * The whole view as one token: layout, sort, filters and page.
+   *
+   * {@link getColumnState} covers the layout, which is what a "reset my
+   * columns" feature needs. This is what a *named view* needs — someone who
+   * saved "My open invoices" expects the filters and the sort back, not just
+   * the column widths.
+   *
+   * Persist it as JSON. It carries a {@link DATA_TABLE_VIEW_STATE_VERSION} so
+   * that a token written by an older build is recognised rather than guessed
+   * at.
+   *
+   * @publicApi
+   */
+  getViewState(): DataTableViewState {
+    return {
+      version: DATA_TABLE_VIEW_STATE_VERSION,
+      columns: this.getColumnState(),
+      sort: this.sortState(),
+      sortStates: this.multiSortState(),
+      columnFilters: this.columnFilters(),
+      advancedFilter: this.advancedFilter(),
+      globalFilter: this.globalFilter(),
+      pagination: this.paginationState(),
+    };
+  }
+
+  /**
+   * Restore a {@link getViewState} token. Returns whether it was applied.
+   *
+   * A token from an unknown version is **refused outright** rather than
+   * applied field by field. Half-restoring a saved view is worse than refusing
+   * it: the user gets a table that is nearly right and has no way to tell which
+   * parts are stale. The boolean is there so a consumer can drop a token it
+   * can no longer read instead of failing silently.
+   *
+   * @publicApi
+   */
+  applyViewState(state: DataTableViewState | null | undefined): boolean {
+    if (state?.version !== DATA_TABLE_VIEW_STATE_VERSION) return false;
+
+    this.applyColumnState(state.columns);
+    this.sortState.set(state.sort);
+    this.multiSortState.set(state.sortStates);
+    this.columnFilters.set(state.columnFilters);
+    this.advancedFilter.set(state.advancedFilter);
+    this.globalFilter.set(state.globalFilter);
+    this.paginationState.set(state.pagination);
+    return true;
+  }
+
   /**
    * Restores a {@link getColumnState} snapshot into {@link columnVisibility},
    * {@link columnWidths}, {@link columnPinOverrides} and {@link columnOrder}.
@@ -3714,6 +3917,48 @@ export class DataTableComponent<T>
   /** The raw, unfiltered input rows (addon transform seam, e.g. pivot). */
   getRawRows(): readonly T[] {
     return this.data();
+  }
+
+  private _lastEmittedQuery: DataTableQuery | null = null;
+
+  /**
+   * Emit {@link query} whenever the request actually changes.
+   *
+   * Guarded on the *contents* rather than left to signal identity: several of
+   * these are `model()`s holding objects, and a write of an equal-but-new
+   * object would otherwise emit again — which on a server-side table is a
+   * duplicate round trip, not a wasted tick.
+   *
+   * The first run is the initial state, so there is nothing to report yet; see
+   * {@link currentQuery}.
+   */
+  private readonly _queryEmitter = effect(() => {
+    const next = this.currentQuery();
+    const previous = this._lastEmittedQuery;
+    this._lastEmittedQuery = next;
+
+    if (previous === null || sameQuery(previous, next)) return;
+    untracked(() => this.query.emit(next));
+  });
+
+  /**
+   * The request that describes what the table is showing right now.
+   *
+   * The companion to the {@link query} output, which only fires on a change:
+   * this is how a consumer gets the *first* page without waiting for the user
+   * to touch something.
+   *
+   * @publicApi
+   */
+  currentQuery(): DataTableQuery {
+    return {
+      globalFilter: this.globalFilter(),
+      columnFilters: this.columnFilters(),
+      sort: this.sortState(),
+      sortStates: this.multiSortState(),
+      advancedFilter: this.advancedFilter(),
+      page: this.paginationState(),
+    };
   }
 
   /** The active filter + sort query, for a server-side export provider. */

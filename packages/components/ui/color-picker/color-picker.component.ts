@@ -7,6 +7,7 @@ import {
     forwardRef,
     ElementRef,
     viewChild,
+    model,
     output,
     effect,
     untracked,
@@ -165,6 +166,19 @@ export class ColorPickerComponent implements ControlValueAccessor {
      * not loop and does not mark a form control dirty.
      */
     readonly colorChange = output<string>();
+
+    /**
+     * The colour as hex, as a two-way `model()` — the control's actual value,
+     * and what makes this component a valid Signal Forms `FormValueControl`.
+     *
+     * It tracks the canonical colour on every change, programmatic ones
+     * included, so `[(value)]` and a bound `FieldTree` cannot drift from what
+     * the picker is showing. That is deliberately *not* how {@link colorChange}
+     * behaves: that output stays silent for the initial colour and for
+     * {@link writeValue}, as it always has, so binding it back into the same
+     * state does not loop and does not dirty a form control.
+     */
+    readonly value = model<string>('');
     /** The next recents list, emitted only while {@link recentColors} is controlled (non-null). Uncontrolled pickers keep recents internally and stay silent here. */
     readonly recentColorsChange = output<string[]>();
 
@@ -181,7 +195,13 @@ export class ColorPickerComponent implements ControlValueAccessor {
      */
     readonly hue = signal(0);
     readonly saturation = signal(0);
-    readonly value = signal(0);
+    /**
+     * HSV brightness channel, 0–100, driving the vertical axis of the SV area.
+     * Named `hsvValue` and not `value` because the Signal Forms contract
+     * reserves `value` for the control's actual value — which for a colour
+     * picker is the colour, not one channel of its HSV projection.
+     */
+    readonly hsvValue = signal(0);
     readonly alphaValue = signal(1);
 
     private readonly internalRecents = signal<string[]>([]);
@@ -328,9 +348,22 @@ export class ColorPickerComponent implements ControlValueAccessor {
     constructor() {
         effect(() => {
             const color = this.currentColor();
+            this.value.set(color);
             if (this.isProgrammatic(color)) return;
             this.onChange(color);
             this.colorChange.emit(color);
+        });
+
+        effect(() => {
+            const written = this.value();
+            if (!written) return;
+            untracked(() => {
+                if (written === this.currentColor()) return;
+                const parsed = parseColor(written);
+                if (!parsed) return;
+                this.applyRgba(parsed);
+                this.suppressedColor = this.currentColor();
+            });
         });
 
         effect(() => {
@@ -395,9 +428,9 @@ export class ColorPickerComponent implements ControlValueAccessor {
         if (!step) return;
         event.preventDefault();
         const nextS = Math.max(0, Math.min(100, this.saturation() + step.dSaturation));
-        const nextV = Math.max(0, Math.min(100, this.value() + step.dValue));
+        const nextV = Math.max(0, Math.min(100, this.hsvValue() + step.dValue));
         this.saturation.set(nextS);
-        this.value.set(nextV);
+        this.hsvValue.set(nextV);
         this.commitHsv();
         this.onTouched();
     }
@@ -423,7 +456,7 @@ export class ColorPickerComponent implements ControlValueAccessor {
         const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
         const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
         this.saturation.set(Math.round(x * 100));
-        this.value.set(Math.round((1 - y) * 100));
+        this.hsvValue.set(Math.round((1 - y) * 100));
         this.commitHsv();
     }
 
@@ -595,7 +628,7 @@ export class ColorPickerComponent implements ControlValueAccessor {
         const hsv = rgbToHsv(rgba);
         if (hsv.s > 0) this.hue.set(hsv.h);
         this.saturation.set(hsv.s);
-        this.value.set(hsv.v);
+        this.hsvValue.set(hsv.v);
         this.alphaValue.set(rgba.a);
     }
 
@@ -615,7 +648,7 @@ export class ColorPickerComponent implements ControlValueAccessor {
     }
 
     private commitHsv(): void {
-        const rgb = hsvToRgb({ h: this.hue(), s: this.saturation(), v: this.value() });
+        const rgb = hsvToRgb({ h: this.hue(), s: this.saturation(), v: this.hsvValue() });
         this.rgba.set({ ...rgb, a: this.alphaValue() });
     }
 

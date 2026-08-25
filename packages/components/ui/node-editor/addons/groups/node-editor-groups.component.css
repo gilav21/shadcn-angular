@@ -1,0 +1,87 @@
+/*
+ * Only rules Tailwind utilities cannot express live here; everything else
+ * stays inline in the template.
+ */
+
+/*
+ * The frame is a backdrop, not a surface.
+ *
+ * It is drawn behind the nodes, but it still covers the plane underneath —
+ * so without this, dragging on empty space inside a group would grab the
+ * group instead of panning the canvas, and a click meant for a node that the
+ * frame overlaps would never reach it. Only the handles opt back in.
+ */
+[data-slot='node-editor-group'] {
+  pointer-events: none;
+  /*
+   * ONE colour drives the whole frame.
+   *
+   * The author sets `colour`, the template puts it on `color`, and border and
+   * fill are mixed from it here at different strengths. Setting the fill
+   * inline instead would paint the frame at full opacity over the wires and
+   * bury them.
+   */
+  border-color: color-mix(in oklab, currentColor 55%, transparent);
+  background-color: color-mix(in oklab, currentColor 8%, transparent);
+}
+
+.group-handle {
+  pointer-events: auto;
+  /* The engine must not read a drag here as a pan or a pinch. */
+  touch-action: none;
+}
+
+[data-slot='node-editor-group-title'] {
+  background-color: color-mix(in oklab, currentColor 14%, transparent);
+  cursor: grab;
+}
+
+[data-slot='node-editor-group-title']:active {
+  cursor: grabbing;
+}
+
+[data-slot='node-editor-group-title']:disabled {
+  cursor: default;
+}
+
+/*
+ * The title READS; the bar behind it decorates.
+ *
+ * Both inherit the group's colour, which is what mixes the bar's tint — but
+ * text in that same colour on a wash of itself is pale green on pale green.
+ * Caught by axe on a coloured group; the default grey one passed, which is
+ * exactly the kind of thing one fixture colour would have hidden.
+ */
+[data-slot='node-editor-group-title'] > span {
+  color: var(--color-foreground);
+}
+
+[data-slot='node-editor-group-title'] > span:last-child {
+  color: var(--color-muted-foreground);
+}
+
+[data-slot='node-editor-group-resize'] {
+  background-color: color-mix(in oklab, currentColor 25%, transparent);
+}
+
+/*
+ * A comment is a surface — it is meant to be read, and on touch that means
+ * being able to scroll it without the canvas stealing the gesture.
+ */
+[data-slot='node-editor-comment'] {
+  pointer-events: auto;
+  border-color: color-mix(in oklab, currentColor 45%, transparent);
+  background-color: color-mix(in oklab, var(--color-card) 92%, currentColor);
+}
+
+/*
+ * The text is set on the child, not on the note.
+ *
+ * The note carries the author's colour inline so the border and fill can be
+ * mixed from it, and an inline style beats a stylesheet — a `color` rule on
+ * the note itself would look like it did something and quietly lose, leaving
+ * the text tinted whatever the note is.
+ */
+[data-slot='node-editor-comment'] p {
+  color: var(--color-card-foreground);
+}

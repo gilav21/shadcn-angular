@@ -1,0 +1,357 @@
+# Data-table contracts
+
+> Wave 1. No prerequisites, but **run before `query-builder-extraction`** — that
+> spec lifts the filter builder out of `data-table`, and both edit the same
+> files. Also unblocks `crud-page`.
+
+---
+
+## 1. Why this exists
+
+`data-table.component.ts` is ~4,000 lines with 100+ inputs, and the
+2026-08-19 audit found that almost every feature people ask for is **already
+built**: server-side mode, row grouping, tree rows, column virtualization,
+keyboard grid navigation, the fill handle, clipboard paste, edit history,
+conditional formatting.
+
+So this is not a feature bundle. It is the opposite: the component can already
+do these things, and what is missing is the **contract** — the exported types,
+the single state token, and the semantics — that let a consumer use them
+without reverse-engineering six inputs.
+
+Verified against the source on 2026-08-24, on top of the audit:
+
+| Claim | Verified |
+|---|---|
+| `aria-rowindex` / `aria-colindex` / `aria-rowcount` / `aria-colcount` | **0 occurrences** across `table/` and `data-table/` |
+| Roles — *correcting the audit* | Better than "absent". `ui-table` is div-based and already binds `role="table" \| "treegrid"`; header/body/footer are `rowgroup`, rows are `row`, and `ui-table-head` defaults to `columnheader`. The audit's grep looked for literal attributes and missed the bindings — as did mine, twice. |
+| The real role gaps | `'grid'` is not an option in `ui-table`'s union, so an interactive grid declares itself a static `table`; and `ui-table-cell` hard-codes `role="cell"`, which is invalid inside a `grid`/`treegrid` |
+| `getViewState` / `applyViewState` | absent; only `getColumnState` / `applyColumnState` |
+| `editType` | `'text' \| 'number' \| 'select' \| 'checkbox'` — no `'date'` |
+| Server-side mechanism | present (`localSorting`, `localPagination`, `localFiltering`, `total`, `sortChange`, `pageChange`, `filterChange`) |
+
+### 1.1 Scope
+
+1. Publish the server-side contract as exported types plus one worked example.
+2. `getViewState()` / `applyViewState()` — the whole view, not just columns.
+3. `editType: 'date'`, wired to the library's own `date-picker`.
+4. **ARIA grid semantics.**
+
+### 1.2 Out of scope
+
+- `editType: 'autocomplete'` — needs async option loading, a debounce policy and
+  a value/display split. That is its own task, not a rider on this one.
+- Any change to how server-side mode *works*. The mechanism is not broken; only
+  its contract is unpublished. Nothing here alters existing behaviour.
+- Lifting the filter builder out (`query-builder-extraction`), which is the
+  spec that must come after this one.
+
+---
+
+## 2. Use cases
+
+- **UC-1** A screen-reader user on a virtualized 50,000-row table hears which
+  row and column they are on, and how many there are in total — not just what
+  is currently in the DOM.
+- **UC-2** A consumer writes **one** typed function,
+  `(query: DataTableQuery) => DataTableResult<T>`, and wires server-side mode
+  with it, instead of deriving the request from six separate inputs.
+- **UC-3** A user arranges a table — sorts by two columns, filters three,
+  hides one, goes to page 4 — saves it as "My open invoices", and gets exactly
+  that back tomorrow.
+- **UC-4** A date column is edited with the library's `date-picker` rather than
+  a raw text box that accepts `31/02/2026`.
+- **UC-5** A saved view survives a JSON round trip, and a view saved by an
+  older build is rejected cleanly rather than half-applied.
+- **UC-6** The table passes the project's axe gate with grid semantics on.
+
+---
+
+## 3. Design
+
+### 3.1 The server-side contract
+
+`DataTableExportQuery` already exists and is *almost* the right shape — global
+filter, column filters, primary sort, multi-sort — and deliberately omits
+pagination, because an export returns the whole result set.
+
+The paged query is therefore the same vocabulary plus the page, rather than a
+second unrelated shape:
+
+```ts
+export interface DataTableQuery {
+  readonly globalFilter: string;
+  readonly columnFilters: Record<string, unknown>;
+  readonly sort: SortState;
+  readonly sortStates: readonly SortState[];
+  readonly advancedFilter: FilterGroup | null;
+  readonly page: PaginationState;
+}
+
+export interface DataTableResult<T> {
+  readonly rows: readonly T[];
+  readonly total: number;
+}
+```
+
+**A `query` output, not a new mechanism.** The audit's finding was that the
+mechanism works and the contract is unpublished, so nothing here replaces
+`sortChange` / `pageChange` / `filterChange`. The table gains one additional
+output that emits a complete `DataTableQuery` whenever any part of it changes.
+That is the thing consumers hand-assemble today.
+
+Rejected: an input taking a fetch callback. It would own loading state, error
+state, retry and cancellation — a much larger surface, and a second way to do
+what `[data]` already does.
+
+### 3.2 View state is versioned
+
+A view token is **persisted by the consumer** — localStorage, a user
+preferences row — so it long-outlives the build that wrote it. `getColumnState`
+returns a bare array today and gets away with it; a full view state cannot,
+because a later field addition would silently half-apply.
+
+```ts
+export interface DataTableViewState {
+  readonly version: 1;
+  readonly columns: DataTableColumnState[];
+  readonly sort: SortState;
+  readonly sortStates: SortState[];
+  readonly columnFilters: Record<string, unknown>;
+  readonly advancedFilter: FilterGroup | null;
+  readonly globalFilter: string;
+  readonly pagination: PaginationState;
+}
+```
+
+`applyViewState` **rejects an unknown version** rather than applying what it
+recognises. Half-restoring a saved view is worse than refusing it: the user
+sees a table that is nearly right and cannot tell which parts are stale.
+
+### 3.3 ARIA grid semantics
+
+The real accessibility debt. Keyboard navigation is complete — arrows, Home,
+End, PageUp/Down, Enter/F2, Ctrl+C/V — but nothing tells assistive technology
+that this is a grid or where in it the user is.
+
+- `role="grid"` on the table — a new member of `ui-table`'s role union, chosen
+  over the current `table` because this component ships full keyboard grid
+  navigation, cell selection and in-place editing. `aria-rowcount` and
+  `aria-colcount` carry the **dataset** totals, not the DOM's.
+- `ui-table-cell` becomes `gridcell` when its table is a `grid` or `treegrid`,
+  and stays `cell` in a plain table. `role="cell"` inside a grid is invalid, so
+  today's `treegrid` (sub-rows mode) is already malformed. The cell learns which
+  it is from the table rather than from an input, so no consumer has to know.
+- `aria-rowindex` on every row and `aria-colindex` on every cell, **1-based and
+  absolute**, counting the header row as row 1.
+
+Absolute indices are the entire point under virtualization: the DOM holds ~30
+rows of 50,000, so a screen reader that counts DOM rows announces "row 3 of 30"
+and the user is lost. This is why `aria-rowcount` must be the total and not
+`rows.length`.
+
+**Risk of doing it badly is higher than not doing it.** `role="grid"` imposes a
+required structure — rows inside rowgroups, every child a `gridcell`,
+`columnheader` or `rowheader`. A native `<table>` supplies most of that, but
+any presentational wrapper row breaks it, and axe reports a partially-formed
+grid more loudly than a plain table. Hence T-1 lands with the axe gate green,
+before anything else touches the template.
+
+### 3.4 `editType: 'date'`
+
+The value written back must match what the column already holds, so the editor
+round-trips through the existing `valueSetter` / `valueGetter` rather than
+imposing a `Date`. The library's `date-picker` is the editor; a raw text box is
+what lets `31/02/2026` through.
+
+### 3.5 Risks
+
+| Risk | Mitigation |
+|---|---|
+| **R-1** A partial `role="grid"` fails axe worse than no grid role | T-1 ships only with the axe gate green; grid semantics are added to the whole table at once, not per-feature |
+| **R-2** Virtualized rows make DOM position ≠ data position | `aria-rowindex` is computed from the absolute data index; asserted in a test with a virtualized table, not a 5-row one |
+| **R-3** A persisted view token outlives its shape | `version` field, and `applyViewState` refuses an unknown version instead of half-applying |
+| **R-4** `editType: 'date'` guesses a value type | Round-trips through the column's existing `valueSetter`; the demo covers a string-dated column and a `Date`-dated one |
+| **R-5** Emitting `query` on every keystroke floods a server | The output reports state; it does not fetch. Debouncing is the consumer's, and the worked example shows it |
+| **R-6** This spec and `query-builder-extraction` edit the same files | Ordering is recorded in the backlog index; this one runs first |
+
+---
+
+## 4. Definition of done (per task)
+
+Unit tests that assert the outcome rather than a proxy, a Storybook story, the
+demo page updated, `npm run e2e -- data-table` green, `check:all` clean, and —
+for T-1 — a clean axe pass, which the pre-commit hook enforces anyway.
+
+---
+
+## 5. Tasks — table order is implementation order
+
+| # | Task | Proves | Status | Completed | Score | Retrospective |
+|---|---|---|---|---|---|---|
+| T-1 | ARIA grid semantics | UC-1, UC-6, R-1, R-2 | ✅ | 2026-08-25 | — | The audit's premise was wrong and had to be corrected first. The numbering bug was a layout spacer row, found only because a count came out one too high. |
+| T-2 | `DataTableQuery` / `DataTableResult` + `query` output + worked example | UC-2, R-5 | ✅ | 2026-08-25 | — | The duplicate-emission guard turned out to be the substance, not a nicety: on a server-side table a redundant emit is a redundant fetch. |
+| T-3 | `getViewState()` / `applyViewState()` | UC-3, UC-5, R-3 | ✅ | 2026-08-25 | — | Refusing an unreadable token outright is the whole design; a boolean return lets the consumer drop it rather than fail silently. |
+| T-4 | `editType: 'date'` | UC-4, R-4 | ✅ | 2026-08-25 | — | The editor changes the value, not its type. The near-miss was `toISOString()`, which would have shifted the day for half the planet. |
+| T-5 | Bundle close | coverage, Sonar, docs regen | ✅ | 2026-08-25 | — | Two CLI failures during the gate were CPU contention from the concurrent scan, not regressions — and the way I first tried to prove that was itself invalid. |
+
+T-1 is first because it is the one item the audit called out as real debt
+rather than missing sugar, and because it touches the template that every later
+task also touches.
+
+---
+
+## 6. Completion log
+
+### T-1 ARIA grid semantics — 2026-08-25
+
+**Two commits.** `ui-table` gained a `grid` role and `ui-table-cell` now derives
+`cell` vs `gridcell` from the enclosing table through an injection token — which
+fixed a live bug, since sub-rows mode already asked for `treegrid` while serving
+invalid `cell` children. Then `data-table` declares `grid`, and stamps
+`aria-rowcount` / `aria-colcount` on the grid and `aria-rowindex` /
+`aria-colindex` on rows and cells.
+
+**Stamped after render rather than bound in the template.** The template renders
+rows from six branches — virtual and non-virtual, flat, tree and grouped — plus
+detail rows, full-width rows and group headers that occupy real row positions
+without appearing in any row array. 15 row sites, 21 cell sites and 5 head
+sites, and a per-branch binding would have numbered the branches it knew about
+and silently skipped the rest. Numbering from the DOM is the only thing
+guaranteed to agree with what was actually rendered.
+
+**A layout spacer was being counted as a row.** `aria-rowcount` came out at 7
+for five rows, which is the kind of off-by-one that a test asserting "has an
+aria-rowcount" would have sailed past. The body ends with an empty
+`ui-table-row` that stretches it to fill its container; it is now
+`aria-hidden`, and the stamping skips decorative rows and cells so a filler
+header cell cannot shift the column numbering either.
+
+**Column indices are withheld rather than guessed.** DOM order is the true
+visual order — pinned-left, centre, pinned-right — but it is only *absolute*
+when every column is present. When the middle columns are windowed, the index
+is left off. A missing `aria-colindex` is a gap; a wrong one sends the user to
+the wrong column.
+
+**Verified by removing the fix.** 9 of the 12 new tests fail with the stamping
+disabled. The virtualized case is asserted against 5,000 rows: `aria-rowcount`
+reads 5001 while the DOM holds a few dozen, and the indices are absolute rather
+than restarting at 1 on every scroll — which is the whole reason UC-1 exists.
+
+884 tests across `table` and `data-table`, e2e green, lint, `tsc` and `ngc`
+clean, axe clean via the pre-commit gate.
+
+### T-2 The server-side contract — 2026-08-25
+
+**Built.** `DataTableQuery` and `DataTableResult<T>` exported, a `query` output
+that emits the whole request, and `currentQuery()` — tagged `@publicApi`, so it
+appears in the generated API table — for the first fetch.
+
+**Types, not a mechanism.** Nothing about server-side mode changed;
+`sortChange` / `pageChange` / `filterChange` still work exactly as before. The
+audit's finding was that the mechanism was fine and the *contract* was
+unpublished, so an input taking a fetch callback was rejected: it would have
+owned loading, error, retry and cancellation, and become a second way to do
+what `[data]` already does.
+
+**The guard is the substance.** Several of the six fields are `model()`s
+holding objects, so signal identity alone re-emits when an equal-but-new object
+is written. On a local table that is a wasted tick; on a server-side table it
+is a duplicate round trip. `sameQuery` compares field by field rather than by
+`JSON.stringify`, because `columnFilters` holds arbitrary consumer values that
+may not be serialisable, and this runs on every state change. Verified by
+removing the guard: two tests fail.
+
+**It does not emit on init**, because there is no change to report yet and an
+output that fires during construction beats the consumer to readiness. That is
+what `currentQuery()` is for, and the demo uses exactly that for its first page.
+
+**A test failure that was not a bug.** Setting `pageIndex: 2` on a two-row
+fixture emitted twice — the table clamps an out-of-range page back to 0, which
+is a genuine second state change that the contract correctly reports. The
+fixture grew to 100 rows rather than the guard being loosened.
+
+**The worked example sits next to the thing it replaces.** The existing
+server-side section wires four outputs to four handlers backed by six signals
+kept in sync. The new section does the same job with one handler and two
+signals. Confirmed in a browser: paging emits `{pageIndex: 1}` and the rows
+move to PAY-11; sorting by amount emits the new sort **and** the page reset to
+0 in a single request — which through the granular outputs arrives as two
+callbacks to reconcile by hand.
+
+### T-3 Saved views — 2026-08-25
+
+**Built.** `getViewState()` / `applyViewState()`, plus `DataTableViewState` and
+`DATA_TABLE_VIEW_STATE_VERSION`. Both methods are tagged `@publicApi`, so they
+appear in the generated API table.
+
+`getColumnState` covers width, visibility, pinning and order — the *layout*,
+which is what "reset my columns" needs. A named view is more: someone who saved
+"My open invoices" expects the sort, the filters and the page back too.
+
+**Versioned, and it refuses rather than guesses.** The token is persisted by
+the consumer, so it outlives the build that wrote it by a long way. A bare
+array gets away without a version; a growing object does not. `applyViewState`
+returns `false` for an unknown version and changes **nothing** — half-restoring
+leaves a table that is nearly right with no way for the user to tell which
+parts are stale. The boolean exists so a consumer can discard a token it can no
+longer read instead of failing quietly. Verified by removing the version check:
+two tests fail.
+
+### T-4 `editType: 'date'` — 2026-08-25
+
+**Built.** A `date` branch on the cell editor using the library's own
+`ui-date-picker`, and `asEditableDate` / `toEditedDateValue` /
+`toLocalDateString` as pure, tested helpers.
+
+**The editor changes the value, not its type.** A column holding ISO strings
+keeps holding them; one holding `Date`s keeps `Date`s; an empty cell defaults to
+a `Date`. Imposing a type would hand the consumer's `valueSetter` — and their
+backend — a shape they never agreed to. The shape is read from the value still
+in the editor, which is the cell's original because the picker commits on the
+first change.
+
+**The near-miss was the formatting.** `toISOString().slice(0, 10)` is the
+obvious way to write `YYYY-MM-DD`, and it converts to UTC first — so a date
+picked in the evening anywhere east of Greenwich comes back as the previous
+day, with the cell showing one date and the value holding another. The helper
+formats from the local calendar instead. This is the same class of bug the
+`time-picker` value type exists to avoid, met again from the other direction.
+
+Confirmed in a browser rather than only in tests: double-clicking a due-date
+cell opens the picker inline, choosing the 15th turns `2026-01-01` into
+`2026-01-15`, and the value is still a string.
+
+### T-5 Bundle close — 2026-08-25
+
+| Gate | Result |
+|---|---|
+| Full browser suite | 498 files / **10,257 tests**, 0 failures (up 53 from this spec's work) |
+| CLI suite | 38/38 on `install.spec.ts`, the rest green |
+| `check:all` | eslint + `tsc` + `ngc`, clean |
+| e2e | `data-table` green against a real consumer install |
+| axe | clean on every commit, via the pre-commit gate |
+| Docs | regenerated; `query`, `currentQuery`, `getViewState` and `applyViewState` all appear in the generated API tables |
+| SonarQube | one new issue, fixed; rescanned to confirm |
+
+**One new Sonar issue, and it was mine.** `S6582` on the view-state guard:
+`!state || state.version !== …` is an optional chain spelled the long way.
+Fixed to `state?.version !== …`, which covers null, undefined and a version
+mismatch in one expression.
+
+**Two CLI failures that were not regressions — and a bad diagnosis on the way
+to establishing that.** `install.spec.ts` failed two tests at ~5,007ms, which
+is the 5s timeout rather than an assertion; those tests fetch over the network
+and the Sonar scanner was saturating the box at the time. They pass 38/38 on an
+idle machine.
+
+The first attempt to prove that was worse than useless. The tree was clean, so
+`git stash` saved nothing — and `git stash pop` then restored an **unrelated
+pre-existing stash** from another branch, conflicting on `.gitignore`. The
+"passing" run it produced proved nothing about my changes, because my changes
+had never been stashed. Repaired with `git checkout HEAD -- .gitignore`; all
+three original stash entries are intact.
+
+Two lessons, both already written down elsewhere and both re-learned here:
+never measure timing on a loaded box, and `git stash` is not a no-op guard when
+the tree might already be clean.

@@ -1,0 +1,164 @@
+<div
+  [class]="classes()"
+  data-slot="boxplot"
+  role="group"
+  [attr.aria-label]="ariaLabel()"
+>
+  @if (isEmpty()) {
+    <div
+      data-slot="boxplot-empty"
+      class="flex items-center justify-center rounded-md border border-dashed p-4 text-sm text-muted-foreground sm:p-6"
+      [style.min-height.px]="height()"
+    >
+      No data to display
+    </div>
+  } @else {
+    <svg
+      [attr.viewBox]="viewBox()"
+      width="100%"
+      [attr.height]="height()"
+      class="block w-full overflow-visible"
+    >
+      @if (showGrid()) {
+        @for (tick of valueTicks(); track tick.value) {
+          <line
+            data-slot="grid-line"
+            [attr.x1]="tick.line.x1"
+            [attr.x2]="tick.line.x2"
+            [attr.y1]="tick.line.y1"
+            [attr.y2]="tick.line.y2"
+            class="stroke-border"
+            stroke-width="1"
+            stroke-dasharray="2 3"
+          />
+        }
+      }
+
+      @for (tick of valueTicks(); track tick.value) {
+        <text
+          [attr.x]="tick.labelX"
+          [attr.y]="tick.labelY"
+          [attr.text-anchor]="tick.anchor"
+          class="fill-muted-foreground text-[10px]"
+        >{{ formatValue(tick.value) }}</text>
+      }
+
+      @for (box of boxes(); track box.index) {
+        <text
+          [attr.x]="box.labelX"
+          [attr.y]="box.labelY"
+          [attr.text-anchor]="box.labelAnchor"
+          class="fill-muted-foreground text-[10px]"
+        >{{ box.group.label }}</text>
+      }
+
+      @for (box of boxes(); track box.index) {
+        <g
+          data-slot="boxplot-box"
+          class="cursor-pointer outline-none"
+          [class.opacity-50]="hoveredIndex() !== null && hoveredIndex() !== box.index"
+          tabindex="0"
+          role="button"
+          [attr.aria-label]="getBoxAriaLabel(box)"
+          (mouseenter)="onBoxHover(box)"
+          (touchstart)="onBoxHover(box)"
+          (mouseleave)="onBoxLeave()"
+          (focus)="onBoxHover(box)"
+          (blur)="onBoxLeave()"
+          (click)="onBoxClick($event, box)"
+          (keydown.enter)="onBoxClick($event, box)"
+          (keydown.space)="onBoxClick($event, box)"
+        >
+          <line
+            data-slot="boxplot-whisker"
+            [attr.x1]="box.whiskerLine.x1"
+            [attr.x2]="box.whiskerLine.x2"
+            [attr.y1]="box.whiskerLine.y1"
+            [attr.y2]="box.whiskerLine.y2"
+            [attr.stroke]="box.color"
+            stroke-width="1.5"
+          />
+          <line
+            data-slot="boxplot-whisker-cap"
+            [attr.x1]="box.minCap.x1"
+            [attr.x2]="box.minCap.x2"
+            [attr.y1]="box.minCap.y1"
+            [attr.y2]="box.minCap.y2"
+            [attr.stroke]="box.color"
+            stroke-width="1.5"
+          />
+          <line
+            data-slot="boxplot-whisker-cap"
+            [attr.x1]="box.maxCap.x1"
+            [attr.x2]="box.maxCap.x2"
+            [attr.y1]="box.maxCap.y1"
+            [attr.y2]="box.maxCap.y2"
+            [attr.stroke]="box.color"
+            stroke-width="1.5"
+          />
+
+          <rect
+            [attr.x]="box.x"
+            [attr.y]="box.y"
+            [attr.width]="box.width"
+            [attr.height]="box.height"
+            [attr.rx]="boxRadius()"
+            [attr.fill]="box.color"
+            fill-opacity="0.35"
+            [attr.stroke]="box.color"
+            stroke-width="1.5"
+            class="transition-[filter] duration-200 ease-out"
+            [class.brightness-110]="hoveredIndex() === box.index"
+          />
+
+          <line
+            data-slot="boxplot-median"
+            [attr.x1]="box.medianLine.x1"
+            [attr.x2]="box.medianLine.x2"
+            [attr.y1]="box.medianLine.y1"
+            [attr.y2]="box.medianLine.y2"
+            [attr.stroke]="box.color"
+            stroke-width="2.5"
+          />
+        </g>
+
+        @if (showOutliers()) {
+          @for (point of box.outliers; track point.value) {
+            <circle
+              data-slot="boxplot-outlier"
+              [attr.cx]="point.cx"
+              [attr.cy]="point.cy"
+              r="3"
+              fill="none"
+              [attr.stroke]="box.color"
+              stroke-width="1.5"
+              class="cursor-pointer outline-none"
+              tabindex="0"
+              role="button"
+              [attr.aria-label]="getOutlierAriaLabel(box, point)"
+              (mouseenter)="onBoxHover(box)"
+              (touchstart)="onBoxHover(box)"
+              (mouseleave)="onBoxLeave()"
+              (focus)="onBoxHover(box)"
+              (blur)="onBoxLeave()"
+              (click)="onBoxClick($event, box)"
+              (keydown.enter)="onBoxClick($event, box)"
+              (keydown.space)="onBoxClick($event, box)"
+            />
+          }
+        }
+      }
+    </svg>
+
+    @if (showTooltip()) {
+      <ui-chart-tooltip
+        [visible]="hoveredIndex() !== null"
+        [x]="tooltipPos().x"
+        [y]="tooltipPos().y"
+        [title]="tooltipTitle()"
+        [rows]="tooltipRows()"
+        [flipX]="tooltipPos().x > svgWidth() * 0.7"
+      />
+    }
+  }
+</div>

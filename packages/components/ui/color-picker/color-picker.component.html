@@ -44,7 +44,7 @@
         [attr.aria-valuenow]="saturation()"
         [attr.aria-valuemin]="0"
         [attr.aria-valuemax]="100"
-        [attr.aria-valuetext]="'S ' + saturation() + '%, V ' + value() + '%'"
+        [attr.aria-valuetext]="'S ' + saturation() + '%, V ' + hsvValue() + '%'"
         (mousedown)="onAreaMouseDown($event)"
         (touchstart)="onAreaTouchStart($event)"
         (keydown)="onAreaKeyDown($event)"
@@ -52,7 +52,7 @@
         <div
           class="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm pointer-events-none"
           [style.left.%]="saturation()"
-          [style.top.%]="100 - value()"
+          [style.top.%]="100 - hsvValue()"
           [style.backgroundColor]="currentColor()"
         ></div>
       </div>

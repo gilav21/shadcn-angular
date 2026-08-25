@@ -93,6 +93,15 @@ function realHistoricalBlob(name: string): string | null {
   }
 }
 
+/**
+ * `git log --all` over the whole history, then `git show`, twice.
+ *
+ * Fast on an idle machine (~400ms for the file) and well past the 5s default
+ * when the rest of the suite is competing for the disk — which is a timeout
+ * that reports "the baseline is broken" when the truth is "git was busy".
+ */
+const GIT_HISTORY_TIMEOUT_MS = 30_000;
+
 describe('closed loop against the real generated baseline', () => {
   // The synthetic round-trip can't catch generator<->runtime divergence, a stale
   // dist, or real-blob edge cases (comma selectors, host bindings, multi-tag
@@ -104,7 +113,7 @@ describe('closed loop against the real generated baseline', () => {
     if (raw === null) return; // not a git checkout — skip
     const installed = raw.replaceAll(/(\.\.\/)+lib\//g, '@/components/lib/');
     expect(isPristine(loadBaselines(), 'button', installed, 'ui', '@/components/lib')).toBe(true);
-  });
+  }, GIT_HISTORY_TIMEOUT_MS);
 
   it('recognizes the same real blob under a custom prefix + alias', () => {
     const raw = realHistoricalBlob('button');
@@ -113,5 +122,5 @@ describe('closed loop against the real generated baseline', () => {
       'button.component.ts', raw.replaceAll(/(\.\.\/)+lib\//g, '@/x/lib/'), 'acme',
     );
     expect(isPristine(loadBaselines(), 'button', installed, 'acme', '@/x/lib')).toBe(true);
-  });
+  }, GIT_HISTORY_TIMEOUT_MS);
 });

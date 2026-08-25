@@ -34,6 +34,29 @@ const POLL_INTERVAL_MS = 2000;
 // so a hard-coded IPv4 probe never sees it come up.
 const DEFAULT_URL = 'http://localhost:6006';
 
+/**
+ * How many story files run at once.
+ *
+ * `test-storybook` wraps Jest, whose default is one worker per CPU minus one.
+ * Every worker drives its OWN Chromium against a SINGLE Storybook dev server,
+ * so the default scales the client side of a client/server pair and nothing
+ * else: on a 32-thread machine, 31 browsers queue on one server, the machine
+ * becomes unusable, and `page.goto` starts timing out after 30s. Those show up
+ * as "Test suite failed to run" — which reads like an accessibility failure and
+ * is really just congestion.
+ *
+ * Four is well inside what one dev server serves comfortably. Raise it with
+ * STORYBOOK_MAX_WORKERS if a machine can genuinely take more.
+ */
+const DEFAULT_MAX_WORKERS = 4;
+
+function maxWorkersArg(existing) {
+  if (existing.some((a) => a.startsWith('--maxWorkers'))) return [];
+  const configured = Number.parseInt(process.env.STORYBOOK_MAX_WORKERS ?? '', 10);
+  const workers = Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_MAX_WORKERS;
+  return [`--maxWorkers=${workers}`];
+}
+
 const args = process.argv.slice(2);
 const urlFlag = args.indexOf('--url');
 const url = urlFlag === -1 ? DEFAULT_URL : args[urlFlag + 1];
@@ -105,7 +128,7 @@ function runTestRunner() {
   return new Promise((resolve) => {
     const runner = spawn(
       'npx',
-      ['test-storybook', '--url', url, ...timeoutArgs, ...runnerArgs],
+      ['test-storybook', '--url', url, ...maxWorkersArg(runnerArgs), ...timeoutArgs, ...runnerArgs],
       { stdio: 'inherit', shell: isWindows },
     );
     runner.on('exit', (code) => resolve(code ?? 1));

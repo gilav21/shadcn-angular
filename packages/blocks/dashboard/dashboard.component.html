@@ -1,17 +1,19 @@
 <div [class]="classes()" data-slot="dashboard-block">
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <!--
+      `trendIcon` is off, and that is deliberate: these tiles record whether a
+      change is FAVOURABLE, not which way the number moved. Churn falling by
+      0.4% is good news and is badged primary. With no direction to point at,
+      an arrow would be decoration at best and wrong at worst — and adding one
+      would change how this block renders, which the extraction must not do.
+    -->
     @for (stat of stats; track stat.label) {
-      <ui-card>
-        <ui-card-header>
-          <ui-card-description>{{ stat.label }}</ui-card-description>
-          <ui-card-title>{{ stat.value }}</ui-card-title>
-        </ui-card-header>
-        <ui-card-content>
-          <ui-badge
-            [variant]="stat.positive ? 'default' : 'destructive'"
-            [label]="stat.delta" />
-        </ui-card-content>
-      </ui-card>
+      <ui-stat-card
+        [label]="stat.label"
+        [value]="stat.value"
+        [delta]="stat.delta"
+        [trend]="stat.positive ? 'up' : 'down'"
+        [trendIcon]="false" />
     }
   </div>
 

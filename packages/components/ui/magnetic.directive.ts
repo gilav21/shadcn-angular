@@ -20,8 +20,11 @@ export class UiMagneticDirective implements OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly ngZone = inject(NgZone);
 
+    /** How far the host moves toward the pointer, as a fraction of the distance between them. */
     uiMagneticStrength = input(0.3);
+    /** Pointer distance in pixels within which the host starts being pulled. */
     uiMagneticRadius = input(200);
+    /** Easing duration in milliseconds applied to the movement. */
     uiMagneticSmoothing = input(150);
 
     transform = signal('translate(0px, 0px)');

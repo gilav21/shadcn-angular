@@ -10,6 +10,8 @@ export interface Payment {
   email: string;
   clientName?: string;
   role?: string;
+  /** ISO `YYYY-MM-DD`. Optional, so existing fixtures stay valid. */
+  dueDate?: string;
 }
 
 export interface OrgNode {

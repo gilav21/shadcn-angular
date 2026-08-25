@@ -370,6 +370,12 @@
   <div class="text-sm text-muted-foreground">
     Selected {{ selectionCount() }} rows. Click a cell then press Ctrl+C to copy its value.
   </div>
+
+  <!-- The base component and the export addon are both exercised above, so both
+       are documented here rather than in the shell's header: this page previews
+       more than one registry entry. -->
+  <app-docs-for name="data-table" />
+  <app-docs-for name="data-table/export" />
 </section>
 
 <!-- Resizable Columns Section -->
@@ -505,6 +511,29 @@
       class="text-xs bg-muted px-1 rounded">exportToExcel('file', allData)</code>.
     "Export Current Page" exports only what's loaded (default behavior).
   </div>
+</section>
+
+<section class="space-y-4">
+  <h2 id="data-table-one-query" class="text-2xl font-semibold scroll-m-20">{{ t().sectionOneQuery }}</h2>
+  <p class="text-muted-foreground">{{ t().oneQueryLead }}</p>
+
+  <div class="rounded-md border">
+    <ui-data-table
+      #oneQueryGrid
+      [data]="oneQueryData()"
+      [columns]="paymentColumns()"
+      [total]="oneQueryTotal()"
+      [localSorting]="false"
+      [localPagination]="false"
+      [localFiltering]="false"
+      (query)="onOneQuery($event)"
+    />
+  </div>
+
+  <p class="text-xs text-muted-foreground">{{ t().oneQueryNote }}</p>
+  @if (oneQueryLast(); as last) {
+    <pre class="bg-muted overflow-x-auto rounded p-3 text-xs" data-testid="one-query-last">{{ last | json }}</pre>
+  }
 </section>
 
 <section class="space-y-4">

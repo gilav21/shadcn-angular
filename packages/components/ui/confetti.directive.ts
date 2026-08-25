@@ -92,7 +92,9 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
     private readonly _el = inject(ElementRef);
     private readonly _renderer = inject(Renderer2);
 
+    /** Wait to be fired explicitly rather than bursting as soon as the host appears. */
     public readonly manualTrigger = input<boolean>(false);
+    /** Burst settings — particle count, spread, colours and physics. */
     public readonly options = input<ConfettiOptions>({});
 
     private _canvas: HTMLCanvasElement | null = null;

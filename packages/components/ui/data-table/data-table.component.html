@@ -239,6 +239,12 @@
           [ariaDescribedby]="editErr ? cellEditErrorId : undefined"
           (checkedChange)="onEditValueChange($event); commitEdit()"
         />
+      } @else if (col.editType === "date") {
+        <ui-date-picker
+          class="w-full"
+          [date]="editDateValue()"
+          (dateChange)="onEditDateChange($event)"
+        />
       } @else if (col.editType === "select" && col.editOptions) {
         <select
           data-edit-input
@@ -501,7 +507,7 @@
             </div>
           </div>
         }
-        <ui-table [role]="enableSubRows() ? 'treegrid' : 'table'">
+        <ui-table [role]="enableSubRows() ? 'treegrid' : 'grid'">
           <ui-table-header class="bg-background">
             <ui-table-row>
               @for (col of enhancedColumns(); track col.accessorKey) {
@@ -1398,7 +1404,10 @@
             } @else {
               <ng-container *ngTemplateOutlet="emptyStateTpl"></ng-container>
             }
-            <ui-table-row class="h-full">
+            <!-- A spacer that stretches the body to fill the container. It holds
+                 no data and cannot be reached, so it is hidden from assistive
+                 tech rather than counted as a row of the grid. -->
+            <ui-table-row class="h-full" aria-hidden="true">
               @for (col of enhancedColumns(); track col.accessorKey) {
                 <ui-table-cell
                   [class]="getCellClass(col)"

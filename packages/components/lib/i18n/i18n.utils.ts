@@ -169,3 +169,32 @@ export function formatRelativeTime(
 ): string {
     return new Intl.RelativeTimeFormat(locale, options).format(value, unit);
 }
+
+/**
+ * This locale's glyphs for 0–9, in order.
+ *
+ * A locale's digits are not necessarily ASCII: `ar-EG` writes `١٢٣`, `fa-IR`
+ * writes `۱۲۳`. A field that formats with `Intl` and then parses with a
+ * `[0-9]` class does not merely mishandle foreign input — it rejects the exact
+ * string it just produced.
+ */
+export function localeDigits(locale: string): readonly string[] {
+    const formatter = new Intl.NumberFormat(locale, { useGrouping: false });
+    return Array.from({ length: 10 }, (_, digit) => formatter.format(digit));
+}
+
+/**
+ * Rewrite a locale's digits as ASCII so the result can be parsed as a number.
+ *
+ * Pass the locale's own `digits` when they are already to hand; otherwise this
+ * asks for them. Characters that are not digits are left exactly as they are —
+ * separators and symbols are the caller's problem, not this function's.
+ */
+export function toAsciiDigits(text: string, digits: readonly string[]): string {
+    let result = '';
+    for (const char of text) {
+        const value = digits.indexOf(char);
+        result += value === -1 ? char : String(value);
+    }
+    return result;
+}

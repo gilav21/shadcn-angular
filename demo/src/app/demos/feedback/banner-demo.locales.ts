@@ -1,0 +1,138 @@
+import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
+
+export interface BannerDemoLocale extends LocaleMeta {
+  heading: string;
+  description: string;
+  info: string;
+  warning: string;
+  success: string;
+  destructive: string;
+  dismissible: string;
+  trial: string;
+  upgrade: string;
+}
+
+export const BANNER_DEMO_LOCALES: Record<string, BannerDemoLocale> = {
+  en: {
+    code: 'en',
+    heading: 'Banner',
+    description: 'Persistent, page-level announcement bar for system status and account notices.',
+    info: 'A new version of the console is available.',
+    warning: 'Scheduled maintenance at 02:00 UTC.',
+    success: 'Your workspace was migrated successfully.',
+    destructive: 'Billing failed — update your card to avoid interruption.',
+    dismissible: 'You are impersonating another user.',
+    trial: 'Trial ends in 3 days.',
+    upgrade: 'Upgrade',
+  },
+  he: {
+    code: 'he',
+    rtl: true,
+    heading: 'באנר',
+    description: 'סרגל הודעות קבוע ברמת הדף למצב המערכת ולהתראות חשבון.',
+    info: 'גרסה חדשה של המסוף זמינה.',
+    warning: 'תחזוקה מתוכננת בשעה 02:00 UTC.',
+    success: 'סביבת העבודה שלך הועברה בהצלחה.',
+    destructive: 'החיוב נכשל — עדכן את הכרטיס כדי למנוע הפסקה.',
+    dismissible: 'אתה מתחזה למשתמש אחר.',
+    trial: 'תקופת הניסיון מסתיימת בעוד 3 ימים.',
+    upgrade: 'שדרג',
+  },
+  ar: {
+    code: 'ar',
+    rtl: true,
+    heading: 'شريط إعلان',
+    description: 'شريط إعلان دائم على مستوى الصفحة لحالة النظام وإشعارات الحساب.',
+    info: 'يتوفر إصدار جديد من وحدة التحكم.',
+    warning: 'صيانة مجدولة في الساعة 02:00 UTC.',
+    success: 'تم ترحيل مساحة العمل الخاصة بك بنجاح.',
+    destructive: 'فشل الدفع — حدّث بطاقتك لتجنب الانقطاع.',
+    dismissible: 'أنت تنتحل شخصية مستخدم آخر.',
+    trial: 'تنتهي الفترة التجريبية خلال 3 أيام.',
+    upgrade: 'ترقية',
+  },
+  de: {
+    code: 'de',
+    heading: 'Banner',
+    description: 'Dauerhafte Ankündigungsleiste auf Seitenebene für Systemstatus und Kontohinweise.',
+    info: 'Eine neue Version der Konsole ist verfügbar.',
+    warning: 'Geplante Wartung um 02:00 UTC.',
+    success: 'Ihr Arbeitsbereich wurde erfolgreich migriert.',
+    destructive: 'Zahlung fehlgeschlagen — aktualisieren Sie Ihre Karte.',
+    dismissible: 'Sie geben sich als anderer Benutzer aus.',
+    trial: 'Testphase endet in 3 Tagen.',
+    upgrade: 'Upgraden',
+  },
+  fr: {
+    code: 'fr',
+    heading: 'Bannière',
+    description: "Barre d'annonce persistante au niveau de la page pour l'état du système et les avis de compte.",
+    info: 'Une nouvelle version de la console est disponible.',
+    warning: 'Maintenance planifiée à 02:00 UTC.',
+    success: 'Votre espace de travail a été migré avec succès.',
+    destructive: 'Échec de facturation — mettez à jour votre carte.',
+    dismissible: "Vous usurpez l'identité d'un autre utilisateur.",
+    trial: "L'essai se termine dans 3 jours.",
+    upgrade: 'Mettre à niveau',
+  },
+  es: {
+    code: 'es',
+    heading: 'Banner',
+    description: 'Barra de anuncios persistente a nivel de página para el estado del sistema y avisos de cuenta.',
+    info: 'Hay una nueva versión de la consola disponible.',
+    warning: 'Mantenimiento programado a las 02:00 UTC.',
+    success: 'Tu espacio de trabajo se migró correctamente.',
+    destructive: 'Error de facturación — actualiza tu tarjeta.',
+    dismissible: 'Estás suplantando a otro usuario.',
+    trial: 'La prueba termina en 3 días.',
+    upgrade: 'Mejorar',
+  },
+  ja: {
+    code: 'ja',
+    heading: 'バナー',
+    description: 'システム状態やアカウント通知を伝える、ページ全体の常設お知らせバー。',
+    info: 'コンソールの新しいバージョンが利用可能です。',
+    warning: '02:00 UTC にメンテナンスを予定しています。',
+    success: 'ワークスペースの移行が完了しました。',
+    destructive: '請求に失敗しました — カード情報を更新してください。',
+    dismissible: '別のユーザーとして操作しています。',
+    trial: '試用期間はあと 3 日です。',
+    upgrade: 'アップグレード',
+  },
+  zh: {
+    code: 'zh',
+    heading: '横幅',
+    description: '用于系统状态和账户通知的页面级常驻公告栏。',
+    info: '控制台有新版本可用。',
+    warning: '计划维护时间为 02:00 UTC。',
+    success: '您的工作区已成功迁移。',
+    destructive: '计费失败 — 请更新您的银行卡。',
+    dismissible: '您正在模拟其他用户。',
+    trial: '试用将在 3 天后结束。',
+    upgrade: '升级',
+  },
+  ru: {
+    code: 'ru',
+    heading: 'Баннер',
+    description: 'Постоянная полоса объявлений на уровне страницы для статуса системы и уведомлений аккаунта.',
+    info: 'Доступна новая версия консоли.',
+    warning: 'Плановое обслуживание в 02:00 UTC.',
+    success: 'Ваше рабочее пространство успешно перенесено.',
+    destructive: 'Ошибка оплаты — обновите карту.',
+    dismissible: 'Вы работаете от имени другого пользователя.',
+    trial: 'Пробный период закончится через 3 дня.',
+    upgrade: 'Улучшить',
+  },
+  pt: {
+    code: 'pt',
+    heading: 'Banner',
+    description: 'Barra de aviso persistente no nível da página para status do sistema e avisos de conta.',
+    info: 'Uma nova versão do console está disponível.',
+    warning: 'Manutenção programada às 02:00 UTC.',
+    success: 'Seu espaço de trabalho foi migrado com sucesso.',
+    destructive: 'Falha na cobrança — atualize seu cartão.',
+    dismissible: 'Você está personificando outro usuário.',
+    trial: 'O teste termina em 3 dias.',
+    upgrade: 'Atualizar plano',
+  },
+};

@@ -715,3 +715,46 @@ export function evaluateAdvancedFilter(
     const results = group.rules.map((rule) => evaluateRule(rule, getValue));
     return group.combinator === 'and' ? results.every(Boolean) : results.some(Boolean);
 }
+
+/**
+ * Read a cell value as a date, whatever shape the column keeps it in.
+ *
+ * Columns hold dates as `Date`, as an ISO string, or as an epoch number, and
+ * an editor that insisted on one of those would be unusable on the other two.
+ * Anything that is not a real date reads as `null` rather than as
+ * `Invalid Date`, which renders as the string "Invalid Date" if it escapes.
+ */
+export function asEditableDate(value: unknown): Date | null {
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    if (typeof value === 'string' || typeof value === 'number') {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+}
+
+/**
+ * A date as `YYYY-MM-DD`, in the **local** calendar.
+ *
+ * Deliberately not `toISOString().slice(0, 10)`: that converts to UTC first, so
+ * a date picked in the evening anywhere east of Greenwich comes back as the
+ * previous day. The cell shows one date and the value holds another, and the
+ * bug is invisible until someone in the wrong timezone looks.
+ */
+export function toLocalDateString(date: Date): string {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
+}
+
+/**
+ * Write a picked date back in the shape the cell already held.
+ *
+ * A column storing ISO strings must keep storing ISO strings — the editor's
+ * job is to change the value, not its type. With nothing to go on (the cell was
+ * empty), a `Date` is returned, which is what `date` columns usually hold.
+ */
+export function toEditedDateValue(picked: Date | null, previous: unknown): unknown {
+    if (picked === null) return null;
+    return typeof previous === 'string' ? toLocalDateString(picked) : picked;
+}

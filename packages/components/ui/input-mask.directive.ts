@@ -16,8 +16,11 @@ import { InputComponent } from './input';
     standalone: true
 })
 export class InputMaskDirective implements AfterViewInit, OnDestroy {
+    /** The mask pattern, where `9` accepts a digit, `a` a letter and `*` either — for example `(999) 999-9999`. */
     @Input('uiInputMask') mask: string = '';
+    /** Placeholder character shown for a slot that has not been filled yet. */
     @Input() slotChar: string = '_';
+    /** Keep the whole mask visible while typing, rather than revealing it as it fills. */
     @Input() showMaskTyped: boolean = false;
 
     private readonly el = inject(ElementRef);

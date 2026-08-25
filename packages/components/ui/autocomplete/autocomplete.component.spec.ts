@@ -3,11 +3,15 @@ import { Component, signal } from '@angular/core';
 import { AutocompleteComponent } from './autocomplete.component';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 
 interface Fruit {
     name: string;
     value: string;
 }
+
+/** Everything the autocomplete's `value` can hold across single and multiple mode. */
+type FruitValue = Fruit | Fruit[] | null | undefined;
 
 const fruits: Fruit[] = [
     { name: 'Apple', value: 'apple' },
@@ -636,7 +640,7 @@ describe('AutocompleteComponent', () => {
     describe('valueChange output', () => {
         it('should emit the selected value in single mode', () => {
             const spy = vi.fn();
-            autocomplete.valueChange.subscribe(spy);
+            autocomplete.value.subscribe(spy);
 
             autocomplete.onSelect(fruits[0]);
 
@@ -645,7 +649,7 @@ describe('AutocompleteComponent', () => {
 
         it('should emit null when value is cleared in single mode', () => {
             const spy = vi.fn();
-            autocomplete.valueChange.subscribe(spy);
+            autocomplete.value.subscribe(spy);
 
             autocomplete.updateValue([]);
 
@@ -658,7 +662,7 @@ describe('AutocompleteComponent', () => {
             await fixture.whenStable();
 
             const spy = vi.fn();
-            autocomplete.valueChange.subscribe(spy);
+            autocomplete.value.subscribe(spy);
 
             autocomplete.onSelect(fruits[0]);
             expect(spy).toHaveBeenCalledWith([fruits[0]]);
@@ -852,5 +856,139 @@ describe('AutocompleteComponent — top layer', () => {
         expect(active).toBeTruthy();
         expect(active?.getAttribute('data-slot')).toBe('command-item');
         expect(active?.classList.contains('bg-accent')).toBe(true);
+    });
+});
+
+@Component({
+    template: `
+        <ui-autocomplete
+            [options]="options"
+            [displayWith]="displayWith"
+            [(value)]="picked"
+            (valueChange)="emissions.push($event)"
+        />
+    `,
+    imports: [AutocompleteComponent],
+})
+class TwoWayAutocompleteHost {
+    readonly options: Fruit[] = fruits;
+    readonly displayWith = (opt: Fruit): string => opt?.name ?? '';
+    readonly picked = signal<FruitValue>(undefined);
+    readonly emissions: FruitValue[] = [];
+}
+
+@Component({
+    template: `
+        <form [formGroup]="form">
+            <ui-autocomplete
+                formControlName="fruit"
+                [options]="options"
+                [displayWith]="displayWith"
+                (valueChange)="emissions.push($event)"
+            />
+        </form>
+    `,
+    imports: [AutocompleteComponent, ReactiveFormsModule],
+})
+class FormGroupAutocompleteHost {
+    readonly options: Fruit[] = fruits;
+    readonly displayWith = (opt: Fruit): string => opt?.name ?? '';
+    readonly form = new FormGroup({ fruit: new FormControl<Fruit | null>(null) });
+    readonly emissions: FruitValue[] = [];
+}
+
+/** The reference harness from the signal-forms readiness spec, applied to `autocomplete`. */
+describe('AutocompleteComponent — signal-forms readiness', () => {
+    const componentOf = (fixture: ComponentFixture<unknown>): AutocompleteComponent<Fruit> =>
+        fixture.debugElement.query(By.directive(AutocompleteComponent)).componentInstance;
+
+    const inputEl = (fixture: ComponentFixture<unknown>): HTMLInputElement =>
+        fixture.debugElement.query(By.css('input[role="combobox"]')).nativeElement;
+
+    it('T-1: two-way [(value)] updates the model on user selection', () => {
+        const fixture = TestBed.createComponent(TwoWayAutocompleteHost);
+        fixture.detectChanges();
+
+        componentOf(fixture).onSelect(fruits[0]);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.picked()).toBe(fruits[0]);
+    });
+
+    it('T-2: two-way [(value)] updates the view when the model changes', () => {
+        const fixture = TestBed.createComponent(TwoWayAutocompleteHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.picked.set(fruits[1]);
+        fixture.detectChanges();
+
+        expect(inputEl(fixture).value).toBe('Banana');
+    });
+
+    it('T-3: works with formControlName and reports value to the form group', () => {
+        const fixture = TestBed.createComponent(FormGroupAutocompleteHost);
+        fixture.detectChanges();
+
+        componentOf(fixture).onSelect(fruits[0]);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.form.value.fruit).toBe(fruits[0]);
+    });
+
+    it('T-4: writeValue from the form updates the rendered value', () => {
+        const fixture = TestBed.createComponent(FormGroupAutocompleteHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.form.setValue({ fruit: fruits[1] });
+        fixture.detectChanges();
+
+        expect(inputEl(fixture).value).toBe('Banana');
+    });
+
+    it('T-9: emits valueChange exactly once per user selection', () => {
+        const fixture = TestBed.createComponent(TwoWayAutocompleteHost);
+        fixture.detectChanges();
+
+        componentOf(fixture).onSelect(fruits[0]);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.emissions).toEqual([fruits[0]]);
+    });
+
+    it('T-10: does not re-emit when writeValue is called with the current value', () => {
+        const fixture = TestBed.createComponent(TwoWayAutocompleteHost);
+        fixture.detectChanges();
+        const autocompleteComponent = componentOf(fixture);
+        autocompleteComponent.onSelect(fruits[0]);
+        fixture.detectChanges();
+        fixture.componentInstance.emissions.length = 0;
+
+        autocompleteComponent.writeValue(fruits[0]);
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.emissions).toEqual([]);
+    });
+
+    it('stays silent when the form writes a value the user did not pick', () => {
+        const fixture = TestBed.createComponent(FormGroupAutocompleteHost);
+        fixture.detectChanges();
+
+        fixture.componentInstance.form.setValue({ fruit: fruits[2] });
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.emissions).toEqual([]);
+    });
+
+    it('clears the selection when null is written through the value model', () => {
+        const fixture = TestBed.createComponent(TwoWayAutocompleteHost);
+        fixture.detectChanges();
+        componentOf(fixture).onSelect(fruits[0]);
+        fixture.detectChanges();
+
+        fixture.componentInstance.picked.set(null);
+        fixture.detectChanges();
+
+        expect(componentOf(fixture).selectedItems()).toEqual([]);
+        expect(inputEl(fixture).value).toBe('');
     });
 });

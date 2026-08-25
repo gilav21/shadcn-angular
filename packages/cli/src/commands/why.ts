@@ -8,6 +8,13 @@ import {
 } from '../registry/index.js';
 import { parseAttachSymbol } from '../core/apply-wire.js';
 import { buildComponentRecord } from '../core/why-core.js';
+import {
+    formatBytes,
+    loadFileSizes,
+    summarizeInstallSize,
+    type FileSizes,
+    type SizeSourceOptions,
+} from '../core/sizes.js';
 
 /**
  * `why <component> [<component> …]` — registry introspection.
@@ -18,14 +25,22 @@ import { buildComponentRecord } from '../core/why-core.js';
  * a particular companion in, or for sizing the blast radius of
  * renaming/removing a primitive.
  *
+ * Also prints what `add`ing it would actually write — bytes, lines and file
+ * count across the resolved closure — because "what does this cost me" is the
+ * question a developer is really asking when they run `why` before installing.
+ *
  * Unknown names suggest the nearest registry key via Levenshtein and
  * exit non-zero so the command is scriptable.
  */
-export function why(names: string[]): void {
+export async function why(names: string[], options: SizeSourceOptions = {}): Promise<void> {
     if (names.length === 0) {
         console.log(chalk.red('Usage: shadcn-angular why <component> [<component> …]'));
         process.exit(2);
     }
+
+    // One fetch for the whole invocation, and a null result simply drops the
+    // size lines — an introspection command must still work offline.
+    const sizes = await loadFileSizes(options);
 
     let failed = false;
     for (const name of names) {
@@ -36,7 +51,7 @@ export function why(names: string[]): void {
                 (suggestion ? chalk.dim(`  — did you mean `) + chalk.cyan(suggestion) + chalk.dim('?') : ''));
             continue;
         }
-        printComponent(name);
+        printComponent(name, sizes);
     }
 
     if (failed) process.exit(1);
@@ -68,7 +83,25 @@ export function formatAddonMeta(def: ComponentDefinition): AddonMetaLine[] {
     return lines;
 }
 
-function printComponent(name: ComponentName): void {
+/**
+ * One labelled line describing an install's footprint, or null when no size
+ * manifest was available. Returned uncolored so it is unit-testable independent
+ * of the terminal styling.
+ */
+export function formatInstallSize(
+    name: ComponentName, sizes: FileSizes | null,
+): string | null {
+    const size = summarizeInstallSize([name], sizes);
+    if (size.files === 0 || (size.bytes === 0 && size.unmeasured === size.files)) return null;
+    const measured = size.files - size.unmeasured;
+    const suffix = size.unmeasured > 0
+        ? ` (${size.unmeasured} of ${size.files} files unmeasured — this is a floor)`
+        : '';
+    return `${formatBytes(size.bytes)} · ${size.lines.toLocaleString('en-US')} lines · ` +
+        `${measured} files, including dependencies${suffix}`;
+}
+
+function printComponent(name: ComponentName, sizes: FileSizes | null): void {
     const def = registry[name];
     // Same record the MCP `why` / `get_component` tools return — one source of
     // truth for the reverse-dependent traversal and the file/dep listings.
@@ -79,6 +112,11 @@ function printComponent(name: ComponentName): void {
     console.log('\n  ' + chalk.bold(`Files (${record.files.length}):`));
     for (const f of record.files) {
         console.log('    ' + chalk.dim(f));
+    }
+
+    const installSize = formatInstallSize(name, sizes);
+    if (installSize) {
+        console.log('\n  ' + chalk.bold('Install size:') + ' ' + chalk.yellow(installSize));
     }
 
     const direct = record.directDependencies;

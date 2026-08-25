@@ -1,5 +1,5 @@
 import { ApplicationConfig, InjectionToken, WritableSignal, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection, signal } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideUiLocale } from '../../../packages/components/lib/i18n';
 import { DEMO_ROUTES } from './demo.routes';
 
@@ -17,7 +17,10 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
-    provideRouter(DEMO_ROUTES),
+    // `withComponentInputBinding()` lets `/docs/:name` bind the route parameter
+    // straight into `DocsPageComponent`'s `name` input, with no ActivatedRoute
+    // plumbing in the component.
+    provideRouter(DEMO_ROUTES, withComponentInputBinding()),
     { provide: APP_LOCALE, useValue: appLocale },
     provideUiLocale(appLocale),
   ],

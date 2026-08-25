@@ -9,6 +9,7 @@ import { UI_LOCALE_ID } from '../../../packages/components/lib/i18n';
 import { CALENDAR_LOCALES } from '../../../packages/components/lib/i18n/calendar.locales';
 import { APP_LOCALES } from './app.locales';
 import { CssSettingsComponent } from './css-settings.component';
+import { DocsHeaderComponent } from './docs/docs-header.component';
 import {
   ButtonComponent,
   SeparatorComponent,
@@ -103,6 +104,7 @@ export interface ComponentNavItem {
     DropdownMenuLabelComponent,
     DropdownMenuSeparatorComponent,
     CssSettingsComponent,
+    DocsHeaderComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
@@ -166,6 +168,8 @@ export class AppComponent {
   );
 
   readonly componentLinks: readonly ComponentNavItem[] = [
+    { id: 'recipes', name: 'Recipes', category: 'Patterns', icon: '📋' },
+    { id: 'theme-playground', name: 'Theme Playground', category: 'Patterns', icon: '🎨' },
     // Inputs
     { id: 'autocomplete', name: 'Autocomplete', category: 'Inputs', icon: '🔍' },
     { id: 'buttons', name: 'Buttons', category: 'Inputs', icon: '🔘' },
@@ -187,6 +191,10 @@ export class AppComponent {
     { id: 'input-otp', name: 'Input OTP', category: 'Inputs', icon: '🔐' },
     { id: 'label', name: 'Label', category: 'Inputs', icon: '🏷️' },
     { id: 'native-select', name: 'Native Select', category: 'Inputs', icon: '📋' },
+    { id: 'currency-input', name: 'Currency Input', category: 'Inputs', icon: '💱' },
+    { id: 'duration-input', name: 'Duration Input', category: 'Inputs', icon: '⏱️' },
+    { id: 'time-picker', name: 'Time Picker', category: 'Inputs', icon: '🕘' },
+    { id: 'signature-pad', name: 'Signature Pad', category: 'Inputs', icon: '✍️' },
     { id: 'number-input', name: 'Number Input', category: 'Inputs', icon: '🔢' },
     { id: 'phone-input', name: 'Phone Input', category: 'Inputs', icon: '📞' },
     { id: 'radio-group', name: 'Radio Group', category: 'Inputs', icon: '🔘' },
@@ -206,12 +214,16 @@ export class AppComponent {
 
     // Layout
     { id: 'aspect-ratio', name: 'Aspect Ratio', category: 'Layout', icon: '📐' },
+    { id: 'page-header', name: 'Page Header', category: 'Layout', icon: '🏷️' },
+    { id: 'masonry', name: 'Masonry', category: 'Layout', icon: '🧱' },
     { id: 'bento-grid', name: 'Bento Grid', category: 'Layout', icon: '🍱' },
     { id: 'collapsible', name: 'Collapsible', category: 'Layout', icon: '📂' },
     { id: 'comparison-slider', name: 'Comparison Slider', category: 'Layout', icon: '↔️' },
     { id: 'resizable', name: 'Resizable', category: 'Layout', icon: '↔️' },
     { id: 'scroll-area', name: 'Scroll Area', category: 'Layout', icon: '📜' },
     { id: 'sidebar', name: 'Sidebar', category: 'Layout', icon: '📎' },
+    { id: 'infinite-canvas', name: 'Infinite Canvas', category: 'Layout', icon: '🗺️' },
+    { id: 'node-editor', name: 'Node Editor', category: 'Layout', icon: '🕸️' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
 
     // Navigation
@@ -253,6 +265,8 @@ export class AppComponent {
     { id: 'number-ticker', name: 'Number Ticker', category: 'Data Display', icon: '🔢' },
     { id: 'separator', name: 'Separator', category: 'Data Display', icon: '➖' },
     { id: 'table', name: 'Table', category: 'Data Display', icon: '📊' },
+    { id: 'stat-card', name: 'Stat Card', category: 'Data Display', icon: '📈' },
+    { id: 'data-list', name: 'Data List', category: 'Data Display', icon: '📋' },
     { id: 'timeline', name: 'Timeline', category: 'Data Display', icon: '📅' },
     { id: 'tree-view', name: 'Tree View', category: 'Data Display', icon: '🌳' },
     { id: 'component-outlet', name: 'Component Outlet', category: 'Data Display', icon: '🧩' },
@@ -264,6 +278,9 @@ export class AppComponent {
 
     // Feedback
     { id: 'alert', name: 'Alert', category: 'Feedback', icon: '⚠️' },
+    { id: 'banner', name: 'Banner', category: 'Feedback', icon: '📣' },
+    { id: 'error-page', name: 'Error Page', category: 'Feedback', icon: '🚧' },
+    { id: 'result', name: 'Result', category: 'Feedback', icon: '🏁' },
     { id: 'progress', name: 'Progress', category: 'Feedback', icon: '📈' },
     { id: 'skeleton', name: 'Skeleton', category: 'Feedback', icon: '💀' },
     { id: 'spinner', name: 'Spinner', category: 'Feedback', icon: '🔄' },

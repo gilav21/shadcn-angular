@@ -27,6 +27,13 @@ export default tseslint.config(
       'coverage*/**',
       '.storybook/**',
       'e2e/fixture-app/**',
+      // The parallel e2e runner clones that same fixture per worker into
+      // `e2e/.workers/w<N>/fixture-app/`, which `.gitignore` already covers
+      // (`e2e/.workers/`). Listing only `e2e/fixture-app/**` above matched the
+      // sequential layout alone, so a `npm run e2e` followed by `npm run lint`
+      // failed with ~57 parserOptions.project errors in vendored component
+      // copies that are not source — the same lesson as `coverage*/**` above.
+      'e2e/.workers/**',
       // Transient consumer install used by the jest-fixpoint — gitignored
       // vendored copies of components, not source (tsconfig excludes it too).
       'e2e/jest-fixture/src/components/**',
@@ -180,6 +187,9 @@ export default tseslint.config(
       'packages/components/ui/rich-text-editor/addons/file-import/rich-text-file-import-button.component.ts',
       'packages/components/ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
       'demo/src/app/demos/data-display/pdf-readable-compare-demo.component.ts',
+      // Demo-only. Unlike every other entry here this one frames USER input,
+      // and is documented separately in docs/sonarqube-accepted-findings.md.
+      'demo/src/app/demos/layout/node-editor-demo/nodes/browser-node.component.ts',
     ],
     rules: {
       'sonarjs/no-angular-bypass-sanitization': 'off',

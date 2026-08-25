@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   input,
   computed,
+  model,
   signal,
   forwardRef,
   output,
@@ -14,6 +15,9 @@ import { cn, isRtl } from '../../lib/utils';
 import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
 import { RATING_LOCALES, type RatingLocale } from './rating.locales';
 import { isTouchDevice } from '../../lib/touch';
+
+/** Star count used when {@link RatingComponent.max} is left unset. */
+const DEFAULT_MAX_RATING = 5;
 
 @Component({
   selector: 'ui-rating',
@@ -30,7 +34,16 @@ import { isTouchDevice } from '../../lib/touch';
 })
 export class RatingComponent implements ControlValueAccessor {
   /** Number of stars rendered, and the ceiling for the value (`End` sets it). Defaults to 5. */
-  readonly max = input(5);
+  readonly max = input<number | undefined>(DEFAULT_MAX_RATING);
+
+  /**
+   * {@link max} with the default applied — every star-count calculation reads
+   * this, never the raw input. `max` is a name the `FormUiControl` contract
+   * reserves, and the `Field` directive binds it from the field's schema, so a
+   * field with no max rule pushes `undefined` in; unresolved, that would hand
+   * `undefined` to `Array.from({{ length: … }})` and render no stars at all.
+   */
+  readonly resolvedMax = computed(() => this.max() ?? DEFAULT_MAX_RATING);
   /**
    * Smallest step the user can pick: `1` (default) whole stars, or `0.5` half stars.
    * With `0.5` the half is chosen from the pointer's position within the star —
@@ -67,7 +80,7 @@ export class RatingComponent implements ControlValueAccessor {
   starAriaLabel(starValue: number): string {
     return interpolate(this.t().rateAriaLabel ?? 'Rate {n} out of {total}', {
       n: starValue,
-      total: this.max(),
+      total: this.resolvedMax(),
     });
   }
 
@@ -78,7 +91,18 @@ export class RatingComponent implements ControlValueAccessor {
    */
   ratingChange = output<number>();
 
-  value = signal(0);
+  /**
+   * The committed rating, as a two-way `model()`. Written by a user pick, by
+   * {@link writeValue} when a form pushes a value in, and by a `[(value)]`
+   * binding.
+   *
+   * Being a `ModelSignal` is what makes this component a valid Signal Forms
+   * `FormValueControl`. The pre-existing {@link ratingChange} output is
+   * untouched and still fires on user picks only; the `valueChange` output
+   * Angular derives from this model is new, and additionally fires when a form
+   * writes, so a `[(value)]` binding cannot drift from the form.
+   */
+  readonly value = model(0);
   hoverValue = signal<number | null>(null);
   private readonly formDisabled = signal(false);
 
@@ -99,7 +123,7 @@ export class RatingComponent implements ControlValueAccessor {
   displayValue = computed(() => this.hoverValue() ?? this.value());
 
   stars = computed(() => {
-    const count = this.max();
+    const count = this.resolvedMax();
     return Array.from({ length: count }, (_, i) => ({
       index: i,
       value: i + 1,
@@ -276,7 +300,7 @@ export class RatingComponent implements ControlValueAccessor {
       case incrementKey:
       case 'ArrowUp':
         event.preventDefault();
-        newValue = Math.min(this.max(), newValue + step);
+        newValue = Math.min(this.resolvedMax(), newValue + step);
         break;
       case decrementKey:
       case 'ArrowDown':
@@ -289,7 +313,7 @@ export class RatingComponent implements ControlValueAccessor {
         break;
       case 'End':
         event.preventDefault();
-        newValue = this.max();
+        newValue = this.resolvedMax();
         break;
       default:
         return;

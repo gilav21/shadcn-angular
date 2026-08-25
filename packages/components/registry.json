@@ -511,6 +511,8 @@
     ],
     "files": [
       "command/command.component.ts",
+      "command/command.types.ts",
+      "command/command.utils.ts",
       "command/index.ts",
       "command/sub/command-dialog.component.ts",
       "command/sub/command-empty.component.ts",
@@ -526,7 +528,8 @@
       "dialog"
     ],
     "testFiles": [
-      "command/command.component.spec.ts"
+      "command/command.component.spec.ts",
+      "command/command.features.spec.ts"
     ],
     "libFiles": [
       "i18n/common.locales.ts",
@@ -744,6 +747,62 @@
       "text-reveal/text-reveal.component.spec.ts"
     ]
   },
+  "duration-input": {
+    "name": "duration-input",
+    "category": "form",
+    "description": "A length of time edited one unit at a time; the value is seconds.",
+    "tags": [
+      "duration-input",
+      "duration",
+      "time",
+      "segments",
+      "timer"
+    ],
+    "files": [
+      "duration-input/duration-input.component.css",
+      "duration-input/duration-input.component.html",
+      "duration-input/duration-input.component.ts",
+      "duration-input/duration-input.format.ts",
+      "duration-input/index.ts"
+    ],
+    "testFiles": [
+      "duration-input/duration-input.component.spec.ts",
+      "duration-input/duration-input.format.spec.ts"
+    ]
+  },
+  "currency-input": {
+    "name": "currency-input",
+    "category": "form",
+    "description": "Money input that formats and parses for any locale and currency, including non-ASCII digits.",
+    "tags": [
+      "currency-input",
+      "money",
+      "amount",
+      "price",
+      "intl"
+    ],
+    "files": [
+      "currency-input/currency-input.component.css",
+      "currency-input/currency-input.component.html",
+      "currency-input/currency-input.component.ts",
+      "currency-input/currency-input.format.ts",
+      "currency-input/index.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
+      "input-group.token.ts"
+    ],
+    "dependencies": [
+      "input"
+    ],
+    "testFiles": [
+      "currency-input/currency-input.component.spec.ts",
+      "currency-input/currency-input.format.spec.ts"
+    ]
+  },
   "data-table": {
     "name": "data-table",
     "category": "data-display",
@@ -785,6 +844,7 @@
       "checkbox",
       "command",
       "component-outlet",
+      "date-picker",
       "icon",
       "input",
       "pagination",
@@ -799,7 +859,10 @@
       "data-table/data-table-autofit.spec.ts",
       "data-table/data-table-column-builder.spec.ts",
       "data-table/data-table-fill.spec.ts",
+      "data-table/data-table-grid-semantics.spec.ts",
       "data-table/data-table-paste.spec.ts",
+      "data-table/data-table-query.spec.ts",
+      "data-table/data-table-view-state.spec.ts",
       "data-table/data-table-virtual-scroll.spec.ts",
       "data-table/data-table.component.spec.ts",
       "data-table/data-table.coverage.spec.ts",
@@ -1077,11 +1140,13 @@
     ],
     "files": [
       "virtual-scroll/index.ts",
+      "virtual-scroll/virtual-scroll.axis.ts",
       "virtual-scroll/virtual-scroll.component.css",
       "virtual-scroll/virtual-scroll.component.html",
       "virtual-scroll/virtual-scroll.component.ts"
     ],
     "testFiles": [
+      "virtual-scroll/virtual-scroll.axes.spec.ts",
       "virtual-scroll/virtual-scroll.component.spec.ts",
       "virtual-scroll/virtual-scroll.runway.spec.ts"
     ],
@@ -1100,6 +1165,33 @@
         "note": "The `items` input is now generic over `T extends object`; any object row type binds unchanged. An `id: string | number` is optional and used for stable tracking when present.",
         "codemod": "none"
       }
+    ]
+  },
+  "infinite-canvas": {
+    "name": "infinite-canvas",
+    "category": "layout",
+    "description": "Infinite pannable, zoomable plane that renders only the items in view.",
+    "tags": [
+      "infinite-canvas",
+      "canvas",
+      "pan",
+      "zoom",
+      "virtualization",
+      "diagram"
+    ],
+    "files": [
+      "infinite-canvas/index.ts",
+      "infinite-canvas/infinite-canvas-item.directive.ts",
+      "infinite-canvas/infinite-canvas.component.css",
+      "infinite-canvas/infinite-canvas.component.html",
+      "infinite-canvas/infinite-canvas.component.ts",
+      "infinite-canvas/infinite-canvas.edge-renderer.ts",
+      "infinite-canvas/infinite-canvas.item-layer.ts",
+      "infinite-canvas/infinite-canvas.item-pool.ts",
+      "infinite-canvas/infinite-canvas.pointer.ts",
+      "infinite-canvas/infinite-canvas.spatial-hash.ts",
+      "infinite-canvas/infinite-canvas.transform.ts",
+      "infinite-canvas/infinite-canvas.types.ts"
     ]
   },
   "input-mask": {
@@ -1278,13 +1370,16 @@
       "file-upload/file-upload.component.html",
       "file-upload/file-upload.component.ts",
       "file-upload/file-upload.locales.ts",
+      "file-upload/file-upload.types.ts",
+      "file-upload/file-upload.utils.ts",
       "file-upload/index.ts"
     ],
     "libFiles": [
       "i18n/i18n.token.ts",
       "i18n/i18n.types.ts",
       "i18n/i18n.utils.ts",
-      "i18n/index.ts"
+      "i18n/index.ts",
+      "touch.ts"
     ],
     "dependencies": [
       "button",
@@ -1292,7 +1387,8 @@
     ],
     "testFiles": [
       "file-upload/file-upload.component.spec.ts",
-      "file-upload/file-upload.dom.spec.ts"
+      "file-upload/file-upload.dom.spec.ts",
+      "file-upload/file-upload.features.spec.ts"
     ]
   },
   "file-viewer": {
@@ -2087,7 +2183,8 @@
     ],
     "testFiles": [
       "stepper/stepper.component.spec.ts",
-      "stepper/stepper.coverage.spec.ts"
+      "stepper/stepper.coverage.spec.ts",
+      "stepper/stepper.guard.spec.ts"
     ]
   },
   "switch": {
@@ -2253,7 +2350,8 @@
       "i18n/index.ts"
     ],
     "testFiles": [
-      "toast/toast.component.spec.ts"
+      "toast/toast.component.spec.ts",
+      "toast/toast.features.spec.ts"
     ]
   },
   "toggle": {
@@ -3331,7 +3429,8 @@
       "textarea"
     ],
     "testFiles": [
-      "kanban/kanban.component.spec.ts"
+      "kanban/kanban.component.spec.ts",
+      "kanban/kanban.swimlanes.spec.ts"
     ]
   },
   "shortcut-bindings-dialog": {
@@ -3383,7 +3482,8 @@
     "files": [
       "tour/index.ts",
       "tour/tour.component.html",
-      "tour/tour.component.ts"
+      "tour/tour.component.ts",
+      "tour/tour.utils.ts"
     ],
     "libFiles": [
       "i18n/common.locales.ts",
@@ -3396,7 +3496,8 @@
       "button"
     ],
     "testFiles": [
-      "tour/tour.component.spec.ts"
+      "tour/tour.component.spec.ts",
+      "tour/tour.features.spec.ts"
     ]
   },
   "comparison-slider": {
@@ -3463,6 +3564,7 @@
     ],
     "testFiles": [
       "sortable/sortable.component.spec.ts",
+      "sortable/sortable.nested.spec.ts",
       "sortable/sub/sortable-ghost.directive.spec.ts"
     ]
   },
@@ -3618,9 +3720,9 @@
     ],
     "dependencies": [
       "avatar",
-      "badge",
       "bar-chart",
       "card",
+      "stat-card",
       "table"
     ],
     "category": "dashboard",
@@ -4176,6 +4278,118 @@
     ],
     "testFiles": [
       "bullet-chart/bullet-chart.component.spec.ts"
+    ]
+  },
+  "histogram": {
+    "name": "histogram",
+    "category": "charts",
+    "description": "Distribution of a raw numeric sample, auto-binned with the Sturges rule, or with an explicit bin count or bin edges.",
+    "tags": [
+      "histogram",
+      "distribution",
+      "bins",
+      "statistics",
+      "chart"
+    ],
+    "files": [
+      "histogram/histogram.component.html",
+      "histogram/histogram.component.ts",
+      "histogram/histogram.types.ts",
+      "histogram/histogram.utils.ts",
+      "histogram/index.ts"
+    ],
+    "libFiles": [
+      "chart-responsive.ts",
+      "chart-scale.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-tooltip"
+    ]
+  },
+  "boxplot": {
+    "name": "boxplot",
+    "category": "charts",
+    "description": "Quartile summary per group: box, median, 1.5xIQR whiskers and outlier points, from raw values or pre-computed stats.",
+    "tags": [
+      "boxplot",
+      "box-plot",
+      "quartiles",
+      "distribution",
+      "statistics",
+      "chart"
+    ],
+    "files": [
+      "boxplot/boxplot.component.html",
+      "boxplot/boxplot.component.ts",
+      "boxplot/boxplot.types.ts",
+      "boxplot/boxplot.utils.ts",
+      "boxplot/index.ts"
+    ],
+    "libFiles": [
+      "chart-responsive.ts",
+      "chart-scale.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-tooltip"
+    ]
+  },
+  "candlestick": {
+    "name": "candlestick",
+    "category": "charts",
+    "description": "OHLC price chart with bodies and high/low wicks, on an ordinal axis that closes weekend gaps or a continuous time axis.",
+    "tags": [
+      "candlestick",
+      "ohlc",
+      "finance",
+      "stock",
+      "chart"
+    ],
+    "files": [
+      "candlestick/candlestick.component.html",
+      "candlestick/candlestick.component.ts",
+      "candlestick/candlestick.types.ts",
+      "candlestick/candlestick.utils.ts",
+      "candlestick/index.ts"
+    ],
+    "libFiles": [
+      "chart-responsive.ts",
+      "chart-scale.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-tooltip"
+    ]
+  },
+  "treemap": {
+    "name": "treemap",
+    "category": "charts",
+    "description": "Hierarchical part-to-whole as nested area, squarified so rectangles stay near square and labels fit.",
+    "tags": [
+      "treemap",
+      "hierarchy",
+      "part-to-whole",
+      "squarified",
+      "chart"
+    ],
+    "files": [
+      "treemap/index.ts",
+      "treemap/treemap.component.html",
+      "treemap/treemap.component.ts",
+      "treemap/treemap.types.ts",
+      "treemap/treemap.utils.ts"
+    ],
+    "libFiles": [
+      "chart-responsive.ts",
+      "chart.types.ts",
+      "chart.utils.ts"
+    ],
+    "dependencies": [
+      "chart-tooltip"
     ]
   },
   "radar-chart": {
@@ -5032,5 +5246,534 @@
       "import": "RTE_FULL from './ui/rich-text-editor/addons/full'",
       "selector": "uiRteFull"
     }
+  },
+  "banner": {
+    "name": "banner",
+    "category": "feedback",
+    "description": "Persistent page-level announcement bar with severity variants and an optional dismiss control.",
+    "tags": [
+      "banner",
+      "announcement",
+      "notice",
+      "system-status",
+      "dismissible"
+    ],
+    "files": [
+      "banner/banner.component.html",
+      "banner/banner.component.ts",
+      "banner/index.ts"
+    ],
+    "libFiles": [
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "button"
+    ]
+  },
+  "page-header": {
+    "name": "page-header",
+    "category": "layout",
+    "description": "Page title, description, breadcrumb and actions strip that stacks the actions below the title on narrow screens.",
+    "tags": [
+      "page-header",
+      "heading",
+      "title",
+      "breadcrumb",
+      "actions"
+    ],
+    "files": [
+      "page-header/index.ts",
+      "page-header/page-header.component.html",
+      "page-header/page-header.component.ts"
+    ]
+  },
+  "data-list": {
+    "name": "data-list",
+    "category": "data-display",
+    "description": "Label-to-value description list rendered as real dl/dt/dd, with simple array and projected row modes.",
+    "tags": [
+      "data-list",
+      "description-list",
+      "key-value",
+      "details",
+      "dl"
+    ],
+    "files": [
+      "data-list/data-list.component.html",
+      "data-list/data-list.component.ts",
+      "data-list/index.ts",
+      "data-list/sub/data-list-item.component.html",
+      "data-list/sub/data-list-item.component.ts"
+    ]
+  },
+  "stat-card": {
+    "name": "stat-card",
+    "category": "data-display",
+    "description": "KPI tile with label, value, trend-coloured delta badge and a projected chart slot.",
+    "tags": [
+      "stat-card",
+      "kpi",
+      "metric",
+      "dashboard",
+      "sparkline"
+    ],
+    "files": [
+      "stat-card/index.ts",
+      "stat-card/stat-card.component.html",
+      "stat-card/stat-card.component.ts"
+    ],
+    "dependencies": [
+      "badge",
+      "card"
+    ]
+  },
+  "masonry": {
+    "name": "masonry",
+    "category": "layout",
+    "description": "Column-balanced layout for uneven-height items that keeps DOM order equal to visual reading order.",
+    "tags": [
+      "masonry",
+      "columns",
+      "grid",
+      "layout",
+      "pinterest"
+    ],
+    "files": [
+      "masonry/index.ts",
+      "masonry/masonry.component.ts"
+    ]
+  },
+  "result": {
+    "name": "result",
+    "category": "feedback",
+    "description": "Centred outcome panel for after an operation completes, with status icon, actions and a detail slot.",
+    "tags": [
+      "result",
+      "outcome",
+      "success",
+      "error",
+      "status"
+    ],
+    "files": [
+      "result/index.ts",
+      "result/result.component.html",
+      "result/result.component.ts",
+      "result/sub/result-detail.component.html",
+      "result/sub/result-detail.component.ts"
+    ]
+  },
+  "error-page": {
+    "name": "error-page",
+    "category": "feedback",
+    "description": "Full-page 404/403/500 state with localised copy, illustration slot and recovery actions.",
+    "tags": [
+      "error-page",
+      "404",
+      "500",
+      "not-found",
+      "full-page"
+    ],
+    "files": [
+      "error-page/error-page.component.html",
+      "error-page/error-page.component.ts",
+      "error-page/error-page.locales.ts",
+      "error-page/index.ts",
+      "error-page/sub/error-page-actions.component.html",
+      "error-page/sub/error-page-actions.component.ts",
+      "error-page/sub/error-page-illustration.component.html",
+      "error-page/sub/error-page-illustration.component.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "button"
+    ]
+  },
+  "node-editor/subgraph": {
+    "name": "node-editor/subgraph",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.",
+    "tags": [
+      "node-editor",
+      "subgraph",
+      "nested",
+      "graph",
+      "composition"
+    ],
+    "files": [
+      "node-editor/addons/subgraph/index.ts",
+      "node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.html",
+      "node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.ts",
+      "node-editor/addons/subgraph/node-editor-subgraph.locales.ts",
+      "node-editor/addons/subgraph/node-editor-subgraph.navigator.ts",
+      "node-editor/addons/subgraph/node-editor-subgraph.ts",
+      "node-editor/addons/subgraph/node-editor-subgraph.types.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "node-editor"
+    ],
+    "attach": {
+      "import": "subgraphNodeType from './ui/node-editor/addons/subgraph'",
+      "selector": "subgraphNodeType"
+    }
+  },
+  "node-editor/context-menu": {
+    "name": "node-editor/context-menu",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Right-click menus whose contents depend on the node, port, wire or plane clicked.",
+    "tags": [
+      "node-editor",
+      "context-menu",
+      "right-click",
+      "actions",
+      "graph"
+    ],
+    "files": [
+      "node-editor/addons/context-menu/index.ts",
+      "node-editor/addons/context-menu/node-editor-context-menu.directive.ts",
+      "node-editor/addons/context-menu/node-editor-context-menu.resolve.ts",
+      "node-editor/addons/context-menu/node-editor-context-menu.types.ts"
+    ],
+    "libFiles": [
+      "touch.ts"
+    ],
+    "dependencies": [
+      "context-menu",
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorContextMenuDirective from './ui/node-editor/addons/context-menu'",
+      "selector": "uiNodeEditorContextMenu"
+    }
+  },
+  "node-editor/groups": {
+    "name": "node-editor/groups",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Titled frames behind the nodes and freestanding comments, both purely visual.",
+    "tags": [
+      "node-editor",
+      "groups",
+      "comments",
+      "annotation",
+      "graph"
+    ],
+    "files": [
+      "node-editor/addons/groups/index.ts",
+      "node-editor/addons/groups/node-editor-groups.component.css",
+      "node-editor/addons/groups/node-editor-groups.component.html",
+      "node-editor/addons/groups/node-editor-groups.component.ts",
+      "node-editor/addons/groups/node-editor-groups.locales.ts",
+      "node-editor/addons/groups/node-editor-groups.types.ts",
+      "node-editor/addons/groups/node-editor-groups.utils.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
+      "touch.ts"
+    ],
+    "dependencies": [
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorGroupsComponent from './ui/node-editor/addons/groups'",
+      "selector": "ui-node-editor-groups"
+    }
+  },
+  "node-editor/history": {
+    "name": "node-editor/history",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Records every run with its values and timings, and replays a past run in the editor.",
+    "tags": [
+      "node-editor",
+      "history",
+      "replay",
+      "runs",
+      "debug"
+    ],
+    "files": [
+      "node-editor/addons/history/index.ts",
+      "node-editor/addons/history/node-editor-history.component.html",
+      "node-editor/addons/history/node-editor-history.component.ts",
+      "node-editor/addons/history/node-editor-history.locales.ts",
+      "node-editor/addons/history/node-editor-history.store.ts",
+      "node-editor/addons/history/node-editor-history.types.ts",
+      "node-editor/addons/history/node-editor-history.utils.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorHistoryComponent from './ui/node-editor/addons/history'",
+      "selector": "ui-node-editor-history"
+    }
+  },
+  "node-editor/layout": {
+    "name": "node-editor/layout",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Deterministic layered auto-layout: a pure function from nodes and edges to positions.",
+    "tags": [
+      "node-editor",
+      "layout",
+      "sugiyama",
+      "auto-arrange",
+      "graph"
+    ],
+    "files": [
+      "node-editor/addons/layout/index.ts",
+      "node-editor/addons/layout/node-editor-layout.ts"
+    ],
+    "dependencies": [
+      "node-editor"
+    ],
+    "attach": {
+      "import": "layoutGraph from './ui/node-editor/addons/layout'",
+      "selector": "layoutGraph"
+    }
+  },
+  "node-editor/minimap": {
+    "name": "node-editor/minimap",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.",
+    "tags": [
+      "node-editor",
+      "minimap",
+      "overview",
+      "navigation",
+      "canvas"
+    ],
+    "files": [
+      "node-editor/addons/minimap/index.ts",
+      "node-editor/addons/minimap/node-editor-minimap.component.html",
+      "node-editor/addons/minimap/node-editor-minimap.component.ts",
+      "node-editor/addons/minimap/node-editor-minimap.locales.ts",
+      "node-editor/addons/minimap/node-editor-minimap.utils.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
+      "touch.ts"
+    ],
+    "dependencies": [
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorMinimapComponent from './ui/node-editor/addons/minimap'",
+      "selector": "ui-node-editor-minimap"
+    }
+  },
+  "node-editor/palette": {
+    "name": "node-editor/palette",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Searchable picker over the registered node types, filterable by what a port accepts.",
+    "tags": [
+      "node-editor",
+      "palette",
+      "command",
+      "search",
+      "add-node"
+    ],
+    "files": [
+      "node-editor/addons/palette/index.ts",
+      "node-editor/addons/palette/node-editor-palette.component.html",
+      "node-editor/addons/palette/node-editor-palette.component.ts",
+      "node-editor/addons/palette/node-editor-palette.locales.ts",
+      "node-editor/addons/palette/node-editor-palette.utils.ts"
+    ],
+    "libFiles": [
+      "i18n/common.locales.ts",
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
+      "shortcut-binding.service.ts"
+    ],
+    "dependencies": [
+      "command",
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorPaletteComponent from './ui/node-editor/addons/palette'",
+      "selector": "ui-node-editor-palette"
+    }
+  },
+  "node-editor/problems": {
+    "name": "node-editor/problems",
+    "type": "addon",
+    "parent": "node-editor",
+    "category": "layout",
+    "description": "Lists what is wrong with a graph in plain language, and reveals the node it belongs to.",
+    "tags": [
+      "node-editor",
+      "problems",
+      "validation",
+      "errors",
+      "graph"
+    ],
+    "files": [
+      "node-editor/addons/problems/index.ts",
+      "node-editor/addons/problems/node-editor-problems.component.html",
+      "node-editor/addons/problems/node-editor-problems.component.ts",
+      "node-editor/addons/problems/node-editor-problems.locales.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "dependencies": [
+      "node-editor"
+    ],
+    "attach": {
+      "import": "NodeEditorProblemsComponent from './ui/node-editor/addons/problems'",
+      "selector": "ui-node-editor-problems"
+    }
+  },
+  "node-editor": {
+    "name": "node-editor",
+    "category": "layout",
+    "description": "Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.",
+    "tags": [
+      "node-editor",
+      "graph",
+      "flow",
+      "ports",
+      "diagram",
+      "canvas",
+      "workflow"
+    ],
+    "files": [
+      "node-editor/index.ts",
+      "node-editor/node-editor-node.directive.ts",
+      "node-editor/node-editor.component.css",
+      "node-editor/node-editor.component.html",
+      "node-editor/node-editor.component.ts",
+      "node-editor/node-editor.graph.ts",
+      "node-editor/node-editor.history.ts",
+      "node-editor/node-editor.layout.ts",
+      "node-editor/node-editor.materialize.ts",
+      "node-editor/node-editor.runtime.ts",
+      "node-editor/node-editor.runtime.types.ts",
+      "node-editor/node-editor.serialize.ts",
+      "node-editor/node-editor.types.ts",
+      "node-editor/node-editor.validate.ts",
+      "node-editor/sub/node-editor-node.component.html",
+      "node-editor/sub/node-editor-node.component.ts",
+      "node-editor/sub/node-editor-port.component.html",
+      "node-editor/sub/node-editor-port.component.ts"
+    ],
+    "libFiles": [
+      "sortable-aria-live.ts",
+      "touch.ts"
+    ],
+    "dependencies": [
+      "infinite-canvas"
+    ],
+    "addons": [
+      "node-editor/context-menu",
+      "node-editor/groups",
+      "node-editor/subgraph",
+      "node-editor/history",
+      "node-editor/layout",
+      "node-editor/minimap",
+      "node-editor/palette",
+      "node-editor/problems"
+    ]
+  },
+  "time-picker": {
+    "name": "time-picker",
+    "category": "form",
+    "description": "Time-of-day field whose segment order, meridiem and digits all come from the locale. Stores 24-hour \"HH:mm\", never a Date.",
+    "tags": [
+      "time-picker",
+      "time",
+      "clock",
+      "hour",
+      "intl"
+    ],
+    "files": [
+      "time-picker/index.ts",
+      "time-picker/time-picker.component.css",
+      "time-picker/time-picker.component.html",
+      "time-picker/time-picker.component.ts",
+      "time-picker/time-picker.format.ts"
+    ],
+    "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts"
+    ],
+    "testFiles": [
+      "time-picker/time-picker.component.spec.ts",
+      "time-picker/time-picker.format.spec.ts"
+    ]
+  },
+  "signature-pad": {
+    "name": "signature-pad",
+    "category": "form",
+    "description": "Hand-drawn signature on a canvas. Strokes are the source of truth; the value is a PNG data URL. Touch-first, undo and clear.",
+    "tags": [
+      "signature-pad",
+      "signature",
+      "canvas",
+      "draw",
+      "consent"
+    ],
+    "files": [
+      "signature-pad/index.ts",
+      "signature-pad/signature-pad.component.css",
+      "signature-pad/signature-pad.component.html",
+      "signature-pad/signature-pad.component.ts",
+      "signature-pad/signature-pad.strokes.ts"
+    ],
+    "libFiles": [
+      "touch.ts"
+    ],
+    "dependencies": [
+      "button"
+    ],
+    "testFiles": [
+      "signature-pad/signature-pad.component.spec.ts",
+      "signature-pad/signature-pad.strokes.spec.ts"
+    ]
   }
 }

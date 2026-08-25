@@ -1,3 +1,5 @@
+import { fileURLToPath } from 'node:url';
+
 import { defineConfig } from 'vite';
 
 import angular from '@analogjs/vite-plugin-angular';
@@ -7,6 +9,16 @@ export default defineConfig(({ mode: _mode }) => ({
     plugins: [angular({
         tsconfig: 'tsconfig.json'
     })],
+    resolve: {
+        alias: {
+            // The recipes under e2e/recipes import through the consumer alias so
+            // they compile unchanged in a real consumer app. The demo renders
+            // those same files, and Vite does not read tsconfig paths, so the
+            // prefix is mapped here too — the demo build maps it in
+            // demo/tsconfig.app.json.
+            '@/components': fileURLToPath(new URL('./packages/components', import.meta.url)),
+        },
+    },
     optimizeDeps: {
         exclude: ['npm-run-path'],
     },

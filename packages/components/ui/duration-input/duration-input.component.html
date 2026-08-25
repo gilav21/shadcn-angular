@@ -1,0 +1,36 @@
+<fieldset
+  [class]="wrapperClasses()"
+  [attr.data-slot]="'duration-input'"
+  [attr.data-variant]="variant()"
+  [attr.aria-label]="ariaLabel()"
+  [attr.aria-disabled]="isDisabled() || null"
+  (focusout)="onBlur()"
+>
+  @for (segment of segments(); track segment.unit; let last = $last) {
+    <input
+      type="text"
+      inputmode="numeric"
+      autocomplete="off"
+      class="bg-transparent py-1 text-center tabular-nums outline-none
+             disabled:cursor-not-allowed pointer-coarse:py-2.5"
+      [style.width.ch]="segment.width"
+      role="spinbutton"
+      [attr.data-slot]="'duration-input-segment'"
+      [attr.data-unit]="segment.unit"
+      [value]="segment.text"
+      [disabled]="isDisabled()"
+      [attr.aria-label]="segment.label"
+      [attr.aria-valuenow]="segment.value"
+      [attr.aria-valuemin]="0"
+      [attr.aria-valuemax]="segment.max"
+      [attr.aria-valuetext]="segment.value + ' ' + segment.label"
+      [attr.placeholder]="segment.isLeading ? '0' : '00'"
+      (input)="onSegmentInput(segment.unit, $any($event.target).value)"
+      (keydown)="onSegmentKeydown(segment.unit, $event)"
+    />
+
+    @if (!last) {
+      <span aria-hidden="true" class="text-muted-foreground select-none">:</span>
+    }
+  }
+</fieldset>

@@ -242,3 +242,88 @@ describe('Textarea RTL Support', () => {
         expect(textarea.nativeElement.placeholder).toBe('أدخل رسالتك');
     });
 });
+
+@Component({
+    template: `
+        <label for="bio">Bio</label>
+        <ui-textarea elementId="bio" />
+    `,
+    imports: [TextareaComponent],
+})
+class ExternalLabelTextareaHost { }
+
+@Component({
+    template: `
+        <label for="bio-native">Bio</label>
+        <ui-textarea id="bio-native" />
+    `,
+    imports: [TextareaComponent],
+})
+class NativeIdTextareaHost { }
+
+@Component({
+    template: `<ui-textarea />`,
+    imports: [TextareaComponent],
+})
+class PlainTextareaHost { }
+
+/**
+ * Label association, mirroring `ui-input`. The host is `display: contents`, so an
+ * id left on it is not a labelable control and `<label for>` associates with
+ * nothing — the control reaches screen readers unlabeled, which a non-empty
+ * placeholder masks from everything except axe.
+ */
+describe('TextareaComponent — label association', () => {
+    const textarea = (fixture: ComponentFixture<unknown>): HTMLTextAreaElement =>
+        fixture.debugElement.query(By.css('textarea')).nativeElement;
+
+    it('forwards elementId to the inner textarea so an external label binds', () => {
+        const fixture = TestBed.createComponent(ExternalLabelTextareaHost);
+        fixture.detectChanges();
+
+        expect(textarea(fixture).id).toBe('bio');
+        expect(textarea(fixture).labels?.[0]?.textContent?.trim()).toBe('Bio');
+    });
+
+    it('moves a natively-written host id onto the inner textarea and strips it from the host', () => {
+        const fixture = TestBed.createComponent(NativeIdTextareaHost);
+        fixture.detectChanges();
+
+        expect(textarea(fixture).id).toBe('bio-native');
+        expect(fixture.debugElement.query(By.directive(TextareaComponent)).nativeElement.getAttribute('id')).toBeNull();
+        expect(textarea(fixture).labels?.[0]?.textContent?.trim()).toBe('Bio');
+    });
+
+    it('falls back to a generated id when neither spelling is used', () => {
+        const fixture = TestBed.createComponent(PlainTextareaHost);
+        fixture.detectChanges();
+
+        expect(textarea(fixture).id).toMatch(/^ui-textarea-\d+$/);
+    });
+
+    it('forwards name and the three aria attributes', () => {
+        const fixture = TestBed.createComponent(TextareaComponent);
+        fixture.componentRef.setInput('name', 'bio');
+        fixture.componentRef.setInput('ariaLabel', 'Biography');
+        fixture.componentRef.setInput('ariaLabelledby', 'bio-label');
+        fixture.componentRef.setInput('ariaDescribedby', 'bio-hint');
+        fixture.detectChanges();
+
+        const el = textarea(fixture);
+        expect(el.getAttribute('name')).toBe('bio');
+        expect(el.getAttribute('aria-label')).toBe('Biography');
+        expect(el.getAttribute('aria-labelledby')).toBe('bio-label');
+        expect(el.getAttribute('aria-describedby')).toBe('bio-hint');
+    });
+
+    it('omits the optional attributes entirely when unset', () => {
+        const fixture = TestBed.createComponent(TextareaComponent);
+        fixture.detectChanges();
+
+        const el = textarea(fixture);
+        expect(el.hasAttribute('name')).toBe(false);
+        expect(el.hasAttribute('aria-label')).toBe(false);
+        expect(el.hasAttribute('aria-labelledby')).toBe(false);
+        expect(el.hasAttribute('aria-describedby')).toBe(false);
+    });
+});

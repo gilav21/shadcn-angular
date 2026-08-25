@@ -23,9 +23,12 @@ export interface TreeContextMenuEvent<T = unknown> {
   standalone: true,
 })
 export class TreeContextMenuDirective<T = unknown> implements OnDestroy {
+  /** The menu to open when a node is right-clicked. */
   uiTreeContextMenu = input.required<ContextMenuComponent>();
+  /** Stops the tree from opening the menu. */
   contextMenuDisabled = input<boolean>(false);
 
+  /** Emits the node that was right-clicked. */
   nodeContextMenu = output<TreeContextMenuEvent<T>>();
 
   private readonly treeElement = inject(ElementRef<HTMLElement>);

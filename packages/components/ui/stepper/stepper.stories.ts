@@ -281,3 +281,60 @@ export const RTL: Story = {
         `,
     }),
 };
+
+export const SyncGuard: Story = {
+    name: 'canLeave — synchronous guard',
+    render: () => {
+        const accepted = signal(false);
+        const blocked = signal(0);
+        return {
+            props: {
+                accepted,
+                blocked,
+                activeStep: signal(0),
+                steps: DEMO_STEPS,
+                guard: (from: number, to: number): boolean => to < from || accepted(),
+                toggle: (): void => accepted.set(!accepted()),
+                onBlocked: (): void => blocked.set(blocked() + 1),
+            },
+            template: `
+                <div class="space-y-4">
+                    <p class="text-sm text-muted-foreground">
+                        The guard blocks every forward move until the box is ticked, while still allowing
+                        Back. A boolean-returning guard keeps the transition fully synchronous.
+                    </p>
+                    <ui-stepper
+                        [steps]="steps"
+                        [(activeStep)]="activeStep"
+                        [canLeave]="guard"
+                        (stepBlocked)="onBlocked()"
+                    ></ui-stepper>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" [checked]="accepted()" (change)="toggle()" />
+                        I accept the terms
+                    </label>
+                    <p class="text-sm text-muted-foreground">Blocked attempts: {{ blocked() }}</p>
+                </div>`,
+        };
+    },
+};
+
+export const AsyncGuard: Story = {
+    name: 'canLeave — async guard with pending state',
+    render: () => ({
+        props: {
+            activeStep: signal(0),
+            steps: DEMO_STEPS,
+            guard: (): Promise<boolean> =>
+                new Promise(resolve => setTimeout(() => resolve(true), 1200)),
+        },
+        template: `
+            <div class="space-y-4">
+                <p class="text-sm text-muted-foreground">
+                    The guard resolves after 1.2s. While it is pending every trigger is disabled and
+                    carries <code>aria-busy</code>; a stale result is discarded if you move again.
+                </p>
+                <ui-stepper [steps]="steps" [(activeStep)]="activeStep" [canLeave]="guard"></ui-stepper>
+            </div>`,
+    }),
+};

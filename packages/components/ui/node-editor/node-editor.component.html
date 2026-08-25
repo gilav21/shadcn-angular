@@ -1,0 +1,137 @@
+@let overlay = pendingPath();
+@let tree = a11yTree();
+
+<!-- Events are handled on the component host, not here — see the component. -->
+<div
+  #root
+  [class]="rootClasses()"
+  [attr.data-slot]="'node-editor'"
+  [attr.data-connecting]="pending() ? 'true' : null"
+>
+  <ui-infinite-canvas
+    [items]="sizedNodes()"
+    [edges]="canvasEdges()"
+    [showGrid]="showGrid()"
+    [ariaLabel]="ariaLabel()"
+    class="h-full w-full"
+    (viewportChange)="viewportChange.emit($event)"
+  >
+    <!--
+      World-space content behind the nodes — group frames, comments, region
+      backdrops. Rendered into the engine's underlay slot rather than
+      re-implemented, so it shares the ONE transform the items use and cannot
+      drift out of step with them.
+
+      `display: contents` on the carrier: its children are absolutely
+      positioned at world coordinates, and a box of its own between them and
+      the transform wrapper would give them the wrong containing block.
+    -->
+    <div uiCanvasUnderlay class="contents">
+      <ng-content select="[uiNodeEditorUnderlay]" />
+    </div>
+
+    <ng-template uiInfiniteCanvasItem [ofType]="sizedNodes()" let-node>
+      <ui-node-editor-node
+        [node]="node"
+        [metrics]="metrics"
+        [selected]="selection().nodes.includes(node.id)"
+        [focused]="focusedNode() === node.id"
+        [connectedPorts]="connectedPorts().get(node.id) ?? emptyPorts"
+        [dropPort]="pending()?.over ?? null"
+        [dropValid]="pending()?.valid ?? false"
+        [activePort]="focusedNode() === node.id ? activePort() : null"
+        [bodyTemplate]="nodeTemplateRef ?? null"
+        [view]="viewFor(node)"
+        [viewInjector]="injectorFor(node)"
+        [status]="statusOf(node.id)"
+        [recentlyRan]="recentlyRan(node.id)"
+        [openable]="isOpenable(node.id)"
+        [connectable]="connectablePorts()"
+      />
+    </ng-template>
+  </ui-infinite-canvas>
+
+  <!--
+    The connection being dragged out. It cannot be an engine edge: the engine
+    resolves both endpoints from items, and this one's free end is a bare
+    pointer position. One SVG path is cheap, and there is only ever one.
+  -->
+  @if (overlay) {
+    <svg
+      class="pointer-events-none absolute inset-0 size-full"
+      aria-hidden="true"
+      [attr.data-slot]="'node-editor-pending'"
+    >
+      <path
+        [attr.d]="overlay"
+        fill="none"
+        stroke-width="2"
+        stroke-dasharray="6 4"
+        [attr.stroke]="
+          pending()?.over
+            ? pending()?.valid
+              ? 'var(--color-primary)'
+              : 'var(--color-destructive)'
+            : 'var(--color-muted-foreground)'
+        "
+      />
+    </svg>
+  }
+
+  <!--
+    Why the port under the pointer will not take this connection, in plain
+    language and right where the user is looking. `aria-hidden` because the
+    live region already announces it — reading it twice is worse than once.
+  -->
+  @if (rejectionText(); as reason) {
+    @if (rejectionAt(); as at) {
+      <p
+        class="pointer-events-none absolute z-10 max-w-[calc(100vw-2rem)] translate-x-3 translate-y-3
+               rounded-md border border-destructive/40 bg-popover px-2 py-1 text-xs text-destructive shadow-sm"
+        [style.left.px]="at.x"
+        [style.top.px]="at.y"
+        aria-hidden="true"
+        [attr.data-slot]="'node-editor-rejection'"
+      >{{ reason }}</p>
+    }
+  }
+
+  <!--
+    The parallel accessible model (spec §6). Virtualisation keeps off-screen
+    nodes out of the DOM, so this is the ONLY complete representation of the
+    graph in the accessibility tree — not a summary of it.
+  -->
+  <div class="sr-only" [attr.data-slot]="'node-editor-a11y-tree'">
+    @if (tree) {
+      <h3>{{ ariaLabel() }} structure</h3>
+      <ul>
+        @for (node of tree; track node.id) {
+          <li>
+            {{ node.title }}
+            @if (node.ports.length > 0) {
+              <ul>
+                @for (port of node.ports; track port.id) {
+                  <li>
+                    {{ port.label }}, {{ port.direction === 'out' ? 'output' : 'input' }},
+                    @if (port.links.length === 0) {
+                      not connected
+                    } @else {
+                      connected to
+                      <ul>
+                        @for (link of port.links; track link) {
+                          <li>{{ link }}</li>
+                        }
+                      </ul>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          </li>
+        }
+      </ul>
+    } @else {
+      <p>{{ a11ySummary() }}</p>
+    }
+  </div>
+</div>

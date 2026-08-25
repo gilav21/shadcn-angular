@@ -47,7 +47,12 @@ export interface ColumnDef<T> {
     editable?: boolean;
     editComponent?: Type<unknown>;
     editTemplate?: TemplateRef<unknown>;
-    editType?: 'text' | 'number' | 'select' | 'checkbox';
+    /**
+     * Which editor an inline edit opens. `date` uses the library's own
+     * `ui-date-picker`, and writes back in whatever shape the cell already
+     * held — an ISO string stays an ISO string.
+     */
+    editType?: 'text' | 'number' | 'select' | 'checkbox' | 'date';
     editOptions?: Array<{ label: string; value: unknown }>;
     valueSetter?: (row: T, newValue: unknown) => T;
     editValidator?: (value: unknown, row: T) => boolean | string;
@@ -216,6 +221,84 @@ export interface DataTableExportQuery {
     sort: SortState;
     /** Full multi-column sort state (highest priority first); empty when unused. */
     sortStates: SortState[];
+}
+
+/**
+ * Everything a server needs to answer one page of a data table.
+ *
+ * The mechanism for server-side mode has always been here — set `localSorting`,
+ * `localPagination` and `localFiltering` to `false`, feed `data` and `total`,
+ * and listen to `sortChange` / `pageChange` / `filterChange`. What was missing
+ * was the *shape*: every consumer re-derived a request from six separate
+ * inputs. This is that request, published once.
+ *
+ * It is deliberately the same vocabulary as {@link DataTableExportQuery}, which
+ * is the same question asked without a page — an export returns the whole
+ * result set.
+ */
+export interface DataTableQuery {
+    /** Global (search box) filter value. */
+    readonly globalFilter: string;
+    /** Per-column filter values, keyed by `accessorKey`. */
+    readonly columnFilters: Record<string, unknown>;
+    /** Primary sort. */
+    readonly sort: SortState;
+    /** Full multi-column sort state (highest priority first); empty when unused. */
+    readonly sortStates: readonly SortState[];
+    /** The advanced filter tree, or `null` when the builder is unused. */
+    readonly advancedFilter: FilterGroup | null;
+    /** Which page, and how big. */
+    readonly page: PaginationState;
+}
+
+/**
+ * What a server answers a {@link DataTableQuery} with.
+ *
+ * `total` is the count of rows matching the filters across **every** page, not
+ * the length of `rows` — it is what the pager needs to know how many pages
+ * there are, and it is the single most common thing to get wrong when wiring
+ * server-side mode by hand.
+ */
+export interface DataTableResult<T> {
+    /** The rows for the requested page. */
+    readonly rows: readonly T[];
+    /** Total matching rows across all pages. */
+    readonly total: number;
+}
+
+/** The schema version {@link DataTableViewState} is written at. */
+export const DATA_TABLE_VIEW_STATE_VERSION = 1;
+
+/**
+ * Everything needed to restore what a user set up — a saved view.
+ *
+ * `DataTableColumnState` covers width, visibility, pinning and order, which is
+ * the *layout*. A named view is more than a layout: someone who saved "My open
+ * invoices" expects the sort and the filters back too, and the page they were
+ * on.
+ *
+ * Versioned because the consumer persists this — localStorage, a preferences
+ * row — so it outlives the build that wrote it by a long way. A bare array can
+ * get away without a version; a growing object cannot, because a field added
+ * later would otherwise be silently absent rather than detected.
+ */
+export interface DataTableViewState {
+    /** Schema version; {@link DATA_TABLE_VIEW_STATE_VERSION} at the time of writing. */
+    readonly version: number;
+    /** Column layout — the same shape {@link DataTableColumnState} has always had. */
+    readonly columns: DataTableColumnState[];
+    /** Primary sort. */
+    readonly sort: SortState;
+    /** Multi-column sort chain, highest priority first. */
+    readonly sortStates: SortState[];
+    /** Per-column filter values, keyed by `accessorKey`. */
+    readonly columnFilters: Record<string, unknown>;
+    /** The advanced filter tree, or `null`. */
+    readonly advancedFilter: FilterGroup | null;
+    /** Global (search box) filter value. */
+    readonly globalFilter: string;
+    /** Which page, and how big. */
+    readonly pagination: PaginationState;
 }
 
 export type FilterOperator =

@@ -6,6 +6,23 @@
  */
 
 /** Detect if the device has a coarse pointer (touch screen) */
+/**
+ * Whether this pointer is an additional finger in a multi-touch gesture.
+ *
+ * Two fingers mean pan and zoom in every canvas application, so anything a
+ * first finger had started — dragging a node, drawing a connection, moving a
+ * frame — has to be given up when a second arrives. Each surface that owns a
+ * drag has to ask this; it was missed once per surface until it lived in one
+ * place.
+ *
+ * Narrowed to touch on purpose. A synthetic `PointerEvent` reports
+ * `isPrimary: false` by default, so an unqualified check treats every
+ * dispatched event in every test as a second finger.
+ */
+export function isSecondaryTouch(event: PointerEvent): boolean {
+  return event.pointerType === 'touch' && !event.isPrimary;
+}
+
 export function isTouchDevice(): boolean {
     return globalThis.window?.matchMedia('(pointer: coarse)').matches ?? false;
 }

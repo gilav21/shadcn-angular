@@ -1,0 +1,17 @@
+<dl [class]="listClasses()" data-slot="data-list-content">
+    @for (item of items(); track $index) {
+        <dt class="min-w-0 break-words font-medium text-muted-foreground" data-slot="data-list-label">
+            {{ item.label }}
+        </dt>
+        <dd class="min-w-0 break-words text-foreground" data-slot="data-list-value">
+            {{ item.value }}
+        </dd>
+    }
+    @for (row of rows(); track row) {
+        <ng-container [ngTemplateOutlet]="row.row()" />
+    }
+</dl>
+
+<!-- Deliberately no <ng-content>: projected `ui-data-list-item` hosts must never
+     enter the DOM, or they would sit between the <dl> and its <dt>/<dd>. Their
+     rows are stamped into the list above instead. -->

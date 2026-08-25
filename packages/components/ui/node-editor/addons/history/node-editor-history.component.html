@@ -1,0 +1,199 @@
+@let text = t();
+@let list = runs();
+@let run = selected();
+
+<section [class]="rootClasses()" [attr.data-slot]="'node-editor-history'">
+  <!--
+    Header, and the two things that act on the whole panel. Wraps, because a
+    heading plus two buttons is exactly the toolbar that overflows at 320px.
+  -->
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    @if (heading()) {
+      <h3 class="text-sm font-semibold" [attr.data-slot]="'node-editor-history-heading'">
+        {{ text.heading }}
+      </h3>
+    }
+    @if (list.length > 0) {
+      <button
+        type="button"
+        class="rounded-md border px-2 py-1 text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+               pointer-coarse:min-h-11 pointer-coarse:px-3"
+        [attr.data-slot]="'node-editor-history-clear'"
+        (click)="clear()"
+      >
+        {{ text.clear }}
+      </button>
+    }
+  </div>
+
+  @if (list.length === 0) {
+    <p
+      class="rounded-md border border-dashed px-2 py-1.5 text-sm text-muted-foreground"
+      [attr.data-slot]="'node-editor-history-empty'"
+    >
+      {{ text.empty }}
+    </p>
+  } @else {
+    <!--
+      Real buttons in a real list: picking a run is navigation, and a div with
+      a click handler would leave the panel usable only with a pointer.
+    -->
+    <ul class="flex max-h-48 flex-col gap-1 overflow-y-auto" [attr.data-slot]="'node-editor-history-runs'">
+      @for (item of list; track trackRun($index, item)) {
+        <li>
+          <button
+            type="button"
+            [class]="runClasses(item)"
+            [attr.data-slot]="'node-editor-history-run'"
+            [attr.data-run]="item.id"
+            [attr.data-status]="item.status"
+            [attr.aria-current]="item.id === selectedRun() ? 'true' : null"
+            [attr.aria-label]="runLabel(item)"
+            (click)="select(item)"
+          >
+            <span aria-hidden="true" class="shrink-0 select-none">
+              {{ item.status === 'error' ? '●' : '○' }}
+            </span>
+            <span aria-hidden="true" class="font-mono text-xs">#{{ item.id }}</span>
+            <span aria-hidden="true" class="text-muted-foreground">{{ time(item.startedAt) }}</span>
+            <span aria-hidden="true" class="ms-auto font-mono text-xs">
+              {{ duration(item.durationMs) }}
+            </span>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (run) {
+    <div class="flex flex-col gap-2 rounded-md border p-2" [attr.data-slot]="'node-editor-history-detail'">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-sm font-medium">{{ text.run.replace('{id}', '' + run.id) }}</span>
+        <span class="text-xs text-muted-foreground">{{ statusLabel(run.status) }}</span>
+
+        <!--
+          A toggle, not two buttons: aria-pressed says which state it is in,
+          so a screen reader announces "replaying" rather than leaving the user
+          to infer it from a label that changed.
+        -->
+        <button
+          type="button"
+          class="ms-auto rounded-md border px-2 py-1 text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                 pointer-coarse:min-h-11 pointer-coarse:px-3"
+          [attr.data-slot]="'node-editor-history-replay'"
+          [attr.aria-pressed]="replaying()"
+          (click)="toggleReplay()"
+        >
+          {{ replaying() ? text.stopReplay : text.replay }}
+        </button>
+        <button
+          type="button"
+          class="rounded-md border px-2 py-1 text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                 pointer-coarse:min-h-11 pointer-coarse:px-3"
+          [attr.data-slot]="'node-editor-history-export'"
+          (click)="exportSelected()"
+        >
+          {{ text.exportJson }}
+        </button>
+      </div>
+
+      @if (slowest(); as worst) {
+        <p class="text-xs text-muted-foreground" [attr.data-slot]="'node-editor-history-slowest'">
+          {{ text.slowest.replace('{node}', worst.title).replace('{duration}', duration(worst.durationMs)) }}
+        </p>
+      }
+
+      <!--
+        A table, because this IS tabular: one row per node, the same four
+        facts each time. Scrolls inside its own container so the panel never
+        pushes the page sideways.
+      -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-start text-xs" [attr.data-slot]="'node-editor-history-nodes'">
+          <caption class="sr-only">{{ text.tableCaption.replace('{id}', '' + run.id) }}</caption>
+          <thead>
+            <tr class="text-muted-foreground">
+              <th scope="col" class="py-1 text-start font-normal">{{ text.node }}</th>
+              <th scope="col" class="py-1 text-start font-normal">{{ text.status }}</th>
+              <th scope="col" class="py-1 text-start font-normal">{{ text.inputs }}</th>
+              <th scope="col" class="py-1 text-start font-normal">{{ text.outputs }}</th>
+              <th scope="col" class="py-1 text-end font-normal">{{ text.took }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (node of run.nodes; track trackNode($index, node)) {
+              <tr
+                class="border-t align-top"
+                [attr.data-slot]="'node-editor-history-node'"
+                [attr.data-node]="node.nodeId"
+                [attr.data-status]="node.status"
+              >
+                <th scope="row" class="py-1 text-start font-normal">
+                  <button
+                    type="button"
+                    class="text-start underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+                           pointer-coarse:inline-flex pointer-coarse:min-h-11 pointer-coarse:items-center"
+                    [attr.data-slot]="'node-editor-history-node-reveal'"
+                    [attr.aria-label]="text.reveal.replace('{node}', node.title)"
+                    (click)="nodeSelected.emit(node.nodeId)"
+                  >
+                    {{ node.title }}
+                  </button>
+                </th>
+                <td class="py-1" [class.text-destructive]="node.status === 'error'">
+                  {{ statusLabel(node.status) }}
+                  @if (node.error) {
+                    <span class="block [overflow-wrap:anywhere]">{{ node.error }}</span>
+                  }
+                </td>
+                <td class="py-1">
+                  @for (value of values(node.inputs); track value.key) {
+                    <span class="block font-mono [overflow-wrap:anywhere]">
+                      {{ value.key }}: {{ value.text }}
+                    </span>
+                  } @empty {
+                    <span class="text-muted-foreground">—</span>
+                  }
+                </td>
+                <td class="py-1">
+                  @for (value of values(node.outputs); track value.key) {
+                    <span class="block font-mono [overflow-wrap:anywhere]">
+                      {{ value.key }}: {{ value.text }}
+                    </span>
+                  } @empty {
+                    <span class="text-muted-foreground">—</span>
+                  }
+                </td>
+                <td class="py-1 text-end font-mono whitespace-nowrap">
+                  {{ duration(node.durationMs) }}
+                  <!--
+                    A bar in a TRACK, not a bare bar.
+
+                    Drawn bare, a node accounting for 1% of the run was a
+                    two-pixel speck sitting left of a right-aligned number,
+                    which read as stray punctuation rather than as a
+                    measurement. A fixed track gives every row the same
+                    baseline to compare against, and `min-w` keeps work that
+                    happened visible as work that happened.
+
+                    Decoration either way: the duration is right there in
+                    text, so a screen reader loses nothing.
+                  -->
+                  <span
+                    aria-hidden="true"
+                    class="mt-0.5 ms-auto block h-1 w-16 overflow-hidden rounded-full bg-muted"
+                  >
+                    <span
+                      class="block h-full min-w-[2px] rounded-full bg-primary/70"
+                      [style.width.%]="sharePercent(node)"
+                    ></span>
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</section>

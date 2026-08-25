@@ -10,6 +10,9 @@ import {
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 
+/** Slot count used when {@link InputOTPComponent.maxLength} is left unset. */
+const DEFAULT_OTP_LENGTH = 6;
+
 @Component({
   selector: 'ui-input-otp',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -47,7 +50,7 @@ import { cn } from '../../lib/utils';
         #hiddenInput
         type="text"
         inputmode="numeric"
-        [attr.maxlength]="maxLength()"
+        [attr.maxlength]="slotCount()"
         [value]="value()"
         [attr.aria-label]="ariaLabel()"
         [attr.aria-labelledby]="ariaLabelledby()"
@@ -71,8 +74,13 @@ export class InputOTPComponent {
   ariaLabel = input<string | undefined>(undefined);
   /** `aria-labelledby` for the visually hidden input, when an external element already labels the field. */
   ariaLabelledby = input<string | undefined>(undefined);
-  /** Number of slots rendered, and the hard cap on {@link value}'s length. */
-  maxLength = input(6);
+  /**
+   * Number of slots rendered, and the hard cap on {@link value}'s length.
+   * Accepts `undefined` so a Signal Forms `[field]` binding can push the
+   * field's max-length rule in (and push nothing when the schema has none);
+   * unset falls back to {@link DEFAULT_OTP_LENGTH} via {@link slotCount}.
+   */
+  maxLength = input<number | undefined>(DEFAULT_OTP_LENGTH);
   /** Zero-based slot indices after which a separator dot is drawn; the flanking slots get rounded outer corners. Default `[2]` splits a 6-digit code into 3+3. */
   separator = input<number[]>([2]);
 
@@ -80,7 +88,10 @@ export class InputOTPComponent {
   value = model<string>('');
   focusedIndex = signal(-1);
 
-  slots = computed(() => Array.from({ length: this.maxLength() }, (_, i) => i));
+  /** {@link maxLength} with the default applied — every internal length calculation reads this, never the raw input. */
+  readonly slotCount = computed(() => this.maxLength() ?? DEFAULT_OTP_LENGTH);
+
+  slots = computed(() => Array.from({ length: this.slotCount() }, (_, i) => i));
   separatorAfter = computed(() => this.separator());
 
   containerClasses = computed(() => cn(
@@ -91,7 +102,7 @@ export class InputOTPComponent {
   slotClasses = (idx: number): string => cn(
     'relative flex items-center justify-center border-y border-r border-input text-sm shadow-sm transition-all cursor-text',
     idx === 0 && 'ltr:rounded-l-md rtl:rounded-r-md ltr:border-l rtl:border-r',
-    idx === this.maxLength() - 1 && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
+    idx === this.slotCount() - 1 && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
     this.separatorAfter().includes(idx) && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
     this.separatorAfter().includes(idx - 1) && 'ltr:rounded-l-md rtl:rounded-r-md ltr:border-l rtl:border-r',
     this.focusedIndex() === idx && 'z-10 ring-2 ring-ring',
@@ -111,9 +122,9 @@ export class InputOTPComponent {
   /** Sanitizes typed or pasted text (alphanumerics only, upper-cased, truncated to {@link maxLength}), publishes it, advances the caret and writes the cleaned text back to the hidden input. */
   onInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const newValue = input.value.replaceAll(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, this.maxLength());
+    const newValue = input.value.replaceAll(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, this.slotCount());
     this.value.set(newValue);
-    this.focusedIndex.set(Math.min(newValue.length, this.maxLength() - 1));
+    this.focusedIndex.set(Math.min(newValue.length, this.slotCount() - 1));
     input.value = newValue;
   }
 

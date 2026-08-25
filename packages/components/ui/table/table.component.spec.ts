@@ -17,7 +17,7 @@ import {
 @Component({
   template: `
     <div [dir]="dir()">
-      <ui-table [class]="customClass">
+      <ui-table [class]="customClass" [role]="role()">
         <ui-table-caption>List of Invoices</ui-table-caption>
         <ui-table-header>
           <ui-table-row>
@@ -58,6 +58,7 @@ class TestHostComponent {
   customClass = '';
   selectedRow = false;
   dir = signal<'ltr' | 'rtl'>('ltr');
+  role = signal<'table' | 'grid' | 'treegrid'>('table');
 }
 
 describe('TableComponent', () => {
@@ -224,4 +225,67 @@ describe('TableHeaderDirective', () => {
     const directive = thead.injector.get(TableHeaderDirective);
     expect(directive.classes()).toBe('border-collapse');
   });
+});
+
+describe('table role and the cell role that follows from it', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+
+    const table = (): HTMLElement =>
+        fixture.nativeElement.querySelector('[data-slot="table"]');
+    const cells = (): HTMLElement[] =>
+        [...fixture.nativeElement.querySelectorAll('[data-slot="table-cell"]')];
+
+    beforeEach(() => {
+        TestBed.configureTestingModule({ imports: [TestHostComponent] });
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('is a plain table by default, holding plain cells', () => {
+        expect(table().getAttribute('role')).toBe('table');
+        expect(cells().every(c => c.getAttribute('role') === 'cell')).toBe(true);
+    });
+
+    /*
+     * `role="cell"` is not valid inside a grid: the two describe different
+     * widgets, and assistive tech that meets a grid full of `cell`s cannot
+     * navigate it. The cell takes this from the table so that no consumer has
+     * to restate it on every cell — which is also why it is asserted here on
+     * the cells rather than on the table alone.
+     */
+    it('turns its cells into gridcells when it becomes a grid', () => {
+        fixture.componentInstance.role.set('grid');
+        fixture.detectChanges();
+
+        expect(table().getAttribute('role')).toBe('grid');
+        expect(cells().every(c => c.getAttribute('role') === 'gridcell')).toBe(true);
+    });
+
+    it('does the same for a treegrid, which is a grid with hierarchy', () => {
+        fixture.componentInstance.role.set('treegrid');
+        fixture.detectChanges();
+
+        expect(table().getAttribute('role')).toBe('treegrid');
+        expect(cells().every(c => c.getAttribute('role') === 'gridcell')).toBe(true);
+    });
+
+    it('goes back to plain cells when the table goes back to a table', () => {
+        fixture.componentInstance.role.set('grid');
+        fixture.detectChanges();
+        fixture.componentInstance.role.set('table');
+        fixture.detectChanges();
+
+        expect(cells().every(c => c.getAttribute('role') === 'cell')).toBe(true);
+    });
+});
+
+describe('a cell used outside any table', () => {
+    /** Defensive: the token is optional, so a bare cell must still be a cell. */
+    it('falls back to cell rather than throwing', () => {
+        TestBed.configureTestingModule({ imports: [TableCellComponent] });
+        const bare = TestBed.createComponent(TableCellComponent);
+        bare.detectChanges();
+
+        expect((bare.nativeElement as HTMLElement).getAttribute('role')).toBe('cell');
+    });
 });

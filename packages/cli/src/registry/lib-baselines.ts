@@ -449,11 +449,15 @@ export const LIB_BASELINES: Readonly<Record<string, readonly string[]>> = {
   ],
   "sortable-registry.ts": [
     "37e3dcb4cee5ac0e6ca2fb642e97acb98fdfb2cd346ab4247327e68ce64cb7c8",
-    "b54de8779d8e42b95954617259d4f59cea4fa9b8329fd44eca79e995e766dd28"
+    "b54de8779d8e42b95954617259d4f59cea4fa9b8329fd44eca79e995e766dd28",
+    "d634af2e06035200dc1c9ab7231561d98dfc4857567398c618f80fdf6f2c9cf7"
   ],
   "svg-sanitizer.ts": [
     "41855d912ebdedb04b3af6887ecf09b2e9abdedb1e40fb3aff17b496352fcdfc",
     "e449dd6c672a9612390516d4942417dc5c5f73e68da8b6b1e7ba98826e252181"
+  ],
+  "testing/axe.ts": [
+    "b4ba19beb00e87b574a0a253de6a4f3d84cc14bf8b3e3bbf1819e852e7eda8cf"
   ],
   "testing/vitest-compat.ts": [
     "07f6da8b90f97f1ac11d566512514a69039431fff407ee625ab9df7d5523ed4a",

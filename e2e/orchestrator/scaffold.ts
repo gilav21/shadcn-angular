@@ -11,7 +11,9 @@
  *      `sync-registry --fix` to pick up newly-added components on
  *      disk. If still missing, exit with a "did you mean…?" hint.
  *   2. Refuse if `e2e/harness/<name>/` already exists.
- *   3. Parse `packages/components/ui/<name>/index.ts` to enumerate
+ *   3. Parse `<name>/index.ts` — under `packages/components/ui/` for a
+ *      component, or `packages/blocks/` for a `type: 'block'` entry — to
+ *      enumerate
  *      every exported class (main + sub-components), with their
  *      kebab-case selector suffix. Reads the class name from each
  *      referenced `.component.ts` via regex so OTP-style casing
@@ -27,6 +29,7 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
     isComponentName,
+    registry,
     suggestComponentName,
     type ComponentName,
 } from '../../packages/cli/src/registry/index.js';
@@ -37,6 +40,22 @@ const REPO_ROOT = path.resolve(
 );
 const HARNESS_DIR = path.join(REPO_ROOT, 'e2e/harness');
 const COMPONENTS_UI_DIR = path.join(REPO_ROOT, 'packages/components/ui');
+const BLOCKS_DIR = path.join(REPO_ROOT, 'packages/blocks');
+
+/** Blocks are a separate top-level package, not a folder under `ui/`. */
+function isBlock(name: ComponentName): boolean {
+    return registry[name].type === 'block';
+}
+
+/** Directory holding `<name>/index.ts` — `packages/blocks` for blocks. */
+function sourceDirFor(name: ComponentName): string {
+    return isBlock(name) ? BLOCKS_DIR : COMPONENTS_UI_DIR;
+}
+
+/** The `@/…` import specifier a consumer install exposes for `<name>`. */
+function importSpecifierFor(name: ComponentName): string {
+    return isBlock(name) ? `@/blocks/${name}` : `@/components/ui/${name}`;
+}
 
 interface SubComponent {
     /** Exported class symbol, e.g. `DialogTriggerComponent`. */
@@ -48,6 +67,11 @@ interface SubComponent {
 interface BarrelInfo {
     /** The main component's class name (the one that matches `<name>.component.ts`). */
     readonly mainClass: string;
+    /**
+     * The main component's element tag, read from its `selector`. Blocks are
+     * `ui-login-block`, not `ui-login`, so this can't be derived from `<name>`.
+     */
+    readonly mainSelector: string;
     /** Every other class exported from the barrel, with selector. */
     readonly subs: readonly SubComponent[];
 }
@@ -144,7 +168,8 @@ async function resolveComponent(name: string): Promise<ComponentName | null> {
  * source file path matches `<name>.component.ts` at the barrel's root.
  */
 function parseBarrel(name: ComponentName): BarrelInfo {
-    const barrelPath = path.join(COMPONENTS_UI_DIR, name, 'index.ts');
+    const baseDir = path.join(sourceDirFor(name), name);
+    const barrelPath = path.join(baseDir, 'index.ts');
     const barrelSrc = fs.readFileSync(barrelPath, 'utf-8');
     const exportPaths: string[] = [];
     for (const m of barrelSrc.matchAll(/export\s+\*\s+from\s+['"](\.[^'"]+)['"]/g)) {
@@ -155,10 +180,11 @@ function parseBarrel(name: ComponentName): BarrelInfo {
     }
 
     let mainClass: string | null = null;
+    let mainSelector: string | null = null;
     const subs: SubComponent[] = [];
 
     for (const relPath of exportPaths) {
-        const sourcePath = path.resolve(path.join(COMPONENTS_UI_DIR, name), relPath + '.ts');
+        const sourcePath = path.resolve(baseDir, relPath + '.ts');
         const src = fs.readFileSync(sourcePath, 'utf-8');
         const cls = extractComponentClass(src);
         const sel = extractComponentSelector(src);
@@ -172,6 +198,7 @@ function parseBarrel(name: ComponentName): BarrelInfo {
 
         if (relPath === `./${name}.component`) {
             mainClass = cls;
+            mainSelector = sel;
         } else {
             subs.push({ className: cls, selectorSuffix });
         }
@@ -181,15 +208,16 @@ function parseBarrel(name: ComponentName): BarrelInfo {
         // Some components don't follow the `<name>.component` convention
         // (rare). Fall back: the first exported class is the main one.
         const firstPath = exportPaths[0];
-        const sourcePath = path.resolve(path.join(COMPONENTS_UI_DIR, name), firstPath + '.ts');
+        const sourcePath = path.resolve(baseDir, firstPath + '.ts');
         const src = fs.readFileSync(sourcePath, 'utf-8');
         mainClass = extractComponentClass(src);
+        mainSelector = extractComponentSelector(src);
         if (!mainClass) {
             throw new Error(`could not find the main component class in ${name}/index.ts`);
         }
     }
 
-    return { mainClass, subs };
+    return { mainClass, mainSelector: mainSelector ?? `ui-${name}`, subs };
 }
 
 function extractComponentClass(src: string): string | null {
@@ -213,14 +241,16 @@ function pascalCaseFromKebab(s: string): string {
     return s.split('-').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
 }
 
-function renderDemoTemplate(name: string, barrel: BarrelInfo): string {
+function renderDemoTemplate(name: ComponentName, barrel: BarrelInfo): string {
     const pascalName = pascalCaseFromKebab(name);
+    const specifier = importSpecifierFor(name);
     const importNames = [barrel.mainClass, ...barrel.subs.map(s => s.className)];
     const importLines = importNames.map(n => `    ${n},`).join('\n');
     const importBlock = importNames.length === 1
-        ? `import { ${importNames[0]} } from '@/components/ui/${name}';`
-        : `import {\n${importLines}\n} from '@/components/ui/${name}';`;
+        ? `import { ${importNames[0]} } from '${specifier}';`
+        : `import {\n${importLines}\n} from '${specifier}';`;
 
+    const tag = barrel.mainSelector;
     const subElements = barrel.subs.length === 0
         ? ''
         : '\n' + barrel.subs
@@ -228,9 +258,9 @@ function renderDemoTemplate(name: string, barrel: BarrelInfo): string {
             .join('\n');
 
     const templateBody = barrel.subs.length === 0
-        ? `            <ui-${name} data-testid="root"></ui-${name}>`
-        : `            <ui-${name} data-testid="root">${subElements}
-            </ui-${name}>`;
+        ? `            <${tag} data-testid="root"></${tag}>`
+        : `            <${tag} data-testid="root">${subElements}
+            </${tag}>`;
 
     return `import { ChangeDetectionStrategy, Component } from '@angular/core';
 ${importBlock}

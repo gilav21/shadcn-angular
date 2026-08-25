@@ -12,6 +12,16 @@ export interface ToastDemoLocale extends LocaleMeta {
   successDescription: string;
   errorTitle: string;
   errorDescription: string;
+  buttonInfo: string;
+  buttonWarning: string;
+  buttonPromise: string;
+  infoTitle: string;
+  infoDescription: string;
+  warningTitle: string;
+  warningDescription: string;
+  promiseLoading: string;
+  promiseSuccess: string;
+  promiseError: string;
 }
 
 export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
@@ -28,6 +38,16 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     successDescription: 'Your action was completed successfully.',
     errorTitle: 'Error',
     errorDescription: 'Something went wrong. Please try again.',
+    buttonInfo: 'Info Toast',
+    buttonWarning: 'Warning Toast',
+    buttonPromise: 'Promise Toast',
+    infoTitle: 'Heads up',
+    infoDescription: 'A new version is available.',
+    warningTitle: 'Running low on space',
+    warningDescription: 'You are using 92% of your quota.',
+    promiseLoading: 'Saving…',
+    promiseSuccess: 'Saved',
+    promiseError: 'Could not save',
   },
   he: {
     code: 'he',
@@ -43,6 +63,16 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     successDescription: 'הפעולה שלך הושלמה בהצלחה.',
     errorTitle: 'שגיאה',
     errorDescription: 'משהו השתבש. אנא נסה שוב.',
+    buttonInfo: 'הודעת מידע',
+    buttonWarning: 'הודעת אזהרה',
+    buttonPromise: 'הודעת הבטחה',
+    infoTitle: 'לידיעתך',
+    infoDescription: 'גרסה חדשה זמינה.',
+    warningTitle: 'האחסון עומד להיגמר',
+    warningDescription: 'ניצלת 92% מהמכסה שלך.',
+    promiseLoading: 'שומר…',
+    promiseSuccess: 'נשמר',
+    promiseError: 'השמירה נכשלה',
   },
   ar: {
     code: 'ar',
@@ -58,6 +88,16 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     successDescription: 'تم إكمال إجراؤك بنجاح.',
     errorTitle: 'خطأ',
     errorDescription: 'حدث خطأ ما. يرجى المحاولة مرة أخرى.',
+    buttonInfo: 'إشعار معلومات',
+    buttonWarning: 'إشعار تحذير',
+    buttonPromise: 'إشعار وعد',
+    infoTitle: 'للعلم',
+    infoDescription: 'يتوفر إصدار جديد.',
+    warningTitle: 'المساحة على وشك النفاد',
+    warningDescription: 'أنت تستخدم 92% من حصتك.',
+    promiseLoading: 'جارٍ الحفظ…',
+    promiseSuccess: 'تم الحفظ',
+    promiseError: 'تعذّر الحفظ',
   },
   de: {
     code: 'de',
@@ -72,6 +112,16 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     successDescription: 'Ihre Aktion wurde erfolgreich abgeschlossen.',
     errorTitle: 'Fehler',
     errorDescription: 'Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.',
+    buttonInfo: 'Info-Toast',
+    buttonWarning: 'Warn-Toast',
+    buttonPromise: 'Promise-Toast',
+    infoTitle: 'Zur Info',
+    infoDescription: 'Eine neue Version ist verfügbar.',
+    warningTitle: 'Speicherplatz wird knapp',
+    warningDescription: 'Sie nutzen 92 % Ihres Kontingents.',
+    promiseLoading: 'Wird gespeichert…',
+    promiseSuccess: 'Gespeichert',
+    promiseError: 'Speichern fehlgeschlagen',
   },
   fr: {
     code: 'fr',
@@ -86,6 +136,16 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     successDescription: 'Votre action a été effectuée avec succès.',
     errorTitle: 'Erreur',
     errorDescription: "Quelque chose s'est mal passé. Veuillez réessayer.",
+    buttonInfo: 'Toast d’information',
+    buttonWarning: 'Toast d’avertissement',
+    buttonPromise: 'Toast de promesse',
+    infoTitle: 'À noter',
+    infoDescription: 'Une nouvelle version est disponible.',
+    warningTitle: 'Espace bientôt épuisé',
+    warningDescription: 'Vous utilisez 92 % de votre quota.',
+    promiseLoading: 'Enregistrement…',
+    promiseSuccess: 'Enregistré',
+    promiseError: 'Échec de l’enregistrement',
   },
   es: {
     code: 'es',
@@ -100,6 +160,16 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     successDescription: 'Tu acción se completó exitosamente.',
     errorTitle: 'Error',
     errorDescription: 'Algo salió mal. Por favor, inténtalo de nuevo.',
+    buttonInfo: 'Toast informativo',
+    buttonWarning: 'Toast de advertencia',
+    buttonPromise: 'Toast de promesa',
+    infoTitle: 'Atención',
+    infoDescription: 'Hay una nueva versión disponible.',
+    warningTitle: 'Queda poco espacio',
+    warningDescription: 'Estás usando el 92 % de tu cuota.',
+    promiseLoading: 'Guardando…',
+    promiseSuccess: 'Guardado',
+    promiseError: 'No se pudo guardar',
   },
   ja: {
     code: 'ja',
@@ -114,6 +184,16 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     successDescription: '操作が正常に完了しました。',
     errorTitle: 'エラー',
     errorDescription: '問題が発生しました。もう一度お試しください。',
+    buttonInfo: '情報トースト',
+    buttonWarning: '警告トースト',
+    buttonPromise: 'Promise トースト',
+    infoTitle: 'お知らせ',
+    infoDescription: '新しいバージョンが利用できます。',
+    warningTitle: '空き容量が少なくなっています',
+    warningDescription: 'クォータの 92% を使用しています。',
+    promiseLoading: '保存中…',
+    promiseSuccess: '保存しました',
+    promiseError: '保存できませんでした',
   },
   zh: {
     code: 'zh',
@@ -128,6 +208,16 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     successDescription: '您的操作已成功完成。',
     errorTitle: '错误',
     errorDescription: '出了些问题。请重试。',
+    buttonInfo: '信息提示',
+    buttonWarning: '警告提示',
+    buttonPromise: 'Promise 提示',
+    infoTitle: '请注意',
+    infoDescription: '有新版本可用。',
+    warningTitle: '存储空间不足',
+    warningDescription: '您已使用 92% 的配额。',
+    promiseLoading: '正在保存…',
+    promiseSuccess: '已保存',
+    promiseError: '保存失败',
   },
   ru: {
     code: 'ru',
@@ -142,6 +232,16 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     successDescription: 'Ваше действие успешно выполнено.',
     errorTitle: 'Ошибка',
     errorDescription: 'Что-то пошло не так. Пожалуйста, попробуйте снова.',
+    buttonInfo: 'Информационный тост',
+    buttonWarning: 'Предупреждающий тост',
+    buttonPromise: 'Promise-тост',
+    infoTitle: 'К сведению',
+    infoDescription: 'Доступна новая версия.',
+    warningTitle: 'Заканчивается место',
+    warningDescription: 'Вы используете 92 % квоты.',
+    promiseLoading: 'Сохранение…',
+    promiseSuccess: 'Сохранено',
+    promiseError: 'Не удалось сохранить',
   },
   pt: {
     code: 'pt',
@@ -156,5 +256,15 @@ export const TOAST_DEMO_LOCALES: Record<string, ToastDemoLocale> = {
     successDescription: 'Sua ação foi concluída com sucesso.',
     errorTitle: 'Erro',
     errorDescription: 'Algo deu errado. Por favor, tente novamente.',
+    buttonInfo: 'Toast informativo',
+    buttonWarning: 'Toast de aviso',
+    buttonPromise: 'Toast de promessa',
+    infoTitle: 'Atenção',
+    infoDescription: 'Há uma nova versão disponível.',
+    warningTitle: 'Pouco espaço restante',
+    warningDescription: 'Está a usar 92% da sua quota.',
+    promiseLoading: 'A guardar…',
+    promiseSuccess: 'Guardado',
+    promiseError: 'Não foi possível guardar',
   },
 };

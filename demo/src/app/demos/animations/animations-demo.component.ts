@@ -24,11 +24,13 @@ import {
   TextRevealComponent,
   SparklesButtonComponent,
 } from '../../../../../packages/components/ui';
+import { DocsForComponent } from '../../docs/docs-for.component';
 
 @Component({
   selector: 'app-animations-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    DocsForComponent,
     ButtonComponent,
     SeparatorComponent,
     GradientTextComponent,
@@ -70,6 +72,7 @@ import {
             {{ t().gradientTextPinkBlue }}
           </ui-gradient-text>
         </div>
+        <app-docs-for name="gradient-text" />
       </div>
 
       <ui-separator />
@@ -85,6 +88,7 @@ import {
         <div class="text-3xl font-bold">
           <ui-flip-text #flipTextRef [text]="t().flipTextContent" [delay]="60" [duration]="600" />
         </div>
+        <app-docs-for name="flip-text" />
       </div>
 
       <ui-separator />
@@ -112,6 +116,7 @@ import {
             <div class="p-6 rounded-xl border bg-card">{{ t().blurFadeItem3 }}</div>
           </ui-blur-fade>
         </div>
+        <app-docs-for name="blur-fade" />
       </div>
 
       <ui-separator />
@@ -124,6 +129,7 @@ import {
           <ui-typing-animation [strings]="t().typingStrings" [typeSpeed]="60"
             [deleteSpeed]="40" [pauseDuration]="2000" />
         </div>
+        <app-docs-for name="typing-animation" />
       </div>
 
       <ui-separator />
@@ -134,6 +140,7 @@ import {
         <div class="text-4xl font-bold h-16 flex items-center">
           <ui-morphing-text [texts]="t().morphingTexts" [interval]="3000" />
         </div>
+        <app-docs-for name="morphing-text" />
       </div>
 
       <ui-separator />
@@ -146,6 +153,7 @@ import {
           <ui-word-rotate class="text-primary h-[1.2em] w-32" [words]="t().wordRotateWords"
             [duration]="2000" />
         </div>
+        <app-docs-for name="word-rotate" />
       </div>
 
       <ui-separator />
@@ -168,6 +176,7 @@ import {
           </div>
           }
         </ui-marquee>
+        <app-docs-for name="marquee" />
       </div>
 
       <ui-separator />
@@ -189,6 +198,7 @@ import {
             </div>
           </ui-shine-border>
         </div>
+        <app-docs-for name="shine-border" />
       </div>
 
       <ui-separator />
@@ -203,6 +213,7 @@ import {
             <p class="text-slate-400 mt-2">{{ t().meteorsSubtitle }}</p>
           </div>
         </div>
+        <app-docs-for name="meteors" />
       </div>
 
       <ui-separator />
@@ -234,6 +245,7 @@ import {
             </ui-orbit>
           </div>
         </div>
+        <app-docs-for name="orbit" />
       </div>
 
       <ui-separator />
@@ -251,6 +263,7 @@ import {
             <p class="text-sm opacity-80 mt-2">{{ t().wobbleCard2Desc }}</p>
           </ui-wobble-card>
         </div>
+        <app-docs-for name="wobble-card" />
       </div>
 
       <ui-separator />
@@ -272,6 +285,7 @@ import {
           </div>
           }
         </ui-stagger-children>
+        <app-docs-for name="stagger-children" />
       </div>
 
       <ui-separator />
@@ -292,6 +306,7 @@ import {
             <p class="text-sm text-muted-foreground">{{ t().rippleCard1Desc }}</p>
           </div>
         </div>
+        <app-docs-for name="ripple" />
       </div>
 
       <ui-separator />
@@ -312,6 +327,7 @@ import {
             {{ t().magneticButton3 }}
           </button>
         </div>
+        <app-docs-for name="magnetic" />
       </div>
 
       <ui-separator />
@@ -328,6 +344,7 @@ import {
             </div>
           </div>
         </div>
+        <app-docs-for name="particles" />
       </div>
 
       <ui-separator />
@@ -338,6 +355,7 @@ import {
         <div class="p-4 rounded-xl border bg-primary/10 text-sm font-medium">
           {{ t().scrollProgressHint }}
         </div>
+        <app-docs-for name="scroll-progress" />
       </div>
 
       <ui-separator />
@@ -348,6 +366,7 @@ import {
         <div class="border rounded-md p-6 min-h-[100px]">
           <ui-streaming-text [text]="t().streamingText" class="font-mono text-lg" />
         </div>
+        <app-docs-for name="streaming-text" />
       </div>
 
       <ui-separator />
@@ -358,6 +377,7 @@ import {
         <div class="border rounded-md p-6 flex justify-center items-center">
           <ui-text-reveal [text]="t().textRevealText" class="text-3xl font-bold" />
         </div>
+        <app-docs-for name="text-reveal" />
       </div>
 
       <ui-separator />
@@ -368,6 +388,7 @@ import {
         <div class="flex gap-4 items-center">
           <ui-sparkles-button>{{ t().sparklesButton }}</ui-sparkles-button>
         </div>
+        <app-docs-for name="sparkles" />
       </div>
     </section>
   `,
