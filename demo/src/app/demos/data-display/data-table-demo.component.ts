@@ -1337,6 +1337,7 @@ export class DataTableDemoComponent {
       email: `user${i + 1}@example.com`,
       clientName: clientNames[Math.floor(randomFraction() * clientNames.length)],
       role: roles[Math.floor(randomFraction() * roles.length)],
+      dueDate: `2026-0${(i % 9) + 1}-${String((i % 28) + 1).padStart(2, '0')}`,
     }));
     this.payments.set(data);
     this.editableData.set(data.slice(0, 8));
@@ -1585,6 +1586,14 @@ export class DataTableDemoComponent {
           { label: 'Failed', value: 'failed' },
         ],
         valueSetter: (row, val) => ({ ...row, status: val as Payment['status'] }),
+      },
+      {
+        // `editType: 'date'` opens the library's own date picker. The cell holds
+        // an ISO string, and that is what comes back — the editor changes the
+        // value, not its type.
+        accessorKey: 'dueDate', header: locale.colDue, width: '150px',
+        editable: true, editType: 'date',
+        valueSetter: (row, val) => ({ ...row, dueDate: val as string }),
       },
     ];
   });

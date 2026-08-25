@@ -1897,6 +1897,22 @@
       "bytes": 13952,
       "lines": 16
     },
+    "data-table/__screenshots__/data-table-view-state.spec.ts/editing-a-date-cell-pads-a-single-digit-month-and-day-1.png": {
+      "bytes": 18628,
+      "lines": 21
+    },
+    "data-table/__screenshots__/data-table-view-state.spec.ts/editing-a-date-cell-writing-back-in-the-shape-it-found-keeps-a-string-column-on-strings-1.png": {
+      "bytes": 18830,
+      "lines": 24
+    },
+    "data-table/__screenshots__/data-table-view-state.spec.ts/saved-views-a-token-it-cannot-read-changes-nothing-at-all-when-it-refuses-1.png": {
+      "bytes": 14989,
+      "lines": 8
+    },
+    "data-table/__screenshots__/data-table-view-state.spec.ts/saved-views-a-token-it-cannot-read-refuses-a-future-version-outright-1.png": {
+      "bytes": 14929,
+      "lines": 19
+    },
     "data-table/__screenshots__/data-table.component.spec.ts/DataTableComponent---Column-resize-drag-touch-drag-resizes-the-column-1.png": {
       "bytes": 16452,
       "lines": 17
@@ -2373,21 +2389,25 @@
       "bytes": 8696,
       "lines": 246
     },
+    "data-table/data-table-view-state.spec.ts": {
+      "bytes": 9544,
+      "lines": 263
+    },
     "data-table/data-table-virtual-scroll.spec.ts": {
       "bytes": 7036,
       "lines": 183
     },
     "data-table/data-table.component.html": {
-      "bytes": 68513,
-      "lines": 1516
+      "bytes": 68703,
+      "lines": 1522
     },
     "data-table/data-table.component.spec.ts": {
       "bytes": 306611,
       "lines": 6854
     },
     "data-table/data-table.component.ts": {
-      "bytes": 217827,
-      "lines": 6058
+      "bytes": 220604,
+      "lines": 6134
     },
     "data-table/data-table.coverage.spec.ts": {
       "bytes": 25674,
@@ -2410,12 +2430,12 @@
       "lines": 1863
     },
     "data-table/data-table.types.ts": {
-      "bytes": 12658,
-      "lines": 433
+      "bytes": 14451,
+      "lines": 473
     },
     "data-table/data-table.utils.ts": {
-      "bytes": 23851,
-      "lines": 717
+      "bytes": 25686,
+      "lines": 760
     },
     "data-table/index.ts": {
       "bytes": 646,

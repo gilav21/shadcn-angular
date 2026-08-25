@@ -42,6 +42,7 @@ import {
 } from "../table";
 import { InputComponent } from "../input";
 import { CheckboxComponent } from "../checkbox";
+import { DatePickerComponent } from "../date-picker";
 import {
   PopoverComponent,
   PopoverTriggerComponent,
@@ -69,6 +70,8 @@ import {
   DataTableExportOptions,
   DataTableExportQuery,
   DataTableQuery,
+  DataTableViewState,
+  DATA_TABLE_VIEW_STATE_VERSION,
   SubRowSelectionMode,
   SubRowFilterMode,
   FlattenedTreeRow,
@@ -106,6 +109,8 @@ import {
   parseNlFilterSpec,
   type NlFilterSpec,
   evaluateAdvancedFilter,
+  asEditableDate,
+  toEditedDateValue,
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
 import { AiProvider, runAiTask } from "../../lib/ai";
@@ -167,6 +172,7 @@ function sameQuery(a: DataTableQuery, b: DataTableQuery): boolean {
     TableCellComponent,
     InputComponent,
     CheckboxComponent,
+    DatePickerComponent,
     PopoverComponent,
     PopoverTriggerComponent,
     PopoverContentComponent,
@@ -3486,6 +3492,76 @@ export class DataTableComponent<T>
         order: orderIndex.get(key),
       };
     });
+  }
+
+  /** The value being edited, read as a date for `editType: 'date'`. */
+  editDateValue(): Date | null {
+    return asEditableDate(this.editValue());
+  }
+
+  /**
+   * Commit a date picked in a `editType: 'date'` cell.
+   *
+   * The shape is read from the value still in the editor — which is the cell's
+   * original, because the picker commits on the first change — so a column
+   * holding ISO strings keeps holding ISO strings. Changing a cell's type
+   * behind the consumer's back is the failure mode here, not a wrong day.
+   */
+  onEditDateChange(picked: Date | null): void {
+    const next = toEditedDateValue(picked, this.editValue());
+    this.onEditValueChange(next);
+    this.commitEdit();
+  }
+
+  /**
+   * The whole view as one token: layout, sort, filters and page.
+   *
+   * {@link getColumnState} covers the layout, which is what a "reset my
+   * columns" feature needs. This is what a *named view* needs — someone who
+   * saved "My open invoices" expects the filters and the sort back, not just
+   * the column widths.
+   *
+   * Persist it as JSON. It carries a {@link DATA_TABLE_VIEW_STATE_VERSION} so
+   * that a token written by an older build is recognised rather than guessed
+   * at.
+   *
+   * @publicApi
+   */
+  getViewState(): DataTableViewState {
+    return {
+      version: DATA_TABLE_VIEW_STATE_VERSION,
+      columns: this.getColumnState(),
+      sort: this.sortState(),
+      sortStates: this.multiSortState(),
+      columnFilters: this.columnFilters(),
+      advancedFilter: this.advancedFilter(),
+      globalFilter: this.globalFilter(),
+      pagination: this.paginationState(),
+    };
+  }
+
+  /**
+   * Restore a {@link getViewState} token. Returns whether it was applied.
+   *
+   * A token from an unknown version is **refused outright** rather than
+   * applied field by field. Half-restoring a saved view is worse than refusing
+   * it: the user gets a table that is nearly right and has no way to tell which
+   * parts are stale. The boolean is there so a consumer can drop a token it
+   * can no longer read instead of failing silently.
+   *
+   * @publicApi
+   */
+  applyViewState(state: DataTableViewState | null | undefined): boolean {
+    if (!state || state.version !== DATA_TABLE_VIEW_STATE_VERSION) return false;
+
+    this.applyColumnState(state.columns);
+    this.sortState.set(state.sort);
+    this.multiSortState.set(state.sortStates);
+    this.columnFilters.set(state.columnFilters);
+    this.advancedFilter.set(state.advancedFilter);
+    this.globalFilter.set(state.globalFilter);
+    this.paginationState.set(state.pagination);
+    return true;
   }
 
   /**

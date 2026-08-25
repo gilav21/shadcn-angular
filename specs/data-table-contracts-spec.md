@@ -191,8 +191,8 @@ for T-1 — a clean axe pass, which the pre-commit hook enforces anyway.
 |---|---|---|---|---|---|---|
 | T-1 | ARIA grid semantics | UC-1, UC-6, R-1, R-2 | ✅ | 2026-08-25 | — | The audit's premise was wrong and had to be corrected first. The numbering bug was a layout spacer row, found only because a count came out one too high. |
 | T-2 | `DataTableQuery` / `DataTableResult` + `query` output + worked example | UC-2, R-5 | ✅ | 2026-08-25 | — | The duplicate-emission guard turned out to be the substance, not a nicety: on a server-side table a redundant emit is a redundant fetch. |
-| T-3 | `getViewState()` / `applyViewState()` | UC-3, UC-5, R-3 | ⬜ | | | |
-| T-4 | `editType: 'date'` | UC-4, R-4 | ⬜ | | | |
+| T-3 | `getViewState()` / `applyViewState()` | UC-3, UC-5, R-3 | ✅ | 2026-08-25 | — | Refusing an unreadable token outright is the whole design; a boolean return lets the consumer drop it rather than fail silently. |
+| T-4 | `editType: 'date'` | UC-4, R-4 | ✅ | 2026-08-25 | — | The editor changes the value, not its type. The near-miss was `toISOString()`, which would have shifted the day for half the planet. |
 | T-5 | Bundle close | coverage, Sonar, docs regen | ⬜ | | | |
 
 T-1 is first because it is the one item the audit called out as real debt
@@ -278,3 +278,46 @@ signals. Confirmed in a browser: paging emits `{pageIndex: 1}` and the rows
 move to PAY-11; sorting by amount emits the new sort **and** the page reset to
 0 in a single request — which through the granular outputs arrives as two
 callbacks to reconcile by hand.
+
+### T-3 Saved views — 2026-08-25
+
+**Built.** `getViewState()` / `applyViewState()`, plus `DataTableViewState` and
+`DATA_TABLE_VIEW_STATE_VERSION`. Both methods are tagged `@publicApi`, so they
+appear in the generated API table.
+
+`getColumnState` covers width, visibility, pinning and order — the *layout*,
+which is what "reset my columns" needs. A named view is more: someone who saved
+"My open invoices" expects the sort, the filters and the page back too.
+
+**Versioned, and it refuses rather than guesses.** The token is persisted by
+the consumer, so it outlives the build that wrote it by a long way. A bare
+array gets away without a version; a growing object does not. `applyViewState`
+returns `false` for an unknown version and changes **nothing** — half-restoring
+leaves a table that is nearly right with no way for the user to tell which
+parts are stale. The boolean exists so a consumer can discard a token it can no
+longer read instead of failing quietly. Verified by removing the version check:
+two tests fail.
+
+### T-4 `editType: 'date'` — 2026-08-25
+
+**Built.** A `date` branch on the cell editor using the library's own
+`ui-date-picker`, and `asEditableDate` / `toEditedDateValue` /
+`toLocalDateString` as pure, tested helpers.
+
+**The editor changes the value, not its type.** A column holding ISO strings
+keeps holding them; one holding `Date`s keeps `Date`s; an empty cell defaults to
+a `Date`. Imposing a type would hand the consumer's `valueSetter` — and their
+backend — a shape they never agreed to. The shape is read from the value still
+in the editor, which is the cell's original because the picker commits on the
+first change.
+
+**The near-miss was the formatting.** `toISOString().slice(0, 10)` is the
+obvious way to write `YYYY-MM-DD`, and it converts to UTC first — so a date
+picked in the evening anywhere east of Greenwich comes back as the previous
+day, with the cell showing one date and the value holding another. The helper
+formats from the local calendar instead. This is the same class of bug the
+`time-picker` value type exists to avoid, met again from the other direction.
+
+Confirmed in a browser rather than only in tests: double-clicking a due-date
+cell opens the picker inline, choosing the 15th turns `2026-01-01` into
+`2026-01-15`, and the value is still a string.

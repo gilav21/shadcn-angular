@@ -5182,10 +5182,30 @@
       ],
       "methods": [
         {
+          "name": "applyViewState",
+          "signature": "applyViewState(state: DataTableViewState | null | undefined)",
+          "returns": "boolean",
+          "description": "Restore a {@link getViewState} token. Returns whether it was applied. A token from an unknown version is **refused outright** rather than applied field by field. Half-restoring a saved view is worse than refusing it: the user gets a table that is nearly right and has no way to tell which parts are stale. The boolean is there so a consumer can drop a token it can no longer read instead of failing silently.",
+          "params": [
+            {
+              "name": "state",
+              "type": "DataTableViewState | null | undefined",
+              "optional": false
+            }
+          ]
+        },
+        {
           "name": "currentQuery",
           "signature": "currentQuery()",
           "returns": "DataTableQuery",
           "description": "The request that describes what the table is showing right now. The companion to the {@link query} output, which only fires on a change: this is how a consumer gets the *first* page without waiting for the user to touch something.",
+          "params": []
+        },
+        {
+          "name": "getViewState",
+          "signature": "getViewState()",
+          "returns": "DataTableViewState",
+          "description": "The whole view as one token: layout, sort, filters and page. {@link getColumnState} covers the layout, which is what a \"reset my columns\" feature needs. This is what a *named view* needs — someone who saved \"My open invoices\" expects the filters and the sort back, not just the column widths. Persist it as JSON. It carries a {@link DATA_TABLE_VIEW_STATE_VERSION} so that a token written by an older build is recognised rather than guessed at.",
           "params": []
         }
       ]

@@ -20,6 +20,7 @@ export interface DataTableDemoLocale extends LocaleMeta {
   readonly sectionClientSide: string;
   readonly sectionResizable: string;
   readonly sectionServerSide: string;
+  readonly colDue: string;
   readonly sectionOneQuery: string;
   readonly oneQueryLead: string;
   readonly oneQueryNote: string;
@@ -98,6 +99,7 @@ export const DATA_TABLE_DEMO_LOCALES: Record<string, DataTableDemoLocale> = {
     sectionClientSide: 'Data Table (Client-Side)',
     sectionResizable: 'Data Table (Resizable Columns)',
     sectionServerSide: 'Data Table (Server-Side)',
+    colDue: 'Due',
     sectionOneQuery: 'One query, one handler',
     oneQueryLead: "The same server-side table as above, wired through a single output. `query` carries the whole request — filters, sorts, page — so there is nothing to keep in sync and nothing to reassemble.",
     oneQueryNote: "It reports state; it does not fetch. Debounce on your side: the global filter changes as the user types.",
@@ -172,6 +174,7 @@ export const DATA_TABLE_DEMO_LOCALES: Record<string, DataTableDemoLocale> = {
     sectionClientSide: 'טבלת נתונים (צד לקוח)',
     sectionResizable: 'טבלת נתונים (עמודות בנות שינוי גודל)',
     sectionServerSide: 'טבלת נתונים (צד שרת)',
+    colDue: 'תאריך יעד',
     sectionOneQuery: 'שאילתה אחת, מטפל אחד',
     oneQueryLead: "אותה טבלת צד־שרת כמו למעלה, מחוברת דרך פלט יחיד. ‏`query` נושא את כל הבקשה — מסננים, מיונים, עמוד — כך שאין מה לסנכרן ואין מה להרכיב מחדש.",
     oneQueryNote: "הוא מדווח על מצב, לא מביא נתונים. השהו בצד שלכם: המסנן הגלובלי משתנה תוך כדי הקלדה.",
@@ -246,6 +249,7 @@ export const DATA_TABLE_DEMO_LOCALES: Record<string, DataTableDemoLocale> = {
     sectionClientSide: 'جدول البيانات (جانب العميل)',
     sectionResizable: 'جدول البيانات (أعمدة قابلة للتغيير)',
     sectionServerSide: 'جدول البيانات (جانب الخادم)',
+    colDue: 'الاستحقاق',
     sectionOneQuery: 'استعلام واحد، معالج واحد',
     oneQueryLead: "نفس جدول جانب الخادم أعلاه، موصولًا عبر مخرج واحد. يحمل `query` الطلب كاملًا — المرشحات والفرز والصفحة — فلا شيء يحتاج مزامنة ولا إعادة تجميع.",
     oneQueryNote: "إنه يبلّغ عن الحالة ولا يجلب البيانات. أضف تأخيرًا من جانبك: المرشح العام يتغير مع كل حرف.",
@@ -319,6 +323,7 @@ export const DATA_TABLE_DEMO_LOCALES: Record<string, DataTableDemoLocale> = {
     sectionClientSide: 'Datentabelle (Clientseitig)',
     sectionResizable: 'Datentabelle (Größenänderbare Spalten)',
     sectionServerSide: 'Datentabelle (Serverseitig)',
+    colDue: 'Fällig',
     sectionOneQuery: 'Eine Abfrage, ein Handler',
     oneQueryLead: "Dieselbe serverseitige Tabelle wie oben, über eine einzige Ausgabe verdrahtet. `query` trägt die ganze Anfrage — Filter, Sortierung, Seite — also gibt es nichts abzugleichen und nichts neu zusammenzusetzen.",
     oneQueryNote: "Sie meldet Zustand, sie lädt nicht. Entprellen Sie auf Ihrer Seite: Der globale Filter ändert sich beim Tippen.",
@@ -392,6 +397,7 @@ export const DATA_TABLE_DEMO_LOCALES: Record<string, DataTableDemoLocale> = {
     sectionClientSide: 'Tableau de données (côté client)',
     sectionResizable: 'Tableau de données (colonnes redimensionnables)',
     sectionServerSide: 'Tableau de données (côté serveur)',
+    colDue: 'Échéance',
     sectionOneQuery: 'Une requête, un gestionnaire',
     oneQueryLead: "Le même tableau côté serveur que ci-dessus, câblé par une seule sortie. `query` porte la requête entière — filtres, tris, page — il n’y a donc rien à synchroniser ni à réassembler.",
     oneQueryNote: "Elle signale un état, elle ne récupère rien. Temporisez de votre côté : le filtre global change à chaque frappe.",
@@ -465,6 +471,7 @@ export const DATA_TABLE_DEMO_LOCALES: Record<string, DataTableDemoLocale> = {
     sectionClientSide: 'Tabla de datos (lado del cliente)',
     sectionResizable: 'Tabla de datos (columnas redimensionables)',
     sectionServerSide: 'Tabla de datos (lado del servidor)',
+    colDue: 'Vence',
     sectionOneQuery: 'Una consulta, un manejador',
     oneQueryLead: "La misma tabla de lado servidor de arriba, conectada por una única salida. `query` lleva la petición completa — filtros, ordenaciones, página — así que no hay nada que sincronizar ni que reensamblar.",
     oneQueryNote: "Informa del estado; no consulta al servidor. Aplica debounce por tu parte: el filtro global cambia al escribir.",
@@ -538,6 +545,7 @@ export const DATA_TABLE_DEMO_LOCALES: Record<string, DataTableDemoLocale> = {
     sectionClientSide: 'データテーブル（クライアントサイド）',
     sectionResizable: 'データテーブル（リサイズ可能な列）',
     sectionServerSide: 'データテーブル（サーバーサイド）',
+    colDue: '期日',
     sectionOneQuery: 'ひとつのクエリ、ひとつのハンドラ',
     oneQueryLead: "上と同じサーバーサイドのテーブルを、出力ひとつで配線したものです。`query` はリクエスト全体 — フィルター、並び替え、ページ — を運ぶので、同期させるものも組み立て直すものもありません。",
     oneQueryNote: "状態を報告するだけで、取得は行いません。デバウンスは呼び出し側で: グローバルフィルターは入力のたびに変わります。",
@@ -611,6 +619,7 @@ export const DATA_TABLE_DEMO_LOCALES: Record<string, DataTableDemoLocale> = {
     sectionClientSide: '数据表（客户端）',
     sectionResizable: '数据表（可调整列宽）',
     sectionServerSide: '数据表（服务端）',
+    colDue: '到期',
     sectionOneQuery: '一个查询，一个处理器',
     oneQueryLead: "与上面相同的服务端表格，只通过一个输出连接。`query` 承载完整请求——筛选、排序、分页——因此无需同步，也无需重新拼装。",
     oneQueryNote: "它只报告状态，不发起请求。请在你这边做防抖：全局筛选会随输入而变化。",
@@ -684,6 +693,7 @@ export const DATA_TABLE_DEMO_LOCALES: Record<string, DataTableDemoLocale> = {
     sectionClientSide: 'Таблица данных (клиентская сторона)',
     sectionResizable: 'Таблица данных (изменяемые столбцы)',
     sectionServerSide: 'Таблица данных (серверная сторона)',
+    colDue: 'Срок',
     sectionOneQuery: 'Один запрос, один обработчик',
     oneQueryLead: "Та же серверная таблица, что и выше, подключённая через один выход. `query` несёт весь запрос — фильтры, сортировки, страницу — поэтому нечего синхронизировать и нечего собирать заново.",
     oneQueryNote: "Он сообщает состояние, а не загружает данные. Делайте debounce на своей стороне: глобальный фильтр меняется при вводе.",
@@ -757,6 +767,7 @@ export const DATA_TABLE_DEMO_LOCALES: Record<string, DataTableDemoLocale> = {
     sectionClientSide: 'Tabela de dados (lado do cliente)',
     sectionResizable: 'Tabela de dados (colunas redimensionáveis)',
     sectionServerSide: 'Tabela de dados (lado do servidor)',
+    colDue: 'Vencimento',
     sectionOneQuery: 'Uma consulta, um manipulador',
     oneQueryLead: "A mesma tabela do lado do servidor acima, ligada por uma única saída. `query` transporta o pedido inteiro — filtros, ordenações, página — por isso não há nada a sincronizar nem a remontar.",
     oneQueryNote: "Reporta estado; não vai buscar dados. Faça debounce do seu lado: o filtro global muda à medida que se escreve.",

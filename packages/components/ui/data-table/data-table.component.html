@@ -239,6 +239,12 @@
           [ariaDescribedby]="editErr ? cellEditErrorId : undefined"
           (checkedChange)="onEditValueChange($event); commitEdit()"
         />
+      } @else if (col.editType === "date") {
+        <ui-date-picker
+          class="w-full"
+          [date]="editDateValue()"
+          (dateChange)="onEditDateChange($event)"
+        />
       } @else if (col.editType === "select" && col.editOptions) {
         <select
           data-edit-input
