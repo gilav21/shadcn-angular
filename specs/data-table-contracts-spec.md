@@ -355,3 +355,23 @@ three original stash entries are intact.
 Two lessons, both already written down elsewhere and both re-learned here:
 never measure timing on a loaded box, and `git stash` is not a no-op guard when
 the tree might already be clean.
+
+---
+
+## Shipped
+
+Merged to master 2026-08-25 in **PR #120** (the `integration/waves-0-1` roll-up,
+which also carried PR #119 / `specs/wave-0`). CLI **0.0.51** published
+2026-08-26.
+
+Final gates on master: browser suite 498 files / 10,258 tests, CLI suite 71
+files / 1,399 tests, `test-storybook:a11y` 172 suites / 1,115 assertions,
+`check:all` clean, SonarQube quality gate **OK with 0 new violations**.
+
+The Sonar run was not a formality — it caught a real keyboard bug that all
+10,258 tests missed: the node-editor palette was bound to `(click)` on
+`<ui-command-item>`, which answers Enter by emitting `selectItem` and never
+dispatches a DOM click, so the palette was unusable by keyboard. The existing
+specs stayed green because they called `.click()` on the host element, a target
+no user can hit — the listener is on the inner `role="option"` row. Fixed and
+pinned by a spec verified to fail when the binding is reverted.
