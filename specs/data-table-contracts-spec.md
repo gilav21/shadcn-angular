@@ -193,7 +193,7 @@ for T-1 — a clean axe pass, which the pre-commit hook enforces anyway.
 | T-2 | `DataTableQuery` / `DataTableResult` + `query` output + worked example | UC-2, R-5 | ✅ | 2026-08-25 | — | The duplicate-emission guard turned out to be the substance, not a nicety: on a server-side table a redundant emit is a redundant fetch. |
 | T-3 | `getViewState()` / `applyViewState()` | UC-3, UC-5, R-3 | ✅ | 2026-08-25 | — | Refusing an unreadable token outright is the whole design; a boolean return lets the consumer drop it rather than fail silently. |
 | T-4 | `editType: 'date'` | UC-4, R-4 | ✅ | 2026-08-25 | — | The editor changes the value, not its type. The near-miss was `toISOString()`, which would have shifted the day for half the planet. |
-| T-5 | Bundle close | coverage, Sonar, docs regen | ⬜ | | | |
+| T-5 | Bundle close | coverage, Sonar, docs regen | ✅ | 2026-08-25 | — | Two CLI failures during the gate were CPU contention from the concurrent scan, not regressions — and the way I first tried to prove that was itself invalid. |
 
 T-1 is first because it is the one item the audit called out as real debt
 rather than missing sugar, and because it touches the template that every later
@@ -321,3 +321,37 @@ formats from the local calendar instead. This is the same class of bug the
 Confirmed in a browser rather than only in tests: double-clicking a due-date
 cell opens the picker inline, choosing the 15th turns `2026-01-01` into
 `2026-01-15`, and the value is still a string.
+
+### T-5 Bundle close — 2026-08-25
+
+| Gate | Result |
+|---|---|
+| Full browser suite | 498 files / **10,257 tests**, 0 failures (up 53 from this spec's work) |
+| CLI suite | 38/38 on `install.spec.ts`, the rest green |
+| `check:all` | eslint + `tsc` + `ngc`, clean |
+| e2e | `data-table` green against a real consumer install |
+| axe | clean on every commit, via the pre-commit gate |
+| Docs | regenerated; `query`, `currentQuery`, `getViewState` and `applyViewState` all appear in the generated API tables |
+| SonarQube | one new issue, fixed; rescanned to confirm |
+
+**One new Sonar issue, and it was mine.** `S6582` on the view-state guard:
+`!state || state.version !== …` is an optional chain spelled the long way.
+Fixed to `state?.version !== …`, which covers null, undefined and a version
+mismatch in one expression.
+
+**Two CLI failures that were not regressions — and a bad diagnosis on the way
+to establishing that.** `install.spec.ts` failed two tests at ~5,007ms, which
+is the 5s timeout rather than an assertion; those tests fetch over the network
+and the Sonar scanner was saturating the box at the time. They pass 38/38 on an
+idle machine.
+
+The first attempt to prove that was worse than useless. The tree was clean, so
+`git stash` saved nothing — and `git stash pop` then restored an **unrelated
+pre-existing stash** from another branch, conflicting on `.gitignore`. The
+"passing" run it produced proved nothing about my changes, because my changes
+had never been stashed. Repaired with `git checkout HEAD -- .gitignore`; all
+three original stash entries are intact.
+
+Two lessons, both already written down elsewhere and both re-learned here:
+never measure timing on a loaded box, and `git stash` is not a no-op guard when
+the tree might already be clean.
