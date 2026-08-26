@@ -9399,6 +9399,23 @@
       ]
     },
     {
+      "name": "infinite-canvas/node-editor-stdlib",
+      "description": "Pure node types for the editor: text, number, logic, object, list and convert - the pieces users compose transformers from.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-stdlib",
+      "importStatement": null,
+      "selector": null,
+      "dependencies": [
+        "infinite-canvas/node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": null,
+      "snippetSkipReason": "no element or attribute selector in the registry source",
+      "demoRoute": null,
+      "demoFile": null,
+      "api": []
+    },
+    {
       "name": "infinite-canvas/node-editor-subgraph",
       "description": "Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.",
       "category": "layout",
@@ -9441,6 +9458,53 @@
               "description": "Go to this level. The index into `path`."
             }
           ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "infinite-canvas/node-editor-text-output",
+      "description": "A display node that takes text and how to draw it, so a graph can style its own output without a node per style.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-text-output",
+      "importStatement": "import { NodeEditorTextOutputComponent } from '@/components/ui/infinite-canvas/addons/node-editor-text-output';",
+      "selector": "ui-node-editor-text-output",
+      "dependencies": [
+        "infinite-canvas/node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor-text-output />",
+      "snippetSkipReason": "",
+      "demoRoute": null,
+      "demoFile": null,
+      "api": [
+        {
+          "className": "NodeEditorTextOutputComponent",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor-text-output/node-editor-text-output.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-text-output",
+          "description": "",
+          "inputs": [
+            {
+              "name": "color",
+              "type": "unknown",
+              "description": "",
+              "default": "'color'"
+            },
+            {
+              "name": "style",
+              "type": "unknown",
+              "description": "",
+              "default": "'style'"
+            },
+            {
+              "name": "text",
+              "type": "unknown",
+              "description": "",
+              "default": "'text'"
+            }
+          ],
+          "outputs": [],
           "methods": []
         }
       ]

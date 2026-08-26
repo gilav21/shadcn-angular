@@ -70,6 +70,8 @@ import {
   type NodeTypePicked,
 } from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-palette';
 import { NodeEditorProblemsComponent } from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-problems';
+import { STDLIB_NODE_TYPES } from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-stdlib';
+import { TEXT_OUTPUT_NODE } from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-text-output';
 import { INFINITE_CANVAS_DEMO_LOCALES } from './infinite-canvas-demo.locales';
 import { CanvasBasicsDemoComponent } from './canvas-basics-demo.component';
 import { BROWSER_NODE } from './node-editor-demo/nodes/browser-node.component';
@@ -138,6 +140,10 @@ const NESTABLE_NODE_TYPES: NodeTypeDefinition[] = [
   UPPERCASE_NODE,
   LENGTH_NODE,
   DISPLAY_NODE,
+  TEXT_OUTPUT_NODE,
+  // The standard library, inside subgraphs too — a transformer built out of
+  // nothing but the demo's own example nodes would not prove much.
+  ...STDLIB_NODE_TYPES,
 ];
 
 /**
@@ -222,6 +228,8 @@ const DEMO_NODE_TYPES = [
   DISPLAY_NODE,
   SHOUT_SUBGRAPH,
   NEW_SUBGRAPH,
+  TEXT_OUTPUT_NODE,
+  ...STDLIB_NODE_TYPES,
   // Registered so the boundary nodes render when the editor is showing the
   // INSIDE of a subgraph — the same editor, a different graph.
   ...SUBGRAPH_BOUNDARY_TYPES,
@@ -256,6 +264,17 @@ function liveNodes(): EditorNode[] {
     // A node whose work is another graph. Select it and press "Open subgraph".
     { id: 'composite', type: 'shout-and-size', x: 760, y: 300, width: 200, height: 0 },
     { id: 'inner-out', type: 'display', x: 1020, y: 300, width: 190, height: 0 },
+    /*
+     * Colouring text, composed rather than coded.
+     *
+     * There is no "colour this text" node and there should not be one: colour
+     * is not a transformation of a value, so a graph can only ask for it if
+     * something is willing to draw it. `Text output` is that something, and it
+     * takes the colour as data — so the pair below is the whole feature, and
+     * every other styling a graph might want is the same two wires.
+     */
+    { id: 'ink', type: 'text-input', x: 500, y: 470, width: 190, height: 0 },
+    { id: 'styled', type: 'text-output', x: 760, y: 470, width: 210, height: 0 },
   ];
 }
 
@@ -268,6 +287,8 @@ function liveConnections(): NodeConnection[] {
     { id: 'l5', source: 'url', sourcePort: 'text', target: 'preview', targetPort: 'url' },
     { id: 'l6', source: 'url', sourcePort: 'text', target: 'composite', targetPort: 'text' },
     { id: 'l7', source: 'composite', sourcePort: 'shouted', target: 'inner-out', targetPort: 'value' },
+    { id: 'l8', source: 'upper', sourcePort: 'out', target: 'styled', targetPort: 'text' },
+    { id: 'l9', source: 'ink', sourcePort: 'text', target: 'styled', targetPort: 'color' },
   ];
 }
 
@@ -688,7 +709,29 @@ export class InfiniteCanvasDemoComponent {
         if (mounted.has(nodeId)) editor.runtime.setState(nodeId, graph);
       }
     });
+
+    /*
+     * Start the colour node holding an actual colour.
+     *
+     * The text input's own initial state is a web address, which is the right
+     * default for the four nodes it feeds and useless for this one — a value
+     * that is not a colour is refused by the display, so the styled example
+     * would open looking broken.
+     *
+     * Once, not on every change: after this the value is the reader's to edit,
+     * and an effect that kept writing it back would fight them for the field.
+     */
+    effect(() => {
+      const editor = this.editorRef();
+      if (!editor || this.inkSeeded) return;
+      if (!this.nodes().some(node => node.id === 'ink')) return;
+      this.inkSeeded = true;
+      editor.runtime.setState('ink', { value: '#e11d48' });
+    });
   }
+
+  /** Whether the colour node has been given its starting colour. */
+  private inkSeeded = false;
 
   // ------------------------------------------------------------ context menu
 

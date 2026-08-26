@@ -4157,6 +4157,42 @@
       "bytes": 2996,
       "lines": 111
     },
+    "infinite-canvas/addons/node-editor-stdlib/index.ts": {
+      "bytes": 2347,
+      "lines": 58
+    },
+    "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.coerce.ts": {
+      "bytes": 3854,
+      "lines": 97
+    },
+    "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.convert.ts": {
+      "bytes": 4096,
+      "lines": 133
+    },
+    "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.list.ts": {
+      "bytes": 4234,
+      "lines": 126
+    },
+    "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.logic.ts": {
+      "bytes": 4451,
+      "lines": 150
+    },
+    "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.number.ts": {
+      "bytes": 3462,
+      "lines": 98
+    },
+    "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.object.ts": {
+      "bytes": 3992,
+      "lines": 109
+    },
+    "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.spec.ts": {
+      "bytes": 15099,
+      "lines": 416
+    },
+    "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.text.ts": {
+      "bytes": 6145,
+      "lines": 185
+    },
     "infinite-canvas/addons/node-editor-subgraph/__screenshots__/node-editor-subgraph.dynamic-ports.spec.ts/a-subgraph-node-built-by-the-user--in-a-mounted-editor-draws-a-port-on-the-card-once-a-boundary-node-is-added-inside-1.png": {
       "bytes": 18376,
       "lines": 36
@@ -4212,6 +4248,30 @@
     "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.types.ts": {
       "bytes": 1837,
       "lines": 50
+    },
+    "infinite-canvas/addons/node-editor-text-output/__screenshots__/node-editor-text-output.component.spec.ts/NodeEditorTextOutputComponent-has-no-axe-violations-1.png": {
+      "bytes": 4759,
+      "lines": 4
+    },
+    "infinite-canvas/addons/node-editor-text-output/index.ts": {
+      "bytes": 721,
+      "lines": 16
+    },
+    "infinite-canvas/addons/node-editor-text-output/node-editor-text-output.component.html": {
+      "bytes": 647,
+      "lines": 19
+    },
+    "infinite-canvas/addons/node-editor-text-output/node-editor-text-output.component.spec.ts": {
+      "bytes": 8046,
+      "lines": 192
+    },
+    "infinite-canvas/addons/node-editor-text-output/node-editor-text-output.component.ts": {
+      "bytes": 5575,
+      "lines": 142
+    },
+    "infinite-canvas/addons/node-editor-text-output/node-editor-text-output.types.ts": {
+      "bytes": 2729,
+      "lines": 72
     },
     "infinite-canvas/addons/node-editor/index.ts": {
       "bytes": 808,

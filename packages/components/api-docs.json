@@ -8084,6 +8084,36 @@
       "methods": []
     },
     {
+      "name": "NodeEditorTextOutputComponent",
+      "file": "packages/components/ui/infinite-canvas/addons/node-editor-text-output/node-editor-text-output.component.ts",
+      "kind": "component",
+      "selector": "ui-node-editor-text-output",
+      "description": "",
+      "projectsContent": false,
+      "inputs": [
+        {
+          "name": "color",
+          "type": "unknown",
+          "description": "",
+          "default": "'color'"
+        },
+        {
+          "name": "style",
+          "type": "unknown",
+          "description": "",
+          "default": "'style'"
+        },
+        {
+          "name": "text",
+          "type": "unknown",
+          "description": "",
+          "default": "'text'"
+        }
+      ],
+      "outputs": [],
+      "methods": []
+    },
+    {
       "name": "NodeEditorNodeDirective",
       "file": "packages/components/ui/infinite-canvas/addons/node-editor/node-editor-node.directive.ts",
       "kind": "directive",

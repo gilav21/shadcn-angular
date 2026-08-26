@@ -25,7 +25,7 @@ Rules that hold for every component:
 - Inputs marked `(required)` must be bound or the template will not compile.
 - A section without a snippet says so explicitly; do not invent one.
 
-## Index (178 components)
+## Index (180 components)
 
 - [accordion](#accordion): Vertically stacked, collapsible sections that expand one or more panels to reveal content.
 - [alert](#alert): Inline callout banner for important messages with title, description, and variants.
@@ -109,7 +109,9 @@ Rules that hold for every component:
 - [infinite-canvas/node-editor-minimap](#infinite-canvasnode-editor-minimap): Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.
 - [infinite-canvas/node-editor-palette](#infinite-canvasnode-editor-palette): Searchable picker over the registered node types, filterable by what a port accepts.
 - [infinite-canvas/node-editor-problems](#infinite-canvasnode-editor-problems): Lists what is wrong with a graph in plain language, and reveals the node it belongs to.
+- [infinite-canvas/node-editor-stdlib](#infinite-canvasnode-editor-stdlib): Pure node types for the editor: text, number, logic, object, list and convert - the pieces users compose transformers from.
 - [infinite-canvas/node-editor-subgraph](#infinite-canvasnode-editor-subgraph): Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.
+- [infinite-canvas/node-editor-text-output](#infinite-canvasnode-editor-text-output): A display node that takes text and how to draw it, so a graph can style its own output without a node per style.
 - [input](#input): Single-line text input with variants and add-on support for forms.
 - [input-group](#input-group): Combines an input with leading/trailing add-ons like icons, text, or buttons.
 - [input-mask](#input-mask): Directive that formats input text against a pattern (phone, date, card numbers).
@@ -2418,6 +2420,18 @@ Lists what is wrong with a graph in plain language, and reveals the node it belo
 <ui-node-editor-problems />
 ```
 
+### infinite-canvas/node-editor-stdlib
+
+Pure node types for the editor: text, number, logic, object, list and convert - the pieces users compose transformers from.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-stdlib`
+- Import: `@/components/ui/infinite-canvas/addons/node-editor-stdlib`
+- Category: layout
+- Depends on: `infinite-canvas/node-editor`
+- npm dependencies: none
+
+_No generated snippet: no element or attribute selector in the registry source._
+
 ### infinite-canvas/node-editor-subgraph
 
 Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.
@@ -2433,6 +2447,22 @@ Nested graphs: a node type whose compute runs a child graph, with breadcrumb nav
 
 ```html
 <ui-node-editor-subgraph-breadcrumb />
+```
+
+### infinite-canvas/node-editor-text-output
+
+A display node that takes text and how to draw it, so a graph can style its own output without a node per style.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-text-output`
+- Import: `import { NodeEditorTextOutputComponent } from '@/components/ui/infinite-canvas/addons/node-editor-text-output';`
+- Selector: `ui-node-editor-text-output`
+- Category: layout
+- Depends on: `infinite-canvas/node-editor`
+- npm dependencies: none
+- Inputs: `color: unknown = 'color'`, `style: unknown = 'style'`, `text: unknown = 'text'`
+
+```html
+<ui-node-editor-text-output />
 ```
 
 ### masonry

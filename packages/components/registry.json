@@ -5717,6 +5717,8 @@
       "selector": "ui-node-editor"
     },
     "addons": [
+      "infinite-canvas/node-editor-stdlib",
+      "infinite-canvas/node-editor-text-output",
       "infinite-canvas/node-editor-context-menu",
       "infinite-canvas/node-editor-groups",
       "infinite-canvas/node-editor-subgraph",
@@ -5784,5 +5786,65 @@
       "signature-pad/signature-pad.component.spec.ts",
       "signature-pad/signature-pad.strokes.spec.ts"
     ]
+  },
+  "infinite-canvas/node-editor-stdlib": {
+    "name": "infinite-canvas/node-editor-stdlib",
+    "type": "addon",
+    "parent": "infinite-canvas",
+    "category": "layout",
+    "description": "Pure node types for the editor: text, number, logic, object, list and convert - the pieces users compose transformers from.",
+    "tags": [
+      "node-editor",
+      "stdlib",
+      "nodes",
+      "transform",
+      "graph",
+      "toolbox"
+    ],
+    "files": [
+      "infinite-canvas/addons/node-editor-stdlib/index.ts",
+      "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.coerce.ts",
+      "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.convert.ts",
+      "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.list.ts",
+      "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.logic.ts",
+      "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.number.ts",
+      "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.object.ts",
+      "infinite-canvas/addons/node-editor-stdlib/node-editor-stdlib.text.ts"
+    ],
+    "dependencies": [
+      "infinite-canvas/node-editor"
+    ],
+    "attach": {
+      "import": "STDLIB_NODE_TYPES from './ui/infinite-canvas/addons/node-editor-stdlib'",
+      "selector": "STDLIB_NODE_TYPES"
+    }
+  },
+  "infinite-canvas/node-editor-text-output": {
+    "name": "infinite-canvas/node-editor-text-output",
+    "type": "addon",
+    "parent": "infinite-canvas",
+    "category": "layout",
+    "description": "A display node that takes text and how to draw it, so a graph can style its own output without a node per style.",
+    "tags": [
+      "node-editor",
+      "output",
+      "display",
+      "text",
+      "style",
+      "graph"
+    ],
+    "files": [
+      "infinite-canvas/addons/node-editor-text-output/index.ts",
+      "infinite-canvas/addons/node-editor-text-output/node-editor-text-output.component.html",
+      "infinite-canvas/addons/node-editor-text-output/node-editor-text-output.component.ts",
+      "infinite-canvas/addons/node-editor-text-output/node-editor-text-output.types.ts"
+    ],
+    "dependencies": [
+      "infinite-canvas/node-editor"
+    ],
+    "attach": {
+      "import": "TEXT_OUTPUT_NODE from './ui/infinite-canvas/addons/node-editor-text-output'",
+      "selector": "TEXT_OUTPUT_NODE"
+    }
   }
 }
