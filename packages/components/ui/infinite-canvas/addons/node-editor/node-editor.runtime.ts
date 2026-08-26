@@ -58,6 +58,27 @@ export interface RuntimeMetrics {
   readonly openIterators: number;
 }
 
+/**
+ * The two sentences the runtime writes into `problems`.
+ *
+ * A settable object rather than an injected locale, because this class is
+ * deliberately free of Angular and of any global: it is instantiated inside
+ * another runtime's evaluation when a subgraph runs, and reaching for DI here
+ * would put a container in that path. The editor assigns these from its own
+ * locale; a runtime used on its own still says something sensible.
+ */
+export interface RuntimeMessages {
+  /** A node that cannot run because it sits in a cycle. */
+  cycle(title: string): string;
+  /** A required input with nothing wired to it. */
+  requiredInput(title: string, port: string): string;
+}
+
+const DEFAULT_MESSAGES: RuntimeMessages = {
+  cycle: title => `“${title}” is part of a loop, so it cannot run.`,
+  requiredInput: (title, port) => `“${title}” needs “${port}” connected.`,
+};
+
 const DEFAULT_STALENESS: StalenessPolicy = 'cancel';
 /** Guards a pathological graph from spinning forever rather than hanging silently. */
 const MAX_DRAIN_ITERATIONS = 100_000;
@@ -113,6 +134,9 @@ export class NodeGraphRuntime {
 
   /** Backend hand-off. `null` means every node runs locally. */
   executeRemote: RemoteExecutor | null = null;
+
+  /** Wording for the problems this reports. Replaced by the editor per locale. */
+  messages: RuntimeMessages = DEFAULT_MESSAGES;
 
   /**
    * Run lifecycle, for the run-history addon.
@@ -971,7 +995,7 @@ export class NodeGraphRuntime {
       problems.push({
         kind: 'cycle',
         nodeId,
-        message: `“${node.title}” is part of a loop, so it cannot run.`,
+        message: this.messages.cycle(node.title ?? String(nodeId)),
         severity: 'error',
       });
     }
@@ -991,7 +1015,7 @@ export class NodeGraphRuntime {
         kind: 'required-input-unconnected' as const,
         nodeId,
         portId: port.id,
-        message: `“${node.title}” needs “${port.label}” connected.`,
+        message: this.messages.requiredInput(node.title ?? String(nodeId), port.label),
         severity: 'error' as const,
       }));
   }

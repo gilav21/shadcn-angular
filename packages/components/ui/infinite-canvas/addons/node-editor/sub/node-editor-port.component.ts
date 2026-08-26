@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { UI_LOCALE_ID, interpolate } from '../../../../../lib/i18n';
 import { cn } from '../../../../../lib/utils';
+import { NODE_EDITOR_LOCALES } from '../node-editor.locales';
 import { portOffsetTop, type PortMetrics } from '../node-editor.layout';
 import type { EditorNode, NodePort } from '../node-editor.types';
 
@@ -111,12 +113,18 @@ export class NodeEditorPortComponent {
    * user cannot see which side of the card the dot is on — which is the only
    * thing distinguishing an input from an output visually.
    */
+  private readonly localeId = inject(UI_LOCALE_ID);
+  private readonly t = computed(
+    () => NODE_EDITOR_LOCALES[this.localeId()] ?? NODE_EDITOR_LOCALES['en'],
+  );
+
   protected readonly ariaLabel = computed(() => {
     const port = this.port();
-    const direction = this.isOutput() ? 'output' : 'input';
-    const state = this.connected() ? 'connected' : 'not connected';
-    const type = port.type ? `, type ${port.type}` : '';
-    return `${port.label}, ${direction}${type}, ${state}`;
+    const text = this.t();
+    const direction = this.isOutput() ? text.directionOutput : text.directionInput;
+    const state = this.connected() ? text.stateConnected : text.stateNotConnected;
+    const type = port.type ? interpolate(text.portTypeSuffix, { type: port.type }) : '';
+    return interpolate(text.portAria, { label: port.label, direction, type, state });
   });
 
   /**
@@ -128,6 +136,12 @@ export class NodeEditorPortComponent {
    */
   protected readonly hint = computed(() => {
     const port = this.port();
-    return port.type ? `${port.label} (${port.type})` : port.label;
+    if (!port.type) return port.label;
+    const text = this.t();
+    // Says which way the type flows, not just what it is. "Style (object)"
+    // left a reader to work out whether that was what the port WANTED or what
+    // it would hand over; "expects" and "provides" answer it outright.
+    const template = this.isOutput() ? text.hintProvides : text.hintExpects;
+    return interpolate(template, { label: port.label, type: port.type });
   });
 }

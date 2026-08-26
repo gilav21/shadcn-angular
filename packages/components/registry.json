@@ -5694,6 +5694,7 @@
       "infinite-canvas/addons/node-editor/node-editor.graph.ts",
       "infinite-canvas/addons/node-editor/node-editor.history.ts",
       "infinite-canvas/addons/node-editor/node-editor.layout.ts",
+      "infinite-canvas/addons/node-editor/node-editor.locales.ts",
       "infinite-canvas/addons/node-editor/node-editor.materialize.ts",
       "infinite-canvas/addons/node-editor/node-editor.runtime.ts",
       "infinite-canvas/addons/node-editor/node-editor.runtime.types.ts",
@@ -5706,6 +5707,10 @@
       "infinite-canvas/addons/node-editor/sub/node-editor-port.component.ts"
     ],
     "libFiles": [
+      "i18n/i18n.token.ts",
+      "i18n/i18n.types.ts",
+      "i18n/i18n.utils.ts",
+      "i18n/index.ts",
       "sortable-aria-live.ts",
       "touch.ts"
     ],

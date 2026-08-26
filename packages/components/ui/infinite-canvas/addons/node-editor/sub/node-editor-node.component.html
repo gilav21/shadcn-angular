@@ -34,9 +34,20 @@
           [attr.data-slot]="'node-editor-node-accent'"
         ></span>
       }
-      <span class="truncate text-sm font-medium" [attr.data-slot]="'node-editor-node-title'">{{
-        current.title
-      }}</span>
+      <!--
+        `dir="auto"` on every piece of AUTHORED text in the card.
+
+        A node's title is content the graph author wrote, so it should read in
+        its own direction rather than the page's: a Hebrew title stays
+        right-to-left on an LTR canvas, and an English one keeps its full stop
+        at the right end on an RTL canvas instead of flipping it to the left.
+      -->
+      <span
+        class="truncate text-sm font-medium"
+        dir="auto"
+        [attr.data-slot]="'node-editor-node-title'"
+        >{{ current.title }}</span
+      >
       @if (openable()) {
         <!--
           Says the node has an inside. Without it a nested graph was invisible:
@@ -64,7 +75,8 @@
     </span>
     @if (current.subtitle) {
       <span
-        class="truncate text-[11px] text-muted-foreground"
+        class="truncate text-[11px] leading-[1.45] text-muted-foreground"
+        dir="auto"
         [attr.data-slot]="'node-editor-node-subtitle'"
         >{{ current.subtitle }}</span
       >

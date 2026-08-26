@@ -34,8 +34,24 @@ function ensureRegion(): HTMLElement {
     el.setAttribute('aria-atomic', 'true');
     el.setAttribute('role', 'status');
     el.dataset['slot'] = 'sortable-aria-live';
+    /*
+     * Hidden by clipping, NOT by being pushed off to the side.
+     *
+     * `left: -9999px` is the old way, and in a right-to-left document it is a
+     * page-breaking one: overflow to the left is where RTL content is expected
+     * to go, so the browser adds it to the scrollable area instead of
+     * discarding it. One 1px region parked at -9999px made the whole document
+     * ~10,000px wider than the viewport — enough that the page scrolled to a
+     * blank region and appeared, for all the world, to have rendered nothing.
+     *
+     * `clip-path: inset(50%)` on a 1×1 box hides it just as thoroughly and
+     * takes up no space in either direction, so it is the whole technique now.
+     * Pinned to the start corner so it cannot overflow whichever way the
+     * document runs.
+     */
     el.style.position = 'absolute';
-    el.style.left = '-9999px';
+    el.style.top = '0';
+    el.style.insetInlineStart = '0';
     el.style.width = '1px';
     el.style.height = '1px';
     el.style.overflow = 'hidden';

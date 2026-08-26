@@ -127,9 +127,16 @@ describe('RT-13 a refused connection explains itself', () => {
             }
         });
 
-        it('names each port and its type on hover, so the rule is discoverable', () => {
-            expect(port('lookup', 'key').getAttribute('title')).toBe('Key (text)');
-            expect(port('filter', 'dropped').getAttribute('title')).toBe('Dropped (table)');
+        /*
+         * "Key (text)" named the type and left the reader to work out which way
+         * it flowed — whether `text` was what the port WANTED or what it would
+         * hand over. That is the question someone hovering a port is asking.
+         */
+        it('says which way the type flows, not just what it is', () => {
+            expect(port('lookup', 'key').getAttribute('title')).toBe('Key: input, expects text');
+            expect(port('filter', 'dropped').getAttribute('title')).toBe(
+                'Dropped: output, provides table',
+            );
         });
     });
 
@@ -167,8 +174,30 @@ describe('RT-13 a refused connection explains itself', () => {
             await startDragFrom('filter', 'dropped');
             await hover('lookup', 'key');
 
-            expect(reason()).toBe('Dropped is table, Key expects text');
+            expect(reason()).toBe('Key expects text, but Dropped is table');
             expect(reason()).not.toContain('type-mismatch');
+        });
+
+        /*
+         * The half that was wrong, and the reason the sentence is built from
+         * roles instead of from the drag.
+         *
+         * Dragging out of the INPUT and dropping on the output is the same
+         * refusal for the same reason, so it has to read the same way. It used
+         * to invert - "Style is an object, Text expects text" - naming the port
+         * doing the expecting second and leaving the reader to untangle which
+         * end was at fault.
+         */
+        it('reads the same however the wire was dragged', async () => {
+            await startDragFrom('filter', 'dropped');
+            await hover('lookup', 'key');
+            const forwards = reason();
+
+            await startDragFrom('lookup', 'key');
+            await hover('filter', 'dropped');
+
+            expect(reason()).toBe(forwards);
+            expect(reason()).toBe('Key expects text, but Dropped is table');
         });
 
         it('explains a same-node attempt', async () => {

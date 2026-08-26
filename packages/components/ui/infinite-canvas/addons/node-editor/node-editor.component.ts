@@ -18,6 +18,7 @@ import {
   type Type,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { UI_LOCALE_ID, interpolate } from '../../../../lib/i18n';
 import { acquireAriaLive } from '../../../../lib/sortable-aria-live';
 import { isSecondaryTouch, onDoubleTap } from '../../../../lib/touch';
 import { cn } from '../../../../lib/utils';
@@ -53,6 +54,7 @@ import {
   apply as applyGraphCommand,
   type GraphCommand,
 } from './node-editor.history';
+import { NODE_EDITOR_LOCALES, type NodeEditorLocale } from './node-editor.locales';
 import { NodeGraphRuntime } from './node-editor.runtime';
 import {
   NODE_CONTEXT,
@@ -87,17 +89,33 @@ export interface ConnectionRejectedEvent {
   readonly to: PortRef;
 }
 
-/** Human-readable text for each rejection, used in announcements. */
-const REJECTION_TEXT: Record<ConnectRejection, string> = {
-  'unknown-node': 'that node no longer exists',
-  'unknown-port': 'that port no longer exists',
-  'same-node': 'a node cannot connect to itself',
-  'same-direction': 'connect an output to an input',
-  'port-disabled': 'that port is disabled',
-  'type-mismatch': 'those port types are incompatible',
-  duplicate: 'those ports are already connected',
-  occupied: 'that input already has a connection',
-  cycle: 'that would create a cycle',
+/**
+ * Which locale key explains each refusal.
+ *
+ * A lookup rather than the sentences themselves: the words live in
+ * `node-editor.locales.ts` with every other string the editor says, so a
+ * translator has one file to work through and none of them can be missed
+ * because it only ever appears after a failed drag.
+ */
+/**
+ * The locale keys that carry refusal sentences.
+ *
+ * Derived from the naming rather than listed, so a tenth reason added to the
+ * locale as `reject…` is admitted here without touching this line — and
+ * `keyof NodeEditorLocale` would have let `rtl` (a boolean) through.
+ */
+type RejectionKey = Extract<keyof NodeEditorLocale, `reject${string}`>;
+
+const REJECTION_KEY: Record<ConnectRejection, RejectionKey> = {
+  'unknown-node': 'rejectUnknownNode',
+  'unknown-port': 'rejectUnknownPort',
+  'same-node': 'rejectSameNode',
+  'same-direction': 'rejectSameDirection',
+  'port-disabled': 'rejectPortDisabled',
+  'type-mismatch': 'rejectTypeMismatch',
+  duplicate: 'rejectDuplicate',
+  occupied: 'rejectOccupied',
+  cycle: 'rejectCycle',
 };
 
 const EMPTY_SELECTION: EditorSelection = { nodes: [], connections: [] };
@@ -233,6 +251,17 @@ export class NodeEditorComponent {
   readonly class = input('');
   /** Accessible name for the canvas. */
   readonly ariaLabel = input('Node editor');
+
+  private readonly localeId = inject(UI_LOCALE_ID);
+  /** Every word this component says, in the application's language. */
+  protected readonly t = computed(
+    () => NODE_EDITOR_LOCALES[this.localeId()] ?? NODE_EDITOR_LOCALES['en'],
+  );
+
+  /** The sentence explaining one refusal reason. */
+  private reason(rejection: ConnectRejection): string {
+    return this.t()[REJECTION_KEY[rejection]];
+  }
   /** Draw the background grid behind the graph. */
   readonly showGrid = input(true);
 
@@ -368,6 +397,23 @@ export class NodeEditorComponent {
    * nested graphs (a node owning a child runtime) buildable later.
    */
   readonly runtime = new NodeGraphRuntime();
+
+  /*
+   * Hand the runtime this component's wording.
+   *
+   * The runtime has no DI on purpose — a subgraph runs a second one inside the
+   * first one's evaluation, and a container in that path is the singleton the
+   * whole design avoids. So the language travels the other way: the editor
+   * knows the locale and assigns the sentences, re-assigning them if the
+   * application's language changes while a graph is on screen.
+   */
+  private readonly localiseRuntime = effect(() => {
+    const text = this.t();
+    this.runtime.messages = {
+      cycle: title => interpolate(text.problemCycle, { title }),
+      requiredInput: (title, port) => interpolate(text.problemRequiredInput, { title, port }),
+    };
+  });
 
   /** Undo/redo. Every mutation routes through here, which is the point of it. */
   readonly history = new GraphHistory();
@@ -630,7 +676,7 @@ export class NodeEditorComponent {
     this.history.push({ kind: 'add-nodes', nodes: [node] });
     this.nodes.set([...this.nodes(), node]);
     this.selection.set({ nodes: [nodeId], connections: [] });
-    this.announce(`${definition.label} added.`);
+    this.announce(interpolate(this.t().nodeAdded, { label: definition.label }));
     return nodeId;
   }
 
@@ -774,12 +820,29 @@ export class NodeEditorComponent {
 
     const result = this.evaluate(state.from, state.over);
     if (result.ok) return null;
-    if (result.reason !== 'type-mismatch') return REJECTION_TEXT[result.reason];
+    if (result.reason !== 'type-mismatch') return this.reason(result.reason);
 
     const from = this.findPort(state.from);
     const to = this.findPort(state.over);
-    if (!from || !to) return REJECTION_TEXT['type-mismatch'];
-    return `${from.label} is ${from.type}, ${to.label} expects ${to.type}`;
+    if (!from || !to) return this.reason('type-mismatch');
+
+    /*
+     * Named by ROLE, not by which end the drag started from.
+     *
+     * Dragging out of an input and dropping on an output used to say "Style is
+     * an object, Text expects text" - both halves true, and back to front to
+     * read, because the port doing the expecting was named second. The input
+     * expects and the output provides whichever way the hand moved, so the
+     * sentence is built from that instead.
+     */
+    const input = from.direction === 'in' ? from : to;
+    const output = from.direction === 'in' ? to : from;
+    return interpolate(this.t().typeMismatchDetail, {
+      input: input.label,
+      inputType: input.type ?? '',
+      output: output.label,
+      outputType: output.type ?? '',
+    });
   });
 
   /** Where to put that explanation: at the free end of the pending wire. */
@@ -1129,7 +1192,7 @@ export class NodeEditorComponent {
   protected onPointerCancel(): void {
     if (this.pending()) {
       this.pending.set(null);
-      this.announce('Connection cancelled.');
+      this.announce(this.t().connectionCancelled);
     }
     this.drag = null;
   }
@@ -1204,7 +1267,7 @@ export class NodeEditorComponent {
     if (!state.over) {
       // Dropped in empty space. A detached connection stays deleted — that is
       // what unplugging and letting go means.
-      if (state.detached) this.announce('Connection removed.');
+      if (state.detached) this.announce(this.t().connectionRemoved);
       return;
     }
     this.connect(state.from, state.over);
@@ -1289,7 +1352,7 @@ export class NodeEditorComponent {
     if (event.key === 'Escape') {
       if (this.pending()) {
         this.pending.set(null);
-        this.announce('Connection cancelled.');
+        this.announce(this.t().connectionCancelled);
       } else {
         this.clearSelection();
       }
@@ -1300,7 +1363,7 @@ export class NodeEditorComponent {
         nodes: this.sizedNodes().map(node => node.id),
         connections: this.connections().map(connection => connection.id),
       });
-      this.announce(`${this.selection().nodes.length} nodes selected.`);
+      this.announce(interpolate(this.t().nodesSelected, { count: this.selection().nodes.length }));
       return true;
     }
     if (event.key === 'Delete' || event.key === 'Backspace') {
@@ -1366,7 +1429,15 @@ export class NodeEditorComponent {
     this.activePort.set(next);
 
     const port = portsOf(node).find(candidate => candidate.id === next);
-    if (port) this.announce(`${port.label}, ${port.direction === 'out' ? 'output' : 'input'}.`);
+    if (port) {
+      const text = this.t();
+      this.announce(
+        interpolate(text.portFocused, {
+          label: port.label,
+          direction: port.direction === 'out' ? text.directionOutput : text.directionInput,
+        }),
+      );
+    }
   }
 
   /** `Enter` starts a keyboard connection, or completes one in flight. */
@@ -1377,7 +1448,7 @@ export class NodeEditorComponent {
       const world = this.worldAnchor(ref);
       if (!world) return true;
       this.pending.set({ from: ref, to: world, over: null, valid: false, detached: null });
-      this.announce('Connecting. Move to another port and press Enter, or Escape to cancel.');
+      this.announce(this.t().connecting);
       return true;
     }
 
@@ -1399,7 +1470,13 @@ export class NodeEditorComponent {
         candidate.id === node.id ? { ...candidate, ...moved } : candidate,
       ),
     );
-    this.announce(`${node.title} moved to ${Math.round(moved.x)}, ${Math.round(moved.y)}.`);
+    this.announce(
+      interpolate(this.t().nodeMoved, {
+        title: node.title ?? '',
+        x: Math.round(moved.x),
+        y: Math.round(moved.y),
+      }),
+    );
   }
 
   protected onNodeFocus(event: FocusEvent): void {
@@ -1417,12 +1494,17 @@ export class NodeEditorComponent {
     const result = this.evaluate(from, to);
     if (!result.ok) {
       this.connectionRejected.emit({ reason: result.reason, from, to });
-      this.announce(`Cannot connect: ${REJECTION_TEXT[result.reason]}.`);
+      this.announce(interpolate(this.t().cannotConnect, { reason: this.reason(result.reason) }));
       return;
     }
 
     this.connections.set(addConnection(this.connections(), result.source, result.target));
-    this.announce(`Connected ${result.source.port} to ${result.target.port}.`);
+    this.announce(
+      interpolate(this.t().connectionMade, {
+        source: result.source.port,
+        target: result.target.port,
+      }),
+    );
   }
 
   private evaluate(from: PortRef, to: PortRef): ReturnType<typeof canConnect> {
@@ -1473,7 +1555,10 @@ export class NodeEditorComponent {
     this.connections.set(result.connections);
     this.selection.set(EMPTY_SELECTION);
     this.announce(
-      `Removed ${removedNodes.length} nodes and ${removedEdges.length} connections.`,
+      interpolate(this.t().removedSummary, {
+        nodes: removedNodes.length,
+        connections: removedEdges.length,
+      }),
     );
   }
 
