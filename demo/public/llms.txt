@@ -101,6 +101,15 @@ Rules that hold for every component:
 - [hover-card](#hover-card): Floating card that reveals rich preview content on hover or tap.
 - [icon](#icon): Renders named SVG icons from a configurable icon registry.
 - [infinite-canvas](#infinite-canvas): Infinite pannable, zoomable plane that renders only the items in view.
+- [infinite-canvas/node-editor](#infinite-canvasnode-editor): Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
+- [infinite-canvas/node-editor-context-menu](#infinite-canvasnode-editor-context-menu): Right-click menus whose contents depend on the node, port, wire or plane clicked.
+- [infinite-canvas/node-editor-groups](#infinite-canvasnode-editor-groups): Titled frames behind the nodes and freestanding comments, both purely visual.
+- [infinite-canvas/node-editor-history](#infinite-canvasnode-editor-history): Records every run with its values and timings, and replays a past run in the editor.
+- [infinite-canvas/node-editor-layout](#infinite-canvasnode-editor-layout): Deterministic layered auto-layout: a pure function from nodes and edges to positions.
+- [infinite-canvas/node-editor-minimap](#infinite-canvasnode-editor-minimap): Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.
+- [infinite-canvas/node-editor-palette](#infinite-canvasnode-editor-palette): Searchable picker over the registered node types, filterable by what a port accepts.
+- [infinite-canvas/node-editor-problems](#infinite-canvasnode-editor-problems): Lists what is wrong with a graph in plain language, and reveals the node it belongs to.
+- [infinite-canvas/node-editor-subgraph](#infinite-canvasnode-editor-subgraph): Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.
 - [input](#input): Single-line text input with variants and add-on support for forms.
 - [input-group](#input-group): Combines an input with leading/trailing add-ons like icons, text, or buttons.
 - [input-mask](#input-mask): Directive that formats input text against a pattern (phone, date, card numbers).
@@ -117,15 +126,6 @@ Rules that hold for every component:
 - [morphing-text](#morphing-text): Smoothly morphs one phrase into the next with a fluid blend effect.
 - [native-select](#native-select): Styled wrapper around the native HTML select element for dropdown choices.
 - [navigation-menu](#navigation-menu): Site navigation with dropdown panels of links and a sliding indicator.
-- [node-editor](#node-editor): Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
-- [node-editor/context-menu](#node-editorcontext-menu): Right-click menus whose contents depend on the node, port, wire or plane clicked.
-- [node-editor/groups](#node-editorgroups): Titled frames behind the nodes and freestanding comments, both purely visual.
-- [node-editor/history](#node-editorhistory): Records every run with its values and timings, and replays a past run in the editor.
-- [node-editor/layout](#node-editorlayout): Deterministic layered auto-layout: a pure function from nodes and edges to positions.
-- [node-editor/minimap](#node-editorminimap): Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.
-- [node-editor/palette](#node-editorpalette): Searchable picker over the registered node types, filterable by what a port accepts.
-- [node-editor/problems](#node-editorproblems): Lists what is wrong with a graph in plain language, and reveals the node it belongs to.
-- [node-editor/subgraph](#node-editorsubgraph): Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.
 - [number-input](#number-input): Numeric input with stepper buttons, min/max, and locale-aware formatting.
 - [number-ticker](#number-ticker): Animates a number counting up or down to its target value.
 - [orbit](#orbit): Animates child elements orbiting in circular paths around a center.
@@ -2289,6 +2289,152 @@ Infinite pannable, zoomable plane that renders only the items in view.
 <ui-infinite-canvas>Content</ui-infinite-canvas>
 ```
 
+### infinite-canvas/node-editor
+
+Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor`
+- Import: `import { NodeEditorComponent } from '@/components/ui/infinite-canvas/addons/node-editor';`
+- Selector: `ui-node-editor`
+- Category: layout
+- Depends on: `infinite-canvas`
+- npm dependencies: none
+- Inputs: `a11yTreeLimit: number = 500`, `allowCycles: boolean = true`, `ariaLabel: string = 'Node editor'`, `class: string = ''`, `connections: readonly NodeConnection[] = []`, `definitions: readonly NodeTypeDefinition[] = []`, `executeRemote: RemoteExecutor | null = null`, `gridSnap: number = 0`, `live: boolean = true`, `nodes: readonly EditorNode[] = []`, `readonlyGraph: boolean = false`, `replay: ReplayFrame | null = null`, `selection: EditorSelection = EMPTY_SELECTION`, `showGrid: boolean = true`
+- Outputs: `addNodeRequested: CanvasPoint`, `connectionRejected: ConnectionRejectedEvent`, `connections: readonly NodeConnection[]`, `nodeExecute: readonly RemoteRequest[]`, `nodeOpened: NodeId`, `nodes: readonly EditorNode[]`, `nodeSettled: NodeSettledEvent`, `runFinished: RunFinishedEvent`, `runStarted: RunStartedEvent`, `selection: EditorSelection`, `viewportChange: CanvasViewport`
+
+```html
+<ui-node-editor>Content</ui-node-editor>
+```
+
+### infinite-canvas/node-editor-context-menu
+
+Right-click menus whose contents depend on the node, port, wire or plane clicked.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-context-menu`
+- Import: `import { NodeEditorContextMenuDirective } from '@/components/ui/infinite-canvas/addons/node-editor-context-menu';`
+- Selector: `ui-node-editor[uiNodeEditorContextMenu]`
+- Category: layout
+- Depends on: `context-menu`, `infinite-canvas/node-editor`
+- npm dependencies: none
+- Inputs: `contextMenuDisabled: boolean = false`, `uiNodeEditorContextMenu: ContextMenuComponent` (required)
+- Outputs: `contextTarget: NodeEditorContextTarget`
+
+_No generated snippet: applies to <ui-node-editor>, so usage depends on that component's own required inputs._
+
+### infinite-canvas/node-editor-groups
+
+Titled frames behind the nodes and freestanding comments, both purely visual.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-groups`
+- Import: `import { NodeEditorGroupsComponent } from '@/components/ui/infinite-canvas/addons/node-editor-groups';`
+- Selector: `ui-node-editor-groups`
+- Category: layout
+- Depends on: `infinite-canvas/node-editor`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `comments: readonly NodeComment[] = []`, `groups: readonly NodeGroup[] = []`, `nodes: readonly EditorNode[] = []`, `readonlyGroups: boolean = false`
+- Outputs: `comments: readonly NodeComment[]`, `groupActivated: NodeGroup`, `groupMoved: GroupMoveEvent`, `groups: readonly NodeGroup[]`
+
+```html
+<ui-node-editor-groups />
+```
+
+### infinite-canvas/node-editor-history
+
+Records every run with its values and timings, and replays a past run in the editor.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-history`
+- Import: `import { NodeEditorHistoryComponent } from '@/components/ui/infinite-canvas/addons/node-editor-history';`
+- Selector: `ui-node-editor-history`
+- Category: layout
+- Depends on: `infinite-canvas/node-editor`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `heading: boolean = true`, `replaying: boolean = false`, `runs: readonly RunRecord[] = []`, `selectedRun: number | null = null`
+- Outputs: `clearRequested: void`, `nodeSelected: NodeId`, `replayChange: RunRecord | null`, `replaying: boolean`, `runExported: RunExportEvent`, `selectedRun: number | null`
+
+```html
+<ui-node-editor-history />
+```
+
+### infinite-canvas/node-editor-layout
+
+Deterministic layered auto-layout: a pure function from nodes and edges to positions.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-layout`
+- Import: `@/components/ui/infinite-canvas/addons/node-editor-layout`
+- Category: layout
+- Depends on: `infinite-canvas/node-editor`
+- npm dependencies: none
+
+_No generated snippet: no element or attribute selector in the registry source._
+
+### infinite-canvas/node-editor-minimap
+
+Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-minimap`
+- Import: `import { NodeEditorMinimapComponent } from '@/components/ui/infinite-canvas/addons/node-editor-minimap';`
+- Selector: `ui-node-editor-minimap`
+- Category: layout
+- Depends on: `infinite-canvas/node-editor`
+- npm dependencies: none
+- Inputs: `ariaLabel: string = 'Graph overview'`, `class: string = ''`, `collapsed: boolean = false`, `collapsible: boolean = true`, `connections: readonly NodeConnection[] = []`, `height: number = 140`, `nodes: readonly EditorNode[] = []`, `viewport: CanvasRect | null = null`, `width: number = 200`
+- Outputs: `collapsed: boolean`, `navigate: CanvasPoint`
+
+```html
+<ui-node-editor-minimap />
+```
+
+### infinite-canvas/node-editor-palette
+
+Searchable picker over the registered node types, filterable by what a port accepts.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-palette`
+- Import: `import { NodeEditorPaletteComponent } from '@/components/ui/infinite-canvas/addons/node-editor-palette';`
+- Selector: `ui-node-editor-palette`
+- Category: layout
+- Depends on: `command`, `infinite-canvas/node-editor`
+- npm dependencies: none
+- Inputs: `acceptsType: string | undefined`, `definitions: readonly NodeTypeDefinition[] = []`, `open: boolean = false`, `producesType: string | undefined`, `shortcut: string = 'Mod+K'`
+- Outputs: `open: boolean`, `picked: NodeTypePicked`
+
+```html
+<ui-node-editor-palette />
+```
+
+### infinite-canvas/node-editor-problems
+
+Lists what is wrong with a graph in plain language, and reveals the node it belongs to.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-problems`
+- Import: `import { NodeEditorProblemsComponent } from '@/components/ui/infinite-canvas/addons/node-editor-problems';`
+- Selector: `ui-node-editor-problems`
+- Category: layout
+- Depends on: `infinite-canvas/node-editor`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `heading: boolean = true`, `problems: readonly GraphProblem[] = []`
+- Outputs: `problemSelected: GraphProblem`
+
+```html
+<ui-node-editor-problems />
+```
+
+### infinite-canvas/node-editor-subgraph
+
+Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.
+
+- Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-subgraph`
+- Import: `import { NodeEditorSubgraphBreadcrumbComponent } from '@/components/ui/infinite-canvas/addons/node-editor-subgraph';`
+- Selector: `ui-node-editor-subgraph-breadcrumb`
+- Category: layout
+- Depends on: `infinite-canvas/node-editor`
+- npm dependencies: none
+- Inputs: `class: string = ''`, `path: readonly SubgraphFrame[] = []`
+- Outputs: `navigate: number`
+
+```html
+<ui-node-editor-subgraph-breadcrumb />
+```
+
 ### masonry
 
 Column-balanced layout for uneven-height items that keeps DOM order equal to visual reading order.
@@ -2303,152 +2449,6 @@ Column-balanced layout for uneven-height items that keeps DOM order equal to vis
 
 ```html
 <ui-masonry />
-```
-
-### node-editor
-
-Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
-
-- Install: `npx @gilav21/shadcn-angular@latest add node-editor`
-- Import: `import { NodeEditorComponent } from '@/components/ui/node-editor';`
-- Selector: `ui-node-editor`
-- Category: layout
-- Depends on: `infinite-canvas`
-- npm dependencies: none
-- Inputs: `a11yTreeLimit: number = 500`, `allowCycles: boolean = true`, `ariaLabel: string = 'Node editor'`, `class: string = ''`, `connections: readonly NodeConnection[] = []`, `definitions: readonly NodeTypeDefinition[] = []`, `executeRemote: RemoteExecutor | null = null`, `gridSnap: number = 0`, `live: boolean = true`, `nodes: readonly EditorNode[] = []`, `readonlyGraph: boolean = false`, `replay: ReplayFrame | null = null`, `selection: EditorSelection = EMPTY_SELECTION`, `showGrid: boolean = true`
-- Outputs: `addNodeRequested: CanvasPoint`, `connectionRejected: ConnectionRejectedEvent`, `connections: readonly NodeConnection[]`, `nodeExecute: readonly RemoteRequest[]`, `nodeOpened: NodeId`, `nodes: readonly EditorNode[]`, `nodeSettled: NodeSettledEvent`, `runFinished: RunFinishedEvent`, `runStarted: RunStartedEvent`, `selection: EditorSelection`, `viewportChange: CanvasViewport`
-
-```html
-<ui-node-editor>Content</ui-node-editor>
-```
-
-### node-editor/context-menu
-
-Right-click menus whose contents depend on the node, port, wire or plane clicked.
-
-- Install: `npx @gilav21/shadcn-angular@latest add node-editor/context-menu`
-- Import: `import { NodeEditorContextMenuDirective } from '@/components/ui/node-editor/addons/context-menu';`
-- Selector: `ui-node-editor[uiNodeEditorContextMenu]`
-- Category: layout
-- Depends on: `context-menu`, `node-editor`
-- npm dependencies: none
-- Inputs: `contextMenuDisabled: boolean = false`, `uiNodeEditorContextMenu: ContextMenuComponent` (required)
-- Outputs: `contextTarget: NodeEditorContextTarget`
-
-_No generated snippet: applies to <ui-node-editor>, so usage depends on that component's own required inputs._
-
-### node-editor/groups
-
-Titled frames behind the nodes and freestanding comments, both purely visual.
-
-- Install: `npx @gilav21/shadcn-angular@latest add node-editor/groups`
-- Import: `import { NodeEditorGroupsComponent } from '@/components/ui/node-editor/addons/groups';`
-- Selector: `ui-node-editor-groups`
-- Category: layout
-- Depends on: `node-editor`
-- npm dependencies: none
-- Inputs: `class: string = ''`, `comments: readonly NodeComment[] = []`, `groups: readonly NodeGroup[] = []`, `nodes: readonly EditorNode[] = []`, `readonlyGroups: boolean = false`
-- Outputs: `comments: readonly NodeComment[]`, `groupActivated: NodeGroup`, `groupMoved: GroupMoveEvent`, `groups: readonly NodeGroup[]`
-
-```html
-<ui-node-editor-groups />
-```
-
-### node-editor/history
-
-Records every run with its values and timings, and replays a past run in the editor.
-
-- Install: `npx @gilav21/shadcn-angular@latest add node-editor/history`
-- Import: `import { NodeEditorHistoryComponent } from '@/components/ui/node-editor/addons/history';`
-- Selector: `ui-node-editor-history`
-- Category: layout
-- Depends on: `node-editor`
-- npm dependencies: none
-- Inputs: `class: string = ''`, `heading: boolean = true`, `replaying: boolean = false`, `runs: readonly RunRecord[] = []`, `selectedRun: number | null = null`
-- Outputs: `clearRequested: void`, `nodeSelected: NodeId`, `replayChange: RunRecord | null`, `replaying: boolean`, `runExported: RunExportEvent`, `selectedRun: number | null`
-
-```html
-<ui-node-editor-history />
-```
-
-### node-editor/layout
-
-Deterministic layered auto-layout: a pure function from nodes and edges to positions.
-
-- Install: `npx @gilav21/shadcn-angular@latest add node-editor/layout`
-- Import: `@/components/ui/node-editor/addons/layout`
-- Category: layout
-- Depends on: `node-editor`
-- npm dependencies: none
-
-_No generated snippet: no element or attribute selector in the registry source._
-
-### node-editor/minimap
-
-Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.
-
-- Install: `npx @gilav21/shadcn-angular@latest add node-editor/minimap`
-- Import: `import { NodeEditorMinimapComponent } from '@/components/ui/node-editor/addons/minimap';`
-- Selector: `ui-node-editor-minimap`
-- Category: layout
-- Depends on: `node-editor`
-- npm dependencies: none
-- Inputs: `ariaLabel: string = 'Graph overview'`, `class: string = ''`, `collapsed: boolean = false`, `collapsible: boolean = true`, `connections: readonly NodeConnection[] = []`, `height: number = 140`, `nodes: readonly EditorNode[] = []`, `viewport: CanvasRect | null = null`, `width: number = 200`
-- Outputs: `collapsed: boolean`, `navigate: CanvasPoint`
-
-```html
-<ui-node-editor-minimap />
-```
-
-### node-editor/palette
-
-Searchable picker over the registered node types, filterable by what a port accepts.
-
-- Install: `npx @gilav21/shadcn-angular@latest add node-editor/palette`
-- Import: `import { NodeEditorPaletteComponent } from '@/components/ui/node-editor/addons/palette';`
-- Selector: `ui-node-editor-palette`
-- Category: layout
-- Depends on: `command`, `node-editor`
-- npm dependencies: none
-- Inputs: `acceptsType: string | undefined`, `definitions: readonly NodeTypeDefinition[] = []`, `open: boolean = false`, `producesType: string | undefined`, `shortcut: string = 'Mod+K'`
-- Outputs: `open: boolean`, `picked: NodeTypePicked`
-
-```html
-<ui-node-editor-palette />
-```
-
-### node-editor/problems
-
-Lists what is wrong with a graph in plain language, and reveals the node it belongs to.
-
-- Install: `npx @gilav21/shadcn-angular@latest add node-editor/problems`
-- Import: `import { NodeEditorProblemsComponent } from '@/components/ui/node-editor/addons/problems';`
-- Selector: `ui-node-editor-problems`
-- Category: layout
-- Depends on: `node-editor`
-- npm dependencies: none
-- Inputs: `class: string = ''`, `heading: boolean = true`, `problems: readonly GraphProblem[] = []`
-- Outputs: `problemSelected: GraphProblem`
-
-```html
-<ui-node-editor-problems />
-```
-
-### node-editor/subgraph
-
-Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.
-
-- Install: `npx @gilav21/shadcn-angular@latest add node-editor/subgraph`
-- Import: `import { NodeEditorSubgraphBreadcrumbComponent } from '@/components/ui/node-editor/addons/subgraph';`
-- Selector: `ui-node-editor-subgraph-breadcrumb`
-- Category: layout
-- Depends on: `node-editor`
-- npm dependencies: none
-- Inputs: `class: string = ''`, `path: readonly SubgraphFrame[] = []`
-- Outputs: `navigate: number`
-
-```html
-<ui-node-editor-subgraph-breadcrumb />
 ```
 
 ### page-header

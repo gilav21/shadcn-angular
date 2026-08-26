@@ -8588,6 +8588,864 @@
       ]
     },
     {
+      "name": "infinite-canvas/node-editor",
+      "description": "Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor",
+      "importStatement": "import { NodeEditorComponent } from '@/components/ui/infinite-canvas/addons/node-editor';",
+      "selector": "ui-node-editor",
+      "dependencies": [
+        "infinite-canvas"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor>Content</ui-node-editor>",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorComponent",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor/node-editor.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor",
+          "description": "A graph of nodes with named ports, connected by edges between those ports. Built on `ui-infinite-canvas`, which supplies pan, zoom, virtualisation and the batched edge layer. This adds ports, port-anchored edges, connect and disconnect, node dragging, selection — and the keyboard and screen-reader model that makes all of it usable without a mouse, which is the part every other node-graph library omits. See `specs/node-editor-spec.md`. ### Why events are delegated rather than bound Node cards are created and recycled by the canvas's view pool as the viewport moves, so there is no stable binding scope to attach handlers to. The editor listens once at its root and resolves the target from `data-node` / `data-port`.",
+          "inputs": [
+            {
+              "name": "a11yTreeLimit",
+              "type": "number",
+              "description": "Above this node count the parallel accessible tree is summarised rather than rendered in full — it is the one part of the design that does not virtualise, being O(nodes) DOM by definition.",
+              "default": "500"
+            },
+            {
+              "name": "allowCycles",
+              "type": "boolean",
+              "description": "When `false`, a connection that would close a directed cycle is refused.",
+              "default": "true"
+            },
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "description": "Accessible name for the canvas.",
+              "default": "'Node editor'"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes for the editor root. Give it a height here.",
+              "default": "''"
+            },
+            {
+              "name": "connections",
+              "type": "readonly NodeConnection[]",
+              "description": "Every connection in the graph.",
+              "default": "[]"
+            },
+            {
+              "name": "definitions",
+              "type": "readonly NodeTypeDefinition[]",
+              "description": "The node types this graph may contain. Supplying them turns the editor from a drawing of a graph into a running one: a node with a matching `type` inherits its ports, renders that type's view, and has its `compute` evaluated by the runtime.",
+              "default": "[]"
+            },
+            {
+              "name": "executeRemote",
+              "type": "RemoteExecutor | null",
+              "description": "Hands every ready `remote: true` node to a backend, in ONE call per tick. Returning the promise is resolution; throwing is failure; the AbortSignal arrives already wired.",
+              "default": "null"
+            },
+            {
+              "name": "gridSnap",
+              "type": "number",
+              "description": "Snap dragged nodes to a world-unit grid. `0` disables snapping.",
+              "default": "0"
+            },
+            {
+              "name": "live",
+              "type": "boolean",
+              "description": "Whether a change re-evaluates the graph immediately. `true` gives live dataflow — type in one node and downstream updates as you go. `false` waits for `run()`, which is what a graph full of side-effecting steps wants. Individual node types opt out either way via their own `reactive` flag.",
+              "default": "true"
+            },
+            {
+              "name": "nodes",
+              "type": "readonly EditorNode[]",
+              "description": "Every node in the graph. Heights are derived and written back.",
+              "default": "[]"
+            },
+            {
+              "name": "readonlyGraph",
+              "type": "boolean",
+              "description": "Whether nodes may be moved, connected or deleted.",
+              "default": "false"
+            },
+            {
+              "name": "replay",
+              "type": "ReplayFrame | null",
+              "description": "Show a past run's values instead of the live ones. Bind a frame and every node view renders what it held then — the same views, the same layout, different values. Evaluation is suspended for as long as a frame is bound, because a graph cannot be showing the past and computing the present at the same time; that is not a silent override of `live` but the meaning of replay. The base owns this rather than an addon because node views read their values through `NODE_CONTEXT`, which only the editor supplies — an addon could not substitute them without forking the template.",
+              "default": "null"
+            },
+            {
+              "name": "selection",
+              "type": "EditorSelection",
+              "description": "What is currently selected.",
+              "default": "EMPTY_SELECTION"
+            },
+            {
+              "name": "showGrid",
+              "type": "boolean",
+              "description": "Draw the background grid behind the graph.",
+              "default": "true"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "addNodeRequested",
+              "type": "CanvasPoint",
+              "description": "The user asked for a node here — double-click on empty plane. The base owns the intent and the insertion; the picker UI is an addon (R15). Carries the WORLD point, so whatever opens can drop the node exactly where the user asked rather than guessing."
+            },
+            {
+              "name": "connectionRejected",
+              "type": "ConnectionRejectedEvent",
+              "description": "Emits when a drag would have made an invalid connection, with the reason it was refused."
+            },
+            {
+              "name": "connections",
+              "type": "readonly NodeConnection[]",
+              "description": "Every connection in the graph.",
+              "default": "[]"
+            },
+            {
+              "name": "nodeExecute",
+              "type": "readonly RemoteRequest[]",
+              "description": "Fires alongside `executeRemote`, for observing or logging. Explicitly NOT authoritative: `executeRemote` does the work. Two ways to answer the same request would leave nobody sure which one won."
+            },
+            {
+              "name": "nodeOpened",
+              "type": "NodeId",
+              "description": "A node the user asked to open — double-click on a node whose type declares `openable`. The editor owns the gesture; what opening means is the consumer's. For a subgraph node that is descending into its graph."
+            },
+            {
+              "name": "nodes",
+              "type": "readonly EditorNode[]",
+              "description": "Every node in the graph. Heights are derived and written back.",
+              "default": "[]"
+            },
+            {
+              "name": "nodeSettled",
+              "type": "NodeSettledEvent",
+              "description": "Emits as each node reaches its final state during a run."
+            },
+            {
+              "name": "runFinished",
+              "type": "RunFinishedEvent",
+              "description": "Emits once a run has ended, whether it completed or failed."
+            },
+            {
+              "name": "runStarted",
+              "type": "RunStartedEvent",
+              "description": "Emits when a run begins, before any node is evaluated."
+            },
+            {
+              "name": "selection",
+              "type": "EditorSelection",
+              "description": "What is currently selected.",
+              "default": "EMPTY_SELECTION"
+            },
+            {
+              "name": "viewportChange",
+              "type": "CanvasViewport",
+              "description": "The viewport, when a pan or zoom SETTLES. Re-exposed from the engine so an addon talks to `ui-node-editor` rather than reaching past it to the canvas underneath. Settle-only by the engine's design — the hot path deliberately never touches Angular — which is why a minimap updates after a pan rather than during one."
+            }
+          ],
+          "methods": []
+        },
+        {
+          "className": "NodeEditorNodeDirective",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor/node-editor-node.directive.ts",
+          "kind": "directive",
+          "selector": "[uiNodeEditorNode]",
+          "description": "Marks the template that replaces a node card's default header. A `TemplateRef` rather than static content projection, for the same reason the canvas engine uses one: nodes are instantiated per *visible* node and recycled as the viewport moves, so there is no single place to project into. The template replaces the card's **body**. Ports keep being rendered and wired by the editor — see `NodeEditorNodeComponent`. ```html <ui-node-editor [nodes]=\"nodes()\" [connections]=\"connections()\"> <ng-template uiNodeEditorNode [ofType]=\"nodes()\" let-node> <my-fancy-node [data]=\"node\" /> </ng-template> </ui-node-editor> ```",
+          "inputs": [
+            {
+              "name": "ofType",
+              "type": "readonly T[] | undefined",
+              "description": "Type-inference anchor. Bind the same array passed to the editor's `nodes` and the template variables take that element type; the value itself is never read. Mirrors `uiInfiniteCanvasItem`'s `ofType`."
+            }
+          ],
+          "outputs": [],
+          "methods": []
+        },
+        {
+          "className": "NodeEditorNodeComponent",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor/sub/node-editor-node.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-node",
+          "description": "One node card on the plane. The card body is replaceable — project a `*uiNodeEditorNode` template and it renders in place of the default header. **The ports are not replaceable**: a projected template that rendered its own ports would have to re-derive the layout maths that keeps the dot and the wire together, and would get it wrong. So the editor keeps them in both modes. Like the port, this component handles no events of its own — the editor delegates from its root, because the canvas's view pool creates and recycles these elements outside any single binding scope.",
+          "inputs": [
+            {
+              "name": "activePort",
+              "type": "string | null",
+              "description": "The port the keyboard is currently on within this node.",
+              "default": "null"
+            },
+            {
+              "name": "bodyTemplate",
+              "type": "TemplateRef<NodeTemplateContext> | null",
+              "description": "Optional replacement for the default header.",
+              "default": "null"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the node card.",
+              "default": "''"
+            },
+            {
+              "name": "connectable",
+              "type": "ReadonlySet<string> | null",
+              "description": "Ports that would accept the connection in flight; passed straight down.",
+              "default": "null"
+            },
+            {
+              "name": "connectedPorts",
+              "type": "ReadonlySet<string>",
+              "description": "Ports that already have at least one connection.",
+              "default": "new Set<string>()"
+            },
+            {
+              "name": "dropPort",
+              "type": "PortRef | null",
+              "description": "The port a connection is currently being dragged over, if it is on this node.",
+              "default": "null"
+            },
+            {
+              "name": "dropValid",
+              "type": "boolean",
+              "description": "Whether dropping on {@link dropPort} would be accepted.",
+              "default": "false"
+            },
+            {
+              "name": "focused",
+              "type": "boolean",
+              "description": "Whether this node holds the roving tab stop.",
+              "default": "false"
+            },
+            {
+              "name": "metrics",
+              "type": "PortMetrics",
+              "description": "Port geometry, shared with the canvas so edges meet the ports exactly.",
+              "required": true
+            },
+            {
+              "name": "node",
+              "type": "EditorNode",
+              "description": "The node this element renders.",
+              "required": true
+            },
+            {
+              "name": "openable",
+              "type": "boolean",
+              "description": "This node contains something worth opening; double-click descends into it.",
+              "default": "false"
+            },
+            {
+              "name": "recentlyRan",
+              "type": "boolean",
+              "description": "Briefly true just after this node finished work — see the editor.",
+              "default": "false"
+            },
+            {
+              "name": "selected",
+              "type": "boolean",
+              "description": "Whether the node is part of the current selection.",
+              "default": "false"
+            },
+            {
+              "name": "status",
+              "type": "NodeStatus | null",
+              "description": "Runtime status, surfaced on the card so a run is visible.",
+              "default": "null"
+            },
+            {
+              "name": "view",
+              "type": "Type<unknown> | null",
+              "description": "The node type's view component, rendered inside the card.",
+              "default": "null"
+            },
+            {
+              "name": "viewInjector",
+              "type": "Injector | null",
+              "description": "Injector carrying this node's NODE_CONTEXT to that view.",
+              "default": "null"
+            }
+          ],
+          "outputs": [],
+          "methods": []
+        },
+        {
+          "className": "NodeEditorPortComponent",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor/sub/node-editor-port.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-port",
+          "description": "One connection point on a node. ### Why the whole row is the button The dot renders at 10px, which is nowhere near a usable tap target. The tap target is therefore the entire row — dot *and* label — which is as tall as `metrics.rowHeight` (44px on touch, per CLAUDE.md §6) and comfortably wide. Enlarging an invisible hit area around the dot instead would let adjacent ports overlap and steal each other's taps. ### Why it is positioned absolutely rather than laid out in flow The edge that meets this port is painted on a canvas, from a world-space anchor computed by `portOffsetTop`. If the dot's position came from normal flow instead, the two would be independent derivations of the same number and would eventually disagree. So the dot is placed *at* the anchor. The port does not handle its own events: the editor delegates from its root, because these elements are created and recycled by the canvas's view pool.",
+          "inputs": [
+            {
+              "name": "active",
+              "type": "boolean",
+              "description": "Set while this is the keyboard's current port within a focused node.",
+              "default": "false"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the port.",
+              "default": "''"
+            },
+            {
+              "name": "connectable",
+              "type": "ReadonlySet<string> | null",
+              "description": "Ports that would accept the connection in flight, or `null` when none is. A set rather than a boolean so the node passes one reference down to every port and each looks itself up in O(1).",
+              "default": "null"
+            },
+            {
+              "name": "connected",
+              "type": "boolean",
+              "description": "Whether at least one connection already reaches this port.",
+              "default": "false"
+            },
+            {
+              "name": "dropState",
+              "type": "PortDropState",
+              "description": "Set while a connection is being dragged over this port.",
+              "default": "null"
+            },
+            {
+              "name": "metrics",
+              "type": "PortMetrics",
+              "description": "Port geometry, shared with the canvas so edges meet the ports exactly.",
+              "required": true
+            },
+            {
+              "name": "node",
+              "type": "EditorNode",
+              "description": "The node this port belongs to — supplies the id and the layout geometry.",
+              "required": true
+            },
+            {
+              "name": "port",
+              "type": "NodePort",
+              "description": "The port this element renders.",
+              "required": true
+            }
+          ],
+          "outputs": [],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "infinite-canvas/node-editor-context-menu",
+      "description": "Right-click menus whose contents depend on the node, port, wire or plane clicked.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-context-menu",
+      "importStatement": "import { NodeEditorContextMenuDirective } from '@/components/ui/infinite-canvas/addons/node-editor-context-menu';",
+      "selector": "ui-node-editor[uiNodeEditorContextMenu]",
+      "dependencies": [
+        "context-menu",
+        "infinite-canvas/node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": null,
+      "snippetSkipReason": "applies to <ui-node-editor>, so usage depends on that component's own required inputs",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorContextMenuDirective",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor-context-menu/node-editor-context-menu.directive.ts",
+          "kind": "directive",
+          "selector": "ui-node-editor[uiNodeEditorContextMenu]",
+          "description": "A context menu on the graph, with contents that depend on what was clicked. ### Why a directive, and why on the editor element It follows the convention already in this repo — `uiTreeContextMenu`, `uiTableContextMenu`, `uiDataTableContextMenu` all attach a {@link ContextMenuComponent} to a host and hand it the thing under the pointer. A node graph is the same problem with a richer answer. Sitting on `ui-node-editor` lets it inject the editor, which is the only thing that can say what is under a screen point: node cards and ports are real elements, but connections are painted into one shared canvas, so no amount of DOM walking finds a wire. ### What it does NOT do It does not decide what the menu contains. The target it publishes carries the node, the port and the connection themselves, and the consumer writes the items — which is what makes \"options per what you right-click\" the consumer's vocabulary rather than a fixed list baked in here. ```html <ui-node-editor [uiNodeEditorContextMenu]=\"menu\" /> ___COMPODOC_EMPTY_LINE___ <ui-context-menu #menu> @if (menu.data(); as target) { @switch (target.kind) { @case ('canvas') { <ui-context-menu-item (select)=\"add(target.at)\">Add node…</ui-context-menu-item> } @case ('node') { <ui-context-menu-item (select)=\"rename(target.node)\">Rename…</ui-context-menu-item> } } } </ui-context-menu> ```",
+          "inputs": [
+            {
+              "name": "contextMenuDisabled",
+              "type": "boolean",
+              "description": "Stops the canvas from opening a context menu.",
+              "default": "false"
+            },
+            {
+              "name": "uiNodeEditorContextMenu",
+              "type": "ContextMenuComponent",
+              "description": "The menu to open. Template-reference it: `[uiNodeEditorContextMenu]=\"menu\"`.",
+              "required": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "contextTarget",
+              "type": "NodeEditorContextTarget",
+              "description": "Fires with the resolved target, whether or not a menu is attached."
+            }
+          ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "infinite-canvas/node-editor-groups",
+      "description": "Titled frames behind the nodes and freestanding comments, both purely visual.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-groups",
+      "importStatement": "import { NodeEditorGroupsComponent } from '@/components/ui/infinite-canvas/addons/node-editor-groups';",
+      "selector": "ui-node-editor-groups",
+      "dependencies": [
+        "infinite-canvas/node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor-groups />",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorGroupsComponent",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor-groups/node-editor-groups.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-groups",
+          "description": "Titled frames behind the nodes, and freestanding comments. ### Why this is an addon Neither a group nor a comment ever enters the runtime. They do not change what a graph computes, what may connect to what, or the order anything runs in. The moment a group meant something to evaluation, every consumer of the base would have to know about groups whether they installed this or not. ### What it needed from the base A world-space slot behind the items — without it a frame that pans and zooms with the plane is impossible without forking the canvas template — and `pushEdit`, so a group drag and the node moves it causes land on the undo stack as ONE entry. Two entries would let a single Ctrl+Z put the nodes back and leave the frame behind, stranding members outside the group that owns them. ### Membership is containment Recomputed from geometry, never stored. A stored list drifts the moment a node is dragged out, and then a group is claiming a node that is visibly not in it.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the overlay.",
+              "default": "''"
+            },
+            {
+              "name": "comments",
+              "type": "readonly NodeComment[]",
+              "description": "Free-standing notes on the canvas. Two-way: editing or moving one writes back.",
+              "default": "[]"
+            },
+            {
+              "name": "groups",
+              "type": "readonly NodeGroup[]",
+              "description": "The zones drawn behind the graph. Two-way: dragging or resizing a zone writes back.",
+              "default": "[]"
+            },
+            {
+              "name": "nodes",
+              "type": "readonly EditorNode[]",
+              "description": "The editor's rendered nodes, for membership and for moving members.",
+              "default": "[]"
+            },
+            {
+              "name": "readonlyGroups",
+              "type": "boolean",
+              "description": "Render zones and comments without letting them be moved, resized or edited.",
+              "default": "false"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "comments",
+              "type": "readonly NodeComment[]",
+              "description": "Free-standing notes on the canvas. Two-way: editing or moving one writes back.",
+              "default": "[]"
+            },
+            {
+              "name": "groupActivated",
+              "type": "NodeGroup",
+              "description": "A group's title was activated — the consumer decides what to do."
+            },
+            {
+              "name": "groupMoved",
+              "type": "GroupMoveEvent",
+              "description": "A group moved, with where its members should land. The addon never writes node positions itself: the editor owns them and routes them through the undo funnel, so this reports and the consumer applies."
+            },
+            {
+              "name": "groups",
+              "type": "readonly NodeGroup[]",
+              "description": "The zones drawn behind the graph. Two-way: dragging or resizing a zone writes back.",
+              "default": "[]"
+            }
+          ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "infinite-canvas/node-editor-history",
+      "description": "Records every run with its values and timings, and replays a past run in the editor.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-history",
+      "importStatement": "import { NodeEditorHistoryComponent } from '@/components/ui/infinite-canvas/addons/node-editor-history';",
+      "selector": "ui-node-editor-history",
+      "dependencies": [
+        "infinite-canvas/node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor-history />",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorHistoryComponent",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor-history/node-editor-history.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-history",
+          "description": "What happened, run by run. ### Why this is an addon It consumes three lifecycle outputs and nothing else — it never touches the graph model, and it takes an array of records rather than the editor. A consumer who does not want a history panel does not install one, and the runtime is not carrying a recorder nobody reads. ### Why it does not choose storage or write files `runExported` hands over a JSON string and stops there. Downloading it, or putting it on the clipboard, means a permission prompt in one host and a file dialog in another — decisions that belong to the application, not to a list. The same reasoning that keeps `RunSink` an interface.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the panel.",
+              "default": "''"
+            },
+            {
+              "name": "heading",
+              "type": "boolean",
+              "description": "Hide the heading when the panel already sits under one.",
+              "default": "true"
+            },
+            {
+              "name": "replaying",
+              "type": "boolean",
+              "description": "Whether the selected run's values are being shown in the editor.",
+              "default": "false"
+            },
+            {
+              "name": "runs",
+              "type": "readonly RunRecord[]",
+              "description": "Past runs, newest first.",
+              "default": "[]"
+            },
+            {
+              "name": "selectedRun",
+              "type": "number | null",
+              "description": "The run being inspected, by id.",
+              "default": "null"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "clearRequested",
+              "type": "void",
+              "description": "Emits when the user asks to clear the history; the consumer owns the list and performs the removal."
+            },
+            {
+              "name": "nodeSelected",
+              "type": "NodeId",
+              "description": "A node row was activated; the consumer decides what to reveal."
+            },
+            {
+              "name": "replayChange",
+              "type": "RunRecord | null",
+              "description": "The run to show in the editor, or `null` to return to the present. The consumer binds this to the editor's `replay` input — via `replayFrame()` — rather than the addon reaching into the editor."
+            },
+            {
+              "name": "replaying",
+              "type": "boolean",
+              "description": "Whether the selected run's values are being shown in the editor.",
+              "default": "false"
+            },
+            {
+              "name": "runExported",
+              "type": "RunExportEvent",
+              "description": "Emits the run the user asked to export, with the chosen format."
+            },
+            {
+              "name": "selectedRun",
+              "type": "number | null",
+              "description": "The run being inspected, by id.",
+              "default": "null"
+            }
+          ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "infinite-canvas/node-editor-layout",
+      "description": "Deterministic layered auto-layout: a pure function from nodes and edges to positions.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-layout",
+      "importStatement": null,
+      "selector": null,
+      "dependencies": [
+        "infinite-canvas/node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": null,
+      "snippetSkipReason": "no element or attribute selector in the registry source",
+      "demoRoute": null,
+      "demoFile": null,
+      "api": []
+    },
+    {
+      "name": "infinite-canvas/node-editor-minimap",
+      "description": "Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-minimap",
+      "importStatement": "import { NodeEditorMinimapComponent } from '@/components/ui/infinite-canvas/addons/node-editor-minimap';",
+      "selector": "ui-node-editor-minimap",
+      "dependencies": [
+        "infinite-canvas/node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor-minimap />",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorMinimapComponent",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor-minimap/node-editor-minimap.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-minimap",
+          "description": "An overview of the whole graph, and a way to navigate it. ### Why a canvas rather than DOM The base's edge layer already proves the pattern: at thousands of nodes, one `<canvas>` with batched fills is the only version that holds a frame budget. A minimap of DOM boxes would double the element count of a large graph for something the size of a postage stamp. ### Why it takes data rather than the editor Nodes in, navigation out. It never touches the editor, so it can be rendered and tested on its own — the same shape as the other addons.",
+          "inputs": [
+            {
+              "name": "ariaLabel",
+              "type": "string",
+              "description": "Accessible name for the overview.",
+              "default": "'Graph overview'"
+            },
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the overview.",
+              "default": "''"
+            },
+            {
+              "name": "collapsed",
+              "type": "boolean",
+              "description": "Folded down to a single control. A `model`, so a consumer can start it collapsed on a narrow screen and still let the reader open it: on a phone a 200x140 overview covers a serious fraction of the canvas it exists to help navigate.",
+              "default": "false"
+            },
+            {
+              "name": "collapsible",
+              "type": "boolean",
+              "description": "Whether the reader may fold it away.",
+              "default": "true"
+            },
+            {
+              "name": "connections",
+              "type": "readonly NodeConnection[]",
+              "description": "Edges to plot on the overview.",
+              "default": "[]"
+            },
+            {
+              "name": "height",
+              "type": "number",
+              "description": "Overview height in CSS pixels.",
+              "default": "140"
+            },
+            {
+              "name": "nodes",
+              "type": "readonly EditorNode[]",
+              "description": "Nodes to plot on the overview.",
+              "default": "[]"
+            },
+            {
+              "name": "viewport",
+              "type": "CanvasRect | null",
+              "description": "The editor's visible world rect.",
+              "default": "null"
+            },
+            {
+              "name": "width",
+              "type": "number",
+              "description": "Overview width in CSS pixels.",
+              "default": "200"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "collapsed",
+              "type": "boolean",
+              "description": "Folded down to a single control. A `model`, so a consumer can start it collapsed on a narrow screen and still let the reader open it: on a phone a 200x140 overview covers a serious fraction of the canvas it exists to help navigate.",
+              "default": "false"
+            },
+            {
+              "name": "navigate",
+              "type": "CanvasPoint",
+              "description": "The user asked to centre this world point."
+            }
+          ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "infinite-canvas/node-editor-palette",
+      "description": "Searchable picker over the registered node types, filterable by what a port accepts.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-palette",
+      "importStatement": "import { NodeEditorPaletteComponent } from '@/components/ui/infinite-canvas/addons/node-editor-palette';",
+      "selector": "ui-node-editor-palette",
+      "dependencies": [
+        "command",
+        "infinite-canvas/node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor-palette />",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorPaletteComponent",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor-palette/node-editor-palette.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-palette",
+          "description": "A searchable picker over the registered node types. ### Why this is an addon R15 puts the *intent* and the *insertion* in the base — `(addNodeRequested)` and `addNode()` — and the picker UI here. The base therefore has a complete add-node story with no palette installed, and a consumer who wants a different picker writes one without forking anything. It composes `ui-command`, which this library already ships, so this is mostly a filter and a grouping rather than a new widget. It takes the type list and emits a choice — it never touches the editor. A consumer wires the two together in one line, and this component can be tested without constructing an editor at all.",
+          "inputs": [
+            {
+              "name": "acceptsType",
+              "type": "string | undefined",
+              "description": "Restrict the offer to types that could take this value type. The query that makes a palette worth having in a typed graph: after dragging from a `table` output, \"what can accept this\" beats an alphabetical list of everything."
+            },
+            {
+              "name": "definitions",
+              "type": "readonly NodeTypeDefinition[]",
+              "description": "Every node type the graph may contain — the editor's `definitions`.",
+              "default": "[]"
+            },
+            {
+              "name": "open",
+              "type": "boolean",
+              "description": "Two-way open state, so a consumer can drive it however they like.",
+              "default": "false"
+            },
+            {
+              "name": "producesType",
+              "type": "string | undefined",
+              "description": "Restrict to types producing this value type."
+            },
+            {
+              "name": "shortcut",
+              "type": "string",
+              "description": "Keyboard shortcut that toggles the picker. Blank disables it.",
+              "default": "'Mod+K'"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "open",
+              "type": "boolean",
+              "description": "Two-way open state, so a consumer can drive it however they like.",
+              "default": "false"
+            },
+            {
+              "name": "picked",
+              "type": "NodeTypePicked",
+              "description": "Emits the node type the user chose, and where it should be placed."
+            }
+          ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "infinite-canvas/node-editor-problems",
+      "description": "Lists what is wrong with a graph in plain language, and reveals the node it belongs to.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-problems",
+      "importStatement": "import { NodeEditorProblemsComponent } from '@/components/ui/infinite-canvas/addons/node-editor-problems';",
+      "selector": "ui-node-editor-problems",
+      "dependencies": [
+        "infinite-canvas/node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor-problems />",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorProblemsComponent",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor-problems/node-editor-problems.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-problems",
+          "description": "The graph's problems, listed. ### Why this is an addon It consumes exactly one thing from the base — the `problems()` signal — and needs nothing else. By the boundary rule in `specs/node-editor-addons-spec.md` that makes it an addon rather than part of the editor: it never touches the graph's internal model, so a consumer who does not want a panel does not install one. It does not take the editor as an input either. It takes an array and emits a selection, which keeps it a pure presentation component and testable without ever constructing an editor. The *inline* half of validation — dimming incompatible ports and explaining a refusal at the pointer — is in the base, because it has to happen during a drag and needs the connection rules.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes for the panel root.",
+              "default": "''"
+            },
+            {
+              "name": "heading",
+              "type": "boolean",
+              "description": "Hide the heading when the panel already sits under one.",
+              "default": "true"
+            },
+            {
+              "name": "problems",
+              "type": "readonly GraphProblem[]",
+              "description": "Problems to list, as produced by validating the graph.",
+              "default": "[]"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "problemSelected",
+              "type": "GraphProblem",
+              "description": "A row was activated — the consumer decides what to reveal."
+            }
+          ],
+          "methods": []
+        }
+      ]
+    },
+    {
+      "name": "infinite-canvas/node-editor-subgraph",
+      "description": "Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.",
+      "category": "layout",
+      "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor-subgraph",
+      "importStatement": "import { NodeEditorSubgraphBreadcrumbComponent } from '@/components/ui/infinite-canvas/addons/node-editor-subgraph';",
+      "selector": "ui-node-editor-subgraph-breadcrumb",
+      "dependencies": [
+        "infinite-canvas/node-editor"
+      ],
+      "npmDependencies": [],
+      "snippet": "<ui-node-editor-subgraph-breadcrumb />",
+      "snippetSkipReason": "",
+      "demoRoute": "node-editor",
+      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "api": [
+        {
+          "className": "NodeEditorSubgraphBreadcrumbComponent",
+          "file": "packages/components/ui/infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph-breadcrumb.component.ts",
+          "kind": "component",
+          "selector": "ui-node-editor-subgraph-breadcrumb",
+          "description": "Where you are in a nest of graphs, and the way back out. Takes the path and emits an index — it never touches the navigator, the editor or a runtime, which is what keeps it renderable and testable on its own. The same shape as every other addon in this folder.",
+          "inputs": [
+            {
+              "name": "class",
+              "type": "string",
+              "description": "Extra classes merged onto the breadcrumb.",
+              "default": "''"
+            },
+            {
+              "name": "path",
+              "type": "readonly SubgraphFrame[]",
+              "description": "Root first. A single entry means the editor is showing the root graph.",
+              "default": "[]"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "navigate",
+              "type": "number",
+              "description": "Go to this level. The index into `path`."
+            }
+          ],
+          "methods": []
+        }
+      ]
+    },
+    {
       "name": "input",
       "description": "Single-line text input with variants and add-on support for forms.",
       "category": "form",
@@ -10239,864 +11097,6 @@
             }
           ],
           "outputs": [],
-          "methods": []
-        }
-      ]
-    },
-    {
-      "name": "node-editor",
-      "description": "Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.",
-      "category": "layout",
-      "install": "npx @gilav21/shadcn-angular@latest add node-editor",
-      "importStatement": "import { NodeEditorComponent } from '@/components/ui/node-editor';",
-      "selector": "ui-node-editor",
-      "dependencies": [
-        "infinite-canvas"
-      ],
-      "npmDependencies": [],
-      "snippet": "<ui-node-editor>Content</ui-node-editor>",
-      "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
-      "api": [
-        {
-          "className": "NodeEditorComponent",
-          "file": "packages/components/ui/node-editor/node-editor.component.ts",
-          "kind": "component",
-          "selector": "ui-node-editor",
-          "description": "A graph of nodes with named ports, connected by edges between those ports. Built on `ui-infinite-canvas`, which supplies pan, zoom, virtualisation and the batched edge layer. This adds ports, port-anchored edges, connect and disconnect, node dragging, selection — and the keyboard and screen-reader model that makes all of it usable without a mouse, which is the part every other node-graph library omits. See `specs/node-editor-spec.md`. ### Why events are delegated rather than bound Node cards are created and recycled by the canvas's view pool as the viewport moves, so there is no stable binding scope to attach handlers to. The editor listens once at its root and resolves the target from `data-node` / `data-port`.",
-          "inputs": [
-            {
-              "name": "a11yTreeLimit",
-              "type": "number",
-              "description": "Above this node count the parallel accessible tree is summarised rather than rendered in full — it is the one part of the design that does not virtualise, being O(nodes) DOM by definition.",
-              "default": "500"
-            },
-            {
-              "name": "allowCycles",
-              "type": "boolean",
-              "description": "When `false`, a connection that would close a directed cycle is refused.",
-              "default": "true"
-            },
-            {
-              "name": "ariaLabel",
-              "type": "string",
-              "description": "Accessible name for the canvas.",
-              "default": "'Node editor'"
-            },
-            {
-              "name": "class",
-              "type": "string",
-              "description": "Extra classes for the editor root. Give it a height here.",
-              "default": "''"
-            },
-            {
-              "name": "connections",
-              "type": "readonly NodeConnection[]",
-              "description": "Every connection in the graph.",
-              "default": "[]"
-            },
-            {
-              "name": "definitions",
-              "type": "readonly NodeTypeDefinition[]",
-              "description": "The node types this graph may contain. Supplying them turns the editor from a drawing of a graph into a running one: a node with a matching `type` inherits its ports, renders that type's view, and has its `compute` evaluated by the runtime.",
-              "default": "[]"
-            },
-            {
-              "name": "executeRemote",
-              "type": "RemoteExecutor | null",
-              "description": "Hands every ready `remote: true` node to a backend, in ONE call per tick. Returning the promise is resolution; throwing is failure; the AbortSignal arrives already wired.",
-              "default": "null"
-            },
-            {
-              "name": "gridSnap",
-              "type": "number",
-              "description": "Snap dragged nodes to a world-unit grid. `0` disables snapping.",
-              "default": "0"
-            },
-            {
-              "name": "live",
-              "type": "boolean",
-              "description": "Whether a change re-evaluates the graph immediately. `true` gives live dataflow — type in one node and downstream updates as you go. `false` waits for `run()`, which is what a graph full of side-effecting steps wants. Individual node types opt out either way via their own `reactive` flag.",
-              "default": "true"
-            },
-            {
-              "name": "nodes",
-              "type": "readonly EditorNode[]",
-              "description": "Every node in the graph. Heights are derived and written back.",
-              "default": "[]"
-            },
-            {
-              "name": "readonlyGraph",
-              "type": "boolean",
-              "description": "Whether nodes may be moved, connected or deleted.",
-              "default": "false"
-            },
-            {
-              "name": "replay",
-              "type": "ReplayFrame | null",
-              "description": "Show a past run's values instead of the live ones. Bind a frame and every node view renders what it held then — the same views, the same layout, different values. Evaluation is suspended for as long as a frame is bound, because a graph cannot be showing the past and computing the present at the same time; that is not a silent override of `live` but the meaning of replay. The base owns this rather than an addon because node views read their values through `NODE_CONTEXT`, which only the editor supplies — an addon could not substitute them without forking the template.",
-              "default": "null"
-            },
-            {
-              "name": "selection",
-              "type": "EditorSelection",
-              "description": "What is currently selected.",
-              "default": "EMPTY_SELECTION"
-            },
-            {
-              "name": "showGrid",
-              "type": "boolean",
-              "description": "Draw the background grid behind the graph.",
-              "default": "true"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "addNodeRequested",
-              "type": "CanvasPoint",
-              "description": "The user asked for a node here — double-click on empty plane. The base owns the intent and the insertion; the picker UI is an addon (R15). Carries the WORLD point, so whatever opens can drop the node exactly where the user asked rather than guessing."
-            },
-            {
-              "name": "connectionRejected",
-              "type": "ConnectionRejectedEvent",
-              "description": "Emits when a drag would have made an invalid connection, with the reason it was refused."
-            },
-            {
-              "name": "connections",
-              "type": "readonly NodeConnection[]",
-              "description": "Every connection in the graph.",
-              "default": "[]"
-            },
-            {
-              "name": "nodeExecute",
-              "type": "readonly RemoteRequest[]",
-              "description": "Fires alongside `executeRemote`, for observing or logging. Explicitly NOT authoritative: `executeRemote` does the work. Two ways to answer the same request would leave nobody sure which one won."
-            },
-            {
-              "name": "nodeOpened",
-              "type": "NodeId",
-              "description": "A node the user asked to open — double-click on a node whose type declares `openable`. The editor owns the gesture; what opening means is the consumer's. For a subgraph node that is descending into its graph."
-            },
-            {
-              "name": "nodes",
-              "type": "readonly EditorNode[]",
-              "description": "Every node in the graph. Heights are derived and written back.",
-              "default": "[]"
-            },
-            {
-              "name": "nodeSettled",
-              "type": "NodeSettledEvent",
-              "description": "Emits as each node reaches its final state during a run."
-            },
-            {
-              "name": "runFinished",
-              "type": "RunFinishedEvent",
-              "description": "Emits once a run has ended, whether it completed or failed."
-            },
-            {
-              "name": "runStarted",
-              "type": "RunStartedEvent",
-              "description": "Emits when a run begins, before any node is evaluated."
-            },
-            {
-              "name": "selection",
-              "type": "EditorSelection",
-              "description": "What is currently selected.",
-              "default": "EMPTY_SELECTION"
-            },
-            {
-              "name": "viewportChange",
-              "type": "CanvasViewport",
-              "description": "The viewport, when a pan or zoom SETTLES. Re-exposed from the engine so an addon talks to `ui-node-editor` rather than reaching past it to the canvas underneath. Settle-only by the engine's design — the hot path deliberately never touches Angular — which is why a minimap updates after a pan rather than during one."
-            }
-          ],
-          "methods": []
-        },
-        {
-          "className": "NodeEditorNodeDirective",
-          "file": "packages/components/ui/node-editor/node-editor-node.directive.ts",
-          "kind": "directive",
-          "selector": "[uiNodeEditorNode]",
-          "description": "Marks the template that replaces a node card's default header. A `TemplateRef` rather than static content projection, for the same reason the canvas engine uses one: nodes are instantiated per *visible* node and recycled as the viewport moves, so there is no single place to project into. The template replaces the card's **body**. Ports keep being rendered and wired by the editor — see `NodeEditorNodeComponent`. ```html <ui-node-editor [nodes]=\"nodes()\" [connections]=\"connections()\"> <ng-template uiNodeEditorNode [ofType]=\"nodes()\" let-node> <my-fancy-node [data]=\"node\" /> </ng-template> </ui-node-editor> ```",
-          "inputs": [
-            {
-              "name": "ofType",
-              "type": "readonly T[] | undefined",
-              "description": "Type-inference anchor. Bind the same array passed to the editor's `nodes` and the template variables take that element type; the value itself is never read. Mirrors `uiInfiniteCanvasItem`'s `ofType`."
-            }
-          ],
-          "outputs": [],
-          "methods": []
-        },
-        {
-          "className": "NodeEditorNodeComponent",
-          "file": "packages/components/ui/node-editor/sub/node-editor-node.component.ts",
-          "kind": "component",
-          "selector": "ui-node-editor-node",
-          "description": "One node card on the plane. The card body is replaceable — project a `*uiNodeEditorNode` template and it renders in place of the default header. **The ports are not replaceable**: a projected template that rendered its own ports would have to re-derive the layout maths that keeps the dot and the wire together, and would get it wrong. So the editor keeps them in both modes. Like the port, this component handles no events of its own — the editor delegates from its root, because the canvas's view pool creates and recycles these elements outside any single binding scope.",
-          "inputs": [
-            {
-              "name": "activePort",
-              "type": "string | null",
-              "description": "The port the keyboard is currently on within this node.",
-              "default": "null"
-            },
-            {
-              "name": "bodyTemplate",
-              "type": "TemplateRef<NodeTemplateContext> | null",
-              "description": "Optional replacement for the default header.",
-              "default": "null"
-            },
-            {
-              "name": "class",
-              "type": "string",
-              "description": "Extra classes merged onto the node card.",
-              "default": "''"
-            },
-            {
-              "name": "connectable",
-              "type": "ReadonlySet<string> | null",
-              "description": "Ports that would accept the connection in flight; passed straight down.",
-              "default": "null"
-            },
-            {
-              "name": "connectedPorts",
-              "type": "ReadonlySet<string>",
-              "description": "Ports that already have at least one connection.",
-              "default": "new Set<string>()"
-            },
-            {
-              "name": "dropPort",
-              "type": "PortRef | null",
-              "description": "The port a connection is currently being dragged over, if it is on this node.",
-              "default": "null"
-            },
-            {
-              "name": "dropValid",
-              "type": "boolean",
-              "description": "Whether dropping on {@link dropPort} would be accepted.",
-              "default": "false"
-            },
-            {
-              "name": "focused",
-              "type": "boolean",
-              "description": "Whether this node holds the roving tab stop.",
-              "default": "false"
-            },
-            {
-              "name": "metrics",
-              "type": "PortMetrics",
-              "description": "Port geometry, shared with the canvas so edges meet the ports exactly.",
-              "required": true
-            },
-            {
-              "name": "node",
-              "type": "EditorNode",
-              "description": "The node this element renders.",
-              "required": true
-            },
-            {
-              "name": "openable",
-              "type": "boolean",
-              "description": "This node contains something worth opening; double-click descends into it.",
-              "default": "false"
-            },
-            {
-              "name": "recentlyRan",
-              "type": "boolean",
-              "description": "Briefly true just after this node finished work — see the editor.",
-              "default": "false"
-            },
-            {
-              "name": "selected",
-              "type": "boolean",
-              "description": "Whether the node is part of the current selection.",
-              "default": "false"
-            },
-            {
-              "name": "status",
-              "type": "NodeStatus | null",
-              "description": "Runtime status, surfaced on the card so a run is visible.",
-              "default": "null"
-            },
-            {
-              "name": "view",
-              "type": "Type<unknown> | null",
-              "description": "The node type's view component, rendered inside the card.",
-              "default": "null"
-            },
-            {
-              "name": "viewInjector",
-              "type": "Injector | null",
-              "description": "Injector carrying this node's NODE_CONTEXT to that view.",
-              "default": "null"
-            }
-          ],
-          "outputs": [],
-          "methods": []
-        },
-        {
-          "className": "NodeEditorPortComponent",
-          "file": "packages/components/ui/node-editor/sub/node-editor-port.component.ts",
-          "kind": "component",
-          "selector": "ui-node-editor-port",
-          "description": "One connection point on a node. ### Why the whole row is the button The dot renders at 10px, which is nowhere near a usable tap target. The tap target is therefore the entire row — dot *and* label — which is as tall as `metrics.rowHeight` (44px on touch, per CLAUDE.md §6) and comfortably wide. Enlarging an invisible hit area around the dot instead would let adjacent ports overlap and steal each other's taps. ### Why it is positioned absolutely rather than laid out in flow The edge that meets this port is painted on a canvas, from a world-space anchor computed by `portOffsetTop`. If the dot's position came from normal flow instead, the two would be independent derivations of the same number and would eventually disagree. So the dot is placed *at* the anchor. The port does not handle its own events: the editor delegates from its root, because these elements are created and recycled by the canvas's view pool.",
-          "inputs": [
-            {
-              "name": "active",
-              "type": "boolean",
-              "description": "Set while this is the keyboard's current port within a focused node.",
-              "default": "false"
-            },
-            {
-              "name": "class",
-              "type": "string",
-              "description": "Extra classes merged onto the port.",
-              "default": "''"
-            },
-            {
-              "name": "connectable",
-              "type": "ReadonlySet<string> | null",
-              "description": "Ports that would accept the connection in flight, or `null` when none is. A set rather than a boolean so the node passes one reference down to every port and each looks itself up in O(1).",
-              "default": "null"
-            },
-            {
-              "name": "connected",
-              "type": "boolean",
-              "description": "Whether at least one connection already reaches this port.",
-              "default": "false"
-            },
-            {
-              "name": "dropState",
-              "type": "PortDropState",
-              "description": "Set while a connection is being dragged over this port.",
-              "default": "null"
-            },
-            {
-              "name": "metrics",
-              "type": "PortMetrics",
-              "description": "Port geometry, shared with the canvas so edges meet the ports exactly.",
-              "required": true
-            },
-            {
-              "name": "node",
-              "type": "EditorNode",
-              "description": "The node this port belongs to — supplies the id and the layout geometry.",
-              "required": true
-            },
-            {
-              "name": "port",
-              "type": "NodePort",
-              "description": "The port this element renders.",
-              "required": true
-            }
-          ],
-          "outputs": [],
-          "methods": []
-        }
-      ]
-    },
-    {
-      "name": "node-editor/context-menu",
-      "description": "Right-click menus whose contents depend on the node, port, wire or plane clicked.",
-      "category": "layout",
-      "install": "npx @gilav21/shadcn-angular@latest add node-editor/context-menu",
-      "importStatement": "import { NodeEditorContextMenuDirective } from '@/components/ui/node-editor/addons/context-menu';",
-      "selector": "ui-node-editor[uiNodeEditorContextMenu]",
-      "dependencies": [
-        "context-menu",
-        "node-editor"
-      ],
-      "npmDependencies": [],
-      "snippet": null,
-      "snippetSkipReason": "applies to <ui-node-editor>, so usage depends on that component's own required inputs",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
-      "api": [
-        {
-          "className": "NodeEditorContextMenuDirective",
-          "file": "packages/components/ui/node-editor/addons/context-menu/node-editor-context-menu.directive.ts",
-          "kind": "directive",
-          "selector": "ui-node-editor[uiNodeEditorContextMenu]",
-          "description": "A context menu on the graph, with contents that depend on what was clicked. ### Why a directive, and why on the editor element It follows the convention already in this repo — `uiTreeContextMenu`, `uiTableContextMenu`, `uiDataTableContextMenu` all attach a {@link ContextMenuComponent} to a host and hand it the thing under the pointer. A node graph is the same problem with a richer answer. Sitting on `ui-node-editor` lets it inject the editor, which is the only thing that can say what is under a screen point: node cards and ports are real elements, but connections are painted into one shared canvas, so no amount of DOM walking finds a wire. ### What it does NOT do It does not decide what the menu contains. The target it publishes carries the node, the port and the connection themselves, and the consumer writes the items — which is what makes \"options per what you right-click\" the consumer's vocabulary rather than a fixed list baked in here. ```html <ui-node-editor [uiNodeEditorContextMenu]=\"menu\" /> ___COMPODOC_EMPTY_LINE___ <ui-context-menu #menu> @if (menu.data(); as target) { @switch (target.kind) { @case ('canvas') { <ui-context-menu-item (select)=\"add(target.at)\">Add node…</ui-context-menu-item> } @case ('node') { <ui-context-menu-item (select)=\"rename(target.node)\">Rename…</ui-context-menu-item> } } } </ui-context-menu> ```",
-          "inputs": [
-            {
-              "name": "contextMenuDisabled",
-              "type": "boolean",
-              "description": "Stops the canvas from opening a context menu.",
-              "default": "false"
-            },
-            {
-              "name": "uiNodeEditorContextMenu",
-              "type": "ContextMenuComponent",
-              "description": "The menu to open. Template-reference it: `[uiNodeEditorContextMenu]=\"menu\"`.",
-              "required": true
-            }
-          ],
-          "outputs": [
-            {
-              "name": "contextTarget",
-              "type": "NodeEditorContextTarget",
-              "description": "Fires with the resolved target, whether or not a menu is attached."
-            }
-          ],
-          "methods": []
-        }
-      ]
-    },
-    {
-      "name": "node-editor/groups",
-      "description": "Titled frames behind the nodes and freestanding comments, both purely visual.",
-      "category": "layout",
-      "install": "npx @gilav21/shadcn-angular@latest add node-editor/groups",
-      "importStatement": "import { NodeEditorGroupsComponent } from '@/components/ui/node-editor/addons/groups';",
-      "selector": "ui-node-editor-groups",
-      "dependencies": [
-        "node-editor"
-      ],
-      "npmDependencies": [],
-      "snippet": "<ui-node-editor-groups />",
-      "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
-      "api": [
-        {
-          "className": "NodeEditorGroupsComponent",
-          "file": "packages/components/ui/node-editor/addons/groups/node-editor-groups.component.ts",
-          "kind": "component",
-          "selector": "ui-node-editor-groups",
-          "description": "Titled frames behind the nodes, and freestanding comments. ### Why this is an addon Neither a group nor a comment ever enters the runtime. They do not change what a graph computes, what may connect to what, or the order anything runs in. The moment a group meant something to evaluation, every consumer of the base would have to know about groups whether they installed this or not. ### What it needed from the base A world-space slot behind the items — without it a frame that pans and zooms with the plane is impossible without forking the canvas template — and `pushEdit`, so a group drag and the node moves it causes land on the undo stack as ONE entry. Two entries would let a single Ctrl+Z put the nodes back and leave the frame behind, stranding members outside the group that owns them. ### Membership is containment Recomputed from geometry, never stored. A stored list drifts the moment a node is dragged out, and then a group is claiming a node that is visibly not in it.",
-          "inputs": [
-            {
-              "name": "class",
-              "type": "string",
-              "description": "Extra classes merged onto the overlay.",
-              "default": "''"
-            },
-            {
-              "name": "comments",
-              "type": "readonly NodeComment[]",
-              "description": "Free-standing notes on the canvas. Two-way: editing or moving one writes back.",
-              "default": "[]"
-            },
-            {
-              "name": "groups",
-              "type": "readonly NodeGroup[]",
-              "description": "The zones drawn behind the graph. Two-way: dragging or resizing a zone writes back.",
-              "default": "[]"
-            },
-            {
-              "name": "nodes",
-              "type": "readonly EditorNode[]",
-              "description": "The editor's rendered nodes, for membership and for moving members.",
-              "default": "[]"
-            },
-            {
-              "name": "readonlyGroups",
-              "type": "boolean",
-              "description": "Render zones and comments without letting them be moved, resized or edited.",
-              "default": "false"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "comments",
-              "type": "readonly NodeComment[]",
-              "description": "Free-standing notes on the canvas. Two-way: editing or moving one writes back.",
-              "default": "[]"
-            },
-            {
-              "name": "groupActivated",
-              "type": "NodeGroup",
-              "description": "A group's title was activated — the consumer decides what to do."
-            },
-            {
-              "name": "groupMoved",
-              "type": "GroupMoveEvent",
-              "description": "A group moved, with where its members should land. The addon never writes node positions itself: the editor owns them and routes them through the undo funnel, so this reports and the consumer applies."
-            },
-            {
-              "name": "groups",
-              "type": "readonly NodeGroup[]",
-              "description": "The zones drawn behind the graph. Two-way: dragging or resizing a zone writes back.",
-              "default": "[]"
-            }
-          ],
-          "methods": []
-        }
-      ]
-    },
-    {
-      "name": "node-editor/history",
-      "description": "Records every run with its values and timings, and replays a past run in the editor.",
-      "category": "layout",
-      "install": "npx @gilav21/shadcn-angular@latest add node-editor/history",
-      "importStatement": "import { NodeEditorHistoryComponent } from '@/components/ui/node-editor/addons/history';",
-      "selector": "ui-node-editor-history",
-      "dependencies": [
-        "node-editor"
-      ],
-      "npmDependencies": [],
-      "snippet": "<ui-node-editor-history />",
-      "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
-      "api": [
-        {
-          "className": "NodeEditorHistoryComponent",
-          "file": "packages/components/ui/node-editor/addons/history/node-editor-history.component.ts",
-          "kind": "component",
-          "selector": "ui-node-editor-history",
-          "description": "What happened, run by run. ### Why this is an addon It consumes three lifecycle outputs and nothing else — it never touches the graph model, and it takes an array of records rather than the editor. A consumer who does not want a history panel does not install one, and the runtime is not carrying a recorder nobody reads. ### Why it does not choose storage or write files `runExported` hands over a JSON string and stops there. Downloading it, or putting it on the clipboard, means a permission prompt in one host and a file dialog in another — decisions that belong to the application, not to a list. The same reasoning that keeps `RunSink` an interface.",
-          "inputs": [
-            {
-              "name": "class",
-              "type": "string",
-              "description": "Extra classes merged onto the panel.",
-              "default": "''"
-            },
-            {
-              "name": "heading",
-              "type": "boolean",
-              "description": "Hide the heading when the panel already sits under one.",
-              "default": "true"
-            },
-            {
-              "name": "replaying",
-              "type": "boolean",
-              "description": "Whether the selected run's values are being shown in the editor.",
-              "default": "false"
-            },
-            {
-              "name": "runs",
-              "type": "readonly RunRecord[]",
-              "description": "Past runs, newest first.",
-              "default": "[]"
-            },
-            {
-              "name": "selectedRun",
-              "type": "number | null",
-              "description": "The run being inspected, by id.",
-              "default": "null"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "clearRequested",
-              "type": "void",
-              "description": "Emits when the user asks to clear the history; the consumer owns the list and performs the removal."
-            },
-            {
-              "name": "nodeSelected",
-              "type": "NodeId",
-              "description": "A node row was activated; the consumer decides what to reveal."
-            },
-            {
-              "name": "replayChange",
-              "type": "RunRecord | null",
-              "description": "The run to show in the editor, or `null` to return to the present. The consumer binds this to the editor's `replay` input — via `replayFrame()` — rather than the addon reaching into the editor."
-            },
-            {
-              "name": "replaying",
-              "type": "boolean",
-              "description": "Whether the selected run's values are being shown in the editor.",
-              "default": "false"
-            },
-            {
-              "name": "runExported",
-              "type": "RunExportEvent",
-              "description": "Emits the run the user asked to export, with the chosen format."
-            },
-            {
-              "name": "selectedRun",
-              "type": "number | null",
-              "description": "The run being inspected, by id.",
-              "default": "null"
-            }
-          ],
-          "methods": []
-        }
-      ]
-    },
-    {
-      "name": "node-editor/layout",
-      "description": "Deterministic layered auto-layout: a pure function from nodes and edges to positions.",
-      "category": "layout",
-      "install": "npx @gilav21/shadcn-angular@latest add node-editor/layout",
-      "importStatement": null,
-      "selector": null,
-      "dependencies": [
-        "node-editor"
-      ],
-      "npmDependencies": [],
-      "snippet": null,
-      "snippetSkipReason": "no element or attribute selector in the registry source",
-      "demoRoute": null,
-      "demoFile": null,
-      "api": []
-    },
-    {
-      "name": "node-editor/minimap",
-      "description": "Canvas overview of the whole graph, with a draggable viewport rectangle for navigation.",
-      "category": "layout",
-      "install": "npx @gilav21/shadcn-angular@latest add node-editor/minimap",
-      "importStatement": "import { NodeEditorMinimapComponent } from '@/components/ui/node-editor/addons/minimap';",
-      "selector": "ui-node-editor-minimap",
-      "dependencies": [
-        "node-editor"
-      ],
-      "npmDependencies": [],
-      "snippet": "<ui-node-editor-minimap />",
-      "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
-      "api": [
-        {
-          "className": "NodeEditorMinimapComponent",
-          "file": "packages/components/ui/node-editor/addons/minimap/node-editor-minimap.component.ts",
-          "kind": "component",
-          "selector": "ui-node-editor-minimap",
-          "description": "An overview of the whole graph, and a way to navigate it. ### Why a canvas rather than DOM The base's edge layer already proves the pattern: at thousands of nodes, one `<canvas>` with batched fills is the only version that holds a frame budget. A minimap of DOM boxes would double the element count of a large graph for something the size of a postage stamp. ### Why it takes data rather than the editor Nodes in, navigation out. It never touches the editor, so it can be rendered and tested on its own — the same shape as the other addons.",
-          "inputs": [
-            {
-              "name": "ariaLabel",
-              "type": "string",
-              "description": "Accessible name for the overview.",
-              "default": "'Graph overview'"
-            },
-            {
-              "name": "class",
-              "type": "string",
-              "description": "Extra classes merged onto the overview.",
-              "default": "''"
-            },
-            {
-              "name": "collapsed",
-              "type": "boolean",
-              "description": "Folded down to a single control. A `model`, so a consumer can start it collapsed on a narrow screen and still let the reader open it: on a phone a 200x140 overview covers a serious fraction of the canvas it exists to help navigate.",
-              "default": "false"
-            },
-            {
-              "name": "collapsible",
-              "type": "boolean",
-              "description": "Whether the reader may fold it away.",
-              "default": "true"
-            },
-            {
-              "name": "connections",
-              "type": "readonly NodeConnection[]",
-              "description": "Edges to plot on the overview.",
-              "default": "[]"
-            },
-            {
-              "name": "height",
-              "type": "number",
-              "description": "Overview height in CSS pixels.",
-              "default": "140"
-            },
-            {
-              "name": "nodes",
-              "type": "readonly EditorNode[]",
-              "description": "Nodes to plot on the overview.",
-              "default": "[]"
-            },
-            {
-              "name": "viewport",
-              "type": "CanvasRect | null",
-              "description": "The editor's visible world rect.",
-              "default": "null"
-            },
-            {
-              "name": "width",
-              "type": "number",
-              "description": "Overview width in CSS pixels.",
-              "default": "200"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "collapsed",
-              "type": "boolean",
-              "description": "Folded down to a single control. A `model`, so a consumer can start it collapsed on a narrow screen and still let the reader open it: on a phone a 200x140 overview covers a serious fraction of the canvas it exists to help navigate.",
-              "default": "false"
-            },
-            {
-              "name": "navigate",
-              "type": "CanvasPoint",
-              "description": "The user asked to centre this world point."
-            }
-          ],
-          "methods": []
-        }
-      ]
-    },
-    {
-      "name": "node-editor/palette",
-      "description": "Searchable picker over the registered node types, filterable by what a port accepts.",
-      "category": "layout",
-      "install": "npx @gilav21/shadcn-angular@latest add node-editor/palette",
-      "importStatement": "import { NodeEditorPaletteComponent } from '@/components/ui/node-editor/addons/palette';",
-      "selector": "ui-node-editor-palette",
-      "dependencies": [
-        "command",
-        "node-editor"
-      ],
-      "npmDependencies": [],
-      "snippet": "<ui-node-editor-palette />",
-      "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
-      "api": [
-        {
-          "className": "NodeEditorPaletteComponent",
-          "file": "packages/components/ui/node-editor/addons/palette/node-editor-palette.component.ts",
-          "kind": "component",
-          "selector": "ui-node-editor-palette",
-          "description": "A searchable picker over the registered node types. ### Why this is an addon R15 puts the *intent* and the *insertion* in the base — `(addNodeRequested)` and `addNode()` — and the picker UI here. The base therefore has a complete add-node story with no palette installed, and a consumer who wants a different picker writes one without forking anything. It composes `ui-command`, which this library already ships, so this is mostly a filter and a grouping rather than a new widget. It takes the type list and emits a choice — it never touches the editor. A consumer wires the two together in one line, and this component can be tested without constructing an editor at all.",
-          "inputs": [
-            {
-              "name": "acceptsType",
-              "type": "string | undefined",
-              "description": "Restrict the offer to types that could take this value type. The query that makes a palette worth having in a typed graph: after dragging from a `table` output, \"what can accept this\" beats an alphabetical list of everything."
-            },
-            {
-              "name": "definitions",
-              "type": "readonly NodeTypeDefinition[]",
-              "description": "Every node type the graph may contain — the editor's `definitions`.",
-              "default": "[]"
-            },
-            {
-              "name": "open",
-              "type": "boolean",
-              "description": "Two-way open state, so a consumer can drive it however they like.",
-              "default": "false"
-            },
-            {
-              "name": "producesType",
-              "type": "string | undefined",
-              "description": "Restrict to types producing this value type."
-            },
-            {
-              "name": "shortcut",
-              "type": "string",
-              "description": "Keyboard shortcut that toggles the picker. Blank disables it.",
-              "default": "'Mod+K'"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "open",
-              "type": "boolean",
-              "description": "Two-way open state, so a consumer can drive it however they like.",
-              "default": "false"
-            },
-            {
-              "name": "picked",
-              "type": "NodeTypePicked",
-              "description": "Emits the node type the user chose, and where it should be placed."
-            }
-          ],
-          "methods": []
-        }
-      ]
-    },
-    {
-      "name": "node-editor/problems",
-      "description": "Lists what is wrong with a graph in plain language, and reveals the node it belongs to.",
-      "category": "layout",
-      "install": "npx @gilav21/shadcn-angular@latest add node-editor/problems",
-      "importStatement": "import { NodeEditorProblemsComponent } from '@/components/ui/node-editor/addons/problems';",
-      "selector": "ui-node-editor-problems",
-      "dependencies": [
-        "node-editor"
-      ],
-      "npmDependencies": [],
-      "snippet": "<ui-node-editor-problems />",
-      "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
-      "api": [
-        {
-          "className": "NodeEditorProblemsComponent",
-          "file": "packages/components/ui/node-editor/addons/problems/node-editor-problems.component.ts",
-          "kind": "component",
-          "selector": "ui-node-editor-problems",
-          "description": "The graph's problems, listed. ### Why this is an addon It consumes exactly one thing from the base — the `problems()` signal — and needs nothing else. By the boundary rule in `specs/node-editor-addons-spec.md` that makes it an addon rather than part of the editor: it never touches the graph's internal model, so a consumer who does not want a panel does not install one. It does not take the editor as an input either. It takes an array and emits a selection, which keeps it a pure presentation component and testable without ever constructing an editor. The *inline* half of validation — dimming incompatible ports and explaining a refusal at the pointer — is in the base, because it has to happen during a drag and needs the connection rules.",
-          "inputs": [
-            {
-              "name": "class",
-              "type": "string",
-              "description": "Extra classes for the panel root.",
-              "default": "''"
-            },
-            {
-              "name": "heading",
-              "type": "boolean",
-              "description": "Hide the heading when the panel already sits under one.",
-              "default": "true"
-            },
-            {
-              "name": "problems",
-              "type": "readonly GraphProblem[]",
-              "description": "Problems to list, as produced by validating the graph.",
-              "default": "[]"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "problemSelected",
-              "type": "GraphProblem",
-              "description": "A row was activated — the consumer decides what to reveal."
-            }
-          ],
-          "methods": []
-        }
-      ]
-    },
-    {
-      "name": "node-editor/subgraph",
-      "description": "Nested graphs: a node type whose compute runs a child graph, with breadcrumb navigation.",
-      "category": "layout",
-      "install": "npx @gilav21/shadcn-angular@latest add node-editor/subgraph",
-      "importStatement": "import { NodeEditorSubgraphBreadcrumbComponent } from '@/components/ui/node-editor/addons/subgraph';",
-      "selector": "ui-node-editor-subgraph-breadcrumb",
-      "dependencies": [
-        "node-editor"
-      ],
-      "npmDependencies": [],
-      "snippet": "<ui-node-editor-subgraph-breadcrumb />",
-      "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
-      "api": [
-        {
-          "className": "NodeEditorSubgraphBreadcrumbComponent",
-          "file": "packages/components/ui/node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.ts",
-          "kind": "component",
-          "selector": "ui-node-editor-subgraph-breadcrumb",
-          "description": "Where you are in a nest of graphs, and the way back out. Takes the path and emits an index — it never touches the navigator, the editor or a runtime, which is what keeps it renderable and testable on its own. The same shape as every other addon in this folder.",
-          "inputs": [
-            {
-              "name": "class",
-              "type": "string",
-              "description": "Extra classes merged onto the breadcrumb.",
-              "default": "''"
-            },
-            {
-              "name": "path",
-              "type": "readonly SubgraphFrame[]",
-              "description": "Root first. A single entry means the editor is showing the root graph.",
-              "default": "[]"
-            }
-          ],
-          "outputs": [
-            {
-              "name": "navigate",
-              "type": "number",
-              "description": "Go to this level. The index into `path`."
-            }
-          ],
           "methods": []
         }
       ]

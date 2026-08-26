@@ -36,7 +36,7 @@ import {
   replayFrame,
   type RunExportEvent,
   type RunRecord,
-} from '../../../../../packages/components/ui/node-editor/addons/history';
+} from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-history';
 import {
   NodeEditorGroupsComponent,
   fitAround,
@@ -45,12 +45,12 @@ import {
   type GroupMoveEvent,
   type NodeComment,
   type NodeGroup,
-} from '../../../../../packages/components/ui/node-editor/addons/groups';
+} from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-groups';
 import {
   NodeEditorContextMenuDirective,
   type NodeEditorContextTarget,
-} from '../../../../../packages/components/ui/node-editor/addons/context-menu';
-import { layoutGraph } from '../../../../../packages/components/ui/node-editor/addons/layout';
+} from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-context-menu';
+import { layoutGraph } from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-layout';
 import {
   NodeEditorSubgraphBreadcrumbComponent,
   SUBGRAPH_BOUNDARY_TYPES,
@@ -59,13 +59,13 @@ import {
   SubgraphNavigator,
   subgraphNodeType,
   type SubgraphGraph,
-} from '../../../../../packages/components/ui/node-editor/addons/subgraph';
-import { NodeEditorMinimapComponent } from '../../../../../packages/components/ui/node-editor/addons/minimap';
+} from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-subgraph';
+import { NodeEditorMinimapComponent } from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-minimap';
 import {
   NodeEditorPaletteComponent,
   type NodeTypePicked,
-} from '../../../../../packages/components/ui/node-editor/addons/palette';
-import { NodeEditorProblemsComponent } from '../../../../../packages/components/ui/node-editor/addons/problems';
+} from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-palette';
+import { NodeEditorProblemsComponent } from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-problems';
 import { NODE_EDITOR_DEMO_LOCALES } from './node-editor-demo.locales';
 import { BROWSER_NODE } from './node-editor-demo/nodes/browser-node.component';
 import {

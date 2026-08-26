@@ -259,6 +259,14 @@ const EXPLICIT_SPECS: readonly ComponentSpec[] = [
         names: ['input', 'label', 'button', 'checkbox'],
         label: 'form-validation',
     },
+    // The node editor is an addon of infinite-canvas, so its registry key
+    // contains a slash and cannot be a harness folder name. Auto-discovery
+    // maps folder → component name 1:1, so this is the one way to point the
+    // existing `node-editor` harness at the `infinite-canvas/node-editor` key.
+    {
+        names: ['infinite-canvas/node-editor'],
+        label: 'node-editor',
+    },
     // CLI feature smoke test — installs button under a custom prefix
     // (orchestrator passes `--prefix acme` to init), then renders it via a
     // dedicated harness that uses `<acme-button>` directly.

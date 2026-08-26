@@ -15,7 +15,7 @@ for Angular.
 
 All **178** components and addons install as source you own. **0** of them pull an npm package: the CLI copies TypeScript, HTML and CSS into your project and adds nothing to your `package.json`. There is no `@shadcn-angular/*` runtime to depend on, to keep in version lockstep, or to wait on for a fix — you edit the component in place.
 
-Registry today: 153 components, 25 opt-in addons, 10 composed blocks.
+Registry today: 152 components, 26 opt-in addons, 10 composed blocks.
 
 ## Tested versions
 

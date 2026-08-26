@@ -78,7 +78,7 @@ export * from './timeline';
 export * from './tree';
 export * from './tree-select';
 export * from './infinite-canvas';
-export * from './node-editor';
+export * from './infinite-canvas/addons/node-editor';
 export * from './virtual-scroll';
 export * from './context-menu-integrations';
 export * from './shortcut-binding.service';

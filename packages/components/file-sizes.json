@@ -3958,12 +3958,384 @@
       "lines": 2
     },
     "index.ts": {
-      "bytes": 5864,
+      "bytes": 5887,
       "lines": 175
     },
     "infinite-canvas/__screenshots__/infinite-canvas.edge-renderer.spec.ts/T-1---anchor-offsets-and-curve-style--node-editor-prerequisite--an-anchor-offsets-the-endpoint-from-the-item-origin-draws-from-the-offset-point-rather-than-the-centre-1.png": {
       "bytes": 4290,
       "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-context-menu/index.ts": {
+      "bytes": 156,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-context-menu/node-editor-context-menu.directive.ts": {
+      "bytes": 5001,
+      "lines": 132
+    },
+    "infinite-canvas/addons/node-editor-context-menu/node-editor-context-menu.resolve.spec.ts": {
+      "bytes": 8014,
+      "lines": 201
+    },
+    "infinite-canvas/addons/node-editor-context-menu/node-editor-context-menu.resolve.ts": {
+      "bytes": 4056,
+      "lines": 113
+    },
+    "infinite-canvas/addons/node-editor-context-menu/node-editor-context-menu.touch.spec.ts": {
+      "bytes": 6374,
+      "lines": 185
+    },
+    "infinite-canvas/addons/node-editor-context-menu/node-editor-context-menu.types.ts": {
+      "bytes": 1768,
+      "lines": 55
+    },
+    "infinite-canvas/addons/node-editor-groups/index.ts": {
+      "bytes": 182,
+      "lines": 4
+    },
+    "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.css": {
+      "bytes": 2809,
+      "lines": 87
+    },
+    "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.html": {
+      "bytes": 3367,
+      "lines": 88
+    },
+    "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.spec.ts": {
+      "bytes": 15149,
+      "lines": 372
+    },
+    "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.ts": {
+      "bytes": 10420,
+      "lines": 301
+    },
+    "infinite-canvas/addons/node-editor-groups/node-editor-groups.locales.ts": {
+      "bytes": 1500,
+      "lines": 63
+    },
+    "infinite-canvas/addons/node-editor-groups/node-editor-groups.types.ts": {
+      "bytes": 1536,
+      "lines": 40
+    },
+    "infinite-canvas/addons/node-editor-groups/node-editor-groups.utils.spec.ts": {
+      "bytes": 7401,
+      "lines": 199
+    },
+    "infinite-canvas/addons/node-editor-groups/node-editor-groups.utils.ts": {
+      "bytes": 5613,
+      "lines": 170
+    },
+    "infinite-canvas/addons/node-editor-history/index.ts": {
+      "bytes": 231,
+      "lines": 5
+    },
+    "infinite-canvas/addons/node-editor-history/node-editor-history.component.html": {
+      "bytes": 8607,
+      "lines": 199
+    },
+    "infinite-canvas/addons/node-editor-history/node-editor-history.component.spec.ts": {
+      "bytes": 10791,
+      "lines": 305
+    },
+    "infinite-canvas/addons/node-editor-history/node-editor-history.component.ts": {
+      "bytes": 6103,
+      "lines": 180
+    },
+    "infinite-canvas/addons/node-editor-history/node-editor-history.locales.ts": {
+      "bytes": 7923,
+      "lines": 250
+    },
+    "infinite-canvas/addons/node-editor-history/node-editor-history.store.spec.ts": {
+      "bytes": 9564,
+      "lines": 274
+    },
+    "infinite-canvas/addons/node-editor-history/node-editor-history.store.ts": {
+      "bytes": 4971,
+      "lines": 142
+    },
+    "infinite-canvas/addons/node-editor-history/node-editor-history.types.ts": {
+      "bytes": 2063,
+      "lines": 58
+    },
+    "infinite-canvas/addons/node-editor-history/node-editor-history.utils.spec.ts": {
+      "bytes": 7434,
+      "lines": 215
+    },
+    "infinite-canvas/addons/node-editor-history/node-editor-history.utils.ts": {
+      "bytes": 4271,
+      "lines": 111
+    },
+    "infinite-canvas/addons/node-editor-layout/index.ts": {
+      "bytes": 38,
+      "lines": 1
+    },
+    "infinite-canvas/addons/node-editor-layout/node-editor-layout.spec.ts": {
+      "bytes": 12869,
+      "lines": 309
+    },
+    "infinite-canvas/addons/node-editor-layout/node-editor-layout.ts": {
+      "bytes": 16352,
+      "lines": 443
+    },
+    "infinite-canvas/addons/node-editor-minimap/index.ts": {
+      "bytes": 141,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.component.html": {
+      "bytes": 2351,
+      "lines": 66
+    },
+    "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.component.spec.ts": {
+      "bytes": 10442,
+      "lines": 268
+    },
+    "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.component.ts": {
+      "bytes": 9169,
+      "lines": 262
+    },
+    "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.locales.ts": {
+      "bytes": 1292,
+      "lines": 21
+    },
+    "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.utils.spec.ts": {
+      "bytes": 5949,
+      "lines": 150
+    },
+    "infinite-canvas/addons/node-editor-minimap/node-editor-minimap.utils.ts": {
+      "bytes": 4519,
+      "lines": 135
+    },
+    "infinite-canvas/addons/node-editor-palette/index.ts": {
+      "bytes": 141,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor-palette/node-editor-palette.component.html": {
+      "bytes": 1966,
+      "lines": 52
+    },
+    "infinite-canvas/addons/node-editor-palette/node-editor-palette.component.spec.ts": {
+      "bytes": 7527,
+      "lines": 214
+    },
+    "infinite-canvas/addons/node-editor-palette/node-editor-palette.component.ts": {
+      "bytes": 4693,
+      "lines": 143
+    },
+    "infinite-canvas/addons/node-editor-palette/node-editor-palette.locales.ts": {
+      "bytes": 2628,
+      "lines": 99
+    },
+    "infinite-canvas/addons/node-editor-palette/node-editor-palette.utils.spec.ts": {
+      "bytes": 5350,
+      "lines": 152
+    },
+    "infinite-canvas/addons/node-editor-palette/node-editor-palette.utils.ts": {
+      "bytes": 3937,
+      "lines": 107
+    },
+    "infinite-canvas/addons/node-editor-problems/index.ts": {
+      "bytes": 98,
+      "lines": 2
+    },
+    "infinite-canvas/addons/node-editor-problems/node-editor-problems.component.html": {
+      "bytes": 2171,
+      "lines": 59
+    },
+    "infinite-canvas/addons/node-editor-problems/node-editor-problems.component.spec.ts": {
+      "bytes": 6363,
+      "lines": 167
+    },
+    "infinite-canvas/addons/node-editor-problems/node-editor-problems.component.ts": {
+      "bytes": 3565,
+      "lines": 91
+    },
+    "infinite-canvas/addons/node-editor-problems/node-editor-problems.locales.ts": {
+      "bytes": 2996,
+      "lines": 111
+    },
+    "infinite-canvas/addons/node-editor-subgraph/index.ts": {
+      "bytes": 245,
+      "lines": 5
+    },
+    "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph-breadcrumb.component.html": {
+      "bytes": 1452,
+      "lines": 44
+    },
+    "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph-breadcrumb.component.spec.ts": {
+      "bytes": 4112,
+      "lines": 116
+    },
+    "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph-breadcrumb.component.ts": {
+      "bytes": 2198,
+      "lines": 56
+    },
+    "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.locales.ts": {
+      "bytes": 2132,
+      "lines": 87
+    },
+    "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.navigator.spec.ts": {
+      "bytes": 5728,
+      "lines": 147
+    },
+    "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.navigator.ts": {
+      "bytes": 2884,
+      "lines": 76
+    },
+    "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.spec.ts": {
+      "bytes": 11012,
+      "lines": 299
+    },
+    "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.ts": {
+      "bytes": 7519,
+      "lines": 204
+    },
+    "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.types.ts": {
+      "bytes": 1837,
+      "lines": 50
+    },
+    "infinite-canvas/addons/node-editor/index.ts": {
+      "bytes": 808,
+      "lines": 19
+    },
+    "infinite-canvas/addons/node-editor/node-editor-node.directive.ts": {
+      "bytes": 1731,
+      "lines": 48
+    },
+    "infinite-canvas/addons/node-editor/node-editor.a11y.spec.ts": {
+      "bytes": 14666,
+      "lines": 380
+    },
+    "infinite-canvas/addons/node-editor/node-editor.api.spec.ts": {
+      "bytes": 14917,
+      "lines": 408
+    },
+    "infinite-canvas/addons/node-editor/node-editor.component.css": {
+      "bytes": 2020,
+      "lines": 57
+    },
+    "infinite-canvas/addons/node-editor/node-editor.component.html": {
+      "bytes": 4630,
+      "lines": 137
+    },
+    "infinite-canvas/addons/node-editor/node-editor.component.spec.ts": {
+      "bytes": 26170,
+      "lines": 642
+    },
+    "infinite-canvas/addons/node-editor/node-editor.component.ts": {
+      "bytes": 62617,
+      "lines": 1705
+    },
+    "infinite-canvas/addons/node-editor/node-editor.graph.spec.ts": {
+      "bytes": 8206,
+      "lines": 211
+    },
+    "infinite-canvas/addons/node-editor/node-editor.graph.ts": {
+      "bytes": 6697,
+      "lines": 198
+    },
+    "infinite-canvas/addons/node-editor/node-editor.history.spec.ts": {
+      "bytes": 9087,
+      "lines": 230
+    },
+    "infinite-canvas/addons/node-editor/node-editor.history.ts": {
+      "bytes": 8872,
+      "lines": 258
+    },
+    "infinite-canvas/addons/node-editor/node-editor.integration.spec.ts": {
+      "bytes": 11602,
+      "lines": 322
+    },
+    "infinite-canvas/addons/node-editor/node-editor.layout.spec.ts": {
+      "bytes": 8616,
+      "lines": 225
+    },
+    "infinite-canvas/addons/node-editor/node-editor.layout.ts": {
+      "bytes": 6572,
+      "lines": 172
+    },
+    "infinite-canvas/addons/node-editor/node-editor.legibility.spec.ts": {
+      "bytes": 9939,
+      "lines": 247
+    },
+    "infinite-canvas/addons/node-editor/node-editor.materialize.ts": {
+      "bytes": 2702,
+      "lines": 65
+    },
+    "infinite-canvas/addons/node-editor/node-editor.multitouch.spec.ts": {
+      "bytes": 6723,
+      "lines": 187
+    },
+    "infinite-canvas/addons/node-editor/node-editor.perf.spec.ts": {
+      "bytes": 11876,
+      "lines": 323
+    },
+    "infinite-canvas/addons/node-editor/node-editor.replay.spec.ts": {
+      "bytes": 6875,
+      "lines": 203
+    },
+    "infinite-canvas/addons/node-editor/node-editor.runtime.events.spec.ts": {
+      "bytes": 9675,
+      "lines": 281
+    },
+    "infinite-canvas/addons/node-editor/node-editor.runtime.spec.ts": {
+      "bytes": 25148,
+      "lines": 651
+    },
+    "infinite-canvas/addons/node-editor/node-editor.runtime.ts": {
+      "bytes": 37526,
+      "lines": 1062
+    },
+    "infinite-canvas/addons/node-editor/node-editor.runtime.types.ts": {
+      "bytes": 9972,
+      "lines": 287
+    },
+    "infinite-canvas/addons/node-editor/node-editor.serialize.spec.ts": {
+      "bytes": 6287,
+      "lines": 157
+    },
+    "infinite-canvas/addons/node-editor/node-editor.serialize.ts": {
+      "bytes": 8209,
+      "lines": 244
+    },
+    "infinite-canvas/addons/node-editor/node-editor.stories.ts": {
+      "bytes": 14929,
+      "lines": 432
+    },
+    "infinite-canvas/addons/node-editor/node-editor.types.ts": {
+      "bytes": 4481,
+      "lines": 135
+    },
+    "infinite-canvas/addons/node-editor/node-editor.typing.spec.ts": {
+      "bytes": 8002,
+      "lines": 237
+    },
+    "infinite-canvas/addons/node-editor/node-editor.underlay.spec.ts": {
+      "bytes": 3866,
+      "lines": 107
+    },
+    "infinite-canvas/addons/node-editor/node-editor.validate.spec.ts": {
+      "bytes": 7262,
+      "lines": 186
+    },
+    "infinite-canvas/addons/node-editor/node-editor.validate.ts": {
+      "bytes": 4974,
+      "lines": 146
+    },
+    "infinite-canvas/addons/node-editor/sub/node-editor-node.component.html": {
+      "bytes": 5844,
+      "lines": 159
+    },
+    "infinite-canvas/addons/node-editor/sub/node-editor-node.component.ts": {
+      "bytes": 7489,
+      "lines": 175
+    },
+    "infinite-canvas/addons/node-editor/sub/node-editor-port.component.html": {
+      "bytes": 732,
+      "lines": 24
+    },
+    "infinite-canvas/addons/node-editor/sub/node-editor-port.component.ts": {
+      "bytes": 5648,
+      "lines": 133
     },
     "infinite-canvas/index.ts": {
       "bytes": 412,
@@ -4576,642 +4948,6 @@
     "navigation-menu/sub/navigation-menu-trigger.component.ts": {
       "bytes": 2863,
       "lines": 83
-    },
-    "node-editor/__screenshots__/node-editor.a11y.spec.ts/NodeEditorComponent-accessibility--T-10--axe-has-no-violations-in-an-RTL-container-1.png": {
-      "bytes": 15658,
-      "lines": 14
-    },
-    "node-editor/__screenshots__/node-editor.a11y.spec.ts/NodeEditorComponent-accessibility--T-10--axe-has-no-violations-while-a-connection-is-being-dragged-1.png": {
-      "bytes": 20684,
-      "lines": 28
-    },
-    "node-editor/__screenshots__/node-editor.a11y.spec.ts/NodeEditorComponent-accessibility--T-10--axe-has-no-violations-with-a-populated-graph-1.png": {
-      "bytes": 18521,
-      "lines": 41
-    },
-    "node-editor/__screenshots__/node-editor.a11y.spec.ts/NodeEditorComponent-accessibility--T-10--the-spatial-view-carries-its-own-labels-keeps-the-decorative-pending-overlay-out-of-the-accessibility-tree-1.png": {
-      "bytes": 20272,
-      "lines": 32
-    },
-    "node-editor/__screenshots__/node-editor.api.spec.ts/the-base-API-the-addons-need-undo-and-redo-restores-a-removed-node-s-connections--not-just-the-node-1.png": {
-      "bytes": 16209,
-      "lines": 37
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-on-a-touch-device-connects-two-ports-with-a-finger-1.png": {
-      "bytes": 22355,
-      "lines": 49
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-on-a-touch-device-marks-the-port-under-the-finger--not-the-one-it-started-on-1.png": {
-      "bytes": 23905,
-      "lines": 47
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-connecting-on-a-touch-device-moves-a-node-with-a-finger-1.png": {
-      "bytes": 24783,
-      "lines": 31
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-ignores-movement-below-the-drag-threshold--so-a-click-is-not-a-move-1.png": {
-      "bytes": 24915,
-      "lines": 29
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-moves-the-pressed-node-1.png": {
-      "bytes": 28473,
-      "lines": 29
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-moves-the-whole-selection-when-a-selected-node-is-dragged-1.png": {
-      "bytes": 30234,
-      "lines": 47
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-dragging-snaps-to-the-grid-when-one-is-set-1.png": {
-      "bytes": 28265,
-      "lines": 28
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-rendering-renders-a-dot-for-every-port-1.png": {
-      "bytes": 21937,
-      "lines": 35
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-selection-adds-to-the-selection-on-shift-press-1.png": {
-      "bytes": 30213,
-      "lines": 42
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-selection-marks-the-selected-card--so-selection-is-visible-and-not-just-modelled-1.png": {
-      "bytes": 28377,
-      "lines": 54
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-selection-replaces-the-selection-on-a-plain-press-1.png": {
-      "bytes": 30361,
-      "lines": 51
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-7-selection-selects-the-node-that-was-pressed-1.png": {
-      "bytes": 28231,
-      "lines": 29
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-creates-a-connection-between-the-two-ports-1.png": {
-      "bytes": 28300,
-      "lines": 36
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-draws-a-pending-edge-while-the-drag-is-in-flight-1.png": {
-      "bytes": 28473,
-      "lines": 29
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-marks-a-connected-port-so-the-dot-reads-as-occupied-1.png": {
-      "bytes": 28281,
-      "lines": 43
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-marks-the-hovered-port-valid-or-invalid-BEFORE-release-1.png": {
-      "bytes": 28137,
-      "lines": 47
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-connecting-with-a-pointer-reports-the-reason-when-the-drop-is-invalid-1.png": {
-      "bytes": 28300,
-      "lines": 36
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-disconnecting-detaches-the-existing-edge-when-its-input-end-is-grabbed-1.png": {
-      "bytes": 28281,
-      "lines": 43
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-8-disconnecting-re-homes-it-when-dropped-on-another-input-1.png": {
-      "bytes": 30207,
-      "lines": 30
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-T-9-keyboard-deletes-the-selection-with-Delete-1.png": {
-      "bytes": 28265,
-      "lines": 28
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-TEMP-probe-reports-what-is-under-each-port-anchor-1.png": {
-      "bytes": 22355,
-      "lines": 49
-    },
-    "node-editor/__screenshots__/node-editor.component.spec.ts/NodeEditorComponent-the-keyboard-and-the-pointer-agree-about-what-is-allowed-refuses-the-same-pair-either-way--for-the-same-reason-1.png": {
-      "bytes": 31594,
-      "lines": 52
-    },
-    "node-editor/__screenshots__/node-editor.design-spike.spec.ts/design-claim-2---a-change-recomputes-only-descendants-recomputes-the-changed-node-and-everything-below-it--and-nothing-else-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-11-the-motivating-example--typing-streams-downstream-keeps-streaming-on-every-keystroke-1.png": {
-      "bytes": 27521,
-      "lines": 44
-    },
-    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-11-the-motivating-example--typing-streams-downstream-reaches-the-far-end-of-the-graph-with-no-Run-button-1.png": {
-      "bytes": 27937,
-      "lines": 42
-    },
-    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-11-the-motivating-example--typing-streams-downstream-TEMP-probe-1.png": {
-      "bytes": 27263,
-      "lines": 51
-    },
-    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-11-typed-nodes-render-their-own-view-surfaces-runtime-status-on-the-card-1.png": {
-      "bytes": 27375,
-      "lines": 50
-    },
-    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-12-controls-inside-a-node-are-usable-DOES-drag-when-the-press-lands-on-the-header-1.png": {
-      "bytes": 31533,
-      "lines": 82
-    },
-    "node-editor/__screenshots__/node-editor.integration.spec.ts/RT-12-controls-inside-a-node-are-usable-still-selects-the-node--so-pressing-its-body-is-not-inert-1.png": {
-      "bytes": 31646,
-      "lines": 86
-    },
-    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-a-refusal-says-why--in-words-disappears-when-the-drag-ends-1.png": {
-      "bytes": 24348,
-      "lines": 45
-    },
-    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-a-refusal-says-why--in-words-explains-a-same-node-attempt-1.png": {
-      "bytes": 24422,
-      "lines": 33
-    },
-    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-a-refusal-says-why--in-words-is-hidden-from-screen-readers--because-the-live-region-already-says-it-1.png": {
-      "bytes": 24422,
-      "lines": 33
-    },
-    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-a-refusal-says-why--in-words-names-BOTH-types-for-a-mismatch--not-the-word--type-mismatch--1.png": {
-      "bytes": 24032,
-      "lines": 37
-    },
-    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-what-is-highlighted-is-exactly-what-can-be-dropped-on-every-port-marked-connectable-actually-accepts-the-drop-1.png": {
-      "bytes": 24481,
-      "lines": 40
-    },
-    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-what-is-highlighted-is-exactly-what-can-be-dropped-on-every-port-marked-unconnectable-states-a-reason-when-hovered-1.png": {
-      "bytes": 24481,
-      "lines": 40
-    },
-    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-while-dragging--valid-targets-are-obvious-before-the-attempt-marks-a-compatible-input-connectable-1.png": {
-      "bytes": 24260,
-      "lines": 35
-    },
-    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-while-dragging--valid-targets-are-obvious-before-the-attempt-marks-an-incompatible-input-NOT-connectable-1.png": {
-      "bytes": 24481,
-      "lines": 40
-    },
-    "node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-while-dragging--valid-targets-are-obvious-before-the-attempt-marks-the-source-node-s-own-ports-not-connectable-1.png": {
-      "bytes": 24481,
-      "lines": 40
-    },
-    "node-editor/__screenshots__/node-editor.perf.spec.ts/ENFORCED---a-change-costs-only-what-depends-on-it-recomputes-nothing-when-a-value-is-set-to-what-it-already-was-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-4-async-runs-and-staleness-discards-a-superseded-result-under-the-default-cancel-policy-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-4-async-runs-and-staleness-discards-it-under-drop--without-aborting-the-work-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-4-async-runs-and-staleness-fires-the-AbortSignal-of-the-superseded-run-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "node-editor/__screenshots__/node-editor.runtime.spec.ts/RT-4-async-runs-and-staleness-lets-a-superseded-result-WIN-under-apply-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "node-editor/__screenshots__/node-editor.serialize.spec.ts/state-must-survive-the-round-trip-names-the-node-whose-state-would-be-lost-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "node-editor/__screenshots__/node-editor.typing.spec.ts/keys-pressed-while-typing-belong-to-the-field-does-not-clear-the-selection-when-Escape-is-pressed-in-a-field-1.png": {
-      "bytes": 21278,
-      "lines": 41
-    },
-    "node-editor/__screenshots__/node-editor.typing.spec.ts/keys-pressed-while-typing-belong-to-the-field-does-not-delete-the-graph-on-Backspace-either-1.png": {
-      "bytes": 14029,
-      "lines": 29
-    },
-    "node-editor/__screenshots__/node-editor.typing.spec.ts/keys-pressed-while-typing-belong-to-the-field-does-NOT-delete-the-graph-when-Delete-is-pressed-in-a-field-1.png": {
-      "bytes": 14029,
-      "lines": 29
-    },
-    "node-editor/__screenshots__/node-editor.typing.spec.ts/keys-pressed-while-typing-belong-to-the-field-leaves-Ctrl-A-to-the-field--so-it-selects-text-and-not-every-node-1.png": {
-      "bytes": 23077,
-      "lines": 39
-    },
-    "node-editor/__screenshots__/node-editor.typing.spec.ts/keys-pressed-while-typing-belong-to-the-field-leaves-Ctrl-Z-to-the-field--so-it-undoes-typing-and-not-the-graph-1.png": {
-      "bytes": 21278,
-      "lines": 41
-    },
-    "node-editor/addons/context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-gives-up-the-drag-the-finger-had-started-1.png": {
-      "bytes": 14877,
-      "lines": 20
-    },
-    "node-editor/addons/context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-ignores-the-contextmenu-echo-that-follows-on-some-platforms-1.png": {
-      "bytes": 16722,
-      "lines": 43
-    },
-    "node-editor/addons/context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-reports-the-world-point--so-a-node-lands-where-the-finger-was-1.png": {
-      "bytes": 14609,
-      "lines": 15
-    },
-    "node-editor/addons/context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-resolves-empty-plane-from-a-held-finger-1.png": {
-      "bytes": 14670,
-      "lines": 15
-    },
-    "node-editor/addons/context-menu/__screenshots__/node-editor-context-menu.touch.spec.ts/long-press-opens-the-context-menu-resolves-the-node-a-finger-was-held-on-1.png": {
-      "bytes": 14609,
-      "lines": 15
-    },
-    "node-editor/addons/context-menu/index.ts": {
-      "bytes": 156,
-      "lines": 3
-    },
-    "node-editor/addons/context-menu/node-editor-context-menu.directive.ts": {
-      "bytes": 4992,
-      "lines": 132
-    },
-    "node-editor/addons/context-menu/node-editor-context-menu.resolve.spec.ts": {
-      "bytes": 8005,
-      "lines": 201
-    },
-    "node-editor/addons/context-menu/node-editor-context-menu.resolve.ts": {
-      "bytes": 4047,
-      "lines": 113
-    },
-    "node-editor/addons/context-menu/node-editor-context-menu.touch.spec.ts": {
-      "bytes": 6356,
-      "lines": 185
-    },
-    "node-editor/addons/context-menu/node-editor-context-menu.types.ts": {
-      "bytes": 1759,
-      "lines": 55
-    },
-    "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-accessibility-has-no-axe-violations-1.png": {
-      "bytes": 13738,
-      "lines": 13
-    },
-    "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-two-fingers-mean-pan-and-zoom--not-dragging-a-zone-puts-a-half-dragged-frame-back-when-a-second-finger-lands-elsewhere-1.png": {
-      "bytes": 12607,
-      "lines": 13
-    },
-    "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-two-fingers-mean-pan-and-zoom--not-dragging-a-zone-reports-no-member-move-for-a-drag-that-was-abandoned-1.png": {
-      "bytes": 12803,
-      "lines": 8
-    },
-    "node-editor/addons/groups/__screenshots__/node-editor-groups.component.spec.ts/NodeEditorGroupsComponent-two-fingers-mean-pan-and-zoom--not-dragging-a-zone-stops-the-frame-following-the-first-finger-afterwards-1.png": {
-      "bytes": 7535,
-      "lines": 7
-    },
-    "node-editor/addons/groups/index.ts": {
-      "bytes": 182,
-      "lines": 4
-    },
-    "node-editor/addons/groups/node-editor-groups.component.css": {
-      "bytes": 2809,
-      "lines": 87
-    },
-    "node-editor/addons/groups/node-editor-groups.component.html": {
-      "bytes": 3367,
-      "lines": 88
-    },
-    "node-editor/addons/groups/node-editor-groups.component.spec.ts": {
-      "bytes": 15140,
-      "lines": 372
-    },
-    "node-editor/addons/groups/node-editor-groups.component.ts": {
-      "bytes": 10411,
-      "lines": 301
-    },
-    "node-editor/addons/groups/node-editor-groups.locales.ts": {
-      "bytes": 1500,
-      "lines": 63
-    },
-    "node-editor/addons/groups/node-editor-groups.types.ts": {
-      "bytes": 1527,
-      "lines": 40
-    },
-    "node-editor/addons/groups/node-editor-groups.utils.spec.ts": {
-      "bytes": 7392,
-      "lines": 199
-    },
-    "node-editor/addons/groups/node-editor-groups.utils.ts": {
-      "bytes": 5604,
-      "lines": 170
-    },
-    "node-editor/addons/history/index.ts": {
-      "bytes": 231,
-      "lines": 5
-    },
-    "node-editor/addons/history/node-editor-history.component.html": {
-      "bytes": 8607,
-      "lines": 199
-    },
-    "node-editor/addons/history/node-editor-history.component.spec.ts": {
-      "bytes": 10782,
-      "lines": 305
-    },
-    "node-editor/addons/history/node-editor-history.component.ts": {
-      "bytes": 6094,
-      "lines": 180
-    },
-    "node-editor/addons/history/node-editor-history.locales.ts": {
-      "bytes": 7923,
-      "lines": 250
-    },
-    "node-editor/addons/history/node-editor-history.store.spec.ts": {
-      "bytes": 9555,
-      "lines": 274
-    },
-    "node-editor/addons/history/node-editor-history.store.ts": {
-      "bytes": 4962,
-      "lines": 142
-    },
-    "node-editor/addons/history/node-editor-history.types.ts": {
-      "bytes": 2054,
-      "lines": 58
-    },
-    "node-editor/addons/history/node-editor-history.utils.spec.ts": {
-      "bytes": 7434,
-      "lines": 215
-    },
-    "node-editor/addons/history/node-editor-history.utils.ts": {
-      "bytes": 4262,
-      "lines": 111
-    },
-    "node-editor/addons/layout/__screenshots__/node-editor-layout.spec.ts/layers-follow-dependencies-places-a-node-after-its-deepest-dependency--not-its-shallowest-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "node-editor/addons/layout/index.ts": {
-      "bytes": 38,
-      "lines": 1
-    },
-    "node-editor/addons/layout/node-editor-layout.spec.ts": {
-      "bytes": 12860,
-      "lines": 309
-    },
-    "node-editor/addons/layout/node-editor-layout.ts": {
-      "bytes": 16141,
-      "lines": 441
-    },
-    "node-editor/addons/minimap/index.ts": {
-      "bytes": 141,
-      "lines": 3
-    },
-    "node-editor/addons/minimap/node-editor-minimap.component.html": {
-      "bytes": 2351,
-      "lines": 66
-    },
-    "node-editor/addons/minimap/node-editor-minimap.component.spec.ts": {
-      "bytes": 10433,
-      "lines": 268
-    },
-    "node-editor/addons/minimap/node-editor-minimap.component.ts": {
-      "bytes": 9160,
-      "lines": 262
-    },
-    "node-editor/addons/minimap/node-editor-minimap.locales.ts": {
-      "bytes": 1292,
-      "lines": 21
-    },
-    "node-editor/addons/minimap/node-editor-minimap.utils.spec.ts": {
-      "bytes": 5940,
-      "lines": 150
-    },
-    "node-editor/addons/minimap/node-editor-minimap.utils.ts": {
-      "bytes": 4510,
-      "lines": 135
-    },
-    "node-editor/addons/palette/index.ts": {
-      "bytes": 141,
-      "lines": 3
-    },
-    "node-editor/addons/palette/node-editor-palette.component.html": {
-      "bytes": 1961,
-      "lines": 52
-    },
-    "node-editor/addons/palette/node-editor-palette.component.spec.ts": {
-      "bytes": 6122,
-      "lines": 184
-    },
-    "node-editor/addons/palette/node-editor-palette.component.ts": {
-      "bytes": 4684,
-      "lines": 143
-    },
-    "node-editor/addons/palette/node-editor-palette.locales.ts": {
-      "bytes": 2628,
-      "lines": 99
-    },
-    "node-editor/addons/palette/node-editor-palette.utils.spec.ts": {
-      "bytes": 5341,
-      "lines": 152
-    },
-    "node-editor/addons/palette/node-editor-palette.utils.ts": {
-      "bytes": 3928,
-      "lines": 107
-    },
-    "node-editor/addons/problems/index.ts": {
-      "bytes": 98,
-      "lines": 2
-    },
-    "node-editor/addons/problems/node-editor-problems.component.html": {
-      "bytes": 2171,
-      "lines": 59
-    },
-    "node-editor/addons/problems/node-editor-problems.component.spec.ts": {
-      "bytes": 6354,
-      "lines": 167
-    },
-    "node-editor/addons/problems/node-editor-problems.component.ts": {
-      "bytes": 3556,
-      "lines": 91
-    },
-    "node-editor/addons/problems/node-editor-problems.locales.ts": {
-      "bytes": 2996,
-      "lines": 111
-    },
-    "node-editor/addons/subgraph/__screenshots__/node-editor-subgraph.spec.ts/a-graph-runs-inside-a-graph-carries-several-inputs-and-several-outputs-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "node-editor/addons/subgraph/__screenshots__/node-editor-subgraph.spec.ts/inner-state-uses-the-saved-inner-state-when-nothing-is-connected-1.png": {
-      "bytes": 4290,
-      "lines": 3
-    },
-    "node-editor/addons/subgraph/index.ts": {
-      "bytes": 245,
-      "lines": 5
-    },
-    "node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.html": {
-      "bytes": 1452,
-      "lines": 44
-    },
-    "node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.spec.ts": {
-      "bytes": 4112,
-      "lines": 116
-    },
-    "node-editor/addons/subgraph/node-editor-subgraph-breadcrumb.component.ts": {
-      "bytes": 2198,
-      "lines": 56
-    },
-    "node-editor/addons/subgraph/node-editor-subgraph.locales.ts": {
-      "bytes": 2132,
-      "lines": 87
-    },
-    "node-editor/addons/subgraph/node-editor-subgraph.navigator.spec.ts": {
-      "bytes": 5719,
-      "lines": 147
-    },
-    "node-editor/addons/subgraph/node-editor-subgraph.navigator.ts": {
-      "bytes": 2875,
-      "lines": 76
-    },
-    "node-editor/addons/subgraph/node-editor-subgraph.spec.ts": {
-      "bytes": 11003,
-      "lines": 299
-    },
-    "node-editor/addons/subgraph/node-editor-subgraph.ts": {
-      "bytes": 7510,
-      "lines": 204
-    },
-    "node-editor/addons/subgraph/node-editor-subgraph.types.ts": {
-      "bytes": 1828,
-      "lines": 50
-    },
-    "node-editor/index.ts": {
-      "bytes": 821,
-      "lines": 19
-    },
-    "node-editor/node-editor-node.directive.ts": {
-      "bytes": 1731,
-      "lines": 48
-    },
-    "node-editor/node-editor.a11y.spec.ts": {
-      "bytes": 14666,
-      "lines": 380
-    },
-    "node-editor/node-editor.api.spec.ts": {
-      "bytes": 14930,
-      "lines": 408
-    },
-    "node-editor/node-editor.component.css": {
-      "bytes": 2020,
-      "lines": 57
-    },
-    "node-editor/node-editor.component.html": {
-      "bytes": 4630,
-      "lines": 137
-    },
-    "node-editor/node-editor.component.spec.ts": {
-      "bytes": 26170,
-      "lines": 642
-    },
-    "node-editor/node-editor.component.ts": {
-      "bytes": 62620,
-      "lines": 1705
-    },
-    "node-editor/node-editor.graph.spec.ts": {
-      "bytes": 8206,
-      "lines": 211
-    },
-    "node-editor/node-editor.graph.ts": {
-      "bytes": 6710,
-      "lines": 198
-    },
-    "node-editor/node-editor.history.spec.ts": {
-      "bytes": 9087,
-      "lines": 230
-    },
-    "node-editor/node-editor.history.ts": {
-      "bytes": 8885,
-      "lines": 258
-    },
-    "node-editor/node-editor.integration.spec.ts": {
-      "bytes": 11602,
-      "lines": 322
-    },
-    "node-editor/node-editor.layout.spec.ts": {
-      "bytes": 8616,
-      "lines": 225
-    },
-    "node-editor/node-editor.layout.ts": {
-      "bytes": 6579,
-      "lines": 172
-    },
-    "node-editor/node-editor.legibility.spec.ts": {
-      "bytes": 9939,
-      "lines": 247
-    },
-    "node-editor/node-editor.materialize.ts": {
-      "bytes": 2702,
-      "lines": 65
-    },
-    "node-editor/node-editor.multitouch.spec.ts": {
-      "bytes": 6723,
-      "lines": 187
-    },
-    "node-editor/node-editor.perf.spec.ts": {
-      "bytes": 11876,
-      "lines": 323
-    },
-    "node-editor/node-editor.replay.spec.ts": {
-      "bytes": 6875,
-      "lines": 203
-    },
-    "node-editor/node-editor.runtime.events.spec.ts": {
-      "bytes": 9675,
-      "lines": 281
-    },
-    "node-editor/node-editor.runtime.spec.ts": {
-      "bytes": 25148,
-      "lines": 651
-    },
-    "node-editor/node-editor.runtime.ts": {
-      "bytes": 37526,
-      "lines": 1062
-    },
-    "node-editor/node-editor.runtime.types.ts": {
-      "bytes": 9972,
-      "lines": 287
-    },
-    "node-editor/node-editor.serialize.spec.ts": {
-      "bytes": 6287,
-      "lines": 157
-    },
-    "node-editor/node-editor.serialize.ts": {
-      "bytes": 8209,
-      "lines": 244
-    },
-    "node-editor/node-editor.stories.ts": {
-      "bytes": 14929,
-      "lines": 432
-    },
-    "node-editor/node-editor.types.ts": {
-      "bytes": 4494,
-      "lines": 135
-    },
-    "node-editor/node-editor.typing.spec.ts": {
-      "bytes": 8002,
-      "lines": 237
-    },
-    "node-editor/node-editor.underlay.spec.ts": {
-      "bytes": 3866,
-      "lines": 107
-    },
-    "node-editor/node-editor.validate.spec.ts": {
-      "bytes": 7262,
-      "lines": 186
-    },
-    "node-editor/node-editor.validate.ts": {
-      "bytes": 4974,
-      "lines": 146
-    },
-    "node-editor/sub/node-editor-node.component.html": {
-      "bytes": 5844,
-      "lines": 159
-    },
-    "node-editor/sub/node-editor-node.component.ts": {
-      "bytes": 7483,
-      "lines": 175
-    },
-    "node-editor/sub/node-editor-port.component.html": {
-      "bytes": 732,
-      "lines": 24
-    },
-    "node-editor/sub/node-editor-port.component.ts": {
-      "bytes": 5642,
-      "lines": 133
     },
     "number-input/index.ts": {
       "bytes": 43,
