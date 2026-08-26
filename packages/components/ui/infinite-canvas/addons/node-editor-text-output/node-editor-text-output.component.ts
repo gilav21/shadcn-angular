@@ -76,10 +76,11 @@ export class NodeEditorTextOutputComponent {
    */
   private readonly resolved = computed<TextOutputStyle>(() => {
     const style = this.style();
+    // Narrowing is enough: every field of TextOutputStyle is optional, so a
+    // plain object already satisfies it, and each one is re-checked below
+    // before it reaches CSS anyway.
     const base: TextOutputStyle =
-      typeof style === 'object' && style !== null && !Array.isArray(style)
-        ? (style as TextOutputStyle)
-        : {};
+      typeof style === 'object' && style !== null && !Array.isArray(style) ? style : {};
     const direct = safeColor(this.color());
     return direct === null ? base : { ...base, color: direct };
   });
