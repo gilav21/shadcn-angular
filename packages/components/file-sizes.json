@@ -4002,8 +4002,8 @@
       "lines": 87
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.html": {
-      "bytes": 3367,
-      "lines": 88
+      "bytes": 3558,
+      "lines": 89
     },
     "infinite-canvas/addons/node-editor-groups/node-editor-groups.component.spec.ts": {
       "bytes": 15149,
@@ -4258,8 +4258,8 @@
       "lines": 16
     },
     "infinite-canvas/addons/node-editor-text-output/node-editor-text-output.component.html": {
-      "bytes": 647,
-      "lines": 19
+      "bytes": 680,
+      "lines": 20
     },
     "infinite-canvas/addons/node-editor-text-output/node-editor-text-output.component.spec.ts": {
       "bytes": 8046,
@@ -4272,6 +4272,14 @@
     "infinite-canvas/addons/node-editor-text-output/node-editor-text-output.types.ts": {
       "bytes": 2729,
       "lines": 72
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.direction.spec.ts/port-geometry-does-not-follow-writing-direction-draws-the-dots-in-the-same-places-whichever-way-the-document-runs-1.png": {
+      "bytes": 5255,
+      "lines": 3
+    },
+    "infinite-canvas/addons/node-editor/__screenshots__/node-editor.direction.spec.ts/port-geometry-does-not-follow-writing-direction-keeps-the-input-on-the-left-edge-and-the-output-on-the-right--in-both-1.png": {
+      "bytes": 5255,
+      "lines": 3
     },
     "infinite-canvas/addons/node-editor/__screenshots__/node-editor.legibility.spec.ts/RT-13-a-refused-connection-explains-itself-a-refusal-says-why--in-words-names-BOTH-types-for-a-mismatch--not-the-word--type-mismatch--1.png": {
       "bytes": 30586,
@@ -4312,6 +4320,10 @@
     "infinite-canvas/addons/node-editor/node-editor.component.ts": {
       "bytes": 67292,
       "lines": 1792
+    },
+    "infinite-canvas/addons/node-editor/node-editor.direction.spec.ts": {
+      "bytes": 4622,
+      "lines": 123
     },
     "infinite-canvas/addons/node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -4422,20 +4434,20 @@
       "lines": 146
     },
     "infinite-canvas/addons/node-editor/sub/node-editor-node.component.html": {
-      "bytes": 6481,
-      "lines": 171
+      "bytes": 6497,
+      "lines": 170
     },
     "infinite-canvas/addons/node-editor/sub/node-editor-node.component.ts": {
       "bytes": 7489,
       "lines": 175
     },
     "infinite-canvas/addons/node-editor/sub/node-editor-port.component.html": {
-      "bytes": 1505,
-      "lines": 41
+      "bytes": 2054,
+      "lines": 52
     },
     "infinite-canvas/addons/node-editor/sub/node-editor-port.component.ts": {
-      "bytes": 6603,
-      "lines": 147
+      "bytes": 7471,
+      "lines": 163
     },
     "infinite-canvas/index.ts": {
       "bytes": 412,

@@ -84,9 +84,25 @@ export class NodeEditorPortComponent {
       'text-[11px] leading-none text-muted-foreground',
       'focus-visible:ring-2 focus-visible:ring-ring',
       'disabled:cursor-not-allowed disabled:opacity-40',
-      // Overhangs the card edge by half a dot, so the dot's centre lands
-      // exactly on the node boundary where the edge anchor is.
-      this.isOutput() ? 'end-[-5px] flex-row-reverse' : 'start-[-5px]',
+      /*
+       * PHYSICAL left and right, never logical start and end.
+       *
+       * `portAnchor` puts an input at world x 0 and an output at world
+       * x = width, and world coordinates do not know about writing direction —
+       * a node's x is authored data that has to mean the same thing in every
+       * locale, or a saved graph would render mirrored for some readers and a
+       * node "at x 0" would be on the right.
+       *
+       * Logical insets flip with `dir`, so in a right-to-left document the dot
+       * moved to the opposite side of the card while the wire stayed anchored
+       * where the maths put it: the line left one edge and the dot sat on the
+       * other. Physical insets keep the two agreeing.
+       *
+       * The plane is a space, not a paragraph — the same reason a map is not
+       * mirrored for right-to-left readers. Labels still read in their own
+       * direction; that is the text's business, and handled on the span.
+       */
+      this.isOutput() ? 'right-[-5px] flex-row-reverse' : 'left-[-5px]',
       this.active() && 'ring-2 ring-ring',
       // Dimmed while a connection is in flight and this port cannot take it,
       // so the valid targets are obvious BEFORE the attempt rather than after.

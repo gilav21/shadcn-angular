@@ -1,8 +1,19 @@
 @let current = port();
 
+<!--
+  The row is laid out left to right whatever the document does.
+
+  Its flex axis follows the inline direction, so in a right-to-left page the
+  dot and label swapped ends and no longer matched the physical inset that puts
+  the dot on the node boundary. The wire anchors at a world coordinate, which
+  has no direction, so the row must not have one either.
+
+  The label inside still takes its own direction — see the span below.
+-->
 <button
   type="button"
   tabindex="-1"
+  dir="ltr"
   [class]="rowClasses()"
   [style.top.px]="top()"
   [style.height.px]="metrics().rowHeight"

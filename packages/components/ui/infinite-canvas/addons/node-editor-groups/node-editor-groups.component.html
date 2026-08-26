@@ -42,7 +42,7 @@
       (pointerup)="onPointerUp($event)"
       (pointercancel)="onPointerUp($event)"
     >
-      <span class="truncate">{{ group.title }}</span>
+      <span class="truncate" dir="auto">{{ group.title }}</span>
       <span class="ms-auto shrink-0">{{ memberCount(group) }}</span>
     </button>
 
@@ -83,6 +83,7 @@
     [style.min-height.px]="comment.height"
     [style.color]="comment.colour ?? 'var(--color-muted-foreground)'"
   >
-    <p class="[overflow-wrap:anywhere] whitespace-pre-wrap">{{ comment.text }}</p>
+    <!-- A comment is the author's prose, so it reads in its own direction. -->
+    <p class="[overflow-wrap:anywhere] whitespace-pre-wrap" dir="auto">{{ comment.text }}</p>
   </aside>
 }

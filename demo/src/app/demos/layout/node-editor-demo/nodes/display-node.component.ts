@@ -13,6 +13,7 @@ import {
     <p
       class="min-h-8 truncate rounded-md border bg-muted/40 px-2 py-1.5 font-mono text-xs"
       data-testid="display-node"
+      dir="auto"
     >
       {{ shown() }}
     </p>
