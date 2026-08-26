@@ -19,18 +19,18 @@
 >
   <span [class]="dotClasses()" [attr.data-slot]="'node-editor-port-dot'"></span>
   <!--
-    `leading-[1.45]`, not the row's `leading-none`.
+    The label carries its own line height rather than the row's tighter one.
+    Truncation hides anything outside the line box, and a box of exactly one em
+    leaves no room for what hangs below the baseline — so a label read fine
+    until it had a descender, and then the tail of a y or a g was sliced off.
+    The row still centres on the dot; the taller line only gives the glyphs
+    their height back, well inside the 24px row.
 
-    `truncate` brings `overflow: hidden`, and a line box of exactly 1em has no
-    room for what hangs outside it — so the row read fine until a label had a
-    descender, and then the tail of a "y" or "g" was sliced off. The row still
-    centres on the dot either way; 1.45 only gives the glyphs their own height
-    back, and stays well inside the 24px row.
-
-    `dir="auto"` because a port label is content, not chrome: a Hebrew or
-    Arabic label should read right-to-left even on an LTR canvas, and a Latin
-    one left-to-right on an RTL canvas, rather than inheriting whichever way
-    the page happens to run and pushing its punctuation to the wrong end.
+    Automatic text direction because a port label is content, not chrome: a
+    Hebrew or Arabic label should read right to left even on a left-to-right
+    canvas, and a Latin one left to right on a right-to-left canvas, rather
+    than inheriting whichever way the page runs and taking its punctuation to
+    the wrong end.
   -->
   <span
     class="max-w-[72px] truncate leading-[1.45]"
