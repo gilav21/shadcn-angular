@@ -378,3 +378,103 @@ than the dead link it replaced either way.
 not compile standalone, its playground cannot work no matter how good the
 generator is. Task 8 is therefore not a formality — it is where the real
 per-component work will surface, and it should be sized generously.
+
+---
+
+## 9. Post-ship defects — found 2026-08-26
+
+Reported as "StackBlitz is stuck on npm install and start, it never comes
+back". Reproduced in a real browser by POSTing generated projects to
+`https://stackblitz.com/run` and watching the WebContainer. §3.1 stays correct
+— the transport works and the project boots — but **booting was never the same
+thing as the reader seeing anything**, which is the gap all four of these sit
+in.
+
+### 9.1 🔴 The dev server was invisible — no preview, ever
+
+`@angular/build:dev-server` defaults to `host: "localhost"`. A WebContainer
+forwards a port only once something listens on `0.0.0.0`, so StackBlitz opened
+no preview at all. The project installed, compiled, printed `Application bundle
+generation complete` and `➜ Local: http://localhost:4200/`, and then showed the
+reader `package.json` and a terminal — indefinitely.
+
+**Every signal short of the rendered preview was green**, which is exactly why
+nothing caught it. T-15 asserts "the terminal reaches `Application bundle
+generation complete` and a preview origin exists" — the first half passed and
+the second half was never implemented.
+
+Fixed by `host: '0.0.0.0'` plus `allowedHosts: true` (Vite rejects the
+per-session `*.w-credentialless-staticblitz.com` origin otherwise, and it
+cannot be enumerated in advance). Verified: identical project, one line
+differing, preview goes from never-appearing to rendering the component, and
+the terminal gains a `Network: http://192.168.1.104:4200/` line.
+
+### 9.2 🔴 No lockfile — 113 s of npm resolution on every boot
+
+The generated project shipped no `package-lock.json`, so npm re-resolved the
+whole tree from the registry every time. Measured: **113 s before `ng serve`
+was even reached**; with a lockfile, install was done and the dev server
+starting by **23 s**.
+
+One lockfile serves all 169 playgrounds — no registry component declares
+`npmDependencies`, so the dependency set is identical for every one of them.
+Committed as `demo/src/app/docs/playground/playground-lock.json` and fetched
+per session like the theme.
+
+Drift is the risk: a lockfile that disagrees with `package.json` does not fail,
+it silently re-resolves and puts the 113 s back with nothing turning red. Hence
+the assertion pinning both to the same Angular version.
+
+### 9.3 Every `ng serve` ran a production build
+
+The generated `angular.json` had no `development` configuration, so
+`@angular/build:application` fell back to its `optimization: true` default.
+`ng new` writes a `development` configuration and points `serve` at it; this
+generator did not. Measured on the same component in a WebContainer:
+**30.9 s optimized against 21.1 s unoptimized**. The playground was both slower
+than and *less representative than* the consumer app it exists to imitate.
+
+### 9.4 The reader landed on `package.json`
+
+StackBlitz opens the first file when told nothing. On a page whose whole
+promise is "see this component work", the reader arrived at a dependency list.
+The POST URL now carries `?file=src%2Fapp%2Fapp.ts`.
+
+### 9.5 Measured result
+
+| | before | after |
+|---|---|---|
+| npm install | 113 s | ~20 s |
+| build | 30.9 s | 18.9 s |
+| preview | **never appeared** | renders the component |
+| lands on | `package.json` | `src/app/app.ts` |
+
+~48 s to a rendered component, against a previous state that never rendered one
+at all.
+
+### 9.6 Why other Angular StackBlitz projects boot instantly — and why we can't
+
+Both fast Angular projects checked (`stackblitz.com/fork/angular`, and
+`angular-guide-21-yute`, whose "21" is a *course chapter number* — it runs
+Angular **11.2.14**) use StackBlitz's **legacy EngineBlock template**: no
+terminal, no npm install, a `DEPENDENCIES` sidebar, and dependencies served
+pre-built from StackBlitz's CDN. That is the entire reason they are fast.
+
+EngineBlock is pinned to old Angular and has no PostCSS/Tailwind v4 pipeline,
+so it cannot build Angular 21 + `@angular/build` + Tailwind v4. **The install
+cost is the price of a real toolchain**, and §9.2/§9.3 are the levers that
+actually exist. Do not re-open "why not use the fast template" without first
+checking whether EngineBlock has gained Angular 21 support.
+
+### 9.7 Measured and rejected
+
+- **Dropping `@angular/cli`** (`architect playground:serve` instead of
+  `ng serve`): removes 212 of 575 packages but **no wall-clock saving**
+  (58 s vs 60 s locally), and diverges from how a consumer serves.
+- **Forcing `cli.cache.enabled`** to restore prebundling: Angular sets
+  `enabled = !process.versions.webcontainer` deliberately, commenting that
+  WebContainers gain nothing from persistent disk caching and that it raises
+  browser memory. Overriding it fights that on the exact devices — phones —
+  where the report came from. Set `prebundle: false` instead, which removes the
+  misleading "Prebundling has been configured but will not be used" warning
+  without changing behaviour.

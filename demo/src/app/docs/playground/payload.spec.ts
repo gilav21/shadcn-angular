@@ -17,7 +17,14 @@ const PROJECT: PlaygroundProject = {
 
 describe('T-8 the payload uses the shape the probe proved boots', () => {
     it('posts to stackblitz.com/run', () => {
-        expect(POST_URL).toBe('https://stackblitz.com/run');
+        expect(POST_URL.startsWith('https://stackblitz.com/run')).toBe(true);
+    });
+
+    it('opens on the app component, not package.json', () => {
+        // StackBlitz opens the first file when told nothing, which put the
+        // reader in `package.json` — a dependency list — on a page whose whole
+        // promise is "see this component work".
+        expect(POST_URL).toContain('file=src%2Fapp%2Fapp.ts');
     });
 
     it('keys every file as project[files][<path>]', () => {
