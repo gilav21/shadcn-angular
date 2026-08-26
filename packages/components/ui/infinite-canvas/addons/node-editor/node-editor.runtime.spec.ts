@@ -649,3 +649,79 @@ describe('RT-10 isolation — the subgraph seam', () => {
         expect(outer.outputs('sg')()['out']).toBe('from-inside');
     });
 });
+
+/*
+ * State written before its node arrives.
+ *
+ * `deserializeGraph` hands back `states` beside `nodes`, and swapping which
+ * graph is on screen re-mounts a node that was removed while another one was
+ * showing — so "set the state, then set the graph" is an order consumers reach
+ * for. It used to be dropped on the floor twice over: `setState` returned early
+ * for an id the runtime did not hold, and `addNode` then seeded
+ * `initialState()` regardless. The graph came back with the right shape and the
+ * wrong values, and nothing failed.
+ */
+describe('state set before the node exists', () => {
+    it('survives the node arriving afterwards', async () => {
+        const runtime = new NodeGraphRuntime();
+        try {
+            runtime.setDefinitions([SOURCE]);
+            runtime.setState('s', 'restored');
+            runtime.setGraph([node('s', 'source')], []);
+            await runtime.run();
+
+            expect(runtime.state('s')()).toBe('restored');
+            expect(runtime.outputs('s')()['out']).toBe('restored');
+        } finally {
+            runtime.dispose();
+        }
+    });
+
+    it('still seeds initialState for a node nothing was written for', async () => {
+        const runtime = new NodeGraphRuntime();
+        try {
+            runtime.setDefinitions([SOURCE]);
+            runtime.setGraph([node('s', 'source')], []);
+            await runtime.run();
+
+            expect(runtime.state('s')()).toBe('seed');
+        } finally {
+            runtime.dispose();
+        }
+    });
+
+    /** `undefined` is a state someone chose, not an absent one. */
+    it('does not fall back to initialState for a deliberate undefined', () => {
+        const runtime = new NodeGraphRuntime();
+        try {
+            runtime.setDefinitions([SOURCE]);
+            runtime.setState('s', undefined);
+            runtime.setGraph([node('s', 'source')], []);
+
+            expect(runtime.state('s')()).toBeUndefined();
+        } finally {
+            runtime.dispose();
+        }
+    });
+
+    /** Re-mounting the node a subgraph swap removed must bring its graph back. */
+    it('restores state across a graph swap that removed the node', async () => {
+        const runtime = new NodeGraphRuntime();
+        try {
+            runtime.setDefinitions([SOURCE]);
+            runtime.setGraph([node('s', 'source')], []);
+            runtime.setState('s', 'edited');
+
+            // Another graph takes the screen — 's' is gone from the runtime.
+            runtime.setGraph([], []);
+            // The consumer writes back what it remembered, then remounts.
+            runtime.setState('s', 'edited');
+            runtime.setGraph([node('s', 'source')], []);
+            await runtime.run();
+
+            expect(runtime.state('s')()).toBe('edited');
+        } finally {
+            runtime.dispose();
+        }
+    });
+});

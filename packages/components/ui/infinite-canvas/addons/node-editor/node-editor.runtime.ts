@@ -17,6 +17,7 @@ import type {
   GraphProblem,
   NodeSettledEvent,
   NodeStatus,
+  NodePortDefinition,
   NodeTypeDefinition,
   PortValues,
   RemoteExecutor,
@@ -171,6 +172,23 @@ export class NodeGraphRuntime {
   }
 
   /**
+   * The ports THIS node has, which is not always what its type declares.
+   *
+   * A type with `portsFor` derives its ports from each node's own state — a
+   * subgraph, whose inner boundary nodes are its outer ports. Reading
+   * `definition.ports` directly would give every instance the type's ports, so
+   * a user-built subgraph would draw the ports it grew and then carry no
+   * values through any of them: input resolution would not find them, and
+   * nothing would reach `compute`.
+   *
+   * Read through this everywhere a node's ports are resolved.
+   */
+  private portsOf(nodeId: NodeId, definition: NodeTypeDefinition): readonly NodePortDefinition[] {
+    if (!definition.portsFor) return definition.ports;
+    return definition.portsFor(this.stateSignal(nodeId)());
+  }
+
+  /**
    * Replace the graph.
    *
    * Diffed rather than rebuilt: a rebuild would drop every cached output and
@@ -200,7 +218,24 @@ export class NodeGraphRuntime {
     this.incoming.set(node.id, new Set());
     this.outputValues.set(node.id, {});
 
-    const initial = this.definitions.get(node.type ?? '')?.initialState?.();
+    /*
+     * A state written for this id BEFORE the node arrived wins over the type's
+     * initial state.
+     *
+     * `setState` then `setGraph` is the order a consumer restoring a document
+     * naturally writes — `deserializeGraph` hands back `states` separately from
+     * `nodes`, and subgraph navigation re-mounts a node that was removed while
+     * another graph was on screen. Seeding `initialState()` unconditionally
+     * threw those writes away, silently: the graph came back with the right
+     * shape and the wrong values, and for a subgraph, whose state IS its inner
+     * graph, it came back empty.
+     *
+     * `has` rather than `?? `: `undefined` is a legitimate state, and a node
+     * whose state was deliberately set to it must not fall back to the type.
+     */
+    const initial = this.stateValues.has(node.id)
+      ? this.stateValues.get(node.id)
+      : this.definitions.get(node.type ?? '')?.initialState?.();
     this.stateValues.set(node.id, initial);
     this.stateSignal(node.id).set(initial);
     this.markDirty(node.id);
@@ -262,10 +297,24 @@ export class NodeGraphRuntime {
     }
   }
 
+  /**
+   * Write a node's state — including before that node exists.
+   *
+   * Dropping a write for an unknown id was the quiet half of a bug the
+   * subgraph addon made visible. `deserializeGraph` returns `states` beside
+   * `nodes`, and swapping which graph is on screen re-mounts a node that was
+   * removed while another one was showing, so "set the state, then set the
+   * graph" is an order consumers reach for and one this refused to honour: the
+   * value went nowhere and the node came back holding `initialState()`.
+   *
+   * Recorded rather than applied when the node is absent — there is nothing to
+   * schedule yet, and {@link addNode} picks the value up when it arrives.
+   */
   setState(nodeId: NodeId, next: unknown): void {
-    if (this.disposed || !this.nodes.has(nodeId)) return;
+    if (this.disposed) return;
     this.stateValues.set(nodeId, next);
     this.stateSignal(nodeId).set(next);
+    if (!this.nodes.has(nodeId)) return;
     this.markDirty(nodeId);
     this.refresh();
   }
@@ -452,7 +501,7 @@ export class NodeGraphRuntime {
     const values: PortValues = {};
     if (!definition) return values;
 
-    for (const port of definition.ports) {
+    for (const port of this.portsOf(nodeId, definition)) {
       if (port.direction !== 'in') continue;
       const conns = this.connections.filter(
         c => c.target === nodeId && c.targetPort === port.id,
@@ -492,7 +541,7 @@ export class NodeGraphRuntime {
     const definition = this.definition(nodeId);
     if (!definition) return false;
 
-    for (const port of definition.ports) {
+    for (const port of this.portsOf(nodeId, definition)) {
       if (port.direction !== 'in') continue;
       const next = resolved[port.id];
       const last = previous[port.id];
@@ -935,7 +984,7 @@ export class NodeGraphRuntime {
     node: EditorNode,
     definition: NodeTypeDefinition,
   ): readonly GraphProblem[] {
-    return definition.ports
+    return this.portsOf(nodeId, definition)
       .filter(port => port.direction === 'in' && port.required === true)
       .filter(port => !this.connections.some(c => c.target === nodeId && c.targetPort === port.id))
       .map(port => ({

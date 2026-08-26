@@ -88,6 +88,9 @@ export const SUBGRAPH_BOUNDARY_TYPES: readonly NodeTypeDefinition[] = [
  * separate mapping table would eventually let them do.
  */
 export function boundaryPorts(graph: SubgraphGraph): readonly NodePortDefinition[] {
+  const memoised = PORTS_BY_GRAPH.get(graph);
+  if (memoised) return memoised;
+
   const boundary = (type: string, direction: 'in' | 'out'): NodePortDefinition[] =>
     graph.nodes
       .filter(node => node.type === type)
@@ -97,10 +100,45 @@ export function boundaryPorts(graph: SubgraphGraph): readonly NodePortDefinition
         label: node.title ?? String(node.id),
       }));
 
-  return [
+  const ports = [
     ...boundary(SUBGRAPH_INPUT_TYPE, 'in'),
     ...boundary(SUBGRAPH_OUTPUT_TYPE, 'out'),
   ];
+  PORTS_BY_GRAPH.set(graph, ports);
+  return ports;
+}
+
+/**
+ * One ports array per graph OBJECT, because the editor compares the rendered
+ * node list by reference.
+ *
+ * `portsFor` is called on every change detection pass; returning a fresh array
+ * each time would make every node look changed and re-mount the whole canvas —
+ * the exact thing the engine exists to avoid. A graph is replaced wholesale
+ * when it is edited, so identity is the correct cache key: a new graph object
+ * means new ports, the same object means the same array.
+ *
+ * A `WeakMap` so a graph that is no longer referenced takes its entry with it.
+ * This is a cache, not state: it holds nothing that two editors could disagree
+ * about, so it does not reintroduce the singleton this addon avoids.
+ */
+const PORTS_BY_GRAPH = new WeakMap<SubgraphGraph, readonly NodePortDefinition[]>();
+
+/** A graph with nothing in it — what a subgraph the user creates starts as. */
+export const EMPTY_SUBGRAPH_GRAPH: SubgraphGraph = { nodes: [], connections: [] };
+
+/**
+ * A node's state read as a nested graph, or `null` if it is not one.
+ *
+ * Lets a consumer ask "can I descend into this node?" of the node itself
+ * rather than against a hard-coded list of type ids — which is what made the
+ * demo able to open exactly one subgraph type.
+ */
+export function asSubgraphGraph(state: unknown): SubgraphGraph | null {
+  if (typeof state !== 'object' || state === null) return null;
+  const candidate = state as Partial<SubgraphGraph>;
+  if (!Array.isArray(candidate.nodes) || !Array.isArray(candidate.connections)) return null;
+  return candidate as SubgraphGraph;
 }
 
 /** Ids of the inner nodes that carry values back out. */
@@ -120,14 +158,19 @@ function outputBoundaryIds(graph: SubgraphGraph): readonly string[] {
 export function subgraphNodeType(
   options: SubgraphTypeOptions,
 ): NodeTypeDefinition<SubgraphGraph, PortValues, PortValues> {
-  const definitions = [...options.definitions, ...SUBGRAPH_BOUNDARY_TYPES];
-
   return {
     id: options.id,
     label: options.label,
     category: options.category,
     accent: options.accent,
     ports: boundaryPorts(options.graph),
+    // The ports belong to the INSTANCE, not the type: two nodes of this type
+    // hold two different graphs, and each one's boundary nodes are its own
+    // outer ports. Without this every instance would be forced to show the
+    // ports of the graph the type was declared with, so adding an input
+    // inside one subgraph would do nothing to the node on the outside — and a
+    // subgraph the user built up from empty would have no ports at all, ever.
+    portsFor: state => boundaryPorts(asSubgraphGraph(state) ?? options.graph),
     // Says on the card that this node has an inside, and makes double-click
     // descend into it — so opening a nested graph is a canvas gesture rather
     // than a button somewhere off it.
@@ -138,6 +181,20 @@ export function subgraphNodeType(
 
     async compute(inputs, ctx) {
       const graph = ctx.state ?? options.graph;
+      /*
+       * Read per evaluation, not once when the type was built.
+       *
+       * A subgraph inside a subgraph needs the outer type's own definition in
+       * this list, which cannot be done while the outer type is still being
+       * constructed — so the only way to express it is to push into the array
+       * afterwards. Snapshotting here made that push invisible: the palette
+       * would offer a nested subgraph and the runtime would then not know the
+       * type, so the inner graph answered nothing.
+       *
+       * The cost is rebuilding a short array per run, next to constructing a
+       * whole child runtime — which this already does.
+       */
+      const definitions = [...options.definitions, ...SUBGRAPH_BOUNDARY_TYPES];
       const runtime = new NodeGraphRuntime();
       try {
         runtime.setDefinitions(definitions);
@@ -183,6 +240,25 @@ export function subgraphNodeType(
       }
     },
   };
+}
+
+/**
+ * A subgraph type that starts empty — the one to put in the palette.
+ *
+ * This is what makes subgraphs something the USER creates rather than only
+ * something the app author ships. Dropping one gives a node with no ports;
+ * opening it shows an empty graph; adding a boundary node inside grows a port
+ * on the outside, because a boundary node's id is a port id and `portsFor`
+ * reads them from the instance's own graph.
+ *
+ * Nothing here is a special case of {@link subgraphNodeType} — it *is* one,
+ * with an empty starting graph. A subgraph is a graph, including when it is
+ * still empty.
+ */
+export function emptySubgraphNodeType(
+  options: Omit<SubgraphTypeOptions, 'graph'>,
+): NodeTypeDefinition<SubgraphGraph, PortValues, PortValues> {
+  return subgraphNodeType({ ...options, graph: EMPTY_SUBGRAPH_GRAPH });
 }
 
 /**

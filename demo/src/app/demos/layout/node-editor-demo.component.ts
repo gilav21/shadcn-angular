@@ -25,6 +25,7 @@ import {
   serializeGraph,
   type NodeConnection,
   type NodeId,
+  type NodeTypeDefinition,
   type ReplayFrame,
   type RunFinishedEvent,
   type RunStartedEvent,
@@ -57,6 +58,9 @@ import {
   SUBGRAPH_INPUT_TYPE,
   SUBGRAPH_OUTPUT_TYPE,
   SubgraphNavigator,
+  EMPTY_SUBGRAPH_GRAPH,
+  asSubgraphGraph,
+  emptySubgraphNodeType,
   subgraphNodeType,
   type SubgraphGraph,
 } from '../../../../../packages/components/ui/infinite-canvas/addons/node-editor-subgraph';
@@ -120,6 +124,40 @@ const SHOUT_SUBGRAPH = subgraphNodeType({
   definitions: [UPPERCASE_NODE, LENGTH_NODE],
 });
 
+/**
+ * The node types a subgraph the user creates may contain.
+ *
+ * Mutable, and pushed into below, because a subgraph has to be allowed to
+ * contain a subgraph — and the type cannot list itself while it is still being
+ * built. `subgraphNodeType` reads this per evaluation rather than snapshotting
+ * it, which is what makes the late push count.
+ */
+const NESTABLE_NODE_TYPES: NodeTypeDefinition[] = [
+  TEXT_INPUT_NODE,
+  UPPERCASE_NODE,
+  LENGTH_NODE,
+  DISPLAY_NODE,
+];
+
+/**
+ * An empty subgraph — the palette entry that makes subgraphs the user's to
+ * create rather than only the author's to ship.
+ *
+ * It starts with no ports. Open it, drop an Input boundary node inside, and a
+ * matching input port appears on the outside: a boundary node's id is a port
+ * id, and the ports are read from this node's own graph rather than from the
+ * type.
+ */
+const NEW_SUBGRAPH = emptySubgraphNodeType({
+  id: 'subgraph',
+  label: 'Subgraph',
+  category: 'Composite',
+  accent: '#a855f7',
+  definitions: NESTABLE_NODE_TYPES,
+});
+
+NESTABLE_NODE_TYPES.push(NEW_SUBGRAPH);
+
 /** Rendered size of the zone panel, for keeping it inside the canvas. */
 const ZONE_PANEL = { x: 256, y: 190 };
 /** Rendered size of the rename field, same reason. */
@@ -133,10 +171,20 @@ const DEMO_NODE_TYPES = [
   BROWSER_NODE,
   DISPLAY_NODE,
   SHOUT_SUBGRAPH,
+  NEW_SUBGRAPH,
   // Registered so the boundary nodes render when the editor is showing the
   // INSIDE of a subgraph — the same editor, a different graph.
   ...SUBGRAPH_BOUNDARY_TYPES,
 ];
+
+/**
+ * The types whose nodes contain a graph.
+ *
+ * Derived rather than written out, so registering another subgraph type is the
+ * only step needed to make it openable — the demo used to compare against one
+ * hard-coded id, which is why exactly one kind of subgraph could be entered.
+ */
+const SUBGRAPH_TYPE_IDS = new Set([SHOUT_SUBGRAPH.id, NEW_SUBGRAPH.id]);
 
 /**
  * The live graph: type a web address and the browser node follows it.
@@ -458,14 +506,22 @@ export class NodeEditorDemoComponent {
 
     const node = this.nodes().find(n => n.id === selected[0]);
     const definition = DEMO_NODE_TYPES.find(d => d.id === node?.type);
-    if (!node || definition?.id !== SHOUT_SUBGRAPH.id) return;
+    if (!node || !definition || !this.isSubgraph(node)) return;
 
-    // The node's STATE is its graph — that is what makes a nested graph
-    // serialise with the document for free.
+    /*
+     * The node's STATE is its graph — that is what makes a nested graph
+     * serialise with the document for free.
+     *
+     * The fallback is the type's own starting graph, NOT one particular
+     * graph: an empty subgraph the user just dropped has no remembered state
+     * yet, and falling back to another type's graph would open it showing
+     * somebody else's nodes.
+     */
     const graph =
       this.innerGraphs.get(node.id) ??
-      (editor.runtime.state(node.id)() as SubgraphGraph | undefined) ??
-      SHOUT_AND_SIZE;
+      asSubgraphGraph(editor.runtime.state(node.id)()) ??
+      asSubgraphGraph(definition.initialState?.()) ??
+      EMPTY_SUBGRAPH_GRAPH;
 
     this.navigator.update({ nodes: this.nodes(), connections: this.connections() });
     this.navigator.enter(node.id, node.title ?? definition.label, graph);
@@ -685,7 +741,7 @@ export class NodeEditorDemoComponent {
 
   /** Whether this node is one whose work is a nested graph. */
   protected isSubgraph(node: EditorNode): boolean {
-    return node.type === SHOUT_SUBGRAPH.id;
+    return node.type !== undefined && SUBGRAPH_TYPE_IDS.has(node.type);
   }
 
   protected beginRename(target: NodeEditorContextTarget): void {

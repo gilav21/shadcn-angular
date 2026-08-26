@@ -101,7 +101,7 @@ Rules that hold for every component:
 - [hover-card](#hover-card): Floating card that reveals rich preview content on hover or tap.
 - [icon](#icon): Renders named SVG icons from a configurable icon registry.
 - [infinite-canvas](#infinite-canvas): Infinite pannable, zoomable plane that renders only the items in view.
-- [infinite-canvas/node-editor](#infinite-canvasnode-editor): Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
+- [infinite-canvas/node-editor](#infinite-canvasnode-editor): The infinite canvas's edit mode: a runnable graph of typed ports, with live dataflow, undo, keyboard and screen-reader support.
 - [infinite-canvas/node-editor-context-menu](#infinite-canvasnode-editor-context-menu): Right-click menus whose contents depend on the node, port, wire or plane clicked.
 - [infinite-canvas/node-editor-groups](#infinite-canvasnode-editor-groups): Titled frames behind the nodes and freestanding comments, both purely visual.
 - [infinite-canvas/node-editor-history](#infinite-canvasnode-editor-history): Records every run with its values and timings, and replays a past run in the editor.
@@ -2291,7 +2291,7 @@ Infinite pannable, zoomable plane that renders only the items in view.
 
 ### infinite-canvas/node-editor
 
-Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.
+The infinite canvas's edit mode: a runnable graph of typed ports, with live dataflow, undo, keyboard and screen-reader support.
 
 - Install: `npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor`
 - Import: `import { NodeEditorComponent } from '@/components/ui/infinite-canvas/addons/node-editor';`

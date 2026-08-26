@@ -12,7 +12,7 @@
  * one-off title override is still possible without forking a type.
  */
 import type { NodeTypeDefinition } from './node-editor.runtime.types';
-import type { EditorNode, NodePort } from './node-editor.types';
+import type { EditorNode, NodeId, NodePort } from './node-editor.types';
 
 /**
  * Nodes with everything their type supplies.
@@ -25,12 +25,13 @@ import type { EditorNode, NodePort } from './node-editor.types';
 export function withMaterializedTypes(
   nodes: readonly EditorNode[],
   definitions: ReadonlyMap<string, NodeTypeDefinition>,
+  stateOf?: (id: NodeId) => unknown,
 ): readonly EditorNode[] {
   if (definitions.size === 0) return nodes;
 
   let changed = false;
   const next = nodes.map(node => {
-    const materialized = materializeNode(node, definitions);
+    const materialized = materializeNode(node, definitions, stateOf);
     if (materialized !== node) changed = true;
     return materialized;
   });
@@ -40,6 +41,7 @@ export function withMaterializedTypes(
 function materializeNode(
   node: EditorNode,
   definitions: ReadonlyMap<string, NodeTypeDefinition>,
+  stateOf?: (id: NodeId) => unknown,
 ): EditorNode {
   if (node.type === undefined) return node;
   const definition = definitions.get(node.type);
@@ -48,7 +50,15 @@ function materializeNode(
   // Widened deliberately: a NodePortDefinition IS a NodePort with extra
   // runtime fields, and the identity check below needs both sides to be the
   // same declared type or it is statically always-false.
-  const ports = definition.ports as readonly NodePort[];
+  //
+  // `stateOf` is read ONLY for a type that declares `portsFor`. It reaches a
+  // signal, so reading it for every node would make the rendered list depend
+  // on every node's state — a keystroke in a text node would recompute the
+  // lot. Confining the read to the types that need it keeps that cost where
+  // it was asked for.
+  const ports = definition.portsFor
+    ? (definition.portsFor(stateOf?.(node.id)) as readonly NodePort[])
+    : (definition.ports as readonly NodePort[]);
   const title = node.title === undefined || node.title === '' ? definition.label : node.title;
   const accent = node.accent ?? definition.accent;
 

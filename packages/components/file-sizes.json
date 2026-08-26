@@ -3965,6 +3965,10 @@
       "bytes": 4290,
       "lines": 3
     },
+    "infinite-canvas/__screenshots__/infinite-canvas.perf.spec.ts/infinite-canvas-performance-gates--T-8--T-9--T-8---a-pan-frame-of-a-10k-graph-holds-the-frame-budget-1.png": {
+      "bytes": 37532,
+      "lines": 73
+    },
     "infinite-canvas/addons/node-editor-context-menu/index.ts": {
       "bytes": 156,
       "lines": 3
@@ -4153,6 +4157,18 @@
       "bytes": 2996,
       "lines": 111
     },
+    "infinite-canvas/addons/node-editor-subgraph/__screenshots__/node-editor-subgraph.dynamic-ports.spec.ts/a-subgraph-node-built-by-the-user--in-a-mounted-editor-draws-a-port-on-the-card-once-a-boundary-node-is-added-inside-1.png": {
+      "bytes": 18376,
+      "lines": 36
+    },
+    "infinite-canvas/addons/node-editor-subgraph/__screenshots__/node-editor-subgraph.dynamic-ports.spec.ts/a-subgraph-node-built-by-the-user--in-a-mounted-editor-lets-two-nodes-of-the-same-type-carry-different-ports-1.png": {
+      "bytes": 20929,
+      "lines": 38
+    },
+    "infinite-canvas/addons/node-editor-subgraph/__screenshots__/node-editor-subgraph.spec.ts/a-subgraph-nested-inside-a-subgraph-evaluates-an-inner-subgraph-whose-type-was-registered-after-the-fact-1.png": {
+      "bytes": 4290,
+      "lines": 3
+    },
     "infinite-canvas/addons/node-editor-subgraph/index.ts": {
       "bytes": 245,
       "lines": 5
@@ -4169,6 +4185,10 @@
       "bytes": 2198,
       "lines": 56
     },
+    "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.dynamic-ports.spec.ts": {
+      "bytes": 7062,
+      "lines": 194
+    },
     "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.locales.ts": {
       "bytes": 2132,
       "lines": 87
@@ -4182,12 +4202,12 @@
       "lines": 76
     },
     "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.spec.ts": {
-      "bytes": 11012,
-      "lines": 299
+      "bytes": 18062,
+      "lines": 497
     },
     "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.ts": {
-      "bytes": 7519,
-      "lines": 204
+      "bytes": 11300,
+      "lines": 280
     },
     "infinite-canvas/addons/node-editor-subgraph/node-editor-subgraph.types.ts": {
       "bytes": 1837,
@@ -4222,8 +4242,8 @@
       "lines": 642
     },
     "infinite-canvas/addons/node-editor/node-editor.component.ts": {
-      "bytes": 62617,
-      "lines": 1705
+      "bytes": 62665,
+      "lines": 1707
     },
     "infinite-canvas/addons/node-editor/node-editor.graph.spec.ts": {
       "bytes": 8206,
@@ -4257,9 +4277,13 @@
       "bytes": 9939,
       "lines": 247
     },
+    "infinite-canvas/addons/node-editor/node-editor.materialize.spec.ts": {
+      "bytes": 5908,
+      "lines": 140
+    },
     "infinite-canvas/addons/node-editor/node-editor.materialize.ts": {
-      "bytes": 2702,
-      "lines": 65
+      "bytes": 3231,
+      "lines": 75
     },
     "infinite-canvas/addons/node-editor/node-editor.multitouch.spec.ts": {
       "bytes": 6723,
@@ -4278,16 +4302,16 @@
       "lines": 281
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.spec.ts": {
-      "bytes": 25148,
-      "lines": 651
+      "bytes": 27990,
+      "lines": 727
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.ts": {
-      "bytes": 37526,
-      "lines": 1062
+      "bytes": 39976,
+      "lines": 1111
     },
     "infinite-canvas/addons/node-editor/node-editor.runtime.types.ts": {
-      "bytes": 9972,
-      "lines": 287
+      "bytes": 10824,
+      "lines": 304
     },
     "infinite-canvas/addons/node-editor/node-editor.serialize.spec.ts": {
       "bytes": 6287,

@@ -5675,7 +5675,7 @@
     "type": "addon",
     "parent": "infinite-canvas",
     "category": "layout",
-    "description": "Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.",
+    "description": "The infinite canvas's edit mode: a runnable graph of typed ports, with live dataflow, undo, keyboard and screen-reader support.",
     "tags": [
       "node-editor",
       "graph",

@@ -8589,7 +8589,7 @@
     },
     {
       "name": "infinite-canvas/node-editor",
-      "description": "Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.",
+      "description": "The infinite canvas's edit mode: a runnable graph of typed ports, with live dataflow, undo, keyboard and screen-reader support.",
       "category": "layout",
       "install": "npx @gilav21/shadcn-angular@latest add infinite-canvas/node-editor",
       "importStatement": "import { NodeEditorComponent } from '@/components/ui/infinite-canvas/addons/node-editor';",

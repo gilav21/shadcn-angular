@@ -2050,7 +2050,7 @@ export const registry = defineRegistry({
     type: 'addon',
     parent: 'infinite-canvas',
     category: 'layout',
-    description: 'Runnable graph of nodes with typed ports: live dataflow, undo, keyboard operable, screen-reader readable.',
+    description: "The infinite canvas's edit mode: a runnable graph of typed ports, with live dataflow, undo, keyboard and screen-reader support.",
     tags: ['node-editor', 'graph', 'flow', 'ports', 'diagram', 'canvas', 'workflow'],
     files: ['infinite-canvas/addons/node-editor/index.ts', 'infinite-canvas/addons/node-editor/node-editor-node.directive.ts', 'infinite-canvas/addons/node-editor/node-editor.component.css', 'infinite-canvas/addons/node-editor/node-editor.component.html', 'infinite-canvas/addons/node-editor/node-editor.component.ts', 'infinite-canvas/addons/node-editor/node-editor.graph.ts', 'infinite-canvas/addons/node-editor/node-editor.history.ts', 'infinite-canvas/addons/node-editor/node-editor.layout.ts', 'infinite-canvas/addons/node-editor/node-editor.materialize.ts', 'infinite-canvas/addons/node-editor/node-editor.runtime.ts', 'infinite-canvas/addons/node-editor/node-editor.runtime.types.ts', 'infinite-canvas/addons/node-editor/node-editor.serialize.ts', 'infinite-canvas/addons/node-editor/node-editor.types.ts', 'infinite-canvas/addons/node-editor/node-editor.validate.ts', 'infinite-canvas/addons/node-editor/sub/node-editor-node.component.html', 'infinite-canvas/addons/node-editor/sub/node-editor-node.component.ts', 'infinite-canvas/addons/node-editor/sub/node-editor-port.component.html', 'infinite-canvas/addons/node-editor/sub/node-editor-port.component.ts'],
     libFiles: ['sortable-aria-live.ts', 'touch.ts'],

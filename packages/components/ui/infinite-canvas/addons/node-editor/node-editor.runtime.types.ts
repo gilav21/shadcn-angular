@@ -79,6 +79,23 @@ export interface NodeTypeDefinition<
   readonly category?: string;
   readonly ports: readonly NodePortDefinition[];
 
+  /**
+   * Ports derived from a node's own state, for a type whose instances differ.
+   *
+   * A subgraph is the case this exists for: one type, but every node of it
+   * owns a different inner graph, and the inner graph's boundary nodes ARE the
+   * outer ports. Without this, materialisation copies `ports` from the
+   * definition onto every node and two subgraphs can never disagree — which
+   * makes a subgraph the user built themselves impossible.
+   *
+   * `ports` stays the fallback, used for a node whose state is not set yet.
+   *
+   * **Must return the same array for the same state.** The rendered node list
+   * is compared by reference, so a fresh array on every call re-mounts every
+   * node on every change detection pass. Memoise on the state object.
+   */
+  readonly portsFor?: (state: unknown) => readonly NodePortDefinition[];
+
   /** Per-node state the view edits — the text in a text-input node. */
   readonly initialState?: () => S;
 

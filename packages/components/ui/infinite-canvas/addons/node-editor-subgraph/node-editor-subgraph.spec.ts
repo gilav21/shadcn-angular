@@ -17,7 +17,9 @@ import {
 } from '../node-editor';
 import {
     SUBGRAPH_BOUNDARY_TYPES,
+    asSubgraphGraph,
     boundaryPorts,
+    emptySubgraphNodeType,
     subgraphNodeType,
 } from './node-editor-subgraph';
 import {
@@ -295,5 +297,201 @@ describe('serialisation', () => {
 
         expect(revived.nodes.map(n => n.id)).toEqual(['n', 'twice', 'result']);
         expect(boundaryPorts(revived).map(p => p.id)).toEqual(['n', 'result']);
+    });
+});
+
+/*
+ * Subgraphs the USER creates, rather than ones the app author shipped.
+ *
+ * The difference is where the ports come from. A type declared with a graph
+ * can take its ports off the definition; a type that starts empty cannot,
+ * because every node of it grows a different set. `portsFor` is the hook that
+ * lets the instance answer instead of the type.
+ */
+describe('a subgraph that starts empty', () => {
+    const EMPTY = emptySubgraphNodeType({
+        id: 'blank',
+        label: 'Subgraph',
+        definitions: [DOUBLE],
+    });
+
+    it('starts with no ports at all', () => {
+        expect(EMPTY.ports).toEqual([]);
+    });
+
+    it('starts with an empty graph as its state', () => {
+        expect(EMPTY.initialState?.()).toEqual({ nodes: [], connections: [] });
+    });
+
+    it('gives each node its own graph, so editing one leaves the others alone', () => {
+        expect(EMPTY.initialState?.()).not.toBe(EMPTY.initialState?.());
+    });
+
+    /** A boundary node's id is a port id — that is the whole port API. */
+    it('grows an outer port when a boundary node is added inside', () => {
+        const built: SubgraphGraph = {
+            nodes: [
+                node('url', SUBGRAPH_INPUT_TYPE, 'URL'),
+                node('twice', 'double'),
+                node('size', SUBGRAPH_OUTPUT_TYPE, 'Size'),
+            ],
+            connections: [],
+        };
+
+        expect(EMPTY.portsFor?.(built).map(p => ({ id: p.id, direction: p.direction }))).toEqual([
+            { id: 'url', direction: 'in' },
+            { id: 'size', direction: 'out' },
+        ]);
+    });
+
+    it('reports no ports for a node whose graph is still empty', () => {
+        expect(EMPTY.portsFor?.({ nodes: [], connections: [] })).toEqual([]);
+    });
+
+    it('reads ports off THIS node, so two instances can disagree', () => {
+        const withInput: SubgraphGraph = {
+            nodes: [node('a', SUBGRAPH_INPUT_TYPE, 'A')],
+            connections: [],
+        };
+        const withOutput: SubgraphGraph = {
+            nodes: [node('z', SUBGRAPH_OUTPUT_TYPE, 'Z')],
+            connections: [],
+        };
+
+        expect(EMPTY.portsFor?.(withInput).map(p => p.id)).toEqual(['a']);
+        expect(EMPTY.portsFor?.(withOutput).map(p => p.id)).toEqual(['z']);
+    });
+
+    /*
+     * Load-bearing, and invisible everywhere else: the editor compares the
+     * rendered node list BY REFERENCE. A fresh ports array per call makes every
+     * node look changed on every change detection pass and re-mounts the whole
+     * canvas — the one thing the engine exists to avoid. Nothing would fail; it
+     * would just quietly stop being fast.
+     */
+    it('returns the SAME ports array for the same graph', () => {
+        const graph: SubgraphGraph = {
+            nodes: [node('a', SUBGRAPH_INPUT_TYPE, 'A')],
+            connections: [],
+        };
+
+        expect(boundaryPorts(graph)).toBe(boundaryPorts(graph));
+        expect(EMPTY.portsFor?.(graph)).toBe(EMPTY.portsFor?.(graph));
+    });
+
+    it('returns a new array once the graph is replaced', () => {
+        const before: SubgraphGraph = { nodes: [], connections: [] };
+        const after: SubgraphGraph = {
+            nodes: [node('a', SUBGRAPH_INPUT_TYPE, 'A')],
+            connections: [],
+        };
+
+        expect(boundaryPorts(after)).not.toBe(boundaryPorts(before));
+    });
+
+    it('falls back to the type when a node carries no graph at all', () => {
+        expect(EMPTY.portsFor?.(undefined)).toEqual([]);
+    });
+
+    it('runs an empty graph without producing anything', async () => {
+        const runtime = new NodeGraphRuntime();
+        try {
+            runtime.setDefinitions([EMPTY]);
+            runtime.setGraph([node('sub', 'blank')], []);
+            await runtime.run();
+
+            expect(runtime.outputs('sub')()).toEqual({});
+        } finally {
+            runtime.dispose();
+        }
+    });
+});
+
+describe('asSubgraphGraph', () => {
+    it('reads a graph back out of a node state', () => {
+        const graph: SubgraphGraph = { nodes: [], connections: [] };
+        expect(asSubgraphGraph(graph)).toBe(graph);
+    });
+
+    it.each([
+        ['undefined', undefined],
+        ['null', null],
+        ['a number', 5],
+        ['a string', 'nodes'],
+        ['an object with no connections', { nodes: [] }],
+        ['an object with no nodes', { connections: [] }],
+    ])('rejects %s', (_label, value) => {
+        expect(asSubgraphGraph(value)).toBeNull();
+    });
+});
+
+/*
+ * A subgraph inside a subgraph.
+ *
+ * The outer type has to appear in its OWN inner-definitions list, which cannot
+ * be written while it is still being constructed — so the only way to say it is
+ * to push afterwards. That works only because `compute` reads the list per
+ * evaluation instead of snapshotting it when the type was built.
+ */
+describe('a subgraph nested inside a subgraph', () => {
+    it('evaluates an inner subgraph whose type was registered after the fact', async () => {
+        const nestable: NodeTypeDefinition[] = [DOUBLE];
+        const OUTER = emptySubgraphNodeType({
+            id: 'outer',
+            label: 'Outer',
+            definitions: nestable,
+        });
+        nestable.push(OUTER);
+
+        // An inner subgraph that doubles what it is given.
+        const inner: SubgraphGraph = {
+            nodes: [
+                node('n', SUBGRAPH_INPUT_TYPE, 'N'),
+                node('twice', 'double'),
+                node('result', SUBGRAPH_OUTPUT_TYPE, 'Result'),
+            ],
+            connections: [
+                { id: 'c1', source: 'n', sourcePort: 'value', target: 'twice', targetPort: 'in' },
+                {
+                    id: 'c2',
+                    source: 'twice',
+                    sourcePort: 'out',
+                    target: 'result',
+                    targetPort: 'value',
+                },
+            ],
+        };
+
+        // The outer graph holds that subgraph as one of ITS nodes.
+        const outer: SubgraphGraph = {
+            nodes: [
+                node('n', SUBGRAPH_INPUT_TYPE, 'N'),
+                node('nested', 'outer'),
+                node('result', SUBGRAPH_OUTPUT_TYPE, 'Result'),
+            ],
+            connections: [
+                { id: 'c1', source: 'n', sourcePort: 'value', target: 'nested', targetPort: 'n' },
+                {
+                    id: 'c2',
+                    source: 'nested',
+                    sourcePort: 'result',
+                    target: 'result',
+                    targetPort: 'value',
+                },
+            ],
+            states: { nested: inner, n: 21 },
+        };
+
+        const runtime = new NodeGraphRuntime();
+        try {
+            runtime.setDefinitions([OUTER, ...SUBGRAPH_BOUNDARY_TYPES]);
+            runtime.setGraph([node('sub', 'outer')], []);
+            runtime.setState('sub', outer);
+            await runtime.run();
+
+            expect(runtime.outputs('sub')()['result']).toBe(42);
+        } finally {
+            runtime.dispose();
+        }
     });
 });

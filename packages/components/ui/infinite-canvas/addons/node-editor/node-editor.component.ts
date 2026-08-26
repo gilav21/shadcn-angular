@@ -494,7 +494,9 @@ export class NodeEditorComponent {
    */
   protected readonly sizedNodes = computed(() =>
     withDerivedHeights(
-      withMaterializedTypes(this.nodes(), this.definitionIndex()),
+      withMaterializedTypes(this.nodes(), this.definitionIndex(), id =>
+        this.runtime.state(id)(),
+      ),
       this.metrics,
       node =>
         node.type === undefined
