@@ -407,6 +407,59 @@ describe('a subgraph that starts empty', () => {
     });
 });
 
+/*
+ * Naming a port from inside.
+ *
+ * A boundary node's TITLE is the port's label and its ID is the port's id, and
+ * they are deliberately not the same field. Renaming is how a port gets a name
+ * a human wrote — and because the id is untouched, every connection already
+ * made to that port survives it.
+ */
+describe('renaming a boundary node names its port', () => {
+    const EMPTY = emptySubgraphNodeType({ id: 'blank', label: 'Subgraph', definitions: [] });
+
+    /** What `renameNode` does to the node the editor holds. */
+    function renamed(graph: SubgraphGraph, id: string, title: string): SubgraphGraph {
+        return {
+            ...graph,
+            nodes: graph.nodes.map(n => (n.id === id ? { ...n, title } : n)),
+        };
+    }
+
+    const built: SubgraphGraph = {
+        nodes: [node('in-1', SUBGRAPH_INPUT_TYPE), node('out-1', SUBGRAPH_OUTPUT_TYPE)],
+        connections: [],
+    };
+
+    it('falls back to the id, so a fresh port is at least addressable', () => {
+        expect(boundaryPorts(built).map(p => p.label)).toEqual(['in-1', 'out-1']);
+    });
+
+    it('shows the name the user typed', () => {
+        const withNames = renamed(renamed(built, 'in-1', 'URL'), 'out-1', 'Status');
+
+        expect(boundaryPorts(withNames).map(p => p.label)).toEqual(['URL', 'Status']);
+    });
+
+    /** The point of keeping id and label apart. */
+    it('leaves the port id alone, so connections survive the rename', () => {
+        const before = boundaryPorts(built).map(p => p.id);
+        const after = boundaryPorts(renamed(built, 'in-1', 'URL')).map(p => p.id);
+
+        expect(after).toEqual(before);
+        expect(after).toEqual(['in-1', 'out-1']);
+    });
+
+    it('reaches the outer node through portsFor, not just boundaryPorts', () => {
+        const withName = renamed(built, 'in-1', 'URL');
+
+        expect(EMPTY.portsFor?.(withName).map(p => ({ id: p.id, label: p.label }))).toEqual([
+            { id: 'in-1', label: 'URL' },
+            { id: 'out-1', label: 'out-1' },
+        ]);
+    });
+});
+
 describe('asSubgraphGraph', () => {
     it('reads a graph back out of a node state', () => {
         const graph: SubgraphGraph = { nodes: [], connections: [] };

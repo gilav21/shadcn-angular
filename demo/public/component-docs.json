@@ -4255,7 +4255,7 @@
       "npmDependencies": [],
       "snippet": "<ui-comparison-slider afterSrc=\"text\" beforeSrc=\"text\" />",
       "snippetSkipReason": "",
-      "demoRoute": "comparison-slider",
+      "demoRoute": "node-editor",
       "demoFile": "demo/src/app/demos/layout/comparison-slider-demo.component.ts",
       "api": [
         {
@@ -8600,8 +8600,8 @@
       "npmDependencies": [],
       "snippet": "<ui-node-editor>Content</ui-node-editor>",
       "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "demoRoute": "infinite-canvas",
+      "demoFile": "demo/src/app/demos/layout/infinite-canvas-demo.component.ts",
       "api": [
         {
           "className": "NodeEditorComponent",
@@ -8955,8 +8955,8 @@
       "npmDependencies": [],
       "snippet": null,
       "snippetSkipReason": "applies to <ui-node-editor>, so usage depends on that component's own required inputs",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "demoRoute": "infinite-canvas",
+      "demoFile": "demo/src/app/demos/layout/infinite-canvas-demo.component.ts",
       "api": [
         {
           "className": "NodeEditorContextMenuDirective",
@@ -9002,8 +9002,8 @@
       "npmDependencies": [],
       "snippet": "<ui-node-editor-groups />",
       "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "demoRoute": "infinite-canvas",
+      "demoFile": "demo/src/app/demos/layout/infinite-canvas-demo.component.ts",
       "api": [
         {
           "className": "NodeEditorGroupsComponent",
@@ -9084,8 +9084,8 @@
       "npmDependencies": [],
       "snippet": "<ui-node-editor-history />",
       "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "demoRoute": "infinite-canvas",
+      "demoFile": "demo/src/app/demos/layout/infinite-canvas-demo.component.ts",
       "api": [
         {
           "className": "NodeEditorHistoryComponent",
@@ -9193,8 +9193,8 @@
       "npmDependencies": [],
       "snippet": "<ui-node-editor-minimap />",
       "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "demoRoute": "infinite-canvas",
+      "demoFile": "demo/src/app/demos/layout/infinite-canvas-demo.component.ts",
       "api": [
         {
           "className": "NodeEditorMinimapComponent",
@@ -9289,8 +9289,8 @@
       "npmDependencies": [],
       "snippet": "<ui-node-editor-palette />",
       "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "demoRoute": "infinite-canvas",
+      "demoFile": "demo/src/app/demos/layout/infinite-canvas-demo.component.ts",
       "api": [
         {
           "className": "NodeEditorPaletteComponent",
@@ -9358,8 +9358,8 @@
       "npmDependencies": [],
       "snippet": "<ui-node-editor-problems />",
       "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "demoRoute": "infinite-canvas",
+      "demoFile": "demo/src/app/demos/layout/infinite-canvas-demo.component.ts",
       "api": [
         {
           "className": "NodeEditorProblemsComponent",
@@ -9411,8 +9411,8 @@
       "npmDependencies": [],
       "snippet": "<ui-node-editor-subgraph-breadcrumb />",
       "snippetSkipReason": "",
-      "demoRoute": "node-editor",
-      "demoFile": "demo/src/app/demos/layout/node-editor-demo.component.ts",
+      "demoRoute": "infinite-canvas",
+      "demoFile": "demo/src/app/demos/layout/infinite-canvas-demo.component.ts",
       "api": [
         {
           "className": "NodeEditorSubgraphBreadcrumbComponent",
