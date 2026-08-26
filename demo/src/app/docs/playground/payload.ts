@@ -7,7 +7,7 @@ import type { PlaygroundProject } from './project';
  * which is the whole reason this replaced the `/github/<slug>` import URL that
  * hung on "Cloning repo from GitHub" (see the spec's §1.2).
  */
-export const POST_URL = 'https://stackblitz.com/run';
+export const POST_URL = 'https://stackblitz.com/run?file=src%2Fapp%2Fapp.ts';
 
 /**
  * Ceiling on the encoded body, above which the POST is refused locally.

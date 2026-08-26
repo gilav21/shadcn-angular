@@ -70,6 +70,7 @@ export class PlaygroundService {
     private readonly fileCache = new Map<string, Promise<string>>();
     private registryCache: Promise<PlaygroundRegistry> | null = null;
     private themeCache: Promise<string> | null = null;
+    private lockfileCache: Promise<string> | null = null;
 
     /** The manifest, fetched once per session. */
     registry(): Promise<PlaygroundRegistry> {
@@ -83,6 +84,21 @@ export class PlaygroundService {
     theme(): Promise<string> {
         this.themeCache ??= this.fetchText(`${this.base()}/demo/src/styles.css`);
         return this.themeCache;
+    }
+
+    /**
+     * The generated projects' shared lockfile, fetched once per session.
+     *
+     * Shared rather than per-component because every playground installs the
+     * same tree: no registry entry declares `npmDependencies`, so the only
+     * inputs to `package.json` are the pinned Angular version and the fixed
+     * baseline packages.
+     */
+    lockfile(): Promise<string> {
+        this.lockfileCache ??= this.fetchText(
+            `${this.base()}/demo/src/app/docs/playground/playground-lock.json`,
+        );
+        return this.lockfileCache;
     }
 
     /**
@@ -100,10 +116,11 @@ export class PlaygroundService {
         const roots = doc.recipe ? doc.recipe.components : [doc.name];
         const closure = mergeClosures(roots.map(root => resolveClosure(registry, root)));
         const libPaths = [...new Set([...closure.libFiles, ...BASELINE_LIB_FILES])];
-        const [ui, lib, themeCss] = await Promise.all([
+        const [ui, lib, themeCss, lockfile] = await Promise.all([
             this.fetchAll(closure.files, 'ui'),
             this.fetchAll(libPaths, 'lib'),
             this.theme(),
+            this.lockfile(),
         ]);
 
         return buildProject({
@@ -111,6 +128,7 @@ export class PlaygroundService {
             closure: { ...closure, libFiles: libPaths },
             sources: { ui, lib },
             themeCss,
+            lockfile,
         });
     }
 

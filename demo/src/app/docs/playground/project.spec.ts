@@ -37,6 +37,7 @@ const INPUT: PlaygroundInput = {
         '@source "../../packages/**/*.html";',
         ':root { --primary: oklch(0.205 0 0); }',
     ].join('\n'),
+    lockfile: JSON.stringify({ lockfileVersion: 3 }),
 };
 
 function build(): Record<string, string> {
@@ -154,6 +155,75 @@ describe('the project boots as an Angular app', () => {
         };
         expect(angular.projects['playground'].architect['build'].options['styles'])
             .toEqual(['src/styles.css']);
+    });
+
+    // Regression: the playground booted correctly and still showed the reader
+    // nothing. `@angular/build:dev-server` defaults to `host: "localhost"`, and
+    // a WebContainer forwards a port only once something listens on 0.0.0.0 —
+    // so StackBlitz opened no preview, the reader watched `npm install && npm
+    // start` run to completion and then sat on the editor indefinitely. The
+    // build log said "Application bundle generation complete", which is exactly
+    // why nothing caught it: every signal short of the rendered preview was
+    // green.
+    it('binds the dev server to 0.0.0.0 so the WebContainer forwards the port', () => {
+        const angular = JSON.parse(build()['angular.json']) as {
+            projects: Record<string, { architect: Record<string, { options: Record<string, unknown> }> }>;
+        };
+        expect(angular.projects['playground'].architect['serve'].options['host'])
+            .toBe('0.0.0.0');
+    });
+
+    // Regression: with no lockfile npm re-resolved the whole tree on every
+    // boot — 113 s inside a WebContainer before `ng serve` even started,
+    // against 23 s once a lockfile was shipped. Measured in a real browser.
+    it('ships a lockfile so npm skips resolution', () => {
+        expect(build()['package-lock.json']).toBe(INPUT.lockfile);
+    });
+
+    // Regression: with no `development` configuration `optimization` defaults
+    // to true, so `ng serve` ran a production build every boot — 30.9 s against
+    // 21.1 s in a WebContainer, measured on the same component.
+    it('serves the development configuration, not an optimized build', () => {
+        const angular = JSON.parse(build()['angular.json']) as {
+            projects: Record<string, {
+                architect: Record<string, {
+                    options: Record<string, unknown>;
+                    configurations?: Record<string, Record<string, unknown>>;
+                }>;
+            }>;
+        };
+        const project = angular.projects['playground'];
+        expect(project.architect['serve'].options['buildTarget'])
+            .toBe('playground:build:development');
+        expect(project.architect['build'].configurations?.['development']['optimization'])
+            .toBe(false);
+    });
+
+    it('allows the generated StackBlitz preview host', () => {
+        // Vite rejects any Host it was not told about, and the preview origin
+        // is generated per session, so it cannot be enumerated in advance.
+        const angular = JSON.parse(build()['angular.json']) as {
+            projects: Record<string, { architect: Record<string, { options: Record<string, unknown> }> }>;
+        };
+        expect(angular.projects['playground'].architect['serve'].options['allowedHosts'])
+            .toBe(true);
+    });
+});
+
+// The lockfile is only a speed-up while it agrees with `package.json`. When it
+// drifts npm does not fail — it quietly re-resolves the tree, putting the
+// 113 s boot back without anything turning red. So the drift has to be asserted
+// directly.
+describe('the shipped lockfile matches the package.json the generator writes', () => {
+    it('locks the same Angular version the generator pins', async () => {
+        const lock = (await import('./playground-lock.json')) as unknown as {
+            default: { packages: Record<string, { version: string }> };
+        };
+        const pkg = JSON.parse(build()['package.json']) as {
+            dependencies: Record<string, string>;
+        };
+        expect(lock.default.packages['node_modules/@angular/core'].version)
+            .toBe(pkg.dependencies['@angular/core']);
     });
 });
 

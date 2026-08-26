@@ -40,6 +40,18 @@ export interface PlaygroundInput {
     };
     /** `demo/src/styles.css` as fetched from the repo. */
     readonly themeCss: string;
+    /**
+     * `playground-lock.json` as fetched from the repo.
+     *
+     * Shipping a lockfile is the single biggest thing that makes a playground
+     * usable. Without one npm has to resolve the whole tree from the registry
+     * on every boot, which measured at **113 s** inside a WebContainer before
+     * `ng serve` was even reached; with one, install finished and the dev
+     * server was starting by **23 s**. Every playground installs the identical
+     * dependency set — no registry component declares `npmDependencies` — so a
+     * single lockfile serves all of them.
+     */
+    readonly lockfile: string;
 }
 
 /** A complete file tree, ready to POST. */
@@ -150,10 +162,64 @@ function angularJson(): string {
                             tsConfig: 'tsconfig.json',
                             styles: ['src/styles.css'],
                         },
+                        configurations: {
+                            // `ng new` writes a `development` configuration and
+                            // points `serve` at it; this generator did not, so
+                            // `optimization` fell back to its `true` default
+                            // and every `ng serve` boot ran a full production
+                            // build — minified, tree-shaken, and 30.9 s inside
+                            // a WebContainer against 21.1 s without. Measured
+                            // on the same component in a real browser. The
+                            // playground was both slower than and less
+                            // representative than the consumer app it exists to
+                            // imitate.
+                            development: { optimization: false },
+                        },
                     },
                     serve: {
                         builder: '@angular/build:dev-server',
-                        options: { buildTarget: 'playground:build' },
+                        options: {
+                            buildTarget: 'playground:build:development',
+                            // `@angular/build:dev-server` defaults to
+                            // `host: "localhost"`, and a server bound to
+                            // loopback inside a WebContainer is never seen by
+                            // the host page: StackBlitz forwards a port only
+                            // once something listens on `0.0.0.0`. Without
+                            // this the build completes, the dev server reports
+                            // `http://localhost:4200/`, and no preview ever
+                            // opens — the reader watches `npm install && npm
+                            // start` finish and then sits on `package.json`
+                            // forever. Verified in a real browser: identical
+                            // project, only this line differing.
+                            host: '0.0.0.0',
+                            // Vite (which the dev server wraps) rejects any
+                            // request whose Host header is not allow-listed,
+                            // and StackBlitz serves the preview from a
+                            // generated `*.w-credentialless-staticblitz.com`
+                            // origin that cannot be known ahead of time.
+                            // `[]` — the default — turns the preview into
+                            // "Blocked request. This host is not allowed."
+                            // The container is ephemeral, public and holds
+                            // nothing but generated demo code, so allowing any
+                            // host costs nothing; pinning a domain list would
+                            // silently reintroduce this hang the next time
+                            // StackBlitz changes its preview origin.
+                            allowedHosts: true,
+                            // Angular hard-disables its disk cache under a
+                            // WebContainer — `normalizeCacheOptions` defaults
+                            // `enabled` to `!process.versions.webcontainer`,
+                            // because persistent caching there buys nothing
+                            // and grows browser memory. Prebundling requires
+                            // that cache, so leaving it on (the default) only
+                            // buys the reader a yellow "Prebundling has been
+                            // configured but will not be used because caching
+                            // has been disabled" line in the terminal while
+                            // they are already waiting on a slow boot. Turning
+                            // it off changes no behaviour — it was never going
+                            // to run — and removes a warning that reads like a
+                            // fault.
+                            prebundle: false,
+                        },
                     },
                 },
             },
@@ -265,6 +331,11 @@ export function buildProject(input: PlaygroundInput): PlaygroundProject | null {
 
     const files: Record<string, string> = {
         'package.json': packageJson(closure),
+        // Keep in step with `packageJson` above: if the two disagree npm
+        // silently falls back to a full resolve — the slow path this exists to
+        // avoid — rather than failing. `project.spec.ts` pins the Angular
+        // version in both to the same constant so the drift is caught.
+        'package-lock.json': input.lockfile,
         // Without this Tailwind's postcss plugin never runs: the build still
         // succeeds and still emits a styles.css, so the app boots looking
         // completely unstyled rather than failing. `init` writes the same file
