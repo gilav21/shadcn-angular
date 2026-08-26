@@ -78,7 +78,7 @@ radius is the entire registry, which is why this is worth its own paragraph.
 
 ```ts
 attach: {
-  import: "NodeEditorProblemsComponent from './ui/node-editor/addons/problems'",
+  import: "NodeEditorProblemsComponent from './ui/infinite-canvas/addons/node-editor-problems'",
   selector: 'ui-node-editor-problems',
 },
 ```

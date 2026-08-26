@@ -265,7 +265,7 @@ carries `data-slot`.
 ## 8. Files
 
 ```text
-packages/components/ui/node-editor/
+packages/components/ui/infinite-canvas/addons/node-editor/
   index.ts
   node-editor.component.ts / .html / .css
   node-editor.types.ts
