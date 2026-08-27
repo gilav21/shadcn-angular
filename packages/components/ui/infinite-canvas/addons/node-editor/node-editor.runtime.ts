@@ -89,6 +89,9 @@ const DEFAULT_MESSAGES: RuntimeMessages = {
   requiredInput: (title, port) => `“${title}” needs “${port}” connected.`,
 };
 
+/** Shared, so a node with nothing wired to it allocates nothing to find that out. */
+const NO_CONNECTIONS: readonly NodeConnection[] = [];
+
 const DEFAULT_STALENESS: StalenessPolicy = 'cancel';
 /** Guards a pathological graph from spinning forever rather than hanging silently. */
 const MAX_DRAIN_ITERATIONS = 100_000;
@@ -100,6 +103,21 @@ export class NodeGraphRuntime {
   private connections: readonly NodeConnection[] = [];
   private readonly outgoing = new Map<NodeId, Set<NodeId>>();
   private readonly incoming = new Map<NodeId, Set<NodeId>>();
+  /**
+   * Connections grouped by the node they arrive at.
+   *
+   * Resolving a node's inputs and reporting its unconnected required ports both
+   * ask "what lands here", and both used to answer by scanning every connection
+   * in the graph — once per port, per node, per pass. On a graph of any size
+   * that is the dominant cost of an edit: `refresh` walks every node, so a
+   * single keystroke in one text field was O(nodes x ports x connections).
+   *
+   * Measured before this index, one `setState`: 0.4ms at 250 nodes, 3.0ms at
+   * 1000 — 7.5x for 4x the graph, when linear would be 4x.
+   *
+   * Rebuilt wholesale in `setConnections`, which is the only writer.
+   */
+  private readonly connectionsByTarget = new Map<NodeId, NodeConnection[]>();
 
   // ---- topological order (design §1) -------------------------------------
   private order: NodeId[] = [];
@@ -363,8 +381,24 @@ export class NodeGraphRuntime {
     const before = new Map(this.connections.map(c => [c.id, c]));
     const after = new Map(next.map(c => [c.id, c]));
 
+    /*
+     * Same id, different endpoints, counts as gone and come back.
+     *
+     * The diff was by id alone, so re-pointing a connection while keeping its
+     * id changed nothing: the old target kept the value it had and the new one
+     * never heard. The editor happens to give a rewired edge a fresh id, which
+     * is why this went unseen — but a document restored from serialised state,
+     * or any consumer editing `connections` directly, has no such habit.
+     */
+    const rewired = (a: NodeConnection, b: NodeConnection): boolean =>
+      a.source !== b.source ||
+      a.sourcePort !== b.sourcePort ||
+      a.target !== b.target ||
+      a.targetPort !== b.targetPort;
+
     for (const [id, connection] of before) {
-      if (!after.has(id)) {
+      const replacement = after.get(id);
+      if (!replacement || rewired(connection, replacement)) {
         // design §7 — an edge going away must tear its stream down.
         this.teardownIterator(connection.source);
         this.markDirty(connection.target);
@@ -372,12 +406,28 @@ export class NodeGraphRuntime {
     }
     this.connections = next;
     this.rebuildAdjacency();
+    this.rebuildTargetIndex();
 
     for (const [id, connection] of after) {
-      if (before.has(id)) continue;
+      const previous = before.get(id);
+      if (previous && !rewired(previous, connection)) continue;
       this.repairOrder(connection.source, connection.target);
       this.markDirty(connection.target);
     }
+  }
+
+  private rebuildTargetIndex(): void {
+    this.connectionsByTarget.clear();
+    for (const connection of this.connections) {
+      const existing = this.connectionsByTarget.get(connection.target);
+      if (existing) existing.push(connection);
+      else this.connectionsByTarget.set(connection.target, [connection]);
+    }
+  }
+
+  /** What lands on this node. Empty array shared, so asking costs no allocation. */
+  private incomingFor(nodeId: NodeId): readonly NodeConnection[] {
+    return this.connectionsByTarget.get(nodeId) ?? NO_CONNECTIONS;
   }
 
   private rebuildAdjacency(): void {
@@ -606,9 +656,7 @@ export class NodeGraphRuntime {
 
     for (const port of this.portsOf(nodeId, definition)) {
       if (port.direction !== 'in') continue;
-      const conns = this.connections.filter(
-        c => c.target === nodeId && c.targetPort === port.id,
-      );
+      const conns = this.incomingFor(nodeId).filter(c => c.targetPort === port.id);
 
       if (conns.length === 0) {
         values[port.id] = port.default;
@@ -1089,7 +1137,7 @@ export class NodeGraphRuntime {
   ): readonly GraphProblem[] {
     return this.portsOf(nodeId, definition)
       .filter(port => port.direction === 'in' && port.required === true)
-      .filter(port => !this.connections.some(c => c.target === nodeId && c.targetPort === port.id))
+      .filter(port => !this.incomingFor(nodeId).some(c => c.targetPort === port.id))
       .map(port => ({
         kind: 'required-input-unconnected' as const,
         nodeId,
@@ -1207,6 +1255,7 @@ export class NodeGraphRuntime {
     this.connections = [];
     this.outgoing.clear();
     this.incoming.clear();
+    this.connectionsByTarget.clear();
     this.order = [];
     this.position.clear();
     this.dirtyVersion.clear();

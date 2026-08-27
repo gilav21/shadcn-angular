@@ -661,6 +661,100 @@ describe('RT-10 isolation — the subgraph seam', () => {
  * `initialState()` regardless. The graph came back with the right shape and the
  * wrong values, and nothing failed.
  */
+/*
+ * The connections index, which has to stay in step with the connections.
+ *
+ * Resolving a node's inputs and reporting its unconnected required ports both
+ * ask "what lands here", and both read a Map grouped by target rather than
+ * scanning every connection in the graph. That is a second copy of the truth,
+ * and the failure it can have is going stale — answering from a wiring that no
+ * longer exists, which no timing test would ever notice.
+ */
+describe('what lands on a node, after the wiring changes', () => {
+    it('follows a connection being rewired to a different target', async () => {
+        const runtime = new NodeGraphRuntime();
+        try {
+            runtime.setDefinitions(DEFS);
+            const nodes = [node('s', 'source'), node('a', 'passthrough'), node('b', 'passthrough')];
+            runtime.setGraph(nodes, [
+                { id: 'c', source: 's', sourcePort: 'out', target: 'a', targetPort: 'in' },
+            ]);
+            await runtime.run();
+            expect(runtime.inputs('a')()['in']).toBe('seed');
+            expect(runtime.inputs('b')()['in']).toBeUndefined();
+
+            // The same connection id, pointing somewhere else.
+            runtime.setGraph(nodes, [
+                { id: 'c', source: 's', sourcePort: 'out', target: 'b', targetPort: 'in' },
+            ]);
+            await runtime.run();
+
+            expect(runtime.inputs('b')()['in']).toBe('seed');
+            expect(runtime.inputs('a')()['in']).toBeUndefined();
+        } finally {
+            runtime.dispose();
+        }
+    });
+
+    it('forgets a connection that was removed', async () => {
+        const runtime = new NodeGraphRuntime();
+        try {
+            runtime.setDefinitions(DEFS);
+            const nodes = [node('s', 'source'), node('a', 'passthrough')];
+            runtime.setGraph(nodes, [
+                { id: 'c', source: 's', sourcePort: 'out', target: 'a', targetPort: 'in' },
+            ]);
+            await runtime.run();
+            expect(runtime.inputs('a')()['in']).toBe('seed');
+
+            runtime.setGraph(nodes, []);
+            await runtime.run();
+
+            expect(runtime.inputs('a')()['in']).toBeUndefined();
+        } finally {
+            runtime.dispose();
+        }
+    });
+
+    /** A required port reports as unconnected the moment its wire goes. */
+    it('reports a required input again once its wire is gone', async () => {
+        const NEEDS: NodeTypeDefinition = {
+            id: 'needs',
+            label: 'Needs',
+            ports: [{ id: 'in', direction: 'in', label: 'In', required: true }],
+        };
+        const runtime = new NodeGraphRuntime();
+        try {
+            runtime.setDefinitions([...DEFS, NEEDS]);
+            const nodes = [node('s', 'source'), node('n', 'needs')];
+            runtime.setGraph(nodes, [
+                { id: 'c', source: 's', sourcePort: 'out', target: 'n', targetPort: 'in' },
+            ]);
+            expect(runtime.problems().filter(p => p.kind === 'required-input-unconnected')).toEqual([]);
+
+            runtime.setGraph(nodes, []);
+
+            expect(
+                runtime.problems().filter(p => p.kind === 'required-input-unconnected'),
+            ).toHaveLength(1);
+        } finally {
+            runtime.dispose();
+        }
+    });
+
+    it('copes with a node nothing is wired to', () => {
+        const runtime = new NodeGraphRuntime();
+        try {
+            runtime.setDefinitions(DEFS);
+            runtime.setGraph([node('lonely', 'passthrough')], []);
+
+            expect(runtime.inputs('lonely')()['in']).toBeUndefined();
+        } finally {
+            runtime.dispose();
+        }
+    });
+});
+
 describe('state set before the node exists', () => {
     it('survives the node arriving afterwards', async () => {
         const runtime = new NodeGraphRuntime();
