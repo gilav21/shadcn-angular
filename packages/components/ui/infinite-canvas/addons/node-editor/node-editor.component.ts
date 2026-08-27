@@ -1529,12 +1529,18 @@ export class NodeEditorComponent {
     const afterEdges = removeConnections(this.connections(), selection.connections);
     const result = removeNodes(this.sizedNodes(), afterEdges, selection.nodes);
 
-    const removedNodes = this.sizedNodes().filter(
-      node => !result.nodes.some(kept => kept.id === node.id),
-    );
-    const removedEdges = this.connections().filter(
-      edge => !result.connections.some(kept => kept.id === edge.id),
-    );
+    /*
+     * What survived, as sets, before asking what did not.
+     *
+     * `filter` with a `some` inside it walks the kept list once per candidate,
+     * so working out what a delete removed cost nodes x nodes plus edges x
+     * edges — on a large graph, seconds for a keypress. The answer is the same
+     * either way; only the shape of the question changes.
+     */
+    const keptNodes = new Set(result.nodes.map(node => node.id));
+    const keptEdges = new Set(result.connections.map(edge => edge.id));
+    const removedNodes = this.sizedNodes().filter(node => !keptNodes.has(node.id));
+    const removedEdges = this.connections().filter(edge => !keptEdges.has(edge.id));
     if (removedNodes.length === 0 && removedEdges.length === 0) return;
 
     /*
