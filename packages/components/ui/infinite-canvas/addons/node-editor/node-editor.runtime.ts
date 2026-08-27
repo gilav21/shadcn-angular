@@ -158,6 +158,39 @@ export class NodeGraphRuntime {
   private readonly stateSignals = new Map<NodeId, WritableSignal<unknown>>();
   private readonly errorSignals = new Map<NodeId, WritableSignal<unknown>>();
   private readonly problemsSignal = signal<readonly GraphProblem[]>([]);
+  /**
+   * Whether the reported problems could have changed since they were last built.
+   *
+   * Building them walks every node in the graph, and `refresh` runs once per
+   * node that settles — so a full evaluation rebuilt them N times, making a run
+   * O(N x N) for a list that had not changed between any two of those rebuilds.
+   * At ten thousand nodes that was the difference between a moment and half a
+   * minute.
+   *
+   * A problem depends on the SHAPE of the graph — its nodes, their definitions,
+   * what is wired to their required inputs — plus, for a node in a loop, that
+   * it is in one. None of that changes because a node finished computing, so a
+   * settle no longer rebuilds them; the things that genuinely move them set
+   * this instead.
+   */
+  private problemsStale = true;
+  /**
+   * Whether the loop analysis has to run again.
+   *
+   * Tarjan over the dirty subgraph, once per node that settles, was the other
+   * half of a quadratic run: the dirty set starts at every node and shrinks by
+   * one per settle, so the passes summed to N squared.
+   *
+   * Shrinking a graph cannot create a loop in it. So the analysis is only owed
+   * when something is ADDED to the dirty set, or the shape changes — never
+   * when a node finishes. Readiness itself is unaffected either way: a node in
+   * a loop always has a dirty upstream, so the readiness rule already refuses
+   * it. What this pass really produces is the `cycle` STATUS, and that cannot
+   * change while the set only shrinks.
+   */
+  private cyclesStale = true;
+  /** Who was in a cycle when the problems were last built. */
+  private cycleMembers = new Set<NodeId>();
   private readonly readySignal = signal<readonly NodeId[]>([]);
 
   /** Backend hand-off. `null` means every node runs locally. */
@@ -246,6 +279,7 @@ export class NodeGraphRuntime {
     this.definitions.clear();
     for (const definition of definitions) this.definitions.set(definition.id, definition);
     for (const id of this.nodes.keys()) this.markDirty(id);
+    this.invalidateProblems();
     this.refresh();
   }
 
@@ -290,6 +324,7 @@ export class NodeGraphRuntime {
       else this.addNode(node);
     }
     this.setConnections(connections);
+    this.invalidateProblems();
     this.refresh();
   }
 
@@ -458,6 +493,8 @@ export class NodeGraphRuntime {
     this.stateSignal(nodeId).set(next);
     if (!this.nodes.has(nodeId)) return;
     this.markDirty(nodeId);
+    // Dynamic ports come from state, so an edit can add or remove a problem.
+    this.invalidateProblems();
     this.refresh();
   }
 
@@ -557,6 +594,7 @@ export class NodeGraphRuntime {
        */
       if (!this.nodes.has(node)) continue;
 
+      this.cyclesStale = true;
       this.dirtyVersion.set(node, (this.dirtyVersion.get(node) ?? 0) + 1);
       this.dirty.add(node);
       this.setStatus(node, 'stale');
@@ -589,13 +627,49 @@ export class NodeGraphRuntime {
       for (const up of this.incoming.get(node) ?? []) if (this.dirty.has(up)) pending++;
       if (pending === 0) this.readySet.add(node);
     }
-    this.excludeCycles();
+    if (this.cyclesStale) {
+      this.cyclesStale = false;
+      this.excludeCycles();
+    }
     this.readySignal.set([...this.readySet]);
-    this.problemsSignal.set(this.collectProblems());
+
+    if (this.problemsStale) {
+      this.problemsStale = false;
+      this.problemsSignal.set(this.collectProblems());
+    }
+  }
+
+  /**
+   * Note that the problems have to be built again.
+   *
+   * Called by everything that changes the shape of the graph, or a node's
+   * state — dynamic ports mean a subgraph's required inputs come from its
+   * state, so an edit there can add or remove a problem.
+   */
+  private invalidateProblems(): void {
+    this.problemsStale = true;
   }
 
   /** Tarjan over the dirty subgraph; SCC members can never become ready (§5). */
+  /** A change in who sits in a loop is the one evaluation-time input to a problem. */
+  private noteCycleMembers(members: ReadonlySet<NodeId>): void {
+    if (members.size === this.cycleMembers.size) {
+      let same = true;
+      for (const id of members) {
+        if (!this.cycleMembers.has(id)) {
+          same = false;
+          break;
+        }
+      }
+      if (same) return;
+    }
+    this.cycleMembers = new Set(members);
+    this.invalidateProblems();
+  }
+
   private excludeCycles(): void {
+    /** Who this pass put in a loop, so a change in that can rebuild the problems. */
+    const found = new Set<NodeId>();
     const index = new Map<NodeId, number>();
     const low = new Map<NodeId, number>();
     const onStack = new Set<NodeId>();
@@ -630,21 +704,30 @@ export class NodeGraphRuntime {
         onStack.delete(node);
         component.push(node);
       } while (node !== root);
-      this.markCycle(component);
+      for (const member of this.markCycle(component)) found.add(member);
     };
 
     for (const node of this.dirty) if (!index.has(node)) connect(node);
+
+    this.noteCycleMembers(found);
   }
 
-  /** A component is a cycle when it has more than one node, or a self-edge. */
-  private markCycle(component: readonly NodeId[]): void {
+  /**
+   * A component is a cycle when it has more than one node, or a self-edge.
+   *
+   * Returns the members it marked, so the caller can tell whether the set of
+   * nodes in a loop has changed — the one thing an evaluation does that a
+   * reported problem depends on.
+   */
+  private markCycle(component: readonly NodeId[]): readonly NodeId[] {
     const selfEdge =
       component.length === 1 && (this.outgoing.get(component[0])?.has(component[0]) ?? false);
-    if (component.length === 1 && !selfEdge) return;
+    if (component.length === 1 && !selfEdge) return [];
     for (const node of component) {
       this.setStatus(node, 'cycle');
       this.readySet.delete(node);
     }
+    return component;
   }
 
   // ====================================================== input resolution (§8)
