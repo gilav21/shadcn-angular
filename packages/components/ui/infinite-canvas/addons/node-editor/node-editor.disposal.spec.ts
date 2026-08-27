@@ -224,3 +224,64 @@ describe('the runtime lets go of a node removed mid-flight', () => {
         expect(runtime.metrics.retained).toBe(0);
     });
 });
+
+/*
+ * A graph that contained a loop.
+ *
+ * Every test above uses a chain, and `cycleMembers` is only ever written when
+ * a cycle is detected — so the one per-node container that nothing pruned was
+ * also the one no test could populate. Emptying or disposing a runtime that
+ * had held a loop left those ids behind, and `metrics.retained`, the number
+ * whose whole job is to prove nothing is retained, stayed above zero while
+ * every test passed.
+ */
+describe('the runtime lets go of a graph that held a cycle', () => {
+    /** Two nodes wired both ways: the smallest thing that is a cycle. */
+    function loop(): { nodes: EditorNode[]; connections: NodeConnection[] } {
+        return {
+            nodes: [node('a'), node('b')],
+            connections: [
+                { id: 'ab', source: 'a', sourcePort: 'out', target: 'b', targetPort: 'in' },
+                { id: 'ba', source: 'b', sourcePort: 'out', target: 'a', targetPort: 'in' },
+            ],
+        };
+    }
+
+    it('retains nothing after the cyclic graph is emptied', async () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([PASS]);
+        const { nodes, connections } = loop();
+        runtime.setGraph(nodes, connections);
+        await runtime.run();
+
+        runtime.setGraph([], []);
+        expect(runtime.metrics.retained).toBe(0);
+        runtime.dispose();
+    });
+
+    it('retains nothing after a cyclic graph is disposed outright', async () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([PASS]);
+        const { nodes, connections } = loop();
+        runtime.setGraph(nodes, connections);
+        await runtime.run();
+
+        runtime.dispose();
+        expect(runtime.metrics.retained).toBe(0);
+    });
+
+    it('stops calling a node cyclic once the node that closed the loop is gone', async () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([PASS]);
+        const { nodes, connections } = loop();
+        runtime.setGraph(nodes, connections);
+        await runtime.run();
+
+        // Drop 'b', which breaks the loop: 'a' is an ordinary node again.
+        runtime.setGraph([node('a')], []);
+        await runtime.run();
+
+        expect(runtime.metrics.retained).toBe(1);
+        runtime.dispose();
+    });
+});

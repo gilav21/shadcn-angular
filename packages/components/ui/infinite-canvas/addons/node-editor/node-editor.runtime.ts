@@ -409,6 +409,23 @@ export class NodeGraphRuntime {
     this.startedTicks.delete(id);
 
     /*
+     * A node in a cycle takes the cycle with it.
+     *
+     * `cycleMembers` was the one per-node container nothing pruned, and the
+     * flag that would have rebuilt it is only raised by `markDirty`, which
+     * correctly ignores a node the graph no longer has. So a graph that once
+     * held a loop kept those ids for the runtime's lifetime, and emptying it
+     * left `metrics.retained` above zero — the exact number that exists to
+     * prove nothing is retained.
+     *
+     * Raising the flag as well as pruning the set, because removing one node
+     * of a loop breaks the loop: the remaining members are no longer in a
+     * cycle, and only a rebuild can say so.
+     */
+    this.cycleMembers.delete(id);
+    this.cyclesStale = true;
+
+    /*
      * The read-out signals go too.
      *
      * They were the one thing a removed node left behind, and nothing ever
@@ -440,7 +457,6 @@ export class NodeGraphRuntime {
     for (const peer of this.incoming.get(id) ?? []) this.outgoing.get(peer)?.delete(id);
     this.outgoing.delete(id);
     this.incoming.delete(id);
-
   }
 
   /**
@@ -1423,6 +1439,7 @@ export class NodeGraphRuntime {
     this.connectionsByTarget.clear();
     this.order = [];
     this.position.clear();
+    this.cycleMembers.clear();
     this.dirtyVersion.clear();
     this.outputValues.clear();
     this.stateValues.clear();

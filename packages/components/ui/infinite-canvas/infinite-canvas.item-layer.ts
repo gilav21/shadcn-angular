@@ -91,6 +91,16 @@ export class CanvasItemLayer<T extends CanvasItem> {
    * Returns false for anything structural (a different length, or an id that
    * moved position in the array), which falls through to the full rebuild.
    *
+   * **Items must be replaced, never mutated in place.** An item edited through
+   * its existing object reference is invisible here — identity is unchanged,
+   * so nothing looks moved and the index keeps the old box. That requirement
+   * is not new to this method: the engine already returns the SAME array from
+   * `withMaterializedTypes` when nothing changed, and `mount` skips a view
+   * whose item is referentially equal, so a mutated item was already a stale
+   * card before it was a stale bucket. It is written down here because this is
+   * the first place where breaking it costs correctness rather than a wasted
+   * repaint.
+   *
    * The cell size is deliberately NOT retuned here. It is a tuning parameter:
    * a stale one costs query speed and can never cost correctness, and any
    * change to the item COUNT takes the full path and retunes it there.
