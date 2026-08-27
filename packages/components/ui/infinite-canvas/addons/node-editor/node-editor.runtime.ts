@@ -393,7 +393,10 @@ export class NodeGraphRuntime {
 
     // Keyed by `node:port`, so they cannot be reached by id alone.
     const prefix = `${String(id)}:`;
-    for (const key of [...this.emitSeq.keys()]) {
+    // Deleting from a Map while walking it is well defined — the entry being
+    // removed is the one just visited, and any later one is simply skipped —
+    // so there is nothing to copy first.
+    for (const key of this.emitSeq.keys()) {
       if (key.startsWith(prefix)) this.emitSeq.delete(key);
     }
 
