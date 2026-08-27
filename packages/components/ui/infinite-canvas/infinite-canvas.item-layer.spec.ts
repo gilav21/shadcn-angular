@@ -4,6 +4,7 @@ import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import type { CanvasItemContext } from './infinite-canvas-item.directive';
 import { CanvasItemLayer } from './infinite-canvas.item-layer';
 import { CanvasItemViewPool } from './infinite-canvas.item-pool';
+import { SpatialHash } from './infinite-canvas.spatial-hash';
 import type { CanvasItem, CanvasRect } from './infinite-canvas.types';
 
 @Component({
@@ -430,5 +431,80 @@ describe('CanvasItemLayer — the drag fast path', () => {
     expect(visibleIn(NEAR)).toEqual([]);
     expect(visibleIn(FAR).length).toBeGreaterThan(0);
     expect(layer.itemCount).toBe(30);
+  });
+});
+
+/*
+ * The regression gate for the drag fast path.
+ *
+ * Counting spatial-hash insertions is exact and cannot flake, unlike the
+ * milliseconds the workload benchmark logs. Reverting `setItems` to a full
+ * rebuild would re-insert every item on every frame of a drag and break no
+ * other test.
+ */
+describe('CanvasItemLayer — a drag re-indexes only what moved', () => {
+  let fixture: ComponentFixture<HostComponent>;
+  let pool: CanvasItemViewPool<CanvasItemContext>;
+  let layer: CanvasItemLayer<CanvasItem>;
+  let inserts: number;
+  let restore: () => void;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+
+    const host = fixture.componentInstance;
+    pool = new CanvasItemViewPool<CanvasItemContext>(
+      host.anchor(),
+      host.tpl(),
+      host.mount().nativeElement,
+      () => ({ $implicit: undefined as unknown as CanvasItem, index: 0 }),
+    );
+    layer = new CanvasItemLayer<CanvasItem>(pool);
+
+    inserts = 0;
+    const proto = SpatialHash.prototype as unknown as { insert: (item: CanvasItem) => void };
+    const real = proto.insert;
+    proto.insert = function counted(item: CanvasItem): void {
+      inserts++;
+      real.call(this, item);
+    };
+    restore = () => {
+      proto.insert = real;
+    };
+  });
+
+  afterEach(() => {
+    restore();
+    pool.clear();
+    fixture.destroy();
+  });
+
+  it('re-inserts nothing when one item moves inside its cell', () => {
+    const items = grid(200);
+    layer.setItems(items);
+    inserts = 0;
+
+    layer.setItems(items.map(i => (i.id === 5 ? { ...i, x: i.x + 2, y: i.y + 2 } : i)));
+    expect(inserts).toBe(0);
+  });
+
+  it('re-inserts only the item that crossed a cell boundary', () => {
+    const items = grid(200);
+    layer.setItems(items);
+    inserts = 0;
+
+    layer.setItems(items.map(i => (i.id === 5 ? { ...i, x: 90_000, y: 90_000 } : i)));
+    expect(inserts).toBe(1);
+  });
+
+  it('rebuilds the whole index only when the set itself changed', () => {
+    const items = grid(200);
+    layer.setItems(items);
+    inserts = 0;
+
+    layer.setItems(items.slice(0, 199));
+    expect(inserts).toBe(199);
   });
 });

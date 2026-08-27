@@ -183,3 +183,44 @@ describe('a disposed runtime holds nothing', () => {
         expect(runtime.metrics.retained).toBe(0);
     });
 });
+
+/*
+ * A node removed while it was still owed work.
+ *
+ * `metrics.retained` covers the dirty set and the ready queue, but nothing
+ * here ever put a removed node INTO them: every test above removes a node
+ * that had already settled, so the two containers written on every settle —
+ * the ones most likely to strand an id — were counted and never exercised.
+ * Neutering their cleanup in `removeNode` left the whole file green.
+ */
+describe('the runtime lets go of a node removed mid-flight', () => {
+    it('forgets a node deleted while it was dirty and unrun', () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([PASS]);
+        const { nodes, connections } = chain(4);
+        runtime.setGraph(nodes, connections);
+
+        // Owed work, never run: the node is dirty and queued, not settled.
+        runtime.setState('n0', 'changed');
+        runtime.setGraph(nodes.slice(1), connections.slice(1));
+
+        expect(runtime.metrics.retained).toBe(3);
+        runtime.dispose();
+    });
+
+    it('forgets a node deleted between a change and the run that would settle it', async () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([PASS]);
+        const { nodes, connections } = chain(4);
+        runtime.setGraph(nodes, connections);
+        await runtime.run();
+
+        runtime.setState('n2', 'changed');
+        runtime.setGraph(nodes.slice(0, 3), connections.slice(0, 2));
+        await runtime.run();
+
+        expect(runtime.metrics.retained).toBe(3);
+        runtime.dispose();
+        expect(runtime.metrics.retained).toBe(0);
+    });
+});

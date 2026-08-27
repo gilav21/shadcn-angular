@@ -247,12 +247,32 @@ export class NodeGraphRuntime {
     };
   }
 
-  /** Every per-node container, so none can be forgotten in one place and not another. */
-  private perNodeMaps(): readonly ReadonlyMap<NodeId, unknown>[] {
+  /**
+   * Every per-node container, so none can be forgotten in one place and not
+   * another.
+   *
+   * Typed on `keys()` rather than on `ReadonlyMap` so the bare Sets belong
+   * here too. They were left out while the signature demanded a Map, which
+   * made this list quietly untrue and left `metrics.retained` — the only leak
+   * assertion there is — blind to the position and ready-order bookkeeping.
+   * That is precisely the bookkeeping most likely to strand an id, since it is
+   * written on every settle rather than only when a node is added.
+   *
+   * `emitSeq` is deliberately absent: it is keyed `${node}:${port}`, so its
+   * keys are not node ids and splitting them back would invent string ids for
+   * numeric nodes. It is pruned by prefix in `removeNode` and asserted there
+   * directly.
+   */
+  private perNodeMaps(): readonly { keys(): IterableIterator<NodeId> }[] {
     return [
       this.nodes,
       this.outgoing,
       this.incoming,
+      this.connectionsByTarget,
+      this.position,
+      this.dirty,
+      this.readySet,
+      this.cycleMembers,
       this.dirtyVersion,
       this.outputValues,
       this.stateValues,

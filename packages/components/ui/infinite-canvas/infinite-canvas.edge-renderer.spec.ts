@@ -479,3 +479,87 @@ describe('setEdges reuses paths only when nothing that shapes them changed', () 
     expect(renderer.hitTest(105, 5, IDENTITY)?.id).toBe('e');
   });
 });
+
+/*
+ * The regression gate for the path cache.
+ *
+ * The workload benchmark logs milliseconds and asserts none of them, on
+ * purpose — a duration on a loaded machine is not a fact. But that left the
+ * whole point of the cache ungated: reverting `setEdges` to "clear and rebuild
+ * everything" would slow a 96,000-edge drag by 80ms and break no test.
+ *
+ * Counting constructed paths is exact, machine-independent and cannot flake,
+ * so that is what is asserted here.
+ */
+describe('setEdges builds only the paths that actually changed', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+  let built: number;
+  let RealPath2D: typeof Path2D;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+
+    built = 0;
+    RealPath2D = globalThis.Path2D;
+    class CountingPath2D extends RealPath2D {
+      constructor(path?: Path2D | string) {
+        super(path as never);
+        built++;
+      }
+    }
+    globalThis.Path2D = CountingPath2D as unknown as typeof Path2D;
+  });
+
+  afterEach(() => {
+    globalThis.Path2D = RealPath2D;
+    canvas.remove();
+  });
+
+  /** A fan of `count` edges from one hub, so one hub move touches them all. */
+  function fan(count: number): { edges: CanvasEdge[]; items: Map<string | number, CanvasItem> } {
+    const items: CanvasItem[] = [{ id: 'hub', x: 0, y: 0, width: 10, height: 10 }];
+    const edges: CanvasEdge[] = [];
+    for (let i = 0; i < count; i++) {
+      items.push({ id: `n${i}`, x: 100 + i * 20, y: 50, width: 10, height: 10 });
+      edges.push({ id: `e${i}`, source: 'hub', target: `n${i}`, curve: 'line' });
+    }
+    return { edges, items: itemMap(items) };
+  }
+
+  it('builds nothing at all when nothing moved', () => {
+    const { edges, items } = fan(20);
+    renderer.setEdges(edges, items);
+    built = 0;
+
+    renderer.setEdges(edges, items);
+    expect(built).toBe(0);
+  });
+
+  it('builds one path when one leaf moves, not twenty', () => {
+    const { edges, items } = fan(20);
+    renderer.setEdges(edges, items);
+    built = 0;
+
+    const moved = new Map(items);
+    moved.set('n7', { id: 'n7', x: 240, y: 500, width: 10, height: 10 });
+    renderer.setEdges(edges, moved);
+
+    expect(built).toBe(1);
+  });
+
+  it('builds every path when the shared hub moves, because every edge moved', () => {
+    const { edges, items } = fan(20);
+    renderer.setEdges(edges, items);
+    built = 0;
+
+    const moved = new Map(items);
+    moved.set('hub', { id: 'hub', x: 0, y: 400, width: 10, height: 10 });
+    renderer.setEdges(edges, moved);
+
+    expect(built).toBe(20);
+  });
+});

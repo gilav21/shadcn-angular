@@ -262,6 +262,39 @@ carries `data-slot`.
 
 ---
 
+## 7.1 Where this lives: the canvas's edit mode
+
+The editor began as its own top-level component, `ui/node-editor/`, sitting
+beside `ui/infinite-canvas/`. It is now `ui/infinite-canvas/addons/node-editor/`,
+and its addons are siblings under the same folder.
+
+**This is a naming decision, not an architectural one.** The node editor was
+always built on the canvas and never usable without it — it is what the canvas
+does when you are editing a graph, the same way a text editor is what a
+document view does when you are editing text. Two top-level names for one
+capability made consumers choose between them, and the choice was never real:
+installing the editor always pulled the canvas anyway.
+
+Consequences worth stating, because each one bit during the move:
+
+- Registry paths are `infinite-canvas/addons/<addon>/…`, and every addon's
+  `attach.import` string changed with them. A stale path there fails silently:
+  the manifest is rejected, the CLI falls back to its bundled snapshot, and the
+  only symptom is a component installing at the wrong version.
+- The registry model is two levels — `ui/<component>/addons/<addon>/`. Addons
+  do not nest further, so `node-editor-groups` is a sibling of `node-editor`
+  rather than a child of it, and its name carries the relationship instead.
+- An addon that reaches into the canvas engine imports it through the barrel
+  (`from '../..'`), never by file path. A deep import defeats the sync's
+  component-boundary detection, and the manifest then lists the engine's files
+  as the ADDON's files — so installing the addon copies `infinite-canvas.*`
+  source into the consumer's tree instead of depending on the component. The
+  groups addon did exactly this when it began using the spatial hash; the fix
+  is the barrel import, which turns those two stray files into a declared
+  `dependencies: ["infinite-canvas"]`.
+
+---
+
 ## 8. Files
 
 ```text

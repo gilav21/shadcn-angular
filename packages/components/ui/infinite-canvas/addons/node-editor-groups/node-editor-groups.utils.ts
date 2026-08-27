@@ -6,7 +6,7 @@
  * than only through a drag.
  */
 import { isTouchDevice } from '../../../../lib/touch';
-import { SpatialHash } from '../../infinite-canvas.spatial-hash';
+import { SpatialHash } from '../..';
 import type { CanvasPoint, CanvasRect, EditorNode, NodeId } from '../node-editor';
 import type { GroupMembership, NodeGroup } from './node-editor-groups.types';
 

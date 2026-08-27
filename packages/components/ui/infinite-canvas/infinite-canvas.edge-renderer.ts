@@ -125,7 +125,10 @@ export class CanvasEdgeRenderer {
       this.cache.set(edge.id, buildCachedEdge(edge, from, to));
     }
 
-    for (const id of [...this.cache.keys()]) {
+    // Deleting from a Map while iterating it is defined behaviour: an entry
+    // removed before the walk reaches it is simply not visited. So no copy of
+    // the key set is needed, and at 96,000 edges a copy is not free.
+    for (const id of this.cache.keys()) {
       if (!live.has(id)) this.cache.delete(id);
     }
   }
