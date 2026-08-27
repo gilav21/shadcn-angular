@@ -3,6 +3,34 @@
  *
  * Provides helpers for long-press, double-tap, and touch detection
  * so components can support touch-only devices alongside mouse input.
+ *
+ * ### The rule every gesture here obeys
+ *
+ * **More than one finger means pan and zoom, and nothing else.** Not a press,
+ * not a tap, not a drag — whatever a first finger had begun is given up the
+ * moment a second arrives, and no gesture may start while more than one finger
+ * is down.
+ *
+ * It reads as an obvious thing to remember and it is not, because a browser
+ * will not tell you a gesture has changed meaning. It re-fires `touchstart`
+ * for the new finger and leaves you to notice, and every one of these helpers
+ * has been caught not noticing:
+ *
+ * - `onLongPress` assigned a fresh timer over a pending one, so the first was
+ *   unreachable and fired regardless — two fingers did not merely fail to
+ *   suppress a context menu, they guaranteed one.
+ * - `onDoubleTap` counted any two `touchend` events in 300ms, including a
+ *   finger lifting out of a pinch.
+ *
+ * So when adding a gesture here, or a surface that owns a drag: check the
+ * finger count on every event, not only the first. `touches.length` on a
+ * `touchend` counts the fingers still down; for pointer events the same
+ * question is {@link isSecondaryTouch}.
+ *
+ * `onPointerDrag` is the one helper below that does NOT yet enforce this — it
+ * keeps following `touches[0]` through a pinch. It is used by sliders and
+ * pickers rather than by a pannable canvas, where the answer may legitimately
+ * differ, so it is left as it is deliberately rather than by omission.
  */
 
 /** Detect if the device has a coarse pointer (touch screen) */
@@ -128,6 +156,65 @@ const TAP_SLOP_PX = 12;
  */
 const DOUBLE_TAP_RADIUS_PX = 40;
 
+/** Where a gesture began, and whether it has moved far enough to be a drag. */
+interface TapTracker {
+    readonly onStart: (event: TouchEvent) => void;
+    readonly onMove: (event: TouchEvent) => void;
+    readonly startX: number;
+    readonly startY: number;
+    readonly travelled: boolean;
+}
+
+/**
+ * Follow one gesture's origin and travel.
+ *
+ * Separate from the detector that uses it because "did this finger stay put"
+ * is the question every touch gesture has to answer, and answering it inline
+ * is how it came to be answered differently in each place.
+ */
+function trackTap(): TapTracker {
+    let startX = 0;
+    let startY = 0;
+    let travelled = false;
+
+    return {
+        onStart: (event: TouchEvent): void => {
+            const touch = event.touches[0];
+            if (!touch) return;
+            startX = touch.clientX;
+            startY = touch.clientY;
+            travelled = false;
+        },
+        onMove: (event: TouchEvent): void => {
+            const touch = event.touches[0];
+            if (!touch) return;
+            if (Math.hypot(touch.clientX - startX, touch.clientY - startY) > TAP_SLOP_PX) {
+                travelled = true;
+            }
+        },
+        get startX() {
+            return startX;
+        },
+        get startY() {
+            return startY;
+        },
+        get travelled() {
+            return travelled;
+        },
+    };
+}
+
+/**
+ * Whether this `touchend` is the last finger leaving.
+ *
+ * `touches` on a `touchend` counts the fingers STILL down — the one that just
+ * left reports in `changedTouches`. So anything above zero means a finger
+ * lifted out of a multi-touch gesture, which is a pinch ending, never a tap.
+ */
+function endsATap(event: TouchEvent): boolean {
+    return event.touches.length === 0;
+}
+
 /**
  * Double-tap detection — calls `callback` when two taps occur within
  * `maxDelay` ms of each other, close together, with neither one a drag.
@@ -150,47 +237,22 @@ export function onDoubleTap(
     callback: (event: TouchEvent) => void,
     maxDelay = 300
 ): () => void {
+    const gesture = trackTap();
     let lastTap = 0;
     let lastX = 0;
     let lastY = 0;
-    let startX = 0;
-    let startY = 0;
-    let travelled = false;
-
-    const onTouchStart = (e: TouchEvent): void => {
-        const touch = e.touches[0];
-        if (!touch) return;
-        startX = touch.clientX;
-        startY = touch.clientY;
-        travelled = false;
-    };
-
-    const onTouchMove = (e: TouchEvent): void => {
-        const touch = e.touches[0];
-        if (!touch) return;
-        if (Math.hypot(touch.clientX - startX, touch.clientY - startY) > TAP_SLOP_PX) {
-            travelled = true;
-        }
-    };
 
     const onTouchEnd = (e: TouchEvent): void => {
-        /*
-         * A gesture that was not a tap cannot be half of a double tap, and it
-         * must not leave one behind either — hence resetting rather than
-         * merely returning.
-         *
-         * `touches.length` still counts the fingers STILL down, so anything
-         * above zero means this finger left a multi-touch gesture: two fingers
-         * mean pan and zoom, never a tap.
-         */
-        if (travelled || e.touches.length > 0) {
+        // Not a tap: it cannot be half of a double tap, and must not leave one
+        // behind either — hence resetting rather than merely returning.
+        if (gesture.travelled || !endsATap(e)) {
             lastTap = 0;
             return;
         }
 
         const touch = e.changedTouches?.[0];
-        const x = touch?.clientX ?? startX;
-        const y = touch?.clientY ?? startY;
+        const x = touch?.clientX ?? gesture.startX;
+        const y = touch?.clientY ?? gesture.startY;
         const now = Date.now();
         const nearLast = Math.hypot(x - lastX, y - lastY) <= DOUBLE_TAP_RADIUS_PX;
 
@@ -206,13 +268,13 @@ export function onDoubleTap(
         lastY = y;
     };
 
-    element.addEventListener('touchstart', onTouchStart, { passive: true });
-    element.addEventListener('touchmove', onTouchMove, { passive: true });
+    element.addEventListener('touchstart', gesture.onStart, { passive: true });
+    element.addEventListener('touchmove', gesture.onMove, { passive: true });
     element.addEventListener('touchend', onTouchEnd);
 
     return (): void => {
-        element.removeEventListener('touchstart', onTouchStart);
-        element.removeEventListener('touchmove', onTouchMove);
+        element.removeEventListener('touchstart', gesture.onStart);
+        element.removeEventListener('touchmove', gesture.onMove);
         element.removeEventListener('touchend', onTouchEnd);
     };
 }
