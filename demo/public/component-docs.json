@@ -8997,6 +8997,7 @@
       "importStatement": "import { NodeEditorGroupsComponent } from '@/components/ui/infinite-canvas/addons/node-editor-groups';",
       "selector": "ui-node-editor-groups",
       "dependencies": [
+        "infinite-canvas",
         "infinite-canvas/node-editor"
       ],
       "npmDependencies": [],

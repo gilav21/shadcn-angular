@@ -2331,7 +2331,7 @@ Titled frames behind the nodes and freestanding comments, both purely visual.
 - Import: `import { NodeEditorGroupsComponent } from '@/components/ui/infinite-canvas/addons/node-editor-groups';`
 - Selector: `ui-node-editor-groups`
 - Category: layout
-- Depends on: `infinite-canvas/node-editor`
+- Depends on: `infinite-canvas`, `infinite-canvas/node-editor`
 - npm dependencies: none
 - Inputs: `class: string = ''`, `comments: readonly NodeComment[] = []`, `groups: readonly NodeGroup[] = []`, `nodes: readonly EditorNode[] = []`, `readonlyGroups: boolean = false`
 - Outputs: `comments: readonly NodeComment[]`, `groupActivated: NodeGroup`, `groupMoved: GroupMoveEvent`, `groups: readonly NodeGroup[]`
