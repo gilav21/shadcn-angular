@@ -86,8 +86,35 @@ export function onLongPress(
 }
 
 /**
+ * How far a finger may travel and still have been a tap rather than a drag.
+ *
+ * The same 10px the long press allows, plus a little: a tap is a poke, and a
+ * thumb on glass never lands and leaves at exactly one point.
+ */
+const TAP_SLOP_PX = 12;
+
+/**
+ * How far apart two taps may land and still be one double tap.
+ *
+ * Generous, because a double tap is aimed at a thing rather than a pixel, but
+ * nothing like the whole screen — which is what "anywhere" amounted to before.
+ */
+const DOUBLE_TAP_RADIUS_PX = 40;
+
+/**
  * Double-tap detection — calls `callback` when two taps occur within
- * `maxDelay` ms of each other.
+ * `maxDelay` ms of each other, close together, with neither one a drag.
+ *
+ * ### Why position and movement matter, and not just time
+ *
+ * Time alone was the whole test once, and on a phone that reads far too much
+ * as a double tap. Dragging a node on the canvas: press, move, lift — a tap.
+ * Try again a moment later — a second tap, and the palette opens on top of the
+ * context menu the same hold had already triggered. Two attempts to move
+ * something became "add a node", in a different place from either attempt.
+ *
+ * So a tap now has to be a tap: one finger, barely moved, landing near where
+ * the last one did.
  *
  * @returns A cleanup function to remove all listeners.
  */
@@ -97,20 +124,70 @@ export function onDoubleTap(
     maxDelay = 300
 ): () => void {
     let lastTap = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let startX = 0;
+    let startY = 0;
+    let travelled = false;
 
-    const handler = (e: TouchEvent): void => {
-        const now = Date.now();
-        if (now - lastTap < maxDelay) {
-            e.preventDefault();
-            callback(e);
-            lastTap = 0;
-        } else {
-            lastTap = now;
+    const onTouchStart = (e: TouchEvent): void => {
+        const touch = e.touches[0];
+        if (!touch) return;
+        startX = touch.clientX;
+        startY = touch.clientY;
+        travelled = false;
+    };
+
+    const onTouchMove = (e: TouchEvent): void => {
+        const touch = e.touches[0];
+        if (!touch) return;
+        if (Math.hypot(touch.clientX - startX, touch.clientY - startY) > TAP_SLOP_PX) {
+            travelled = true;
         }
     };
 
-    element.addEventListener('touchend', handler);
-    return (): void => element.removeEventListener('touchend', handler);
+    const onTouchEnd = (e: TouchEvent): void => {
+        /*
+         * A gesture that was not a tap cannot be half of a double tap, and it
+         * must not leave one behind either — hence resetting rather than
+         * merely returning.
+         *
+         * `touches.length` still counts the fingers STILL down, so anything
+         * above zero means this finger left a multi-touch gesture: two fingers
+         * mean pan and zoom, never a tap.
+         */
+        if (travelled || e.touches.length > 0) {
+            lastTap = 0;
+            return;
+        }
+
+        const touch = e.changedTouches?.[0];
+        const x = touch?.clientX ?? startX;
+        const y = touch?.clientY ?? startY;
+        const now = Date.now();
+        const nearLast = Math.hypot(x - lastX, y - lastY) <= DOUBLE_TAP_RADIUS_PX;
+
+        if (now - lastTap < maxDelay && nearLast) {
+            e.preventDefault();
+            callback(e);
+            lastTap = 0;
+            return;
+        }
+
+        lastTap = now;
+        lastX = x;
+        lastY = y;
+    };
+
+    element.addEventListener('touchstart', onTouchStart, { passive: true });
+    element.addEventListener('touchmove', onTouchMove, { passive: true });
+    element.addEventListener('touchend', onTouchEnd);
+
+    return (): void => {
+        element.removeEventListener('touchstart', onTouchStart);
+        element.removeEventListener('touchmove', onTouchMove);
+        element.removeEventListener('touchend', onTouchEnd);
+    };
 }
 
 /**

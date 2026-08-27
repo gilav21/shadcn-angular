@@ -91,6 +91,29 @@ describe('long-press opens the context menu', () => {
         vi.advanceTimersByTime(600);
     }
 
+    /** A finger that goes down and travels — a pan, not a press. */
+    function pressAndDrag(target: HTMLElement, from = { x: 60, y: 60 }, to = { x: 260, y: 210 }): void {
+        const start = new Touch({ identifier: 1, target, clientX: from.x, clientY: from.y });
+        target.dispatchEvent(
+            new TouchEvent('touchstart', {
+                bubbles: true,
+                cancelable: true,
+                touches: [start],
+                changedTouches: [start],
+            }),
+        );
+        const moved = new Touch({ identifier: 1, target, clientX: to.x, clientY: to.y });
+        target.dispatchEvent(
+            new TouchEvent('touchmove', {
+                bubbles: true,
+                cancelable: true,
+                touches: [moved],
+                changedTouches: [moved],
+            }),
+        );
+        vi.advanceTimersByTime(600);
+    }
+
     beforeEach(async () => {
         vi.useFakeTimers({ shouldAdvanceTime: true });
         await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
@@ -141,6 +164,42 @@ describe('long-press opens the context menu', () => {
         await settle();
 
         expect(host.opened()).toBeNull();
+    });
+
+    /*
+     * Reported from a phone: the canvas panned AND the menu opened.
+     *
+     * Our own long-press gives up as soon as the finger travels, so it is not
+     * the one opening anything here — Android raises a `contextmenu` of its
+     * own for a held finger, and that arrived with no idea a drag was under
+     * way. A right-click is always deliberate; the browser's touch version is
+     * a guess, and it has to lose to a gesture that is visibly a pan.
+     */
+    it('ignores the platform contextmenu when the finger was dragging', async () => {
+        pressAndDrag(editorEl());
+        await settle();
+
+        editorEl().dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true, cancelable: true, clientX: 260, clientY: 210,
+        }));
+        await settle();
+
+        expect(host.opened()).toBeNull();
+    });
+
+    it('opens for a finger that stayed put', async () => {
+        const target = editorEl();
+        const touch = new Touch({ identifier: 1, target, clientX: 300, clientY: 300 });
+        target.dispatchEvent(new TouchEvent('touchstart', {
+            bubbles: true, cancelable: true, touches: [touch], changedTouches: [touch],
+        }));
+
+        target.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true, cancelable: true, clientX: 300, clientY: 300,
+        }));
+        await settle();
+
+        expect(host.opened()?.kind).toBe('canvas');
     });
 
     it('still opens on a right-click well after any long-press', async () => {

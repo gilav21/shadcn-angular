@@ -16,6 +16,15 @@ import { resolveTarget, type ContextPointer } from './node-editor-context-menu.r
 const SAME_GESTURE_MS = 700;
 
 /**
+ * How far a finger may travel and still count as held rather than dragging.
+ *
+ * The same 10px `onLongPress` allows, so the two agree about what a press is —
+ * they were the two halves of one disagreement when the platform's own
+ * `contextmenu` used a threshold of its own.
+ */
+const TOUCH_SLOP_PX = 10;
+
+/**
  * A context menu on the graph, with contents that depend on what was clicked.
  *
  * ### Why a directive, and why on the editor element
@@ -70,9 +79,17 @@ export class NodeEditorContextMenuDirective {
   /** When a long-press last opened the menu, to ignore the echo. */
   private lastLongPress = 0;
 
+  /** Where the current touch gesture began, and whether it has travelled. */
+  private touchStart: { x: number; y: number } | null = null;
+  private touchTravelled = false;
+  /** When that gesture was last heard from, so a later right-click is unaffected. */
+  private lastTouchAt = 0;
+
   constructor() {
     const element = this.host.nativeElement;
     element.addEventListener('contextmenu', this.onContextMenu);
+    element.addEventListener('touchstart', this.onTouchStart, { passive: true });
+    element.addEventListener('touchmove', this.onTouchMove, { passive: true });
 
     /*
      * Long-press is the touch equivalent, and without it a phone could not
@@ -93,13 +110,51 @@ export class NodeEditorContextMenuDirective {
 
     inject(DestroyRef).onDestroy(() => {
       element.removeEventListener('contextmenu', this.onContextMenu);
+      element.removeEventListener('touchstart', this.onTouchStart);
+      element.removeEventListener('touchmove', this.onTouchMove);
       stopLongPress();
     });
   }
 
+  private readonly onTouchStart = (event: TouchEvent): void => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    this.touchStart = { x: touch.clientX, y: touch.clientY };
+    this.touchTravelled = false;
+    this.lastTouchAt = Date.now();
+  };
+
+  private readonly onTouchMove = (event: TouchEvent): void => {
+    const touch = event.touches[0];
+    if (!touch || !this.touchStart) return;
+    this.lastTouchAt = Date.now();
+    const distance = Math.hypot(
+      touch.clientX - this.touchStart.x,
+      touch.clientY - this.touchStart.y,
+    );
+    if (distance > TOUCH_SLOP_PX) this.touchTravelled = true;
+  };
+
   private readonly onContextMenu = (event: MouseEvent): void => {
     // Android raises this for a long-press too; the menu is already open.
     if (Date.now() - this.lastLongPress < SAME_GESTURE_MS) {
+      event.preventDefault();
+      return;
+    }
+
+    /*
+     * The platform's own long-press, arriving mid-pan.
+     *
+     * Our `onLongPress` gives up the moment the finger travels, so it is not
+     * the one firing here — Android raises `contextmenu` on its own for a held
+     * finger, on its own timing and its own idea of how far counts as still.
+     * Drag the canvas on a phone and it panned correctly AND opened a menu.
+     *
+     * A right-click is deliberate and always honoured; the browser's touch
+     * guess has to lose to a gesture that is visibly a pan. Bounded to the
+     * gesture's own lifetime so a mouse right-click later is untouched.
+     */
+    if (this.touchTravelled && Date.now() - this.lastTouchAt < SAME_GESTURE_MS) {
       event.preventDefault();
       return;
     }

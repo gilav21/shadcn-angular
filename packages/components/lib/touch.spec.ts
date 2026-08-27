@@ -11,10 +11,28 @@ type EndCallback = (event: MouseEvent | TouchEvent) => void;
  * faithfully — and unlike `new TouchEvent(...)` it needs no `Touch` constructor,
  * which not every engine running this suite exposes.
  */
-function touchEvent(type: string, points: Array<{ clientX: number; clientY: number }> = []): TouchEvent {
+function touchEvent(
+    type: string,
+    points: Array<{ clientX: number; clientY: number }> = [],
+    changed: Array<{ clientX: number; clientY: number }> = [],
+): TouchEvent {
     const event = new Event(type, { bubbles: true, cancelable: true });
     Object.defineProperty(event, 'touches', { value: points, configurable: true });
+    // A `touchend` reports the finger that LEFT in `changedTouches`; `touches`
+    // by then holds only the fingers still down.
+    Object.defineProperty(event, 'changedTouches', { value: changed, configurable: true });
     return event as TouchEvent;
+}
+
+/** One finger down at a point, then up at (optionally) another. */
+function tap(
+    element: HTMLElement,
+    from: { clientX: number; clientY: number },
+    to: { clientX: number; clientY: number } = from,
+): void {
+    element.dispatchEvent(touchEvent('touchstart', [from], [from]));
+    if (to !== from) element.dispatchEvent(touchEvent('touchmove', [to], [to]));
+    element.dispatchEvent(touchEvent('touchend', [], [to]));
 }
 
 function stubMatchMedia(matches: (query: string) => boolean): void {
@@ -188,6 +206,52 @@ describe('onDoubleTap', () => {
         element.dispatchEvent(touchEvent('touchend'));
         vi.advanceTimersByTime(100);
         element.dispatchEvent(touchEvent('touchend'));
+
+        expect(callback).not.toHaveBeenCalled();
+    });
+
+    /*
+     * From a phone, dragging a node on the canvas.
+     *
+     * Two taps close in TIME were enough, wherever they landed and whatever
+     * the finger did in between — so two attempts to drag something, a moment
+     * apart, were read as a double tap and opened the node palette. On the
+     * node editor that arrived on top of the context menu the same hold had
+     * already opened.
+     */
+    it('does not fire for two taps in different places', () => {
+        tap(element, { clientX: 20, clientY: 20 });
+        vi.advanceTimersByTime(100);
+        tap(element, { clientX: 300, clientY: 400 });
+
+        expect(callback).not.toHaveBeenCalled();
+    });
+
+    it('still fires for two taps in the same place', () => {
+        tap(element, { clientX: 50, clientY: 50 });
+        vi.advanceTimersByTime(100);
+        tap(element, { clientX: 53, clientY: 48 });
+
+        expect(callback).toHaveBeenCalledTimes(1);
+    });
+
+    /** A finger that travelled was dragging, and a drag is not half a double tap. */
+    it('does not count a drag as a tap', () => {
+        tap(element, { clientX: 20, clientY: 20 }, { clientX: 120, clientY: 20 });
+        vi.advanceTimersByTime(100);
+        tap(element, { clientX: 20, clientY: 20 }, { clientX: 120, clientY: 20 });
+
+        expect(callback).not.toHaveBeenCalled();
+    });
+
+    /** Two fingers mean pan and zoom, so lifting one of them is not a tap. */
+    it('does not count a finger lifting out of a two-finger gesture', () => {
+        element.dispatchEvent(touchEvent('touchstart', [{ clientX: 10, clientY: 10 }]));
+        element.dispatchEvent(
+            touchEvent('touchend', [{ clientX: 90, clientY: 90 }], [{ clientX: 10, clientY: 10 }]),
+        );
+        vi.advanceTimersByTime(100);
+        tap(element, { clientX: 10, clientY: 10 });
 
         expect(callback).not.toHaveBeenCalled();
     });
