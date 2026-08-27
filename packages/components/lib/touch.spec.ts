@@ -319,6 +319,41 @@ describe('onDoubleTap', () => {
         expect(callback).not.toHaveBeenCalled();
     });
 
+    /*
+     * Two fingers tapping together, neither of them moving.
+     *
+     * The finger count was only checked when a finger LIFTED, and by the time
+     * the second one left there was one finger's worth of contact and no
+     * travel to show for it — so a two-finger tap looked exactly like a one
+     * finger tap, and two of them in a row opened whatever a double tap opens.
+     */
+    it('does not count a two-finger tap, however still the fingers were', () => {
+        const twoFingerTap = (): void => {
+            element.dispatchEvent(
+                touchEvent('touchstart', [{ clientX: 10, clientY: 10 }], [{ clientX: 10, clientY: 10 }]),
+            );
+            element.dispatchEvent(
+                touchEvent(
+                    'touchstart',
+                    [{ clientX: 10, clientY: 10 }, { clientX: 90, clientY: 90 }],
+                    [{ clientX: 90, clientY: 90 }],
+                ),
+            );
+            element.dispatchEvent(
+                touchEvent('touchend', [{ clientX: 10, clientY: 10 }], [{ clientX: 90, clientY: 90 }]),
+            );
+            element.dispatchEvent(
+                touchEvent('touchend', [], [{ clientX: 10, clientY: 10 }]),
+            );
+        };
+
+        twoFingerTap();
+        vi.advanceTimersByTime(100);
+        twoFingerTap();
+
+        expect(callback).not.toHaveBeenCalled();
+    });
+
     /** Two fingers mean pan and zoom, so lifting one of them is not a tap. */
     it('does not count a finger lifting out of a two-finger gesture', () => {
         element.dispatchEvent(touchEvent('touchstart', [{ clientX: 10, clientY: 10 }]));

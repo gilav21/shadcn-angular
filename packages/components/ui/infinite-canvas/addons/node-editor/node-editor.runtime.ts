@@ -56,6 +56,16 @@ export interface RuntimeMetrics {
   readonly reorders: number;
   /** Async iterators still open. Must return to 0 after a disconnect. */
   readonly openIterators: number;
+  /**
+   * Nodes this runtime still holds anything for.
+   *
+   * A count, like the rest of these, and for the same reason: a leak is a
+   * number that fails to come back down, and nothing else in a test can see
+   * one. Removing a node must return this to what it was, and `dispose` must
+   * take it to zero — an editor that mounts and unmounts a hundred graphs
+   * should not be carrying the first one around.
+   */
+  readonly retained: number;
 }
 
 /**
@@ -168,7 +178,38 @@ export class NodeGraphRuntime {
       remoteCalls: this.remoteCalls,
       reorders: this.reorders,
       openIterators: this.iterators.size,
+      retained: this.retainedNodes().size,
     };
+  }
+
+  /** Every per-node container, so none can be forgotten in one place and not another. */
+  private perNodeMaps(): readonly ReadonlyMap<NodeId, unknown>[] {
+    return [
+      this.nodes,
+      this.outgoing,
+      this.incoming,
+      this.dirtyVersion,
+      this.outputValues,
+      this.stateValues,
+      this.lastInputs,
+      this.lastState,
+      this.active,
+      this.iterators,
+      this.statusSignals,
+      this.outputSignals,
+      this.inputSignals,
+      this.stateSignals,
+      this.errorSignals,
+      this.startedTicks,
+    ];
+  }
+
+  private retainedNodes(): ReadonlySet<NodeId> {
+    const ids = new Set<NodeId>();
+    for (const map of this.perNodeMaps()) {
+      for (const id of map.keys()) ids.add(id);
+    }
+    return ids;
   }
 
   resetMetrics(): void {
@@ -275,6 +316,33 @@ export class NodeGraphRuntime {
     this.lastState.delete(id);
     this.dirty.delete(id);
     this.readySet.delete(id);
+    this.dirtyVersion.delete(id);
+    this.startedTicks.delete(id);
+
+    /*
+     * The read-out signals go too.
+     *
+     * They were the one thing a removed node left behind, and nothing ever
+     * collected them: five maps growing by one entry per node for the lifetime
+     * of the editor. A graph that adds and removes as you work — which is what
+     * a graph editor is for — carried every node it had ever shown.
+     *
+     * Safe to drop because a node's view captures the signals it needs when
+     * its context is built, so an existing card keeps reading the object it
+     * already holds; only a LATER lookup makes a fresh one, and by then the
+     * node is gone.
+     */
+    this.statusSignals.delete(id);
+    this.outputSignals.delete(id);
+    this.inputSignals.delete(id);
+    this.stateSignals.delete(id);
+    this.errorSignals.delete(id);
+
+    // Keyed by `node:port`, so they cannot be reached by id alone.
+    const prefix = `${String(id)}:`;
+    for (const key of [...this.emitSeq.keys()]) {
+      if (key.startsWith(prefix)) this.emitSeq.delete(key);
+    }
 
     for (const peer of this.outgoing.get(id) ?? []) this.incoming.get(peer)?.delete(id);
     for (const peer of this.incoming.get(id) ?? []) this.outgoing.get(peer)?.delete(id);
@@ -427,6 +495,17 @@ export class NodeGraphRuntime {
       const node = stack.pop() as NodeId;
       if (seen.has(node)) continue;
       seen.add(node);
+
+      /*
+       * A node that is gone cannot be dirty.
+       *
+       * Removing a graph re-set its connections, and dirtying their endpoints
+       * wrote a version back for every node just deleted — one entry per
+       * connection, resurrected a moment after being released. It computed
+       * nothing and was never read; it simply stayed. `retained` counts it,
+       * which is how it was found at all.
+       */
+      if (!this.nodes.has(node)) continue;
 
       this.dirtyVersion.set(node, (this.dirtyVersion.get(node) ?? 0) + 1);
       this.dirty.add(node);
@@ -1111,9 +1190,50 @@ export class NodeGraphRuntime {
     const streaming = [...this.iterators.keys()];
     for (const nodeId of running) this.abortRun(nodeId);
     for (const nodeId of streaming) this.teardownIterator(nodeId);
+
     this.dirty.clear();
     this.readySet.clear();
     this.startedTicks.clear();
+
+    /*
+     * Everything else, because a disposed runtime is finished with.
+     *
+     * A subgraph builds one of these per evaluation and throws it away, so
+     * anything left holding on here is held once per run of every nested
+     * graph. Aborting the work was not the same as letting go of it.
+     */
+    this.nodes.clear();
+    this.definitions.clear();
+    this.connections = [];
+    this.outgoing.clear();
+    this.incoming.clear();
+    this.order = [];
+    this.position.clear();
+    this.dirtyVersion.clear();
+    this.outputValues.clear();
+    this.stateValues.clear();
+    this.lastInputs.clear();
+    this.lastState.clear();
+    this.emitSeq.clear();
+    this.statusSignals.clear();
+    this.outputSignals.clear();
+    this.inputSignals.clear();
+    this.stateSignals.clear();
+    this.errorSignals.clear();
+    this.computedNodes.length = 0;
+    this.session = null;
+
+    /*
+     * And the callbacks, which are the ones that hold a whole component.
+     *
+     * `onRunStarted = event => this.runStarted.emit(event)` closes over the
+     * editor. Leaving it attached to a runtime someone else still references
+     * keeps the component, its template and its nodes alive behind it.
+     */
+    this.onRunStarted = null;
+    this.onNodeSettled = null;
+    this.onRunFinished = null;
+    this.executeRemote = null;
   }
 }
 

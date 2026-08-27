@@ -24,6 +24,12 @@ import {
     STD_EQUALS,
     STD_FORMAT_TIME,
     STD_GET_FIELD,
+    STD_GREATER,
+    STD_LESS,
+    STD_LIST_LENGTH,
+    STD_NOT,
+    STD_NOW,
+    STD_TO_BOOLEAN,
     STD_JOIN,
     STD_KEYS,
     STD_LIST,
@@ -101,6 +107,12 @@ describe('coercions', () => {
 
     it('wraps a lone value as a list of one', () => {
         expect(asList('a')).toEqual(['a']);
+    });
+
+    /** Anything not named above falls through to plain truthiness. */
+    it('reads an object as true and nothing as false', () => {
+        expect(asBoolean({})).toBe(true);
+        expect(asBoolean([])).toBe(true);
     });
 
     it('does not treat an array or a date as a record', () => {
@@ -188,6 +200,18 @@ describe('logic nodes', () => {
         expect(out(STD_SELECT, { condition: false, whenTrue: 'y', whenFalse: 'n' })).toBe('n');
     });
 
+    it('compares magnitudes', () => {
+        expect(out(STD_GREATER, { a: 3, b: 2 })).toBe(true);
+        expect(out(STD_GREATER, { a: 2, b: 3 })).toBe(false);
+        expect(out(STD_LESS, { a: 2, b: 3 })).toBe(true);
+        expect(out(STD_LESS, { a: 3, b: 2 })).toBe(false);
+    });
+
+    it('negates', () => {
+        expect(out(STD_NOT, { in: true })).toBe(false);
+        expect(out(STD_NOT, { in: 'false' })).toBe(true);
+    });
+
     it('is vacuously true for nothing, and vacuously false for nothing', () => {
         expect(out(STD_ALL, { values: [] })).toBe(true);
         expect(out(STD_ANY, { values: [] })).toBe(false);
@@ -238,6 +262,16 @@ describe('list nodes', () => {
         expect(out(STD_LIST, { items: [1, 2] })).toEqual([1, 2]);
     });
 
+    it('counts a list', () => {
+        expect(out(STD_LIST_LENGTH, { in: ['a', 'b', 'c'] })).toBe(3);
+        expect(out(STD_LIST_LENGTH, {})).toBe(0);
+    });
+
+    /** The other branch of the sort: anything not all numbers compares as text. */
+    it('sorts text alphabetically', () => {
+        expect(out(STD_SORT, { in: ['pear', 'apple', 'fig'] })).toEqual(['apple', 'fig', 'pear']);
+    });
+
     it('indexes from the end with a negative index', () => {
         expect(out(STD_LIST_ITEM, { in: ['a', 'b', 'c'], index: -1 })).toBe('c');
     });
@@ -275,6 +309,20 @@ describe('convert nodes', () => {
     it('answers undefined for JSON that is not finished yet', () => {
         expect(out(STD_PARSE_JSON, { in: '{"a":' })).toBeUndefined();
         expect(out(STD_PARSE_JSON, { in: '{"a":1}' })).toEqual({ a: 1 });
+    });
+
+    it('reads a value as true or false', () => {
+        expect(out(STD_TO_BOOLEAN, { in: 'yes' })).toBe(true);
+        expect(out(STD_TO_BOOLEAN, { in: 0 })).toBe(false);
+    });
+
+    /** The one node here that is not a pure function of its inputs. */
+    it('reports a time that is roughly now', () => {
+        const before = Date.now();
+        const now = out(STD_NOW, {}) as number;
+
+        expect(now).toBeGreaterThanOrEqual(before);
+        expect(now).toBeLessThanOrEqual(Date.now());
     });
 
     it('falls back to the default locale rather than throwing on a bad tag', () => {
