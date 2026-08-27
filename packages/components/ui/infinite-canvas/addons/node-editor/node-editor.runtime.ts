@@ -146,6 +146,20 @@ export class NodeGraphRuntime {
   // ---- async (design §6, §7) ---------------------------------------------
   private readonly active = new Map<NodeId, ActiveRun>();
   private readonly iterators = new Map<NodeId, AsyncIterator<unknown>>();
+  /**
+   * Remote batches still in flight.
+   *
+   * Each hands its `signal` to `executeRemote` and asks the consumer to honour
+   * it, then had nothing that could ever fire it: the controller was a local
+   * that went out of scope, and the two `abort` calls in the file both act on
+   * a per-node run instead. So a disposed runtime left its request running,
+   * and the `for await` below kept the runtime — and the executor closure,
+   * which reaches the component — alive behind it.
+   *
+   * A set rather than a field: nothing today runs two batches at once, but a
+   * missed abort is exactly the failure this exists to prevent.
+   */
+  private readonly remoteBatches = new Set<AbortController>();
   private runCounter = 0;
   private disposed = false;
   /** The drain in flight, if any. See {@link run}. */
@@ -1104,24 +1118,47 @@ export class NodeGraphRuntime {
     }
 
     const controller = new AbortController();
+    this.remoteBatches.add(controller);
     const requests = batch
       .map(nodeId => this.buildRemoteRequest(nodeId))
       .filter((request): request is RemoteRequest => request !== null);
 
     this.remoteCalls++;
     try {
-      const results = this.executeRemote(requests, controller.signal);
-      if (isAsyncIterable(results)) {
-        for await (const result of results) this.applyRemoteResult(result);
-      } else {
-        for (const result of await results) this.applyRemoteResult(result);
-      }
+      await this.consumeRemote(this.executeRemote(requests, controller.signal));
     } catch (cause: unknown) {
+      if (this.disposed) return;
       for (const nodeId of batch) {
         this.errorSignal(nodeId).set(cause);
         this.settle(nodeId, 'error');
       }
+    } finally {
+      this.remoteBatches.delete(controller);
     }
+  }
+
+  /**
+   * Apply what the backend sent back, however it chose to send it.
+   *
+   * Split out so the batch method stays readable, and because both shapes need
+   * the same guard: a consumer that keeps feeding a stream after teardown
+   * would otherwise write results into a runtime that has let go of everything
+   * else.
+   */
+  private async consumeRemote(
+    results: Promise<readonly RemoteResult[]> | AsyncIterable<RemoteResult>,
+  ): Promise<void> {
+    if (isAsyncIterable(results)) {
+      for await (const result of results) {
+        if (this.disposed) return;
+        this.applyRemoteResult(result);
+      }
+      return;
+    }
+
+    const settled = await results;
+    if (this.disposed) return;
+    for (const result of settled) this.applyRemoteResult(result);
   }
 
   /** Starts a run for one remote node and describes it for the executor. */
@@ -1342,6 +1379,10 @@ export class NodeGraphRuntime {
     const streaming = [...this.iterators.keys()];
     for (const nodeId of running) this.abortRun(nodeId);
     for (const nodeId of streaming) this.teardownIterator(nodeId);
+
+    // The signal the executor was asked to honour, finally fired.
+    for (const controller of this.remoteBatches) controller.abort();
+    this.remoteBatches.clear();
 
     this.dirty.clear();
     this.readySet.clear();

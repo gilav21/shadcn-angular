@@ -121,9 +121,23 @@ export class CanvasItemViewPool<C extends object> {
     }
   }
 
-  /** Destroys every view, mounted or pooled. */
+  /**
+   * Destroys every view, mounted or pooled.
+   *
+   * Active views are DESTROYED here, not unmounted. Unmounting is what happens
+   * when a view scrolls out of sight and may be wanted again in a moment — it
+   * detaches the view and keeps it alive on purpose. At teardown nothing is
+   * coming back, and `detach` has already taken the view out of the
+   * `ViewContainerRef`, so Angular no longer owns it either: an unmounted
+   * active view is one nothing will ever destroy.
+   *
+   * Everything visible is active, so that was the whole working set — every
+   * consumer component the canvas had rendered, left with its `DestroyRef`
+   * callbacks, effects and listeners still pending, once per route change away
+   * from the canvas.
+   */
   clear(): void {
-    for (const item of this.active) this.unmount(item);
+    for (const item of this.active) this.destroy(item);
     this.active.clear();
 
     for (const item of this.pool) this.destroy(item);

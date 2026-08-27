@@ -609,21 +609,41 @@ export class NodeEditorComponent {
     const connections = this.connections();
     const titleOf = new Map(nodes.map(node => [node.id, node.title]));
 
+    /*
+     * Both ends indexed once, rather than scanned once per port.
+     *
+     * This walked every connection in the graph for every port of every node —
+     * and it is recomputed whenever `sizedNodes` changes, which during a drag
+     * is every frame. At the 500-node limit that was around three quarters of
+     * a million comparisons a frame, to describe a graph that had not changed
+     * shape at all.
+     */
+    const from = new Map<string, string[]>();
+    const into = new Map<string, string[]>();
+    const push = (index: Map<string, string[]>, key: string, label: string): void => {
+      const existing = index.get(key);
+      if (existing) existing.push(label);
+      else index.set(key, [label]);
+    };
+    for (const connection of connections) {
+      push(
+        from,
+        `${String(connection.source)} ${connection.sourcePort}`,
+        `${titleOf.get(connection.target) ?? connection.target}, ${connection.targetPort}`,
+      );
+      push(
+        into,
+        `${String(connection.target)} ${connection.targetPort}`,
+        `${titleOf.get(connection.source) ?? connection.source}, ${connection.sourcePort}`,
+      );
+    }
+
     return nodes.map(node => ({
       id: node.id,
       title: node.title,
       ports: portsOf(node).map(port => {
-        const links = connections
-          .filter(connection =>
-            port.direction === 'out'
-              ? connection.source === node.id && connection.sourcePort === port.id
-              : connection.target === node.id && connection.targetPort === port.id,
-          )
-          .map(connection =>
-            port.direction === 'out'
-              ? `${titleOf.get(connection.target) ?? connection.target}, ${connection.targetPort}`
-              : `${titleOf.get(connection.source) ?? connection.source}, ${connection.sourcePort}`,
-          );
+        const index = port.direction === 'out' ? from : into;
+        const links = index.get(`${String(node.id)} ${port.id}`) ?? [];
         return { id: port.id, label: port.label, direction: port.direction, links };
       }),
     }));
@@ -853,7 +873,7 @@ export class NodeEditorComponent {
   });
 
   private findPort(ref: PortRef): NodePort | undefined {
-    const node = this.sizedNodes().find(candidate => candidate.id === ref.node);
+    const node = this.nodesById().get(ref.node);
     return node ? portsOf(node).find(port => port.id === ref.port) : undefined;
   }
 
@@ -869,6 +889,25 @@ export class NodeEditorComponent {
    */
   private readonly nodeInjectors = new Map<NodeId, Injector>();
   private readonly parentInjector = inject(Injector);
+
+  /*
+   * Forget the injector of a node that has gone.
+   *
+   * One is minted per node id, and each holds a `NODE_CONTEXT` closing over the
+   * runtime — so without this the map grew by one entry for every id the editor
+   * had ever rendered. Deleting a node and adding another mints a fresh id, so
+   * an editing session only ever added to it.
+   *
+   * The runtime prunes its own per-node maps on removal for exactly this
+   * reason; this side was missed. Keyed on `nodes()`, the same list the cards
+   * are rendered from, so an id absent from it has no view left to need one.
+   */
+  private readonly pruneNodeInjectors = effect(() => {
+    const live = new Set(this.nodes().map(node => node.id));
+    for (const id of this.nodeInjectors.keys()) {
+      if (!live.has(id)) this.nodeInjectors.delete(id);
+    }
+  });
 
   /** The component a node type renders inside its card, if it has one. */
   protected viewFor(node: EditorNode): Type<unknown> | null {
@@ -1101,15 +1140,37 @@ export class NodeEditorComponent {
   }
 
   /** Whether this node's type says it contains something worth opening. */
+  /**
+   * The rendered nodes, by id, and by their id as text.
+   *
+   * `sizedNodes().find(...)` was how every lookup here was written — and
+   * `isOpenable` is called from the TEMPLATE, once per mounted card, on every
+   * change detection pass. A few hundred cards over a graph of ten thousand is
+   * millions of comparisons per pass, for a question a Map answers at once.
+   *
+   * Two maps because the DOM only ever carries an id as text: a `data-node`
+   * attribute cannot hold the number 3, and comparing `String(node.id)` per
+   * node was the same linear scan under another name.
+   *
+   * Derived from `sizedNodes`, so they are rebuilt exactly when it is.
+   */
+  private readonly nodesById = computed(
+    () => new Map(this.sizedNodes().map(node => [node.id, node] as const)),
+  );
+
+  private readonly nodesByRawId = computed(
+    () => new Map(this.sizedNodes().map(node => [String(node.id), node] as const)),
+  );
+
   protected isOpenable(nodeId: NodeId): boolean {
-    const node = this.sizedNodes().find(candidate => candidate.id === nodeId);
+    const node = this.nodesById().get(nodeId);
     const type = node?.type;
     return type !== undefined && this.definitionIndex().get(type)?.openable === true;
   }
 
   private nodeIdFrom(raw: string | undefined): NodeId | null {
     if (raw === undefined) return null;
-    return this.sizedNodes().find(node => String(node.id) === raw)?.id ?? null;
+    return this.nodesByRawId().get(raw)?.id ?? null;
   }
 
   /**
@@ -1278,7 +1339,7 @@ export class NodeEditorComponent {
     event: PointerEvent,
     collapseTo: NodeId | null,
   ): void {
-    const node = this.sizedNodes().find(candidate => candidate.id === nodeId);
+    const node = this.nodesById().get(nodeId);
     if (this.readonlyGraph() || !node || node.locked) return;
 
     const moving = this.selectedNodeIds().has(nodeId)
@@ -1603,7 +1664,7 @@ export class NodeEditorComponent {
 
   /** Focus a node, panning it into view when virtualisation has culled it. */
   focusNode(nodeId: NodeId): void {
-    const node = this.sizedNodes().find(candidate => candidate.id === nodeId);
+    const node = this.nodesById().get(nodeId);
     if (!node) return;
 
     this.focusedNode.set(nodeId);
@@ -1629,7 +1690,7 @@ export class NodeEditorComponent {
   private focusedEditorNode(): EditorNode | null {
     const id = this.focusedNode();
     if (id === null) return null;
-    return this.sizedNodes().find(node => node.id === id) ?? null;
+    return this.nodesById().get(id) ?? null;
   }
 
   private nodeElement(nodeId: NodeId): HTMLElement | null {
@@ -1650,7 +1711,7 @@ export class NodeEditorComponent {
 
   /** A port's absolute world position, for the pending edge's fixed end. */
   private worldAnchor(ref: PortRef): CanvasPoint | null {
-    const node = this.sizedNodes().find(candidate => candidate.id === ref.node);
+    const node = this.nodesById().get(ref.node);
     if (!node) return null;
     const offset = portAnchor(node, ref.port, this.metrics);
     if (!offset) return null;
@@ -1735,7 +1796,7 @@ export class NodeEditorComponent {
    * comparing the string to a numeric id would silently match nothing.
    */
   private resolveNodeId(raw: string): NodeId {
-    return this.sizedNodes().find(node => String(node.id) === raw)?.id ?? raw;
+    return this.nodesByRawId().get(raw)?.id ?? raw;
   }
 
   private announce(message: string): void {

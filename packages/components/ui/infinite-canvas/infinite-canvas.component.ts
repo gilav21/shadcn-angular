@@ -205,15 +205,19 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
       this.requestFrame();
     });
 
+    /*
+     * One effect for both, because it already depended on both.
+     *
+     * There were two: this one, and a second that rebuilt the edges again. Both
+     * read `items` and `edges` — the read of `edges` here is inside the
+     * `rebuildEdges` call — so every change to either ran both, and every
+     * `Path2D` in the graph was built twice for one edit. The second was pure
+     * duplication, not a separate concern.
+     */
     effect(() => {
       const items = this.items();
       this.rebuildLayer(items);
       this.rebuildEdges(items, this.edges());
-      this.requestFrame();
-    });
-
-    effect(() => {
-      this.rebuildEdges(this.items(), this.edges());
       this.requestFrame();
     });
   }
