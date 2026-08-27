@@ -119,15 +119,37 @@ export class NodeEditorContextMenuDirective {
   private readonly onTouchStart = (event: TouchEvent): void => {
     const touch = event.touches[0];
     if (!touch) return;
+    this.lastTouchAt = Date.now();
+
+    /*
+     * A second finger disqualifies the gesture, and must NOT reset it.
+     *
+     * `touchstart` fires again for every finger that joins, so starting fresh
+     * here made a pinch look like a new, stationary press — the movement so
+     * far forgotten, and the menu free to open again. Two fingers mean pan and
+     * zoom, so the gesture is marked spent and stays that way until every
+     * finger is off the glass.
+     */
+    if (event.touches.length > 1) {
+      this.touchTravelled = true;
+      this.touchStart = null;
+      return;
+    }
+
     this.touchStart = { x: touch.clientX, y: touch.clientY };
     this.touchTravelled = false;
-    this.lastTouchAt = Date.now();
   };
 
   private readonly onTouchMove = (event: TouchEvent): void => {
+    this.lastTouchAt = Date.now();
+
+    if (event.touches.length > 1) {
+      this.touchTravelled = true;
+      return;
+    }
+
     const touch = event.touches[0];
     if (!touch || !this.touchStart) return;
-    this.lastTouchAt = Date.now();
     const distance = Math.hypot(
       touch.clientX - this.touchStart.x,
       touch.clientY - this.touchStart.y,

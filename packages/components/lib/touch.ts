@@ -44,31 +44,58 @@ export function onLongPress(
     duration = 500
 ): () => void {
     let timer: ReturnType<typeof setTimeout> | null = null;
-    let startTouch: Touch | null = null;
+    /** A copy, not the live `Touch`: only the point the finger started at matters. */
+    let startTouch: { clientX: number; clientY: number } | null = null;
+
+    const cancel = (): void => {
+        if (timer) clearTimeout(timer);
+        timer = null;
+        startTouch = null;
+    };
 
     const onTouchStart = (e: TouchEvent): void => {
-        startTouch = e.touches[0];
+        /*
+         * Clear FIRST, because `touchstart` fires again for every finger that
+         * joins.
+         *
+         * Assigning a fresh timer over a pending one leaked the original: the
+         * variable pointed at the new timer, so the move handler, the lift and
+         * every later finger all cancelled the wrong one. The first simply
+         * fired on schedule, whatever the hand was doing by then — which is
+         * how a two-finger pan opened a context menu.
+         */
+        cancel();
+
+        // Two fingers mean pan and zoom, in this and every canvas application.
+        // There is no press to wait for, so none is started.
+        if (e.touches.length !== 1) return;
+
+        const touch = e.touches[0];
+        startTouch = { clientX: touch.clientX, clientY: touch.clientY };
         timer = setTimeout(() => {
-            callback(e);
             timer = null;
+            callback(e);
         }, duration);
     };
 
     const onTouchMove = (e: TouchEvent): void => {
         if (!startTouch || !timer) return;
+
+        // A finger arriving mid-press is handled by `onTouchStart`; this is the
+        // belt to that braces, for a platform that reports the extra contact
+        // only on the move.
+        if (e.touches.length !== 1) {
+            cancel();
+            return;
+        }
+
         const dx = e.touches[0].clientX - startTouch.clientX;
         const dy = e.touches[0].clientY - startTouch.clientY;
-        if (Math.hypot(dx, dy) > 10) {
-            clearTimeout(timer);
-            timer = null;
-        }
+        if (Math.hypot(dx, dy) > 10) cancel();
     };
 
     const onTouchEnd = (): void => {
-        if (timer) {
-            clearTimeout(timer);
-            timer = null;
-        }
+        cancel();
     };
 
     element.addEventListener('touchstart', onTouchStart, { passive: true });

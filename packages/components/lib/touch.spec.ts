@@ -130,6 +130,81 @@ describe('onLongPress', () => {
         expect(callback).not.toHaveBeenCalled();
     });
 
+    /*
+     * Reported from a phone: two fingers on the canvas, and the context menu
+     * opens anyway.
+     *
+     * `touchstart` fires again for every finger that joins, and the handler
+     * assigned a fresh timer over the top of the pending one. The first was
+     * never cleared, so nothing could reach it: not the move handler, not the
+     * lift, not a third finger. It simply fired 500ms later, whatever the hand
+     * was doing by then.
+     */
+    it('does not fire when a second finger joins the gesture', () => {
+        element.dispatchEvent(touchEvent('touchstart', [{ clientX: 0, clientY: 0 }]));
+        element.dispatchEvent(
+            touchEvent('touchstart', [
+                { clientX: 0, clientY: 0 },
+                { clientX: 200, clientY: 200 },
+            ]),
+        );
+
+        vi.advanceTimersByTime(2000);
+
+        expect(callback).not.toHaveBeenCalled();
+    });
+
+    /** Two fingers mean pan and zoom. There is no press to wait for. */
+    it('never starts a press for a gesture that begins with two fingers', () => {
+        element.dispatchEvent(
+            touchEvent('touchstart', [
+                { clientX: 0, clientY: 0 },
+                { clientX: 200, clientY: 200 },
+            ]),
+        );
+
+        vi.advanceTimersByTime(2000);
+
+        expect(callback).not.toHaveBeenCalled();
+    });
+
+    /** The pinch continues; the leaked timer used to survive all of it. */
+    it('stays cancelled while a two-finger gesture moves', () => {
+        element.dispatchEvent(touchEvent('touchstart', [{ clientX: 0, clientY: 0 }]));
+        element.dispatchEvent(
+            touchEvent('touchstart', [
+                { clientX: 0, clientY: 0 },
+                { clientX: 200, clientY: 200 },
+            ]),
+        );
+        element.dispatchEvent(
+            touchEvent('touchmove', [
+                { clientX: 40, clientY: 40 },
+                { clientX: 260, clientY: 260 },
+            ]),
+        );
+
+        vi.advanceTimersByTime(2000);
+
+        expect(callback).not.toHaveBeenCalled();
+    });
+
+    /** One finger lifting out of a pinch must not leave a press running. */
+    it('does not fire after a second finger has come and gone', () => {
+        element.dispatchEvent(touchEvent('touchstart', [{ clientX: 0, clientY: 0 }]));
+        element.dispatchEvent(
+            touchEvent('touchstart', [
+                { clientX: 0, clientY: 0 },
+                { clientX: 200, clientY: 200 },
+            ]),
+        );
+        element.dispatchEvent(touchEvent('touchend', [{ clientX: 0, clientY: 0 }]));
+
+        vi.advanceTimersByTime(2000);
+
+        expect(callback).not.toHaveBeenCalled();
+    });
+
     it('ignores a move that arrives without a press in flight', () => {
         element.dispatchEvent(touchEvent('touchmove', [{ clientX: 50, clientY: 50 }]));
 

@@ -202,6 +202,34 @@ describe('long-press opens the context menu', () => {
         expect(host.opened()?.kind).toBe('canvas');
     });
 
+    /*
+     * Two fingers must never reach the menu, by any route.
+     *
+     * Our own long press refuses a multi-touch gesture outright; this covers
+     * the platform's `contextmenu`, which arrives with no notion of how many
+     * fingers were involved. A second finger also used to reset the movement
+     * this directive tracks, so a pinch looked like a fresh, stationary press.
+     */
+    it('ignores the platform contextmenu during a two-finger gesture', async () => {
+        const target = editorEl();
+        const first = new Touch({ identifier: 1, target, clientX: 60, clientY: 60 });
+        const second = new Touch({ identifier: 2, target, clientX: 260, clientY: 260 });
+
+        target.dispatchEvent(new TouchEvent('touchstart', {
+            bubbles: true, cancelable: true, touches: [first], changedTouches: [first],
+        }));
+        target.dispatchEvent(new TouchEvent('touchstart', {
+            bubbles: true, cancelable: true, touches: [first, second], changedTouches: [second],
+        }));
+
+        target.dispatchEvent(new MouseEvent('contextmenu', {
+            bubbles: true, cancelable: true, clientX: 60, clientY: 60,
+        }));
+        await settle();
+
+        expect(host.opened()).toBeNull();
+    });
+
     it('still opens on a right-click well after any long-press', async () => {
         editorEl().dispatchEvent(new MouseEvent('contextmenu', {
             bubbles: true, cancelable: true, clientX: 120, clientY: 120,
