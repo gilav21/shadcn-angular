@@ -138,3 +138,47 @@ describe('withMaterializedTypes', () => {
         });
     });
 });
+
+/*
+ * "The definition stays the single source of truth: nothing here lets a node
+ * disagree with its type. A node that already carries a field keeps it, so a
+ * one-off title override is still possible without forking a type."
+ *
+ * That second sentence had no test at all: making the definition's label
+ * overwrite an authored title left all 834 specs in this folder green, so the
+ * only documented way to name one node differently from its type could have
+ * been deleted without anything noticing.
+ */
+describe('an authored field survives its type', () => {
+    it('keeps a title the node carries rather than taking the label', () => {
+        const [materialized] = withMaterializedTypes(
+            [{ ...node('a', 'static'), title: 'Customers' }],
+            indexDefinitions([STATIC]),
+        );
+        expect(materialized.title).toBe('Customers');
+    });
+
+    it('keeps an accent the node carries rather than taking the type colour', () => {
+        const [materialized] = withMaterializedTypes(
+            [{ ...node('a', 'static'), accent: '#ff00ff' }],
+            indexDefinitions([STATIC]),
+        );
+        expect(materialized.accent).toBe('#ff00ff');
+    });
+
+    it('falls back to the label for an empty title, which is not an override', () => {
+        const [materialized] = withMaterializedTypes(
+            [{ ...node('a', 'static'), title: '' }],
+            indexDefinitions([STATIC]),
+        );
+        expect(materialized.title).toBe('Static');
+    });
+
+    it('leaves an authored node alone entirely, allocating nothing', () => {
+        const authored = { ...node('a', 'static'), title: 'Customers', accent: '#ff00ff' };
+        const definitions = indexDefinitions([STATIC]);
+        const [first] = withMaterializedTypes([authored], definitions);
+        const [second] = withMaterializedTypes([first], definitions);
+        expect(second).toBe(first);
+    });
+});

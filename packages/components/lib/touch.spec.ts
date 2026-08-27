@@ -93,6 +93,30 @@ describe('onLongPress', () => {
         expect(callback).toHaveBeenCalledTimes(1);
     });
 
+    /*
+     * "A finger arriving mid-press is handled by `onTouchStart`; this is the
+     * belt to that braces, for a platform that reports the extra contact only
+     * on the move."
+     *
+     * That belt had no test: neutering the move-path finger check left all 31
+     * specs green, because every other two-finger test announces the second
+     * finger with a `touchstart` the primary guard already catches. On a
+     * platform that only reports it on the move, the menu would open under a
+     * pinch — the exact bug the two-finger rule exists to prevent.
+     */
+    it('cancels when a second finger appears only on the move', () => {
+        element.dispatchEvent(touchEvent('touchstart', [{ clientX: 0, clientY: 0 }]));
+        element.dispatchEvent(
+            touchEvent('touchmove', [
+                { clientX: 0, clientY: 0 },
+                { clientX: 60, clientY: 60 },
+            ]),
+        );
+
+        vi.advanceTimersByTime(1000);
+        expect(callback).not.toHaveBeenCalled();
+    });
+
     it('cancels when the finger moves more than 10px', () => {
         element.dispatchEvent(touchEvent('touchstart', [{ clientX: 0, clientY: 0 }]));
         element.dispatchEvent(touchEvent('touchmove', [{ clientX: 8, clientY: 8 }]));

@@ -1963,7 +1963,7 @@ export const registry = defineRegistry({
     category: 'layout',
     description: 'Titled frames behind the nodes and freestanding comments, both purely visual.',
     tags: ['node-editor', 'groups', 'comments', 'annotation', 'graph'],
-    files: ['infinite-canvas/addons/node-editor-groups/index.ts', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.component.css', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.component.html', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.component.ts', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.locales.ts', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.types.ts', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.utils.ts'],
+    files: ['infinite-canvas/addons/node-editor-groups/index.ts', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.component.css', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.component.html', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.component.ts', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.locales.ts', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.types.ts', 'infinite-canvas/addons/node-editor-groups/node-editor-groups.utils.ts', 'infinite-canvas/infinite-canvas.spatial-hash.ts', 'infinite-canvas/infinite-canvas.types.ts'],
     libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
     dependencies: ['infinite-canvas/node-editor'],
     attach: {

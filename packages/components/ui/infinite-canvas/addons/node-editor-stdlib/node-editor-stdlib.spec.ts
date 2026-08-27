@@ -462,3 +462,25 @@ describe('a transformer nobody wrote', () => {
         expect(out(STD_GET_FIELD, { object: styled, key: 'color' })).toBe('#0f0');
     });
 });
+
+/*
+ * `asText` states five conversions; four of them had a test. The Date branch
+ * did not, so replacing `toISOString()` with `String(date)` — a locale-
+ * dependent, unparseable form — left all 57 tests green.
+ *
+ * It matters because a date is the one value whose default string form differs
+ * by machine: `String(date)` gives "Wed Aug 27 2026 ..." in one timezone and
+ * something else in another, so a graph that formats or re-parses a date would
+ * quietly produce different output on a colleague's laptop.
+ */
+describe('asText converts a Date to a form that survives the trip', () => {
+    it('renders a Date as its ISO string', () => {
+        expect(asText(new Date(Date.UTC(2026, 7, 27, 12, 0, 0)))).toBe('2026-08-27T12:00:00.000Z');
+    });
+
+    it('does not fall back to the locale-dependent default form', () => {
+        const rendered = asText(new Date(Date.UTC(2026, 7, 27, 12, 0, 0)));
+        expect(rendered).not.toContain('GMT');
+        expect(new Date(rendered).getTime()).toBe(Date.UTC(2026, 7, 27, 12, 0, 0));
+    });
+});
