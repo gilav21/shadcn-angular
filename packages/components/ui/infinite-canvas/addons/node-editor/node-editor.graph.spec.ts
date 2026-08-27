@@ -209,3 +209,84 @@ describe('connectionInto', () => {
         expect(connectionInto([link('a', 'b')], { node: 'a', port: 'out' })).toBeNull();
     });
 });
+
+/*
+ * The regression gate for the descriptor cache.
+ *
+ * A drag rebuilds the node list every frame while moving one node, so of the
+ * connections in a graph only the handful touching that node produce a
+ * different descriptor. Handing back the SAME object for the rest is what
+ * lets the renderer downstream skip them on identity alone — so this is not
+ * merely an optimisation, it is the contract that one depends on.
+ *
+ * Asserted on object identity rather than on timings, which cannot flake.
+ */
+describe('toCanvasEdges reuses the descriptor of an edge that did not move', () => {
+    /** A fan of `count` leaves off one hub, plus the connections. */
+    function fan(count: number): { nodes: EditorNode[]; links: NodeConnection[] } {
+        const nodes = [node('hub')];
+        const links: NodeConnection[] = [];
+        for (let i = 0; i < count; i++) {
+            nodes.push(node(`n${i}`, { x: 400, y: i * 120 }));
+            links.push(link('hub', `n${i}`));
+        }
+        return { nodes, links };
+    }
+
+    it('returns the identical descriptors when nothing moved', () => {
+        const { nodes, links } = fan(10);
+        const first = toCanvasEdges(nodes, links);
+        const second = toCanvasEdges(nodes, links);
+
+        expect(second).toHaveLength(10);
+        second.forEach((edge, i) => expect(edge).toBe(first[i]));
+    });
+
+    it('rebuilds only the edges touching the node that moved', () => {
+        const { nodes, links } = fan(10);
+        const first = toCanvasEdges(nodes, links);
+
+        // One leaf replaced, exactly as a drag frame replaces it.
+        const dragged = nodes.map(n => (n.id === 'n4' ? { ...n, y: n.y + 500 } : n));
+        const second = toCanvasEdges(dragged, links);
+
+        const fresh = second.filter((edge, i) => edge !== first[i]);
+        expect(fresh).toHaveLength(1);
+        expect(fresh[0].target).toBe('n4');
+    });
+
+    it('rebuilds every edge when the shared hub moves', () => {
+        const { nodes, links } = fan(10);
+        const first = toCanvasEdges(nodes, links);
+
+        const dragged = nodes.map(n => (n.id === 'hub' ? { ...n, y: n.y + 500 } : n));
+        const second = toCanvasEdges(dragged, links);
+
+        expect(second.filter((edge, i) => edge !== first[i])).toHaveLength(10);
+    });
+
+    it('rebuilds a descriptor whose selection changed, with nothing moved', () => {
+        const { nodes, links } = fan(3);
+        const first = toCanvasEdges(nodes, links, { selectedColor: '#f00' });
+        const second = toCanvasEdges(nodes, links, {
+            selectedColor: '#f00',
+            selected: new Set([links[1].id]),
+        });
+
+        expect(second[0]).toBe(first[0]);
+        expect(second[1]).not.toBe(first[1]);
+        expect(second[1].width).toBe(EDGE_SELECTED_WIDTH);
+        expect(second[2]).toBe(first[2]);
+    });
+
+    it('honours a caller-supplied index instead of building its own', () => {
+        const { nodes, links } = fan(3);
+        const index = new Map(nodes.map(n => [n.id, n] as const));
+        expect(toCanvasEdges(nodes, links, {}, index)).toHaveLength(3);
+
+        // An index missing the hub drops every edge, which proves the passed
+        // map is the one consulted rather than a rebuilt one.
+        const partial = new Map(nodes.filter(n => n.id !== 'hub').map(n => [n.id, n] as const));
+        expect(toCanvasEdges(nodes, links, {}, partial)).toHaveLength(0);
+    });
+});

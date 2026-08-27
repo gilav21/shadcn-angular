@@ -81,12 +81,65 @@ export interface EdgeStyle {
  * on: a graph mid-edit is routinely inconsistent for a frame, and an exception
  * on the render path would take the whole canvas down over a stale id.
  */
+/** What a connection last resolved to, and everything that decided it. */
+interface CachedCanvasEdge {
+  source: EditorNode;
+  target: EditorNode;
+  metrics: PortMetrics;
+  color: string | undefined;
+  width: number;
+  edge: CanvasEdge;
+}
+
+/**
+ * The descriptor each connection last produced.
+ *
+ * Weak on the connection object, so an edge that leaves the graph takes its
+ * entry with it. Every input to a descriptor is either the connection itself,
+ * the two node OBJECTS it joins, the metrics, or the resolved colour and
+ * width — so when all of those are unchanged the descriptor is too, and one
+ * that was already correct can be handed back rather than built again.
+ *
+ * This matters because a drag rebuilds the node list every frame while moving
+ * one node: of 96,000 connections, 8 have an endpoint that actually moved.
+ */
+const EDGE_CACHE = new WeakMap<NodeConnection, CachedCanvasEdge>();
+
+/**
+ * Whether a remembered descriptor still describes this connection.
+ *
+ * Every input to a descriptor, compared: the two node objects (which carry
+ * both the geometry and the ports the anchors come from), the metrics that
+ * place those ports, and the resolved colour and width. Nothing else feeds it,
+ * so agreement on all five means the cached object is still the right answer.
+ */
+function stillCurrent(
+  cached: CachedCanvasEdge | undefined,
+  source: EditorNode,
+  target: EditorNode,
+  metrics: PortMetrics,
+  color: string | undefined,
+  width: number,
+): cached is CachedCanvasEdge {
+  return (
+    cached !== undefined &&
+    cached.source === source &&
+    cached.target === target &&
+    cached.metrics === metrics &&
+    cached.color === color &&
+    cached.width === width
+  );
+}
+
 export function toCanvasEdges(
   nodes: readonly EditorNode[],
   connections: readonly NodeConnection[],
   style: EdgeStyle = {},
+  index?: ReadonlyMap<NodeId, EditorNode>,
 ): CanvasEdge[] {
-  const byId = indexNodes(nodes);
+  // The caller usually has this map already; building a second one per frame
+  // over a hundred thousand nodes is pure duplication.
+  const byId = index ?? indexNodes(nodes);
   const metrics = style.metrics ?? defaultMetrics();
   const edges: CanvasEdge[] = [];
 
@@ -95,21 +148,32 @@ export function toCanvasEdges(
     const target = byId.get(connection.target);
     if (!source || !target) continue;
 
+    const isSelected = style.selected?.has(connection.id) ?? false;
+    const color = connection.color ?? (isSelected ? style.selectedColor : style.defaultColor);
+    const width = isSelected ? EDGE_SELECTED_WIDTH : EDGE_WIDTH;
+
+    const cached = EDGE_CACHE.get(connection);
+    if (stillCurrent(cached, source, target, metrics, color, width)) {
+      edges.push(cached.edge);
+      continue;
+    }
+
     const sourceAnchor = portAnchor(source, connection.sourcePort, metrics);
     const targetAnchor = portAnchor(target, connection.targetPort, metrics);
     if (!sourceAnchor || !targetAnchor) continue;
 
-    const isSelected = style.selected?.has(connection.id) ?? false;
-    edges.push({
+    const edge: CanvasEdge = {
       id: connection.id,
       source: connection.source,
       target: connection.target,
       sourceAnchor,
       targetAnchor,
       curve: 'bezier',
-      color: connection.color ?? (isSelected ? style.selectedColor : style.defaultColor),
-      width: isSelected ? EDGE_SELECTED_WIDTH : EDGE_WIDTH,
-    });
+      color,
+      width,
+    };
+    EDGE_CACHE.set(connection, { source, target, metrics, color, width, edge });
+    edges.push(edge);
   }
   return edges;
 }

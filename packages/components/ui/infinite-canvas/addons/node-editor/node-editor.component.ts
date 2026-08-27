@@ -579,12 +579,19 @@ export class NodeEditorComponent {
   private readonly selectedConnectionIds = computed(() => new Set(this.selection().connections));
 
   protected readonly canvasEdges = computed(() =>
-    toCanvasEdges(this.sizedNodes(), this.connections(), {
-      selected: this.selectedConnectionIds(),
-      metrics: this.metrics,
-      defaultColor: 'var(--color-muted-foreground)',
-      selectedColor: 'var(--color-primary)',
-    }),
+    toCanvasEdges(
+      this.sizedNodes(),
+      this.connections(),
+      {
+        selected: this.selectedConnectionIds(),
+        metrics: this.metrics,
+        defaultColor: 'var(--color-muted-foreground)',
+        selectedColor: 'var(--color-primary)',
+      },
+      // The same index the card lookups use. Without this the edges rebuild a
+      // second one of their own, per frame, over every node in the graph.
+      this.nodesById(),
+    ),
   );
 
   /** Which ports already carry a connection, so their dots render filled. */

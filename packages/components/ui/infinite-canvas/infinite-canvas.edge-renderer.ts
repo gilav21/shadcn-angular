@@ -44,6 +44,17 @@ interface CachedEdge {
   /** The endpoints `path` was built from, so an unmoved edge can keep it. */
   from: CanvasPoint;
   to: CanvasPoint;
+  /**
+   * The item objects those endpoints were read from.
+   *
+   * Identity, not geometry: if the descriptor and both items are the same
+   * objects as last time, nothing that feeds this path can have changed, and
+   * the two anchor points need not be computed at all. Items are replaced
+   * rather than mutated everywhere in this engine, which is what makes an
+   * identity check sound here.
+   */
+  sourceItem: CanvasItem;
+  targetItem: CanvasItem;
 }
 
 /** Extra world units added to an edge's AABB so thick strokes are not clipped. */
@@ -104,6 +115,21 @@ export class CanvasEdgeRenderer {
       if (!source || !target) continue;
 
       live.add(edge.id);
+
+      /*
+       * The cheapest question first: is anything different at all?
+       *
+       * The editor hands back the SAME descriptor object for a connection
+       * whose endpoints did not move, so for 95,992 of 96,000 edges this is
+       * three reference comparisons and nothing else - no anchor points
+       * allocated, no fields compared. Only when one of the three differs is
+       * it worth working out what actually changed.
+       */
+      const known = this.cache.get(edge.id);
+      if (known && known.edge === edge && known.sourceItem === source && known.targetItem === target) {
+        continue;
+      }
+
       const from = anchorOf(source, edge.sourceAnchor);
       const to = anchorOf(target, edge.targetAnchor);
 
@@ -117,12 +143,13 @@ export class CanvasEdgeRenderer {
        * 95,992 correct Path2Ds and constructing them again, which is the
        * single most expensive thing this class can be asked to do.
        */
-      const cached = this.cache.get(edge.id);
-      if (cached && reusable(cached, edge, from, to)) {
-        cached.edge = edge;
+      if (known && reusable(known, edge, from, to)) {
+        known.edge = edge;
+        known.sourceItem = source;
+        known.targetItem = target;
         continue;
       }
-      this.cache.set(edge.id, buildCachedEdge(edge, from, to));
+      this.cache.set(edge.id, buildCachedEdge(edge, from, to, source, target));
     }
 
     // Deleting from a Map while iterating it is defined behaviour: an entry
@@ -313,7 +340,13 @@ function reusable(cached: CachedEdge, edge: CanvasEdge, from: CanvasPoint, to: C
   );
 }
 
-function buildCachedEdge(edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): CachedEdge {
+function buildCachedEdge(
+  edge: CanvasEdge,
+  from: CanvasPoint,
+  to: CanvasPoint,
+  sourceItem: CanvasItem,
+  targetItem: CanvasItem,
+): CachedEdge {
   const path = new Path2D();
   path.moveTo(from.x, from.y);
 
@@ -350,5 +383,7 @@ function buildCachedEdge(edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): 
     styleKey: styleKeyOf(edge),
     from,
     to,
+    sourceItem,
+    targetItem,
   };
 }

@@ -182,3 +182,49 @@ describe('an authored field survives its type', () => {
         expect(second).toBe(first);
     });
 });
+
+/*
+ * The regression gate for the materialisation cache.
+ *
+ * An authored node carries no ports, so materialising one always allocates —
+ * every node, every pass. During a drag that is the whole list rebuilt to
+ * relocate one card. The result depends only on the node object and its
+ * definition, so it is remembered per node.
+ *
+ * Identity, not timings. The `portsFor` case is the one that must NOT be
+ * cached, since its ports are a function of state rather than of the node.
+ */
+describe('materialisation is remembered per node', () => {
+    it('returns the identical objects when handed the same nodes again', () => {
+        const definitions = indexDefinitions([STATIC]);
+        const nodes = [node('a', 'static'), node('b', 'static')];
+
+        const first = withMaterializedTypes(nodes, definitions);
+        const second = withMaterializedTypes(nodes, definitions);
+
+        expect(second[0]).toBe(first[0]);
+        expect(second[1]).toBe(first[1]);
+    });
+
+    it('allocates only for the node that a drag replaced', () => {
+        const definitions = indexDefinitions([STATIC]);
+        const nodes = [node('a', 'static'), node('b', 'static'), node('c', 'static')];
+        const first = withMaterializedTypes(nodes, definitions);
+
+        const dragged = nodes.map(n => (n.id === 'b' ? { ...n, x: n.x + 40 } : n));
+        const second = withMaterializedTypes(dragged, definitions);
+
+        expect(second[0]).toBe(first[0]);
+        expect(second[2]).toBe(first[2]);
+        expect(second[1]).not.toBe(first[1]);
+        expect(second[1].x).toBe(40);
+    });
+
+    it('does not let one definition table answer for another', () => {
+        const nodes = [node('a', 'static')];
+        const other: NodeTypeDefinition = { ...STATIC, label: 'Renamed' };
+
+        expect(withMaterializedTypes(nodes, indexDefinitions([STATIC]))[0].title).toBe('Static');
+        expect(withMaterializedTypes(nodes, indexDefinitions([other]))[0].title).toBe('Renamed');
+    });
+});

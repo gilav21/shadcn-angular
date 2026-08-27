@@ -248,6 +248,7 @@ describe('WORKLOAD — one drag frame in a database explorer', () => {
         const { nodes, sized, connections, groups } = buildWorkload(size);
         const definitions = indexDefinitions(DEFS);
         const moved = sized[Math.floor(sized.length / 2)];
+        const raw = nodes[Math.floor(nodes.length / 2)];
 
         note(
           `===== ${nodes.length} nodes, ${connections.length} connections, ` +
@@ -255,24 +256,47 @@ describe('WORKLOAD — one drag frame in a database explorer', () => {
         );
 
         // Everything below runs today on EVERY pointermove of a node drag.
+        /*
+         * Real drag frames, not the same array three times.
+         *
+         * Anything that remembers a result per node object would look free if
+         * handed an identical array repeatedly — so each iteration gets a
+         * fresh array in which exactly one node is a new object, which is what
+         * a pointermove actually produces.
+         */
+        const dragFrames = [1, 2, 3].map(step =>
+          nodes.map(n => (n === raw ? { ...n, x: n.x + step, y: n.y + step } : n)),
+        );
+        let tick = 0;
+        const nextFrame = (): readonly EditorNode[] => dragFrames[tick++ % dragFrames.length];
+
         report(
-          'withMaterializedTypes (all nodes)',
+          'withMaterializedTypes (one node dragged)',
           bench(3, () => {
-            withMaterializedTypes(nodes, definitions, () => undefined);
+            sink = withMaterializedTypes(nextFrame(), definitions, () => undefined).length;
           }),
         );
 
         report(
           'indexNodes x2 (nodesById + byRawId)',
           bench(3, () => {
-            sink = indexNodes(nodes).size + byRawId(nodes).size;
+            const frame = nextFrame();
+            sink = indexNodes(frame).size + byRawId(frame).size;
           }),
         );
 
+        const sizedFrames = dragFrames.map(f =>
+          withMaterializedTypes(f, definitions, () => undefined),
+        );
+        // Given the index, because the component now shares the one its card
+        // lookups already build rather than making a second one per frame.
+        const sizedIndexes = sizedFrames.map(f => indexNodes(f));
+        let etick = 0;
         report(
-          'toCanvasEdges (all edges re-anchored)',
+          'toCanvasEdges (one node dragged, index shared)',
           bench(3, () => {
-            sink = toCanvasEdges(sized, connections).length;
+            const i = etick++ % sizedFrames.length;
+            sink = toCanvasEdges(sizedFrames[i], connections, {}, sizedIndexes[i]).length;
           }),
         );
 

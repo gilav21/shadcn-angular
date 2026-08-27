@@ -79,6 +79,27 @@ function groupCellSize(groups: readonly NodeGroup[]): number {
 }
 
 /**
+ * The spatial index for a set of groups, built once per set.
+ *
+ * Dragging a NODE does not move a group, and the groups array keeps its
+ * identity across those frames — so rebuilding this index on every frame was
+ * indexing the same 4,000 unchanged rectangles sixty times a second. Weak on
+ * the array, so an index is collected as soon as the group list it describes
+ * is replaced.
+ */
+const GROUP_INDEX = new WeakMap<readonly NodeGroup[], SpatialHash<NodeGroup>>();
+
+function indexOf(groups: readonly NodeGroup[]): SpatialHash<NodeGroup> {
+  const existing = GROUP_INDEX.get(groups);
+  if (existing) return existing;
+
+  const created = new SpatialHash<NodeGroup>(groupCellSize(groups));
+  created.rebuild(groups);
+  GROUP_INDEX.set(groups, created);
+  return created;
+}
+
+/**
  * Which nodes each group contains.
  *
  * A node inside two nested groups belongs to BOTH — the inner one because it
@@ -103,8 +124,7 @@ export function membership(
   for (const group of groups) result.set(group.id, []);
   if (groups.length === 0 || nodes.length === 0) return result;
 
-  const index = new SpatialHash<NodeGroup>(groupCellSize(groups));
-  index.rebuild(groups);
+  const index = indexOf(groups);
 
   for (const node of nodes) {
     for (const group of index.query(node)) {
