@@ -118,6 +118,19 @@ const REJECTION_KEY: Record<ConnectRejection, RejectionKey> = {
   cycle: 'rejectCycle',
 };
 
+/**
+ * One key for a node-and-port pair.
+ *
+ * The separator is a unit separator rather than a space or a colon, because a
+ * node id is the consumer's to choose and may contain either — and two
+ * different pairs sharing a key would silently merge their connections. Written
+ * as an escape: the character itself in a source file makes it binary to grep
+ * and to diff.
+ */
+function portKey(nodeId: NodeId, portId: string): string {
+  return `${String(nodeId)}${portId}`;
+}
+
 const EMPTY_SELECTION: EditorSelection = { nodes: [], connections: [] };
 
 /**
@@ -628,12 +641,12 @@ export class NodeEditorComponent {
     for (const connection of connections) {
       push(
         from,
-        `${String(connection.source)} ${connection.sourcePort}`,
+        portKey(connection.source, connection.sourcePort),
         `${titleOf.get(connection.target) ?? connection.target}, ${connection.targetPort}`,
       );
       push(
         into,
-        `${String(connection.target)} ${connection.targetPort}`,
+        portKey(connection.target, connection.targetPort),
         `${titleOf.get(connection.source) ?? connection.source}, ${connection.sourcePort}`,
       );
     }
@@ -643,7 +656,7 @@ export class NodeEditorComponent {
       title: node.title,
       ports: portsOf(node).map(port => {
         const index = port.direction === 'out' ? from : into;
-        const links = index.get(`${String(node.id)} ${port.id}`) ?? [];
+        const links = index.get(portKey(node.id, port.id)) ?? [];
         return { id: port.id, label: port.label, direction: port.direction, links };
       }),
     }));
