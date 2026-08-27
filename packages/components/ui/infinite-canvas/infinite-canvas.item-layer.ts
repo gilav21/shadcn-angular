@@ -60,6 +60,8 @@ export class CanvasItemLayer<T extends CanvasItem> {
    * not leave the index tuned for the old one.
    */
   setItems(items: readonly T[]): void {
+    if (this.tryMoveOnly(items)) return;
+
     this.items = items;
     this.indexById.clear();
     items.forEach((item, index) => this.indexById.set(item.id, index));
@@ -71,6 +73,45 @@ export class CanvasItemLayer<T extends CanvasItem> {
     }
     this.hash.rebuild(items);
     this.invalidate();
+  }
+
+  /**
+   * The drag frame: same items, same order, a few of them moved.
+   *
+   * Dragging a node hands us an array in which every untouched item is the
+   * SAME OBJECT as before — the editor rebuilds only what it moved — so an
+   * identity walk finds exactly the moved ones without reading a coordinate.
+   * Those go through `SpatialHash.move`, which re-buckets only if the item
+   * actually left its cells and is otherwise free.
+   *
+   * The full path it skips costs a cleared index, N re-inserts, and an
+   * O(N log N) sort inside `cellSizeFor` — 53ms at 100,000 items, to relocate
+   * one node by three pixels.
+   *
+   * Returns false for anything structural (a different length, or an id that
+   * moved position in the array), which falls through to the full rebuild.
+   *
+   * The cell size is deliberately NOT retuned here. It is a tuning parameter:
+   * a stale one costs query speed and can never cost correctness, and any
+   * change to the item COUNT takes the full path and retunes it there.
+   */
+  private tryMoveOnly(items: readonly T[]): boolean {
+    const previous = this.items;
+    if (previous.length === 0 || previous.length !== items.length) return false;
+
+    const moved: T[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const before = previous[i];
+      const after = items[i];
+      if (before === after) continue;
+      if (before.id !== after.id) return false;
+      moved.push(after);
+    }
+
+    this.items = items;
+    for (const item of moved) this.hash.move(item);
+    if (moved.length > 0) this.invalidate();
+    return true;
   }
 
   /** Forgets the hysteresis window so the next {@link update} re-queries. */

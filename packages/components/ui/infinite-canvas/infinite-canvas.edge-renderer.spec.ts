@@ -396,3 +396,86 @@ describe('T-1 — anchor offsets and curve style (node-editor prerequisite)', ()
     });
   });
 });
+
+/*
+ * `setEdges` keeps the Path2D of any edge whose endpoints and style are
+ * unchanged, because the editor hands it a freshly built edge list on every
+ * frame of a drag. Reuse that is even slightly too eager draws a stale edge.
+ *
+ * These assert through `hitTest`, which resolves against the CACHED path with
+ * `isPointInStroke`. Probing rendered pixels was tried first and was useless:
+ * the colour and width are re-read from the refreshed edge at draw time, so a
+ * stale path still painted the right colour in the right place often enough
+ * to pass. Making reuse unconditional was verified to fail these.
+ */
+describe('setEdges reuses paths only when nothing that shapes them changed', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+  });
+
+  afterEach(() => canvas.remove());
+
+  const edge = (over: Partial<CanvasEdge> = {}): CanvasEdge => ({
+    id: 'e',
+    source: 'a',
+    target: 'b',
+    curve: 'line',
+    width: 2,
+    ...over,
+  });
+
+  /** 'b' dropped 100 world units, so the edge slopes through (105, 55). */
+  const DROPPED = itemMap([
+    { id: 'a', x: 0, y: 0, width: 10, height: 10 },
+    { id: 'b', x: 200, y: 100, width: 10, height: 10 },
+  ]);
+
+  it('re-anchors the cached path when an endpoint item moves', () => {
+    renderer.setEdges([edge()], ITEMS);
+    expect(renderer.hitTest(105, 5, IDENTITY)?.id).toBe('e');
+    expect(renderer.hitTest(105, 55, IDENTITY)).toBeNull();
+
+    renderer.setEdges([edge()], DROPPED);
+    expect(renderer.hitTest(105, 55, IDENTITY)?.id).toBe('e');
+    expect(renderer.hitTest(105, 5, IDENTITY)).toBeNull();
+  });
+
+  it('re-anchors when the port offset moves but the item does not', () => {
+    renderer.setEdges([edge()], ITEMS);
+    expect(renderer.hitTest(105, 5, IDENTITY)?.id).toBe('e');
+
+    renderer.setEdges([edge({ targetAnchor: { x: 5, y: 105 } })], ITEMS);
+    expect(renderer.hitTest(105, 55, IDENTITY)?.id).toBe('e');
+  });
+
+  it('keeps the path when nothing moved at all', () => {
+    renderer.setEdges([edge()], ITEMS);
+    renderer.setEdges([edge()], itemMap([...ITEMS.values()].map(item => ({ ...item }))));
+    expect(renderer.hitTest(105, 5, IDENTITY)?.id).toBe('e');
+    expect(renderer.edgeCount).toBe(1);
+  });
+
+  it('forgets an edge that left the list', () => {
+    renderer.setEdges([edge({ id: 'e1' }), edge({ id: 'e2' })], ITEMS);
+    expect(renderer.edgeCount).toBe(2);
+    renderer.setEdges([edge({ id: 'e1' })], ITEMS);
+    expect(renderer.edgeCount).toBe(1);
+  });
+
+  it('drops an edge whose item vanished, and restores it when it returns', () => {
+    renderer.setEdges([edge()], ITEMS);
+    expect(renderer.edgeCount).toBe(1);
+
+    renderer.setEdges([edge()], itemMap([{ id: 'a', x: 0, y: 0, width: 10, height: 10 }]));
+    expect(renderer.edgeCount).toBe(0);
+
+    renderer.setEdges([edge()], ITEMS);
+    expect(renderer.hitTest(105, 5, IDENTITY)?.id).toBe('e');
+  });
+});

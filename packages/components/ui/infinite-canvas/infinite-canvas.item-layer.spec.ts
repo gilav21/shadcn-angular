@@ -325,3 +325,110 @@ describe('CanvasItemLayer + CanvasItemViewPool (virtualization and recycling)', 
     });
   });
 });
+
+/*
+ * The drag frame: `setItems` takes a fast path when the array is the same
+ * length, in the same order, with only some items replaced — which is exactly
+ * what dragging produces, because the editor rebuilds only the nodes it moved.
+ *
+ * The risk is a moved item left in its old bucket, so every test here asks the
+ * INDEX where things are rather than trusting the call returned. Forcing the
+ * fast path to be taken unconditionally was verified to fail these.
+ */
+describe('CanvasItemLayer — the drag fast path', () => {
+  let fixture: ComponentFixture<HostComponent>;
+  let pool: CanvasItemViewPool<CanvasItemContext>;
+  let layer: CanvasItemLayer<CanvasItem>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+
+    const host = fixture.componentInstance;
+    pool = new CanvasItemViewPool<CanvasItemContext>(
+      host.anchor(),
+      host.tpl(),
+      host.mount().nativeElement,
+      () => ({ $implicit: undefined as unknown as CanvasItem, index: 0 }),
+    );
+    layer = new CanvasItemLayer<CanvasItem>(pool);
+  });
+
+  afterEach(() => {
+    pool.clear();
+    fixture.destroy();
+  });
+
+  /** Ids the layer would mount for a rect, via a cull pass. */
+  function visibleIn(rect: CanvasRect): (string | number)[] {
+    layer.invalidate();
+    layer.update(rect, 0);
+    fixture.detectChanges();
+    return [...fixture.nativeElement.querySelectorAll('.cell')]
+      .map((el: Element) => el.getAttribute('data-id'))
+      .filter((id): id is string => id !== null)
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  const NEAR: CanvasRect = { x: 0, y: 0, width: 300, height: 300 };
+  const FAR: CanvasRect = { x: 9000, y: 9000, width: 300, height: 300 };
+
+  it('finds an item at its new position, not its old one', () => {
+    const items = grid(40);
+    layer.setItems(items);
+    expect(visibleIn(NEAR)).toContain('0');
+    expect(visibleIn(FAR)).toEqual([]);
+
+    // Same array shape, one item replaced — the drag frame.
+    const dragged = items.map(item =>
+      item.id === 0 ? { ...item, x: 9050, y: 9050 } : item,
+    );
+    layer.setItems(dragged);
+
+    expect(visibleIn(FAR)).toContain('0');
+    expect(visibleIn(NEAR)).not.toContain('0');
+  });
+
+  it('keeps every other item indexed while one moves', () => {
+    const items = grid(40);
+    layer.setItems(items);
+    const before = visibleIn(NEAR).filter(id => id !== '0');
+
+    layer.setItems(items.map(item => (item.id === 0 ? { ...item, x: 9050, y: 9050 } : item)));
+    expect(visibleIn(NEAR).filter(id => id !== '0')).toEqual(before);
+    expect(layer.itemCount).toBe(items.length);
+  });
+
+  it('falls back to a rebuild when the ids change at the same length', () => {
+    const items = grid(10);
+    layer.setItems(items);
+
+    const renamed = items.map(item => ({ ...item, id: `x${item.id}` }));
+    layer.setItems(renamed);
+
+    expect(layer.itemCount).toBe(10);
+    expect(visibleIn(NEAR)).toContain('x0');
+    expect(visibleIn(NEAR)).not.toContain('0');
+  });
+
+  it('rebuilds when an item is added or removed', () => {
+    const items = grid(10);
+    layer.setItems(items);
+    layer.setItems(items.slice(0, 5));
+    expect(layer.itemCount).toBe(5);
+
+    layer.setItems(grid(12));
+    expect(layer.itemCount).toBe(12);
+  });
+
+  it('handles every item moving at once, as a select-all drag does', () => {
+    const items = grid(30);
+    layer.setItems(items);
+    layer.setItems(items.map(item => ({ ...item, x: item.x + 9000, y: item.y + 9000 })));
+
+    expect(visibleIn(NEAR)).toEqual([]);
+    expect(visibleIn(FAR).length).toBeGreaterThan(0);
+    expect(layer.itemCount).toBe(30);
+  });
+});

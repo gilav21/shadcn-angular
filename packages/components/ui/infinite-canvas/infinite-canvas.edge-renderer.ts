@@ -41,6 +41,9 @@ interface CachedEdge {
   /** World-space bounding box, used to cull before stroking. */
   bounds: CanvasRect;
   styleKey: string;
+  /** The endpoints `path` was built from, so an unmoved edge can keep it. */
+  from: CanvasPoint;
+  to: CanvasPoint;
 }
 
 /** Extra world units added to an edge's AABB so thick strokes are not clipped. */
@@ -93,20 +96,37 @@ export class CanvasEdgeRenderer {
    * change — **not** on pan or zoom, which reuse the cache untouched.
    */
   setEdges(edges: readonly CanvasEdge[], itemsById: ReadonlyMap<string | number, CanvasItem>): void {
-    this.cache.clear();
+    const live = new Set<string | number>();
 
     for (const edge of edges) {
       const source = itemsById.get(edge.source);
       const target = itemsById.get(edge.target);
       if (!source || !target) continue;
-      this.cache.set(
-        edge.id,
-        buildCachedEdge(
-          edge,
-          anchorOf(source, edge.sourceAnchor),
-          anchorOf(target, edge.targetAnchor),
-        ),
-      );
+
+      live.add(edge.id);
+      const from = anchorOf(source, edge.sourceAnchor);
+      const to = anchorOf(target, edge.targetAnchor);
+
+      /*
+       * Keep the path when nothing that shapes it moved.
+       *
+       * The editor hands us a freshly built edge list on every frame of a
+       * drag, so the objects are always new — but the NUMBERS in them are
+       * identical for every edge that did not move, and dragging one node
+       * moves 8 edges out of 96,000. Rebuilding all of them meant discarding
+       * 95,992 correct Path2Ds and constructing them again, which is the
+       * single most expensive thing this class can be asked to do.
+       */
+      const cached = this.cache.get(edge.id);
+      if (cached && reusable(cached, edge, from, to)) {
+        cached.edge = edge;
+        continue;
+      }
+      this.cache.set(edge.id, buildCachedEdge(edge, from, to));
+    }
+
+    for (const id of [...this.cache.keys()]) {
+      if (!live.has(id)) this.cache.delete(id);
     }
   }
 
@@ -244,6 +264,52 @@ function bezierReach(from: CanvasPoint, to: CanvasPoint): number {
   return Math.max(Math.abs(to.x - from.x) * BEZIER_TENSION, BEZIER_MIN_REACH);
 }
 
+/** The style fields the batching key is built from. */
+function styleKeyOf(edge: CanvasEdge): string {
+  return `${edge.color ?? DEFAULT_EDGE_COLOR}|${edge.width ?? DEFAULT_EDGE_WIDTH}|${(edge.dash ?? []).join(',')}`;
+}
+
+/** Whether two dash patterns would stroke identically. */
+function sameDash(a: readonly number[] | undefined, b: readonly number[] | undefined): boolean {
+  if (a === b) return true;
+  const left = a ?? [];
+  const right = b ?? [];
+  if (left.length !== right.length) return false;
+  for (let i = 0; i < left.length; i++) {
+    if (!Object.is(left[i], right[i])) return false;
+  }
+  return true;
+}
+
+/**
+ * Whether a cached path is still the right one for this edge.
+ *
+ * Compares the style FIELDS rather than the style key, deliberately. Building
+ * the key is a template string over an array join, and doing that for every
+ * edge on every frame just to decide not to rebuild it cost more than half of
+ * what the cache saves — 96,000 throwaway strings a frame to avoid 96,000
+ * Path2Ds. The key is still built once per edge, inside `buildCachedEdge`,
+ * where it is actually used for batching.
+ *
+ * `Object.is` rather than `===` on the numbers: the question is literally "is
+ * this the same value I built the path from", not "are these two floats near
+ * enough", so a tolerance would be wrong as well as slower — a node moved by a
+ * millionth of a unit genuinely needs its path rebuilt.
+ */
+function reusable(cached: CachedEdge, edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): boolean {
+  const before = cached.edge;
+  return (
+    Object.is(cached.from.x, from.x) &&
+    Object.is(cached.from.y, from.y) &&
+    Object.is(cached.to.x, to.x) &&
+    Object.is(cached.to.y, to.y) &&
+    before.curve === edge.curve &&
+    before.color === edge.color &&
+    before.width === edge.width &&
+    sameDash(before.dash, edge.dash)
+  );
+}
+
 function buildCachedEdge(edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): CachedEdge {
   const path = new Path2D();
   path.moveTo(from.x, from.y);
@@ -278,6 +344,8 @@ function buildCachedEdge(edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): 
       width: Math.max(...xs) - minX + AABB_PADDING * 2,
       height: Math.max(...ys) - minY + AABB_PADDING * 2,
     },
-    styleKey: `${edge.color ?? DEFAULT_EDGE_COLOR}|${edge.width ?? DEFAULT_EDGE_WIDTH}|${(edge.dash ?? []).join(',')}`,
+    styleKey: styleKeyOf(edge),
+    from,
+    to,
   };
 }

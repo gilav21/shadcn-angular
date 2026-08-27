@@ -21,6 +21,8 @@ import { NodeGraphRuntime } from './node-editor.runtime';
 import { withMaterializedTypes, indexDefinitions } from './node-editor.materialize';
 import { adjacency, touchedBy, indexNodes, toCanvasEdges } from './node-editor.graph';
 import { SpatialHash } from '../../infinite-canvas.spatial-hash';
+import { CanvasItemLayer } from '../../infinite-canvas.item-layer';
+import { CanvasEdgeRenderer } from '../../infinite-canvas.edge-renderer';
 import { membership } from '../node-editor-groups';
 import type { NodeGroup } from '../node-editor-groups';
 import type { NodeTypeDefinition } from './node-editor.runtime.types';
@@ -77,7 +79,17 @@ const NODE_H = 80;
 const TABLES_PER_DB = 8;
 
 interface Workload {
+  /** As authored: a type and a box, no ports. What the editor stores. */
   readonly nodes: EditorNode[];
+  /**
+   * The same nodes with their ports materialised from the definitions.
+   *
+   * This is what the editor's `sizedNodes` hands downstream, and edges cannot
+   * be anchored without it — `toCanvasEdges` skips any connection whose port
+   * it cannot find, so measuring it against unmaterialised nodes measures an
+   * early return rather than the work.
+   */
+  readonly sized: readonly EditorNode[];
   readonly connections: NodeConnection[];
   readonly groups: NodeGroup[];
   readonly databases: string[];
@@ -181,7 +193,8 @@ function buildWorkload(target: number): Workload {
     });
   }
 
-  return { nodes, connections, groups, databases };
+  const sized = withMaterializedTypes(nodes, indexDefinitions(DEFS), () => undefined);
+  return { nodes, sized, connections, groups, databases };
 }
 
 /* ------------------------------------------------------------- measurement */
@@ -232,9 +245,9 @@ describe('WORKLOAD — one drag frame in a database explorer', () => {
     it(
       `measures the per-frame cost at ~${size} nodes`,
       () => {
-        const { nodes, connections, groups } = buildWorkload(size);
+        const { nodes, sized, connections, groups } = buildWorkload(size);
         const definitions = indexDefinitions(DEFS);
-        const moved = nodes[Math.floor(nodes.length / 2)];
+        const moved = sized[Math.floor(sized.length / 2)];
 
         note(
           `===== ${nodes.length} nodes, ${connections.length} connections, ` +
@@ -259,7 +272,7 @@ describe('WORKLOAD — one drag frame in a database explorer', () => {
         report(
           'toCanvasEdges (all edges re-anchored)',
           bench(3, () => {
-            toCanvasEdges(nodes, connections);
+            sink = toCanvasEdges(sized, connections).length;
           }),
         );
 
@@ -303,6 +316,39 @@ describe('WORKLOAD — one drag frame in a database explorer', () => {
           }),
         );
 
+        // The O(N log N) sort the old setItems ran on every frame, to retune a
+        // cell size that a drag cannot change.
+        report(
+          'cellSizeFor (sorts every item)',
+          bench(3, () => {
+            sink = CanvasItemLayer.cellSizeFor(nodes);
+          }),
+        );
+
+        /*
+         * The edge renderer driven exactly as a drag drives it: a fresh edge
+         * list from `toCanvasEdges` in which only the moved node's edges carry
+         * different numbers. Three distinct positions so no call is a no-op.
+         */
+        const renderer = new CanvasEdgeRenderer(document.createElement('canvas'));
+        const frames = [1, 2, 3].map(step => {
+          const shifted = sized.map(n =>
+            n === moved ? { ...n, x: n.x + step, y: n.y + step } : n,
+          );
+          return { edges: toCanvasEdges(shifted, connections), byId: indexNodes(shifted) };
+        });
+        renderer.setEdges(toCanvasEdges(sized, connections), indexNodes(sized));
+
+        let frame = 0;
+        report(
+          'renderer.setEdges (one node dragged)',
+          bench(3, () => {
+            const next = frames[frame++ % frames.length];
+            renderer.setEdges(next.edges, next.byId);
+          }),
+        );
+        expect(renderer.edgeCount).toBe(connections.length);
+
         const incident = touchedBy(index, [moved.id]);
         const share = ((incident.length / connections.length) * 100).toFixed(4);
         note(`edges re-anchored: ${incident.length} of ${connections.length} (${share}%)`);
@@ -312,7 +358,7 @@ describe('WORKLOAD — one drag frame in a database explorer', () => {
         // number of edges however large the graph gets.
         expect(incident.length).toBeLessThanOrEqual(TABLES_PER_DB * 3);
         expect(hash.size).toBe(nodes.length);
-        expect(sink).toBe(nodes.length * 2);
+        expect(sink).toBeGreaterThan(0);
       },
       TIMEOUT_MS,
     );
