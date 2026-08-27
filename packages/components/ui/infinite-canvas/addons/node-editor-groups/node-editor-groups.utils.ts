@@ -6,6 +6,7 @@
  * than only through a drag.
  */
 import { isTouchDevice } from '../../../../lib/touch';
+import { SpatialHash } from '../../infinite-canvas.spatial-hash';
 import type { CanvasPoint, CanvasRect, EditorNode, NodeId } from '../node-editor';
 import type { GroupMembership, NodeGroup } from './node-editor-groups.types';
 
@@ -64,23 +65,51 @@ export function contains(group: CanvasRect, node: CanvasRect): boolean {
 }
 
 /**
+ * A cell size for an index of groups, from their mean longest side.
+ *
+ * The hash below indexes GROUPS and is queried by node-sized rects, so the
+ * cell wants to suit the things stored, not the things asked about. The floor
+ * keeps a degenerate set — one zero-sized group, or none — from producing a
+ * cell size the hash rejects.
+ */
+function groupCellSize(groups: readonly NodeGroup[]): number {
+  let total = 0;
+  for (const group of groups) total += Math.max(group.width, group.height);
+  return Math.max(64, total / groups.length);
+}
+
+/**
  * Which nodes each group contains.
  *
  * A node inside two nested groups belongs to BOTH — the inner one because it
  * is in it, the outer one because the inner one is. Dragging the outer frame
  * has to move everything drawn inside it, and a node that opted out of that
  * because a tighter group also claimed it would be left behind.
+ *
+ * Broad phase, then narrow phase. Asking every group whether it holds every
+ * node is O(groups x nodes), and on a board of 4,000 groups and 100,000 nodes
+ * that is 400 million containment tests — measured at 2.2 SECONDS, charged on
+ * every frame of a drag, to render a count. So the groups go into a spatial
+ * hash and each node asks only the ones near it. The hash answers with
+ * overlap and `contains` demands enclosure, which makes the query a superset
+ * of the answer: the narrow phase can only ever remove candidates, never miss
+ * one. Nodes are visited in order, so each group's members stay in node order.
  */
 export function membership(
   groups: readonly NodeGroup[],
   nodes: readonly EditorNode[],
 ): GroupMembership {
-  const result = new Map<string, readonly NodeId[]>();
-  for (const group of groups) {
-    result.set(
-      group.id,
-      nodes.filter(node => contains(group, node)).map(node => node.id),
-    );
+  const result = new Map<string, NodeId[]>();
+  for (const group of groups) result.set(group.id, []);
+  if (groups.length === 0 || nodes.length === 0) return result;
+
+  const index = new SpatialHash<NodeGroup>(groupCellSize(groups));
+  index.rebuild(groups);
+
+  for (const node of nodes) {
+    for (const group of index.query(node)) {
+      if (contains(group, node)) result.get(group.id)?.push(node.id);
+    }
   }
   return result;
 }

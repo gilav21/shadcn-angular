@@ -197,3 +197,91 @@ describe('the title bar', () => {
         expect(titleBarOf(group('g', 0, 0, 300, 10)).height).toBe(10);
     });
 });
+
+/*
+ * `membership` answers by spatial index rather than by asking every group
+ * about every node. That is only allowed to be faster — never different — so
+ * the property under test is equivalence with the obvious implementation,
+ * on boards built to hit the cases the index could plausibly get wrong.
+ */
+describe('membership matches an exhaustive scan', () => {
+    function exhaustive(
+        groups: readonly NodeGroup[],
+        nodes: readonly EditorNode[],
+    ): Map<string, readonly string[]> {
+        const result = new Map<string, readonly string[]>();
+        for (const g of groups) {
+            result.set(
+                g.id,
+                nodes.filter(n => contains(g, n)).map(n => String(n.id)),
+            );
+        }
+        return result;
+    }
+
+    function expectSame(groups: readonly NodeGroup[], nodes: readonly EditorNode[]): void {
+        const actual = membership(groups, nodes);
+        const expected = exhaustive(groups, nodes);
+        const sorted = (keys: Iterable<string>): string[] =>
+            [...keys].sort((a, b) => a.localeCompare(b));
+        expect(sorted(actual.keys())).toEqual(sorted(expected.keys()));
+        for (const [id, members] of expected) {
+            expect(actual.get(id)?.map(String) ?? []).toEqual(members);
+        }
+    }
+
+    it('agrees on a dense scatter of overlapping groups', () => {
+        // Deterministic: a seeded LCG, so a failure is reproducible.
+        let seed = 987654321;
+        const rnd = (): number => {
+            seed = (seed * 1664525 + 1013904223) % 4294967296;
+            return seed / 4294967296;
+        };
+
+        const groups: NodeGroup[] = [];
+        for (let i = 0; i < 60; i++) {
+            groups.push(
+                group(`g${i}`, rnd() * 2000, rnd() * 2000, 80 + rnd() * 700, 80 + rnd() * 700),
+            );
+        }
+        const nodes: EditorNode[] = [];
+        for (let i = 0; i < 400; i++) {
+            nodes.push(node(`n${i}`, rnd() * 2200, rnd() * 2200, 40 + rnd() * 60, 30 + rnd() * 40));
+        }
+
+        expectSame(groups, nodes);
+    });
+
+    it('agrees when groups nest, so a node belongs to both', () => {
+        const groups = [
+            group('outer', 0, 0, 900, 900),
+            group('middle', 50, 50, 500, 500),
+            group('inner', 100, 100, 200, 200),
+        ];
+        const nodes = [node('deep', 120, 120), node('mid', 300, 300), node('far', 600, 600)];
+
+        expectSame(groups, nodes);
+        expect(membership(groups, nodes).get('outer')).toEqual(['deep', 'mid', 'far']);
+        expect(membership(groups, nodes).get('inner')).toEqual(['deep']);
+    });
+
+    it('agrees on far-flung groups that share no cell', () => {
+        const groups = [group('a', 0, 0, 200, 200), group('b', 500_000, 500_000, 200, 200)];
+        const nodes = [node('near', 10, 10), node('far', 500_010, 500_010)];
+        expectSame(groups, nodes);
+    });
+
+    it('keeps every group present, including the empty ones', () => {
+        const groups = [group('empty', 0, 0, 50, 50), group('full', 0, 0, 900, 900)];
+        const members = membership(groups, [node('n', 100, 100)]);
+        expect(members.get('empty')).toEqual([]);
+        expect(members.get('full')).toEqual(['n']);
+    });
+
+    it('survives degenerate input', () => {
+        expect(membership([], [node('n', 0, 0)]).size).toBe(0);
+        expect([...membership([group('g', 0, 0, 10, 10)], []).values()]).toEqual([[]]);
+        // A zero-sized group would divide the cell size to nothing.
+        expect(membership([group('z', 0, 0, 0, 0)], [node('n', 0, 0)]).get('z')).toEqual([]);
+    });
+});
