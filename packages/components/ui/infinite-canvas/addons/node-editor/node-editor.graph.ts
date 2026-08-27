@@ -121,8 +121,8 @@ function stillCurrent(
   color: string | undefined,
   width: number,
 ): cached is CachedCanvasEdge {
+  if (cached === undefined) return false;
   return (
-    cached !== undefined &&
     cached.source === source &&
     cached.target === target &&
     cached.metrics === metrics &&

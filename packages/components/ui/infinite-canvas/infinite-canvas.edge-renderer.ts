@@ -126,9 +126,7 @@ export class CanvasEdgeRenderer {
        * it worth working out what actually changed.
        */
       const known = this.cache.get(edge.id);
-      if (known && known.edge === edge && known.sourceItem === source && known.targetItem === target) {
-        continue;
-      }
+      if (untouched(known, edge, source, target)) continue;
 
       const from = anchorOf(source, edge.sourceAnchor);
       const to = anchorOf(target, edge.targetAnchor);
@@ -292,6 +290,24 @@ const BEZIER_MIN_REACH = 30;
 /** Control-point offset for a horizontal-tangent cubic between two points. */
 function bezierReach(from: CanvasPoint, to: CanvasPoint): number {
   return Math.max(Math.abs(to.x - from.x) * BEZIER_TENSION, BEZIER_MIN_REACH);
+}
+
+/**
+ * Whether nothing that feeds this edge's path has changed since last time.
+ *
+ * Three reference comparisons, which is all it takes: the editor hands back
+ * the SAME descriptor object for a connection whose endpoints did not move,
+ * and items are replaced rather than mutated, so identity settles the question
+ * without computing an anchor or comparing a field.
+ */
+function untouched(
+  known: CachedEdge | undefined,
+  edge: CanvasEdge,
+  source: CanvasItem,
+  target: CanvasItem,
+): boolean {
+  if (known === undefined) return false;
+  return known.edge === edge && known.sourceItem === source && known.targetItem === target;
 }
 
 /** The style fields the batching key is built from. */
