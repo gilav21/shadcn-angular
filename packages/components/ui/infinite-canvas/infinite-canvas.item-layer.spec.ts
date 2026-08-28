@@ -725,3 +725,66 @@ describe('CanvasItemViewPool holds everything the layer will mount', () => {
     pool.clear();
   });
 });
+
+/*
+ * The index the edge renderer resolves endpoints through.
+ *
+ * It used to build its own Map of every item on every call, which at a hundred
+ * thousand items was a hundred-thousand-entry Map per drag frame. Sharing the
+ * layer's is only safe while the layer's is CURRENT - and the drag fast path
+ * deliberately skips the full rebuild, so it has to write the moved items
+ * itself. A stale entry here is an edge anchored to where a node used to be.
+ */
+describe('CanvasItemLayer — the shared id index tracks moves', () => {
+  let fixture: ComponentFixture<HostComponent>;
+  let pool: CanvasItemViewPool<CanvasItemContext>;
+  let layer: CanvasItemLayer<CanvasItem>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+    const host = fixture.componentInstance;
+    pool = new CanvasItemViewPool<CanvasItemContext>(
+      host.anchor(),
+      host.tpl(),
+      host.mount().nativeElement,
+      () => ({ $implicit: undefined as unknown as CanvasItem, index: 0 }),
+    );
+    layer = new CanvasItemLayer<CanvasItem>(pool);
+  });
+
+  afterEach(() => {
+    pool.clear();
+    fixture.destroy();
+  });
+
+  it('resolves every item after a full set', () => {
+    const items = grid(50);
+    layer.setItems(items);
+
+    expect(layer.itemsById.size).toBe(50);
+    expect(layer.itemsById.get(7)).toBe(items[7]);
+  });
+
+  it('returns the MOVED object after a drag frame, not the old one', () => {
+    const items = grid(50);
+    layer.setItems(items);
+
+    const dragged = items.map(item => (item.id === 7 ? { ...item, x: 9000, y: 9000 } : item));
+    layer.setItems(dragged);
+
+    expect(layer.itemsById.get(7)).toBe(dragged[7]);
+    expect(layer.itemsById.get(7)?.x).toBe(9000);
+    // Everything else is still the identical object it always was.
+    expect(layer.itemsById.get(8)).toBe(items[8]);
+  });
+
+  it('forgets an item that left the set', () => {
+    layer.setItems(grid(50));
+    layer.setItems(grid(10));
+
+    expect(layer.itemsById.size).toBe(10);
+    expect(layer.itemsById.has(20)).toBe(false);
+  });
+});

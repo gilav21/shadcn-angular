@@ -671,9 +671,20 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
     this.edgeRenderer?.resize(this.size.width, this.size.height, globalThis.devicePixelRatio || 1);
   }
 
+  /**
+   * Hands the edge renderer the current edges and a way to resolve an item.
+   *
+   * The index comes from the layer, which already maintains one, rather than
+   * being built here. Building it here meant a fresh Map of every item on
+   * every call - and the call happens on every frame of a drag, so at a
+   * hundred thousand items that was a hundred-thousand-entry Map allocated and
+   * discarded sixty times a second, purely to look up the two endpoints of
+   * each edge.
+   */
   private rebuildEdges(items: readonly T[], edges: readonly CanvasEdge[]): void {
     if (!this.edgeRenderer) return;
-    this.edgeRenderer.setEdges(edges, new Map(items.map(item => [item.id, item])));
+    const byId = this.layer?.itemsById ?? new Map(items.map(item => [item.id, item]));
+    this.edgeRenderer.setEdges(edges, byId);
   }
 
   private paintGrid(viewport: CanvasViewport): void {

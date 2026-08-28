@@ -49,6 +49,15 @@ export const DEFAULT_MAX_MOUNTED = 600;
 export class CanvasItemLayer<T extends CanvasItem> {
   private readonly mounted = new Map<string | number, MountedItem<T>>();
   private readonly indexById = new Map<string | number, number>();
+  /**
+   * The items themselves, by id.
+   *
+   * Kept here because the edge renderer needs exactly this and was building
+   * its own copy on every call - a fresh hundred-thousand-entry Map per drag
+   * frame, discarded immediately. Maintained rather than rebuilt: the drag
+   * fast path below writes only the items that actually moved.
+   */
+  private readonly byId = new Map<string | number, T>();
 
   private hash = new SpatialHash<T>(FALLBACK_CELL_SIZE);
   private items: readonly T[] = [];
@@ -72,6 +81,11 @@ export class CanvasItemLayer<T extends CanvasItem> {
     return this.hash.size;
   }
 
+  /** The items by id, for a consumer that needs to resolve one. */
+  get itemsById(): ReadonlyMap<string | number, T> {
+    return this.byId;
+  }
+
   /**
    * Replaces the whole item set and forces the next update to re-cull.
    *
@@ -84,7 +98,11 @@ export class CanvasItemLayer<T extends CanvasItem> {
 
     this.items = items;
     this.indexById.clear();
-    items.forEach((item, index) => this.indexById.set(item.id, index));
+    this.byId.clear();
+    items.forEach((item, index) => {
+      this.indexById.set(item.id, index);
+      this.byId.set(item.id, item);
+    });
 
     const cellSize = CanvasItemLayer.cellSizeFor(items);
     if (cellSize !== this.cellSize) {
@@ -141,7 +159,10 @@ export class CanvasItemLayer<T extends CanvasItem> {
     }
 
     this.items = items;
-    for (const item of moved) this.hash.move(item);
+    for (const item of moved) {
+      this.hash.move(item);
+      this.byId.set(item.id, item);
+    }
     if (moved.length > 0) this.invalidate();
     return true;
   }
@@ -180,13 +201,38 @@ export class CanvasItemLayer<T extends CanvasItem> {
     this.safeRect = region;
 
     const found = this.hash.query(region);
-    const visible = found.length > this.maxMounted ? found.slice(0, this.maxMounted) : found;
+    if (found.length <= this.maxMounted) {
+      this.mountExactly(found);
+      return true;
+    }
+
+    /*
+     * The region was shrunk and STILL holds too many - a board dense in one
+     * spot and empty around it, where the even-density estimate does not hold.
+     * Slicing is the only way to stay under the cap, and it re-breaks the
+     * sentence `safeRect` is supposed to mean: the rect would describe more
+     * than was mounted, which is exactly the stranding bug. So the hysteresis
+     * is given up here rather than allowed to lie, and the next frame re-culls.
+     * The query is bounded by the region, so paying for it every frame is the
+     * cheap half of this trade.
+     */
+    this.safeRect = null;
+    const visible = found.slice(0, this.maxMounted);
+    this.mountExactly(visible);
+    return true;
+  }
+
+  /**
+   * Makes the mounted set exactly `visible`.
+   *
+   * Release BEFORE mounting. Mounting first would drain an empty pool and
+   * allocate a fresh view for every item scrolling in, while the views
+   * scrolling out were freed a moment too late to be reused — recycling would
+   * never happen on a pan, which is the one case it exists for.
+   */
+  private mountExactly(visible: readonly T[]): void {
     const keep = new Set<string | number>(visible.map(item => item.id));
 
-    // Release BEFORE mounting. Mounting first would drain an empty pool and
-    // allocate a fresh view for every item scrolling in, while the views
-    // scrolling out were freed a moment too late to be reused — recycling
-    // would never happen on a pan, which is the one case it exists for.
     const stale: (string | number)[] = [];
     for (const [id, entry] of this.mounted) {
       if (keep.has(id)) continue;
@@ -196,7 +242,6 @@ export class CanvasItemLayer<T extends CanvasItem> {
     for (const id of stale) this.mounted.delete(id);
 
     for (const item of visible) this.mount(item);
-    return true;
   }
 
   /**
