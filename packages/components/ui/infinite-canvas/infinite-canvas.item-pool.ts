@@ -35,8 +35,19 @@ export interface CanvasItemView<C> {
   readonly view: EmbeddedViewRef<C>;
 }
 
-/** Matches `ComponentPoolService`'s cap so memory behaviour is consistent. */
-const DEFAULT_MAX_POOL_SIZE = 200;
+/**
+ * How many detached views the pool will hoard.
+ *
+ * Must be at least the layer's mount cap, and is deliberately the same number.
+ * A pool smaller than the mounted set is worse than no pool: every cull past
+ * its size destroys the surplus and the next one builds it again, so a pan at
+ * a wide zoom creates and throws away hundreds of embedded views - the most
+ * expensive thing either class does, paid forever.
+ *
+ * Not imported from the layer, which imports this file; kept as its own
+ * constant with the coupling written down instead of a circular import.
+ */
+const DEFAULT_MAX_POOL_SIZE = 600;
 
 export class CanvasItemViewPool<C extends object> {
   private readonly pool: CanvasItemView<C>[] = [];

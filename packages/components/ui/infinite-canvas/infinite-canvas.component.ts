@@ -20,7 +20,7 @@ import {
   type CanvasItemContext,
 } from './infinite-canvas-item.directive';
 import { CanvasEdgeRenderer } from './infinite-canvas.edge-renderer';
-import { CanvasItemLayer } from './infinite-canvas.item-layer';
+import { CanvasItemLayer, DEFAULT_MAX_MOUNTED } from './infinite-canvas.item-layer';
 import { CanvasItemViewPool } from './infinite-canvas.item-pool';
 import {
   CanvasPointerMachine,
@@ -500,6 +500,14 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
       template,
       this.viewportRef().nativeElement,
       emptyItemContext<T>,
+      /*
+       * The pool must hold at least as many views as the layer will mount.
+       * Left at its own smaller default, every cull past that number destroyed
+       * the surplus and the next one built them again - hundreds of embedded
+       * views created and thrown away on every pan at a wide zoom, which is
+       * the most expensive thing either class does.
+       */
+      DEFAULT_MAX_MOUNTED,
     );
     this.layer ??= new CanvasItemLayer<T>(this.pool);
     this.layer.setItems(items);

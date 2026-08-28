@@ -44,7 +44,7 @@ const FALLBACK_CELL_SIZE = 256;
  * this cap were never readable. The edges still draw — they are canvas, not
  * DOM — so the shape of the graph is unaffected by the cap.
  */
-const DEFAULT_MAX_MOUNTED = 600;
+export const DEFAULT_MAX_MOUNTED = 600;
 
 export class CanvasItemLayer<T extends CanvasItem> {
   private readonly mounted = new Map<string | number, MountedItem<T>>();

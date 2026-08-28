@@ -167,16 +167,18 @@ export class CanvasEdgeRenderer {
        * 95,992 correct Path2Ds and constructing them again, which is the
        * single most expensive thing this class can be asked to do.
        */
-      if (known?.path) {
-        known.path = null;
-        this.builtPaths--;
-      }
       if (known && reusable(known, edge, from, to)) {
         known.edge = edge;
         known.sourceItem = source;
         known.targetItem = target;
         continue;
       }
+
+      // Only here, where the entry is genuinely replaced. Dropping the path
+      // before the reuse check above discarded it for every edge whose
+      // DESCRIPTOR was rebuilt even when its geometry was untouched - which is
+      // every edge, for any caller that rebuilds its edge array each frame.
+      if (known?.path) this.builtPaths--;
       this.cache.set(edge.id, buildCachedEdge(edge, from, to, source, target));
     }
 

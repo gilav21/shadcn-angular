@@ -732,3 +732,60 @@ describe('panning a large board does not accumulate paths without limit', () => 
     expect(renderer.builtPathCount).toBe(20);
   });
 });
+
+/*
+ * The case every other reuse test misses.
+ *
+ * They pass the SAME edge objects back, so the identity short-circuit answers
+ * before the value comparison is ever reached. A caller that rebuilds its edge
+ * array each frame - which is the normal thing to do, and what the editor did
+ * before it started caching descriptors - hands over fresh objects carrying
+ * identical numbers, and that is the path `reusable` exists for.
+ *
+ * Dropping the built path before that check, rather than after it, defeated
+ * the cache completely for such a caller while every test stayed green.
+ */
+describe('setEdges keeps paths for a rebuilt edge list that did not move', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+  });
+
+  afterEach(() => canvas.remove());
+
+  /** A fresh array of fresh objects, carrying the same numbers every time. */
+  const rebuild = (): CanvasEdge[] => [
+    { id: 'e1', source: 'a', target: 'b', curve: 'line' },
+    { id: 'e2', source: 'a', target: 'b', curve: 'bezier' },
+  ];
+
+  it('keeps the paths when only the descriptor objects are new', () => {
+    renderer.setEdges(rebuild(), ITEMS);
+    renderer.draw(IDENTITY, VIEW);
+    expect(renderer.builtPathCount).toBe(2);
+
+    renderer.setEdges(rebuild(), ITEMS);
+    expect(renderer.builtPathCount).toBe(2);
+
+    renderer.setEdges(rebuild(), ITEMS);
+    expect(renderer.builtPathCount).toBe(2);
+  });
+
+  it('still discards them when the rebuilt list carries a moved endpoint', () => {
+    renderer.setEdges(rebuild(), ITEMS);
+    renderer.draw(IDENTITY, VIEW);
+    expect(renderer.builtPathCount).toBe(2);
+
+    const moved = itemMap([
+      { id: 'a', x: 0, y: 0, width: 10, height: 10 },
+      { id: 'b', x: 200, y: 400, width: 10, height: 10 },
+    ]);
+    renderer.setEdges(rebuild(), moved);
+    expect(renderer.builtPathCount).toBe(0);
+  });
+});

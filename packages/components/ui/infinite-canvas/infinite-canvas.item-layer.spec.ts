@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Component, TemplateRef, ViewContainerRef, viewChild } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import type { CanvasItemContext } from './infinite-canvas-item.directive';
-import { CanvasItemLayer } from './infinite-canvas.item-layer';
+import { CanvasItemLayer, DEFAULT_MAX_MOUNTED } from './infinite-canvas.item-layer';
 import { CanvasItemViewPool } from './infinite-canvas.item-pool';
 import { SpatialHash } from './infinite-canvas.spatial-hash';
 import type { CanvasItem, CanvasRect } from './infinite-canvas.types';
@@ -677,5 +677,51 @@ describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
 
     expect(first).toBeGreaterThan(0);
     expect(layer.mountedCount).toBeLessThanOrEqual(30);
+  });
+});
+
+/*
+ * Pool capacity against mount capacity.
+ *
+ * The pool caps how many detached views it will hoard; the layer caps how many
+ * it will mount. Left independent, the smaller pool default meant every cull
+ * past its size destroyed the surplus and the next one built them again -
+ * hundreds of embedded views created and thrown away on every pan at a wide
+ * zoom. Not a leak: the opposite, a refusal to keep anything.
+ */
+describe('CanvasItemViewPool holds everything the layer will mount', () => {
+  let fixture: ComponentFixture<HostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => fixture.destroy());
+
+  it('recycles rather than recreating when the mounted set churns', () => {
+    const host = fixture.componentInstance;
+    const pool = new CanvasItemViewPool<CanvasItemContext>(
+      host.anchor(),
+      host.tpl(),
+      host.mount().nativeElement,
+      () => ({ $implicit: undefined as unknown as CanvasItem, index: 0 }),
+      DEFAULT_MAX_MOUNTED,
+    );
+    const layer = new CanvasItemLayer<CanvasItem>(pool, DEFAULT_MAX_MOUNTED);
+    layer.setItems(grid(4000));
+
+    // A wide view, then a narrow one, then wide again: the surplus must have
+    // been kept, not destroyed and rebuilt.
+    layer.update({ x: 0, y: 0, width: 6000, height: 6000 }, 0);
+    const afterFirst = pool.createCount;
+
+    layer.update({ x: 0, y: 0, width: 300, height: 300 }, 0);
+    layer.update({ x: 0, y: 0, width: 6000, height: 6000 }, 0);
+
+    expect(pool.recycleCount).toBeGreaterThan(0);
+    expect(pool.createCount).toBe(afterFirst);
+    pool.clear();
   });
 });
