@@ -639,4 +639,94 @@ describe('connecting on a touch device', () => {
         expect(root.querySelector('[data-slot="node-editor-pending"]')).toBeNull();
     });
 });
+
+    /*
+     * A drag and a nudge are undoable moves.
+     *
+     * `GraphHistory.push`'s own documentation says a drag arrives as one
+     * `move-nodes` on pointer-up "and the editor does it". It did not: only
+     * the public `moveNodes`/`placeNodes` recorded anything, so a hand-drag
+     * left no entry at all and Ctrl+Z reached PAST it to whatever came before
+     * — undoing an edit nobody asked to undo, and, after an auto-layout,
+     * applying that command's negated deltas to positions they were never
+     * computed against.
+     */
+    describe('a move reaches the undo stack however it was made', () => {
+        function positionOf(id: string): { x: number; y: number } {
+            const node = host.nodes().find(candidate => candidate.id === id);
+            return { x: node?.x ?? 0, y: node?.y ?? 0 };
+        }
+
+        async function dragA(): Promise<void> {
+            pointer(nodeEl('a'), 'pointerdown', { clientX: 40, clientY: 40 });
+            await settle();
+            pointer(root, 'pointermove', { clientX: 110, clientY: 90 });
+            await settle();
+            pointer(root, 'pointerup', { clientX: 110, clientY: 90 });
+            await settle();
+        }
+
+        it('undoes a pointer drag, putting the node back where it started', async () => {
+            const before = positionOf('a');
+            await dragA();
+            expect(positionOf('a')).not.toEqual(before);
+
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+
+            expect(positionOf('a')).toEqual(before);
+        });
+
+        it('redoes the drag it just undid', async () => {
+            const before = positionOf('a');
+            await dragA();
+            const after = positionOf('a');
+
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+            expect(positionOf('a')).toEqual(before);
+
+            key(root, { key: 'y', ctrlKey: true });
+            await settle();
+            expect(positionOf('a')).toEqual(after);
+        });
+
+        it('does not reach past the drag to an earlier edit', async () => {
+            // Move once through the public API, then drag by hand. One undo
+            // must take back the DRAG, not the earlier move.
+            const start = positionOf('a');
+            pointer(nodeEl('a'), 'pointerdown', { clientX: 40, clientY: 40 });
+            await settle();
+            pointer(root, 'pointermove', { clientX: 70, clientY: 60 });
+            await settle();
+            pointer(root, 'pointerup', { clientX: 70, clientY: 60 });
+            await settle();
+            const afterFirst = positionOf('a');
+            expect(afterFirst).not.toEqual(start);
+
+            await dragA();
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+
+            expect(positionOf('a')).toEqual(afterFirst);
+        });
+
+        it('undoes a keyboard nudge', async () => {
+            // Focus is `focusin`, and it is SHIFT+arrow that moves the node —
+            // a bare arrow moves focus between nodes instead. Aiming at the
+            // wrong one made this test assert that nothing had happened.
+            nodeEl('a').dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+            await settle();
+
+            const before = positionOf('a');
+            key(nodeEl('a'), { key: 'ArrowRight', shiftKey: true });
+            await settle();
+            expect(positionOf('a').x).toBeGreaterThan(before.x);
+
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+
+            expect(positionOf('a')).toEqual(before);
+        });
+    });
 });

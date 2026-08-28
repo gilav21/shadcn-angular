@@ -1119,6 +1119,27 @@ export class NodeEditorComponent {
     this.updateDrag(event);
   }
 
+  /**
+   * Records a finished drag against where it began.
+   *
+   * Pushes the command WITHOUT re-applying it — the nodes are already where
+   * the drag left them, and `moveNodes` would move them a second time.
+   */
+  private recordDrag(start: ReadonlyMap<NodeId, CanvasPoint>): void {
+    if (this.readonlyGraph()) return;
+
+    const deltas = new Map<NodeId, CanvasPoint>();
+    for (const node of this.nodes()) {
+      const from = start.get(node.id);
+      if (!from) continue;
+      const dx = node.x - from.x;
+      const dy = node.y - from.y;
+      if (dx !== 0 || dy !== 0) deltas.set(node.id, { x: dx, y: dy });
+    }
+
+    if (deltas.size > 0) this.history.push({ kind: 'move-nodes', deltas });
+  }
+
   protected onPointerUp(event: PointerEvent): void {
     const state = this.pending();
     if (state) {
@@ -1131,6 +1152,23 @@ export class NodeEditorComponent {
     const drag = this.drag;
     if (drag?.pointerId !== event.pointerId) return;
     this.drag = null;
+
+    /*
+     * A finished drag is ONE undoable command, recorded here.
+     *
+     * `history.push`'s own documentation says so — "A drag arrives as ONE
+     * `move-nodes` on pointer-up with the net delta… That is the caller's
+     * responsibility, and the editor does it." It did not. Only the public
+     * `moveNodes`/`placeNodes` recorded anything, so a hand-drag left no entry
+     * at all and Ctrl+Z reached past it to whatever came before — undoing an
+     * edit the user had not asked to undo, and, after an auto-layout, applying
+     * that command's negated deltas to positions it was never computed
+     * against.
+     *
+     * The NET delta, from where each node started to where it ended, not the
+     * per-frame ones: the frames are how it was drawn, not what was done.
+     */
+    if (drag.moved) this.recordDrag(drag.start);
 
     // A press on an already-selected node that never became a drag is a click,
     // and a click selects just that node.
@@ -1598,11 +1636,11 @@ export class NodeEditorComponent {
       x: node.x + direction.x * step,
       y: node.y + direction.y * step,
     });
-    this.nodes.set(
-      this.nodes().map(candidate =>
-        candidate.id === node.id ? { ...candidate, ...moved } : candidate,
-      ),
-    );
+
+    // Through `moveNodes`, so a nudge is undoable like every other move. It
+    // wrote positions directly, which left the keyboard path with no history
+    // at all — the one path a user without a pointer has.
+    this.moveNodes(new Map([[node.id, { x: moved.x - node.x, y: moved.y - node.y }]]));
     this.announce(
       interpolate(this.t().nodeMoved, {
         title: node.title ?? '',
