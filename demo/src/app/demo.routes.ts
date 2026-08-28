@@ -90,6 +90,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'bento-grid', loadComponent: () => import('./demos/layout/bento-grid-demo.component').then(m => m.BentoGridDemoComponent) },
   { path: 'virtual-scroll', loadComponent: () => import('./demos/layout/virtual-scroll-demo.component').then(m => m.VirtualScrollDemoComponent) },
   { path: 'infinite-canvas', loadComponent: () => import('./demos/layout/infinite-canvas-demo.component').then(m => m.InfiniteCanvasDemoComponent) },
+  { path: 'infinite-canvas-stress', loadComponent: () => import('./demos/layout/infinite-canvas-stress-demo.component').then(m => m.InfiniteCanvasStressDemoComponent) },
   // The node editor is the canvas's edit mode, and shares its page. Kept as a
   // redirect because the old route is linked from released docs and llms.txt.
   { path: 'node-editor', redirectTo: 'infinite-canvas', pathMatch: 'full' },

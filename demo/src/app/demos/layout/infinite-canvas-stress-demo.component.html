@@ -1,0 +1,94 @@
+<div class="flex flex-col gap-4 sm:gap-6">
+  <header class="flex flex-col gap-2">
+    <h2 class="text-xl font-semibold tracking-tight sm:text-2xl">{{ t().heading }}</h2>
+    <p class="max-w-[70ch] text-sm text-muted-foreground" dir="auto">{{ t().description }}</p>
+  </header>
+
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="text-sm font-medium">{{ t().scale }}</span>
+    @for (option of scales; track option) {
+      <ui-button
+        size="sm"
+        [variant]="option === scale() ? 'default' : 'outline'"
+        [disabled]="building()"
+        (click)="select(option)"
+      >
+        {{ format(option) }}
+      </ui-button>
+    }
+
+    <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
+
+    <ui-button
+      size="sm"
+      [variant]="showGroups() ? 'default' : 'outline'"
+      [disabled]="building()"
+      (click)="toggleGroups()"
+    >
+      {{ t().groups }}
+    </ui-button>
+
+    <ui-button size="sm" variant="secondary" [disabled]="building() || measuring()" (click)="measure()">
+      {{ measuring() ? t().measuring : t().measure }}
+    </ui-button>
+
+    @if (building()) {
+      <span class="text-sm text-muted-foreground" role="status">{{ t().building }}</span>
+    }
+  </div>
+
+  <dl class="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border sm:grid-cols-3 lg:grid-cols-6">
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().nodes }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ format(nodes().length) }}</dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().connections }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ format(connections().length) }}</dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().groupCount }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">
+        {{ showGroups() ? format(groups().length) : 0 }}
+      </dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().cardsInDom }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums text-primary">{{ format(cardsInDom()) }}</dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().frameMedian }}</dt>
+      <dd
+        class="font-mono text-lg font-bold tabular-nums"
+        [class.text-green-600]="withinBudget()"
+        [class.dark:text-green-400]="withinBudget()"
+      >
+        {{ ms(median()) }}
+      </dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().fps }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ rounded(fps()) }}</dd>
+    </div>
+  </dl>
+
+  <p class="text-xs text-muted-foreground">
+    {{ t().hint }} · {{ t().budget }} · {{ t().frameWorst }}: {{ ms(worst()) }}
+  </p>
+
+  <div class="relative w-full overflow-hidden rounded-lg border">
+    <ui-node-editor
+      class="h-[350px] w-full sm:h-[450px] md:h-[600px]"
+      [(nodes)]="nodes"
+      [(connections)]="connections"
+      [definitions]="definitions"
+      [live]="false"
+      [ariaLabel]="t().heading"
+      (pointerup)="countCards()"
+    >
+      @if (showGroups()) {
+        <ui-node-editor-groups [(groups)]="groups" [nodes]="nodes()" [readonlyGroups]="true" />
+      }
+    </ui-node-editor>
+  </div>
+</div>

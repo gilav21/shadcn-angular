@@ -224,6 +224,7 @@ export class AppComponent {
     { id: 'sidebar', name: 'Sidebar', category: 'Layout', icon: '📎' },
     // One entry: the node editor is this canvas's edit mode, on the same page.
     { id: 'infinite-canvas', name: 'Infinite Canvas', category: 'Layout', icon: '🗺️' },
+    { id: 'infinite-canvas-stress', name: 'Infinite Canvas Stress', category: 'Layout', icon: '📈' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
 
     // Navigation
