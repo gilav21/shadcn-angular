@@ -389,6 +389,48 @@ describe('WORKLOAD — one drag frame in a database explorer', () => {
          * whether or not one is on screen, and holds all of them. On a phone
          * that is the frame that stops responding.
          */
+        /*
+         * The whole cold path, broken down.
+         *
+         * Everything else in this file measures a steady-state frame. This is
+         * what a viewer pays before the board appears, which is the number a
+         * phone was actually failing on - and knowing which part of it is the
+         * expensive one is the only way to fix the next bit.
+         */
+        const coldMaterialize = performance.now();
+        const coldSized = withMaterializedTypes(
+          buildWorkload(size).nodes,
+          indexDefinitions(DEFS),
+          () => undefined,
+        );
+        report('COLD 1. materialize every node', performance.now() - coldMaterialize);
+
+        const coldIndex = performance.now();
+        const coldById = indexNodes(coldSized);
+        report('COLD 2. index every node', performance.now() - coldIndex);
+
+        const coldDescriptors = performance.now();
+        const coldEdgeList = toCanvasEdges(coldSized, connections, {}, coldById);
+        report('COLD 3. build every edge descriptor', performance.now() - coldDescriptors);
+        sink = coldEdgeList.length;
+
+        const coldHash = performance.now();
+        const coldSpatial = new SpatialHash<EditorNode>(360);
+        coldSpatial.rebuild(coldSized);
+        report('COLD 4. index every node spatially', performance.now() - coldHash);
+
+        /*
+         * The runtime is handed the graph whether or not it is asked to run
+         * it, so `setGraph` is on the load path even with `live` off. It builds
+         * six per-node indexes and a topological order over every edge.
+         */
+        const coldRuntime = new NodeGraphRuntime();
+        coldRuntime.setDefinitions(DEFS);
+        const coldGraph = performance.now();
+        coldRuntime.setGraph(nodes, connections);
+        report('COLD 5. runtime.setGraph', performance.now() - coldGraph);
+        coldRuntime.dispose();
+
         const cold = new CanvasEdgeRenderer(document.createElement('canvas'));
         const coldEdges = toCanvasEdges(sized, connections, {}, indexNodes(sized));
         const coldStarted = performance.now();
