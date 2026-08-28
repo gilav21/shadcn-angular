@@ -101,6 +101,21 @@ describe('a second finger takes over from an edit', () => {
         return { x: node?.x ?? 0, y: node?.y ?? 0 };
     }
 
+    /**
+     * Where the card is DRAWN.
+     *
+     * A drag moves the cards and writes the graph once, on release, so
+     * mid-gesture the graph still holds where the node started — `positionOf`
+     * would report "has not moved" for a node visibly under the finger.
+     */
+    function cardAt(id: string): { x: number; y: number } {
+        const host = nodeEl(id).closest<HTMLElement>('[data-slot="canvas-item"]');
+        const match = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(
+            host?.style.transform ?? '',
+        );
+        return { x: Number(match?.[1] ?? 0), y: Number(match?.[2] ?? 0) };
+    }
+
     beforeEach(async () => {
         await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
         fixture = TestBed.createComponent(HostComponent);
@@ -115,17 +130,20 @@ describe('a second finger takes over from an edit', () => {
      * travels across the canvas while you are only trying to zoom.
      */
     it('puts a half-dragged node back when a second finger lands', async () => {
-        const before = positionOf('a');
+        const before = cardAt('a');
 
         touch(nodeEl('a'), 'pointerdown', { pointerId: 1, isPrimary: true, clientX: 50, clientY: 50 });
         touch(nodeEl('a'), 'pointermove', { pointerId: 1, isPrimary: true, clientX: 220, clientY: 180 });
         await settle();
-        expect(positionOf('a')).not.toEqual(before);
+        expect(cardAt('a')).not.toEqual(before);
 
         // The pinch begins.
         touch(nodeEl('b'), 'pointerdown', { pointerId: 2, isPrimary: false, clientX: 300, clientY: 300 });
         await settle();
 
+        expect(cardAt('a')).toEqual(before);
+
+        // And the graph was never told about a gesture that was abandoned.
         expect(positionOf('a')).toEqual(before);
     });
 
@@ -175,7 +193,7 @@ describe('a second finger takes over from an edit', () => {
      * the rule to touch keeps the desktop drag exactly as it was.
      */
     it('does not disturb a mouse drag', async () => {
-        const before = positionOf('a');
+        const before = cardAt('a');
 
         nodeEl('a').dispatchEvent(new PointerEvent('pointerdown', {
             bubbles: true, cancelable: true, button: 0, pointerId: 1,
@@ -187,7 +205,7 @@ describe('a second finger takes over from an edit', () => {
         }));
         await settle();
 
-        expect(positionOf('a')).not.toEqual(before);
+        expect(cardAt('a')).not.toEqual(before);
     });
 });
 

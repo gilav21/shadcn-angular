@@ -102,6 +102,13 @@ export class CanvasEdgeRenderer {
   private sweep = 0;
   /** Counter behind {@link CachedEdge.drawn}. */
   private drawSweep = 0;
+  /**
+   * Which edges touch each item, for {@link moveItems}.
+   *
+   * Maintained as the cache is built, because the alternative on a drag frame
+   * is walking all 96,000 edges to find the eight that moved.
+   */
+  private readonly edgesByItem = new Map<string | number, Set<string | number>>();
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -167,7 +174,60 @@ export class CanvasEdgeRenderer {
     for (const [id, cached] of this.cache) {
       if (cached.sweep === sweep) continue;
       if (cached.path) this.builtPaths--;
+      this.forget(cached);
       this.cache.delete(id);
+    }
+  }
+
+  /**
+   * Re-anchors only the edges attached to items that just moved.
+   *
+   * The drag path, paired with `CanvasItemLayer.moveItems`. `setEdges` walks
+   * every edge to discover that eight of ninety-six thousand changed — 14ms a
+   * frame at this scale — and dragging a node changes nothing else about the
+   * graph, so nothing else is touched here.
+   */
+  moveItems(moved: readonly CanvasItem[]): void {
+    for (const item of moved) {
+      const touched = this.edgesByItem.get(item.id);
+      if (!touched) continue;
+
+      for (const edgeId of touched) {
+        const cached = this.cache.get(edgeId);
+        if (cached) this.reanchor(cached, item);
+      }
+    }
+  }
+
+  /** Re-derives one cached edge's endpoints after `item` moved. */
+  private reanchor(cached: CachedEdge, item: CanvasItem): void {
+    if (cached.sourceItem.id === item.id) cached.sourceItem = item;
+    if (cached.targetItem.id === item.id) cached.targetItem = item;
+
+    cached.from = anchorOf(cached.sourceItem, cached.edge.sourceAnchor);
+    cached.to = anchorOf(cached.targetItem, cached.edge.targetAnchor);
+    cached.bounds = boundsOfEdge(cached.edge, cached.from, cached.to);
+
+    if (!cached.path) return;
+    cached.path = null;
+    this.builtPaths--;
+  }
+
+  /** Drops an edge from the item index it was registered under. */
+  private forget(cached: CachedEdge): void {
+    this.edgesByItem.get(cached.edge.source)?.delete(cached.edge.id);
+    this.edgesByItem.get(cached.edge.target)?.delete(cached.edge.id);
+  }
+
+  /** Registers an edge under both of its endpoints. */
+  private remember(edge: CanvasEdge): void {
+    for (const itemId of [edge.source, edge.target]) {
+      let touching = this.edgesByItem.get(itemId);
+      if (!touching) {
+        touching = new Set<string | number>();
+        this.edgesByItem.set(itemId, touching);
+      }
+      touching.add(edge.id);
     }
   }
 
@@ -218,6 +278,8 @@ export class CanvasEdgeRenderer {
     // DESCRIPTOR was rebuilt even when its geometry was untouched — which is
     // every edge, for any caller that rebuilds its edge array each frame.
     if (known?.path) this.builtPaths--;
+    if (known) this.forget(known);
+    this.remember(edge);
     const built = buildCachedEdge(edge, from, to, source, target);
     built.sweep = sweep;
 
@@ -236,6 +298,7 @@ export class CanvasEdgeRenderer {
   /** Drops every cached path. */
   clear(): void {
     this.cache.clear();
+    this.edgesByItem.clear();
     this.builtPaths = 0;
   }
 

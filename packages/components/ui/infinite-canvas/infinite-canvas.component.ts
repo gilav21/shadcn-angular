@@ -352,6 +352,28 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
    * defined: **items win over edges**, matching what the user sees, since the
    * item layer is painted above the edge canvas.
    */
+  /**
+   * Moves a few items now, without going through `items`.
+   *
+   * The drag path. Replacing the `items` input makes every derivation above
+   * this component re-run over the whole graph — materialising, heights, the
+   * id maps, the edge descriptors, the runtime's shape check — to express
+   * that one node moved four pixels. Measured at fifty milliseconds a frame
+   * at a hundred thousand nodes on a desktop, which is a quarter of a second
+   * on a phone, and it is why panning was smooth while dragging was not:
+   * panning never replaces that array.
+   *
+   * The caller keeps the moved objects and hands the whole array back once,
+   * on drop, so every memo downstream sees the edit exactly once.
+   */
+  moveItems(moved: readonly T[]): void {
+    if (moved.length === 0) return;
+
+    this.layer?.moveItems(moved);
+    this.edgeRenderer?.moveItems(moved);
+    this.requestFrame();
+  }
+
   hitTest(point: CanvasPoint): CanvasHit | null {
     const world = this.screenToWorld(point);
 

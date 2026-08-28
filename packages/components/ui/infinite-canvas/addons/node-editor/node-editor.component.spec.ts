@@ -89,6 +89,22 @@ describe('NodeEditorComponent', () => {
         return el;
     }
 
+    /**
+     * Where a card is actually drawn, from the engine's own transform.
+     *
+     * A drag no longer writes the graph on every frame — it moves the cards
+     * and commits once on release — so mid-gesture this is the only place the
+     * position exists. Reading `nodes()` there would assert the thing the
+     * change deliberately stopped doing.
+     */
+    function cardAt(id: string): { x: number; y: number } {
+        const host = nodeEl(id).closest<HTMLElement>('[data-slot="canvas-item"]');
+        const match = /translate\((-?[\d.]+)px,\s*(-?[\d.]+)px\)/.exec(
+            host?.style.transform ?? '',
+        );
+        return { x: Number(match?.[1] ?? 0), y: Number(match?.[2] ?? 0) };
+    }
+
     function portEl(nodeId: string, portId: string): HTMLElement {
         const el = root.querySelector<HTMLElement>(
             `[data-slot="node-editor-port"][data-node="${nodeId}"][data-port="${portId}"]`,
@@ -217,10 +233,20 @@ describe('NodeEditorComponent', () => {
     });
 
     describe('T-7 dragging', () => {
-        it('moves the pressed node', async () => {
+        it('moves the pressed node, and tells the graph on release', async () => {
             const before = host.nodes()[0].x;
             pointer(nodeEl('a'), 'pointerdown', { clientX: 100, clientY: 100 });
             pointer(root, 'pointermove', { clientX: 160, clientY: 140 });
+            await settle();
+
+            // The card has moved for the user to see...
+            expect(cardAt('a').x).toBeCloseTo(before + 60, 0);
+            expect(cardAt('a').y).toBeCloseTo(40, 0);
+
+            // ...while the graph is still where it was. One edit, on release.
+            expect(host.nodes().find(n => n.id === 'a')?.x).toBe(before);
+
+            pointer(root, 'pointerup', { clientX: 160, clientY: 140 });
             await settle();
 
             const after = host.nodes().find(n => n.id === 'a') as EditorNode;
@@ -246,10 +272,7 @@ describe('NodeEditorComponent', () => {
              * Asserted as: nothing moves until a frame comes round, and the
              * position that lands is the LAST event's, not the first.
              */
-            const at = (id: string): { x: number; y: number } => {
-                const found = host.nodes().find(candidate => candidate.id === id);
-                return { x: found?.x ?? 0, y: found?.y ?? 0 };
-            };
+            const at = cardAt;
 
             pointer(nodeEl('a'), 'pointerdown', { clientX: 40, clientY: 40 });
             await settle();
@@ -278,6 +301,8 @@ describe('NodeEditorComponent', () => {
             pointer(nodeEl('b'), 'pointerdown', { clientX: 100, clientY: 100 });
             pointer(root, 'pointermove', { clientX: 150, clientY: 100 });
             await settle();
+            pointer(root, 'pointerup', { clientX: 150, clientY: 100 });
+            await settle();
 
             expect(host.nodes().find(n => n.id === 'a')?.x).toBeCloseTo(START_A.x + 50, 0);
             expect(host.nodes().find(n => n.id === 'b')?.x).toBeCloseTo(START_B.x + 50, 0);
@@ -299,6 +324,12 @@ describe('NodeEditorComponent', () => {
 
             pointer(nodeEl('a'), 'pointerdown', { clientX: 100, clientY: 100 });
             pointer(root, 'pointermove', { clientX: 163, clientY: 100 });
+            await settle();
+
+            // Snapped while it is still being dragged, not only once dropped.
+            expect(cardAt('a').x).toBe(50);
+
+            pointer(root, 'pointerup', { clientX: 163, clientY: 100 });
             await settle();
             expect(host.nodes().find(n => n.id === 'a')?.x).toBe(50);
         });
@@ -715,6 +746,8 @@ describe('connecting on a touch device', () => {
 
         pointer(card, 'pointerdown', { clientX: 100, clientY: 100, ...init });
         pointer(card, 'pointermove', { clientX: 190, clientY: 100, ...init });
+        await settle();
+        pointer(card, 'pointerup', { clientX: 190, clientY: 100, ...init });
         await settle();
 
         expect(host.nodes().find(n => n.id === 'a')?.x).toBeCloseTo(START_A.x + 90, 0);

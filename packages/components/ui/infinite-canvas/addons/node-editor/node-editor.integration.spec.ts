@@ -170,6 +170,14 @@ function setup() {
                 }),
             );
         },
+        /** A drag writes the graph on RELEASE, so a test that reads `nodes` needs one. */
+        release(x: number, y: number): void {
+            api.root.dispatchEvent(
+                new PointerEvent('pointerup', {
+                    bubbles: true, cancelable: true, pointerId: 1, clientX: x, clientY: y,
+                }),
+            );
+        },
         async create(): Promise<void> {
             await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
             fixture = TestBed.createComponent(HostComponent);
@@ -315,6 +323,8 @@ describe('RT-12 controls inside a node are usable', () => {
         const before = ctx.nodeX('t');
         ctx.press(ctx.card('t')?.querySelector('[data-slot="node-editor-node-header"]'), 60, 10);
         ctx.move(160, 10);
+        await ctx.settle();
+        ctx.release(160, 10);
         await ctx.settle();
 
         expect(ctx.nodeX('t')).toBeGreaterThan(before);
