@@ -62,6 +62,14 @@ interface CachedEdge {
 const AABB_PADDING = 2;
 /** Screen-pixel radius within which a point counts as hitting an edge. */
 const HIT_TOLERANCE_PX = 6;
+/**
+ * Most edges allowed to hold a built path at once.
+ *
+ * Comfortably more than any one viewport shows, so panning back and forth over
+ * the same region rebuilds nothing, and far short of the count that made the
+ * page stop responding.
+ */
+const MAX_BUILT_PATHS = 4_000;
 const DEFAULT_EDGE_WIDTH = 1.5;
 const DEFAULT_EDGE_COLOR = 'currentColor';
 
@@ -72,6 +80,8 @@ export class CanvasEdgeRenderer {
   private dpr = 1;
   private cssWidth = 0;
   private cssHeight = 0;
+  /** How many cached edges currently hold a built path. */
+  private builtPaths = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -157,6 +167,10 @@ export class CanvasEdgeRenderer {
        * 95,992 correct Path2Ds and constructing them again, which is the
        * single most expensive thing this class can be asked to do.
        */
+      if (known?.path) {
+        known.path = null;
+        this.builtPaths--;
+      }
       if (known && reusable(known, edge, from, to)) {
         known.edge = edge;
         known.sourceItem = source;
@@ -169,14 +183,57 @@ export class CanvasEdgeRenderer {
     // Deleting from a Map while iterating it is defined behaviour: an entry
     // removed before the walk reaches it is simply not visited. So no copy of
     // the key set is needed, and at 96,000 edges a copy is not free.
-    for (const id of this.cache.keys()) {
-      if (!live.has(id)) this.cache.delete(id);
+    for (const [id, cached] of this.cache) {
+      if (live.has(id)) continue;
+      if (cached.path) this.builtPaths--;
+      this.cache.delete(id);
     }
   }
 
   /** Drops every cached path. */
   clear(): void {
     this.cache.clear();
+    this.builtPaths = 0;
+  }
+
+  /**
+   * The edge's world-space `Path2D`, built on first use and kept after.
+   *
+   * Building one per edge in the GRAPH rather than per edge on the SCREEN is
+   * what made a 100,000-node board unusable: 96,000 native objects in one
+   * blocking pass at load, whose cost never appeared in the JS heap because
+   * that is not where it lives.
+   *
+   * Building them lazily and never letting them go is the same bug arriving
+   * slowly. Panning a large board visits new edges continuously, so the built
+   * set creeps back towards every edge in the graph: a minute of panning froze
+   * the page again, recovered when the collector eventually caught up, and
+   * froze again within seconds. {@link trimTo} is the other half of this, and
+   * without it this method is a leak with a delay on it.
+   */
+  private pathOf(cached: CachedEdge): Path2D {
+    if (cached.path) return cached.path;
+
+    const path = new Path2D();
+    path.moveTo(cached.from.x, cached.from.y);
+
+    const control = controlPoints(cached.edge, cached.from, cached.to);
+    if (control) {
+      path.bezierCurveTo(
+        control.c1.x,
+        control.c1.y,
+        control.c2.x,
+        control.c2.y,
+        cached.to.x,
+        cached.to.y,
+      );
+    } else {
+      path.lineTo(cached.to.x, cached.to.y);
+    }
+
+    cached.path = path;
+    this.builtPaths++;
+    return path;
   }
 
   /**
@@ -240,7 +297,7 @@ export class CanvasEdgeRenderer {
     for (const cached of this.cache.values()) {
       if (!rectsIntersect(cached.bounds, probe)) continue;
       ctx.lineWidth = Math.max(tolerance * 2, (cached.edge.width ?? DEFAULT_EDGE_WIDTH) / viewport.zoom);
-      if (ctx.isPointInStroke(pathOf(cached), worldX, worldY)) hit = cached.edge;
+      if (ctx.isPointInStroke(this.pathOf(cached), worldX, worldY)) hit = cached.edge;
     }
 
     ctx.restore();
@@ -250,9 +307,22 @@ export class CanvasEdgeRenderer {
   /** Groups the visible edges into one `Path2D` per stroke style. */
   private collectVisible(worldRect: CanvasRect): Map<string, StyleBatch> {
     const batches = new Map<string, StyleBatch>();
+    /*
+     * Give back the paths of edges that are not on screen, once too many are
+     * being held. Folded into the pass that already walks the cache, and only
+     * armed when the count is over the limit, so an ordinary frame pays one
+     * comparison for it.
+     */
+    const trimming = this.builtPaths > MAX_BUILT_PATHS;
 
     for (const cached of this.cache.values()) {
-      if (!rectsIntersect(cached.bounds, worldRect)) continue;
+      if (!rectsIntersect(cached.bounds, worldRect)) {
+        if (trimming && cached.path) {
+          cached.path = null;
+          this.builtPaths--;
+        }
+        continue;
+      }
 
       let batch = batches.get(cached.styleKey);
       if (!batch) {
@@ -264,7 +334,7 @@ export class CanvasEdgeRenderer {
         };
         batches.set(cached.styleKey, batch);
       }
-      batch.path.addPath(pathOf(cached));
+      batch.path.addPath(this.pathOf(cached));
     }
     return batches;
   }
@@ -432,41 +502,6 @@ function boundsOfEdge(edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): Can
   };
 }
 
-/**
- * The edge's world-space `Path2D`, built on first use and kept after.
- *
- * A `Path2D` is a native object, and building one per edge in the GRAPH rather
- * than per edge on the SCREEN is what made a hundred-thousand-node board
- * unusable: 96,000 of them constructed in one blocking pass at load and held
- * for the lifetime of the page. A phone stopped responding on that frame, and
- * the JS heap figure never showed it because the cost is not on the JS heap.
- *
- * Only edges that are actually drawn or hit-tested get one now. A viewport
- * holds a few hundred, and panning reuses what it already built.
- */
-function pathOf(cached: CachedEdge): Path2D {
-  if (cached.path) return cached.path;
-
-  const path = new Path2D();
-  path.moveTo(cached.from.x, cached.from.y);
-
-  const control = controlPoints(cached.edge, cached.from, cached.to);
-  if (control) {
-    path.bezierCurveTo(
-      control.c1.x,
-      control.c1.y,
-      control.c2.x,
-      control.c2.y,
-      cached.to.x,
-      cached.to.y,
-    );
-  } else {
-    path.lineTo(cached.to.x, cached.to.y);
-  }
-
-  cached.path = path;
-  return path;
-}
 
 function buildCachedEdge(
   edge: CanvasEdge,

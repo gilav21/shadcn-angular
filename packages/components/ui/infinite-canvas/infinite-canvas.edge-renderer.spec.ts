@@ -651,3 +651,84 @@ describe('setEdges builds no path until an edge is actually drawn', () => {
     expect(renderer.builtPathCount).toBe(0);
   });
 });
+
+/*
+ * The leak that lazy paths introduced.
+ *
+ * Building a path on first draw fixed the load. Never giving one back made the
+ * same failure arrive slowly instead: panning a large board visits new edges
+ * continuously, so the built set creeps back towards every edge in the graph.
+ * A minute of panning froze the page again, recovered when the collector
+ * eventually caught up, and froze again within seconds — while only ninety-odd
+ * cards were on screen, because the cards were never what was holding memory.
+ *
+ * Counting held paths is exact and cannot flake.
+ */
+describe('panning a large board does not accumulate paths without limit', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+  });
+
+  afterEach(() => canvas.remove());
+
+  /** A long ribbon of edges, so a pan keeps meeting new ones. */
+  function ribbon(count: number): {
+    edges: CanvasEdge[];
+    items: Map<string | number, CanvasItem>;
+  } {
+    const items: CanvasItem[] = [];
+    const edges: CanvasEdge[] = [];
+    for (let i = 0; i < count; i++) {
+      items.push({ id: `a${i}`, x: i * 300, y: 0, width: 10, height: 10 });
+      items.push({ id: `b${i}`, x: i * 300 + 120, y: 0, width: 10, height: 10 });
+      edges.push({ id: `e${i}`, source: `a${i}`, target: `b${i}`, curve: 'bezier' });
+    }
+    return { edges, items: itemMap(items) };
+  }
+
+  /** Walks the viewport across the whole ribbon, one screen at a time. */
+  function panAcross(steps: number): void {
+    for (let i = 0; i < steps; i++) {
+      renderer.draw(IDENTITY, { x: i * 300, y: -50, width: 400, height: 200 });
+    }
+  }
+
+  it('holds a bounded number of paths however far you pan', () => {
+    const { edges, items } = ribbon(9000);
+    renderer.setEdges(edges, items);
+
+    panAcross(9000);
+
+    expect(renderer.edgeCount).toBe(9000);
+    expect(renderer.builtPathCount).toBeLessThanOrEqual(5000);
+  });
+
+  it('still holds the paths for what is currently on screen', () => {
+    const { edges, items } = ribbon(9000);
+    renderer.setEdges(edges, items);
+    panAcross(9000);
+
+    const here: CanvasRect = { x: 600, y: -50, width: 400, height: 200 };
+    renderer.draw(IDENTITY, here);
+    const afterFirst = renderer.builtPathCount;
+
+    // Drawing the same place again must build nothing new.
+    renderer.draw(IDENTITY, here);
+    expect(renderer.builtPathCount).toBe(afterFirst);
+  });
+
+  it('does not trim while the built set is small', () => {
+    const { edges, items } = ribbon(20);
+    renderer.setEdges(edges, items);
+    panAcross(20);
+
+    // Twenty is nowhere near the limit, so every one visited is still held.
+    expect(renderer.builtPathCount).toBe(20);
+  });
+});
