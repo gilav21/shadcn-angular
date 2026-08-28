@@ -306,9 +306,26 @@ export class CanvasEdgeRenderer {
     return hit;
   }
 
-  /** Groups the visible edges into one `Path2D` per stroke style. */
+  /**
+   * Groups the visible edges into one `Path2D` per stroke style.
+   *
+   * Capped, because "visible" is not a small number when you zoom out. Lazy
+   * path building was added so a 96,000-edge board did not construct 96,000
+   * native objects on load — and then zoom-to-fit put every one of those
+   * edges inside the world rect and built them all in a single blocking
+   * frame anyway, with nothing offscreen left for the trim to reclaim.
+   *
+   * Above the cap the pass takes an evenly strided sample instead. At that
+   * zoom an edge is a fraction of a pixel and the honest picture is a smear
+   * either way; a strided sample is the same smear at a bounded cost, and it
+   * is the trick the minimap already uses for the same reason. Anything at a
+   * zoom where individual edges are legible is far below the cap and draws
+   * in full.
+   */
   private collectVisible(worldRect: CanvasRect): Map<string, StyleBatch> {
     const batches = new Map<string, StyleBatch>();
+    const stride = Math.ceil(this.countVisible(worldRect) / MAX_BUILT_PATHS);
+    let seen = 0;
     /*
      * Give back the paths of edges that are not on screen, once too many are
      * being held. Folded into the pass that already walks the cache, and only
@@ -320,6 +337,14 @@ export class CanvasEdgeRenderer {
     for (const cached of this.cache.values()) {
       if (!rectsIntersect(cached.bounds, worldRect)) {
         if (trimming && cached.path) {
+          cached.path = null;
+          this.builtPaths--;
+        }
+        continue;
+      }
+
+      if (stride > 1 && seen++ % stride !== 0) {
+        if (cached.path) {
           cached.path = null;
           this.builtPaths--;
         }
@@ -339,6 +364,21 @@ export class CanvasEdgeRenderer {
       batch.path.addPath(this.pathOf(cached));
     }
     return batches;
+  }
+
+  /**
+   * How many edges the world rect holds, without building anything.
+   *
+   * One extra AABB pass over the cache. It buys the stride, which is the
+   * difference between building a bounded number of paths and building all of
+   * them — and an AABB test is arithmetic where a `Path2D` is an allocation.
+   */
+  private countVisible(worldRect: CanvasRect): number {
+    let visible = 0;
+    for (const cached of this.cache.values()) {
+      if (rectsIntersect(cached.bounds, worldRect)) visible++;
+    }
+    return visible;
   }
 }
 

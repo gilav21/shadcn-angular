@@ -789,4 +789,143 @@ describe('connecting on a touch device', () => {
             expect(positionOf('a')).toEqual(before);
         });
     });
+
+    /*
+     * Wiring and deleting are undoable too, and a restored node is not empty.
+     *
+     * `connect` recorded nothing at all, so connecting a freshly added node
+     * and undoing destroyed the wire outright: `add-nodes`' inverse removes
+     * every edge touching the node, including the one it was never told about,
+     * and the redo put the node back with no connections. And `remove-nodes`
+     * carried nodes and edges but not STATE — which for a subgraph node is its
+     * entire inner graph.
+     */
+    describe('connecting and deleting survive a round trip', () => {
+        /** The editor instance the host renders. */
+        function editorOf(): NodeEditorComponent {
+            return fixture.debugElement.children[0].componentInstance as NodeEditorComponent;
+        }
+
+        it('undoes and redoes a connection made with the pointer', async () => {
+            await connectByDrag(['a', 'out'], ['b', 'in']);
+            expect(host.connections()).toHaveLength(1);
+            const made = host.connections()[0].id;
+
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+            expect(host.connections()).toEqual([]);
+
+            key(root, { key: 'y', ctrlKey: true });
+            await settle();
+            expect(host.connections()).toHaveLength(1);
+            expect(host.connections()[0].id).toBe(made);
+        });
+
+        it('undoes a reconnection, putting the displaced wire back', async () => {
+            /*
+             * The gesture the `rewire` kind exists for, and the one nothing
+             * covered: grabbing an occupied input unplugs its wire, and
+             * dropping it elsewhere is ONE edit. A test that connects into an
+             * EMPTY input never fills `removed`, so it stays green with the
+             * detached half thrown away — and Ctrl+Z then removes the new wire
+             * without restoring the old one.
+             */
+            await connectByDrag(['a', 'out'], ['b', 'in']);
+            expect(host.connections()).toHaveLength(1);
+
+            await connectByDrag(['b', 'in'], ['c', 'in']);
+            expect(host.connections()).toHaveLength(1);
+            expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'c' });
+
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+
+            expect(host.connections()).toHaveLength(1);
+            expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'b' });
+        });
+
+        it('undoes unplugging a wire into empty space', async () => {
+            await connectByDrag(['a', 'out'], ['b', 'in']);
+
+            const source = portEl('b', 'in');
+            const rect = root.getBoundingClientRect();
+            pointer(source, 'pointerdown', { clientX: 0, clientY: 0 });
+            await settle();
+            pointer(root, 'pointermove', { clientX: rect.left + 600, clientY: rect.top + 500 });
+            await settle();
+            pointer(root, 'pointerup', { clientX: rect.left + 600, clientY: rect.top + 500 });
+            await settle();
+            expect(host.connections()).toEqual([]);
+
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+
+            expect(host.connections()).toHaveLength(1);
+            expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'b' });
+        });
+
+        it('undoes a connection made with the keyboard', async () => {
+            // Pointer and keyboard must not disagree about history either.
+            //
+            // Named `focusNode`, not `focus`: a bare `focus(id)` here resolves
+            // to `window.focus` and silently does nothing, which is how this
+            // test first passed while exercising no gesture at all.
+            const focusNode = (id: string): void => {
+                nodeEl(id).dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+            };
+
+            focusNode('a');
+            await settle();
+            key(nodeEl('a'), { key: 'Tab' });
+            key(nodeEl('a'), { key: 'Tab' });
+            await settle();
+            key(nodeEl('a'), { key: 'Enter' });
+            await settle();
+            focusNode('b');
+            key(nodeEl('b'), { key: 'Tab' });
+            await settle();
+            key(nodeEl('b'), { key: 'Enter' });
+            await settle();
+            expect(host.connections()).toHaveLength(1);
+
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+
+            expect(host.connections()).toEqual([]);
+        });
+
+        it('keeps the wire when the drop is refused', async () => {
+            /*
+             * A refused drop is a failed gesture, not an edit. Dropping an
+             * unplugged wire on a port that cannot take it announced "cannot
+             * connect" and kept the deletion — so the wire the user was
+             * MOVING was gone, while the screen reader said nothing happened.
+             */
+            await connectByDrag(['a', 'out'], ['b', 'in']);
+
+            await connectByDrag(['b', 'in'], ['c', 'out']);
+
+            expect(host.rejections).toContain('same-direction');
+            expect(host.connections()).toHaveLength(1);
+            expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'b' });
+        });
+
+        it('gives a restored node back the state it held', async () => {
+            const editor = editorOf();
+            editor.runtime.setState('a', { remembered: 'inside' });
+            await settle();
+
+            host.selection.set({ nodes: ['a'], connections: [] });
+            await settle();
+            editor.deleteSelection();
+            await settle();
+            expect(host.nodes().some(node => node.id === 'a')).toBe(false);
+
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+
+            expect(host.nodes().some(node => node.id === 'a')).toBe(true);
+            expect(editor.runtime.state('a')()).toEqual({ remembered: 'inside' });
+        });
+    });
 });

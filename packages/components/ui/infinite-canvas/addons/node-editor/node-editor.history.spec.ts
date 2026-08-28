@@ -71,14 +71,51 @@ describe('every command has a true inverse', () => {
         expect(back.nodes[0]).toMatchObject({ x: 0, y: 0 });
     });
 
-    it('connect', () => {
-        const command: GraphCommand = { kind: 'connect', connections: [link('c2', 'b', 'a')] };
+    it('rewire, adding', () => {
+        const command: GraphCommand = {
+            kind: 'rewire', removed: [], added: [link('c2', 'b', 'a')],
+        };
         expect(roundTrip(GRAPH, command).connections.map(c => c.id)).toEqual(['c1']);
     });
 
-    it('disconnect', () => {
-        const command: GraphCommand = { kind: 'disconnect', connections: [link('c1', 'a', 'b')] };
+    it('rewire, removing', () => {
+        const command: GraphCommand = {
+            kind: 'rewire', removed: [link('c1', 'a', 'b')], added: [],
+        };
         expect(roundTrip(GRAPH, command).connections.map(c => c.id)).toEqual(['c1']);
+    });
+
+    /*
+     * The case the kind exists for: unplugging one wire and plugging in
+     * another is ONE gesture, so it must be one entry that round-trips as a
+     * unit rather than two the user has to undo twice.
+     */
+    it('rewire, replacing one wire with another', () => {
+        const command: GraphCommand = {
+            kind: 'rewire',
+            removed: [link('c1', 'a', 'b')],
+            added: [link('c2', 'b', 'a')],
+        };
+        expect(roundTrip(GRAPH, command).connections.map(c => c.id)).toEqual(['c1']);
+    });
+
+    /*
+     * The same id on both halves — which `apply`'s ordering exists for.
+     *
+     * `connectionId` is derived from the endpoints, so unplugging a wire and
+     * dropping it back on the port it came from produces a `rewire` whose
+     * `removed` and `added` are the SAME id. Add before remove and the
+     * addition is filtered as a duplicate, the removal then deletes it, and a
+     * gesture that should be a no-op silently destroys the wire. Every other
+     * rewire case here uses distinct ids and stays green under that ordering.
+     */
+    it('rewire with the same id on both halves keeps the wire', () => {
+        const next = apply(GRAPH, {
+            kind: 'rewire',
+            removed: [link('c1', 'a', 'b')],
+            added: [link('c1', 'a', 'b')],
+        });
+        expect(next.connections.map(c => c.id)).toEqual(['c1']);
     });
 
     it('set-state swaps before and after', () => {
@@ -107,7 +144,7 @@ describe('apply', () => {
     });
 
     it('refuses to add a duplicate connection id', () => {
-        const next = apply(GRAPH, { kind: 'connect', connections: [link('c1', 'a', 'b')] });
+        const next = apply(GRAPH, { kind: 'rewire', removed: [], added: [link('c1', 'a', 'b')] });
         expect(next.connections).toHaveLength(1);
     });
 

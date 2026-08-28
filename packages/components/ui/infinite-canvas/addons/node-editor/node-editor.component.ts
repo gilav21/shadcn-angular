@@ -526,8 +526,8 @@ export class NodeEditorComponent {
     inject(DestroyRef).onDestroy(() => {
       element.removeEventListener('keydown', onKeyDownCapture, true);
       stopDoubleTap();
-      for (const timer of this.recentTimers.values()) clearTimeout(timer);
-      this.recentTimers.clear();
+      if (this.recentSweep !== null) clearTimeout(this.recentSweep);
+      this.recentlyRanUntil.clear();
       this.runtime.dispose();
       this.liveRegion.release();
     });
@@ -542,30 +542,52 @@ export class NodeEditorComponent {
    * changes nothing on screen at all, so the only evidence anything happened
    * was a word vanishing somewhere.
    */
-  private readonly recentlyRanIds = signal<ReadonlySet<NodeId>>(new Set());
-  private readonly recentTimers = new Map<NodeId, ReturnType<typeof setTimeout>>();
+  /*
+   * A mutable map behind a version counter, and ONE timer.
+   *
+   * This used to be a signal holding an immutable Set, replaced by
+   * `new Set(existing).add(id)` on every node that settled. One copy per
+   * settle sums to N^2/2 inserts across a run — a hundred thousand sets
+   * averaging fifty thousand entries, allocated and thrown away, which is
+   * the "responsive for ten more seconds, then frozen" shape exactly. It
+   * also left one live `setTimeout` per node, each of which fired a SECOND
+   * full copy on the way down.
+   *
+   * Expiry is a deadline per node swept by a single timer, so marking is
+   * O(1) and the sweep is O(entries) once per window.
+   */
+  private readonly recentlyRanUntil = new Map<NodeId, number>();
+  private readonly recentlyRanVersion = signal(0);
+  private recentSweep: ReturnType<typeof setTimeout> | null = null;
 
   protected recentlyRan(nodeId: NodeId): boolean {
-    return this.recentlyRanIds().has(nodeId);
+    this.recentlyRanVersion();
+    return this.recentlyRanUntil.has(nodeId);
   }
 
   private markRecentlyRan(nodeId: NodeId): void {
-    this.recentlyRanIds.update(existing => new Set(existing).add(nodeId));
-
     // Restarted rather than stacked, so a node that runs twice in quick
     // succession stays lit for the full window after the SECOND run.
-    clearTimeout(this.recentTimers.get(nodeId));
-    this.recentTimers.set(
-      nodeId,
-      setTimeout(() => {
-        this.recentTimers.delete(nodeId);
-        this.recentlyRanIds.update(existing => {
-          const next = new Set(existing);
-          next.delete(nodeId);
-          return next;
-        });
-      }, RECENTLY_RAN_MS),
-    );
+    this.recentlyRanUntil.set(nodeId, Date.now() + RECENTLY_RAN_MS);
+    this.recentlyRanVersion.update(version => version + 1);
+    this.scheduleRecentSweep();
+  }
+
+  private scheduleRecentSweep(): void {
+    if (this.recentSweep !== null) return;
+    this.recentSweep = setTimeout(() => {
+      this.recentSweep = null;
+      const now = Date.now();
+      let expired = false;
+      for (const [nodeId, until] of this.recentlyRanUntil) {
+        if (until <= now) {
+          this.recentlyRanUntil.delete(nodeId);
+          expired = true;
+        }
+      }
+      if (expired) this.recentlyRanVersion.update(version => version + 1);
+      if (this.recentlyRanUntil.size > 0) this.scheduleRecentSweep();
+    }, RECENTLY_RAN_MS);
   }
 
   /** Definitions keyed by id — the lookup everything else uses. */
@@ -752,7 +774,20 @@ export class NodeEditorComponent {
       height: 0,
     };
 
-    this.history.push({ kind: 'add-nodes', nodes: [node] });
+    /*
+     * Whatever was seeded for this id travels with the command.
+     *
+     * The documented way to build a subgraph is "set the state, then add the
+     * node". Undo dropped that state with the node, and redo brought the node
+     * back with an empty inner graph — the delete path's bug, on the other
+     * side of the stack.
+     */
+    const seeded = this.runtime.peekState(nodeId);
+    this.history.push({
+      kind: 'add-nodes',
+      nodes: [node],
+      states: seeded === undefined ? undefined : new Map([[nodeId, seeded]]),
+    });
     this.nodes.set([...this.nodes(), node]);
     this.selection.set({ nodes: [nodeId], connections: [] });
     this.announce(interpolate(this.t().nodeAdded, { label: definition.label }));
@@ -830,6 +865,13 @@ export class NodeEditorComponent {
     // restore, so every inverse is self-contained.
     this.nodes.set(next.nodes);
     this.connections.set(next.connections);
+
+    // Restored nodes get back what they held. `setState` tolerates being
+    // called for a node the runtime has not seen yet, so the order of these
+    // two does not matter.
+    if (command.kind === 'add-nodes' && command.states) {
+      for (const [nodeId, value] of command.states) this.runtime.setState(nodeId, value);
+    }
     if (command.kind === 'set-state') this.runtime.setState(command.nodeId, command.after);
     if (this.evaluating()) void this.runtime.run({ automatic: true });
   }
@@ -856,46 +898,57 @@ export class NodeEditorComponent {
    *
    * Split out from `pending()` with a custom equality so it changes only when
    * the SOURCE changes — `pending` itself changes on every pointer move, and
-   * {@link connectablePorts} below is O(nodes x ports). Without this the
+   * {@link connectableFor} below is O(ports) per mounted node. Without this the
    * compatibility sweep would run on every frame of every drag.
    */
   private readonly pendingFrom = computed(() => this.pending()?.from ?? null, {
     equal: (a, b) => (a === null && b === null) || samePort(a, b),
   });
 
-  /**
-   * Every port that would accept the connection in flight, as `node:port`.
-   *
-   * The point is that a valid target is obvious BEFORE the attempt: ports that
-   * cannot take it dim, rather than the user discovering it on release. Uses
-   * the same `canConnect` the drop does, so what looks connectable is exactly
+  /*
+   * A valid target is obvious BEFORE the attempt: ports that cannot take the
+   * connection dim, rather than the user discovering it on release. Uses the
+   * same `canConnect` the drop does, so what looks connectable is exactly
    * what is.
    */
-  protected readonly connectablePorts = computed<ReadonlySet<string> | null>(() => {
+  private connectableCache = new Map<NodeId, ReadonlySet<string>>();
+  private connectableFrom: PortRef | null = null;
+  private connectableGraph: readonly NodeConnection[] | null = null;
+
+  /**
+   * The ports of ONE node that would accept the connection in flight.
+   *
+   * Per node, and asked only by nodes the canvas actually mounted — which is
+   * what the whole-graph version claimed to do and did not: `renderedNodes`
+   * is an alias for every node in the graph, so a pointerdown asked
+   * `canConnect` 400,000 times at a hundred thousand nodes and lit up ports
+   * nobody could see. The answer cannot change while one gesture is in
+   * flight, so it is memoised on the source port and the connection list
+   * together, and both are compared by identity.
+   */
+  protected connectableFor(node: EditorNode): ReadonlySet<string> | null {
     const from = this.pendingFrom();
     if (!from) return null;
 
-    /*
-     * The MOUNTED nodes, not the whole graph.
-     *
-     * This lights up the ports a wire could land on, so it only ever needed to
-     * answer for ports someone can see. Sweeping the whole graph asked
-     * `canConnect` once per port in it - 400,000 questions at a hundred
-     * thousand nodes, each of which used to scan every node and every
-     * connection - and produced highlights for ports that are not on screen.
-     * A pointerdown froze for minutes to compute an answer nobody could look
-     * at.
-     */
+    const connections = this.connections();
+    if (this.connectableFrom !== from || this.connectableGraph !== connections) {
+      this.connectableCache.clear();
+      this.connectableFrom = from;
+      this.connectableGraph = connections;
+    }
+
+    const cached = this.connectableCache.get(node.id);
+    if (cached) return cached;
+
     const keys = new Set<string>();
-    for (const node of this.renderedNodes()) {
-      for (const port of portsOf(node)) {
-        if (this.evaluate(from, { node: node.id, port: port.id }).ok) {
-          keys.add(`${node.id}:${port.id}`);
-        }
+    for (const port of portsOf(node)) {
+      if (this.evaluate(from, { node: node.id, port: port.id }).ok) {
+        keys.add(`${node.id}:${port.id}`);
       }
     }
+    this.connectableCache.set(node.id, keys);
     return keys;
-  });
+  }
 
   /**
    * Why the port under the pointer will not accept this connection, in words.
@@ -973,7 +1026,11 @@ export class NodeEditorComponent {
    * are rendered from, so an id absent from it has no view left to need one.
    */
   private readonly pruneNodeInjectors = effect(() => {
-    const live = new Set(this.nodes().map(node => node.id));
+    // Walk the injectors, not the nodes. There is one injector per MOUNTED
+    // card and a hundred thousand nodes, and `new Set(nodes().map(...))`
+    // allocated a set and an array of that size on every frame of a drag to
+    // prune a map a drag never changes.
+    const live = this.nodesById();
     for (const id of this.nodeInjectors.keys()) {
       if (!live.has(id)) this.nodeInjectors.delete(id);
     }
@@ -1462,15 +1519,50 @@ export class NodeEditorComponent {
     return true;
   }
 
+  /**
+   * Finishes a connection gesture, and records it as ONE edit.
+   *
+   * Unplugging a wire and plugging it in somewhere else is a disconnect and a
+   * connect, but it is one thing the person did, so it is one Ctrl+Z. That is
+   * why `rewire` carries both halves rather than there being two kinds.
+   *
+   * Nothing here recorded anything before. Connecting a freshly added node and
+   * then undoing destroyed the wire outright: `add-nodes`' inverse removes
+   * every edge touching the node, including the one it had never been told
+   * about, and the redo put the node back with `connections: undefined`.
+   */
   private commitPending(state: PendingConnection): void {
     this.pending.set(null);
+    const removed = state.detached ? [state.detached] : [];
+
     if (!state.over) {
       // Dropped in empty space. A detached connection stays deleted — that is
       // what unplugging and letting go means.
-      if (state.detached) this.announce(this.t().connectionRemoved);
+      if (state.detached) {
+        this.history.push({ kind: 'rewire', removed, added: [] });
+        this.announce(this.t().connectionRemoved);
+      }
       return;
     }
-    this.connect(state.from, state.over);
+
+    const made = this.connect(state.from, state.over);
+
+    /*
+     * A refused drop is not an edit — it is a gesture that failed.
+     *
+     * Dropping an unplugged wire on a port that cannot take it (input onto
+     * input, say) announced "cannot connect" and then kept the deletion: the
+     * wire the user was MOVING was gone, the screen reader had said nothing
+     * happened, and the runtime had already re-evaluated the target without
+     * its input. Same restore as `cancelPending`, for the same reason.
+     */
+    if (!made) {
+      const detached = state.detached;
+      if (detached) this.connections.update(current => [...current, detached]);
+      return;
+    }
+
+    this.history.push({ kind: 'rewire', removed, added: [made] });
   }
 
   private beginDrag(
@@ -1677,8 +1769,9 @@ export class NodeEditorComponent {
       return true;
     }
 
-    this.pending.set(null);
-    this.connect(state.from, ref);
+    // Through the same funnel as the pointer, so the keyboard path records
+    // its edit too — it was the one that recorded nothing at all.
+    this.commitPending({ ...state, over: ref });
     return true;
   }
 
@@ -1730,28 +1823,36 @@ export class NodeEditorComponent {
    * Attempt a connection. The single funnel both the pointer and the keyboard
    * run through, so the two cannot disagree about what is allowed.
    */
-  private connect(from: PortRef, to: PortRef): void {
+  private connect(from: PortRef, to: PortRef): NodeConnection | null {
     const result = this.evaluate(from, to);
     if (!result.ok) {
       this.connectionRejected.emit({ reason: result.reason, from, to });
       this.announce(interpolate(this.t().cannotConnect, { reason: this.reason(result.reason) }));
-      return;
+      return null;
     }
 
-    this.connections.set(addConnection(this.connections(), result.source, result.target));
+    const next = addConnection(this.connections(), result.source, result.target);
+
+    // `addConnection` appends, so the new edge is the last one. Searching for
+    // it instead cost a linear `includes` per element — n^2/2 reference
+    // comparisons inside the pointerup handler, which on a 96,000-edge board
+    // is billions of them to learn what `at(-1)` already knows.
+    const made = next.at(-1) ?? null;
+    this.connections.set(next);
     this.announce(
       interpolate(this.t().connectionMade, {
         source: result.source.port,
         target: result.target.port,
       }),
     );
+    return made;
   }
 
   /**
    * The graph as the validator wants it, indexed, rebuilt only when it changes.
    *
    * A `computed`, so the index is built once per graph rather than once per
-   * question - and `connectablePorts` below asks one question per port in the
+   * question - and `connectableFor` below asks one question per port on a mounted node in the
    * graph.
    */
   private readonly graphView = computed<GraphView>(() => {
@@ -1804,10 +1905,24 @@ export class NodeEditorComponent {
      * lose the wiring. That is the single case an inverse cannot express on
      * its own, which is why `restoredConnections` exists.
      */
+    /*
+     * The states go with them.
+     *
+     * A node's state lives in the runtime, not in the graph, so a command
+     * carrying only nodes and edges brings back an empty shell. For a subgraph
+     * node the state IS its inner graph: building one, deleting the node and
+     * pressing Ctrl+Z returned the right id, title, position and wiring around
+     * nothing at all. They are still readable here, a moment before the
+     * runtime is told to forget them.
+     */
+    const states = new Map<NodeId, unknown>();
+    for (const node of removedNodes) states.set(node.id, this.runtime.peekState(node.id));
+
     this.history.push({
       kind: 'remove-nodes',
       nodes: removedNodes,
       connections: removedEdges,
+      states,
     });
 
     this.nodes.set(result.nodes);

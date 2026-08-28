@@ -32,16 +32,42 @@ export type GraphCommand =
        * command funnel exists to remove.
        */
       readonly connections?: readonly NodeConnection[];
+      /**
+       * What each node held, so restoring one restores what was in it.
+       *
+       * A node's STATE is not part of the graph snapshot — it lives in the
+       * runtime — so a command that carries only nodes and edges brings back
+       * an empty shell. For a subgraph node the state IS its inner graph, so
+       * deleting one and pressing Ctrl+Z used to return the node with the
+       * right id, title, position and wiring, and nothing inside it. The same
+       * loss applies to a text node's text and a number node's value.
+       */
+      readonly states?: ReadonlyMap<NodeId, unknown>;
     }
   | {
       readonly kind: 'remove-nodes';
       readonly nodes: readonly EditorNode[];
       /** Edges touching those nodes, so the inverse can restore them. */
       readonly connections: readonly NodeConnection[];
+      /** What each node held. See `add-nodes`. */
+      readonly states?: ReadonlyMap<NodeId, unknown>;
     }
   | { readonly kind: 'move-nodes'; readonly deltas: ReadonlyMap<NodeId, CanvasPoint> }
-  | { readonly kind: 'connect'; readonly connections: readonly NodeConnection[] }
-  | { readonly kind: 'disconnect'; readonly connections: readonly NodeConnection[] }
+  | {
+      /**
+       * Wires removed and wires added, as ONE edit.
+       *
+       * One kind rather than a `connect` and a `disconnect`, because the
+       * gesture that motivates it does both: grabbing an occupied input
+       * unplugs its wire and dropping it elsewhere plugs it in again, and a
+       * person who did one thing expects one Ctrl+Z to undo it. Plain
+       * connecting is this with nothing removed; plain unplugging is this with
+       * nothing added.
+       */
+      readonly kind: 'rewire';
+      readonly removed: readonly NodeConnection[];
+      readonly added: readonly NodeConnection[];
+    }
   | {
       /**
        * An edit the base does not understand, on the base's undo stack.
@@ -86,17 +112,23 @@ export function invert(command: GraphCommand): GraphCommand {
         kind: 'remove-nodes',
         nodes: command.nodes,
         connections: command.connections ?? [],
+        states: command.states,
       };
     case 'remove-nodes':
-      // The edges travel with it: restoring the nodes alone would lose the
-      // wiring, and nothing downstream should have to know that.
-      return { kind: 'add-nodes', nodes: command.nodes, connections: command.connections };
+      // The edges and the states travel with it: restoring the nodes alone
+      // would lose the wiring and empty every node, and nothing downstream
+      // should have to know that.
+      return {
+        kind: 'add-nodes',
+        nodes: command.nodes,
+        connections: command.connections,
+        states: command.states,
+      };
     case 'move-nodes':
       return { kind: 'move-nodes', deltas: negate(command.deltas) };
-    case 'connect':
-      return { kind: 'disconnect', connections: command.connections };
-    case 'disconnect':
-      return { kind: 'connect', connections: command.connections };
+    case 'rewire':
+      // Swap the two halves: what went in comes out, and what came out goes in.
+      return { kind: 'rewire', removed: command.added, added: command.removed };
     case 'custom':
       // Swapped, not negated: the addon supplied both directions, because
       // only it knows how to reverse its own data.
@@ -146,20 +178,16 @@ export function apply(graph: GraphSnapshot, command: GraphCommand): GraphSnapsho
         }),
       };
 
-    case 'connect': {
-      const existing = new Set(graph.connections.map(c => c.id));
+    case 'rewire': {
+      // Removals first, so a rewire that re-uses an id lands as a replacement
+      // rather than being filtered out as a duplicate of the wire it replaces.
+      const removing = new Set(command.removed.map(c => c.id));
+      const kept = graph.connections.filter(c => !removing.has(c.id));
+      const existing = new Set(kept.map(c => c.id));
       return {
         ...graph,
-        connections: [
-          ...graph.connections,
-          ...command.connections.filter(c => !existing.has(c.id)),
-        ],
+        connections: [...kept, ...command.added.filter(c => !existing.has(c.id))],
       };
-    }
-
-    case 'disconnect': {
-      const removing = new Set(command.connections.map(c => c.id));
-      return { ...graph, connections: graph.connections.filter(c => !removing.has(c.id)) };
     }
 
     case 'custom':

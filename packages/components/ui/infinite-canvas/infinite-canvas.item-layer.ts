@@ -46,6 +46,14 @@ const FALLBACK_CELL_SIZE = 256;
  */
 export const DEFAULT_MAX_MOUNTED = 600;
 
+/**
+ * How far over the affordable area a region may go before it is cropped.
+ *
+ * See {@link CanvasItemLayer.affordable}: cropping on the slightest overshoot
+ * blanks a band around the screen edges on boards that were fine as they were.
+ */
+const AFFORDABLE_SLACK = 2;
+
 export class CanvasItemLayer<T extends CanvasItem> {
   private readonly mounted = new Map<string | number, MountedItem<T>>();
   private readonly indexById = new Map<string | number, number>();
@@ -271,9 +279,25 @@ export class CanvasItemLayer<T extends CanvasItem> {
     const density = this.worldArea > 0 ? this.hash.size / this.worldArea : 0;
     if (density <= 0) return wanted;
 
+    /*
+     * Slack, so a board only a little over the cap is not cropped.
+     *
+     * The density estimate is exactly that — an estimate — and shrinking the
+     * region the moment it is exceeded by any margin at all cost far more
+     * than it saved. At seven hundred items against a cap of six hundred the
+     * scale came out at 0.93, which mounts a region 93% of the viewport
+     * CENTRED in it: a band around all four edges of the screen with no cards
+     * in it, while the edge renderer went on drawing their wires into the
+     * blank. Nobody at that zoom was looking at an illegible smudge; they
+     * were looking at a hole.
+     *
+     * Below the slack the overshoot is a few dozen extra views, which the
+     * pool absorbs. Far above it — the hundred-thousand case this exists for
+     * — the shrink is unchanged.
+     */
     const area = wanted.width * wanted.height;
     const affordableArea = this.maxMounted / density;
-    if (area <= affordableArea) return wanted;
+    if (area <= affordableArea * AFFORDABLE_SLACK) return wanted;
 
     const scale = Math.sqrt(affordableArea / area);
     const width = wanted.width * scale;
@@ -316,6 +340,12 @@ export class CanvasItemLayer<T extends CanvasItem> {
     this.indexById.clear();
     this.items = [];
     this.safeRect = null;
+
+    // `byId` too. It is handed out live to the edge rebuild, so leaving it
+    // populated both retains every item a `clear()` was meant to release and
+    // answers with items that are no longer there.
+    this.byId.clear();
+    this.worldArea = 0;
   }
 
   /** A cell size of roughly 2x the median item size, per the design rationale. */

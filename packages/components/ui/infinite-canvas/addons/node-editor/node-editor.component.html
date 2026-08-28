@@ -46,7 +46,7 @@
         [status]="statusOf(node.id)"
         [recentlyRan]="recentlyRan(node.id)"
         [openable]="isOpenable(node.id)"
-        [connectable]="connectablePorts()"
+        [connectable]="connectableFor(node)"
       />
     </ng-template>
   </ui-infinite-canvas>

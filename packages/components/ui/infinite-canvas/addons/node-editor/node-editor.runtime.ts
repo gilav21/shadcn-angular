@@ -11,7 +11,7 @@
  * Algorithms and their justification: `specs/node-editor-runtime-design.md`.
  * Every one of them was proved by a throwaway spike before this file existed.
  */
-import { signal, type Signal, type WritableSignal } from '@angular/core';
+import { computed, signal, type Signal, type WritableSignal } from '@angular/core';
 import type { EditorNode, NodeConnection, NodeId } from './node-editor.types';
 import type {
   GraphProblem,
@@ -221,11 +221,6 @@ export class NodeGraphRuntime {
   private readonly remoteBatches = new Set<AbortController>();
   private runCounter = 0;
   private disposed = false;
-  /**
-   * Whether the pass in flight was started by the editor rather than by a
-   * person. Only an automatic pass honours `reactive: false`.
-   */
-  private automaticPass = false;
   /** The drain in flight, if any. See {@link run}. */
   private draining: Promise<void> | null = null;
 
@@ -269,7 +264,16 @@ export class NodeGraphRuntime {
   private cyclesStale = true;
   /** Who was in a cycle when the problems were last built. */
   private cycleMembers = new Set<NodeId>();
-  private readonly readySignal = signal<readonly NodeId[]>([]);
+  /**
+   * Bumped whenever `readySet` changes; `ready` rebuilds its array from it.
+   *
+   * Publishing `[...readySet]` eagerly cost one array the width of the
+   * frontier on EVERY settle — on a hundred thousand nodes with a frontier of
+   * four thousand, four hundred million writes to keep a signal current that
+   * nothing in the drain reads. A version counter is O(1) to bump, and the
+   * consumers that do read `ready` still see a fresh array the moment they ask.
+   */
+  private readonly readyVersion = signal(0);
 
   /** Backend hand-off. `null` means every node runs locally. */
   executeRemote: RemoteExecutor | null = null;
@@ -386,7 +390,10 @@ export class NodeGraphRuntime {
 
   readonly problems: Signal<readonly GraphProblem[]> = this.problemsSignal.asReadonly();
   /** What `step()` would execute next. */
-  readonly ready: Signal<readonly NodeId[]> = this.readySignal.asReadonly();
+  readonly ready: Signal<readonly NodeId[]> = computed(() => {
+    this.readyVersion();
+    return [...this.readySet];
+  });
 
   // =========================================================== graph mutation
 
@@ -811,6 +818,51 @@ export class NodeGraphRuntime {
    * Bounded by the dirty set, never by N — which is the property R13 requires
    * and the perf suite asserts.
    */
+  /** Tell `ready` its array is out of date. */
+  private bumpReady(): void {
+    this.readyVersion.update(version => version + 1);
+  }
+
+  /**
+   * Re-decide whether ONE node is ready, in place.
+   *
+   * The whole-graph sweep below is right for a structural change, and wrong
+   * for a settle: the dirty set starts at every node and sheds one per settle,
+   * so calling it from there summed to N^2/2 — in this very function, whose
+   * `problemsStale` and `cyclesStale` flags exist because the same shape was
+   * found and fixed for its two OTHER loops.
+   */
+  private reconsider(nodeId: NodeId): void {
+    if (!this.dirty.has(nodeId) || this.readySet.has(nodeId)) return;
+    for (const up of this.incoming.get(nodeId) ?? []) if (this.dirty.has(up)) return;
+    this.readySet.add(nodeId);
+  }
+
+  /**
+   * Readiness after `nodeId` settled.
+   *
+   * Removing a node from the dirty set can only unblock the nodes DOWNSTREAM
+   * of it — nothing else in the graph changed — so those are the only ones
+   * worth asking about. Bounded by the node's out-degree instead of by N.
+   */
+  private refreshAfter(nodeId: NodeId): void {
+    for (const down of this.outgoing.get(nodeId) ?? []) this.reconsider(down);
+    this.settleStaleFlags();
+    this.bumpReady();
+  }
+
+  /** The deferred rebuilds `refresh` and `refreshAfter` both have to flush. */
+  private settleStaleFlags(): void {
+    if (this.cyclesStale) {
+      this.cyclesStale = false;
+      this.excludeCycles();
+    }
+    if (this.problemsStale) {
+      this.problemsStale = false;
+      this.problemsSignal.set(this.collectProblems());
+    }
+  }
+
   private refresh(): void {
     this.readySet.clear();
     for (const node of this.dirty) {
@@ -822,7 +874,7 @@ export class NodeGraphRuntime {
       this.cyclesStale = false;
       this.excludeCycles();
     }
-    this.readySignal.set([...this.readySet]);
+    this.bumpReady();
 
     if (this.problemsStale) {
       this.problemsStale = false;
@@ -1043,20 +1095,24 @@ export class NodeGraphRuntime {
     // on every keystroke does not fill the history with empty runs.
     if (this.readySet.size === 0) return;
 
+    /*
+     * The mode belongs to the PASS, not to the runtime.
+     *
+     * It used to be an instance field saved and restored around the awaits,
+     * which two overlapping callers could not share: the editor's effect
+     * firing `run({automatic: true})` while a person's explicit Run was
+     * mid-drain flipped the flag under it, and the manual pass then silently
+     * skipped every `reactive: false` node the person had asked to run. The
+     * mirror case fired everyone's HTTP POST node on a keystroke — the very
+     * damage the flag was added to prevent.
+     */
     const automatic = options?.automatic === true;
-    const previous = this.automaticPass;
-    this.automaticPass = automatic;
-
-    if (this.runnableNow().length === 0) {
-      this.automaticPass = previous;
-      return;
-    }
+    if (this.runnableNow(automatic).length === 0) return;
 
     this.enterSession();
     try {
-      while (this.runnableNow().length > 0) await this.drainOnce();
+      while (this.runnableNow(automatic).length > 0) await this.drainOnce(automatic);
     } finally {
-      this.automaticPass = previous;
       this.leaveSession();
     }
   }
@@ -1068,12 +1124,12 @@ export class NodeGraphRuntime {
    * drain ran may have arrived after it made its final decision to stop, so
    * the caller re-checks rather than assuming the graph is settled.
    */
-  private async drainOnce(): Promise<void> {
+  private async drainOnce(automatic: boolean): Promise<void> {
     if (this.draining) {
       await this.draining;
       return;
     }
-    const drain = this.drain();
+    const drain = this.drain(automatic);
     this.draining = drain;
     try {
       await drain;
@@ -1121,15 +1177,15 @@ export class NodeGraphRuntime {
     });
   }
 
-  private async drain(): Promise<void> {
+  private async drain(automatic: boolean): Promise<void> {
     let guard = 0;
-    let batch = this.runnableNow();
+    let batch = this.runnableNow(automatic);
     while (batch.length > 0) {
       if (++guard > MAX_DRAIN_ITERATIONS) {
         throw new Error('node-editor: evaluation did not converge');
       }
       await this.execute(batch);
-      batch = this.runnableNow();
+      batch = this.runnableNow(automatic);
     }
   }
 
@@ -1150,9 +1206,9 @@ export class NodeGraphRuntime {
    * The loop above re-asks rather than draining `readySet` directly, because
    * skipped nodes stay in it — draining it would never terminate.
    */
-  private runnableNow(): NodeId[] {
+  private runnableNow(automatic: boolean): NodeId[] {
     const ready = [...this.readySet];
-    if (!this.automaticPass) return ready;
+    if (!automatic) return ready;
     return ready.filter(nodeId => this.definition(nodeId)?.reactive !== false);
   }
 
@@ -1469,7 +1525,12 @@ export class NodeGraphRuntime {
     if (version !== undefined && this.versionOf(nodeId) !== version) {
       this.setStatus(nodeId, 'stale');
       this.readySet.delete(nodeId);
-      this.refresh();
+
+      // Still dirty, and its upstreams may well be clean by now — so ask
+      // about the node ITSELF, or the drain never picks it up again.
+      this.reconsider(nodeId);
+      this.settleStaleFlags();
+      this.bumpReady();
       return;
     }
 
@@ -1477,7 +1538,7 @@ export class NodeGraphRuntime {
     this.readySet.delete(nodeId);
     if (this.statusSignal(nodeId)() !== 'cycle') this.setStatus(nodeId, status);
     this.report(nodeId, status);
-    this.refresh();
+    this.refreshAfter(nodeId);
   }
 
   /** Publish what this node did, and file it under the pass in flight. */
@@ -1593,6 +1654,18 @@ export class NodeGraphRuntime {
 
   state(nodeId: NodeId): Signal<unknown> {
     return this.stateSignal(nodeId).asReadonly();
+  }
+
+  /**
+   * The state a node holds right now, without creating anything.
+   *
+   * `state()` builds a signal on demand, so asking it about a node the runtime
+   * has never seen leaves an entry behind for an id that may never arrive.
+   * History needs to READ state for nodes on their way in and out — exactly
+   * the ids that may not be registered — so it reads the values map directly.
+   */
+  peekState(nodeId: NodeId): unknown {
+    return this.stateValues.get(nodeId);
   }
 
   error(nodeId: NodeId): Signal<unknown> {
