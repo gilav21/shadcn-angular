@@ -54,6 +54,8 @@ export class CanvasItemLayer<T extends CanvasItem> {
   private items: readonly T[] = [];
   private safeRect: CanvasRect | null = null;
   private cellSize = FALLBACK_CELL_SIZE;
+  /** Area of the box containing every item, for estimating items per unit. */
+  private worldArea = 0;
 
   constructor(
     private readonly pool: CanvasItemViewPool<CanvasItemContext<T>>,
@@ -90,6 +92,8 @@ export class CanvasItemLayer<T extends CanvasItem> {
       this.hash = new SpatialHash<T>(cellSize);
     }
     this.hash.rebuild(items);
+    const bounds = boundsOf(items);
+    this.worldArea = bounds ? Math.max(1, bounds.width * bounds.height) : 0;
     this.invalidate();
   }
 
@@ -156,11 +160,27 @@ export class CanvasItemLayer<T extends CanvasItem> {
    * work.
    */
   update(viewRect: CanvasRect, overscan: number): boolean {
+    /*
+     * The hysteresis holds only while `safeRect` describes what is MOUNTED.
+     *
+     * Filtering a query's RESULTS quietly broke that sentence, and the bug it
+     * caused was worse than the one it fixed: `safeRect` stayed the whole
+     * inflated viewport while only a few hundred of its items were mounted, so
+     * panning and zooming inside it never re-queried and the cards from
+     * wherever you started stayed on screen while everything you moved towards
+     * never appeared.
+     *
+     * Bounding the REGION instead makes the sentence true again — the rect is
+     * exactly what was mounted for — and the check below then needs no special
+     * case for a capped view, because there is nothing special about one.
+     */
+    const region = this.affordable(inflateRect(viewRect, overscan), viewRect);
     if (this.safeRect && rectContains(this.safeRect, viewRect)) return false;
 
-    this.safeRect = inflateRect(viewRect, overscan);
+    this.safeRect = region;
 
-    const visible = this.nearestVisible(this.hash.query(this.safeRect), viewRect);
+    const found = this.hash.query(region);
+    const visible = found.length > this.maxMounted ? found.slice(0, this.maxMounted) : found;
     const keep = new Set<string | number>(visible.map(item => item.id));
 
     // Release BEFORE mounting. Mounting first would drain an empty pool and
@@ -180,35 +200,45 @@ export class CanvasItemLayer<T extends CanvasItem> {
   }
 
   /**
-   * The visible items nearest the middle of the screen, at most `maxMounted`.
+   * `wanted`, or as much of it around the viewport centre as can be afforded.
    *
-   * Re-queries a rect shrunk around the viewport centre rather than sorting
-   * what came back. Sorting is the obvious way to say "nearest", and it is the
-   * wrong one here: the case this exists for is the one where a hundred
-   * thousand items came back, and sorting a hundred thousand is exactly the
-   * stall being avoided. Assuming roughly even density, scaling the rect by
-   * the square root of the ratio lands near the cap in a single extra query,
-   * which the hash answers in proportion to what it returns.
+   * Culling bounds the mounted set by the VIEWPORT, which is the right rule
+   * until someone zooms out: the region then covers the whole board, every
+   * item counts as visible, and a real component is mounted for each. A
+   * 100,000-node graph mounted 2,022 cards that way and froze the tab.
    *
-   * A slice is the backstop for a board dense in the middle and empty at the
-   * edges, where that assumption does not hold.
+   * Bounding the REGION rather than filtering its contents is what keeps this
+   * honest. The query stays proportional to what it returns, `safeRect` still
+   * means "the rect these mounted items came from", and the hysteresis above
+   * keeps working because that sentence is true again.
+   *
+   * How much fits is estimated from the board's own density - items divided by
+   * the area they occupy - rather than guessed, so a sparse board zooms out
+   * further before anything is dropped than a dense one does.
    */
-  private nearestVisible(visible: readonly T[], viewRect: CanvasRect): readonly T[] {
-    if (visible.length <= this.maxMounted || !this.safeRect) return visible;
+  private affordable(wanted: CanvasRect, viewRect: CanvasRect): CanvasRect {
+    // A board that fits entirely is never worth bounding, and the density
+    // estimate below is meaningless for one: items stacked at a single point
+    // occupy no area at all, which reads as infinite density and shrank the
+    // region to nothing. Three items vanished on a board of three.
+    if (this.hash.size <= this.maxMounted) return wanted;
 
-    const ratio = Math.sqrt(this.maxMounted / visible.length);
-    const width = this.safeRect.width * ratio;
-    const height = this.safeRect.height * ratio;
-    const centreX = viewRect.x + viewRect.width / 2;
-    const centreY = viewRect.y + viewRect.height / 2;
+    const density = this.worldArea > 0 ? this.hash.size / this.worldArea : 0;
+    if (density <= 0) return wanted;
 
-    const focused = this.hash.query({
-      x: centreX - width / 2,
-      y: centreY - height / 2,
+    const area = wanted.width * wanted.height;
+    const affordableArea = this.maxMounted / density;
+    if (area <= affordableArea) return wanted;
+
+    const scale = Math.sqrt(affordableArea / area);
+    const width = wanted.width * scale;
+    const height = wanted.height * scale;
+    return {
+      x: viewRect.x + viewRect.width / 2 - width / 2,
+      y: viewRect.y + viewRect.height / 2 - height / 2,
       width,
       height,
-    });
-    return focused.length > this.maxMounted ? focused.slice(0, this.maxMounted) : focused;
+    };
   }
 
   /** Topmost item under a world point, or `null`. Later items win, as in paint order. */

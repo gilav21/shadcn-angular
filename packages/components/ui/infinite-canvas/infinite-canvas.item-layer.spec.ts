@@ -549,6 +549,15 @@ describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
   /** The whole board at once, as a full zoom-out asks for. */
   const EVERYTHING: CanvasRect = { x: -1e6, y: -1e6, width: 2e6, height: 2e6 };
 
+  /** The ids currently rendered, read from the DOM rather than the layer. */
+  function mountedIds(): number[] {
+    fixture.detectChanges();
+    return [...fixture.nativeElement.querySelectorAll('.cell')]
+      .map((el: Element) => Number(el.getAttribute('data-id')))
+      .filter((id: number) => !Number.isNaN(id))
+      .sort((a: number, b: number) => a - b);
+  }
+
   it('mounts no more than the cap however far out you zoom', () => {
     const layer = layerWithCap(50);
     layer.setItems(grid(2000));
@@ -598,6 +607,64 @@ describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
       expect(items[id].x).toBeGreaterThanOrEqual(8000);
       expect(items[id].x).toBeLessThanOrEqual(12000);
     }
+  });
+
+  /*
+   * The regression the cap itself caused.
+   *
+   * `safeRect` means "the rect the mounted items came from", and the whole
+   * hysteresis rests on that. Mounting a SUBSET of the region quietly broke
+   * the sentence: zooming in shrinks the viewport, the old rect still contains
+   * it, so nothing re-culled and the same few hundred cards stayed on screen
+   * while the ones being zoomed towards never appeared. Everything looked
+   * faster and was completely unusable.
+   */
+  it('shows what you zoom in on, rather than the set it first mounted', () => {
+    const layer = layerWithCap(50);
+    layer.setItems(grid(2000));
+
+    layer.update(EVERYTHING, 0);
+    const zoomedOut = mountedIds();
+
+    // Zoom right in on a corner of the board that the capped set cannot hold.
+    const corner: CanvasRect = { x: 19_000, y: 3_400, width: 900, height: 500 };
+    layer.update(corner, 0);
+    const zoomedIn = mountedIds();
+
+    expect(zoomedIn.length).toBeGreaterThan(0);
+    expect(zoomedIn).not.toEqual(zoomedOut);
+
+    const items = grid(2000);
+    for (const id of zoomedIn) {
+      expect(items[id].x).toBeGreaterThanOrEqual(18_000);
+    }
+  });
+
+  it('mounts every item in view once zoomed in far enough to afford them', () => {
+    const layer = layerWithCap(50);
+    const items = grid(2000);
+    layer.setItems(items);
+    layer.update(EVERYTHING, 0);
+
+    const window: CanvasRect = { x: 0, y: 0, width: 300, height: 300 };
+    layer.update(window, 0);
+
+    /*
+     * The property, not a count. More than the four in the window may well be
+     * mounted - the capped pass already covered this corner, and re-using that
+     * set is correct - but nothing that is ON SCREEN may be missing from it.
+     */
+    const mounted = new Set(mountedIds());
+    const inView = items.filter(
+      item =>
+        item.x <= window.x + window.width &&
+        window.x <= item.x + item.width &&
+        item.y <= window.y + window.height &&
+        window.y <= item.y + item.height,
+    );
+
+    expect(inView.length).toBeGreaterThan(0);
+    for (const item of inView) expect(mounted.has(Number(item.id))).toBe(true);
   });
 
   it('releases views back to the pool when the cap pushes items out', () => {
