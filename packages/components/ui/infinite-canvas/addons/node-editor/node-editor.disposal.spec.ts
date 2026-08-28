@@ -285,3 +285,117 @@ describe('the runtime lets go of a graph that held a cycle', () => {
         runtime.dispose();
     });
 });
+
+/*
+ * The two the leak audit found by reading, both invisible to `retained`.
+ *
+ * `computedNodes` is a diagnostic list that nothing in the library reads.
+ * `resetMetrics` was the only thing that shrank it and has no caller outside
+ * these specs, so in a live editor - where every keystroke runs the graph - it
+ * was an append-only log with no reader and no reaper.
+ *
+ * `applyOutputs` had no check that its node still exists. `compute` is handed
+ * an `emit` closed over the node id, so anything still emitting after its node
+ * was deleted wrote values and RECREATED a signal for an id nothing prunes
+ * again, because only `removeNode` prunes and it runs only for ids the graph
+ * still has.
+ */
+describe('the runtime does not accumulate what nobody reads', () => {
+    const COUNTER: NodeTypeDefinition = {
+        id: 'counter',
+        label: 'Counter',
+        ports: [{ id: 'out', direction: 'out', label: 'Out' }],
+        initialState: () => 0,
+        compute: (_inputs, ctx) => ({ out: ctx.state }),
+    };
+
+    it('keeps the computed log bounded however many runs happen', async () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([PASS]);
+        const { nodes, connections } = chain(50);
+        runtime.setGraph(nodes, connections);
+
+        // 50 nodes recomputed 200 times is 10,000 computes, comfortably past
+        // the cap - which is the only way this test can see the cap at all.
+        for (let i = 0; i < 200; i++) {
+            runtime.setState('n0', `v${i}`);
+            await runtime.run();
+        }
+
+        expect(runtime.metrics.computedTotal).toBeGreaterThan(5_000);
+        expect(runtime.metrics.computed.length).toBeLessThanOrEqual(5_000);
+        runtime.dispose();
+    });
+
+    it('reports the true total even once the list has been trimmed', async () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([COUNTER]);
+        runtime.setGraph([{ id: 'n', type: 'counter', x: 0, y: 0, width: 180, height: 80 }], []);
+
+        runtime.setState('n', 1);
+        await runtime.run();
+        const first = runtime.metrics.computedTotal;
+
+        runtime.setState('n', 2);
+        await runtime.run();
+
+        expect(runtime.metrics.computedTotal).toBe(first + 1);
+        runtime.dispose();
+    });
+});
+
+describe('a node that is gone gets nothing back', () => {
+    /** Keeps its `emit` so the test can call it after the node is deleted. */
+    type Emit = (port: string, value: unknown) => void;
+    let escaped: Emit | null = null;
+
+    const LEAKY: NodeTypeDefinition = {
+        id: 'leaky',
+        label: 'Leaky',
+        ports: [{ id: 'out', direction: 'out', label: 'Out' }],
+        compute: (_inputs, ctx) => {
+            escaped = ctx.emit as Emit;
+            return { out: 1 };
+        },
+    };
+
+    function node(id: string): EditorNode {
+        return { id, type: 'leaky', x: 0, y: 0, width: 180, height: 80 };
+    }
+
+    it('ignores an emit that arrives after the node was removed', async () => {
+        escaped = null;
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([LEAKY]);
+        runtime.setGraph([node('a'), node('b')], []);
+        await runtime.run();
+
+        const emit = escaped as Emit | null;
+        expect(emit).not.toBeNull();
+        runtime.setGraph([node('a')], []);
+        const settled = runtime.metrics.retained;
+
+        // The deleted node's callback fires anyway, as an interval or a socket
+        // handler would. It must not put the node back.
+        emit?.('out', 99);
+        emit?.('out', 100);
+
+        expect(runtime.metrics.retained).toBe(settled);
+        runtime.dispose();
+        expect(runtime.metrics.retained).toBe(0);
+    });
+
+    it('ignores an emit that arrives after the runtime was disposed', async () => {
+        escaped = null;
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([LEAKY]);
+        runtime.setGraph([node('a')], []);
+        await runtime.run();
+
+        const emit = escaped as Emit | null;
+        runtime.dispose();
+        emit?.('out', 99);
+
+        expect(runtime.metrics.retained).toBe(0);
+    });
+});

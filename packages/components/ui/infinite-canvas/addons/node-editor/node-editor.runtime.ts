@@ -48,8 +48,16 @@ function tick(): number {
 
 /** Counters the performance suite asserts on. Counts, never wall-clock. */
 export interface RuntimeMetrics {
-  /** Nodes whose `compute` actually ran. */
+  /**
+   * Nodes whose `compute` actually ran, most recent last.
+   *
+   * Capped, because it is a diagnostic that nothing in the library reads and
+   * an editor runs its graph on every keystroke. {@link computedTotal} is the
+   * count that trimming would otherwise hide.
+   */
   readonly computed: readonly NodeId[];
+  /** How many computes have happened, whether or not each is still listed. */
+  readonly computedTotal: number;
   /** Calls made to `executeRemote`. K ready remote nodes must cost 1. */
   readonly remoteCalls: number;
   /** Times the topological order was repaired. */
@@ -95,6 +103,16 @@ const NO_CONNECTIONS: readonly NodeConnection[] = [];
 const DEFAULT_STALENESS: StalenessPolicy = 'cancel';
 /** Guards a pathological graph from spinning forever rather than hanging silently. */
 const MAX_DRAIN_ITERATIONS = 100_000;
+
+/**
+ * How many computed-node ids the metrics keep.
+ *
+ * Generous enough that any assertion on a single run sees all of it - the
+ * largest anywhere is a few thousand - and small enough both that a live
+ * editor cannot accumulate a log nothing reads, and that a test can actually
+ * reach the limit. A cap no test can cross is a cap no test can check.
+ */
+const MAX_RECORDED_COMPUTES = 5_000;
 
 export class NodeGraphRuntime {
   // ---- graph -------------------------------------------------------------
@@ -233,13 +251,29 @@ export class NodeGraphRuntime {
   private readonly startedTicks = new Map<NodeId, number>();
 
   // ---- instrumentation ----------------------------------------------------
+  /**
+   * Which nodes were computed, for the metrics getter.
+   *
+   * Bounded, because it is a diagnostic and nothing in the library reads it.
+   * `resetMetrics` is the only thing that shrank it and has no caller outside
+   * the specs, so in a live editor this was an append-only log with no reader
+   * and no reaper: every keystroke runs the graph, every computed node pushes
+   * an id, and on a large graph that is millions of entries within minutes of
+   * ordinary editing.
+   *
+   * The oldest go rather than the newest, so what it holds is the most recent
+   * work - which is what a diagnostic is read for - and `computedTotal` keeps
+   * the true count that trimming would otherwise hide.
+   */
   private readonly computedNodes: NodeId[] = [];
+  private computedTotal = 0;
   private remoteCalls = 0;
   private reorders = 0;
 
   get metrics(): RuntimeMetrics {
     return {
       computed: [...this.computedNodes],
+      computedTotal: this.computedTotal,
       remoteCalls: this.remoteCalls,
       reorders: this.reorders,
       openIterators: this.iterators.size,
@@ -299,6 +333,7 @@ export class NodeGraphRuntime {
 
   resetMetrics(): void {
     this.computedNodes.length = 0;
+    this.computedTotal = 0;
     this.remoteCalls = 0;
     this.reorders = 0;
   }
@@ -1041,7 +1076,7 @@ export class NodeGraphRuntime {
     }
 
     const run = this.beginRun(nodeId, definition);
-    this.computedNodes.push(nodeId);
+    this.recordComputed(nodeId);
     this.setStatus(nodeId, 'running');
 
     try {
@@ -1085,12 +1120,34 @@ export class NodeGraphRuntime {
   }
 
   /** design §6 — only `apply` lets a superseded run win. */
+  /** Records a computed node for the metrics, keeping the record bounded. */
+  private recordComputed(nodeId: NodeId): void {
+    this.computedTotal++;
+    if (this.computedNodes.length >= MAX_RECORDED_COMPUTES) this.computedNodes.shift();
+    this.computedNodes.push(nodeId);
+  }
+
   private applyOutputs(
     nodeId: NodeId,
     runId: number,
     definition: NodeTypeDefinition,
     value: PortValues,
   ): void {
+    /*
+     * A node that is gone gets nothing back.
+     *
+     * `markDirty` already refuses to touch a node the graph no longer has;
+     * this path did not, and it is the one a late callback arrives on.
+     * `compute` is handed an `emit` closed over its node id, so a consumer
+     * still emitting from an interval or a socket after its node was deleted
+     * wrote `outputValues`, LAZILY RECREATED an `outputSignals` entry, and
+     * added to `emitSeq` - for an id nothing prunes again, because only
+     * `removeNode` prunes and it runs only for ids the graph still has. The
+     * staleness check below cannot cover it: `abortRun` has already dropped
+     * the `active` entry, so `current` is undefined and nothing looks stale.
+     */
+    if (this.disposed || !this.nodes.has(nodeId)) return;
+
     const current = this.active.get(nodeId);
     const stale = current !== undefined && current.id !== runId;
     if (stale && (definition.staleness ?? DEFAULT_STALENESS) !== 'apply') return;
@@ -1203,7 +1260,7 @@ export class NodeGraphRuntime {
     if (!definition) return null;
 
     const run = this.beginRun(nodeId, definition);
-    this.computedNodes.push(nodeId);
+    this.recordComputed(nodeId);
     this.setStatus(nodeId, 'running');
 
     const inputs = this.resolveInputs(nodeId);
