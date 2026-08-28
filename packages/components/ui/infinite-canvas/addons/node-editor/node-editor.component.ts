@@ -575,7 +575,19 @@ export class NodeEditorComponent {
    */
   readonly renderedNodes: Signal<readonly EditorNode[]> = this.sizedNodes;
 
-  private readonly selectedNodeIds = computed(() => new Set(this.selection().nodes));
+  /**
+   * The selected node ids, as a set.
+   *
+   * `protected` because the TEMPLATE needs it: the card's `selected` binding
+   * used `selection().nodes.includes(...)`, which is a linear scan of the
+   * selection for every mounted card on every change-detection pass. After a
+   * select-all on a hundred thousand nodes that is a hundred thousand
+   * comparisons per card - thirty million per pass, tens of millions per
+   * second while dragging - to answer a question a Set answers at once. The
+   * set was already here and already used by the drag path; the template was
+   * simply not using it.
+   */
+  protected readonly selectedNodeIds = computed(() => new Set(this.selection().nodes));
   private readonly selectedConnectionIds = computed(() => new Set(this.selection().connections));
 
   protected readonly canvasEdges = computed(() =>

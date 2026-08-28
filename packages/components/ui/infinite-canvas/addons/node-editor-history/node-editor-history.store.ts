@@ -17,6 +17,7 @@
  */
 import { computed, signal, type Signal } from '@angular/core';
 import type {
+  NodeId,
   NodeSettledEvent,
   RunFinishedEvent,
   RunStartedEvent,
@@ -76,7 +77,7 @@ export class RunHistoryStore {
       startedAt: event.startedAt,
       durationMs: event.durationMs,
       status: event.status,
-      nodes: event.nodes.map(node => toNodeRecord(node, graph)),
+      nodes: recordsFor(event.nodes, graph),
       graph,
     };
 
@@ -91,14 +92,31 @@ export class RunHistoryStore {
   }
 }
 
+/**
+ * One record per settled node, resolving each title through an index.
+ *
+ * `toNodeRecord` used to scan the snapshot for its node, so a run in which N
+ * nodes settle over an N-node graph was O(N x N) - ten billion comparisons on
+ * a graph of a hundred thousand, run synchronously inside the `runFinished`
+ * handler. That is not a slow history panel, it is a frozen tab.
+ */
+function recordsFor(
+  events: readonly NodeSettledEvent[],
+  graph: SerializedGraph | null,
+): RunNodeRecord[] {
+  const titles = new Map<NodeId, string | undefined>();
+  for (const node of graph?.nodes ?? []) titles.set(node.id, node.title);
+  return events.map(event => toNodeRecord(event, titles));
+}
+
 function toNodeRecord(
   event: NodeSettledEvent,
-  graph: SerializedGraph | null,
+  titles: ReadonlyMap<NodeId, string | undefined>,
 ): RunNodeRecord {
-  const named = graph?.nodes.find(node => node.id === event.nodeId);
+  const title = titles.get(event.nodeId);
   return {
     nodeId: event.nodeId,
-    title: named?.title ?? String(event.nodeId),
+    title: title ?? String(event.nodeId),
     status: event.status,
     inputs: event.inputs,
     outputs: event.outputs,

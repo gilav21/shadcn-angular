@@ -431,6 +431,26 @@ describe('WORKLOAD — one drag frame in a database explorer', () => {
         report('COLD 5. runtime.setGraph', performance.now() - coldGraph);
         coldRuntime.dispose();
 
+        /*
+         * The editor re-feeds the runtime from an effect on `sizedNodes`, and
+         * a drag replaces that array every frame - so this runs per frame even
+         * though a position is not part of the runtime's model at all.
+         */
+        const warm = new NodeGraphRuntime();
+        warm.setDefinitions(DEFS);
+        warm.setGraph(nodes, connections);
+        const shiftedFrames = [1, 2, 3].map(step =>
+          nodes.map(n => (n === raw ? { ...n, x: n.x + step } : n)),
+        );
+        let gtick = 0;
+        report(
+          'runtime.setGraph (one node dragged, warm)',
+          bench(3, () => {
+            warm.setGraph(shiftedFrames[gtick++ % shiftedFrames.length], connections);
+          }),
+        );
+        warm.dispose();
+
         const cold = new CanvasEdgeRenderer(document.createElement('canvas'));
         const coldEdges = toCanvasEdges(sized, connections, {}, indexNodes(sized));
         const coldStarted = performance.now();

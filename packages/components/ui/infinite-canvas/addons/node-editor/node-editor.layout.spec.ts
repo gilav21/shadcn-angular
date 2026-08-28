@@ -223,3 +223,73 @@ describe('a node with a view reserves room for it', () => {
         expect(nodeHeight(n, M)).toBe(nodeHeight(n, M, 0));
     });
 });
+
+/*
+ * Deriving a height filters the node's ports once per side, so doing it for
+ * every node allocated two arrays per node on every pass that read the
+ * rendered list — and a drag reads it every frame. The result depends only on
+ * the node, the metrics and the body height, so it is remembered against all
+ * three.
+ */
+describe('withDerivedHeights remembers what it derived', () => {
+    function node(id: string, ports: NodePort[]): EditorNode {
+        return { id, x: 0, y: 0, width: 180, height: 0, ports };
+    }
+
+    const PORTS: NodePort[] = [
+        { id: 'in', direction: 'in', label: 'In' },
+        { id: 'out', direction: 'out', label: 'Out' },
+    ];
+
+    it('gives an untouched node the identical object back', () => {
+        const nodes = [node('a', PORTS), node('b', PORTS)];
+        const first = withDerivedHeights(nodes);
+        const second = withDerivedHeights(first);
+
+        expect(second).toBe(first);
+        expect(second[0]).toBe(first[0]);
+    });
+
+    it('still derives a height for a node it has not seen', () => {
+        const [sized] = withDerivedHeights([node('a', PORTS)]);
+        expect(sized.height).toBeGreaterThan(0);
+    });
+
+    it('re-derives when the ports changed, even at the same id', () => {
+        const [one] = withDerivedHeights([node('a', PORTS)]);
+        const many: NodePort[] = [
+            ...PORTS,
+            { id: 'x', direction: 'in', label: 'X' },
+            { id: 'y', direction: 'in', label: 'Y' },
+            { id: 'z', direction: 'in', label: 'Z' },
+        ];
+        const [more] = withDerivedHeights([node('a', many)]);
+
+        expect(more.height).toBeGreaterThan(one.height);
+    });
+
+    it('re-derives when the body height changed but the node did not', () => {
+        const nodes = [node('a', PORTS)];
+        const [flat] = withDerivedHeights(nodes, defaultMetrics(), () => 0);
+        const [tall] = withDerivedHeights(nodes, defaultMetrics(), () => 300);
+
+        expect(tall.height).toBeGreaterThan(flat.height);
+    });
+
+    it('re-derives when the metrics changed but the node did not', () => {
+        // Enough ports that the height clears NODE_MIN_HEIGHT, or both rows
+        // clamp to the same floor and the comparison proves nothing.
+        const many: NodePort[] = Array.from({ length: 8 }, (_, i) => ({
+            id: `in${i}`,
+            direction: 'in' as const,
+            label: `In ${i}`,
+        }));
+        const nodes = [node('a', many)];
+
+        const [pointer] = withDerivedHeights(nodes, POINTER_METRICS);
+        const [touch] = withDerivedHeights(nodes, TOUCH_METRICS);
+
+        expect(pointer.height).toBeGreaterThan(NODE_MIN_HEIGHT);
+        expect(touch.height).toBeGreaterThan(pointer.height);
+    });
+});

@@ -154,6 +154,28 @@ export function portAnchor(
 }
 
 /** Every node's derived height applied, leaving untouched nodes referentially equal. */
+/**
+ * The height each node last derived, and what it derived from.
+ *
+ * `nodeHeight` filters the node's ports twice - once per side - so deriving
+ * every node's height allocated two arrays per node, on every pass that read
+ * the rendered list. A drag reads it every frame, so at a hundred thousand
+ * nodes that is two hundred thousand throwaway arrays a frame to recompute a
+ * height that changed for the one node being moved.
+ *
+ * Weak on the node object, so an entry lives exactly as long as the node it
+ * describes. The metrics and the body height are stored alongside and compared,
+ * because both can change without the node changing - a touch device swaps the
+ * metrics, and a node's view can grow while the node itself is untouched.
+ */
+interface DerivedHeight {
+  metrics: PortMetrics;
+  body: number;
+  height: number;
+}
+
+const HEIGHTS = new WeakMap<EditorNode, DerivedHeight>();
+
 export function withDerivedHeights(
   nodes: readonly EditorNode[],
   metrics: PortMetrics = defaultMetrics(),
@@ -161,7 +183,13 @@ export function withDerivedHeights(
 ): readonly EditorNode[] {
   let changed = false;
   const next = nodes.map(node => {
-    const height = nodeHeight(node, metrics, bodyHeightOf(node));
+    const body = bodyHeightOf(node);
+    const remembered = HEIGHTS.get(node);
+    const height =
+      remembered && remembered.metrics === metrics && remembered.body === body
+        ? remembered.height
+        : nodeHeight(node, metrics, body);
+    HEIGHTS.set(node, { metrics, body, height });
     if (height === node.height) return node;
     changed = true;
     return { ...node, height };

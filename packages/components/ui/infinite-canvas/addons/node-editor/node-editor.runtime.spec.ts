@@ -819,3 +819,89 @@ describe('state set before the node exists', () => {
         }
     });
 });
+
+/*
+ * `setGraph` skips its whole diff when nothing it models has changed, because
+ * the editor re-feeds it on every frame of a drag and a position is not part
+ * of its model. The skip is only safe while the comparison is complete: each
+ * field dropped from it is a change the runtime would stop noticing, silently.
+ *
+ * The two that ARE modelled are pinned below. `ports` is compared too but is
+ * deliberately not pinned: the runtime resolves ports from the DEFINITION
+ * (`portsFor(state)`, never `node.ports`), so removing that comparison breaks
+ * nothing today - it is margin against the runtime one day reading the field,
+ * and is documented as such rather than left looking load-bearing.
+ */
+describe('setGraph notices everything it models, and skips what it does not', () => {
+    const ALPHA: NodeTypeDefinition = {
+        id: 'alpha',
+        label: 'Alpha',
+        ports: [{ id: 'out', direction: 'out', label: 'Out' }],
+        compute: () => ({ out: 'alpha' }),
+    };
+
+    const NEEDS: NodeTypeDefinition = {
+        id: 'needs',
+        label: 'Needs',
+        ports: [
+            { id: 'a', direction: 'in', label: 'A', required: true },
+            { id: 'out', direction: 'out', label: 'Out' },
+        ],
+        compute: inputs => ({ out: inputs['a'] }),
+    };
+
+    function make(): NodeGraphRuntime {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([ALPHA, NEEDS]);
+        return runtime;
+    }
+
+    const box = { x: 0, y: 0, width: 180, height: 80 };
+
+    /*
+     * ONE array, reused. A fresh `[]` per call is a different reference, and
+     * the shape check compares the connection list by reference first — so
+     * passing a new one every time short-circuits before the node comparison
+     * is reached, and these tests would pass with that comparison deleted.
+     * They did, until this was hoisted.
+     */
+    const noEdges: NodeConnection[] = [];
+
+    it('notices a type it no longer recognises', async () => {
+        const runtime = make();
+        runtime.setGraph([{ id: 'n', type: 'alpha', ...box }], noEdges);
+        await runtime.run();
+        expect(runtime.problems()).toEqual([]);
+
+        // Same id, same everything else: only the type changed.
+        runtime.setGraph([{ id: 'n', type: 'ghost', ...box }], noEdges);
+
+        expect(runtime.problems().map(p => p.kind)).toContain('unknown-type');
+        runtime.dispose();
+    });
+
+    it('notices a renamed node, because its problems are worded from the title', () => {
+        const runtime = make();
+        runtime.setGraph([{ id: 'n', type: 'needs', title: 'Before', ...box }], noEdges);
+        expect(runtime.problems()[0].message).toContain('Before');
+
+        runtime.setGraph([{ id: 'n', type: 'needs', title: 'After', ...box }], noEdges);
+
+        expect(runtime.problems()[0].message).toContain('After');
+        runtime.dispose();
+    });
+
+    it('ignores a position, which it does not model', async () => {
+        const runtime = make();
+        runtime.setGraph([{ id: 'n', type: 'alpha', ...box }], noEdges);
+        await runtime.run();
+
+        runtime.resetMetrics();
+        // A drag frame: same graph, new objects, different coordinates.
+        runtime.setGraph([{ id: 'n', type: 'alpha', ...box, x: 40, y: 90 }], noEdges);
+        await runtime.run();
+
+        expect(runtime.metrics.computed).toEqual([]);
+        runtime.dispose();
+    });
+});

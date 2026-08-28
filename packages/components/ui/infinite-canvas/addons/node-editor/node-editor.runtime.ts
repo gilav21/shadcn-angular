@@ -382,6 +382,7 @@ export class NodeGraphRuntime {
    */
   setGraph(nodes: readonly EditorNode[], connections: readonly NodeConnection[]): void {
     if (this.disposed) return;
+    if (this.sameShape(nodes, connections)) return;
 
     const incomingIds = new Set(nodes.map(n => n.id));
     // Collected first: `removeNode` deletes from `this.nodes`, and mutating a
@@ -397,6 +398,41 @@ export class NodeGraphRuntime {
     this.setConnections(connections);
     this.invalidateProblems();
     this.refresh();
+  }
+
+  /**
+   * Whether this graph differs from the held one in anything the runtime models.
+   *
+   * A position is not part of that model - the runtime never reads `x` or `y` -
+   * but the editor re-feeds it from an effect on the rendered node list, and a
+   * drag replaces that list on every pointermove. So every frame of a drag was
+   * paying a full structural diff to discover that nothing it cares about had
+   * changed: allocating an id Set over every node, walking every node, and
+   * re-diffing every connection. Measured at 54.5ms per frame on a graph of
+   * 100,000 nodes, which was more than the whole rest of the frame put
+   * together.
+   *
+   * Comparing instead the four fields that DO matter - the identity, the type
+   * it computes with, the title its problems are worded from, and the ports its
+   * inputs resolve through - costs a walk with no allocation at all. `ports`
+   * compares by reference deliberately: materialisation hands back the
+   * definition's own array, and a type whose ports depend on state produces a
+   * fresh one, so a subgraph gaining a boundary node is correctly NOT the same
+   * shape.
+   */
+  private sameShape(nodes: readonly EditorNode[], connections: readonly NodeConnection[]): boolean {
+    if (connections !== this.connections) return false;
+    if (nodes.length !== this.nodes.size) return false;
+
+    for (const node of nodes) {
+      const held = this.nodes.get(node.id);
+      if (held === undefined) return false;
+      if (held === node) continue;
+      if (held.type !== node.type) return false;
+      if (held.title !== node.title) return false;
+      if (held.ports !== node.ports) return false;
+    }
+    return true;
   }
 
   private addNode(node: EditorNode): void {

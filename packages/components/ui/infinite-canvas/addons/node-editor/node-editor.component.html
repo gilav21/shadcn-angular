@@ -34,7 +34,7 @@
       <ui-node-editor-node
         [node]="node"
         [metrics]="metrics"
-        [selected]="selection().nodes.includes(node.id)"
+        [selected]="selectedNodeIds().has(node.id)"
         [focused]="focusedNode() === node.id"
         [connectedPorts]="connectedPorts().get(node.id) ?? emptyPorts"
         [dropPort]="pending()?.over ?? null"

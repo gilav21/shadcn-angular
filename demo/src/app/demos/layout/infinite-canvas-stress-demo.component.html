@@ -79,6 +79,7 @@
 
   <div class="relative w-full overflow-hidden rounded-lg border">
     <ui-node-editor
+      #editor
       class="h-[350px] w-full sm:h-[450px] md:h-[600px]"
       [(nodes)]="nodes"
       [(connections)]="connections"
@@ -88,7 +89,18 @@
       (pointerup)="countCards()"
     >
       @if (showGroups()) {
-        <ui-node-editor-groups [(groups)]="groups" [nodes]="nodes()" [readonlyGroups]="true" />
+        <!--
+          The MOUNTED nodes, not the whole graph. Group membership is
+          O(zones x nodes); handing it a hundred thousand nodes makes the demo
+          itself the slowest thing on the page, which is the opposite of what
+          it is for. The combined demo passes the rendered set for the same
+          reason.
+        -->
+        <ui-node-editor-groups
+          [(groups)]="groups"
+          [nodes]="editor.renderedNodes()"
+          [readonlyGroups]="true"
+        />
       }
     </ui-node-editor>
   </div>
