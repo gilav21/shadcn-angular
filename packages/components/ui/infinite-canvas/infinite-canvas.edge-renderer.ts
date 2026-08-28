@@ -37,7 +37,8 @@ import type {
 
 interface CachedEdge {
   edge: CanvasEdge;
-  path: Path2D;
+  /** Built on first draw or hit test, never at load. See `pathOf`. */
+  path: Path2D | null;
   /** World-space bounding box, used to cull before stroking. */
   bounds: CanvasRect;
   styleKey: string;
@@ -81,6 +82,21 @@ export class CanvasEdgeRenderer {
   /** Cached edges, whether or not they are currently visible. */
   get edgeCount(): number {
     return this.cache.size;
+  }
+
+  /**
+   * How many edges have had a `Path2D` built for them.
+   *
+   * Exposed so a test can prove the expensive half of an edge is NOT built
+   * until it is drawn — the whole reason a hundred-thousand-edge board loads
+   * at all. `edgeCount` counts what is known; this counts what was paid for.
+   */
+  get builtPathCount(): number {
+    let built = 0;
+    for (const cached of this.cache.values()) {
+      if (cached.path) built++;
+    }
+    return built;
   }
 
   /**
@@ -224,7 +240,7 @@ export class CanvasEdgeRenderer {
     for (const cached of this.cache.values()) {
       if (!rectsIntersect(cached.bounds, probe)) continue;
       ctx.lineWidth = Math.max(tolerance * 2, (cached.edge.width ?? DEFAULT_EDGE_WIDTH) / viewport.zoom);
-      if (ctx.isPointInStroke(cached.path, worldX, worldY)) hit = cached.edge;
+      if (ctx.isPointInStroke(pathOf(cached), worldX, worldY)) hit = cached.edge;
     }
 
     ctx.restore();
@@ -248,7 +264,7 @@ export class CanvasEdgeRenderer {
         };
         batches.set(cached.styleKey, batch);
       }
-      batch.path.addPath(cached.path);
+      batch.path.addPath(pathOf(cached));
     }
     return batches;
   }
@@ -356,6 +372,102 @@ function reusable(cached: CachedEdge, edge: CanvasEdge, from: CanvasPoint, to: C
   );
 }
 
+/** The cubic's control points, or null for a straight edge. */
+function controlPoints(
+  edge: CanvasEdge,
+  from: CanvasPoint,
+  to: CanvasPoint,
+): { c1: CanvasPoint; c2: CanvasPoint } | null {
+  if (edge.curve !== 'bezier') return null;
+  const reach = bezierReach(from, to);
+  return { c1: { x: from.x + reach, y: from.y }, c2: { x: to.x - reach, y: to.y } };
+}
+
+/**
+ * The edge's world-space AABB.
+ *
+ * Must contain the CONTROL points, not just the endpoints. A cubic never
+ * leaves its control hull, so hull bounds are always safe; the curve's true
+ * extent is tighter, but culling an edge that is actually on screen is a
+ * visible bug and a slightly loose AABB is not.
+ *
+ * Computed eagerly for every edge, because culling needs it - but it is only
+ * arithmetic, which is the entire point of separating it from the path.
+ */
+interface Span {
+  min: number;
+  max: number;
+}
+
+function span(a: number, b: number): Span {
+  return a < b ? { min: a, max: b } : { min: b, max: a };
+}
+
+function extend(into: Span, value: number): void {
+  if (value < into.min) into.min = value;
+  else if (value > into.max) into.max = value;
+}
+
+function boundsOfEdge(edge: CanvasEdge, from: CanvasPoint, to: CanvasPoint): CanvasRect {
+  // Two small spans rather than two arrays gathered and spread through
+  // Math.min/max. The arrays were nothing at fifty edges and were 192,000
+  // allocations at ninety-six thousand, on the one pass that has to finish
+  // before the board can be shown at all.
+  const x = span(from.x, to.x);
+  const y = span(from.y, to.y);
+
+  const control = controlPoints(edge, from, to);
+  if (control) {
+    extend(x, control.c1.x);
+    extend(x, control.c2.x);
+    extend(y, control.c1.y);
+    extend(y, control.c2.y);
+  }
+
+  return {
+    x: x.min - AABB_PADDING,
+    y: y.min - AABB_PADDING,
+    width: x.max - x.min + AABB_PADDING * 2,
+    height: y.max - y.min + AABB_PADDING * 2,
+  };
+}
+
+/**
+ * The edge's world-space `Path2D`, built on first use and kept after.
+ *
+ * A `Path2D` is a native object, and building one per edge in the GRAPH rather
+ * than per edge on the SCREEN is what made a hundred-thousand-node board
+ * unusable: 96,000 of them constructed in one blocking pass at load and held
+ * for the lifetime of the page. A phone stopped responding on that frame, and
+ * the JS heap figure never showed it because the cost is not on the JS heap.
+ *
+ * Only edges that are actually drawn or hit-tested get one now. A viewport
+ * holds a few hundred, and panning reuses what it already built.
+ */
+function pathOf(cached: CachedEdge): Path2D {
+  if (cached.path) return cached.path;
+
+  const path = new Path2D();
+  path.moveTo(cached.from.x, cached.from.y);
+
+  const control = controlPoints(cached.edge, cached.from, cached.to);
+  if (control) {
+    path.bezierCurveTo(
+      control.c1.x,
+      control.c1.y,
+      control.c2.x,
+      control.c2.y,
+      cached.to.x,
+      cached.to.y,
+    );
+  } else {
+    path.lineTo(cached.to.x, cached.to.y);
+  }
+
+  cached.path = path;
+  return path;
+}
+
 function buildCachedEdge(
   edge: CanvasEdge,
   from: CanvasPoint,
@@ -363,39 +475,10 @@ function buildCachedEdge(
   sourceItem: CanvasItem,
   targetItem: CanvasItem,
 ): CachedEdge {
-  const path = new Path2D();
-  path.moveTo(from.x, from.y);
-
-  // The bounds must contain the CONTROL points, not just the endpoints. A
-  // cubic never leaves its control hull, so hull bounds are always safe; the
-  // curve's true extent is tighter, but culling an edge that is actually
-  // on-screen is a visible bug and a slightly loose AABB is not.
-  const xs = [from.x, to.x];
-  const ys = [from.y, to.y];
-
-  if (edge.curve === 'bezier') {
-    const reach = bezierReach(from, to);
-    const c1 = { x: from.x + reach, y: from.y };
-    const c2 = { x: to.x - reach, y: to.y };
-    path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, to.x, to.y);
-    xs.push(c1.x, c2.x);
-    ys.push(c1.y, c2.y);
-  } else {
-    path.lineTo(to.x, to.y);
-  }
-
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-
   return {
     edge,
-    path,
-    bounds: {
-      x: minX - AABB_PADDING,
-      y: minY - AABB_PADDING,
-      width: Math.max(...xs) - minX + AABB_PADDING * 2,
-      height: Math.max(...ys) - minY + AABB_PADDING * 2,
-    },
+    path: null,
+    bounds: boundsOfEdge(edge, from, to),
     styleKey: styleKeyOf(edge),
     from,
     to,

@@ -373,6 +373,42 @@ describe('WORKLOAD — one drag frame in a database explorer', () => {
         );
         expect(renderer.edgeCount).toBe(connections.length);
 
+        /*
+         * The DRAW path, which is the one a pan and a zoom pay.
+         *
+         * `setEdges` is charged only when something changes; `draw` is charged
+         * on EVERY frame, including frames where nothing moved at all. It was
+         * never measured until a phone froze on a 100,000-node graph while
+         * merely panning it.
+         */
+        /*
+         * The COLD cost, which is what a page load pays.
+         *
+         * Every measurement above is warm: a cache already holding the answer.
+         * The first `setEdges` builds a Path2D for every edge in the graph
+         * whether or not one is on screen, and holds all of them. On a phone
+         * that is the frame that stops responding.
+         */
+        const cold = new CanvasEdgeRenderer(document.createElement('canvas'));
+        const coldEdges = toCanvasEdges(sized, connections, {}, indexNodes(sized));
+        const coldStarted = performance.now();
+        cold.setEdges(coldEdges, indexNodes(sized));
+        report('renderer.setEdges COLD (first ever call)', performance.now() - coldStarted);
+        note(`after a cold build: ${cold.edgeCount} edges known, ${cold.builtPathCount} paths built`);
+
+        const heap = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+        if (heap) note(`JS heap in use: ${Math.round(heap.usedJSHeapSize / 1048576)} MB`);
+
+        const viewport = { x: 0, y: 0, zoom: 1 };
+        const smallView = { x: 0, y: 0, width: 1200, height: 800 };
+        report(
+          'renderer.draw (one viewport-sized frame)',
+          bench(5, () => {
+            sink = renderer.draw(viewport, smallView);
+          }),
+        );
+        note(`after drawing one viewport: ${renderer.builtPathCount} paths built of ${renderer.edgeCount}`);
+
         const incident = touchedBy(index, [moved.id]);
         const share = ((incident.length / connections.length) * 100).toFixed(4);
         note(`edges re-anchored: ${incident.length} of ${connections.length} (${share}%)`);

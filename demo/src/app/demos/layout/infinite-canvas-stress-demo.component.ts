@@ -179,9 +179,9 @@ export class InfiniteCanvasStressDemoComponent {
 
   protected readonly cardsInDom = signal(0);
   protected readonly measuring = signal(false);
-  protected readonly median = signal<number | null>(null);
   protected readonly worst = signal<number | null>(null);
-  protected readonly fps = signal<number | null>(null);
+  protected readonly overBudget = signal<number | null>(null);
+  protected readonly sampled = signal(0);
 
   /**
    * The sampler is armed only while measuring.
@@ -225,9 +225,9 @@ export class InfiniteCanvasStressDemoComponent {
   private load(scale: Scale): void {
     this.scale.set(scale);
     this.building.set(true);
-    this.median.set(null);
     this.worst.set(null);
-    this.fps.set(null);
+    this.overBudget.set(null);
+    this.sampled.set(0);
 
     clearTimeout(this.buildHandle);
     this.buildHandle = setTimeout(() => {
@@ -290,11 +290,20 @@ export class InfiniteCanvasStressDemoComponent {
     // Fewer than two frames is not a sample, it is a tab that was not drawing.
     if (samples.length < 2) return;
 
+    /*
+     * The MEDIAN of animation-frame deltas is not a measurement, and reporting
+     * it was actively misleading: a browser that drops frames simply calls back
+     * less often, so the gap between callbacks stays around 16.7ms whether it
+     * is keeping up or crawling. This page showed a confident "60fps" on a
+     * phone that had already stopped responding.
+     *
+     * The slowest frame, and how many frames missed the budget, are the two
+     * numbers that cannot lie that way.
+     */
     const sorted = [...samples].sort((a, b) => a - b);
-    const mid = sorted[Math.floor(sorted.length / 2)];
-    this.median.set(mid);
     this.worst.set(sorted[sorted.length - 1]);
-    this.fps.set(mid > 0 ? 1000 / mid : 0);
+    this.overBudget.set(samples.filter(sample => sample > BUDGET_MS * 1.5).length);
+    this.sampled.set(samples.length);
   }
 
   private stopSampling(): void {
@@ -315,8 +324,15 @@ export class InfiniteCanvasStressDemoComponent {
   }
 
   protected withinBudget(): boolean {
-    const value = this.median();
-    return value !== null && value <= BUDGET_MS;
+    const value = this.worst();
+    return value !== null && value <= BUDGET_MS * 1.5;
+  }
+
+  /** "3 of 180", or the locale's "not measured yet". */
+  protected overBudgetLabel(): string {
+    const over = this.overBudget();
+    if (over === null) return this.t().notMeasured;
+    return `${over} / ${this.sampled()}`;
   }
 
   protected format(value: number): string {

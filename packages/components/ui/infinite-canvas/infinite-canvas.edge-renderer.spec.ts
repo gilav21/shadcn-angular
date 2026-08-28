@@ -483,83 +483,171 @@ describe('setEdges reuses paths only when nothing that shapes them changed', () 
 /*
  * The regression gate for the path cache.
  *
- * The workload benchmark logs milliseconds and asserts none of them, on
- * purpose — a duration on a loaded machine is not a fact. But that left the
- * whole point of the cache ungated: reverting `setEdges` to "clear and rebuild
- * everything" would slow a 96,000-edge drag by 80ms and break no test.
+ * Reverting `setEdges` to "clear and rebuild everything" would discard every
+ * correct path on every frame of a drag and break no other test.
  *
- * Counting constructed paths is exact, machine-independent and cannot flake,
- * so that is what is asserted here.
+ * Counted through `builtPathCount` rather than by patching the `Path2D`
+ * constructor. The constructor count was the right instrument until paths went
+ * lazy; after that it measured `setEdges`, which correctly builds nothing, and
+ * so reported zero for a healthy renderer. What the cache actually promises is
+ * that a path SURVIVES a frame in which its edge did not move, and survival is
+ * what this asks about.
  */
-describe('setEdges builds only the paths that actually changed', () => {
+describe('setEdges keeps the paths whose edges did not move', () => {
   let canvas: HTMLCanvasElement;
   let renderer: CanvasEdgeRenderer;
-  let built: number;
-  let RealPath2D: typeof Path2D;
 
   beforeEach(() => {
     canvas = document.createElement('canvas');
     document.body.append(canvas);
     renderer = new CanvasEdgeRenderer(canvas);
     renderer.resize(400, 300, 1);
-
-    built = 0;
-    RealPath2D = globalThis.Path2D;
-    class CountingPath2D extends RealPath2D {
-      constructor(path?: Path2D | string) {
-        super(path as never);
-        built++;
-      }
-    }
-    globalThis.Path2D = CountingPath2D as unknown as typeof Path2D;
   });
 
-  afterEach(() => {
-    globalThis.Path2D = RealPath2D;
-    canvas.remove();
-  });
+  afterEach(() => canvas.remove());
 
-  /** A fan of `count` edges from one hub, so one hub move touches them all. */
+  /** A fan of `count` edges from one hub, all inside one viewport. */
   function fan(count: number): { edges: CanvasEdge[]; items: Map<string | number, CanvasItem> } {
     const items: CanvasItem[] = [{ id: 'hub', x: 0, y: 0, width: 10, height: 10 }];
     const edges: CanvasEdge[] = [];
     for (let i = 0; i < count; i++) {
-      items.push({ id: `n${i}`, x: 100 + i * 20, y: 50, width: 10, height: 10 });
+      items.push({ id: `n${i}`, x: 100 + i * 10, y: 50, width: 10, height: 10 });
       edges.push({ id: `e${i}`, source: 'hub', target: `n${i}`, curve: 'line' });
     }
     return { edges, items: itemMap(items) };
   }
 
-  it('builds nothing at all when nothing moved', () => {
-    const { edges, items } = fan(20);
+  const WHOLE: CanvasRect = { x: -100, y: -100, width: 800, height: 600 };
+
+  /** Draws once so every visible edge has a path, then reports the count. */
+  function warm(edges: CanvasEdge[], items: Map<string | number, CanvasItem>): number {
     renderer.setEdges(edges, items);
-    built = 0;
+    renderer.draw(IDENTITY, WHOLE);
+    return renderer.builtPathCount;
+  }
+
+  it('keeps every path when nothing moved', () => {
+    const { edges, items } = fan(20);
+    expect(warm(edges, items)).toBe(20);
 
     renderer.setEdges(edges, items);
-    expect(built).toBe(0);
+    expect(renderer.builtPathCount).toBe(20);
   });
 
-  it('builds one path when one leaf moves, not twenty', () => {
+  it('discards one path when one leaf moves, not twenty', () => {
     const { edges, items } = fan(20);
-    renderer.setEdges(edges, items);
-    built = 0;
+    expect(warm(edges, items)).toBe(20);
 
     const moved = new Map(items);
     moved.set('n7', { id: 'n7', x: 240, y: 500, width: 10, height: 10 });
     renderer.setEdges(edges, moved);
 
-    expect(built).toBe(1);
+    expect(renderer.builtPathCount).toBe(19);
   });
 
-  it('builds every path when the shared hub moves, because every edge moved', () => {
+  it('discards every path when the shared hub moves, because every edge moved', () => {
     const { edges, items } = fan(20);
-    renderer.setEdges(edges, items);
-    built = 0;
+    expect(warm(edges, items)).toBe(20);
 
     const moved = new Map(items);
     moved.set('hub', { id: 'hub', x: 0, y: 400, width: 10, height: 10 });
     renderer.setEdges(edges, moved);
 
-    expect(built).toBe(20);
+    expect(renderer.builtPathCount).toBe(0);
+  });
+});
+
+
+/*
+ * The regression gate for lazy paths.
+ *
+ * A `Path2D` is a native object. Building one per edge in the GRAPH rather
+ * than per edge on the SCREEN is what made a 100,000-node board freeze a
+ * phone: 96,000 of them built in one blocking pass before anything could be
+ * shown, and held for the life of the page. Its cost never appeared in the JS
+ * heap, because that is not where it lives.
+ *
+ * Counting built paths is exact and cannot flake.
+ */
+describe('setEdges builds no path until an edge is actually drawn', () => {
+  let canvas: HTMLCanvasElement;
+  let renderer: CanvasEdgeRenderer;
+
+  beforeEach(() => {
+    canvas = document.createElement('canvas');
+    document.body.append(canvas);
+    renderer = new CanvasEdgeRenderer(canvas);
+    renderer.resize(400, 300, 1);
+  });
+
+  afterEach(() => canvas.remove());
+
+  /** `count` edges spread far apart, so a viewport can only hold a few. */
+  function spread(count: number): {
+    edges: CanvasEdge[];
+    items: Map<string | number, CanvasItem>;
+  } {
+    const items: CanvasItem[] = [];
+    const edges: CanvasEdge[] = [];
+    for (let i = 0; i < count; i++) {
+      items.push({ id: `a${i}`, x: i * 5000, y: 0, width: 10, height: 10 });
+      items.push({ id: `b${i}`, x: i * 5000 + 100, y: 0, width: 10, height: 10 });
+      edges.push({ id: `e${i}`, source: `a${i}`, target: `b${i}`, curve: 'bezier' });
+    }
+    return { edges, items: itemMap(items) };
+  }
+
+  it('knows every edge and has built no path at all', () => {
+    const { edges, items } = spread(200);
+    renderer.setEdges(edges, items);
+
+    expect(renderer.edgeCount).toBe(200);
+    expect(renderer.builtPathCount).toBe(0);
+  });
+
+  it('builds only the paths a drawn viewport needed', () => {
+    const { edges, items } = spread(200);
+    renderer.setEdges(edges, items);
+
+    // A viewport over the first edge only.
+    renderer.draw(IDENTITY, { x: -50, y: -50, width: 300, height: 300 });
+
+    expect(renderer.builtPathCount).toBe(1);
+    expect(renderer.edgeCount).toBe(200);
+  });
+
+  it('keeps a path it already built when the viewport returns to it', () => {
+    const { edges, items } = spread(200);
+    renderer.setEdges(edges, items);
+
+    renderer.draw(IDENTITY, { x: -50, y: -50, width: 300, height: 300 });
+    renderer.draw(IDENTITY, { x: 4950, y: -50, width: 300, height: 300 });
+    renderer.draw(IDENTITY, { x: -50, y: -50, width: 300, height: 300 });
+
+    // Two viewports visited, two paths built — not three.
+    expect(renderer.builtPathCount).toBe(2);
+  });
+
+  it('builds a path for a hit test, because that needs the real curve', () => {
+    const { edges, items } = spread(200);
+    renderer.setEdges(edges, items);
+    expect(renderer.builtPathCount).toBe(0);
+
+    renderer.hitTest(55, 5, IDENTITY);
+    expect(renderer.builtPathCount).toBeGreaterThan(0);
+  });
+
+  it('drops the built path when the edge actually moves', () => {
+    const { edges, items } = spread(3);
+    renderer.setEdges(edges, items);
+    renderer.draw(IDENTITY, { x: -50, y: -50, width: 300, height: 300 });
+    expect(renderer.builtPathCount).toBe(1);
+
+    const moved = new Map(items);
+    moved.set('b0', { id: 'b0', x: 100, y: 900, width: 10, height: 10 });
+    renderer.setEdges(edges, moved);
+
+    // Rebuilt from scratch, so nothing is carrying the old shape.
+    expect(renderer.builtPathCount).toBe(0);
   });
 });

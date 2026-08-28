@@ -57,23 +57,24 @@
       <dd class="font-mono text-lg font-bold tabular-nums text-primary">{{ format(cardsInDom()) }}</dd>
     </div>
     <div class="flex flex-col gap-1 bg-background p-3">
-      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().frameMedian }}</dt>
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().frameWorst }}</dt>
       <dd
         class="font-mono text-lg font-bold tabular-nums"
         [class.text-green-600]="withinBudget()"
         [class.dark:text-green-400]="withinBudget()"
+        [class.text-destructive]="worst() !== null && !withinBudget()"
       >
-        {{ ms(median()) }}
+        {{ ms(worst()) }}
       </dd>
     </div>
     <div class="flex flex-col gap-1 bg-background p-3">
-      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().fps }}</dt>
-      <dd class="font-mono text-lg font-bold tabular-nums">{{ rounded(fps()) }}</dd>
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().overBudget }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ overBudgetLabel() }}</dd>
     </div>
   </dl>
 
   <p class="text-xs text-muted-foreground">
-    {{ t().hint }} · {{ t().budget }} · {{ t().frameWorst }}: {{ ms(worst()) }}
+    {{ t().hint }} · {{ t().budget }}<br />{{ t().cadenceNote }}
   </p>
 
   <div class="relative w-full overflow-hidden rounded-lg border">
