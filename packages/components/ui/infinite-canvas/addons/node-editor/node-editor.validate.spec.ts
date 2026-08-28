@@ -1,6 +1,6 @@
 // T-4 from `specs/node-editor-spec.md` §4 — one case per ConnectRejection.
 import { describe, it, expect } from 'vitest';
-import { canConnect, type GraphView } from './node-editor.validate';
+import { canConnect, indexGraph, type GraphView } from './node-editor.validate';
 import type { ConnectRejection, EditorNode, NodeConnection, NodePort } from './node-editor.types';
 
 function port(id: string, direction: 'in' | 'out', extra: Partial<NodePort> = {}): NodePort {
@@ -182,5 +182,107 @@ describe('cycle detection', () => {
         const connections = Array.from({ length: 1999 }, (_, i) => link(`n${i}`, `n${i + 1}`));
         const view = graph({ nodes, connections, allowCycles: false });
         expect(outcome(view, ['n1999', 'out'], ['n0', 'in'])).toBe('cycle');
+    });
+});
+
+/*
+ * `canConnect` answers by scanning: every node for each endpoint, every
+ * connection for a duplicate and for an occupied input, and — with cycles
+ * disallowed — every connection again for each node on the reachability walk.
+ *
+ * That is fine for one question and ruinous for the question the editor
+ * actually asks: which of these ports could this wire land on, once per port.
+ * Measured unindexed at 1.12ms a call on a 100,000-node graph, and the sweep
+ * used to make 400,000 of them — about seven minutes of frozen main thread for
+ * one pointerdown.
+ *
+ * An index makes each answer a hash lookup. It is only allowed to be faster,
+ * never different, so the property under test is that the two agree — on every
+ * pair, in both directions, including every way a connection can be refused.
+ */
+describe('an indexed graph answers exactly as an unindexed one', () => {
+    /** Every ordered pair of ports across the graph, both directions. */
+    function everyPair(nodes: readonly EditorNode[]): [[string, string], [string, string]][] {
+        const refs: [string, string][] = [];
+        for (const n of nodes) {
+            for (const p of n.ports ?? []) refs.push([String(n.id), p.id]);
+        }
+        const pairs: [[string, string], [string, string]][] = [];
+        for (const a of refs) {
+            for (const b of refs) pairs.push([a, b]);
+        }
+        return pairs;
+    }
+
+    function agreesOn(view: GraphView): void {
+        const indexed: GraphView = { ...view, index: indexGraph(view.nodes, view.connections) };
+        for (const [a, b] of everyPair(view.nodes)) {
+            expect(outcome(indexed, a, b)).toBe(outcome(view, a, b));
+        }
+    }
+
+    it('agrees on an empty graph', () => {
+        agreesOn(graph());
+    });
+
+    it('agrees when a connection already exists', () => {
+        agreesOn(graph({ connections: [link('a', 'b')] }));
+    });
+
+    it('agrees on an occupied single input', () => {
+        const nodes = [
+            node('a', [port('out', 'out')]),
+            node('b', [port('out', 'out')]),
+            node('c', [port('in', 'in')]),
+        ];
+        agreesOn({ nodes, connections: [link('a', 'c')] });
+    });
+
+    it('agrees on a multiple input, which is never occupied', () => {
+        const nodes = [
+            node('a', [port('out', 'out')]),
+            node('b', [port('out', 'out')]),
+            node('c', [port('in', 'in', { multiple: true })]),
+        ];
+        agreesOn({ nodes, connections: [link('a', 'c')] });
+    });
+
+    it('agrees about cycles when cycles are refused', () => {
+        agreesOn({
+            nodes: chainNodes(),
+            connections: [link('a', 'b'), link('b', 'c')],
+            allowCycles: false,
+        });
+    });
+
+    it('agrees about a longer chain when cycles are refused', () => {
+        const nodes = ['a', 'b', 'c', 'd', 'e'].map(id =>
+            node(id, [port('in', 'in'), port('out', 'out')]),
+        );
+        agreesOn({
+            nodes,
+            connections: [link('a', 'b'), link('b', 'c'), link('c', 'd'), link('d', 'e')],
+            allowCycles: false,
+        });
+    });
+
+    it('agrees about typed ports', () => {
+        const nodes = [
+            node('a', [port('out', 'out', { type: 'text' })]),
+            node('b', [port('in', 'in', { type: 'number' })]),
+            node('c', [port('in', 'in', { type: 'text' })]),
+        ];
+        agreesOn({ nodes, connections: [] });
+    });
+
+    it('agrees about an unknown node or port', () => {
+        const view = graph();
+        const indexed: GraphView = { ...view, index: indexGraph(view.nodes, view.connections) };
+        expect(outcome(indexed, ['ghost', 'out'], ['a', 'in'])).toBe(
+            outcome(view, ['ghost', 'out'], ['a', 'in']),
+        );
+        expect(outcome(indexed, ['a', 'ghost'], ['b', 'in'])).toBe(
+            outcome(view, ['a', 'ghost'], ['b', 'in']),
+        );
     });
 });

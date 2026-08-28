@@ -20,6 +20,7 @@ import { describe, it, expect } from 'vitest';
 import { NodeGraphRuntime } from './node-editor.runtime';
 import { withMaterializedTypes, indexDefinitions } from './node-editor.materialize';
 import { adjacency, touchedBy, indexNodes, toCanvasEdges } from './node-editor.graph';
+import { canConnect, indexGraph } from './node-editor.validate';
 import { SpatialHash } from '../../infinite-canvas.spatial-hash';
 import { CanvasItemLayer } from '../../infinite-canvas.item-layer';
 import { CanvasEdgeRenderer } from '../../infinite-canvas.edge-renderer';
@@ -470,6 +471,44 @@ describe('WORKLOAD — one drag frame in a database explorer', () => {
           }),
         );
         note(`after drawing one viewport: ${renderer.builtPathCount} paths built of ${renderer.edgeCount}`);
+
+        /*
+         * Starting a connection drag asks `canConnect` once per port on screen.
+         * Unindexed, each answer scans every node twice and every connection
+         * twice - which is what made one pointerdown a multi-minute freeze.
+         */
+        /*
+         * The LAST two nodes, and a pair that does not exist. Probing the first
+         * node hits `.find` on its first comparison and an existing connection
+         * early in the list, so every scan short-circuits and both variants
+         * measure nothing - which is exactly what the first version of this
+         * benchmark did.
+         */
+        const last = sized[sized.length - 1];
+        const nextToLast = sized[sized.length - 5];
+        const probeFrom = { node: last.id, port: 'rows' };
+        const probeTo = { node: nextToLast.id, port: 'columns' };
+        const plain = { nodes: sized, connections, allowCycles: true };
+        const indexed = { ...plain, index: indexGraph(sized, connections) };
+
+        report(
+          'canConnect x200 (no index)',
+          bench(3, () => {
+            for (let i = 0; i < 200; i++) sink = canConnect(plain, probeFrom, probeTo).ok ? 1 : 0;
+          }),
+        );
+        report(
+          'canConnect x200 (indexed)',
+          bench(3, () => {
+            for (let i = 0; i < 200; i++) sink = canConnect(indexed, probeFrom, probeTo).ok ? 1 : 0;
+          }),
+        );
+        report(
+          'indexGraph (built once per gesture)',
+          bench(3, () => {
+            sink = indexGraph(sized, connections).byId.size;
+          }),
+        );
 
         const incident = touchedBy(index, [moved.id]);
         const share = ((incident.length / connections.length) * 100).toFixed(4);

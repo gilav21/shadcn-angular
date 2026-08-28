@@ -80,7 +80,7 @@ import type {
   PendingConnection,
   PortRef,
 } from './node-editor.types';
-import { canConnect, type GraphView } from './node-editor.validate';
+import { canConnect, indexGraph, type GraphView } from './node-editor.validate';
 
 /** Why a connection attempt failed, and which ports were involved. */
 export interface ConnectionRejectedEvent {
@@ -848,8 +848,19 @@ export class NodeEditorComponent {
     const from = this.pendingFrom();
     if (!from) return null;
 
+    /*
+     * The MOUNTED nodes, not the whole graph.
+     *
+     * This lights up the ports a wire could land on, so it only ever needed to
+     * answer for ports someone can see. Sweeping the whole graph asked
+     * `canConnect` once per port in it - 400,000 questions at a hundred
+     * thousand nodes, each of which used to scan every node and every
+     * connection - and produced highlights for ports that are not on screen.
+     * A pointerdown froze for minutes to compute an answer nobody could look
+     * at.
+     */
     const keys = new Set<string>();
-    for (const node of this.sizedNodes()) {
+    for (const node of this.renderedNodes()) {
       for (const port of portsOf(node)) {
         if (this.evaluate(from, { node: node.id, port: port.id }).ok) {
           keys.add(`${node.id}:${port.id}`);
@@ -1600,13 +1611,26 @@ export class NodeEditorComponent {
     );
   }
 
-  private evaluate(from: PortRef, to: PortRef): ReturnType<typeof canConnect> {
-    const graph: GraphView = {
-      nodes: this.sizedNodes(),
-      connections: this.connections(),
+  /**
+   * The graph as the validator wants it, indexed, rebuilt only when it changes.
+   *
+   * A `computed`, so the index is built once per graph rather than once per
+   * question - and `connectablePorts` below asks one question per port in the
+   * graph.
+   */
+  private readonly graphView = computed<GraphView>(() => {
+    const nodes = this.sizedNodes();
+    const connections = this.connections();
+    return {
+      nodes,
+      connections,
       allowCycles: this.allowCycles(),
+      index: indexGraph(nodes, connections),
     };
-    return canConnect(graph, from, to);
+  });
+
+  private evaluate(from: PortRef, to: PortRef): ReturnType<typeof canConnect> {
+    return canConnect(this.graphView(), from, to);
   }
 
   /**
