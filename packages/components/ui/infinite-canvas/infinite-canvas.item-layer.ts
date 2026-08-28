@@ -31,6 +31,21 @@ interface MountedItem<T extends CanvasItem> {
 const CELL_SIZE_FACTOR = 2;
 const FALLBACK_CELL_SIZE = 256;
 
+/**
+ * Most item views mounted at once, however many are in view.
+ *
+ * Culling bounds the mounted set by the VIEWPORT, which is the right rule
+ * until someone zooms out: the world rect then covers the whole board, every
+ * item is "visible", and the layer dutifully mounts a real component for each.
+ * A 100,000-node graph zoomed out mounted 2,022 cards and froze the tab; one
+ * more zoom step out froze it outright.
+ *
+ * At that zoom a card is a few pixels of illegible smudge, so the ones beyond
+ * this cap were never readable. The edges still draw — they are canvas, not
+ * DOM — so the shape of the graph is unaffected by the cap.
+ */
+const DEFAULT_MAX_MOUNTED = 600;
+
 export class CanvasItemLayer<T extends CanvasItem> {
   private readonly mounted = new Map<string | number, MountedItem<T>>();
   private readonly indexById = new Map<string | number, number>();
@@ -40,7 +55,10 @@ export class CanvasItemLayer<T extends CanvasItem> {
   private safeRect: CanvasRect | null = null;
   private cellSize = FALLBACK_CELL_SIZE;
 
-  constructor(private readonly pool: CanvasItemViewPool<CanvasItemContext<T>>) {}
+  constructor(
+    private readonly pool: CanvasItemViewPool<CanvasItemContext<T>>,
+    private readonly maxMounted: number = DEFAULT_MAX_MOUNTED,
+  ) {}
 
   /** Items currently instantiated in the DOM. */
   get mountedCount(): number {
@@ -142,7 +160,7 @@ export class CanvasItemLayer<T extends CanvasItem> {
 
     this.safeRect = inflateRect(viewRect, overscan);
 
-    const visible = this.hash.query(this.safeRect);
+    const visible = this.nearestVisible(this.hash.query(this.safeRect), viewRect);
     const keep = new Set<string | number>(visible.map(item => item.id));
 
     // Release BEFORE mounting. Mounting first would drain an empty pool and
@@ -159,6 +177,38 @@ export class CanvasItemLayer<T extends CanvasItem> {
 
     for (const item of visible) this.mount(item);
     return true;
+  }
+
+  /**
+   * The visible items nearest the middle of the screen, at most `maxMounted`.
+   *
+   * Re-queries a rect shrunk around the viewport centre rather than sorting
+   * what came back. Sorting is the obvious way to say "nearest", and it is the
+   * wrong one here: the case this exists for is the one where a hundred
+   * thousand items came back, and sorting a hundred thousand is exactly the
+   * stall being avoided. Assuming roughly even density, scaling the rect by
+   * the square root of the ratio lands near the cap in a single extra query,
+   * which the hash answers in proportion to what it returns.
+   *
+   * A slice is the backstop for a board dense in the middle and empty at the
+   * edges, where that assumption does not hold.
+   */
+  private nearestVisible(visible: readonly T[], viewRect: CanvasRect): readonly T[] {
+    if (visible.length <= this.maxMounted || !this.safeRect) return visible;
+
+    const ratio = Math.sqrt(this.maxMounted / visible.length);
+    const width = this.safeRect.width * ratio;
+    const height = this.safeRect.height * ratio;
+    const centreX = viewRect.x + viewRect.width / 2;
+    const centreY = viewRect.y + viewRect.height / 2;
+
+    const focused = this.hash.query({
+      x: centreX - width / 2,
+      y: centreY - height / 2,
+      width,
+      height,
+    });
+    return focused.length > this.maxMounted ? focused.slice(0, this.maxMounted) : focused;
   }
 
   /** Topmost item under a world point, or `null`. Later items win, as in paint order. */

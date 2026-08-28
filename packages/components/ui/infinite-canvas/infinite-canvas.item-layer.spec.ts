@@ -508,3 +508,107 @@ describe('CanvasItemLayer — a drag re-indexes only what moved', () => {
     expect(inserts).toBe(199);
   });
 });
+
+/*
+ * The regression gate for the mount cap.
+ *
+ * Culling bounds the mounted set by the VIEWPORT, which is right until someone
+ * zooms out: the world rect then covers the whole board, every item counts as
+ * visible, and a real component is mounted for each. A 100,000-node graph
+ * zoomed out mounted 2,022 cards and froze the tab.
+ *
+ * Counting mounted views is exact and cannot flake.
+ */
+describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
+  let fixture: ComponentFixture<HostComponent>;
+  let pool: CanvasItemViewPool<CanvasItemContext>;
+
+  function layerWithCap(cap: number): CanvasItemLayer<CanvasItem> {
+    return new CanvasItemLayer<CanvasItem>(pool, cap);
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(HostComponent);
+    fixture.detectChanges();
+
+    const host = fixture.componentInstance;
+    pool = new CanvasItemViewPool<CanvasItemContext>(
+      host.anchor(),
+      host.tpl(),
+      host.mount().nativeElement,
+      () => ({ $implicit: undefined as unknown as CanvasItem, index: 0 }),
+    );
+  });
+
+  afterEach(() => {
+    pool.clear();
+    fixture.destroy();
+  });
+
+  /** The whole board at once, as a full zoom-out asks for. */
+  const EVERYTHING: CanvasRect = { x: -1e6, y: -1e6, width: 2e6, height: 2e6 };
+
+  it('mounts no more than the cap however far out you zoom', () => {
+    const layer = layerWithCap(50);
+    layer.setItems(grid(2000));
+
+    layer.update(EVERYTHING, 0);
+    expect(layer.mountedCount).toBeLessThanOrEqual(50);
+  });
+
+  it('still mounts everything when everything fits under the cap', () => {
+    const layer = layerWithCap(500);
+    layer.setItems(grid(40));
+
+    layer.update(EVERYTHING, 0);
+    expect(layer.mountedCount).toBe(40);
+  });
+
+  it('keeps items near the middle of the screen, not an arbitrary corner', () => {
+    const layer = layerWithCap(20);
+    // grid(): 100 columns, 200 apart — so column 50, row 5 sits near (10000, 1000).
+    layer.setItems(grid(2000));
+
+    const centred: CanvasRect = { x: 9000, y: 0, width: 2000, height: 2000 };
+    layer.update(centred, 0);
+    fixture.detectChanges();
+
+    const mounted = [...fixture.nativeElement.querySelectorAll('.cell')]
+      .map((el: Element) => Number(el.getAttribute('data-id')))
+      .filter((id: number) => !Number.isNaN(id));
+
+    expect(mounted.length).toBeGreaterThan(0);
+
+    /*
+     * Straddling the centre is the assertion, not merely "inside the region".
+     * Taking the first N of the query answer also lands inside the region —
+     * the hash returns cells in row-major order, so an arbitrary slice is the
+     * TOP-LEFT corner of it, and a looser check passed that happily. What
+     * separates a centred selection from a corner one is items on both sides
+     * of the middle.
+     */
+    const items = grid(2000);
+    const ys = mounted.map(id => items[id].y);
+    const centreY = 1000;
+    expect(Math.min(...ys)).toBeLessThan(centreY);
+    expect(Math.max(...ys)).toBeGreaterThan(centreY);
+
+    for (const id of mounted) {
+      expect(items[id].x).toBeGreaterThanOrEqual(8000);
+      expect(items[id].x).toBeLessThanOrEqual(12000);
+    }
+  });
+
+  it('releases views back to the pool when the cap pushes items out', () => {
+    const layer = layerWithCap(30);
+    layer.setItems(grid(2000));
+
+    layer.update({ x: 0, y: 0, width: 1000, height: 1000 }, 0);
+    const first = layer.mountedCount;
+    layer.update(EVERYTHING, 0);
+
+    expect(first).toBeGreaterThan(0);
+    expect(layer.mountedCount).toBeLessThanOrEqual(30);
+  });
+});
