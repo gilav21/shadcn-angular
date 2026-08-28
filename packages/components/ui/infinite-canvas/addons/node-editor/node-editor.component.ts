@@ -520,7 +520,7 @@ export class NodeEditorComponent {
     effect(() => {
       this.runtime.executeRemote = this.wrapExecutor(this.executeRemote());
       this.runtime.setGraph(this.sizedNodes(), this.connections());
-      if (this.evaluating()) void this.runtime.run();
+      if (this.evaluating()) void this.runtime.run({ automatic: true });
     });
 
     inject(DestroyRef).onDestroy(() => {
@@ -831,7 +831,7 @@ export class NodeEditorComponent {
     this.nodes.set(next.nodes);
     this.connections.set(next.connections);
     if (command.kind === 'set-state') this.runtime.setState(command.nodeId, command.after);
-    if (this.evaluating()) void this.runtime.run();
+    if (this.evaluating()) void this.runtime.run({ automatic: true });
   }
 
   /** Where the viewport currently is, for a minimap. */
@@ -1055,7 +1055,7 @@ export class NodeEditorComponent {
       at: this.now(),
     });
     this.runtime.setState(nodeId, next);
-    if (this.evaluating()) void this.runtime.run();
+    if (this.evaluating()) void this.runtime.run({ automatic: true });
   }
 
   /** Overridable in tests, which must not depend on the wall clock. */

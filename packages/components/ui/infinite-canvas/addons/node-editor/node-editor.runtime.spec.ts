@@ -905,3 +905,147 @@ describe('setGraph notices everything it models, and skips what it does not', ()
         runtime.dispose();
     });
 });
+
+/*
+ * Three promises the runtime made and did not keep.
+ */
+describe('a hung node, a stale remote answer, and a node that opted out', () => {
+    const box = { x: 0, y: 0, width: 180, height: 80 };
+
+    it('does not wedge the runtime when a compute never settles', async () => {
+        const HANGS: NodeTypeDefinition = {
+            id: 'hangs',
+            label: 'Hangs',
+            ports: [{ id: 'out', direction: 'out', label: 'Out' }],
+            compute: () => new Promise<PortValues>(() => undefined),
+        };
+        let ran = 0;
+        const FINE: NodeTypeDefinition = {
+            id: 'fine',
+            label: 'Fine',
+            ports: [{ id: 'out', direction: 'out', label: 'Out' }],
+            compute: () => {
+                ran++;
+                return { out: 'ok' };
+            },
+        };
+
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([HANGS, FINE]);
+        runtime.setGraph([{ id: 'h', type: 'hangs', ...box }], []);
+
+        // Not awaited: it never settles, which is the whole point.
+        void runtime.run();
+        for (let i = 0; i < 5; i++) await Promise.resolve();
+
+        /*
+         * Remove the hung node and evaluate something else.
+         *
+         * The assertion has to be that later work COMPLETES. Checking
+         * `retained` instead proves nothing: an empty graph has nothing ready,
+         * so `run()` returns at once whether or not the drain is still stuck,
+         * and the test passed with the fix removed.
+         *
+         * Without the abort race this await never returns — the new pass joins
+         * `draining`, which is the drain still waiting on a promise that will
+         * never settle — and the test fails by timing out.
+         */
+        runtime.setGraph([{ id: 'f', type: 'fine', ...box }], []);
+        await runtime.run();
+
+        expect(ran).toBe(1);
+        expect(runtime.outputs('f')()['out']).toBe('ok');
+        runtime.dispose();
+    });
+
+    it('leaves a remote node dirty when it was edited mid-request', async () => {
+        const REMOTE: NodeTypeDefinition = {
+            id: 'remote',
+            label: 'Remote',
+            remote: true,
+            ports: [{ id: 'out', direction: 'out', label: 'Out' }],
+        };
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([REMOTE]);
+
+        /*
+         * Only the FIRST request is held open. Once the stale answer is
+         * rejected the node is still dirty, so the drain asks again - and a
+         * fake that defers every call would leave this waiting for ever
+         * rather than telling us anything.
+         */
+        let calls = 0;
+        let release: (() => void) | null = null;
+        runtime.executeRemote = requests => {
+            const { runId, nodeId } = requests[0];
+            calls++;
+            const answer = [
+                { runId, nodeId, ok: true as const, outputs: { out: `answer-${calls}` } },
+            ];
+            if (calls > 1) return Promise.resolve(answer);
+            return new Promise(resolve => {
+                release = (): void => resolve(answer);
+            });
+        };
+
+        runtime.setGraph([{ id: 'r', type: 'remote', ...box }], []);
+        const running = runtime.run();
+        for (let i = 0; i < 5; i++) await Promise.resolve();
+
+        // The user edits while the first request is still in flight.
+        runtime.setState('r', 'changed');
+        (release as (() => void) | null)?.();
+        await running;
+
+        // The first answer was computed from a state the node no longer has,
+        // so it must not have been kept; the second request answers the edit.
+        expect(calls).toBeGreaterThan(1);
+        expect(runtime.outputs('r')()['out']).toBe('answer-2');
+        runtime.dispose();
+    });
+
+
+    it('skips a non-reactive node on an automatic pass, and runs it on an explicit one', async () => {
+        let fired = 0;
+        const SIDE_EFFECT: NodeTypeDefinition = {
+            id: 'post',
+            label: 'Post',
+            reactive: false,
+            ports: [{ id: 'out', direction: 'out', label: 'Out' }],
+            compute: () => {
+                fired++;
+                return { out: fired };
+            },
+        };
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([SIDE_EFFECT]);
+        runtime.setGraph([{ id: 'p', type: 'post', ...box }], []);
+
+        await runtime.run({ automatic: true });
+        expect(fired).toBe(0);
+
+        await runtime.run();
+        expect(fired).toBe(1);
+        runtime.dispose();
+    });
+
+    it('still runs a reactive node automatically', async () => {
+        let fired = 0;
+        const PURE: NodeTypeDefinition = {
+            id: 'pure',
+            label: 'Pure',
+            ports: [{ id: 'out', direction: 'out', label: 'Out' }],
+            compute: () => {
+                fired++;
+                return { out: fired };
+            },
+        };
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions([PURE]);
+        runtime.setGraph([{ id: 'p', type: 'pure', ...box }], []);
+
+        await runtime.run({ automatic: true });
+        expect(fired).toBe(1);
+        runtime.dispose();
+    });
+});

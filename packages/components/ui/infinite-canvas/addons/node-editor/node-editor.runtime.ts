@@ -31,6 +31,17 @@ import type {
 interface ActiveRun {
   readonly id: number;
   readonly controller: AbortController;
+  /**
+   * The dirtiness this run set out to answer.
+   *
+   * `settle` uses it to tell "finished" from "finished, but the node was
+   * edited again while I was away". The LOCAL path captured this itself; the
+   * remote path had nowhere to keep it, so it settled without one — and a
+   * remote node edited while its request was in flight was marked clean and
+   * left showing an answer computed from the old input, until something
+   * unrelated happened to dirty it again.
+   */
+  readonly version: number;
 }
 
 /** The evaluation pass in flight, accumulating what settles inside it. */
@@ -114,6 +125,36 @@ const MAX_DRAIN_ITERATIONS = 100_000;
  */
 const MAX_RECORDED_COMPUTES = 5_000;
 
+/** Returned by {@link raceAbort} when the run was given up on. */
+const ABANDONED = Symbol('abandoned');
+
+/**
+ * The work's result, or {@link ABANDONED} if the signal fires first.
+ *
+ * Deliberately RESOLVES rather than rejects on abort: an abandoned run is not
+ * a failure of the node, and rejecting would settle it as errored and show the
+ * user a problem that is not theirs.
+ */
+function raceAbort<T>(work: T | PromiseLike<T>, signal: AbortSignal): Promise<T | typeof ABANDONED> {
+  if (signal.aborted) return Promise.resolve(ABANDONED);
+
+  return new Promise<T | typeof ABANDONED>((resolve, reject) => {
+    const abandon = (): void => resolve(ABANDONED);
+    signal.addEventListener('abort', abandon, { once: true });
+
+    Promise.resolve(work).then(
+      value => {
+        signal.removeEventListener('abort', abandon);
+        resolve(value);
+      },
+      cause => {
+        signal.removeEventListener('abort', abandon);
+        reject(cause instanceof Error ? cause : new Error(String(cause)));
+      },
+    );
+  });
+}
+
 export class NodeGraphRuntime {
   // ---- graph -------------------------------------------------------------
   private readonly definitions = new Map<string, NodeTypeDefinition>();
@@ -180,6 +221,11 @@ export class NodeGraphRuntime {
   private readonly remoteBatches = new Set<AbortController>();
   private runCounter = 0;
   private disposed = false;
+  /**
+   * Whether the pass in flight was started by the editor rather than by a
+   * person. Only an automatic pass honours `reactive: false`.
+   */
+  private automaticPass = false;
   /** The drain in flight, if any. See {@link run}. */
   private draining: Promise<void> | null = null;
 
@@ -992,15 +1038,25 @@ export class NodeGraphRuntime {
    * Found by the integration test, not by the runtime's own suite, because it
    * takes two callers to produce it.
    */
-  async run(): Promise<void> {
+  async run(options?: { readonly automatic?: boolean }): Promise<void> {
     // Nothing to do starts no pass at all, so an idle editor calling `run()`
     // on every keystroke does not fill the history with empty runs.
     if (this.readySet.size === 0) return;
 
+    const automatic = options?.automatic === true;
+    const previous = this.automaticPass;
+    this.automaticPass = automatic;
+
+    if (this.runnableNow().length === 0) {
+      this.automaticPass = previous;
+      return;
+    }
+
     this.enterSession();
     try {
-      while (this.readySet.size > 0) await this.drainOnce();
+      while (this.runnableNow().length > 0) await this.drainOnce();
     } finally {
+      this.automaticPass = previous;
       this.leaveSession();
     }
   }
@@ -1067,12 +1123,37 @@ export class NodeGraphRuntime {
 
   private async drain(): Promise<void> {
     let guard = 0;
-    while (this.readySet.size > 0) {
+    let batch = this.runnableNow();
+    while (batch.length > 0) {
       if (++guard > MAX_DRAIN_ITERATIONS) {
         throw new Error('node-editor: evaluation did not converge');
       }
-      await this.execute([...this.readySet]);
+      await this.execute(batch);
+      batch = this.runnableNow();
     }
+  }
+
+  /**
+   * The ready nodes this pass is allowed to run.
+   *
+   * Everything ready, unless the pass is automatic — one the EDITOR started
+   * because something changed, rather than one a person asked for. A type
+   * marked `reactive: false` is skipped there and left dirty, so it runs on
+   * the next explicit `run()` or `step()` instead.
+   *
+   * The flag was declared, typed and documented ("`false` for anything with
+   * side effects, which waits for an explicit run") and never read by
+   * anything. A consumer marking their HTTP POST node non-reactive got it
+   * fired on every keystroke regardless, and the damage landed outside the
+   * library where we could not see it.
+   *
+   * The loop above re-asks rather than draining `readySet` directly, because
+   * skipped nodes stay in it — draining it would never terminate.
+   */
+  private runnableNow(): NodeId[] {
+    const ready = [...this.readySet];
+    if (!this.automaticPass) return ready;
+    return ready.filter(nodeId => this.definition(nodeId)?.reactive !== false);
   }
 
   private async execute(batch: readonly NodeId[]): Promise<void> {
@@ -1140,7 +1221,26 @@ export class NodeGraphRuntime {
         this.settle(nodeId, 'done', version);
         return;
       }
-      this.applyOutputs(nodeId, run.id, definition, await result);
+      /*
+       * The wait ends when the run is abandoned, even if the promise never
+       * settles.
+       *
+       * A `compute` that never resolves - a fetch with no timeout, a node
+       * waiting on a confirmation that never comes - used to wedge the WHOLE
+       * runtime permanently. This await sits inside the drain, the drain is
+       * held in `draining`, and every later `run()` and `step()` awaits that.
+       * Deleting the offending node did not help: `beginRun` aborts the
+       * previous controller, but nothing settled the promise, so the await
+       * never returned and `draining` was never cleared.
+       *
+       * Racing the run's own abort signal costs nothing in the normal case and
+       * means an abandoned run releases the drain. A node nobody abandons
+       * still waits for ever, which is correct - it may simply be slow.
+       */
+      const value = await raceAbort(result, run.controller.signal);
+      if (value === ABANDONED) return;
+
+      this.applyOutputs(nodeId, run.id, definition, value);
       this.settle(nodeId, 'done', version);
     } catch (cause: unknown) {
       this.errorSignal(nodeId).set(cause);
@@ -1153,7 +1253,11 @@ export class NodeGraphRuntime {
     if (previous && (definition.staleness ?? DEFAULT_STALENESS) === 'cancel') {
       previous.controller.abort();
     }
-    const run: ActiveRun = { id: ++this.runCounter, controller: new AbortController() };
+    const run: ActiveRun = {
+      id: ++this.runCounter,
+      controller: new AbortController(),
+      version: this.versionOf(nodeId),
+    };
     this.active.set(nodeId, run);
     return run;
   }
@@ -1333,13 +1437,30 @@ export class NodeGraphRuntime {
   private applyRemoteResult(result: RemoteResult): void {
     const definition = this.definition(result.nodeId);
     if (!definition) return;
+
+    /*
+     * Settle against the version this run set out to answer.
+     *
+     * Without it a remote node edited while its request was in flight came
+     * back "done" and CLEAN, showing an answer computed from the input it no
+     * longer has — and nothing would recompute it until something unrelated
+     * dirtied it again. The local path has always passed a version here; the
+     * remote path passed none, so the staleness check it exists for could
+     * never fire.
+     *
+     * A result whose run is no longer the active one is not this node's
+     * answer at all, and `settle` is not called for it.
+     */
+    const run = this.active.get(result.nodeId);
+    const version = run?.id === result.runId ? run.version : undefined;
+
     if (!result.ok) {
       this.errorSignal(result.nodeId).set(result.error);
-      this.settle(result.nodeId, 'error');
+      this.settle(result.nodeId, 'error', version);
       return;
     }
     this.applyOutputs(result.nodeId, result.runId, definition, result.outputs);
-    if (result.done !== false) this.settle(result.nodeId, 'done');
+    if (result.done !== false) this.settle(result.nodeId, 'done', version);
   }
 
   private settle(nodeId: NodeId, status: NodeStatus, version?: number): void {
@@ -1530,6 +1651,13 @@ export class NodeGraphRuntime {
     // The signal the executor was asked to honour, finally fired.
     for (const controller of this.remoteBatches) controller.abort();
     this.remoteBatches.clear();
+    /*
+     * A drain waiting on a promise that never settles would otherwise keep
+     * every later `run()` queued behind it on a runtime that is finished with.
+     * Aborting the active runs above is what lets that await return; this drops
+     * the reference so nothing waits on it either way.
+     */
+    this.draining = null;
 
     this.dirty.clear();
     this.readySet.clear();
