@@ -62,20 +62,37 @@ export function withMaterializedTypes(
   if (definitions.size === 0) return nodes;
 
   const cache = cacheFor(definitions);
-  let changed = false;
-  const next = nodes.map(node => {
+
+  /*
+   * Allocate only once something actually differs.
+   *
+   * `nodes.map(...)` built a new array the size of the whole graph and then
+   * decided whether to throw it away — so a drag frame on a hundred thousand
+   * nodes allocated a hundred thousand slots to hand back the array it was
+   * given. The walk is the same; only the array is deferred.
+   */
+  let next: EditorNode[] | null = null;
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
     const remembered = cache.get(node);
-    if (remembered) {
-      if (remembered !== node) changed = true;
-      return remembered;
+    let resolved = remembered;
+
+    if (!resolved) {
+      resolved = materializeNode(node, definitions, stateOf);
+      if (!isStateDependent(node, definitions)) cache.set(node, resolved);
     }
 
-    const materialized = materializeNode(node, definitions, stateOf);
-    if (materialized !== node) changed = true;
-    if (!isStateDependent(node, definitions)) cache.set(node, materialized);
-    return materialized;
-  });
-  return changed ? next : nodes;
+    if (resolved === node) {
+      next?.push(node);
+      continue;
+    }
+
+    next ??= nodes.slice(0, i);
+    next.push(resolved);
+  }
+
+  return next ?? nodes;
 }
 
 /** Whether this node's ports are a function of its state rather than its type. */

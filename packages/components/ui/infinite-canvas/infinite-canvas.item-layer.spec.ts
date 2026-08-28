@@ -583,6 +583,47 @@ describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
     expect(layer.mountedCount).toBe(40);
   });
 
+  it('mounts exactly the nearest items, not merely nearby ones', () => {
+    /*
+     * The selection is a heap of the best `cap` rather than a sort of
+     * everything — this branch gives up the hysteresis deliberately, so it
+     * runs on every frame, and copying and fully ordering a hundred thousand
+     * items to keep six hundred was the single largest per-frame cost in the
+     * engine.
+     *
+     * A heap that is subtly wrong still returns items from roughly the right
+     * area, which every other test here would accept. This one names them:
+     * the mounted set must equal the nearest `cap` by centre distance,
+     * computed independently.
+     */
+    const cap = 20;
+    const layer = layerWithCap(cap);
+    const items = grid(2000);
+    layer.setItems(items);
+
+    const view: CanvasRect = { x: 3000, y: 400, width: 1400, height: 1000 };
+    layer.update(view, 0);
+    fixture.detectChanges();
+
+    const centreX = view.x + view.width / 2;
+    const centreY = view.y + view.height / 2;
+    const distance = (item: CanvasItem): number =>
+      Math.hypot(item.x + item.width / 2 - centreX, item.y + item.height / 2 - centreY);
+
+    const expected = [...items]
+      .sort((a, b) => distance(a) - distance(b))
+      .slice(0, cap)
+      .map(item => Number(item.id))
+      .sort((a, b) => a - b);
+
+    const mounted = [...fixture.nativeElement.querySelectorAll('.cell')]
+      .map((el: Element) => Number(el.getAttribute('data-id')))
+      .filter((id: number) => !Number.isNaN(id))
+      .sort((a: number, b: number) => a - b);
+
+    expect(mounted).toEqual(expected);
+  });
+
   it('drops from every edge alike, not the whole bottom of the screen', () => {
     /*
      * The cap is rationed by distance from the middle. Taking the first N the

@@ -176,32 +176,50 @@ interface DerivedHeight {
 
 const HEIGHTS = new WeakMap<EditorNode, DerivedHeight>();
 
+/**
+ * A node's height, remembered per node object.
+ *
+ * The WeakMap is written only on a MISS: recording the same answer over a hit
+ * was a write per node per frame, a hundred thousand of them during a drag,
+ * to store values the entry already held.
+ */
+function heightOf(node: EditorNode, metrics: PortMetrics, body: number): number {
+  const remembered = HEIGHTS.get(node);
+  if (remembered && remembered.metrics === metrics && remembered.body === body) {
+    return remembered.height;
+  }
+
+  const height = nodeHeight(node, metrics, body);
+  HEIGHTS.set(node, { metrics, body, height });
+  return height;
+}
+
 export function withDerivedHeights(
   nodes: readonly EditorNode[],
   metrics: PortMetrics = defaultMetrics(),
   bodyHeightOf: (node: EditorNode) => number = () => 0,
 ): readonly EditorNode[] {
-  let changed = false;
-  const next = nodes.map(node => {
-    const body = bodyHeightOf(node);
-    const remembered = HEIGHTS.get(node);
-    if (remembered && remembered.metrics === metrics && remembered.body === body) {
-      const height = remembered.height;
-      if (height === node.height) return node;
-      changed = true;
-      return { ...node, height };
+  /*
+   * Allocate only once a height actually differs — see the same note in
+   * `withMaterializedTypes`. Between them this was two throwaway arrays the
+   * size of the graph on every frame of a drag.
+   */
+  let next: EditorNode[] | null = null;
+
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    const height = heightOf(node, metrics, bodyHeightOf(node));
+
+    if (height === node.height) {
+      next?.push(node);
+      continue;
     }
 
-    // Only on a miss. Recording the same answer over a hit was a WeakMap write
-    // per node per frame — a hundred thousand of them during a drag, to store
-    // values the entry already held.
-    const height = nodeHeight(node, metrics, body);
-    HEIGHTS.set(node, { metrics, body, height });
-    if (height === node.height) return node;
-    changed = true;
-    return { ...node, height };
-  });
+    next ??= nodes.slice(0, i);
+    next.push({ ...node, height });
+  }
+
   // Returning the same array when nothing moved keeps the engine's `items`
   // input from invalidating on every change-detection pass.
-  return changed ? next : nodes;
+  return next ?? nodes;
 }

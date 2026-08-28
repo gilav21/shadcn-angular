@@ -99,6 +99,8 @@ const GROUP_INDEX = new WeakMap<readonly NodeGroup[], SpatialHash<NodeGroup>>();
 interface MembershipMemo {
   readonly nodes: readonly EditorNode[];
   readonly groupsOf: ReadonlyMap<NodeId, readonly string[]>;
+  /** The answer itself, handed straight back when nothing diverged. */
+  readonly result: GroupMembership;
 }
 
 const MEMBERSHIP = new WeakMap<readonly NodeGroup[], MembershipMemo>();
@@ -154,6 +156,18 @@ export function membership(
 
   const index = indexOf(groups);
   const previous = MEMBERSHIP.get(groups);
+
+  /*
+   * The same nodes give the same answer.
+   *
+   * Skipping the spatial queries still left a hundred thousand `Map.set`
+   * calls and a hundred thousand pushes rebuilding an identical answer on
+   * every frame of a drag. When the node list is the very array the memo was
+   * built from, there is nothing to rebuild. Read-only by contract, like
+   * everything else derived here.
+   */
+  if (previous?.nodes === nodes) return previous.result;
+
   const groupsOf = new Map<NodeId, readonly string[]>();
 
   // Two buffers for the whole walk, not two per node. See `queryInto`.
@@ -180,7 +194,7 @@ export function membership(
     for (const id of ids) result.get(id)?.push(node.id);
   }
 
-  MEMBERSHIP.set(groups, { nodes, groupsOf });
+  MEMBERSHIP.set(groups, { nodes, groupsOf, result });
   return result;
 }
 

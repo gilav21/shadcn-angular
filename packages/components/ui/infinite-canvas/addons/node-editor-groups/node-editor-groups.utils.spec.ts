@@ -217,6 +217,15 @@ describe('the membership memo answers for the graph it was given', () => {
      */
     const groups = [group('g', 0, 0, 400, 400)];
 
+    it('hands back the very same answer for the very same node list', () => {
+        // Not merely equal — identical. Rebuilding a hundred-thousand-entry
+        // map to reproduce the answer it already had was the cost the memo
+        // was supposed to remove.
+        const nodes = [node('a', 50, 50), node('b', 900, 900)];
+
+        expect(membership(groups, nodes)).toBe(membership(groups, nodes));
+    });
+
     it('lets go of a node that moved out of the group', () => {
         expect(membership(groups, [node('a', 50, 50)]).get('g')).toEqual(['a']);
 

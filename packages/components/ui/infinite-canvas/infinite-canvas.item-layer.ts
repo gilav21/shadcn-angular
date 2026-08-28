@@ -230,14 +230,22 @@ export class CanvasItemLayer<T extends CanvasItem> {
    * screen and the whole bottom band went blank, with the edges still drawn
    * into it. Which cards are dropped should depend on where the user is
    * looking, not on the iteration order of a hash.
+   *
+   * Selected, not sorted. This branch gives up the hysteresis on purpose, so
+   * it runs on EVERY frame — and the honest answer to "which six hundred of
+   * these hundred thousand" is not to copy all hundred thousand and order
+   * them completely. Sorting cost 1.7 million comparisons with a square root
+   * inside each; keeping the best `cap` in a heap costs one pass and a
+   * comparison against the worst kept so far, which almost always fails.
+   * Distances stay SQUARED: monotonic in distance, and no square root.
    */
   private nearestToCentre(found: readonly T[], viewRect: CanvasRect): readonly T[] {
-    const centreX = viewRect.x + viewRect.width / 2;
-    const centreY = viewRect.y + viewRect.height / 2;
-    const distance = (item: T): number =>
-      Math.hypot(item.x + item.width / 2 - centreX, item.y + item.height / 2 - centreY);
-
-    return [...found].sort((a, b) => distance(a) - distance(b)).slice(0, this.maxMounted);
+    return nearestTo(
+      found,
+      this.maxMounted,
+      viewRect.x + viewRect.width / 2,
+      viewRect.y + viewRect.height / 2,
+    );
   }
 
   /**
@@ -414,4 +422,79 @@ export class CanvasItemLayer<T extends CanvasItem> {
     style.width = `${item.width}px`;
     style.height = `${item.height}px`;
   }
+}
+
+/** Squared distance from an item's centre to a point. Monotonic, and no root. */
+function centreDistanceSquared(item: CanvasItem, x: number, y: number): number {
+  const dx = item.x + item.width / 2 - x;
+  const dy = item.y + item.height / 2 - y;
+  return dx * dx + dy * dy;
+}
+
+/** Restores the max-heap property upwards from `index`. */
+function siftUp(keys: number[], items: unknown[], index: number): void {
+  let child = index;
+  while (child > 0) {
+    const parent = (child - 1) >> 1;
+    if (keys[parent] >= keys[child]) return;
+    [keys[parent], keys[child]] = [keys[child], keys[parent]];
+    [items[parent], items[child]] = [items[child], items[parent]];
+    child = parent;
+  }
+}
+
+/** Restores the max-heap property downwards from the root. */
+function siftDown(keys: number[], items: unknown[]): void {
+  const size = keys.length;
+  let parent = 0;
+  for (;;) {
+    const left = parent * 2 + 1;
+    const right = left + 1;
+    let largest = parent;
+    if (left < size && keys[left] > keys[largest]) largest = left;
+    if (right < size && keys[right] > keys[largest]) largest = right;
+    if (largest === parent) return;
+
+    [keys[parent], keys[largest]] = [keys[largest], keys[parent]];
+    [items[parent], items[largest]] = [items[largest], items[parent]];
+    parent = largest;
+  }
+}
+
+/**
+ * The `cap` items whose centres are nearest to (`x`, `y`), in no order.
+ *
+ * A heap of the best `cap` so far, so the pass is O(n log cap) with one array
+ * of `cap` — rather than O(n log n) over a copy of everything. The order of
+ * the result does not matter: the caller mounts a SET.
+ */
+function nearestTo<T extends CanvasItem>(
+  found: readonly T[],
+  cap: number,
+  x: number,
+  y: number,
+): readonly T[] {
+  const items: T[] = [];
+  const keys: number[] = [];
+
+  for (const item of found) {
+    const key = centreDistanceSquared(item, x, y);
+
+    if (items.length < cap) {
+      items.push(item);
+      keys.push(key);
+      siftUp(keys, items, items.length - 1);
+      continue;
+    }
+
+    // Further away than the worst one kept: almost always true, and the only
+    // comparison most of a hundred thousand items ever cost.
+    if (key >= keys[0]) continue;
+
+    keys[0] = key;
+    items[0] = item;
+    siftDown(keys, items);
+  }
+
+  return items;
 }
