@@ -211,6 +211,33 @@ interface DragState {
  * The editor listens once at its root and resolves the target from
  * `data-node` / `data-port`.
  */
+
+/**
+ * Keeps a gesture's events coming to the element that started it.
+ *
+ * Without capture, releasing the mouse outside the editor delivers `pointerup`
+ * somewhere else entirely: the drag was never ended, and moving back over the
+ * canvas resumed dragging the node — or the half-drawn wire — with no button
+ * held, committing it wherever the next click landed. Touch never had the bug,
+ * because touch pointers are captured implicitly, so this was a mouse-only
+ * divergence in a component that goes to some length to keep the two paths
+ * identical. The canvas engine and the groups addon both already capture.
+ *
+ * Failure is ignored on purpose. `setPointerCapture` throws for a pointer the
+ * browser no longer considers active — and for the synthetic events a test
+ * dispatches — and not capturing is a worse gesture, not a broken one.
+ */
+function capturePointer(event: PointerEvent): void {
+  const target = event.currentTarget ?? event.target;
+  if (!(target instanceof Element)) return;
+  try {
+    target.setPointerCapture(event.pointerId);
+  } catch {
+    // A pointer that cannot be captured still drags; it just needs the
+    // window-level release below to end.
+  }
+}
+
 @Component({
   selector: 'ui-node-editor',
   exportAs: 'uiNodeEditor',
@@ -1103,7 +1130,7 @@ export class NodeEditorComponent {
     }
 
     const collapseTo = this.selectNode(nodeId, event.shiftKey);
-    this.focusedNode.set(nodeId);
+    this.takeFocus(nodeId);
 
     // A press on the consumer's own control inside a node view selects the
     // node but must NOT start a drag — otherwise the control cannot be used.
@@ -1381,6 +1408,7 @@ export class NodeEditorComponent {
       this.connections.set(removeConnections(this.connections(), [existing.id]));
     }
 
+    capturePointer(event);
     const world = this.canvas().screenToWorld({ x: event.clientX, y: event.clientY });
     this.pending.set({ from: anchor, to: world, over: null, valid: false, detached: existing });
     event.preventDefault();
@@ -1457,6 +1485,7 @@ export class NodeEditorComponent {
       ? this.sizedNodes().filter(candidate => this.selectedNodeIds().has(candidate.id))
       : [node];
 
+    capturePointer(event);
     this.drag = {
       pointerId: event.pointerId,
       origin: this.canvas().screenToWorld({ x: event.clientX, y: event.clientY }),
@@ -1560,10 +1589,7 @@ export class NodeEditorComponent {
     const node = this.focusedEditorNode();
     if (!node) return false;
 
-    if (event.key === 'Tab' && portsOf(node).length > 0) {
-      this.cyclePort(node, event.shiftKey ? -1 : 1);
-      return true;
-    }
+    if (event.key === 'Tab') return this.tabThroughPorts(node, event.shiftKey);
     if (event.key !== 'Enter') return false;
 
     const port = this.activePort();
@@ -1592,11 +1618,39 @@ export class NodeEditorComponent {
     return true;
   }
 
-  private cyclePort(node: EditorNode, step: number): void {
+  /**
+   * Tab moves to the next port, or OUT of the editor at either end.
+   *
+   * It used to wrap: `(index + step + length) % length`, with the handler
+   * claiming the key and calling `preventDefault`. So once any typed node had
+   * focus, Tab and Shift+Tab cycled its ports for ever and nothing after the
+   * canvas could be reached without a mouse — a keyboard trap, WCAG 2.1.2, in
+   * the component whose own header calls the keyboard model "the part every
+   * other node-graph library omits".
+   *
+   * Returning false at the ends hands the key back to the browser, which moves
+   * focus onward exactly as it would anywhere else. The active port is
+   * released on the way out so returning later starts from the beginning
+   * rather than resuming mid-node.
+   */
+  private tabThroughPorts(node: EditorNode, backwards: boolean): boolean {
     const ids = portsOf(node).map(port => port.id);
+    if (ids.length === 0) return false;
+
     const current = this.activePort();
     const index = current ? ids.indexOf(current) : -1;
-    const next = ids[(index + step + ids.length) % ids.length];
+    const next = index + (backwards ? -1 : 1);
+
+    if (next < 0 || next >= ids.length) {
+      this.activePort.set(null);
+      return false;
+    }
+
+    this.focusPort(node, ids[next]);
+    return true;
+  }
+
+  private focusPort(node: EditorNode, next: string): void {
     this.activePort.set(next);
 
     const port = portsOf(node).find(candidate => candidate.id === next);
@@ -1650,9 +1704,24 @@ export class NodeEditorComponent {
     );
   }
 
+  /**
+   * Moves keyboard focus to a node, releasing the port focus it replaces.
+   *
+   * The active port belongs to the focused NODE, and two of the three places
+   * that moved focus left it pointing at the previous node's port. Tab on the
+   * newly focused node then resumed from that stale index — which the old
+   * wrapping `% length` hid, because wrapping past the end landed back on a
+   * plausible port and looked correct. It stopped looking correct the moment
+   * Tab was allowed to leave at the end instead.
+   */
+  private takeFocus(nodeId: NodeId): void {
+    if (this.focusedNode() !== nodeId) this.activePort.set(null);
+    this.focusedNode.set(nodeId);
+  }
+
   protected onNodeFocus(event: FocusEvent): void {
     const nodeId = this.nodeIdFromEvent(event);
-    if (nodeId !== null) this.focusedNode.set(nodeId);
+    if (nodeId !== null) this.takeFocus(nodeId);
   }
 
   // ------------------------------------------------------------------ actions
@@ -1790,8 +1859,7 @@ export class NodeEditorComponent {
     const node = this.nodesById().get(nodeId);
     if (!node) return;
 
-    this.focusedNode.set(nodeId);
-    this.activePort.set(null);
+    this.takeFocus(nodeId);
 
     const visible = this.canvas().visibleWorldRect();
     const centre = { x: node.x + node.width / 2, y: node.y + node.height / 2 };

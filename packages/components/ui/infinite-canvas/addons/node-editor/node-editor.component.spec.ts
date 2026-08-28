@@ -391,6 +391,66 @@ describe('NodeEditorComponent', () => {
             expect(nodeEl('b').getAttribute('tabindex')).toBe('0');
         });
 
+        /*
+         * Tab must be able to leave.
+         *
+         * It used to wrap round the node's ports for ever while the handler
+         * claimed the key and called `preventDefault`, so once any typed node
+         * had focus nothing after the canvas could be reached without a mouse
+         * — a keyboard trap, WCAG 2.1.2.
+         */
+        it('hands Tab back to the browser after the last port', async () => {
+            focus('a');
+            await settle();
+
+            // a has two ports: in, then out.
+            expect(key(nodeEl('a'), { key: 'Tab' }).defaultPrevented).toBe(true);
+            await settle();
+            expect(key(nodeEl('a'), { key: 'Tab' }).defaultPrevented).toBe(true);
+            await settle();
+
+            // Past the last one, the key is not ours.
+            const escaping = key(nodeEl('a'), { key: 'Tab' });
+            await settle();
+            expect(escaping.defaultPrevented).toBe(false);
+        });
+
+        it('hands Shift+Tab back before the first port', async () => {
+            focus('a');
+            await settle();
+
+            const escaping = key(nodeEl('a'), { key: 'Tab', shiftKey: true });
+            await settle();
+            expect(escaping.defaultPrevented).toBe(false);
+        });
+
+        it('still steps through the ports it does own', async () => {
+            focus('a');
+            await settle();
+            expect(key(nodeEl('a'), { key: 'Tab' }).defaultPrevented).toBe(true);
+            await settle();
+
+            // Shift+Tab from the second port goes back to the first, not out.
+            expect(key(nodeEl('a'), { key: 'Tab' }).defaultPrevented).toBe(true);
+            await settle();
+            expect(key(nodeEl('a'), { key: 'Tab', shiftKey: true }).defaultPrevented).toBe(true);
+        });
+
+        it('starts from the beginning on a different node', async () => {
+            focus('a');
+            await settle();
+            key(nodeEl('a'), { key: 'Tab' });
+            key(nodeEl('a'), { key: 'Tab' });
+            await settle();
+
+            // Moving to another node must not resume at the previous node's
+            // index — the wrap used to hide that by landing somewhere
+            // plausible.
+            focus('b');
+            await settle();
+            expect(key(nodeEl('b'), { key: 'Tab' }).defaultPrevented).toBe(true);
+        });
+
         it('ignores a direction with nothing in it', async () => {
             focus('a');
             await settle();
