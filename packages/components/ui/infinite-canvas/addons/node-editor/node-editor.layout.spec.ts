@@ -164,6 +164,27 @@ describe('withDerivedHeights', () => {
         const next = withDerivedHeights([settledStable, node([], { id: 'fresh' })], M);
         expect(next[0]).toBe(settledStable);
     });
+
+    it('keeps the nodes that follow a changed one', () => {
+        /*
+         * The changed node FIRST, which is the order nothing tested.
+         *
+         * The array is allocated from the first divergence — before that
+         * there is nothing to copy, and a node needing no change is simply
+         * not written. That is only correct while every later unchanged node
+         * IS written, and with the settled node at index 0 the copy never
+         * starts, so dropping that write is invisible. Reversed, it means
+         * every node after the first changed one silently vanishes from the
+         * canvas: during a drag, the whole graph below the node you moved.
+         */
+        const stable = { ...node([port('a', 'in')], { id: 'stable' }) };
+        const settledStable = withDerivedHeights([stable], M)[0];
+
+        const next = withDerivedHeights([node([], { id: 'fresh' }), settledStable], M);
+
+        expect(next).toHaveLength(2);
+        expect(next[1]).toBe(settledStable);
+    });
 });
 
 describe('port metrics adapt the row height to the device', () => {

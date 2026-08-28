@@ -269,6 +269,34 @@ describe('CanvasEdgeRenderer', () => {
       expect(renderer.builtPathCount).toBeLessThanOrEqual(4000);
     });
 
+    it('samples on what is VISIBLE, not on how much is cached', () => {
+      /*
+       * A big board panned to a sparse corner draws every wire it can see.
+       * Dividing the cap by the CACHE size instead would give a board of
+       * 96,000 edges a sample fraction near zero everywhere — pan to a corner
+       * with fifty wires on screen and two of them appear. Both cap tests
+       * above have every edge visible, so `visible === cache.size` there and
+       * the mistake is invisible to them.
+       */
+      const far = itemMap([
+        { id: 'a', x: 0, y: 0, width: 10, height: 10 },
+        { id: 'b', x: 200, y: 0, width: 10, height: 10 },
+        { id: 'c', x: 50_000, y: 50_000, width: 10, height: 10 },
+        { id: 'd', x: 50_200, y: 50_000, width: 10, height: 10 },
+      ]);
+
+      const edges = manyEdges(4_001);
+      for (let i = 0; i < 3; i++) {
+        edges.push({ id: `far${i}`, source: 'c', target: 'd' });
+      }
+      renderer.setEdges(edges, far);
+
+      // A viewport holding only the three distant wires.
+      renderer.draw(IDENTITY, { x: 49_000, y: 49_000, width: 2_000, height: 2_000 });
+
+      expect(renderer.builtPathCount).toBe(3);
+    });
+
     it('draws everything when the count is under the cap', () => {
       renderer.setEdges(manyEdges(100), ITEMS);
       renderer.draw(IDENTITY, { x: -1000, y: -1000, width: 4000, height: 4000 });

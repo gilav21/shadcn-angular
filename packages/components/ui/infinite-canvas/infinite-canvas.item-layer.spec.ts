@@ -601,7 +601,18 @@ describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
     const items = grid(2000);
     layer.setItems(items);
 
-    const view: CanvasRect = { x: 3000, y: 400, width: 1400, height: 1000 };
+    /*
+     * Offset by a non-multiple of the grid step, deliberately.
+     *
+     * On a round viewport the twentieth and twenty-first nearest items are
+     * EQUIDISTANT to six decimal places — mirrored offsets of the same centre
+     * — and the two sides then disagree for a reason that is not a bug: the
+     * oracle breaks the tie by array order (`sort` is stable), while the heap
+     * breaks it by arrival order. The test would pass today and turn red the
+     * day the hash changed its cell size or its bucket iteration, looking
+     * exactly like a heap fault. Shifted, no two items tie.
+     */
+    const view: CanvasRect = { x: 3037, y: 453, width: 1400, height: 1000 };
     layer.update(view, 0);
     fixture.detectChanges();
 

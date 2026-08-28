@@ -313,6 +313,21 @@ describe('ENFORCED — a full drain stays linear in the size of the graph', () =
         return scans;
     }
 
+    it('counts something proportional to the graph in the first place', async () => {
+        /*
+         * A ratio between two readings of one counter is happy with a
+         * counter that never moves: clamping it to a constant, or deleting an
+         * increment, makes the gate below pass under the very regression it
+         * guards. So the magnitude is pinned too — roughly one scan per node
+         * per pass, within a wide band, and never zero.
+         */
+        const nodes = 250 * 4;
+        const scans = await scansFor(250);
+
+        expect(scans).toBeGreaterThan(nodes / 2);
+        expect(scans).toBeLessThan(nodes * 8);
+    });
+
     it('doubling the node count does not square the readiness work', async () => {
         const small = await scansFor(250);
         const large = await scansFor(500);
@@ -325,6 +340,15 @@ describe('ENFORCED — a full drain stays linear in the size of the graph', () =
          * more than the new one.
          */
         expect(large).toBeLessThan(small * 3);
+
+        /*
+         * And it has to GROW. A ratio alone is satisfied by a counter that
+         * never moves — clamping it to a constant makes small and large equal
+         * and every assertion above pass, under the quadratic too. Linear is
+         * exactly 2x here, so 1.5x is a floor no honest implementation can
+         * miss and no frozen counter can reach.
+         */
+        expect(large).toBeGreaterThan(small * 1.5);
     });
 });
 

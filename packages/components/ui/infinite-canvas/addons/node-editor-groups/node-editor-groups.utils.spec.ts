@@ -226,6 +226,23 @@ describe('the membership memo answers for the graph it was given', () => {
         expect(membership(groups, nodes)).toBe(membership(groups, nodes));
     });
 
+    it('does not answer for a different set of groups', () => {
+        /*
+         * The memo's correctness argument is that the groups were proved
+         * unchanged BY ITS KEY — so the key is load-bearing. Resizing or
+         * moving a group replaces the groups array and leaves every node
+         * object untouched, which is precisely the case a keyless memo (a
+         * module-level `previous`) gets wrong: every node takes the identity
+         * fast path and keeps an answer computed for a group that no longer
+         * has that shape.
+         */
+        const nodes = [node('a', 50, 50)];
+        expect(membership([group('g', 0, 0, 400, 400)], nodes).get('g')).toEqual(['a']);
+
+        // The same node, a group shrunk out from under it.
+        expect(membership([group('g', 0, 0, 10, 10)], nodes).get('g')).toEqual([]);
+    });
+
     it('lets go of a node that moved out of the group', () => {
         expect(membership(groups, [node('a', 50, 50)]).get('g')).toEqual(['a']);
 

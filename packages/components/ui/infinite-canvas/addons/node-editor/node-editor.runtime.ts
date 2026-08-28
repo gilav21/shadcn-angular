@@ -86,7 +86,7 @@ export interface RuntimeMetrics {
    */
   readonly retained: number;
   /**
-   * Nodes examined while deciding what is ready to run.
+   * Nodes examined while working out what to run and what is wrong.
    *
    * A COUNT, so the cost of a drain can be asserted rather than timed. The
    * ready set used to be recomputed over the whole dirty set on every settle,
@@ -98,6 +98,11 @@ export interface RuntimeMetrics {
    * so nothing but a number can catch it coming back: the perf suite logs
    * milliseconds and never fails, and a timing gate on a loaded Windows box
    * flakes. This grows linearly with the graph and quadratically without.
+   *
+   * It counts the cycle and problem sweeps too, not only the ready set. Those
+   * run on the same per-settle path and are kept off it ONLY by their stale
+   * flags, so deleting a flag is the same quadratic by another route — and a
+   * counter that watched one of the two would have said nothing about it.
    */
   readonly readyScans: number;
 }
@@ -947,6 +952,7 @@ export class NodeGraphRuntime {
 
   private excludeCycles(): void {
     /** Who this pass put in a loop, so a change in that can rebuild the problems. */
+    this.readyScans += this.dirty.size;
     const found = new Set<NodeId>();
     const index = new Map<NodeId, number>();
     const low = new Map<NodeId, number>();
@@ -1612,6 +1618,7 @@ export class NodeGraphRuntime {
 
   private collectProblems(): readonly GraphProblem[] {
     const problems: GraphProblem[] = [];
+    this.readyScans += this.nodes.size;
     for (const [nodeId, node] of this.nodes) problems.push(...this.problemsFor(nodeId, node));
     return problems;
   }

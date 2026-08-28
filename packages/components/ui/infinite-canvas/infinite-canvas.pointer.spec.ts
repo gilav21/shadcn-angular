@@ -378,6 +378,25 @@ describe('CanvasPointerMachine', () => {
       expect(machine.tracks(1)).toBe(true);
     });
 
+    it('replaces a stale ITEM press too, which is the reported gesture', () => {
+        /*
+         * The reported sequence is a NODE drag whose release went missing,
+         * then pressing the node again — and a press on an item is tracked
+         * with mode `idle`, not `panning`. Guarding the replacement on the
+         * mode would leave that case broken while the empty-space test above
+         * stays green.
+         */
+        down(machine, 100, 100, 'item');
+        down(machine, 120, 120, 'item');
+
+        expect(machine.mode).not.toBe('pinching');
+        expect(machine.tracks(1)).toBe(true);
+
+        // One tracked pointer, so a second finger still finds a partner.
+        down(machine, 300, 300, 'item', 2);
+        expect(machine.mode).toBe('pinching');
+    });
+
     it('still pinches for two genuinely different pointers', () => {
       down(machine, 100, 100, 'item', 1);
       down(machine, 200, 200, 'item', 2);

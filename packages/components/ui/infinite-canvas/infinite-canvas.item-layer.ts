@@ -297,22 +297,6 @@ export class CanvasItemLayer<T extends CanvasItem> {
     const density = this.worldArea > 0 ? this.hash.size / this.worldArea : 0;
     if (density <= 0) return wanted;
 
-    /*
-     * Slack, so a board only a little over the cap is not cropped.
-     *
-     * The density estimate is exactly that — an estimate — and shrinking the
-     * region the moment it is exceeded by any margin at all cost far more
-     * than it saved. At seven hundred items against a cap of six hundred the
-     * scale came out at 0.93, which mounts a region 93% of the viewport
-     * CENTRED in it: a band around all four edges of the screen with no cards
-     * in it, while the edge renderer went on drawing their wires into the
-     * blank. Nobody at that zoom was looking at an illegible smudge; they
-     * were looking at a hole.
-     *
-     * Below the slack the overshoot is a few dozen extra views, which the
-     * pool absorbs. Far above it — the hundred-thousand case this exists for
-     * — the shrink is unchanged.
-     */
     const area = wanted.width * wanted.height;
     const affordableArea = this.maxMounted / density;
     if (area <= affordableArea) return wanted;

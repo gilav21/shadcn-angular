@@ -206,6 +206,25 @@ describe('materialisation is remembered per node', () => {
         expect(second[1]).toBe(first[1]);
     });
 
+    it('keeps the nodes that follow a materialised one', () => {
+        /*
+         * The node needing work FIRST — the order nothing covered.
+         *
+         * The result array is allocated from the first divergence, so before
+         * that point an unchanged node is simply not written, and with the
+         * settled nodes at the front the copy never starts and dropping that
+         * write is invisible. Reversed, every node after the first changed
+         * one disappears from the graph.
+         */
+        const definitions = indexDefinitions([STATIC]);
+        const settled = withMaterializedTypes([node('kept', 'static')], definitions)[0];
+
+        const next = withMaterializedTypes([node('fresh', 'static'), settled], definitions);
+
+        expect(next).toHaveLength(2);
+        expect(next[1]).toBe(settled);
+    });
+
     it('allocates only for the node that a drag replaced', () => {
         const definitions = indexDefinitions([STATIC]);
         const nodes = [node('a', 'static'), node('b', 'static'), node('c', 'static')];
