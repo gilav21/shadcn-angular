@@ -266,3 +266,90 @@ describe('NodeEditorMinimapComponent', () => {
         });
     });
 });
+
+/*
+ * The minimap repaints on every viewport change — roughly eight times a second
+ * while panning. It used to redraw the WHOLE graph each time, reallocate its
+ * backing store, and rebuild an index of every node, for a picture two hundred
+ * pixels across. On a 100,000-node board that is a blocking repaint several
+ * times a second, which is the shape of a freeze rather than a slowdown.
+ *
+ * Asserted through counted canvas calls, which are exact and cannot flake.
+ */
+describe('the minimap draws a sample, not the whole graph', () => {
+    let fixture: ComponentFixture<HostComponent>;
+
+    function bigGraph(count: number): EditorNode[] {
+        const nodes: EditorNode[] = [];
+        for (let i = 0; i < count; i++) {
+            nodes.push({
+                id: `n${i}`,
+                x: (i % 100) * 200,
+                y: Math.floor(i / 100) * 200,
+                width: 180,
+                height: 80,
+            });
+        }
+        return nodes;
+    }
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(HostComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+    });
+
+    afterEach(() => fixture.destroy());
+
+    function canvasEl(): HTMLCanvasElement {
+        return fixture.nativeElement.querySelector('canvas') as HTMLCanvasElement;
+    }
+
+    it('caps the boxes it fills however many nodes exist', async () => {
+        fixture.componentInstance.nodes.set(bigGraph(30_000));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const ctx = canvasEl().getContext('2d') as CanvasRenderingContext2D;
+        let fills = 0;
+        const real = ctx.fillRect.bind(ctx);
+        ctx.fillRect = (...args: Parameters<CanvasRenderingContext2D['fillRect']>): void => {
+            fills++;
+            real(...args);
+        };
+
+        fixture.componentInstance.viewport.set({ x: 10, y: 10, width: 500, height: 400 });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(fills).toBeGreaterThan(0);
+        expect(fills).toBeLessThanOrEqual(2_000);
+    });
+
+    it('does not reallocate the backing store on a repaint that did not resize', async () => {
+        const canvas = canvasEl();
+        const descriptor = Object.getOwnPropertyDescriptor(
+            HTMLCanvasElement.prototype,
+            'width',
+        ) as PropertyDescriptor;
+
+        let widthWrites = 0;
+        Object.defineProperty(canvas, 'width', {
+            configurable: true,
+            get: (): number => descriptor.get?.call(canvas) as number,
+            set: (value: number): void => {
+                widthWrites++;
+                descriptor.set?.call(canvas, value);
+            },
+        });
+
+        for (let i = 1; i <= 5; i++) {
+            fixture.componentInstance.viewport.set({ x: i * 10, y: 0, width: 300, height: 200 });
+            fixture.detectChanges();
+            await fixture.whenStable();
+        }
+
+        expect(widthWrites).toBe(0);
+    });
+});

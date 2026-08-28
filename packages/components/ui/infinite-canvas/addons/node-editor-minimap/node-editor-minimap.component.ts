@@ -16,7 +16,7 @@ import { UI_LOCALE_ID } from '../../../../lib/i18n';
 import { isSecondaryTouch } from '../../../../lib/touch';
 import { cn } from '../../../../lib/utils';
 import { NODE_EDITOR_MINIMAP_LOCALES } from './node-editor-minimap.locales';
-import type { CanvasPoint, CanvasRect, EditorNode, NodeConnection } from '../node-editor';
+import type { CanvasPoint, CanvasRect, EditorNode, NodeConnection, NodeId } from '../node-editor';
 import {
   coverage,
   fitTransform,
@@ -42,6 +42,16 @@ import {
  * Nodes in, navigation out. It never touches the editor, so it can be rendered
  * and tested on its own — the same shape as the other addons.
  */
+/**
+ * Most node boxes and edges drawn into the minimap, however many exist.
+ *
+ * The picture is a couple of hundred pixels across, so past this the marks
+ * land on top of one another and add nothing a reader can see. Sampling with a
+ * regular stride keeps the board's shape, which is what a minimap is for.
+ */
+const MAX_DRAWN_NODES = 2_000;
+const MAX_DRAWN_EDGES = 2_000;
+
 @Component({
   selector: 'ui-node-editor-minimap',
   exportAs: 'uiNodeEditorMinimap',
@@ -207,43 +217,102 @@ export class NodeEditorMinimapComponent {
     );
   }
 
+  /**
+   * The node index, cached against the array it was built from.
+   *
+   * A repaint happens on every viewport change - roughly eight times a second
+   * while panning - and rebuilding this each time meant a hundred-thousand
+   * entry Map eight times a second for a picture 200 pixels wide. Panning does
+   * not change the node list, so the same array comes back and the same index
+   * with it.
+   */
+  private static readonly indexes = new WeakMap<
+    readonly EditorNode[],
+    ReadonlyMap<NodeId, EditorNode>
+  >();
+
+  private nodeIndex(nodes: readonly EditorNode[]): ReadonlyMap<NodeId, EditorNode> {
+    const cached = NodeEditorMinimapComponent.indexes.get(nodes);
+    if (cached) return cached;
+
+    const built = new Map(nodes.map(node => [node.id, node] as const));
+    NodeEditorMinimapComponent.indexes.set(nodes, built);
+    return built;
+  }
+
+  /**
+   * Sizes the backing store, and only when it actually changed.
+   *
+   * Assigning `canvas.width` reallocates the whole backing store and resets
+   * every context property, even when the value is identical. Doing it on each
+   * repaint threw away and reallocated a quarter of a megabyte several times a
+   * second for a picture whose size almost never changes.
+   */
+  private resizeSurface(canvas: HTMLCanvasElement, width: number, height: number): void {
+    const dpr = globalThis.devicePixelRatio > 0 ? globalThis.devicePixelRatio : 1;
+    const deviceWidth = Math.max(1, Math.round(width * dpr));
+    const deviceHeight = Math.max(1, Math.round(height * dpr));
+
+    if (canvas.width !== deviceWidth) canvas.width = deviceWidth;
+    if (canvas.height !== deviceHeight) canvas.height = deviceHeight;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+  }
+
   /** One pass: edges, then node boxes, then the viewport rectangle. */
   private paint(): void {
     const canvas = this.canvasRef()?.nativeElement;
     const context = canvas?.getContext('2d');
     if (!canvas || !context) return;
 
-    const dpr = globalThis.devicePixelRatio > 0 ? globalThis.devicePixelRatio : 1;
     const width = this.width();
     const height = this.height();
-    canvas.width = Math.max(1, Math.round(width * dpr));
-    canvas.height = Math.max(1, Math.round(height * dpr));
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
+    this.resizeSurface(canvas, width, height);
 
+    const dpr = globalThis.devicePixelRatio > 0 ? globalThis.devicePixelRatio : 1;
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, width, height);
 
     const transform = this.transform();
-    const byId = new Map(this.nodes().map(node => [node.id, node]));
+    const nodes = this.nodes();
+    const connections = this.connections();
 
-    // Edges first, in ONE path — the same batching the base's edge renderer
-    // uses, for the same reason: stroke calls are the cost, not paths.
-    context.strokeStyle = 'rgba(120,120,120,0.45)';
-    context.lineWidth = 1;
-    context.beginPath();
-    for (const connection of this.connections()) {
-      const from = byId.get(connection.source);
-      const to = byId.get(connection.target);
-      if (!from || !to) continue;
-      const a = toMinimap({ x: from.x + from.width, y: from.y + from.height / 2 }, transform);
-      const b = toMinimap({ x: to.x, y: to.y + to.height / 2 }, transform);
-      context.moveTo(a.x, a.y);
-      context.lineTo(b.x, b.y);
+    /*
+     * Draw a sample, not the graph.
+     *
+     * This picture is a couple of hundred pixels across. A hundred thousand
+     * node boxes do not fit in it in any sense - they land on top of one
+     * another and the result is a grey rectangle - so drawing all of them
+     * bought nothing and cost a blocking repaint several times a second while
+     * panning. A regular stride keeps the SHAPE of the board, which is the
+     * only thing a minimap is read for.
+     */
+    const nodeStride = Math.ceil(nodes.length / MAX_DRAWN_NODES);
+    const edgeStride = Math.ceil(connections.length / MAX_DRAWN_EDGES);
+
+    if (connections.length > 0) {
+      const byId = this.nodeIndex(nodes);
+
+      // Edges first, in ONE path — the same batching the base's edge renderer
+      // uses, for the same reason: stroke calls are the cost, not paths.
+      context.strokeStyle = 'rgba(120,120,120,0.45)';
+      context.lineWidth = 1;
+      context.beginPath();
+      for (let i = 0; i < connections.length; i += edgeStride) {
+        const connection = connections[i];
+        const from = byId.get(connection.source);
+        const to = byId.get(connection.target);
+        if (!from || !to) continue;
+        const a = toMinimap({ x: from.x + from.width, y: from.y + from.height / 2 }, transform);
+        const b = toMinimap({ x: to.x, y: to.y + to.height / 2 }, transform);
+        context.moveTo(a.x, a.y);
+        context.lineTo(b.x, b.y);
+      }
+      context.stroke();
     }
-    context.stroke();
 
-    for (const node of this.nodes()) {
+    for (let i = 0; i < nodes.length; i += nodeStride) {
+      const node = nodes[i];
       const box = rectToMinimap(
         { x: node.x, y: node.y, width: node.width, height: node.height },
         transform,
