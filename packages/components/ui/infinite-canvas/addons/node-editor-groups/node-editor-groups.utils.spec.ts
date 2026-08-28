@@ -204,6 +204,43 @@ describe('the title bar', () => {
  * the property under test is equivalence with the obvious implementation,
  * on boards built to hit the cases the index could plausibly get wrong.
  */
+describe('the membership memo answers for the graph it was given', () => {
+    /*
+     * Dragging one node replaces one object out of a hundred thousand, so a
+     * node that is the same OBJECT in the same position keeps its previous
+     * answer instead of asking the index again. Positions are immutable — a
+     * move replaces the node — so identity is proof nothing changed.
+     *
+     * The risk of any such memo is that it answers for the graph it was given
+     * LAST. These are the two cases that catch that: a node that moved out,
+     * and a node that moved in.
+     */
+    const groups = [group('g', 0, 0, 400, 400)];
+
+    it('lets go of a node that moved out of the group', () => {
+        expect(membership(groups, [node('a', 50, 50)]).get('g')).toEqual(['a']);
+
+        // A new array, and a new object for `a` — which is what a drag makes.
+        expect(membership(groups, [node('a', 900, 900)]).get('g')).toEqual([]);
+    });
+
+    it('picks up a node that moved into the group', () => {
+        expect(membership(groups, [node('b', 900, 900)]).get('g')).toEqual([]);
+        expect(membership(groups, [node('b', 60, 60)]).get('g')).toEqual(['b']);
+    });
+
+    it('keeps the answer for the nodes that did not move', () => {
+        const still = node('still', 20, 20);
+        expect(membership(groups, [still, node('mover', 30, 30)]).get('g')).toEqual([
+            'still',
+            'mover',
+        ]);
+
+        // Same object for `still`, a new one for `mover`, now outside.
+        expect(membership(groups, [still, node('mover', 900, 900)]).get('g')).toEqual(['still']);
+    });
+});
+
 describe('membership matches an exhaustive scan', () => {
     function exhaustive(
         groups: readonly NodeGroup[],

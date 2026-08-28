@@ -89,6 +89,20 @@ function groupCellSize(groups: readonly NodeGroup[]): number {
  */
 const GROUP_INDEX = new WeakMap<readonly NodeGroup[], SpatialHash<NodeGroup>>();
 
+/**
+ * The last membership answer computed for a set of groups.
+ *
+ * Weak on the groups array, like the index beside it, so an answer dies with
+ * the group list it describes. Holding the NODES array too is what makes the
+ * next call able to tell which nodes actually changed.
+ */
+interface MembershipMemo {
+  readonly nodes: readonly EditorNode[];
+  readonly groupsOf: ReadonlyMap<NodeId, readonly string[]>;
+}
+
+const MEMBERSHIP = new WeakMap<readonly NodeGroup[], MembershipMemo>();
+
 function indexOf(groups: readonly NodeGroup[]): SpatialHash<NodeGroup> {
   const existing = GROUP_INDEX.get(groups);
   if (existing) return existing;
@@ -116,6 +130,20 @@ function indexOf(groups: readonly NodeGroup[]): SpatialHash<NodeGroup> {
  * of the answer: the narrow phase can only ever remove candidates, never miss
  * one. Nodes are visited in order, so each group's members stay in node order.
  */
+/** The ids of every group that fully contains `node`. */
+function groupsHolding(
+  index: SpatialHash<NodeGroup>,
+  node: EditorNode,
+  near: NodeGroup[],
+  seen: Set<NodeGroup>,
+): readonly string[] {
+  const holding: string[] = [];
+  for (const group of index.queryInto(node, near, seen)) {
+    if (contains(group, node)) holding.push(group.id);
+  }
+  return holding;
+}
+
 export function membership(
   groups: readonly NodeGroup[],
   nodes: readonly EditorNode[],
@@ -125,16 +153,34 @@ export function membership(
   if (groups.length === 0 || nodes.length === 0) return result;
 
   const index = indexOf(groups);
+  const previous = MEMBERSHIP.get(groups);
+  const groupsOf = new Map<NodeId, readonly string[]>();
 
   // Two buffers for the whole walk, not two per node. See `queryInto`.
   const near: NodeGroup[] = [];
   const seen = new Set<NodeGroup>();
 
-  for (const node of nodes) {
-    for (const group of index.queryInto(node, near, seen)) {
-      if (contains(group, node)) result.get(group.id)?.push(node.id);
-    }
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+
+    /*
+     * A node that is the same OBJECT in the same place kept its answer.
+     *
+     * Positions are immutable here — a move replaces the node — so identity
+     * is proof that nothing about this node's geometry changed, and the
+     * groups were proved unchanged by the memo's key. Dragging one node
+     * replaces one object out of a hundred thousand and asked the index a
+     * hundred thousand questions to re-derive a member count.
+     */
+    let ids = previous?.nodes[i] === node ? previous?.groupsOf.get(node.id) : undefined;
+
+    ids ??= groupsHolding(index, node, near, seen);
+
+    groupsOf.set(node.id, ids);
+    for (const id of ids) result.get(id)?.push(node.id);
   }
+
+  MEMBERSHIP.set(groups, { nodes, groupsOf });
   return result;
 }
 

@@ -85,6 +85,21 @@ export interface RuntimeMetrics {
    * should not be carrying the first one around.
    */
   readonly retained: number;
+  /**
+   * Nodes examined while deciding what is ready to run.
+   *
+   * A COUNT, so the cost of a drain can be asserted rather than timed. The
+   * ready set used to be recomputed over the whole dirty set on every settle,
+   * and since the dirty set starts at every node and sheds one per settle,
+   * a full drain was N^2/2 — about two minutes of blocked main thread at a
+   * hundred thousand nodes, which is what the device testing reported.
+   *
+   * Reverting that fix is behaviourally identical and quadratically slower,
+   * so nothing but a number can catch it coming back: the perf suite logs
+   * milliseconds and never fails, and a timing gate on a loaded Windows box
+   * flakes. This grows linearly with the graph and quadratically without.
+   */
+  readonly readyScans: number;
 }
 
 /**
@@ -333,6 +348,8 @@ export class NodeGraphRuntime {
   private computedTotal = 0;
   private remoteCalls = 0;
   private reorders = 0;
+  /** See {@link RuntimeMetrics.readyScans}. */
+  private readyScans = 0;
 
   get metrics(): RuntimeMetrics {
     return {
@@ -342,6 +359,7 @@ export class NodeGraphRuntime {
       reorders: this.reorders,
       openIterators: this.iterators.size,
       retained: this.retainedNodes().size,
+      readyScans: this.readyScans,
     };
   }
 
@@ -400,6 +418,7 @@ export class NodeGraphRuntime {
     this.computedTotal = 0;
     this.remoteCalls = 0;
     this.reorders = 0;
+    this.readyScans = 0;
   }
 
   readonly problems: Signal<readonly GraphProblem[]> = this.problemsSignal.asReadonly();
@@ -847,6 +866,7 @@ export class NodeGraphRuntime {
    * found and fixed for its two OTHER loops.
    */
   private reconsider(nodeId: NodeId): void {
+    this.readyScans++;
     if (!this.dirty.has(nodeId) || this.readySet.has(nodeId)) return;
     for (const up of this.incoming.get(nodeId) ?? []) if (this.dirty.has(up)) return;
     this.readySet.add(nodeId);
@@ -880,6 +900,7 @@ export class NodeGraphRuntime {
   private refresh(): void {
     this.readySet.clear();
     for (const node of this.dirty) {
+      this.readyScans++;
       let pending = 0;
       for (const up of this.incoming.get(node) ?? []) if (this.dirty.has(up)) pending++;
       if (pending === 0) this.readySet.add(node);

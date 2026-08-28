@@ -285,6 +285,49 @@ describe('ENFORCED — streams do not leak', () => {
     });
 });
 
+describe('ENFORCED — a full drain stays linear in the size of the graph', () => {
+    /*
+     * The claim that caused the freeze, as a NUMBER.
+     *
+     * Readiness used to be recomputed over the whole dirty set on every
+     * settle. The dirty set starts at every node and sheds one per settle, so
+     * a full drain was N^2/2: measured at 51, 190 and 770ms for 2,000, 4,000
+     * and 8,000 nodes — four times the work for twice the graph — which
+     * extrapolates to about two minutes of blocked main thread at a hundred
+     * thousand nodes, and that is what the device testing reported.
+     *
+     * Reverting the fix is behaviourally identical and quadratically slower,
+     * so every functional test stays green. Only a cost can catch it, and a
+     * cost in MILLISECONDS on a loaded Windows box is a flake waiting to
+     * happen — this repo has been bitten by timing gates before. So the
+     * runtime counts the nodes it examines while deciding what is ready, and
+     * the assertion is on the ratio: double the graph, and the work may
+     * double and a bit, not square.
+     */
+    async function scansFor(width: number): Promise<number> {
+        const runtime = runtimeFor(width, 3);
+        runtime.resetMetrics();
+        await runtime.run();
+        const scans = runtime.metrics.readyScans;
+        runtime.dispose();
+        return scans;
+    }
+
+    it('doubling the node count does not square the readiness work', async () => {
+        const small = await scansFor(250);
+        const large = await scansFor(500);
+
+        /*
+         * Linear would be 2x. Quadratic is 4x and climbs with every doubling.
+         * The bound is 3x: loose enough that graph shape and the constant
+         * factor cannot flake it, tight enough that N^2/2 cannot fit under it
+         * — at these sizes the old code scanned roughly five hundred times
+         * more than the new one.
+         */
+        expect(large).toBeLessThan(small * 3);
+    });
+});
+
 // ============================================================ LOGGED: timings
 
 describe('LOGGED — wall clock, never enforced', () => {
