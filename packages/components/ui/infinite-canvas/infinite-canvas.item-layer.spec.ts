@@ -574,6 +574,42 @@ describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
     expect(layer.mountedCount).toBe(40);
   });
 
+  it('drops from every edge alike, not the whole bottom of the screen', () => {
+    /*
+     * The cap is rationed by distance from the middle. Taking the first N the
+     * index returns takes them in BUCKET order, which is row-major: the cap
+     * gets spent on the top rows and the entire bottom band of the screen
+     * goes blank, with the edge renderer still drawing wires into it.
+     *
+     * The earlier centring test cannot catch that on its own, because the
+     * region used to be cropped tightly around the viewport centre first —
+     * so a row-major slice of a small centred rect straddles the centre
+     * anyway. This one leaves the region at the full viewport and asks for
+     * cards from the bottom of it.
+     */
+    const layer = layerWithCap(20);
+    layer.setItems(grid(2000));
+
+    // grid(): 100 columns, 200 apart. This rect holds ~36 items, well over 20.
+    layer.update({ x: 0, y: 0, width: 1000, height: 1000 }, 0);
+    fixture.detectChanges();
+
+    const mounted = [...fixture.nativeElement.querySelectorAll('.cell')]
+      .map((el: Element) => Number(el.getAttribute('data-id')))
+      .filter((id: number) => !Number.isNaN(id));
+    const rowOf = (id: number): number => Math.floor(id / 100);
+
+    expect(mounted.length).toBeGreaterThan(0);
+    /*
+     * Row 4 or 5 — the BOTTOM of the rect. Six items fit per row here, so a
+     * row-major slice of twenty reaches into row 3 on its own; asking for
+     * row >= 3 passes with the bug still in. The bottom two rows are what
+     * only a centred rationing keeps.
+     */
+    expect(mounted.some(id => rowOf(id) >= 4)).toBe(true);
+    expect(mounted.some(id => rowOf(id) <= 1)).toBe(true);
+  });
+
   it('keeps items near the middle of the screen, not an arbitrary corner', () => {
     const layer = layerWithCap(20);
     // grid(): 100 columns, 200 apart — so column 50, row 5 sits near (10000, 1000).

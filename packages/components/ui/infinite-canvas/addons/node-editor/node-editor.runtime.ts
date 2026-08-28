@@ -223,6 +223,20 @@ export class NodeGraphRuntime {
   private disposed = false;
   /** The drain in flight, if any. See {@link run}. */
   private draining: Promise<void> | null = null;
+  /** Whether {@link draining} honours `reactive: false`. See {@link drainOnce}. */
+  private drainingAutomatic = false;
+
+  /**
+   * Whether a drain is in flight, read through a getter.
+   *
+   * `this.draining` is narrowed to non-null by the guard at the top of
+   * {@link drainOnce}, and the narrowing survives the `await` even though the
+   * field does not — so the re-check for a drain someone else started reads
+   * as always true. A getter is not narrowed.
+   */
+  private get drainInFlight(): boolean {
+    return this.draining !== null;
+  }
 
   // ---- reactive read-out --------------------------------------------------
   private readonly statusSignals = new Map<NodeId, WritableSignal<NodeStatus>>();
@@ -1126,11 +1140,25 @@ export class NodeGraphRuntime {
    */
   private async drainOnce(automatic: boolean): Promise<void> {
     if (this.draining) {
-      await this.draining;
-      return;
+      /*
+       * Joining is only good enough when the drain in flight is at least as
+       * permissive as this pass.
+       *
+       * An automatic drain will never run a `reactive: false` node — that is
+       * the whole point of it — so a manual `run()` that joined one made no
+       * progress at all and returned to an unbounded `while` loop. Waiting
+       * and then starting its own is what the caller asked for.
+       */
+      const inFlight = this.draining;
+      const joinedAutomatic = this.drainingAutomatic;
+      await inFlight;
+      if (automatic || !joinedAutomatic) return;
+      if (this.drainInFlight) return;
     }
+
     const drain = this.drain(automatic);
     this.draining = drain;
+    this.drainingAutomatic = automatic;
     try {
       await drain;
     } finally {
@@ -1663,10 +1691,20 @@ export class NodeGraphRuntime {
    * has never seen leaves an entry behind for an id that may never arrive.
    * History needs to READ state for nodes on their way in and out — exactly
    * the ids that may not be registered — so it reads the values map directly.
+   *
+   * By REFERENCE, not a copy. A consumer whose `compute` mutates its state
+   * object in place and sets it again is mutating the same object any command
+   * built from this call is holding, so such a command restores the latest
+   * state rather than the state at the time it was recorded. State is
+   * arbitrary — inner graphs, class instances, things `structuredClone`
+   * refuses — so it is not copied here; a consumer that wants a snapshot
+   * treats its state as immutable, which everything else in the runtime
+   * already assumes.
    */
   peekState(nodeId: NodeId): unknown {
     return this.stateValues.get(nodeId);
   }
+
 
   error(nodeId: NodeId): Signal<unknown> {
     return this.errorSignal(nodeId).asReadonly();

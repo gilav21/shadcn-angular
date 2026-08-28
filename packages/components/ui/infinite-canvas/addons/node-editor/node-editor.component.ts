@@ -581,8 +581,25 @@ export class NodeEditorComponent {
     this.scheduleRecentSweep();
   }
 
+  /**
+   * How long until the soonest highlight is due to go out.
+   *
+   * A fixed window per sweep let a node lit a millisecond after the previous
+   * one stay lit for nearly twice as long: the sweep that dropped the first
+   * re-armed for a whole window, and the second waited it out. The per-node
+   * timers this replaced were exact, and the deadlines still are — only the
+   * waking was wrong.
+   */
+  private nextSweepDelay(): number {
+    let soonest = Number.POSITIVE_INFINITY;
+    for (const until of this.recentlyRanUntil.values()) {
+      if (until < soonest) soonest = until;
+    }
+    return Number.isFinite(soonest) ? Math.max(0, soonest - Date.now()) : RECENTLY_RAN_MS;
+  }
+
   private scheduleRecentSweep(): void {
-    if (this.recentSweep !== null) return;
+    if (this.recentSweep !== null || this.recentlyRanUntil.size === 0) return;
     this.recentSweep = setTimeout(() => {
       this.recentSweep = null;
       const now = Date.now();
@@ -594,8 +611,8 @@ export class NodeEditorComponent {
         }
       }
       if (expired) this.recentlyRanVersion.update(version => version + 1);
-      if (this.recentlyRanUntil.size > 0) this.scheduleRecentSweep();
-    }, RECENTLY_RAN_MS);
+      this.scheduleRecentSweep();
+    }, this.nextSweepDelay());
   }
 
   /** Definitions keyed by id — the lookup everything else uses. */
@@ -919,34 +936,38 @@ export class NodeEditorComponent {
    * same `canConnect` the drop does, so what looks connectable is exactly
    * what is.
    */
-  private connectableCache = new Map<NodeId, ReadonlySet<string>>();
-  private connectableFrom: PortRef | null = null;
-  private connectableGraph: readonly NodeConnection[] | null = null;
-
   /**
-   * The ports of ONE node that would accept the connection in flight.
+   * Keyed on the node OBJECT, and each entry carries what it assumed.
    *
-   * Per node, and asked only by nodes the canvas actually mounted — which is
-   * what the whole-graph version claimed to do and did not: `renderedNodes`
-   * is an alias for every node in the graph, so a pointerdown asked
-   * `canConnect` 400,000 times at a hundred thousand nodes and lit up ports
-   * nobody could see. The answer cannot change while one gesture is in
-   * flight, so it is memoised on the source port and the connection list
-   * together, and both are compared by identity.
+   * Keyed on the id with the guards held in fields, the answer went stale for
+   * anything that changes a node's PORTS without touching the connection
+   * list: a subgraph whose ports come from its state grows an input mid
+   * gesture, and the new port rendered dimmed as un-connectable while a drop
+   * on it was accepted — the affordance and the behaviour disagreeing, which
+   * is the one thing this is supposed to prevent. Materialising replaces the
+   * node object whenever its ports change, so the object is the honest key.
+   *
+   * Weak, so nothing survives the gesture that asked: no ids to sweep, no
+   * connection array held for the rest of the session.
    */
+  private readonly connectableCache = new WeakMap<
+    EditorNode,
+    {
+      readonly from: PortRef;
+      readonly connections: readonly NodeConnection[];
+      readonly keys: ReadonlySet<string>;
+    }
+  >();
+
   protected connectableFor(node: EditorNode): ReadonlySet<string> | null {
     const from = this.pendingFrom();
     if (!from) return null;
 
     const connections = this.connections();
-    if (this.connectableFrom !== from || this.connectableGraph !== connections) {
-      this.connectableCache.clear();
-      this.connectableFrom = from;
-      this.connectableGraph = connections;
+    const remembered = this.connectableCache.get(node);
+    if (remembered && remembered.from === from && remembered.connections === connections) {
+      return remembered.keys;
     }
-
-    const cached = this.connectableCache.get(node.id);
-    if (cached) return cached;
 
     const keys = new Set<string>();
     for (const port of portsOf(node)) {
@@ -954,7 +975,7 @@ export class NodeEditorComponent {
         keys.add(`${node.id}:${port.id}`);
       }
     }
-    this.connectableCache.set(node.id, keys);
+    this.connectableCache.set(node, { from, connections, keys });
     return keys;
   }
 

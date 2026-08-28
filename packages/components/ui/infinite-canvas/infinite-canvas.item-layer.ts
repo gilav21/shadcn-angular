@@ -46,13 +46,6 @@ const FALLBACK_CELL_SIZE = 256;
  */
 export const DEFAULT_MAX_MOUNTED = 600;
 
-/**
- * How far over the affordable area a region may go before it is cropped.
- *
- * See {@link CanvasItemLayer.affordable}: cropping on the slightest overshoot
- * blanks a band around the screen edges on boards that were fine as they were.
- */
-const AFFORDABLE_SLACK = 2;
 
 export class CanvasItemLayer<T extends CanvasItem> {
   private readonly mounted = new Map<string | number, MountedItem<T>>();
@@ -225,9 +218,26 @@ export class CanvasItemLayer<T extends CanvasItem> {
      * cheap half of this trade.
      */
     this.safeRect = null;
-    const visible = found.slice(0, this.maxMounted);
-    this.mountExactly(visible);
+    this.mountExactly(this.nearestToCentre(found, viewRect));
     return true;
+  }
+
+  /**
+   * The `maxMounted` items closest to the middle of the screen.
+   *
+   * Taking the first `maxMounted` the index happened to return took them in
+   * bucket order, which is row-major — so the cap was spent on the top of the
+   * screen and the whole bottom band went blank, with the edges still drawn
+   * into it. Which cards are dropped should depend on where the user is
+   * looking, not on the iteration order of a hash.
+   */
+  private nearestToCentre(found: readonly T[], viewRect: CanvasRect): readonly T[] {
+    const centreX = viewRect.x + viewRect.width / 2;
+    const centreY = viewRect.y + viewRect.height / 2;
+    const distance = (item: T): number =>
+      Math.hypot(item.x + item.width / 2 - centreX, item.y + item.height / 2 - centreY);
+
+    return [...found].sort((a, b) => distance(a) - distance(b)).slice(0, this.maxMounted);
   }
 
   /**
@@ -297,11 +307,22 @@ export class CanvasItemLayer<T extends CanvasItem> {
      */
     const area = wanted.width * wanted.height;
     const affordableArea = this.maxMounted / density;
-    if (area <= affordableArea * AFFORDABLE_SLACK) return wanted;
+    if (area <= affordableArea) return wanted;
 
+    /*
+     * Never smaller than what is actually on screen.
+     *
+     * Only the OVERSCAN is negotiable. Shrinking below the viewport unmounts
+     * cards the user is looking at: at seven hundred items against a cap of
+     * six hundred the scale came out at 0.93, which left a band around all
+     * four edges of the screen with no cards in it while the edge renderer
+     * went on drawing their wires into the blank. If even the bare viewport
+     * holds more than the cap, that is for the caller to ration — it can at
+     * least ration it evenly, which cropping cannot.
+     */
     const scale = Math.sqrt(affordableArea / area);
-    const width = wanted.width * scale;
-    const height = wanted.height * scale;
+    const width = Math.max(viewRect.width, wanted.width * scale);
+    const height = Math.max(viewRect.height, wanted.height * scale);
     return {
       x: viewRect.x + viewRect.width / 2 - width / 2,
       y: viewRect.y + viewRect.height / 2 - height / 2,

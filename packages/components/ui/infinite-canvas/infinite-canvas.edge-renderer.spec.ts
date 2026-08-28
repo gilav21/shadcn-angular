@@ -247,6 +247,54 @@ describe('CanvasEdgeRenderer', () => {
     });
   });
 
+  describe('sampling above the path cap', () => {
+    /** `count` edges between the same two items, so every one of them is visible. */
+    function manyEdges(count: number): CanvasEdge[] {
+      const edges: CanvasEdge[] = [];
+      for (let i = 0; i < count; i++) edges.push({ id: `e${i}`, source: 'a', target: 'b' });
+      return edges;
+    }
+
+    it('degrades smoothly at the cap instead of halving the picture', () => {
+      /*
+       * An integer stride is a step, not a taper: `ceil(4001 / 4000)` is 2, so
+       * ONE edge over the cap drew every second edge and two thousand wires
+       * disappeared — at a zoom where they were perfectly legible. The sample
+       * is a fraction, so one over the cap costs one edge.
+       */
+      renderer.setEdges(manyEdges(4001), ITEMS);
+      renderer.draw(IDENTITY, { x: -1000, y: -1000, width: 4000, height: 4000 });
+
+      expect(renderer.builtPathCount).toBeGreaterThan(3900);
+      expect(renderer.builtPathCount).toBeLessThanOrEqual(4000);
+    });
+
+    it('draws everything when the count is under the cap', () => {
+      renderer.setEdges(manyEdges(100), ITEMS);
+      renderer.draw(IDENTITY, { x: -1000, y: -1000, width: 4000, height: 4000 });
+
+      expect(renderer.builtPathCount).toBe(100);
+    });
+  });
+
+  describe('hit testing follows what was drawn', () => {
+    it('does not hit an edge the last frame did not draw', () => {
+      /*
+       * Above the cap the drawn set is a sample and the cache is everything.
+       * Hit-testing the cache let a click on blank canvas select a wire nobody
+       * could see, and Delete then removed it. Here the frame drew a region
+       * the edge is not in, which is the same state: present, not painted.
+       */
+      renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], ITEMS);
+      renderer.draw(IDENTITY, { x: 10_000, y: 10_000, width: 100, height: 100 });
+
+      expect(renderer.hitTest(100, 5, IDENTITY)).toBeNull();
+
+      renderer.draw(IDENTITY, { x: -1000, y: -1000, width: 4000, height: 4000 });
+      expect(renderer.hitTest(100, 5, IDENTITY)?.id).toBe('e');
+    });
+  });
+
   describe('construction', () => {
     it('throws a clear error when no 2D context is available', () => {
       const broken = document.createElement('canvas');

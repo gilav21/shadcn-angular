@@ -38,6 +38,14 @@ import type {
 interface CachedEdge {
   edge: CanvasEdge;
   /**
+   * The `collectVisible` pass that last DREW this edge.
+   *
+   * Above the cap only a sample is drawn, and what is not drawn must not be
+   * hit-testable. Starts at 0, which matches the initial `drawSweep` — so
+   * before the first frame everything is hit-testable, as it was.
+   */
+  drawn: number;
+  /**
    * The `setEdges` pass that last saw this entry alive.
    *
    * Stamped instead of collecting every live id into a Set: the Set was
@@ -92,6 +100,8 @@ export class CanvasEdgeRenderer {
   private builtPaths = 0;
   /** Counter behind {@link CachedEdge.sweep}. */
   private sweep = 0;
+  /** Counter behind {@link CachedEdge.drawn}. */
+  private drawSweep = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -316,8 +326,17 @@ export class CanvasEdgeRenderer {
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
+    /*
+     * Only edges the last frame actually DREW.
+     *
+     * Above the cap the drawn set is a sample and the cache is everything, so
+     * hit-testing the cache let a click on apparently blank canvas select a
+     * wire nobody could see — and then Delete removed it. An edge that is not
+     * on the screen is not under the pointer.
+     */
     let hit: CanvasEdge | null = null;
     for (const cached of this.cache.values()) {
+      if (cached.drawn !== this.drawSweep) continue;
       if (!rectsIntersect(cached.bounds, probe)) continue;
       ctx.lineWidth = Math.max(tolerance * 2, (cached.edge.width ?? DEFAULT_EDGE_WIDTH) / viewport.zoom);
       if (ctx.isPointInStroke(this.pathOf(cached), worldX, worldY)) hit = cached.edge;
@@ -336,17 +355,27 @@ export class CanvasEdgeRenderer {
    * edges inside the world rect and built them all in a single blocking
    * frame anyway, with nothing offscreen left for the trim to reclaim.
    *
-   * Above the cap the pass takes an evenly strided sample instead. At that
-   * zoom an edge is a fraction of a pixel and the honest picture is a smear
-   * either way; a strided sample is the same smear at a bounded cost, and it
-   * is the trick the minimap already uses for the same reason. Anything at a
-   * zoom where individual edges are legible is far below the cap and draws
-   * in full.
+   * Above the cap the pass keeps an even sample instead. At that zoom an edge
+   * is a fraction of a pixel and the honest picture is a smear either way; an
+   * even sample is the same smear at a bounded cost, and it is the trick the
+   * minimap already uses for the same reason.
+   *
+   * The sample is a FRACTION, not an integer stride. `ceil(n / cap)` is a
+   * step: at one edge over the cap it jumps from every edge to every second
+   * one, so 4,001 visible edges drew 2,001 and two thousand wires vanished at
+   * a zoom where they were perfectly legible. Keeping `cap / n` of them draws
+   * 4,000 of the 4,001, and the picture degrades as smoothly as the count
+   * rises.
    */
   private collectVisible(worldRect: CanvasRect): Map<string, StyleBatch> {
     const batches = new Map<string, StyleBatch>();
-    const stride = Math.ceil(this.countVisible(worldRect) / MAX_BUILT_PATHS);
-    let seen = 0;
+    const drawPass = ++this.drawSweep;
+
+    // Only worth counting when the whole cache could exceed the cap; below
+    // that the answer is `1` and the extra pass over 96,000 AABBs is waste.
+    const visible = this.cache.size > MAX_BUILT_PATHS ? this.countVisible(worldRect) : 0;
+    const keep = visible > MAX_BUILT_PATHS ? MAX_BUILT_PATHS / visible : 1;
+    let credit = 0;
     /*
      * Give back the paths of edges that are not on screen, once too many are
      * being held. Folded into the pass that already walks the cache, and only
@@ -357,20 +386,20 @@ export class CanvasEdgeRenderer {
 
     for (const cached of this.cache.values()) {
       if (!rectsIntersect(cached.bounds, worldRect)) {
-        if (trimming && cached.path) {
-          cached.path = null;
-          this.builtPaths--;
-        }
+        this.release(cached, trimming);
         continue;
       }
 
-      if (stride > 1 && seen++ % stride !== 0) {
-        if (cached.path) {
-          cached.path = null;
-          this.builtPaths--;
+      if (keep < 1) {
+        credit += keep;
+        if (credit < 1) {
+          this.release(cached, trimming);
+          continue;
         }
-        continue;
+        credit -= 1;
       }
+
+      cached.drawn = drawPass;
 
       let batch = batches.get(cached.styleKey);
       if (!batch) {
@@ -385,6 +414,19 @@ export class CanvasEdgeRenderer {
       batch.path.addPath(this.pathOf(cached));
     }
     return batches;
+  }
+
+  /**
+   * Give an edge's path back, if too many are being held.
+   *
+   * Only when `trimming`: freeing regardless discards paths that cost nothing
+   * to keep, and since a pan shifts which edge lands on which sample slot,
+   * they would be rebuilt on the very next frame.
+   */
+  private release(cached: CachedEdge, trimming: boolean): void {
+    if (!trimming || !cached.path) return;
+    cached.path = null;
+    this.builtPaths--;
   }
 
   /**
@@ -575,6 +617,7 @@ function buildCachedEdge(
 ): CachedEdge {
   return {
     sweep: 0,
+    drawn: 0,
     edge,
     path: null,
     bounds: boundsOfEdge(edge, from, to),
