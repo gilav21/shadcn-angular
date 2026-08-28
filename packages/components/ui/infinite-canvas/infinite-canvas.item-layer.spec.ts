@@ -618,8 +618,14 @@ describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
 
     const centreX = view.x + view.width / 2;
     const centreY = view.y + view.height / 2;
+    // The same measure the layer uses: to the nearest part of the box, not to
+    // its centre. On this uniform grid the two agree, but an oracle that
+    // measures something else is only accidentally right.
     const distance = (item: CanvasItem): number =>
-      Math.hypot(item.x + item.width / 2 - centreX, item.y + item.height / 2 - centreY);
+      Math.hypot(
+        Math.max(item.x - centreX, 0, centreX - (item.x + item.width)),
+        Math.max(item.y - centreY, 0, centreY - (item.y + item.height)),
+      );
 
     const expected = [...items]
       .sort((a, b) => distance(a) - distance(b))
@@ -633,6 +639,39 @@ describe('CanvasItemLayer — zooming out cannot mount the whole board', () => {
       .sort((a: number, b: number) => a - b);
 
     expect(mounted).toEqual(expected);
+  });
+
+  it('keeps a wide item that covers the screen, not just small ones near the middle', () => {
+    /*
+     * Ranked by the nearest part of the box, not by its centre.
+     *
+     * A node wide enough to span the viewport has its centre far outside it,
+     * so ranking by centres puts it behind every small node clustered in the
+     * middle — it is dropped, and the edge renderer goes on drawing its wires
+     * into the gap where it should be. It is the item MOST on screen.
+     *
+     * The cluster has to exceed the cap, or nothing is rationed and both
+     * measures agree by default.
+     */
+    const cap = 20;
+    const layer = layerWithCap(cap);
+
+    const wide: CanvasItem = { id: 9999, x: -20_000, y: 500, width: 41_000, height: 100 };
+    const cluster: CanvasItem[] = [];
+    for (let i = 0; i < 60; i++) {
+      cluster.push({ id: i, x: 700 + (i % 10) * 40, y: 300 + Math.floor(i / 10) * 40, width: 20, height: 20 });
+    }
+    layer.setItems([wide, ...cluster]);
+
+    layer.update({ x: 500, y: 200, width: 800, height: 600 }, 0);
+    fixture.detectChanges();
+
+    const mounted = [...fixture.nativeElement.querySelectorAll('.cell')].map((el: Element) =>
+      Number(el.getAttribute('data-id')),
+    );
+
+    expect(mounted).toHaveLength(cap);
+    expect(mounted).toContain(9999);
   });
 
   it('drops from every edge alike, not the whole bottom of the screen', () => {

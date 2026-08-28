@@ -323,6 +323,29 @@ describe('CanvasEdgeRenderer', () => {
     });
   });
 
+  describe('an edge stays clickable across the edit that moved it', () => {
+    it('keeps its drawn stamp when its geometry is replaced', () => {
+      /*
+       * `hitTest` only considers what the last frame drew, and a replaced
+       * cache entry started at zero — so the handful of edges attached to a
+       * node you just dragged went un-clickable until the next paint. The
+       * edit that replaces them IS a drag, so the window is not rare.
+       */
+      renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], ITEMS);
+      renderer.draw(IDENTITY, { x: -1000, y: -1000, width: 4000, height: 4000 });
+      expect(renderer.hitTest(100, 5, IDENTITY)?.id).toBe('e');
+
+      // The source moved: same edge id, new geometry, no repaint yet.
+      const moved = itemMap([
+        { id: 'a', x: 0, y: 40, width: 10, height: 10 },
+        { id: 'b', x: 200, y: 40, width: 10, height: 10 },
+      ]);
+      renderer.setEdges([{ id: 'e', source: 'a', target: 'b' }], moved);
+
+      expect(renderer.hitTest(100, 45, IDENTITY)?.id).toBe('e');
+    });
+  });
+
   describe('construction', () => {
     it('throws a clear error when no 2D context is available', () => {
       const broken = document.createElement('canvas');

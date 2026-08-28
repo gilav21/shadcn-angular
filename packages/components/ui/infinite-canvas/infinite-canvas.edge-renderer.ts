@@ -220,6 +220,16 @@ export class CanvasEdgeRenderer {
     if (known?.path) this.builtPaths--;
     const built = buildCachedEdge(edge, from, to, source, target);
     built.sweep = sweep;
+
+    /*
+     * A replaced entry keeps the pass that last drew it.
+     *
+     * `hitTest` only considers edges the last frame drew, and a fresh entry
+     * starts at 0 — so the eight edges attached to a node you just moved
+     * became un-clickable until the next paint. A pointerdown landing in that
+     * window is not a rare thing: the edit that replaced them was a drag.
+     */
+    built.drawn = known?.drawn ?? 0;
     this.cache.set(edge.id, built);
   }
 

@@ -1537,6 +1537,22 @@ export class NodeEditorComponent {
   private abandonGesture(): void {
     const drag = this.drag;
     this.drag = null;
+
+    /*
+     * The queued frame goes too, exactly as on `pointercancel`.
+     *
+     * Nulling `this.drag` alone defuses it — `updateDrag` checks the pointer
+     * id — until a NEW drag starts with the same id inside the same frame,
+     * which for a mouse is every time, since a mouse reuses one id. The
+     * orphan then applies the abandoned gesture's coordinates against the new
+     * drag's origin and the node jumps.
+     */
+    this.dragAt = null;
+    if (this.dragFrame) {
+      cancelAnimationFrame(this.dragFrame);
+      this.dragFrame = 0;
+    }
+
     this.cancelPending();
     if (!drag?.moved) return;
 

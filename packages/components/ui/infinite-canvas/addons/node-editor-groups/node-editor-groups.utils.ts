@@ -132,6 +132,15 @@ function indexOf(groups: readonly NodeGroup[]): SpatialHash<NodeGroup> {
  * of the answer: the narrow phase can only ever remove candidates, never miss
  * one. Nodes are visited in order, so each group's members stay in node order.
  */
+/**
+ * The answer for a node in no group at all.
+ *
+ * Shared and frozen: on a real board almost every node is in no group, and
+ * minting an empty array for each of a hundred thousand of them was the memo
+ * paying for itself in garbage.
+ */
+const IN_NO_GROUP: readonly string[] = Object.freeze([]);
+
 /** The ids of every group that fully contains `node`. */
 function groupsHolding(
   index: SpatialHash<NodeGroup>,
@@ -139,35 +148,42 @@ function groupsHolding(
   near: NodeGroup[],
   seen: Set<NodeGroup>,
 ): readonly string[] {
-  const holding: string[] = [];
+  let holding: string[] | null = null;
   for (const group of index.queryInto(node, near, seen)) {
-    if (contains(group, node)) holding.push(group.id);
+    if (!contains(group, node)) continue;
+    holding ??= [];
+    holding.push(group.id);
   }
-  return holding;
+  return holding ?? IN_NO_GROUP;
 }
 
 export function membership(
   groups: readonly NodeGroup[],
   nodes: readonly EditorNode[],
 ): GroupMembership {
+  /*
+   * The same nodes give the same answer — asked BEFORE anything is built.
+   *
+   * Skipping the spatial queries still left a hundred thousand `Map.set`
+   * calls and a hundred thousand pushes rebuilding an identical answer on
+   * every frame of a drag. When the node list is the very array the memo was
+   * built from, there is nothing to rebuild — and checking that after
+   * allocating the result map meant the "free" path still minted a map and an
+   * empty array per group, four thousand of each, every frame.
+   *
+   * The result is SHARED with every caller that gets this fast path, which
+   * the `ReadonlyMap<string, readonly NodeId[]>` return type is what protects:
+   * casting that away and mutating a member list corrupts the memo for the
+   * life of the groups array.
+   */
+  const previous = MEMBERSHIP.get(groups);
+  if (previous?.nodes === nodes) return previous.result;
+
   const result = new Map<string, NodeId[]>();
   for (const group of groups) result.set(group.id, []);
   if (groups.length === 0 || nodes.length === 0) return result;
 
   const index = indexOf(groups);
-  const previous = MEMBERSHIP.get(groups);
-
-  /*
-   * The same nodes give the same answer.
-   *
-   * Skipping the spatial queries still left a hundred thousand `Map.set`
-   * calls and a hundred thousand pushes rebuilding an identical answer on
-   * every frame of a drag. When the node list is the very array the memo was
-   * built from, there is nothing to rebuild. Read-only by contract, like
-   * everything else derived here.
-   */
-  if (previous?.nodes === nodes) return previous.result;
-
   const groupsOf = new Map<NodeId, readonly string[]>();
 
   // Two buffers for the whole walk, not two per node. See `queryInto`.
@@ -186,12 +202,22 @@ export function membership(
      * replaces one object out of a hundred thousand and asked the index a
      * hundred thousand questions to re-derive a member count.
      */
-    let ids = previous?.nodes[i] === node ? previous?.groupsOf.get(node.id) : undefined;
+    /*
+     * Absent from `groupsOf` means "in no group", not "not remembered" — the
+     * memo holds an entry only for a node that is in one. On a real board
+     * that is a handful out of a hundred thousand, and storing the empty
+     * answer for all the rest was a hundred-thousand-entry map rebuilt per
+     * frame and retained for as long as the groups array lived.
+     */
+    const remembered = previous?.nodes[i] === node;
+    const ids = remembered
+      ? previous.groupsOf.get(node.id) ?? IN_NO_GROUP
+      : groupsHolding(index, node, near, seen);
 
-    ids ??= groupsHolding(index, node, near, seen);
-
-    groupsOf.set(node.id, ids);
-    for (const id of ids) result.get(id)?.push(node.id);
+    if (ids.length > 0) {
+      groupsOf.set(node.id, ids);
+      for (const id of ids) result.get(id)?.push(node.id);
+    }
   }
 
   MEMBERSHIP.set(groups, { nodes, groupsOf, result });

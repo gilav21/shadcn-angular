@@ -408,10 +408,18 @@ export class CanvasItemLayer<T extends CanvasItem> {
   }
 }
 
-/** Squared distance from an item's centre to a point. Monotonic, and no root. */
-function centreDistanceSquared(item: CanvasItem, x: number, y: number): number {
-  const dx = item.x + item.width / 2 - x;
-  const dy = item.y + item.height / 2 - y;
+/**
+ * Squared distance from a point to the NEAREST part of an item's box.
+ *
+ * Zero for an item the point is inside. Ranking by the item's CENTRE instead
+ * drops a wide node that spans the whole viewport in favour of small ones
+ * clustered near the middle — its centre can sit far outside the screen it
+ * covers — and the edge renderer then draws its wires into the gap where it
+ * should be. Squared, because it is only ever compared: monotonic, no root.
+ */
+function distanceSquared(item: CanvasItem, x: number, y: number): number {
+  const dx = Math.max(item.x - x, 0, x - (item.x + item.width));
+  const dy = Math.max(item.y - y, 0, y - (item.y + item.height));
   return dx * dx + dy * dy;
 }
 
@@ -458,11 +466,21 @@ function nearestTo<T extends CanvasItem>(
   x: number,
   y: number,
 ): readonly T[] {
+  if (cap <= 0) return [];
+
   const items: T[] = [];
   const keys: number[] = [];
 
   for (const item of found) {
-    const key = centreDistanceSquared(item, x, y);
+    const key = distanceSquared(item, x, y);
+
+    /*
+     * A non-finite key never sinks: `NaN > x` is false, so `siftDown` never
+     * selects it and it is stuck in the heap for the rest of the pass, with
+     * the root no longer the maximum. An item with no real position cannot be
+     * placed on screen anyway.
+     */
+    if (!Number.isFinite(key)) continue;
 
     if (items.length < cap) {
       items.push(item);
