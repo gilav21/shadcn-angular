@@ -356,16 +356,26 @@ describe('CanvasPointerMachine', () => {
      * from then on zoomed. A release can genuinely be missed: the capturing
      * element is a virtualised card, and recycling it mid-drag detaches it.
      */
-    it('does not begin a pinch when the same pointer id presses twice', () => {
-      down(machine, 100, 100, 'item');
+    it('treats the second press as a first press, from its own origin', () => {
+      down(machine, 100, 100);
       // No pointerUp: this is the missed release.
-      down(machine, 120, 120, 'item');
+      down(machine, 120, 120);
 
       const zoomBefore = machine.viewport.zoom;
-      move(machine, 200, 300);
+      move(machine, 140, 120);
 
+      /*
+       * Panning twenty, not forty.
+       *
+       * Refusing the duplicate outright would also avoid the pinch — and
+       * would leave the STALE entry, so the press did nothing and the pan
+       * measured its delta from where the pointer had been long ago. The
+       * second press is a real press; it has to replace what it duplicates.
+       */
       expect(machine.mode).not.toBe('pinching');
       expect(machine.viewport.zoom).toBe(zoomBefore);
+      expect(machine.viewport.x).toBe(20);
+      expect(machine.tracks(1)).toBe(true);
     });
 
     it('still pinches for two genuinely different pointers', () => {

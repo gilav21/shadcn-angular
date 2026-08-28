@@ -500,6 +500,25 @@ describe('RT-7 run and step', () => {
         await runtime.step();
         expect(runtime.ready()).toEqual(['b']);
     });
+
+    it('is still right after an edit, not just after a step', async () => {
+        /*
+         * `ready` is rebuilt on demand from a version counter rather than
+         * published eagerly, because publishing an array the width of the
+         * frontier on every settle is quadratic over a drain. Every path that
+         * changes the ready set has to bump that counter — and the test
+         * above only covers the one `settle` takes. An edit goes through
+         * `refresh` instead, and with its bump missing a consumer's "what
+         * runs next" readout keeps showing the pre-edit answer for ever.
+         */
+        const runtime = chainRuntime(['a', 'b']);
+        await runtime.run();
+        expect(runtime.ready()).toEqual([]);
+
+        runtime.setState('a', 7);
+
+        expect(runtime.ready()).toEqual(['a']);
+    });
 });
 
 describe('RT-8 remote batching', () => {

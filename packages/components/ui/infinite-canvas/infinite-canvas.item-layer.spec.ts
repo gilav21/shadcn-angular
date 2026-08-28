@@ -265,6 +265,15 @@ describe('CanvasItemLayer + CanvasItemViewPool (virtualization and recycling)', 
       expect(layer.mountedCount).toBe(0);
       expect(mountedHosts()).toHaveLength(0);
       expect(pool.totalViews).toBe(0);
+
+      /*
+       * The id index goes too. It is handed out LIVE to the edge rebuild, so
+       * leaving it populated both retains every item a `clear()` was meant to
+       * release and answers with items that are no longer there — the
+       * renderer resolving endpoints to gone nodes and drawing wires to
+       * stale positions.
+       */
+      expect(layer.itemsById.size).toBe(0);
     });
 
     it('releasing the same view twice is a no-op', () => {

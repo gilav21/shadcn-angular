@@ -154,33 +154,58 @@ describe('InfiniteCanvasComponent (phase 1 — transform, pointer, keyboard)', (
      * Reported from the desktop: after dragging a NODE, the canvas behaved as
      * though the button were still held, and moving the mouse zoomed.
      *
-     * A press on an item is tracked with mode `idle`, and the release is
-     * delivered wherever the pointer is — which for a node drag is often not
-     * inside this root. The capturing element is a virtualised card, so
-     * recycling it mid-drag detaches it; a drop over a group frame or the
-     * pending-wire overlay lands on a sibling of the canvas. The editor ended
-     * its drag either way, and the engine was never told, so the pointer
-     * stayed down. A mouse reuses one pointerId, so the NEXT press became a
-     * second finger and every mouse move was a pinch.
+     * A press on an ITEM is tracked with mode `idle` — deliberately, so a
+     * second finger can pinch against a finger resting on a node — and the
+     * release is delivered wherever the pointer is, which after a node drag is
+     * often not inside this root: the capturing element is a virtualised card
+     * and recycling it detaches it, and a drop over a group frame or the
+     * pending-wire overlay lands on a sibling of the canvas.
+     *
+     * The press has to be on an ITEM. Pressing empty space makes the mode
+     * `panning`, and every guard below is satisfied by `panning` alone — a
+     * test that presses the plane passes with the fix reverted.
      */
-    it('forgets a pointer released on the document, not on the canvas', async () => {
-      pointer('pointerdown', { clientX: 100, clientY: 100 });
-      expect(canvas.mode).not.toBe('idle');
+    function pressItem(clientX: number, clientY: number, pointerId = 1): void {
+      const card = document.createElement('div');
+      card.dataset['slot'] = 'canvas-item';
+      root.append(card);
+      card.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          cancelable: true,
+          pointerId,
+          button: 0,
+          clientX,
+          clientY,
+        }),
+      );
+    }
 
-      // The release happens somewhere else entirely.
+    /**
+     * A press with a DIFFERENT id is what makes a stale pointer visible: a
+     * second tracked pointer is a pinch. It also keeps this independent of the
+     * duplicate-id guard, which would quietly rescue a same-id re-press.
+     */
+    it('forgets an item press released on the document, not on the canvas', () => {
+      pressItem(100, 100);
+      expect(canvas.mode).toBe('idle');
+
       globalThis.dispatchEvent(
         new PointerEvent('pointerup', { pointerId: 1, clientX: 400, clientY: 400 }),
       );
 
+      pointer('pointerdown', { clientX: 200, clientY: 200, pointerId: 2 });
+      expect(canvas.mode).toBe('panning');
+    });
+
+    it('forgets an item press when the canvas loses focus', () => {
+      pressItem(100, 100);
       expect(canvas.mode).toBe('idle');
 
-      const zoomBefore = canvas.viewport.zoom;
-      pointer('pointerdown', { clientX: 200, clientY: 200 });
-      pointer('pointermove', { clientX: 260, clientY: 320 });
-      await nextFrame();
+      root.dispatchEvent(new FocusEvent('blur', { bubbles: false }));
 
-      // A pan, not a pinch: the second press is a first press.
-      expect(canvas.viewport.zoom).toBe(zoomBefore);
+      pointer('pointerdown', { clientX: 200, clientY: 200, pointerId: 2 });
+      expect(canvas.mode).toBe('panning');
     });
   });
 

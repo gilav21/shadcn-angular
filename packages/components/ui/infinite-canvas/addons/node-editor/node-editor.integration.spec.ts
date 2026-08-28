@@ -320,3 +320,33 @@ describe('RT-12 controls inside a node are usable', () => {
         expect(ctx.nodeX('t')).toBeGreaterThan(before);
     });
 });
+
+describe('the highlight on a node that just ran', () => {
+    const ctx = setup();
+
+    beforeEach(() => ctx.create());
+    afterEach(() => ctx.destroy());
+
+    /*
+     * Stepping a graph was unreadable without this: a run that recomputes a
+     * node to the same value changes nothing on screen, so the only evidence
+     * anything happened was the word "stale" disappearing.
+     *
+     * It had no test of any kind, through a rewrite that replaced a copied
+     * immutable Set and one timer per node with a deadline map and a single
+     * sweep — so "the glow never fades and the map grows for the life of the
+     * session" was a free mutation.
+     */
+    it('lights the nodes that ran, then lets the light go out', async () => {
+        await ctx.type('hi');
+
+        const lit = (): number => ctx.root.querySelectorAll('[data-ran="true"]').length;
+        expect(lit()).toBeGreaterThan(0);
+
+        // Longer than the window, and real timers: the sweep is a timeout.
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        await ctx.settle();
+
+        expect(lit()).toBe(0);
+    });
+});

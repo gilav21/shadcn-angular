@@ -118,6 +118,28 @@ describe('every command has a true inverse', () => {
         expect(next.connections.map(c => c.id)).toEqual(['c1']);
     });
 
+    /*
+     * State travels with the nodes, in BOTH directions.
+     *
+     * A node's state lives in the runtime, not in the snapshot, so a command
+     * that carries only nodes and edges brings back an empty shell — and for
+     * a subgraph node the state IS its inner graph. The delete side is
+     * covered through the component; this pins the pure layer, including the
+     * add-nodes arm, which no component test reaches (the editor's own
+     * fixture defines no node types, so it cannot mint one).
+     */
+    it('carries states through an add and back again', () => {
+        const states = new Map<string, unknown>([['a', { inner: 'graph' }]]);
+        const add: GraphCommand = { kind: 'add-nodes', nodes: [node('a')], states };
+
+        const removal = invert(add) as Extract<GraphCommand, { kind: 'remove-nodes' }>;
+        expect(removal.kind).toBe('remove-nodes');
+        expect(removal.states).toBe(states);
+
+        const readd = invert(removal) as Extract<GraphCommand, { kind: 'add-nodes' }>;
+        expect(readd.states).toBe(states);
+    });
+
     it('set-state swaps before and after', () => {
         const command: GraphCommand = {
             kind: 'set-state', nodeId: 'a', before: 'old', after: 'new', at: 0,

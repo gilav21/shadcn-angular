@@ -944,6 +944,66 @@ describe('connecting on a touch device', () => {
             expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'b' });
         });
 
+        it('undoes the wire it just made, not another one', async () => {
+            /*
+             * `connect` records the edge it added. It used to FIND that edge
+             * by scanning for the one not already present; `at(-1)` is the
+             * same answer because `addConnection` appends. Either way, no
+             * test could tell them apart while every undo test had a single
+             * wire on the board — and `next[0]` is green with one wire and
+             * catastrophic with two: Ctrl+Z deletes an unrelated connection
+             * and leaves the new one.
+             */
+            await connectByDrag(['a', 'out'], ['b', 'in']);
+            await connectByDrag(['a', 'out'], ['c', 'in']);
+            expect(host.connections()).toHaveLength(2);
+
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+
+            expect(host.connections()).toHaveLength(1);
+            expect(host.connections()[0]).toMatchObject({ source: 'a', target: 'b' });
+        });
+
+        it('redoes an unplug, taking the wire away again', async () => {
+            await connectByDrag(['a', 'out'], ['b', 'in']);
+
+            const rect = root.getBoundingClientRect();
+            pointer(portEl('b', 'in'), 'pointerdown', { clientX: 0, clientY: 0 });
+            await settle();
+            pointer(root, 'pointerup', { clientX: rect.left + 600, clientY: rect.top + 500 });
+            await settle();
+            expect(host.connections()).toEqual([]);
+
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+            expect(host.connections()).toHaveLength(1);
+
+            // `added: removed` would leave undo looking right and make redo a
+            // no-op, so an unplug could never be redone.
+            key(root, { key: 'y', ctrlKey: true });
+            await settle();
+            expect(host.connections()).toEqual([]);
+        });
+
+        it('has nothing to undo after a refused drop', async () => {
+            await connectByDrag(['a', 'out'], ['b', 'in']);
+            await connectByDrag(['b', 'in'], ['c', 'out']);
+            expect(host.connections()).toHaveLength(1);
+
+            /*
+             * A refused drop is a failed gesture, not an edit, so it adds no
+             * step: the one Ctrl+Z on the stack undoes the CONNECTION and
+             * leaves nothing. Recording the refusal instead would make the
+             * first Ctrl+Z put back the wire the refusal had deleted — the
+             * user pressing undo once and seeing the board unchanged.
+             */
+            key(root, { key: 'z', ctrlKey: true });
+            await settle();
+
+            expect(host.connections()).toEqual([]);
+        });
+
         it('gives a restored node back the state it held', async () => {
             const editor = editorOf();
             editor.runtime.setState('a', { remembered: 'inside' });
