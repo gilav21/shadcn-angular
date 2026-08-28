@@ -163,6 +163,24 @@ export class CanvasPointerMachine {
    * does.
    */
   pointerDown(event: CanvasPointerInput, onEmptySpace: boolean): boolean {
+    /*
+     * One physical pointer cannot be down twice.
+     *
+     * A mouse reuses the SAME `pointerId` for every press, so a release this
+     * machine never saw made the next press look like a second finger: two
+     * tracked pointers, `beginPinch`, and from then on moving the mouse
+     * zoomed the canvas. Reported from the desktop as the canvas "faking"
+     * that the button was still held.
+     *
+     * A release can genuinely go missing — the element that captured the
+     * pointer is a virtualised card, and recycling it mid-drag detaches it,
+     * so its `lostpointercapture` never reaches this root. Rather than trust
+     * that it cannot happen, a repeated id replaces the entry it duplicates,
+     * and the press is treated as what it is: a first press.
+     */
+    const duplicate = this.pointers.findIndex(tracked => tracked.id === event.pointerId);
+    if (duplicate !== -1) this.pointers.splice(duplicate, 1);
+
     if (this.pointers.length >= 2) return false;
 
     this.pointers.push({ id: event.pointerId, x: event.clientX, y: event.clientY });
@@ -214,6 +232,11 @@ export class CanvasPointerMachine {
     } else if (this.pointers.length === 0) {
       this._mode = 'idle';
     }
+  }
+
+  /** Whether this pointer is currently tracked as down. */
+  tracks(pointerId: number): boolean {
+    return this.pointers.some(tracked => tracked.id === pointerId);
   }
 
   /** Abandons any interaction — used when the pointer leaves the window. */

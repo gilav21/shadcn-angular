@@ -126,8 +126,12 @@ export function membership(
 
   const index = indexOf(groups);
 
+  // Two buffers for the whole walk, not two per node. See `queryInto`.
+  const near: NodeGroup[] = [];
+  const seen = new Set<NodeGroup>();
+
   for (const node of nodes) {
-    for (const group of index.query(node)) {
+    for (const group of index.queryInto(node, near, seen)) {
       if (contains(group, node)) result.get(group.id)?.push(node.id);
     }
   }

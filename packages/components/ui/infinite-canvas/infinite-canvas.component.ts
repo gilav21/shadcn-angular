@@ -106,7 +106,26 @@ function emptyItemContext<T extends CanvasItem>(): CanvasItemContext<T> {
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './infinite-canvas.component.html',
   styleUrl: './infinite-canvas.component.css',
-  host: { class: 'contents' },
+  host: {
+    class: 'contents',
+    /*
+     * The release is caught on the WINDOW as well as on the root.
+     *
+     * A press is recorded when it lands on the root, but the matching release
+     * is delivered wherever the pointer happens to be — and for a node drag
+     * that is often not inside the root at all. The capturing element is a
+     * virtualised card, so recycling it mid-drag detaches it and its
+     * `lostpointercapture` goes to a node no longer in the document; a drop
+     * over a group frame or the pending-wire overlay lands on a SIBLING of
+     * the canvas. Either way the editor ends its drag and the engine is never
+     * told, leaving a pointer down for ever.
+     *
+     * Only acts on a pointer this engine actually tracks, so the listener is
+     * inert for every other press on the page.
+     */
+    '(window:pointerup)': 'onWindowRelease($event)',
+    '(window:pointercancel)': 'onWindowRelease($event)',
+  },
 })
 export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implements AfterViewInit, OnDestroy {
   /**
@@ -411,6 +430,12 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
     if (wasInteracting) this.endInteractionIfIdle();
   }
 
+  /** The safety net described on `host`. See {@link onPointerUp}. */
+  onWindowRelease(event: PointerEvent): void {
+    if (!this.machine.tracks(event.pointerId)) return;
+    this.onPointerUp(event);
+  }
+
   /**
    * Split out so the mode check gets fresh control-flow analysis — reading the
    * getter again inside `onPointerUp` sees the type narrowed by its own guard.
@@ -423,9 +448,17 @@ export class InfiniteCanvasComponent<T extends CanvasItem = CanvasItem> implemen
   onBlur(): void {
     this.machine.setSpacePressed(false);
     this.spacePressed.set(false);
-    if (this.machine.mode === 'idle') return;
+
+    /*
+     * Cancel whatever the mode, so tracked pointers go too.
+     *
+     * A press that landed on an ITEM is tracked with mode `idle` — that is
+     * the whole point of tracking it — so returning early here left it down
+     * for ever, and this is the one place that could have swept it up.
+     */
+    const interacting = this.machine.mode !== 'idle';
     this.machine.cancel();
-    this.endInteraction();
+    if (interacting) this.endInteraction();
   }
 
   onWheel(event: WheelEvent): void {

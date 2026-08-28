@@ -37,6 +37,14 @@ import type {
 
 interface CachedEdge {
   edge: CanvasEdge;
+  /**
+   * The `setEdges` pass that last saw this entry alive.
+   *
+   * Stamped instead of collecting every live id into a Set: the Set was
+   * allocated fresh on each call and filled with all 96,000 ids, on every
+   * frame of a drag that adds and removes nothing at all.
+   */
+  sweep: number;
   /** Built on first draw or hit test, never at load. See `pathOf`. */
   path: Path2D | null;
   /** World-space bounding box, used to cull before stroking. */
@@ -82,6 +90,8 @@ export class CanvasEdgeRenderer {
   private cssHeight = 0;
   /** How many cached edges currently hold a built path. */
   private builtPaths = 0;
+  /** Counter behind {@link CachedEdge.sweep}. */
+  private sweep = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d');
@@ -133,63 +143,74 @@ export class CanvasEdgeRenderer {
    * change — **not** on pan or zoom, which reuse the cache untouched.
    */
   setEdges(edges: readonly CanvasEdge[], itemsById: ReadonlyMap<string | number, CanvasItem>): void {
-    const live = new Set<string | number>();
+    const sweep = ++this.sweep;
 
     for (const edge of edges) {
       const source = itemsById.get(edge.source);
       const target = itemsById.get(edge.target);
-      if (!source || !target) continue;
-
-      live.add(edge.id);
-
-      /*
-       * The cheapest question first: is anything different at all?
-       *
-       * The editor hands back the SAME descriptor object for a connection
-       * whose endpoints did not move, so for 95,992 of 96,000 edges this is
-       * three reference comparisons and nothing else - no anchor points
-       * allocated, no fields compared. Only when one of the three differs is
-       * it worth working out what actually changed.
-       */
-      const known = this.cache.get(edge.id);
-      if (untouched(known, edge, source, target)) continue;
-
-      const from = anchorOf(source, edge.sourceAnchor);
-      const to = anchorOf(target, edge.targetAnchor);
-
-      /*
-       * Keep the path when nothing that shapes it moved.
-       *
-       * The editor hands us a freshly built edge list on every frame of a
-       * drag, so the objects are always new — but the NUMBERS in them are
-       * identical for every edge that did not move, and dragging one node
-       * moves 8 edges out of 96,000. Rebuilding all of them meant discarding
-       * 95,992 correct Path2Ds and constructing them again, which is the
-       * single most expensive thing this class can be asked to do.
-       */
-      if (known && reusable(known, edge, from, to)) {
-        known.edge = edge;
-        known.sourceItem = source;
-        known.targetItem = target;
-        continue;
-      }
-
-      // Only here, where the entry is genuinely replaced. Dropping the path
-      // before the reuse check above discarded it for every edge whose
-      // DESCRIPTOR was rebuilt even when its geometry was untouched - which is
-      // every edge, for any caller that rebuilds its edge array each frame.
-      if (known?.path) this.builtPaths--;
-      this.cache.set(edge.id, buildCachedEdge(edge, from, to, source, target));
+      if (source && target) this.refreshEdge(edge, source, target, sweep);
     }
 
     // Deleting from a Map while iterating it is defined behaviour: an entry
     // removed before the walk reaches it is simply not visited. So no copy of
     // the key set is needed, and at 96,000 edges a copy is not free.
     for (const [id, cached] of this.cache) {
-      if (live.has(id)) continue;
+      if (cached.sweep === sweep) continue;
       if (cached.path) this.builtPaths--;
       this.cache.delete(id);
     }
+  }
+
+  /** Brings one edge's cache entry up to date, and stamps it as live. */
+  private refreshEdge(
+    edge: CanvasEdge,
+    source: CanvasItem,
+    target: CanvasItem,
+    sweep: number,
+  ): void {
+    /*
+     * The cheapest question first: is anything different at all?
+     *
+     * The editor hands back the SAME descriptor object for a connection whose
+     * endpoints did not move, so for 95,992 of 96,000 edges this is three
+     * reference comparisons and nothing else — no anchor points allocated, no
+     * fields compared.
+     */
+    const known = this.cache.get(edge.id);
+    if (known && untouched(known, edge, source, target)) {
+      known.sweep = sweep;
+      return;
+    }
+
+    const from = anchorOf(source, edge.sourceAnchor);
+    const to = anchorOf(target, edge.targetAnchor);
+
+    /*
+     * Keep the path when nothing that shapes it moved.
+     *
+     * The editor hands us a freshly built edge list on every frame of a drag,
+     * so the objects are always new — but the NUMBERS in them are identical
+     * for every edge that did not move, and dragging one node moves 8 edges
+     * out of 96,000. Rebuilding all of them meant discarding 95,992 correct
+     * Path2Ds and constructing them again, which is the single most expensive
+     * thing this class can be asked to do.
+     */
+    if (known && reusable(known, edge, from, to)) {
+      known.edge = edge;
+      known.sourceItem = source;
+      known.targetItem = target;
+      known.sweep = sweep;
+      return;
+    }
+
+    // Only here, where the entry is genuinely replaced. Dropping the path
+    // before the reuse check above discarded it for every edge whose
+    // DESCRIPTOR was rebuilt even when its geometry was untouched — which is
+    // every edge, for any caller that rebuilds its edge array each frame.
+    if (known?.path) this.builtPaths--;
+    const built = buildCachedEdge(edge, from, to, source, target);
+    built.sweep = sweep;
+    this.cache.set(edge.id, built);
   }
 
   /** Drops every cached path. */
@@ -553,6 +574,7 @@ function buildCachedEdge(
   targetItem: CanvasItem,
 ): CachedEdge {
   return {
+    sweep: 0,
     edge,
     path: null,
     bounds: boundsOfEdge(edge, from, to),

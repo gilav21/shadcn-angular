@@ -180,6 +180,13 @@ const DOUBLE_ACTIVATE_MS = 500;
 const INTERACTIVE_IN_NODE =
   'input, textarea, select, button, a[href], [contenteditable], [role="button"], [data-node-interactive]';
 
+/** The part of a pointer event a queued drag needs. */
+interface DragPoint {
+  readonly pointerId: number;
+  readonly clientX: number;
+  readonly clientY: number;
+}
+
 interface DragState {
   readonly pointerId: number;
   readonly origin: CanvasPoint;
@@ -526,6 +533,7 @@ export class NodeEditorComponent {
     inject(DestroyRef).onDestroy(() => {
       element.removeEventListener('keydown', onKeyDownCapture, true);
       stopDoubleTap();
+      if (this.dragFrame) cancelAnimationFrame(this.dragFrame);
       if (this.recentSweep !== null) clearTimeout(this.recentSweep);
       this.recentlyRanUntil.clear();
       this.runtime.dispose();
@@ -1200,7 +1208,56 @@ export class NodeEditorComponent {
       this.updatePending(event);
       return;
     }
-    this.updateDrag(event);
+    this.queueDrag(event);
+  }
+
+  /*
+   * One node move per FRAME, not one per pointer event.
+   *
+   * `updateDrag` replaces the whole node array, and everything downstream —
+   * materialising, heights, the id maps, the edge descriptors, group
+   * membership, the runtime's shape check — is driven off that one signal
+   * write. Running it straight from the raw `pointermove` ran the entire
+   * cascade two to four times per frame on a high-rate pointer, for frames
+   * nobody ever saw. The engine's PAN path has always coalesced to a frame;
+   * the editor's DRAG path never did.
+   */
+  private dragFrame = 0;
+  private dragAt: DragPoint | null = null;
+
+  private queueDrag(event: PointerEvent): void {
+    if (this.drag?.pointerId !== event.pointerId) return;
+    this.dragAt = {
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      clientY: event.clientY,
+    };
+    if (this.dragFrame) return;
+    this.dragFrame = requestAnimationFrame(this.applyDragFrame);
+  }
+
+  private readonly applyDragFrame = (): void => {
+    this.dragFrame = 0;
+    const latest = this.dragAt;
+    this.dragAt = null;
+    if (latest) this.updateDrag(latest);
+  };
+
+  /**
+   * Apply the last queued move now.
+   *
+   * The gesture ENDS on the event, not on the next frame: a drop has to land
+   * where the pointer left it, and the undo entry is measured against where
+   * the nodes actually are.
+   */
+  private flushDrag(): void {
+    if (this.dragFrame) {
+      cancelAnimationFrame(this.dragFrame);
+      this.dragFrame = 0;
+    }
+    const latest = this.dragAt;
+    this.dragAt = null;
+    if (latest) this.updateDrag(latest);
   }
 
   /**
@@ -1233,6 +1290,7 @@ export class NodeEditorComponent {
       this.commitPending({ ...state, over: this.portAtPointer(event) });
       return;
     }
+    this.flushDrag();
     const drag = this.drag;
     if (drag?.pointerId !== event.pointerId) return;
     this.drag = null;
@@ -1319,13 +1377,26 @@ export class NodeEditorComponent {
    *
    * Derived from `sizedNodes`, so they are rebuilt exactly when it is.
    */
-  private readonly nodesById = computed(
-    () => new Map(this.sizedNodes().map(node => [node.id, node] as const)),
-  );
+  /*
+   * Filled by a loop, not by `new Map(array.map(...))`.
+   *
+   * The spread form allocates an intermediate array the size of the graph AND
+   * a two-element tuple for every node in it before the Map ever sees them.
+   * `nodesById` is read by `canvasEdges` and by the injector sweep, so a drag
+   * forces it on every frame: at a hundred thousand nodes that was 100,001
+   * throwaway arrays a frame, on top of the map itself.
+   */
+  private readonly nodesById = computed(() => {
+    const byId = new Map<NodeId, EditorNode>();
+    for (const node of this.sizedNodes()) byId.set(node.id, node);
+    return byId;
+  });
 
-  private readonly nodesByRawId = computed(
-    () => new Map(this.sizedNodes().map(node => [String(node.id), node] as const)),
-  );
+  private readonly nodesByRawId = computed(() => {
+    const byRawId = new Map<string, EditorNode>();
+    for (const node of this.sizedNodes()) byRawId.set(String(node.id), node);
+    return byRawId;
+  });
 
   protected isOpenable(nodeId: NodeId): boolean {
     const node = this.nodesById().get(nodeId);
@@ -1416,6 +1487,11 @@ export class NodeEditorComponent {
   }
 
   protected onPointerCancel(): void {
+    this.dragAt = null;
+    if (this.dragFrame) {
+      cancelAnimationFrame(this.dragFrame);
+      this.dragFrame = 0;
+    }
     if (this.cancelPending()) this.announce(this.t().connectionCancelled);
     this.drag = null;
   }
@@ -1592,11 +1668,11 @@ export class NodeEditorComponent {
     };
   }
 
-  private updateDrag(event: PointerEvent): void {
+  private updateDrag(at: DragPoint): void {
     const drag = this.drag;
-    if (drag?.pointerId !== event.pointerId) return;
+    if (!drag || drag.pointerId !== at.pointerId) return;
 
-    const world = this.canvas().screenToWorld({ x: event.clientX, y: event.clientY });
+    const world = this.canvas().screenToWorld({ x: at.clientX, y: at.clientY });
     const dx = world.x - drag.origin.x;
     const dy = world.y - drag.origin.y;
 

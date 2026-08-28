@@ -343,4 +343,36 @@ describe('CanvasPointerMachine', () => {
       expect(machine.viewport).toBe(first);
     });
   });
+
+  describe('a release that never arrived must not turn the mouse into a pinch', () => {
+    /*
+     * Reported from the desktop: "after dragging it fakes that I still hold
+     * the mouse, and moving the mouse zooms in and out".
+     *
+     * A mouse reuses one `pointerId` for every press. A press on an ITEM is
+     * tracked with mode `idle` (deliberately — a finger resting on a node is
+     * still a finger), so if its release goes missing the next press was
+     * pushed as a SECOND tracked pointer, which is a pinch. Every mouse move
+     * from then on zoomed. A release can genuinely be missed: the capturing
+     * element is a virtualised card, and recycling it mid-drag detaches it.
+     */
+    it('does not begin a pinch when the same pointer id presses twice', () => {
+      down(machine, 100, 100, 'item');
+      // No pointerUp: this is the missed release.
+      down(machine, 120, 120, 'item');
+
+      const zoomBefore = machine.viewport.zoom;
+      move(machine, 200, 300);
+
+      expect(machine.mode).not.toBe('pinching');
+      expect(machine.viewport.zoom).toBe(zoomBefore);
+    });
+
+    it('still pinches for two genuinely different pointers', () => {
+      down(machine, 100, 100, 'item', 1);
+      down(machine, 200, 200, 'item', 2);
+
+      expect(machine.mode).toBe('pinching');
+    });
+  });
 });

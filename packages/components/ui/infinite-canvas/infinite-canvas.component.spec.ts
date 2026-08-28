@@ -149,6 +149,41 @@ describe('InfiniteCanvasComponent (phase 1 — transform, pointer, keyboard)', (
     });
   });
 
+  describe('a release delivered outside the root still ends the gesture', () => {
+    /*
+     * Reported from the desktop: after dragging a NODE, the canvas behaved as
+     * though the button were still held, and moving the mouse zoomed.
+     *
+     * A press on an item is tracked with mode `idle`, and the release is
+     * delivered wherever the pointer is — which for a node drag is often not
+     * inside this root. The capturing element is a virtualised card, so
+     * recycling it mid-drag detaches it; a drop over a group frame or the
+     * pending-wire overlay lands on a sibling of the canvas. The editor ended
+     * its drag either way, and the engine was never told, so the pointer
+     * stayed down. A mouse reuses one pointerId, so the NEXT press became a
+     * second finger and every mouse move was a pinch.
+     */
+    it('forgets a pointer released on the document, not on the canvas', async () => {
+      pointer('pointerdown', { clientX: 100, clientY: 100 });
+      expect(canvas.mode).not.toBe('idle');
+
+      // The release happens somewhere else entirely.
+      globalThis.dispatchEvent(
+        new PointerEvent('pointerup', { pointerId: 1, clientX: 400, clientY: 400 }),
+      );
+
+      expect(canvas.mode).toBe('idle');
+
+      const zoomBefore = canvas.viewport.zoom;
+      pointer('pointerdown', { clientX: 200, clientY: 200 });
+      pointer('pointermove', { clientX: 260, clientY: 320 });
+      await nextFrame();
+
+      // A pan, not a pinch: the second press is a first press.
+      expect(canvas.viewport.zoom).toBe(zoomBefore);
+    });
+  });
+
   describe('wheel', () => {
     it('pans on a plain wheel and does not change zoom', async () => {
       root.dispatchEvent(new WheelEvent('wheel', { deltaX: 0, deltaY: 120, bubbles: true, cancelable: true }));

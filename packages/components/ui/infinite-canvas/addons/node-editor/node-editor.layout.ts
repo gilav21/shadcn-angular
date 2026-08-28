@@ -185,10 +185,17 @@ export function withDerivedHeights(
   const next = nodes.map(node => {
     const body = bodyHeightOf(node);
     const remembered = HEIGHTS.get(node);
-    const height =
-      remembered && remembered.metrics === metrics && remembered.body === body
-        ? remembered.height
-        : nodeHeight(node, metrics, body);
+    if (remembered && remembered.metrics === metrics && remembered.body === body) {
+      const height = remembered.height;
+      if (height === node.height) return node;
+      changed = true;
+      return { ...node, height };
+    }
+
+    // Only on a miss. Recording the same answer over a hit was a WeakMap write
+    // per node per frame — a hundred thousand of them during a drag, to store
+    // values the entry already held.
+    const height = nodeHeight(node, metrics, body);
     HEIGHTS.set(node, { metrics, body, height });
     if (height === node.height) return node;
     changed = true;

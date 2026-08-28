@@ -235,6 +235,40 @@ describe('NodeEditorComponent', () => {
             expect(host.nodes().find(n => n.id === 'a')?.x).toBe(START_A.x);
         });
 
+        it('applies one move per frame, however many pointer events arrive', async () => {
+            /*
+             * A node drag replaces the whole node array, and materialising,
+             * heights, the id maps, edge descriptors, group membership and
+             * the runtime's shape check all hang off that one write. Running
+             * it straight off `pointermove` ran the lot two to four times per
+             * frame on a high-rate pointer, for frames nobody ever saw.
+             *
+             * Asserted as: nothing moves until a frame comes round, and the
+             * position that lands is the LAST event's, not the first.
+             */
+            const at = (id: string): { x: number; y: number } => {
+                const found = host.nodes().find(candidate => candidate.id === id);
+                return { x: found?.x ?? 0, y: found?.y ?? 0 };
+            };
+
+            pointer(nodeEl('a'), 'pointerdown', { clientX: 40, clientY: 40 });
+            await settle();
+            const before = at('a');
+
+            pointer(root, 'pointermove', { clientX: 90, clientY: 40 });
+            pointer(root, 'pointermove', { clientX: 140, clientY: 40 });
+            pointer(root, 'pointermove', { clientX: 190, clientY: 40 });
+            expect(at('a')).toEqual(before);
+
+            await settle();
+            const landed = at('a');
+            expect(landed.x).toBe(before.x + 150);
+
+            pointer(root, 'pointerup', { clientX: 190, clientY: 40 });
+            await settle();
+            expect(at('a')).toEqual(landed);
+        });
+
         it('moves the whole selection when a selected node is dragged', async () => {
             pointer(nodeEl('a'), 'pointerdown', { clientX: 10, clientY: 10 });
             await settle();
