@@ -183,6 +183,27 @@ export class SpatialHash<T extends SpatialItem> {
     const maxX = Math.floor((item.x + item.width) / this.cellSize);
     const maxY = Math.floor((item.y + item.height) / this.cellSize);
 
+    /*
+     * A box that is not a box gets no cells.
+     *
+     * `for (cx = minX; cx <= maxX; cx++)` against an infinite or NaN bound
+     * never terminates, and it allocates a string every turn — one item with
+     * `width: Infinity`, or an `x` that arrived as NaN from a malformed
+     * document, hangs the tab and then exhausts memory. This is consumer data:
+     * the index is rebuilt from whatever array is handed to `setItems`.
+     *
+     * Registering nothing is the right answer rather than a thrown error. The
+     * item keeps its place in the list and still renders; it is only absent
+     * from spatial QUERIES, so it cannot be culled into view or hit-tested —
+     * which is the honest outcome for a shape with no position.
+     *
+     * `query` already guards its own loop this way, bailing to a linear scan
+     * when a rect spans more cells than the index holds items. This loop had
+     * no such guard.
+     */
+    if (!Number.isFinite(minX) || !Number.isFinite(minY)) return [];
+    if (!Number.isFinite(maxX) || !Number.isFinite(maxY)) return [];
+
     const keys: string[] = [];
     for (let cy = minY; cy <= maxY; cy++) {
       for (let cx = minX; cx <= maxX; cx++) keys.push(`${cx},${cy}`);

@@ -425,14 +425,17 @@ export class NodeGraphRuntime {
     if (nodes.length !== this.nodes.size) return false;
 
     for (const node of nodes) {
-      const held = this.nodes.get(node.id);
-      if (held === undefined) return false;
-      if (held === node) continue;
-      if (held.type !== node.type) return false;
-      if (held.title !== node.title) return false;
-      if (held.ports !== node.ports) return false;
+      if (!this.sameNode(node)) return false;
     }
     return true;
+  }
+
+  /** Whether the held node differs from this one in anything modelled. */
+  private sameNode(node: EditorNode): boolean {
+    const held = this.nodes.get(node.id);
+    if (held === undefined) return false;
+    if (held === node) return true;
+    return held.type === node.type && held.title === node.title && held.ports === node.ports;
   }
 
   private addNode(node: EditorNode): void {
@@ -1187,6 +1190,21 @@ export class NodeGraphRuntime {
     const current = this.active.get(nodeId);
     const stale = current !== undefined && current.id !== runId;
     if (stale && (definition.staleness ?? DEFAULT_STALENESS) !== 'apply') return;
+
+    /*
+     * A `compute` that returned nothing has emitted nothing.
+     *
+     * `Object.keys(undefined)` throws, and the throw is caught upstream — so a
+     * node type whose compute falls off the end, or is a `void` arrow, settled
+     * as ERRORED carrying "Cannot convert undefined or null to object". That
+     * is a true statement about our code and tells the author nothing about
+     * theirs. Returning no outputs is a legitimate thing for a node to do.
+     */
+    // Typed as `PortValues`, so the compiler calls this dead — but the type
+    // is a promise the CONSUMER makes, and a plain-JS node type or a `void`
+    // arrow breaks it without ever seeing a compiler. The cast says that out
+    // loud rather than letting the check look like an oversight.
+    if ((value as PortValues | undefined) === undefined) return;
 
     const merged = { ...this.outputValues.get(nodeId), ...value };
     this.outputValues.set(nodeId, merged);

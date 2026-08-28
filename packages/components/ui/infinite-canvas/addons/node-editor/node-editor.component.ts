@@ -1294,10 +1294,7 @@ export class NodeEditorComponent {
   }
 
   protected onPointerCancel(): void {
-    if (this.pending()) {
-      this.pending.set(null);
-      this.announce(this.t().connectionCancelled);
-    }
+    if (this.cancelPending()) this.announce(this.t().connectionCancelled);
     this.drag = null;
   }
 
@@ -1321,7 +1318,7 @@ export class NodeEditorComponent {
   private abandonGesture(): void {
     const drag = this.drag;
     this.drag = null;
-    if (this.pending()) this.pending.set(null);
+    this.cancelPending();
     if (!drag?.moved) return;
 
     this.nodes.update(nodes =>
@@ -1364,6 +1361,39 @@ export class NodeEditorComponent {
       return;
     }
     this.pending.set({ ...state, to: world, over, valid });
+  }
+
+  /**
+   * Give up a half-drawn connection, putting back whatever it unplugged.
+   *
+   * Grabbing an OCCUPIED input detaches its wire immediately, before any
+   * movement, because that is what "unplug this" has to feel like. The wire is
+   * kept on the pending gesture so it can be restored — and nothing restored
+   * it. Every way of abandoning the gesture therefore destroyed a connection
+   * the user never asked to remove:
+   *
+   *   - a second finger arriving (a pinch), through `abandonGesture`, whose
+   *     own comment promised it left "the graph as it was";
+   *   - `pointercancel`, which is routine on touch when the system takes the
+   *     pointer for an edge gesture or a scroll;
+   *   - Escape.
+   *
+   * The last two even announced "connection cancelled" to the screen reader
+   * while the connection was in fact gone. On a touch device a port row is 44
+   * world units tall, so most of a card's left edge detaches a wire on contact
+   * — which is how a 96,000-connection board quietly became 95,999.
+   *
+   * Dropping in empty space is NOT this: that is a completed gesture that
+   * means "unplug and leave it unplugged", and it keeps the deletion.
+   */
+  private cancelPending(): boolean {
+    const state = this.pending();
+    if (!state) return false;
+
+    this.pending.set(null);
+    const detached = state.detached;
+    if (detached) this.connections.update(current => [...current, detached]);
+    return true;
   }
 
   private commitPending(state: PendingConnection): void {
@@ -1454,8 +1484,7 @@ export class NodeEditorComponent {
 
   private handleGlobalKey(event: KeyboardEvent): boolean {
     if (event.key === 'Escape') {
-      if (this.pending()) {
-        this.pending.set(null);
+      if (this.cancelPending()) {
         this.announce(this.t().connectionCancelled);
       } else {
         this.clearSelection();

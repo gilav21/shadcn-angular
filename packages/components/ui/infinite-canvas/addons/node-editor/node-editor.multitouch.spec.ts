@@ -45,6 +45,37 @@ class HostComponent {
     readonly connections = signal<readonly NodeConnection[]>([]);
 }
 
+/** Shared by both suites below, so neither duplicates the other. */
+async function settleFixture(fixture: ComponentFixture<HostComponent>): Promise<void> {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await nextFrame();
+    fixture.detectChanges();
+}
+
+function findPort(
+    fixture: ComponentFixture<HostComponent>,
+    node: string,
+    port: string,
+): HTMLElement {
+    return fixture.nativeElement.querySelector(
+        `[data-slot="node-editor-port"][data-node="${node}"][data-port="${port}"]`,
+    );
+}
+
+/** A touch. `isPrimary` is what distinguishes the first finger. */
+function dispatchTouch(target: EventTarget, type: string, init: PointerEventInit): void {
+    target.dispatchEvent(
+        new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            button: 0,
+            pointerType: 'touch',
+            ...init,
+        }),
+    );
+}
+
 function nextFrame(): Promise<void> {
     return new Promise(resolve =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
@@ -55,39 +86,13 @@ describe('a second finger takes over from an edit', () => {
     let fixture: ComponentFixture<HostComponent>;
     let host: HostComponent;
 
-    async function settle(): Promise<void> {
-        fixture.detectChanges();
-        await fixture.whenStable();
-        await nextFrame();
-        fixture.detectChanges();
-    }
+    const settle = (): Promise<void> => settleFixture(fixture);
+    const portEl = (node: string, port: string): HTMLElement => findPort(fixture, node, port);
+    const touch = dispatchTouch;
 
     function nodeEl(id: string): HTMLElement {
         return fixture.nativeElement.querySelector(
             `[data-slot="node-editor-node"][data-node="${id}"]`,
-        );
-    }
-
-    function portEl(node: string, port: string): HTMLElement {
-        return fixture.nativeElement.querySelector(
-            `[data-slot="node-editor-port"][data-node="${node}"][data-port="${port}"]`,
-        );
-    }
-
-    /** A touch. `isPrimary` is what distinguishes the first finger. */
-    function touch(
-        target: EventTarget,
-        type: string,
-        init: PointerEventInit & { isPrimary?: boolean },
-    ): void {
-        target.dispatchEvent(
-            new PointerEvent(type, {
-                bubbles: true,
-                cancelable: true,
-                button: 0,
-                pointerType: 'touch',
-                ...init,
-            }),
         );
     }
 
@@ -183,5 +188,96 @@ describe('a second finger takes over from an edit', () => {
         await settle();
 
         expect(positionOf('a')).not.toEqual(before);
+    });
+});
+
+/*
+ * Unplugging a wire and then NOT completing the gesture.
+ *
+ * Grabbing an occupied input detaches its connection immediately, before any
+ * movement, because that is what "unplug this" has to feel like. The wire is
+ * kept on the pending gesture so it can be put back — and nothing put it back,
+ * so every way of abandoning the gesture destroyed a connection the user never
+ * asked to remove. Two of those paths even announced "connection cancelled"
+ * while the connection was gone.
+ *
+ * On a touch device a port row is 44 world units tall, so most of a card's
+ * left edge detaches a wire on contact. That is how a 96,000-connection board
+ * was observed becoming 95,999: a press near the edge, then a second finger.
+ */
+describe('a wire unplugged by a gesture that is then abandoned comes back', () => {
+    let fixture: ComponentFixture<HostComponent>;
+    let host: HostComponent;
+
+    const settle = (): Promise<void> => settleFixture(fixture);
+    const portEl = (node: string, port: string): HTMLElement => findPort(fixture, node, port);
+
+    /** Presses the occupied input, which detaches the wire on contact. */
+    async function unplug(): Promise<void> {
+        dispatchTouch(portEl('b', 'in'), 'pointerdown', {
+            pointerId: 1,
+            isPrimary: true,
+            clientX: 60,
+            clientY: 260,
+        });
+        await settle();
+        expect(host.connections()).toHaveLength(0);
+    }
+
+    /*
+     * The EDITOR element, not the fixture's. Both handlers live on the
+     * editor's own host — the second-finger check on its `pointerdown`, the
+     * Escape on a capture listener it adds to itself — and an event dispatched
+     * on the parent never reaches a child. Aiming at the fixture made both
+     * tests pass for the wrong reason: nothing ran at all.
+     */
+    function editorEl(): HTMLElement {
+        return fixture.nativeElement.querySelector('ui-node-editor');
+    }
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(HostComponent);
+        host = fixture.componentInstance;
+        host.connections.set([
+            { id: 'a->b', source: 'a', sourcePort: 'out', target: 'b', targetPort: 'in' },
+        ]);
+        await settle();
+        expect(host.connections()).toHaveLength(1);
+    });
+
+    afterEach(() => fixture.destroy());
+
+    it('comes back when a second finger takes over', async () => {
+        await unplug();
+
+        dispatchTouch(editorEl(), 'pointerdown', {
+            pointerId: 2,
+            isPrimary: false,
+            clientX: 200,
+            clientY: 200,
+        });
+        await settle();
+
+        expect(host.connections()).toHaveLength(1);
+        expect(host.connections()[0].id).toBe('a->b');
+    });
+
+    it('comes back when the system cancels the pointer', async () => {
+        await unplug();
+
+        dispatchTouch(portEl('b', 'in'), 'pointercancel', { pointerId: 1, isPrimary: true });
+        await settle();
+
+        expect(host.connections()).toHaveLength(1);
+    });
+
+    it('comes back on Escape', async () => {
+        await unplug();
+
+        editorEl().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        await settle();
+
+        expect(host.connections()).toHaveLength(1);
     });
 });

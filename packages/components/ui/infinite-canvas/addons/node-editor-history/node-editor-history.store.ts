@@ -41,6 +41,18 @@ export class RunHistoryStore {
 
   /** Newest first, which is the order anyone reads a log in. */
   readonly runs: Signal<readonly RunRecord[]> = this.records.asReadonly();
+
+  /**
+   * Runs that have begun and not finished, each holding a whole-graph snapshot.
+   *
+   * Exposed so a test can prove one is not left behind — the same reason
+   * `SpatialHash.cellCount` exists. A begin with no matching finish retains a
+   * deep copy of every node and connection, which on a large board is the most
+   * expensive thing this store can hold, and nothing else can see it.
+   */
+  get openCount(): number {
+    return this.openGraphs.size;
+  }
   readonly latest: Signal<RunRecord | null> = computed(() => this.records()[0] ?? null);
 
   /** The graph as it was when the pass in flight began, keyed by run id. */

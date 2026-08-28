@@ -480,11 +480,38 @@ export class InfiniteCanvasDemoComponent {
   protected readonly history = new RunHistoryStore({ limit: 25 });
   protected readonly replay = signal<ReplayFrame | null>(null);
 
+  /*
+   * Recording only happens while the History addon is switched on.
+   *
+   * These are bound on the editor element, which is OUTSIDE the `@if` that
+   * shows the panel — so turning the addon off hid the list and went on
+   * recording behind it. Every run then serialised the whole graph into a
+   * store the user could no longer see or clear, and the store keeps the last
+   * twenty-five of those: on a large board, twenty-five deep copies of every
+   * node and connection, pinned, with no way to reach the Clear button.
+   *
+   * The addon being off has to mean the work is not done, not merely that the
+   * result is hidden.
+   */
+  /**
+   * Switching the History addon off gives back what it recorded.
+   *
+   * Gating the recording stops it GROWING, but whatever was already captured
+   * would sit there pinned — and the Clear button lives inside the panel that
+   * has just been hidden, so nothing could ever release it. Turning a feature
+   * off should cost nothing, including the memory it was using.
+   */
+  private readonly releaseHistoryWhenOff = effect(() => {
+    if (!this.addons().history) this.history.clear();
+  });
+
   protected onRunStarted(event: RunStartedEvent): void {
+    if (!this.addons().history) return;
     this.history.begin(event, serializeGraph(this.nodes(), this.connections()));
   }
 
   protected onRunFinished(event: RunFinishedEvent): void {
+    if (!this.addons().history) return;
     this.history.finish(event);
   }
 

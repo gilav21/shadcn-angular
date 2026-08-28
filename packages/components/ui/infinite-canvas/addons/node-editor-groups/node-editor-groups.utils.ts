@@ -143,10 +143,29 @@ export function membership(
 export function fitAround(nodes: readonly EditorNode[]): CanvasRect | null {
   if (nodes.length === 0) return null;
 
-  const left = Math.min(...nodes.map(node => node.x));
-  const top = Math.min(...nodes.map(node => node.y));
-  const far = Math.max(...nodes.map(right));
-  const low = Math.max(...nodes.map(bottom));
+  /*
+   * Folded, not spread.
+   *
+   * `Math.min(...array)` passes one ARGUMENT per element, and an argument list
+   * that long overflows the stack — somewhere around 65,000 on JavaScriptCore
+   * and 125,000 on V8. This engine documents itself at a hundred thousand
+   * nodes, so "select all, group the selection" was a RangeError out of a pure
+   * function rather than a group. Four passes become one, which also stops
+   * allocating four arrays the size of the selection.
+   */
+  let left = Number.POSITIVE_INFINITY;
+  let top = Number.POSITIVE_INFINITY;
+  let far = Number.NEGATIVE_INFINITY;
+  let low = Number.NEGATIVE_INFINITY;
+
+  for (const node of nodes) {
+    if (node.x < left) left = node.x;
+    if (node.y < top) top = node.y;
+    const nodeRight = right(node);
+    const nodeBottom = bottom(node);
+    if (nodeRight > far) far = nodeRight;
+    if (nodeBottom > low) low = nodeBottom;
+  }
 
   const header = groupHeader();
   return {

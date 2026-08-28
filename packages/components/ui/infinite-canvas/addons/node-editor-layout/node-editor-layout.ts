@@ -383,11 +383,43 @@ function boundsOf(
     .filter((entry): entry is { node: EditorNode; at: CanvasPoint } => entry.at !== undefined);
   if (placed.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
 
-  const left = Math.min(...placed.map(e => e.at.x));
-  const top = Math.min(...placed.map(e => e.at.y));
-  const right = Math.max(...placed.map(e => e.at.x + e.node.width));
-  const bottom = Math.max(...placed.map(e => e.at.y + e.node.height));
+  /*
+   * Folded, not spread: `Math.min(...array)` passes one argument per element
+   * and overflows the stack somewhere past 65,000 of them. Laying out a graph
+   * of the size this engine advertises threw a RangeError instead of placing
+   * anything.
+   */
+  let left = Number.POSITIVE_INFINITY;
+  let top = Number.POSITIVE_INFINITY;
+  let right = Number.NEGATIVE_INFINITY;
+  let bottom = Number.NEGATIVE_INFINITY;
+
+  for (const entry of placed) {
+    if (entry.at.x < left) left = entry.at.x;
+    if (entry.at.y < top) top = entry.at.y;
+    const entryRight = entry.at.x + entry.node.width;
+    const entryBottom = entry.at.y + entry.node.height;
+    if (entryRight > right) right = entryRight;
+    if (entryBottom > bottom) bottom = entryBottom;
+  }
   return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+/**
+ * The deepest layer any node landed in.
+ *
+ * Folded rather than `Math.max(0, ...ids.map(...))`: that passes one argument
+ * per node, and an argument list that long overflows the stack somewhere past
+ * 65,000 — so laying out a graph of the size this engine is built for threw a
+ * RangeError instead of placing anything.
+ */
+function deepestLayer(ids: readonly NodeId[], layerOf: ReadonlyMap<NodeId, number>): number {
+  let depth = 0;
+  for (const id of ids) {
+    const layer = layerOf.get(id) ?? 0;
+    if (layer > depth) depth = layer;
+  }
+  return depth;
 }
 
 function layoutFlat(
@@ -407,8 +439,7 @@ function layoutFlat(
   const edges = withoutBackEdges(ids, allEdges);
   const layerOf = assignLayers(ids, edges);
 
-  const depth = Math.max(0, ...ids.map(id => layerOf.get(id) ?? 0));
-  const layers: NodeId[][] = Array.from({ length: depth + 1 }, () => []);
+  const layers: NodeId[][] = Array.from({ length: deepestLayer(ids, layerOf) + 1 }, () => []);
   for (const id of ids) layers[layerOf.get(id) ?? 0].push(id);
 
   const ordered = orderLayers(layers, edges, settings.sweeps);
