@@ -13,7 +13,7 @@ import {
 import { UI_LOCALE_ID } from '../../../../lib/i18n';
 import { isSecondaryTouch } from '../../../../lib/touch';
 import { cn } from '../../../../lib/utils';
-import type { CanvasPoint, EditorNode, NodeId } from '../node-editor';
+import type { CanvasPoint, CanvasRect, EditorNode, NodeId } from '../node-editor';
 import { NODE_EDITOR_GROUPS_LOCALES } from './node-editor-groups.locales';
 import type { NodeComment, NodeGroup } from './node-editor-groups.types';
 import {
@@ -97,6 +97,16 @@ export class NodeEditorGroupsComponent {
   readonly nodes = input<readonly EditorNode[]>([]);
   /** Render zones and comments without letting them be moved, resized or edited. */
   readonly readonlyGroups = input(false);
+
+  /**
+   * The world rectangle on screen, for culling. `null` renders every group.
+   *
+   * A zone off screen still costs a `<section>`, a `<button>`, their bindings
+   * and a place in the compositor's world — and a board can hold thousands of
+   * them, none of which anyone can see. `null` is a real state rather than a
+   * hedge: a consumer rendering zones outside a canvas has no viewport to give.
+   */
+  readonly viewport = input<CanvasRect | null>(null);
   /** Extra classes merged onto the overlay. */
   readonly class = input('');
 
@@ -156,22 +166,72 @@ export class NodeEditorGroupsComponent {
   );
 
   /** Largest first, so a group nested inside another stays visible on top. */
-  protected readonly ordered = computed(() => byPaintOrder(this.groups()));
+  private readonly ordered = computed(() => byPaintOrder(this.groups()));
 
   private readonly members = computed(() => membership(this.groups(), this.nodes()));
 
   protected readonly headerHeight = groupHeader();
   protected readonly dragging = signal<string | null>(null);
 
-  protected memberCount(group: NodeGroup): number {
-    return this.members().get(group.id)?.length ?? 0;
-  }
+  /**
+   * Everything the template needs, worked out once per change instead of once
+   * per group per change-detection pass.
+   *
+   * The frame, its label and its member count used to be METHOD calls in the
+   * template, so Angular re-ran all three for every group on every pass — and
+   * `frameClasses` calls `cn`, which is `clsx` plus `tailwind-merge`. On a
+   * board with four thousand zones that is sixteen thousand calls and twelve
+   * thousand throwaway strings each time anything at all changes, to produce
+   * the same answer it produced last time.
+   *
+   * Only the dragged frame's classes depend on `dragging`, so that one stays
+   * a binding; everything else is settled here.
+   */
+  protected readonly frames = computed(() => {
+    const text = this.t();
+    const members = this.members();
+    const onScreen = this.visible();
 
-  protected label(group: NodeGroup): string {
-    return this.t()
-      .groupLabel.replace('{title}', group.title)
-      .replace('{count}', String(this.memberCount(group)));
-  }
+    return onScreen.map(group => {
+      const count = members.get(group.id)?.length ?? 0;
+      return {
+        group,
+        count,
+        label: text.groupLabel
+          .replace('{title}', group.title)
+          .replace('{count}', String(count)),
+      };
+    });
+  });
+
+  /**
+   * The groups worth rendering, with a generous margin.
+   *
+   * The margin is what keeps a pan from churning the DOM: without it the set
+   * changes on almost every frame and each change adds and removes elements,
+   * which costs far more than the frames it saves. Half a viewport in each
+   * direction means an ordinary pan moves through already-rendered ground.
+   */
+  private readonly visible = computed(() => {
+    const ordered = this.ordered();
+    const viewport = this.viewport();
+    if (!viewport) return ordered;
+
+    const marginX = viewport.width / 2;
+    const marginY = viewport.height / 2;
+    const left = viewport.x - marginX;
+    const top = viewport.y - marginY;
+    const right = viewport.x + viewport.width + marginX;
+    const bottom = viewport.y + viewport.height + marginY;
+
+    return ordered.filter(
+      group =>
+        group.x < right &&
+        group.x + group.width > left &&
+        group.y < bottom &&
+        group.y + group.height > top,
+    );
+  });
 
   protected frameClasses(group: NodeGroup): string {
     return cn(

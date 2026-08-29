@@ -12,6 +12,7 @@ import {
   NodeEditorComponent,
   type EditorNode,
   type NodeConnection,
+  type CanvasRect,
   type NodeTypeDefinition,
 } from '../../../../../packages/components/ui';
 import {
@@ -237,6 +238,15 @@ export class InfiniteCanvasStressDemoComponent {
   private sliceStarted = 0;
   private gapStarted = 0;
 
+  /**
+   * The world rectangle on screen, for culling the zones overlay.
+   *
+   * Four thousand zones is twelve thousand elements, none of which anyone can
+   * see more than a handful of. Tracked from the canvas rather than measured
+   * here, so it is the same rectangle the engine culls cards against.
+   */
+  protected readonly viewport = signal<CanvasRect | null>(null);
+
   protected readonly cardsInDom = signal(0);
   protected readonly measuring = signal(false);
   protected readonly worst = signal<number | null>(null);
@@ -372,6 +382,11 @@ export class InfiniteCanvasStressDemoComponent {
   }
 
   /** How many node cards the virtualizer currently has mounted. */
+  /** Follows the canvas, so the zones overlay culls against what is on screen. */
+  protected onViewportChange(): void {
+    this.viewport.set(this.editorRef()?.visibleRect() ?? null);
+  }
+
   protected countCards(): void {
     this.cardsInDom.set(document.querySelectorAll('[data-slot="node-editor-node"]').length);
   }

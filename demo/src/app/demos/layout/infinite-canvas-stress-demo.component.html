@@ -116,18 +116,23 @@
       [live]="false"
       [ariaLabel]="t().heading"
       (pointerup)="countCards()"
+      (viewportChange)="onViewportChange()"
     >
       @if (showGroups()) {
         <!--
-          The MOUNTED nodes, not the whole graph. Group membership is
-          O(zones x nodes); handing it a hundred thousand nodes makes the demo
-          itself the slowest thing on the page, which is the opposite of what
-          it is for. The combined demo passes the rendered set for the same
-          reason.
+          Culled to the viewport. Four thousand zones is twelve thousand
+          elements and nobody can see more than a handful of them, so the
+          overlay is given the rectangle actually on screen and renders what
+          falls inside it.
+
+          `renderedNodes()` is the whole graph, not the mounted set, whatever
+          its name suggests — membership needs every node, because a count of
+          only the visible members is a wrong count.
         -->
         <ui-node-editor-groups
           [(groups)]="groups"
           [nodes]="editor.renderedNodes()"
+          [viewport]="viewport()"
           [readonlyGroups]="true"
         />
       }

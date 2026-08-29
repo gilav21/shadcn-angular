@@ -8,7 +8,7 @@ import {
     type GroupMoveEvent,
 } from './node-editor-groups.component';
 import type { NodeComment, NodeGroup } from './node-editor-groups.types';
-import type { EditorNode } from '../node-editor';
+import type { CanvasRect, EditorNode } from '../node-editor';
 
 const NODES: EditorNode[] = [
     { id: 'in', x: 60, y: 80, width: 100, height: 60 },
@@ -34,6 +34,7 @@ const COMMENTS: NodeComment[] = [
         [(groups)]="groups"
         [comments]="comments"
         [nodes]="nodes()"
+        [viewport]="viewport()"
         [readonlyGroups]="readonlyGroups()"
         (groupMoved)="moved.set($event)"
         (groupActivated)="activated.set($event.id)"
@@ -45,6 +46,7 @@ class HostComponent {
     readonly groups = signal<readonly NodeGroup[]>(GROUPS);
     readonly comments = COMMENTS;
     readonly nodes = signal<readonly EditorNode[]>(NODES);
+    readonly viewport = signal<CanvasRect | null>(null);
     readonly readonlyGroups = signal(false);
     readonly moved = signal<GroupMoveEvent | null>(null);
     readonly activated = signal<string | null>(null);
@@ -368,5 +370,54 @@ describe('NodeEditorGroupsComponent', () => {
             const results = await axe.run(fixture.nativeElement, { resultTypes: ['violations'] });
             expect(results.violations.map(v => v.id)).toEqual([]);
         });
+    });
+});
+
+describe('zones off screen are not rendered', () => {
+    let fixture: ComponentFixture<HostComponent>;
+    let host: HostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [HostComponent] }).compileComponents();
+        fixture = TestBed.createComponent(HostComponent);
+        host = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    afterEach(() => fixture.destroy());
+
+    function rendered(): string[] {
+        return [...fixture.nativeElement.querySelectorAll('[data-slot="node-editor-group"]')].map(
+            (el: Element) => el.getAttribute('data-group') ?? '',
+        );
+    }
+
+    it('renders every zone when there is no viewport to cull against', () => {
+        expect(rendered()).toHaveLength(2);
+    });
+
+    it('drops a zone the viewport is nowhere near', () => {
+        /*
+         * A zone off screen still costs a section, a button, their bindings
+         * and a place in the compositor's world, and a board can hold
+         * thousands of them. Both fixtures sit around the origin, so a
+         * viewport far away should render neither.
+         */
+        host.viewport.set({ x: 40_000, y: 40_000, width: 800, height: 600 });
+        fixture.detectChanges();
+
+        expect(rendered()).toEqual([]);
+    });
+
+    it('keeps a zone just outside, because a pan should not churn the DOM', () => {
+        /*
+         * The margin is half a viewport in each direction. Without it the
+         * rendered set changes on almost every frame of a pan, and adding and
+         * removing elements costs far more than the frames it saves.
+         */
+        host.viewport.set({ x: 500, y: 400, width: 800, height: 600 });
+        fixture.detectChanges();
+
+        expect(rendered()).toContain('stage-1');
     });
 });

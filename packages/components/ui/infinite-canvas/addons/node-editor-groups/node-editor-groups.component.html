@@ -5,7 +5,8 @@
   `display: contents` so it adds no box of its own between these and the
   canvas's transform wrapper, which is what they are positioned against.
 -->
-@for (group of ordered(); track group.id) {
+@for (frame of frames(); track frame.group.id) {
+  @let group = frame.group;
   <!--
     A labelled region, not a decoration with a name. Its members are real
     nodes elsewhere in the DOM and stay individually reachable — a group must
@@ -15,7 +16,7 @@
     [class]="frameClasses(group)"
     [attr.data-slot]="'node-editor-group'"
     [attr.data-group]="group.id"
-    [attr.aria-label]="label(group)"
+    [attr.aria-label]="frame.label"
     [style.left.px]="group.x"
     [style.top.px]="group.y"
     [style.width.px]="group.width"
@@ -35,7 +36,7 @@
              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       [attr.data-slot]="'node-editor-group-title'"
       [style.height.px]="headerHeight"
-      [attr.aria-label]="label(group)"
+      [attr.aria-label]="frame.label"
       [disabled]="readonlyGroups()"
       (pointerdown)="onPointerDown($event, group, 'move')"
       (pointermove)="onPointerMove($event)"
@@ -43,7 +44,7 @@
       (pointercancel)="onPointerUp($event)"
     >
       <span class="truncate" dir="auto">{{ group.title }}</span>
-      <span class="ms-auto shrink-0">{{ memberCount(group) }}</span>
+      <span class="ms-auto shrink-0">{{ frame.count }}</span>
     </button>
 
     @if (!readonlyGroups()) {
