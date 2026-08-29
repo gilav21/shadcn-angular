@@ -193,6 +193,9 @@ export interface RunStartedEvent {
 }
 
 /** An evaluation pass ending, with everything that settled inside it. */
+/** How a run ended. */
+export type RunStatus = 'done' | 'error' | 'cancelled';
+
 export interface RunFinishedEvent {
   readonly runId: number;
   readonly startedAt: number;
@@ -216,8 +219,11 @@ export interface RunFinishedEvent {
   readonly durationTotalMs: number;
   /** The slowest node of the whole run, which may not be in `nodes`. */
   readonly slowest: NodeSettledEvent | null;
-  /** `error` when any node in the pass errored. */
-  readonly status: 'done' | 'error';
+  /**
+   * `error` when any node in the pass errored, `cancelled` when a person
+   * stopped it — a partial run reported as `done` is a lie about the graph.
+   */
+  readonly status: RunStatus;
 }
 
 /** One node's values as they were, for replay. */

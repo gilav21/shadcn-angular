@@ -260,6 +260,13 @@ export class NodeGraphRuntime {
   private readonly remoteBatches = new Set<AbortController>();
   private runCounter = 0;
   private disposed = false;
+  /**
+   * Set by {@link cancel}, cleared by the next {@link run}.
+   *
+   * Distinct from `disposed`, which is terminal: a cancelled runtime is a
+   * working one whose graph is still dirty, waiting to be asked again.
+   */
+  private cancelled = false;
   /** The drain in flight, if any. See {@link run}. */
   private draining: Promise<void> | null = null;
   /** Whether {@link draining} honours `reactive: false`. See {@link drainOnce}. */
@@ -1210,11 +1217,24 @@ export class NodeGraphRuntime {
      * damage the flag was added to prevent.
      */
     const automatic = options?.automatic === true;
+    this.cancelled = false;
     if (this.runnableNow(automatic).length === 0) return;
 
     this.enterSession();
     try {
-      while (this.runnableNow(automatic).length > 0) await this.drainOnce(automatic);
+      /*
+       * `cancelled` is checked HERE as well as in the drain.
+       *
+       * Cancelling deliberately leaves the graph dirty so a later run resumes
+       * — which means nothing has left `readySet`, so this condition is still
+       * true and `drainOnce` would be called again for ever. Each iteration
+       * copies the ready set, and awaiting an already-resolved async function
+       * is a microtask, so it would never even yield: a frozen tab rather
+       * than an error.
+       */
+      while (!this.cancelled && this.runnableNow(automatic).length > 0) {
+        await this.drainOnce(automatic);
+      }
     } finally {
       this.leaveSession();
     }
@@ -1307,7 +1327,7 @@ export class NodeGraphRuntime {
     this.sliceDeadline = tick() + this.sliceMs;
     let guard = 0;
     let batch = this.runnableNow(automatic);
-    while (batch.length > 0) {
+    while (!this.cancelled && batch.length > 0) {
       if (++guard > MAX_DRAIN_ITERATIONS) {
         throw new Error('node-editor: evaluation did not converge');
       }
@@ -1387,7 +1407,7 @@ export class NodeGraphRuntime {
     const started: Promise<void>[] = [];
 
     for (const nodeId of local) {
-      if (this.disposed) break;
+      if (this.disposed || this.cancelled) break;
 
       /*
        * Re-validated before every start, which is what makes cutting a layer
@@ -1406,7 +1426,7 @@ export class NodeGraphRuntime {
 
       if (this.yieldTo !== null && tick() >= this.sliceDeadline) {
         await this.yieldForSlice();
-        if (this.disposed) break;
+        if (this.disposed || this.cancelled) break;
         if (!this.readySet.has(nodeId)) continue;
       }
 
@@ -1648,7 +1668,9 @@ export class NodeGraphRuntime {
     try {
       await this.consumeRemote(this.executeRemote(requests, controller.signal));
     } catch (cause: unknown) {
-      if (this.disposed) return;
+      // A cancelled batch is not a failed one: aborting the controller lands
+      // here, and reporting it would file the user's Stop as an error.
+      if (this.disposed || this.cancelled) return;
       for (const nodeId of batch) {
         this.errorSignal(nodeId).set(cause);
         this.settle(nodeId, 'error');
@@ -1671,14 +1693,14 @@ export class NodeGraphRuntime {
   ): Promise<void> {
     if (isAsyncIterable(results)) {
       for await (const result of results) {
-        if (this.disposed) return;
+        if (this.disposed || this.cancelled) return;
         this.applyRemoteResult(result);
       }
       return;
     }
 
     const settled = await results;
-    if (this.disposed) return;
+    if (this.disposed || this.cancelled) return;
     for (const result of settled) this.applyRemoteResult(result);
   }
 
@@ -1952,6 +1974,55 @@ export class NodeGraphRuntime {
   }
 
   /** Abort everything in flight and refuse further work. */
+  /**
+   * Stops the run in flight, leaving the graph ready to resume.
+   *
+   * Runs can last seconds once they are sliced, so a person needs a way out —
+   * and nothing here offered one: `dispose()` is terminal and never resets, and
+   * aborting a single node's controller is per node, not per run.
+   *
+   * It closes the session ITSELF rather than through `leaveSession`, which
+   * returns early while nested runs are outstanding — and mid-drain they
+   * routinely are, because the editor fires an automatic run on every graph
+   * and state change. Going that way would skip `onRunFinished` entirely, and
+   * a consumer holding a whole-graph snapshot for the open run would keep it
+   * for ever.
+   *
+   * Nodes that were mid-compute go back to `stale` rather than being left
+   * `running`: aborting them means their `executeLocal` returns without
+   * settling, so without this they would spin on screen for the life of the
+   * page and never be picked up again.
+   */
+  cancel(): void {
+    if (this.disposed) return;
+    this.cancelled = true;
+
+    for (const controller of this.remoteBatches) controller.abort();
+    this.remoteBatches.clear();
+
+    for (const [nodeId, run] of this.active) {
+      run.controller.abort();
+      if (this.nodes.has(nodeId)) this.setStatus(nodeId, 'stale');
+    }
+    this.active.clear();
+
+    const session = this.session;
+    if (!session) return;
+
+    this.session = null;
+    this.runDepth = 0;
+    this.onRunFinished?.({
+      runId: session.id,
+      startedAt: session.startedAt,
+      durationMs: tick() - session.startedTick,
+      nodes: session.nodes,
+      settledCount: session.settledCount,
+      durationTotalMs: session.durationTotalMs,
+      slowest: session.slowest,
+      status: 'cancelled',
+    });
+  }
+
   dispose(): void {
     this.disposal.abort();
     this.disposed = true;

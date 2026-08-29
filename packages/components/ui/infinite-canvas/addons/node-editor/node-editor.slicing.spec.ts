@@ -278,3 +278,67 @@ describe('a hostile yieldTo cannot break the runtime', () => {
         await expect(running).resolves.toBeUndefined();
     }, 10_000);
 });
+
+describe('stopping a run', () => {
+    it('ends the drain, files it as cancelled, and leaves the graph resumable', async () => {
+        /*
+         * Cancelling deliberately leaves the graph DIRTY so a later run
+         * resumes — which is exactly why the loops need their own check.
+         * Nothing has left `readySet`, so `runnableNow()` keeps returning the
+         * same batch: without it, `drain()` and `run()` both spin, and since
+         * awaiting an already-resolved async function is a microtask, the tab
+         * freezes rather than erroring. A timeout here would be that bug.
+         */
+        const { nodes, connections } = fan(40);
+        const graph = sliced(nodes, connections);
+
+        const finished: string[] = [];
+        graph.runtime.onRunFinished = event => finished.push(event.status);
+
+        let gaps = 0;
+        graph.runtime.yieldTo = (): Promise<void> => {
+            gaps++;
+            if (gaps === 3) graph.runtime.cancel();
+            return new Promise(resolve => setTimeout(resolve, 0));
+        };
+
+        await graph.runtime.run();
+
+        expect(finished).toEqual(['cancelled']);
+        expect(graph.runtime.metrics.computedTotal).toBeLessThan(41);
+
+        // Still work to do, and a second run picks it up where it stopped.
+        expect(graph.runtime.ready().length).toBeGreaterThan(0);
+
+        graph.runtime.yieldTo = null;
+        await graph.runtime.run();
+        expect(graph.runtime.ready()).toEqual([]);
+        graph.runtime.dispose();
+    }, 15_000);
+
+    it('leaves no node stuck running', async () => {
+        /*
+         * Aborting a node mid-compute makes its `executeLocal` return without
+         * settling, so without a reset it keeps `status: 'running'` for the
+         * life of the page — a spinner that never stops and a node nothing
+         * ever picks up again.
+         */
+        const { nodes, connections } = fan(40);
+        const graph = sliced(nodes, connections);
+
+        let gaps = 0;
+        graph.runtime.yieldTo = (): Promise<void> => {
+            gaps++;
+            if (gaps === 3) graph.runtime.cancel();
+            return new Promise(resolve => setTimeout(resolve, 0));
+        };
+
+        await graph.runtime.run();
+
+        const running = [...nodes, { id: 'root' }].filter(
+            candidate => graph.runtime.status(candidate.id)() === 'running',
+        );
+        expect(running).toEqual([]);
+        graph.runtime.dispose();
+    }, 15_000);
+});

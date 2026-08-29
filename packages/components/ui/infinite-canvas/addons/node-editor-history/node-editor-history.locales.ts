@@ -28,6 +28,7 @@ export interface NodeEditorHistoryLocale extends LocaleMeta {
   /** Status words, in the past tense — a run has already happened. */
   succeeded: string;
   failed: string;
+  cancelled: string;
   /** Accessible name for the button that reveals a node. */
   reveal: string;
   /** Table caption for screen readers — `{id}` is the run number. */
@@ -53,6 +54,7 @@ export const NODE_EDITOR_HISTORY_LOCALES: Record<string, NodeEditorHistoryLocale
     took: 'Took',
     succeeded: 'Succeeded',
     failed: 'Failed',
+    cancelled: 'Stopped',
     reveal: 'Show {node}',
     tableCaption: 'Nodes that ran on run {id}',
   },
@@ -75,6 +77,7 @@ export const NODE_EDITOR_HISTORY_LOCALES: Record<string, NodeEditorHistoryLocale
     took: 'משך',
     succeeded: 'הצליחה',
     failed: 'נכשלה',
+    cancelled: 'הופסקה',
     reveal: 'הצגת {node}',
     tableCaption: 'הצמתים שרצו בהרצה {id}',
   },
@@ -97,6 +100,7 @@ export const NODE_EDITOR_HISTORY_LOCALES: Record<string, NodeEditorHistoryLocale
     took: 'المدة',
     succeeded: 'نجح',
     failed: 'فشل',
+    cancelled: 'أُوقف',
     reveal: 'إظهار {node}',
     tableCaption: 'العقد التي عملت في التشغيل {id}',
   },
@@ -118,6 +122,7 @@ export const NODE_EDITOR_HISTORY_LOCALES: Record<string, NodeEditorHistoryLocale
     took: 'Dauer',
     succeeded: 'Erfolgreich',
     failed: 'Fehlgeschlagen',
+    cancelled: 'Gestoppt',
     reveal: '{node} anzeigen',
     tableCaption: 'Knoten, die in Lauf {id} ausgeführt wurden',
   },
@@ -139,6 +144,7 @@ export const NODE_EDITOR_HISTORY_LOCALES: Record<string, NodeEditorHistoryLocale
     took: 'Durée',
     succeeded: 'Réussie',
     failed: 'Échouée',
+    cancelled: 'Arrêtée',
     reveal: 'Afficher {node}',
     tableCaption: 'Nœuds exécutés lors de l’exécution {id}',
   },
@@ -160,6 +166,7 @@ export const NODE_EDITOR_HISTORY_LOCALES: Record<string, NodeEditorHistoryLocale
     took: 'Duración',
     succeeded: 'Correcta',
     failed: 'Fallida',
+    cancelled: 'Detenida',
     reveal: 'Mostrar {node}',
     tableCaption: 'Nodos ejecutados en la ejecución {id}',
   },
@@ -181,6 +188,7 @@ export const NODE_EDITOR_HISTORY_LOCALES: Record<string, NodeEditorHistoryLocale
     took: '所要時間',
     succeeded: '成功',
     failed: '失敗',
+    cancelled: '停止',
     reveal: '{node} を表示',
     tableCaption: '実行 {id} で動作したノード',
   },
@@ -202,6 +210,7 @@ export const NODE_EDITOR_HISTORY_LOCALES: Record<string, NodeEditorHistoryLocale
     took: '耗时',
     succeeded: '成功',
     failed: '失败',
+    cancelled: '已停止',
     reveal: '显示 {node}',
     tableCaption: '运行 {id} 中执行的节点',
   },
@@ -223,6 +232,7 @@ export const NODE_EDITOR_HISTORY_LOCALES: Record<string, NodeEditorHistoryLocale
     took: 'Длительность',
     succeeded: 'Успешно',
     failed: 'Ошибка',
+    cancelled: 'Остановлен',
     reveal: 'Показать {node}',
     tableCaption: 'Узлы, выполненные в запуске {id}',
   },
@@ -244,6 +254,7 @@ export const NODE_EDITOR_HISTORY_LOCALES: Record<string, NodeEditorHistoryLocale
     took: 'Duração',
     succeeded: 'Concluída',
     failed: 'Falhou',
+    cancelled: 'Parada',
     reveal: 'Mostrar {node}',
     tableCaption: 'Nós executados na execução {id}',
   },

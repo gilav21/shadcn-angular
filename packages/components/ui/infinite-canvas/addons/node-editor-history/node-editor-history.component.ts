@@ -167,6 +167,7 @@ export class NodeEditorHistoryComponent {
   protected statusLabel(status: string): string {
     const text = this.t();
     if (status === 'error') return text.failed;
+    if (status === 'cancelled') return text.cancelled;
     return status === 'done' ? text.succeeded : status;
   }
 

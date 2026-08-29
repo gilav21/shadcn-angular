@@ -5,7 +5,7 @@
  * built around: a record that cannot be written to disk is not a history, it
  * is a debug print that disappears when the tab closes.
  */
-import type { NodeId, NodeStatus, PortValues, SerializedGraph } from '../node-editor';
+import type { NodeId, NodeStatus, PortValues, RunStatus, SerializedGraph } from '../node-editor';
 
 /** One node's work on one run. */
 export interface RunNodeRecord {
@@ -32,7 +32,7 @@ export interface RunRecord {
   /** Wall clock, milliseconds since the epoch. */
   readonly startedAt: number;
   readonly durationMs: number;
-  readonly status: 'done' | 'error';
+  readonly status: RunStatus;
   /**
    * In the order the work actually completed — and **capped**, so this is a
    * prefix of the run, not the whole of it. Read {@link settledCount},

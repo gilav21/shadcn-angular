@@ -1202,6 +1202,17 @@ export class NodeEditorComponent {
   }
 
   /** Evaluate exactly one ready node — the single-step mode. */
+  /**
+   * Stops the evaluation in flight, leaving the graph ready to resume.
+   *
+   * A sliced run lasts as long as the graph is large, so there has to be a way
+   * out of one. The nodes it had not reached stay stale, so a later
+   * {@link run} carries on rather than starting again.
+   */
+  cancel(): void {
+    this.runtime.cancel();
+  }
+
   async step(): Promise<void> {
     await this.runtime.step();
   }
