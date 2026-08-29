@@ -995,7 +995,7 @@ export class NodeEditorComponent {
 
     const connections = this.connections();
     const remembered = this.connectableCache.get(node);
-    if (remembered && remembered.from === from && remembered.connections === connections) {
+    if (remembered?.from === from && remembered.connections === connections) {
       return remembered.keys;
     }
 
@@ -1834,7 +1834,7 @@ export class NodeEditorComponent {
 
   private updateDrag(at: DragPoint): void {
     const drag = this.drag;
-    if (!drag || drag.pointerId !== at.pointerId) return;
+    if (drag?.pointerId !== at.pointerId) return;
 
     const world = this.canvas().screenToWorld({ x: at.clientX, y: at.clientY });
     const dx = world.x - drag.origin.x;

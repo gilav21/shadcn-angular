@@ -185,7 +185,7 @@ const HEIGHTS = new WeakMap<EditorNode, DerivedHeight>();
  */
 function heightOf(node: EditorNode, metrics: PortMetrics, body: number): number {
   const remembered = HEIGHTS.get(node);
-  if (remembered && remembered.metrics === metrics && remembered.body === body) {
+  if (remembered?.metrics === metrics && remembered.body === body) {
     return remembered.height;
   }
 
