@@ -161,6 +161,14 @@ const DRAG_THRESHOLD_PX = 3;
 const RECENTLY_RAN_MS = 900;
 
 /**
+ * How long a slice waits for a frame that may never come.
+ *
+ * A backgrounded tab runs no animation frames, so the drain's yield needs a
+ * floor or it waits for ever. One frame at 60Hz, near enough.
+ */
+const HIDDEN_TAB_YIELD_MS = 16;
+
+/**
  * Window in which a second double-activation is treated as an echo.
  *
  * A touch platform may deliver both a real double-tap and a synthesised
@@ -515,6 +523,18 @@ export class NodeEditorComponent {
       }
     });
 
+    /*
+     * Let the drain paint between slices.
+     *
+     * A frame RACED against a timer, never a bare `requestAnimationFrame`: a
+     * hidden tab fires no animation frames at all, so a lone rAF would leave
+     * the drain waiting for ever, holding `draining`, and every later `run()`
+     * and `step()` awaits that. The stress demo already carries this scar for
+     * its own build loop. The frame is what guarantees a paint actually
+     * happened, which is the point; the timer is only the floor.
+     */
+    this.runtime.yieldTo = () => this.frameOrTimeout();
+
     this.runtime.onRunStarted = event => this.runStarted.emit(event);
     this.runtime.onNodeSettled = event => {
       this.markRecentlyRan(event.nodeId);
@@ -543,6 +563,7 @@ export class NodeEditorComponent {
       element.removeEventListener('keydown', onKeyDownCapture, true);
       stopDoubleTap();
       if (this.dragFrame) cancelAnimationFrame(this.dragFrame);
+      this.clearYield();
       if (this.recentSweep !== null) clearTimeout(this.recentSweep);
       this.recentlyRanUntil.clear();
       this.runtime.dispose();
@@ -1760,6 +1781,29 @@ export class NodeEditorComponent {
 
     if (rebuilt.length > 0) this.canvas().moveItems(rebuilt);
   });
+
+  private yieldFrame = 0;
+  private yieldTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Resolves on the next animation frame, or on a timer if none comes. */
+  private frameOrTimeout(): Promise<void> {
+    return new Promise<void>(resolve => {
+      const finish = (): void => {
+        this.clearYield();
+        resolve();
+      };
+
+      this.yieldFrame = requestAnimationFrame(finish);
+      this.yieldTimer = setTimeout(finish, HIDDEN_TAB_YIELD_MS);
+    });
+  }
+
+  private clearYield(): void {
+    if (this.yieldFrame) cancelAnimationFrame(this.yieldFrame);
+    if (this.yieldTimer !== null) clearTimeout(this.yieldTimer);
+    this.yieldFrame = 0;
+    this.yieldTimer = null;
+  }
 
   private updateDrag(at: DragPoint): void {
     const drag = this.drag;

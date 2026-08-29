@@ -360,3 +360,81 @@ describe('the highlight on a node that just ran', () => {
         expect(lit()).toBe(0);
     });
 });
+
+describe('the drain lets the browser breathe', () => {
+    const ctx = setup();
+
+    beforeEach(() => ctx.create());
+    afterEach(() => ctx.destroy());
+
+    /*
+     * The assertion the whole slicing change exists to satisfy, and the only
+     * one that fails when the yield degrades to a microtask.
+     *
+     * Counting calls to `yieldTo` proves nothing: `() => Promise.resolve()`
+     * type-checks, satisfies a call-counting spy, and paints exactly nothing,
+     * because a microtask never lets the browser do anything. A real frame
+     * running BETWEEN two computes is the difference.
+     */
+    it('yields to the event loop, not to the microtask queue', async () => {
+        /*
+         * The assertion the whole slicing change exists to satisfy.
+         *
+         * Counting calls to `yieldTo` proves nothing: `() => Promise.resolve()`
+         * type-checks, satisfies a call-counting spy, and paints exactly
+         * nothing, because a microtask never lets the browser do anything.
+         * So this drains the microtask queue and requires the yield to still
+         * be pending.
+         *
+         * It deliberately does NOT assert that an animation frame ran. The
+         * yield races a frame against a 16ms floor, and in a test browser the
+         * floor legitimately wins about half the time — two earlier versions
+         * asserted the frame and flaked exactly that often. The frame leg is
+         * what makes the gap paint-aligned; the floor is what stops a hidden
+         * tab wedging the drain, and the test below covers that.
+         */
+        const yieldTo = ctx.editor.runtime.yieldTo;
+        expect(yieldTo).not.toBeNull();
+
+        let resolved = false;
+        const pending = yieldTo?.().then(() => {
+            resolved = true;
+        });
+
+        // Several turns of the microtask queue: a microtask-based yield would
+        // have resolved in the first.
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(resolved).toBe(false);
+
+        await pending;
+        expect(resolved).toBe(true);
+    });
+
+    it('gives up waiting for a frame that never comes', async () => {
+        /*
+         * A hidden tab fires no animation frames. Without the timer racing the
+         * frame, the drain waits for ever holding `draining`, and every later
+         * `run()` and `step()` awaits it — the whole runtime wedges.
+         *
+         * Driven straight at the runtime: the fixture's own `settle()` waits
+         * on animation frames too, so stubbing them out hangs the harness
+         * rather than testing the runtime. That `run()` RESOLVES at all is the
+         * assertion.
+         */
+        const editor = ctx.editor;
+        const real = globalThis.requestAnimationFrame;
+        globalThis.requestAnimationFrame = (): number => 0;
+        editor.runtime.sliceMs = 0;
+
+        try {
+            editor.runtime.setState('t', { value: 'backgrounded' });
+            await editor.runtime.run();
+        } finally {
+            globalThis.requestAnimationFrame = real;
+        }
+
+        expect(editor.runtime.outputs('u')()['out']).toBe('BACKGROUNDED');
+    }, 15_000);
+});
