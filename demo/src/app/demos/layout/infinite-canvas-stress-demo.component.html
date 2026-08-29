@@ -32,6 +32,27 @@
       {{ measuring() ? t().measuring : t().measure }}
     </ui-button>
 
+    <span class="mx-1 h-5 w-px bg-border" aria-hidden="true"></span>
+
+    <ui-button size="sm" [disabled]="building() || evaluating()" (click)="run()">
+      {{ t().run }}
+    </ui-button>
+
+    <!--
+      Stop is not a nicety. A hundred thousand nodes with real work in them is
+      several seconds of evaluation, and until now the only way out of one was
+      to leave the page.
+    -->
+    <ui-button size="sm" variant="outline" [disabled]="!evaluating()" (click)="stop()">
+      {{ t().stop }}
+    </ui-button>
+
+    @if (evaluating()) {
+      <span class="text-sm text-muted-foreground" role="status">
+        {{ t().evaluating }} {{ format(settled()) }}
+      </span>
+    }
+
     @if (building()) {
       <span class="text-sm text-muted-foreground" role="status">{{ t().building }}</span>
     }
@@ -71,10 +92,18 @@
       <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().overBudget }}</dt>
       <dd class="font-mono text-lg font-bold tabular-nums">{{ overBudgetLabel() }}</dd>
     </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().settled }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ format(settled()) }}</dd>
+    </div>
+    <div class="flex flex-col gap-1 bg-background p-3">
+      <dt class="text-xs font-medium uppercase tracking-wide text-muted-foreground">{{ t().sliceGap }}</dt>
+      <dd class="font-mono text-lg font-bold tabular-nums">{{ ms(sliceMs()) }} / {{ ms(gapMs()) }}</dd>
+    </div>
   </dl>
 
   <p class="text-xs text-muted-foreground">
-    {{ t().hint }} · {{ t().budget }}<br />{{ t().cadenceNote }}
+    {{ t().hint }} · {{ t().budget }}<br />{{ t().cadenceNote }}<br />{{ t().sliceGapNote }}
   </p>
 
   <div class="relative w-full overflow-hidden rounded-lg border">

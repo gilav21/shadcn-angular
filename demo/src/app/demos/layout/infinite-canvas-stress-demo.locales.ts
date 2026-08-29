@@ -18,6 +18,12 @@ export interface InfiniteCanvasStressDemoLocale extends LocaleMeta {
   budget: string;
   hint: string;
   notMeasured: string;
+  run: string;
+  stop: string;
+  evaluating: string;
+  settled: string;
+  sliceGap: string;
+  sliceGapNote: string;
 }
 
 export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
@@ -44,6 +50,12 @@ export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
     budget: '16.7ms is the 60fps budget',
     hint: 'Drag a card, or pan the plane, while it measures.',
     notMeasured: 'not measured yet',
+    run: 'Run',
+    stop: 'Stop',
+    evaluating: 'Evaluating…',
+    settled: 'Settled',
+    sliceGap: 'Slice / gap',
+    sliceGapNote: 'Slice is the drain holding the thread; gap is everything else the frame did. A gap that dwarfs the slice means the budget is not the limit.',
   },
   he: {
     code: 'he',
@@ -66,6 +78,12 @@ export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
     budget: '16.7 מילישניות הן התקציב ל־60 פריימים לשנייה',
     hint: 'גררו כרטיס, או הזיזו את המישור, בזמן המדידה.',
     notMeasured: 'טרם נמדד',
+    run: 'הרץ',
+    stop: 'עצור',
+    evaluating: 'מחשב…',
+    settled: 'הושלמו',
+    sliceGap: 'פרוסה / רווח',
+    sliceGapNote: 'פרוסה היא הזמן שהמנוע החזיק את התהליך; רווח הוא כל השאר. רווח גדול בהרבה מפרוסה אומר שהתקציב אינו הגורם המגביל.',
   },
   ar: {
     code: 'ar',
@@ -88,6 +106,12 @@ export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
     budget: '16.7 مللي ثانية هي ميزانية 60 إطارًا في الثانية',
     hint: 'اسحب بطاقة أو حرّك المستوى أثناء القياس.',
     notMeasured: 'لم يُقَس بعد',
+    run: 'تشغيل',
+    stop: 'إيقاف',
+    evaluating: 'قيد الحساب…',
+    settled: 'اكتملت',
+    sliceGap: 'شريحة / فجوة',
+    sliceGapNote: 'الشريحة هي المدة التي احتجز فيها المحرك الخيط؛ الفجوة هي كل ما تبقى من الإطار. فجوة أكبر بكثير تعني أن الميزانية ليست الحد.',
   },
   de: {
     code: 'de',
@@ -109,6 +133,12 @@ export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
     budget: '16,7 ms ist das Budget für 60 fps',
     hint: 'Ziehen Sie während der Messung eine Karte oder verschieben Sie die Fläche.',
     notMeasured: 'noch nicht gemessen',
+    run: 'Ausführen',
+    stop: 'Stopp',
+    evaluating: 'Berechnet…',
+    settled: 'Fertig',
+    sliceGap: 'Scheibe / Lücke',
+    sliceGapNote: 'Die Scheibe ist die Zeit im Auswertungslauf; die Lücke ist alles andere im Frame. Eine viel größere Lücke heißt: das Budget ist nicht die Grenze.',
   },
   fr: {
     code: 'fr',
@@ -130,6 +160,13 @@ export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
     budget: '16,7 ms est le budget pour 60 images/s',
     hint: 'Faites glisser une carte, ou déplacez le plan, pendant la mesure.',
     notMeasured: 'pas encore mesuré',
+    run: 'Exécuter',
+    stop: 'Arrêter',
+    evaluating: 'Évaluation…',
+    settled: 'Terminés',
+    sliceGap: 'Tranche / écart',
+    sliceGapNote:
+      "La tranche est le temps passé dans le calcul ; l'écart est tout le reste de l'image. Un écart bien plus grand signifie que le budget n'est pas la limite.",
   },
   es: {
     code: 'es',
@@ -151,6 +188,12 @@ export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
     budget: '16,7 ms es el presupuesto para 60 fps',
     hint: 'Arrastra una tarjeta, o desplaza el plano, mientras mide.',
     notMeasured: 'aún sin medir',
+    run: 'Ejecutar',
+    stop: 'Detener',
+    evaluating: 'Evaluando…',
+    settled: 'Completados',
+    sliceGap: 'Porción / hueco',
+    sliceGapNote: 'La porción es el tiempo del cálculo; el hueco es todo lo demás del fotograma. Un hueco mucho mayor significa que el presupuesto no es el límite.',
   },
   ja: {
     code: 'ja',
@@ -172,6 +215,12 @@ export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
     budget: '16.7ms が 60fps の予算です',
     hint: '計測中にカードをドラッグするか、平面をパンしてください。',
     notMeasured: '未計測',
+    run: '実行',
+    stop: '停止',
+    evaluating: '評価中…',
+    settled: '完了',
+    sliceGap: 'スライス / 間隔',
+    sliceGapNote: 'スライスは計算がスレッドを占有した時間、間隔はフレームの残りです。間隔がスライスより大幅に長ければ、制限は予算ではありません。',
   },
   zh: {
     code: 'zh',
@@ -193,6 +242,12 @@ export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
     budget: '16.7 毫秒是 60fps 的预算',
     hint: '测量时请拖动卡片或平移画布。',
     notMeasured: '尚未测量',
+    run: '运行',
+    stop: '停止',
+    evaluating: '计算中…',
+    settled: '已完成',
+    sliceGap: '切片 / 间隔',
+    sliceGapNote: '切片是计算占用线程的时间，间隔是这一帧的其余部分。间隔远大于切片，说明限制不在预算。',
   },
   ru: {
     code: 'ru',
@@ -214,6 +269,12 @@ export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
     budget: '16,7 мс — бюджет для 60 кадров/с',
     hint: 'Во время замера перетащите карточку или сдвиньте плоскость.',
     notMeasured: 'ещё не измерено',
+    run: 'Запустить',
+    stop: 'Остановить',
+    evaluating: 'Вычисление…',
+    settled: 'Готово',
+    sliceGap: 'Срез / пауза',
+    sliceGapNote: 'Срез — время, которое расчёт удерживал поток; пауза — всё остальное в кадре. Пауза намного больше среза означает, что дело не в бюджете.',
   },
   pt: {
     code: 'pt',
@@ -235,5 +296,11 @@ export const INFINITE_CANVAS_STRESS_DEMO_LOCALES: Record<
     budget: '16,7 ms é o orçamento para 60 fps',
     hint: 'Arraste um cartão, ou desloque o plano, enquanto mede.',
     notMeasured: 'ainda não medido',
+    run: 'Executar',
+    stop: 'Parar',
+    evaluating: 'Avaliando…',
+    settled: 'Concluídos',
+    sliceGap: 'Fatia / intervalo',
+    sliceGapNote: 'A fatia é o tempo do cálculo; o intervalo é todo o resto do quadro. Um intervalo muito maior significa que o orçamento não é o limite.',
   },
 };

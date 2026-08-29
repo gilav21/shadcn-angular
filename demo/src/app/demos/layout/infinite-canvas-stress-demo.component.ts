@@ -1,4 +1,5 @@
 import {
+  viewChild,
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
@@ -41,13 +42,38 @@ const NODE_H = 80;
 const SCALES = [1_000, 10_000, 50_000, 100_000] as const;
 type Scale = (typeof SCALES)[number];
 
+/**
+ * Roughly how long one node's `compute` takes, in milliseconds.
+ *
+ * The four types used to be identity passthroughs at a few microseconds each,
+ * which made the headline — a hundred thousand nodes *with logic* — a lie, and
+ * made the wavefront impossible to watch: an eight-millisecond slice started
+ * something like twelve hundred nodes, so every card on screen lit within a
+ * frame or two and went dark together. With real work in them a slice covers
+ * tens of nodes and the wave crosses the board at a speed a person can see.
+ *
+ * A hundred thousand of these is several seconds of evaluation, which is why
+ * Stop exists.
+ */
+const COMPUTE_MS = 0.05;
+
+/** Busy work that cannot be optimised away, and returns something usable. */
+function think(seed: number): number {
+  const until = performance.now() + COMPUTE_MS;
+  let value = seed;
+  while (performance.now() < until) {
+    value = (value * 31 + 7) % 100_000;
+  }
+  return value;
+}
+
 const CONNECTION: NodeTypeDefinition = {
   id: 'connection',
   label: 'Database',
   accent: '#0e7c86',
   ports: [{ id: 'schema', direction: 'out', label: 'Schema' }],
   initialState: () => 1,
-  compute: (_inputs, ctx) => ({ schema: ctx.state }),
+  compute: (_inputs, ctx) => ({ schema: think(Number(ctx.state) || 1) }),
 };
 
 const TABLE: NodeTypeDefinition = {
@@ -57,7 +83,7 @@ const TABLE: NodeTypeDefinition = {
     { id: 'schema', direction: 'in', label: 'Schema' },
     { id: 'table', direction: 'out', label: 'Table' },
   ],
-  compute: inputs => ({ table: inputs['schema'] }),
+  compute: inputs => ({ table: think(Number(inputs['schema']) || 1) }),
 };
 
 const DESCRIBE: NodeTypeDefinition = {
@@ -67,7 +93,7 @@ const DESCRIBE: NodeTypeDefinition = {
     { id: 'table', direction: 'in', label: 'Table' },
     { id: 'columns', direction: 'out', label: 'Columns' },
   ],
-  compute: inputs => ({ columns: inputs['table'] }),
+  compute: inputs => ({ columns: think(Number(inputs['table']) || 1) }),
 };
 
 const QUERY: NodeTypeDefinition = {
@@ -78,7 +104,7 @@ const QUERY: NodeTypeDefinition = {
     { id: 'columns', direction: 'in', label: 'Columns' },
     { id: 'rows', direction: 'out', label: 'Rows' },
   ],
-  compute: inputs => ({ rows: inputs['columns'] }),
+  compute: inputs => ({ rows: think(Number(inputs['columns']) || 1) }),
 };
 
 interface Workload {
@@ -177,6 +203,33 @@ export class InfiniteCanvasStressDemoComponent {
   readonly connections = signal<readonly NodeConnection[]>([]);
   readonly groups = signal<readonly NodeGroup[]>([]);
 
+  /** The editor, for Run and Stop. */
+  protected readonly editorRef = viewChild<NodeEditorComponent>('editor');
+
+  protected readonly evaluating = signal(false);
+  protected readonly settled = signal(0);
+  /**
+   * Slice and gap, in milliseconds.
+   *
+   * The two numbers that say WHICH limit is being hit. `slice` is how long the
+   * drain held the thread; `gap` is everything else the frame did — change
+   * detection, layout, paint. If the gap dwarfs the slice then the budget is
+   * not the lever and no value of `sliceMs` will help, which is a thing worth
+   * knowing before tuning a constant.
+   */
+  protected readonly sliceMs = signal<number | null>(null);
+  protected readonly gapMs = signal<number | null>(null);
+
+  /**
+   * Counted in a plain field and published once per gap.
+   *
+   * A signal write per settled node would schedule change detection a hundred
+   * thousand times inside the very frames this is meant to keep clear.
+   */
+  private settledSinceGap = 0;
+  private sliceStarted = 0;
+  private gapStarted = 0;
+
   protected readonly cardsInDom = signal(0);
   protected readonly measuring = signal(false);
   protected readonly worst = signal<number | null>(null);
@@ -200,8 +253,63 @@ export class InfiniteCanvasStressDemoComponent {
   }
 
   protected select(scale: Scale): void {
-    if (scale === this.scale()) return;
+    // Switching mid-run would delete nodes underneath an evaluation; the
+    // runtime survives that, but the graph the user gets is not the one they
+    // asked for. Stop first.
+    if (scale === this.scale() || this.evaluating()) return;
     this.load(scale);
+  }
+
+  /**
+   * Evaluates the graph, and watches what each frame is actually spent on.
+   *
+   * The editor's own yield is wrapped rather than replaced, so the measurement
+   * observes the real mechanism instead of a copy of it.
+   */
+  protected async run(): Promise<void> {
+    const editor = this.editorRef();
+    if (!editor || this.evaluating()) return;
+
+    const runtime = editor.runtime;
+    const yieldTo = runtime.yieldTo;
+    if (!yieldTo) return;
+
+    this.evaluating.set(true);
+    this.settled.set(0);
+    this.settledSinceGap = 0;
+    this.sliceStarted = performance.now();
+
+    const countSettled = (): void => {
+      this.settledSinceGap++;
+    };
+    runtime.onNodeSettled = countSettled;
+
+    runtime.yieldTo = async (): Promise<void> => {
+      this.gapStarted = performance.now();
+      this.sliceMs.set(this.gapStarted - this.sliceStarted);
+
+      await yieldTo();
+
+      const resumed = performance.now();
+      this.gapMs.set(resumed - this.gapStarted);
+      this.sliceStarted = resumed;
+      this.settled.update(count => count + this.settledSinceGap);
+      this.settledSinceGap = 0;
+    };
+
+    try {
+      await runtime.run();
+    } finally {
+      runtime.yieldTo = yieldTo;
+      runtime.onNodeSettled = null;
+      this.settled.update(count => count + this.settledSinceGap);
+      this.evaluating.set(false);
+      this.countCards();
+    }
+  }
+
+  protected stop(): void {
+    this.editorRef()?.cancel();
   }
 
   protected toggleGroups(): void {
