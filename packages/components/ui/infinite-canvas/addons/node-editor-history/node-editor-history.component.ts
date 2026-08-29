@@ -129,7 +129,7 @@ export class NodeEditorHistoryComponent {
       .runLabel.replace('{id}', String(run.id))
       .replace('{time}', formatStartedAt(run.startedAt, this.localeId()))
       .replace('{duration}', formatDuration(run.durationMs))
-      .replace('{count}', String(run.nodes.length));
+      .replace('{count}', String(run.settledCount));
   }
 
   protected runClasses(run: RunRecord): string {

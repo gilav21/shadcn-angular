@@ -197,8 +197,25 @@ export interface RunFinishedEvent {
   readonly runId: number;
   readonly startedAt: number;
   readonly durationMs: number;
-  /** In settle order, which is the order the work actually completed. */
+  /**
+   * In settle order, which is the order the work actually completed.
+   *
+   * **Capped.** A hundred-thousand-node run would otherwise retain a settle
+   * event per node, each holding a copy of that node's inputs and outputs, for
+   * as long as the run is held. The first {@link MAX_SESSION_EVENTS} are kept
+   * — the oldest, deliberately, because a replay needs the upstream sources
+   * that settle first far more than it needs the tail.
+   *
+   * Anything that needs to be true of the WHOLE run reads the three fields
+   * below instead of this array. `nodes.length` is not the node count.
+   */
   readonly nodes: readonly NodeSettledEvent[];
+  /** How many nodes settled, whether or not each is still in `nodes`. */
+  readonly settledCount: number;
+  /** Total compute time across every settled node, including those dropped. */
+  readonly durationTotalMs: number;
+  /** The slowest node of the whole run, which may not be in `nodes`. */
+  readonly slowest: NodeSettledEvent | null;
   /** `error` when any node in the pass errored. */
   readonly status: 'done' | 'error';
 }

@@ -58,17 +58,22 @@ export function formatStartedAt(startedAt: number, localeId: string): string {
  * `null` for an empty run rather than a fabricated zero-duration entry.
  */
 export function slowestNode(run: RunRecord): RunRecord['nodes'][number] | null {
-  return run.nodes.reduce<RunRecord['nodes'][number] | null>(
-    (slowest, node) =>
-      slowest === null || node.durationMs > slowest.durationMs ? node : slowest,
-    null,
-  );
+  /*
+   * From the run, not from the retained list.
+   *
+   * `nodes` is a capped prefix, and on a large run the genuinely slowest node
+   * is as likely as not to have settled past the cap — so reducing over what
+   * was kept would confidently name the wrong node. The runtime tracks the
+   * maximum as it goes, which costs one comparison per settle.
+   */
+  return run.slowest;
 }
 
 /** How much of the run each node accounted for, 0–1. */
 export function shareOfRun(run: RunRecord, durationMs: number): number {
-  const total = run.nodes.reduce((sum, node) => sum + node.durationMs, 0);
-  return total > 0 ? durationMs / total : 0;
+  // The whole run's total, for the same reason: summing the retained prefix
+  // would inflate every share, and they would no longer add up to the run.
+  return run.durationTotalMs > 0 ? durationMs / run.durationTotalMs : 0;
 }
 
 /**

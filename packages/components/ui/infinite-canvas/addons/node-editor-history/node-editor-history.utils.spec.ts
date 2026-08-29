@@ -24,15 +24,56 @@ function nodeRecord(overrides: Partial<RunNodeRecord> = {}): RunNodeRecord {
 }
 
 function runRecord(nodes: readonly RunNodeRecord[] = [nodeRecord()]): RunRecord {
+    /*
+     * The totals are derived from `nodes` here, which is what an UNCAPPED run
+     * looks like. The cap's own behaviour — totals that outrun the retained
+     * list — is asserted in the store spec, where the cap lives.
+     */
     return {
         id: 1,
         startedAt: 1_700_000_000_000,
         durationMs: 12,
         status: 'done',
         nodes,
+        settledCount: nodes.length,
+        durationTotalMs: nodes.reduce((sum, node) => sum + node.durationMs, 0),
+        slowest: nodes.reduce<RunNodeRecord | null>(
+            (slowest, node) =>
+                slowest === null || node.durationMs > slowest.durationMs ? node : slowest,
+            null,
+        ),
         graph: null,
     };
 }
+
+describe('the run-wide readouts do not read the retained prefix', () => {
+    /*
+     * `nodes` is capped, and on a large run the genuinely slowest node is as
+     * likely as not to have settled past the cap — so reducing over what was
+     * kept would confidently name the wrong node, and summing it would inflate
+     * every share. Both read what the runtime tracked across the whole run.
+     */
+    const capped: RunRecord = {
+        id: 7,
+        startedAt: 1_700_000_000_000,
+        durationMs: 500,
+        status: 'done',
+        nodes: [nodeRecord({ nodeId: 'kept', durationMs: 4 })],
+        settledCount: 900,
+        durationTotalMs: 1_000,
+        slowest: nodeRecord({ nodeId: 'dropped', durationMs: 800 }),
+        graph: null,
+    };
+
+    it('names a slowest node that is no longer in the list', () => {
+        expect(slowestNode(capped)?.nodeId).toBe('dropped');
+    });
+
+    it('shares against the whole run, not the prefix', () => {
+        // 4 / 1000, not 4 / 4.
+        expect(shareOfRun(capped, 4)).toBeCloseTo(0.004, 5);
+    });
+});
 
 describe('replayFrame — what makes replay possible at all', () => {
     /**

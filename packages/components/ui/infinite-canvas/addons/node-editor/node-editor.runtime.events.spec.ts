@@ -269,6 +269,38 @@ describe('the finished run, as a record', () => {
     });
 });
 
+describe('a run bigger than the event cap', () => {
+    /*
+     * Every settle event holds a copy of that node's inputs and outputs, so an
+     * uncapped run over a hundred thousand nodes retains a hundred thousand
+     * events and two hundred thousand cloned objects until the run is released
+     * — and slicing deliberately makes runs last seconds rather than
+     * milliseconds, so the peak is held far longer.
+     *
+     * The array is a capped prefix; everything that must be true of the whole
+     * run travels beside it. Anything reading `nodes.length` as the node count
+     * is reading the cap.
+     */
+    it('keeps a prefix, and totals that describe the whole run', async () => {
+        const size = 5_200;
+        const nodes = [node('root', 'source')];
+        const connections: NodeConnection[] = [];
+        for (let i = 0; i < size; i++) {
+            nodes.push(node(`n${i}`, 'double'));
+            connections.push(link(`c${i}`, 'root', `n${i}`));
+        }
+
+        const graph = recording(nodes, connections);
+        await graph.runtime.run();
+
+        const finished = graph.finished[0];
+        expect(finished.nodes.length).toBeLessThanOrEqual(5_000);
+        expect(finished.settledCount).toBe(size + 1);
+        expect(finished.slowest).not.toBeNull();
+        graph.runtime.dispose();
+    }, 60_000);
+});
+
 describe('no observer', () => {
     it('runs perfectly well with nothing listening', async () => {
         const runtime = new NodeGraphRuntime();

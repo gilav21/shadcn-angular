@@ -38,8 +38,49 @@ function finished(
     nodes: readonly NodeSettledEvent[] = [settled({ runId })],
     status: 'done' | 'error' = 'done',
 ): RunFinishedEvent {
-    return { runId, startedAt: 1_700_000_000_000, durationMs: 9, nodes, status };
+    return {
+        runId,
+        startedAt: 1_700_000_000_000,
+        durationMs: 9,
+        nodes,
+        settledCount: nodes.length,
+        durationTotalMs: nodes.reduce((sum, node) => sum + node.durationMs, 0),
+        slowest: nodes.at(0) ?? null,
+        status,
+    };
 }
+
+describe('a run larger than the event cap', () => {
+    /*
+     * A hundred-thousand-node run would otherwise retain a settle event per
+     * node, each holding a copy of that node's inputs and outputs. The array
+     * is a capped PREFIX, so everything that has to be true of the whole run
+     * travels beside it — and the panel's own readouts are built from those,
+     * not from the array's length.
+     */
+    it('keeps the totals honest when the array is only a prefix', () => {
+        const store = new RunHistoryStore();
+        store.begin(started(1), graph());
+
+        const kept = [settled({ runId: 1, nodeId: 'a', durationMs: 4 })];
+        const record = store.finish({
+            runId: 1,
+            startedAt: 1_700_000_000_000,
+            durationMs: 9,
+            nodes: kept,
+            // The run settled a thousand nodes; one of them is in `nodes`.
+            settledCount: 1_000,
+            durationTotalMs: 4_000,
+            slowest: settled({ runId: 1, nodeId: 'slow', durationMs: 900 }),
+            status: 'done',
+        });
+
+        expect(record.nodes).toHaveLength(1);
+        expect(record.settledCount).toBe(1_000);
+        expect(record.durationTotalMs).toBe(4_000);
+        expect(record.slowest?.nodeId).toBe('slow');
+    });
+});
 
 describe('collecting runs', () => {
     it('keeps a finished run', () => {

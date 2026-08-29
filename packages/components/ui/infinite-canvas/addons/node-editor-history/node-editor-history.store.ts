@@ -90,6 +90,9 @@ export class RunHistoryStore {
       durationMs: event.durationMs,
       status: event.status,
       nodes: recordsFor(event.nodes, graph),
+      settledCount: event.settledCount,
+      durationTotalMs: event.durationTotalMs,
+      slowest: event.slowest ? recordsFor([event.slowest], graph)[0] : null,
       graph,
     };
 

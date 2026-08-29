@@ -49,7 +49,12 @@ interface RunSession {
   readonly id: number;
   readonly startedAt: number;
   readonly startedTick: number;
+  /** Capped at {@link MAX_SESSION_EVENTS}; the totals below cover the rest. */
   readonly nodes: NodeSettledEvent[];
+  settledCount: number;
+  durationTotalMs: number;
+  slowest: NodeSettledEvent | null;
+  errored: boolean;
 }
 
 /** Monotonic where available; `performance` is absent in some SSR shims. */
@@ -134,6 +139,20 @@ const NO_CONNECTIONS: readonly NodeConnection[] = [];
 const DEFAULT_STALENESS: StalenessPolicy = 'cancel';
 /** Guards a pathological graph from spinning forever rather than hanging silently. */
 const MAX_DRAIN_ITERATIONS = 100_000;
+
+/**
+ * How many settle events one run keeps.
+ *
+ * Each holds a copy of a node's inputs and outputs, so an uncapped run over a
+ * hundred thousand nodes retains a hundred thousand events and two hundred
+ * thousand cloned objects until the run is released.
+ *
+ * The FIRST this many are kept rather than the most recent: a replay is built
+ * from these, and the upstream sources — which settle first — are what it
+ * needs. Keeping the tail would also mean an array shift per settle on the
+ * hot path, which is the cost profile this bound exists to avoid.
+ */
+const MAX_SESSION_EVENTS = 5_000;
 
 /**
  * How many computed-node ids the metrics keep.
@@ -1209,6 +1228,10 @@ export class NodeGraphRuntime {
       startedAt: Date.now(),
       startedTick: tick(),
       nodes: [],
+      settledCount: 0,
+      durationTotalMs: 0,
+      slowest: null,
+      errored: false,
     };
     this.onRunStarted?.({
       runId: this.session.id,
@@ -1228,7 +1251,12 @@ export class NodeGraphRuntime {
       startedAt: session.startedAt,
       durationMs: tick() - session.startedTick,
       nodes: session.nodes,
-      status: session.nodes.some(node => node.status === 'error') ? 'error' : 'done',
+      settledCount: session.settledCount,
+      durationTotalMs: session.durationTotalMs,
+      slowest: session.slowest,
+      // Read from the session, not from `nodes`: a run whose only error
+      // settled past the cap is still an error.
+      status: session.errored ? 'error' : 'done',
     });
   }
 
@@ -1270,10 +1298,24 @@ export class NodeGraphRuntime {
   private async execute(batch: readonly NodeId[]): Promise<void> {
     const local: NodeId[] = [];
     const remote: NodeId[] = [];
+
+    /*
+     * The remote half is stamped for the batch, because it genuinely IS one
+     * batched call. The local half is stamped per node, in `executeLocal`
+     * just before its compute begins.
+     *
+     * Stamping the whole batch up front was near enough while a layer ran in
+     * one unbroken block. It stops being true the moment a layer can span
+     * frames: a node started a second into the layer would report a second of
+     * `durationMs` for a six-microsecond compute, and every consumer of it —
+     * the run-history panel's per-node timings, `slowestNode`, `shareOfRun` —
+     * would be quietly wrong rather than visibly broken.
+     */
     const startedTick = tick();
     for (const node of batch) {
-      this.startedTicks.set(node, startedTick);
-      (this.definition(node)?.remote === true ? remote : local).push(node);
+      const isRemote = this.definition(node)?.remote === true;
+      if (isRemote) this.startedTicks.set(node, startedTick);
+      (isRemote ? remote : local).push(node);
     }
     await Promise.all([
       Promise.all(local.map(n => this.executeLocal(n))),
@@ -1306,6 +1348,7 @@ export class NodeGraphRuntime {
       return;
     }
 
+    this.startedTicks.set(nodeId, tick());
     const run = this.beginRun(nodeId, definition);
     this.recordComputed(nodeId);
     this.setStatus(nodeId, 'running');
@@ -1610,8 +1653,22 @@ export class NodeGraphRuntime {
       error: status === 'error' ? this.errorSignal(nodeId)() : undefined,
       durationMs: startedTick === undefined ? 0 : tick() - startedTick,
     };
-    this.session?.nodes.push(event);
+    this.record(event);
     this.onNodeSettled?.(event);
+  }
+
+  /** Files one settle against the run in flight, within the event cap. */
+  private record(event: NodeSettledEvent): void {
+    const session = this.session;
+    if (!session) return;
+
+    session.settledCount++;
+    session.durationTotalMs += event.durationMs;
+    if (event.status === 'error') session.errored = true;
+    if (!session.slowest || event.durationMs > session.slowest.durationMs) {
+      session.slowest = event;
+    }
+    if (session.nodes.length < MAX_SESSION_EVENTS) session.nodes.push(event);
   }
 
   // ================================================================ problems

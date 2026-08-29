@@ -37,6 +37,9 @@ describe('InfiniteCanvasDemoComponent — run history is only recorded when aske
     startedAt: 0,
     durationMs: 1,
     nodes: [],
+    settledCount: 0,
+    durationTotalMs: 0,
+    slowest: null,
     status: 'done',
   };
 

@@ -22,8 +22,31 @@ function nodeRecord(overrides: Partial<RunNodeRecord> = {}): RunNodeRecord {
     };
 }
 
+/**
+ * A run whose totals agree with its nodes.
+ *
+ * `nodes` is a capped prefix in production, so the totals are carried
+ * separately — which means a hand-written fixture can set them to something
+ * the nodes contradict. Deriving them here keeps that impossible for the
+ * uncapped case these tests describe.
+ */
+function withTotals(
+    run: Omit<RunRecord, 'settledCount' | 'durationTotalMs' | 'slowest'>,
+): RunRecord {
+    return {
+        ...run,
+        settledCount: run.nodes.length,
+        durationTotalMs: run.nodes.reduce((sum, node) => sum + node.durationMs, 0),
+        slowest: run.nodes.reduce<RunNodeRecord | null>(
+            (slowest, node) =>
+                slowest === null || node.durationMs > slowest.durationMs ? node : slowest,
+            null,
+        ),
+    };
+}
+
 const RUNS: RunRecord[] = [
-    {
+    withTotals({
         id: 2,
         startedAt: Date.UTC(2026, 0, 1, 12, 0, 30),
         durationMs: 1500,
@@ -40,15 +63,15 @@ const RUNS: RunRecord[] = [
             }),
         ],
         graph: null,
-    },
-    {
+    }),
+    withTotals({
         id: 1,
         startedAt: Date.UTC(2026, 0, 1, 12, 0, 0),
         durationMs: 6,
         status: 'done',
         nodes: [nodeRecord()],
         graph: null,
-    },
+    }),
 ];
 
 @Component({

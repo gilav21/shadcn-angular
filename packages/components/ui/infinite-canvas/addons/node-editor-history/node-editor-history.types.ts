@@ -33,8 +33,19 @@ export interface RunRecord {
   readonly startedAt: number;
   readonly durationMs: number;
   readonly status: 'done' | 'error';
-  /** In the order the work actually completed. */
+  /**
+   * In the order the work actually completed — and **capped**, so this is a
+   * prefix of the run, not the whole of it. Read {@link settledCount},
+   * {@link durationTotalMs} and {@link slowest} for anything that has to be
+   * true of the entire run.
+   */
   readonly nodes: readonly RunNodeRecord[];
+  /** How many nodes settled, whether or not each is still in `nodes`. */
+  readonly settledCount: number;
+  /** Total compute time across the whole run, including dropped events. */
+  readonly durationTotalMs: number;
+  /** The slowest node of the whole run, which may not appear in `nodes`. */
+  readonly slowest: RunNodeRecord | null;
   /**
    * The graph as it was when the run began.
    *
