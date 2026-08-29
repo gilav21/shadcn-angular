@@ -331,6 +331,35 @@ export class NodeGraphRuntime {
   /** Backend hand-off. `null` means every node runs locally. */
   executeRemote: RemoteExecutor | null = null;
 
+  /**
+   * How the drain hands the host a chance to paint. `null` never yields.
+   *
+   * A drain resolves its awaits in MICROTASKS, which do not let the browser
+   * paint — so every layer runs back to back in one block of main thread, and
+   * a hundred thousand nodes is a frozen page. Set this and the drain stops
+   * for a moment whenever it has spent {@link sliceMs} starting computes.
+   *
+   * It must yield to the EVENT LOOP, not the microtask queue:
+   * `() => Promise.resolve()` type-checks, satisfies every test that only
+   * counts calls, and paints nothing. The editor supplies an animation frame
+   * raced against a timer — a bare `requestAnimationFrame` never fires in a
+   * hidden tab, which would leave a drain waiting for ever.
+   *
+   * Defaults to `null` so a runtime is deterministic for its own tests, for a
+   * headless consumer, and for a child runtime nested inside another's
+   * `compute`, where spanning frames would change abort semantics.
+   */
+  yieldTo: (() => Promise<void>) | null = null;
+
+  /**
+   * Milliseconds a slice may spend STARTING computes before it yields.
+   *
+   * It bounds how many computes are started between gaps, not how long any one
+   * of them takes — a single `compute` that burns half a second cannot be
+   * interrupted by anything.
+   */
+  sliceMs = 8;
+
   /** Wording for the problems this reports. Replaced by the editor per locale. */
   messages: RuntimeMessages = DEFAULT_MESSAGES;
 
@@ -374,6 +403,16 @@ export class NodeGraphRuntime {
   private reorders = 0;
   /** See {@link RuntimeMetrics.readyScans}. */
   private readyScans = 0;
+  /**
+   * When the slice in flight must yield, as a `tick()` reading.
+   *
+   * A runtime field, not a local in `execute`: `execute` runs once per LAYER,
+   * so a deadline scoped to it restarts on every layer and a deep, narrow
+   * graph would never reach it. Reset only when a yield actually happens.
+   */
+  private sliceDeadline = 0;
+  /** Aborted on dispose, so a yield that never resolves cannot hold a drain. */
+  private readonly disposal = new AbortController();
 
   get metrics(): RuntimeMetrics {
     return {
@@ -1114,6 +1153,10 @@ export class NodeGraphRuntime {
     if (this.draining) await this.draining;
     if (this.readySet.size === 0) return;
 
+    // Its own deadline: a `step` inherits whatever a previous drain left
+    // behind, which is always in the past, and would yield before its one node.
+    this.sliceDeadline = tick() + this.sliceMs;
+
     let next: NodeId | null = null;
     let best = Number.POSITIVE_INFINITY;
     for (const nodeId of this.readySet) {
@@ -1261,6 +1304,7 @@ export class NodeGraphRuntime {
   }
 
   private async drain(automatic: boolean): Promise<void> {
+    this.sliceDeadline = tick() + this.sliceMs;
     let guard = 0;
     let batch = this.runnableNow(automatic);
     while (batch.length > 0) {
@@ -1317,10 +1361,82 @@ export class NodeGraphRuntime {
       if (isRemote) this.startedTicks.set(node, startedTick);
       (isRemote ? remote : local).push(node);
     }
-    await Promise.all([
-      Promise.all(local.map(n => this.executeLocal(n))),
-      this.executeRemoteBatch(remote),
-    ]);
+    /*
+     * `local` is captured ONCE, above, and must never be re-derived inside
+     * this loop.
+     *
+     * `readySet` is not a set of unstarted nodes — `execute` does not remove a
+     * node when it starts one, and a started-but-unsettled node is still
+     * dirty, so `refresh()` can put a RUNNING node back into it. This stays
+     * safe only because every `runnableNow()` call happens after `execute` has
+     * awaited everything it started. Re-deriving the batch here would hand the
+     * same node to `executeLocal` twice; for a `reactive: false` node — an
+     * HTTP POST, the case that flag exists for — that is a duplicate request.
+     */
+    const remoteWork = this.executeRemoteBatch(remote);
+    await Promise.all([this.startLocal(local), remoteWork]);
+  }
+
+  /**
+   * Starts a layer's local computes, pausing for a frame when the slice is up.
+   *
+   * `local` is captured by the caller and must never be re-derived here — see
+   * the note in {@link execute}.
+   */
+  private async startLocal(local: readonly NodeId[]): Promise<void> {
+    const started: Promise<void>[] = [];
+
+    for (const nodeId of local) {
+      if (this.disposed) break;
+
+      /*
+       * Re-validated before every start, which is what makes cutting a layer
+       * mid-flight safe.
+       *
+       * A gap lets anything happen: an edit, a delete, a graph swap, or a
+       * sibling's own `setState` — and `markDirty`, `markCycle` and `setGraph`
+       * all WITHDRAW readiness. Starting a node whose readiness was withdrawn
+       * computes it from a stale upstream, and because it captures its version
+       * after the bump, it settles CLEAN. Nothing ever recomputes it: a
+       * permanently wrong value with no error and no stale badge. Skipping is
+       * self-healing — the node stays dirty and the next layer takes it in
+       * proper order.
+       */
+      if (!this.readySet.has(nodeId)) continue;
+
+      if (this.yieldTo !== null && tick() >= this.sliceDeadline) {
+        await this.yieldForSlice();
+        if (this.disposed) break;
+        if (!this.readySet.has(nodeId)) continue;
+      }
+
+      started.push(this.executeLocal(nodeId));
+    }
+
+    await Promise.all(started);
+  }
+
+  /**
+   * Gives the host a moment, and cannot be held hostage by it.
+   *
+   * `yieldTo` is consumer-editable source. One that never resolves would
+   * otherwise hold `draining` for ever and every later `run()` and `step()`
+   * awaits that — the same wedge `raceAbort` exists to prevent one layer down
+   * — so it is raced against disposal. One that throws is a fault in a
+   * presentation-layer callback and must not abandon a drain mid-layer with
+   * nodes left `running`, so it is treated as absent from then on.
+   */
+  private async yieldForSlice(): Promise<void> {
+    const yieldTo = this.yieldTo;
+    if (!yieldTo) return;
+
+    try {
+      await raceAbort(yieldTo(), this.disposal.signal);
+    } catch {
+      this.yieldTo = null;
+    }
+
+    this.sliceDeadline = tick() + this.sliceMs;
   }
 
   private async executeLocal(nodeId: NodeId): Promise<void> {
@@ -1837,6 +1953,7 @@ export class NodeGraphRuntime {
 
   /** Abort everything in flight and refuse further work. */
   dispose(): void {
+    this.disposal.abort();
     this.disposed = true;
     // Snapshotted: both loops delete from the collection they read.
     const running = [...this.active.keys()];
