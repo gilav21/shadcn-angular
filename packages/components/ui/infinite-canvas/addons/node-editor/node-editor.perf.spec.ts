@@ -352,6 +352,56 @@ describe('ENFORCED — a full drain stays linear in the size of the graph', () =
     });
 });
 
+describe('ENFORCED — building a graph dirties each node once', () => {
+    /*
+     * Every connection dirties its target's descendants. Doing that once per
+     * connection re-walks the same nodes once per incoming edge, so the cost
+     * is O(nodes x in-degree) rather than O(nodes) — and on a wide graph that
+     * is most of what building it costs.
+     *
+     * A count, not a clock: this measurement swung eighty milliseconds between
+     * identical runs on a quiet machine, which is more than the thing being
+     * measured.
+     */
+    it('visits each node about once, not once per incoming edge', () => {
+        const runtime = new NodeGraphRuntime();
+        runtime.setDefinitions(DEFS);
+        runtime.resetMetrics();
+
+        /*
+         * A CHAIN, which is the shape that separates the two.
+         *
+         * A fan-out cannot: every target's descendant cone is just itself, so
+         * walking per connection and walking once cost the same, and the first
+         * version of this test passed with the regression in place. In a chain
+         * each connection's target has the whole rest of the graph below it, so
+         * per-connection walking is quadratic and batching is linear.
+         */
+        const nodes = [node('n0', 'source')];
+        const connections = [];
+        for (let i = 1; i < 500; i++) {
+            nodes.push(node(`n${i}`, 'passthrough'));
+            connections.push({
+                id: `c${i}`,
+                source: `n${i - 1}`,
+                sourcePort: 'out',
+                target: `n${i}`,
+                targetPort: 'in',
+            });
+        }
+        runtime.setGraph(nodes, connections);
+
+        /*
+         * 500 nodes, each dirtied by `addNode` and then reached once by the
+         * batched walk: two visits each is the honest floor. Four times the
+         * node count leaves room for that, and sits far below the quadratic —
+         * walking per connection visits about 125,000.
+         */
+        expect(runtime.metrics.dirtyScans).toBeLessThan(nodes.length * 4);
+        runtime.dispose();
+    });
+});
+
 // ============================================================ LOGGED: timings
 
 describe('LOGGED — wall clock, never enforced', () => {

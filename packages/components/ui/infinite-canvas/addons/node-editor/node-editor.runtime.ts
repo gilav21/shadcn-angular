@@ -110,6 +110,18 @@ export interface RuntimeMetrics {
    * counter that watched one of the two would have said nothing about it.
    */
   readonly readyScans: number;
+  /**
+   * Nodes visited while propagating dirtiness.
+   *
+   * A count, for the same reason as {@link readyScans}: building a graph
+   * dirties the descendants of every connection, and doing that once per
+   * connection re-walks the same nodes once per incoming edge. On a board with
+   * ninety-six thousand connections that is the difference between visiting
+   * each node once and visiting it as many times as it has ancestors — a
+   * difference invisible to every functional test and to a wall clock noisy
+   * enough to swing eighty milliseconds between identical runs.
+   */
+  readonly dirtyScans: number;
 }
 
 /**
@@ -139,6 +151,16 @@ const NO_CONNECTIONS: readonly NodeConnection[] = [];
 const DEFAULT_STALENESS: StalenessPolicy = 'cancel';
 /** Guards a pathological graph from spinning forever rather than hanging silently. */
 const MAX_DRAIN_ITERATIONS = 100_000;
+
+/**
+ * The outputs of a node that has not produced any.
+ *
+ * Shared and frozen: a fresh `{}` per node is a hundred thousand objects for a
+ * board where most of them are replaced the first time anything runs, and
+ * never written through in the meantime — `applyOutputs` always assigns a new
+ * object rather than mutating this one.
+ */
+const EMPTY_PORTS: PortValues = Object.freeze({});
 
 /**
  * How many settle events one run keeps.
@@ -236,6 +258,17 @@ export class NodeGraphRuntime {
   // ---- values and memoisation (design §4) --------------------------------
   private readonly outputValues = new Map<NodeId, PortValues>();
   private readonly stateValues = new Map<NodeId, unknown>();
+  /**
+   * Node status, behind the signals rather than inside them.
+   *
+   * A signal per node is an object, a producer record and a place in the
+   * reactive graph — and building a hundred-thousand-node board minted one for
+   * every node's state AND one for its status before anything had asked to see
+   * either. Almost none are ever read: the ones that matter belong to the few
+   * hundred cards actually mounted. The value lives here; the signal is minted
+   * on the first read and seeded from here, so a reader still sees the truth.
+   */
+  private readonly statusValues = new Map<NodeId, NodeStatus>();
   private readonly lastInputs = new Map<NodeId, PortValues>();
   private readonly lastState = new Map<NodeId, unknown>();
   private readonly emitSeq = new Map<string, number>();
@@ -410,6 +443,8 @@ export class NodeGraphRuntime {
   private reorders = 0;
   /** See {@link RuntimeMetrics.readyScans}. */
   private readyScans = 0;
+  /** See {@link RuntimeMetrics.dirtyScans}. */
+  private dirtyScans = 0;
   /**
    * When the slice in flight must yield, as a `tick()` reading.
    *
@@ -430,6 +465,7 @@ export class NodeGraphRuntime {
       openIterators: this.iterators.size,
       retained: this.retainedNodes().size,
       readyScans: this.readyScans,
+      dirtyScans: this.dirtyScans,
     };
   }
 
@@ -467,6 +503,7 @@ export class NodeGraphRuntime {
       this.active,
       this.iterators,
       this.statusSignals,
+      this.statusValues,
       this.outputSignals,
       this.inputSignals,
       this.stateSignals,
@@ -489,6 +526,7 @@ export class NodeGraphRuntime {
     this.remoteCalls = 0;
     this.reorders = 0;
     this.readyScans = 0;
+    this.dirtyScans = 0;
   }
 
   readonly problems: Signal<readonly GraphProblem[]> = this.problemsSignal.asReadonly();
@@ -598,9 +636,16 @@ export class NodeGraphRuntime {
     this.nodes.set(node.id, node);
     this.order.push(node.id);
     this.position.set(node.id, this.order.length - 1);
-    this.outgoing.set(node.id, new Set());
-    this.incoming.set(node.id, new Set());
-    this.outputValues.set(node.id, {});
+    /*
+     * No adjacency sets, and no output object, until there is something to put
+     * in them.
+     *
+     * Every reader already tolerates a missing entry — `?? []` at each of
+     * them — because a node can legitimately have no edges in one direction.
+     * Pre-creating both meant two hundred thousand empty Sets for a board
+     * where half of them stay empty for ever: sources have no incoming, sinks
+     * no outgoing. `setConnections` mints the ones an edge actually needs.
+     */
 
     /*
      * A state written for this id BEFORE the node arrived wins over the type's
@@ -617,12 +662,29 @@ export class NodeGraphRuntime {
      * `has` rather than `?? `: `undefined` is a legitimate state, and a node
      * whose state was deliberately set to it must not fall back to the type.
      */
+    this.outputValues.set(node.id, EMPTY_PORTS);
+
     const initial = this.stateValues.has(node.id)
       ? this.stateValues.get(node.id)
       : this.definitions.get(node.type ?? '')?.initialState?.();
     this.stateValues.set(node.id, initial);
-    this.stateSignal(node.id).set(initial);
-    this.markDirty(node.id);
+    // Not `stateSignal(...).set(...)`: minting one here builds a signal for
+    // every node in the graph before anything has asked to read one.
+    this.stateSignals.get(node.id)?.set(initial);
+
+    /*
+     * Inlined rather than `markDirty(node.id)`.
+     *
+     * A node being added has no edges yet — `setConnections` runs after this —
+     * so the descendant walk is the node itself, and paying for a `Set` and an
+     * array to discover that, a hundred thousand times, is the single largest
+     * allocation in building a graph.
+     */
+    this.cyclesStale = true;
+    this.dirtyVersion.set(node.id, (this.dirtyVersion.get(node.id) ?? 0) + 1);
+    this.dirty.add(node.id);
+    this.setStatus(node.id, 'stale');
+    this.readySet.delete(node.id);
   }
 
   private removeNode(id: NodeId): void {
@@ -669,6 +731,7 @@ export class NodeGraphRuntime {
      * node is gone.
      */
     this.statusSignals.delete(id);
+    this.statusValues.delete(id);
     this.outputSignals.delete(id);
     this.inputSignals.delete(id);
     this.stateSignals.delete(id);
@@ -732,24 +795,28 @@ export class NodeGraphRuntime {
       a.target !== b.target ||
       a.targetPort !== b.targetPort;
 
+    const orphaned: NodeId[] = [];
     for (const [id, connection] of before) {
       const replacement = after.get(id);
       if (!replacement || rewired(connection, replacement)) {
         // design §7 — an edge going away must tear its stream down.
         this.teardownIterator(connection.source);
-        this.markDirty(connection.target);
+        orphaned.push(connection.target);
       }
     }
+    this.markDirtyAll(orphaned);
     this.connections = next;
     this.rebuildAdjacency();
     this.rebuildTargetIndex();
 
+    const arrived: NodeId[] = [];
     for (const [id, connection] of after) {
       const previous = before.get(id);
       if (previous && !rewired(previous, connection)) continue;
       this.repairOrder(connection.source, connection.target);
-      this.markDirty(connection.target);
+      arrived.push(connection.target);
     }
+    this.markDirtyAll(arrived);
   }
 
   private rebuildTargetIndex(): void {
@@ -770,8 +837,8 @@ export class NodeGraphRuntime {
     for (const set of this.outgoing.values()) set.clear();
     for (const set of this.incoming.values()) set.clear();
     for (const c of this.connections) {
-      this.outgoing.get(c.source)?.add(c.target);
-      this.incoming.get(c.target)?.add(c.source);
+      this.edgesFrom(c.source).add(c.target);
+      this.edgesInto(c.target).add(c.source);
     }
   }
 
@@ -791,7 +858,7 @@ export class NodeGraphRuntime {
   setState(nodeId: NodeId, next: unknown): void {
     if (this.disposed) return;
     this.stateValues.set(nodeId, next);
-    this.stateSignal(nodeId).set(next);
+    this.stateSignals.get(nodeId)?.set(next);
     if (!this.nodes.has(nodeId)) return;
     this.markDirty(nodeId);
     // Dynamic ports come from state, so an edit can add or remove a problem.
@@ -872,14 +939,38 @@ export class NodeGraphRuntime {
 
   // ================================================== dirty and ready (§2,§3)
 
+  /**
+   * Dirty everything downstream of ALL of `starts`, in one walk.
+   *
+   * `markDirty` allocates a visited set and a stack per call, and rebuilding a
+   * graph calls it once per connection: ninety-six thousand walks over the
+   * same descendants, each paying for its own bookkeeping and re-visiting
+   * nodes an earlier one had already reached. Sharing the visited set makes it
+   * one walk that touches each node once.
+   *
+   * A node reachable from two of the starts has its version bumped once here
+   * rather than twice, which is the more honest count anyway: this is one
+   * edit, so it is one change in dirtiness.
+   */
+  private markDirtyAll(starts: Iterable<NodeId>): void {
+    const seen = new Set<NodeId>();
+    const stack: NodeId[] = [];
+    for (const start of starts) stack.push(start);
+    this.walkDirty(stack, seen);
+  }
+
   private markDirty(start: NodeId): void {
     // A local `seen` set rather than skipping already-dirty nodes: the version
     // has to be bumped even for a node that is currently running, or its
     // settle would clear a dirtiness it never addressed. `seen` still keeps a
     // diamond's tail visited once, and a cycle from looping forever.
-    const seen = new Set<NodeId>();
-    const stack = [start];
+    this.walkDirty([start], new Set<NodeId>());
+  }
+
+  /** The dirtying walk itself, shared by {@link markDirty} and its batch form. */
+  private walkDirty(stack: NodeId[], seen: Set<NodeId>): void {
     while (stack.length > 0) {
+      this.dirtyScans++;
       const node = stack.pop() as NodeId;
       if (seen.has(node)) continue;
       seen.add(node);
@@ -908,6 +999,26 @@ export class NodeGraphRuntime {
   private propagateFrom(nodeId: NodeId): void {
     for (const next of this.outgoing.get(nodeId) ?? []) this.markDirty(next);
     this.refresh();
+  }
+
+  /** The outgoing set for a node, created on first use. */
+  private edgesFrom(nodeId: NodeId): Set<NodeId> {
+    let edges = this.outgoing.get(nodeId);
+    if (!edges) {
+      edges = new Set<NodeId>();
+      this.outgoing.set(nodeId, edges);
+    }
+    return edges;
+  }
+
+  /** The incoming set for a node, created on first use. */
+  private edgesInto(nodeId: NodeId): Set<NodeId> {
+    let edges = this.incoming.get(nodeId);
+    if (!edges) {
+      edges = new Set<NodeId>();
+      this.incoming.set(nodeId, edges);
+    }
+    return edges;
   }
 
   /** The dirtiness a run is setting out to satisfy. */
@@ -1772,7 +1883,7 @@ export class NodeGraphRuntime {
 
     this.dirty.delete(nodeId);
     this.readySet.delete(nodeId);
-    if (this.statusSignal(nodeId)() !== 'cycle') this.setStatus(nodeId, status);
+    if (this.statusOf(nodeId) !== 'cycle') this.setStatus(nodeId, status);
     this.report(nodeId, status);
     this.refreshAfter(nodeId);
   }
@@ -1839,7 +1950,7 @@ export class NodeGraphRuntime {
         severity: 'error',
       });
     }
-    if (this.statusSignal(nodeId)() === 'cycle') {
+    if (this.statusOf(nodeId) === 'cycle') {
       problems.push({
         kind: 'cycle',
         nodeId,
@@ -1936,10 +2047,15 @@ export class NodeGraphRuntime {
   private statusSignal(nodeId: NodeId): WritableSignal<NodeStatus> {
     let existing = this.statusSignals.get(nodeId);
     if (!existing) {
-      existing = signal<NodeStatus>('idle');
+      existing = signal<NodeStatus>(this.statusValues.get(nodeId) ?? 'idle');
       this.statusSignals.set(nodeId, existing);
     }
     return existing;
+  }
+
+  /** The status without minting a signal for a node nobody is watching. */
+  private statusOf(nodeId: NodeId): NodeStatus {
+    return this.statusValues.get(nodeId) ?? 'idle';
   }
 
   private outputSignal(nodeId: NodeId): WritableSignal<PortValues> {
@@ -1954,7 +2070,7 @@ export class NodeGraphRuntime {
   private stateSignal(nodeId: NodeId): WritableSignal<unknown> {
     let existing = this.stateSignals.get(nodeId);
     if (!existing) {
-      existing = signal<unknown>(undefined);
+      existing = signal<unknown>(this.stateValues.get(nodeId));
       this.stateSignals.set(nodeId, existing);
     }
     return existing;
@@ -1970,7 +2086,9 @@ export class NodeGraphRuntime {
   }
 
   private setStatus(nodeId: NodeId, status: NodeStatus): void {
-    this.statusSignal(nodeId).set(status);
+    this.statusValues.set(nodeId, status);
+    // Only if someone is actually watching this node.
+    this.statusSignals.get(nodeId)?.set(status);
   }
 
   /** Abort everything in flight and refuse further work. */
@@ -2070,6 +2188,7 @@ export class NodeGraphRuntime {
     this.lastState.clear();
     this.emitSeq.clear();
     this.statusSignals.clear();
+    this.statusValues.clear();
     this.outputSignals.clear();
     this.inputSignals.clear();
     this.stateSignals.clear();
