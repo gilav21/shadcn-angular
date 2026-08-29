@@ -220,23 +220,6 @@ interface DragState {
 }
 
 /**
- * A graph of nodes with named ports, connected by edges between those ports.
- *
- * Built on `ui-infinite-canvas`, which supplies pan, zoom, virtualisation and
- * the batched edge layer. This adds ports, port-anchored edges, connect and
- * disconnect, node dragging, selection — and the keyboard and screen-reader
- * model that makes all of it usable without a mouse, which is the part every
- * other node-graph library omits. See `specs/node-editor-spec.md`.
- *
- * ### Why events are delegated rather than bound
- *
- * Node cards are created and recycled by the canvas's view pool as the
- * viewport moves, so there is no stable binding scope to attach handlers to.
- * The editor listens once at its root and resolves the target from
- * `data-node` / `data-port`.
- */
-
-/**
  * Keeps a gesture's events coming to the element that started it.
  *
  * Without capture, releasing the mouse outside the editor delivers `pointerup`
@@ -262,6 +245,22 @@ function capturePointer(event: PointerEvent): void {
   }
 }
 
+/**
+ * A graph of nodes with named ports, connected by edges between those ports.
+ *
+ * Built on `ui-infinite-canvas`, which supplies pan, zoom, virtualisation and
+ * the batched edge layer. This adds ports, port-anchored edges, connect and
+ * disconnect, node dragging, selection — and the keyboard and screen-reader
+ * model that makes all of it usable without a mouse, which is the part every
+ * other node-graph library omits. See `specs/node-editor-spec.md`.
+ *
+ * ### Why events are delegated rather than bound
+ *
+ * Node cards are created and recycled by the canvas's view pool as the
+ * viewport moves, so there is no stable binding scope to attach handlers to.
+ * The editor listens once at its root and resolves the target from
+ * `data-node` / `data-port`.
+ */
 @Component({
   selector: 'ui-node-editor',
   exportAs: 'uiNodeEditor',
@@ -1891,7 +1890,6 @@ export class NodeEditorComponent {
     );
     return true;
   }
-
 
   // ----------------------------------------------------------------- keyboard
 

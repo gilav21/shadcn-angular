@@ -28,6 +28,16 @@ import {
 } from './node-editor-minimap.utils';
 
 /**
+ * Most node boxes and edges drawn into the minimap, however many exist.
+ *
+ * The picture is a couple of hundred pixels across, so past this the marks
+ * land on top of one another and add nothing a reader can see. Sampling with a
+ * regular stride keeps the board's shape, which is what a minimap is for.
+ */
+const MAX_DRAWN_NODES = 2_000;
+const MAX_DRAWN_EDGES = 2_000;
+
+/**
  * An overview of the whole graph, and a way to navigate it.
  *
  * ### Why a canvas rather than DOM
@@ -42,16 +52,6 @@ import {
  * Nodes in, navigation out. It never touches the editor, so it can be rendered
  * and tested on its own — the same shape as the other addons.
  */
-/**
- * Most node boxes and edges drawn into the minimap, however many exist.
- *
- * The picture is a couple of hundred pixels across, so past this the marks
- * land on top of one another and add nothing a reader can see. Sampling with a
- * regular stride keeps the board's shape, which is what a minimap is for.
- */
-const MAX_DRAWN_NODES = 2_000;
-const MAX_DRAWN_EDGES = 2_000;
-
 @Component({
   selector: 'ui-node-editor-minimap',
   exportAs: 'uiNodeEditorMinimap',

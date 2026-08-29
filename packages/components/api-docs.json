@@ -7784,6 +7784,12 @@
           "type": "boolean",
           "description": "Render zones and comments without letting them be moved, resized or edited.",
           "default": "false"
+        },
+        {
+          "name": "viewport",
+          "type": "CanvasRect | null",
+          "description": "The world rectangle on screen, for culling. `null` renders every group. A zone off screen still costs a `<section>`, a `<button>`, their bindings and a place in the compositor's world — and a board can hold thousands of them, none of which anyone can see. `null` is a real state rather than a hedge: a consumer rendering zones outside a canvas has no viewport to give.",
+          "default": "null"
         }
       ],
       "outputs": [
