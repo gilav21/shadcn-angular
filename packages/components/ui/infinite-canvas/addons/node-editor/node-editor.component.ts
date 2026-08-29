@@ -1197,8 +1197,24 @@ export class NodeEditorComponent {
   }
 
   /** Evaluate the whole graph. */
+  /**
+   * Says what the graph is doing, for anyone not watching it.
+   *
+   * An evaluation used to finish faster than it could be described, so silence
+   * was fair. Now that a large one takes seconds, a screen reader would sit
+   * through the whole thing with no indication that anything was happening —
+   * and then no indication that it had stopped. Once at each end, politely;
+   * announcing per node would be unusable.
+   */
   async run(): Promise<void> {
+    const pending = this.runtime.ready().length;
+    if (pending > 0) this.announce(this.t().evaluationStarted);
+
     await this.runtime.run();
+
+    if (pending > 0) {
+      this.announce(interpolate(this.t().evaluationFinished, { count: pending }));
+    }
   }
 
   /** Evaluate exactly one ready node — the single-step mode. */

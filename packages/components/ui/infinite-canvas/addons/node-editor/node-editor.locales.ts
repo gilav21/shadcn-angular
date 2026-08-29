@@ -28,6 +28,8 @@ export interface NodeEditorLocale extends LocaleMeta {
   hintProvides: string;
 
   nodeAdded: string;
+  evaluationStarted: string;
+  evaluationFinished: string;
   connectionCancelled: string;
   connectionRemoved: string;
   nodesSelected: string;
@@ -74,6 +76,8 @@ export const NODE_EDITOR_LOCALES: Record<string, NodeEditorLocale> = {
     hintExpects: '{label}: input, expects {type}',
     hintProvides: '{label}: output, provides {type}',
     nodeAdded: '{label} added.',
+    evaluationStarted: 'Evaluating the graph.',
+    evaluationFinished: 'Evaluation finished, {count} nodes.',
     connectionCancelled: 'Connection cancelled.',
     connectionRemoved: 'Connection removed.',
     nodesSelected: '{count} nodes selected.',
@@ -108,6 +112,8 @@ export const NODE_EDITOR_LOCALES: Record<string, NodeEditorLocale> = {
     hintExpects: '{label}: קלט, מצפה ל-{type}',
     hintProvides: '{label}: פלט, מספק {type}',
     nodeAdded: '{label} נוסף.',
+    evaluationStarted: 'מחשב את הגרף.',
+    evaluationFinished: 'החישוב הסתיים, {count} צמתים.',
     connectionCancelled: 'החיבור בוטל.',
     connectionRemoved: 'החיבור הוסר.',
     nodesSelected: '{count} צמתים נבחרו.',
@@ -142,6 +148,8 @@ export const NODE_EDITOR_LOCALES: Record<string, NodeEditorLocale> = {
     hintExpects: '{label}: إدخال، يتوقع {type}',
     hintProvides: '{label}: إخراج، يوفر {type}',
     nodeAdded: 'تمت إضافة {label}.',
+    evaluationStarted: 'جارٍ حساب الرسم البياني.',
+    evaluationFinished: 'انتهى الحساب، {count} عقدة.',
     connectionCancelled: 'تم إلغاء الاتصال.',
     connectionRemoved: 'تمت إزالة الاتصال.',
     nodesSelected: 'تم تحديد {count} عقدة.',
@@ -175,6 +183,8 @@ export const NODE_EDITOR_LOCALES: Record<string, NodeEditorLocale> = {
     hintExpects: '{label}: Eingang, erwartet {type}',
     hintProvides: '{label}: Ausgang, liefert {type}',
     nodeAdded: '{label} hinzugefügt.',
+    evaluationStarted: 'Graph wird ausgewertet.',
+    evaluationFinished: 'Auswertung beendet, {count} Knoten.',
     connectionCancelled: 'Verbindung abgebrochen.',
     connectionRemoved: 'Verbindung entfernt.',
     nodesSelected: '{count} Knoten ausgewählt.',
@@ -208,6 +218,8 @@ export const NODE_EDITOR_LOCALES: Record<string, NodeEditorLocale> = {
     hintExpects: '{label} : entrée, attend {type}',
     hintProvides: '{label} : sortie, fournit {type}',
     nodeAdded: '{label} ajouté.',
+    evaluationStarted: 'Évaluation du graphe.',
+    evaluationFinished: 'Évaluation terminée, {count} nœuds.',
     connectionCancelled: 'Connexion annulée.',
     connectionRemoved: 'Connexion supprimée.',
     nodesSelected: '{count} nœuds sélectionnés.',
@@ -241,6 +253,8 @@ export const NODE_EDITOR_LOCALES: Record<string, NodeEditorLocale> = {
     hintExpects: '{label}: entrada, espera {type}',
     hintProvides: '{label}: salida, ofrece {type}',
     nodeAdded: '{label} añadido.',
+    evaluationStarted: 'Evaluando el grafo.',
+    evaluationFinished: 'Evaluación terminada, {count} nodos.',
     connectionCancelled: 'Conexión cancelada.',
     connectionRemoved: 'Conexión eliminada.',
     nodesSelected: '{count} nodos seleccionados.',
@@ -274,6 +288,8 @@ export const NODE_EDITOR_LOCALES: Record<string, NodeEditorLocale> = {
     hintExpects: '{label}: 入力、{type} を受け取ります',
     hintProvides: '{label}: 出力、{type} を返します',
     nodeAdded: '{label} を追加しました。',
+    evaluationStarted: 'グラフを評価しています。',
+    evaluationFinished: '評価が完了しました。{count} ノード。',
     connectionCancelled: '接続をキャンセルしました。',
     connectionRemoved: '接続を削除しました。',
     nodesSelected: '{count} 個のノードを選択しました。',
@@ -307,6 +323,8 @@ export const NODE_EDITOR_LOCALES: Record<string, NodeEditorLocale> = {
     hintExpects: '{label}：输入，需要 {type}',
     hintProvides: '{label}：输出，提供 {type}',
     nodeAdded: '已添加 {label}。',
+    evaluationStarted: '正在计算图。',
+    evaluationFinished: '计算完成，{count} 个节点。',
     connectionCancelled: '已取消连接。',
     connectionRemoved: '已移除连接。',
     nodesSelected: '已选择 {count} 个节点。',
@@ -340,6 +358,8 @@ export const NODE_EDITOR_LOCALES: Record<string, NodeEditorLocale> = {
     hintExpects: '{label}: вход, ожидает {type}',
     hintProvides: '{label}: выход, выдаёт {type}',
     nodeAdded: '{label} добавлен.',
+    evaluationStarted: 'Вычисление графа.',
+    evaluationFinished: 'Вычисление завершено, узлов: {count}.',
     connectionCancelled: 'Соединение отменено.',
     connectionRemoved: 'Соединение удалено.',
     nodesSelected: 'Выбрано узлов: {count}.',
@@ -373,6 +393,8 @@ export const NODE_EDITOR_LOCALES: Record<string, NodeEditorLocale> = {
     hintExpects: '{label}: entrada, espera {type}',
     hintProvides: '{label}: saída, fornece {type}',
     nodeAdded: '{label} adicionado.',
+    evaluationStarted: 'Avaliando o grafo.',
+    evaluationFinished: 'Avaliação concluída, {count} nós.',
     connectionCancelled: 'Ligação cancelada.',
     connectionRemoved: 'Ligação removida.',
     nodesSelected: '{count} nós selecionados.',

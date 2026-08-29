@@ -438,3 +438,31 @@ describe('the drain lets the browser breathe', () => {
         expect(editor.runtime.outputs('u')()['out']).toBe('BACKGROUNDED');
     }, 15_000);
 });
+
+describe('a long evaluation is not silent', () => {
+    const ctx = setup();
+
+    beforeEach(() => ctx.create());
+    afterEach(() => ctx.destroy());
+
+    /*
+     * Evaluation used to finish faster than it could be described, so saying
+     * nothing was fair. A sliced run takes seconds, and a screen reader would
+     * otherwise sit through the whole thing with no sign that anything was
+     * happening — and then no sign that it had stopped.
+     */
+    it('announces that it started and that it finished', async () => {
+        const live = document.querySelector('[aria-live]');
+        expect(live).not.toBeNull();
+
+        ctx.editor.runtime.setState('t', { value: 'spoken' });
+        await ctx.editor.run();
+
+        // The shared region clears itself and re-publishes 50ms later, so that
+        // a repeated identical message is read out again rather than ignored.
+        await new Promise(resolve => setTimeout(resolve, 80));
+
+        const said = live?.textContent ?? '';
+        expect(said).toContain('finished');
+    });
+});

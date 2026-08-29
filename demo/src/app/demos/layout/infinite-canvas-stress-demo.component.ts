@@ -384,10 +384,18 @@ export class InfiniteCanvasStressDemoComponent {
     const started = previous;
     this.measuring.set(true);
 
+    /*
+     * The sampler does NOT count cards each frame.
+     *
+     * `countCards` runs `querySelectorAll` over the document and writes a
+     * signal. Doing that inside the loop made the instrument part of what it
+     * was measuring — several milliseconds of DOM query and a change-detection
+     * schedule, charged to every frame of the very measurement that exists to
+     * find several milliseconds. It is sampled once at each end instead.
+     */
     const step = (now: number): void => {
       samples.push(now - previous);
       previous = now;
-      this.countCards();
 
       if (now - started < SAMPLE_MS) {
         this.frameHandle = requestAnimationFrame(step);
